@@ -225,7 +225,7 @@ namespace StingTools.Core.Plumbing
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 
@@ -239,7 +239,7 @@ namespace StingTools.Core.Plumbing
                 if (p != null && p.HasValue && p.StorageType == StorageType.Integer)
                     return p.AsInteger().ToString();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "";
         }
 
@@ -251,7 +251,7 @@ namespace StingTools.Core.Plumbing
                 if (p != null && p.HasValue && p.StorageType == StorageType.String) return (p.AsString() ?? "").ToUpperInvariant();
                 if (el is MEPCurve mc) return (mc.MEPSystem?.Name ?? "").ToUpperInvariant();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "";
         }
 
@@ -268,7 +268,7 @@ namespace StingTools.Core.Plumbing
                 foreach (var c in candidates)
                     if (File.Exists(c)) return c;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 

@@ -140,7 +140,7 @@ namespace StingTools.Core.Placement
                 if ((p.AsString() ?? "") == value) return;
                 p.Set(value);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
     }
 }

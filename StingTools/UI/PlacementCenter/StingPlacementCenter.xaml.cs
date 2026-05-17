@@ -75,7 +75,7 @@ namespace StingTools.UI.PlacementCenter
                     SetForegroundWindow(hwnd);
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"[StingPlacementCenter] RaiseRevitToFront BringWindowToTop: {ex.Message}"); }
         }
 
         private void EnsureRunEvent()
@@ -128,11 +128,11 @@ namespace StingTools.UI.PlacementCenter
                                     // Phase 139.11 — first room reached → kill the
                                     // pre-flight heartbeat so the per-room status
                                     // is visible and not overwritten.
-                                    try { req.HeartbeatCts?.Cancel(); } catch { }
+                                    try { req.HeartbeatCts?.Cancel(); } catch (Exception ex) { StingLog.Warn($"[PlacementRunHandler] Cancel pre-flight heartbeat: {ex.Message}"); }
                                     req.Progress?.Increment($"Room {done} of {total}…");
                                     return req.Progress?.IsCancelled == true;
                                 }
-                                catch { return false; }
+                                catch (Exception ex) { StingLog.Warn($"[PlacementRunHandler] Per-room progress callback: {ex.Message}"); return false; }
                             });
                         tg.Assimilate();
                     }
@@ -157,7 +157,7 @@ namespace StingTools.UI.PlacementCenter
                         catch (Exception ex) { StingLog.Warn($"OnRunCompleted: {ex.Message}"); }
                     }));
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"[PlacementRunHandler] Signal/Dispatch OnRunCompleted: {ex.Message}"); }
             }
         }
 
@@ -178,7 +178,7 @@ namespace StingTools.UI.PlacementCenter
             {
                 this.Title = $"STING — Placement Centre  [build {StingTools.Core.Placement.FixturePlacementEngine.BuildStamp}  {StingTools.Core.Placement.FixturePlacementEngine.PhaseTag}]";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"[StingPlacementCenter] Set window title with build stamp: {ex.Message}"); }
             ThemeManager.InitialiseResources();
 
         // Phase 139.10b — ExternalEvent.Create must be called from a
@@ -396,7 +396,7 @@ namespace StingTools.UI.PlacementCenter
                 if (activeDoc != null && _instance._doc != null &&
                     !ReferenceEquals(activeDoc, _instance._doc))
                 {
-                    try { _instance.Close(); } catch { }
+                    try { _instance.Close(); } catch (Exception ex) { StingLog.Warn($"[StingPlacementCenter] Close stale instance for doc switch: {ex.Message}"); }
                     _instance = null;
                 }
                 else
@@ -429,7 +429,7 @@ namespace StingTools.UI.PlacementCenter
                 _uiApp.Application.DocumentClosing += OnRevitDocumentClosing;
                 this.Closed += (_, __) =>
                 {
-                    try { _uiApp.Application.DocumentClosing -= OnRevitDocumentClosing; } catch { }
+                    try { _uiApp.Application.DocumentClosing -= OnRevitDocumentClosing; } catch (Exception ex) { StingLog.Warn($"[StingPlacementCenter] Unhook DocumentClosing: {ex.Message}"); }
                 };
             }
             catch (Exception ex) { StingLog.Warn($"PlacementCenter HookDocumentLifecycle: {ex.Message}"); }
@@ -614,8 +614,8 @@ namespace StingTools.UI.PlacementCenter
                         if (fi.LevelId != vp.GenLevel.Id) continue;
                         doorsTotal++;
                         Autodesk.Revit.DB.Architecture.Room from = null, to = null;
-                        try { from = fi.FromRoom; } catch { }
-                        try { to = fi.ToRoom; } catch { }
+                        try { from = fi.FromRoom; } catch (Exception ex) { StingLog.Warn($"[StingPlacementCenter] Pre-flight read door.FromRoom: {ex.Message}"); }
+                        try { to = fi.ToRoom; } catch (Exception ex) { StingLog.Warn($"[StingPlacementCenter] Pre-flight read door.ToRoom: {ex.Message}"); }
                         if (from != null || to != null) doorsWithSpatial++;
                     }
                     if (doorsTotal > 0 && doorsWithSpatial == 0)
@@ -780,7 +780,7 @@ namespace StingTools.UI.PlacementCenter
             // during pre-flight (catalogue scan, two-phase shared-param
             // check, first-fix box placement) which can each take many
             // seconds before the first per-room progress increment fires.
-            try { progress.SetStatus("Pre-flight — scanning loaded families…"); } catch { }
+            try { progress.SetStatus("Pre-flight — scanning loaded families…"); } catch (Exception ex) { StingLog.Warn($"[StingPlacementCenter] Set pre-flight status text: {ex.Message}"); }
             // Background ticker so the dialog never looks frozen even when
             // a pre-flight step pauses the API thread for a stretch.
             var heartbeatCts = new System.Threading.CancellationTokenSource();
@@ -796,7 +796,7 @@ namespace StingTools.UI.PlacementCenter
                     string label = string.IsNullOrEmpty(phase)
                         ? $"Pre-flight in progress ({n * 1.5:F0}s)…"
                         : $"{phase} ({n * 1.5:F0}s)…";
-                    try { progress.SetStatus(label); } catch { break; }
+                    try { progress.SetStatus(label); } catch (Exception ex) { StingLog.Warn($"[StingPlacementCenter] Heartbeat SetStatus: {ex.Message}"); break; }
                 }
             }, heartbeatCts.Token);
             // Phase 139.13 — non-blocking ExternalEvent dispatch.  The
@@ -823,7 +823,7 @@ namespace StingTools.UI.PlacementCenter
             try
             {
                 EnsureRunEvent();
-                try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = false; } catch { }
+                try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = false; } catch (Exception ex) { StingLog.Warn($"[StingPlacementCenter] Disable Run button before raise: {ex.Message}"); }
                 VM.Status = "Run in progress — please wait…";
                 UpdateStatus();
                 _runEvent.Raise();
@@ -832,11 +832,11 @@ namespace StingTools.UI.PlacementCenter
             {
                 StingLog.Error("PlacementCenter.OnRunPlacement raise", ex);
                 TaskDialog.Show("STING — Placement Centre", $"Could not start run: {ex.Message}");
-                try { heartbeatCts.Cancel(); } catch { }
-                try { progress?.Close(); } catch { }
+                try { heartbeatCts.Cancel(); } catch (Exception ex) { StingLog.Warn($"[StingPlacementCenter] Cancel heartbeat on raise failure: {ex.Message}"); }
+                try { progress?.Close(); } catch (Exception ex) { StingLog.Warn($"[StingPlacementCenter] Close progress on raise failure: {ex.Message}"); }
                 StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = prevStamp;
                 StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = prevLearn;
-                try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = true; } catch { }
+                try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = true; } catch (Exception ex) { StingLog.Warn($"[StingPlacementCenter] Re-enable Run button on raise failure: {ex.Message}"); }
                 return;
             }
             // Click-handler returns here. Engine runs on API thread; the
@@ -849,12 +849,12 @@ namespace StingTools.UI.PlacementCenter
         // (Dispatcher.BeginInvoke from the IExternalEventHandler).
         private void OnRunCompleted(PlacementRunRequest req, PlacementResult result, Exception err)
         {
-            try { req?.HeartbeatCts?.Cancel(); } catch { }
-            try { req?.Progress?.Close(); } catch { }
+            try { req?.HeartbeatCts?.Cancel(); } catch (Exception ex) { StingLog.Warn($"[StingPlacementCenter] OnRunCompleted cancel heartbeat: {ex.Message}"); }
+            try { req?.Progress?.Close(); } catch (Exception ex) { StingLog.Warn($"[StingPlacementCenter] OnRunCompleted close progress: {ex.Message}"); }
             StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = req?.PrevStamp ?? false;
             StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = req?.PrevLearn ?? false;
 
-            try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = true; } catch { }
+            try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = true; } catch (Exception ex) { StingLog.Warn($"[StingPlacementCenter] OnRunCompleted re-enable Run button: {ex.Message}"); }
             if (err != null)
             {
                 StingLog.Error("PlacementCenter.OnRunCompleted err", err);
@@ -1854,7 +1854,7 @@ namespace StingTools.UI.PlacementCenter
                     return new System.Windows.Media.SolidColorBrush(c);
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"[HexToBrushConverter] Parse colour hex: {ex.Message}"); }
             return System.Windows.Media.Brushes.White;
         }
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

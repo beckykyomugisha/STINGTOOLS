@@ -772,7 +772,7 @@ namespace StingTools.ExLink
             props.Add(BIP("Description", "ALL_MODEL_DESCRIPTION", "Identity"));
             props.Add(BIP("Manufacturer", "ALL_MODEL_MANUFACTURER", "Identity"));
             props.Add(BIP("Model", "ALL_MODEL_MODEL", "Identity"));
-            props.Add(Sting("ASS_SERIAL_NUMBER_TXT", "STING Identity"));
+            props.Add(Sting("ASS_SERIAL_NR_TXT", "STING Identity"));
             props.Add(Sting("ASS_WARRANTY_TXT", "STING Identity"));
             return props;
         }

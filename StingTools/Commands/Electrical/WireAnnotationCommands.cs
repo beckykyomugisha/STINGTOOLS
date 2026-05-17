@@ -310,7 +310,7 @@ namespace StingTools.Commands.Electrical
                 var p = el?.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
                 return string.Equals(p?.AsString(), target, StringComparison.Ordinal);
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         private static List<Element> GetAnnotationsForConduit(Document doc, View view, Element conduit)
@@ -370,7 +370,7 @@ namespace StingTools.Commands.Electrical
                     double.TryParse(p.AsString(), System.Globalization.NumberStyles.Float,
                         System.Globalization.CultureInfo.InvariantCulture, out csa);
                 }
-            } catch { }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             try
             {
@@ -385,7 +385,7 @@ namespace StingTools.Commands.Electrical
                     double.TryParse(p.AsString(), System.Globalization.NumberStyles.Float,
                         System.Globalization.CultureInfo.InvariantCulture, out vd);
                 }
-            } catch { }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // Recalculate VD from actual conduit length if stored value is missing/zero
             if (vd <= 0 && csa > 0 && cores > 0)
@@ -457,7 +457,7 @@ namespace StingTools.Commands.Electrical
                     double.TryParse(p.AsString(), System.Globalization.NumberStyles.Float,
                         System.Globalization.CultureInfo.InvariantCulture, out fill);
                 }
-            } catch { }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             double diaMm = 0.0;
             try
@@ -888,7 +888,7 @@ namespace StingTools.Commands.Electrical
                     && (string.Equals(v, MarkerTxt, StringComparison.Ordinal)
                      || v.StartsWith(MarkerTxt + "|", StringComparison.Ordinal));
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         public static bool IsSlashMark(CurveElement ce)
@@ -902,7 +902,7 @@ namespace StingTools.Commands.Electrical
                 return string.Equals(gs?.Name, "Wire Tick Marks", StringComparison.Ordinal)
                     || string.Equals(gs?.GraphicsStyleCategory?.Name, "Wire Tick Marks", StringComparison.Ordinal);
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         private static TextNoteType ResolveTextNoteType(Document doc)
@@ -989,7 +989,7 @@ namespace StingTools.Commands.Electrical
                 if (conduit is MEPCurve mc) cm = mc.ConnectorManager;
                 else if (conduit is FamilyInstance fi) cm = fi.MEPModel?.ConnectorManager;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
             if (cm == null) return false;
 
             Connector startConn = null;
@@ -1002,7 +1002,7 @@ namespace StingTools.Commands.Electrical
                     { startConn = c; break; }
                 }
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
             if (startConn == null || !startConn.IsConnected) return false;
 
             var visited  = new HashSet<long>();
@@ -1013,7 +1013,7 @@ namespace StingTools.Commands.Electrical
                 foreach (var fc in frontier)
                 {
                     ConnectorSet refs;
-                    try { refs = fc.AllRefs; } catch { continue; }
+                    try { refs = fc.AllRefs; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                     if (refs == null) continue;
                     foreach (Connector other in refs)
                     {

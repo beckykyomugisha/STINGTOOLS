@@ -41,7 +41,7 @@ namespace StingTools.Core.Drawing
         {
             if (doc == null) return "__null__";
             try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
-            catch { return "__unknown__"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "__unknown__"; }
         }
 
         public static void InvalidateCache(Document doc)
@@ -117,7 +117,7 @@ namespace StingTools.Core.Drawing
                     .WhereElementIsNotElementType()
                     .FirstOrDefault(e => string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static void SetScopeBox(View view, ElementId scopeBoxId, List<string> warnings)

@@ -44,7 +44,7 @@ namespace StingTools.Commands.DesignOptions
             {
                 foreach (var id in uidoc.Selection.GetElementIds())
                     if (doc.GetElement(id) is View v && !v.IsTemplate) views.Add(v);
-            } catch { }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             if (views.Count == 0)
             {

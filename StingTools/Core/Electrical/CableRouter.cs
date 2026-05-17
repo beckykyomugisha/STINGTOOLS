@@ -132,7 +132,7 @@ namespace StingTools.Core.Electrical
                         if (lc?.Curve != null)
                         {
                             n.LengthM  = lc.Curve.Length * FtToM;
-                            try { n.Midpoint = lc.Curve.Evaluate(0.5, true); } catch { }
+                            try { n.Midpoint = lc.Curve.Evaluate(0.5, true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                         else if (el.Location is LocationPoint lp)
                         {
@@ -158,7 +158,7 @@ namespace StingTools.Core.Electrical
                     {
                         if (c == null) continue;
                         ConnectorSet refs;
-                        try { refs = c.AllRefs; } catch { continue; }
+                        try { refs = c.AllRefs; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                         if (refs == null) continue;
                         foreach (Connector other in refs)
                         {
@@ -170,7 +170,7 @@ namespace StingTools.Core.Electrical
                                 if (!kv.Value.Neighbours.Contains(ownerId))
                                     kv.Value.Neighbours.Add(ownerId);
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                     }
                 }
@@ -244,7 +244,7 @@ namespace StingTools.Core.Electrical
                 var bb = el.get_BoundingBox(null);
                 if (bb != null) return 0.5 * (bb.Min + bb.Max);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
     }

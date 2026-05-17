@@ -73,7 +73,7 @@ namespace Planscape.Docs.Templates
                 if (p.StorageType == StorageType.Integer) return p.AsInteger().ToString();
                 return p.AsValueString();
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
     }
 }

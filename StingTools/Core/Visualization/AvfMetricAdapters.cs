@@ -80,7 +80,7 @@ namespace StingTools.Core.Visualization
                         fill = p.StorageType == StorageType.Double ? p.AsDouble() :
                                p.StorageType == StorageType.Integer ? p.AsInteger() : 0;
                     }
-                    catch { fill = 0; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); fill = 0; }
                 }
                 if (fill > 0) yield return (el.Id, fill);
             }
@@ -111,7 +111,7 @@ namespace StingTools.Core.Visualization
                     v = p.StorageType == StorageType.Double ? p.AsDouble() :
                         p.StorageType == StorageType.Integer ? p.AsInteger() : 0;
                 }
-                catch { continue; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                 if (v > 0) yield return (el.Id, v);
             }
         }
@@ -137,13 +137,13 @@ namespace StingTools.Core.Visualization
             foreach (var el in col)
             {
                 Element type = null;
-                try { type = doc.GetElement(el.GetTypeId()); } catch { }
+                try { type = doc.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 var p = type?.LookupParameter("STING_ACOUSTIC_RW_DB")
                     ?? el.LookupParameter("STING_ACOUSTIC_RW_DB");
                 if (p == null || !p.HasValue) continue;
                 int v = 0;
                 try { v = p.StorageType == StorageType.Integer ? p.AsInteger() : 0; }
-                catch { continue; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                 if (v > 0) yield return (el.Id, v);
             }
         }

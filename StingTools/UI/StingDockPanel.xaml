@@ -1020,6 +1020,10 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Edit Types" Tag="DrawingTypes_Editor" Click="Cmd_Click" ToolTip="Open the Drawing Type editor — corporate baseline + project overrides, 15 built-in types, 6 tabs (Drawing Types / View Style Packs / Viewport Tools / Sheet Tools / Title Block / Sheet Manager)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Inspect" Tag="DrawingTypes_Inspect" Click="Cmd_Click" ToolTip="Read-only catalogue + routing table + validator report"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Reload JSON" Tag="DrawingTypes_Reload" Click="Cmd_Click" ToolTip="Clear registry cache so on-disk edits to STING_DRAWING_TYPES.json or _BIM_COORD/drawing_types.json take effect"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="AEC Filters" Tag="AecFilters_Create" Click="Cmd_Click" ToolTip="Phase 166 — Create all 199 corporate-baseline ParameterFilterElements in the active project (idempotent). Covers Arch/HVAC/Struct/Fire/Elec/Plumb/FM/ISO 19650/Coord/VT/QA."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Filter Inspect" Tag="AecFilters_Inspect" Click="Cmd_Click" ToolTip="Phase 166 — Read-only audit: list all STING AEC filters, show which are missing from the active project."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Filter Reload" Tag="AecFilters_Reload" Click="Cmd_Click" ToolTip="Phase 166 — Clear the AEC filter registry cache so edits to STING_AEC_FILTERS.json or project _BIM_COORD/aec_filters.json take effect."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Browser Org" Tag="DrawingTypes_BrowserOrganize" Click="Cmd_Click" ToolTip="Phase 113 Week 3 — Diagnostic: report how many views are stamped with STING_DRAWING_TYPE_ID_TXT and whether the 'STING - by Drawing Type' browser organization is active. Shows manual steps to enable it."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Pres Setup" Tag="DrawingTypes_PresentationSetup" Click="Cmd_Click" ToolTip="Create the custom fill patterns (STING-Pres-Herringbone / HorizontalCladding / RoofHatch) and entourage / Generic Models subcategories (STING-LargeTree / STING-SmallShrub / STING-PresGround) required by the pres-* presentation style packs. Idempotent — safe to re-run."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Group Browser" Tag="DrawingTypes_GroupBrowser" Click="Cmd_Click" ToolTip="Pivot the registry by discipline — quick overview of every drawing type that exists per discipline"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Sync Styles" Tag="DrawingTypes_SyncStyles" Click="Cmd_Click" ToolTip="Reload registry then report which view templates and viewport types referenced by drawing types are missing in the active project"/>
@@ -3249,6 +3253,8 @@
                                             ToolTip="Export issues as BCF 2.1 with viewpoints and element refs"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="BCF Import" Tag="BCFImport" Click="Cmd_Click"
                                             ToolTip="Import BCF issues with dedup detection"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="BCF Sync" Tag="BCFSync" Click="Cmd_Click"
+                                            ToolTip="Scan project and BIM manager directory for .bcf/.bcfzip files and import any not yet tracked in the issue register"/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource ActionBtn}" Content="Procore" Tag="ProcorePackage" Click="Cmd_Click"
@@ -3347,6 +3353,8 @@
                                             ToolTip="Create/update Revision Register schedule"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Auto Rev" Tag="AutoRevisionOnTagChange" Click="Cmd_Click"
                                             ToolTip="Auto-detect tag changes and create revision when threshold exceeded"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Cloud Audit" Tag="RevisionCloudAudit" Click="Cmd_Click"
+                                            ToolTip="Audit all revision clouds: count per revision, unassigned clouds, sheets without clouds, missing cloud descriptions"/>
                                 </WrapPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="ADVANCED"/>
                                 <WrapPanel>

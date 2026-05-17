@@ -151,7 +151,7 @@ namespace Planscape.Docs.Templates
                                 Environment.UserName, "Bulk issue");
                             if (lr.Ok) ok++; else fail++;
                         }
-                        catch { fail++; }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); fail++; }
                     }
                     tx.Commit();
                 }

@@ -35,7 +35,7 @@ namespace StingTools.Core.Validation.Healthcare
                 if (p.StorageType == StorageType.ElementId) return p.AsElementId().Value.ToString();
                 return p.AsValueString() ?? "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         protected static double? GetParamDouble(Element el, string name)
@@ -49,7 +49,7 @@ namespace StingTools.Core.Validation.Healthcare
                 if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out var v)) return v;
                 return null;
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         protected static bool GetParamBool(Element el, string name)
@@ -66,7 +66,7 @@ namespace StingTools.Core.Validation.Healthcare
                 }
                 return false;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         // ── Cache-aware helpers (opt-in) ────────────────────────────────────
@@ -121,7 +121,7 @@ namespace StingTools.Core.Validation.Healthcare
                 return new FilteredElementCollector(doc).WherePasses(cats)
                     .WhereElementIsNotElementType().ToElements();
             }
-            catch { return System.Linq.Enumerable.Empty<Element>(); }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return System.Linq.Enumerable.Empty<Element>(); }
         }
     }
 }

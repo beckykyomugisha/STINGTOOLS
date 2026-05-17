@@ -44,7 +44,7 @@ namespace StingTools.Commands.Healthcare.Specialist
         }
         private static string Get(Element el, string n) {
             try { var p = el.LookupParameter(n); return p?.HasValue==true && p.StorageType==StorageType.String ? (p.AsString()??"") : ""; }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
     }
 }

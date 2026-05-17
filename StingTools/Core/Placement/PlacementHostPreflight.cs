@@ -64,8 +64,8 @@ namespace StingTools.Core.Placement
             if (doc == null) return "";
             string path = "";
             string title = "";
-            try { path = doc.PathName ?? ""; } catch { }
-            try { title = doc.Title  ?? ""; } catch { }
+            try { path = doc.PathName ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { title = doc.Title  ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return path + "|" + title;
         }
 
@@ -81,7 +81,7 @@ namespace StingTools.Core.Placement
                     .Cast<View3D>().FirstOrDefault(v => v != null && !v.IsTemplate);
                 _cachedView3DKey = docKey;
             }
-            catch { _cachedView3D = null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); _cachedView3D = null; }
             return _cachedView3D;
         }
 
@@ -371,7 +371,7 @@ namespace StingTools.Core.Placement
                     {
                         IList<Reference> faceRefs = null;
                         try { faceRefs = HostObjectUtils.GetSideFaces(wall, ShellLayerType.Interior); }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         if (faceRefs != null && faceRefs.Count > 0)
                         {
                             var faceRef = faceRefs[0];
@@ -405,7 +405,7 @@ namespace StingTools.Core.Placement
                     {
                         IList<Reference> faceRefs = null;
                         try { faceRefs = HostObjectUtils.GetBottomFaces(ceiling); }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         if (faceRefs != null && faceRefs.Count > 0)
                         {
                             var faceRef = faceRefs[0];
@@ -482,7 +482,7 @@ namespace StingTools.Core.Placement
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return best;
         }
 

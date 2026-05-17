@@ -171,7 +171,7 @@ namespace StingTools.UI
                     if (!string.IsNullOrEmpty(dataDir) && Directory.Exists(dataDir))
                         dataFiles = Directory.GetFiles(dataDir, "*.json", SearchOption.AllDirectories).Length;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 _statusBar.Text = $"{totalFiles} files across {activeCount} folders   |   " +
                                   $"{emptyCount} empty   |   _data: {dataFiles} JSON files";

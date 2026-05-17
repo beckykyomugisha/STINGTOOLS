@@ -2155,7 +2155,7 @@ namespace StingTools.Core
                     string tmp = ConfigSource + ".tmp";
                     File.WriteAllText(tmp, JsonConvert.SerializeObject(data, Formatting.Indented));
                     try { File.Replace(tmp, ConfigSource, ConfigSource + ".bak"); }
-                    catch { File.Copy(tmp, ConfigSource, true); try { File.Delete(tmp); } catch { } }
+                    catch { File.Copy(tmp, ConfigSource, true); try { File.Delete(tmp); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } }
                     // Invalidate cached config — GetConfigValue will re-read on next hit.
                     lock (_cfgCacheLock) { _cfgCached = null; _cfgCachedPath = null; _cfgCachedMTicks = 0; }
                 }
@@ -4356,7 +4356,7 @@ namespace StingTools.Core
                 string p = StingTools.Core.ProjectFolderEngine.GetDataPath(doc, "seq_counters.json");
                 if (!string.IsNullOrEmpty(p)) return p;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string dir = System.IO.Path.GetDirectoryName(projectPath);
             string fileName = System.IO.Path.GetFileNameWithoutExtension(projectPath);
             if (string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(fileName)) return null;
@@ -6490,7 +6490,7 @@ namespace StingTools.Core
                 }
                 if (p.StorageType == StorageType.Integer) return p.AsInteger() != 0;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 

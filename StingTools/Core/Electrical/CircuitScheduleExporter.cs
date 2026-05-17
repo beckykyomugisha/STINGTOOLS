@@ -209,22 +209,22 @@ namespace StingTools.Core.Electrical
         private static int SafeInt(Parameter p)
         {
             try { return p == null ? 0 : (p.StorageType == StorageType.Integer ? p.AsInteger() : (int)p.AsDouble()); }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
         private static int SafePoles(ElectricalSystem sys)
         {
-            try { return sys.PolesNumber; } catch { }
+            try { return sys.PolesNumber; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             try
             {
                 var p = sys.LookupParameter("Number of Poles") ?? sys.LookupParameter("Poles");
                 return SafeInt(p);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
         private static double SafeDouble(Parameter p)
         {
             try { return p == null ? 0 : p.AsDouble(); }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
     }
 }

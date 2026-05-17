@@ -114,7 +114,7 @@ namespace StingTools.Core.Fabrication
                     try
                     {
                         string assyName = "";
-                        try { assyName = (doc.GetElement(ai.GetTypeId()) as AssemblyType)?.Name ?? ""; } catch { }
+                        try { assyName = (doc.GetElement(ai.GetTypeId()) as AssemblyType)?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         string suffix = $"::{assemblyId.Value}";
                         string baseName = $"STING ISO 6412 - {assyName}";
                         if (string.IsNullOrEmpty(assyName)) baseName = "STING ISO 6412";

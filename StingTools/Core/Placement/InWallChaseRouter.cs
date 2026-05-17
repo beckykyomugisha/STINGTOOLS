@@ -166,14 +166,14 @@ namespace StingTools.Core.Placement
                     double t = (double)i / samples;
                     XYZ p;
                     try { p = curve.Evaluate(t, true); }
-                    catch { continue; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                     if (p == null) continue;
                     double d = DistancePointToSegmentFt(p, a, b);
                     if (d < best) best = d;
                 }
                 return best;
             }
-            catch { return double.MaxValue; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return double.MaxValue; }
         }
 
         private static double DistancePointToSegmentFt(XYZ p, XYZ a, XYZ b)
@@ -440,7 +440,7 @@ namespace StingTools.Core.Placement
                         // pick the correct side. Revit exposes the structural
                         // material via CompoundStructure.StructuralMaterialIndex.
                         int structuralIdx = -1;
-                        try { structuralIdx = cs.StructuralMaterialIndex; } catch { }
+                        try { structuralIdx = cs.StructuralMaterialIndex; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         // Walk interior-side layers (highest index first).
                         for (int i = layers.Count - 1; i >= 0; i--)
                         {
@@ -465,7 +465,7 @@ namespace StingTools.Core.Placement
                 var entry = ManufacturerCatalogueRegistry.GetForRule(rule);
                 if (entry != null && entry.BoxDepthMm > 0) pipeOdMm = entry.BoxDepthMm;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             if (pipeOdMm == 0)
             {
                 // Phase 139.28 — prefer rule.NominalDiameterMm when set
@@ -527,7 +527,7 @@ namespace StingTools.Core.Placement
                         if (wall.LevelId != null && wall.LevelId != ElementId.InvalidElementId)
                             levelZ = ((wall.Document.GetElement(wall.LevelId) as Level)?.Elevation) ?? 0.0;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     targetZFt = levelZ + rule.MountingHeightMm * MmToFt;
                 }
 
@@ -555,7 +555,7 @@ namespace StingTools.Core.Placement
                 return new FilteredElementCollector(_doc).OfClass(typeof(PipeType))
                     .FirstElementId() ?? ElementId.InvalidElementId;
             }
-            catch { return ElementId.InvalidElementId; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ElementId.InvalidElementId; }
         }
 
         private ElementId ResolveDefaultPipingSystem()
@@ -565,7 +565,7 @@ namespace StingTools.Core.Placement
                 return new FilteredElementCollector(_doc).OfClass(typeof(PipingSystemType))
                     .FirstElementId() ?? ElementId.InvalidElementId;
             }
-            catch { return ElementId.InvalidElementId; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ElementId.InvalidElementId; }
         }
 
         private void TryStampRouteRuleId(ElementId id, PlacementRule rule)

@@ -44,7 +44,7 @@ namespace StingTools.Core.Visualization
             foreach (var roomId in _roomIds)
             {
                 Room room = null;
-                try { room = _doc.GetElement(roomId) as Room; } catch { }
+                try { room = _doc.GetElement(roomId) as Room; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (room == null) continue;
                 foreach (var rule in _rules)
                 {

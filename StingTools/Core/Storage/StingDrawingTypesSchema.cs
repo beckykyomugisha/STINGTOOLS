@@ -119,7 +119,7 @@ namespace StingTools.Core.Storage
                 byte[] hash = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(s ?? ""));
                 return Convert.ToHexString(hash).ToLowerInvariant();
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
     }
 }

@@ -81,7 +81,7 @@ namespace StingTools.UI
             stack.Children.Add(btnCancel);
 
             win.Content = stack;
-            try { win.Owner = Application.Current?.MainWindow; } catch { }
+            try { win.Owner = Application.Current?.MainWindow; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             win.ShowDialog();
             return resolved ? result : null;
         }
@@ -114,7 +114,7 @@ namespace StingTools.UI
                 b = byte.Parse(s.Substring(4, 2), System.Globalization.NumberStyles.HexNumber);
                 return true;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
     }
 }

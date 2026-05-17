@@ -225,7 +225,7 @@ namespace Planscape.Docs.Templates
                 string v = p.AsString();
                 return string.IsNullOrEmpty(v) ? null : v;
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
     }
 

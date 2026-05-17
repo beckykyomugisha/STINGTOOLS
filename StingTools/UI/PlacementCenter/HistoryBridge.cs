@@ -53,7 +53,7 @@ namespace StingTools.UI.PlacementCenter
                 foreach (var el in col)
                 {
                     StingProvenanceSchema.Provenance p = null;
-                    try { p = StingProvenanceSchema.Read(el); } catch { }
+                    try { p = StingProvenanceSchema.Read(el); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     if (p == null) continue;
 
                     DateTime utc = p.CreatedUtcTicks > 0
@@ -122,7 +122,7 @@ namespace StingTools.UI.PlacementCenter
                             doc.Delete(id);
                             deleted++;
                         }
-                        catch { skipped++; }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; }
                     }
                     t.Commit();
                 }

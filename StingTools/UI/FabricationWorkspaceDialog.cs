@@ -124,7 +124,7 @@ namespace StingTools.UI
                 var helper = new System.Windows.Interop.WindowInteropHelper(this);
                 helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             Content = BuildLayout();
             HydrateFromOptions();
@@ -891,7 +891,7 @@ namespace StingTools.UI
             try
             {
                 var dlg = new ShopDrawingOptionsDialog(_doc);
-                try { dlg.Owner = this; } catch { }
+                try { dlg.Owner = this; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (dlg.ShowDialog() == true)
                 {
                     FabricationOptions.ShopDrawing = dlg.Result;

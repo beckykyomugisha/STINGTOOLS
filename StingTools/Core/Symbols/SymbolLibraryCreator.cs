@@ -638,7 +638,7 @@ namespace StingTools.Core.Symbols
                     // normal so model curves render in the elevation plane.
                     XYZ origin = XYZ.Zero;
                     XYZ normal;
-                    try { normal = v.ViewDirection; } catch { normal = XYZ.BasisY; }
+                    try { normal = v.ViewDirection; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); normal = XYZ.BasisY; }
                     SketchPlane sketch;
                     try { sketch = SketchPlane.Create(fdoc, Plane.CreateByNormalAndOrigin(normal, origin)); }
                     catch (Exception ex) { result.Warnings.Add($"{def.Id} section sketch '{v.Name}': {ex.Message}"); continue; }
@@ -1061,7 +1061,7 @@ namespace StingTools.Core.Symbols
 
             // Restore the default type so the family's "current"
             // selection matches the seed when first loaded.
-            try { fm.CurrentType = seed; } catch { }
+            try { fm.CurrentType = seed; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private static void SetVariantParam(FamilyManager fm, FamilyParameter p, string value)
@@ -1117,7 +1117,7 @@ namespace StingTools.Core.Symbols
                     FamilyParameter target = null;
                     if (string.Equals(b.Target, "Mark", StringComparison.OrdinalIgnoreCase))
                     {
-                        try { target = fm.get_Parameter(BuiltInParameter.ALL_MODEL_MARK); } catch { target = null; }
+                        try { target = fm.get_Parameter(BuiltInParameter.ALL_MODEL_MARK); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); target = null; }
                     }
                     if (target == null) target = fm.get_Parameter(b.Target);
                     if (target == null)

@@ -80,7 +80,7 @@ namespace StingTools.Core.Radiation
                 if (p.StorageType == StorageType.Double) return (int)p.AsDouble();
                 if (p.StorageType == StorageType.String && int.TryParse(p.AsString(), out var v)) return v;
                 return 0;
-            } catch { return 0; }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         private static bool GetBool(Element el, string name)
@@ -91,7 +91,7 @@ namespace StingTools.Core.Radiation
                 if (p == null || !p.HasValue) return false;
                 if (p.StorageType == StorageType.Integer) return p.AsInteger() != 0;
                 return false;
-            } catch { return false; }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
     }
 }

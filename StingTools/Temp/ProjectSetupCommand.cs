@@ -1262,7 +1262,7 @@ namespace StingTools.Temp
 
                 ViewSection view = ViewSection.CreateSection(doc, vft.Id, sectionBox);
                 if (view == null) return false;
-                try { view.Name = unique; viewNames.Add(unique); } catch { }
+                try { view.Name = unique; viewNames.Add(unique); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 // Assign scope box to the section view
                 try
@@ -1270,7 +1270,7 @@ namespace StingTools.Temp
                     Parameter p = view.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
                     if (p != null && !p.IsReadOnly) p.Set(scopeBoxId);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 return true;
             }
             catch (Exception ex)
@@ -1796,7 +1796,7 @@ namespace StingTools.Temp
                     {
                         tx.Start();
                         parking = ViewDrafting.Create(doc, vft.Id);
-                        try { parking.Name = "STING_Setup_Parking"; } catch { }
+                        try { parking.Name = "STING_Setup_Parking"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         tx.Commit();
                     }
                 }

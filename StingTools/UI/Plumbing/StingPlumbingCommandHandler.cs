@@ -32,7 +32,7 @@ namespace StingTools.UI.Plumbing
 
         public void Execute(UIApplication app)
         {
-            try { StingTools.UI.StingCommandHandler.SetCurrentApp(app); } catch { }
+            try { StingTools.UI.StingCommandHandler.SetCurrentApp(app); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             string tag;
             lock (_lock) { tag = _pendingTag; _pendingTag = null; }

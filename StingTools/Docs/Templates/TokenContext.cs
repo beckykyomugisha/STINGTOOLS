@@ -154,7 +154,7 @@ namespace Planscape.Docs.Templates
 
         private static string SafeString(Func<string> f)
         {
-            try { return f() ?? ""; } catch { return ""; }
+            try { return f() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         private static List<Dictionary<string, object>> FlattenList(object owner, string propertyName)
@@ -173,7 +173,7 @@ namespace Planscape.Docs.Templates
                             foreach (var p in item.GetType().GetProperties())
                             {
                                 object v;
-                                try { v = p.GetValue(item); } catch { v = null; }
+                                try { v = p.GetValue(item); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); v = null; }
                                 row[CamelToSnake(p.Name)] = v ?? "";
                             }
                         }

@@ -99,7 +99,7 @@ namespace StingTools.Commands.Electrical
 
         private static string BuildCircuitId(Element src, Element dst)
         {
-            try { return $"{src.Name?.Replace(' ', '_')}-{dst.Id.Value}"; } catch { return ""; }
+            try { return $"{src.Name?.Replace(' ', '_')}-{dst.Id.Value}"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
     }
 

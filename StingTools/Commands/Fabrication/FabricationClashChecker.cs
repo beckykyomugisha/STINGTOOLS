@@ -39,7 +39,7 @@ namespace StingTools.Commands.Fabrication
                 var el = doc.GetElement(id);
                 if (el == null) continue;
                 BoundingBoxXYZ bb = null;
-                try { bb = el.get_BoundingBox(null); } catch { }
+                try { bb = el.get_BoundingBox(null); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (bb == null) continue;
                 boxes.Add((id, bb, el.Name ?? ""));
             }
@@ -78,7 +78,7 @@ namespace StingTools.Commands.Fabrication
                 double shortestFt = Math.Min(dx, Math.Min(dy, dz));
                 return shortestFt * 304.8;
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
     }
 }

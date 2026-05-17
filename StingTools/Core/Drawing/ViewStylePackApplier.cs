@@ -45,7 +45,7 @@ namespace StingTools.Core.Drawing
         {
             if (doc == null) return "__null__";
             try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
-            catch { return "__unknown__"; }
+            catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] DocKey resolve PathName/Title: {ex.Message}"); return "__unknown__"; }
         }
 
         public static void InvalidateCache(Document doc)
@@ -114,7 +114,7 @@ namespace StingTools.Core.Drawing
                     .FirstOrDefault(f => string.Equals(f.Name, filterName, StringComparison.OrdinalIgnoreCase))?.Id
                     ?? ElementId.InvalidElementId;
             }
-            catch { resolved = ElementId.InvalidElementId; }
+            catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] ResolveFilterIdCached collector: {ex.Message}"); resolved = ElementId.InvalidElementId; }
 
             lock (_cacheLock)
             {
@@ -171,7 +171,7 @@ namespace StingTools.Core.Drawing
                     // carry overrides ready for when it is re-shown.
                     if (src.Visible.HasValue)
                     {
-                        try { view.SetCategoryHidden(catId, !src.Visible.Value); } catch { }
+                        try { view.SetCategoryHidden(catId, !src.Visible.Value); } catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] SetCategoryHidden '{kv.Key}': {ex.Message}"); }
                     }
 
                     var ogs = view.GetCategoryOverrides(catId) ?? new OverrideGraphicSettings();
@@ -200,12 +200,12 @@ namespace StingTools.Core.Drawing
                         if (fid != ElementId.InvalidElementId)
                         {
                             ogs.SetSurfaceForegroundPatternId(fid);
-                            try { ogs.SetSurfaceForegroundPatternVisible(src.SurfaceFgVisible ?? true); } catch { }
+                            try { ogs.SetSurfaceForegroundPatternVisible(src.SurfaceFgVisible ?? true); } catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] SetSurfaceForegroundPatternVisible (with pattern): {ex.Message}"); }
                         }
                     }
                     else if (src.SurfaceFgVisible.HasValue)
                     {
-                        try { ogs.SetSurfaceForegroundPatternVisible(src.SurfaceFgVisible.Value); } catch { }
+                        try { ogs.SetSurfaceForegroundPatternVisible(src.SurfaceFgVisible.Value); } catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] SetSurfaceForegroundPatternVisible: {ex.Message}"); }
                     }
                     if (!string.IsNullOrEmpty(src.SurfaceBgColor)) ogs.SetSurfaceBackgroundPatternColor(HexColor(src.SurfaceBgColor));
                     if (!string.IsNullOrEmpty(src.SurfaceBgPattern))
@@ -214,12 +214,12 @@ namespace StingTools.Core.Drawing
                         if (fid != ElementId.InvalidElementId)
                         {
                             ogs.SetSurfaceBackgroundPatternId(fid);
-                            try { ogs.SetSurfaceBackgroundPatternVisible(src.SurfaceBgVisible ?? true); } catch { }
+                            try { ogs.SetSurfaceBackgroundPatternVisible(src.SurfaceBgVisible ?? true); } catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] SetSurfaceBackgroundPatternVisible (with pattern): {ex.Message}"); }
                         }
                     }
                     else if (src.SurfaceBgVisible.HasValue)
                     {
-                        try { ogs.SetSurfaceBackgroundPatternVisible(src.SurfaceBgVisible.Value); } catch { }
+                        try { ogs.SetSurfaceBackgroundPatternVisible(src.SurfaceBgVisible.Value); } catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] SetSurfaceBackgroundPatternVisible: {ex.Message}"); }
                     }
 
                     // Cut foreground / background fill patterns
@@ -230,12 +230,12 @@ namespace StingTools.Core.Drawing
                         if (fid != ElementId.InvalidElementId)
                         {
                             ogs.SetCutForegroundPatternId(fid);
-                            try { ogs.SetCutForegroundPatternVisible(src.CutFgVisible ?? true); } catch { }
+                            try { ogs.SetCutForegroundPatternVisible(src.CutFgVisible ?? true); } catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] SetCutForegroundPatternVisible (with pattern): {ex.Message}"); }
                         }
                     }
                     else if (src.CutFgVisible.HasValue)
                     {
-                        try { ogs.SetCutForegroundPatternVisible(src.CutFgVisible.Value); } catch { }
+                        try { ogs.SetCutForegroundPatternVisible(src.CutFgVisible.Value); } catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] SetCutForegroundPatternVisible: {ex.Message}"); }
                     }
                     if (!string.IsNullOrEmpty(src.CutBgColor)) ogs.SetCutBackgroundPatternColor(HexColor(src.CutBgColor));
                     if (!string.IsNullOrEmpty(src.CutBgPattern))
@@ -259,8 +259,8 @@ namespace StingTools.Core.Drawing
                         // so only the projection line work renders.
                         if (t >= 100)
                         {
-                            try { ogs.SetSurfaceForegroundPatternVisible(false); } catch { }
-                            try { ogs.SetSurfaceBackgroundPatternVisible(false); } catch { }
+                            try { ogs.SetSurfaceForegroundPatternVisible(false); } catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] Hide surface fg at 100% transparency: {ex.Message}"); }
+                            try { ogs.SetSurfaceBackgroundPatternVisible(false); } catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] Hide surface bg at 100% transparency: {ex.Message}"); }
                         }
                     }
 
@@ -360,7 +360,7 @@ namespace StingTools.Core.Drawing
                         if (fid != ElementId.InvalidElementId)
                         {
                             ogs.SetSurfaceForegroundPatternId(fid);
-                            try { ogs.SetSurfaceForegroundPatternVisible(true); } catch { }
+                            try { ogs.SetSurfaceForegroundPatternVisible(true); } catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] Filter SetSurfaceForegroundPatternVisible: {ex.Message}"); }
                         }
                     }
                     var sbgColor = rule.SurfaceBgColor ?? defaults?.SurfBgColor;
@@ -372,7 +372,7 @@ namespace StingTools.Core.Drawing
                         if (fid != ElementId.InvalidElementId)
                         {
                             ogs.SetSurfaceBackgroundPatternId(fid);
-                            try { ogs.SetSurfaceBackgroundPatternVisible(true); } catch { }
+                            try { ogs.SetSurfaceBackgroundPatternVisible(true); } catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] Filter SetSurfaceBackgroundPatternVisible: {ex.Message}"); }
                         }
                     }
 
@@ -386,7 +386,7 @@ namespace StingTools.Core.Drawing
                         if (fid != ElementId.InvalidElementId)
                         {
                             ogs.SetCutForegroundPatternId(fid);
-                            try { ogs.SetCutForegroundPatternVisible(true); } catch { }
+                            try { ogs.SetCutForegroundPatternVisible(true); } catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] Filter SetCutForegroundPatternVisible: {ex.Message}"); }
                         }
                     }
                     var cbgColor = rule.CutBgColor ?? defaults?.CutBgColor;
@@ -398,7 +398,7 @@ namespace StingTools.Core.Drawing
                         if (fid != ElementId.InvalidElementId)
                         {
                             ogs.SetCutBackgroundPatternId(fid);
-                            try { ogs.SetCutBackgroundPatternVisible(true); } catch { }
+                            try { ogs.SetCutBackgroundPatternVisible(true); } catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] Filter SetCutBackgroundPatternVisible: {ex.Message}"); }
                         }
                     }
 
@@ -479,7 +479,7 @@ namespace StingTools.Core.Drawing
                     if (link == null) { r.Warnings.Add($"Revit link '{kv.Key}' not found — skipped."); continue; }
                     if (kv.Value?.Hidden == true)
                     {
-                        try { view.SetCategoryHidden(new ElementId(BuiltInCategory.OST_RvtLinks), true); } catch { }
+                        try { view.SetCategoryHidden(new ElementId(BuiltInCategory.OST_RvtLinks), true); } catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] Hide Revit links category: {ex.Message}"); }
                     }
                     if (kv.Value?.Halftone.HasValue == true)
                     {
@@ -570,7 +570,7 @@ namespace StingTools.Core.Drawing
                     if (ogs.Transparency > 0) { src.Transparency = ogs.Transparency; any = true; }
                     if (any) result[c.Name] = src;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] ReadCategoryOverrides for '{c.Name}': {ex.Message}"); }
             }
             return result;
         }
@@ -592,7 +592,7 @@ namespace StingTools.Core.Drawing
 
                     if (o.Visible.HasValue)
                     {
-                        try { view.SetCategoryHidden(catId, !o.Visible.Value); } catch { }
+                        try { view.SetCategoryHidden(catId, !o.Visible.Value); } catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] Preset SetCategoryHidden '{o.Category}': {ex.Message}"); }
                     }
 
                     var ogs = view.GetCategoryOverrides(catId) ?? new OverrideGraphicSettings();
@@ -674,7 +674,7 @@ namespace StingTools.Core.Drawing
                         if (string.Equals(sub.Name, trimmed, StringComparison.OrdinalIgnoreCase))
                             return sub.Id;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] ResolveCategoryId('{key}'): {ex.Message}"); }
             return ElementId.InvalidElementId;
         }
 
@@ -695,7 +695,7 @@ namespace StingTools.Core.Drawing
                             return sub.Id;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] ResolveSubCategoryId('{categoryName}/{subCatName}'): {ex.Message}"); }
             return ElementId.InvalidElementId;
         }
 
@@ -712,7 +712,7 @@ namespace StingTools.Core.Drawing
                     .FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
                 return lp?.Id ?? ElementId.InvalidElementId;
             }
-            catch { return ElementId.InvalidElementId; }
+            catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] ResolveLinePattern('{name}'): {ex.Message}"); return ElementId.InvalidElementId; }
         }
 
         private static ElementId ResolveFillPattern(Document doc, string name)
@@ -726,7 +726,7 @@ namespace StingTools.Core.Drawing
                     .FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
                 return fp?.Id ?? ElementId.InvalidElementId;
             }
-            catch { return ElementId.InvalidElementId; }
+            catch (Exception ex) { StingLog.Warn($"[ViewStylePackApplier] ResolveFillPattern('{name}'): {ex.Message}"); return ElementId.InvalidElementId; }
         }
 
         private static Autodesk.Revit.DB.Color HexColor(string hex)

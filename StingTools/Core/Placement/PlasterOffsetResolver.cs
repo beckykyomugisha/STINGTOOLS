@@ -44,7 +44,7 @@ namespace StingTools.Core.Placement
                 var wt = wall.WallType;
                 if (wt == null) return 0.0;
                 CompoundStructure cs = null;
-                try { cs = wt.GetCompoundStructure(); } catch { }
+                try { cs = wt.GetCompoundStructure(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (cs == null) return 0.0;
                 return SumFinishThicknessFt(cs, wall.Document);
             }
@@ -73,7 +73,7 @@ namespace StingTools.Core.Placement
                 var ct = ceiling.Document.GetElement(ceiling.GetTypeId()) as CeilingType;
                 if (ct == null) return 0.0;
                 CompoundStructure cs = null;
-                try { cs = ct.GetCompoundStructure(); } catch { }
+                try { cs = ct.GetCompoundStructure(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (cs == null) return 0.0;
                 return SumFinishThicknessFt(cs, ceiling.Document);
             }
@@ -134,7 +134,7 @@ namespace StingTools.Core.Placement
 
                 return isFinishMaterial;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
     }

@@ -49,7 +49,7 @@ namespace StingTools.Commands.Storage
                         if (stale != null && (el.GetEntity(stale)?.IsValid() ?? false)) staleEs++;
                         else if (el.LookupParameter("STING_STALE_BOOL")?.HasValue ?? false) staleShared++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                     try
                     {
@@ -58,14 +58,14 @@ namespace StingTools.Commands.Storage
                                  !string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.CLUSTER_LABEL)))
                             clusterShared++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                     try
                     {
                         if (position != null && (el.GetEntity(position)?.IsValid() ?? false)) positionEs++;
                         else if (ParameterHelpers.GetInt(el, ParamRegistry.TAG_POS, 0) != 0) positionShared++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                     try
                     {
@@ -73,7 +73,7 @@ namespace StingTools.Commands.Storage
                         else if (!string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_TAG_MODIFIED_DT")))
                             historyShared++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
 
                 var panel = StingResultPanel.Create("STING — Extensible Storage coverage")

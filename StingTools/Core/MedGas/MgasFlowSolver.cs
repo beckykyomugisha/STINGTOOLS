@@ -68,7 +68,7 @@ namespace StingTools.Core.MedGas
                               : (double.TryParse(p.AsString(), out var s) ? s : 0);
                     if (v > 0) return v;
                 }
-            } catch { }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return DefaultTuFlow(tu);
         }
 

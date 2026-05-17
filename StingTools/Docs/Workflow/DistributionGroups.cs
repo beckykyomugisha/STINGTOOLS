@@ -94,7 +94,7 @@ namespace Planscape.Docs.Workflow
             return s;
         }
 
-        private static string Safe(Func<string> f) { try { return f(); } catch { return null; } }
+        private static string Safe(Func<string> f) { try { return f(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; } }
 
         private static string StorePath(Document doc)
         {

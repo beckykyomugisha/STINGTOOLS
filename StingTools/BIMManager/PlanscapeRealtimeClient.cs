@@ -174,7 +174,7 @@ namespace StingTools.BIMManager
             }
             catch (Exception ex) { StingLog.Warn($"PlanscapeRealtime: stop — {ex.Message}"); }
 
-            try { await _connection.DisposeAsync(); } catch { }
+            try { await _connection.DisposeAsync(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             _connection = null;
             _currentProjectId = Guid.Empty;
             ConnectionStateChanged?.Invoke(this, HubConnectionState.Disconnected);
@@ -259,7 +259,7 @@ namespace StingTools.BIMManager
         public T? Get<T>(string key)
         {
             try { return Data[key] != null ? Data[key]!.ToObject<T>() : default; }
-            catch { return default; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return default; }
         }
     }
 }

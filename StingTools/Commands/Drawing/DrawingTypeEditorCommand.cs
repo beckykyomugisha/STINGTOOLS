@@ -29,7 +29,7 @@ namespace StingTools.Commands.Drawing
                 // section/elevation runners, etc.) never fired their dispatched
                 // commands. Modeless lets ExternalEvent.Raise complete.
                 var helper = new System.Windows.Interop.WindowInteropHelper(dlg);
-                try { helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle; } catch { }
+                try { helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 dlg.Show();
                 return Result.Succeeded;
             }

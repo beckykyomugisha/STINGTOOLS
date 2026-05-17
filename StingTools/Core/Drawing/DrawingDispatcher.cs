@@ -81,7 +81,7 @@ namespace StingTools.Core.Drawing
         {
             if (string.IsNullOrEmpty(actual)) return false;
             try { return System.Text.RegularExpressions.Regex.IsMatch(actual, pattern); }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         private static string ReadProjectCode(Document doc)
@@ -93,7 +93,7 @@ namespace StingTools.Core.Drawing
                 var p = pi.LookupParameter("PRJ_PROJECT_COD_TXT");
                 return p?.StorageType == StorageType.String ? p.AsString() : null;
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         /// <summary>

@@ -235,7 +235,7 @@ namespace StingTools.UI
                 var bic = (BuiltInCategory)cat.Id.Value;
                 return FamilyCategoryCompatibility.ModelFamilyGroup.Contains(bic);
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         private void AddInfoRow(Grid grid, int row, string key, string value)

@@ -193,7 +193,7 @@ namespace StingTools.Core.Validation
                 {
                     total++;
                     Element typ = null;
-                    try { typ = el.Document.GetElement(el.GetTypeId()); } catch { }
+                    try { typ = el.Document.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     string typeName = typ?.Name ?? "";
                     if (!LooksAcoustic(typeName)) continue;
 
@@ -231,12 +231,12 @@ namespace StingTools.Core.Validation
             try
             {
                 Element typ = null;
-                try { typ = el.Document.GetElement(el.GetTypeId()); } catch { }
+                try { typ = el.Document.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 int v = ReadInt(typ, "STING_FIRE_RATING_MIN");
                 if (v > 0) return v;
                 return ReadInt(el, "STING_FIRE_RATING_MIN");
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         private static int ReadIntFromTypeThenInstance(Element el, string paramName)
@@ -244,12 +244,12 @@ namespace StingTools.Core.Validation
             try
             {
                 Element typ = null;
-                try { typ = el.Document.GetElement(el.GetTypeId()); } catch { }
+                try { typ = el.Document.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 int v = ReadInt(typ, paramName);
                 if (v > 0) return v;
                 return ReadInt(el, paramName);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         private static int ReadInt(Element el, string param)
@@ -267,7 +267,7 @@ namespace StingTools.Core.Validation
                         System.Globalization.CultureInfo.InvariantCulture,
                         out int v)) return v;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 
@@ -302,7 +302,7 @@ namespace StingTools.Core.Validation
                 var p = el.LookupParameter(param);
                 return p?.AsString() ?? "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
         private static double ReadDouble(Element el, string param)
         {
@@ -318,7 +318,7 @@ namespace StingTools.Core.Validation
                                     System.Globalization.CultureInfo.InvariantCulture,
                                     out double v)) return v;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
     }

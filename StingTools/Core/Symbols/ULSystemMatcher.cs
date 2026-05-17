@@ -100,7 +100,7 @@ namespace StingTools.Core.Symbols
                 return System.Text.RegularExpressions.Regex.IsMatch(value ?? "", pattern,
                     System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
     }
 }

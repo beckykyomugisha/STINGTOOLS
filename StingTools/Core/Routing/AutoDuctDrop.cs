@@ -65,7 +65,7 @@ namespace StingTools.Core.Routing
                     case DuctSystemType.OtherAir:     break;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return ServiceId;
         }
 

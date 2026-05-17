@@ -198,7 +198,7 @@ namespace StingTools.Commands.Fabrication
                 string lvl = el.LookupParameter("ASS_LVL_COD_TXT")?.AsString() ?? "";
                 res.LevelByElement[el.Id.Value] = lvl ?? "";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         /// <summary>

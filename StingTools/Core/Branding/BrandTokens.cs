@@ -124,7 +124,7 @@ namespace StingTools.Core.Branding
         private static string TryGetProjParam(ProjectInfo proj, BuiltInParameter bip)
         {
             try { return proj?.get_Parameter(bip)?.AsString() ?? ""; }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
     }
 }

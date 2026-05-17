@@ -138,7 +138,7 @@ namespace StingTools.Core
                         ? JObject.Parse(File.ReadAllText(path))
                         : new JObject();
                 }
-                catch { json = new JObject(); }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); json = new JObject(); }
 
                 lock (_lock)
                 {

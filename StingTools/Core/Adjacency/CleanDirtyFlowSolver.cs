@@ -81,7 +81,7 @@ namespace StingTools.Core.Adjacency
                 if (p == null || !p.HasValue) return "";
                 if (p.StorageType == StorageType.String) return p.AsString() ?? "";
                 return p.AsValueString() ?? "";
-            } catch { return ""; }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
     }
 }

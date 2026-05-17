@@ -137,7 +137,7 @@ namespace Planscape.Docs.Templates
                     var arr = JArray.Parse(File.ReadAllText(path));
                     count = arr.Count;
                 }
-                catch { count = 0; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); count = 0; }
             }
             return $"TX-{(count + 1):D4}";
         }

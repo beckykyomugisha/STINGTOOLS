@@ -99,7 +99,7 @@ namespace StingTools.Core.Electrical
                     r.InnerAreaMm2  = Math.PI * d * d * 0.25;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private static void ResolveFillLimit(Element tray, TrayFillReport r)

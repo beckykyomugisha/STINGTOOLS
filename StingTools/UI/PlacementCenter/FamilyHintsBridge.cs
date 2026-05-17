@@ -54,7 +54,7 @@ namespace StingTools.UI.PlacementCenter
                 Add(rows, sampleType, sampleInst, "PLACE_MOUNT_HEIGHT_MM",      "mm");
                 Add(rows, sampleType, sampleInst, "PLACE_OFFSET_X_MM",          "mm");
                 Add(rows, sampleType, sampleInst, "PLACE_MIN_SPACING_MM",       "mm");
-                Add(rows, sampleType, sampleInst, "PLACE_ANCHOR_TXT",           "");
+                Add(rows, sampleType, sampleInst, "ASS_PLACE_ANCHOR_TXT",           "");
                 Add(rows, sampleType, sampleInst, "PLACE_SIDE_TXT",             "");
                 Add(rows, sampleType, sampleInst, "PLACE_PRIORITY_INT",         "");
                 Add(rows, sampleType, sampleInst, "PLACE_MAX_PER_ROOM_INT",     "");
@@ -151,7 +151,7 @@ namespace StingTools.UI.PlacementCenter
                             TrySetLengthMm(sym, "PLACE_MIN_SPACING_MM", vm.MinSpacingMm)) { writes++; any = true; }
 
                         // Placement-rule discriminators
-                        if (TrySetString(sym, "PLACE_ANCHOR_TXT",        vm.Model.AnchorType    ?? "ROOM_CENTRE")) { writes++; any = true; }
+                        if (TrySetString(sym, "ASS_PLACE_ANCHOR_TXT",        vm.Model.AnchorType    ?? "ROOM_CENTRE")) { writes++; any = true; }
                         if (TrySetString(sym, "PLACE_SIDE_TXT",          vm.Model.SideConstraint ?? "EITHER"))     { writes++; any = true; }
                         if (TrySetInteger(sym, "PLACE_PRIORITY_INT",     vm.Priority))     { writes++; any = true; }
                         if (TrySetInteger(sym, "PLACE_MAX_PER_ROOM_INT", vm.MaxPerRoom))   { writes++; any = true; }
@@ -207,7 +207,7 @@ namespace StingTools.UI.PlacementCenter
                     p.Set(next); return true;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 
@@ -223,7 +223,7 @@ namespace StingTools.UI.PlacementCenter
                     .FirstOrDefault(fs => fs.Category != null &&
                                           string.Equals(fs.Category.Name, catName, StringComparison.OrdinalIgnoreCase));
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static Element ResolveSampleInstance(Document doc, string catName)
@@ -237,7 +237,7 @@ namespace StingTools.UI.PlacementCenter
                     .FirstOrDefault(e => e.Category != null &&
                                          string.Equals(e.Category.Name, catName, StringComparison.OrdinalIgnoreCase));
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static void Add(List<HintRow> rows, Element sampleType, Element sampleInst,
@@ -273,7 +273,7 @@ namespace StingTools.UI.PlacementCenter
                         return v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "";
         }
 
@@ -290,7 +290,7 @@ namespace StingTools.UI.PlacementCenter
                 p.Set(target);
                 return true;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         private static bool TrySetInteger(Element el, string paramName, int value)
@@ -304,7 +304,7 @@ namespace StingTools.UI.PlacementCenter
                 p.Set(value);
                 return true;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         private static bool TrySetLengthMm(Element el, string paramName, double valueMm)
@@ -330,7 +330,7 @@ namespace StingTools.UI.PlacementCenter
                     return true;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
     }

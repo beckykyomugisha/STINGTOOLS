@@ -137,7 +137,7 @@ namespace StingTools.Commands.Placement
                     else
                     {
                         BoundingBoxXYZ vb = null;
-                        try { vb = view.CropBox; } catch { }
+                        try { vb = view.CropBox; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         foreach (var el in new FilteredElementCollector(doc)
                             .OfCategory(BuiltInCategory.OST_Rooms)
                             .WhereElementIsNotElementType())
@@ -230,7 +230,7 @@ namespace StingTools.Commands.Placement
             // and surface a one-shot summary so the user sees what got
             // dropped and why.
             ProjectBuildingProfile profile = null;
-            try { profile = ProjectBuildingProfileIO.Load(doc.PathName); } catch { }
+            try { profile = ProjectBuildingProfileIO.Load(doc.PathName); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             if (profile != null && rules != null && rules.Count > 0)
             {
                 int beforeCount = rules.Count;
@@ -282,7 +282,7 @@ namespace StingTools.Commands.Placement
                             { hasSymbol = true; break; }
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     if (!hasSymbol) emptyCats.Add(cat);
                 }
                 if (emptyCats.Count > 0)

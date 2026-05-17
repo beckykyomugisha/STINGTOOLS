@@ -81,7 +81,7 @@ namespace StingTools.Commands.Placement
                         if (room == null)
                         {
                             // Try elevated point (some categories sit at ceiling height).
-                            try { room = doc.GetRoomAtPoint(new XYZ(pt.X, pt.Y, pt.Z - 1.0)) as Room; } catch { }
+                            try { room = doc.GetRoomAtPoint(new XYZ(pt.X, pt.Y, pt.Z - 1.0)) as Room; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                         if (room == null) continue;
 

@@ -62,10 +62,22 @@ namespace Planscape.Docs.Workflow
 
                     if (!_writers.TryGetValue(path, out var writer))
                     {
-                        var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read);
-                        writer = new StreamWriter(fs, new UTF8Encoding(false)) { AutoFlush = true };
-                        _streams[path] = fs;
-                        _writers[path] = writer;
+                        // Exception-safe creation: if StreamWriter construction or
+                        // dictionary insertion throws, the FileStream is disposed
+                        // rather than leaking the OS file handle until Shutdown.
+                        FileStream fs = null;
+                        try
+                        {
+                            fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read);
+                            writer = new StreamWriter(fs, new UTF8Encoding(false)) { AutoFlush = true };
+                            _streams[path] = fs;
+                            _writers[path] = writer;
+                            fs = null; // ownership transferred to the cache
+                        }
+                        finally
+                        {
+                            if (fs != null) try { fs.Dispose(); } catch (Exception fsEx) { StingLog.Warn($"AuditLog cleanup: {fsEx.Message}"); }
+                        }
                     }
                     writer.WriteLine(line);
                 }
@@ -106,7 +118,7 @@ namespace Planscape.Docs.Workflow
                         if (string.IsNullOrWhiteSpace(line)) continue;
                         AuditEntry entry;
                         try { entry = JsonConvert.DeserializeObject<AuditEntry>(line); }
-                        catch { continue; }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                         if (entry == null) continue;
                         if (!DateTime.TryParse(entry.Ts, null,
                                 System.Globalization.DateTimeStyles.AssumeUniversal, out var ts)) continue;
@@ -140,7 +152,7 @@ namespace Planscape.Docs.Workflow
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 AuditEntry entry;
                 try { entry = JsonConvert.DeserializeObject<AuditEntry>(line); }
-                catch { return false; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
                 if (entry == null) return false;
 
                 if (prev != null && !string.Equals(entry.PrevHash, prev, StringComparison.Ordinal))
@@ -179,7 +191,7 @@ namespace Planscape.Docs.Workflow
                 if (!string.IsNullOrWhiteSpace(line)) last = line;
             if (string.IsNullOrEmpty(last)) return null;
             try { return JsonConvert.DeserializeObject<AuditEntry>(last)?.EntryHash; }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static string LogPath(Document doc, DateTime ts)

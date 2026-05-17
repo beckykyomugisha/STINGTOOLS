@@ -273,7 +273,7 @@ namespace StingTools.Core.Placement
                 for (double y = bb.Min.Y + 0.5; y <= bb.Max.Y; y += sampleStepFt)
                 {
                     bool inside = true;
-                    try { inside = room.IsPointInRoom(new XYZ(x, y, zSample)); } catch { }
+                    try { inside = room.IsPointInRoom(new XYZ(x, y, zSample)); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     if (!inside) continue;
                     total++;
                     bool isCovered = false;

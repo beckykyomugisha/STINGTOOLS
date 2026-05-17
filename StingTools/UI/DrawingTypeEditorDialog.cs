@@ -201,7 +201,7 @@ namespace StingTools.UI
                 var helper = new System.Windows.Interop.WindowInteropHelper(this);
                 helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // Phase 137 — initialise _packs in the constructor (was inside
             // BuildViewStylePacksTab) so Tab 0 controls that reference the
@@ -941,10 +941,7 @@ namespace StingTools.UI
                 var live = ProjectAssetPicker.ParameterFilterNames(_doc) ?? Array.Empty<string>();
                 return Merge(aecNames.Concat(live), CommonStingFilters).ToArray();
             }
-            catch
-            {
-                return Merge(ProjectAssetPicker.ParameterFilterNames(_doc), CommonStingFilters).ToArray();
-            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return Merge(ProjectAssetPicker.ParameterFilterNames(_doc), CommonStingFilters).ToArray(); }
         }
 
         // ── Phase 137 — VG bridge between PackCategoryOverride (the editor's
@@ -1462,7 +1459,7 @@ namespace StingTools.UI
                 // 2. Project override layered on top (same-id entries
                 //    replace corporate; new ids get appended).
                 string proj = null;
-                try { proj = ResolveProjectPackOverridePath(); } catch { }
+                try { proj = ResolveProjectPackOverridePath(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (!string.IsNullOrEmpty(proj) && File.Exists(proj))
                 {
                     var pLib = JsonConvert.DeserializeObject<ViewStylePackLibrary>(File.ReadAllText(proj));
@@ -1494,7 +1491,7 @@ namespace StingTools.UI
                 if (string.IsNullOrEmpty(dir)) return null;
                 return Path.Combine(dir, "_BIM_COORD", "view_style_packs.json");
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private UIElement BuildViewportToolsTab()
@@ -2946,7 +2943,7 @@ namespace StingTools.UI
                                 .Peek(_doc, tinyDt, previewTokens);
                             txt = peek.TryGetValue("_p", out var v) ? v : "";
                         }
-                        catch { txt = "(error)"; }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); txt = "(error)"; }
                     }
                     preview.Text = txt;
                     preview.ToolTip = txt;

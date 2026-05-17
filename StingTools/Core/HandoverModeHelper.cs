@@ -198,7 +198,7 @@ namespace StingTools.Core
                 string dir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
                 return string.IsNullOrEmpty(dir) ? null : Path.Combine(dir, "project_config.json");
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
     }
 }

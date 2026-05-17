@@ -60,7 +60,7 @@ namespace StingTools.Core.Fabrication
         {
             if (doc == null) return "__null__";
             try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
-            catch { return "__unknown__"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "__unknown__"; }
         }
 
         private static Dictionary<string, int> GetDocBucket(Document doc)
@@ -376,7 +376,7 @@ namespace StingTools.Core.Fabrication
                     : (!string.IsNullOrEmpty(spool)
                         ? $"Spool {spool}"
                         : $"{discipline} spool {unique}");
-            try { sheet.Name = sheetName; } catch { }
+            try { sheet.Name = sheetName; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // Title-block instance parameters live on the title block
             // FamilyInstance, accessible via collector. We set the
@@ -421,7 +421,7 @@ namespace StingTools.Core.Fabrication
 
         private static string ReadString(Element el, string param)
         {
-            try { return el?.LookupParameter(param)?.AsString() ?? ""; } catch { return ""; }
+            try { return el?.LookupParameter(param)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         /// <summary>
@@ -502,7 +502,7 @@ namespace StingTools.Core.Fabrication
                 var p = pi?.LookupParameter(param);
                 return p?.StorageType == StorageType.String ? (p.AsString() ?? "") : "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         /// <summary>
@@ -520,7 +520,7 @@ namespace StingTools.Core.Fabrication
             try
             {
                 var pack = dt.Annotation;
-                try { pack.MigrateFromLegacy(); } catch { }
+                try { pack.MigrateFromLegacy(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 var opts = new StingTools.Core.Drawing.AnnotationRunOptions
                 {
                     ViewScale       = view.Scale,
@@ -638,7 +638,7 @@ namespace StingTools.Core.Fabrication
                         existing.Add(vs.SheetNumber);
                 }
             }
-            catch { return baseNumber; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return baseNumber; }
             if (!existing.Contains(baseNumber)) return baseNumber;
             for (char c = 'A'; c <= 'Z'; c++)
             {

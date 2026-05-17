@@ -56,7 +56,7 @@ namespace StingTools.Core.Validation
                     if (w <= 0 && d <= 0 && h <= 0) continue;
 
                     BoundingBoxXYZ bb = null;
-                    try { bb = el.get_BoundingBox(null); } catch { }
+                    try { bb = el.get_BoundingBox(null); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     if (bb == null) continue;
 
                     string dir = ReadString(el, "MNT_ACCESS_DIR_TXT");
@@ -84,7 +84,7 @@ namespace StingTools.Core.Validation
                 foreach (var el in obsCol)
                 {
                     BoundingBoxXYZ b = null;
-                    try { b = el.get_BoundingBox(null); } catch { }
+                    try { b = el.get_BoundingBox(null); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     if (b != null) obstructions.Add((el.Id, b));
                 }
 
@@ -190,12 +190,12 @@ namespace StingTools.Core.Validation
             try
             {
                 Element type = null;
-                try { type = el.Document.GetElement(el.GetTypeId()); } catch { }
+                try { type = el.Document.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 double fromType = ReadLengthOnOne(type, paramName);
                 if (fromType > 0) return fromType;
                 return ReadLengthOnOne(el, paramName);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         private static double ReadLengthOnOne(Element el, string paramName)
@@ -208,7 +208,7 @@ namespace StingTools.Core.Validation
                 if (p.StorageType == StorageType.Double) return FeetToMm(p.AsDouble());
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 
@@ -217,12 +217,12 @@ namespace StingTools.Core.Validation
             try
             {
                 Element type = null;
-                try { type = el.Document.GetElement(el.GetTypeId()); } catch { }
+                try { type = el.Document.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 string fromType = type?.LookupParameter(paramName)?.AsString();
                 if (!string.IsNullOrEmpty(fromType)) return fromType;
                 return el.LookupParameter(paramName)?.AsString() ?? "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         private const double MM_PER_FOOT = 304.8;

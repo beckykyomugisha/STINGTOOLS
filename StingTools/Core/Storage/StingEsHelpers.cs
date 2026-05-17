@@ -39,7 +39,7 @@ namespace StingTools.Core.Storage
                 if (count > 0 || !string.IsNullOrEmpty(label))
                     return new StingClusterSchema.ClusterData { Count = count, Label = label };
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 
@@ -168,7 +168,7 @@ namespace StingTools.Core.Storage
                 var entity = el.GetEntity(schema);
                 if (entity != null && entity.IsValid()) return false;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return StingSchemaBuilder.WriteStale(el, p.AsInteger() != 0);
         }
     }

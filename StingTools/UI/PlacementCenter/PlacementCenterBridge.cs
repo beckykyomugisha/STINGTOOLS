@@ -83,7 +83,7 @@ namespace StingTools.UI.PlacementCenter
                             // Unknown view type → bbox intersection of room
                             // bbox vs view crop / outline.
                             BoundingBoxXYZ vb = null;
-                            try { vb = view.CropBox; } catch { }
+                            try { vb = view.CropBox; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                             foreach (var el in new FilteredElementCollector(doc)
                                 .OfCategory(BuiltInCategory.OST_Rooms)
                                 .WhereElementIsNotElementType())

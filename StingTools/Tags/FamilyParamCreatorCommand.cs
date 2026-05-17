@@ -98,10 +98,7 @@ namespace StingTools.Tags
                 // GetParamName returns null when the GUID is not in the registry.
                 return ParamRegistry.GetParamName(g) != null;
             }
-            catch
-            {
-                return false;
-            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         /// <summary>Decide whether <paramref name="fp"/> should be removed under <paramref name="mode"/>.

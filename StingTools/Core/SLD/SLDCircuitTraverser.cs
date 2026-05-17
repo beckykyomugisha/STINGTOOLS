@@ -203,7 +203,7 @@ namespace StingTools.Core.SLD
                 var downstream = allSystems.Where(s =>
                 {
                     try { return s.BaseEquipment != null && s.BaseEquipment.Id == fi.Id; }
-                    catch { return false; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
                 }).ToList();
 
                 foreach (var sys in downstream)

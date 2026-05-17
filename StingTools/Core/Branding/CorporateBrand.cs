@@ -148,7 +148,7 @@ namespace StingTools.Core.Branding
                     if (File.Exists(over)) return over;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return Core.StingToolsApp.FindDataFile("Templates/STING_CORPORATE_BRAND.json")
                 ?? Core.StingToolsApp.FindDataFile("STING_CORPORATE_BRAND.json");
         }

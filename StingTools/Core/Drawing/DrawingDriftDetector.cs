@@ -70,7 +70,7 @@ namespace StingTools.Core.Drawing
         {
             if (doc == null) return "__null__";
             try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
-            catch { return "__unknown__"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "__unknown__"; }
         }
 
         public static void InvalidateCache(Document doc)
@@ -274,7 +274,7 @@ namespace StingTools.Core.Drawing
                 var nonControlled = tpl.GetNonControlledTemplateParameterIds();
                 return nonControlled == null || !nonControlled.Contains(p.Id);
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         private static void AppendManagedTemplateDrift(Document doc, View v, DrawingType dt, DriftReport report)
@@ -429,7 +429,7 @@ namespace StingTools.Core.Drawing
                     foreach (var tb in tbs)
                     {
                         Parameter p;
-                        try { p = tb.LookupParameter(paramName); } catch { continue; }
+                        try { p = tb.LookupParameter(paramName); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                         if (p == null || p.IsReadOnly) continue;
                         string actual;
                         switch (p.StorageType)
@@ -542,13 +542,13 @@ namespace StingTools.Core.Drawing
                 if (p == null || p.StorageType != StorageType.String) return null;
                 return p.AsString();
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static string TemplateName(Document doc, ElementId id)
         {
             if (id == null || id == ElementId.InvalidElementId) return null;
-            try { return (doc.GetElement(id) as View)?.Name; } catch { return null; }
+            try { return (doc.GetElement(id) as View)?.Name; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
     }
 }

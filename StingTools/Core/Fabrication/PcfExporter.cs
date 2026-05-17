@@ -89,7 +89,7 @@ namespace StingTools.Core.Fabrication
                     if (firstEl is RevitPipe p) pipelineName = p.MEPSystem?.Name ?? "UNKNOWN";
                     else pipelineName = "UNKNOWN";
                 }
-                catch { pipelineName = "UNKNOWN"; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); pipelineName = "UNKNOWN"; }
             }
             string sanitised = SanitisePipeline(pipelineName);
             string path = Path.Combine(outputDirectory,
@@ -219,11 +219,11 @@ namespace StingTools.Core.Fabrication
                                     : Math.Max(c.Width, c.Height) * FtToMm;
                                 if (d > boreMm) boreMm = d;
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (boreMm <= 0) boreMm = 25.0;
 
                 w.WriteLine(kind);
@@ -245,11 +245,11 @@ namespace StingTools.Core.Fabrication
                                 w.WriteLine($"    END-POSITION       {FmtXYZ(c.Origin)} {boreMm.ToString("F1", Inv)}");
                                 endCount++;
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 w.WriteLine($"    ITEM-CODE          {ResolveItemCode(fi, boreMm)}");
                 w.WriteLine($"    UCI                {fi.UniqueId}");
                 w.WriteLine();
@@ -279,7 +279,7 @@ namespace StingTools.Core.Fabrication
                 var val = p?.AsString();
                 if (!string.IsNullOrEmpty(val)) return val;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string cat = el.Category?.Name?.Replace(' ', '-') ?? "UNKNOWN";
             return $"{cat.ToUpperInvariant()}-{boreMm:F0}";
         }

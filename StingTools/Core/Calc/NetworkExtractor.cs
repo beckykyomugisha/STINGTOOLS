@@ -226,7 +226,7 @@ namespace StingTools.Core.Calc
                     return p.AsDouble() * 0.028316846592;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0.0;
         }
     }

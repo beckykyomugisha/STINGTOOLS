@@ -265,7 +265,7 @@ namespace StingTools.Core.Routing
                 s = ParameterHelpers.GetString(t, "STING_ACOUSTIC_RW_DB");
                 return !string.IsNullOrEmpty(s) && double.TryParse(s, out rw) && rw > 0;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         /// <summary>

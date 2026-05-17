@@ -227,7 +227,7 @@ namespace StingTools.Temp
                     .Cast<Family>()
                     .Count(f => f != null && f.IsEditable && !f.IsInPlace);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         private static int CountTaggableElements(Document doc)
@@ -240,7 +240,7 @@ namespace StingTools.Temp
                     .WhereElementIsViewIndependent()
                     .GetElementCount();
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
     }
 }

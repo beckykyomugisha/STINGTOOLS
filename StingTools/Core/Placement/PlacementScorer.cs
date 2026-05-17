@@ -466,7 +466,7 @@ namespace StingTools.Core.Placement
                     : null;
                 levelName = lvl?.Name ?? "";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Resolve room level name: {ex.Message}"); }
             double levelBias = PlacementParamReader.LevelHintBias(hints.LevelHint, levelName);
             // Level-hint bias is 0.1..1.0; multiply into the composite so a
             // strong mismatch suppresses the candidate and a strong match
@@ -514,7 +514,7 @@ namespace StingTools.Core.Placement
                     return el;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] ResolveSampleInstanceForRule collect: {ex.Message}"); }
             return null;
         }
 
@@ -789,10 +789,7 @@ namespace StingTools.Core.Placement
                 return GeometryCreationUtilities.CreateExtrusionGeometry(
                     new List<CurveLoop> { loop }, XYZ.BasisZ, 2 * radiusFt);
             }
-            catch
-            {
-                return null;
-            }
+            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] CreateExtrusionGeometry for coverage box: {ex.Message}"); return null; }
         }
 
         private double ComputeSpacingScore(XYZ pt, IList<XYZ> placed, double minSpacingMm)
@@ -887,7 +884,7 @@ namespace StingTools.Core.Placement
                                     if (host is Wall w) entry.Wall = w;
                                 }
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Boundary segment host wall resolve: {ex.Message}"); }
                             if (entry.Curve != null) cache.Segments.Add(entry);
                         }
                     }
@@ -925,8 +922,8 @@ namespace StingTools.Core.Placement
             {
                 if (fi == null) continue;
                 Room from = null, to = null;
-                try { from = fi.FromRoom; } catch { }
-                try { to = fi.ToRoom; } catch { }
+                try { from = fi.FromRoom; } catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Read door.FromRoom: {ex.Message}"); }
+                try { to = fi.ToRoom; } catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Read door.ToRoom: {ex.Message}"); }
                 if (from == null && to == null)
                 {
                     keep.Add(fi); // unknown spatial context — keep, fall through
@@ -948,7 +945,7 @@ namespace StingTools.Core.Placement
                     if (el is FamilyInstance fi) list.Add(fi);
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] CollectInsts ({cat}) collector: {ex.Message}"); }
             return list;
         }
 
@@ -1032,7 +1029,7 @@ namespace StingTools.Core.Placement
                     // fallback is room-centroid → door direction so the
                     // 300 mm offset never goes into thin air.
                     XYZ facing = null;
-                    try { facing = door.FacingOrientation; } catch { }
+                    try { facing = door.FacingOrientation; } catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Read door.FacingOrientation: {ex.Message}"); }
                     if (facing != null && !facing.IsZeroLength())
                     {
                         along = new XYZ(-facing.Y, facing.X, 0);
@@ -1086,7 +1083,7 @@ namespace StingTools.Core.Placement
                 var lc = w?.Location as LocationCurve;
                 if (lc?.Curve is Line ln) return (ln.GetEndPoint(1) - ln.GetEndPoint(0)).Normalize();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] WallTangent location/curve read: {ex.Message}"); }
             return null;
         }
 
@@ -1105,7 +1102,7 @@ namespace StingTools.Core.Placement
                     var deriv = lc.Curve.ComputeDerivatives(0.5, true);
                     tangent = deriv?.BasisX ?? (lc.Curve.GetEndPoint(1) - lc.Curve.GetEndPoint(0));
                 }
-                catch { tangent = lc.Curve.GetEndPoint(1) - lc.Curve.GetEndPoint(0); }
+                catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Wall curve ComputeDerivatives: {ex.Message}"); tangent = lc.Curve.GetEndPoint(1) - lc.Curve.GetEndPoint(0); }
                 if (tangent.GetLength() < 1e-9) return null;
                 tangent = tangent.Normalize();
                 XYZ normal = new XYZ(-tangent.Y, tangent.X, 0);
@@ -1116,7 +1113,7 @@ namespace StingTools.Core.Placement
                 if (probe.X >= bb.Min.X && probe.X <= bb.Max.X && probe.Y >= bb.Min.Y && probe.Y <= bb.Max.Y) return normal;
                 return normal.Negate();
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] ComputeInwardFromWall: {ex.Message}"); return null; }
         }
 
         private XYZ ComputeInward(Line line, Room room)
@@ -1137,10 +1134,7 @@ namespace StingTools.Core.Placement
                     var deriv = curve.ComputeDerivatives(0.5, true);
                     tangent = deriv?.BasisX ?? (curve.GetEndPoint(1) - curve.GetEndPoint(0));
                 }
-                catch
-                {
-                    tangent = curve.GetEndPoint(1) - curve.GetEndPoint(0);
-                }
+                catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Curve ComputeDerivatives: {ex.Message}"); tangent = curve.GetEndPoint(1) - curve.GetEndPoint(0); }
                 if (tangent.GetLength() < 1e-9) return XYZ.BasisY;
                 tangent = tangent.Normalize();
                 XYZ normal = new XYZ(-tangent.Y, tangent.X, 0);
@@ -1151,7 +1145,7 @@ namespace StingTools.Core.Placement
                 if (probe.X >= bb.Min.X && probe.X <= bb.Max.X && probe.Y >= bb.Min.Y && probe.Y <= bb.Max.Y) return normal;
                 return normal.Negate();
             }
-            catch { return XYZ.BasisY; }
+            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] ComputeInwardFromCurve: {ex.Message}"); return XYZ.BasisY; }
         }
 
         private void Fallback(Room room, double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
@@ -1162,7 +1156,7 @@ namespace StingTools.Core.Placement
                 if (loc?.Point != null)
                     points.Add(new XYZ(loc.Point.X + offsetXFt, loc.Point.Y + offsetYFt, anchorZ));
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Fallback room location point read: {ex.Message}"); }
         }
 
         // ── PC-09 — additional anchor types ──────────────────────────
@@ -1242,7 +1236,7 @@ namespace StingTools.Core.Placement
                 double t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / den;
                 return new XYZ(x1 + t * (x2 - x1), y1 + t * (y2 - y1), p1.Z);
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"[PlacementScorer] LineIntersect computation: {ex.Message}"); return null; }
         }
 
         private void EmitColumnFaceAnchor(Room room, PlacementRule rule, double anchorZ,
@@ -1366,7 +1360,7 @@ namespace StingTools.Core.Placement
             {
                 string dept = "";
                 try { dept = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString() ?? ""; }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Read ROOM_DEPARTMENT: {ex.Message}"); }
                 if (!RegexAllow(rule.RoomDepartmentFilter, dept)) return false;
             }
 
@@ -1379,7 +1373,7 @@ namespace StingTools.Core.Placement
                     if (room.LevelId != null && room.LevelId != ElementId.InvalidElementId)
                         lvlName = (_doc.GetElement(room.LevelId) as Level)?.Name ?? "";
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"[PlacementScorer] LevelFilter resolve room level: {ex.Message}"); }
                 if (!RegexAllow(rule.LevelFilter, lvlName)) return false;
             }
 
@@ -1394,7 +1388,7 @@ namespace StingTools.Core.Placement
                     // to the legacy parameter so the same code path covers
                     // Revit 2025/2026/2027.
                     ElementId phaseId = ElementId.InvalidElementId;
-                    try { phaseId = room.CreatedPhaseId; } catch { }
+                    try { phaseId = room.CreatedPhaseId; } catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Read room.CreatedPhaseId: {ex.Message}"); }
                     if (phaseId == null || phaseId == ElementId.InvalidElementId)
                     {
                         var phaseParam = room.get_Parameter(BuiltInParameter.ROOM_PHASE_ID);
@@ -1405,7 +1399,7 @@ namespace StingTools.Core.Placement
                         && _doc.GetElement(phaseId) is Phase ph)
                         phaseName = ph.Name ?? "";
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"[PlacementScorer] PhaseFilter resolve phase name: {ex.Message}"); }
                 if (!RegexAllow(rule.PhaseFilter, phaseName)) return false;
             }
 
@@ -1422,7 +1416,7 @@ namespace StingTools.Core.Placement
                         if (ws != null) wsName = ws.Name ?? "";
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"[PlacementScorer] WorksetFilter resolve workset name: {ex.Message}"); }
                 if (!RegexAllow(rule.WorksetFilter, wsName)) return false;
             }
 
@@ -1430,7 +1424,7 @@ namespace StingTools.Core.Placement
             if (rule.MinAreaM2 > 0 || rule.MaxAreaM2 > 0)
             {
                 double areaFt2 = 0;
-                try { areaFt2 = room.Area; } catch { }
+                try { areaFt2 = room.Area; } catch (Exception ex) { StingLog.Warn($"[PlacementScorer] Read room.Area for area gate: {ex.Message}"); }
                 double areaM2 = areaFt2 * 0.3048 * 0.3048;
                 if (rule.MinAreaM2 > 0 && areaM2 < rule.MinAreaM2) return false;
                 if (rule.MaxAreaM2 > 0 && areaM2 > rule.MaxAreaM2) return false;

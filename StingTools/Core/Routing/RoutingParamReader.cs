@@ -30,7 +30,7 @@ namespace StingTools.Core.Routing
             var r = new RoutingHints();
             if (el == null) return r;
             Element type = null;
-            try { type = el.Document.GetElement(el.GetTypeId()); } catch { }
+            try { type = el.Document.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             Element primary = type ?? el;
 
             // Pack 124 / Gap H — Extensible Storage first for connector meta.
@@ -67,7 +67,7 @@ namespace StingTools.Core.Routing
         private static string ReadString(Element el, string name)
         {
             try { return el?.LookupParameter(name)?.AsString() ?? ""; }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         private static int ReadInt(Element el, string name)
@@ -79,7 +79,7 @@ namespace StingTools.Core.Routing
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
                 if (p.StorageType == StorageType.Double) return (int)Math.Round(p.AsDouble());
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 
@@ -92,7 +92,7 @@ namespace StingTools.Core.Routing
                 if (p.StorageType == StorageType.Double) return p.AsDouble();
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 
@@ -105,7 +105,7 @@ namespace StingTools.Core.Routing
                 if (p.StorageType == StorageType.Double) return p.AsDouble() * 304.8;
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
     }

@@ -508,7 +508,7 @@ namespace StingTools.UI
                         var doc = app?.ActiveUIDocument?.Document;
                         if (doc == null) { TaskDialog.Show("STING v4", "Open a project first."); break; }
                         var dlg = new UI.ShopDrawingOptionsDialog(doc);
-                        try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                        try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         if (dlg.ShowDialog() == true)
                         {
                             Commands.Fabrication.FabricationOptions.ShopDrawing = dlg.Result;
@@ -556,6 +556,23 @@ namespace StingTools.UI
                     case "DrawingTypes_SequencePackage":           RunCommand<Commands.Drawing.DrawingPackageSequenceCommand>(app); break;
                     case "DrawingTypes_AuditPackages":
                     case "DrawingTypes_PackageAudit":              RunCommand<Commands.Drawing.DrawingPackageAuditCommand>(app); break;
+
+                    // ── Phase 166 — AEC corporate filter library (199 filters) ──
+                    // Wired retroactively: CLAUDE.md Phase 166 documents these as
+                    // implemented but no dispatch tag was added at the time.
+                    case "AecFilters_Create":  RunCommand<Commands.Drawing.AecFiltersCreateCommand>(app); break;
+                    case "AecFilters_Inspect": RunCommand<Commands.Drawing.AecFiltersInspectCommand>(app); break;
+                    case "AecFilters_Reload":  RunCommand<Commands.Drawing.AecFiltersReloadCommand>(app); break;
+
+                    // ── Phase 113 Week 3 — Browser organizer diagnostic ──
+                    case "DrawingTypes_BrowserOrganize": RunCommand<Commands.Drawing.DrawingBrowserOrganizerCommand>(app); break;
+
+                    // ── Phase 113 Week 4 — Sync/ForceResync direct class entry points ──
+                    // Primary tags use inline implementations; these are secondary aliases
+                    // that invoke the standalone class directly for workflow/scripting use.
+                    case "DrawingTypes_SyncStylesDirect":    RunCommand<Commands.Drawing.DrawingSyncStylesCommand>(app);    break;
+                    case "DrawingTypes_ForceResync":         RunCommand<Commands.Drawing.DrawingForceResyncCommand>(app);   break;
+                    case "DrawingTypes_ScopeBoxesDirect":    RunCommand<Commands.Drawing.GenerateFromScopeBoxesCommand>(app); break;
 
                     // ── Phase 168 / 169 — Match-line subsystem ──
                     case "MatchLine_Generate":       RunCommand<Commands.Drawing.MatchLineGenerateCommand>(app); break;
@@ -1631,6 +1648,20 @@ namespace StingTools.UI
                     case "ColorByVariable": RunCommand<Tags.ColorByVariableCommand>(app); break;
                     case "SetBoxColor": RunCommand<Tags.SetBoxColorCommand>(app); break;
 
+                    // ── AVF Heatmap visualisations ──
+                    case "Heatmap_Compliance": RunCommand<Commands.Visualization.VisualiseComplianceHeatmapCommand>(app); break;
+                    case "Heatmap_Fill":       RunCommand<Commands.Visualization.VisualiseFillHeatmapCommand>(app);       break;
+                    case "Heatmap_Carbon":     RunCommand<Commands.Visualization.VisualiseCarbonHeatmapCommand>(app);     break;
+                    case "Heatmap_Acoustic":   RunCommand<Commands.Visualization.VisualiseAcousticHeatmapCommand>(app);   break;
+                    case "Heatmap_Clear":      RunCommand<Commands.Visualization.ClearHeatmapCommand>(app);               break;
+
+                    // ── V6 feature commands ──
+                    case "V6_LabourHoursApply":  RunCommand<V6.ApplyLabourHoursCommand>(app); break;
+                    case "V6_LabourHoursExport": RunCommand<V6.ExportLabourHoursCommand>(app); break;
+                    case "V6_HealthDashboard":   RunCommand<V6.HealthDashboardExportHtmlCommand>(app); break;
+                    case "V6_QRAdvance":         RunCommand<V6.QRAdvanceCommissioningCommand>(app); break;
+                    case "V6_QRReport":          RunCommand<V6.QRCommissioningReportCommand>(app); break;
+
                     // ════════════════════════════════════════════════════════
                     // MODEL TAB — Auto-Modeling Engine
                     // ════════════════════════════════════════════════════════
@@ -2593,6 +2624,7 @@ namespace StingTools.UI
                     }
                     case "BCFExport": RunCommand<BIMManager.BCFExportCommand>(app); break;
                     case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
+                    case "BCFSync":   RunCommand<BIMManager.BCFSyncCommand>(app);   break;
                     case "PlatformSync":
                         // Route to Planscape server sync if connected; otherwise local delta sync
                         if (BIMManager.PlanscapeServerClient.Instance.IsConnected)
@@ -2624,6 +2656,7 @@ namespace StingTools.UI
                     case "RevisionExport": RunCommand<BIMManager.RevisionExportCommand>(app); break;
                     case "BulkRevisionStamp": RunCommand<BIMManager.BulkRevisionStampCommand>(app); break;
                     case "AutoRevisionOnTagChange": RunCommand<BIMManager.AutoRevisionOnTagChangeCommand>(app); break;
+                    case "RevisionCloudAudit":      RunCommand<BIMManager.RevisionCloudAuditCommand>(app);      break;
 
                     // Revision Management — Enhanced
                     case "RevisionApprovalWorkflow": RunCommand<BIMManager.RevisionApprovalWorkflowCommand>(app); break;
@@ -3637,6 +3670,7 @@ namespace StingTools.UI
                     case "PlanscapeHTML":           PlanscapeExportHtml(app); break;
                     case "PlanscapeHTMLDashboard":  PlanscapeExportHtml(app); break;              // Phase 78 alias
                     case "PlanscapeConnect":        RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
+                    case "PlanscapeOnboarding":     RunCommand<BIMManager.PluginOnboardingWizardCommand>(app); break;
                     case "PlanscapeDisconnect":     BIMManager.PlanscapeServerClient.Instance.Disconnect();
                                                    TaskDialog.Show("Planscape", "Disconnected from Planscape server."); break;
                     case "PlanscapeSyncNow":        BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app); break;
@@ -3934,7 +3968,7 @@ namespace StingTools.UI
                 var uidoc = app?.ActiveUIDocument;
                 if (uidoc?.Document == null) { TaskDialog.Show("STING v4", "Open a project first."); return; }
                 var dlg = new UI.FabricationWorkspaceDialog(uidoc.Document);
-                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 dlg.ShowDialog();
             }
             catch (Exception ex)
@@ -4374,10 +4408,10 @@ namespace StingTools.UI
                                 "not equals" => !string.Equals(actual, cond.Value ?? "", StringComparison.OrdinalIgnoreCase),
                                 "starts with" => actual.StartsWith(cond.Value ?? "", StringComparison.OrdinalIgnoreCase),
                                 "ends with" => actual.EndsWith(cond.Value ?? "", StringComparison.OrdinalIgnoreCase),
-                                ">" => double.TryParse(actual, out var av) && double.TryParse(cond.Value, out var cv) && av > cv,
-                                "<" => double.TryParse(actual, out var av2) && double.TryParse(cond.Value, out var cv2) && av2 < cv2,
-                                ">=" => double.TryParse(actual, out var av3) && double.TryParse(cond.Value, out var cv3) && av3 >= cv3,
-                                "<=" => double.TryParse(actual, out var av4) && double.TryParse(cond.Value, out var cv4) && av4 <= cv4,
+                                ">" => double.TryParse(actual, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var av) && double.TryParse(cond.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cv) && av > cv,
+                                "<" => double.TryParse(actual, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var av2) && double.TryParse(cond.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cv2) && av2 < cv2,
+                                ">=" => double.TryParse(actual, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var av3) && double.TryParse(cond.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cv3) && av3 >= cv3,
+                                "<=" => double.TryParse(actual, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var av4) && double.TryParse(cond.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cv4) && av4 <= cv4,
                                 "is empty" => string.IsNullOrEmpty(actual),
                                 "is not empty" => !string.IsNullOrEmpty(actual),
                                 _ => actual.IndexOf(cond.Value ?? "", StringComparison.OrdinalIgnoreCase) >= 0
@@ -8576,7 +8610,7 @@ namespace StingTools.UI
             var doc = uidoc.Document;
             var elems = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => { try { var p = e.LookupParameter("ASS_TAG_1_TXT"); return p != null && (p.AsString() ?? "").Contains(issueId); } catch { return false; } })
+                .Where(e => { try { var p = e.LookupParameter("ASS_TAG_1_TXT"); return p != null && (p.AsString() ?? "").Contains(issueId); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; } })
                 .Take(20).ToList();
             if (elems.Count > 0)
             {
@@ -8616,7 +8650,7 @@ namespace StingTools.UI
             var doc = uidoc.Document;
             var elems = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => { try { var p = e.LookupParameter("ASS_TAG_1_TXT"); return p != null && (p.AsString() ?? "").Contains(issueId); } catch { return false; } })
+                .Where(e => { try { var p = e.LookupParameter("ASS_TAG_1_TXT"); return p != null && (p.AsString() ?? "").Contains(issueId); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; } })
                 .Take(50).ToList();
             if (elems.Count > 0) uidoc.Selection.SetElementIds(elems.Select(e => e.Id).ToList());
         }
@@ -8646,7 +8680,7 @@ namespace StingTools.UI
             var paramName = Core.ParamRegistry.DISC ?? "ASS_MNG_DISC";
             var elems = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => { try { var p = e.LookupParameter(paramName); return p != null && (p.AsString() ?? "") == discCode; } catch { return false; } })
+                .Where(e => { try { var p = e.LookupParameter(paramName); return p != null && (p.AsString() ?? "") == discCode; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; } })
                 .Take(200).ToList();
             if (elems.Count > 0) uidoc.Selection.SetElementIds(elems.Select(e => e.Id).ToList());
         }

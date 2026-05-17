@@ -60,7 +60,7 @@ namespace StingTools.Commands.Mep
                         var p = fi.LookupParameter(SleeveParamRegistry.PfvUuid);
                         if (p?.AsString() is { Length: > 0 }) sleeves.Add(fi);
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
             }
             catch (Exception ex)
@@ -149,7 +149,7 @@ namespace StingTools.Commands.Mep
                     levelName = lvl?.Name ?? "";
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             string sizeBlurb = !string.IsNullOrEmpty(bore)
                 ? $"bore {bore} mm"
@@ -267,7 +267,7 @@ namespace StingTools.Commands.Mep
                 var v = p?.AsString();
                 if (!string.IsNullOrEmpty(v)) return v;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return el?.UniqueId;
         }
     }

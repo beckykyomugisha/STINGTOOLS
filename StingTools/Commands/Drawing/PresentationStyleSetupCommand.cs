@@ -219,7 +219,7 @@ namespace StingTools.Commands.Drawing
                     }
                 }
                 Category sub = doc.Settings.Categories.NewSubcategory(parent, name);
-                try { sub.LineColor = color; } catch { }
+                try { sub.LineColor = color; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 StingLog.Info($"PresentationSetup: created subcategory '{name}'.");
                 return (true, false, null);
             }

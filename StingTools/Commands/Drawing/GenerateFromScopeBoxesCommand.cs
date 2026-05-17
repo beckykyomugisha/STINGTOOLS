@@ -189,7 +189,7 @@ namespace StingTools.Commands.Drawing
                 var safeName = $"STING - {dt.Id} - {b.ScopeBox.Name}";
                 foreach (var ch in System.IO.Path.GetInvalidFileNameChars())
                     safeName = safeName.Replace(ch, '_');
-                try { v.Name = UniqueViewName(doc, safeName); } catch { }
+                try { v.Name = UniqueViewName(doc, safeName); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 var sbParam = v.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
                 if (sbParam != null && !sbParam.IsReadOnly)

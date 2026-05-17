@@ -96,7 +96,7 @@ namespace StingTools.Commands.Fabrication
                 try
                 {
                     var dlg = new StingTools.UI.FabricationWorkspaceDialog(doc);
-                    try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                    try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     dlg.ShowDialog();
                 }
                 catch (Exception ex)
@@ -308,7 +308,7 @@ namespace StingTools.Commands.Fabrication
             {
                 var doc = StingTools.UI.StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
                 var dlg = new StingTools.UI.FabricationResultDialog(doc, res);
-                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 dlg.ShowDialog();
             }
             catch (Exception ex)

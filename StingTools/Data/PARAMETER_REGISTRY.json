@@ -3115,6 +3115,61 @@
         "key": "PRJ_COMMENTS",
         "param_name": "PRJ_COMMENTS_TXT",
         "description": "Project/instance comments"
+      },
+      {
+        "key": "ITEM_CODE",
+        "param_name": "ASS_ITEM_CODE_TXT",
+        "guid": "d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a",
+        "description": "Asset item code / stock reference for procurement and spares",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "SYSTEMS",
+        "param_name": "ASS_SYSTEMS_TXT",
+        "guid": "e3f4a5b6-c7d8-4e9f-a0b1-2c3d4e5f6a7b",
+        "description": "Pipe/duct/circuit system memberships (pipe system names, semicolon-separated)",
+        "categories": [
+          "Pipes",
+          "Ducts",
+          "Conduits",
+          "Cable Trays"
+        ]
+      },
+      {
+        "key": "TERM_CAPPED",
+        "param_name": "ASS_TERM_CAPPED_BOOL",
+        "guid": "f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c",
+        "description": "Termination capped/blanked flag (connectivity validator — open end with intentional cap)",
+        "categories": [
+          "Pipes",
+          "Ducts",
+          "Conduits"
+        ]
+      },
+      {
+        "key": "TERM_REASON",
+        "param_name": "ASS_TERM_REASON_TXT",
+        "guid": "a5b6c7d8-e9f0-4a1b-c2d3-4e5f6a7b8c9d",
+        "description": "Reason an open termination is intentional (e.g. future-connection, cap, valve)",
+        "categories": [
+          "Pipes",
+          "Ducts",
+          "Conduits"
+        ]
+      },
+      {
+        "key": "TRACE_SEQ",
+        "param_name": "ASS_TRACE_SEQ_NR",
+        "guid": "b6c7d8e9-f0a1-4b2c-d3e4-5f6a7b8c9d0e",
+        "description": "Routing trace sequence index within a network path (AutoDrop engine output)",
+        "categories": [
+          "Pipes",
+          "Ducts",
+          "Conduits",
+          "Cable Trays"
+        ]
       }
     ],
     "spatial": [
@@ -3407,6 +3462,24 @@
         "description": "Stair headroom clearance in mm",
         "categories": [
           "Stairs"
+        ]
+      },
+      {
+        "key": "CBL_TRAY_WIDTH",
+        "param_name": "BLE_CBL_TRAY_WIDTH_MM",
+        "guid": "a3c1d2e4-5f67-4b89-9a0b-1c2d3e4f5a6b",
+        "description": "Cable tray internal width in mm [ISO 19650-1:2018]",
+        "categories": [
+          "Cable Trays"
+        ]
+      },
+      {
+        "key": "CBL_TRAY_DEPTH",
+        "param_name": "BLE_CBL_TRAY_DEPTH_MM",
+        "guid": "b4d2e3f5-6a78-5c9a-ab1c-2d3e4f5a6b7c",
+        "description": "Cable tray internal depth / height in mm [ISO 19650-1:2018]",
+        "categories": [
+          "Cable Trays"
         ]
       }
     ],
@@ -3925,6 +3998,28 @@
           "Duct Insulations",
           "Pipe Insulations"
         ]
+      },
+      {
+        "key": "MEC_SYS",
+        "param_name": "MEC_SYS_TXT",
+        "guid": "b8c9d0e1-f2a3-4b4c-d5e6-f7a8b9c0d1e2",
+        "description": "Mechanical system code (HVAC/VRF/CRAC/CW/CHW/DX)",
+        "categories": [
+          "Mechanical Equipment",
+          "Air Terminals",
+          "Ducts"
+        ]
+      },
+      {
+        "key": "HVC_DCT_INSULATION_THK",
+        "param_name": "HVC_DCT_INSULATION_THK_MM",
+        "guid": "c9e0f1a2-b3c4-4d5e-f6a7-b8c9d0e1f2a3",
+        "description": "Duct insulation thickness in mm (CIBSE Guide B3 / BS EN 13180)",
+        "categories": [
+          "Duct Insulations",
+          "Ducts",
+          "Flex Ducts"
+        ]
       }
     ],
     "plumbing": [
@@ -3969,6 +4064,83 @@
         "description": "Plumbing equipment design pressure in kPa",
         "categories": [
           "Plumbing Equipment"
+        ]
+      },
+      {
+        "key": "PLM_SYS",
+        "param_name": "PLM_SYS_TXT",
+        "guid": "c9d0e1f2-a3b4-4c5d-e6f7-a8b9c0d1e2f3",
+        "description": "Plumbing system code (DCW/DHW/HWS/SAN/RWD/GAS)",
+        "categories": [
+          "Pipe Fittings",
+          "Pipes",
+          "Plumbing Equipment",
+          "Plumbing Fixtures"
+        ]
+      }
+    ],
+    "system_params": [
+      {
+        "key": "DRAWING_TYPE_ID",
+        "param_name": "STING_DRAWING_TYPE_ID_TXT",
+        "guid": "c1d2e3f4-a5b6-4c7d-8e9f-a0b1c2d3e4f5",
+        "description": "Drawing Type profile ID stamped on views and sheets by DrawingTypePresentation.Apply [Phase 113]",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "STYLE_LOCKED",
+        "param_name": "STING_STYLE_LOCKED_BOOL",
+        "guid": "d2e3f4a5-b6c7-4d8e-9f0a-b1c2d3e4f5a6",
+        "description": "Lock flag preventing DrawingSyncStyles from re-applying a profile to this view/sheet",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "PACK_ID",
+        "param_name": "STING_PACK_ID_TXT",
+        "guid": "e3f4a5b6-c7d8-4e9f-a0b1-c2d3e4f5a6b7",
+        "description": "ViewStylePack ID stamped on managed Revit view templates by ManagedTemplateSyncer [Phase 137]",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "PACK_CHECKSUM",
+        "param_name": "STING_PACK_CHECKSUM_TXT",
+        "guid": "f4a5b6c7-d8e9-4f0a-b1c2-d3e4f5a6b7c8",
+        "description": "SHA-256 checksum of the ViewStylePack JSON used to detect template drift [Phase 137]",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "CDE_STATE",
+        "param_name": "STING_CDE_STATE_TXT",
+        "guid": "a5b6c7d8-e9f0-4a1b-c2d3-e4f5a6b7c8d9",
+        "description": "ISO 19650-2 CDE state code (WIP/SHARED/PUBLISHED/ARCHIVED) for views and sheets",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "CLUSTER_KEY",
+        "param_name": "TAG_CLUSTER_KEY_TXT",
+        "guid": "b6c7d8e9-f0a1-4b2c-d3e4-f5a6b7c8d9e0",
+        "description": "Cluster grouping key for SmartTagPlacement band alignment (auto-assigned)",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "FAMILY_HINT",
+        "param_name": "TAG_FAMILY_HINT_TXT",
+        "guid": "c7d8e9f0-a1b2-4c3d-e4f5-a6b7c8d9e0f1",
+        "description": "Tag family override hint written by TagStyleEngineCommands to force a specific annotation family",
+        "categories": [
+          "*"
         ]
       }
     ],

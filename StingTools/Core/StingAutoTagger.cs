@@ -525,10 +525,10 @@ namespace StingTools.Core
                 // IsWorkshared walks the document state.
                 string currentUser = null;
                 bool isWorkshared = false;
-                try { isWorkshared = doc.IsWorkshared; } catch { }
+                try { isWorkshared = doc.IsWorkshared; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (isWorkshared)
                 {
-                    try { currentUser = doc.Application.Username; } catch { }
+                    try { currentUser = doc.Application.Username; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
 
                 foreach (ElementId id in addedIds)
@@ -1494,7 +1494,10 @@ namespace StingTools.Core
                                     }
                                 }
                             }
-                            catch (Exception spEx) { StingLog.Warn($"StaleMarker spatial detection: {spEx.Message}"); }
+                            // Rate-limited: this catch lives inside an IUpdater that fires
+                            // on every element change. An ungated Warn here could emit
+                            // hundreds of lines per save.
+                            catch (Exception spEx) { StingLog.WarnRateLimited("StaleMarker.SpatialDetect", $"StaleMarker spatial detection: {spEx.Message}"); }
                         }
 
                         // R-06: MEP system change detection — SYS/FUNC become stale on system reassignment
@@ -1517,7 +1520,8 @@ namespace StingTools.Core
                                     }
                                 }
                             }
-                            catch (Exception mepEx) { StingLog.Warn($"StaleMarker MEP detection: {mepEx.Message}"); }
+                            // Rate-limited: see SpatialDetect catch above. IUpdater hot path.
+                            catch (Exception mepEx) { StingLog.WarnRateLimited("StaleMarker.MepDetect", $"StaleMarker MEP detection: {mepEx.Message}"); }
                         }
 
                         if (isStale)

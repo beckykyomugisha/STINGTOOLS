@@ -452,7 +452,7 @@ namespace StingTools.Core.Clash
                 var ws = doc.GetWorksetTable().GetWorkset(el.WorksetId);
                 return ws?.Name ?? "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         /// <summary>
@@ -744,7 +744,7 @@ namespace StingTools.Core.Clash
                 double dz = Math.Max(0, bb.Max.Z - bb.Min.Z);
                 return dx * dy * dz;
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         /// <summary>
