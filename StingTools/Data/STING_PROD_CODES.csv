@@ -1,0 +1,146 @@
+PROD_CODE,CATEGORY,FAMILY_PATTERN,DESCRIPTION,DISCIPLINE,SYSTEM,STANDARD_REF
+AHU,Mechanical Equipment,*Air Handling*,Air Handling Unit,M,HVAC,BS EN ISO 16890
+FCU,Mechanical Equipment,*Fan Coil*,Fan Coil Unit,M,HVAC,CIBSE Guide B
+CHW,Mechanical Equipment,*Chiller*,Chiller,M,HVAC,BS EN 14511
+BCH,Mechanical Equipment,*Boiler*,Boiler,M,HWS,BS EN 303-1
+PAC,Mechanical Equipment,*Split*|*Packaged*,Packaged Air Conditioning Unit,M,HVAC,BS EN 14511
+CAB,Mechanical Equipment,*Cabinet*,Cabinet Unit Heater / Ventilator,M,HVAC,CIBSE Guide B
+HRU,Mechanical Equipment,*Heat Recovery*|*MVHR*,Heat Recovery Unit,M,HVAC,BS EN 308
+EAT,Air Terminals,*Exhaust*|*Extract*,Exhaust Air Terminal,M,HVAC,BS EN 1751
+SAT,Air Terminals,*Supply*|*Diffuser*,Supply Air Terminal / Diffuser,M,HVAC,BS EN 1751
+GRL,Air Terminals,*Grille*,Return / Transfer Grille,M,HVAC,BS EN 1751
+LVR,Air Terminals,*Louvre*,Louvre / Fresh Air Intake,M,HVAC,BS EN 13141
+FRG,Air Terminals,*Fire Resist*,Fire / Smoke Damper (integral),M,HVAC,BS EN 15650
+VRV,Mechanical Equipment,*VRF*|*VRV*,Variable Refrigerant Flow / Volume Unit,M,HVAC,BS EN 14511
+CHT,Mechanical Equipment,*Cooling Tower*,Cooling Tower,M,HVAC,CIBSE Guide B3
+CHP,Mechanical Equipment,*CHP*|*Combined Heat*,Combined Heat and Power Unit,M,HVAC,BS EN 50465
+SRB,Mechanical Equipment,*Sorption*,Sorption / Desiccant Unit,M,HVAC,CIBSE Guide B
+HEX,Mechanical Equipment,*Heat Exchanger*|*Plate*,Plate Heat Exchanger,M,HWS,CIBSE Guide B
+CAL,Mechanical Equipment,*Calorifier*,Calorifier / Hot Water Storage Vessel,M,HWS,BS EN 12897
+EXP,Mechanical Equipment,*Expansion*,Expansion Vessel,M,HWS,BS EN 13831
+CIR,Mechanical Equipment,*Circulating*|*Pump*,Circulation Pump,M,HWS,BS EN 16297
+BFP,Mechanical Equipment,*Boiler Feed*,Boiler Feed Pump,M,HWS,CIBSE Guide B
+PMP,Mechanical Equipment,*Pump*,General Pump,M,HWS,BS EN 16297
+DMP,Ducts,*Damper*|*Motorised*,Motorised Volume Control Damper,M,HVAC,BS EN 1751
+FSD,Ducts,*Fire Damper*|*Fire-rated Damper*,Fire / Smoke Damper,M,HVAC,BS EN 15650
+GRD,Ducts,*Grease*,Grease Extract Duct / Kitchen Extract,M,HVAC,DW172
+SLR,Mechanical Equipment,*Silencer*,Duct Silencer / Sound Attenuator,M,HVAC,CIBSE Guide B3
+DBK,Duct Accessories,*Backdraft*,Backdraft Damper,M,HVAC,CIBSE Guide B
+VCT,Duct Accessories,*Volume Control*,Volume Control Terminal,M,HVAC,BS EN 1751
+WST,Plumbing Fixtures,*WC*|*Toilet*,WC / Toilet,P,SAN,BS EN 997
+LVT,Plumbing Fixtures,*Lavatory*|*Basin*|*Washbasin*,Wash Basin / Lavatory,P,SAN,BS EN 31
+SHW,Plumbing Fixtures,*Shower*,Shower,P,SAN,BS EN 1112
+BTH,Plumbing Fixtures,*Bath*,Bath,P,SAN,BS EN 232
+URN,Plumbing Fixtures,*Urinal*,Urinal,P,SAN,BS EN 80
+SKT,Plumbing Fixtures,*Sink*|*Kitchen Sink*,Kitchen / Lab Sink,P,SAN,BS EN 1694
+GRT,Plumbing Fixtures,*Gully*|*Floor Waste*,Floor Drain / Gully,P,SAN,BS EN 1253
+DBT,Plumbing Fixtures,*Drinking*|*Bubbler*,Drinking Fountain / Water Bubbler,P,DCW,BS EN 1717
+HTP,Plumbing Fixtures,*Hot Tap*|*Boiling*,Instant Hot Water Tap,P,HWS,BS EN 15091
+WTR,Pipe Accessories,*Meter*|*Water Meter*,Water Meter,P,DCW,BS EN 14154
+PRV,Pipe Accessories,*Pressure Reduc*|*PRV*,Pressure Reducing Valve,P,DCW,BS EN 1567
+BFV,Pipe Accessories,*Backflow*|*Check Valve*|*NRV*,Non-Return / Backflow Prevention Valve,P,DCW,BS EN 1717
+SCV,Pipe Accessories,*Strainer*|*Y-Type*,Strainer / Y-Body Strainer,P,HWS,CIBSE Guide B
+TSV,Pipe Accessories,*Thermostatic*|*TMV*,Thermostatic Mixing Valve,P,HWS,BS EN 1111
+BLV,Pipe Accessories,*Ball Valve*|*Isolat*,Ball / Isolation Valve,P,DCW,BS EN 13828
+GTV,Pipe Accessories,*Gate Valve*,Gate Valve,P,SAN,BS EN 1074
+BTF,Pipe Accessories,*Butterfly*,Butterfly Valve,P,HWS,BS EN 593
+FTV,Pipe Accessories,*Float*,Float / Ball Valve (cistern),P,SAN,BS EN 1261
+STB,Pipe Accessories,*Stopcock*,Stopcock,P,DCW,BS EN 13828
+EWS,Specialty Equipment,*Eyewash*,Emergency Eyewash Station,P,SAN,ANSI Z358.1
+EPS,Specialty Equipment,*Safety Shower*,Emergency Safety Shower,P,SAN,ANSI Z358.1
+HYD,Pipe Accessories,*Hydrant*,Fire Hydrant,FP,FP,BS 750
+HOR,Specialty Equipment,*Hose Reel*,Fire Hose Reel,FP,FP,BS EN 671-1
+FEX,Specialty Equipment,*Extinguisher*|*Fire Ext*,Fire Extinguisher,FP,FP,BS EN 3-7
+IFA,Fire Protection,*Immersion*,Immersion Sprinkler Head,FP,FP,BS EN 12259-1
+SPH,Sprinklers,*Sprinkler Head*|*Pendant*,Sprinkler Head — Pendant,FP,FP,BS EN 12259-1
+SPC,Sprinklers,*Concealed*,Sprinkler Head — Concealed,FP,FP,BS EN 12259-1
+SPS,Sprinklers,*Sidewall*,Sprinkler Head — Sidewall,FP,FP,BS EN 12259-1
+DLU,Sprinklers,*Deluge*,Deluge Nozzle,FP,FP,BS EN 12259-3
+SPT,Mechanical Equipment,*Sprinkler Tank*|*Storage Tank*,Sprinkler Storage Tank / Break Tank,FP,FP,BS EN 12845
+DB,Electrical Equipment,*Distribution Board*|*DB*,Distribution Board,E,LV,BS 7671
+MSB,Electrical Equipment,*Main Switchboard*|*MSB*|*Switchboard*,Main Switchboard,E,LV,BS 7671
+MCC,Electrical Equipment,*Motor Control*|*MCC*,Motor Control Centre,E,LV,BS EN 60439
+UPS,Electrical Equipment,*UPS*|*Uninterruptible*,Uninterruptible Power Supply,E,LV,BS EN 62040
+GEN,Electrical Equipment,*Generator*,Standby Generator,E,LV,BS 7671
+STS,Electrical Equipment,*Static Switch*|*STS*,Static Transfer Switch,E,LV,BS EN 62310
+ATS,Electrical Equipment,*ATS*|*Auto Transfer*,Automatic Transfer Switch,E,LV,BS EN 62310
+INV,Electrical Equipment,*Inverter*|*VSD*|*VFD*,Inverter / Variable Speed Drive,E,LV,BS EN 61800
+TRF,Electrical Equipment,*Transformer*,Transformer,E,HV,BS EN 60076
+SWG,Electrical Equipment,*Switchgear*|*HV Panel*,HV Switchgear Panel,E,HV,BS EN 62271
+POW,Electrical Equipment,*Power Panel*|*Sub Panel*,Sub Distribution Panel,E,LV,BS 7671
+BMS,Electrical Equipment,*BMS*|*Building Management*,BMS / BACS Controller Panel,E,BMS,BS EN ISO 16484
+OUT,Lighting Devices,*Outlet*|*Socket*,Power Outlet / Socket,E,LV,BS 1363
+RCD,Electrical Equipment,*RCD*|*RCBO*,RCD / RCBO Protection Device,E,LV,BS 7671
+LTF,Lighting Fixtures,*Troffer*|*Recessed*,Recessed Troffer / Downlight,E,LTG,BS EN 60598
+LTS,Lighting Fixtures,*Strip*|*Batten*,Strip / Batten Luminaire,E,LTG,BS EN 60598
+LTW,Lighting Fixtures,*Wallwasher*|*Wall Wash*,Wallwasher Luminaire,E,LTG,BS EN 60598
+LTX,Lighting Fixtures,*Exterior*|*Exterior*,Exterior / Floodlight Luminaire,E,LTG,BS EN 60598
+EMX,Lighting Fixtures,*Emergency*|*Exit*|*Escape*,Emergency / Exit Luminaire,E,LTG,BS EN 60598
+LTP,Lighting Fixtures,*Pendant*,Pendant Luminaire,E,LTG,BS EN 60598
+LTC,Lighting Fixtures,*Tracklight*|*Track*,Track Lighting,E,LTG,BS EN 60598
+SWC,Lighting Devices,*Switch*|*LightSwitch*,Light Switch / Dimmer,E,LTG,BS 7671
+FDV,Fire Alarm Devices,*Detector*|*Smoke Det*|*Heat Det*,Smoke / Heat Detector,E,FA,BS EN 54-5
+FAP,Fire Alarm Devices,*Call Point*|*Break Glass*|*MCP*,Manual Call Point,E,FA,BS EN 54-11
+SOD,Fire Alarm Devices,*Sounder*|*Bell*,Sounder / Bell,E,FA,BS EN 54-3
+FIB,Fire Alarm Devices,*Interface*,Interface / Input-Output Module,E,FA,BS EN 54-18
+FBZ,Fire Alarm Devices,*Zone Indicator*,Zone Indicator / Status LED,E,FA,BS 5839-1
+FAC,Electrical Equipment,*Fire Alarm Panel*|*FAP*,Fire Alarm Control Panel,E,FA,BS 5839-1
+AVD,Fire Alarm Devices,*Audible Visual*|*Beacon*|*Strobe*,Audible-Visual Alarm Device,E,FA,BS EN 54-3
+CTV,Security Devices,*Camera*|*CCTV*,CCTV Camera,E,SEC,BS EN 62676
+PKA,Security Devices,*Access Control*|*Card Reader*|*Prox*,Access Control Reader,E,SEC,BS EN 60839
+DOM,Security Devices,*Door Entry*|*Intercom*,Door Entry / Intercom,E,SEC,BS EN 60839
+PID,Security Devices,*Intruder*|*PIR*|*Motion*,Intruder Detection / PIR,E,SEC,BS EN 50131
+NCA,Nurse Call Devices,*Call Point*|*Nurse Call*,Nurse Call Patient Unit,E,NCL,BS EN ISO 11073
+NCO,Nurse Call Devices,*Overdoor*,Overdoor Indicator / Dome Light,E,NCL,BS EN ISO 11073
+NCB,Nurse Call Devices,*Bell*|*Sounder*|*NCB*,Nurse Call Bell / Sounder,E,NCL,BS EN ISO 11073
+DDA,Data Devices,*Data Outlet*|*RJ45*|*CAT6*,Data Outlet / RJ45 Patch Point,E,ICT,BS EN 50173
+WAP,Data Devices,*Access Point*|*WiFi*|*Wireless*,Wireless Access Point,E,ICT,BS EN 301 893
+OFP,Electrical Equipment,*Optical Frame*|*Patch Panel*,Fibre / Copper Patch Panel,E,ICT,BS EN 50173
+ODF,Electrical Equipment,*ODF*|*Fibre Dist*,Optical Distribution Frame,E,ICT,BS EN 50173
+SCT,Electrical Equipment,*Server*|*Cabinet*|*Rack*,Server Rack / Network Cabinet,E,ICT,BS EN 60297
+TEL,Telephone Devices,*Telephone*|*Handset*,Telephone Handset / Phone Point,E,COM,BS EN 50173
+TVP,Communication Devices,*TV Point*|*Television*,TV Antenna / Satellite Point,E,COM,BS EN 60728
+PAG,Communication Devices,*PA*|*Public Address*|*Speaker*,Public Address / PA Speaker,E,COM,BS 7671
+COL,Structural Columns,*Concrete Column*|*RC Column*,Reinforced Concrete Column,S,STR,BS EN 1992-1-1
+STC,Structural Columns,*Steel Column*|*UC*|*CHS*,Structural Steel Column,S,STR,BS EN 1993-1-1
+TBC,Structural Columns,*Timber*|*Glulam*,Timber / Glulam Column,S,STR,BS EN 1995-1-1
+BM,Structural Framing,*Concrete Beam*|*RC Beam*,Reinforced Concrete Beam,S,STR,BS EN 1992-1-1
+STB2,Structural Framing,*Steel Beam*|*UB*|*IPE*,Structural Steel Beam,S,STR,BS EN 1993-1-1
+CLT,Structural Framing,*CLT*|*Cross Laminated*,Cross-Laminated Timber Beam,S,STR,BS EN 1995-1-1
+SLB,Floors,*Concrete Slab*|*RC Slab*,Reinforced Concrete Slab / Floor,S,STR,BS EN 1992-1-1
+PSB,Floors,*Post-Tension*|*PT Slab*,Post-Tensioned Concrete Slab,S,STR,BS EN 1992-1-5
+CFS,Floors,*Composite*|*Metal Deck*,Composite Metal Deck Floor Slab,S,STR,BS EN 1994-1-1
+PAD,Structural Foundations,*Pad Foundation*,Pad Foundation,S,STR,BS EN 1992-1-1
+STF,Structural Foundations,*Strip Foundation*,Strip Foundation,S,STR,BS EN 1992-1-1
+PIL,Structural Foundations,*Pile*,Pile / Pile Cap,S,STR,BS EN 1997-1
+RAF,Structural Foundations,*Raft*,Raft Foundation,S,STR,BS EN 1992-1-1
+RWL,Structural Foundations,*Retaining*,Retaining Wall,S,STR,BS EN 1997-1
+MGO,Specialty Equipment,*O2*|*Medical Gas Outlet*,Oxygen Outlet — Bedhead,P,MGS,HTM 02-01
+MGN,Specialty Equipment,*N2O*|*Nitrous*,Nitrous Oxide Outlet — Bedhead,P,MGS,HTM 02-01
+MGA,Specialty Equipment,*Air*|*Medical Air*|*MAP*,Medical Air Outlet — Bedhead,P,MGS,HTM 02-01
+MGV,Specialty Equipment,*Vacuum*|*MGPS Vac*,Medical Vacuum Outlet — Bedhead,P,MGS,HTM 02-01
+MGE,Specialty Equipment,*EVAC*,Anaesthetic Gas Scavenging (EVAC) Outlet,P,MGS,HTM 02-01
+MNF,Specialty Equipment,*Manifold*|*Medical Manifold*,Medical Gas Manifold / Cylinder Manifold,P,MGS,HTM 02-01
+VIE,Specialty Equipment,*VIE*|*Vacuum Insulated*,Vacuum Insulated Evaporator (VIE),P,MGS,HTM 02-01
+ZVB,Specialty Equipment,*Zone Valve*|*MGS Valve*,Medical Gas Zone Valve Box,P,MGS,HTM 02-01
+AAP,Specialty Equipment,*Area Alarm*|*MGS Alarm*,Medical Gas Area Alarm Panel,P,MGS,HTM 02-01
+MSP,Mechanical Equipment,*Medical Suction*,Medical Suction / Vacuum Pump Set,P,MGS,HTM 02-01
+MCP,Mechanical Equipment,*Medical Compressor*,Medical Air Compressor Set,P,MGS,HTM 02-01
+BHD,Specialty Equipment,*Bedhead*|*Trunking*,Bedhead Trunking / Service Panel,E,NCL,HTM 08-03
+RWS,Specialty Equipment,*Radiation Shield*,Radiation Shielding Panel / Element,S,RAD,NCRP 147
+XRY,Specialty Equipment,*X-Ray*|*C-Arm*,X-Ray / Fluoroscopy Unit,E,RAD,NCRP 147
+MRI,Specialty Equipment,*MRI*|*Magnet*,MRI Scanner Magnet,E,RAD,NCRP 147
+GMA,Specialty Equipment,*Gamma*|*Linac*,Gamma Knife / Linear Accelerator,E,RAD,NCRP 147
+HED,Specialty Equipment,*Hood*|*Exhaust Hood*,Local Exhaust Ventilation / Hood,M,HVAC,DW172
+FHD,Specialty Equipment,*Fume Hood*|*Fume Cupboard*,Fume Cupboard / Fume Hood,M,HVAC,BS EN 14175
+BSC,Specialty Equipment,*Biosafety*|*Laminar Flow*,Biosafety Cabinet / Laminar Flow Bench,M,HVAC,BS EN 12469
+ACU,Specialty Equipment,*Autoclave*|*Steriliser*,Autoclave / Steam Steriliser,M,HWS,HTM 01-01
+WAS,Specialty Equipment,*Washer Disinfect*,Washer-Disinfector,M,HWS,HTM 01-06
+FRZ,Specialty Equipment,*Freezer*|*ULT*,Ultra-Low Temperature Freezer,M,HVAC,BS EN 12513
+REF,Specialty Equipment,*Refrigerator*|*Pharmacy Fridge*,Pharmaceutical / Medical Refrigerator,M,HVAC,BS EN 12513
+DLV,Specialty Equipment,*Dumbwaiter*|*Lift*|*Hoist*,Dumbwaiter / Medical Hoist / Bed Lift,M,HVAC,BS EN 81-70
+VLT,Specialty Equipment,*Pneumatic Tube*|*PTS*,Pneumatic Tube System Terminal,E,ICT,BS EN 13094
+EVC,Specialty Equipment,*EV Charger*|*Charging Point*,Electric Vehicle Charging Point,E,LV,BS 7671
+SOL,Mechanical Equipment,*Solar*|*PV*|*Photovoltaic*,Solar PV Panel / Array,E,LV,BS EN 61730
+BAT,Electrical Equipment,*Battery*|*ESS*|*Energy Storage*,Battery Energy Storage System,E,LV,BS EN 62619
+WTB,Mechanical Equipment,*Wind Turbine*,Wind Turbine,M,HVAC,BS EN 61400

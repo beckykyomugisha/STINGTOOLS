@@ -2074,15 +2074,21 @@ namespace StingTools.Core
             }
 
             // STATUS — phase-aware (4-layer detection using cached phases for batch perf)
+            // GAP-STATUS-01: AutoCorrectStatusFromPhase forces phase-derived STATUS even when
+            // element already has a value, preventing drift when Revit phases are reorganised.
             string existingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
-            if (string.IsNullOrEmpty(existingStatus) || overwrite)
+            bool statusNeedsWrite = string.IsNullOrEmpty(existingStatus)
+                || overwrite
+                || TagConfig.TagConfig.AutoCorrectStatusFromPhase;
+            if (statusNeedsWrite)
             {
                 // Use cached phase data when available (batch), fall back to uncached (single element)
                 string status = (ctx.CachedPhases != null)
                     ? PhaseAutoDetect.DetectStatusCached(doc, el, ctx.CachedPhases, ctx.LastPhaseId)
                     : PhaseAutoDetect.DetectStatus(doc, el);
                 if (string.IsNullOrEmpty(status)) status = ctx.DefaultStatus;
-                if (overwrite)
+                bool forceWrite = overwrite || TagConfig.TagConfig.AutoCorrectStatusFromPhase;
+                if (forceWrite)
                 {
                     if (ParameterHelpers.SetString(el, ParamRegistry.STATUS, status, overwrite: true))
                     {

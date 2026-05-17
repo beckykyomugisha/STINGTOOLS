@@ -741,6 +741,18 @@ namespace StingTools.Core
 
                                 if (!pipelineOk) continue;
 
+                                // GAP-AT-02: Stamp [AUTO_TAGGER] audit marker so elements tagged
+                                // asynchronously (bulk paste / deferred replay) are distinguishable
+                                // from manually tagged elements in the MODIFIED_BY audit trail.
+                                try
+                                {
+                                    string existingBy = ParameterHelpers.GetString(el, "ASS_TAG_MODIFIED_BY_TXT");
+                                    if (!existingBy.StartsWith("[AUTO_TAGGER]", StringComparison.Ordinal))
+                                        ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_BY_TXT",
+                                            $"[AUTO_TAGGER] {existingBy}".TrimEnd(), overwrite: true);
+                                }
+                                catch (Exception atEx) { StingLog.Warn($"AutoTagger MODIFIED_BY stamp: {atEx.Message}"); }
+
                                 // Visual tag placement
                                 if (_visualTaggingEnabled && doc.ActiveView != null
                                     && !(doc.ActiveView is ViewSheet)

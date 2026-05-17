@@ -1133,6 +1133,14 @@ namespace StingTools.Core
         /// <summary>FIX-B10: Persisted stale marker state. Null = not set in config.</summary>
         public static bool? AutoTaggerStaleMarker { get; internal set; }
 
+        /// <summary>
+        /// GAP-STATUS-01: When true, STATUS token is always re-derived from Revit phase data and
+        /// overwritten even if the element already has a STATUS value. Prevents drift between the
+        /// Revit phase model and the ISO 19650 tag when phases are reorganised post-tagging.
+        /// Set via AUTO_CORRECT_STATUS_FROM_PHASE in project_config.json.
+        /// </summary>
+        public static bool AutoCorrectStatusFromPhase { get; internal set; } = false;
+
         /// <summary>FE-06: Full per-category token overrides. Key=category name, Value=dict of token->value.</summary>
         public static Dictionary<string, Dictionary<string, string>> CategoryTokenOverrides { get; internal set; }
             = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
@@ -1428,7 +1436,8 @@ namespace StingTools.Core
                     "SLA_THRESHOLDS","AUTO_SAVE_WARNING_BASELINE","AUTO_SAVE_BASELINE_ON_REVISION",
                     "DISCIPLINE_LEADS","WARNING_SUPPRESS_PATTERNS","AUTO_TAGGER_DISC_FILTER",
                     "USER_ROLE","PROJECT_TYPE","LAST_WORKFLOW_NAME",
-                    "EXCEL_IMPORT_BATCH_SIZE"
+                    "EXCEL_IMPORT_BATCH_SIZE",
+                    "AUTO_CORRECT_STATUS_FROM_PHASE","LEADER_CLEARANCE_MARGIN_FT"
                 };
                 var unknownKeys = data.Keys.Where(k => !knownKeys.Contains(k)).ToList();
                 if (unknownKeys.Count > 0)
@@ -1763,6 +1772,17 @@ namespace StingTools.Core
                     AutoTaggerStaleMarker = atsmVal;
                 }
                 else { AutoTaggerStaleMarker = null; }
+
+                // GAP-STATUS-01: Auto-correct STATUS from Revit phase data (default off for back-compat)
+                AutoCorrectStatusFromPhase = false;
+                if (data.TryGetValue("AUTO_CORRECT_STATUS_FROM_PHASE", out object acsObj))
+                {
+                    if (acsObj is bool acsb) AutoCorrectStatusFromPhase = acsb;
+                    else if (acsObj is string acss) AutoCorrectStatusFromPhase =
+                        acss.Equals("true", StringComparison.OrdinalIgnoreCase);
+                    if (AutoCorrectStatusFromPhase)
+                        StingLog.Info("TagConfig: AUTO_CORRECT_STATUS_FROM_PHASE = true — STATUS will always reflect Revit phase");
+                }
 
                 // GAP-FIX: Load configurable formula/grid cache TTL
                 FormulaCacheTTLMinutes = 5;
