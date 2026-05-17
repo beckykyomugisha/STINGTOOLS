@@ -55,3 +55,22 @@ STING_WORKFLOW_LOG.json
 .env
 *.env
 !*.env.template
+
+# Node / JS dependencies
+node_modules/
+dist/
+.next/
+out/
+build/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IFC drop folder
+IFC_DROP/
+
+# Docker runtime log
+Planscape.Server/docker/api-errors.txt
