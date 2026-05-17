@@ -177,38 +177,44 @@ namespace StingTools.Commands.Electrical
                         d.MaxDemandA   = sys.ApparentCurrent;
 
                         // Phase + core count derived from SystemType and number of poles.
-                        // Revit ElectricalSystemType has: PowerCircuit, LightingCircuit,
-                        // Data, Telephone, FireAlarm, Security, NurseCall, Communication,
-                        // UndefinedSystemType.  Three-phase is detected via NumberOfPhases.
-                        int numPhases = 1;
-                        try { numPhases = sys.NumberOfPhases; } catch { }
-                        bool isThreePhase = numPhases >= 3;
+                        // Revit ElectricalSystemType has: PowerCircuit, Data, Telephone,
+                        // FireAlarm, Security, NurseCall, Communication, UndefinedSystemType.
+                        // Three-phase is detected via NumberOfPoles (3 poles = 3-phase supply).
+                        int numPoles = 1;
+                        try { numPoles = sys.NumberOfPoles; } catch { }
+                        bool isThreePhase = numPoles >= 3;
 
-                        switch (sys.SystemType)
+                        // SystemType string compared case-insensitively to handle API
+                        // version differences (e.g. LightingCircuit absent in some builds).
+                        string sysTypeName = "";
+                        try { sysTypeName = sys.SystemType.ToString(); } catch { }
+
+                        if (string.Equals(sysTypeName, "PowerCircuit", StringComparison.OrdinalIgnoreCase)
+                            || sys.SystemType == ElectricalSystemType.PowerCircuit)
                         {
-                            case ElectricalSystemType.PowerCircuit:
-                                if (isThreePhase)
-                                {
-                                    d.Phase = "3Ø";
-                                    d.CoreCount = 4; // 3 phase + neutral (CPC separate)
-                                    d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Power" : d.CircuitType;
-                                }
-                                else
-                                {
-                                    d.Phase = "1Ø";
-                                    d.CoreCount = 2; // live + neutral + (CPC separate)
-                                    d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Power" : d.CircuitType;
-                                }
-                                break;
-                            case ElectricalSystemType.LightingCircuit:
+                            if (isThreePhase)
+                            {
+                                d.Phase = "3Ø";
+                                d.CoreCount = 4; // 3 phase + neutral (CPC separate)
+                                d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Power" : d.CircuitType;
+                            }
+                            else
+                            {
                                 d.Phase = "1Ø";
-                                d.CoreCount = 2;
-                                d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Lighting" : d.CircuitType;
-                                break;
-                            default:
-                                d.Phase = "1Ø";
-                                d.CoreCount = 2;
-                                break;
+                                d.CoreCount = 2; // live + neutral (CPC separate)
+                                d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Power" : d.CircuitType;
+                            }
+                        }
+                        else if (string.Equals(sysTypeName, "LightingCircuit", StringComparison.OrdinalIgnoreCase))
+                        {
+                            d.Phase = "1Ø";
+                            d.CoreCount = 2;
+                            d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Lighting" : d.CircuitType;
+                        }
+                        else
+                        {
+                            d.Phase = "1Ø";
+                            d.CoreCount = 2;
                         }
 
                         // Panel name from base equipment

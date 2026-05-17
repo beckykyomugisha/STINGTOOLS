@@ -77,6 +77,14 @@ namespace StingTools.Core.Placement
         /// </summary>
         public bool RejectInsideWall { get; set; } = false;
 
+        /// <summary>
+        /// Accumulated lighting-grid results keyed by "{roomId}::{ruleMergeKey}".
+        /// Populated by EmitLightingGridPoints so StampNogginRequirementsFromGrid
+        /// can read NogginRequiredPoints after the placement run completes.
+        /// </summary>
+        public Dictionary<string, LightingGridResult> GridResults { get; }
+            = new Dictionary<string, LightingGridResult>(StringComparer.OrdinalIgnoreCase);
+
         public PlacementScorer(Document doc)
         {
             _doc = doc;

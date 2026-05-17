@@ -192,16 +192,16 @@ namespace StingTools.Commands.Placement
             bool dryRun;
             if (PlaceFixturesOptions.DryRunPreference)
             {
-                dryRun = PromptDryRunChoice(selectedRoomIds.Count);
+                dryRun = PromptDryRunChoice(scopeLabel);
             }
             else
             {
-                if (!ConfirmPlacement(selectedRoomIds.Count)) return Result.Cancelled;
+                if (!ConfirmPlacement(scopeLabel)) return Result.Cancelled;
                 dryRun = false;
             }
             if (dryRun == false
                 && PlaceFixturesOptions.DryRunPreference == false
-                && !ConfirmPlacement(selectedRoomIds.Count)) return Result.Cancelled;
+                && !ConfirmPlacement(scopeLabel)) return Result.Cancelled;
 
             // Category filter: discipline checkboxes from the Fixtures
             // panel restrict which PlacementRule.CategoryFilter values
@@ -275,10 +275,6 @@ namespace StingTools.Commands.Placement
 
         private bool PromptDryRunChoice(string scopeLabel)
         {
-            string scope = selectedRoomCount > 0
-                ? $"{selectedRoomCount} selected room(s)"
-                : "ALL rooms in project";
-
             // Revit's TaskDialog.DefaultButton must refer to a button in CommonButtons —
             // it cannot point at a CommandLink. Leave DefaultButton unset so Revit picks
             // the first-added CommandLink as the default.

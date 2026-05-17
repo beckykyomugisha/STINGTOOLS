@@ -147,6 +147,26 @@ namespace StingTools.Core.Drawing
         [JsonProperty("categoryTagStyles", NullValueHandling = NullValueHandling.Ignore)]
         public Dictionary<string, string> CategoryTagStyles { get; set; }
 
+        // ── Phase 177 pack-level TAG7 depth + section fields ────────
+
+        /// <summary>
+        /// Per-category TAG7 paragraph depth override (1..10). Lookup by Revit
+        /// category display name. Acts as a pack-level fallback; the DrawingType's
+        /// AnnotationTokenProfile.CategoryDepths entries always win on a per-key basis.
+        /// </summary>
+        [JsonProperty("categoryDepths", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, int> CategoryDepths { get; set; } = new Dictionary<string, int>();
+
+        /// <summary>
+        /// Per-category TAG7 section visibility compact string (e.g. "ABDF").
+        /// Keys are Revit category display names; values are strings of section
+        /// letters (A..F) that should be visible. The pack-level default for the
+        /// global SectionVisibility map is derived as the union of all category
+        /// strings. Profile-level SectionVisibility always takes precedence.
+        /// </summary>
+        [JsonProperty("categoryTag7Sections", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, string> CategoryTag7Sections { get; set; } = new Dictionary<string, string>();
+
         // ── Core visual fields ───────────────────────────────────────
 
         [JsonProperty("filters")] public List<StyleFilterRule> Filters { get; set; } = new List<StyleFilterRule>();

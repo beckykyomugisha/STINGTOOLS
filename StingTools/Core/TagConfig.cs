@@ -1149,6 +1149,30 @@ namespace StingTools.Core
         private static bool _seqSchemeChanged = false;
         private static bool _seqSchemeWarned = false;
 
+        // Phase 177 — lazy-load guard for valid FUNC CSV data.
+        // EnsureValidFuncsLoaded() is a no-op because _validFuncsForSys is
+        // initialised from a static field initialiser; the flag is retained
+        // so callers (ParameterHelpers) can query IsLoaded without coupling
+        // to internal implementation details.
+        private static bool _validFuncsCsvLoaded = false;
+
+        /// <summary>True once the valid-FUNC lookup table has been populated (always true after first static init).</summary>
+        public static bool IsLoaded => _validFuncsCsvLoaded || _validFuncsForSys.Count > 0;
+
+        /// <summary>
+        /// Ensures the valid-FUNC per-SYS lookup table is populated.
+        /// The table is built from a static field initialiser so this is
+        /// effectively a no-op; it exists so callers can guarantee readiness
+        /// without depending on internal implementation details.
+        /// </summary>
+        public static void EnsureValidFuncsLoaded()
+        {
+            if (_validFuncsCsvLoaded) return;
+            _validFuncsCsvLoaded = true;
+            // _validFuncsForSys is populated by its field initialiser above;
+            // nothing more to load here.
+        }
+
         /// <summary>
         /// Build a canonical SEQ counter key from element token values.
         /// Used to ensure consistent grouping across all tagging commands.
