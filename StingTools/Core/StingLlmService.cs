@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -40,6 +41,8 @@ namespace StingTools.Core
         private string _azureDeployment;
         private string _azureKey;
         private string _claudeKey;
+        private string _claudeModel;
+        private bool   _enabled;
 
         // Valid command tags — LLM output is rejected unless it is in this whitelist
         private static readonly HashSet<string> _commandWhitelist = BuildWhitelist();
@@ -58,10 +61,12 @@ namespace StingTools.Core
                 string cfgPath = System.IO.Path.Combine(StingToolsApp.DataPath, "STING_LLM_CONFIG.json");
                 if (!System.IO.File.Exists(cfgPath)) return;
                 var cfg = JObject.Parse(System.IO.File.ReadAllText(cfgPath));
-                _azureEndpoint  = cfg["azure"]?["endpoint"]?.Value<string>();
-                _azureDeployment = cfg["azure"]?["deployment"]?.Value<string>() ?? "gpt-4o-mini";
-                _azureKey       = cfg["azure"]?["apiKey"]?.Value<string>();
-                _claudeKey      = cfg["claude"]?["apiKey"]?.Value<string>();
+                _enabled        = cfg["enabled"]?.Value<bool>()               ?? false;
+                _azureEndpoint  = cfg["azure_endpoint"]?.Value<string>();
+                _azureDeployment = cfg["azure_deployment"]?.Value<string>()   ?? "gpt-4o-mini";
+                _azureKey       = cfg["azure_api_key"]?.Value<string>();
+                _claudeKey      = cfg["claude_api_key"]?.Value<string>();
+                _claudeModel    = cfg["claude_model"]?.Value<string>()        ?? "claude-haiku-4-5-20251001";
             }
             catch (Exception ex)
             {
@@ -104,10 +109,13 @@ namespace StingTools.Core
 
         public async Task<string> AskBimQuestionAsync(string question)
         {
-            // Check local BIM knowledge base first (instant, free)
-            string localAnswer = NLPEngine.SearchKnowledge(question);
-            if (!string.IsNullOrEmpty(localAnswer))
-                return $"[Local BIM KB] {localAnswer}";
+            // Check local BIM knowledge base first (instant, free, offline)
+            var localMatches = NLPEngine.SearchKnowledge(question);
+            if (localMatches != null && localMatches.Count > 0)
+            {
+                string localAnswer = string.Join("\n", localMatches.Select(m => $"{m.Term}: {m.Definition}"));
+                return $"[Local BIM KB]\n{localAnswer}";
+            }
 
             string clean = PiiRedactor.Redact(question);
             string context = BuildRagContext(clean);
@@ -135,6 +143,8 @@ namespace StingTools.Core
 
         private async Task<string> CallLlmAsync(string userPrompt, string systemPrompt)
         {
+            if (!_enabled) return null; // LLM disabled in config — rule-based fallback handles this
+
             // Try Azure OpenAI first
             if (!string.IsNullOrEmpty(_azureEndpoint) && !string.IsNullOrEmpty(_azureKey))
             {
@@ -191,7 +201,7 @@ namespace StingTools.Core
         {
             var body = new
             {
-                model   = "claude-haiku-4-5-20251001",
+                model   = _claudeModel ?? "claude-haiku-4-5-20251001",
                 max_tokens = 800,
                 system  = systemPrompt,
                 messages = new[] { new { role = "user", content = userPrompt } }
