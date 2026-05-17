@@ -44,8 +44,6 @@ using TextBox    = System.Windows.Controls.TextBox;
 using Visibility = System.Windows.Visibility;
 using SelectionChangedEventArgs = System.Windows.Controls.SelectionChangedEventArgs;
 using StingTools.Core;
-using Color = System.Windows.Media.Color;
-using Grid = System.Windows.Controls.Grid;
 namespace StingTools.UI
 {
     public sealed class RevitVgEditor

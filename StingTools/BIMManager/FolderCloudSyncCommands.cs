@@ -16,7 +16,6 @@ using StingTools.Core;
 using Grid     = System.Windows.Controls.Grid;
 using ComboBox = System.Windows.Controls.ComboBox;
 using TextBox  = System.Windows.Controls.TextBox;
-using Grid = System.Windows.Controls.Grid;
 
 namespace StingTools.BIMManager
 {
