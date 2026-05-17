@@ -188,6 +188,8 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="120"/>
@@ -214,12 +216,21 @@
 
                             <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Priority (0–100)"/>
                             <TextBox   Grid.Row="2" Grid.Column="3" x:Name="txtPriority" Margin="0,2"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Family Type Regex"/>
+                            <TextBox   Grid.Row="3" Grid.Column="1" x:Name="txtFamilyTypeRegex" Margin="0,2"
+                                       ToolTip="PC-08 — FamilySymbol.Name regex for refining variant resolution. Applied after VariantHint when both are set (e.g. '^IP6[5-7]$')."/>
+                            <TextBlock Grid.Row="3" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Source Pack"/>
+                            <TextBox   Grid.Row="3" Grid.Column="3" x:Name="txtSourcePack" IsReadOnly="True" Margin="0,2"
+                                       Foreground="#888" FontStyle="Italic"
+                                       ToolTip="Set by PlacementRuleLoader from the originating discipline pack filename. Read-only."/>
                         </Grid>
                     </GroupBox>
 
                     <GroupBox Header="Geometry" Style="{StaticResource GroupBoxStyle}">
                         <Grid>
                             <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
@@ -255,6 +266,13 @@
                             <TextBox   Grid.Row="3" Grid.Column="1" x:Name="txtSpacing" Margin="0,2"/>
                             <TextBlock Grid.Row="3" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Max per Room (0 = ∞)"/>
                             <TextBox   Grid.Row="3" Grid.Column="3" x:Name="txtMaxRoom" Margin="0,2"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Tolerance (mm)"/>
+                            <TextBox   Grid.Row="4" Grid.Column="1" x:Name="txtToleranceMm" Margin="0,2"
+                                       ToolTip="PC-06 — candidates within this radius of the best position are treated as equivalent (default 25 mm)."/>
+                            <TextBlock Grid.Row="4" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Max Spacing (mm)"/>
+                            <TextBox   Grid.Row="4" Grid.Column="3" x:Name="txtMaxSpacing" Margin="0,2"
+                                       ToolTip="Max centre-to-centre spacing for coverage-grid fixtures (BS EN 12464 / BS 5839). 0 = no maximum."/>
                         </Grid>
                     </GroupBox>
 
@@ -300,6 +318,9 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="120"/>
@@ -317,10 +338,108 @@
 
                             <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Per occupant"/>
                             <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtPerOcc" Margin="0,2"
-                                       ToolTip="Density: 1 fixture per N occupants (read from STING_OCC_COUNT_INT)."/>
+                                       ToolTip="Density: 1 fixture per N occupants (read from STING_OCC_COUNT_INT or OccupancyParamName)."/>
                             <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Per linear m"/>
                             <TextBox   Grid.Row="1" Grid.Column="3" x:Name="txtPerLin" Margin="0,2"
                                        ToolTip="Linear: 1 fixture per N metres of room perimeter."/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Per bed"/>
+                            <TextBox   Grid.Row="2" Grid.Column="1" x:Name="txtPerBed" Margin="0,2"
+                                       ToolTip="Healthcare: 1 fixture per N beds (read from STING_BED_COUNT_INT)."/>
+                            <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Per workstation"/>
+                            <TextBox   Grid.Row="2" Grid.Column="3" x:Name="txtPerWorkstation" Margin="0,2"
+                                       ToolTip="Office: 1 fixture per N workstations (read from STING_WS_COUNT_INT)."/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Per pupil"/>
+                            <TextBox   Grid.Row="3" Grid.Column="1" x:Name="txtPerPupil" Margin="0,2"
+                                       ToolTip="Education: 1 fixture per N pupils (read from STING_PUPIL_COUNT_INT)."/>
+                            <TextBlock Grid.Row="3" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Per WC cubicle"/>
+                            <TextBox   Grid.Row="3" Grid.Column="3" x:Name="txtPerToiletCubicle" Margin="0,2"
+                                       ToolTip="BS 6465 accessory rules: 1 fixture per N toilet cubicles."/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Occupancy param"/>
+                            <TextBox   Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" x:Name="txtOccupancyParam" Margin="0,2"
+                                       ToolTip="Room integer parameter name to read occupancy from when PerOccupant is set. Leave blank to use STING_OCC_COUNT_INT."/>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Coverage Grid (PC-14)" Style="{StaticResource GroupBoxStyle}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Coverage radius (mm)"/>
+                            <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtCoverageRadius" Margin="0,2"
+                                       ToolTip="Effective detection / illumination radius (BS EN 12464-1, BS 5839-1, BS EN 14604). 0 = no coverage grid."/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Guarantee coverage"/>
+                            <CheckBox  Grid.Row="0" Grid.Column="3" x:Name="chkGuaranteeCoverage" Margin="0,4"
+                                       ToolTip="When checked, the engine adds fixtures until ≥99% of the floor area is covered, even if Max per Room would cap earlier."/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Foreground="#666" FontStyle="Italic"
+                                       Text="→ Max Spacing is in Geometry above"/>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Integrated Routing (PC-15)" Style="{StaticResource GroupBoxStyle}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Routing mode"/>
+                            <ComboBox  Grid.Row="0" Grid.Column="1" x:Name="cmbRoutingMode" Margin="0,2"
+                                       ToolTip="NONE / AUTO_CONDUIT / AUTO_PIPE / AUTO_DUCT / WALL_FOLLOWER. Engine routes from each placed fixture after placement."/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Segment category"/>
+                            <ComboBox  Grid.Row="0" Grid.Column="3" x:Name="cmbRouteSegmentCategory" Margin="0,2"
+                                       ToolTip="PIPE / CONDUIT / CABLE_TRAY / DUCT. Must match an available Revit system category when Routing Mode ≠ NONE."/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Route offset (mm)"/>
+                            <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtRouteOffset" Margin="0,2"
+                                       ToolTip="Vertical offset from the fixture connector to the route start. Negative = below connector."/>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Construction Phasing (PC-16) / Cluster (PC-17)" Style="{StaticResource GroupBoxStyle}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Two-phase"/>
+                            <CheckBox  Grid.Row="0" Grid.Column="1" x:Name="chkTwoPhase" Margin="0,4"
+                                       ToolTip="When checked, TwoPhaseBoxPlacer runs first-fix box before second-fix fixture placement."/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Construction phase"/>
+                            <ComboBox  Grid.Row="0" Grid.Column="3" x:Name="cmbConstructionPhase" Margin="0,2"
+                                       ToolTip="FIRST_FIX / SECOND_FIX / FINISHED — which construction phase this rule targets."/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Cluster member"/>
+                            <CheckBox  Grid.Row="1" Grid.Column="1" x:Name="chkClusterMember" Margin="0,4"
+                                       ToolTip="When checked, this rule participates in cluster placement with other rules sharing ClusterGroupId."/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Cluster group id"/>
+                            <TextBox   Grid.Row="1" Grid.Column="3" x:Name="txtClusterGroupId" Margin="0,2"
+                                       ToolTip="E.g. 'SWITCH_PLATE_CLUSTER'. Rules in the same group are placed as a single compound element."/>
                         </Grid>
                     </GroupBox>
 
@@ -588,6 +707,19 @@
                             <CheckBox x:Name="chkRoutFP"    Content="Fire protection" IsChecked="True" Margin="0,3"/>
                         </StackPanel>
                     </GroupBox>
+                    <GroupBox Header="Scorer" Style="{StaticResource GroupBoxStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource LabelStyle}" Text="Score threshold" VerticalAlignment="Center"
+                                       ToolTip="Candidates scoring below this value are rejected (0.00–1.00). Default 0.35."/>
+                            <TextBox Grid.Column="1" x:Name="txtScoreThreshold" Margin="0,2" Text="0.35"
+                                     LostFocus="OnScoreThreshold_Changed"
+                                     ToolTip="PlacementScorer.ScoreThreshold. Lower = more permissive; 0.20 keeps borderline coverage candidates."/>
+                        </Grid>
+                    </GroupBox>
                 </StackPanel>
                 </ScrollViewer>
             </Border>
@@ -647,6 +779,9 @@
                             <Button Style="{StaticResource ToolBtnSecondary}" Width="118" Height="30" Margin="4,3"
                                     Content="Clearance Scan" Click="OnClearanceScan_Click"
                                     ToolTip="Scan placed fixtures for clearance-zone violations (scoped to last run if available)."/>
+                            <Button Style="{StaticResource ToolBtnSecondary}" Width="148" Height="30" Margin="4,3"
+                                    Content="Penetration Coverage" Click="OnPenetrationCoverage_Click"
+                                    ToolTip="Validate that every wall / slab penetration has a matching sleeve or core-drill record (BS EN ISO 9431 / project spec)."/>
                         </WrapPanel>
                     </GroupBox>
 

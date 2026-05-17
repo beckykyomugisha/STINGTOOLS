@@ -69,13 +69,16 @@ namespace StingTools.UI.PlacementCenter
             _doc = _uiDoc?.Document;
 
             // Combo data sources
-            cmbCategory.ItemsSource   = VM.Categories;
-            cmbAnchor.ItemsSource     = VM.AnchorTypes;
-            cmbSide.ItemsSource       = VM.SideConstraints;
-            cmbVariant.ItemsSource    = VM.VariantHints;
-            cmbMountRef.ItemsSource   = VM.MountingReferences;
-            cmbRuleKind.ItemsSource   = VM.RuleKinds;
-            cmbRelativeTo.ItemsSource = VM.RelativeToOptions;
+            cmbCategory.ItemsSource          = VM.Categories;
+            cmbAnchor.ItemsSource            = VM.AnchorTypes;
+            cmbSide.ItemsSource              = VM.SideConstraints;
+            cmbVariant.ItemsSource           = VM.VariantHints;
+            cmbMountRef.ItemsSource          = VM.MountingReferences;
+            cmbRuleKind.ItemsSource          = VM.RuleKinds;
+            cmbRelativeTo.ItemsSource        = VM.RelativeToOptions;
+            cmbRoutingMode.ItemsSource       = new[] { "NONE", "AUTO_CONDUIT", "AUTO_PIPE", "AUTO_DUCT", "WALL_FOLLOWER" };
+            cmbRouteSegmentCategory.ItemsSource = new[] { "", "PIPE", "CONDUIT", "CABLE_TRAY", "DUCT" };
+            cmbConstructionPhase.ItemsSource = new[] { "FINISHED", "FIRST_FIX", "SECOND_FIX" };
 
             // Run-option two-way bindings
             chkProvenance.IsChecked  = VM.RunOpts.StampProvenance;
@@ -152,6 +155,39 @@ namespace StingTools.UI.PlacementCenter
             // Standards & classification
             txtStandardRef.LostFocus    += (_,__) => CommitField(() => VM.Selected.StandardRef = txtStandardRef.Text);
             txtUniclassPr.LostFocus     += (_,__) => CommitField(() => VM.Selected.UniclassPr  = txtUniclassPr.Text);
+
+            // Rule core extensions (PC-08 / identity)
+            txtFamilyTypeRegex.LostFocus += (_,__) => CommitField(() => VM.Selected.Model.FamilyTypeRegex = txtFamilyTypeRegex.Text);
+            // txtSourcePack is read-only — no commit wire
+
+            // Geometry extension (PC-06)
+            txtToleranceMm.LostFocus     += (_,__) => CommitField(() => VM.Selected.Model.ToleranceMm  = ParseDouble(txtToleranceMm.Text, VM.Selected.Model.ToleranceMm));
+            txtMaxSpacing.LostFocus      += (_,__) => CommitField(() => VM.Selected.Model.MaxSpacingMm = ParseDouble(txtMaxSpacing.Text,  VM.Selected.Model.MaxSpacingMm));
+
+            // PC-12 density extensions
+            txtPerBed.LostFocus          += (_,__) => CommitField(() => VM.Selected.Model.PerBed            = ParseDouble(txtPerBed.Text,          VM.Selected.Model.PerBed));
+            txtPerWorkstation.LostFocus  += (_,__) => CommitField(() => VM.Selected.Model.PerWorkstation     = ParseDouble(txtPerWorkstation.Text,  VM.Selected.Model.PerWorkstation));
+            txtPerPupil.LostFocus        += (_,__) => CommitField(() => VM.Selected.Model.PerPupil           = ParseDouble(txtPerPupil.Text,        VM.Selected.Model.PerPupil));
+            txtPerToiletCubicle.LostFocus+= (_,__) => CommitField(() => VM.Selected.Model.PerToiletCubicle  = ParseDouble(txtPerToiletCubicle.Text, VM.Selected.Model.PerToiletCubicle));
+            txtOccupancyParam.LostFocus  += (_,__) => CommitField(() => VM.Selected.Model.OccupancyParamName = txtOccupancyParam.Text);
+
+            // PC-14 coverage grid
+            txtCoverageRadius.LostFocus  += (_,__) => CommitField(() => VM.Selected.Model.CoverageRadiusMm = ParseDouble(txtCoverageRadius.Text, VM.Selected.Model.CoverageRadiusMm));
+            chkGuaranteeCoverage.Checked += (_,__) => CommitField(() => VM.Selected.Model.GuaranteeCoverage = true);
+            chkGuaranteeCoverage.Unchecked+=(_,__) => CommitField(() => VM.Selected.Model.GuaranteeCoverage = false);
+
+            // PC-15 integrated routing
+            cmbRoutingMode.SelectionChanged      += (_,__) => CommitField(() => VM.Selected.Model.RoutingMode          = cmbRoutingMode.SelectedItem as string ?? "NONE");
+            cmbRouteSegmentCategory.SelectionChanged += (_,__) => CommitField(() => VM.Selected.Model.RouteSegmentCategory = cmbRouteSegmentCategory.SelectedItem as string ?? "");
+            txtRouteOffset.LostFocus             += (_,__) => CommitField(() => VM.Selected.Model.RouteOffsetMm        = ParseDouble(txtRouteOffset.Text, VM.Selected.Model.RouteOffsetMm));
+
+            // PC-16 construction phasing / PC-17 cluster
+            chkTwoPhase.Checked          += (_,__) => CommitField(() => VM.Selected.Model.TwoPhaseEnabled  = true);
+            chkTwoPhase.Unchecked        += (_,__) => CommitField(() => VM.Selected.Model.TwoPhaseEnabled  = false);
+            cmbConstructionPhase.SelectionChanged += (_,__) => CommitField(() => VM.Selected.Model.ConstructionPhase = cmbConstructionPhase.SelectedItem as string ?? "FINISHED");
+            chkClusterMember.Checked     += (_,__) => CommitField(() => VM.Selected.Model.IsClusterMember  = true);
+            chkClusterMember.Unchecked   += (_,__) => CommitField(() => VM.Selected.Model.IsClusterMember  = false);
+            txtClusterGroupId.LostFocus  += (_,__) => CommitField(() => VM.Selected.Model.ClusterGroupId   = txtClusterGroupId.Text);
 
             // VM → status bar binding
             VM.PropertyChanged += OnVmPropertyChanged;
@@ -897,6 +933,9 @@ namespace StingTools.UI.PlacementCenter
             try
             {
                 setter();
+                // Ensure dirty flag is set even for wires that bypass ViewModel
+                // properties and write directly to the underlying Model POCO.
+                if (!VM.Selected.IsDirty) VM.Selected.IsDirty = true;
                 VM.Selected.Validate();
                 txtRuleError.Text = VM.Selected.IsValid ? "" : VM.Selected.ErrorMessage;
                 VM.RebuildCategories();
@@ -988,6 +1027,36 @@ namespace StingTools.UI.PlacementCenter
                 // Standards & classification
                 txtStandardRef.Text       = s.StandardRef ?? "";
                 txtUniclassPr.Text        = s.UniclassPr ?? "";
+
+                // Rule core extensions (PC-08 / identity)
+                txtFamilyTypeRegex.Text   = s.Model.FamilyTypeRegex ?? "";
+                txtSourcePack.Text        = s.Model.SourcePack ?? "";
+
+                // Geometry extensions
+                txtToleranceMm.Text       = s.Model.ToleranceMm.ToString("0.##", CultureInfo.InvariantCulture);
+                txtMaxSpacing.Text        = s.Model.MaxSpacingMm.ToString("0.##", CultureInfo.InvariantCulture);
+
+                // PC-12 density extensions
+                txtPerBed.Text            = s.Model.PerBed.ToString("0.##", CultureInfo.InvariantCulture);
+                txtPerWorkstation.Text    = s.Model.PerWorkstation.ToString("0.##", CultureInfo.InvariantCulture);
+                txtPerPupil.Text          = s.Model.PerPupil.ToString("0.##", CultureInfo.InvariantCulture);
+                txtPerToiletCubicle.Text  = s.Model.PerToiletCubicle.ToString("0.##", CultureInfo.InvariantCulture);
+                txtOccupancyParam.Text    = s.Model.OccupancyParamName ?? "";
+
+                // PC-14 coverage grid
+                txtCoverageRadius.Text    = s.Model.CoverageRadiusMm.ToString("0.##", CultureInfo.InvariantCulture);
+                chkGuaranteeCoverage.IsChecked = s.Model.GuaranteeCoverage;
+
+                // PC-15 integrated routing
+                cmbRoutingMode.SelectedItem          = s.Model.RoutingMode ?? "NONE";
+                cmbRouteSegmentCategory.SelectedItem = s.Model.RouteSegmentCategory ?? "";
+                txtRouteOffset.Text       = s.Model.RouteOffsetMm.ToString("0.##", CultureInfo.InvariantCulture);
+
+                // PC-16 construction phasing / PC-17 cluster
+                chkTwoPhase.IsChecked     = s.Model.TwoPhaseEnabled;
+                cmbConstructionPhase.SelectedItem = s.Model.ConstructionPhase ?? "FINISHED";
+                chkClusterMember.IsChecked = s.Model.IsClusterMember;
+                txtClusterGroupId.Text    = s.Model.ClusterGroupId ?? "";
 
                 // PC-11 — clearance / envelope / weight fields are per-push extras,
                 // not part of the rule. Clear them when selection changes.
@@ -1226,6 +1295,23 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnClearanceScan_Click(object sender, RoutedEventArgs e)
             => ShowFindings(false, "Clearance scan");
+
+        private void OnPenetrationCoverage_Click(object sender, RoutedEventArgs e)
+            => StingDockPanel.DispatchCommand("Validation_PenetrationCoverage");
+
+        private void OnScoreThreshold_Changed(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox tb &&
+                double.TryParse(tb.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double v) &&
+                v > 0.0 && v <= 1.0)
+            {
+                PlacementScorer.ScoreThreshold = v;
+            }
+            else if (sender is TextBox tb2)
+            {
+                tb2.Text = PlacementScorer.ScoreThreshold.ToString("0.##", CultureInfo.InvariantCulture);
+            }
+        }
 
         private void OnSelectLastPlaced_Click(object sender, RoutedEventArgs e)
         {

@@ -30,8 +30,9 @@ namespace StingTools.Core.Placement
         /// Composite score below this value rejects the candidate
         /// (returns empty list).  Phase 139 G — lowered from 0.40 to
         /// 0.35 so coverage-guarantee mode keeps borderline candidates.
+        /// Configurable from the Placement Centre Run &amp; Routing tab.
         /// </summary>
-        public const double ScoreThreshold = 0.35;
+        public static double ScoreThreshold = 0.35;
 
         /// <summary>
         /// Millimetre-to-feet conversion (Revit's internal unit).
