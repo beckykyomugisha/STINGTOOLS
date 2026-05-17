@@ -8,6 +8,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Fabrication;
+using StingTools.Core.Placement;
 using StingTools.UI;
 
 namespace StingTools.Commands.Fabrication
@@ -136,6 +137,28 @@ namespace StingTools.Commands.Fabrication
             }
 
             FabricationUndoManager.Record(res);
+
+            // Publish to PlacementResultBus so the Placement Centre + dock panel can display it.
+            var fabSummary = new PlacementRunSummary
+            {
+                Source   = "Symbols",
+                Headline = res != null
+                    ? $"Fabrication package: {res.AssemblyIds.Count} assemblies, {res.SymbolsPlaced} symbols"
+                    : "Fabrication package complete",
+                Metrics  = res != null ? new List<string>
+                {
+                    $"Assemblies created: {res.AssemblyIds.Count}",
+                    $"Sheets created: {res.SheetIds.Count}",
+                    $"Symbols placed: {res.SymbolsPlaced}",
+                    $"Failed: {res.FailedCount}",
+                    $"Warnings: {res.Warnings?.Count ?? 0}",
+                } : new List<string>(),
+                Warnings = res?.Warnings != null
+                    ? new List<string>(res.Warnings)
+                    : new List<string>(),
+            };
+            PlacementResultBus.Publish(fabSummary);
+
             ShowResult(res);
 
             // Open first generated sheet for instant feedback

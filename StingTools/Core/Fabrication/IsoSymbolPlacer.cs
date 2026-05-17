@@ -81,7 +81,8 @@ namespace StingTools.Core.Fabrication
             Document doc,
             ElementId assemblyId,
             View detailView,
-            FabricationResult result)
+            FabricationResult result,
+            string disciplineFilter = null)
         {
             int placed = 0;
             if (doc == null || assemblyId == null || detailView == null) return placed;
@@ -106,6 +107,14 @@ namespace StingTools.Core.Fabrication
                 var member = doc.GetElement(mid);
                 if (member == null) continue;
                 var entry = ResolveSymbol(member);
+                // Skip members whose resolved symbol category doesn't match the discipline filter.
+                if (entry != null && !string.IsNullOrEmpty(disciplineFilter))
+                {
+                    bool categoryMatches =
+                        (entry.Category ?? "").IndexOf(disciplineFilter, StringComparison.OrdinalIgnoreCase) >= 0
+                        || CategoryMatchesDiscipline(entry.Category, disciplineFilter);
+                    if (!categoryMatches) entry = null; // treat as unmatched — no symbol for this discipline
+                }
                 resolutions.Add(new MemberResolution
                 {
                     MemberId = mid,
@@ -610,6 +619,34 @@ namespace StingTools.Core.Fabrication
                 if (CategoryMatches(entry.Category, catNm)) return entry;
             }
             return null;
+        }
+
+        /// <summary>
+        /// Maps DrawingType.Discipline values to CSV category patterns used in
+        /// STING_ISO_SYMBOLS_INDEX.csv. Called when a disciplineFilter is active
+        /// to skip symbols that belong to other disciplines.
+        /// Returns true when the category is compatible or when discipline is unknown.
+        /// </summary>
+        private static bool CategoryMatchesDiscipline(string category, string discipline)
+        {
+            if (string.IsNullOrEmpty(category) || string.IsNullOrEmpty(discipline)) return true;
+            // Map DrawingType.Discipline to CSV category patterns.
+            switch (discipline.ToUpperInvariant())
+            {
+                case "PIPE": case "PLUMBING": case "PH":
+                    return category.StartsWith("Pipe", StringComparison.OrdinalIgnoreCase)
+                        || category.StartsWith("PH", StringComparison.OrdinalIgnoreCase)
+                        || category.IndexOf("valve", StringComparison.OrdinalIgnoreCase) >= 0;
+                case "DUCT": case "MECHANICAL": case "HVAC":
+                    return category.StartsWith("Duct", StringComparison.OrdinalIgnoreCase)
+                        || category.StartsWith("HVAC", StringComparison.OrdinalIgnoreCase)
+                        || category.StartsWith("Air", StringComparison.OrdinalIgnoreCase);
+                case "ELECTRICAL": case "CONDUIT": case "EL":
+                    return category.StartsWith("Conduit", StringComparison.OrdinalIgnoreCase)
+                        || category.StartsWith("Elec", StringComparison.OrdinalIgnoreCase)
+                        || category.StartsWith("Wire", StringComparison.OrdinalIgnoreCase);
+                default: return true; // unknown discipline — no filter
+            }
         }
 
         private static bool CategoryMatches(string csvCat, string revitCatUpper)
