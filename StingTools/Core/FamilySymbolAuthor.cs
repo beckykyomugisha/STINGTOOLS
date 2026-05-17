@@ -251,6 +251,15 @@ namespace StingTools.Core
                     CreateAllStandardSymbolSets(famDoc, bic, scPlan,
                         switchParams, opts.PlanHalfWidthFt, opts.PlanHalfDepthFt,
                         opts.SetCurveViewTypeVisibility, result);
+
+                    // Step 5b: Per-standard elevation symbols. Only authored when
+                    // the JSON carries {STANDARD}_elev arrays for this category;
+                    // for categories without elevation data the generic bounding
+                    // box from Step 3 remains the only elevation representation.
+                    if (opts.CreateElevationSymbol && scElev != null)
+                        CreateAllStandardElevationSets(famDoc, bic, scElev,
+                            switchParams, opts.PlanHalfWidthFt, opts.ElevHeightFt,
+                            opts.SetCurveViewTypeVisibility, result);
                 }
                 else
                 {
@@ -683,6 +692,157 @@ namespace StingTools.Core
                 return true;
             }
             return false;
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        //  5b. Per-standard elevation symbol sets (JSON-driven)
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Authors per-standard elevation symbol curves (gated on STING_SHOW_*_BOOL) for
+        /// categories that have <c>{STANDARD}_elev</c> arrays in STING_SYMBOL_SHAPES.json.
+        /// Coordinates: <c>x</c> = normalised horizontal (×halfW → XYZ.X),
+        ///              <c>y</c> = normalised vertical (×halfW, origin = symbol centre = heightFt/2 → XYZ.Z).
+        /// If no elevation array exists for a given standard the standard's curve set is silently
+        /// omitted — the generic bounding box (Step 3) remains the fallback.
+        /// </summary>
+        private static void CreateAllStandardElevationSets(
+            Document famDoc, BuiltInCategory bic,
+            Category elevSubcat, StandardSwitchingParams sp,
+            double halfW, double heightFt, bool setViewTypeVis,
+            FamilySymbolAuthorResult result)
+        {
+            if (HasSymbolicCurvesInSubcat(famDoc, elevSubcat)) return;
+
+            LoadSymbolShapesJson();
+
+            // Front elevation: XZ plane, normal = +Y
+            SketchPlane spFront = GetOrCreateSketchPlane(famDoc, XYZ.BasisY, XYZ.Zero);
+            if (spFront == null)
+            {
+                result.Warnings.Add("CreateAllStandardElevationSets: could not get front-elevation sketch plane");
+                return;
+            }
+
+            FamilyElementVisibilityType? vtVis = setViewTypeVis
+                ? FamilyElementVisibilityType.CurvesInFrontBack
+                : (FamilyElementVisibilityType?)null;
+
+            string catKey  = bic.ToString();
+            double centerZ = heightFt / 2.0;
+
+            foreach (var (std, _, stdKey, _) in _standardDefs)
+            {
+                FamilyParameter visParam = sp.GetBool(std);
+                if (visParam == null) continue;
+                TryCreateStandardElevationCurvesFromJson(
+                    famDoc, catKey, stdKey,
+                    spFront, elevSubcat, visParam,
+                    halfW, centerZ, vtVis, result);
+            }
+        }
+
+        /// <summary>
+        /// Reads <c>{stdKey}_elev</c> from the JSON category node and authors
+        /// symbolic curves in the XZ elevation plane. Returns true when at least
+        /// one curve was placed.
+        /// </summary>
+        private static bool TryCreateStandardElevationCurvesFromJson(
+            Document famDoc, string catKey, string stdKey,
+            SketchPlane sp, Category elevSubcat, FamilyParameter visParam,
+            double halfW, double centerZ,
+            FamilyElementVisibilityType? vtVis,
+            FamilySymbolAuthorResult result)
+        {
+            if (_symbolShapesCache == null) return false;
+
+            JToken catNode = _symbolShapesCache["categories"]?[catKey];
+            if (catNode == null) return false;
+
+            JToken stdNode = catNode[stdKey + "_elev"];
+            if (stdNode == null) return false;
+
+            int count = 0;
+            foreach (JObject seg in stdNode)
+            {
+                string type = seg["type"]?.Value<string>() ?? "";
+                switch (type)
+                {
+                    case "circle":
+                    {
+                        double r  = (seg["r"]?.Value<double>()  ?? 1.0) * halfW;
+                        double cx = (seg["cx"]?.Value<double>() ?? 0)   * halfW;
+                        double cz = (seg["cy"]?.Value<double>() ?? 0)   * halfW + centerZ;
+                        count += CreateElevCircle(famDoc, sp, cx, cz, r,
+                            elevSubcat, visParam, vtVis, result);
+                        break;
+                    }
+                    case "line":
+                    {
+                        double x1 = (seg["x1"]?.Value<double>() ?? 0) * halfW;
+                        double z1 = (seg["y1"]?.Value<double>() ?? 0) * halfW + centerZ;
+                        double x2 = (seg["x2"]?.Value<double>() ?? 0) * halfW;
+                        double z2 = (seg["y2"]?.Value<double>() ?? 0) * halfW + centerZ;
+                        count += CreateLine(famDoc, sp,
+                            new XYZ(x1, 0, z1), new XYZ(x2, 0, z2),
+                            elevSubcat, visParam, vtVis, result);
+                        break;
+                    }
+                    case "rect":
+                    {
+                        double rx = (seg["x"]?.Value<double>() ?? -1.0) * halfW;
+                        double rz = (seg["y"]?.Value<double>() ?? -1.0) * halfW + centerZ;
+                        double rw = (seg["w"]?.Value<double>() ??  2.0) * halfW;
+                        double rh = (seg["h"]?.Value<double>() ??  2.0) * halfW;
+                        count += CreateRectangleCurves(famDoc, sp,
+                            new XYZ(rx,      0, rz),
+                            new XYZ(rx + rw, 0, rz),
+                            new XYZ(rx + rw, 0, rz + rh),
+                            new XYZ(rx,      0, rz + rh),
+                            elevSubcat, visParam, vtVis, result);
+                        break;
+                    }
+                }
+            }
+
+            if (count > 0)
+            {
+                result.AnnotationSymbolCurvesCreated += count;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Creates a circle (4 quarter-arcs) in the XZ elevation plane,
+        /// centred at <paramref name="cx"/>, <paramref name="cz"/>.
+        /// </summary>
+        private static int CreateElevCircle(
+            Document famDoc, SketchPlane sp,
+            double cx, double cz, double radius,
+            Category subcat, FamilyParameter visParam,
+            FamilyElementVisibilityType? viewTypeVis,
+            FamilySymbolAuthorResult result)
+        {
+            int count = 0;
+            for (int q = 0; q < 4; q++)
+            {
+                try
+                {
+                    double a1   = q * Math.PI / 2;
+                    double aMid = (q + 0.5) * Math.PI / 2;
+                    double a2   = (q + 1) * Math.PI / 2;
+                    // XZ plane: X = horizontal, Z = vertical, Y = 0
+                    XYZ start = new XYZ(cx + radius * Math.Cos(a1),   0, cz + radius * Math.Sin(a1));
+                    XYZ mid   = new XYZ(cx + radius * Math.Cos(aMid), 0, cz + radius * Math.Sin(aMid));
+                    XYZ end   = new XYZ(cx + radius * Math.Cos(a2),   0, cz + radius * Math.Sin(a2));
+                    if (start.IsAlmostEqualTo(end)) continue;
+                    Arc arc = Arc.Create(start, end, mid);
+                    count += PlaceSymbolicCurve(famDoc, sp, arc, subcat, visParam, viewTypeVis, result);
+                }
+                catch (Exception ex) { result.Warnings.Add($"CreateElevCircle arc {q}: {ex.Message}"); }
+            }
+            return count;
         }
 
         /// <summary>

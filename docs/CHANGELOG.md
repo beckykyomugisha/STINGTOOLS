@@ -2,6 +2,60 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 176 — symbol authoring: Option A, 7 MEP categories, elevation symbols)
+
+Branch: `claude/review-symbol-workflow-CJFil`.
+
+Three enhancements to the Phase 175 symbol authoring system:
+
+**1. Option A — auto-author symbols on manufacturer swap (`SwapToManufacturerCommand.cs`)**
+
+After `ChangeTypeId` swaps seed instances to manufacturer families, the manufacturer families previously had no STING symbol params. Now:
+- After `tg.Assimilate()`, `AutoAuthorSwappedFamilies(doc, plans)` collects every unique `Family` from winning swap candidates.
+- For each family: `doc.EditFamily` → `FamilyParamEngine.InjectAutomationPresentationPack` → `FamilySymbolAuthor.AuthorSymbols` → `famDoc.LoadFamily` → `famDoc.Close`.
+- Uses a new nested `StingFamilyReloadOptions : IFamilyLoadOptions` (`overwriteParameterValues = false`).
+- Runs outside the swap `TransactionGroup` so authoring failures never roll back successfully-swapped instances.
+- Result panel now shows "Symbol families authored: N".
+- `using StingTools.Tags;` added (for `FamilyParamEngine`, which is `internal` but accessible within the same assembly).
+
+**2. 7 missing MEP categories (`STING_SYMBOL_SHAPES.json` → v1.2)**
+
+All 7 new categories have full IEC/ANSI/BS/NFPA/CIBSE geometry:
+
+| Category | IEC/BS | ANSI/SMACNA | NFPA | CIBSE |
+|---|---|---|---|---|
+| `OST_DuctTerminal` | Square + inscribed circle | Square with X | Narrow rectangle | Square + inner circle |
+| `OST_DuctAccessory` | Rect + single blade diagonal | Rect + double blade | Rect + diagonal | Rect + centre horizontal |
+| `OST_PipeAccessory` | Bowtie (two triangles — valve) | Bowtie | Circle at node + stubs | Diamond |
+| `OST_DuctFitting` | Narrow rectangle (inline) | Same | Same | Same |
+| `OST_PipeFitting` | Narrow rectangle (inline) | Same | Same | Same |
+| `OST_LightingDevices` | Circle + 45° diagonal tail | Same | Circle + top tick | Circle + horizontal line |
+| `OST_GenericModel` | Diamond | Diamond | Diamond | Square + centre dot |
+
+Total categories: 13 → 21 (plus `_UNUSED` key). All are now properly resolved when `FamilySymbolAuthor` looks up `bic.ToString()` in the JSON cache.
+
+**3. Per-standard elevation symbols (`FamilySymbolAuthor.cs`)**
+
+The elevation symbol previously used a single generic bounding box (same geometry for all 5 standards). Now:
+- `CreateAllStandardElevationSets` authors per-standard elevation curves in the XZ front-elevation sketch plane, gated on `STING_SHOW_*_BOOL` (same visibility mechanism as plan symbols).
+- Called inside Step 5 of `AuthorSymbols` when `switchParams != null` and `opts.CreateElevationSymbol == true`.
+- `TryCreateStandardElevationCurvesFromJson` reads `{STANDARD}_elev` arrays from JSON. Coordinate mapping: `x * halfW` → `XYZ.X`; `y * halfW + centerZ` → `XYZ.Z` (symbol centred at `heightFt/2`).
+- `CreateElevCircle` helper creates quarter-arcs in the XZ plane (Y = 0).
+- Generic bounding box (Step 3) remains for categories without elevation JSON data — no regression.
+
+**Elevation data added to JSON for 2 most-impactful categories:**
+
+| Category | IEC_elev | ANSI_elev | BS_elev | NFPA_elev | CIBSE_elev |
+|---|---|---|---|---|---|
+| `OST_FireAlarmDevices` | Circle + horizontal bar | Square | Circle + bar | Square + inner circle | Circle + bar |
+| `OST_Sprinklers` | Circle (deflector) + pipe stub | Upright triangle (NFPA 13) | Circle + pipe stub | Pendant triangle (NFPA 13) | Circle + pipe stub |
+
+**Elevation symbol answer (user question: "can it be done automatically?")**
+
+YES — elevation symbols are now fully automatic via the same JSON-driven mechanism as plan symbols. Add `{STANDARD}_elev` arrays to any category in `STING_SYMBOL_SHAPES.json` and re-run `AuthorSymbols`; no Revit UI interaction required. The coordinate schema is identical to plan symbols except `y` maps to `XYZ.Z` (vertical height) instead of `XYZ.Y` (depth). For most MEP categories the generic bounding box is sufficient since the 3D body appears in elevation views; elevation symbol data is most valuable for fire alarm devices and sprinklers where the symbol identifies the standard visually.
+
+---
+
 #### Completed (Phase 175 — review fixes: symbol workflow correctness)
 
 Branch: `claude/review-symbol-workflow-CJFil` (same branch). Post-review hardening pass across all Phase 175 files.

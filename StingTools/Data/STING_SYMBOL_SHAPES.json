@@ -1,5 +1,5 @@
 {
-  "version": "1.1",
+  "version": "1.2",
   "description": "IEC 60617, ANSI/IEEE 315, BS 1553, NFPA 170, and CIBSE Guide normalised plan-symbol geometry for STING family authoring. Coordinates are normalised: 1.0 = halfWidth of the symbol bounding box. Scaled by FamilySymbolAuthorOptions.PlanHalfWidthFt at runtime. Standards: IEC (0), ANSI (1), BS (2), NFPA (3), CIBSE (4).",
   "angles": "radians",
   "categories": {
@@ -175,6 +175,25 @@
       "CIBSE": [
         { "type": "circle", "r": 1.0, "comment": "CIBSE Guide: fire detector" },
         { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 }
+      ],
+      "IEC_elev": [
+        { "type": "circle", "r": 0.8, "comment": "IEC EN 54: detector elevation — circle at mounting height" },
+        { "type": "line", "x1": -0.8, "y1": 0.0, "x2": 0.8, "y2": 0.0, "comment": "horizontal centre line" }
+      ],
+      "ANSI_elev": [
+        { "type": "rect", "x": -0.8, "y": -0.8, "w": 1.6, "h": 1.6, "comment": "NFPA 72: detector elevation — square" }
+      ],
+      "BS_elev": [
+        { "type": "circle", "r": 0.8, "comment": "BS 5839: detector elevation — circle" },
+        { "type": "line", "x1": -0.8, "y1": 0.0, "x2": 0.8, "y2": 0.0 }
+      ],
+      "NFPA_elev": [
+        { "type": "rect", "x": -0.8, "y": -0.8, "w": 1.6, "h": 1.6, "comment": "NFPA 170: fire alarm device elevation" },
+        { "type": "circle", "r": 0.4, "comment": "inner circle = smoke detector" }
+      ],
+      "CIBSE_elev": [
+        { "type": "circle", "r": 0.8, "comment": "CIBSE Guide E: fire detector elevation — circle" },
+        { "type": "line", "x1": -0.8, "y1": 0.0, "x2": 0.8, "y2": 0.0 }
       ]
     },
 
@@ -333,6 +352,30 @@
         { "type": "line", "x1":  0.8, "y1": 0.0, "x2":  1.0, "y2": 0.0 },
         { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -0.8 },
         { "type": "line", "x1": 0.0, "y1":  0.8, "x2": 0.0, "y2":  1.0 }
+      ],
+      "IEC_elev": [
+        { "type": "circle", "r": 0.6, "comment": "BS EN 12845: pendant sprinkler elevation — deflector disc" },
+        { "type": "line", "x1": -0.6, "y1": 0.0, "x2": 0.6, "y2": 0.0, "comment": "deflector arm" },
+        { "type": "line", "x1": 0.0, "y1": 0.6, "x2": 0.0, "y2": 1.0, "comment": "pipe stub above" }
+      ],
+      "ANSI_elev": [
+        { "type": "line", "x1": -0.8, "y1": -0.8, "x2": 0.0, "y2": 0.8, "comment": "NFPA 13: upward triangle (upright sprinkler)" },
+        { "type": "line", "x1":  0.0, "y1":  0.8, "x2": 0.8, "y2": -0.8 },
+        { "type": "line", "x1": -0.8, "y1": -0.8, "x2": 0.8, "y2": -0.8 }
+      ],
+      "BS_elev": [
+        { "type": "circle", "r": 0.6, "comment": "BS EN 12845: sprinkler elevation — deflector" },
+        { "type": "line", "x1": -0.6, "y1": 0.0, "x2": 0.6, "y2": 0.0 },
+        { "type": "line", "x1": 0.0, "y1": 0.6, "x2": 0.0, "y2": 1.0 }
+      ],
+      "NFPA_elev": [
+        { "type": "line", "x1": -0.8, "y1": 0.8, "x2": 0.0, "y2": -0.8, "comment": "NFPA 13: inverted triangle (pendant sprinkler)" },
+        { "type": "line", "x1":  0.0, "y1": -0.8, "x2": 0.8, "y2": 0.8 },
+        { "type": "line", "x1": -0.8, "y1":  0.8, "x2": 0.8, "y2": 0.8 }
+      ],
+      "CIBSE_elev": [
+        { "type": "circle", "r": 0.6, "comment": "CIBSE: sprinkler elevation — circle with pipe" },
+        { "type": "line", "x1": 0.0, "y1": 0.6, "x2": 0.0, "y2": 1.0 }
       ]
     },
 
@@ -361,6 +404,162 @@
         { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0 },
         { "type": "line", "x1": -1.0, "y1": -1.0, "x2": 1.0, "y2": 1.0 },
         { "type": "line", "x1":  1.0, "y1": -1.0, "x2": -1.0, "y2": 1.0 }
+      ]
+    },
+
+    "OST_DuctTerminal": {
+      "IEC": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "EN 12792: ceiling diffuser — square with inscribed circle" },
+        { "type": "circle", "r": 0.6, "comment": "circular diffuser throat" }
+      ],
+      "ANSI": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "SMACNA: ceiling diffuser — square with X" },
+        { "type": "line", "x1": -1.0, "y1": -1.0, "x2": 1.0, "y2": 1.0 },
+        { "type": "line", "x1":  1.0, "y1": -1.0, "x2": -1.0, "y2": 1.0 }
+      ],
+      "BS": [
+        { "type": "circle", "r": 1.0, "comment": "BS 1553: air terminal — circle with radial flow ticks" },
+        { "type": "line", "x1":  0.0, "y1":  1.0, "x2":  0.0, "y2":  1.4 },
+        { "type": "line", "x1":  0.0, "y1": -1.0, "x2":  0.0, "y2": -1.4 },
+        { "type": "line", "x1":  1.0, "y1":  0.0, "x2":  1.4, "y2":  0.0 },
+        { "type": "line", "x1": -1.0, "y1":  0.0, "x2": -1.4, "y2":  0.0 }
+      ],
+      "NFPA": [
+        { "type": "rect", "x": -1.0, "y": -0.5, "w": 2.0, "h": 1.0, "comment": "NFPA 170: generic air terminal" }
+      ],
+      "CIBSE": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "CIBSE Guide B: diffuser — square with inner circle" },
+        { "type": "circle", "r": 0.5 }
+      ]
+    },
+
+    "OST_DuctAccessory": {
+      "IEC": [
+        { "type": "rect", "x": -1.0, "y": -0.5, "w": 2.0, "h": 1.0, "comment": "EN 1366: duct accessory / damper — rectangle with blade diagonal" },
+        { "type": "line", "x1": -0.8, "y1": -0.5, "x2": 0.8, "y2": 0.5 }
+      ],
+      "ANSI": [
+        { "type": "rect", "x": -1.0, "y": -0.5, "w": 2.0, "h": 1.0, "comment": "SMACNA: damper — rectangle with double blade lines" },
+        { "type": "line", "x1": -0.8, "y1": -0.4, "x2": 0.8, "y2": 0.4 },
+        { "type": "line", "x1": -0.8, "y1":  0.4, "x2": 0.8, "y2": -0.4 }
+      ],
+      "BS": [
+        { "type": "rect", "x": -1.0, "y": -0.5, "w": 2.0, "h": 1.0, "comment": "BS 1553: damper — rectangle with offset double diagonal" },
+        { "type": "line", "x1": -0.7, "y1": -0.5, "x2":  0.7, "y2": 0.5 },
+        { "type": "line", "x1": -0.2, "y1": -0.5, "x2":  1.2, "y2": 0.5 }
+      ],
+      "NFPA": [
+        { "type": "rect", "x": -1.0, "y": -0.5, "w": 2.0, "h": 1.0, "comment": "NFPA: duct accessory — rectangle with diagonal" },
+        { "type": "line", "x1": -1.0, "y1": -0.5, "x2": 1.0, "y2": 0.5 }
+      ],
+      "CIBSE": [
+        { "type": "rect", "x": -1.0, "y": -0.5, "w": 2.0, "h": 1.0, "comment": "CIBSE Guide B: damper — rectangle with centre horizontal" },
+        { "type": "line", "x1": -0.9, "y1": 0.0, "x2": 0.9, "y2": 0.0 }
+      ]
+    },
+
+    "OST_PipeAccessory": {
+      "IEC": [
+        { "type": "line", "x1": -1.0, "y1": -0.8, "x2":  0.0, "y2":  0.0, "comment": "IEC 60617-6: isolating valve — bowtie left triangle" },
+        { "type": "line", "x1": -1.0, "y1":  0.8, "x2":  0.0, "y2":  0.0 },
+        { "type": "line", "x1": -1.0, "y1": -0.8, "x2": -1.0, "y2":  0.8 },
+        { "type": "line", "x1":  0.0, "y1":  0.0, "x2":  1.0, "y2": -0.8, "comment": "bowtie right triangle" },
+        { "type": "line", "x1":  0.0, "y1":  0.0, "x2":  1.0, "y2":  0.8 },
+        { "type": "line", "x1":  1.0, "y1": -0.8, "x2":  1.0, "y2":  0.8 }
+      ],
+      "ANSI": [
+        { "type": "line", "x1": -1.0, "y1": -0.8, "x2":  0.0, "y2":  0.0, "comment": "ANSI/ASME: gate valve — bowtie" },
+        { "type": "line", "x1": -1.0, "y1":  0.8, "x2":  0.0, "y2":  0.0 },
+        { "type": "line", "x1": -1.0, "y1": -0.8, "x2": -1.0, "y2":  0.8 },
+        { "type": "line", "x1":  0.0, "y1":  0.0, "x2":  1.0, "y2": -0.8 },
+        { "type": "line", "x1":  0.0, "y1":  0.0, "x2":  1.0, "y2":  0.8 },
+        { "type": "line", "x1":  1.0, "y1": -0.8, "x2":  1.0, "y2":  0.8 }
+      ],
+      "BS": [
+        { "type": "line", "x1": -1.0, "y1": -0.8, "x2":  0.0, "y2":  0.0, "comment": "BS 1553: isolating valve — bowtie" },
+        { "type": "line", "x1": -1.0, "y1":  0.8, "x2":  0.0, "y2":  0.0 },
+        { "type": "line", "x1": -1.0, "y1": -0.8, "x2": -1.0, "y2":  0.8 },
+        { "type": "line", "x1":  0.0, "y1":  0.0, "x2":  1.0, "y2": -0.8 },
+        { "type": "line", "x1":  0.0, "y1":  0.0, "x2":  1.0, "y2":  0.8 },
+        { "type": "line", "x1":  1.0, "y1": -0.8, "x2":  1.0, "y2":  0.8 }
+      ],
+      "NFPA": [
+        { "type": "circle", "r": 0.5, "comment": "NFPA 170: valve — circle at node with pipe stubs" },
+        { "type": "line", "x1": -1.0, "y1": 0.0, "x2": -0.5, "y2": 0.0 },
+        { "type": "line", "x1":  0.5, "y1": 0.0, "x2":  1.0, "y2": 0.0 }
+      ],
+      "CIBSE": [
+        { "type": "line", "x1": -1.0, "y1":  0.0, "x2":  0.0, "y2":  1.0, "comment": "CIBSE Guide B: valve — diamond" },
+        { "type": "line", "x1":  0.0, "y1":  1.0, "x2":  1.0, "y2":  0.0 },
+        { "type": "line", "x1":  1.0, "y1":  0.0, "x2":  0.0, "y2": -1.0 },
+        { "type": "line", "x1":  0.0, "y1": -1.0, "x2": -1.0, "y2":  0.0 }
+      ]
+    },
+
+    "OST_DuctFitting": {
+      "IEC":   [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "IEC: duct fitting — inline rectangle" } ],
+      "ANSI":  [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "SMACNA: duct fitting — inline rectangle" } ],
+      "BS":    [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "BS: duct fitting — inline rectangle" } ],
+      "NFPA":  [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "NFPA: duct fitting — inline rectangle" } ],
+      "CIBSE": [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "CIBSE: duct fitting — inline rectangle" } ]
+    },
+
+    "OST_PipeFitting": {
+      "IEC":   [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "IEC: pipe fitting — inline rectangle" } ],
+      "ANSI":  [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "ANSI: pipe fitting — inline rectangle" } ],
+      "BS":    [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "BS: pipe fitting — inline rectangle" } ],
+      "NFPA":  [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "NFPA: pipe fitting — inline rectangle" } ],
+      "CIBSE": [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "CIBSE: pipe fitting — inline rectangle" } ]
+    },
+
+    "OST_LightingDevices": {
+      "IEC": [
+        { "type": "circle", "r": 0.7, "comment": "IEC 60617-11: switch/sensor — circle with diagonal tail" },
+        { "type": "line", "x1": 0.495, "y1": 0.495, "x2": 1.1, "y2": 1.1 }
+      ],
+      "ANSI": [
+        { "type": "circle", "r": 0.7, "comment": "ANSI/NEMA WD-6: switch — circle with 45° tail" },
+        { "type": "line", "x1": 0.495, "y1": 0.495, "x2": 1.1, "y2": 1.1 }
+      ],
+      "BS": [
+        { "type": "circle", "r": 0.7, "comment": "BS 3939: switch — circle with diagonal tick" },
+        { "type": "line", "x1": 0.495, "y1": 0.495, "x2": 1.1, "y2": 1.1 }
+      ],
+      "NFPA": [
+        { "type": "circle", "r": 0.7, "comment": "NFPA 170: lighting device — circle with top tick" },
+        { "type": "line", "x1": 0.0, "y1": 0.7, "x2": 0.0, "y2": 1.2 }
+      ],
+      "CIBSE": [
+        { "type": "circle", "r": 0.7, "comment": "CIBSE Guide A: lighting device/sensor — circle with horizontal line" },
+        { "type": "line", "x1": -0.9, "y1": 0.0, "x2": 0.9, "y2": 0.0 }
+      ]
+    },
+
+    "OST_GenericModel": {
+      "IEC": [
+        { "type": "line", "x1": -1.0, "y1":  0.0, "x2":  0.0, "y2":  1.0, "comment": "IEC: generic element — diamond" },
+        { "type": "line", "x1":  0.0, "y1":  1.0, "x2":  1.0, "y2":  0.0 },
+        { "type": "line", "x1":  1.0, "y1":  0.0, "x2":  0.0, "y2": -1.0 },
+        { "type": "line", "x1":  0.0, "y1": -1.0, "x2": -1.0, "y2":  0.0 }
+      ],
+      "ANSI": [
+        { "type": "line", "x1": -1.0, "y1":  0.0, "x2":  0.0, "y2":  1.0, "comment": "ANSI: generic element — diamond" },
+        { "type": "line", "x1":  0.0, "y1":  1.0, "x2":  1.0, "y2":  0.0 },
+        { "type": "line", "x1":  1.0, "y1":  0.0, "x2":  0.0, "y2": -1.0 },
+        { "type": "line", "x1":  0.0, "y1": -1.0, "x2": -1.0, "y2":  0.0 }
+      ],
+      "BS": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "BS: generic model — square" }
+      ],
+      "NFPA": [
+        { "type": "line", "x1": -1.0, "y1":  0.0, "x2":  0.0, "y2":  1.0, "comment": "NFPA: generic element — diamond" },
+        { "type": "line", "x1":  0.0, "y1":  1.0, "x2":  1.0, "y2":  0.0 },
+        { "type": "line", "x1":  1.0, "y1":  0.0, "x2":  0.0, "y2": -1.0 },
+        { "type": "line", "x1":  0.0, "y1": -1.0, "x2": -1.0, "y2":  0.0 }
+      ],
+      "CIBSE": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "CIBSE: generic model — square with centre dot" },
+        { "type": "circle", "r": 0.15 }
       ]
     }
 
