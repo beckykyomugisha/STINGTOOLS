@@ -449,7 +449,7 @@ namespace StingTools.Commands.Electrical
                         }
                     }
                 }
-                catch (Exception ex) { StingTools.Core.StingLog.Warn($"VD recalc: {ex.Message}"); }
+                catch (Exception ex2) { StingTools.Core.StingLog.Warn($"VD recalc: {ex2.Message}"); }
             }
 
             try
@@ -1036,7 +1036,7 @@ namespace StingTools.Commands.Electrical
                 foreach (var fc in frontier)
                 {
                     ConnectorSet refs;
-                    try { refs = fc.AllRefs; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
+                    try { refs = fc.AllRefs; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); continue; }
                     if (refs == null) continue;
                     foreach (Connector other in refs)
                     {
@@ -1938,7 +1938,7 @@ namespace StingTools.Commands.Electrical
             {
                 tx.Start();
                 try { refreshed = WireAnnotationDriftDetector.RefreshDrifted(doc, view, report); }
-                catch (Exception ex) { StingLog.Warn($"RefreshDrifted: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"RefreshDrifted: {ex2.Message}"); }
                 tx.Commit();
             }
 

@@ -397,7 +397,7 @@ namespace StingTools.Core
                                     if (emptyCount > 0) result.ContainersMissing++;
                                 }
                             }
-                            catch (Exception ex) { StingLog.Warn($"Container completeness check failed: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"Container completeness check failed: {ex2.Message}"); }
                         }
 
                         try

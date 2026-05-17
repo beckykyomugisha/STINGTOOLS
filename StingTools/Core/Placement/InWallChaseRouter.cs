@@ -499,7 +499,7 @@ namespace StingTools.Core.Placement
                         StingTools.Core.Calc.ConcreteCoverTable.DefaultStructuralClass,
                         fireResistance: "");
                 }
-                catch (Exception ex) { StingLog.Warn($"ConcreteCoverTable: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"ConcreteCoverTable: {ex2.Message}"); }
             }
             double requiredMm   = pipeOdMm + 2 * insulationMm + clearanceMm + coverMm;
             return (availableMm, requiredMm);

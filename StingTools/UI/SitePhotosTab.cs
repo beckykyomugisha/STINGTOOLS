@@ -581,7 +581,7 @@ namespace StingTools.UI
                             r.Thumbnail = img;
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         StingLog.Warn($"SitePhotosTab thumbnail decode {r.Dto.Id}: {ex.Message}");
                     }

@@ -212,7 +212,7 @@ namespace StingTools.Core.Fabrication
                             RunFabricationDimPass(doc, v, drawingType, result);
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         result.Warnings.Add($"DrawingType view apply {viewId.Value}: {ex.Message}");
                     }

@@ -1259,7 +1259,7 @@ namespace StingTools.UI
                             string patternName = null;
                             if (sub.LineColor != null && sub.LineColor.IsValid)
                                 colourHex = $"#{sub.LineColor.Red:X2}{sub.LineColor.Green:X2}{sub.LineColor.Blue:X2}";
-                            try { weight = sub.GetLineWeight(GraphicsStyleType.Projection) ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            try { weight = sub.GetLineWeight(GraphicsStyleType.Projection) ?? 0; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                             try
                             {
                                 var pid = sub.GetLinePatternId(GraphicsStyleType.Projection);
@@ -1269,10 +1269,10 @@ namespace StingTools.UI
                                     else if (_doc.GetElement(pid) is LinePatternElement lp) patternName = lp.Name;
                                 }
                             }
-                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); }
                             _lineStyleByName[sub.Name] = (colourHex, weight, patternName);
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                     }
                 }
             }

@@ -78,7 +78,7 @@ namespace StingTools.Core.Routing
             using (var tx = new Transaction(Doc, "STING v4 Auto-duct drop"))
             {
                 try { tx.Start(); }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     result.Warnings.Add($"Transaction start failed: {ex.Message}");
                     return result;
@@ -95,7 +95,7 @@ namespace StingTools.Core.Routing
                             else
                                 TryDropFromFixture(fx, BuiltInCategory.OST_DuctCurves, SearchRadiusMm, result);
                         }
-                        catch (Exception ex)
+                        catch (Exception ex3)
                         {
                             result.FailedCount++;
                             result.Warnings.Add($"Drop from {fx?.Id}: {ex.Message}");
@@ -103,7 +103,7 @@ namespace StingTools.Core.Routing
                     }
                     tx.Commit();
                 }
-                catch (Exception ex)
+                catch (Exception ex3)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
                     result.Warnings.Add($"AutoDuctDrop fatal: {ex.Message}");

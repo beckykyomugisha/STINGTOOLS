@@ -354,10 +354,10 @@ namespace StingTools.Core
                                 if (!string.IsNullOrEmpty(tag) && hostTags.Contains(tag))
                                     duplicateTagCount++;
                             }
-                            catch (Exception ex) { StingLog.Warn($"FederatedPreFlight link tag scan: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"FederatedPreFlight link tag scan: {ex2.Message}"); }
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"FederatedPreFlight link '{link.Name}': {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"FederatedPreFlight link '{link.Name}': {ex2.Message}"); }
                 }
 
                 if (duplicateTagCount > 0)
@@ -1836,7 +1836,7 @@ namespace StingTools.Core
                     File.Move(tmpPath, issuesPath, true);
                     StingLog.Info($"WarningToIssueCreator: created {created} issues from warnings");
                 }
-                catch (Exception ex) { StingLog.Warn($"WarningToIssueCreator save: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"WarningToIssueCreator save: {ex2.Message}"); }
             }
 
             return (created, details);

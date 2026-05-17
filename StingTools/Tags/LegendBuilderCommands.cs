@@ -128,13 +128,13 @@ namespace StingTools.Tags
                     if (existingElements.Count > 0)
                     {
                         try { doc.Delete(existingElements); }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             StingLog.Warn($"Batch delete legend elements: {ex.Message}");
                             foreach (var eid in existingElements)
                             {
                                 try { doc.Delete(eid); }
-                                catch (Exception ex2) { StingLog.Warn($"Delete element {eid}: {ex2.Message}"); }
+                                catch (Exception ex22) { StingLog.Warn($"Delete element {eid}: {ex22.Message}"); }
                             }
                         }
                     }
@@ -1122,7 +1122,7 @@ namespace StingTools.Tags
 
                 BuiltInCategory bic;
                 try { bic = (BuiltInCategory)cat.Id.Value; }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
+                catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); continue; }
 
                 // Get discipline and color
                 string disc = TagConfig.DiscMap.TryGetValue(cat.Name, out string d) ? d : "G";
@@ -1419,7 +1419,7 @@ namespace StingTools.Tags
                             DrawDetailLine(doc, legendView, p3, p4);
                             DrawDetailLine(doc, legendView, p4, p1);
                         }
-                        catch (Exception ex) { StingLog.Warn($"Create legend swatch: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Create legend swatch: {ex2.Message}"); }
                     }
                     x += swatchW + colGap;
 
@@ -1446,7 +1446,7 @@ namespace StingTools.Tags
                             placed = true;
                             annotationPlaced++;
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); // Annotation placement failed — tag families often need a host element.
+                        catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); // Annotation placement failed — tag families often need a host element.
                             // This is expected for most tag types; fall back to drawn representation.
                             placed = false; }
                     }
@@ -1483,7 +1483,7 @@ namespace StingTools.Tags
                         ft.SetItalicStatus(new TextRange(0, entry.SampleTag.Length), true);
                         tagNote.SetFormattedText(ft);
                     }
-                    catch (Exception ex) { StingLog.Warn($"Format sample tag italic: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"Format sample tag italic: {ex2.Message}"); }
                     x += sampleTagColW;
 
                     // Col 5: Element count
@@ -5393,7 +5393,7 @@ namespace StingTools.Tags
                         matColor = MaterialCategoryColors.TryGetValue(group, out Color mc)
                             ? mc : new Color(180, 180, 180);
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); matColor = MaterialCategoryColors.TryGetValue(group, out Color mc)
+                catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); matColor = MaterialCategoryColors.TryGetValue(group, out Color mc)
                         ? mc : new Color(180, 180, 180); }
 
                 if (!matGroups.TryGetValue(group, out _))
@@ -6678,14 +6678,14 @@ namespace StingTools.Tags
                 // Check visibility
                 bool visible;
                 try { visible = view.GetFilterVisibility(fid); }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); visible = true; }
+                catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); visible = true; }
 
                 if (!visible) continue; // skip hidden filters
 
                 // Read the ACTUAL graphic overrides
                 OverrideGraphicSettings ogs;
                 try { ogs = view.GetFilterOverrides(fid); }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
+                catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); continue; }
 
                 if (!HasMeaningfulOverride(ogs)) continue;
 

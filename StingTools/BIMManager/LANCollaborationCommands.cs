@@ -176,7 +176,7 @@ namespace StingTools.BIMManager
                     {
                         // Always release lock
                         try { if (File.Exists(lockFile)) File.Delete(lockFile); }
-                        catch (Exception ex) { StingLog.Warn($"SyncLock cleanup: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"SyncLock cleanup: {ex2.Message}"); }
                     }
                 }
                 catch (Exception ex)

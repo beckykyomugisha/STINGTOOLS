@@ -260,7 +260,7 @@ namespace StingTools.Commands.Symbols
                 {
                     revalidationFindings = RevalidateSwappedInstances(doc, swappedIds);
                 }
-                catch (Exception ex) { StingLog.Warn($"Post-swap revalidation: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Post-swap revalidation: {ex2.Message}"); }
             }
 
             ShowResult(plans, swapped, skipped, errors, rejoined, revalidationFindings, revalidate);
@@ -446,7 +446,7 @@ namespace StingTools.Commands.Symbols
                     if (!string.IsNullOrEmpty(cand.TypeNamePattern))
                     {
                         try { rxType = new Regex(cand.TypeNamePattern); }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
+                        catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); continue; }
                     }
 
                     // Wave J1 — match against (familyName, typeName)
@@ -616,7 +616,7 @@ namespace StingTools.Commands.Symbols
                         if (fitting == null)
                         {
                             try { fitting = doc.Create.NewUnionFitting(a, b); }
-                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                         }
                         if (fitting != null) rejoined++;
                     }

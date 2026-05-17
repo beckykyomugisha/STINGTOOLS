@@ -126,7 +126,7 @@ namespace StingTools.Core.Placement
                                      ?? fi.Symbol?.LookupParameter("STING_WET_FIXTURE_KIND")?.AsString()
                                      ?? "").Trim().ToUpperInvariant();
                     }
-                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
 
                     if (kindOverride == "NONE") continue;
 

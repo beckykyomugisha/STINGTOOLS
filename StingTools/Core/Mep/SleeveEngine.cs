@@ -181,13 +181,13 @@ namespace StingTools.Core.Mep
                                     $"Host {cand.Host.Id} CanBeCutWithVoid=false; sleeve placed without cut");
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         { result.Warnings.Add($"InstanceVoidCut {cand.Host.Id}: {ex.Message}"); }
 
                         result.PlacedIds.Add(fi.Id);
                         result.Placed++;
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         result.Failed++;
                         result.Warnings.Add($"sleeve place: {ex.Message}");

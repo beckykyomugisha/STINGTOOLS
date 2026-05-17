@@ -287,7 +287,7 @@ namespace StingTools.Tags
                     if (!string.IsNullOrEmpty(originalSpFile))
                         opts.App.SharedParametersFilename = originalSpFile;
                 }
-                catch (Exception ex) { StingLog.Warn($"restore SP file: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"restore SP file: {ex2.Message}"); }
             }
             return added;
         }

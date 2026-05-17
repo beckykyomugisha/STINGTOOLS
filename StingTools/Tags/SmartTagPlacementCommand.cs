@@ -962,7 +962,7 @@ namespace StingTools.Tags
                     }
                     return !string.Equals(elDisc, disc, StringComparison.OrdinalIgnoreCase);
                 }
-                catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] DrawingType discipline filter: {ex.Message}"); return false; }
+                catch (Exception ex2) { StingLog.Warn($"[TagPlacementEngine] DrawingType discipline filter: {ex2.Message}"); return false; }
             });
             return before - elements.Count;
         }
@@ -1175,7 +1175,7 @@ namespace StingTools.Tags
                         if (variantId != ElementId.InvalidElementId) tagTypeId = variantId;
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"ResolveTagTypeForPlacement: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"ResolveTagTypeForPlacement: {ex2.Message}"); }
 
                 string catName = elem.Category?.Name ?? "";
                 // Apply per-category scale multiplier to offset
@@ -1249,7 +1249,7 @@ namespace StingTools.Tags
                     if (!string.IsNullOrEmpty(segMask))
                         StingLog.Info($"PlaceTagsInView: element {elem.Id} has TAG_SEG_MASK_TXT={segMask}");
                 }
-                catch (Exception ex) { StingLog.Warn($"Read TAG_SEG_MASK_TXT for element {elem.Id}: {ex.Message}"); }
+                catch (Exception ex3) { StingLog.Warn($"Read TAG_SEG_MASK_TXT for element {elem.Id}: {ex3.Message}"); }
 
                 var finalBox = Box2D.EstimateTag(bestPos, tagWidth, tagHeight);
                 if (grid.HasOverlap(finalBox)) collisions++;
@@ -1281,7 +1281,7 @@ namespace StingTools.Tags
                     sb.TagCreationFailed++; skipped++;
                     StingLog.Info($"SmartPlace skip (tag creation failed): element {elem.Id} - {iopEx.Message}");
                 }
-                catch (Exception ex)
+                catch (Exception ex4)
                 {
                     sb.OtherException++; skipped++;
                     StingLog.Warn($"Tag placement failed for {elem.Id}: {ex.Message}");
@@ -1657,8 +1657,8 @@ namespace StingTools.Tags
             for (int i = 1; i < tags.Count; i++)
             {
                 double prevY, thisY;
-                try { prevY = tags[i - 1].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"[AlignTagBands] Read prev TagHeadPosition.Y: {ex.Message}"); prevY = 0; }
-                try { thisY = tags[i].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"[AlignTagBands] Read this TagHeadPosition.Y: {ex.Message}"); thisY = 0; }
+                try { prevY = tags[i - 1].TagHeadPosition.Y; } catch (Exception ex2) { StingLog.Warn($"[AlignTagBands] Read prev TagHeadPosition.Y: {ex2.Message}"); prevY = 0; }
+                try { thisY = tags[i].TagHeadPosition.Y; } catch (Exception ex3) { StingLog.Warn($"[AlignTagBands] Read this TagHeadPosition.Y: {ex3.Message}"); thisY = 0; }
 
                 if (Math.Abs(thisY - prevY) <= tagHeightEstimate * 1.2)
                     current.Add(tags[i]);
@@ -1673,7 +1673,7 @@ namespace StingTools.Tags
             int moved = 0;
             foreach (var group in groups)
             {
-                var ys = group.Select(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"[AlignTagBands] Read group TagHeadPosition.Y: {ex.Message}"); return 0.0; } })
+                var ys = group.Select(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex2) { StingLog.Warn($"[AlignTagBands] Read group TagHeadPosition.Y: {ex2.Message}"); return 0.0; } })
                     .OrderBy(y => y).ToList();
                 double medianY = ys[ys.Count / 2];
                 foreach (var tag in group)
@@ -1687,7 +1687,7 @@ namespace StingTools.Tags
                             moved++;
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"Align tag band position for tag {tag.Id}: {ex.Message}"); }
+                    catch (Exception ex3) { StingLog.Warn($"Align tag band position for tag {tag.Id}: {ex3.Message}"); }
                 }
             }
             return moved;
@@ -1738,7 +1738,7 @@ namespace StingTools.Tags
                             tag.LeaderEndCondition = LeaderEndCondition.Free;
                             tag.SetLeaderElbow(tagRef, elbowCandidate);
                         }
-                        catch (Exception ex) { StingLog.Warn($"Set leader elbow position: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Set leader elbow position: {ex2.Message}"); }
                         return;
                     }
                 }
@@ -2265,14 +2265,14 @@ namespace StingTools.Tags
                     doc.Delete(idsToDelete);
                     removed = idsToDelete.Count;
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     StingLog.Error($"RemoveAnnotationTags: batch delete failed, falling back to one-by-one", ex);
                     // Fallback: delete individually
                     foreach (var id in idsToDelete)
                     {
                         try { doc.Delete(id); removed++; }
-                        catch (Exception ex2) { StingLog.Warn($"Could not delete tag {id}: {ex2.Message}"); }
+                        catch (Exception ex22) { StingLog.Warn($"Could not delete tag {id}: {ex22.Message}"); }
                     }
                 }
 
@@ -3065,7 +3065,7 @@ namespace StingTools.Tags
                         }
                         catch (Exception esEx) { StingLog.Warn($"ES dual-write TAG_POS on {typeId}: {esEx.Message}"); }
                     }
-                    catch (Exception ex) { StingLog.Warn($"Set TAG_POS on type {typeId}: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"Set TAG_POS on type {typeId}: {ex2.Message}"); }
                 }
                 tx.Commit();
             }

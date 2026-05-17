@@ -379,7 +379,7 @@ namespace StingTools.Core.Placement
                     if (snappedInBbox)
                     {
                         try { snappedInRoom = room.IsPointInRoom(snapped); }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); snappedInRoom = true; }
+                        catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); snappedInRoom = true; }
                     }
 
                     if (snappedInRoom)
@@ -393,7 +393,7 @@ namespace StingTools.Core.Placement
                         // generated from the room's own AABB so it should
                         // still be inside the polygon.
                         bool originalInRoom = false;
-                        try { originalInRoom = room.IsPointInRoom(p); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        try { originalInRoom = room.IsPointInRoom(p); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                         if (originalInRoom) { snappedList.Add(p); reverted++; }
                         else                { dropped++; }
                     }

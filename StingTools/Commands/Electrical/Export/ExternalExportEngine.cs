@@ -407,7 +407,7 @@ namespace StingTools.Commands.Electrical.Export
                     if (v.StartsWith("C")) return "C";
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
             return "A";
         }
     }

@@ -107,7 +107,7 @@ namespace StingTools.Core
                         $"Exports will be saved to the system temp folder:\n{tempDir}\n\n" +
                         "Use 'Set Output Directory' (BIM tab) to choose a permanent location.");
                 }
-                catch (Exception ex) { StingLog.Warn($"TaskDialog may not be available outside Revit thread: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"TaskDialog may not be available outside Revit thread: {ex2.Message}"); }
             }
             return tempDir;
         }

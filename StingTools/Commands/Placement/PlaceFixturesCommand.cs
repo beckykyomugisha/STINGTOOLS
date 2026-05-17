@@ -254,7 +254,7 @@ namespace StingTools.Commands.Placement
             if (!dryRun && res.PlacedIds.Count > 0)
             {
                 try { uidoc.Selection.SetElementIds(res.PlacedIds); }
-                catch (Exception ex) { StingLog.Warn($"PlaceFixturesCommand select failed: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"PlaceFixturesCommand select failed: {ex2.Message}"); }
             }
 
             return Result.Succeeded;

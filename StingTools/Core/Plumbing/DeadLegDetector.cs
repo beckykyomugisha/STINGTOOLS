@@ -153,7 +153,7 @@ namespace StingTools.Core.Plumbing
                                     foreach (Connector oc in ocm.Connectors)
                                         if (oc.IsConnected) neighbours++;
                             }
-                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                             if (neighbours >= 3) { junction = owner; break; }
                             if (owner is Pipe pp && potablePipeIds.Contains(pp.Id.Value)) { nextPipe = pp; break; }
                             if (owner.Category?.Id?.Value == (long)BuiltInCategory.OST_PipeFitting) { nextPipe = owner; break; }
@@ -161,14 +161,14 @@ namespace StingTools.Core.Plumbing
                         if (junction != null || nextPipe != null) break;
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); break; }
+                catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); break; }
 
                 if (junction != null) break;
                 if (nextPipe == null) break;
                 visited.Add(nextPipe.Id.Value);
                 if (nextPipe is Pipe np)
                 {
-                    try { accLen += np.LookupParameter("Length")?.AsDouble() * 0.3048 ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    try { accLen += np.LookupParameter("Length")?.AsDouble() * 0.3048 ?? 0; } catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); }
                 }
                 current = nextPipe;
             }

@@ -77,7 +77,7 @@ namespace StingTools.Core.Calc
                 double areaM2 = 0;
                 if (room != null)
                 {
-                    try { areaM2 = room.Area * 0.3048 * 0.3048; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    try { areaM2 = room.Area * 0.3048 * 0.3048; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                 }
                 string roomName = room?.Name?.ToLowerInvariant() ?? "";
                 bool isWet = roomName.Contains("bath") || roomName.Contains("shower")

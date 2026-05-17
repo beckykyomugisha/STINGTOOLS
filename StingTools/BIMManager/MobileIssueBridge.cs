@@ -117,7 +117,7 @@ namespace StingTools.BIMManager
                         result.Pushed++;
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     StingLog.Warn($"MobileIssueBridge.Push failed for {localIssue.Value<string>("id")}: {ex.Message}");
                 }

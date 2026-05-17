@@ -105,7 +105,7 @@ namespace StingTools.Core.Routing
             foreach (var id in memberIds)
             {
                 MEPCurve curve = null;
-                try { curve = doc.GetElement(id) as MEPCurve; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { curve = doc.GetElement(id) as MEPCurve; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                 if (curve == null) continue;
 
                 // Wave J3 — split-segment metadata inheritance. When a
@@ -127,7 +127,7 @@ namespace StingTools.Core.Routing
                         InheritParentPenetration(doc, curve, brk, records);
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"Parent penetration inherit: {ex.Message}"); }
+                catch (Exception ex3) { StingLog.Warn($"Parent penetration inherit: {ex3.Message}"); }
 
                 LocationCurve loc = curve.Location as LocationCurve;
                 if (loc?.Curve == null) continue;
@@ -197,7 +197,7 @@ namespace StingTools.Core.Routing
                         ParameterHelpers.SetString(curve, "ELC_CDT_PENETRATION_COUNT_NR",
                             (existing + 1).ToString(), overwrite: true);
                     }
-                    catch (Exception ex) { StingLog.Warn($"Stamp penetration: {ex.Message}"); }
+                    catch (Exception ex4) { StingLog.Warn($"Stamp penetration: {ex4.Message}"); }
 
                     // A run can only legitimately cross one floor at a
                     // time (multi-storey conduits should be broken into

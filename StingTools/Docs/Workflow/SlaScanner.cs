@@ -45,7 +45,7 @@ namespace Planscape.Docs.Workflow
 
                     if (b.NextEscalation != null) ApplyEscalation(doc, b);
                 }
-                catch (Exception ex) { StingLog.Warn($"SlaScanner breach handler: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"SlaScanner breach handler: {ex2.Message}"); }
             }
             return breaches;
         }

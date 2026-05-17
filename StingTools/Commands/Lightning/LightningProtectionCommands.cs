@@ -248,7 +248,7 @@ namespace StingTools.Commands.Lightning
                 panel.Action("Select failing elements", $"Select {failingIds.Count} flagged elements in Revit", _ =>
                 {
                     try { app.ActiveUIDocument.Selection.SetElementIds(failingIds); }
-                    catch (Exception ex) { StingLog.Warn($"SetElementIds: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"SetElementIds: {ex2.Message}"); }
                 });
             }
 
@@ -384,7 +384,7 @@ namespace StingTools.Commands.Lightning
                 if (dlg.Show() == TaskDialogResult.CommandLink1)
                 {
                     try { app.ActiveUIDocument.Selection.SetElementIds(failingIds); }
-                    catch (Exception ex) { StingLog.Warn($"SetElementIds: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"SetElementIds: {ex2.Message}"); }
                 }
             }
             else
@@ -995,7 +995,7 @@ namespace StingTools.Commands.Lightning
                                 if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double)
                                     p.Set(sMm);
                             }
-                            catch (Exception ex) { StingLog.Warn($"Stamp s: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"Stamp s: {ex2.Message}"); }
                         }
                         var bb = dc.get_BoundingBox(null);
                         if (bb == null) continue;
@@ -1056,7 +1056,7 @@ namespace StingTools.Commands.Lightning
                 panel.Action("Select conflicting MEP elements", $"Select {conflictingMepIds.Count} elements", _ =>
                 {
                     try { app.ActiveUIDocument.Selection.SetElementIds(conflictingMepIds.ToList()); }
-                    catch (Exception ex) { StingLog.Warn($"Select: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"Select: {ex2.Message}"); }
                 });
             }
             panel.Show();
@@ -1974,17 +1974,17 @@ namespace StingTools.Commands.Lightning
             panel.Action("Run Full Check", "Re-run LPS compliance check", _ =>
             {
                 try { new LpsComplianceCheckCommand().Execute(app); }
-                catch (Exception ex) { StingLog.Warn($"Dashboard run check: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Dashboard run check: {ex2.Message}"); }
             });
             panel.Action("View Report", "Open LPS Full Report (DOCX + CSV)", _ =>
             {
                 try { new LpsFullReportCommand().Execute(app); }
-                catch (Exception ex) { StingLog.Warn($"Dashboard view report: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Dashboard view report: {ex2.Message}"); }
             });
             panel.Action("Open Inspection Schedule", "Show inspection-due register", _ =>
             {
                 try { new LpsInspectionSchedulerCommand().Execute(app); }
-                catch (Exception ex) { StingLog.Warn($"Dashboard inspection schedule: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Dashboard inspection schedule: {ex2.Message}"); }
             });
 
             panel.Show();
@@ -2238,7 +2238,7 @@ namespace StingTools.Commands.Lightning
                                 if (hostRoom != null && hostRoom.Id == room.Id)
                                 {
                                     try { view.SetElementOverrides(fi.Id, miOgs); containedStamped++; }
-                                    catch (Exception ex) { StingLog.Warn($"FI override {fi.Id}: {ex.Message}"); }
+                                    catch (Exception ex2) { StingLog.Warn($"FI override {fi.Id}: {ex2.Message}"); }
                                 }
                             }
                         }
@@ -2340,7 +2340,7 @@ namespace StingTools.Commands.Lightning
                                 if (hostRoom != null && hostRoom.Id == room.Id)
                                 {
                                     try { view.SetElementOverrides(fi.Id, blank); cleared++; }
-                                    catch (Exception ex) { StingLog.Warn($"Clear FI {fi.Id}: {ex.Message}"); }
+                                    catch (Exception ex2) { StingLog.Warn($"Clear FI {fi.Id}: {ex2.Message}"); }
                                 }
                             }
                         }

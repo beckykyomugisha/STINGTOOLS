@@ -551,7 +551,7 @@ namespace StingTools.Tags
                         .Metric("Still untagged", afterScan.Untagged.ToString())
                         .Show();
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     StingLog.Error("PreTagAudit auto-fix", ex);
                     TaskDialog.Show("STING", $"Auto-fix encountered an error: {ex.Message}");
@@ -605,7 +605,7 @@ namespace StingTools.Tags
                         TaskDialog.Show("STING", $"Created {created} issues from audit anomalies.");
                         StingLog.Info($"GAP-R21: Created {created} issues from {auditIssues.Count} anomalies");
                     }
-                    catch (System.Exception ex)
+                    catch (System.Exception ex2)
                     {
                         StingLog.Warn($"Create issues from audit: {ex.Message}");
                         TaskDialog.Show("STING", $"Error creating issues: {ex.Message}");

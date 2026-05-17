@@ -109,14 +109,14 @@ namespace StingTools.Commands.Mep
                                         result.ByDiscipline[disc] =
                                             result.ByDiscipline.TryGetValue(disc, out var n) ? n + 1 : 1;
                                     }
-                                    catch (Exception ex)
+                                    catch (Exception ex2)
                                     {
                                         result.Skipped++;
                                         result.Warnings.Add($"NewFamilyInstance {mep.Id}: {ex.Message}");
                                     }
                                 }
                             }
-                            catch (Exception ex)
+                            catch (Exception ex2)
                             {
                                 result.Warnings.Add($"intersect {mep.Id}: {ex.Message}");
                             }

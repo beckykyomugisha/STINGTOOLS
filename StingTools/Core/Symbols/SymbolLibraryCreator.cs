@@ -123,7 +123,7 @@ namespace StingTools.Core.Symbols
                         var stdFile = JsonConvert.DeserializeObject<SymbolStandardsFile>(File.ReadAllText(stdJson));
                         stdFile?.Standards?.TryGetValue(lib.Standard, out std);
                     }
-                    catch (Exception ex) { StingLog.Warn($"CreateAllFromFile: standards JSON failed — {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"CreateAllFromFile: standards JSON failed — {ex2.Message}"); }
                 }
             }
 
@@ -163,7 +163,7 @@ namespace StingTools.Core.Symbols
                         result.Failed++;
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     result.Failed++;
                     result.Errors.Add($"{def.Id}: {ex.Message}");
@@ -1103,7 +1103,7 @@ namespace StingTools.Core.Symbols
                                     refLine.GeometryCurve.GetEndPointReference(0));
                                 SetConnectorSystemTypeParam(ce, c.SystemType, domain, def.Id, sourceLabel, result);
                             }
-                            catch (Exception ex)
+                            catch (Exception ex2)
                             {
                                 StingLog.Warn($"{def.Id} [{sourceLabel}]: CreateDuctConnector failed — {ex.Message}");
                                 result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreateDuctConnector failed — {ex.Message}");
@@ -1120,7 +1120,7 @@ namespace StingTools.Core.Symbols
                                     refLine.GeometryCurve.GetEndPointReference(0));
                                 SetConnectorSystemTypeParam(ce, c.SystemType, domain, def.Id, sourceLabel, result);
                             }
-                            catch (Exception ex)
+                            catch (Exception ex3)
                             {
                                 StingLog.Warn($"{def.Id} [{sourceLabel}]: CreatePipeConnector failed — {ex.Message}");
                                 result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreatePipeConnector failed — {ex.Message}");
@@ -1136,7 +1136,7 @@ namespace StingTools.Core.Symbols
                                     ResolveElectricalSystemType(c.SystemType),
                                     refLine.GeometryCurve.GetEndPointReference(0));
                             }
-                            catch (Exception ex)
+                            catch (Exception ex4)
                             {
                                 StingLog.Warn($"{def.Id} [{sourceLabel}]: CreateElectricalConnector failed — {ex.Message}");
                                 result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreateElectricalConnector failed — {ex.Message}");
@@ -1153,7 +1153,7 @@ namespace StingTools.Core.Symbols
                                     fdoc,
                                     refLine.GeometryCurve.GetEndPointReference(0));
                             }
-                            catch (Exception ex)
+                            catch (Exception ex5)
                             {
                                 StingLog.Warn($"{def.Id} [{sourceLabel}]: CreateConduitConnector failed — {ex.Message}");
                                 result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreateConduitConnector failed — {ex.Message}");
@@ -1530,7 +1530,7 @@ namespace StingTools.Core.Symbols
 
                     Document compDoc = null;
                     try { compDoc = app.NewFamilyDocument(templateFile); }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         result.Errors.Add($"{conceptId}_compound: NewFamilyDocument failed — {ex.Message}");
                         result.Failed++;
@@ -1614,7 +1614,7 @@ namespace StingTools.Core.Symbols
                                             StructuralType.NonStructural);
                                     }
                                 }
-                                catch (Exception ex)
+                                catch (Exception ex3)
                                 {
                                     result.Warnings.Add($"{conceptId}_compound: placing component '{compId}' failed — {ex.Message}");
                                 }
@@ -1630,7 +1630,7 @@ namespace StingTools.Core.Symbols
                         compDoc.Close(false);
                         compBuilt = true;
                     }
-                    catch (Exception ex)
+                    catch (Exception ex3)
                     {
                         try { compDoc?.Close(false); } catch { }
                         result.Errors.Add($"{conceptId}_compound: {ex.Message}");
@@ -1648,7 +1648,7 @@ namespace StingTools.Core.Symbols
                         result.Failed++;
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     result.Failed++;
                     result.Errors.Add($"{conceptId}_compound: outer error — {ex.Message}");
@@ -1751,7 +1751,7 @@ namespace StingTools.Core.Symbols
             foreach (var f in fallbacks)
             {
                 try { if (Directory.Exists(f)) return f; }
-                catch (Exception ex) { StingLog.Warn($"ResolveTemplateFolder path check '{f}': {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"ResolveTemplateFolder path check '{f}': {ex2.Message}"); }
             }
 
             // 3. %APPDATA% per-user template locations (roaming profile installs).

@@ -156,7 +156,7 @@ namespace StingTools.Core.Fabrication
                         int purged = 0;
                         foreach (var sid in stampedIds)
                         {
-                            try { doc.Delete(sid); purged++; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            try { doc.Delete(sid); purged++; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                         }
                         result.SymbolsReplaced += purged;
                         existingByMember.Clear();
@@ -859,7 +859,7 @@ namespace StingTools.Core.Fabrication
                     string memCat = (r.Member?.Category?.Name ?? "").Replace(',', ';');
                     string memNm  = (r.Member?.Name ?? "").Replace(',', ';');
                     string famNm  = "";
-                    try { famNm = ((r.Member as FamilyInstance)?.Symbol?.FamilyName ?? "").Replace(',', ';'); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    try { famNm = ((r.Member as FamilyInstance)?.Symbol?.FamilyName ?? "").Replace(',', ';'); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                     string code   = (r.Entry?.SymbolCode  ?? "").Replace(',', ';');
                     string ff     = (r.Entry?.FamilyFile  ?? "").Replace(',', ';');
                     string resolved = r.Entry == null ? "0" : "1";

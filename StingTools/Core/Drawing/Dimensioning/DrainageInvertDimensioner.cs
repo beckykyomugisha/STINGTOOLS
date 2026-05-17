@@ -199,7 +199,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                 var sd = doc.Create.NewSpotElevation(view, cref, invert, bend, end, refPt, hasLeader: true);
                 if (sd != null && spotTypeId != ElementId.InvalidElementId)
                 {
-                    try { sd.ChangeTypeId(spotTypeId); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    try { sd.ChangeTypeId(spotTypeId); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                 }
                 if (sd != null) result.SpotsPlaced++;
             }

@@ -314,7 +314,7 @@ namespace StingTools.Commands.Symbols
                         }
                     }
                 }
-                catch (Exception ex) { result.Warnings.Add($"SwapCandidates parse '{Path.GetFileName(specPath)}': {ex.Message}"); }
+                catch (Exception ex2) { result.Warnings.Add($"SwapCandidates parse '{Path.GetFileName(specPath)}': {ex2.Message}"); }
             }
 
             // Prune pass — remove auto-registered entries that are no longer
@@ -518,7 +518,7 @@ namespace StingTools.Commands.Symbols
                                     .OfClass(typeof(Autodesk.Revit.DB.ConnectorElement))
                                     .GetElementCount();
                             }
-                            finally { try { fdoc.Close(false); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } }
+                            finally { try { fdoc.Close(false); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); } }
                         }
                         catch (Exception ex) { warnings.Add($"Connector audit: '{id}' — open family failed: {ex.Message}"); continue; }
 

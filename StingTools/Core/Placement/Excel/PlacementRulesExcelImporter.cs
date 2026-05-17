@@ -66,7 +66,7 @@ namespace StingTools.Core.Placement.Excel
                     if (string.IsNullOrEmpty(raw)) continue;
                     anyValue = true;
                     try { SetProperty(rule, prop, raw); }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         errors.Add($"Sheet '{ws.Name}' row {r} column '{header}': {ex.Message}");
                     }

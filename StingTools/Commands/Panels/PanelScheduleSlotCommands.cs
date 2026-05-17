@@ -106,7 +106,7 @@ namespace StingTools.Commands.Panels
                     {
                         occupied = psv.IsSpare(r, col) || psv.IsSpace(r, col) || psv.IsSlotLocked(r, col);
                     }
-                    catch (Exception ex) { StingLog.Warn($"slot probe [{r},{col}] on '{psv.Name}': {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"slot probe [{r},{col}] on '{psv.Name}': {ex2.Message}"); }
                     if (occupied) { c.AlreadyOccupied++; continue; }
 
                     try
@@ -115,7 +115,7 @@ namespace StingTools.Commands.Panels
                         else psv.AddSpace(r, col);
                         c.Filled++;
                     }
-                    catch (Exception ex)
+                    catch (Exception ex3)
                     {
                         c.Errors++;
                         StingLog.Warn($"Add{(addSpare ? "Spare" : "Space")} [{r},{col}] on '{psv.Name}': {ex.Message}");
@@ -146,7 +146,7 @@ namespace StingTools.Commands.Panels
                         if (psv.IsSpare(r, c)) { psv.RemoveSpare(r, c); spares++; continue; }
                         if (psv.IsSpace(r, c)) { psv.RemoveSpace(r, c); spaces++; }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         errors++;
                         StingLog.Warn($"Clear [{r},{c}] on '{psv.Name}': {ex.Message}");
@@ -174,7 +174,7 @@ namespace StingTools.Commands.Panels
                 {
                     bool isSpace = false;
                     try { isSpace = psv.IsSpace(r, c); }
-                    catch (Exception ex) { StingLog.Warn($"IsSpace [{r},{c}]: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"IsSpace [{r},{c}]: {ex2.Message}"); }
                     if (!isSpace) continue;
 
                     try
@@ -183,7 +183,7 @@ namespace StingTools.Commands.Panels
                         psv.AddSpare(r, c);
                         converted++;
                     }
-                    catch (Exception ex)
+                    catch (Exception ex3)
                     {
                         errors++;
                         StingLog.Warn($"Convert space → spare [{r},{c}] on '{psv.Name}': {ex.Message}");

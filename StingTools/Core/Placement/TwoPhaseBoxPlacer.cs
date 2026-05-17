@@ -122,7 +122,7 @@ namespace StingTools.Core.Placement
                                 if (doc.IsWorkshared && pf.Placed.WorksetId != null)
                                     wsTag = "|ws=" + pf.Placed.WorksetId.IntegerValue;
                             }
-                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                             string composite = guid + wsTag;
                             string paramName = string.IsNullOrEmpty(rule.BoxLocationIdParam)
                                 ? ParamRegistry.BOX_LOCATION_ID : rule.BoxLocationIdParam;
@@ -138,7 +138,7 @@ namespace StingTools.Core.Placement
                             try { PostPlacementHooks.RunFor(pf.Placed, rule); }
                             catch (Exception hkEx) { result?.Warnings.Add($"PostHook(first-fix): {hkEx.Message}"); }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             result?.Warnings.Add($"TwoPhase.PlaceFirstFix {rule.MergeKey} in room {room.Id}: {ex.Message}");
                             if (result != null) result.SkippedCount++;
@@ -246,7 +246,7 @@ namespace StingTools.Core.Placement
                             try { PostPlacementHooks.RunFor(pf.Placed, rule); }
                             catch (Exception hkEx) { result?.Warnings.Add($"PostHook(second-fix): {hkEx.Message}"); }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             result?.Warnings.Add($"TwoPhase.PlaceSecondFix {rule.MergeKey}: {ex.Message}");
                             if (result != null) result.SkippedCount++;

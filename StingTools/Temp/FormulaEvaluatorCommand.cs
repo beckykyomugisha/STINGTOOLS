@@ -518,7 +518,7 @@ namespace StingTools.Temp
                 _cachedFormulas = formulas;
                 _cachedCsvPath = csvPath;
                 try { _cachedCsvWriteTime = File.GetLastWriteTimeUtc(csvPath); }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); _cachedCsvWriteTime = DateTime.MinValue; }
+                catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); _cachedCsvWriteTime = DateTime.MinValue; }
             }
 
             return formulas;

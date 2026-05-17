@@ -220,7 +220,7 @@ namespace StingTools.Commands.Panels
                 {
                     string txt = "";
                     try { txt = psv.GetCellText(section, r, c) ?? ""; }
-                    catch (Exception ex) { StingLog.Warn($"GetCellText {section}[{r},{c}]: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"GetCellText {section}[{r},{c}]: {ex2.Message}"); }
                     ws.Cell(startRow + 1 + r, c + 1).Value = txt;
                 }
             }
@@ -312,10 +312,10 @@ namespace StingTools.Commands.Panels
                             string idStr = (ws.Cell(4, 2).GetString() ?? "").Trim();
                             long.TryParse(idStr, out elemId);
                         }
-                        catch (Exception ex) { StingLog.Warn($"Sheet '{ws.Name}' missing ElementId in B4: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Sheet '{ws.Name}' missing ElementId in B4: {ex2.Message}"); }
 
                         string scheduleName = "";
-                        try { scheduleName = ws.Cell(2, 2).GetString(); } catch (Exception ex) { StingLog.Warn($"Sheet '{ws.Name}' missing schedule name: {ex.Message}"); }
+                        try { scheduleName = ws.Cell(2, 2).GetString(); } catch (Exception ex3) { StingLog.Warn($"Sheet '{ws.Name}' missing schedule name: {ex3.Message}"); }
 
                         PanelScheduleView psv = null;
                         if (elemId > 0 && byId.TryGetValue(elemId, out var p1)) psv = p1;
@@ -338,7 +338,7 @@ namespace StingTools.Commands.Panels
 
                         TableSectionData body;
                         try { body = psv.GetTableData()?.GetSectionData(SectionType.Body); }
-                        catch (Exception ex) { failures.Add($"{psv.Name}: GetSectionData failed: {ex.Message}"); continue; }
+                        catch (Exception ex4) { failures.Add($"{psv.Name}: GetSectionData failed: {ex4.Message}"); continue; }
                         if (body == null) { failures.Add($"{psv.Name}: Body section unavailable"); continue; }
 
                         int nRows = body.NumberOfRows;
@@ -346,7 +346,7 @@ namespace StingTools.Commands.Panels
 
                         int xlsxLastUsed = 0;
                         try { xlsxLastUsed = ws.LastColumnUsed()?.ColumnNumber() ?? 0; }
-                        catch (Exception ex) { StingLog.Warn($"LastColumnUsed: {ex.Message}"); }
+                        catch (Exception ex5) { StingLog.Warn($"LastColumnUsed: {ex5.Message}"); }
                         if (xlsxLastUsed > 0 && xlsxLastUsed < nCols)
                         {
                             colMismatchSheets++;
@@ -366,11 +366,11 @@ namespace StingTools.Commands.Panels
 
                                 string newVal;
                                 try { newVal = ws.Cell(xlRow, xlCol).GetString() ?? ""; }
-                                catch (Exception ex) { StingLog.Warn($"{psv.Name}[{r},{c}] read xlsx: {ex.Message}"); continue; }
+                                catch (Exception ex6) { StingLog.Warn($"{psv.Name}[{r},{c}] read xlsx: {ex6.Message}"); continue; }
 
                                 string oldVal = "";
                                 try { oldVal = psv.GetCellText(SectionType.Body, r, c) ?? ""; }
-                                catch (Exception ex) { StingLog.Warn($"{psv.Name}[{r},{c}] read revit: {ex.Message}"); }
+                                catch (Exception ex7) { StingLog.Warn($"{psv.Name}[{r},{c}] read revit: {ex7.Message}"); }
 
                                 if (string.Equals(newVal, oldVal, StringComparison.Ordinal))
                                 {
@@ -397,7 +397,7 @@ namespace StingTools.Commands.Panels
                                     body.SetCellText(r, c, newVal);
                                     written++;
                                 }
-                                catch (Exception ex)
+                                catch (Exception ex8)
                                 {
                                     rejected++;
                                     StingLog.Warn($"{psv.Name}[{r},{c}] SetCellText '{newVal}': {ex.Message}");

@@ -228,7 +228,7 @@ namespace StingTools.Core.SLD
                         && doc.GetElement(stampedLabelId) is TextNote)
                     {
                         try { doc.Delete(stampedLabelId); }
-                        catch (Exception ex) { StingLog.Warn($"Refresh delete stamped: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Refresh delete stamped: {ex2.Message}"); }
                     }
                     else
                     {
@@ -618,7 +618,7 @@ namespace StingTools.Core.SLD
                                 (secPos.Y + nodePos.Y) / 2.0 + boxHFt * 0.3,
                                 0);
                             try { TextNote.Create(doc, view.Id, mid, "E", tnt); }
-                            catch (Exception ex)
+                            catch (Exception ex2)
                             {
                                 StingLog.Warn($"DrawEmergencyFeedNotation E label: {ex.Message}");
                             }
@@ -705,7 +705,7 @@ namespace StingTools.Core.SLD
                                 ptA.Y + boxHFt * 0.4,
                                 0);
                             try { TextNote.Create(doc, view.Id, mid, "BC/NOP", tnt); }
-                            catch (Exception ex)
+                            catch (Exception ex2)
                             {
                                 StingLog.Warn($"DrawBusCouplerNotation TextNote: {ex.Message}");
                             }

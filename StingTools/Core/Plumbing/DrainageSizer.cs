@@ -83,7 +83,7 @@ namespace StingTools.Core.Plumbing
                                 res.SelfCleansingVelocityMps.ToString("F3"));
                         r.PipesWritten++;
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         r.Warnings.Add($"writeBack pipe {pipe.Id}: {ex.Message}");
                     }

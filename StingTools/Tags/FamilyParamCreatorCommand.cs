@@ -1133,7 +1133,7 @@ namespace StingTools.Tags
             finally
             {
                 try { famDoc?.Close(false); }
-                catch (Exception ex) { StingLog.Warn($"Close family document: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Close family document: {ex2.Message}"); }
             }
 
             return result;
