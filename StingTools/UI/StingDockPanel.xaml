@@ -4789,6 +4789,10 @@
                                     <Button Style="{StaticResource PurpleBtn}" Content="▶ Open Placement Centre (Run &amp; Routing tab)"
                                             Tag="Placement_OpenCentre" Click="Cmd_Click" Height="30" Margin="0,2"
                                             ToolTip="Open Placement Centre and switch to the Run &amp; Routing tab for full inline controls"/>
+                                    <!-- Placement result strip — updated by PlacementResultBus subscription in code-behind -->
+                                    <Border x:Name="bdrRoutingResult" Background="#1A27AE60" BorderBrush="#27AE60" BorderThickness="0,1,0,0" Padding="6,3" Visibility="Collapsed" Margin="0,4,0,0">
+                                        <TextBlock x:Name="txtRoutingResultHeadline" FontSize="11" Foreground="#2C3E50" TextWrapping="Wrap"/>
+                                    </Border>
                                 </StackPanel>
                             </TabItem>
 
@@ -4805,6 +4809,10 @@
                                     <Button Style="{StaticResource PurpleBtn}" Content="▶ Open Placement Centre (Rules + Run tabs)"
                                             Tag="Placement_OpenCentre" Click="Cmd_Click" Height="30" Margin="0,2"
                                             ToolTip="Open the full Placement Centre — rule editor, run options, inline results, tools"/>
+                                    <!-- Placement result strip — updated by PlacementResultBus subscription in code-behind -->
+                                    <Border x:Name="bdrFixturesResult" Background="#1A3498DB" BorderBrush="#3498DB" BorderThickness="0,1,0,0" Padding="6,3" Visibility="Collapsed" Margin="0,4,0,0">
+                                        <TextBlock x:Name="txtFixturesResultHeadline" FontSize="11" Foreground="#2C3E50" TextWrapping="Wrap"/>
+                                    </Border>
                                 </StackPanel>
                             </TabItem>
 

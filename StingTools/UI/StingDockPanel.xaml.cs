@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Placement;
 
 // Autodesk.Revit.UI ships TextBox + ComboBox types that collide with
 // System.Windows.Controls equivalents used by the WPF dockable panel.
@@ -84,6 +85,10 @@ namespace StingTools.UI
 
             BuildColorSwatches();
             _instance = this;
+
+            // Subscribe to PlacementResultBus so Fixtures and Routing result strips
+            // update automatically after any placement/routing run.
+            PlacementResultBus.ResultPublished += OnPlacementResultBus;
 
             // Pack 0 — reflect current offline state the moment the panel is realised.
             try { UpdateOfflineStatus(StingTools.Core.StingOfflineConfig.IsOffline, StingTools.Core.StingOfflineConfig.Source); }
@@ -2014,6 +2019,46 @@ namespace StingTools.UI
                 if (found != null) return found;
             }
             return null;
+        }
+
+        /// <summary>
+        /// Handler for <see cref="PlacementResultBus.ResultPublished"/>.
+        /// Updates the inline result strips in the Fixtures and Routing sub-tabs of
+        /// the TAGS tab based on the source of the published summary.
+        /// </summary>
+        private void OnPlacementResultBus(PlacementRunSummary summary)
+        {
+            if (summary == null) return;
+            Dispatcher.InvokeAsync(() =>
+            {
+                try
+                {
+                    if (summary.Source == "Tags" || summary.Source == "Fixtures")
+                    {
+                        var strip = FindName("bdrFixturesResult") as System.Windows.Controls.Border;
+                        var lbl   = FindName("txtFixturesResultHeadline") as System.Windows.Controls.TextBlock;
+                        if (strip != null && lbl != null)
+                        {
+                            lbl.Text = summary.Headline;
+                            strip.Visibility = System.Windows.Visibility.Visible;
+                        }
+                    }
+                    if (summary.Source == "Routing" || summary.Source == "Symbols")
+                    {
+                        var strip = FindName("bdrRoutingResult") as System.Windows.Controls.Border;
+                        var lbl   = FindName("txtRoutingResultHeadline") as System.Windows.Controls.TextBlock;
+                        if (strip != null && lbl != null)
+                        {
+                            lbl.Text = summary.Headline;
+                            strip.Visibility = System.Windows.Visibility.Visible;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingTools.Core.StingLog.Warn($"OnPlacementResultBus UI update: {ex.Message}");
+                }
+            });
         }
     }
 }
