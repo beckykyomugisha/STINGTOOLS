@@ -1,4 +1,4 @@
-# v6.1 | 20260517 | BIM Template mr_parameters — 3015 unique params (auto-aligned with MR_PARAMETERS.txt; deduped 5 PLM_* rows)
+# v6.2 | 20260517 | BIM Template mr_parameters — 3017 unique params (auto-aligned with MR_PARAMETERS.txt)
 Revit_Category,Parameter_Name,Parameter_GUID,Data_Type,Group_Name,Binding_Type,Description,Has_Formula,Formula,Input_Parameters,Discipline,User_Modifiable,Hide_When_No_Value
 Generic Models,ASS_CAT_TXT,f8fe813a-44e9-5e47-9109-921171dc53b6,TEXT,ASS_MNG,Type,Ass Cat Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_CST_QUANTITY_NR,3c189e63-383c-5011-b7d9-873faed4e6c6,TEXT,ASS_MNG,Type,Ass Cst Quantity Nr [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -3015,3 +3015,5 @@ Project,NRG_ANNUAL_COOL_KWH,ac000000-0000-0000-0000-0000000000b3,NUMBER,TPL_TRAC
 Project,NRG_OPERATING_COST_YR,ac000000-0000-0000-0000-0000000000b4,NUMBER,TPL_TRACKING,Instance,ArchiCAD IFC: annual operating energy cost in project currency (EcoDesigner Star),False,,,,1,0
 Project,NRG_LIFECYCLE_COST_NR,ac000000-0000-0000-0000-0000000000b5,NUMBER,TPL_TRACKING,Instance,ArchiCAD IFC: lifecycle cost estimate NPV 25/60 year (EcoDesigner Star),False,,,,1,0
 Project,CBN_GWP_KG_CO2E,ac000000-0000-0000-0000-0000000000b6,NUMBER,TPL_TRACKING,Instance,ArchiCAD IFC: global warming potential kg CO2e (Pset_EnvironmentalImpactValues.GlobalWarmingPotential),False,,,,1,0
+Project,RGL_WINDOW_WALL_RATIO_PCT,92be012d-099c-5204-8bd1-0429ea26b3dc,TEXT,RGL_CMPL,Instance,Window-to-wall ratio percentage [Part L],False,,,,1,0
+Project,RGL_ACCESS_RAMP_SLOPE_PCT,0e3014e4-a781-551c-9a8f-3ff54fbe89f5,TEXT,RGL_CMPL,Instance,Ramp slope percentage [BS 8300 Accessibility],False,,,,1,0

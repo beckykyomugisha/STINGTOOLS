@@ -1,6 +1,6 @@
 {
-  "version": "5.8",
-  "description": "STING Tools master parameter registry v5.8 — single source of truth for parameter names, GUIDs, containers, bindings, and warning thresholds. Option-3-B synced to MR_PARAMETERS.txt (3015 params, 34 groups). Curated sections (warning_thresholds, container_groups, extended_params, source_tokens, sheet_tokens, category_enum_map, universal_categories, ifc_property_mapping) preserved verbatim; GUIDs corrected where they disagreed with the SP file; missing SP-file params appended into support_params as stubs.",
+  "version": "5.9",
+  "description": "STING Tools master parameter registry v5.9 — Option-3-B synced to MR_PARAMETERS.txt (3017 params, 34 groups). Curated sections preserved verbatim; missing SP-file params appended into support_params as stubs. Topped up with 2 new RGL params (WINDOW_WALL_RATIO_PCT, ACCESS_RAMP_SLOPE_PCT).",
   "tag_format": {
     "separator": "-",
     "num_pad": 4,
@@ -27116,6 +27116,28 @@
       "datatype": "TEXT",
       "group_id": 17,
       "group_name": "STINGTags_ISO19650",
+      "binding": "universal",
+      "required": false,
+      "source": "auto-synced from MR_PARAMETERS.txt"
+    },
+    {
+      "param_name": "RGL_WINDOW_WALL_RATIO_PCT",
+      "guid": "92be012d-099c-5204-8bd1-0429ea26b3dc",
+      "description": "Window-to-wall ratio percentage [Part L]",
+      "datatype": "TEXT",
+      "group_id": 15,
+      "group_name": "RGL_CMPL",
+      "binding": "universal",
+      "required": false,
+      "source": "auto-synced from MR_PARAMETERS.txt"
+    },
+    {
+      "param_name": "RGL_ACCESS_RAMP_SLOPE_PCT",
+      "guid": "0e3014e4-a781-551c-9a8f-3ff54fbe89f5",
+      "description": "Ramp slope percentage [BS 8300 Accessibility]",
+      "datatype": "TEXT",
+      "group_id": 15,
+      "group_name": "RGL_CMPL",
       "binding": "universal",
       "required": false,
       "source": "auto-synced from MR_PARAMETERS.txt"
