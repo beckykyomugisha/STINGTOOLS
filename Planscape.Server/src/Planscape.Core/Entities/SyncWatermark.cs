@@ -10,9 +10,10 @@ namespace Planscape.Core.Entities;
 /// project. "Device" is whatever the client sends in the X-Device-Id header
 /// — a mobile device id, a desktop user id, or the literal "desktop" fallback.
 /// </summary>
-public class SyncWatermark
+public class SyncWatermark : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
 
     /// <summary>Opaque device identifier from the X-Device-Id header.</summary>
@@ -24,6 +25,14 @@ public class SyncWatermark
     /// Updated on every successful delta-sync response.
     /// </summary>
     public DateTime LastSyncUtc { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Optional client-reported element count captured at the moment of the
+    /// watermark upsert. Lets a device cheaply sanity-check that the server
+    /// agrees on its expected row count without a follow-up read. Defaults
+    /// to 0 — additive column, safe for legacy rows.
+    /// </summary>
+    public int ElementCount { get; set; } = 0;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

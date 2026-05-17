@@ -33,6 +33,82 @@ export interface ModelViewerHandle {
   addPin: (pin: ModelPin) => void;
   clearPins: () => void;
   setBackground: (color: number) => void;
+  // Federation: load multiple GLBs at once (one per discipline).
+  loadFederation: (sources: Array<{ url: string; label?: string; discipline?: string }>) => void;
+  // Per-model visibility toggle for federated scenes.
+  setModelVisible: (label: string, visible: boolean) => void;
+  // Oblique section: arbitrary normal direction + 0..1 offset across bounds.
+  setSectionPlane: (opts: { enabled: boolean; normal?: [number, number, number]; offset?: number }) => void;
+  // Multi-plane section: add / update / remove individual clipping planes.
+  addSectionPlaneAxis: (axis: 'x' | 'y' | 'z' | 'free', offset?: number) => void;
+  updateSectionPlane: (id: number, offset: number) => void;
+  removeSectionPlane: (id: number) => void;
+  clearSectionPlanes: () => void;
+  // Section box: 6-plane AABB clip with optional inset (0=tight bounds).
+  setSectionBox: (opts?: { inset?: number }) => void;
+  updateSectionBoxFace: (faceIndex: number, offsetMm: number) => void;
+  clearSectionBox: () => void;
+  // Exploded view: factor 0=collapsed, 1=fully exploded.
+  setExplodeFactor: (factor: number) => void;
+  // Markup canvas overlay (draw/arrow/text/rect; null to exit markup mode).
+  startMarkup: (mode: 'draw' | 'arrow' | 'text' | 'rect' | null) => void;
+  clearMarkup: () => void;
+  // First-person walkthrough.
+  setWalkthrough: (enabled: boolean) => void;
+  // Polygon area measurement.
+  startArea: () => void;
+  addAreaPoint: (point: [number, number, number]) => void;
+  finishArea: () => void;
+  // Volume of the currently highlighted element's AABB.
+  measureSelectionVolume: () => void;
+  // Select a mesh by its elementGuid, highlight it, and zoom the camera in.
+  selectAndZoom: (guid: string) => void;
+  // Per-model opacity (federation overlay fade, 0..1).
+  setModelOpacity: (label: string, opacity: number) => void;
+  // Solo a single federation model (hide all others). Pass null to clear.
+  setModelSolo: (label: string | null) => void;
+  // Isolate a set of element GUIDs (hide everything else). Empty/null clears.
+  setIsolatedGuids: (guids: string[] | null) => void;
+  clearIsolation: () => void;
+  // Snap camera to an orthogonal or iso preset.
+  setCameraPreset: (preset: 'top' | 'bottom' | 'front' | 'back' | 'left' | 'right' | 'iso' | 'home') => void;
+  // Camera bookmark slots (1..4) — save current position, jump to it later.
+  saveCameraBookmark: (slot: number) => void;
+  restoreCameraBookmark: (slot: number) => void;
+  // Render mode — applies to whole modelRoot.
+  setRenderMode: (mode: 'shaded' | 'wireframe' | 'xray' | 'ghost') => void;
+  // Edge silhouette overlay (wireframe-on-shaded depth perception).
+  setEdgeOverlay: (enabled: boolean) => void;
+  // Section caps — fill cut surfaces of active section planes.
+  setSectionCaps: (enabled: boolean) => void;
+  // Stream cursor-XYZ on pointermove (heavy — enable only while UI consumes).
+  setCoordReadout: (enabled: boolean) => void;
+  // Multi-segment path measurement (cumulative distance).
+  startCumulativeMeasure: () => void;
+  addCumulativePoint: (point: [number, number, number]) => void;
+  finishCumulativeMeasure: () => void;
+  clearCumulativeMeasure: () => void;
+  // Full view-state snapshot — captures camera + sections + visibility + render mode.
+  // The result arrives back via the `onViewState` callback.
+  captureViewState: () => void;
+  restoreViewState: (state: object) => void;
+  // Pick snap — vertex / edge midpoint / face center / none.
+  setPickSnap: (mode: 'none' | 'vertex' | 'midpoint' | 'face') => void;
+  // Clearance: switch tool to 'clearance', user picks 2 elements; result
+  // arrives via onMeasureClearance. cancelClearance resets the pending pick.
+  cancelClearance: () => void;
+  clearClearance: () => void;
+  // 360° photo sphere — load an equirectangular photo at an anchor point.
+  // position is optional (defaults to model centre).
+  setPhotoSphere: (opts: { url: string; position?: [number, number, number]; radius?: number }) => void;
+  clearPhotoSphere: () => void;
+  // Live multiplayer presence cursors.
+  setPresenceCursor: (userId: string, payload: { pos: [number, number, number]; target: [number, number, number]; name?: string }) => void;
+  removePresenceCursor: (userId: string) => void;
+  clearPresenceCursors: () => void;
+  // Returns current camera state via onCameraState — used for broadcasting
+  // our position to other collaborators.
+  getCameraState: () => void;
 }
 
 interface ModelViewerProps {
@@ -55,7 +131,39 @@ interface ModelViewerProps {
   onPlaceIssue?: (e: PlaceIssueEvent) => void;
   onPinTap?: (e: { issueId: string; priority?: string }) => void;
   onMeasure?: (e: { distance: number; points: number[][] }) => void;
+  onMeasureArea?: (e: { area: number; points: number[][] }) => void;
+  onMeasureVolume?: (e: { volume: number; size: number[]; bounds: number[] }) => void;
+  onMeasureAngle?: (e: { angle: number; vertex: number[]; a: number[]; b: number[] }) => void;
+  onWalkthrough?: (e: { active: boolean }) => void;
+  onLodChanged?: (e: { level: number; avgFps: number }) => void;
   onToolChanged?: (tool: ViewerTool) => void;
+  onSectionPlanesChanged?: (e: { count: number; planes: Array<{ id: number; axis: string; offset: number }> }) => void;
+  onSectionBoxSet?: (e: { faces: number[] }) => void;
+  onExplodeFactor?: (e: { factor: number }) => void;
+  onMarkupUpdated?: (e: { count: number }) => void;
+  onMarkupCleared?: () => void;
+  onCoord?: (e: { hit: boolean; point?: [number, number, number]; off?: boolean }) => void;
+  onMeasurePath?: (e: { segment: number; total: number; points: number[][] }) => void;
+  onMeasurePathFinal?: (e: { total: number; points: number[][] }) => void;
+  onCameraPreset?: (e: { preset: string }) => void;
+  onBookmarkSaved?: (e: { slot: number; slots: number[] }) => void;
+  onBookmarkRestored?: (e: { slot: number }) => void;
+  onRenderMode?: (e: { mode: string }) => void;
+  onViewState?: (state: object) => void;
+  onViewStateRestored?: (e: { keys: string[] }) => void;
+  onMeasureClearance?: (e: {
+    distance: number;             // negative ⇒ AABBs overlap (penetration depth)
+    pointA: [number, number, number];
+    pointB: [number, number, number];
+    intersect: boolean;
+    aGuid?: string; bGuid?: string;
+    aName?: string; bName?: string;
+  }) => void;
+  onMeasureClearancePending?: (e: { count: number }) => void;
+  onPhotoSphere?: (e: { active: boolean; url?: string; position?: number[]; radius?: number }) => void;
+  onPhotoSphereError?: (e: { url: string; error: string }) => void;
+  onCameraState?: (e: { pos: [number, number, number]; target: [number, number, number] }) => void;
+  onPickSnapChanged?: (e: { mode: string }) => void;
   onError?: (err: string) => void;
 }
 
@@ -65,6 +173,13 @@ export interface PickEvent {
   name?: string;
   meta?: ElementMap[string] | null;
 }
+export interface BcfViewpoint {
+  camera: { eye: number[]; look: number[]; up: number[]; dir: number[]; fov: number };
+  selectedGuids?: string[];
+  timestamp?: string;
+  [key: string]: unknown;
+}
+
 export interface PlaceIssueEvent {
   guid: string;
   point: [number, number, number];
@@ -142,6 +257,68 @@ export const ModelViewer = React.forwardRef<ModelViewerHandle, ModelViewerProps>
       addPin: (pin) => send({ type: "addPin", payload: pin }),
       clearPins: () => send({ type: "clearPins" }),
       setBackground: (color) => send({ type: "setBackground", payload: { color } }),
+      loadFederation: (sources) => send({ type: "loadFederation", payload: { sources } }),
+      setModelVisible: (label, visible) =>
+        send({ type: "setModelVisible", payload: { label, visible } }),
+      setSectionPlane: (opts) => send({ type: "setSectionPlane", payload: opts }),
+      addSectionPlaneAxis: (axis, offset) =>
+        send({ type: "addSectionPlaneAxis", payload: { axis, offset } }),
+      updateSectionPlane: (id, offset) =>
+        send({ type: "updateSectionPlane", payload: { id, offset } }),
+      removeSectionPlane: (id) =>
+        send({ type: "removeSectionPlane", payload: { id } }),
+      clearSectionPlanes: () => send({ type: "clearSectionPlanes" }),
+      setSectionBox: (opts) => send({ type: "setSectionBox", payload: opts ?? {} }),
+      updateSectionBoxFace: (faceIndex, offsetMm) =>
+        send({ type: "updateSectionBoxFace", payload: { faceIndex, offsetMm } }),
+      clearSectionBox: () => send({ type: "clearSectionBox" }),
+      setExplodeFactor: (factor) =>
+        send({ type: "setExplodeFactor", payload: { factor } }),
+      startMarkup: (mode) => send({ type: "startMarkup", payload: { mode } }),
+      clearMarkup: () => send({ type: "clearMarkup" }),
+      setWalkthrough: (enabled) => send({ type: "setWalkthrough", payload: { enabled } }),
+      startArea: () => send({ type: "startArea" }),
+      addAreaPoint: (point) => send({ type: "addAreaPoint", payload: { point } }),
+      finishArea: () => send({ type: "finishArea" }),
+      measureSelectionVolume: () => send({ type: "measureVolume" }),
+      selectAndZoom: (guid) => send({ type: "selectAndZoom", payload: { guid } }),
+      setModelOpacity: (label, opacity) =>
+        send({ type: "setModelOpacity", payload: { label, opacity } }),
+      setModelSolo: (label) => send({ type: "setModelSolo", payload: { label } }),
+      setIsolatedGuids: (guids) =>
+        send({ type: "setIsolatedGuids", payload: { guids } }),
+      clearIsolation: () => send({ type: "clearIsolation" }),
+      setCameraPreset: (preset) =>
+        send({ type: "setCameraPreset", payload: { preset } }),
+      saveCameraBookmark: (slot) =>
+        send({ type: "saveCameraBookmark", payload: { slot } }),
+      restoreCameraBookmark: (slot) =>
+        send({ type: "restoreCameraBookmark", payload: { slot } }),
+      setRenderMode: (mode) => send({ type: "setRenderMode", payload: { mode } }),
+      setEdgeOverlay: (enabled) =>
+        send({ type: "setEdgeOverlay", payload: { enabled } }),
+      setSectionCaps: (enabled) =>
+        send({ type: "setSectionCaps", payload: { enabled } }),
+      setCoordReadout: (enabled) =>
+        send({ type: "setCoordReadout", payload: { enabled } }),
+      startCumulativeMeasure: () => send({ type: "startCumulativeMeasure" }),
+      addCumulativePoint: (point) =>
+        send({ type: "addCumulativePoint", payload: { point } }),
+      finishCumulativeMeasure: () => send({ type: "finishCumulativeMeasure" }),
+      clearCumulativeMeasure: () => send({ type: "clearCumulativeMeasure" }),
+      captureViewState: () => send({ type: "captureViewState" }),
+      restoreViewState: (state) => send({ type: "restoreViewState", payload: state }),
+      setPickSnap: (mode) => send({ type: "setPickSnap", payload: { mode } }),
+      cancelClearance: () => send({ type: "cancelClearance" }),
+      clearClearance: () => send({ type: "clearClearance" }),
+      setPhotoSphere: (opts) => send({ type: "setPhotoSphere", payload: opts }),
+      clearPhotoSphere: () => send({ type: "clearPhotoSphere" }),
+      setPresenceCursor: (userId, payload) =>
+        send({ type: "setPresenceCursor", payload: { userId, ...payload } }),
+      removePresenceCursor: (userId) =>
+        send({ type: "removePresenceCursor", payload: { userId } }),
+      clearPresenceCursors: () => send({ type: "clearPresenceCursors" }),
+      getCameraState: () => send({ type: "getCameraState" }),
     }));
 
     function onMessage(ev: WebViewMessageEvent) {
@@ -153,8 +330,33 @@ export const ModelViewer = React.forwardRef<ModelViewerHandle, ModelViewerProps>
         case "pick":         props.onPick?.(msg.payload); break;
         case "placeIssue":   props.onPlaceIssue?.(msg.payload); break;
         case "pinTap":       props.onPinTap?.(msg.payload); break;
-        case "measure":      props.onMeasure?.(msg.payload); break;
-        case "toolChanged":  props.onToolChanged?.(msg.payload?.tool); break;
+        case "measure":              props.onMeasure?.(msg.payload); break;
+        case "measureArea":          props.onMeasureArea?.(msg.payload); break;
+        case "measureVolume":        props.onMeasureVolume?.(msg.payload); break;
+        case "measureAngle":         props.onMeasureAngle?.(msg.payload); break;
+        case "walkthrough":          props.onWalkthrough?.(msg.payload); break;
+        case "lodChanged":           props.onLodChanged?.(msg.payload); break;
+        case "toolChanged":          props.onToolChanged?.(msg.payload?.tool); break;
+        case "sectionPlanesChanged": props.onSectionPlanesChanged?.(msg.payload); break;
+        case "sectionBoxSet":        props.onSectionBoxSet?.(msg.payload); break;
+        case "explodeFactor":        props.onExplodeFactor?.(msg.payload); break;
+        case "markupUpdated":        props.onMarkupUpdated?.(msg.payload); break;
+        case "markupCleared":        props.onMarkupCleared?.(); break;
+        case "coord":                props.onCoord?.(msg.payload); break;
+        case "measurePath":          props.onMeasurePath?.(msg.payload); break;
+        case "measurePathFinal":     props.onMeasurePathFinal?.(msg.payload); break;
+        case "cameraPreset":         props.onCameraPreset?.(msg.payload); break;
+        case "bookmarkSaved":        props.onBookmarkSaved?.(msg.payload); break;
+        case "bookmarkRestored":     props.onBookmarkRestored?.(msg.payload); break;
+        case "renderMode":           props.onRenderMode?.(msg.payload); break;
+        case "viewState":            props.onViewState?.(msg.payload); break;
+        case "viewStateRestored":    props.onViewStateRestored?.(msg.payload); break;
+        case "measureClearance":         props.onMeasureClearance?.(msg.payload); break;
+        case "measureClearancePending":  props.onMeasureClearancePending?.(msg.payload); break;
+        case "photoSphere":          props.onPhotoSphere?.(msg.payload); break;
+        case "photoSphereError":     props.onPhotoSphereError?.(msg.payload); break;
+        case "cameraState":          props.onCameraState?.(msg.payload); break;
+        case "pickSnap":             props.onPickSnapChanged?.(msg.payload); break;
       }
     }
 
@@ -172,12 +374,24 @@ export const ModelViewer = React.forwardRef<ModelViewerHandle, ModelViewerProps>
         <WebView
           ref={webRef}
           source={{ uri: localUri }}
-          // Android can't load file:// images from other file:// URLs without this.
+          // M12 — narrow originWhitelist from "*" to the schemes we actually
+          // load (file:// for the bundled viewer.html, https://localhost
+          // for dev). The previous wildcard let any model file containing
+          // an embedded URL drive a redirect to an arbitrary origin and
+          // exfiltrate session data via the bridged onMessage channel.
+          originWhitelist={["file://*", "https://localhost*"]}
+          // M12 — disable third-party content (fonts, images, scripts from
+          // remote origins). The bundled viewer is fully self-contained;
+          // any uploaded BIM file that tries to fetch external resources
+          // is denied at the network layer.
+          thirdPartyCookiesEnabled={false}
+          // Keep file-URL access for the bundled viewer.html → its sibling
+          // JS / CSS / textures, but document the trade-off. If we ever
+          // serve the viewer over HTTPS, both flags below should drop.
           allowFileAccessFromFileURLs
           allowUniversalAccessFromFileURLs
           allowsInlineMediaPlayback
           mediaPlaybackRequiresUserAction={false}
-          originWhitelist={["*"]}
           javaScriptEnabled
           domStorageEnabled
           onMessage={onMessage}

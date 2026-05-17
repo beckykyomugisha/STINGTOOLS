@@ -4,7 +4,7 @@ namespace Planscape.Core.Entities;
 /// Represents a connection between a Planscape project/tenant and an external BIM platform
 /// (ACC, Procore, Aconex, Trimble Connect).
 /// </summary>
-public class PlatformConnection
+public class PlatformConnection : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }

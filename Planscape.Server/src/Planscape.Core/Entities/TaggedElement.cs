@@ -4,9 +4,10 @@ namespace Planscape.Core.Entities;
 /// A tagged BIM element synced from the Revit plugin.
 /// Stores ISO 19650 8-segment tag data + TAG7 narrative + compliance state.
 /// </summary>
-public class TaggedElement
+public class TaggedElement : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
     public long RevitElementId { get; set; }
     public string UniqueId { get; set; } = ""; // Revit UniqueId for cross-session tracking
@@ -52,6 +53,10 @@ public class TaggedElement
     public DateTime? TagModifiedAt { get; set; }
     public DateTime SyncedAt { get; set; } = DateTime.UtcNow;
     public string SyncedBy { get; set; } = "";
+
+    // Source identification — set by the IFC ingester to track the authoring tool.
+    // Added for ArchiCAD source identification.
+    public string? Source { get; set; } // "archicad" | "ifc" | "revit" | null
 
     // Optimistic-concurrency / last-write-wins support for bidirectional sync.
     // LastModifiedUtc is the client-supplied wall-clock modification time; the

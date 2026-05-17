@@ -1,0 +1,1301 @@
+{
+  "version": "1.0",
+  "standard": "IEC 60617",
+  "symbols": [
+    {
+      "id": "SLD_MCB",
+      "name": "Miniature Circuit Breaker (MCB)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 3.0,
+      "parameters": [
+        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
+        { "name": "RATING_A", "type": "Text", "shared": true },
+        { "name": "POLES", "type": "Text", "shared": true },
+        { "name": "LABEL", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.2, "y1": -0.3, "x2":  0.2, "y2": -0.3 },
+          { "x1":  0.2, "y1": -0.3, "x2":  0.2, "y2":  0.3 },
+          { "x1":  0.2, "y1":  0.3, "x2": -0.2, "y2":  0.3 },
+          { "x1": -0.2, "y1":  0.3, "x2": -0.2, "y2": -0.3 },
+          { "x1": -0.2, "y1": -0.3, "x2":  0.2, "y2":  0.3 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.3, "x2": 0, "y2": -0.6 },
+          { "x1": 0, "y1":  0.3, "x2": 0, "y2":  0.6 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_MCCB",
+      "name": "Moulded Case Circuit Breaker (MCCB)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
+        { "name": "RATING_A", "type": "Text", "shared": true },
+        { "name": "BREAKING_KA", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.25, "y1": -0.4, "x2":  0.25, "y2": -0.4, "style": "Wide Lines" },
+          { "x1":  0.25, "y1": -0.4, "x2":  0.25, "y2":  0.4, "style": "Wide Lines" },
+          { "x1":  0.25, "y1":  0.4, "x2": -0.25, "y2":  0.4, "style": "Wide Lines" },
+          { "x1": -0.25, "y1":  0.4, "x2": -0.25, "y2": -0.4, "style": "Wide Lines" },
+          { "x1": -0.25, "y1": -0.4, "x2":  0.25, "y2":  0.4 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.4, "x2": 0, "y2": -0.7 },
+          { "x1": 0, "y1":  0.4, "x2": 0, "y2":  0.7 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_ACB",
+      "name": "Air Circuit Breaker (ACB)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
+        { "name": "RATING_A", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.3, "y1": -0.45, "x2":  0.3, "y2": -0.45, "style": "Wide Lines" },
+          { "x1":  0.3, "y1": -0.45, "x2":  0.3, "y2":  0.45, "style": "Wide Lines" },
+          { "x1":  0.3, "y1":  0.45, "x2": -0.3, "y2":  0.45, "style": "Wide Lines" },
+          { "x1": -0.3, "y1":  0.45, "x2": -0.3, "y2": -0.45, "style": "Wide Lines" },
+          { "x1": -0.3, "y1": -0.45, "x2":  0.3, "y2":  0.45 },
+          { "x1": -0.05, "y1": -0.075, "x2": 0.05, "y2": -0.025 },
+          { "x1":  0.0, "y1":  0.05, "x2": 0.1, "y2": 0.1 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.45, "x2": 0, "y2": -0.75 },
+          { "x1": 0, "y1":  0.45, "x2": 0, "y2":  0.75 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_FUSE",
+      "name": "Fuse (IEC)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 3.0,
+      "parameters": [
+        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
+        { "name": "RATING_A", "type": "Text", "shared": true },
+        { "name": "FUSE_TYPE", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.15, "y1": -0.3, "x2":  0.15, "y2": -0.3 },
+          { "x1":  0.15, "y1": -0.3, "x2":  0.15, "y2":  0.3 },
+          { "x1":  0.15, "y1":  0.3, "x2": -0.15, "y2":  0.3 },
+          { "x1": -0.15, "y1":  0.3, "x2": -0.15, "y2": -0.3 },
+          { "x1": 0, "y1": -0.3, "x2": 0, "y2": 0.3 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.3, "x2": 0, "y2": -0.6 },
+          { "x1": 0, "y1":  0.3, "x2": 0, "y2":  0.6 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_FUSED_SWITCH",
+      "name": "Fused Switch Disconnector",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
+        { "name": "RATING_A", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.2, "y1": -0.35, "x2":  0.2, "y2": -0.35 },
+          { "x1":  0.2, "y1": -0.35, "x2":  0.2, "y2":  0.35 },
+          { "x1":  0.2, "y1":  0.35, "x2": -0.2, "y2":  0.35 },
+          { "x1": -0.2, "y1":  0.35, "x2": -0.2, "y2": -0.35 },
+          { "x1": 0, "y1": -0.35, "x2": 0, "y2": 0.35 },
+          { "x1": -0.2, "y1": -0.35, "x2": 0.2, "y2": 0.35 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.35, "x2": 0, "y2": -0.7 },
+          { "x1": 0, "y1":  0.35, "x2": 0, "y2":  0.7 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_ISOLATOR",
+      "name": "Isolator / Disconnector",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 3.0,
+      "parameters": [
+        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
+        { "name": "RATING_A", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.15, "y1": -0.05, "x2":  0.15, "y2": -0.05 },
+          { "x1": -0.15, "y1":  0.05, "x2":  0.15, "y2":  0.05 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.05, "x2": 0, "y2": -0.5 },
+          { "x1": 0, "y1":  0.05, "x2": 0, "y2":  0.5 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_CONTACTOR",
+      "name": "Contactor",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Switching",
+      "symbolSize": 3.5,
+      "parameters": [
+        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
+        { "name": "RATING_A", "type": "Text", "shared": true },
+        { "name": "COIL_VOLTAGE", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.1, "y1": -0.05, "x2":  0.1, "y2": -0.05 },
+          { "x1":  0.0, "y1": -0.05, "x2":  0.2, "y2":  0.2 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.05, "x2": 0, "y2": -0.5 },
+          { "x1": 0, "y1":  0.05, "x2": 0, "y2":  0.5 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_SOFT_STARTER",
+      "name": "Soft Starter",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Drive",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
+        { "name": "RATING_KW", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.25, "y1": -0.3, "x2":  0.25, "y2": -0.3 },
+          { "x1":  0.25, "y1": -0.3, "x2":  0.25, "y2":  0.3 },
+          { "x1":  0.25, "y1":  0.3, "x2": -0.25, "y2":  0.3 },
+          { "x1": -0.25, "y1":  0.3, "x2": -0.25, "y2": -0.3 }
+        ],
+        "arcs": [
+          { "cx": -0.1, "cy": 0, "r": 0.07, "startDeg": 0, "endDeg": 180 },
+          { "cx":  0.0, "cy": 0, "r": 0.07, "startDeg": 180, "endDeg": 360 },
+          { "cx":  0.1, "cy": 0, "r": 0.07, "startDeg": 0, "endDeg": 180 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.3, "x2": 0, "y2": -0.6 },
+          { "x1": 0, "y1":  0.3, "x2": 0, "y2":  0.6 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_VSD",
+      "name": "Variable Speed Drive (VFD)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Drive",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
+        { "name": "RATING_KW", "type": "Text", "shared": true },
+        { "name": "FREQUENCY_HZ", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.25, "y1": -0.3, "x2":  0.25, "y2": -0.3 },
+          { "x1":  0.25, "y1": -0.3, "x2":  0.25, "y2":  0.3 },
+          { "x1":  0.25, "y1":  0.3, "x2": -0.25, "y2":  0.3 },
+          { "x1": -0.25, "y1":  0.3, "x2": -0.25, "y2": -0.3 },
+          { "x1": -0.18, "y1": -0.1, "x2":  0.18, "y2": -0.1 },
+          { "x1": -0.18, "y1":   0.0, "x2":  0.18, "y2":   0.0 },
+          { "x1": -0.18, "y1":  0.1, "x2":  0.18, "y2":  0.1 },
+          { "x1":  0.0, "y1":  0.18, "x2":  0.0, "y2":  0.28 },
+          { "x1":  0.0, "y1":  0.28, "x2": -0.05, "y2": 0.22 },
+          { "x1":  0.0, "y1":  0.28, "x2":  0.05, "y2": 0.22 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.3, "x2": 0, "y2": -0.6 },
+          { "x1": 0, "y1":  0.3, "x2": 0, "y2":  0.6 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_RCD",
+      "name": "Residual Current Device (RCD)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 3.5,
+      "parameters": [
+        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
+        { "name": "TRIP_MA", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": 0, "y1": -0.4, "x2": 0, "y2": -0.32 },
+          { "x1": -0.05, "y1": -0.4, "x2": 0.05, "y2": -0.4 },
+          { "x1": -0.03, "y1": -0.45, "x2": 0.03, "y2": -0.45 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.5, "x2": 0, "y2": -0.7 },
+          { "x1": 0, "y1":  0.25, "x2": 0, "y2":  0.7 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_RCBO",
+      "name": "RCBO (MCB + RCD)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
+        { "name": "RATING_A", "type": "Text", "shared": true },
+        { "name": "TRIP_MA", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.2, "y1": -0.05, "x2":  0.2, "y2": -0.05 },
+          { "x1":  0.2, "y1": -0.05, "x2":  0.2, "y2":  0.4 },
+          { "x1":  0.2, "y1":  0.4,  "x2": -0.2, "y2":  0.4 },
+          { "x1": -0.2, "y1":  0.4,  "x2": -0.2, "y2": -0.05 },
+          { "x1": -0.2, "y1": -0.05, "x2":  0.2, "y2":  0.4 }
+        ],
+        "arcs": [ { "cx": 0, "cy": -0.25, "r": 0.15, "startDeg": 0, "endDeg": 360 } ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.4, "x2": 0, "y2": -0.65 },
+          { "x1": 0, "y1":  0.4, "x2": 0, "y2":  0.65 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_SPD",
+      "name": "Surge Protective Device (SPD)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 3.5,
+      "parameters": [
+        { "name": "SPD_CLASS", "type": "Text", "shared": true },
+        { "name": "RATING_KA", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.2, "y1": -0.3, "x2":  0.2, "y2": -0.3 },
+          { "x1":  0.2, "y1": -0.3, "x2":  0.2, "y2":  0.3 },
+          { "x1":  0.2, "y1":  0.3, "x2": -0.2, "y2":  0.3 },
+          { "x1": -0.2, "y1":  0.3, "x2": -0.2, "y2": -0.3 },
+          { "x1":  0.0, "y1":  0.15, "x2":  0.05, "y2":  0.05 },
+          { "x1":  0.05, "y1":  0.05, "x2": -0.05, "y2":  0.0 },
+          { "x1": -0.05, "y1":  0.0, "x2":  0.0, "y2": -0.15 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.3, "x2": 0, "y2": -0.6 },
+          { "x1": 0, "y1":  0.3, "x2": 0, "y2":  0.6 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_XFMR_2W",
+      "name": "Transformer 2-Winding",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Transformer",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "RATING_KVA", "type": "Text", "shared": true },
+        { "name": "PRIMARY_V", "type": "Text", "shared": true },
+        { "name": "SECONDARY_V", "type": "Text", "shared": true },
+        { "name": "VECTOR_GROUP", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": -0.13, "cy": 0, "r": 0.2, "startDeg": 0, "endDeg": 360 },
+          { "cx":  0.13, "cy": 0, "r": 0.2, "startDeg": 0, "endDeg": 360 }
+        ],
+        "connectionLines": [
+          { "x1": -0.33, "y1": 0, "x2": -0.6, "y2": 0 },
+          { "x1":  0.33, "y1": 0, "x2":  0.6, "y2": 0 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_XFMR_3W",
+      "name": "Transformer 3-Winding",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Transformer",
+      "symbolSize": 5.5,
+      "parameters": [
+        { "name": "RATING_KVA", "type": "Text", "shared": true },
+        { "name": "VECTOR_GROUP", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": -0.15, "cy": 0.05, "r": 0.2, "startDeg": 0, "endDeg": 360 },
+          { "cx":  0.15, "cy": 0.05, "r": 0.2, "startDeg": 0, "endDeg": 360 },
+          { "cx":  0.0, "cy": -0.25, "r": 0.18, "startDeg": 0, "endDeg": 360 }
+        ],
+        "connectionLines": [
+          { "x1": -0.35, "y1": 0.05, "x2": -0.6, "y2": 0.05 },
+          { "x1":  0.35, "y1": 0.05, "x2":  0.6, "y2": 0.05 },
+          { "x1":  0.0, "y1": -0.43, "x2":  0.0, "y2": -0.65 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_AUTOXFMR",
+      "name": "Auto-Transformer",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Transformer",
+      "symbolSize": 4.5,
+      "parameters": [
+        { "name": "RATING_KVA", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": 0, "cy": 0, "r": 0.3, "startDeg": 0, "endDeg": 360 }
+        ],
+        "lines": [
+          { "x1": 0.3, "y1": 0, "x2": 0.42, "y2": 0 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.3, "x2": 0, "y2": -0.6 },
+          { "x1": 0, "y1":  0.3, "x2": 0, "y2":  0.6 },
+          { "x1": 0.42, "y1": 0, "x2": 0.65, "y2": 0 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_XFMR_STAR_DELTA",
+      "name": "Star-Delta Transformer",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Transformer",
+      "symbolSize": 6.0,
+      "parameters": [
+        { "name": "RATING_KVA", "type": "Text", "shared": true },
+        { "name": "VECTOR_GROUP", "type": "Text", "shared": true, "default": "Dyn11" }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": -0.18, "cy": 0, "r": 0.2, "startDeg": 0, "endDeg": 360 },
+          { "cx":  0.18, "cy": 0, "r": 0.2, "startDeg": 0, "endDeg": 360 }
+        ],
+        "lines": [
+          { "x1": -0.18, "y1": 0.08, "x2": -0.18, "y2": -0.05 },
+          { "x1": -0.18, "y1": -0.05, "x2": -0.27, "y2": -0.13 },
+          { "x1": -0.18, "y1": -0.05, "x2": -0.09, "y2": -0.13 },
+          { "x1":  0.08, "y1": -0.1, "x2":  0.28, "y2": -0.1 },
+          { "x1":  0.28, "y1": -0.1, "x2":  0.18, "y2":  0.1 },
+          { "x1":  0.18, "y1":  0.1, "x2":  0.08, "y2": -0.1 }
+        ],
+        "connectionLines": [
+          { "x1": -0.4, "y1": 0, "x2": -0.65, "y2": 0 },
+          { "x1":  0.4, "y1": 0, "x2":  0.65, "y2": 0 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_AMMETER",
+      "name": "Ammeter",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Instrument",
+      "symbolSize": 3.0,
+      "parameters": [
+        { "name": "RANGE_A", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.3, "startDeg": 0, "endDeg": 360 } ],
+        "text": [ { "x": 0, "y": 0, "value": "A", "heightMm": 1.5 } ],
+        "connectionLines": [
+          { "x1": -0.3, "y1": 0, "x2": -0.6, "y2": 0 },
+          { "x1":  0.3, "y1": 0, "x2":  0.6, "y2": 0 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_VOLTMETER",
+      "name": "Voltmeter",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Instrument",
+      "symbolSize": 3.0,
+      "parameters": [ { "name": "RANGE_V", "type": "Text", "shared": true } ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.3, "startDeg": 0, "endDeg": 360 } ],
+        "text": [ { "x": 0, "y": 0, "value": "V", "heightMm": 1.5 } ],
+        "connectionLines": [
+          { "x1": -0.3, "y1": 0, "x2": -0.6, "y2": 0 },
+          { "x1":  0.3, "y1": 0, "x2":  0.6, "y2": 0 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_WATTMETER",
+      "name": "Wattmeter",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Instrument",
+      "symbolSize": 3.0,
+      "parameters": [ { "name": "RANGE_KW", "type": "Text", "shared": true } ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.3, "startDeg": 0, "endDeg": 360 } ],
+        "text": [ { "x": 0, "y": 0, "value": "W", "heightMm": 1.5 } ]
+      }
+    },
+    {
+      "id": "SLD_KWH_METER",
+      "name": "kWh Energy Meter",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Instrument",
+      "symbolSize": 3.5,
+      "parameters": [ { "name": "METER_REF", "type": "Text", "shared": true } ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.35, "startDeg": 0, "endDeg": 360 } ],
+        "text": [ { "x": 0, "y": 0, "value": "kWh", "heightMm": 1.2 } ]
+      }
+    },
+    {
+      "id": "SLD_PF_METER",
+      "name": "Power Factor Meter",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Instrument",
+      "symbolSize": 3.0,
+      "parameters": [],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.3, "startDeg": 0, "endDeg": 360 } ],
+        "text": [ { "x": 0, "y": 0, "value": "cos", "heightMm": 1.0 } ]
+      }
+    },
+    {
+      "id": "SLD_CT",
+      "name": "Current Transformer (CT)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Instrument",
+      "symbolSize": 3.0,
+      "parameters": [
+        { "name": "CT_RATIO", "type": "Text", "shared": true },
+        { "name": "CT_CLASS", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.18, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.4, "y1": 0, "x2": 0.4, "y2": 0 }
+        ],
+        "connectionLines": [
+          { "x1": -0.05, "y1": -0.18, "x2": -0.05, "y2": -0.4 },
+          { "x1":  0.05, "y1": -0.18, "x2":  0.05, "y2": -0.4 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_VT",
+      "name": "Voltage Transformer (VT)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Instrument",
+      "symbolSize": 2.5,
+      "parameters": [ { "name": "VT_RATIO", "type": "Text", "shared": true } ],
+      "geometry": {
+        "arcs": [
+          { "cx": -0.08, "cy": 0, "r": 0.12, "startDeg": 0, "endDeg": 360 },
+          { "cx":  0.08, "cy": 0, "r": 0.12, "startDeg": 0, "endDeg": 360 }
+        ],
+        "connectionLines": [
+          { "x1": -0.2, "y1": 0, "x2": -0.4, "y2": 0 },
+          { "x1":  0.2, "y1": 0, "x2":  0.4, "y2": 0 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_BUSBAR",
+      "name": "Busbar",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Bus",
+      "symbolSize": 8.0,
+      "parameters": [
+        { "name": "BUS_REF", "type": "Text", "shared": true },
+        { "name": "RATING_A", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": 0.5, "y2": 0, "style": "Wide Lines" }
+        ]
+      }
+    },
+    {
+      "id": "SLD_BUS_SECTION",
+      "name": "Bus Section / Bus Coupler",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Bus",
+      "symbolSize": 6.0,
+      "parameters": [],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.05, "x2":  -0.1, "y2": -0.05, "style": "Wide Lines" },
+          { "x1":  0.1, "y1": -0.05, "x2":  0.5, "y2": -0.05, "style": "Wide Lines" },
+          { "x1": -0.5, "y1":  0.05, "x2":  -0.1, "y2":  0.05, "style": "Wide Lines" },
+          { "x1":  0.1, "y1":  0.05, "x2":  0.5, "y2":  0.05, "style": "Wide Lines" },
+          { "x1": -0.1, "y1": -0.05, "x2":   0.0, "y2":  0.05 },
+          { "x1": -0.1, "y1":  0.05, "x2":   0.0, "y2": -0.05 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_EARTH",
+      "name": "Earth / Ground Connection",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Earth",
+      "symbolSize": 2.5,
+      "parameters": [],
+      "geometry": {
+        "lines": [
+          { "x1": 0, "y1": 0.4, "x2": 0, "y2": 0 },
+          { "x1": -0.25, "y1": 0, "x2": 0.25, "y2": 0, "style": "Wide Lines" },
+          { "x1": -0.18, "y1": -0.1, "x2": 0.18, "y2": -0.1 },
+          { "x1": -0.1, "y1": -0.2, "x2": 0.1, "y2": -0.2 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_NEUTRAL",
+      "name": "Neutral Bar",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Bus",
+      "symbolSize": 5.0,
+      "parameters": [],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": 0, "x2": 0.4, "y2": 0 }
+        ],
+        "text": [ { "x": 0, "y": 0.15, "value": "N", "heightMm": 2.0 } ]
+      }
+    },
+    {
+      "id": "SLD_EARTH_BAR",
+      "name": "Earth Bar / Earth Busbar",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Earth",
+      "symbolSize": 6.0,
+      "parameters": [],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": 0, "x2": 0.5, "y2": 0, "style": "Wide Lines" },
+          { "x1":  0.0, "y1": -0.1, "x2": 0.0, "y2": -0.05 },
+          { "x1": -0.08, "y1": -0.1, "x2": 0.08, "y2": -0.1 },
+          { "x1": -0.05, "y1": -0.18, "x2": 0.05, "y2": -0.18 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_GENERATOR",
+      "name": "Generator",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Source",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "RATING_KVA", "type": "Text", "shared": true },
+        { "name": "FUEL_TYPE", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 },
+          { "cx": -0.1, "cy": 0, "r": 0.08, "startDeg": 0, "endDeg": 180 },
+          { "cx":  0.1, "cy": 0, "r": 0.08, "startDeg": 180, "endDeg": 360 }
+        ],
+        "text": [ { "x": 0, "y": 0.2, "value": "G", "heightMm": 1.8 } ],
+        "connectionLines": [
+          { "x1": 0, "y1": 0.4, "x2": 0, "y2": 0.7 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_UPS",
+      "name": "Uninterruptible Power Supply (UPS)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Source",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "RATING_KVA", "type": "Text", "shared": true },
+        { "name": "RUNTIME_MIN", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": -0.3, "x2":  0.4, "y2": -0.3 },
+          { "x1":  0.4, "y1": -0.3, "x2":  0.4, "y2":  0.3 },
+          { "x1":  0.4, "y1":  0.3, "x2": -0.4, "y2":  0.3 },
+          { "x1": -0.4, "y1":  0.3, "x2": -0.4, "y2": -0.3 },
+          { "x1": -0.2, "y1": -0.1, "x2": -0.2, "y2":  0.1 },
+          { "x1": -0.1, "y1": -0.18, "x2": -0.1, "y2":  0.18 }
+        ],
+        "text": [ { "x": 0.15, "y": 0, "value": "UPS", "heightMm": 1.5 } ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.3, "x2": 0, "y2": -0.6 },
+          { "x1": 0, "y1":  0.3, "x2": 0, "y2":  0.6 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_BATTERY",
+      "name": "Battery / Battery Bank",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Source",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "CAPACITY_AH", "type": "Text", "shared": true },
+        { "name": "VOLTAGE_DC", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.25, "y1": -0.15, "x2": -0.25, "y2":  0.15 },
+          { "x1": -0.15, "y1": -0.05, "x2": -0.15, "y2":  0.05 },
+          { "x1": -0.05, "y1": -0.15, "x2": -0.05, "y2":  0.15 },
+          { "x1":  0.05, "y1": -0.05, "x2":  0.05, "y2":  0.05 },
+          { "x1":  0.15, "y1": -0.15, "x2":  0.15, "y2":  0.15 },
+          { "x1":  0.25, "y1": -0.05, "x2":  0.25, "y2":  0.05 }
+        ],
+        "connectionLines": [
+          { "x1": -0.3, "y1": 0, "x2": -0.5, "y2": 0 },
+          { "x1":  0.3, "y1": 0, "x2":  0.5, "y2": 0 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_SOLAR_PV",
+      "name": "Solar PV Array",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Source",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "ARRAY_KWP", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.35, "y1": -0.25, "x2":  0.35, "y2": -0.25 },
+          { "x1":  0.35, "y1": -0.25, "x2":  0.35, "y2":  0.25 },
+          { "x1":  0.35, "y1":  0.25, "x2": -0.35, "y2":  0.25 },
+          { "x1": -0.35, "y1":  0.25, "x2": -0.35, "y2": -0.25 },
+          { "x1": -0.35, "y1":   0.0, "x2":  0.35, "y2":   0.0 },
+          { "x1":   0.0, "y1": -0.25, "x2":   0.0, "y2":  0.25 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.25, "x2": 0, "y2": -0.55 },
+          { "x1": 0, "y1":  0.25, "x2": 0, "y2":  0.55 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_ATS",
+      "name": "Automatic Transfer Switch",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Switching",
+      "symbolSize": 5.0,
+      "parameters": [
+        { "name": "RATING_A", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1":  0.4, "x2": -0.1, "y2":  0.1 },
+          { "x1":  0.4, "y1":  0.4, "x2":  0.1, "y2":  0.1 },
+          { "x1": -0.1, "y1":  0.1, "x2":  0.0, "y2": -0.1 },
+          { "x1":  0.1, "y1":  0.1, "x2":  0.0, "y2": -0.1 },
+          { "x1":  0.0, "y1": -0.1, "x2":  0.0, "y2": -0.4 }
+        ],
+        "text": [ { "x": 0.25, "y": -0.05, "value": "ATS", "heightMm": 1.5 } ],
+        "connectionLines": [
+          { "x1": -0.4, "y1": 0.4, "x2": -0.4, "y2": 0.7 },
+          { "x1":  0.4, "y1": 0.4, "x2":  0.4, "y2": 0.7 },
+          { "x1":  0.0, "y1": -0.4, "x2":  0.0, "y2": -0.7 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_MOTOR_3PH",
+      "name": "Motor (3-phase)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Load",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "RATING_KW", "type": "Text", "shared": true },
+        { "name": "RPM", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.35, "startDeg": 0, "endDeg": 360 } ],
+        "text": [ { "x": -0.08, "y": 0, "value": "M", "heightMm": 1.5 } ],
+        "lines": [
+          { "x1": 0.05, "y1": -0.05, "x2": 0.1, "y2": 0 },
+          { "x1": 0.1, "y1": 0, "x2": 0.15, "y2": -0.05 },
+          { "x1": 0.15, "y1": -0.05, "x2": 0.2, "y2": 0 }
+        ],
+        "connectionLines": [
+          { "x1": -0.1, "y1": 0.35, "x2": -0.1, "y2": 0.6 },
+          { "x1":  0.0, "y1": 0.35, "x2":  0.0, "y2": 0.65 },
+          { "x1":  0.1, "y1": 0.35, "x2":  0.1, "y2": 0.6 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_MOTOR_1PH",
+      "name": "Motor (single-phase)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Load",
+      "symbolSize": 3.5,
+      "parameters": [
+        { "name": "RATING_KW", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.3, "startDeg": 0, "endDeg": 360 } ],
+        "text": [ { "x": 0, "y": 0, "value": "M", "heightMm": 1.5 } ],
+        "connectionLines": [
+          { "x1": 0, "y1": 0.3, "x2": 0, "y2": 0.6 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_CAPACITOR",
+      "name": "Capacitor / Capacitor Bank",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Load",
+      "symbolSize": 3.0,
+      "parameters": [
+        { "name": "RATING_KVAR", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.05, "y1": -0.2, "x2": -0.05, "y2": 0.2 },
+          { "x1":  0.05, "y1": -0.2, "x2":  0.05, "y2": 0.2 }
+        ],
+        "connectionLines": [
+          { "x1": -0.05, "y1": 0, "x2": -0.4, "y2": 0 },
+          { "x1":  0.05, "y1": 0, "x2":  0.4, "y2": 0 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_HEATING",
+      "name": "Heating Element / Immersion",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Load",
+      "symbolSize": 3.5,
+      "parameters": [
+        { "name": "RATING_KW", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.3, "y1":  0.0, "x2": -0.2, "y2": 0.1 },
+          { "x1": -0.2, "y1":  0.1, "x2": -0.1, "y2": -0.1 },
+          { "x1": -0.1, "y1": -0.1, "x2":  0.0, "y2":  0.1 },
+          { "x1":  0.0, "y1":  0.1, "x2":  0.1, "y2": -0.1 },
+          { "x1":  0.1, "y1": -0.1, "x2":  0.2, "y2":  0.1 },
+          { "x1":  0.2, "y1":  0.1, "x2":  0.3, "y2":  0.0 }
+        ],
+        "connectionLines": [
+          { "x1": -0.3, "y1": 0, "x2": -0.55, "y2": 0 },
+          { "x1":  0.3, "y1": 0, "x2":  0.55, "y2": 0 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_LIGHT_LOAD",
+      "name": "Lighting Circuit Load",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Load",
+      "symbolSize": 3.0,
+      "parameters": [],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.18, "y1": -0.18, "x2":  0.18, "y2":  0.18 },
+          { "x1": -0.18, "y1":  0.18, "x2":  0.18, "y2": -0.18 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.25, "x2": 0, "y2": -0.5 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_DISTRIBUTION_BOARD_DOWN",
+      "name": "Distribution Board (downstream)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Distribution",
+      "symbolSize": 6.0,
+      "parameters": [
+        { "name": "DB_REF", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": -0.25, "x2":  0.4, "y2": -0.25 },
+          { "x1":  0.4, "y1": -0.25, "x2":  0.4, "y2":  0.25 },
+          { "x1":  0.4, "y1":  0.25, "x2": -0.4, "y2":  0.25 },
+          { "x1": -0.4, "y1":  0.25, "x2": -0.4, "y2": -0.25 },
+          { "x1": -0.4, "y1":  0.0, "x2":  0.4, "y2":  0.0 },
+          { "x1": -0.25, "y1": -0.2, "x2": -0.25, "y2":  0.0 },
+          { "x1": -0.05, "y1": -0.2, "x2": -0.05, "y2":  0.0 },
+          { "x1":  0.15, "y1": -0.2, "x2":  0.15, "y2":  0.0 },
+          { "x1":  0.30, "y1": -0.2, "x2":  0.30, "y2":  0.0 }
+        ],
+        "filledRegions": [
+          {
+            "boundary": [
+              { "x": -0.4, "y": 0.0 }, { "x": 0.4, "y": 0.0 },
+              { "x": 0.4, "y": 0.25 }, { "x": -0.4, "y": 0.25 }
+            ]
+          }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": 0.25, "x2": 0, "y2": 0.55 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_SOCKET_LOAD",
+      "name": "Socket Circuit / Small Power Load",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Load",
+      "symbolSize": 3.0,
+      "parameters": [],
+      "geometry": {
+        "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
+        "lines": [
+          { "x1": -0.08, "y1": -0.12, "x2": -0.08, "y2":  0.12 },
+          { "x1":  0.08, "y1": -0.12, "x2":  0.08, "y2":  0.12 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.25, "x2": 0, "y2": -0.5 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_SWITCH_FUSE",
+      "name": "Switch Fuse",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "RATING_A", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.15, "y1": -0.4, "x2":  0.15, "y2": -0.4 },
+          { "x1":  0.15, "y1": -0.4, "x2":  0.15, "y2": -0.05 },
+          { "x1":  0.15, "y1": -0.05, "x2": -0.15, "y2": -0.05 },
+          { "x1": -0.15, "y1": -0.05, "x2": -0.15, "y2": -0.4 },
+          { "x1":  0.0, "y1": -0.4, "x2":  0.0, "y2": -0.05 },
+          { "x1":  0.0, "y1":  0.05, "x2":  0.2, "y2":  0.3 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.4, "x2": 0, "y2": -0.65 },
+          { "x1": 0, "y1":  0.3, "x2": 0, "y2":  0.65 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_MAINS_SWITCH",
+      "name": "Mains Switch / Main Isolator",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Switching",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "RATING_A", "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": 0, "cy": -0.05, "r": 0.05, "startDeg": 0, "endDeg": 360 }
+        ],
+        "lines": [
+          { "x1":  0.0, "y1":  0.0, "x2": 0.18, "y2": 0.25 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.1, "x2": 0, "y2": -0.5 },
+          { "x1": 0, "y1":  0.25, "x2": 0, "y2":  0.55 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_LPS_AIR_TERMINAL",
+      "name": "Lightning Air Terminal",
+      "category": "LightningProtection",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "LPS",
+      "symbolSize": 5.0,
+      "description": "Air terminal / finial — BS EN 62305-3 / NFPA 780",
+      "parameters": [
+        { "name": "STRIKE_RADIUS_M",      "type": "Number", "shared": true, "default": "20" },
+        { "name": "LPS_PROTECTION_LEVEL", "type": "Text",   "shared": true, "default": "II" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": 0,    "y1": -0.5, "x2": 0,    "y2":  0.5 },
+          { "x1": -0.2, "y1":  0.5, "x2": 0.2,  "y2":  0.5 },
+          { "x1": -0.3, "y1":  0.3, "x2": 0.3,  "y2":  0.3 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.5, "x2": 0, "y2": -0.8 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_LPS_DOWN_CONDUCTOR",
+      "name": "LPS Down Conductor",
+      "category": "LightningProtection",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "LPS",
+      "symbolSize": 4.0,
+      "description": "Down conductor routing symbol — BS EN 62305-3 §5.3",
+      "parameters": [
+        { "name": "CONDUCTOR_CSA_MM2", "type": "Number", "shared": true, "default": "50" },
+        { "name": "LPS_DC_NUMBER",     "type": "Text",   "shared": true, "default": "DC-01" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": 0,    "y1":  0.5, "x2": 0,   "y2": -0.5 },
+          { "x1": -0.2, "y1":  0.0, "x2": 0.2, "y2":  0.0 }
+        ],
+        "arcs": [
+          { "cx": 0, "cy": -0.3, "r": 0.15, "startDeg": 0, "endDeg": 360 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1":  0.5, "x2": 0, "y2":  0.75 },
+          { "x1": 0, "y1": -0.5, "x2": 0, "y2": -0.75 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_LPS_EARTH_ELECTRODE",
+      "name": "LPS Earth Electrode",
+      "category": "LightningProtection",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "LPS",
+      "symbolSize": 5.0,
+      "description": "Earth electrode / earth pit — BS EN 62305-3 §5.4 / NFPA 780",
+      "parameters": [
+        { "name": "ELECTRODE_RESISTANCE_OHM", "type": "Number", "shared": true, "default": "10" },
+        { "name": "ELECTRODE_DEPTH_M",        "type": "Number", "shared": true, "default": "2.4" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1":  0.0,  "y1":  0.5, "x2":  0.0,  "y2":  0.0 },
+          { "x1": -0.5,  "y1":  0.0, "x2":  0.5,  "y2":  0.0 },
+          { "x1": -0.35, "y1": -0.15, "x2": 0.35, "y2": -0.15 },
+          { "x1": -0.2,  "y1": -0.3, "x2":  0.2,  "y2": -0.3 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": 0.5, "x2": 0, "y2": 0.8 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_LPS_BONDING_BAR",
+      "name": "LPS Main Bonding Bar",
+      "category": "LightningProtection",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "LPS",
+      "symbolSize": 6.0,
+      "description": "Main equipotential bonding bar / MEB — BS EN 62305-3",
+      "parameters": [
+        { "name": "MEB_RATING_A", "type": "Number", "shared": true, "default": "100" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5,  "y1":  0.0,  "x2":  0.5,  "y2":  0.0 },
+          { "x1": -0.5,  "y1": -0.15, "x2":  0.5,  "y2": -0.15 },
+          { "x1": -0.3,  "y1":  0.0,  "x2": -0.3,  "y2": -0.4 },
+          { "x1":  0.0,  "y1":  0.0,  "x2":  0.0,  "y2": -0.4 },
+          { "x1":  0.3,  "y1":  0.0,  "x2":  0.3,  "y2": -0.4 }
+        ],
+        "connectionLines": [
+          { "x1": -0.3, "y1": -0.4, "x2": -0.3, "y2": -0.65 },
+          { "x1":  0.0, "y1": -0.4, "x2":  0.0, "y2": -0.65 },
+          { "x1":  0.3, "y1": -0.4, "x2":  0.3, "y2": -0.65 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_ATEX_ZONE_0",
+      "name": "ATEX Zone 0 Boundary",
+      "category": "ATEX",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "HazardousArea",
+      "symbolSize": 6.0,
+      "description": "Zone 0 — continuous presence of explosive atmosphere (IEC 60079-10-1 / DSEAR)",
+      "parameters": [
+        { "name": "ATEX_ZONE_REF",   "type": "Text", "shared": true },
+        { "name": "ATEX_GAS_GROUP",  "type": "Text", "shared": true, "default": "IIA" },
+        { "name": "ATEX_T_CLASS",    "type": "Text", "shared": true, "default": "T3" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5, "style": "Medium Lines" },
+          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5, "style": "Medium Lines" },
+          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5, "style": "Medium Lines" },
+          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5, "style": "Medium Lines" },
+          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5 },
+          { "x1": -0.5, "y1":  0.5, "x2":  0.5, "y2": -0.5 }
+        ],
+        "text": [ { "x": 0, "y": 0.65, "value": "Z0", "heightMm": 2.0 } ]
+      }
+    },
+    {
+      "id": "SLD_ATEX_ZONE_1",
+      "name": "ATEX Zone 1 Boundary",
+      "category": "ATEX",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "HazardousArea",
+      "symbolSize": 6.0,
+      "description": "Zone 1 — likely presence of explosive atmosphere (IEC 60079-10-1 / DSEAR)",
+      "parameters": [
+        { "name": "ATEX_ZONE_REF",  "type": "Text", "shared": true },
+        { "name": "ATEX_GAS_GROUP", "type": "Text", "shared": true, "default": "IIA" },
+        { "name": "ATEX_T_CLASS",   "type": "Text", "shared": true, "default": "T3" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5, "style": "Dash" },
+          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5, "style": "Dash" },
+          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5, "style": "Dash" },
+          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5, "style": "Dash" }
+        ],
+        "text": [ { "x": 0, "y": 0.65, "value": "Z1", "heightMm": 2.0 } ]
+      }
+    },
+    {
+      "id": "SLD_ATEX_ZONE_2",
+      "name": "ATEX Zone 2 Boundary",
+      "category": "ATEX",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "HazardousArea",
+      "symbolSize": 6.0,
+      "description": "Zone 2 — unlikely presence of explosive atmosphere (IEC 60079-10-1 / DSEAR)",
+      "parameters": [
+        { "name": "ATEX_ZONE_REF",  "type": "Text", "shared": true },
+        { "name": "ATEX_GAS_GROUP", "type": "Text", "shared": true, "default": "IIA" },
+        { "name": "ATEX_T_CLASS",   "type": "Text", "shared": true, "default": "T3" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5, "style": "Dot" },
+          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5, "style": "Dot" },
+          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5, "style": "Dot" },
+          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5, "style": "Dot" }
+        ],
+        "text": [ { "x": 0, "y": 0.65, "value": "Z2", "heightMm": 2.0 } ]
+      }
+    },
+    {
+      "id": "SLD_ATEX_EX_D",
+      "name": "Ex d — Flameproof Enclosure",
+      "category": "ATEX",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "ATEXEquipment",
+      "symbolSize": 4.0,
+      "description": "Ex d flameproof enclosure protection concept — IEC 60079-1 / ATEX Directive",
+      "parameters": [
+        { "name": "ATEX_MARKING_TXT", "type": "Text", "shared": true, "default": "Ex d IIA T3 Gb" },
+        { "name": "ATEX_CERT_NO",     "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": -0.35, "x2":  0.4, "y2": -0.35, "style": "Wide Lines" },
+          { "x1":  0.4, "y1": -0.35, "x2":  0.4, "y2":  0.35, "style": "Wide Lines" },
+          { "x1":  0.4, "y1":  0.35, "x2": -0.4, "y2":  0.35, "style": "Wide Lines" },
+          { "x1": -0.4, "y1":  0.35, "x2": -0.4, "y2": -0.35, "style": "Wide Lines" }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "Ex d", "heightMm": 1.8 } ]
+      }
+    },
+    {
+      "id": "SLD_ATEX_EX_E",
+      "name": "Ex e — Increased Safety",
+      "category": "ATEX",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "ATEXEquipment",
+      "symbolSize": 4.0,
+      "description": "Ex e increased safety protection concept — IEC 60079-7 / ATEX Directive",
+      "parameters": [
+        { "name": "ATEX_MARKING_TXT", "type": "Text", "shared": true, "default": "Ex e IIA T3 Gc" },
+        { "name": "ATEX_CERT_NO",     "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "Ex e", "heightMm": 1.8 } ]
+      }
+    },
+    {
+      "id": "SLD_ATEX_EX_I",
+      "name": "Ex i — Intrinsic Safety",
+      "category": "ATEX",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "ATEXEquipment",
+      "symbolSize": 4.0,
+      "description": "Ex i intrinsic safety protection concept — IEC 60079-11 / ATEX Directive",
+      "parameters": [
+        { "name": "ATEX_MARKING_TXT", "type": "Text", "shared": true, "default": "Ex ia IIA T3 Ga" },
+        { "name": "ATEX_CERT_NO",     "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 }
+        ],
+        "lines": [
+          { "x1": -0.28, "y1": -0.28, "x2": 0.28, "y2": 0.28 }
+        ],
+        "text": [ { "x": 0, "y": -0.02, "value": "Ex i", "heightMm": 1.8 } ]
+      }
+    },
+    {
+      "id": "SLD_PHASE_SEQUENCE_ABC",
+      "name": "Phase Sequence ABC (Positive)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Notation",
+      "symbolSize": 4.0,
+      "description": "ABC (positive / clockwise) phase rotation notation — IEC 60034-8",
+      "parameters": [
+        { "name": "PHASE_SEQUENCE_TXT", "type": "Text", "shared": true, "default": "ABC" }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 30, "endDeg": 330 }
+        ],
+        "lines": [
+          { "x1": 0.35, "y1":  0.20, "x2": 0.45, "y2":  0.05 },
+          { "x1": 0.35, "y1":  0.20, "x2": 0.20, "y2":  0.30 }
+        ],
+        "text": [
+          { "x":  0.00, "y":  0.52, "value": "A", "heightMm": 1.6 },
+          { "x": -0.45, "y": -0.26, "value": "B", "heightMm": 1.6 },
+          { "x":  0.45, "y": -0.26, "value": "C", "heightMm": 1.6 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_PHASE_SEQUENCE_ACB",
+      "name": "Phase Sequence ACB (Negative)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Notation",
+      "symbolSize": 4.0,
+      "description": "ACB (negative / counter-clockwise) phase rotation notation — IEC 60034-8",
+      "parameters": [
+        { "name": "PHASE_SEQUENCE_TXT", "type": "Text", "shared": true, "default": "ACB" }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 330, "endDeg": 30 }
+        ],
+        "lines": [
+          { "x1": 0.35, "y1": -0.20, "x2": 0.45, "y2": -0.05 },
+          { "x1": 0.35, "y1": -0.20, "x2": 0.20, "y2": -0.30 }
+        ],
+        "text": [
+          { "x":  0.00, "y":  0.52, "value": "A", "heightMm": 1.6 },
+          { "x":  0.45, "y": -0.26, "value": "C", "heightMm": 1.6 },
+          { "x": -0.45, "y": -0.26, "value": "B", "heightMm": 1.6 }
+        ]
+      }
+    }
+  ]
+}

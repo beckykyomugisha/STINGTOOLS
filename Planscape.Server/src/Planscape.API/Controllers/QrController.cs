@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -7,17 +8,53 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using ZXing;
 using ZXing.Common;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
 [ApiController]
 [Route("api/projects/{projectId}")]
 [Authorize]
+[ProjectAccess]
 public class QrController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
+    private readonly IHttpContextAccessor _http;
 
-    public QrController(PlanscapeDbContext db) => _db = db;
+    public QrController(PlanscapeDbContext db, IHttpContextAccessor http)
+    {
+        _db = db;
+        _http = http;
+    }
+
+    /// <summary>
+    /// SRV-10 — QR code by Revit UniqueId string. Encodes a structured JSON payload
+    /// containing the element's tag so the mobile scanner can deep-link directly to
+    /// the correct element without knowing the server-side Guid.
+    /// </summary>
+    [HttpGet("elements/{elementUniqueId}/qr-by-uniqueid")]
+    public async Task<ActionResult> GetElementQrByUniqueId(Guid projectId, string elementUniqueId,
+        [FromQuery] int size = 200)
+    {
+        var tenantId = GetTenantId();
+        var el = await _db.TaggedElements
+            .Include(e => e.Project)
+            .FirstOrDefaultAsync(e => e.UniqueId == elementUniqueId
+                && e.ProjectId == projectId
+                && e.Project!.TenantId == tenantId);
+        if (el == null) return NotFound();
+
+        var baseUrl = $"{_http.HttpContext!.Request.Scheme}://{_http.HttpContext.Request.Host}";
+        var payload = JsonSerializer.Serialize(new
+        {
+            projectId = projectId.ToString(),
+            elementId = elementUniqueId,
+            tag       = el.Tag1 ?? "",
+            server    = baseUrl,
+        });
+
+        return File(GenerateQrPng(payload, size), "image/png");
+    }
 
     /// <summary>
     /// Generate a QR code PNG for a single element's tag.

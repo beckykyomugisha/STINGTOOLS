@@ -1,12 +1,14 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 
 namespace Planscape.Infrastructure.Data;
 
 public class PlanscapeDbContext : DbContext
 {
     private readonly IHttpContextAccessor? _httpContextAccessor;
+    private readonly ITenantContext? _tenantContext;
 
     public PlanscapeDbContext(DbContextOptions<PlanscapeDbContext> options) : base(options) { }
 
@@ -15,6 +17,37 @@ public class PlanscapeDbContext : DbContext
     {
         _httpContextAccessor = httpContextAccessor;
     }
+
+    /// <summary>
+    /// S1.1 — DI-friendly ctor used at runtime so the global tenant
+    /// query filter has access to the resolved tenant id without
+    /// reaching into HttpContext on every read. Migrations + tooling
+    /// keep using the parameterless ctor (TenantContext stays null and
+    /// the filter degrades to "no rows" — safe by default).
+    /// </summary>
+    public PlanscapeDbContext(DbContextOptions<PlanscapeDbContext> options,
+                              IHttpContextAccessor httpContextAccessor,
+                              ITenantContext tenantContext)
+        : base(options)
+    {
+        _httpContextAccessor = httpContextAccessor;
+        _tenantContext = tenantContext;
+    }
+
+    /// <summary>
+    /// Returns the resolved tenant id for query-filter use. Defaults to
+    /// <see cref="Guid.Empty"/> when no tenant context is wired (design-time,
+    /// EF tooling, background jobs that bypass tenant scoping). Empty matches
+    /// no rows so a missing tenant context fails closed, never open.
+    /// </summary>
+    public Guid CurrentTenantId => _tenantContext?.TenantId ?? Guid.Empty;
+
+    /// <summary>
+    /// Background jobs / migrations / cross-tenant admin tools set this to
+    /// disable the global query filter for the lifetime of the DbContext.
+    /// Use sparingly and audit every call site. Defaults to false.
+    /// </summary>
+    public bool BypassTenantFilter { get; set; }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -34,6 +67,29 @@ public class PlanscapeDbContext : DbContext
                     log.Source = "mobile";
             }
         }
+
+        // S1.1 — auto-stamp TenantId on every Added entity that implements
+        // ITenantScoped. Prevents the second-most-common tenant leak: a
+        // controller that forgot to set TenantId before saving. Existing
+        // values are preserved (admin tooling can set TenantId explicitly
+        // when crossing tenants is intentional).
+        var tid = CurrentTenantId;
+        if (tid != Guid.Empty)
+        {
+            foreach (var entry in ChangeTracker.Entries<ITenantScoped>().Where(e => e.State == EntityState.Added))
+            {
+                if (entry.Entity.TenantId == Guid.Empty)
+                    entry.Entity.TenantId = tid;
+            }
+        }
+        // F3 — auto-stamp UpdatedAt on every Modified Tenant entry so the
+        // admin dashboard doesn't have to query AuditLog just to get "last changed".
+        foreach (var entry in ChangeTracker.Entries<Tenant>()
+            .Where(e => e.State == EntityState.Modified))
+        {
+            entry.Entity.UpdatedAt = DateTime.UtcNow;
+        }
+
         return await base.SaveChangesAsync(cancellationToken);
     }
 
@@ -49,16 +105,25 @@ public class PlanscapeDbContext : DbContext
     public DbSet<ComplianceSnapshot> ComplianceSnapshots => Set<ComplianceSnapshot>();
     public DbSet<SeqCounter> SeqCounters => Set<SeqCounter>();
     public DbSet<Meeting> Meetings => Set<Meeting>();
+    public DbSet<MeetingAttendee> MeetingAttendees => Set<MeetingAttendee>();
+    public DbSet<MeetingAgendaItem> MeetingAgendaItems => Set<MeetingAgendaItem>();
     public DbSet<MeetingActionItem> MeetingActionItems => Set<MeetingActionItem>();
     public DbSet<Transmittal> Transmittals => Set<Transmittal>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
+    public DbSet<AccessProfile> AccessProfiles => Set<AccessProfile>();
     public DbSet<DevicePushToken> DevicePushTokens => Set<DevicePushToken>();
     public DbSet<UserNotificationPreferences> UserNotificationPreferences => Set<UserNotificationPreferences>();
     public DbSet<IssueAttachment> IssueAttachments => Set<IssueAttachment>();
     public DbSet<IssueCustomFieldSchema> IssueCustomFieldSchemas => Set<IssueCustomFieldSchema>();
     public DbSet<ProjectModel> ProjectModels => Set<ProjectModel>();
     public DbSet<IssueComment> IssueComments => Set<IssueComment>();
+    public DbSet<SitePhoto> SitePhotos => Set<SitePhoto>();
+    // Phase 178b — T2-5 saved views (camera + visibility + section state).
+    public DbSet<SavedView> SavedViews => Set<SavedView>();
+    // T4-28 — Generic Asset Data Sheet engine (template-driven).
+    public DbSet<AssetDataSheet>         AssetDataSheets         => Set<AssetDataSheet>();
+    public DbSet<AssetDataSheetTemplate> AssetDataSheetTemplates => Set<AssetDataSheetTemplate>();
     public DbSet<DocumentMarkup> DocumentMarkups => Set<DocumentMarkup>();
     public DbSet<ScheduleTask> ScheduleTasks => Set<ScheduleTask>();
     public DbSet<CostItem> CostItems => Set<CostItem>();
@@ -68,9 +133,114 @@ public class PlanscapeDbContext : DbContext
     public DbSet<SyncConflict> SyncConflicts => Set<SyncConflict>();
     public DbSet<SyncWatermark> SyncWatermarks => Set<SyncWatermark>();
 
+    // Phase 142 — daily site diary
+    public DbSet<SiteDiary> SiteDiaries => Set<SiteDiary>();
+    public DbSet<SiteDiaryAttachment> SiteDiaryAttachments => Set<SiteDiaryAttachment>();
+
+    // Phase 144 — RIBA stage gates + MIDP / IE deliverables
+    public DbSet<StageGate> StageGates => Set<StageGate>();
+    public DbSet<InformationDeliverable> InformationDeliverables => Set<InformationDeliverable>();
+    // Phase 146 — normalised criterion rows for per-row sign-off at scale
+    public DbSet<StageGateCriterion> StageGateCriteria => Set<StageGateCriterion>();
+
     // Planscape MIM entities (loaded when MIM is enabled)
     public DbSet<MIM.Entities.Asset> Assets => Set<MIM.Entities.Asset>();
     public DbSet<MIM.Entities.MaintenanceTask> MaintenanceTasks => Set<MIM.Entities.MaintenanceTask>();
+
+    // Phase 165 (NEW-08) — outbound webhook subscriptions.
+    public DbSet<OutboundWebhook> OutboundWebhooks => Set<OutboundWebhook>();
+
+    // Healthcare Pack H-22 — clinical / facility-engineering log tables.
+    public DbSet<HealthcarePressureLog>       HealthcarePressureLogs       => Set<HealthcarePressureLog>();
+    public DbSet<HealthcareMgasVerification>  HealthcareMgasVerifications  => Set<HealthcareMgasVerification>();
+    public DbSet<HealthcareAntiLigatureAudit> HealthcareAntiLigatureAudits => Set<HealthcareAntiLigatureAudit>();
+    public DbSet<HealthcareRdsSnapshot>       HealthcareRdsSnapshots       => Set<HealthcareRdsSnapshot>();
+
+    // Phase 178f — penetration commissioning sign-off captured by the
+    // mobile app on-site. One row per FRP / fire damper / acoustic
+    // seal instance keyed on PenetrationControlNumber + PfvUuid.
+    public DbSet<PenetrationSignoff>          PenetrationSignoffs          => Set<PenetrationSignoff>();
+
+    // S2.1 — billing entities (provider-agnostic).
+    public DbSet<Subscription> Subscriptions => Set<Subscription>();
+    public DbSet<Invoice>      Invoices      => Set<Invoice>();
+    public DbSet<Payment>      Payments      => Set<Payment>();
+    // S3.2 — transactional outbox.
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    // S5.1 — scene-index chunks (one row per discipline/level/system slice
+    // of a federated ProjectModel; mobile streams these on demand).
+    public DbSet<SceneNode> SceneNodes => Set<SceneNode>();
+    public DbSet<ClashRecord> ClashRecords => Set<ClashRecord>();
+    // Per-project automation rules for clash detection results — auto-issue,
+    // push notification, and webhook fan-out triggers fire on new clashes.
+    public DbSet<ClashAutomationRule> ClashAutomationRules => Set<ClashAutomationRule>();
+    // IFC alignment / georeferencing validation reports — written by
+    // IfcAlignmentValidator at upload time. Surfaces cross-software
+    // coordination drift (ArchiCAD vs Revit unit / CRS / IfcSite GUID).
+    public DbSet<IfcAlignmentReport> IfcAlignmentReports => Set<IfcAlignmentReport>();
+    // S6.1 — voice notes on issues.
+    public DbSet<IssueAudioNote> IssueAudioNotes => Set<IssueAudioNote>();
+    // S6.2 — 3D markup polylines anchored to a model / project.
+    public DbSet<ModelMarkup> ModelMarkups => Set<ModelMarkup>();
+    // S6.3 — CRDT update log for collaborative pin / issue editing.
+    public DbSet<PinCrdtUpdate> PinCrdtUpdates => Set<PinCrdtUpdate>();
+
+    // FEDERATED-MODEL: per-element tessellated geometry (Revit plugin delta, IFC hot-folder, Speckle).
+    public DbSet<FederatedElement> FederatedElements => Set<FederatedElement>();
+
+    // Phase 178c (T3-12) — Multi-step / parallel approval chains for CDE transitions.
+    public DbSet<ApprovalChain> ApprovalChains => Set<ApprovalChain>();
+    public DbSet<ApprovalStage> ApprovalStages => Set<ApprovalStage>();
+    // Phase 178c (T3-24) — Document revision history (per-CDE-transition snapshots).
+    public DbSet<DocumentRevision> DocumentRevisions => Set<DocumentRevision>();
+
+    // ── NRM2 BOQ engine — classification, take-off, quantity lines,
+    //    baselines, variations, work packages, preambles, and the
+    //    BoqDocument header that frames them all. Built to support the
+    //    full RICS NRM2 narrative output (preliminaries, preambles,
+    //    measured items, prov sums, PC sums, dayworks).
+    public DbSet<ClassificationSystem>   ClassificationSystems   => Set<ClassificationSystem>();
+    public DbSet<ClassificationCode>     ClassificationCodes     => Set<ClassificationCode>();
+    public DbSet<TakeoffRule>            TakeoffRules            => Set<TakeoffRule>();
+    public DbSet<QuantityLine>           QuantityLines           => Set<QuantityLine>();
+    public DbSet<Nrm2Preamble>           Nrm2Preambles           => Set<Nrm2Preamble>();
+    public DbSet<BoqPreambleAssignment>  BoqPreambleAssignments  => Set<BoqPreambleAssignment>();
+    public DbSet<WorkPackage>            WorkPackages            => Set<WorkPackage>();
+    public DbSet<BoqBaseline>            BoqBaselines            => Set<BoqBaseline>();
+    public DbSet<BoqVariation>           BoqVariations           => Set<BoqVariation>();
+    public DbSet<BoqDocument>            BoqDocuments            => Set<BoqDocument>();
+    public DbSet<Nrm2PreliminariesItem>  Nrm2PreliminariesItems  => Set<Nrm2PreliminariesItem>();
+
+    // ── Suitability code state machine (ISO 19650-2). Holds the
+    //    transition rule set + per-document transition history.
+    public DbSet<SuitabilityTransitionRule> SuitabilityTransitionRules => Set<SuitabilityTransitionRule>();
+    public DbSet<SuitabilityTransition>     SuitabilityTransitions     => Set<SuitabilityTransition>();
+
+    // ── Solibri-grade rule-based model checker — authorable rules,
+    //    scheduled runs, per-element results, rule sets for batch
+    //    execution. Geometry checks lean on the same SceneNode +
+    //    spatial-index plumbing as the clash engine.
+    public DbSet<ModelCheckRuleSet> ModelCheckRuleSets => Set<ModelCheckRuleSet>();
+    public DbSet<ModelCheckRule>    ModelCheckRules    => Set<ModelCheckRule>();
+    public DbSet<ModelCheckRun>     ModelCheckRuns     => Set<ModelCheckRun>();
+    public DbSet<ModelCheckResult>  ModelCheckResults  => Set<ModelCheckResult>();
+
+    // ── SSO + MFA. SsoConfig holds per-tenant identity provider
+    //    configuration (OIDC/SAML); MfaEnrollment is per-user TOTP
+    //    secret + recovery codes; MfaChallenge logs each verification.
+    public DbSet<SsoConfig>      SsoConfigs      => Set<SsoConfig>();
+    public DbSet<MfaEnrollment>  MfaEnrollments  => Set<MfaEnrollment>();
+    public DbSet<MfaChallenge>   MfaChallenges   => Set<MfaChallenge>();
+
+    // ── Executive dashboard. KpiSnapshot is a daily Hangfire rollup;
+    //    CoordinatorWorkload is per-user assigned-issue load over time.
+    public DbSet<KpiSnapshot>         KpiSnapshots         => Set<KpiSnapshot>();
+    public DbSet<CoordinatorWorkload> CoordinatorWorkloads => Set<CoordinatorWorkload>();
+    public DbSet<DashboardWidget>     DashboardWidgets     => Set<DashboardWidget>();
+
+    // ── Mobile offline 3D cache manifest. One row per cached chunk;
+    //    the mobile app reads this to know what's local vs needs sync.
+    public DbSet<MobileOfflineModelManifest> MobileOfflineModelManifests => Set<MobileOfflineModelManifest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -127,6 +297,23 @@ public class PlanscapeDbContext : DbContext
             e.Property(x => x.ModelElementGuid).HasMaxLength(80);
         });
 
+        // ── FederatedElement (geometry delta store) ──────────────────────────
+        modelBuilder.Entity<FederatedElement>(e =>
+        {
+            e.HasKey(x => x.Id);
+            // Unique element per project+doc+elementId combination
+            e.HasIndex(x => new { x.ProjectId, x.SourceDocGuid, x.ElementId }).IsUnique();
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => x.UniqueId);
+            e.Property(x => x.SourceDocGuid).HasMaxLength(100);
+            e.Property(x => x.UniqueId).HasMaxLength(50);
+            e.Property(x => x.IfcGuid).HasMaxLength(36);
+            e.Property(x => x.Category).HasMaxLength(100);
+            e.Property(x => x.GlbStoragePath).HasMaxLength(600);
+            e.Property(x => x.Source).HasMaxLength(30);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         // ── IssueComment (P2) ──
         modelBuilder.Entity<IssueComment>(e =>
         {
@@ -138,6 +325,35 @@ public class PlanscapeDbContext : DbContext
             e.Property(x => x.Source).HasMaxLength(20);
             e.HasOne(x => x.Issue).WithMany().HasForeignKey(x => x.IssueId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.AuthorUser).WithMany().HasForeignKey(x => x.AuthorUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── SitePhoto (Phase 178 — site photo workflow) ──
+        modelBuilder.Entity<SitePhoto>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => new { x.ProjectId, x.Audience });
+            e.HasIndex(x => new { x.ProjectId, x.Reason });
+            e.HasIndex(x => x.CapturedAt);
+            e.HasIndex(x => x.PairKey);
+            e.HasIndex(x => x.AnchorElementGuid);
+            e.Property(x => x.Reason).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Audience).HasMaxLength(20).IsRequired();
+            e.Property(x => x.BlurStatus).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Caption).HasMaxLength(2000);
+            e.Property(x => x.Source).HasMaxLength(20);
+            e.Property(x => x.LevelCode).HasMaxLength(40);
+            e.Property(x => x.ZoneCode).HasMaxLength(40);
+            e.Property(x => x.AnchorElementGuid).HasMaxLength(80);
+            e.Property(x => x.PairKey).HasMaxLength(80);
+            e.Property(x => x.RedactedFilePath).HasMaxLength(500);
+            e.Property(x => x.RejectedReason).HasMaxLength(500);
+            e.Property(x => x.ClassifierSignals).HasColumnType("jsonb");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Document).WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.CapturedByUser).WithMany().HasForeignKey(x => x.CapturedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.ApprovedByUser).WithMany().HasForeignKey(x => x.ApprovedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.AnchorIssue).WithMany().HasForeignKey(x => x.AnchorIssueId).OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── DocumentMarkup (P3) ──
@@ -185,6 +401,90 @@ public class PlanscapeDbContext : DbContext
             e.HasOne(x => x.ScheduleTask).WithMany().HasForeignKey(x => x.ScheduleTaskId).OnDelete(DeleteBehavior.SetNull);
         });
 
+        // Phase 142 — Daily site diary
+        modelBuilder.Entity<SiteDiary>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => new { x.ProjectId, x.DiaryDate });
+            e.HasIndex(x => x.Status);
+            e.Property(x => x.AuthorName).HasMaxLength(200);
+            e.Property(x => x.AuthorRole).HasMaxLength(40);
+            e.Property(x => x.Status).HasMaxLength(24);
+            e.Property(x => x.Weather).HasMaxLength(200);
+            e.Property(x => x.Narrative).HasColumnType("text");
+            e.Property(x => x.ManpowerByTradeJson).HasColumnType("jsonb");
+            e.Property(x => x.EquipmentJson).HasColumnType("jsonb");
+            e.Property(x => x.DeliveriesJson).HasColumnType("jsonb");
+            e.Property(x => x.ChecklistJson).HasColumnType("jsonb");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.AuthorUser).WithMany().HasForeignKey(x => x.AuthorUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+        modelBuilder.Entity<SiteDiaryAttachment>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.SiteDiaryId);
+            e.HasIndex(x => x.DocumentId);
+            e.Property(x => x.AttachedBy).HasMaxLength(200);
+            e.Property(x => x.Caption).HasMaxLength(400);
+            e.HasOne(x => x.SiteDiary).WithMany(x => x.Attachments).HasForeignKey(x => x.SiteDiaryId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Document).WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Phase 144 — RIBA stage gates + MIDP deliverables
+        modelBuilder.Entity<StageGate>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => new { x.ProjectId, x.StageCode }).IsUnique();
+            e.HasIndex(x => x.Status);
+            e.Property(x => x.StageCode).HasMaxLength(40);
+            e.Property(x => x.StageName).HasMaxLength(200);
+            e.Property(x => x.Status).HasMaxLength(24);
+            e.Property(x => x.Description).HasColumnType("text");
+            e.Property(x => x.CriteriaJson).HasColumnType("jsonb");
+            e.Property(x => x.DecidedBy).HasMaxLength(200);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+        // Phase 146 — normalised criterion rows
+        modelBuilder.Entity<StageGateCriterion>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.StageGateId);
+            e.HasIndex(x => new { x.StageGateId, x.Key }).IsUnique();
+            e.Property(x => x.Key).HasMaxLength(80);
+            e.Property(x => x.Label).HasMaxLength(400);
+            e.Property(x => x.Description).HasColumnType("text");
+            e.Property(x => x.Comment).HasColumnType("text");
+            e.Property(x => x.SignedBy).HasMaxLength(200);
+            e.HasOne(x => x.StageGate).WithMany().HasForeignKey(x => x.StageGateId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<InformationDeliverable>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => new { x.ProjectId, x.Code }).IsUnique();
+            e.HasIndex(x => x.StageGateId);
+            e.HasIndex(x => x.Status);
+            e.HasIndex(x => x.DueDate);
+            e.Property(x => x.Code).HasMaxLength(80);
+            e.Property(x => x.Title).HasMaxLength(400);
+            e.Property(x => x.Description).HasColumnType("text");
+            e.Property(x => x.Type).HasMaxLength(8);
+            e.Property(x => x.OwnerRole).HasMaxLength(8);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.SuitabilityTarget).HasMaxLength(8);
+            e.Property(x => x.Status).HasMaxLength(24);
+            e.Property(x => x.SubmittedBy).HasMaxLength(200);
+            e.Property(x => x.AcceptedBy).HasMaxLength(200);
+            e.Property(x => x.RejectionReason).HasColumnType("text");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.StageGate).WithMany(s => s.Deliverables).HasForeignKey(x => x.StageGateId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.Document).WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.SetNull);
+        });
+
         // ── BimIssue.CustomFields JSONB (FLEX-13) ──
         // Decision 4.5 = (c) — JSONB column with GIN index. The GIN index is
         // created by the migration (raw SQL) rather than through HasIndex, to
@@ -200,6 +500,12 @@ public class PlanscapeDbContext : DbContext
         {
             e.HasKey(b => b.Id);
             e.HasIndex(b => b.TenantId).IsUnique();
+            // S15 — direction is "Tenant (principal) → TenantBranding (dependent)".
+            // OnDelete(Cascade) here means: deleting a Tenant cascade-deletes
+            // its branding row. It does NOT mean deleting a branding row
+            // deletes the tenant — the FK runs from branding to tenant, not
+            // the reverse. Previous audit flagged this; the configuration is
+            // correct as written.
             e.HasOne(b => b.Tenant).WithMany().HasForeignKey(b => b.TenantId).OnDelete(DeleteBehavior.Cascade);
             e.Property(b => b.ProductName).HasMaxLength(100);
             e.Property(b => b.AccentColor).HasMaxLength(20);
@@ -216,8 +522,16 @@ public class PlanscapeDbContext : DbContext
         modelBuilder.Entity<AppUser>(e =>
         {
             e.HasKey(u => u.Id);
-            e.HasIndex(u => u.Email).IsUnique();
+            // F1 — email uniqueness is per-tenant, not global. Two different tenants
+            // can legitimately have the same email address (e.g. a consultant on both).
+            // Changed from single-column unique to composite (TenantId, Email).
+            e.HasIndex(u => new { u.TenantId, u.Email }).IsUnique();
             e.HasOne(u => u.Tenant).WithMany(t => t.Users).HasForeignKey(u => u.TenantId);
+            // F2 — global query filter hides soft-deleted users from all normal
+            // queries. Admin/background jobs that need deleted users must call
+            // .IgnoreQueryFilters() explicitly. Paired with F5's Restrict deletes
+            // so the row is never hard-removed while memberships/tokens exist.
+            e.HasQueryFilter(u => !u.IsDeleted);
         });
 
         // ── Project ──
@@ -226,6 +540,8 @@ public class PlanscapeDbContext : DbContext
             e.HasKey(p => p.Id);
             e.HasOne(p => p.Tenant).WithMany(t => t.Projects).HasForeignKey(p => p.TenantId);
             e.HasIndex(p => new { p.TenantId, p.Code }).IsUnique();
+            // Phase 175 — author lookup for the visibility predicate
+            e.HasIndex(p => new { p.TenantId, p.CreatedById });
         });
 
         // ── TaggedElement ──
@@ -237,6 +553,9 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(t => t.Tag1);
             e.HasIndex(t => t.Disc);
             e.HasIndex(t => t.IsStale);
+            // Delta-sync cutoff queries (`(LastModifiedUtc ?? SyncedAt) > cutoff`)
+            // benefit from an index on the modification timestamp.
+            e.HasIndex(t => t.LastModifiedUtc);
         });
 
         // ── BimIssue ──
@@ -265,6 +584,31 @@ public class PlanscapeDbContext : DbContext
             e.HasOne(a => a.Document).WithMany().HasForeignKey(a => a.DocumentId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        // ── ModelMarkup — index idempotency key for offline-replay dedup ──
+        modelBuilder.Entity<ModelMarkup>(e =>
+        {
+            e.HasKey(m => m.Id);
+            e.HasIndex(m => m.ProjectId);
+            e.HasIndex(m => new { m.ProjectId, m.IdempotencyKey })
+                .HasFilter("\"IdempotencyKey\" IS NOT NULL");
+            e.Property(m => m.IdempotencyKey).HasMaxLength(128);
+        });
+
+        // ── IssueAudioNote (Phase 178c T3-19 — DocumentId FK + new columns) ──
+        modelBuilder.Entity<IssueAudioNote>(e =>
+        {
+            e.HasKey(n => n.Id);
+            e.HasIndex(n => n.IssueId);
+            e.HasIndex(n => new { n.IssueId, n.IdempotencyKey }).IsUnique()
+                .HasFilter("\"IdempotencyKey\" IS NOT NULL"); // partial: only unique when supplied
+            e.HasOne(n => n.Document).WithMany().HasForeignKey(n => n.DocumentId).OnDelete(DeleteBehavior.SetNull);
+            e.Property(n => n.StoragePath).HasMaxLength(500).IsRequired();
+            e.Property(n => n.Language).HasMaxLength(8);
+            e.Property(n => n.MimeType).HasMaxLength(40).IsRequired();
+            e.Property(n => n.CreatedBy).HasMaxLength(120);
+            e.Property(n => n.IdempotencyKey).HasMaxLength(100);
+        });
+
         // ── DocumentRecord ──
         modelBuilder.Entity<DocumentRecord>(e =>
         {
@@ -284,6 +628,46 @@ public class PlanscapeDbContext : DbContext
             e.HasOne(a => a.Document).WithMany().HasForeignKey(a => a.DocumentId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(a => a.Project).WithMany().HasForeignKey(a => a.ProjectId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(a => new { a.DocumentId, a.Transition, a.Status });
+        });
+
+        // ── Phase 178c (T3-12) — ApprovalChain + ApprovalStage ──
+        modelBuilder.Entity<ApprovalChain>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.HasOne(c => c.Document).WithMany().HasForeignKey(c => c.DocumentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(c => c.Project).WithMany().HasForeignKey(c => c.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(c => new { c.DocumentId, c.Transition, c.Status });
+            e.Property(c => c.Transition).HasMaxLength(80).IsRequired();
+            e.Property(c => c.Status).HasMaxLength(20).IsRequired();
+            e.Property(c => c.CreatedBy).HasMaxLength(120);
+            e.Property(c => c.Description).HasMaxLength(500);
+        });
+        modelBuilder.Entity<ApprovalStage>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.HasOne(s => s.Chain).WithMany(c => c.Stages).HasForeignKey(s => s.ChainId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(s => new { s.ChainId, s.Order });
+            e.Property(s => s.Mode).HasMaxLength(16).IsRequired();
+            e.Property(s => s.Status).HasMaxLength(16).IsRequired();
+            e.Property(s => s.RequiredApproversJson).IsRequired();
+            e.Property(s => s.DecisionsJson).IsRequired();
+            e.Property(s => s.Label).HasMaxLength(120);
+        });
+
+        // ── Phase 178c (T3-24) — DocumentRevision ──
+        modelBuilder.Entity<DocumentRevision>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.HasOne(r => r.Document).WithMany().HasForeignKey(r => r.DocumentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(r => new { r.DocumentId, r.CreatedAt }).IsDescending(false, true);
+            e.Property(r => r.Revision).HasMaxLength(16).IsRequired();
+            e.Property(r => r.CdeStateAtRevision).HasMaxLength(20).IsRequired();
+            e.Property(r => r.SuitabilityAtRevision).HasMaxLength(8);
+            e.Property(r => r.FilePath).HasMaxLength(500);
+            e.Property(r => r.ContentHash).HasMaxLength(128);
+            e.Property(r => r.CreatedBy).HasMaxLength(120);
+            e.Property(r => r.CommentSummary).HasMaxLength(2000);
+            e.Property(r => r.Source).HasMaxLength(40).IsRequired();
         });
 
         // ── LicenseKey ──
@@ -321,15 +705,55 @@ public class PlanscapeDbContext : DbContext
         modelBuilder.Entity<Meeting>(e =>
         {
             e.HasKey(m => m.Id);
-            e.HasOne(m => m.Project).WithMany().HasForeignKey(m => m.ProjectId);
+            e.HasOne(m => m.Project).WithMany().HasForeignKey(m => m.ProjectId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(m => new { m.ProjectId, m.ScheduledAt });
+            e.HasIndex(m => new { m.ProjectId, m.Status });
+            e.Property(m => m.Title).HasMaxLength(400);
+            e.Property(m => m.MeetingType).HasMaxLength(40);
+            e.Property(m => m.Status).HasMaxLength(20);
+            e.Property(m => m.Location).HasMaxLength(400);
+            e.Property(m => m.MeetingUrl).HasMaxLength(2000);
+            e.Property(m => m.CreatedBy).HasMaxLength(200);
+        });
+
+        // ── MeetingAttendee ──
+        modelBuilder.Entity<MeetingAttendee>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.HasOne(a => a.Meeting).WithMany(m => m.Attendees).HasForeignKey(a => a.MeetingId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(a => a.User).WithMany().HasForeignKey(a => a.UserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(a => a.MeetingId);
+            e.HasIndex(a => a.UserId);
+            e.Property(a => a.Name).HasMaxLength(200).IsRequired();
+            e.Property(a => a.Email).HasMaxLength(320);
+            e.Property(a => a.Company).HasMaxLength(200);
+            e.Property(a => a.Discipline).HasMaxLength(8);
+            e.Property(a => a.Role).HasMaxLength(20);
+            e.Property(a => a.AttendanceStatus).HasMaxLength(20);
+        });
+
+        // ── MeetingAgendaItem ──
+        modelBuilder.Entity<MeetingAgendaItem>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.HasOne(a => a.Meeting).WithMany(m => m.AgendaItems).HasForeignKey(a => a.MeetingId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(a => new { a.MeetingId, a.OrderIndex });
+            e.Property(a => a.Title).HasMaxLength(400).IsRequired();
+            e.Property(a => a.Presenter).HasMaxLength(200);
+            e.Property(a => a.Status).HasMaxLength(20);
         });
 
         // ── MeetingActionItem ──
         modelBuilder.Entity<MeetingActionItem>(e =>
         {
             e.HasKey(a => a.Id);
-            e.HasOne(a => a.Meeting).WithMany(m => m.ActionItems).HasForeignKey(a => a.MeetingId);
+            e.HasOne(a => a.Meeting).WithMany(m => m.ActionItems).HasForeignKey(a => a.MeetingId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(a => a.AssigneeUser).WithMany().HasForeignKey(a => a.AssigneeUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(a => a.MeetingId);
+            e.HasIndex(a => new { a.MeetingId, a.Status });
+            e.Property(a => a.Assignee).HasMaxLength(200);
+            e.Property(a => a.Priority).HasMaxLength(20);
+            e.Property(a => a.Status).HasMaxLength(20);
         });
 
         // ── Transmittal ──
@@ -354,7 +778,23 @@ public class PlanscapeDbContext : DbContext
             e.HasKey(m => m.Id);
             e.HasIndex(m => new { m.ProjectId, m.UserId }).IsUnique();
             e.HasOne(m => m.Project).WithMany().HasForeignKey(m => m.ProjectId).OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(m => m.User).WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Cascade);
+            // F5 — Restrict (not Cascade) on the User FK. Now that F2 adds soft-delete,
+            // hard-deleting a user is blocked unless memberships are removed first.
+            // This prevents silent orphaning of project membership records and forces
+            // callers to explicitly clean up memberships before retiring a user account.
+            e.HasOne(m => m.User).WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ── AccessProfile (Phase 177-D) ──
+        modelBuilder.Entity<AccessProfile>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.HasIndex(a => new { a.TenantId, a.Name }).IsUnique();
+            e.HasOne(a => a.Tenant).WithMany().HasForeignKey(a => a.TenantId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(a => a.Name).HasMaxLength(120).IsRequired();
+            e.Property(a => a.Description).HasMaxLength(500);
+            e.Property(a => a.DefaultProjectRole).HasMaxLength(32).IsRequired();
+            e.Property(a => a.DefaultIso19650Role).HasMaxLength(8).IsRequired();
         });
 
         // ── DevicePushToken ──
@@ -363,7 +803,11 @@ public class PlanscapeDbContext : DbContext
             e.HasKey(d => d.Id);
             e.HasIndex(d => new { d.UserId, d.Token }).IsUnique();
             e.HasIndex(d => d.TenantId);
-            e.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.Cascade);
+            // F5 — Restrict (not Cascade) on the User FK. A soft-deleted user's push
+            // tokens must be explicitly removed by the deletion workflow; this prevents
+            // an accidental hard-delete from silently dropping tokens that the cleanup
+            // job or audit trail still references.
+            e.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(d => d.Tenant).WithMany().HasForeignKey(d => d.TenantId).OnDelete(DeleteBehavior.Cascade);
             e.Property(d => d.Token).HasMaxLength(512);
             e.Property(d => d.DeviceName).HasMaxLength(200);
@@ -412,7 +856,28 @@ public class PlanscapeDbContext : DbContext
             e.Property(w => w.DeviceId).HasMaxLength(128).IsRequired();
             // One watermark per (project, device) — upserts key on this pair.
             e.HasIndex(w => new { w.ProjectId, w.DeviceId }).IsUnique();
+            // Tenant scope filtering on admin/list endpoints.
+            e.HasIndex(w => w.TenantId);
+            // "Most recent activity" queries / monitoring sort by LastSyncUtc.
+            e.HasIndex(w => w.LastSyncUtc);
             e.HasOne(w => w.Project).WithMany().HasForeignKey(w => w.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── SyncConflict (S01 — log of last-write-wins sync rejections) ──
+        modelBuilder.Entity<SyncConflict>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Property(c => c.ElementId).HasMaxLength(128).IsRequired();
+            e.Property(c => c.ConflictType).HasMaxLength(40).IsRequired();
+            e.Property(c => c.Resolution).HasMaxLength(20).IsRequired();
+            // Drill-down: list every conflict that happened on a given element.
+            e.HasIndex(c => new { c.ProjectId, c.ElementId });
+            // Time-windowed queries ("conflicts in the last 24h") + dashboard sort.
+            e.HasIndex(c => c.DetectedAt);
+            // Tenant scope filtering for cross-project admin views.
+            e.HasIndex(c => c.TenantId);
+            e.HasOne(c => c.Project).WithMany().HasForeignKey(c => c.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(c => c.TaggedElement).WithMany().HasForeignKey(c => c.TaggedElementId).OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── Planscape MIM Entities ──
@@ -426,5 +891,608 @@ public class PlanscapeDbContext : DbContext
         {
             e.HasKey(m => m.Id);
         });
+
+        // ── OutboundWebhook (Phase 165 / NEW-08) ──
+        modelBuilder.Entity<OutboundWebhook>(e =>
+        {
+            e.HasKey(w => w.Id);
+            e.HasIndex(w => new { w.TenantId, w.EventType, w.IsActive });
+            e.HasIndex(w => w.ProjectId);
+            e.Property(w => w.TargetUrl).IsRequired().HasMaxLength(2048);
+            e.Property(w => w.SecretHash).IsRequired().HasMaxLength(128);
+            e.HasOne(w => w.Tenant).WithMany().HasForeignKey(w => w.TenantId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(w => w.Project).WithMany().HasForeignKey(w => w.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── S2.1 — Billing entities ─────────────────────────────────────
+        modelBuilder.Entity<Subscription>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.Status });
+            e.HasIndex(x => x.ProviderSubscriptionId);
+            e.Property(x => x.Provider).IsRequired().HasMaxLength(20);
+            e.Property(x => x.Plan).IsRequired().HasMaxLength(20);
+            e.Property(x => x.Currency).IsRequired().HasMaxLength(3);
+            e.Property(x => x.ProviderCustomerId).HasMaxLength(120);
+            e.Property(x => x.ProviderSubscriptionId).HasMaxLength(120);
+        });
+        modelBuilder.Entity<Invoice>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.InvoiceNumber }).IsUnique();
+            e.HasIndex(x => x.SubscriptionId);
+            e.HasIndex(x => x.Status);
+            e.Property(x => x.Provider).IsRequired().HasMaxLength(20);
+            e.Property(x => x.ProviderInvoiceId).HasMaxLength(120);
+            e.Property(x => x.InvoiceNumber).IsRequired().HasMaxLength(40);
+            e.Property(x => x.Currency).IsRequired().HasMaxLength(3);
+            e.Property(x => x.PdfStoragePath).HasMaxLength(500);
+            e.Property(x => x.PurchaseOrderRef).HasMaxLength(80);
+        });
+        modelBuilder.Entity<Payment>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.InvoiceId);
+            e.HasIndex(x => new { x.Provider, x.ProviderEventId }).IsUnique()
+                .HasFilter("\"ProviderEventId\" IS NOT NULL");
+            e.Property(x => x.Provider).IsRequired().HasMaxLength(20);
+            e.Property(x => x.ProviderTransactionId).HasMaxLength(120);
+            e.Property(x => x.ProviderEventId).HasMaxLength(120);
+            e.Property(x => x.Currency).IsRequired().HasMaxLength(3);
+            e.Property(x => x.MethodKind).HasMaxLength(40);
+            e.Property(x => x.MethodSuffix).HasMaxLength(20);
+        });
+
+        // ── S1.1 — Global tenant query filter ───────────────────────────
+        // Every entity that implements ITenantScoped is filtered by the
+        // currently-resolved tenant id automatically. The filter degrades
+        // to "no rows" when no tenant context is set (Guid.Empty), so an
+        // unauthenticated background job sees nothing rather than
+        // everything. Hot reads use the indexed TenantId column directly,
+        // no joins required.
+        ApplyTenantQueryFilters(modelBuilder);
+        // Ensure every tenant-scoped entity has an index on TenantId so the
+        // query filter doesn't degenerate into a sequential scan.
+        AddTenantIdIndexes(modelBuilder);
+
+        // Phase 178b — Healthcare Pack composite indexes.
+        // HealthcareController.Dashboard filters by (ProjectId, CapturedAt)
+        // for the pressure-log + ligature aggregates. Without composite
+        // indexes the dashboard does index scans against the ProjectId
+        // index then re-filters by CapturedAt in memory; the composite
+        // collapses both into a single index seek.
+        modelBuilder.Entity<HealthcarePressureLog>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+            e.HasIndex(x => new { x.ProjectId, x.RoomBimId });
+        });
+        modelBuilder.Entity<HealthcareMgasVerification>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+        });
+        modelBuilder.Entity<HealthcareAntiLigatureAudit>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+            e.HasIndex(x => new { x.ProjectId, x.Pass });
+        });
+        modelBuilder.Entity<HealthcareRdsSnapshot>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.RoomBimId });
+        });
+
+        // Phase 178b — SitePhoto compound (ProjectId, PairKey) for
+        // before/after pair lookups. The single-column PairKey index
+        // exists already; the compound version skips a second-pass
+        // ProjectId filter when the dashboard groups by pair.
+        modelBuilder.Entity<SitePhoto>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.PairKey });
+        });
+
+        // Phase 178b — T2-5 SavedView. Indexed on (ProjectId, CreatedAt)
+        // for the saved-views-list pagination, and on LinkedActionItemId
+        // for the meeting-detail back-link lookup.
+        modelBuilder.Entity<SavedView>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.CreatedAt });
+            e.HasIndex(x => x.LinkedActionItemId);
+            e.HasIndex(x => x.LinkedMeetingId);
+            e.Property(x => x.Name).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.CapturedByName).HasMaxLength(200);
+            e.Property(x => x.StateJson).HasColumnType("jsonb");
+            e.Property(x => x.ThumbnailB64).HasColumnType("text");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.CapturedByUser).WithMany().HasForeignKey(x => x.CapturedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.LinkedMeeting).WithMany().HasForeignKey(x => x.LinkedMeetingId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // T4-28 — Generic Asset Data Sheet engine
+        modelBuilder.Entity<AssetDataSheet>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.AnchorKind, x.AnchorKey });
+            e.HasIndex(x => new { x.ProjectId, x.Status });
+            e.HasIndex(x => x.TemplateId);
+            e.Property(x => x.AnchorKind).HasMaxLength(20).IsRequired();
+            e.Property(x => x.AnchorKey).HasMaxLength(120);
+            e.Property(x => x.Status).HasMaxLength(20).IsRequired();
+            e.Property(x => x.AuthorName).HasMaxLength(200);
+            e.Property(x => x.RejectedReason).HasMaxLength(500);
+            e.Property(x => x.ValuesJson).HasColumnType("jsonb");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Author).WithMany().HasForeignKey(x => x.AuthorUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+        modelBuilder.Entity<AssetDataSheetTemplate>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.IsActive });
+            e.Property(x => x.Code).HasMaxLength(60).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.AnchorKind).HasMaxLength(20).IsRequired();
+            e.Property(x => x.SchemaJson).HasColumnType("jsonb");
+            e.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── ClashRecord — AABB clash detection between SceneNodes ──
+        modelBuilder.Entity<ClashRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.Status });
+            e.HasIndex(x => new { x.ProjectId, x.ClashHash }).IsUnique();
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.ClashHash).HasMaxLength(64).IsRequired();
+            e.Property(x => x.ElementAGuid).HasMaxLength(80).IsRequired();
+            e.Property(x => x.ElementBGuid).HasMaxLength(80).IsRequired();
+            e.Property(x => x.ElementAName).HasMaxLength(400);
+            e.Property(x => x.ElementBName).HasMaxLength(400);
+            e.Property(x => x.ElementAType).HasMaxLength(80);
+            e.Property(x => x.ElementBType).HasMaxLength(80);
+            e.Property(x => x.DisciplineA).HasMaxLength(8);
+            e.Property(x => x.DisciplineB).HasMaxLength(8);
+            e.Property(x => x.LevelCode).HasMaxLength(40);
+            e.Property(x => x.ZoneCode).HasMaxLength(40);
+            e.Property(x => x.AssignedTo).HasMaxLength(200);
+            e.Property(x => x.ResolutionNote).HasMaxLength(2000);
+            e.Property(x => x.BcfTopicGuid).HasMaxLength(80);
+            e.Property(x => x.DetectedByJobId).HasMaxLength(80);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Issue).WithMany().HasForeignKey(x => x.IssueId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── IfcAlignmentReport — per-model IFC alignment validation results ──
+        modelBuilder.Entity<IfcAlignmentReport>(e =>
+        {
+            e.HasIndex(r => new { r.ProjectId, r.ProjectModelId });
+            e.HasIndex(r => r.TenantId);
+        });
+
+        // ── ClashAutomationRule — per-project automation rules for new clashes ──
+        modelBuilder.Entity<ClashAutomationRule>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.HasIndex(r => new { r.ProjectId, r.Priority });
+            e.HasIndex(r => r.TenantId);
+            e.Property(r => r.Name).HasMaxLength(200).IsRequired();
+            e.Property(r => r.DisciplineA).HasMaxLength(8);
+            e.Property(r => r.DisciplineB).HasMaxLength(8);
+            e.Property(r => r.LevelCode).HasMaxLength(40);
+            e.Property(r => r.AutoAssignTo).HasMaxLength(200);
+            e.Property(r => r.IssuePriority).HasMaxLength(20);
+            e.Property(r => r.NotifyUsers).HasMaxLength(2000);
+            e.Property(r => r.CreatedBy).HasMaxLength(200);
+            e.HasOne(r => r.Project).WithMany().HasForeignKey(r => r.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── NRM2 BOQ engine ──
+
+        modelBuilder.Entity<ClassificationSystem>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+            e.Property(x => x.Code).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.Authority).HasMaxLength(80);
+            e.Property(x => x.Edition).HasMaxLength(40);
+            e.Property(x => x.MeasurementProtocol).HasMaxLength(40);
+        });
+
+        modelBuilder.Entity<ClassificationCode>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.SystemId, x.Code }).IsUnique();
+            e.HasIndex(x => x.ParentCodeId);
+            e.HasIndex(x => new { x.SystemId, x.Path });
+            e.Property(x => x.Code).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Title).HasMaxLength(400).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(2000);
+            e.Property(x => x.Path).HasMaxLength(200);
+            e.Property(x => x.DefaultUnit).HasMaxLength(20);
+            e.HasOne(x => x.System).WithMany(s => s.Codes).HasForeignKey(x => x.SystemId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Parent).WithMany().HasForeignKey(x => x.ParentCodeId).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<TakeoffRule>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.ProjectId, x.Priority });
+            e.HasIndex(x => x.ClassificationCodeId);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.IfcType).HasMaxLength(80);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.CategoryPattern).HasMaxLength(200);
+            e.Property(x => x.MaterialPattern).HasMaxLength(400);
+            e.Property(x => x.Unit).HasMaxLength(20).IsRequired();
+            e.Property(x => x.QuantityFormula).HasMaxLength(400).IsRequired();
+            e.Property(x => x.DescriptionTemplate).HasMaxLength(2000);
+            e.Property(x => x.SpecificationGrade).HasMaxLength(40);
+            e.Property(x => x.CreatedBy).HasMaxLength(200);
+            e.HasOne(x => x.ClassificationCode).WithMany().HasForeignKey(x => x.ClassificationCodeId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<QuantityLine>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.BaselineId });
+            e.HasIndex(x => new { x.ProjectId, x.SectionCode });
+            e.HasIndex(x => x.IfcGlobalId);
+            e.HasIndex(x => x.ClassificationCodeId);
+            e.HasIndex(x => x.WorkPackageId);
+            e.Property(x => x.SectionCode).HasMaxLength(40).IsRequired();
+            e.Property(x => x.ItemDescription).HasMaxLength(4000).IsRequired();
+            e.Property(x => x.Unit).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Currency).HasMaxLength(8);
+            e.Property(x => x.IfcGlobalId).HasMaxLength(80);
+            e.Property(x => x.IfcType).HasMaxLength(80);
+            e.Property(x => x.Level).HasMaxLength(40);
+            e.Property(x => x.Zone).HasMaxLength(40);
+            e.Property(x => x.LineKind).HasMaxLength(20);
+            e.Property(x => x.PricingBasis).HasMaxLength(20);
+            e.Property(x => x.Notes).HasMaxLength(2000);
+            e.Property(x => x.CreatedBy).HasMaxLength(200);
+            e.Property(x => x.UnitRate).HasColumnType("numeric(18,4)");
+            e.Property(x => x.LineTotal).HasColumnType("numeric(18,2)");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.ClassificationCode).WithMany().HasForeignKey(x => x.ClassificationCodeId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.TakeoffRule).WithMany().HasForeignKey(x => x.TakeoffRuleId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.Baseline).WithMany().HasForeignKey(x => x.BaselineId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.WorkPackage).WithMany().HasForeignKey(x => x.WorkPackageId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.ProjectModel).WithMany().HasForeignKey(x => x.ProjectModelId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<Nrm2Preamble>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.NrmSectionCode, x.Group });
+            e.Property(x => x.NrmSectionCode).HasMaxLength(40);
+            e.Property(x => x.Group).HasMaxLength(40);
+            e.Property(x => x.Title).HasMaxLength(400);
+            e.Property(x => x.Body).HasMaxLength(8000);
+            e.Property(x => x.References).HasMaxLength(2000);
+            e.Property(x => x.CreatedBy).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<BoqPreambleAssignment>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.BoqDocumentId, x.SortOrder });
+            e.Property(x => x.OverrideBody).HasMaxLength(8000);
+            e.HasOne(x => x.Preamble).WithMany().HasForeignKey(x => x.PreambleId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<WorkPackage>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.Code }).IsUnique();
+            e.Property(x => x.Code).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(2000);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.SectionPrefixesJson).HasMaxLength(2000);
+            e.Property(x => x.Contractor).HasMaxLength(200);
+            e.Property(x => x.Status).HasMaxLength(20);
+            e.Property(x => x.Currency).HasMaxLength(8);
+            e.Property(x => x.CreatedBy).HasMaxLength(200);
+            e.Property(x => x.EstimatedValue).HasColumnType("numeric(18,2)");
+            e.Property(x => x.AwardedValue).HasColumnType("numeric(18,2)");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BoqBaseline>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.Kind, x.BaselinedAt });
+            e.Property(x => x.Kind).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(2000);
+            e.Property(x => x.Currency).HasMaxLength(8);
+            e.Property(x => x.Checksum).HasMaxLength(64);
+            e.Property(x => x.CreatedBy).HasMaxLength(200);
+            e.Property(x => x.TotalValue).HasColumnType("numeric(18,2)");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BoqVariation>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.BaselineId, x.Status });
+            e.HasIndex(x => new { x.ProjectId, x.Reference }).IsUnique();
+            e.Property(x => x.Reference).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Kind).HasMaxLength(20);
+            e.Property(x => x.Title).HasMaxLength(400);
+            e.Property(x => x.Description).HasMaxLength(4000);
+            e.Property(x => x.InstructionRef).HasMaxLength(200);
+            e.Property(x => x.Currency).HasMaxLength(8);
+            e.Property(x => x.Status).HasMaxLength(20);
+            e.Property(x => x.SubmittedBy).HasMaxLength(200);
+            e.Property(x => x.ApprovedBy).HasMaxLength(200);
+            e.Property(x => x.RejectionReason).HasMaxLength(2000);
+            e.Property(x => x.CreatedBy).HasMaxLength(200);
+            e.Property(x => x.NetValue).HasColumnType("numeric(18,2)");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Baseline).WithMany().HasForeignKey(x => x.BaselineId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.BimIssue).WithMany().HasForeignKey(x => x.BimIssueId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<BoqDocument>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(2000);
+            e.Property(x => x.MeasurementProtocol).HasMaxLength(40);
+            e.Property(x => x.Currency).HasMaxLength(8);
+            e.Property(x => x.VatTreatment).HasMaxLength(40);
+            e.Property(x => x.ClientName).HasMaxLength(200);
+            e.Property(x => x.Architect).HasMaxLength(200);
+            e.Property(x => x.StructuralEngineer).HasMaxLength(200);
+            e.Property(x => x.MepEngineer).HasMaxLength(200);
+            e.Property(x => x.CostManager).HasMaxLength(200);
+            e.Property(x => x.PrincipalContractor).HasMaxLength(200);
+            e.Property(x => x.ContractForm).HasMaxLength(100);
+            e.Property(x => x.InsuranceParticulars).HasMaxLength(2000);
+            e.Property(x => x.PricingBasis).HasMaxLength(20);
+            e.Property(x => x.Status).HasMaxLength(40);
+            e.Property(x => x.Revision).HasMaxLength(20);
+            e.Property(x => x.CreatedBy).HasMaxLength(200);
+            e.Property(x => x.DayworkLabourPct).HasColumnType("numeric(5,2)");
+            e.Property(x => x.DayworkMaterialsPct).HasColumnType("numeric(5,2)");
+            e.Property(x => x.DayworkPlantPct).HasColumnType("numeric(5,2)");
+            e.Property(x => x.LocationFactor).HasColumnType("numeric(5,3)");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.PrimaryClassificationSystem).WithMany().HasForeignKey(x => x.PrimaryClassificationSystemId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.SecondaryClassificationSystem).WithMany().HasForeignKey(x => x.SecondaryClassificationSystemId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<Nrm2PreliminariesItem>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.BoqDocumentId, x.SortOrder });
+            e.Property(x => x.Code).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(2000).IsRequired();
+            e.Property(x => x.Kind).HasMaxLength(20);
+            e.Property(x => x.Unit).HasMaxLength(20);
+            e.Property(x => x.Currency).HasMaxLength(8);
+            e.Property(x => x.UnitRate).HasColumnType("numeric(18,4)");
+            e.Property(x => x.LineTotal).HasColumnType("numeric(18,2)");
+            e.Property(x => x.PercentageBase).HasColumnType("numeric(18,2)");
+            e.Property(x => x.Percentage).HasColumnType("numeric(5,3)");
+        });
+
+        // ── Suitability state machine ──
+
+        modelBuilder.Entity<SuitabilityTransitionRule>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.ProjectId, x.FromCode, x.ToCode });
+            e.Property(x => x.AllowedRoles).HasMaxLength(400);
+            e.Property(x => x.Notes).HasMaxLength(2000);
+            e.Property(x => x.CreatedBy).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<SuitabilityTransition>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.DocumentRecordId, x.TriggeredAt });
+            e.HasIndex(x => new { x.ProjectId, x.TriggeredAt });
+            e.Property(x => x.Revision).HasMaxLength(20);
+            e.Property(x => x.Notes).HasMaxLength(2000);
+            e.Property(x => x.TriggerSource).HasMaxLength(40);
+            e.Property(x => x.TriggeredBy).HasMaxLength(200).IsRequired();
+        });
+
+        // ── Model checker ──
+
+        modelBuilder.Entity<ModelCheckRuleSet>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+            e.Property(x => x.Code).HasMaxLength(80).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(2000);
+            e.Property(x => x.Version).HasMaxLength(40);
+            e.Property(x => x.Schedule).HasMaxLength(80);
+            e.Property(x => x.Checksum).HasMaxLength(64);
+            e.Property(x => x.CreatedBy).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<ModelCheckRule>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.RuleSetId, x.SortOrder });
+            e.HasIndex(x => new { x.RuleSetId, x.Code }).IsUnique();
+            e.Property(x => x.Code).HasMaxLength(80).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(2000);
+            e.Property(x => x.Kind).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Severity).HasMaxLength(20);
+            e.Property(x => x.AppliesToIfcTypes).HasMaxLength(400);
+            e.Property(x => x.AppliesToDiscipline).HasMaxLength(8);
+            e.Property(x => x.AutoAction).HasMaxLength(40);
+            e.Property(x => x.CreatedBy).HasMaxLength(200);
+            e.HasOne(x => x.RuleSet).WithMany().HasForeignKey(x => x.RuleSetId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ModelCheckRun>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.StartedAt });
+            e.HasIndex(x => x.RuleSetId);
+            e.Property(x => x.Status).HasMaxLength(20);
+            e.Property(x => x.ErrorMessage).HasMaxLength(2000);
+            e.Property(x => x.TriggeredBy).HasMaxLength(200);
+            e.HasOne(x => x.RuleSet).WithMany().HasForeignKey(x => x.RuleSetId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ModelCheckResult>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.Status });
+            e.HasIndex(x => new { x.RunId, x.Severity });
+            e.HasIndex(x => x.IfcGlobalId);
+            e.Property(x => x.IfcGlobalId).HasMaxLength(80);
+            e.Property(x => x.IfcType).HasMaxLength(80);
+            e.Property(x => x.ElementName).HasMaxLength(400);
+            e.Property(x => x.Level).HasMaxLength(40);
+            e.Property(x => x.Severity).HasMaxLength(20);
+            e.Property(x => x.Message).HasMaxLength(2000).IsRequired();
+            e.Property(x => x.Suggestion).HasMaxLength(2000);
+            e.Property(x => x.Status).HasMaxLength(20);
+            e.Property(x => x.ResolvedBy).HasMaxLength(200);
+            e.HasOne(x => x.Rule).WithMany().HasForeignKey(x => x.RuleId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Run).WithMany().HasForeignKey(x => x.RunId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── SSO / MFA ──
+
+        modelBuilder.Entity<SsoConfig>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Protocol).HasMaxLength(10);
+            e.Property(x => x.EmailDomains).HasMaxLength(1000);
+            e.Property(x => x.OidcIssuer).HasMaxLength(400);
+            e.Property(x => x.OidcClientId).HasMaxLength(200);
+            e.Property(x => x.OidcClientSecretEncrypted).HasMaxLength(4000);
+            e.Property(x => x.OidcAuthorizationEndpoint).HasMaxLength(400);
+            e.Property(x => x.OidcTokenEndpoint).HasMaxLength(400);
+            e.Property(x => x.OidcUserInfoEndpoint).HasMaxLength(400);
+            e.Property(x => x.OidcJwksUri).HasMaxLength(400);
+            e.Property(x => x.OidcScopes).HasMaxLength(400);
+            e.Property(x => x.SamlEntityId).HasMaxLength(400);
+            e.Property(x => x.SamlSsoUrl).HasMaxLength(400);
+            e.Property(x => x.SamlSloUrl).HasMaxLength(400);
+            e.Property(x => x.ScimEndpoint).HasMaxLength(400);
+            e.Property(x => x.ScimBearerTokenEncrypted).HasMaxLength(4000);
+            e.Property(x => x.LastFailureReason).HasMaxLength(2000);
+            e.Property(x => x.CreatedBy).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<MfaEnrollment>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.Method });
+            e.Property(x => x.Method).HasMaxLength(20);
+            e.Property(x => x.SecretEncrypted).HasMaxLength(2000);
+            e.Property(x => x.DeviceLabel).HasMaxLength(200);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MfaChallenge>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.CreatedAt });
+            e.Property(x => x.Method).HasMaxLength(20);
+            e.Property(x => x.ClientIp).HasMaxLength(64);
+            e.Property(x => x.UserAgent).HasMaxLength(400);
+            e.Property(x => x.FailureReason).HasMaxLength(400);
+        });
+
+        // ── Dashboard / KPI ──
+
+        modelBuilder.Entity<KpiSnapshot>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.SnapshotDate }).IsUnique();
+            e.Property(x => x.Currency).HasMaxLength(8);
+            e.Property(x => x.BoqTotalValue).HasColumnType("numeric(18,2)");
+            e.Property(x => x.BoqCommittedValue).HasColumnType("numeric(18,2)");
+            e.Property(x => x.BoqActualValue).HasColumnType("numeric(18,2)");
+            e.Property(x => x.BoqForecastValue).HasColumnType("numeric(18,2)");
+            e.Property(x => x.VariationsNetValue).HasColumnType("numeric(18,2)");
+        });
+
+        modelBuilder.Entity<CoordinatorWorkload>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.WeekStarting }).IsUnique();
+            e.HasIndex(x => x.WeekStarting);
+            e.Property(x => x.LoadBand).HasMaxLength(20);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DashboardWidget>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.UserId, x.SortOrder });
+            e.Property(x => x.Kind).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Title).HasMaxLength(200);
+        });
+
+        // ── Mobile offline 3D cache manifest ──
+
+        modelBuilder.Entity<MobileOfflineModelManifest>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.DeviceId, x.ProjectModelId });
+            e.HasIndex(x => x.SceneNodeId);
+            e.Property(x => x.DeviceId).HasMaxLength(80).IsRequired();
+            e.Property(x => x.ContentHash).HasMaxLength(64).IsRequired();
+            e.Property(x => x.Format).HasMaxLength(10);
+            e.Property(x => x.Tier).HasMaxLength(20);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.ProjectModel).WithMany().HasForeignKey(x => x.ProjectModelId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.SceneNode).WithMany().HasForeignKey(x => x.SceneNodeId).OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private void ApplyTenantQueryFilters(ModelBuilder modelBuilder)
+    {
+        var entityTypes = modelBuilder.Model.GetEntityTypes()
+            .Where(t => typeof(ITenantScoped).IsAssignableFrom(t.ClrType));
+
+        foreach (var entityType in entityTypes)
+        {
+            var clrType = entityType.ClrType;
+            var parameter = System.Linq.Expressions.Expression.Parameter(clrType, "e");
+            var tenantIdProperty = System.Linq.Expressions.Expression.Property(parameter, nameof(ITenantScoped.TenantId));
+            var currentTenantIdProperty = System.Linq.Expressions.Expression.Property(
+                System.Linq.Expressions.Expression.Constant(this), nameof(CurrentTenantId));
+            var bypass = System.Linq.Expressions.Expression.Property(
+                System.Linq.Expressions.Expression.Constant(this), nameof(BypassTenantFilter));
+            var equality = System.Linq.Expressions.Expression.Equal(tenantIdProperty, currentTenantIdProperty);
+            var body = System.Linq.Expressions.Expression.OrElse(bypass, equality);
+            var lambda = System.Linq.Expressions.Expression.Lambda(body, parameter);
+            modelBuilder.Entity(clrType).HasQueryFilter(lambda);
+        }
+    }
+
+    private static void AddTenantIdIndexes(ModelBuilder modelBuilder)
+    {
+        var entityTypes = modelBuilder.Model.GetEntityTypes()
+            .Where(t => typeof(ITenantScoped).IsAssignableFrom(t.ClrType));
+        foreach (var entityType in entityTypes)
+        {
+            var hasIndex = entityType.GetIndexes().Any(i =>
+                i.Properties.Count == 1 && i.Properties[0].Name == nameof(ITenantScoped.TenantId));
+            if (!hasIndex)
+                modelBuilder.Entity(entityType.ClrType).HasIndex(nameof(ITenantScoped.TenantId));
+        }
     }
 }

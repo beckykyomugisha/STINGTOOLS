@@ -60,8 +60,8 @@ namespace StingTools.BIMManager
             var projectId = PickProject(client);
             if (projectId == Guid.Empty) return Result.Cancelled;
 
-            // ── Step 3: pick a geometry file ───────────────────────────
-            var modelPath = PromptForModelFile();
+            // ── Step 3: pick or export geometry ────────────────────────
+            var modelPath = PromptForModelFileOrExport(doc);
             if (string.IsNullOrEmpty(modelPath)) return Result.Cancelled;
 
             // ── Step 4: collect element map ────────────────────────────
@@ -92,6 +92,60 @@ namespace StingTools.BIMManager
                     TaskDialog.Show("Publish Model", $"Upload failed: {result.error}");
                     StingLog.Warn($"Planscape: model upload failed — {result.error}");
                     return Result.Failed;
+                }
+
+                if (result.alreadyExisted)
+                {
+                    var dlg = new TaskDialog("Publish Model to Planscape")
+                    {
+                        MainInstruction = "This model is already published",
+                        MainContent =
+                            $"The server has an existing entry with the same SHA-256 content hash:\n\n" +
+                            $"  File:    {Path.GetFileName(modelPath)}\n" +
+                            $"  Project: {projectId}\n" +
+                            $"  Existing model id: {result.modelId}\n\n" +
+                            "Renaming the file on disk doesn't change the bytes, so the dedup still triggers.",
+                        CommonButtons = TaskDialogCommonButtons.Close,
+                        DefaultButton = TaskDialogResult.Close,
+                    };
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "Republish anyway as a new revision",
+                        "Bypasses the SHA-256 dedup and creates a new entry with the same bytes (useful when only the element map / metadata has changed).");
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                        "Open the existing entry",
+                        "Use the model the server already has — no upload.");
+                    var r = dlg.Show();
+                    if (r == TaskDialogResult.CommandLink1)
+                    {
+                        var forced = Task.Run(() => client.UploadModelAsync(
+                            projectId,
+                            modelPath,
+                            mapPath,
+                            name: doc.Title,
+                            description: $"Re-published from Revit {doc.Application.VersionName}",
+                            discipline: DetectDocDiscipline(doc),
+                            revision: PhaseAutoDetect.DetectProjectRevision(doc),
+                            units: "mm",
+                            elementCount: elementCount,
+                            bounds: bounds,
+                            force: true)).GetAwaiter().GetResult();
+                        if (!forced.ok)
+                        {
+                            TaskDialog.Show("Publish Model", $"Forced republish failed: {forced.error}");
+                            StingLog.Warn($"Planscape: forced model upload failed — {forced.error}");
+                            return Result.Failed;
+                        }
+                        TaskDialog.Show(
+                            "Publish Model to Planscape",
+                            $"Republished as a new revision.\n\n" +
+                            $"Elements mapped: {elementCount}\n" +
+                            $"Project: {projectId}\n" +
+                            $"New model id: {forced.modelId}");
+                        StingLog.Info($"Planscape: model force-republished → {forced.modelId}");
+                        return Result.Succeeded;
+                    }
+                    StingLog.Info($"Planscape: model already published (dedup) → {result.modelId}");
+                    return Result.Succeeded;
                 }
 
                 TaskDialog.Show(
@@ -146,6 +200,50 @@ namespace StingTools.BIMManager
 
         // ── File picker ────────────────────────────────────────────────
 
+        private static string? PromptForModelFileOrExport(Document doc)
+        {
+            var dlg = new TaskDialog("Publish Model")
+            {
+                MainInstruction = "How do you want to provide the 3D geometry?",
+                CommonButtons = TaskDialogCommonButtons.Cancel,
+            };
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Export current 3D view to GLB",
+                "Uses the built-in STING glTF exporter. Active view must be a 3D view.");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Pick an existing file (.glb / .gltf / .ifc / .obj / .fbx)",
+                "Use a file produced by APS, SimLab, rvt2gltf, Dynamo, etc.");
+            var r = dlg.Show();
+            if (r == TaskDialogResult.CommandLink1) return ExportActiveView(doc);
+            if (r == TaskDialogResult.CommandLink2) return PromptForModelFile();
+            return null;
+        }
+
+        private static string? ExportActiveView(Document doc)
+        {
+            if (doc.ActiveView is not View3D v3d || v3d.IsTemplate)
+            {
+                TaskDialog.Show("Publish Model",
+                    "The active view is not a non-template 3D view. Open a 3D view first.");
+                return null;
+            }
+            var outPath = Path.Combine(
+                OutputLocationHelper.GetOutputDirectory(doc),
+                $"{Path.GetFileNameWithoutExtension(doc.PathName ?? doc.Title)}-{v3d.Name}.glb");
+            try
+            {
+                var result = RevitGltfExporter.Export(doc, v3d, outPath);
+                StingLog.Info($"Planscape: GLB exported ({result.ElementCount} elements, {result.FileSizeBytes:N0} bytes) → {outPath}");
+                return outPath;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Planscape: GLB export failed", ex);
+                TaskDialog.Show("Publish Model", $"GLB export failed: {ex.Message}");
+                return null;
+            }
+        }
+
         private static string? PromptForModelFile()
         {
             var dlg = new OpenFileDialog
@@ -179,29 +277,18 @@ namespace StingTools.BIMManager
             var bb = new BoundingBoxXYZ { Min = new XYZ(double.MaxValue, double.MaxValue, double.MaxValue),
                                           Max = new XYZ(double.MinValue, double.MinValue, double.MinValue) };
             int count = 0;
+            int boundsContributors = 0;
 
             foreach (var el in elements)
             {
                 var guid = el.UniqueId;
                 var tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                if (string.IsNullOrEmpty(tag)) continue; // only include tagged elements
-                var disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
-                var loc  = ParameterHelpers.GetString(el, ParamRegistry.LOC);
-                var lvl  = ParameterHelpers.GetString(el, ParamRegistry.LVL);
 
-                map[guid] = new JObject
-                {
-                    ["tag"]        = tag,
-                    ["name"]       = el.Name ?? "",
-                    ["category"]   = el.Category?.Name ?? "",
-                    ["discipline"] = disc,
-                    ["location"]   = loc,
-                    ["level"]      = lvl,
-                    ["elementId"]  = el.Id.Value,
-                };
-                count++;
-
-                // Track bounds (mm units to match server default).
+                // Track bounds from EVERY element with a bounding box, not just
+                // tagged ones. Otherwise, on a fresh project where the tag
+                // pipeline hasn't run, we get zero contributors and the bb stays
+                // at sentinel (MaxValue/MinValue), which overflows to ±Infinity
+                // when scaled to mm and the server rejects with HTTP 400.
                 var eb = el.get_BoundingBox(null);
                 if (eb != null)
                 {
@@ -211,16 +298,47 @@ namespace StingTools.BIMManager
                     bb.Max = new XYZ(Math.Max(bb.Max.X, eb.Max.X),
                                      Math.Max(bb.Max.Y, eb.Max.Y),
                                      Math.Max(bb.Max.Z, eb.Max.Z));
+                    boundsContributors++;
                 }
+
+                // Always include the element in the map even when the STING
+                // tag pipeline hasn't run yet — the viewer needs the
+                // UniqueId → name/category mapping for tooltips and
+                // discipline filtering on every element it can render.
+                // Skipping untagged elements meant a fresh project always
+                // shipped an empty map ("Elements mapped: 0") and the
+                // viewer lost its overlay until users re-published *after*
+                // tagging. Tag/disc/loc/lvl are empty strings when not yet
+                // populated; republishing after the tag pipeline runs
+                // upgrades the map in place.
+                var disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                var loc  = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                var lvl  = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+
+                map[guid] = new JObject
+                {
+                    ["tag"]        = tag ?? "",
+                    ["name"]       = el.Name ?? "",
+                    ["category"]   = el.Category?.Name ?? "",
+                    ["discipline"] = disc,
+                    ["location"]   = loc,
+                    ["level"]      = lvl,
+                    ["elementId"]  = el.Id.Value,
+                };
+                count++;
             }
 
             // Convert feet → mm for the bounds (Revit internal units are feet).
+            // If nothing contributed bounds (e.g. empty 3D view), send zeros so
+            // the server's [Range] validators don't see ±Infinity.
             const double feetToMm = 304.8;
-            bounds = new[]
-            {
-                bb.Min.X * feetToMm, bb.Min.Y * feetToMm, bb.Min.Z * feetToMm,
-                bb.Max.X * feetToMm, bb.Max.Y * feetToMm, bb.Max.Z * feetToMm,
-            };
+            bounds = boundsContributors > 0
+                ? new[]
+                {
+                    bb.Min.X * feetToMm, bb.Min.Y * feetToMm, bb.Min.Z * feetToMm,
+                    bb.Max.X * feetToMm, bb.Max.Y * feetToMm, bb.Max.Z * feetToMm,
+                }
+                : new[] { 0d, 0d, 0d, 0d, 0d, 0d };
             elementCount = count;
 
             File.WriteAllText(outputPath, map.ToString(Newtonsoft.Json.Formatting.Indented), Encoding.UTF8);

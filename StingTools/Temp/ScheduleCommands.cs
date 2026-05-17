@@ -597,8 +597,7 @@ namespace StingTools.Temp
             ["ASS_LVL_COD_TXT"] = new[] { "Level" },
             ["ASS_ZONE_TXT"] = new[] { "Level" },
             ["ASS_DEPARTMENT_ASSIGNMENT_TXT"] = new[] { "Department" },
-            ["BLE_ROOM_NUM_TXT"] = new[] { "Number", "Room Number" },
-            ["ASS_RM_COD_TXT"] = new[] { "Number", "Room Number" },
+            ["ASS_ROOM_NUM_TXT"] = new[] { "Number", "Room Number" },
             // System / discipline
             ["ASS_SYSTEM_TYPE_TXT"] = new[] { "System Type", "System Name", "System Classification" },
             ["ASS_DISCIPLINE_COD_TXT"] = new[] { "Family and Type", "Family" },
@@ -779,7 +778,6 @@ namespace StingTools.Temp
                 "PRJ_TB_REVISION_NR_TXT",
                 "PRJ_TB_REVISION_DATE_TXT",
                 "PRJ_DWG_ISSUE_PURPOSE_TXT",
-                "PRJ_TB_CLIENT_NAME_TXT",
                 "PRJ_COMMENTS_TXT"
             };
 
@@ -794,7 +792,6 @@ namespace StingTools.Temp
                 { "PRJ_TB_REVISION_NR_TXT", "Revision" },
                 { "PRJ_TB_REVISION_DATE_TXT", "Revision Date" },
                 { "PRJ_DWG_ISSUE_PURPOSE_TXT", "Issue Purpose" },
-                { "PRJ_TB_CLIENT_NAME_TXT", "Client" },
                 { "PRJ_COMMENTS_TXT", "Comments" }
             };
 

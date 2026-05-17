@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1.0,
+  "description": "H-19 — Hyperbaric (NFPA 99 Ch.14) + cytotoxic + IVF.",
+  "hboFireZoneRadiusM": 3.0,
+  "hboOxygenSensorRequired": true,
+  "hboSprinklerType": "NFPA 99 Ch.14 deluge",
+  "cytotoxicCpecAchMin": 30,
+  "cytotoxicExternalExhaustRequired": true,
+  "ivfTempCMin": 22, "ivfTempCMax": 24,
+  "ivfPpmVOC_max": 0.5
+}

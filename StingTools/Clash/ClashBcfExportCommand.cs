@@ -11,7 +11,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
 using System.Xml.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -41,22 +40,58 @@ namespace StingTools.Core.Clash
                     return Result.Cancelled;
                 }
 
+                string bcfPath = ExportToBcf(doc, run.Clashes, outDir);
+                if (string.IsNullOrEmpty(bcfPath))
+                {
+                    TaskDialog.Show("STING Clash BCF",
+                        "BCF export failed — see StingTools.log for details.");
+                    return Result.Failed;
+                }
+                TaskDialog.Show("STING Clash BCF",
+                    $"Exported {run.Clashes.Count} topic(s) to BCF 2.1.\n\nSaved: {bcfPath}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ClashBcfExportCommand.Execute", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        /// <summary>
+        /// C6: Reusable export entry point. Returns the path of the written
+        /// .bcfzip on success, empty string on failure. Used by both this
+        /// command's interactive Execute path and ClashRunCommand's auto-
+        /// export-on-critical hook.
+        /// </summary>
+        public static string ExportToBcf(Document doc, List<ClashRecord> clashes, string outDir)
+        {
+            if (doc == null || clashes == null || clashes.Count == 0 || string.IsNullOrEmpty(outDir))
+                return "";
+
+            try
+            {
+                Directory.CreateDirectory(outDir);
                 string stamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
                 string bcfPath = Path.Combine(outDir, $"clashes_{stamp}.bcfzip");
 
-                var snapshotter = new BcfSnapshotter(doc);
+                // D8: Snapshotter now reuses one temp 3D view for the whole
+                //     batch via IDisposable. The using-block guarantees the
+                //     view is cleaned up even on exception.
+                using var snapshotter = new BcfSnapshotter(doc);
                 var snapshotDir = Path.Combine(outDir, $"clash_snapshots_{stamp}");
                 int wroteViewpoints = 0, wroteSnapshots = 0;
 
                 using (var fs = File.Create(bcfPath))
                 using (var zip = new ZipArchive(fs, ZipArchiveMode.Create, leaveOpen: false))
                 {
-                    WriteXmlEntry(zip, "bcf.version", BuildVersionXml());
+                    WriteXmlEntry(zip, "bcf.version", BcfMarkupBuilder.BuildVersionXml());
 
-                    foreach (var c in run.Clashes)
+                    foreach (var c in clashes)
                     {
-                        string topicGuid = DeriveStableGuid(c);
-                        WriteXmlEntry(zip, $"{topicGuid}/markup.bcf", BuildMarkupXml(c, topicGuid));
+                        string topicGuid = BcfMarkupBuilder.DeriveStableGuid(c);
+                        WriteXmlEntry(zip, $"{topicGuid}/markup.bcf", BcfMarkupBuilder.BuildMarkupXml(c, topicGuid));
 
                         // rec-16: Real viewpoint via BcfViewpointBuilder (feet→metre
                         // conversion handled inside — rec-14).
@@ -110,21 +145,14 @@ namespace StingTools.Core.Clash
                     StingLog.Warn($"ClashBcfExport snapshot-dir cleanup: {cleanupEx.Message} (dir: {snapshotDir})");
                 }
 
-                StingLog.Info($"ClashBcfExport: {run.Clashes.Count} topics, {wroteViewpoints} viewpoints, " +
+                StingLog.Info($"ClashBcfExport: {clashes.Count} topics, {wroteViewpoints} viewpoints, " +
                     $"{wroteSnapshots} snapshots → {bcfPath}");
-
-                TaskDialog.Show("STING Clash BCF",
-                    $"Exported {run.Clashes.Count} topic(s) to BCF 2.1.\n\n" +
-                    $"Viewpoints: {wroteViewpoints}\n" +
-                    $"Snapshots:  {wroteSnapshots}\n\n" +
-                    $"Saved: {bcfPath}");
-                return Result.Succeeded;
+                return bcfPath;
             }
             catch (Exception ex)
             {
-                StingLog.Error("ClashBcfExportCommand.Execute", ex);
-                message = ex.Message;
-                return Result.Failed;
+                StingLog.Error("ClashBcfExportCommand.ExportToBcf", ex);
+                return "";
             }
         }
 
@@ -134,98 +162,6 @@ namespace StingTools.Core.Clash
             using var stream = entry.Open();
             using var sw = new StreamWriter(stream, new System.Text.UTF8Encoding(false));
             xdoc.Save(sw);
-        }
-
-        private static XDocument BuildVersionXml()
-        {
-            return new XDocument(
-                new XDeclaration("1.0", "UTF-8", null),
-                new XElement("Version",
-                    new XAttribute("VersionId", "2.1"),
-                    new XElement("DetailedVersion", "2.1")));
-        }
-
-        private static XDocument BuildMarkupXml(ClashRecord c, string topicGuid)
-        {
-            string severity = (c.Severity ?? "MED").ToUpperInvariant();
-            string bcfPriority = severity switch
-            {
-                "CRITICAL" => "Critical",
-                "HIGH"     => "Major",
-                "MED"      => "Normal",
-                "MEDIUM"   => "Normal",
-                "LOW"      => "Minor",
-                _          => "Normal",
-            };
-            string bcfStatus = (c.State ?? "New") switch
-            {
-                "Resolved" => "Closed",
-                "Void"     => "Closed",
-                _          => "Active",
-            };
-
-            string title = $"[{c.Severity ?? "MED"}] {c.MatrixPairId} clash {c.Id}";
-            var description = new System.Text.StringBuilder();
-            description.AppendLine($"Matrix pair: {c.MatrixPairId}");
-            description.AppendLine($"Severity:    {c.Severity}");
-            description.AppendLine($"Tolerance:   {c.Tolerance}");
-            if (c.ElementA != null)
-                description.AppendLine($"Element A:   {c.ElementA.Category}:{c.ElementA.ElementId} (IFC {c.ElementA.IfcGuid})");
-            if (c.ElementB != null)
-                description.AppendLine($"Element B:   {c.ElementB.Category}:{c.ElementB.ElementId} (IFC {c.ElementB.IfcGuid})");
-            if (!string.IsNullOrEmpty(c.ResolutionHint))
-                description.AppendLine($"Suggestion:  {c.ResolutionHint}");
-            if (!string.IsNullOrEmpty(c.GroupId))
-                description.AppendLine($"Group:       {c.GroupId}");
-            description.AppendLine($"Identity:    {c.Identity}");
-            description.AppendLine($"Volume:      {c.VolumeMm3:F0} mm³");
-
-            var creationIso = (c.FirstSeenUtc == default ? DateTime.UtcNow : c.FirstSeenUtc)
-                .ToString("o", CultureInfo.InvariantCulture);
-            var modifiedIso = (c.LastSeenUtc == default ? DateTime.UtcNow : c.LastSeenUtc)
-                .ToString("o", CultureInfo.InvariantCulture);
-
-            var topic = new XElement("Topic",
-                new XAttribute("Guid", topicGuid),
-                new XAttribute("TopicType", "Clash"),
-                new XAttribute("TopicStatus", bcfStatus),
-                new XElement("ReferenceLink", string.IsNullOrEmpty(c.LinkedIssueGuid) ? "" : $"sting-issue://{c.LinkedIssueGuid}"),
-                new XElement("Title", title),
-                new XElement("Priority", bcfPriority),
-                new XElement("Index", 0),
-                new XElement("Labels",
-                    new XElement("Label", "clash"),
-                    new XElement("Label", c.MatrixPairId ?? "")),
-                new XElement("CreationDate", creationIso),
-                new XElement("CreationAuthor", Environment.UserName),
-                new XElement("ModifiedDate", modifiedIso),
-                new XElement("ModifiedAuthor", Environment.UserName),
-                new XElement("AssignedTo", ""),
-                new XElement("Description", description.ToString()),
-                // Lossless round-trip hints so a BCF import can reconstruct a ClashRecord.
-                new XElement("StingClashIdentity", c.Identity ?? ""),
-                new XElement("StingClashId", c.Id ?? ""),
-                new XElement("StingMatrixPairId", c.MatrixPairId ?? ""),
-                new XElement("StingSeverity", c.Severity ?? ""));
-
-            var markup = new XElement("Markup",
-                new XElement("Header"),
-                topic);
-            return new XDocument(new XDeclaration("1.0", "UTF-8", null), markup);
-        }
-
-        /// <summary>
-        /// Derive a stable BCF topic Guid from the ClashIdentity hash so re-exports
-        /// across runs collapse to the same topic (important for ACC issue dedup).
-        /// </summary>
-        private static string DeriveStableGuid(ClashRecord c)
-        {
-            string seed = c?.Identity;
-            if (string.IsNullOrEmpty(seed)) return Guid.NewGuid().ToString();
-            // Pad / truncate the identity hash into a 32-char hex Guid form.
-            using var sha = System.Security.Cryptography.SHA1.Create();
-            var bytes = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(seed));
-            return new Guid(bytes[..16]).ToString();
         }
 
         private static string MinimalViewpointFallback() =>

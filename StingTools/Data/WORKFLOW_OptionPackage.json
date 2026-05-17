@@ -1,0 +1,16 @@
+{
+  "name": "Option Package",
+  "description": "Phase 175 — for the active document's design-option sets, generate a per-option deliverable package: option-isolation 3D views, per-option schedule clones, primary-only clash view, and a comparison audit. Run before issuing client decision packs.",
+  "rollback_on_failure": false,
+  "steps": [
+    { "commandTag": "DesignOptions_Inspect",          "label": "Take a baseline snapshot of all option sets" },
+    { "commandTag": "DesignOptions_Audit",            "label": "Audit schedules / ghost tags / sheet hints", "optional": true },
+    { "commandTag": "DesignOptions_PrimaryClashView", "label": "Mint primary-only 3D clash view" },
+    { "commandTag": "DesignOptions_IsolationView",    "label": "Mint per-option 3D isolation views (interactive)", "optional": true },
+    { "commandTag": "DesignOptions_CloneSchedule",    "label": "Clone the active schedule per option (interactive)", "optional": true },
+    { "commandTag": "DesignOptions_ExportComparison", "label": "Export per-option BOQ + carbon comparison (CSV + HTML)" },
+    { "commandTag": "AnomalyAutoFix",                 "label": "Fix any anomalies introduced by per-option work", "optional": true },
+    { "commandTag": "ValidateTags",                   "label": "Validate ISO 19650 compliance after option work" },
+    { "commandTag": "DocumentBriefcase",              "label": "Bundle outputs into a transmittable briefcase",   "optional": true }
+  ]
+}

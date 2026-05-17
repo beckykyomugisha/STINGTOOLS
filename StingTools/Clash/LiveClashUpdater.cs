@@ -17,6 +17,34 @@ namespace StingTools.Core.Clash
         public static readonly ConcurrentQueue<(string DocGuid, int ElementId)> DirtyQueue =
             new ConcurrentQueue<(string, int)>();
 
+        // Parallel queue consumed by GeometrySyncHandler (delta geometry push to Planscape).
+        // Kept separate from DirtyQueue so clash detection and geometry sync can drain
+        // independently at their own rates without racing on the same queue.
+        public static readonly ConcurrentQueue<(string DocGuid, int ElementId)> GeometrySyncQueue =
+            new ConcurrentQueue<(string, int)>();
+
+        /// <summary>
+        /// Drain all geometry-sync entries that belong to <paramref name="doc"/>.
+        /// Items for other documents are re-enqueued so they aren't lost.
+        /// Returns element IDs (positive = changed, negative = deleted sentinel).
+        /// </summary>
+        public static List<int> DrainGeometrySyncIds(Document doc)
+        {
+            if (doc == null) return new System.Collections.Generic.List<int>();
+            string docGuid = doc.ProjectInformation?.UniqueId ?? doc.PathName ?? "host";
+            var result   = new System.Collections.Generic.List<int>();
+            var requeue  = new System.Collections.Generic.List<(string, int)>();
+            while (GeometrySyncQueue.TryDequeue(out var item))
+            {
+                if (string.Equals(item.DocGuid, docGuid, StringComparison.Ordinal))
+                    result.Add(item.ElementId);
+                else
+                    requeue.Add(item);
+            }
+            foreach (var r in requeue) GeometrySyncQueue.Enqueue(r);
+            return result;
+        }
+
         public UpdaterId GetUpdaterId() => UpdaterGuid;
         public string GetUpdaterName() => "STING Live Clash Updater";
         public string GetAdditionalInformation() => "Queues edited elements for clash re-check.";
@@ -30,12 +58,21 @@ namespace StingTools.Core.Clash
                 string docGuid = doc.ProjectInformation?.UniqueId ?? doc.PathName ?? "host";
                 // ElementId.IntegerValue is obsolete in Revit 2024+; use Value (Int64).
                 foreach (var id in data.GetModifiedElementIds())
+                {
                     DirtyQueue.Enqueue((docGuid, (int)id.Value));
+                    GeometrySyncQueue.Enqueue((docGuid, (int)id.Value));
+                }
                 foreach (var id in data.GetAddedElementIds())
+                {
                     DirtyQueue.Enqueue((docGuid, (int)id.Value));
+                    GeometrySyncQueue.Enqueue((docGuid, (int)id.Value));
+                }
                 // Deleted elements: pushed with -1 sentinel to trigger removal from BVH.
                 foreach (var id in data.GetDeletedElementIds())
+                {
                     DirtyQueue.Enqueue((docGuid, -(int)id.Value));
+                    GeometrySyncQueue.Enqueue((docGuid, -(int)id.Value));
+                }
             }
             catch (Exception ex)
             {
@@ -43,7 +80,7 @@ namespace StingTools.Core.Clash
             }
         }
 
-        public static void Register(UIControlledApplication uiApp, Document sampleDoc)
+        public static void Register(UIControlledApplication uiApp)
         {
             try
             {

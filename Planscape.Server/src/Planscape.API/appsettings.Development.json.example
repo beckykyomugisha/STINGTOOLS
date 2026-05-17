@@ -1,0 +1,12 @@
+{
+  "_comment": "Phase 175 — local dev defaults. Copy this file to appsettings.Development.json (gitignored) when running the API outside docker-compose. The compose file sets Jwt__Key via env var so this file is only needed for `dotnet run` workflows.",
+  "Jwt": {
+    "Key": "DEV-LOCAL-ONLY-rotate-via-env-var-jwt-key-min32"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}

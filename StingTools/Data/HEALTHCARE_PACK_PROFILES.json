@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1.0,
+  "description": "Healthcare Pack profile gates — H-28.",
+  "profiles": {
+    "FULL": {
+      "validators": ["all"],
+      "drawingTypes": ["all"]
+    },
+    "ACUTE": {
+      "validators": ["PressureRegimeValidator","MgasFlowValidator","EesBranchValidator","WaterSafetyValidator","RadShieldValidator","AdvancedRadShieldValidator","AdjacencyValidator","AntiLigatureValidator","RdsCompletenessValidator","IoTStalenessValidator","StructuralLoadValidator","AcousticValidator","EesResilienceValidator","EndoscopeTraceValidator","WasteFlowValidator","RtlsCoverageValidator"],
+      "drawingTypes": ["all"]
+    },
+    "COMMUNITY": {
+      "validators": ["PressureRegimeValidator","MgasFlowValidator","EesBranchValidator","WaterSafetyValidator","AdjacencyValidator","RdsCompletenessValidator","WasteFlowValidator"],
+      "drawingTypes": ["health-rds-A2","health-eqp-pln-A1-1to50","health-water-safety-A1-1to100","health-fire-comp-A1-1to100"]
+    },
+    "DENTAL": {
+      "validators": ["MgasFlowValidator","WaterSafetyValidator","RdsCompletenessValidator","WasteFlowValidator"],
+      "drawingTypes": ["health-rds-A2","health-eqp-pln-A1-1to50"]
+    },
+    "IMAGING-ONLY": {
+      "validators": ["RadShieldValidator","AdvancedRadShieldValidator","StructuralLoadValidator","RtlsCoverageValidator","AcousticValidator"],
+      "drawingTypes": ["health-rad-shield-A1-1to50","health-mri-zoning-A1-1to50","health-struct-loads-A1-1to100"]
+    },
+    "MENTAL-HEALTH": {
+      "validators": ["AntiLigatureValidator","AdjacencyValidator","WaterSafetyValidator","RdsCompletenessValidator","AcousticValidator"],
+      "drawingTypes": ["health-rds-A2","health-ligature-pln-A1-1to50","health-acoustic-A1-1to100","health-fire-comp-A1-1to100"]
+    }
+  }
+}

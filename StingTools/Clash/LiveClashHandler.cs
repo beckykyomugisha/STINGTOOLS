@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
@@ -15,6 +16,13 @@ namespace StingTools.Core.Clash
     {
         private static LiveClashHandler _inst;
         public static ExternalEvent Event { get; private set; }
+
+        // Round-robin cursor across the watched-element set so a coordinator
+        // pinning hundreds of clashes doesn't starve the 200 ms budget on a
+        // single tick. We always start at _watchedCursor and advance through
+        // the watched ids in stable sorted order; on subsequent ticks the
+        // cursor resumes where it left off.
+        private int _watchedCursor;
 
         private LiveClashHandler() { }
 
@@ -73,6 +81,50 @@ namespace StingTools.Core.Clash
                     catch (Exception ex)
                     {
                         StingLog.Warn($"LiveClash processOne {entry.ElementId}: {ex.Message}");
+                    }
+                }
+
+                // F9: Re-evaluate watched elements every tick even if they
+                //     weren't in the dirty queue. Lets coordinators "pin" a
+                //     hard-to-investigate clash so it always reflects current
+                //     state without waiting for an unrelated edit nearby.
+                //
+                //     Round-robin across the watched set instead of restarting
+                //     from index 0 every tick — with hundreds of pinned ids
+                //     the prior pass would always re-check the first N within
+                //     budget and never reach the tail. The cursor is preserved
+                //     on the handler instance and resumes on the next raise.
+                if (sw.ElapsedMilliseconds < 200)
+                {
+                    var watched = session.WatchedSnapshot();
+                    if (watched.Count > 0)
+                    {
+                        // Stable order so the cursor maps to the same id across
+                        // ticks even when the underlying HashSet enumerates
+                        // differently between calls.
+                        var ordered = watched.OrderBy(x => x).ToList();
+                        if (_watchedCursor >= ordered.Count) _watchedCursor = 0;
+                        int start = _watchedCursor;
+                        int processedWatched = 0;
+                        for (int i = 0; i < ordered.Count; i++)
+                        {
+                            if (sw.ElapsedMilliseconds >= 200) break;
+                            int idx = (start + i) % ordered.Count;
+                            int watchedId = ordered[idx];
+                            try
+                            {
+                                var r = session.RefreshElement(watchedId);
+                                foreach (var id in r.NewlyFlagged) { toClear.Remove(id); toFlag.Add(id); }
+                                foreach (var id in r.NewlyCleared) { toFlag.Remove(id); toClear.Add(id); }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"LiveClash watched {watchedId}: {ex.Message}"); }
+                            processedWatched++;
+                        }
+                        _watchedCursor = (start + processedWatched) % ordered.Count;
+                        // If we didn't finish in this tick's remaining budget,
+                        // re-raise so the next tick continues from the cursor.
+                        if (processedWatched < ordered.Count)
+                            Event?.Raise();
                     }
                 }
 

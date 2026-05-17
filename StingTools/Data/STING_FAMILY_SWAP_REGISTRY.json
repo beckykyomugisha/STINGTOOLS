@@ -1,0 +1,267 @@
+{
+  "version": "1.0",
+  "_notes": [
+    "Maps STING seed-family identifiers to candidate manufacturer",
+    "replacements. SwapToManufacturerCommand reads STING_SEED_FAMILY_TXT",
+    "from each selected instance, looks up matching candidates here, and",
+    "presents them for the user to pick.",
+    "",
+    "MatchRules — each candidate's familyNamePattern (regex) is matched",
+    "against loaded Family.Name in the project. Multiple matches are",
+    "ranked by Priority (lower = preferred); ties broken by typeNamePattern.",
+    "",
+    "Project teams override this corporate baseline by dropping",
+    "<project>/_BIM_COORD/family_swap_registry.json — entries are merged,",
+    "project values win on collision."
+  ],
+  "seeds": [
+    {
+      "seedId": "STING_SEED_LightingFixture",
+      "category": "Lighting Fixtures",
+      "candidates": [
+        { "familyNamePattern": "(?i)recessed.*led.*600",     "label": "600x600 LED panel",          "priority": 10 },
+        { "familyNamePattern": "(?i)downlight",              "label": "Downlight",                  "priority": 20 },
+        { "familyNamePattern": "(?i)pendant",                "label": "Pendant luminaire",          "priority": 30 },
+        { "familyNamePattern": "(?i)linear.*led",            "label": "Linear LED",                 "priority": 40 },
+        { "familyNamePattern": "(?i)emergency",              "label": "Emergency luminaire",        "priority": 50 }
+      ]
+    },
+    {
+      "seedId": "STING_SEED_ElectricalFixture",
+      "category": "Electrical Fixtures",
+      "candidates": [
+        { "familyNamePattern": "(?i)socket.*(2|two|double)",  "label": "2-gang socket",              "priority": 10 },
+        { "familyNamePattern": "(?i)socket.*(1|one|single)",  "label": "1-gang socket",              "priority": 20 },
+        { "familyNamePattern": "(?i)switch.*(2|two)",         "label": "2-gang switch",              "priority": 30 },
+        { "familyNamePattern": "(?i)data.*outlet",            "label": "Data outlet",                "priority": 40 },
+        { "familyNamePattern": "(?i)floor.*box",              "label": "Floor box",                  "priority": 50 },
+        { "familyNamePattern": "(?i)fcu",                     "label": "Fused connection unit",      "priority": 60 }
+      ]
+    },
+    {
+      "seedId": "STING_SEED_ElectricalEquipment",
+      "category": "Electrical Equipment",
+      "candidates": [
+        { "familyNamePattern": "(?i)distribution.*board",     "label": "Distribution board (DB)",    "priority": 10 },
+        { "familyNamePattern": "(?i)main.*switch.*board",     "label": "Main switchboard (MSB)",     "priority": 20 },
+        { "familyNamePattern": "(?i)consumer.*unit",          "label": "Consumer unit",              "priority": 30 },
+        { "familyNamePattern": "(?i)isolator",                "label": "Isolator",                   "priority": 40 },
+        { "familyNamePattern": "(?i)junction.*box|j-?box",    "label": "Junction box",               "priority": 50 },
+        { "familyNamePattern": "(?i)transformer",             "label": "Transformer",                "priority": 60 }
+      ]
+    },
+    {
+      "seedId": "STING_SEED_JunctionBox",
+      "category": "Electrical Equipment",
+      "_notes": "Auto-placed by JunctionBoxAutoPlacer at every BS 7671 §522.8.5 break-point. Swap to a manufacturer pull-box family once a product line is selected.",
+      "candidates": [
+        { "familyNamePattern": "(?i)hensel.*(box|kvk)",       "label": "Hensel KVK",                 "priority": 10 },
+        { "familyNamePattern": "(?i)wiska",                   "label": "Wiska Combi",                "priority": 15 },
+        { "familyNamePattern": "(?i)spelsberg",               "label": "Spelsberg Abox",             "priority": 20 },
+        { "familyNamePattern": "(?i)pull.*box",               "label": "Pull box",                   "priority": 30 },
+        { "familyNamePattern": "(?i)draw.*in.*box",           "label": "Draw-in box",                "priority": 35 },
+        { "familyNamePattern": "(?i)junction.*box|j-?box",    "label": "Generic junction box",       "priority": 50 },
+        { "familyNamePattern": "(?i)adaptable.*box",          "label": "Adaptable box",              "priority": 60 }
+      ]
+    },
+    {
+      "seedId": "STING_SEED_FireAlarmDevice",
+      "category": "Fire Alarm Devices",
+      "candidates": [
+        { "familyNamePattern": "(?i)smoke.*(detector|optical)",  "label": "Optical smoke detector",  "priority": 10 },
+        { "familyNamePattern": "(?i)heat.*detector",             "label": "Heat detector",           "priority": 20 },
+        { "familyNamePattern": "(?i)multi.*sensor",              "label": "Multi-sensor",            "priority": 30 },
+        { "familyNamePattern": "(?i)call.*point|mcp",            "label": "Manual call point",       "priority": 40 },
+        { "familyNamePattern": "(?i)sounder.*beacon|vad",        "label": "Sounder/beacon (VAD)",    "priority": 50 },
+        { "familyNamePattern": "(?i)beam.*detector",             "label": "Beam detector",           "priority": 60 }
+      ]
+    },
+    {
+      "seedId": "STING_SEED_SpecialityEquipment",
+      "category": "Specialty Equipment",
+      "_notes": [
+        "ulSystemMatch (Phase 178f) — when set, the SwapToManufacturer dialog",
+        "additionally checks the source instance's PEN_FIRE_RATING_TXT,",
+        "PEN_OD_MM and host-type before offering this candidate. Each match",
+        "rule is an object with optional fireRatingPattern, hostTypePattern,",
+        "minOdMm, maxOdMm, plus a ulSystem field carrying the certified UL",
+        "or EN 1366-3 system reference. Stamped on PEN_CERTIFICATION_TXT at",
+        "swap time so the Penetration Register reflects the chosen system."
+      ],
+      "candidates": [
+        {
+          "familyNamePattern": "(?i)hilti.*(cfs|frp)",
+          "label": "Hilti firestop",
+          "priority": 10,
+          "ulSystemMatch": [
+            { "fireRatingPattern": "FR60",  "hostTypePattern": "FLOOR|WALL", "minOdMm": 0,   "maxOdMm": 50,  "ulSystem": "Hilti CFS-S SIL — UL System W-L-1054 / EN 1366-3" },
+            { "fireRatingPattern": "FR60",  "hostTypePattern": "FLOOR|WALL", "minOdMm": 50,  "maxOdMm": 200, "ulSystem": "Hilti CP 611A — UL System W-L-2079 / EN 1366-3" },
+            { "fireRatingPattern": "FR120", "hostTypePattern": "FLOOR|WALL", "minOdMm": 0,   "maxOdMm": 200, "ulSystem": "Hilti CFS-CT — UL System F-A-1023 / EN 1366-3" }
+          ]
+        },
+        {
+          "familyNamePattern": "(?i)promat.*(seal|frp)",
+          "label": "Promat firestop",
+          "priority": 15,
+          "ulSystemMatch": [
+            { "fireRatingPattern": "FR60",  "hostTypePattern": "FLOOR|WALL", "ulSystem": "Promaseal-A — EN 1366-3 EI60" },
+            { "fireRatingPattern": "FR120", "hostTypePattern": "FLOOR|WALL", "ulSystem": "Promaseal-PL — EN 1366-3 EI120" },
+            { "fireRatingPattern": "FR60",  "hostTypePattern": "WALL",       "ulSystem": "Promaseal Bandage — EN 1366-3 EI60" }
+          ]
+        },
+        {
+          "familyNamePattern": "(?i)nullifire",
+          "label": "Nullifire firestop",
+          "priority": 20,
+          "ulSystemMatch": [
+            { "fireRatingPattern": "FR60",  "ulSystem": "Nullifire FB1000 — EN 1366-3 EI60" },
+            { "fireRatingPattern": "FR120", "ulSystem": "Nullifire FS702 — EN 1366-3 EI120" }
+          ]
+        },
+        {
+          "familyNamePattern": "(?i)sti|specified.*technologies",
+          "label": "STI Firestop (SpecSeal)",
+          "priority": 22,
+          "ulSystemMatch": [
+            { "fireRatingPattern": "FR60",  "hostTypePattern": "FLOOR|WALL", "ulSystem": "STI SpecSeal SSS — UL System W-L-1054" },
+            { "fireRatingPattern": "FR120", "hostTypePattern": "FLOOR|WALL", "ulSystem": "STI SpecSeal LCI — UL System F-A-2078" }
+          ]
+        },
+        {
+          "familyNamePattern": "(?i)3m.*(firebarrier|firestop)",
+          "label": "3M Fire Barrier",
+          "priority": 24,
+          "ulSystemMatch": [
+            { "fireRatingPattern": "FR60",  "ulSystem": "3M Fire Barrier IC 15WB+ — UL System W-L-1112" },
+            { "fireRatingPattern": "FR120", "ulSystem": "3M FireDam Spray 200 — UL System F-A-2073" }
+          ]
+        },
+        { "familyNamePattern": "(?i)rockwool.*firestop",      "label": "Rockwool firestop",          "priority": 25 },
+        { "familyNamePattern": "(?i)frp.*penetration",        "label": "Generic FRP penetration",    "priority": 50 },
+        { "familyNamePattern": "(?i)sleeve",                  "label": "Sleeve",                     "priority": 60 }
+      ]
+    },
+    {
+      "seedId": "STING_SEED_FireDamper",
+      "category": "Specialty Equipment",
+      "_notes": [
+        "Fire damper swap candidates. ulSystemMatch carries the BS EN 15650",
+        "classification (EI##S etc.) and any UL-555 listing the vendor",
+        "publishes."
+      ],
+      "candidates": [
+        {
+          "familyNamePattern": "(?i)hilti.*(damper|fire-?damper)",
+          "label": "Hilti fire damper",
+          "priority": 10,
+          "ulSystemMatch": [
+            { "fireRatingPattern": "FR60",  "ulSystem": "Hilti FD-2 — BS EN 15650 EI60S / UL 555 1.5h" }
+          ]
+        },
+        {
+          "familyNamePattern": "(?i)trox.*(fkrs|fk2|fkb)",
+          "label": "TROX FKRS / FKB damper",
+          "priority": 12,
+          "ulSystemMatch": [
+            { "fireRatingPattern": "FR60",  "ulSystem": "TROX FKRS-EU — EN 15650 EI60S" },
+            { "fireRatingPattern": "FR120", "ulSystem": "TROX FKB-EU — EN 15650 EI120S" }
+          ]
+        },
+        {
+          "familyNamePattern": "(?i)halton.*(fdr|fds)",
+          "label": "Halton FDR / FDS damper",
+          "priority": 14,
+          "ulSystemMatch": [
+            { "fireRatingPattern": "FR60",  "ulSystem": "Halton FDR — EN 15650 EI60S" },
+            { "fireRatingPattern": "FR120", "ulSystem": "Halton FDS — EN 15650 EI120S" }
+          ]
+        },
+        {
+          "familyNamePattern": "(?i)ruskin.*(fsd|cfsd|dibd)",
+          "label": "Ruskin / Air & Combustion fire damper",
+          "priority": 16,
+          "ulSystemMatch": [
+            { "fireRatingPattern": "FR60",  "ulSystem": "Ruskin FSD60 — UL 555 1.5h dynamic" }
+          ]
+        },
+        { "familyNamePattern": "(?i)fire.*damper",            "label": "Generic fire damper",        "priority": 50 }
+      ]
+    },
+    {
+      "seedId": "STING_SEED_AcousticSeal",
+      "category": "Specialty Equipment",
+      "candidates": [
+        {
+          "familyNamePattern": "(?i)cms.*acoustic",
+          "label": "CMS Danskin acoustic seal",
+          "priority": 10,
+          "ulSystemMatch": [
+            { "fireRatingPattern": "",      "ulSystem": "CMS Acoustic Sealant 600 — Approved Doc E Rw 45 dB" }
+          ]
+        },
+        {
+          "familyNamePattern": "(?i)kingspan.*acoustic|isover",
+          "label": "Kingspan / Isover acoustic seal",
+          "priority": 15,
+          "ulSystemMatch": [
+            { "fireRatingPattern": "",      "ulSystem": "Mineral wool + Acoustical Sealant — BS 8233 Rw 50 dB" }
+          ]
+        },
+        { "familyNamePattern": "(?i)acoustic.*seal",          "label": "Generic acoustic seal",      "priority": 50 }
+      ]
+    },
+    {
+      "seedId": "STING_SEED_PlumbingFixture",
+      "category": "Plumbing Fixtures",
+      "candidates": [
+        { "familyNamePattern": "(?i)wc|toilet|water.*closet", "label": "WC",                         "priority": 10 },
+        { "familyNamePattern": "(?i)basin|lavatory",          "label": "Wash basin",                 "priority": 20 },
+        { "familyNamePattern": "(?i)urinal",                  "label": "Urinal",                     "priority": 30 },
+        { "familyNamePattern": "(?i)shower",                  "label": "Shower",                     "priority": 40 },
+        { "familyNamePattern": "(?i)sink",                    "label": "Sink",                       "priority": 50 }
+      ]
+    },
+    {
+      "seedId": "STING_SEED_AirTerminal",
+      "category": "Air Terminals",
+      "candidates": [
+        { "familyNamePattern": "(?i)diffuser.*square|swirl",  "label": "Square / swirl diffuser",    "priority": 10 },
+        { "familyNamePattern": "(?i)slot.*diffuser",          "label": "Slot diffuser",              "priority": 20 },
+        { "familyNamePattern": "(?i)grille.*supply",          "label": "Supply grille",              "priority": 30 },
+        { "familyNamePattern": "(?i)grille.*extract|return",  "label": "Extract / return grille",    "priority": 40 },
+        { "familyNamePattern": "(?i)louvre",                  "label": "Louvre",                     "priority": 50 }
+      ]
+    },
+    {
+      "seedId": "STING_SEED_MechanicalEquipment",
+      "category": "Mechanical Equipment",
+      "candidates": [
+        { "familyNamePattern": "(?i)ahu|air.*handling",       "label": "Air-handling unit",          "priority": 10 },
+        { "familyNamePattern": "(?i)fcu|fan.*coil",           "label": "Fan-coil unit",              "priority": 20 },
+        { "familyNamePattern": "(?i)chiller",                 "label": "Chiller",                    "priority": 30 },
+        { "familyNamePattern": "(?i)boiler",                  "label": "Boiler",                     "priority": 40 },
+        { "familyNamePattern": "(?i)pump",                    "label": "Pump",                       "priority": 50 }
+      ]
+    },
+    {
+      "seedId": "STING_SEED_Sprinkler",
+      "category": "Sprinklers",
+      "candidates": [
+        { "familyNamePattern": "(?i)pendant",                 "label": "Pendant sprinkler",          "priority": 10 },
+        { "familyNamePattern": "(?i)upright",                 "label": "Upright sprinkler",          "priority": 20 },
+        { "familyNamePattern": "(?i)sidewall",                "label": "Sidewall sprinkler",         "priority": 30 },
+        { "familyNamePattern": "(?i)concealed",               "label": "Concealed sprinkler",        "priority": 40 }
+      ]
+    },
+    {
+      "seedId": "STING_SEED_CommunicationDevice",
+      "category": "Communication Devices",
+      "candidates": [
+        { "familyNamePattern": "(?i)wifi|access.*point|wap",  "label": "Wi-Fi access point",         "priority": 10 },
+        { "familyNamePattern": "(?i)data.*outlet|rj45",       "label": "Data outlet (RJ45)",         "priority": 20 },
+        { "familyNamePattern": "(?i)patch.*panel",            "label": "Patch panel",                "priority": 30 },
+        { "familyNamePattern": "(?i)cctv|camera",             "label": "CCTV camera",                "priority": 40 }
+      ]
+    }
+  ]
+}

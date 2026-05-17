@@ -24,24 +24,29 @@ namespace StingTools.Core.Placement
     /// Stateless scorer. Caller passes in the room + rule, plus a
     /// collection of already-placed points used for MinSpacing checks.
     /// </summary>
-    public class PlacementScorer
+    public partial class PlacementScorer
     {
         /// <summary>
         /// Composite score below this value rejects the candidate
-        /// (returns empty list).
+        /// (returns empty list).  Phase 139 G — lowered from 0.40 to
+        /// 0.35 so coverage-guarantee mode keeps borderline candidates.
         /// </summary>
-        public const double ScoreThreshold = 0.40;
+        public const double ScoreThreshold = 0.35;
 
         /// <summary>
         /// Millimetre-to-feet conversion (Revit's internal unit).
         /// </summary>
         private const double MmToFt = 1.0 / 304.8;
 
-        private const double AnchorWeight    = 0.40;
-        private const double SideWeight      = 0.25;
-        private const double SpacingWeight   = 0.20;
-        private const double CollisionWeight = 0.10;
-        private const double SymmetryWeight  = 0.05;
+        // Phase 139.2 P — re-weighted scoring; coverage-contribution and
+        // manufacturer-resolution scores added.  Sum = 1.00.
+        private const double AnchorWeight       = 0.35;
+        private const double SideWeight         = 0.22;
+        private const double SpacingWeight      = 0.18;
+        private const double CollisionWeight    = 0.10;
+        private const double SymmetryWeight     = 0.05;
+        private const double CoverageWeight     = 0.07;
+        private const double ManufacturerWeight = 0.03;
 
         private readonly Document _doc;
         private LightingGridCalculator _lightingGrid;
@@ -125,12 +130,15 @@ namespace StingTools.Core.Placement
             {
                 var candidate = BuildCandidate(room, rule, anchor, alreadyPlaced);
                 if (candidate == null) continue;
-                if (candidate.Score < ScoreThreshold) continue;
+                // Phase 139 G — when GuaranteeCoverage = true, never reject for low score;
+                // mark as warning candidate instead.
+                if (!rule.GuaranteeCoverage && candidate.Score < ScoreThreshold) continue;
                 if (candidate.HasHardCollision) continue;
                 results.Add(candidate);
             }
 
-            return results.OrderByDescending(c => c.Score).ToList();
+            results.Sort((a, b) => b.Score.CompareTo(a.Score));
+            return results;
         }
 
         /// <summary>

@@ -30,6 +30,77 @@ namespace StingTools.Tags
         /// <summary>ENH-03: Default clearance margin (in feet) for leader elbow avoidance.</summary>
         private const double LeaderClearanceMargin = 0.5;
 
+        // ── B-1 SpatialGrid view cache ───────────────────────────────────
+        // Memoise the (existing-tag) SpatialGrid per (docKey, viewId) so two
+        // back-to-back placement runs against the same view don't both walk
+        // every IndependentTag and rebuild a 300-entry grid. TTL of 30 s is
+        // sufficient for sequential command runs and falls back to a fresh
+        // build when the user makes intervening edits.
+        private static readonly object _spatialGridCacheLock = new object();
+        private static readonly Dictionary<(string docKey, long viewId), (SpatialGrid grid, DateTime stamp, double cellSize, int tagCount)>
+            _spatialGridCache = new Dictionary<(string, long), (SpatialGrid, DateTime, double, int)>();
+        private static readonly TimeSpan _spatialGridTtl = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// B-1: invalidate the cached SpatialGrid for a given view (or for the
+        /// whole document when viewId is invalid). Public so external callers
+        /// can flush after non-trivial tag edits.
+        /// </summary>
+        public static void InvalidateViewCache(Document doc, ElementId viewId)
+        {
+            string docKey = doc?.PathName ?? doc?.Title ?? "";
+            lock (_spatialGridCacheLock)
+            {
+                if (viewId == null || viewId == ElementId.InvalidElementId)
+                {
+                    var keysToRemove = _spatialGridCache.Keys
+                        .Where(k => string.Equals(k.docKey, docKey, StringComparison.Ordinal))
+                        .ToList();
+                    foreach (var k in keysToRemove) _spatialGridCache.Remove(k);
+                }
+                else
+                {
+                    var key = (docKey, viewId.Value);
+                    if (_spatialGridCache.ContainsKey(key)) _spatialGridCache.Remove(key);
+                }
+            }
+        }
+
+        internal static bool TryGetCachedSpatialGrid(Document doc, View view, double cellSize, int existingTagCount, out SpatialGrid grid)
+        {
+            grid = null;
+            if (doc == null || view == null) return false;
+            string docKey = doc.PathName ?? doc.Title ?? "";
+            var key = (docKey, view.Id.Value);
+            lock (_spatialGridCacheLock)
+            {
+                if (_spatialGridCache.TryGetValue(key, out var entry))
+                {
+                    bool fresh = (DateTime.UtcNow - entry.stamp) < _spatialGridTtl;
+                    bool cellMatch = Math.Abs(entry.cellSize - cellSize) < 1e-9;
+                    bool countMatch = entry.tagCount == existingTagCount;
+                    if (fresh && cellMatch && countMatch)
+                    {
+                        grid = entry.grid;
+                        return true;
+                    }
+                    _spatialGridCache.Remove(key);
+                }
+            }
+            return false;
+        }
+
+        internal static void StoreSpatialGrid(Document doc, View view, double cellSize, int existingTagCount, SpatialGrid grid)
+        {
+            if (doc == null || view == null || grid == null) return;
+            string docKey = doc.PathName ?? doc.Title ?? "";
+            var key = (docKey, view.Id.Value);
+            lock (_spatialGridCacheLock)
+            {
+                _spatialGridCache[key] = (grid, DateTime.UtcNow, cellSize, existingTagCount);
+            }
+        }
+
         // ── Grid-based spatial index ─────────────────────────────────────
 
         /// <summary>
@@ -362,7 +433,7 @@ namespace StingTools.Tags
         /// overrides then the bundled SCALE_TIERS.json then a hardcoded
         /// fallback. Result is mm → ft × viewScale, clamped to the cap.
         /// </summary>
-        public static double GetModelOffset(View view, double baseOffset = 0.01)
+        public static int ReadTagPriority(Element host)
         {
             int viewScale = (view != null && view.Scale > 0) ? view.Scale : 100;
             Core.ScaleTiers.Tier tier = Core.ScaleTiers.ForView(view);
@@ -396,6 +467,9 @@ namespace StingTools.Tags
             {
                 MinX = minX; MinY = minY; MaxX = maxX; MaxY = maxY;
             }
+
+            /// <summary>B-3: zero-extent placeholder (used when bbox estimation fails).</summary>
+            public bool IsEmpty => MinX == 0 && MaxX == 0 && MinY == 0 && MaxY == 0;
 
             public bool Overlaps(Box2D other)
             {
@@ -705,7 +779,7 @@ namespace StingTools.Tags
                 var bic = (BuiltInCategory)cat.Id.Value;
                 return TagFamilyConfig.GetFamilyName(bic);
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return $"{TagFamilyConfig.FamilyPrefix} - {cat.Name} Tag"; }
+            catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] GetStingFamilyName BIC cast: {ex.Message}"); return $"{TagFamilyConfig.FamilyPrefix} - {cat.Name} Tag"; }
         }
 
         // ── View crop box helper ─────────────────────────────────────
@@ -719,7 +793,7 @@ namespace StingTools.Tags
                 if (crop == null) return null;
                 return Box2D.FromBoundingBox(crop);
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
+            catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] GetViewCropBox: {ex.Message}"); return null; }
         }
 
         // ── Performance: suppress annotation regen ───────────────────
@@ -797,6 +871,50 @@ namespace StingTools.Tags
         public static SkipBreakdown LastSkipBreakdown { get; private set; } = new SkipBreakdown();
 
         /// <summary>
+        /// B-4: filter the candidate element list down to those whose derived
+        /// discipline matches the active view's <see cref="DrawingType.Discipline"/>.
+        /// Returns the number of elements dropped. No-op when the view is not
+        /// stamped, the drawing type can't be resolved, or its discipline is "*"
+        /// / empty (all-discipline / coordination view).
+        /// </summary>
+        internal static int ApplyDrawingTypeDisciplineFilter(
+            Document doc, View view, List<Element> elements)
+        {
+            if (doc == null || view == null || elements == null || elements.Count == 0) return 0;
+            string dtId = null;
+            // GAP-N: route through Stamper.Read so a template-controlled
+            // pack=…|cs=… stamp doesn't leak into the registry lookup.
+            try { dtId = StingTools.Core.Drawing.DrawingTypeStamper.Read(view); }
+            catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] DrawingTypeStamper.Read: {ex.Message}"); return 0; }
+            if (string.IsNullOrWhiteSpace(dtId)) return 0;
+
+            StingTools.Core.Drawing.DrawingType dt;
+            try { dt = StingTools.Core.Drawing.DrawingTypeRegistry.Get(doc, dtId); }
+            catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] DrawingTypeRegistry.Get({dtId}): {ex.Message}"); return 0; }
+            if (dt == null) return 0;
+            string disc = dt.Discipline;
+            if (string.IsNullOrWhiteSpace(disc) || disc == "*") return 0;
+
+            int before = elements.Count;
+            elements.RemoveAll(e =>
+            {
+                try
+                {
+                    string elDisc = ParameterHelpers.GetString(e, ParamRegistry.DISC);
+                    if (string.IsNullOrEmpty(elDisc))
+                    {
+                        string cat = ParameterHelpers.GetCategoryName(e);
+                        if (!TagConfig.DiscMap.TryGetValue(cat, out elDisc) || string.IsNullOrEmpty(elDisc))
+                            return false; // unknown discipline — leave for placement, no false drops
+                    }
+                    return !string.Equals(elDisc, disc, StringComparison.OrdinalIgnoreCase);
+                }
+                catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] DrawingType discipline filter: {ex.Message}"); return false; }
+            });
+            return before - elements.Count;
+        }
+
+        /// <summary>
         /// Enhanced tag placement with grid spatial index, 16 candidates, alignment
         /// bonus, view crop boundary awareness, and performance optimization.
         /// </summary>
@@ -832,6 +950,14 @@ namespace StingTools.Tags
 
             if (tagOnlyUntagged)
                 elements = elements.Where(e => !taggedIds.Contains(e.Id)).ToList();
+
+            // B-4: when the active view is stamped with a DrawingType, restrict
+            // visual placement to elements whose derived discipline matches the
+            // drawing type's discipline (skip when the type's discipline is "*"
+            // or empty). Avoids planting electrical tags on architectural plans.
+            int filteredOut = ApplyDrawingTypeDisciplineFilter(doc, view, elements);
+            if (filteredOut > 0)
+                StingLog.Info($"SmartTagPlacement: DrawingType discipline filter dropped {filteredOut} of {elements.Count + filteredOut} candidate elements");
 
             if (elements.Count == 0) return (0, 0, 0);
 
@@ -873,29 +999,68 @@ namespace StingTools.Tags
             double tagHeight = offset * 1.0;
             double cellSize = Math.Max(tagWidth, tagHeight) * 2.0;
 
-            // Build spatial grid from existing tags
-            var grid = new SpatialGrid(cellSize);
+            // B-2: pre-sort placement candidates by TAG_PRIORITY_INT desc so
+            // critical (priority 10) elements claim optimal positions first
+            // and only optional (priority 0) elements end up with leaders.
+            // Stable sort is preserved by OrderByDescending (LINQ).
+            elements = elements
+                .OrderByDescending(e => ParameterHelpers.GetInt(e, "TAG_PRIORITY_INT", 5))
+                .ToList();
+
+            // B-1: try the cache before walking every existing tag.
             var tagYs = new List<double>();
             var tagXs = new List<double>();
-
-            foreach (var tag in existingTags)
+            SpatialGrid grid;
+            bool gridFromCache = TryGetCachedSpatialGrid(doc, view, cellSize, existingTags.Count, out grid);
+            if (gridFromCache)
             {
-                BoundingBoxXYZ bb = tag.get_BoundingBox(view);
-                if (bb != null)
+                // Cached grid still needs the per-tag center coordinates for
+                // alignment scoring — those are cheap to recompute from the
+                // existing-tag bounding boxes. B-3: do that without the
+                // TransactionGroup workaround since the grid itself is reused.
+                foreach (var tag in existingTags)
                 {
+                    BoundingBoxXYZ bb = tag.get_BoundingBox(view);
+                    if (bb == null) continue;
                     var box = Box2D.FromBoundingBox(bb);
-                    grid.Insert(box);
                     tagYs.Add(box.CenterY);
                     tagXs.Add(box.CenterX);
                 }
             }
-
-            // Also register element bounding boxes for element-overlap avoidance
-            foreach (var elem in elements)
+            else
             {
-                BoundingBoxXYZ bb = elem.get_BoundingBox(view);
-                if (bb != null)
-                    grid.Insert(Box2D.FromBoundingBox(bb));
+                grid = new SpatialGrid(cellSize);
+                // B-3: collect bounding boxes in a batched pass so we don't
+                // open one TransactionGroup per tag. Tags whose bbox is null
+                // get a width-by-text approximation in
+                // EstimateTagBoxFallback so the grid still reserves space.
+                foreach (var tag in existingTags)
+                {
+                    BoundingBoxXYZ bb = tag.get_BoundingBox(view);
+                    Box2D box;
+                    if (bb != null)
+                    {
+                        box = Box2D.FromBoundingBox(bb);
+                    }
+                    else
+                    {
+                        box = EstimateTagBoxFallback(tag, view, tagWidth, tagHeight);
+                        if (box.IsEmpty) continue;
+                    }
+                    grid.Insert(box);
+                    tagYs.Add(box.CenterY);
+                    tagXs.Add(box.CenterX);
+                }
+
+                // Also register element bounding boxes for element-overlap avoidance
+                foreach (var elem in elements)
+                {
+                    BoundingBoxXYZ bb = elem.get_BoundingBox(view);
+                    if (bb != null)
+                        grid.Insert(Box2D.FromBoundingBox(bb));
+                }
+
+                StoreSpatialGrid(doc, view, cellSize, existingTags.Count, grid);
             }
 
             Box2D? viewCrop = GetViewCropBox(view);
@@ -1159,7 +1324,7 @@ namespace StingTools.Tags
                             if (tag != null) placed++;
                             else skipped++;
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; }
+                        catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] IndependentTag.Create on linked view: {ex.Message}"); skipped++; }
                     }
                 }
                 catch (Exception ex)
@@ -1378,7 +1543,7 @@ namespace StingTools.Tags
                         useLeader, orient, tagPos);
                     if (tag != null) placed++;
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; }
+                catch (Exception ex) { StingLog.Warn($"[PlacementPreset] IndependentTag.Create from preset: {ex.Message}"); skipped++; }
             }
 
             return (placed, skipped);
@@ -1429,7 +1594,7 @@ namespace StingTools.Tags
             var tags = new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(IndependentTag))
                 .Cast<IndependentTag>()
-                .OrderBy(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0.0; } })
+                .OrderBy(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"[AlignTagBands] Read TagHeadPosition.Y for sort: {ex.Message}"); return 0.0; } })
                 .ToList();
 
             if (tags.Count < 2) return 0;
@@ -1439,8 +1604,8 @@ namespace StingTools.Tags
             for (int i = 1; i < tags.Count; i++)
             {
                 double prevY, thisY;
-                try { prevY = tags[i - 1].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); prevY = 0; }
-                try { thisY = tags[i].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); thisY = 0; }
+                try { prevY = tags[i - 1].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"[AlignTagBands] Read prev TagHeadPosition.Y: {ex.Message}"); prevY = 0; }
+                try { thisY = tags[i].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"[AlignTagBands] Read this TagHeadPosition.Y: {ex.Message}"); thisY = 0; }
 
                 if (Math.Abs(thisY - prevY) <= tagHeightEstimate * 1.2)
                     current.Add(tags[i]);
@@ -1455,7 +1620,7 @@ namespace StingTools.Tags
             int moved = 0;
             foreach (var group in groups)
             {
-                var ys = group.Select(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0.0; } })
+                var ys = group.Select(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"[AlignTagBands] Read group TagHeadPosition.Y: {ex.Message}"); return 0.0; } })
                     .OrderBy(y => y).ToList();
                 double medianY = ys[ys.Count / 2];
                 foreach (var tag in group)
@@ -2418,7 +2583,7 @@ namespace StingTools.Tags
                 .Where(f =>
                 {
                     try { return f.FamilyCategory?.CategoryType == CategoryType.Annotation; }
-                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
+                    catch (Exception ex) { StingLog.Warn($"[BatchTagTextSize] Read FamilyCategory.CategoryType: {ex.Message}"); return false; }
                 })
                 .OrderBy(f => f.Name)
                 .ToList();
@@ -2757,7 +2922,7 @@ namespace StingTools.Tags
             }
 
             var typeIds = new HashSet<ElementId>(
-                scope.Select(e => { try { return e.GetTypeId(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ElementId.InvalidElementId; } })
+                scope.Select(e => { try { return e.GetTypeId(); } catch (Exception ex) { StingLog.Warn($"[SwitchTagPosition] Element.GetTypeId: {ex.Message}"); return ElementId.InvalidElementId; } })
                     .Where(id => id != ElementId.InvalidElementId));
 
             int updated = 0;
@@ -3191,7 +3356,7 @@ namespace StingTools.Tags
                                 {
                                     elbowPos = tag.GetLeaderEnd(hostRef);
                                 }
-                                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); elbowPos = elemCenter; }
+                                catch (Exception ex) { StingLog.Warn($"[AdjustElbows] tag.GetLeaderEnd: {ex.Message}"); elbowPos = elemCenter; }
                                 break;
                         }
 

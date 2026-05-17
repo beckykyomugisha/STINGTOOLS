@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1.0,
+  "description": "H-20 — Routing of healthcare alerts onto the existing INotificationService.",
+  "alerts": [
+    { "id": "MGAS_ALARM",          "channel": ["push","signalr"], "roles": ["AE-MGAS","Estates","FM"],                          "priority": "HIGH",   "rateLimit": null      },
+    { "id": "PRESSURE_BREACH",     "channel": ["push","signalr"], "roles": ["AE-VENT","Infection-Control","Estates"],            "priority": "MEDIUM", "rateLimit": "PT5M"    },
+    { "id": "MRI_QUENCH",          "channel": ["push","signalr"], "roles": ["ALL"], "broadcast": true,                            "priority": "HIGH",   "rateLimit": null      },
+    { "id": "TMV_TEMP_OUT_OF_BAND","channel": ["push"],            "roles": ["AE-WATER","Estates"],                              "priority": "MEDIUM", "rateLimit": "PT15M"   },
+    { "id": "RAD_DOSE_ALERT",      "channel": ["push","signalr"], "roles": ["QE-RAD","Radiation-Protection","Estates"],          "priority": "HIGH",   "rateLimit": null      },
+    { "id": "EES_ATS_FAULT",       "channel": ["push","signalr"], "roles": ["AE-ELEC","Estates","FM"],                           "priority": "HIGH",   "rateLimit": null      },
+    { "id": "HEPA_DP_ALERT",       "channel": ["push"],            "roles": ["AE-VENT","Infection-Control"],                     "priority": "MEDIUM", "rateLimit": "PT30M"   },
+    { "id": "WASTE_BIN_BREACH",    "channel": ["push"],            "roles": ["FM"],                                              "priority": "LOW",    "rateLimit": "PT60M"   },
+    { "id": "RTLS_INFANT_BOUNDARY","channel": ["push","signalr"], "roles": ["Maternity-Lead","Security","Nurse-In-Charge"],     "priority": "HIGH",   "rateLimit": null      },
+    { "id": "ENDOSCOPE_REPRO_FAIL","channel": ["push"],            "roles": ["Decon-Lead","Estates"],                            "priority": "HIGH",   "rateLimit": "PT5M"    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1.0,
+  "description": "Healthcare Pack H-7 — MGPS fabrication / verification rules.",
+  "verificationChecklist": [
+    "Pre-purge with oil-free dry nitrogen",
+    "Cross-connection test (each gas in turn)",
+    "Particulate test at every TU",
+    "Purity test per BS EN ISO 7396-1",
+    "Pressure decay / standing test",
+    "Indexing / NIST / DISS test",
+    "Labelling test at TU + ZVB + alarm",
+    "Area alarm operability under simulated fault",
+    "Master alarm operability under simulated fault",
+    "Source / plant changeover test",
+    "Emergency reserve test",
+    "Sign-off by ASSE 6030 verifier with cert reference"
+  ],
+  "alarmTolerancePctNominal": 20,
+  "atsTransferMaxLifeSafetyS": 10,
+  "atsTransferMaxCriticalS": 10,
+  "brazingPurgeGas": "Oil-free dry nitrogen",
+  "pipeMaterials": ["Cu-Y", "Cu-X", "SS-316L"],
+  "diversityFactors": {
+    "O2": 0.5, "MA4": 0.5, "MA7": 0.1, "N2O": 0.2,
+    "VAC": 0.5, "AGS": 0.3, "CO2": 0.3, "HE": 0.3, "N2": 0.2
+  }
+}

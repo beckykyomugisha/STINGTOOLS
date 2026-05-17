@@ -5,9 +5,10 @@ namespace Planscape.Core.Entities;
 /// record with a stale (or concurrent) edit. Used for audit and later
 /// reconciliation via the dashboard or the mobile client.
 /// </summary>
-public class SyncConflict
+public class SyncConflict : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
     public Guid? TaggedElementId { get; set; }
 

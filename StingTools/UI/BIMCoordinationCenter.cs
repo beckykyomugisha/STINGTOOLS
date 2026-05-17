@@ -38,18 +38,29 @@ namespace StingTools.UI
 
     internal class BIMCoordinationCenter : Window
     {
-        // ── Theme colours ──
-        private static readonly Color CHeaderBg    = Color.FromRgb(0x1A, 0x23, 0x7E);
-        private static readonly Color CAccent      = Color.FromRgb(0xE8, 0x91, 0x2D);
-        private static readonly Color CCardBg      = Colors.White;
-        private static readonly Color CPageBg      = Color.FromRgb(0xF4, 0xF5, 0xF7);
-        private static readonly Color CBorder      = Color.FromRgb(0xE0, 0xE0, 0xE8);
-        private static readonly Color CNavBg       = Color.FromRgb(0x1E, 0x27, 0x45);
-        private static readonly Color CNavHover    = Color.FromRgb(0x2A, 0x35, 0x5A);
-        private static readonly Color CNavSelected = Color.FromRgb(0xE8, 0x91, 0x2D);
-        private static readonly Color CGreen       = Color.FromRgb(0x2E, 0x7D, 0x32);
-        private static readonly Color CAmber       = Color.FromRgb(0xF5, 0x7F, 0x17);
-        private static readonly Color CRed         = Color.FromRgb(0xC6, 0x28, 0x28);
+        // ── Theme palette routed through ThemeManager ──
+        // Theme-driven colours: read live from the active palette so the
+        // BCC tracks Corporate (default), Light, Warm, or Cool when the
+        // user cycles themes. The `darken` helper produces a navy nav
+        // panel that's visibly subordinate to the brand-navy header.
+        private static Color CHeaderBg    => BrushColor("HeaderBg");
+        private static Color CHeaderFg    => BrushColor("HeaderFg");
+        private static Color CAccent      => BrushColor("AccentBrush");
+        private static Color CCardBg      => BrushColor("CardBg");
+        private static Color CPageBg      => BrushColor("PrimaryBg");
+        private static Color CSecondaryBg => BrushColor("SecondaryBg");
+        private static Color CBorder      => BrushColor("BorderColor");
+        private static Color CSubtleFg    => BrushColor("SubtleFg");
+        private static Color CNavBg       => Darken(BrushColor("HeaderBg"), 0.85);
+        private static Color CNavHover    => Darken(BrushColor("HeaderBg"), 0.92);
+        private static Color CNavSelected => BrushColor("AccentBrush");
+        private static Color CGreen       => BrushColor("SuccessColor");
+        private static Color CAmber       => BrushColor("WarningColor");
+        private static Color CRed         => BrushColor("ErrorColor");
+
+        private static Color BrushColor(string key) => ((SolidColorBrush)ThemeManager.GetBrush(key)).Color;
+        private static Color Darken(Color c, double f)
+            => Color.FromArgb(c.A, (byte)(c.R * f), (byte)(c.G * f), (byte)(c.B * f));
 
         private static SolidColorBrush Br(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
 
@@ -73,12 +84,17 @@ namespace StingTools.UI
         private const string TabTeam           = "TEAM";           // legacy alias → PROJECT MEMBERS
         private const string TabProjectMembers = "PROJECT MEMBERS";
         private const string TabCoordLog       = "COORD LOG";
+        // Healthcare Pack HC-02 — 14th tab gated on PRJ_ORG_HEALTH_FACILITY_TYPE_TXT.
+        private const string TabHealthcare     = "HEALTHCARE";
+
+        // Slice 4a — Site Photos review surface (14th tab). See UI/SitePhotosTab.cs.
+        private const string TabSitePhotos     = "SITE PHOTOS";
 
         // ── Data ──
         internal CoordData _data;
-        private readonly ContentControl _contentArea;
-        private readonly TextBlock _statusBar;
-        private readonly StackPanel _navPanel;
+        private ContentControl _contentArea;
+        private TextBlock _statusBar;
+        private StackPanel _navPanel;
         private Button _activeNav;
 
         // Phase 75: Persist last-viewed tab across dialog reopens
@@ -88,6 +104,7 @@ namespace StingTools.UI
         private string _currentTab;
 
         // Phase 76: Static warning element IDs selected from BCC Warnings DataGrid (stored as long values)
+        // FIX-6: Cleared in OnClosed so IDs do not leak across BCC window reopens / new sessions.
         public static IReadOnlyList<long> SelectedWarningIds { get; private set; } = new List<long>();
 
         internal static void SetSelectedWarningIds(IEnumerable<long> ids)
@@ -150,6 +167,256 @@ namespace StingTools.UI
             ActionDispatcher?.Invoke(action);
             Dispatcher.BeginInvoke(new Action(() => { Activate(); Focus(); }),
                 System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        // T3-14 — Async helper that fetches the issue activity timeline via
+        // PlanscapeServerClient and renders the same rich-card layout the
+        // viewer + mobile use (avatar + verb + relative time + chip).
+        // Failure (no server / not signed in) is non-fatal: we render an
+        // inline status string and leave the rest of the BCC untouched.
+        private async System.Threading.Tasks.Task LoadIssueActivityIntoAsync(StackPanel host, IssueRow iss)
+        {
+            try
+            {
+                host.Children.Clear();
+                if (iss == null || string.IsNullOrEmpty(iss.Id))
+                {
+                    host.Children.Add(new TextBlock { Text = "No issue selected.", FontSize = 11, Foreground = Brushes.Gray });
+                    return;
+                }
+                var client = StingTools.BIMManager.PlanscapeServerClient.Instance;
+                if (client == null || !client.IsConnected)
+                {
+                    host.Children.Add(new TextBlock
+                    {
+                        Text = "Sign in to Planscape Server (BIM tab → Connect) to load the activity timeline.",
+                        FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap
+                    });
+                    return;
+                }
+                Guid projectGuid = client.CurrentProjectId;
+                if (projectGuid == Guid.Empty || !Guid.TryParse(iss.Id, out var issueGuid))
+                {
+                    host.Children.Add(new TextBlock
+                    {
+                        Text = "Activity timeline requires a server-synced issue (cloud project + GUID issue id).",
+                        FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap
+                    });
+                    return;
+                }
+                var entries = await client.GetIssueActivityAsync(projectGuid, issueGuid).ConfigureAwait(true);
+                host.Children.Clear();
+                if (entries == null || entries.Count == 0)
+                {
+                    host.Children.Add(new TextBlock { Text = "No activity yet.", FontSize = 11, FontStyle = FontStyles.Italic, Foreground = Brushes.Gray });
+                    return;
+                }
+                foreach (var t in entries)
+                {
+                    if (t is Newtonsoft.Json.Linq.JObject jo)
+                        host.Children.Add(BuildActivityCard(jo));
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BCC activity load failed: {ex.Message}");
+                host.Children.Clear();
+                host.Children.Add(new TextBlock { Text = "Failed to load activity: " + ex.Message, FontSize = 11, Foreground = Br(CRed), TextWrapping = TextWrapping.Wrap });
+            }
+        }
+
+        // Build one rich activity card. Layout mirrors the viewer's
+        // .activity-card CSS: avatar (initials, deterministic hue) + body
+        // (who-did-what + relative time + optional chip / thumbnail).
+        private FrameworkElement BuildActivityCard(Newtonsoft.Json.Linq.JObject e)
+        {
+            string when    = (string)e["timestamp"] ?? (string)e["createdAt"] ?? "";
+            string action  = (string)e["action"] ?? "";
+            string userN   = (string)e["userName"] ?? "System";
+            var detailsTok = e["details"];
+            Newtonsoft.Json.Linq.JObject details = null;
+            if (detailsTok is Newtonsoft.Json.Linq.JObject jo) details = jo;
+            else if (detailsTok != null && detailsTok.Type == Newtonsoft.Json.Linq.JTokenType.String)
+            {
+                try { details = Newtonsoft.Json.Linq.JObject.Parse((string)detailsTok ?? "{}"); }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); details = null; }
+            }
+
+            var card = new Grid { Margin = new Thickness(0, 4, 0, 4) };
+            card.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+            card.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            // Avatar
+            var avatarColor = ActivityAvatarColour(userN);
+            var avatar = new Border
+            {
+                Width = 28, Height = 28, CornerRadius = new CornerRadius(14),
+                Background = Br(avatarColor), VerticalAlignment = VerticalAlignment.Top,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Child = new TextBlock
+                {
+                    Text = ActivityInitials(userN),
+                    Foreground = Brushes.White, FontWeight = FontWeights.Bold, FontSize = 11,
+                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
+                }
+            };
+            Grid.SetColumn(avatar, 0);
+            card.Children.Add(avatar);
+
+            var body = new StackPanel { Margin = new Thickness(2, 0, 0, 0) };
+            var headRow = new StackPanel { Orientation = Orientation.Horizontal };
+            headRow.Children.Add(new TextBlock { Text = userN, FontWeight = FontWeights.SemiBold, FontSize = 12 });
+            headRow.Children.Add(new TextBlock { Text = "  " + ActivityVerb(action), FontSize = 12 });
+            headRow.Children.Add(new TextBlock
+            {
+                Text = ActivityRelativeTime(when),
+                FontSize = 10, Foreground = Brushes.Gray, FontFamily = new FontFamily("Consolas"),
+                Margin = new Thickness(8, 2, 0, 0)
+            });
+            body.Children.Add(headRow);
+
+            string inline = ActivityInlineDetail(details);
+            if (!string.IsNullOrEmpty(inline))
+                body.Children.Add(new TextBlock { Text = inline, FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0, 2, 0, 0), TextWrapping = TextWrapping.Wrap });
+
+            var chip = ActivityChip(details);
+            if (chip != null) body.Children.Add(chip);
+
+            Grid.SetColumn(body, 1);
+            card.Children.Add(body);
+            return card;
+        }
+        private static string ActivityInitials(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "?";
+            var parts = name.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0) return "?";
+            string a = parts[0].Substring(0, 1).ToUpperInvariant();
+            string b = parts.Length > 1 ? parts[1].Substring(0, 1).ToUpperInvariant() : "";
+            return a + b;
+        }
+        private static Color ActivityAvatarColour(string name)
+        {
+            int h = 0; foreach (var ch in name ?? "") h = unchecked(h * 31 + ch);
+            // Map hue 0..359 to a saturated dim swatch (HSL approximation).
+            int hue = Math.Abs(h) % 360;
+            // Convert HSL(hue, 55%, 38%) → RGB.
+            double s = 0.55, l = 0.38;
+            double c = (1 - Math.Abs(2 * l - 1)) * s;
+            double x = c * (1 - Math.Abs((hue / 60.0) % 2 - 1));
+            double m = l - c / 2;
+            double r1, g1, b1;
+            if (hue < 60)       { r1 = c; g1 = x; b1 = 0; }
+            else if (hue < 120) { r1 = x; g1 = c; b1 = 0; }
+            else if (hue < 180) { r1 = 0; g1 = c; b1 = x; }
+            else if (hue < 240) { r1 = 0; g1 = x; b1 = c; }
+            else if (hue < 300) { r1 = x; g1 = 0; b1 = c; }
+            else                { r1 = c; g1 = 0; b1 = x; }
+            byte R = (byte)Math.Round((r1 + m) * 255);
+            byte G = (byte)Math.Round((g1 + m) * 255);
+            byte B = (byte)Math.Round((b1 + m) * 255);
+            return Color.FromRgb(R, G, B);
+        }
+        private static string ActivityRelativeTime(string iso)
+        {
+            if (string.IsNullOrWhiteSpace(iso)) return "";
+            if (!DateTime.TryParse(iso, null, System.Globalization.DateTimeStyles.RoundtripKind, out var d)) return iso;
+            var s = (DateTime.UtcNow - d.ToUniversalTime()).TotalSeconds;
+            if (s < 60)        return ((int)s) + "s ago";
+            if (s < 3600)      return ((int)(s / 60)) + "m ago";
+            if (s < 86400)     return ((int)(s / 3600)) + "h ago";
+            if (s < 86400 * 7) return ((int)(s / 86400)) + "d ago";
+            return d.ToString("yyyy-MM-dd");
+        }
+        private static string ActivityVerb(string action)
+        {
+            string a = (action ?? "").ToUpperInvariant();
+            return a switch
+            {
+                "CREATE"             => "created the issue",
+                "COMMENT"            => "commented",
+                "ATTACH"             => "attached a file",
+                "ATTACHMENT_ADD"     => "attached a file",
+                "ATTACHMENT_DELETE"  => "removed an attachment",
+                "STATUS"             => "changed status",
+                "PRIORITY"           => "changed priority",
+                "ASSIGN"             => "changed assignee",
+                "RESOLVE"            => "marked resolved",
+                "CLOSE"              => "closed the issue",
+                "REOPEN"             => "re-opened the issue",
+                "UPDATE"             => "updated the issue",
+                _                    => string.IsNullOrEmpty(action) ? "updated" : action,
+            };
+        }
+        private static string ActivityInlineDetail(Newtonsoft.Json.Linq.JObject details)
+        {
+            if (details == null) return "";
+            var parts = new System.Collections.Generic.List<string>();
+            foreach (var p in details.Properties())
+            {
+                var k = p.Name;
+                if (k == "priority" || k == "status" || k == "thumbnailUrl" || k == "fileName") continue;
+                var v = p.Value;
+                if (v is Newtonsoft.Json.Linq.JObject obj && obj["from"] != null && obj["to"] != null)
+                    parts.Add($"{k}: {obj["from"]} → {obj["to"]}");
+                else if ((k == "body" || k == "comment") && v.Type == Newtonsoft.Json.Linq.JTokenType.String)
+                    parts.Add((string)v ?? "");
+                else if (v.Type == Newtonsoft.Json.Linq.JTokenType.String)
+                {
+                    var sv = (string)v ?? "";
+                    if (sv.Length < 200) parts.Add($"{k}: {sv}");
+                }
+            }
+            return string.Join(" · ", parts);
+        }
+        private FrameworkElement ActivityChip(Newtonsoft.Json.Linq.JObject details)
+        {
+            if (details == null) return null;
+            string Take(string field)
+            {
+                var t = details[field];
+                if (t == null) return null;
+                if (t is Newtonsoft.Json.Linq.JObject jo && jo["to"] != null) return (string)jo["to"];
+                if (t.Type == Newtonsoft.Json.Linq.JTokenType.String) return (string)t;
+                return null;
+            }
+            string priority = Take("priority");
+            string status   = Take("status");
+            string thumb    = (string)details["thumbnailUrl"];
+            string fileN    = (string)details["fileName"];
+
+            if (!string.IsNullOrEmpty(priority))
+            {
+                var c = priority.ToUpperInvariant() switch
+                {
+                    "CRITICAL" => Color.FromRgb(0xC6, 0x28, 0x28),
+                    "HIGH"     => Color.FromRgb(0xE8, 0x91, 0x2D),
+                    "MEDIUM"   => Color.FromRgb(0x15, 0x65, 0xC0),
+                    "LOW"      => Color.FromRgb(0x2E, 0x7D, 0x32),
+                    _          => Color.FromRgb(0x45, 0x50, 0x6E)
+                };
+                return new Border
+                {
+                    Background = Br(c), CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(0, 4, 0, 0),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Child = new TextBlock { Text = priority.ToUpperInvariant(), FontSize = 10, FontWeight = FontWeights.Bold, Foreground = Brushes.White }
+                };
+            }
+            if (!string.IsNullOrEmpty(status))
+            {
+                return new Border
+                {
+                    Background = Br(Color.FromRgb(0x3A, 0x4A, 0x5E)),
+                    CornerRadius = new CornerRadius(8), Padding = new Thickness(8, 1, 8, 1),
+                    Margin = new Thickness(0, 4, 0, 0), HorizontalAlignment = HorizontalAlignment.Left,
+                    Child = new TextBlock { Text = status.ToUpperInvariant(), FontSize = 10, FontWeight = FontWeights.Bold, Foreground = Brushes.White }
+                };
+            }
+            if (!string.IsNullOrEmpty(thumb) || !string.IsNullOrEmpty(fileN))
+            {
+                return new TextBlock { Text = "📎 " + (fileN ?? "attachment"), FontSize = 10, Foreground = Brushes.Gray, Margin = new Thickness(0, 4, 0, 0) };
+            }
+            return null;
         }
 
         // Phase 78 Section 2.1: Canonical ISO 19650-aligned issue type registry
@@ -256,7 +523,8 @@ namespace StingTools.UI
         // BCC-HIGH-01: Live-data tabs are cleared from cache on NavigateTo so they always reflect current state.
         // Layout-only tabs (PLATFORM, 4D/5D, DELIVERABLES, PERMISSIONS, COORD LOG, TEAM, MEETINGS) are cached.
         private static readonly HashSet<string> _liveDataTabs = new HashSet<string>(StringComparer.Ordinal)
-            { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabWorkflows, TabQA };
+            { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabWorkflows, TabQA,
+              TabSitePhotos, TabHealthcare };
 
         /// <summary>Result action tag returned to the command handler.</summary>
         public string ResultAction { get; set; }
@@ -363,6 +631,10 @@ namespace StingTools.UI
 
             // Workflow history
             public List<WorkflowRunRow> WorkflowHistory = new();
+
+            // Phase 165 (TPL-FOLLOW-03) — My Queue: workflow instances awaiting
+            // the current user's action. Populated by BuildCoordData.
+            public List<MyQueueRow> MyQueue = new();
 
             // 4D/5D Scheduling
             public int ScheduledTasks { get; set; }
@@ -666,6 +938,19 @@ namespace StingTools.UI
             public string User { get; set; }
         }
 
+        /// <summary>Phase 165 (TPL-FOLLOW-03) — workflow instance awaiting the
+        /// current user's action. Sourced from
+        /// <see cref="Planscape.Docs.Workflow.WorkflowEngine.GetMyQueue"/>.</summary>
+        internal class MyQueueRow
+        {
+            public string DocId { get; set; }
+            public string Subject { get; set; }
+            public string Step { get; set; }
+            public string Workflow { get; set; }
+            public string DueLocal { get; set; }      // formatted local datetime
+            public string SlaStatus { get; set; }     // GREEN / AMBER / RED
+        }
+
         /// <summary>Phase 77: Structured Revit warning row for inline Warnings tree.</summary>
         internal class WarningRow
         {
@@ -750,6 +1035,94 @@ namespace StingTools.UI
                 catch { /* best effort */ }
             };
 
+            BuildLayout();
+
+            // Keyboard shortcuts (Phase 77 Item 11A)
+            KeyDown += (s, e) =>
+            {
+                if (e.Key == Key.Escape)
+                {
+                    // Clear any active inline panel areas
+                    _4dPanelArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    _revPanelArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    _workflowPanelArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    _modelHealthActionArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    _issueContextArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    e.Handled = true;
+                }
+                if (e.Key == Key.F5)
+                {
+                    // Phase 101: F5 now triggers a full reload (rebuild CoordData
+                    // on the API thread, re-render the current tab) — same as
+                    // the Refresh button on the header. Previously F5 only
+                    // re-rendered the cached tab without refreshing model data.
+                    ReloadAll();
+                    e.Handled = true;
+                }
+                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.E)
+                {
+                    // BIM-COORD-LOOP-01: dispatch the export action through
+                    // ActionDispatcher (modeless via ExternalEvent) instead of
+                    // closing the dialog. Coordinators stay in the centre and
+                    // can iterate without re-opening it.
+                    if (ActionDispatcher != null) ActionDispatcher("ExportReport");
+                    else { ResultAction = "ExportReport"; Close(); }
+                    e.Handled = true;
+                }
+                // FIX-8: Ctrl+S — sync/save (BCC sync action)
+                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.S
+                    && (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
+                {
+                    StingLog.Info("BCC: Ctrl+S — sync/save not yet wired to a single action; use BIM > Export or Platform > Sync.");
+                    e.Handled = true;
+                }
+                // FIX-8: Ctrl+P — print / export report
+                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.P)
+                {
+                    if (ActionDispatcher != null) ActionDispatcher("ExportReport");
+                    else { ResultAction = "ExportReport"; Close(); }
+                    e.Handled = true;
+                }
+                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.Q)
+                { NavigateTo(TabQA); e.Handled = true; }
+                if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.S)
+                { NavigateTo(Tab4D5D); e.Handled = true; }
+                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.D)
+                { NavigateTo(TabDeliverables); e.Handled = true; }
+                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.L)
+                { NavigateTo(TabCoordLog); e.Handled = true; }
+                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.T)
+                { NavigateTo(TabTeam); e.Handled = true; }
+                // Quick-nav: 1-9 for tab by number (first 9 tabs)
+                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.M)
+                { NavigateTo(TabMeetings); e.Handled = true; }
+                string[] tabKeys = { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabPlatform, TabWorkflows, TabQA, Tab4D5D };
+                if (e.Key >= Key.D1 && e.Key <= Key.D9 && Keyboard.Modifiers == ModifierKeys.None
+                    && !(e.OriginalSource is System.Windows.Controls.TextBox))
+                {
+                    int idx = (int)(e.Key - Key.D1);
+                    if (idx < tabKeys.Length) { NavigateTo(tabKeys[idx]); e.Handled = true; }
+                }
+            };
+
+            // Phase 75: Restore last-viewed tab across dialog reopens (preserves user context)
+            NavigateTo(_lastViewedTab ?? TabOverview);
+
+            // Phase 76: Register singleton instance
+            CurrentInstance = this;
+            Closed += OnClosed;
+
+            // Refresh code-behind brushes when the user cycles the theme
+            // from the dock panel (DynamicResource bindings would handle
+            // themselves, but BCC builds its tree imperatively).
+            ThemeManager.ThemeChanged += OnThemeChanged;
+        }
+
+        private void BuildLayout()
+        {
+            // Window chrome tracks the active palette
+            Background = Br(CPageBg);
+
             var root = new Grid();
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(56) });   // Header
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(34) });   // Share toolbar
@@ -779,10 +1152,10 @@ namespace StingTools.UI
 
             root.Children.Add(body);
 
-            // ── STATUS BAR ──
+            // ── STATUS BAR — derives from header palette so it tracks the theme ──
             var statusBorder = new Border
             {
-                Background = Br(Color.FromRgb(0x37, 0x47, 0x4F)),
+                Background = Br(Darken(CHeaderBg, 0.55)),
                 Padding = new Thickness(12, 4, 12, 4)
             };
             _statusBar = new TextBlock
@@ -796,59 +1169,19 @@ namespace StingTools.UI
             root.Children.Add(statusBorder);
 
             Content = root;
+        }
 
-            // Keyboard shortcuts (Phase 77 Item 11A)
-            KeyDown += (s, e) =>
+        private void OnThemeChanged(object sender, EventArgs e)
+        {
+            try
             {
-                if (e.Key == Key.Escape)
-                {
-                    // Clear any active inline panel areas
-                    _4dPanelArea?.SetCurrentValue(ContentControl.ContentProperty, null);
-                    _revPanelArea?.SetCurrentValue(ContentControl.ContentProperty, null);
-                    _workflowPanelArea?.SetCurrentValue(ContentControl.ContentProperty, null);
-                    _modelHealthActionArea?.SetCurrentValue(ContentControl.ContentProperty, null);
-                    _issueContextArea?.SetCurrentValue(ContentControl.ContentProperty, null);
-                    e.Handled = true;
-                }
-                if (e.Key == Key.F5)
-                {
-                    // Phase 101: F5 now triggers a full reload (rebuild CoordData
-                    // on the API thread, re-render the current tab) — same as
-                    // the Refresh button on the header. Previously F5 only
-                    // re-rendered the cached tab without refreshing model data.
-                    ReloadAll();
-                    e.Handled = true;
-                }
-                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.E)
-                { ResultAction = "ExportReport"; Close(); e.Handled = true; }
-                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.Q)
-                { NavigateTo(TabQA); e.Handled = true; }
-                if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.S)
-                { NavigateTo(Tab4D5D); e.Handled = true; }
-                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.D)
-                { NavigateTo(TabDeliverables); e.Handled = true; }
-                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.L)
-                { NavigateTo(TabCoordLog); e.Handled = true; }
-                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.T)
-                { NavigateTo(TabTeam); e.Handled = true; }
-                // Quick-nav: 1-9 for tab by number (first 9 tabs)
-                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.M)
-                { NavigateTo(TabMeetings); e.Handled = true; }
-                string[] tabKeys = { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabPlatform, TabWorkflows, TabQA, Tab4D5D };
-                if (e.Key >= Key.D1 && e.Key <= Key.D9 && Keyboard.Modifiers == ModifierKeys.None
-                    && !(e.OriginalSource is System.Windows.Controls.TextBox))
-                {
-                    int idx = (int)(e.Key - Key.D1);
-                    if (idx < tabKeys.Length) { NavigateTo(tabKeys[idx]); e.Handled = true; }
-                }
-            };
-
-            // Phase 75: Restore last-viewed tab across dialog reopens (preserves user context)
-            NavigateTo(_lastViewedTab ?? TabOverview);
-
-            // Phase 76: Register singleton instance
-            CurrentInstance = this;
-            Closed += OnClosed;
+                // Stale tab content carries old brushes — drop the cache so
+                // every tab re-renders with the new palette on next visit.
+                _tabCache.Clear();
+                BuildLayout();
+                NavigateTo(_currentTab ?? _lastViewedTab ?? TabOverview);
+            }
+            catch (Exception ex) { StingLog.Warn($"BCC.OnThemeChanged: {ex.Message}"); }
         }
 
         private string BuildStatusText()
@@ -876,13 +1209,13 @@ namespace StingTools.UI
             leftStack.Children.Add(new TextBlock
             {
                 Text = "BIM COORDINATION CENTER",
-                Foreground = Brushes.White, FontSize = 16, FontWeight = FontWeights.Bold,
+                Foreground = Br(CHeaderFg), FontSize = 16, FontWeight = FontWeights.Bold,
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 20, 0)
             });
             leftStack.Children.Add(new TextBlock
             {
                 Text = _data.ProjectName,
-                Foreground = Br(Color.FromRgb(0xBB, 0xDE, 0xFB)), FontSize = 12,
+                Foreground = Br(CHeaderFg), Opacity = 0.7, FontSize = 12,
                 VerticalAlignment = VerticalAlignment.Center
             });
             hGrid.Children.Add(leftStack);
@@ -902,7 +1235,7 @@ namespace StingTools.UI
                 Content = "\u21BB  Refresh",
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
-                Background = Br(Color.FromRgb(0x1E, 0x88, 0xE5)),
+                Background = Br(CAccent),
                 Foreground = Brushes.White,
                 BorderThickness = new Thickness(0),
                 Padding = new Thickness(10, 3, 10, 3),
@@ -920,14 +1253,14 @@ namespace StingTools.UI
             rightStack.Children.Add(ragCircle);
             rightStack.Children.Add(new TextBlock
             {
-                Text = $"{_data.TagPct:F0}%", Foreground = Brushes.White, FontSize = 18,
+                Text = $"{_data.TagPct:F0}%", Foreground = Br(CHeaderFg), FontSize = 18,
                 FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 8, 0)
             });
             rightStack.Children.Add(new TextBlock
             {
                 Text = $"compliant  |  {DateTime.Now:dd MMM yyyy HH:mm}",
-                Foreground = Br(Color.FromRgb(0x90, 0xCA, 0xF9)), FontSize = 11,
+                Foreground = Br(CHeaderFg), Opacity = 0.7, FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center
             });
 
@@ -946,8 +1279,8 @@ namespace StingTools.UI
         {
             var toolbar = new Border
             {
-                Background = Br(Color.FromRgb(0xF8, 0xF9, 0xFB)),
-                BorderBrush = Br(Color.FromRgb(0xD0, 0xD5, 0xE0)),
+                Background = Br(CSecondaryBg),
+                BorderBrush = Br(CBorder),
                 BorderThickness = new Thickness(0, 0, 0, 1),
                 Padding = new Thickness(8, 0, 8, 0)
             };
@@ -961,7 +1294,7 @@ namespace StingTools.UI
             {
                 Text = "Share:",
                 FontSize = 10,
-                Foreground = Br(Color.FromRgb(0x88, 0x88, 0x99)),
+                Foreground = Br(CSubtleFg),
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 8, 0)
             };
@@ -1007,9 +1340,22 @@ namespace StingTools.UI
             var nav = new StackPanel { Background = Br(CNavBg) };
             nav.Children.Add(new Border { Height = 8 }); // top spacer
 
-            string[] tabs = { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabPlatform, TabWorkflows, TabQA, Tab4D5D, TabDeliverables, TabMeetings, TabProjectMembers, TabCoordLog };
+            // Site Photos = always present (Phase 178). Healthcare = appended
+            // only when PRJ_ORG_HEALTH_FACILITY_TYPE_TXT is non-empty so
+            // non-healthcare projects don't see the clinical tab. Both can
+            // coexist; ordering is Site Photos before Healthcare so the
+            // photo capture surface stays in a consistent slot regardless
+            // of project type.
+            bool isHealthcare = !string.IsNullOrEmpty(GetHealthcareFacilityType());
+            var tabsList = new System.Collections.Generic.List<string> {
+                TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions,
+                TabPlatform, TabWorkflows, TabQA, Tab4D5D, TabDeliverables,
+                TabMeetings, TabProjectMembers, TabCoordLog, TabSitePhotos
+            };
+            if (isHealthcare) tabsList.Add(TabHealthcare);
+            string[] tabs = tabsList.ToArray();
             int memberCount = _data.Roles.Count + _data.TeamMembers.Count;
-            string[] badges = {
+            var badgesList = new System.Collections.Generic.List<string> {
                 "", $"{_data.ModelHealthScore}/100",
                 _data.WarningTotal > 0 ? _data.WarningTotal.ToString() : "",
                 _data.IssuesOpen > 0 ? _data.IssuesOpen.ToString() : "",
@@ -1021,8 +1367,11 @@ namespace StingTools.UI
                 _data.DeliverablesOverdue > 0 ? _data.DeliverablesOverdue.ToString() : $"{_data.DeliverablesApproved}/{_data.Deliverables.Count}",
                 "", // MEETINGS
                 memberCount > 0 ? memberCount.ToString() : "", // PROJECT MEMBERS
-                _data.CoordLog.Count > 0 ? _data.CoordLog.Count.ToString() : ""
+                _data.CoordLog.Count > 0 ? _data.CoordLog.Count.ToString() : "",
+                ""  // SITE PHOTOS — pending count is loaded async, no static badge
             };
+            if (isHealthcare) badgesList.Add(GetHealthcareFacilityType()); // HEALTHCARE
+            string[] badges = badgesList.ToArray();
 
             for (int i = 0; i < tabs.Length; i++)
             {
@@ -1067,7 +1416,7 @@ namespace StingTools.UI
                 HorizontalContentAlignment = HorizontalAlignment.Left,
                 Height = 36, Padding = new Thickness(16, 0, 8, 0),
                 Margin = new Thickness(0, 1, 0, 1),
-                Background = Brushes.Transparent, Foreground = Brushes.White,
+                Background = Brushes.Transparent, Foreground = Br(CHeaderFg),
                 BorderThickness = new Thickness(0), FontSize = 12,
                 Cursor = Cursors.Hand
             };
@@ -1090,12 +1439,14 @@ namespace StingTools.UI
             // Phase 77 Item 11A: Track current tab for F5 refresh
             _currentTab = tabName;
 
-            // Reset all nav buttons
+            // Reset all nav buttons (reset Foreground too so previously-active
+            // buttons return to the theme's HeaderFg instead of staying white)
             foreach (var child in _navPanel.Children)
             {
                 if (child is Button nb)
                 {
                     nb.Background = Brushes.Transparent;
+                    nb.Foreground = Br(CHeaderFg);
                     nb.FontWeight = FontWeights.Normal;
                 }
             }
@@ -1134,11 +1485,72 @@ namespace StingTools.UI
                     TabTeam           => BuildProjectMembersTab(),  // legacy alias
                     TabProjectMembers => BuildProjectMembersTab(),
                     TabCoordLog       => BuildCoordLogTab(),
+                    TabSitePhotos     => BuildSitePhotosTab(),
+                    TabHealthcare     => BuildHealthcareTab(),
                     _               => new TextBlock { Text = $"Unknown tab: {tabName}" }
                 };
                 _tabCache[tabName] = tabContent;
             }
             _contentArea.Content = tabContent;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  SITE PHOTOS TAB (Slice 4a) — see UI/SitePhotosTab.cs for the impl.
+        //  Thin wrapper so the existing 13-tab BCC file doesn't grow another
+        //  ~1,000-line tab body.
+        // ════════════════════════════════════════════════════════════════
+
+        private UIElement BuildSitePhotosTab() => SitePhotosTab.BuildTab(this);
+
+        // ── Internal accessors used by SitePhotosTab.cs ─────────────────
+        // SitePhotosTab is a separate file; it consumes our brushes and
+        // cross-link helpers via these `*Pub` shims so we don't have to
+        // expose the private theme palette directly.
+        internal SolidColorBrush AccentBrushPub => Br(CAccent);
+        internal SolidColorBrush HeaderBrushPub => Br(CHeaderBg);
+        internal SolidColorBrush CardBrushPub   => Br(CCardBg);
+        internal SolidColorBrush BorderBrushPub => Br(CBorder);
+        internal SolidColorBrush PageBrushPub   => Br(CPageBg);
+        internal SolidColorBrush GreenBrushPub  => Br(CGreen);
+        internal Color           GreenColourPub => CGreen;
+        internal SolidColorBrush RagBrushPub(string rag) => RagBrush(rag);
+
+        /// <summary>Cross-link from a Defect/Issue photo into the existing ISSUES tab.
+        /// Mirrors the BCC's existing inter-tab navigation pattern: cache-bust the
+        /// target tab so it picks up any new state, store the issue id for the tab
+        /// to consume on render, then NavigateTo.</summary>
+        internal void NavigateToIssuePub(Guid issueId)
+        {
+            try
+            {
+                if (issueId == Guid.Empty) return;
+                StingCommandHandler.SetExtraParam("FocusIssueId", issueId.ToString());
+                if (_tabCache.ContainsKey(TabIssues)) _tabCache.Remove(TabIssues);
+                NavigateTo(TabIssues);
+            }
+            catch (Exception ex) { StingLog.Warn($"NavigateToIssuePub: {ex.Message}"); }
+        }
+
+        /// <summary>Cross-link from an As-built / Reference photo into the active
+        /// Revit view. Reuses the existing SelectIssueElements dispatch path —
+        /// that command already handles the "look up an element by guid, select
+        /// it in the current UI document, zoom the active 3D view to it" flow.
+        /// Stores the unique-id under the same `IssueId` extra-param key the
+        /// command reads so we don't have to add a new server endpoint.</summary>
+        internal void SelectElementInRevitPub(string anchorElementGuid)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(anchorElementGuid)) return;
+                // The SelectIssueElements path expects an issue id; for a
+                // pure unique-id selection we route through the new
+                // SelectByElementGuid extra-param instead. ActionDispatcher
+                // wires this through the existing ExternalEvent pipeline so
+                // the actual element lookup runs on the Revit API thread.
+                StingCommandHandler.SetExtraParam("ElementGuid", anchorElementGuid);
+                ActionDispatcher?.Invoke("SelectByElementGuid");
+            }
+            catch (Exception ex) { StingLog.Warn($"SelectElementInRevitPub: {ex.Message}"); }
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -1198,6 +1610,20 @@ namespace StingTools.UI
             qaWrap.Children.Add(MakeActionButton("✓ Run Compliance",   "CompletenessDashboard", Br(CGreen), "Run tag completeness compliance check"));
             qaWrap.Children.Add(MakeActionButton("⚑ Create Issue",    "RaiseIssue", Br(CRed), "Raise a new issue"));
             qaWrap.Children.Add(MakeActionButton("📅 New Meeting",     "NewMeeting", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), "Schedule a new BIM coordination meeting"));
+
+            // Slice 4a — direct jump to the site-photos review queue.
+            // Doesn't dispatch through ActionDispatcher because navigation
+            // is a pure WPF concern; just opens the 14th tab.
+            var sitePhotosBtn = new Button
+            {
+                Content = "📷 Site Photos", Height = 30, Padding = new Thickness(14, 0, 14, 0),
+                Margin = new Thickness(0, 0, 6, 6),
+                Background = Br(Color.FromRgb(0x00, 0x69, 0x7C)), Foreground = Brushes.White,
+                BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand,
+                ToolTip = "Open the Site Photos review queue — approve / reject / withdraw incoming field photos"
+            };
+            sitePhotosBtn.Click += (_, _) => NavigateTo(TabSitePhotos);
+            qaWrap.Children.Add(sitePhotosBtn);
             stack.Children.Add(qaWrap);
 
             // Extended Quick Actions
@@ -1590,9 +2016,9 @@ namespace StingTools.UI
                 var trendCard = MakeCard();
                 var trendStack = new StackPanel();
 
-                // Direction indicator
-                double firstPct = _data.ComplianceTrend.First().Pct;
-                double lastPct = _data.ComplianceTrend.Last().Pct;
+                // Direction indicator — guard against an empty list before indexing
+                double firstPct = _data.ComplianceTrend.Count > 0 ? _data.ComplianceTrend[0].Pct : 0.0;
+                double lastPct  = _data.ComplianceTrend.Count > 0 ? _data.ComplianceTrend[_data.ComplianceTrend.Count - 1].Pct : 0.0;
                 double delta = lastPct - firstPct;
                 string arrow = delta > 1 ? "\u2191" : delta < -1 ? "\u2193" : "\u2192";
                 var trendColor = delta > 1 ? CGreen : delta < -1 ? CRed : CAmber;
@@ -2470,6 +2896,91 @@ namespace StingTools.UI
                 };
                 VirtualizingPanel.SetIsVirtualizing(dg, true);
                 VirtualizingPanel.SetVirtualizationMode(dg, VirtualizationMode.Recycling);
+
+                // T3-18 — Bulk multi-select checkbox column. The viewer's
+                // multi-select set is a Set<string>; we mirror that with a
+                // HashSet keyed off IssueRow.Id. The DataGrid's own
+                // SelectedItems collection covers Ctrl/Shift gestures, but
+                // the explicit checkboxes give touch users a hit target and
+                // make it crystal-clear how many issues will be acted on.
+                var bulkSelectedIssues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var bulkFooter = new Border
+                {
+                    Visibility = Visibility.Collapsed,
+                    Background = Br(Color.FromRgb(0xEC, 0xEF, 0xF1)),
+                    BorderBrush = Br(CBorder),
+                    BorderThickness = new Thickness(0, 1, 0, 0),
+                    Padding = new Thickness(10, 6, 10, 6),
+                    Margin = new Thickness(0, 0, 0, 8),
+                };
+                var bulkRow = new StackPanel { Orientation = Orientation.Horizontal };
+                var bulkCount = new TextBlock { Text = "0 selected", FontSize = 11, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+                bulkRow.Children.Add(bulkCount);
+                Action refreshBulkFooter = () =>
+                {
+                    bulkCount.Text = $"{bulkSelectedIssues.Count} selected";
+                    bulkFooter.Visibility = bulkSelectedIssues.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+                };
+                Button MakeBulkBtn(string label, Color c)
+                {
+                    return new Button
+                    {
+                        Content = label,
+                        Background = Br(c),
+                        Foreground = Brushes.White,
+                        BorderThickness = new Thickness(0),
+                        Padding = new Thickness(10, 3, 10, 3),
+                        FontSize = 11,
+                        Cursor = Cursors.Hand,
+                        Margin = new Thickness(0, 0, 6, 0),
+                    };
+                }
+                var bulkReassign = MakeBulkBtn("Reassign", Color.FromRgb(0xE8, 0x91, 0x2D));
+                bulkReassign.Click += (s, e) => DispatchAction("BulkIssueReassign|" + string.Join(",", bulkSelectedIssues));
+                var bulkResolve  = MakeBulkBtn("Bulk Resolve", Color.FromRgb(0x2E, 0x7D, 0x32));
+                bulkResolve.Click += (s, e) => DispatchAction("BulkIssueResolve|" + string.Join(",", bulkSelectedIssues));
+                var bulkExportBtn = MakeBulkBtn("Export CSV", Color.FromRgb(0x45, 0x50, 0x6E));
+                bulkExportBtn.Click += (s, e) => DispatchAction("BulkIssueExport|" + string.Join(",", bulkSelectedIssues));
+                var bulkClear = new Button
+                {
+                    Content = "Clear", Background = Brushes.Transparent, BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+                    Padding = new Thickness(8, 2, 8, 2), FontSize = 11, Cursor = Cursors.Hand
+                };
+                bulkClear.Click += (s, e) => { bulkSelectedIssues.Clear(); refreshBulkFooter(); dg.Items.Refresh(); };
+                bulkRow.Children.Add(bulkReassign);
+                bulkRow.Children.Add(bulkResolve);
+                bulkRow.Children.Add(bulkExportBtn);
+                bulkRow.Children.Add(bulkClear);
+                bulkFooter.Child = bulkRow;
+
+                // Checkbox column. We use a template column with explicit
+                // Click handler rather than DataGridCheckBoxColumn because
+                // we need access to the row context (`IssueRow`) to update
+                // bulkSelectedIssues — and DataGridCheckBoxColumn fires its
+                // bind path against IsReadOnly cells in odd ways.
+                var cbColTemplate = new DataTemplate();
+                var cbFactory = new FrameworkElementFactory(typeof(CheckBox));
+                cbFactory.SetValue(CheckBox.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+                cbFactory.SetValue(CheckBox.VerticalAlignmentProperty, VerticalAlignment.Center);
+                cbFactory.SetValue(CheckBox.MarginProperty, new Thickness(0));
+                cbFactory.AddHandler(CheckBox.ClickEvent, new RoutedEventHandler((s, e) =>
+                {
+                    if (s is CheckBox cb && cb.DataContext is IssueRow row)
+                    {
+                        if (cb.IsChecked == true) bulkSelectedIssues.Add(row.Id);
+                        else                     bulkSelectedIssues.Remove(row.Id);
+                        refreshBulkFooter();
+                    }
+                }));
+                // Bind IsChecked to the live set so re-render keeps state.
+                cbFactory.SetBinding(CheckBox.IsCheckedProperty,
+                    new Binding("Id") { Converter = new IsCheckedSetConverter(bulkSelectedIssues), Mode = BindingMode.OneWay });
+                cbColTemplate.VisualTree = cbFactory;
+                dg.Columns.Add(new DataGridTemplateColumn
+                {
+                    Header = "", Width = 30, CellTemplate = cbColTemplate, CanUserSort = false, CanUserReorder = false,
+                });
+
                 dg.Columns.Add(new DataGridTextColumn { Header = "ID", Binding = new Binding("Id"), Width = 80 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Title", Binding = new Binding("Title"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Type", Binding = new Binding("Type"), Width = 50 });
@@ -2523,12 +3034,75 @@ namespace StingTools.UI
                 rowStyle.Triggers.Add(closedT);
                 dg.RowStyle = rowStyle;
 
-                // Context menu
+                // T3-14 — Issue detail panel with an Activity tab. Selecting
+                // a row inflates a TabControl below the grid: Overview |
+                // Activity. Activity pulls from
+                // /api/projects/{pid}/issues/{iid}/activity (same endpoint
+                // the viewer + mobile consume) and renders rich cards.
+                var detailHost = new Border
+                {
+                    Visibility = Visibility.Collapsed,
+                    Background = Br(CCardBg), BorderBrush = Br(CBorder),
+                    BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4),
+                    Margin = new Thickness(0, 6, 0, 8), Padding = new Thickness(0)
+                };
+                var detailTabs = new TabControl { BorderThickness = new Thickness(0), Background = Brushes.Transparent };
+                var overviewTab = new TabItem { Header = "Overview" };
+                var overviewBody = new StackPanel { Margin = new Thickness(10, 8, 10, 8) };
+                overviewTab.Content = overviewBody;
+                var activityTab = new TabItem { Header = "Activity" };
+                var activityBody = new StackPanel { Margin = new Thickness(10, 8, 10, 8), MinHeight = 120 };
+                activityTab.Content = new ScrollViewer { Content = activityBody, MaxHeight = 280, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+                detailTabs.Items.Add(overviewTab);
+                detailTabs.Items.Add(activityTab);
+                detailHost.Child = detailTabs;
+
+                dg.SelectionChanged += (s, e) =>
+                {
+                    if (dg.SelectedItem is not IssueRow iss) { detailHost.Visibility = Visibility.Collapsed; return; }
+                    detailHost.Visibility = Visibility.Visible;
+                    overviewBody.Children.Clear();
+                    overviewBody.Children.Add(new TextBlock { Text = iss.Title ?? "(no title)", FontWeight = FontWeights.Bold, FontSize = 13, TextWrapping = TextWrapping.Wrap });
+                    overviewBody.Children.Add(new TextBlock { Text = $"{iss.Type} · {iss.Priority} · {iss.Status} · Assigned: {iss.AssigneeDisplay}", FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0, 2, 0, 0) });
+                    overviewBody.Children.Add(new TextBlock { Text = $"ID: {iss.Id} · Created {iss.Created} · Age {iss.DaysOpen}", FontSize = 10, Foreground = Brushes.Gray, FontFamily = new FontFamily("Consolas"), Margin = new Thickness(0, 4, 0, 0) });
+
+                    // Lazily fetch activity only when the tab is selected.
+                    activityBody.Children.Clear();
+                    activityBody.Children.Add(new TextBlock { Text = "Select Activity tab to load timeline…", FontSize = 11, Foreground = Brushes.Gray });
+                };
+                activityTab.RequestBringIntoView += (s, e) => { /* tab focus event */ };
+                detailTabs.SelectionChanged += async (s, e) =>
+                {
+                    if (e.OriginalSource != detailTabs) return;
+                    if (!ReferenceEquals(detailTabs.SelectedItem, activityTab)) return;
+                    if (dg.SelectedItem is not IssueRow iss) return;
+                    activityBody.Children.Clear();
+                    activityBody.Children.Add(new TextBlock { Text = "Loading…", FontSize = 11, Foreground = Brushes.Gray });
+                    await LoadIssueActivityIntoAsync(activityBody, iss);
+                };
+
+                // Context menu — T3-18 mirrors the viewer's openIssueRowMenu:
+                // Zoom-to-element / Open detail / Mark resolved / Copy ID /
+                // Copy permalink — plus the existing assign + meeting actions
+                // because BCC desktop coordinators rely on them.
                 var issueCtx = new ContextMenu();
-                var zoomMi = new MenuItem { Header = "Zoom to 3D Section Box" };
-                zoomMi.Click += (s2, e2) => { if (dg.SelectedItem is IssueRow iss) { DispatchAction($"ZoomToIssue_{iss.Id}"); } };
+                IssueRow CtxRow() => dg.SelectedItem as IssueRow;
+                var zoomMi = new MenuItem { Header = "🎯 Zoom to element" };
+                zoomMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) DispatchAction($"ZoomToIssue_{r.Id}"); };
+                var openMi = new MenuItem { Header = "📂 Open detail" };
+                openMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) DispatchAction($"OpenIssueDetail_{r.Id}"); };
+                var resolveMi = new MenuItem { Header = "✓ Mark resolved" };
+                resolveMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) DispatchAction($"ResolveIssue_{r.Id}"); };
+                var copyIdMi = new MenuItem { Header = "📋 Copy ID" };
+                copyIdMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) { try { Clipboard.SetText(r.Id ?? string.Empty); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } } };
+                var copyLinkMi = new MenuItem { Header = "🔗 Copy permalink" };
+                copyLinkMi.Click += (s2, e2) =>
+                {
+                    var r = CtxRow();
+                    if (r != null) { try { Clipboard.SetText($"planscape://issue/{r.Id}"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } }
+                };
                 var selectMi = new MenuItem { Header = "Select Linked Elements" };
-                selectMi.Click += (s2, e2) => { if (dg.SelectedItem is IssueRow iss) { DispatchAction($"SelectIssue_{iss.Id}"); } };
+                selectMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) DispatchAction($"SelectIssue_{r.Id}"); };
                 var updateMi = new MenuItem { Header = "Update Issue Status" };
                 updateMi.Click += (s2, e2) => { DispatchAction("UpdateIssue"); };
                 var assignMi = new MenuItem { Header = "Assign / Reassign" };
@@ -2538,16 +3112,23 @@ namespace StingTools.UI
                 var transmitMi = new MenuItem { Header = "Link to Transmittal" };
                 transmitMi.Click += (s2, e2) => { DispatchAction("CreateTransmittal"); };
                 issueCtx.Items.Add(zoomMi);
+                issueCtx.Items.Add(openMi);
                 issueCtx.Items.Add(selectMi);
                 issueCtx.Items.Add(new Separator());
+                issueCtx.Items.Add(resolveMi);
                 issueCtx.Items.Add(updateMi);
                 issueCtx.Items.Add(assignMi);
+                issueCtx.Items.Add(new Separator());
+                issueCtx.Items.Add(copyIdMi);
+                issueCtx.Items.Add(copyLinkMi);
                 issueCtx.Items.Add(new Separator());
                 issueCtx.Items.Add(meetingMi);
                 issueCtx.Items.Add(transmitMi);
                 dg.ContextMenu = issueCtx;
 
                 root.Children.Add(dg);
+                root.Children.Add(bulkFooter);
+                root.Children.Add(detailHost);
             }
             else
             {
@@ -3618,6 +4199,7 @@ namespace StingTools.UI
                     ("📱 WhatsApp Update",     "PlanscapeWhatsApp", CGreen,                           "Generate WhatsApp-ready text with project summary link"),
                     ("🔗 Generate QR Link",    "PlanscapeQR",       CHeaderBg,                        "Generate QR code linking to the latest exported HTML dashboard"),
                     ("📊 Export HTML Dashboard","PlanscapeHTML",    Color.FromRgb(0x6A, 0x1B, 0x9A), "Export full coordination dashboard as standalone HTML file (shareable, no login needed)"),
+                    ("🧊 Publish 3D Model",    "PublishModelToPlanscape", Color.FromRgb(0xE6, 0x5F, 0x00), "Export the active 3D view to GLB (or pick a file) and publish it + the element-map sidecar to Planscape Models"),
                 };
                 foreach (var (lbl, act, clr, tip) in btns)
                 {
@@ -3694,7 +4276,7 @@ namespace StingTools.UI
                             $"You've been added to the Planscape project '{_data.ProjectName}' as {tm.Role}.\n" +
                             $"Sign in at {BIMManager.PlanscapeServerClient.Instance.ServerUrl}\n\n" +
                             "\u2014 Sent from BIM Coordination Center";
-                        try { System.Windows.Clipboard.SetText(invite); } catch { }
+                        try { System.Windows.Clipboard.SetText(invite); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         ShowStatus($"Invite copied for {tm.Name}");
                     }
                     else ShowStatus("Select a row with an email first.");
@@ -3753,8 +4335,8 @@ namespace StingTools.UI
                 var sbUrlBox = new System.Windows.Controls.TextBox
                 {
                     Width = 270, FontSize = 11, Margin = new Thickness(4, 0, 0, 0),
-                    Text = !string.IsNullOrEmpty(_savedUrl) ? _savedUrl : "https://planscape-api.onrender.com",
-                    ToolTip = "Planscape API server URL (your Render.com deployment)"
+                    Text = !string.IsNullOrEmpty(_savedUrl) ? _savedUrl : "http://localhost:5000",
+                    ToolTip = "Planscape API server URL (default: http://localhost:5000 for the local docker-compose stack)"
                 };
                 sbUrlRow.Children.Add(sbUrlBox);
                 detailStack.Children.Add(sbUrlRow);
@@ -3838,7 +4420,7 @@ namespace StingTools.UI
                         : "\ud83c\udfe2  Tenant: (not linked)";
                     string urlLine   = !string.IsNullOrEmpty(client.ServerUrl)
                         ? $"\ud83d\udd17  Server: {client.ServerUrl}"
-                        : $"\ud83d\udd17  Server: (no URL set) \u2014 default https://planscape-api.onrender.com";
+                        : $"\ud83d\udd17  Server: (no URL set) \u2014 default http://localhost:5000";
                     string errLine   = !string.IsNullOrEmpty(client.LastError)
                         ? $"\n\u26A0  Last error: {client.LastError}"
                         : "";
@@ -4011,6 +4593,41 @@ namespace StingTools.UI
             kpiRow.Children.Add(MakeKPICard("HISTORY", _data.WorkflowHistory.Count.ToString(), Br(Color.FromRgb(0x45, 0x50, 0x6E)),
                 "Workflow execution records available for analysis"));
             stack.Children.Add(kpiRow);
+
+            // ── Phase 165 (TPL-FOLLOW-03) — My Queue ──
+            // Workflow instances that are sitting on the current user's desk.
+            // Empty list -> single-line muted "Inbox zero" hint so the section
+            // never disappears (orientation cue for new users).
+            stack.Children.Add(MakeSectionHeader("MY QUEUE"));
+            if (_data.MyQueue == null || _data.MyQueue.Count == 0)
+            {
+                stack.Children.Add(new TextBlock
+                {
+                    Text = $"Inbox zero — no workflow steps awaiting {Environment.UserName}.",
+                    FontSize = 11, Foreground = Brushes.Gray,
+                    Margin = new Thickness(0, 0, 0, 12)
+                });
+            }
+            else
+            {
+                var queueGrid = new DataGrid
+                {
+                    AutoGenerateColumns = false,
+                    IsReadOnly = true,
+                    HeadersVisibility = DataGridHeadersVisibility.Column,
+                    GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                    Margin = new Thickness(0, 0, 0, 12),
+                    MaxHeight = 200,
+                    ItemsSource = _data.MyQueue,
+                };
+                queueGrid.Columns.Add(new DataGridTextColumn { Header = "Document",  Binding = new Binding(nameof(MyQueueRow.DocId)),    Width = new DataGridLength(160) });
+                queueGrid.Columns.Add(new DataGridTextColumn { Header = "Subject",   Binding = new Binding(nameof(MyQueueRow.Subject)),  Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                queueGrid.Columns.Add(new DataGridTextColumn { Header = "Workflow",  Binding = new Binding(nameof(MyQueueRow.Workflow)), Width = new DataGridLength(120) });
+                queueGrid.Columns.Add(new DataGridTextColumn { Header = "Step",      Binding = new Binding(nameof(MyQueueRow.Step)),     Width = new DataGridLength(120) });
+                queueGrid.Columns.Add(new DataGridTextColumn { Header = "Due",       Binding = new Binding(nameof(MyQueueRow.DueLocal)), Width = new DataGridLength(140) });
+                queueGrid.Columns.Add(new DataGridTextColumn { Header = "SLA",       Binding = new Binding(nameof(MyQueueRow.SlaStatus)),Width = new DataGridLength(60) });
+                stack.Children.Add(queueGrid);
+            }
 
             // ── Quick Workflow Buttons ──
             stack.Children.Add(MakeSectionHeader("QUICK WORKFLOWS"));
@@ -5590,6 +6207,28 @@ namespace StingTools.UI
                     priCb.SelectedIndex = 2;
                     priRow.Children.Add(priCb);
                     sp.Children.Add(priRow);
+                    // HC-14: Category picker — includes Healthcare sub-categories.
+                    var catRow = MakeCtxRow("Category:");
+                    var catCb = new System.Windows.Controls.ComboBox { Width = 200 };
+                    foreach (var cat in new[] { "General", "Architectural", "Structural", "MEP", "Electrical", "Plumbing", "Fire", "Safety", "Coordination", "Clash",
+                        "Healthcare" })
+                        catCb.Items.Add(new ComboBoxItem { Content = cat, Tag = cat });
+                    catCb.SelectedIndex = 0;
+                    catRow.Children.Add(catCb);
+                    sp.Children.Add(catRow);
+                    // HC-14: Healthcare sub-category — shown only when "Healthcare" is selected.
+                    var hcSubRow = MakeCtxRow("HC Sub-Category:");
+                    var hcSubCb = new System.Windows.Controls.ComboBox { Width = 200 };
+                    foreach (var sub in new[] { "Infection-Control", "MGPS-Defect", "Anti-Lig-Failure", "Calibration-Due", "RDS-Drift" })
+                        hcSubCb.Items.Add(new ComboBoxItem { Content = sub, Tag = sub });
+                    hcSubCb.SelectedIndex = 0;
+                    hcSubRow.Visibility = System.Windows.Visibility.Collapsed;
+                    sp.Children.Add(hcSubRow);
+                    catCb.SelectionChanged += (s, e) =>
+                    {
+                        bool isHc = (catCb.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "Healthcare";
+                        hcSubRow.Visibility = isHc ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+                    };
                     var titleRow = MakeCtxRow("Title:");
                     var titleBox = new System.Windows.Controls.TextBox { Width = 340 };
                     titleRow.Children.Add(titleBox);
@@ -5637,15 +6276,17 @@ namespace StingTools.UI
                     {
                         try
                         {
-                            var selDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
-                            var selIds = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Selection?.GetElementIds();
-                            if (selDoc != null && selIds != null && selIds.Count > 0)
+                            var uidoc = StingCommandHandler.CurrentApp?.ActiveUIDocument;
+                            if (uidoc == null) { StingLog.Warn("BCC: no active document for selection auto-populate"); return; }
+                            var selDoc = uidoc.Document;
+                            var selIds = uidoc.Selection?.GetElementIds() ?? new List<Autodesk.Revit.DB.ElementId>();
+                            if (selDoc != null && selIds.Count > 0)
                             {
                                 string autoLoc = AutoPopulateIssueLocation(selDoc, selIds);
                                 if (!string.IsNullOrEmpty(autoLoc)) locBox.Text = autoLoc;
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     };
                     var locBtn = new Button { Content = "📍 Capture from View", Height = 24, Padding = new Thickness(6, 0, 6, 0), FontSize = 10, Cursor = Cursors.Hand, Margin = new Thickness(4, 0, 0, 0) };
                     locBtn.Click += (s, e) => { DispatchAction("AttachIssueLocation"); locBox.Text = "(Location captured)"; };
@@ -5673,6 +6314,11 @@ namespace StingTools.UI
                         StingCommandHandler.SetExtraParam("IssueTitle", titleBox.Text);
                         StingCommandHandler.SetExtraParam("Assignees", string.Join(",", assignChecks2.Where(c => c.IsChecked == true).Select(c => c.Content?.ToString() ?? "")));
                         StingCommandHandler.SetExtraParam("NotifyRecipients", string.Join(",", notifyChecks.Where(c => c.IsChecked == true).Select(c => c.Content?.ToString() ?? "")));
+                        // HC-14: Pass category + optional healthcare sub-category.
+                        string issueCat = (catCb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "General";
+                        StingCommandHandler.SetExtraParam("IssueCategory", issueCat);
+                        if (issueCat == "Healthcare")
+                            StingCommandHandler.SetExtraParam("IssueHcSubCategory", (hcSubCb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "");
                         DispatchAction("RaiseIssue");
                     };
                     sp.Children.Add(raiseBtn);
@@ -6591,6 +7237,7 @@ namespace StingTools.UI
             ActionDispatcher = null;
             CurrentInstance = null;
             _tabCache.Clear();
+            ThemeManager.ThemeChanged -= OnThemeChanged;
             StingLog.Info("BIMCoordinationCenter closed and resources released.");
         }
 
@@ -6777,7 +7424,7 @@ namespace StingTools.UI
                                 }
                                 else { rowData.Add(""); }
                             }
-                            catch { rowData.Add(""); }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); rowData.Add(""); }
                         }
                         rows.Add(rowData);
                     }
@@ -7107,9 +7754,76 @@ namespace StingTools.UI
                 {
                     AutoGenerateColumns = false, IsReadOnly = true, HeadersVisibility = DataGridHeadersVisibility.Column,
                     GridLinesVisibility = DataGridGridLinesVisibility.Horizontal, CanUserSortColumns = true,
-                    SelectionMode = DataGridSelectionMode.Single, FontSize = 11, MaxHeight = 300,
+                    SelectionMode = DataGridSelectionMode.Extended, FontSize = 11, MaxHeight = 300,
                     BorderBrush = Br(CBorder), BorderThickness = new Thickness(1), RowHeaderWidth = 0
                 };
+
+                // T3-18 — bulk multi-select on deliverables. Same pattern as
+                // the issues grid above; HashSet keyed off the deliverable
+                // Code (deliverables don't have GUIDs in the local model).
+                var bulkSelectedDels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var bulkFooter = new Border
+                {
+                    Visibility = Visibility.Collapsed,
+                    Background = Br(Color.FromRgb(0xEC, 0xEF, 0xF1)),
+                    BorderBrush = Br(CBorder),
+                    BorderThickness = new Thickness(0, 1, 0, 0),
+                    Padding = new Thickness(10, 6, 10, 6),
+                    Margin = new Thickness(0, 0, 0, 8),
+                };
+                var bulkRow = new StackPanel { Orientation = Orientation.Horizontal };
+                var bulkCount = new TextBlock { Text = "0 selected", FontSize = 11, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+                bulkRow.Children.Add(bulkCount);
+                Action refreshBulkFooter = () =>
+                {
+                    bulkCount.Text = $"{bulkSelectedDels.Count} selected";
+                    bulkFooter.Visibility = bulkSelectedDels.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+                };
+                Button MakeBulkBtn(string label, Color c) => new Button
+                {
+                    Content = label, Background = Br(c), Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0), Padding = new Thickness(10, 3, 10, 3),
+                    FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0)
+                };
+                var bulkReassign = MakeBulkBtn("Reassign Owner", Color.FromRgb(0xE8, 0x91, 0x2D));
+                bulkReassign.Click += (s, e) => DispatchAction("BulkDeliverableReassign|" + string.Join(",", bulkSelectedDels));
+                var bulkApprove  = MakeBulkBtn("Bulk Resolve", Color.FromRgb(0x2E, 0x7D, 0x32));
+                bulkApprove.Click += (s, e) => DispatchAction("BulkDeliverableApprove|" + string.Join(",", bulkSelectedDels));
+                var bulkExportBtn = MakeBulkBtn("Export CSV", Color.FromRgb(0x45, 0x50, 0x6E));
+                bulkExportBtn.Click += (s, e) => DispatchAction("BulkDeliverableExport|" + string.Join(",", bulkSelectedDels));
+                var bulkClear = new Button
+                {
+                    Content = "Clear", Background = Brushes.Transparent, BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+                    Padding = new Thickness(8, 2, 8, 2), FontSize = 11, Cursor = Cursors.Hand
+                };
+                bulkClear.Click += (s, e) => { bulkSelectedDels.Clear(); refreshBulkFooter(); dg.Items.Refresh(); };
+                bulkRow.Children.Add(bulkReassign);
+                bulkRow.Children.Add(bulkApprove);
+                bulkRow.Children.Add(bulkExportBtn);
+                bulkRow.Children.Add(bulkClear);
+                bulkFooter.Child = bulkRow;
+
+                var cbColTemplateD = new DataTemplate();
+                var cbFactoryD = new FrameworkElementFactory(typeof(CheckBox));
+                cbFactoryD.SetValue(CheckBox.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+                cbFactoryD.SetValue(CheckBox.VerticalAlignmentProperty, VerticalAlignment.Center);
+                cbFactoryD.AddHandler(CheckBox.ClickEvent, new RoutedEventHandler((s, e) =>
+                {
+                    if (s is CheckBox cb && cb.DataContext is DeliverableRow row)
+                    {
+                        if (cb.IsChecked == true) bulkSelectedDels.Add(row.Code);
+                        else                     bulkSelectedDels.Remove(row.Code);
+                        refreshBulkFooter();
+                    }
+                }));
+                cbFactoryD.SetBinding(CheckBox.IsCheckedProperty,
+                    new Binding("Code") { Converter = new IsCheckedSetConverter(bulkSelectedDels), Mode = BindingMode.OneWay });
+                cbColTemplateD.VisualTree = cbFactoryD;
+                dg.Columns.Add(new DataGridTemplateColumn
+                {
+                    Header = "", Width = 30, CellTemplate = cbColTemplateD, CanUserSort = false, CanUserReorder = false,
+                });
+
                 dg.Columns.Add(new DataGridTextColumn { Header = "Code",       Binding = new Binding("Code"),       Width = 120 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Name",       Binding = new Binding("Name"),       Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Disc.",      Binding = new Binding("Discipline"), Width = 45 });
@@ -7143,11 +7857,24 @@ namespace StingTools.UI
                     { DispatchAction("ViewDocument_" + del.Code); }
                 };
 
-                // Right-click context menu
+                // Right-click context menu — T3-18 mirrors the viewer's
+                // deliverable-equivalent options: open detail / mark
+                // resolved / copy ID / copy permalink / standard actions.
                 var dgCtx = new ContextMenu();
-                var ctxView = new MenuItem { Header = "View Document Details" };
-                ctxView.Click += (s, e) => { if (dg.SelectedItem is DeliverableRow d2) { DispatchAction("ViewDocument_" + d2.Code); } };
+                DeliverableRow CtxDelRow() => dg.SelectedItem as DeliverableRow;
+                var ctxView = new MenuItem { Header = "📂 Open detail" };
+                ctxView.Click += (s, e) => { var r = CtxDelRow(); if (r != null) DispatchAction("ViewDocument_" + r.Code); };
                 dgCtx.Items.Add(ctxView);
+                var ctxResolve = new MenuItem { Header = "✓ Mark resolved (Approved)" };
+                ctxResolve.Click += (s, e) => { var r = CtxDelRow(); if (r != null) DispatchAction("ApproveDeliverable_" + r.Code); };
+                dgCtx.Items.Add(ctxResolve);
+                var ctxCopyId = new MenuItem { Header = "📋 Copy ID" };
+                ctxCopyId.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText(r.Code ?? string.Empty); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } } };
+                dgCtx.Items.Add(ctxCopyId);
+                var ctxCopyLink = new MenuItem { Header = "🔗 Copy permalink" };
+                ctxCopyLink.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText($"planscape://deliverable/{r.Code}"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } } };
+                dgCtx.Items.Add(ctxCopyLink);
+                dgCtx.Items.Add(new Separator());
                 var ctxCDE = new MenuItem { Header = "Update CDE Status" };
                 ctxCDE.Click += (s, e) => { DispatchAction("CDEStatus"); };
                 dgCtx.Items.Add(ctxCDE);
@@ -7185,6 +7912,7 @@ namespace StingTools.UI
                 filterDisc.SelectionChanged   += (s, e) => applyFilter();
 
                 root.Children.Add(dg);
+                root.Children.Add(bulkFooter);
             }
             else
             {
@@ -7331,7 +8059,161 @@ namespace StingTools.UI
             actGrid.Children.Add(col1); actGrid.Children.Add(col2); actGrid.Children.Add(col3);
             root.Children.Add(actGrid);
 
+            // TPL-FOLLOW-04: Recipient matrix sub-section
+            root.Children.Add(BuildRecipientMatrixSection());
+
             return sv;
+        }
+
+        // ── TPL-FOLLOW-04: Recipient matrix sub-section ──────────────────────
+
+        private UIElement BuildRecipientMatrixSection()
+        {
+            var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+            var section = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
+            section.Children.Add(MakeSectionHeader("RECIPIENT MATRIX"));
+            section.Children.Add(new TextBlock
+            {
+                Text = "Distribution groups and their assigned deliverable types. " +
+                       "Edit in: _BIM_COORD/distribution_groups.json",
+                FontSize = 10,
+                Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 8),
+            });
+
+            try
+            {
+                if (doc == null)
+                {
+                    section.Children.Add(new TextBlock { Text = "No active document.", Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), FontSize = 11 });
+                    return section;
+                }
+                string bimDir = BIMManager.BIMManagerEngine.GetBIMManagerDir(doc);
+                string groupsPath = System.IO.Path.Combine(bimDir, "distribution_groups.json");
+                if (!System.IO.File.Exists(groupsPath))
+                {
+                    section.Children.Add(new TextBlock { Text = "No distribution_groups.json found. Run 'Create Transmittal' to seed the file.", Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), FontSize = 11 });
+                    return section;
+                }
+
+                var groups = Newtonsoft.Json.JsonConvert.DeserializeObject<
+                    List<Docs.Workflow.DistributionGroup>>(System.IO.File.ReadAllText(groupsPath))
+                    ?? new List<Docs.Workflow.DistributionGroup>();
+
+                if (groups.Count == 0)
+                {
+                    section.Children.Add(new TextBlock { Text = "Distribution groups list is empty.", Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), FontSize = 11 });
+                    return section;
+                }
+
+                // Build grid: rows = groups, columns = deliverable types / suitabilities
+                // Collect all unique suitabilities across groups
+                var allSuitabilities = new System.Collections.Generic.SortedSet<string>();
+                foreach (var g in groups)
+                    foreach (var s in g.AppliesSuitabilities ?? new List<string>())
+                        allSuitabilities.Add(s);
+
+                var matrixGrid = new Grid();
+                matrixGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(160) });  // group name
+                foreach (var _ in allSuitabilities)
+                    matrixGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50, GridUnitType.Star) });
+
+                // Header row
+                matrixGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                var hdrGroup = new TextBlock { Text = "Group", FontWeight = FontWeights.SemiBold, FontSize = 11, Margin = new Thickness(2) };
+                Grid.SetRow(hdrGroup, 0); Grid.SetColumn(hdrGroup, 0);
+                matrixGrid.Children.Add(hdrGroup);
+
+                int suitCol = 1;
+                foreach (string suit in allSuitabilities)
+                {
+                    var hdrSuit = new TextBlock
+                    {
+                        Text = suit, FontWeight = FontWeights.SemiBold, FontSize = 10,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Margin = new Thickness(2),
+                        ToolTip = suit,
+                        Foreground = Br(Color.FromRgb(0xB0, 0xBE, 0xC5)),
+                    };
+                    Grid.SetRow(hdrSuit, 0); Grid.SetColumn(hdrSuit, suitCol++);
+                    matrixGrid.Children.Add(hdrSuit);
+                }
+
+                // Data rows
+                int row = 1;
+                foreach (var grp in groups)
+                {
+                    matrixGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    Color rowBg = row % 2 == 0 ? CCardBg : CHeaderBg;
+
+                    var grpCell = new Border { Background = Br(rowBg), Padding = new Thickness(4, 3, 4, 3) };
+                    var grpSp = new StackPanel();
+                    grpSp.Children.Add(new TextBlock { Text = grp.Name ?? "Unnamed", FontSize = 11, FontWeight = FontWeights.SemiBold });
+                    if (!string.IsNullOrEmpty(grp.Description))
+                        grpSp.Children.Add(new TextBlock { Text = grp.Description, FontSize = 9, Foreground = Br(Color.FromRgb(0x90, 0xA4, 0xAE)) });
+                    grpCell.Child = grpSp;
+                    Grid.SetRow(grpCell, row); Grid.SetColumn(grpCell, 0);
+                    matrixGrid.Children.Add(grpCell);
+
+                    var grpSuits = new System.Collections.Generic.HashSet<string>(grp.AppliesSuitabilities ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+                    int c = 1;
+                    foreach (string suit in allSuitabilities)
+                    {
+                        bool receives = grpSuits.Contains(suit);
+                        var cell = new Border { Background = Br(rowBg), Padding = new Thickness(2) };
+                        var tick = new TextBlock
+                        {
+                            Text = receives ? "✓" : "–",
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            FontSize = receives ? 13 : 11,
+                            Foreground = receives ? Br(CGreen) : Br(Color.FromRgb(0x55, 0x55, 0x55)),
+                            FontWeight = receives ? FontWeights.Bold : FontWeights.Normal,
+                        };
+                        cell.Child = tick;
+                        Grid.SetRow(cell, row); Grid.SetColumn(cell, c++);
+                        matrixGrid.Children.Add(cell);
+                    }
+                    row++;
+                }
+
+                var matrixBorder = new Border
+                {
+                    BorderBrush = Br(Color.FromRgb(0x42, 0x42, 0x42)),
+                    BorderThickness = new Thickness(1),
+                    Margin = new Thickness(0, 0, 0, 12),
+                    Child = matrixGrid,
+                };
+                section.Children.Add(matrixBorder);
+
+                // Quick-edit button
+                var editBtn = new Button
+                {
+                    Content = "⟶  Edit Distribution Groups",
+                    Style = (Style)Application.Current.Resources["MaterialDesignRaisedButton"],
+                    Margin = new Thickness(0, 0, 0, 8),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Padding = new Thickness(10, 4, 10, 4),
+                    ToolTip = groupsPath,
+                };
+                editBtn.Click += (s, e) =>
+                {
+                    try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{groupsPath}\""); }
+                    catch (Exception ex) { StingLog.Warn($"Open groups file: {ex.Message}"); }
+                };
+                section.Children.Add(editBtn);
+            }
+            catch (Exception ex)
+            {
+                section.Children.Add(new TextBlock
+                {
+                    Text = $"Recipient matrix load error: {ex.Message}",
+                    Foreground = Br(CRed), FontSize = 10, TextWrapping = TextWrapping.Wrap,
+                });
+                StingLog.Warn($"BuildRecipientMatrixSection: {ex.Message}");
+            }
+
+            return section;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -7450,6 +8332,158 @@ namespace StingTools.UI
                 root.Children.Add(infoCard);
             }
             return root;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Healthcare Pack HC-02 — Healthcare tab
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>Reads PRJ_ORG_HEALTH_FACILITY_TYPE_TXT from the active doc.
+        /// Returns "" if absent — the BCC then suppresses the Healthcare tab.</summary>
+        private string GetHealthcareFacilityType()
+        {
+            try
+            {
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                var p = doc?.ProjectInformation?.LookupParameter("PRJ_ORG_HEALTH_FACILITY_TYPE_TXT");
+                if (p != null && p.HasValue && p.StorageType == Autodesk.Revit.DB.StorageType.String)
+                    return (p.AsString() ?? "").Trim();
+            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            return "";
+        }
+
+        private UIElement BuildHealthcareTab()
+        {
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(20) };
+            var stack = new StackPanel();
+
+            // Live facility-type chip strip
+            var headerWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
+            string facType = GetHealthcareFacilityType();
+            if (!string.IsNullOrEmpty(facType))
+                headerWrap.Children.Add(MakeMetricChip($"Facility: {facType}", Br(Color.FromRgb(0x00, 0x83, 0x8F))));
+            // Profile chip if pack profile is set.
+            try
+            {
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                var p = doc?.ProjectInformation?.LookupParameter("PRJ_ORG_HEALTH_PACK_PROFILE_TXT");
+                if (p != null && p.HasValue && p.StorageType == Autodesk.Revit.DB.StorageType.String)
+                {
+                    var prof = (p.AsString() ?? "").Trim();
+                    if (!string.IsNullOrEmpty(prof))
+                        headerWrap.Children.Add(MakeMetricChip($"Profile: {prof}", Br(Color.FromRgb(0x6A, 0x1B, 0x9A))));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            // Code-base chip (HBN/HTM, FGI, iHFG, Other).
+            try
+            {
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                var p = doc?.ProjectInformation?.LookupParameter("PRJ_ORG_HEALTH_CODE_BASE_TXT");
+                if (p != null && p.HasValue && p.StorageType == Autodesk.Revit.DB.StorageType.String)
+                {
+                    var cb = (p.AsString() ?? "").Trim();
+                    if (!string.IsNullOrEmpty(cb))
+                        headerWrap.Children.Add(MakeMetricChip($"Code base: {cb}", Br(CHeaderBg)));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            stack.Children.Add(headerWrap);
+
+            // Intro card
+            var intro = MakeCard();
+            var introStack = new StackPanel { Margin = new Thickness(14) };
+            introStack.Children.Add(new TextBlock {
+                Text = "Healthcare Pack — Hospital Design / FM",
+                FontSize = 14, FontWeight = FontWeights.Bold,
+                Foreground = Br(Color.FromRgb(0x00, 0x83, 0x8F)),
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+            introStack.Children.Add(new TextBlock {
+                Text = "16 healthcare validators (HTM 02-01 / HTM 03-01 / HTM 04-01 / NFPA 99 / NCRP 147 / ASHRAE 170 / USP 797-800 / HBN 03-01 / HBN 13 / HTM 01-06 / NFPA 110) gated through HealthcareValidatorGate. Use the buttons below to drill into a specific check or run the full sweep.",
+                TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = Brushes.Gray
+            });
+            intro.Child = introStack;
+            stack.Children.Add(intro);
+            stack.Children.Add(new Border { Height = 12 });
+
+            // Validation chain
+            stack.Children.Add(MakeSectionHeader("VALIDATION CHAIN"));
+            var valWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            valWrap.Children.Add(MakeActionButton("Run All Healthcare", "Healthcare_RunAllValidators", Br(Color.FromRgb(0x00, 0x83, 0x8F)), "Run every healthcare validator (16) through the profile gate."));
+            valWrap.Children.Add(MakeActionButton("Pressure Regime",   "Healthcare_PressureAudit",       Br(Color.FromRgb(0x15, 0x65, 0xC0)), "HTM 03-01 / ASHRAE 170 — pressure regime + Δp + ACH."));
+            valWrap.Children.Add(MakeActionButton("MGPS Audit",        "Healthcare_MgasAudit",           Br(Color.FromRgb(0x43, 0xA0, 0x47)), "HTM 02-01 / NFPA 99 — MGPS network walk."));
+            valWrap.Children.Add(MakeActionButton("MGPS Verify",       "Healthcare_MgasVerify",          Br(Color.FromRgb(0x2E, 0x7D, 0x32)), "NFPA 99 §5.1.12 — 12-step verification."));
+            valWrap.Children.Add(MakeActionButton("EES Branches",      "Healthcare_EesBranch",           Br(Color.FromRgb(0xF4, 0x51, 0x1E)), "NFPA 99 / NEC 517 — EES branch + ATS + IPS."));
+            valWrap.Children.Add(MakeActionButton("Water Safety",      "Healthcare_WaterSafety",         Br(Color.FromRgb(0x02, 0x77, 0xBD)), "HTM 04-01 — TMV / dead-leg / aug-care / RO-loop."));
+            valWrap.Children.Add(MakeActionButton("Rad Shield",        "Healthcare_RadShield",           Br(Color.FromRgb(0xFB, 0xC0, 0x2D)), "NCRP 147 — required vs provided mm Pb."));
+            valWrap.Children.Add(MakeActionButton("Adv Rad",           "Healthcare_AdvancedRadShield",   Br(Color.FromRgb(0xF5, 0x7F, 0x17)), "PET 511 keV / SPECT / brachy."));
+            valWrap.Children.Add(MakeActionButton("Adjacency / Flow",  "Healthcare_AdjacencyAudit",      Br(Color.FromRgb(0x37, 0x47, 0x4F)), "HBN-derived adjacency + clean/dirty flow BFS."));
+            valWrap.Children.Add(MakeActionButton("Anti-Ligature",     "Healthcare_AntiLigature",        Br(Color.FromRgb(0xC6, 0x28, 0x28)), "HBN 03-01 / FGI Pt 2."));
+            valWrap.Children.Add(MakeActionButton("Structural Loads",  "Healthcare_StructuralLoad",      Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), "Imaging floor load + VC vibration."));
+            valWrap.Children.Add(MakeActionButton("Acoustic",          "Healthcare_Acoustic",            Br(Color.FromRgb(0x00, 0x69, 0x7C)), "HTM 08-01 NR + RT60."));
+            valWrap.Children.Add(MakeActionButton("Endoscope Trace",   "Healthcare_EndoscopeTrace",      Br(Color.FromRgb(0x4E, 0x34, 0x2E)), "HTM 01-06 — RFID chain."));
+            valWrap.Children.Add(MakeActionButton("EES Resilience",    "Healthcare_EesResilience",       Br(Color.FromRgb(0xBF, 0x36, 0x0C)), "NFPA 110 generator / ATS / UPS log freshness."));
+            valWrap.Children.Add(MakeActionButton("RTLS Coverage",     "Healthcare_RtlsCoverage",        Br(Color.FromRgb(0x7B, 0x1F, 0xA2)), "RTLS RF dead-zone + MRI Z3/Z4 prohibition."));
+            valWrap.Children.Add(MakeActionButton("Waste Flow",        "Healthcare_WasteFlow",           Br(Color.FromRgb(0x5D, 0x40, 0x37)), "HTM 07-01 HC1..HC6 class + radioactive area."));
+            valWrap.Children.Add(MakeActionButton("IoT Devices",       "Healthcare_IoTRegistry",         Br(Color.FromRgb(0x45, 0x50, 0x6E)), "IoT device registry by protocol."));
+            valWrap.Children.Add(MakeActionButton("IoT Staleness",     "Healthcare_IoTStaleness",        Br(Color.FromRgb(0x9E, 0x9E, 0x9E)), "Devices not seen in > 30 min."));
+            stack.Children.Add(valWrap);
+            stack.Children.Add(new Border { Height = 8 });
+
+            // Room Data Sheets
+            stack.Children.Add(MakeSectionHeader("ROOM DATA SHEETS (H-8)"));
+            var rdsWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            rdsWrap.Children.Add(MakeActionButton("Issue RDS (one room)", "Healthcare_IssueRDS",        Br(Color.FromRgb(0x00, 0x83, 0x8F)), "Pick a Room and render its A2 RDS."));
+            rdsWrap.Children.Add(MakeActionButton("Batch RDS (all)",      "Healthcare_BatchRDS",        Br(Color.FromRgb(0x00, 0x69, 0x7C)), "Render an RDS for every clinical room."));
+            rdsWrap.Children.Add(MakeActionButton("RDS Completeness",     "Healthcare_RdsCompleteness", Br(Color.FromRgb(0x00, 0x60, 0x64)), "Audit mandatory parameters per clinical room."));
+            stack.Children.Add(rdsWrap);
+            stack.Children.Add(new Border { Height = 8 });
+
+            // Radiation
+            stack.Children.Add(MakeSectionHeader("RADIATION (NCRP 147 / 151)"));
+            var radWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            radWrap.Children.Add(MakeActionButton("Chest Room Calc", "Healthcare_RadCalcChest", Br(Color.FromRgb(0xFB, 0xC0, 0x2D)), "NCRP 147 chest radiography example."));
+            radWrap.Children.Add(MakeActionButton("CT Room Calc",    "Healthcare_RadCalcCt",    Br(Color.FromRgb(0xF5, 0x7F, 0x17)), "NCRP 147 CT secondary-barrier example."));
+            radWrap.Children.Add(MakeActionButton("LINAC Vault",     "Healthcare_RadCalcLinac", Br(Color.FromRgb(0xE6, 0x51, 0x00)), "NCRP 151 first-pass LINAC vault."));
+            radWrap.Children.Add(MakeActionButton("MRI Zoning",      "Healthcare_MriZoneAudit", Br(Color.FromRgb(0x4A, 0x14, 0x8C)), "Z1..Z4 + Faraday cage flag."));
+            stack.Children.Add(radWrap);
+            stack.Children.Add(new Border { Height = 8 });
+
+            // Specialist
+            stack.Children.Add(MakeSectionHeader("SPECIALIST AUDITS"));
+            var specWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            specWrap.Children.Add(MakeActionButton("Hybrid OR / Cath",  "Healthcare_HybridOr",          Br(Color.FromRgb(0x15, 0x65, 0xC0)), "Hybrid OR / Cath / IR area + clearance."));
+            specWrap.Children.Add(MakeActionButton("Pharmacy USP",      "Healthcare_PharmacyUsp",       Br(Color.FromRgb(0x1A, 0x23, 0x7E)), "USP <797> / <800> pressure cascade."));
+            specWrap.Children.Add(MakeActionButton("Behavioural",       "Healthcare_BehaviouralHealth", Br(Color.FromRgb(0xC6, 0x28, 0x28)), "FGI Pt 2 / HBN 03-01."));
+            specWrap.Children.Add(MakeActionButton("Mortuary",          "Healthcare_Mortuary",          Br(Color.FromRgb(0x37, 0x47, 0x4F)), "HBN 16 capacity (0.5 % beds, min 4)."));
+            specWrap.Children.Add(MakeActionButton("Maternity / NICU",  "Healthcare_MaternityNicu",     Br(Color.FromRgb(0xAD, 0x14, 0x57)), "HBN 21 / 09-03."));
+            specWrap.Children.Add(MakeActionButton("HSDU",              "Healthcare_Hsdu",              Br(Color.FromRgb(0x4A, 0x14, 0x8C)), "HBN 13 — wash / pack / sterile."));
+            specWrap.Children.Add(MakeActionButton("Dialysis",          "Healthcare_Dialysis",          Br(Color.FromRgb(0x33, 0x69, 0x1E)), "HBN 07-02 RO-loop."));
+            specWrap.Children.Add(MakeActionButton("Hyperbaric / IVF",  "Healthcare_Hbo",               Br(Color.FromRgb(0x00, 0x69, 0x5C)), "NFPA 99 Ch.14 + USP cytotoxic + IVF."));
+            stack.Children.Add(specWrap);
+            stack.Children.Add(new Border { Height = 8 });
+
+            // Workflow presets
+            stack.Children.Add(MakeSectionHeader("WORKFLOW PRESETS"));
+            var wfWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            wfWrap.Children.Add(MakeActionButton("List Workflows", "ListWorkflowPresets", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), "Show every workflow preset; healthcare ones include HealthcareCommissioning, MgasVerification, PressureRegimeAudit, RdsIssue, HTM-04-01-Annual, AntiLigatureAudit, NFPA110-GeneratorTest, HTM-01-06-EndoReprocess."));
+            wfWrap.Children.Add(MakeActionButton("Workflow Trend", "WorkflowTrend",       Br(Color.FromRgb(0x45, 0x50, 0x6E)), "Healthcare workflow run-history trend."));
+            stack.Children.Add(wfWrap);
+
+            // Footer note
+            stack.Children.Add(new Border { Height = 12 });
+            var footer = new TextBlock {
+                Text = "All audits surface findings via TaskDialog + StingTools.log. Sign-off " +
+                       "(MGS_VERIFY_BY_TXT, RAD_QE_NAME_TXT) is mandatory before commissioning.",
+                FontSize = 10, FontStyle = FontStyles.Italic, Foreground = Brushes.Gray,
+                TextWrapping = TextWrapping.Wrap
+            };
+            stack.Children.Add(footer);
+
+            scroll.Content = stack;
+            return scroll;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -7647,9 +8681,104 @@ namespace StingTools.UI
             tabCStack.Children.Add(cdeDg);
             tabC.Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = tabCStack };
 
+            // ══ Sub-tab 3D: Issue Workload (BIM-TEAM-WORKLOAD-01) ════════
+            var tabD = new System.Windows.Controls.TabItem { Header = "Issue Workload" };
+            var tabDStack = new StackPanel { Margin = new Thickness(8) };
+
+            // Build workload rows from TeamWorkloadEngine
+            var workloadRows = new List<TeamWorkloadEngine.WorkloadRow>();
+            try { workloadRows = TeamWorkloadEngine.Build(_doc); }
+            catch (Exception ex) { StingLog.Warn($"BCC workload tab: {ex.Message}"); }
+
+            if (workloadRows.Count == 0)
+            {
+                tabDStack.Children.Add(new TextBlock
+                {
+                    Text = "No open issues found in this project.\nCreate issues via the ISSUES tab to populate workload data.",
+                    FontSize = 12, Foreground = Brushes.Gray,
+                    Margin = new Thickness(0, 12, 0, 0),
+                    TextWrapping = TextWrapping.Wrap,
+                });
+            }
+            else
+            {
+                // KPI strip
+                int totalIssues = workloadRows.Sum(r => r.OpenTotal);
+                int totalCrit   = workloadRows.Sum(r => r.Critical);
+                int totalOver   = workloadRows.Sum(r => r.Overdue);
+                var wKpi = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, 0, 8) };
+                wKpi.Children.Add(MakeKPICard("ASSIGNEES",   workloadRows.Count.ToString(),  Br(CHeaderBg), "People with open issues"));
+                wKpi.Children.Add(MakeKPICard("OPEN TOTAL",  totalIssues.ToString(),          totalIssues > 20 ? Br(CRed) : Br(CGreen), "Open issues across team"));
+                wKpi.Children.Add(MakeKPICard("CRITICAL",    totalCrit.ToString(),            totalCrit > 0 ? Br(CRed) : Br(CGreen), "Critical-priority open issues"));
+                wKpi.Children.Add(MakeKPICard("OVERDUE",     totalOver.ToString(),            totalOver > 0 ? Br(CAmber) : Br(CGreen), "Past SLA deadline"));
+                tabDStack.Children.Add(wKpi);
+
+                // Sortable DataGrid
+                var wDg = new DataGrid
+                {
+                    AutoGenerateColumns  = false,
+                    CanUserAddRows       = false,
+                    CanUserDeleteRows    = false,
+                    IsReadOnly           = true,
+                    SelectionMode        = DataGridSelectionMode.Single,
+                    AlternatingRowBackground = Br(Color.FromRgb(38, 38, 40)),
+                    Background           = Br(Color.FromRgb(28, 28, 30)),
+                    RowBackground        = Br(Color.FromRgb(28, 28, 30)),
+                    Foreground           = Brushes.White,
+                    Margin               = new Thickness(0, 4, 0, 0),
+                    MaxHeight            = 420,
+                };
+                wDg.Columns.Add(new DataGridTextColumn { Header = "Assignee",  Binding = new Binding("Assignee"),  Width = new DataGridLength(160) });
+                wDg.Columns.Add(new DataGridTextColumn { Header = "Open",      Binding = new Binding("OpenTotal"), Width = new DataGridLength(55) });
+                wDg.Columns.Add(new DataGridTextColumn { Header = "Critical",  Binding = new Binding("Critical"),  Width = new DataGridLength(65) });
+                wDg.Columns.Add(new DataGridTextColumn { Header = "High",      Binding = new Binding("High"),      Width = new DataGridLength(55) });
+                wDg.Columns.Add(new DataGridTextColumn { Header = "Overdue",   Binding = new Binding("Overdue"),   Width = new DataGridLength(65) });
+                wDg.Columns.Add(new DataGridTextColumn { Header = "Oldest (d)",Binding = new Binding("OldestDays"),Width = new DataGridLength(80) });
+
+                wDg.ItemsSource = workloadRows.OrderByDescending(r => r.Critical * 3 + r.High * 2 + r.OpenTotal).ToList();
+
+                // Row style: red tint for Critical > 0
+                var rowStyle = new Style(typeof(DataGridRow));
+                rowStyle.Triggers.Add(new DataTrigger
+                {
+                    Binding = new Binding("Critical"), Value = 0
+                });
+                wDg.RowStyle = rowStyle;
+
+                tabDStack.Children.Add(wDg);
+
+                // Legend
+                tabDStack.Children.Add(new TextBlock
+                {
+                    Text = "Workload score = Critical×3 + High×2 + Open×1  |  Click column headers to sort",
+                    FontSize = 10, Foreground = Brushes.Gray, Margin = new Thickness(0, 4, 0, 0),
+                });
+            }
+
+            // Export button
+            var wExportBtn = new Button { Content = "Export CSV", Margin = new Thickness(0, 8, 0, 0), Padding = new Thickness(10, 4, 10, 4) };
+            wExportBtn.Click += (_, __) =>
+            {
+                try
+                {
+                    string rows2 = TeamWorkloadEngine.Build(_doc)
+                        .OrderByDescending(r => r.Critical * 3 + r.High * 2 + r.OpenTotal)
+                        .Select(r => $"{r.Assignee},{r.OpenTotal},{r.Critical},{r.High},{r.Overdue},{r.OldestDays}")
+                        .Aggregate("Assignee,Open,Critical,High,Overdue,OldestDays\n", (a, b) => a + b + "\n");
+                    string path = Path.Combine(OutputLocationHelper.GetOutputDirectory(_doc), $"team_workload_{DateTime.Now:yyyyMMdd}.csv");
+                    File.WriteAllText(path, rows2);
+                    TaskDialog.Show("STING — Team Workload", $"Exported to:\n{path}");
+                }
+                catch (Exception ex) { StingLog.Warn($"Workload export: {ex.Message}"); }
+            };
+            tabDStack.Children.Add(wExportBtn);
+
+            tabD.Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = tabDStack };
+
             tc.Items.Add(tabA);
             tc.Items.Add(tabB);
             tc.Items.Add(tabC);
+            tc.Items.Add(tabD);
             outerStack.Children.Add(tc);
 
             var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
@@ -9245,12 +10374,12 @@ namespace StingTools.UI
                     if (el is Autodesk.Revit.DB.FamilyInstance fi)
                     {
                         Autodesk.Revit.DB.Phase phase = null;
-                        try { phase = doc.GetElement(el.CreatedPhaseId) as Autodesk.Revit.DB.Phase; } catch { }
+                        try { phase = doc.GetElement(el.CreatedPhaseId) as Autodesk.Revit.DB.Phase; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         var r = phase != null ? fi.get_Room(phase) : fi.Room;
                         if (r != null) room = r.Name;
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 var parts = new List<string>();
                 if (!string.IsNullOrEmpty(lvl)  && lvl  != "XX") parts.Add(lvl);
                 if (!string.IsNullOrEmpty(zone) && zone != "XX" && zone != "ZZ") parts.Add(zone);
@@ -9487,7 +10616,7 @@ namespace StingTools.UI
                 if (bcc != null && bcc != w && bcc.IsLoaded)
                 {
                     try { ownerHwnd = new System.Windows.Interop.WindowInteropHelper(bcc).Handle; }
-                    catch { ownerHwnd = IntPtr.Zero; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); ownerHwnd = IntPtr.Zero; }
                 }
                 if (ownerHwnd == IntPtr.Zero)
                 {
@@ -9532,5 +10661,23 @@ namespace StingTools.UI
             ApplyOwner(w);
             w.Show();
         }
+    }
+
+    /// <summary>
+    /// T3-18 — One-way binding converter that maps a row id to a CheckBox
+    /// IsChecked state by consulting a shared HashSet. Used by the BCC bulk
+    /// multi-select columns on the issue + deliverable grids; both grids
+    /// virtualize, so we cannot rely on a per-row mutable IsChecked field
+    /// without lifting the rows to INotifyPropertyChanged. Keeping the
+    /// authoritative state in a HashSet sidesteps that for free.
+    /// </summary>
+    public sealed class IsCheckedSetConverter : System.Windows.Data.IValueConverter
+    {
+        private readonly System.Collections.Generic.HashSet<string> _set;
+        public IsCheckedSetConverter(System.Collections.Generic.HashSet<string> set) { _set = set; }
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => value is string s && _set.Contains(s);
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => System.Windows.Data.Binding.DoNothing;
     }
 }

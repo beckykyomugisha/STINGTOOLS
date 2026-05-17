@@ -1,0 +1,350 @@
+{
+  "version": "1.0",
+  "standard": "STING SEED FAMILY — Plumbing Fixtures (BS EN 12056, BS 6465, BS 8558)",
+  "_notes": [
+    "16 type variants covering standard sanitary (WC, basin, urinal,",
+    "shower, sink), baths, kitchen sinks, cleaner / mop sinks, drinking",
+    "fountains, accessible fixtures (WC, basin, shower wheelchair), bidet,",
+    "slop hopper, shower tray."
+  ],
+  "symbols": [
+    {
+      "id": "STING_SEED_PlumbingFixture",
+      "name": "STING Seed — Plumbing Fixture",
+      "category": "Plumbing Fixtures",
+      "familyType": "SeedFamily",
+      "discipline": "Plumbing",
+      "subcategory": "STING_SEED",
+      "isSeed": true,
+      "protectExisting": true,
+      "hosting": "FaceBased",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_PlumbingFixture"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "P"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "WC"
+        },
+        {
+          "name": "PLM_FIX_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "WC"
+        },
+        {
+          "name": "PLM_FIX_ACCESSIBLE_BOOL",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "0"
+        },
+        {
+          "name": "PLM_FIX_FLOWRATE_LMIN",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "9"
+        },
+        {
+          "name": "PLM_FIX_HOT_COLD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "COLD"
+        },
+        {
+          "name": "PLM_FIX_DRAIN_DN_MM",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "100"
+        }
+      ],
+      "connectors": [
+        {
+          "domain": "Piping",
+          "systemType": "DomesticCold",
+          "shape": "Round",
+          "sizeMm": 15,
+          "direction": "In",
+          "offsetX": -0.25,
+          "offsetY": 0.0,
+          "offsetZ": 0.5,
+          "facing": "+Z"
+        },
+        {
+          "domain": "Piping",
+          "systemType": "DomesticHot",
+          "shape": "Round",
+          "sizeMm": 15,
+          "direction": "In",
+          "offsetX": 0.25,
+          "offsetY": 0.0,
+          "offsetZ": 0.5,
+          "facing": "+Z"
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Sanitary",
+          "shape": "Round",
+          "sizeMm": 100,
+          "direction": "Out",
+          "offsetX": 0.0,
+          "offsetY": 0.5,
+          "offsetZ": -0.5,
+          "facing": "-Z"
+        }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": -0.5, "x2": 0.4, "y2": -0.5 },
+          { "x1": 0.4, "y1": -0.5, "x2": 0.5, "y2": 0.0 },
+          { "x1": 0.5, "y1": 0.0, "x2": 0.4, "y2": 0.5 },
+          { "x1": 0.4, "y1": 0.5, "x2": -0.4, "y2": 0.5 },
+          { "x1": -0.4, "y1": 0.5, "x2": -0.5, "y2": 0.0 },
+          { "x1": -0.5, "y1": 0.0, "x2": -0.4, "y2": -0.5 }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 400,
+        "depthMm": 600,
+        "heightMm": 400
+      },
+      "swapCandidates": [
+        {
+          "label": "Armitage Shanks / Ideal Standard WC",
+          "familyPath": "",
+          "variantPattern": "WC|ACCESSIBLE_WC",
+          "priority": 1,
+          "autoLoad": false
+        },
+        {
+          "label": "Accessible Fixture Range",
+          "familyPath": "",
+          "variantPattern": "ACCESSIBLE_*",
+          "priority": 2,
+          "autoLoad": false
+        }
+      ],
+      "typeVariants": [
+        {
+          "_group": "--- STANDARD SANITARY ---"
+        },
+        {
+          "name": "WC",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "WC",
+            "ASS_PRODCT_COD_TXT": "WC",
+            "PLM_FIX_FLOWRATE_LMIN": "9",
+            "PLM_FIX_DRAIN_DN_MM": "100",
+            "PLM_FIX_HOT_COLD_TXT": "COLD",
+            "PLM_FIX_ACCESSIBLE_BOOL": "0"
+          }
+        },
+        {
+          "name": "BASIN",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "BASIN",
+            "ASS_PRODCT_COD_TXT": "BAS",
+            "PLM_FIX_FLOWRATE_LMIN": "6",
+            "PLM_FIX_DRAIN_DN_MM": "40",
+            "PLM_FIX_HOT_COLD_TXT": "HOT_COLD",
+            "PLM_FIX_ACCESSIBLE_BOOL": "0"
+          }
+        },
+        {
+          "name": "URINAL",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "URINAL",
+            "ASS_PRODCT_COD_TXT": "URI",
+            "PLM_FIX_FLOWRATE_LMIN": "4",
+            "PLM_FIX_DRAIN_DN_MM": "40",
+            "PLM_FIX_HOT_COLD_TXT": "COLD"
+          }
+        },
+        {
+          "name": "SHOWER",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "SHOWER",
+            "ASS_PRODCT_COD_TXT": "SHW",
+            "PLM_FIX_FLOWRATE_LMIN": "12",
+            "PLM_FIX_DRAIN_DN_MM": "40",
+            "PLM_FIX_HOT_COLD_TXT": "HOT_COLD"
+          }
+        },
+        {
+          "name": "SINK",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "SINK",
+            "ASS_PRODCT_COD_TXT": "SNK",
+            "PLM_FIX_FLOWRATE_LMIN": "8",
+            "PLM_FIX_DRAIN_DN_MM": "40",
+            "PLM_FIX_HOT_COLD_TXT": "HOT_COLD"
+          }
+        },
+        {
+          "_group": "--- BATH / SHOWER TRAY ---"
+        },
+        {
+          "name": "BATH",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "BATH",
+            "ASS_PRODCT_COD_TXT": "BTH",
+            "PLM_FIX_FLOWRATE_LMIN": "20",
+            "PLM_FIX_DRAIN_DN_MM": "40",
+            "PLM_FIX_HOT_COLD_TXT": "HOT_COLD"
+          }
+        },
+        {
+          "name": "SHOWER_TRAY",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "SHOWER_TRAY",
+            "ASS_PRODCT_COD_TXT": "STR",
+            "PLM_FIX_FLOWRATE_LMIN": "12",
+            "PLM_FIX_DRAIN_DN_MM": "50"
+          }
+        },
+        {
+          "name": "BIDET",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "BIDET",
+            "ASS_PRODCT_COD_TXT": "BID",
+            "PLM_FIX_FLOWRATE_LMIN": "6",
+            "PLM_FIX_DRAIN_DN_MM": "40",
+            "PLM_FIX_HOT_COLD_TXT": "HOT_COLD"
+          }
+        },
+        {
+          "_group": "--- KITCHEN / UTILITY ---"
+        },
+        {
+          "name": "KITCHEN_SINK_DBL",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "KITCHEN_SINK_DOUBLE",
+            "ASS_PRODCT_COD_TXT": "KSD",
+            "PLM_FIX_FLOWRATE_LMIN": "12",
+            "PLM_FIX_DRAIN_DN_MM": "50",
+            "PLM_FIX_HOT_COLD_TXT": "HOT_COLD"
+          }
+        },
+        {
+          "name": "CLEANER_SINK",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "CLEANER_SINK",
+            "ASS_PRODCT_COD_TXT": "CLS",
+            "PLM_FIX_FLOWRATE_LMIN": "8",
+            "PLM_FIX_DRAIN_DN_MM": "50",
+            "PLM_FIX_HOT_COLD_TXT": "HOT_COLD"
+          }
+        },
+        {
+          "name": "MOP_HOPPER",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "MOP_HOPPER",
+            "ASS_PRODCT_COD_TXT": "MHP",
+            "PLM_FIX_FLOWRATE_LMIN": "6",
+            "PLM_FIX_DRAIN_DN_MM": "100",
+            "PLM_FIX_HOT_COLD_TXT": "HOT_COLD"
+          }
+        },
+        {
+          "name": "SLOP_HOPPER",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "SLOP_HOPPER",
+            "ASS_PRODCT_COD_TXT": "SHP",
+            "PLM_FIX_FLOWRATE_LMIN": "6",
+            "PLM_FIX_DRAIN_DN_MM": "100",
+            "PLM_FIX_HOT_COLD_TXT": "HOT_COLD"
+          }
+        },
+        {
+          "_group": "--- DRINKING ---"
+        },
+        {
+          "name": "DRINKING_FOUNTAIN",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "DRINKING_FOUNTAIN",
+            "ASS_PRODCT_COD_TXT": "DRF",
+            "PLM_FIX_FLOWRATE_LMIN": "2",
+            "PLM_FIX_DRAIN_DN_MM": "32",
+            "PLM_FIX_HOT_COLD_TXT": "COLD"
+          }
+        },
+        {
+          "_group": "--- ACCESSIBLE (BS 8300 / HTM 64) ---"
+        },
+        {
+          "name": "ACCESSIBLE_WC",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "WC",
+            "ASS_PRODCT_COD_TXT": "WC-ACC",
+            "PLM_FIX_FLOWRATE_LMIN": "9",
+            "PLM_FIX_DRAIN_DN_MM": "100",
+            "PLM_FIX_HOT_COLD_TXT": "COLD",
+            "PLM_FIX_ACCESSIBLE_BOOL": "1"
+          }
+        },
+        {
+          "name": "ACCESSIBLE_BASIN",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "BASIN",
+            "ASS_PRODCT_COD_TXT": "BAS-ACC",
+            "PLM_FIX_FLOWRATE_LMIN": "6",
+            "PLM_FIX_DRAIN_DN_MM": "40",
+            "PLM_FIX_HOT_COLD_TXT": "HOT_COLD",
+            "PLM_FIX_ACCESSIBLE_BOOL": "1"
+          }
+        },
+        {
+          "name": "SHOWER_WHEELCHAIR",
+          "params": {
+            "PLM_FIX_TYPE_TXT": "SHOWER_WHEELCHAIR",
+            "ASS_PRODCT_COD_TXT": "SHW-WC",
+            "PLM_FIX_FLOWRATE_LMIN": "12",
+            "PLM_FIX_DRAIN_DN_MM": "50",
+            "PLM_FIX_HOT_COLD_TXT": "HOT_COLD",
+            "PLM_FIX_ACCESSIBLE_BOOL": "1"
+          }
+        }
+      ]
+    }
+  ]
+}

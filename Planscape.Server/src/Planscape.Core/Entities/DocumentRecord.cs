@@ -3,9 +3,10 @@ namespace Planscape.Core.Entities;
 /// <summary>
 /// ISO 19650 document record with CDE lifecycle state management.
 /// </summary>
-public class DocumentRecord
+public class DocumentRecord : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
     public string FileName { get; set; } = "";
     public string? FilePath { get; set; }
@@ -22,6 +23,15 @@ public class DocumentRecord
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     public string? StatusHistoryJson { get; set; } // JSON array of status transitions
+
+    // Phase 175 audit P1-15 — antivirus scan tracking. Files uploaded
+    // via the presigned-URL flow start as PENDING and are flipped to
+    // CLEAN by the scanner job (or INFECTED → moved to quarantine).
+    // Multipart uploads through the API skip the scan entirely (legacy
+    // path) and stay at SKIPPED.
+    public string ScanStatus { get; set; } = "SKIPPED"; // PENDING / CLEAN / INFECTED / SKIPPED
+    public DateTime? ScanScannedAt { get; set; }
+    public string? ScanThreatName { get; set; }
 
     // Navigation
     public Project? Project { get; set; }

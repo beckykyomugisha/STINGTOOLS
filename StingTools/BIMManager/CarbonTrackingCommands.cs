@@ -62,7 +62,12 @@ namespace StingTools.BIMManager
                         var parts = StingToolsApp.ParseCsvLine(lines[i]);
                         if (parts.Length <= Math.Max(nameCol, carbonCol)) continue;
                         string name = parts[nameCol].Trim();
-                        if (double.TryParse(parts[carbonCol].Trim(), out double val) && val > 0)
+                        // InvariantCulture: CSV decimal separator is always "." regardless of
+                        // the Revit user's regional settings.
+                        if (double.TryParse(parts[carbonCol].Trim(),
+                                System.Globalization.NumberStyles.Float,
+                                System.Globalization.CultureInfo.InvariantCulture,
+                                out double val) && val > 0)
                             _carbonFactors[name] = val;
                     }
                 }

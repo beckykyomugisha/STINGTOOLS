@@ -11,8 +11,9 @@ import {
   Modal,
   Alert,
 } from 'react-native';
+import { router } from 'expo-router';
 import { theme, getCDEColor } from '@/utils/theme';
-import { listProjects, listDocuments, transitionCDE, requestDocumentApproval, decideDocumentApproval } from '@/api/endpoints';
+import { listProjects, listDocuments, transitionCDE, requestDocumentApproval, decideDocumentApproval, getMyProjectAccess, type MyProjectAccess, type ListDocumentsFilters } from '@/api/endpoints';
 import type { DocumentRecord, Project, CDEStatus } from '@/types/api';
 import { crashReporter } from '@/services/crashReporter';
 import { useAuthStore } from '@/stores/authStore';
@@ -65,8 +66,10 @@ export default function DocumentsScreen() {
   const [cdeFilter, setCdeFilter] = useState<CDEFilter>('ALL');
   const [selectedDoc, setSelectedDoc] = useState<DocumentRecord | null>(null);
   const [transitioning, setTransitioning] = useState(false);
+  // Phase 177 — per-folder ACL slice for the active user; null = unloaded.
+  const [acl, setAcl] = useState<MyProjectAccess | null>(null);
 
-  const loadData = useCallback(async (projectId?: string) => {
+  const loadData = useCallback(async (projectId?: string, docFilters?: ListDocumentsFilters) => {
     try {
       setError(null);
       const projectList = await listProjects();
@@ -79,8 +82,15 @@ export default function DocumentsScreen() {
         ? projectList.find((p) => p.id === projectId) ?? projectList[0]
         : projectList[0];
       setActiveProject(target);
-      const docs = await listDocuments(target.id);
+      // Phase 177 — fetch ACL slice in parallel with docs so the chip filter
+      // can hide CDE states the user has no access to. Falls back to a
+      // bypass slice on error so the screen never breaks on a server hiccup.
+      const [docs, aclSlice] = await Promise.all([
+        listDocuments(target.id, docFilters),
+        getMyProjectAccess(target.id).catch(() => null),
+      ]);
       setDocuments(docs);
+      setAcl(aclSlice);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to load documents';
       setError(msg);
@@ -96,7 +106,8 @@ export default function DocumentsScreen() {
 
   function onRefresh() {
     setRefreshing(true);
-    loadData(activeProject?.id);
+    // FIX-15: pass the current search query to the server on refresh too.
+    loadData(activeProject?.id, search.trim() ? { search: search.trim() } : undefined);
   }
 
   const cdeCounts = useMemo(() => {
@@ -257,11 +268,16 @@ export default function DocumentsScreen() {
         />
       )}
 
-      {/* CDE status filter strip */}
+      {/* CDE status filter strip — Phase 177 hides chips the user can't access */}
       <FlatList
         horizontal
         showsHorizontalScrollIndicator={false}
-        data={(['ALL', ...CDE_STATES] as CDEFilter[])}
+        data={(['ALL', ...CDE_STATES] as CDEFilter[]).filter((s) => {
+          if (s === 'ALL') return true;
+          if (!acl || acl.bypassesAcl) return true;
+          if (acl.allowedCdeStates.length === 0) return true; // null = all
+          return acl.allowedCdeStates.includes(s);
+        })}
         keyExtractor={(s) => s}
         style={styles.filterStrip}
         contentContainerStyle={styles.filterStripContent}
@@ -290,18 +306,29 @@ export default function DocumentsScreen() {
         }}
       />
 
-      {/* Search */}
+      {/* Search — FIX-15: value also forwarded to server as ?search= param */}
       <View style={styles.searchRow}>
         <TextInput
           style={styles.searchInput}
           placeholder="Search documents..."
           placeholderTextColor={theme.colors.disabled}
           value={search}
-          onChangeText={setSearch}
+          onChangeText={(v) => {
+            setSearch(v);
+            // Pass the query to the server so large corpora can be filtered
+            // server-side rather than loading all documents first.
+            loadData(activeProject?.id, v.trim() ? { search: v.trim() } : undefined);
+          }}
           autoCapitalize="none"
         />
         {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')} style={styles.clearBtn}>
+          <TouchableOpacity
+            onPress={() => {
+              setSearch('');
+              loadData(activeProject?.id);
+            }}
+            style={styles.clearBtn}
+          >
             <Text style={styles.clearBtnText}>X</Text>
           </TouchableOpacity>
         )}
@@ -330,6 +357,7 @@ export default function DocumentsScreen() {
       {selectedDoc && (
         <DocumentDetailModal
           doc={selectedDoc}
+          projectId={activeProject?.id}
           transitioning={transitioning}
           onTransition={handleTransition}
           onClose={() => setSelectedDoc(null)}
@@ -379,11 +407,13 @@ function DocumentCard({ doc, onPress }: { doc: DocumentRecord; onPress: () => vo
 
 function DocumentDetailModal({
   doc,
+  projectId,
   transitioning,
   onTransition,
   onClose,
 }: {
   doc: DocumentRecord;
+  projectId?: string;
   transitioning: boolean;
   onTransition: (doc: DocumentRecord, status: CDEStatus) => void;
   onClose: () => void;
@@ -461,6 +491,30 @@ function DocumentDetailModal({
               <Text style={styles.transitionHint}>This document is in its final CDE state.</Text>
             </View>
           )}
+
+          {/* T3-15 — 2D markup. Currently restricted to PDFs because the
+              shipped renderer (react-native-pdf) won't open .docx / .dwg.
+              Image documents could be added in v2 by branching the route
+              on contentType. */}
+          {projectId && doc.fileName?.toLowerCase().endsWith('.pdf') ? (
+            <View style={styles.transitionSection}>
+              <TouchableOpacity
+                style={[styles.transitionBtn, { backgroundColor: theme.colors.accent }]}
+                onPress={() => {
+                  onClose();
+                  router.push({
+                    pathname: '/documents/markup',
+                    params: { projectId, documentId: doc.id, fileName: doc.fileName },
+                  });
+                }}
+              >
+                <Text style={styles.transitionBtnText}>📝 Open Markup</Text>
+              </TouchableOpacity>
+              <Text style={styles.transitionHint}>
+                Add pen / arrow / text / circle annotations to the drawing.
+              </Text>
+            </View>
+          ) : null}
         </View>
       </View>
     </Modal>

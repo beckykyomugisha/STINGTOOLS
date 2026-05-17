@@ -529,11 +529,59 @@ namespace StingTools.Core
             // Show progress dialog so user can see step progress and click Cancel
             var progress = StingProgressDialog.Show($"Workflow: {preset.Name}", preset.Steps.Count);
 
+            // TAG-WORKFLOW-PARALLEL-01: Topo-sort the step list by
+            // (parallelGroup, originalIndex) so independent groups stay
+            // contiguous and dependent groups follow their predecessors. The
+            // execution loop still runs sequentially because the Revit API is
+            // single-threaded — but ordering the groups lets MarkBlocked
+            // prune downstream steps when an upstream group fails.
+            List<WorkflowStep> orderedSteps = preset.Steps;
+            BIMManager.WorkflowDagPlanner.PlanEntry[] planArr = null;
+            HashSet<int> succeededGroups = null;
+            HashSet<int> failedGroups = null;
             try
             {
-                foreach (var step in preset.Steps)
+                var planList = BIMManager.WorkflowDagPlanner.Plan(preset.Steps);
+                if (planList.Count == preset.Steps.Count)
+                {
+                    orderedSteps = planList.Select(p => preset.Steps[p.OriginalIndex]).ToList();
+                    planArr = planList.ToArray();
+                    succeededGroups = new HashSet<int>();
+                    failedGroups = new HashSet<int>();
+                }
+            }
+            catch (Exception planEx) { StingLog.Warn($"WorkflowDagPlanner.Plan: {planEx.Message}"); }
+
+            try
+            {
+                int planIdx = 0;
+                foreach (var step in orderedSteps)
                 {
                     stepNum++;
+                    int currentGroup = planArr != null && planIdx < planArr.Length ? planArr[planIdx].Group : stepNum;
+                    planIdx++;
+
+                    // TAG-WORKFLOW-PARALLEL-01: If an upstream group failed and
+                    // no later group succeeded between it and the current group,
+                    // mark this step as blocked rather than running it. The
+                    // existing SkipIfPreviousSkipped flag handles the per-step
+                    // case; this handles the cross-group case.
+                    if (failedGroups != null && failedGroups.Count > 0)
+                    {
+                        int? lastFailed = failedGroups.OrderBy(g => g).Cast<int?>().LastOrDefault(g => g.HasValue && g.Value < currentGroup);
+                        if (lastFailed.HasValue && currentGroup > lastFailed.Value)
+                        {
+                            bool hasRecovery = succeededGroups != null
+                                && succeededGroups.Any(g => g >= lastFailed.Value && g < currentGroup);
+                            if (!hasRecovery && !step.Optional)
+                            {
+                                report.AppendLine($"  {stepNum,2}. {step.Label} — BLOCKED (upstream group {lastFailed.Value} failed)");
+                                stepResults.Add(new WorkflowStepResult { CommandTag = step.CommandTag, Label = step.Label, Status = "BLOCKED" });
+                                skipped++;
+                                continue;
+                            }
+                        }
+                    }
 
                     // Phase 74: Local helper — records skip with audit trail + cascade flag
                     void RecordSkip(string reason)
@@ -711,6 +759,87 @@ namespace StingTools.Core
                             RecordSkip($"compound {logic}: {string.Join(", ", step.Conditions)}");
                             continue;
                         }
+                        // GAP-02: Extended condition engine for workflow steps
+                        if (step.Condition == "has_links")
+                        {
+                            bool hasLinks = new FilteredElementCollector(doc)
+                                .OfClass(typeof(RevitLinkInstance)).GetElementCount() > 0;
+                            if (!hasLinks) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no linked models)"); continue; }
+                        }
+                        if (step.Condition == "has_cad_imports")
+                        {
+                            bool hasCad = new FilteredElementCollector(doc)
+                                .OfClass(typeof(ImportInstance)).GetElementCount() > 0;
+                            if (!hasCad) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no CAD imports)"); continue; }
+                        }
+                        if (step.Condition == "has_stale")
+                        {
+                            if (!cachedHasStale()) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no stale elements)"); continue; }
+                        }
+                        // Phase 39: WorkflowStep.RequiresWorksharedModel condition
+                        if (step.RequiresWorksharedModel && !doc.IsWorkshared)
+                        {
+                            skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (not workshared)"); continue;
+                        }
+                        // Phase 39: Element count range condition
+                        if (step.MinElementCount.HasValue || step.MaxElementCount.HasValue)
+                        {
+                            int elemCount = new FilteredElementCollector(doc)
+                                .WhereElementIsNotElementType().GetElementCount();
+                            if (step.MinElementCount.HasValue && elemCount < step.MinElementCount.Value)
+                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({elemCount} elements < min {step.MinElementCount.Value})"); continue; }
+                            if (step.MaxElementCount.HasValue && elemCount > step.MaxElementCount.Value)
+                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({elemCount} elements > max {step.MaxElementCount.Value})"); continue; }
+                        }
+
+                        // Phase 47: Warning-aware workflow conditions
+                        if (step.Condition == "has_warnings")
+                        {
+                            try
+                            {
+                                int warnCount = doc.GetWarnings()?.Count ?? 0;
+                                if (warnCount == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no warnings)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_warnings check: {ex.Message}"); }
+                        }
+                        if (step.Condition == "has_critical_warnings")
+                        {
+                            try
+                            {
+                                var warnReport = WarningsEngine.ScanWarnings(doc);
+                                int critical = warnReport.BySeverity.GetValueOrDefault(WarningSeverity.Critical);
+                                if (critical == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no critical warnings)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_critical_warnings check: {ex.Message}"); }
+                        }
+                        if (step.Condition == "has_open_issues")
+                        {
+                            try
+                            {
+                                string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
+                                string issuesPath = Path.Combine(projDir, "_bim_manager", "issues.json");
+                                if (!File.Exists(issuesPath)) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no issues file)"); continue; }
+                                string raw = File.ReadAllText(issuesPath);
+                                int openCount = raw.Split(new[] { "\"OPEN\"" }, StringSplitOptions.None).Length - 1;
+                                if (openCount == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no open issues)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_open_issues check: {ex.Message}"); }
+                        }
+
+                        if (step.Condition == "has_untagged")
+                        {
+                            bool hasUntagged = false;
+                            try
+                            {
+                                var catEnums = SharedParamGuids.AllCategoryEnums;
+                                var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                                if (catEnums != null && catEnums.Length > 0)
+                                    coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                                hasUntagged = coll.Any(e => string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)));
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_untagged condition check: {ex.Message}"); }
+                            if (!hasUntagged) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no untagged elements)"); continue; }
+                        }
                     }
 
                     // Phase 69: Data drop level gate
@@ -876,17 +1005,28 @@ namespace StingTools.Core
                         });
 
                         if (stepResult == Result.Succeeded)
+                        {
                             passed++;
+                            succeededGroups?.Add(currentGroup);
+                        }
                         else if (step.Optional)
                             skipped++;
                         else
+                        {
                             failed++;
+                            failedGroups?.Add(currentGroup);
+                        }
 
                         // B03 FIX: Only set previousStepSkipped for actual skips, not failures.
                         // Failed steps should NOT trigger SkipIfPreviousSkipped cascade —
                         // that flag is specifically for skipped (condition-gated) steps.
                         // Executed steps (whether succeeded or failed) reset the skip flag.
                         previousStepSkipped = false;
+
+                        // C-03 FIX: Reset previousStepSkipped after each executed step.
+                        // Previously never reset to false, causing cascade-skip to permanently
+                        // lock after the first skipped step.
+                        previousStepSkipped = (stepResult != Result.Succeeded && stepResult != Result.Cancelled);
 
                         StingLog.Info($"Workflow step {stepNum}: {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
 
@@ -1270,6 +1410,84 @@ namespace StingTools.Core
                 case "BatchSchedules": return new Temp.BatchSchedulesCommand();
                 case "EvaluateFormulas": return new Temp.FormulaEvaluatorCommand();
 
+                // Electrical Panel Schedules (Commands.Panels)
+                case "Panel_BatchSchedules":    return new Commands.Panels.BatchPanelSchedulesCommand();
+                case "Panel_Audit":             return new Commands.Panels.PanelScheduleAuditCommand();
+                case "Panel_ExportToExcel":     return new Commands.Panels.ExportPanelSchedulesToExcelCommand();
+                case "Panel_ImportFromExcel":   return new Commands.Panels.ImportPanelSchedulesFromExcelCommand();
+                case "Panel_FillSpares":        return new Commands.Panels.FillEmptySlotsWithSparesCommand();
+                case "Panel_FillSparesAll":     return new Commands.Panels.FillSparesAllSchedulesCommand();
+                case "Panel_FillSpaces":        return new Commands.Panels.FillEmptySlotsWithSpacesCommand();
+                case "Panel_SpacesToSpares":    return new Commands.Panels.ConvertSpacesToSparesCommand();
+                case "Panel_ClearSparesSpaces": return new Commands.Panels.ClearSparesAndSpacesCommand();
+
+                // ── Plumbing (Phase 178c → 179) ──
+                case "Plumbing_AutoSizeDrainage": return new Commands.Plumbing.AutoSizeDrainageCommand();
+                case "Plumbing_BackflowAudit":    return new Commands.Plumbing.BackflowAuditCommand();
+                case "Plumbing_RainwaterCalc":    return new Commands.Plumbing.RainwaterCalcCommand();
+                case "Plumbing_TrapVentAudit":    return new Commands.Plumbing.TrapAndVentAuditCommand();
+                case "Plumbing_PRVSchedule":      return new Commands.Plumbing.PRVScheduleCommand();
+                case "Plumbing_DeadLegScan":      return new Commands.Plumbing.DeadLegScanCommand();
+                case "Plumbing_CrossConnection":  return new Commands.Plumbing.CrossConnectionScanCommand();
+                case "Plumbing_RecircBalance":    return new Commands.Plumbing.RecircBalanceCommand();
+                case "Plumbing_StackCapacity":    return new Commands.Plumbing.StackCapacityCommand();
+                case "Plumbing_MaterialAudit":    return new Commands.Plumbing.MaterialAuditCommand();
+                case "Plumb_SaveSystemConfig":    return new Commands.Plumbing.PlumbSaveSystemConfigCommand();
+                case "Plumb_LoadSystemConfig":    return new Commands.Plumbing.PlumbLoadSystemConfigCommand();
+                case "Plumb_ScanFixtures":        return new Commands.Plumbing.PlumbScanFixturesCommand();
+                case "Plumb_SizeSupply":          return new Commands.Plumbing.PlumbSizeSupplyCommand();
+                case "Plumb_SizeDrainage":        return new Commands.Plumbing.PlumbSizeDrainageCommand();
+                case "Plumb_PressureCheck":       return new Commands.Plumbing.PlumbPressureCheckCommand();
+                case "Plumb_ExpVessel":           return new Commands.Plumbing.PlumbExpVesselCommand();
+                case "Plumb_TMVRegister":         return new Commands.Plumbing.PlumbTMVRegisterCommand();
+                case "Plumb_AutoRoute":           return new Commands.Plumbing.PlumbAutoRouteCommand();
+                case "Plumb_FixSlopes":           return new Commands.Plumbing.PlumbFixSlopesCommand();
+                case "Plumb_InsertPTraps":        return new Commands.Plumbing.PlumbInsertPTrapsCommand();
+                case "Plumb_PlaceSleeves":        return new Commands.Plumbing.PlumbPlaceSleevesCommand();
+                case "Plumb_PlaceHangers":        return new Commands.Plumbing.PlumbPlaceHangersCommand();
+                case "Plumb_VentDesign":          return new Commands.Plumbing.PlumbVentDesignCommand();
+                case "Plumb_InvertLevels":        return new Commands.Plumbing.PlumbInvertLevelsCommand();
+                case "Plumb_RWH":                 return new Commands.Plumbing.PlumbRwhCommand();
+                case "Plumb_SuDS":                return new Commands.Plumbing.PlumbSuDSCommand();
+                case "Plumb_Soakaway":            return new Commands.Plumbing.PlumbSoakawayCommand();
+                case "Plumb_SepticTank":          return new Commands.Plumbing.PlumbSepticTankCommand();
+                case "Plumb_RoofDrainage":        return new Commands.Plumbing.PlumbRoofDrainageCommand();
+                case "Plumb_FullAudit":           return new Commands.Plumbing.PlumbFullAuditCommand();
+                case "Plumb_PipeSchedule":        return new Commands.Plumbing.PlumbPipeScheduleCommand();
+                case "Plumb_BOQ":                 return new Commands.Plumbing.PlumbBOQCommand();
+                case "Plumb_ManholeSchedule":     return new Commands.Plumbing.PlumbManholeScheduleCommand();
+                case "Plumb_Isometric":           return new Commands.Plumbing.PlumbIsometricCommand();
+                case "Plumb_CommPack":            return new Commands.Plumbing.PlumbCommPackCommand();
+
+                // Electrical workflow tags (used by WORKFLOW_ElectricalQA.json)
+                case "Circuit_Balance":         return new Commands.Electrical.PhaseBalanceCommand();
+                case "Circuit_AutoDesc":        return new Commands.Electrical.CircuitDescriptionCommand();
+                case "Calc_LoadSummary":        return new Commands.Electrical.ElecLoadSummaryCommand();
+                case "Calc_VoltageDrop":        return new Commands.Electrical.VoltageDrop.VoltageDropCommand();
+                case "Calc_FlagVD":             return new Commands.Electrical.VoltageDrop.VoltageDropFlagCommand();
+                case "Calc_SizeBreakers":       return new Commands.Electrical.BreakerSizerCommand();
+                case "Calc_ApplyBreakers":      return new Commands.Electrical.BreakerSizerApplyCommand();
+                case "Cable_Calculate":         return new Commands.Electrical.CableSizer.CableSizerCommand();
+                case "Cable_ConduitFill":       return new Commands.Electrical.ConduitFillValidateCommand();
+                case "Cable_ConsolidateConduits": return new Commands.Electrical.Routing.ConduitConsolidatorCommand();
+                case "Cable_BuildSchedule":      return new Commands.Electrical.Routing.CableScheduleBuilderCommand();
+                case "Seeds_Build":              return new Commands.Symbols.BuildSeedFamiliesCommand();
+                case "Seeds_SwapToManufacturer": return new Commands.Symbols.SwapToManufacturerCommand();
+                case "Symbols_CreateCompound":   return new Commands.Symbols.CreateCompoundSymbolsCommand();
+                case "Symbols_CreateSLD_IEEE":   return new Commands.Symbols.CreateSLDSymbolsIEEECommand();
+                case "Symbols_CreateSLD_BS":     return new Commands.Symbols.CreateSLDSymbolsBSCommand();
+                case "Symbols_CreateSLD_NFPA":   return new Commands.Symbols.CreateSLDSymbolsNFPACommand();
+                case "Symbols_CreateCIBSE":      return new Commands.Symbols.CreateCIBSESymbolsCommand();
+                case "IFC_ArchiCADSync":         return new Commands.IFC.ArchiCADSyncCommand();
+                case "IFC_DropImport":           return new Commands.IFC.IfcDropImportCommand();
+                case "Validation_BS7671":       return new Commands.Electrical.ElectricalStandardsValidatorCommand();
+                case "Circuit_AssignAuto":      return new Commands.Electrical.BatchAssignCircuitsCommand();
+                case "Lite_CreateSchedule":     return new Commands.Electrical.ElecLightingScheduleCommand();
+                case "Rprt_Audit":              return new Commands.Panels.PanelScheduleAuditCommand();
+                case "Rprt_ExcelExport":        return new Commands.Panels.ExportPanelSchedulesToExcelCommand();
+                case "Rprt_ExcelImport":        return new Commands.Panels.ImportPanelSchedulesFromExcelCommand();
+                case "Rprt_CircuitExport":      return new Commands.Electrical.ExportCircuitsCommand();
+
                 // Tagging
                 case "AutoTag": return new Tags.AutoTagCommand();
                 case "BatchTag": return new Tags.BatchTagCommand();
@@ -1313,7 +1531,9 @@ namespace StingTools.Core
                 case "CrossModelClash": return new Temp.CrossModelClashCommand();
                 case "MEPClearance": return new Temp.MEPClearanceValidationCommand();
                 // Phase 74: Removed duplicate "AutoAssignTemplates" case (already at line 1096)
-                case "BatchPrintSheets": return new Docs.BatchPrintSheetsCommand();
+                case "BatchPrintSheets": return new Docs.ExportCenterPdfCommand(); // redirects to Export Centre (PDF preset)
+                case "ExportCenter":     return new Docs.ExportCenterCommand();
+                case "ExportCenterPDF":  return new Docs.ExportCenterPdfCommand();
 
                 // Data Pipeline
                 case "DynamicBindings": return new Temp.DynamicBindingsCommand();
@@ -1472,7 +1692,7 @@ namespace StingTools.Core
                 case "SheetNamingCheck":        return new Docs.SheetNamingCheckCommand();
                 case "TemplateAudit":           return new Temp.TemplateAuditCommand();
                 case "TemplateComplianceScore": return new Temp.TemplateComplianceScoreCommand();
-                case "ClashDetection":          return new Temp.ClashDetectionCommand();
+                case "ClashDetection":          return new Core.Clash.ClashRunCommand();
                 // Phase 5 clash engine — BCC Clash-tab buttons route through
                 // BIMCoordinationCenterCommand.DispatchCoordAction which uses
                 // WorkflowEngine.GetCommandInstance to resolve a Tag to an
@@ -1561,6 +1781,14 @@ namespace StingTools.Core
                 case "NavisworksTimeLiner":    return new BIMManager.NavisworksTimeLinerExportCommand();
                 case "ElementCostTrace":       return new BIMManager.ElementCostTraceCommand();
 
+                // BCC Platform tab → Planscape Connect / member management buttons.
+                // Same double-path issue as QR/CodeLegend: only wired in StingCommandHandler
+                // so BCC's ExternalEvent path produced "Action 'PlanscapeConnect' is not handled".
+                case "PlanscapeExportTeam":
+                case "PlanscapeExportConfig":     return new BIMManager.ExportCoordLogCommand();
+                case "PlanscapeShareReport":      return new BIMManager.GenerateDashboardCommand();
+                case "LoadFamilyLibrary":         return new Temp.FamilyLibraryLoaderCommand();
+
                 // Phase 104: GAP-analysis commands (GapAnalysisFixCommands.cs) dispatched from BCC
                 // action bar via WarningsManager.DispatchCoordAction. Previously only resolvable via
                 // StingCommandHandler, so BCC ExternalEvent path produced "Action 'X' is not handled".
@@ -1576,6 +1804,127 @@ namespace StingTools.Core
                 // WF-02: EscalateOverdueActions is an internal method in WarningsManager, not an IExternalCommand.
                 // Removed: return null caused NRE in RunCommandByTag. Falls through to default null
                 // which is handled by the plugin hook fallback + error logging in RunCommandByTag.
+
+                // Phase 167 — Planscape BCC dispatch gap: same double-path issue as
+                // QR/CodeLegend/WorkingCalendar. BIMCoordinationCenter.ShowPlatformDetail
+                // dispatches PlanscapeConnect / PlanscapeSyncNow via DispatchAction(),
+                // which routes through ProcessAction → DispatchCoordAction →
+                // WorkflowEngine.GetCommandInstance. PlanscapeDisconnect /
+                // PlanscapeOpenWebDashboard already short-circuit inline in
+                // ProcessAction; cases here keep the resolver complete so any future
+                // caller (or the dictionary alias path) lands on a real command.
+                case "PlanscapeConnect":
+                case "PlanscapeAddMember":
+                case "PlanscapeRemoveMember":
+                case "PlanscapeLinkProject":
+                case "PlanscapeTestConnection":    return new BIMManager.PlanscapeConnectCommand();
+
+                case "PlanscapeSyncNow":           return new BIMManager.PlatformSyncCommand();
+                case "PublishModelToPlanscape":    return new BIMManager.PublishModelCommand();
+
+                case "PlanscapeDisconnect":
+                case "PlanscapeUnlinkProject":
+                case "PlanscapeClearCredentials":  return new BIMManager.PlanscapeDisconnectCommand();
+
+                case "PlanscapeOpenWebDashboard":
+                case "PlanscapeOpenBrowser":       return new BIMManager.PlanscapeOpenWebCommand();
+
+                // ── Phase 175: Design Options ──
+                case "DesignOptions_Inspect":             return new Commands.DesignOptions.DesignOptionsInspectCommand();
+                case "DesignOptions_MoveTo":              return new Commands.DesignOptions.MoveToOptionCommand();
+                case "DesignOptions_LockView":            return new Commands.DesignOptions.LockViewToOptionCommand();
+                case "DesignOptions_ResetView":           return new Commands.DesignOptions.ResetViewOptionVisibilityCommand();
+                case "DesignOptions_CloneSchedule":       return new Commands.DesignOptions.ClonePerOptionScheduleCommand();
+                case "DesignOptions_IsolationView":       return new Commands.DesignOptions.CreateIsolationViewCommand();
+                case "DesignOptions_PrimaryClashView":    return new Commands.DesignOptions.CreatePrimaryOnlyClashViewCommand();
+                case "DesignOptions_Audit":               return new Commands.DesignOptions.AuditOptionsCommand();
+                case "DesignOptions_BatchLinkVisibility": return new Commands.DesignOptions.BatchSetLinkOptionVisibilityCommand();
+                case "DesignOptions_Dashboard":           return new Commands.DesignOptions.OptionsDashboardCommand();
+                case "DesignOptions_ExportComparison":    return new Commands.DesignOptions.ExportOptionComparisonCommand();
+
+                // ── Healthcare Pack H-1..H-30 ──
+                case "Healthcare_RunAllValidators":  return new Commands.Healthcare.HealthcareRunAllValidatorsCommand();
+                case "Healthcare_PressureAudit":     return new Commands.Healthcare.HealthcarePressureAuditCommand();
+                case "Healthcare_WaterSafety":       return new Commands.Healthcare.HealthcareWaterSafetyCommand();
+                case "Healthcare_EesBranch":         return new Commands.Healthcare.HealthcareEesBranchAuditCommand();
+                case "Healthcare_RadShield":         return new Commands.Healthcare.HealthcareRadShieldAuditCommand();
+                case "Healthcare_AdvancedRadShield": return new Commands.Healthcare.HealthcareAdvancedRadShieldCommand();
+                case "Healthcare_RdsCompleteness":   return new Commands.Healthcare.HealthcareRdsCompletenessCommand();
+                case "Healthcare_IoTStaleness":      return new Commands.Healthcare.HealthcareIoTStalenessCommand();
+                case "Healthcare_StructuralLoad":    return new Commands.Healthcare.HealthcareStructuralLoadCommand();
+                case "Healthcare_Acoustic":          return new Commands.Healthcare.HealthcareAcousticCommand();
+                case "Healthcare_EndoscopeTrace":    return new Commands.Healthcare.HealthcareEndoscopeTraceCommand();
+                case "Healthcare_EesResilience":     return new Commands.Healthcare.HealthcareEesResilienceCommand();
+                case "Healthcare_RtlsCoverage":      return new Commands.Healthcare.HealthcareRtlsCoverageCommand();
+                case "Healthcare_WasteFlow":         return new Commands.Healthcare.HealthcareWasteFlowCommand();
+
+                case "Healthcare_IssueRDS":          return new Commands.Healthcare.IssueRoomDataSheetCommand();
+                case "Healthcare_BatchRDS":          return new Commands.Healthcare.BatchIssueRoomDataSheetsCommand();
+
+                case "Healthcare_MgasAudit":         return new Commands.MedGas.MgasNetworkAuditCommand();
+                case "Healthcare_MgasVerify":        return new Commands.MedGas.MgasVerifyCommand();
+
+                case "Healthcare_AdjacencyAudit":    return new Commands.Adjacency.AdjacencyAuditCommand();
+
+                case "Healthcare_RadCalcChest":      return new Commands.Radiation.RadCalcChestRoomCommand();
+                case "Healthcare_RadCalcCt":         return new Commands.Radiation.RadCalcCtRoomCommand();
+                case "Healthcare_RadCalcLinac":      return new Commands.Radiation.RadCalcLinacVaultCommand();
+                case "Healthcare_MriZoneAudit":      return new Commands.Radiation.MriZoneAuditCommand();
+
+                case "Healthcare_IoTRegistry":       return new Commands.Twin.IoTRegistryCommand();
+
+                case "Healthcare_AntiLigature":      return new Commands.Healthcare.Specialist.AntiLigatureAuditCommand();
+                case "Healthcare_HybridOr":          return new Commands.Healthcare.Specialist.HybridOrCheckCommand();
+                case "Healthcare_PharmacyUsp":       return new Commands.Healthcare.Specialist.PharmacyUspAuditCommand();
+                case "Healthcare_BehaviouralHealth": return new Commands.Healthcare.Specialist.BehaviouralHealthAuditCommand();
+                case "Healthcare_Mortuary":          return new Commands.Healthcare.Specialist.MortuaryAuditCommand();
+                case "Healthcare_MaternityNicu":    return new Commands.Healthcare.Specialist.MaternityNicuAuditCommand();
+                case "Healthcare_Hsdu":              return new Commands.Healthcare.Specialist.HsduAuditCommand();
+                case "Healthcare_Dialysis":          return new Commands.Healthcare.Specialist.DialysisAuditCommand();
+                case "Healthcare_Hbo":               return new Commands.Healthcare.Specialist.HboAuditCommand();
+
+                // ── SLD (Phase 179) — used by WORKFLOW_ElectricalQA and WORKFLOW_SLDProduction ──
+                case "SLD_Generate":         return new Commands.SLD.GenerateSLDCommand();
+                case "SLD_GenerateOptions":  return new Commands.SLD.GenerateSLDWithOptionsCommand();
+                case "SLD_Update":           return new Commands.SLD.UpdateSLDCommand();
+                case "SLD_Validate":         return new Commands.SLD.SLDValidateCommand();
+                case "SLD_SyncToggle":       return new Commands.SLD.SLDSyncToggleCommand();
+                case "SLD_MigrateLabels":    return new Commands.SLD.MigrateSLDLabelIdsCommand();
+                case "SLD_RiserDiagram":     return new Commands.SLD.SLDRiserDiagramCommand();
+                case "SLD_UpdateRiser":      return new Commands.SLD.SLDUpdateRiserCommand();
+                case "SLD_SwitchStandard":   return new Commands.SLD.SLDSwitchStandardCommand();
+
+                // Drawing Types commands (used by WORKFLOW_SLDProduction step 4)
+                case "DrawingTypes_Reload":  return new Commands.Drawing.DrawingTypesReloadCommand();
+                case "DrawingTypes_Inspect": return new Commands.Drawing.DrawingTypesInspectCommand();
+
+                // Phase 179 — schematic generators (D1-D5)
+                case "FireAlarm_Schematic":  return new Commands.Electrical.Schematics.FireAlarmSchematicCommand();
+                case "Earthing_Diagram":     return new Commands.Electrical.Schematics.EarthingDiagramCommand();
+                case "Panel_DoorDiagram":    return new Commands.Electrical.Schematics.PanelDoorDiagramCommand();
+                case "LPS_Schematic":        return new Commands.Electrical.Schematics.LPSSchematicCommand();
+                case "MGPS_Schematic":       return new Commands.Electrical.Schematics.MGPSSchematicCommand();
+
+                // Phase 179 — electrical validation (V1-V3)
+                case "Elec_IPSValidate":      return new Commands.Electrical.Validation.IPSValidationCommand();
+                case "Elec_ATEXCheck":        return new Commands.Electrical.Validation.ATEXClassificationCommand();
+                case "Elec_DualSourceValidate": return new Commands.Electrical.Validation.DualSourceValidationCommand();
+
+                // Phase 179 — circuit interactivity (I1-I3)
+                case "Elec_CircuitFilter":    return new Commands.Electrical.CircuitViewFilterCommand();
+                case "Elec_CircuitTrace":     return new Commands.Electrical.CircuitTracingCommand();
+                case "Elec_HomeRunAnnotate":  return new Commands.Electrical.HomeRunPlanAnnotationCommand();
+
+                // Phase 179 — calculation imports (E1-E4)
+                case "Elec_AmtechImport":     return new Commands.Electrical.Import.AmtechImportCommand();
+                case "Elec_EasyPowerImport":  return new Commands.Electrical.Import.EasyPowerImportCommand();
+                case "Elec_TrimbleImport":    return new Commands.Electrical.Import.TrimbleImportCommand();
+                case "Elec_CalcSeed":         return new Commands.Electrical.Import.ElecCalcSeedCommand();
+
+                // Phase 179 — specialist placement (F4-F6)
+                case "Placement_PVArray":      return new Commands.Placement.PVArrayPlacementCommand();
+                case "Placement_EVCharger":    return new Commands.Placement.EVChargerLayoutCommand();
+                case "Placement_MedGasOutlets": return new Commands.Placement.MedGasOutletPlacementCommand();
 
                 default: return null;
             }
@@ -1690,6 +2039,78 @@ namespace StingTools.Core
                             .WhereElementIsNotElementType().GetElementCount() > 0;
                     case "has_sheets":
                         return new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).GetElementCount() > 0;
+                    case "has_conduits":
+                        return new FilteredElementCollector(doc)
+                            .OfCategory(BuiltInCategory.OST_Conduit)
+                            .WhereElementIsNotElementType()
+                            .GetElementCount() > 0;
+                    case "has_unassigned_circuits":
+                        // For WORKFLOW_ElectricalQA Circuit_AssignAuto gate. Cheap
+                        // best-effort scan: any ElectricalSystem whose
+                        // BaseEquipment is null is an unassigned circuit.
+                        try
+                        {
+                            foreach (var sys in new FilteredElementCollector(doc)
+                                .OfClass(typeof(Autodesk.Revit.DB.Electrical.ElectricalSystem))
+                                .Cast<Autodesk.Revit.DB.Electrical.ElectricalSystem>())
+                            {
+                                try { if (sys.BaseEquipment == null) return true; }
+                                catch { /* read-only soft-fail per system */ }
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"has_unassigned_circuits: {ex.Message}"); }
+                        return false;
+                    case "load_summary_complete":
+                        // True once any panel carries the load-summary marker
+                        // parameter that ElecLoadSummaryCommand stamps. Falls
+                        // back to "false" when the parameter doesn't exist
+                        // so Calc_VoltageDrop is correctly gated until the
+                        // load summary has actually been computed.
+                        try
+                        {
+                            foreach (var panel in new FilteredElementCollector(doc)
+                                .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
+                                .WhereElementIsNotElementType())
+                            {
+                                string s = ParameterHelpers.GetString(panel, "ELC_PNL_LOAD_SUMMARY_COMPLETE_BOOL");
+                                if (s == "1" || string.Equals(s, "true", StringComparison.OrdinalIgnoreCase))
+                                    return true;
+                                // Fallback: any panel with non-empty connected-load is a sign the
+                                // summary has run at least once.
+                                string load = ParameterHelpers.GetString(panel, ParamRegistry.ELC_PNL_LOAD);
+                                if (!string.IsNullOrEmpty(load) && load != "0") return true;
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"load_summary_complete: {ex.Message}"); }
+                        return false;
+                    case "sld_view_exists":
+                        // True when at least one STING SLD drafting view is present.
+                        // Used to gate SLD_Update in WORKFLOW_ElectricalQA and
+                        // WORKFLOW_SLDProduction — avoids updating a view that doesn't
+                        // exist yet.
+                        try
+                        {
+                            return new FilteredElementCollector(doc)
+                                .OfClass(typeof(Autodesk.Revit.DB.ViewDrafting))
+                                .Cast<Autodesk.Revit.DB.ViewDrafting>()
+                                .Any(v => v.Name != null && v.Name.StartsWith(
+                                    "STING - SLD", StringComparison.OrdinalIgnoreCase));
+                        }
+                        catch (Exception ex) { StingLog.Warn($"sld_view_exists: {ex.Message}"); }
+                        return false;
+                    case "no_sld_view_exists":
+                        // Inverse of sld_view_exists — gates SLD_Generate in
+                        // WORKFLOW_SLDProduction so it only runs on first generation.
+                        try
+                        {
+                            return !new FilteredElementCollector(doc)
+                                .OfClass(typeof(Autodesk.Revit.DB.ViewDrafting))
+                                .Cast<Autodesk.Revit.DB.ViewDrafting>()
+                                .Any(v => v.Name != null && v.Name.StartsWith(
+                                    "STING - SLD", StringComparison.OrdinalIgnoreCase));
+                        }
+                        catch (Exception ex) { StingLog.Warn($"no_sld_view_exists: {ex.Message}"); }
+                        return false;
                     default:
                         // WF-001 FIX: Unknown conditions now return false (fail-safe).
                         // Previously returned true, silently executing gated steps on typos.
@@ -1786,6 +2207,13 @@ namespace StingTools.Core
 
             // Phase 92: Speckle snapshot round-trip preset
             presets.Add(GetBuiltInPreset("SpeckleSnapshot"));
+
+            // Remove any null entries from failed lookups
+            presets.RemoveAll(p => p == null);
+
+            // HIGH-05: Cache the built-in list so subsequent calls skip all GetBuiltInPreset() work
+            _cachedBuiltInPresets = new List<WorkflowPreset>(presets);
+            _cachedBuiltInPresetsDataPath = dataDir;
 
             // Remove any null entries from failed lookups
             presets.RemoveAll(p => p == null);
@@ -2512,10 +2940,20 @@ namespace StingTools.Core
         private const long MaxLogSizeBytes = 500 * 1024; // 500 KB
 
         /// <summary>
-        /// LOG-13: Get the log file path alongside the project file (or data dir fallback).
+        /// LOG-13: Get the log file path inside the unified project root's
+        /// _data folder so it never appears as a sibling of the .rvt.
         /// </summary>
         private static string GetLogPath(Document doc)
         {
+            // Folder consolidation: prefer <root>/_data/workflow_log.jsonl
+            try
+            {
+                string consolidated = ProjectFolderEngine.GetDataPath(doc);
+                if (!string.IsNullOrEmpty(consolidated))
+                    return Path.Combine(consolidated, "workflow_log.jsonl");
+            }
+            catch (Exception ex) { StingLog.Warn($"GetLogPath consolidated: {ex.Message}"); }
+
             string dir = null;
             try
             {

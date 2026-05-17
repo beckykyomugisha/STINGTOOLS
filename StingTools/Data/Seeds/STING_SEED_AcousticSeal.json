@@ -1,0 +1,195 @@
+{
+  "version": "1.0",
+  "standard": "STING SEED FAMILY — Acoustic Seal (Approved Document E, BS 8233, DW/144)",
+  "_notes": [
+    "10 type variants: standard mineral-wool seals at Rw30/Rw40/Rw45/Rw55/Rw63,",
+    "DW/144 duct acoustic seal, flexible boot for plant connections,",
+    "pipe sleeve acoustic lining 40 dB, combined fire+acoustic seal FR60,",
+    "and a labyrinth/baffled seal for large service openings.",
+    "PenetrationProductSelector dispatches to this seed when the host wall",
+    "declares STING_ACOUSTIC_RW_DB but no fire rating."
+  ],
+  "symbols": [
+    {
+      "id": "STING_SEED_AcousticSeal",
+      "name": "STING Seed — Acoustic Seal",
+      "category": "Specialty Equipment",
+      "familyType": "SeedFamily",
+      "discipline": "Generic",
+      "subcategory": "STING_SEED",
+      "isSeed": true,
+      "protectExisting": true,
+      "hosting": "FaceBased",
+      "symbolSize": 4.0,
+      "parameters": [
+        { "name": "STING_SEED_FAMILY_TXT",     "type": "Text", "shared": true, "isInstance": true,  "default": "STING_SEED_AcousticSeal" },
+        { "name": "STING_DESIGN_REF_TXT",      "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "STING_SWAP_HISTORY_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "ASS_TAG_1",                 "type": "Text", "shared": true, "isInstance": true },
+        { "name": "ASS_DISCIPLINE_COD_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "G" },
+        { "name": "ASS_PRODCT_COD_TXT",        "type": "Text", "shared": true, "isInstance": true,  "default": "ACS" },
+        { "name": "PEN_OD_MM",                 "type": "Text", "shared": true, "isInstance": true,  "default": "0" },
+        { "name": "PEN_HOST_REF_TXT",          "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_HOST_TYPE_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_MEMBER_ID_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_INSTALL_STATUS_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "DRAFT" },
+        { "name": "PEN_INSTALLER_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_INSTALL_DATE",          "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_CONTROL_NUMBER_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_PFV_UUID_TXT",          "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "ACS_RW_TARGET_DB",          "type": "Text", "shared": true, "isInstance": false, "default": "45" },
+        { "name": "ACS_SEAL_TYPE_TXT",         "type": "Text", "shared": true, "isInstance": false, "default": "MINERAL_WOOL_PLUS_SEALANT" },
+        { "name": "ACS_DEPTH_MM",              "type": "Text", "shared": true, "isInstance": false, "default": "100" },
+        { "name": "ACS_CERT_TXT",              "type": "Text", "shared": true, "isInstance": false, "default": "BS 8233 / Approved Doc E" }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 },
+          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 },
+          { "cx": 0, "cy": 0, "r": 0.3, "startDeg": 0, "endDeg": 360 }
+        ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 80, "depthMm": 80, "heightMm": 100 },
+      "formulaBindings": [
+        { "target": "Mark", "expression": "PEN_CONTROL_NUMBER_TXT" }
+      ],
+      "swapCandidates": [
+        {
+          "label": "Rockwool Flexi Slab Acoustic Seal",
+          "familyPath": "",
+          "variantPattern": "ACS_RW*",
+          "priority": 1,
+          "autoLoad": false
+        },
+        {
+          "label": "Isover / Knauf APR / Duct Acoustic Seal",
+          "familyPath": "",
+          "variantPattern": "ACS_DW144_DUCT",
+          "priority": 2,
+          "autoLoad": false
+        },
+        {
+          "label": "Mason Industries / Kinetics Flexible Boot",
+          "familyPath": "",
+          "variantPattern": "ACS_FLEXIBLE_BOOT",
+          "priority": 3,
+          "autoLoad": false
+        },
+        {
+          "label": "Hilti CP 653 Fire+Acoustic Seal",
+          "familyPath": "",
+          "variantPattern": "ACS_FIRE_ACOUSTIC_COMBO",
+          "priority": 4,
+          "autoLoad": false
+        }
+      ],
+      "typeVariants": [
+        {
+          "_group": "--- MINERAL WOOL / SEALANT (Approved Document E / BS 8233) ---"
+        },
+        {
+          "name": "ACS_RW30",
+          "params": {
+            "ACS_RW_TARGET_DB": "30",
+            "ACS_SEAL_TYPE_TXT": "MINERAL_WOOL",
+            "ACS_DEPTH_MM": "50",
+            "ACS_CERT_TXT": "Approved Doc E (Rw 30 dB)"
+          }
+        },
+        {
+          "name": "ACS_RW40",
+          "params": {
+            "ACS_RW_TARGET_DB": "40",
+            "ACS_SEAL_TYPE_TXT": "MINERAL_WOOL_PLUS_SEALANT",
+            "ACS_DEPTH_MM": "75",
+            "ACS_CERT_TXT": "BS 8233 / Approved Doc E (Rw 40 dB)"
+          }
+        },
+        {
+          "name": "ACS_RW45",
+          "params": {
+            "ACS_RW_TARGET_DB": "45",
+            "ACS_SEAL_TYPE_TXT": "MINERAL_WOOL_PLUS_SEALANT",
+            "ACS_DEPTH_MM": "100",
+            "ACS_CERT_TXT": "BS 8233 / Approved Doc E (Rw 45 dB)"
+          }
+        },
+        {
+          "name": "ACS_RW55",
+          "params": {
+            "ACS_RW_TARGET_DB": "55",
+            "ACS_SEAL_TYPE_TXT": "MINERAL_WOOL_PLUS_SEALANT_PLUS_PUTTY",
+            "ACS_DEPTH_MM": "150",
+            "ACS_CERT_TXT": "BS 8233 (Rw 55 dB)"
+          }
+        },
+        {
+          "name": "ACS_RW63",
+          "params": {
+            "ACS_RW_TARGET_DB": "63",
+            "ACS_SEAL_TYPE_TXT": "INTUMESCENT_PUTTY_PADS",
+            "ACS_DEPTH_MM": "200",
+            "ACS_CERT_TXT": "BS 8233 (Rw 63 dB)"
+          }
+        },
+        {
+          "_group": "--- DUCT / PLANTROOM SEALS ---"
+        },
+        {
+          "name": "ACS_DW144_DUCT",
+          "params": {
+            "ACS_RW_TARGET_DB": "40",
+            "ACS_SEAL_TYPE_TXT": "DW144_DUCT_WRAP",
+            "ACS_DEPTH_MM": "100",
+            "ACS_CERT_TXT": "DW/144 duct acoustic seal"
+          }
+        },
+        {
+          "name": "ACS_FLEXIBLE_BOOT",
+          "params": {
+            "ACS_RW_TARGET_DB": "45",
+            "ACS_SEAL_TYPE_TXT": "FLEXIBLE_BOOT",
+            "ACS_DEPTH_MM": "150",
+            "ACS_CERT_TXT": "BS 8233 flexible connection (Rw 45 dB)"
+          }
+        },
+        {
+          "_group": "--- PIPE SLEEVE ---"
+        },
+        {
+          "name": "ACS_PIPE_SLEEVE_40DB",
+          "params": {
+            "ACS_RW_TARGET_DB": "40",
+            "ACS_SEAL_TYPE_TXT": "PIPE_SLEEVE_ACOUSTIC_LINING",
+            "ACS_DEPTH_MM": "100",
+            "ACS_CERT_TXT": "BS 8233 pipe sleeve (40 dB attenuation)"
+          }
+        },
+        {
+          "_group": "--- COMBINED FIRE + ACOUSTIC ---"
+        },
+        {
+          "name": "ACS_FIRE_ACOUSTIC_COMBO",
+          "params": {
+            "ACS_RW_TARGET_DB": "45",
+            "ACS_SEAL_TYPE_TXT": "ACOUSTIC_FIRE_COMPOUND",
+            "ACS_DEPTH_MM": "100",
+            "ACS_CERT_TXT": "EN 1366-3 FR60 + BS 8233 (Rw 45 dB)"
+          }
+        },
+        {
+          "_group": "--- LABYRINTH / BAFFLE (large openings) ---"
+        },
+        {
+          "name": "ACS_LABYRINTH_SEAL",
+          "params": {
+            "ACS_RW_TARGET_DB": "50",
+            "ACS_SEAL_TYPE_TXT": "LABYRINTH_BAFFLE",
+            "ACS_DEPTH_MM": "300",
+            "ACS_CERT_TXT": "BS 8233 labyrinth seal (Rw ≥50 dB)"
+          }
+        }
+      ]
+    }
+  ]
+}

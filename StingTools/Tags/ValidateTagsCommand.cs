@@ -108,6 +108,31 @@ namespace StingTools.Tags
             // Track tag uniqueness
             var tagCounts = new Dictionary<string, int>(StringComparer.Ordinal);
 
+            // ─── Phase 165 — T4-T10 tier completeness counters ───
+            // For elements whose paragraph depth is N (4..10), check that the
+            // matching tier-required parameter is non-empty. Empty-but-enabled
+            // is a WARNING, not an error — tier data is project-progress info,
+            // not a tag-format violation.
+            var tierEmptyCounts = new Dictionary<int, int>
+            {
+                { 4, 0 }, { 5, 0 }, { 6, 0 }, { 7, 0 }, { 8, 0 }, { 9, 0 }, { 10, 0 }
+            };
+            var tierEnabledCounts = new Dictionary<int, int>
+            {
+                { 4, 0 }, { 5, 0 }, { 6, 0 }, { 7, 0 }, { 8, 0 }, { 9, 0 }, { 10, 0 }
+            };
+            // First-required parameter per tier — minimal completeness check.
+            string[] tierRequired = new[]
+            {
+                ParamRegistry.COMM_STATE_TXT,             // T4
+                ParamRegistry.CST_UG_PRICE_UGX,            // T5
+                ParamRegistry.CBN_A1_A3_KG_CO2E,           // T6
+                ParamRegistry.ASS_SPOOL_NR_TXT,            // T7
+                ParamRegistry.CLASH_TRIAGE_SEVERITY_NR,    // T8
+                ParamRegistry.ASBUILT_DEVIATION_MM,        // T9
+                ParamRegistry.IFC_PSET_OVERRIDE_TXT,       // T10
+            };
+
             csvRows.Add("ElementId,Category,TAG_1_Status,FullyResolved,EmptyTokens,EmptyContainers,ISOErrors,CrossValErrors,STATUS,REV,TAG_1,TAG_2,TAG_3,TAG_4,TAG_5,TAG_6");
 
             int scanCount = 0;
@@ -263,6 +288,34 @@ namespace StingTools.Tags
                         IncrementDict(isoIssueTypes, err.Message);
                 }
 
+                // ─── Phase 165 — T4-T10 tier completeness check ───
+                // Read active depth from element type (paragraph state lives on type).
+                try
+                {
+                    Element typeForDepth = null;
+                    try { typeForDepth = doc.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    // Null guard: GetTypeId() can return InvalidElementId for view-specific elements
+                    // and family-less instances; skip tier check rather than crashing in
+                    // ReadActiveParagraphDepth, but let the TAG_2-6 container check below still run.
+                    if (typeForDepth != null)
+                    {
+                        int depth = TagConfig.ReadActiveParagraphDepth(typeForDepth, el);
+                        for (int tier = 4; tier <= 10; tier++)
+                        {
+                            if (depth < tier) continue;
+                            tierEnabledCounts[tier] = tierEnabledCounts[tier] + 1;
+                            string need = tierRequired[tier - 4];
+                            string val = ParameterHelpers.GetString(el, need);
+                            if (string.IsNullOrEmpty(val))
+                                tierEmptyCounts[tier] = tierEmptyCounts[tier] + 1;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"ValidateTags T4-T10 check failed for {el?.Id}: {ex.Message}");
+                }
+
                 // Check TAG_2-6 containers
                 int emptyContainers = 0;
                 var tagValues = new string[6];
@@ -333,6 +386,38 @@ namespace StingTools.Tags
             report.Append($"and {bucketUntagged:N0} have no tag at all. ");
             report.Append($"The weighted compliance score is {compliancePct:F1}%. ");
             report.AppendLine();
+
+            // ─── Phase 165 — T4-T10 tier completeness narrative ───
+            report.AppendLine();
+            report.AppendLine("── Tier 4-10 Completeness (Warnings) ──");
+            int tierEnabledTotal = tierEnabledCounts.Values.Sum();
+            if (tierEnabledTotal == 0)
+            {
+                report.AppendLine("No elements have paragraph depth ≥ 4 enabled — T4-T10 payloads are not active in this model.");
+            }
+            else
+            {
+                string[] tierNames = new[]
+                {
+                    "T4 Commissioning (COMM_STATE_TXT)",
+                    "T5 Cost (CST_UG_PRICE_UGX)",
+                    "T6 Carbon (CBN_A1_A3_KG_CO2E)",
+                    "T7 Fabrication (ASS_SPOOL_NR_TXT)",
+                    "T8 Clash Triage (CLASH_TRIAGE_SEVERITY_NR)",
+                    "T9 As-Built (ASBUILT_DEVIATION_MM)",
+                    "T10 Compliance (IFC_PSET_OVERRIDE_TXT)",
+                };
+                for (int tier = 4; tier <= 10; tier++)
+                {
+                    int en = tierEnabledCounts[tier];
+                    int em = tierEmptyCounts[tier];
+                    if (en == 0) continue;
+                    double pct = en > 0 ? em * 100.0 / en : 0;
+                    string code = $"T{tier}-EMPTY";
+                    string status = em == 0 ? "OK" : $"WARNING [{code}]";
+                    report.AppendLine($"  {tierNames[tier - 4],-46} {status}: {em}/{en} elements empty ({pct:F1}%)");
+                }
+            }
 
             // ISO 19650 compliance narrative
             report.AppendLine();

@@ -46,7 +46,7 @@ public class TagSyncController : ControllerBase
         if (request.Elements.Count > 50_000)
             return BadRequest(new { message = "Maximum 50,000 elements per sync request" });
 
-        var tenantId = GetTenantId();
+        if (RequireTenantClaim(out var tenantId) is { } badClaim) return badClaim;
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == request.ProjectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
 
@@ -71,7 +71,7 @@ public class TagSyncController : ControllerBase
                     // - If the server has no stored timestamp, accept and adopt the client's.
                     // - If client timestamp > server timestamp, accept and bump Version.
                     // - Otherwise treat as a stale update — keep the server copy and record a conflict.
-                    var clientTs = dto.LastModifiedUtc;
+                    var clientTs = ToUtc(dto.LastModifiedUtc);
                     var serverTs = existing.LastModifiedUtc;
 
                     if (clientTs.HasValue && serverTs.HasValue && clientTs.Value <= serverTs.Value)
@@ -101,16 +101,16 @@ public class TagSyncController : ControllerBase
                     {
                         MapDtoToEntity(dto, existing, request.UserName);
                         existing.Version += 1;
-                        existing.LastModifiedUtc = clientTs ?? DateTime.UtcNow;
+                        existing.LastModifiedUtc = ToUtc(clientTs) ?? DateTime.UtcNow;
                         updated++;
                     }
                 }
                 else
                 {
-                    var entity = new TaggedElement { ProjectId = project.Id };
+                    var entity = new TaggedElement { ProjectId = project.Id, TenantId = tenantId };
                     MapDtoToEntity(dto, entity, request.UserName);
                     entity.Version = 1;
-                    entity.LastModifiedUtc = dto.LastModifiedUtc ?? DateTime.UtcNow;
+                    entity.LastModifiedUtc = ToUtc(dto.LastModifiedUtc) ?? DateTime.UtcNow;
                     _db.TaggedElements.Add(entity);
                     existingElements[dto.RevitElementId] = entity; // prevent duplicate adds
                     created++;
@@ -380,9 +380,188 @@ public class TagSyncController : ControllerBase
         entity.SyncedAt = DateTime.UtcNow; entity.SyncedBy = userName;
     }
 
+    /// <summary>Normalise a DateTime to UTC Kind — rejects Local, passes UTC and Unspecified through as UTC.</summary>
+    private static DateTime? ToUtc(DateTime? dt) =>
+        dt switch
+        {
+            null => null,
+            { Kind: DateTimeKind.Utc } v => v,
+            { Kind: DateTimeKind.Local } v => v.ToUniversalTime(),
+            var v => DateTime.SpecifyKind(v.Value, DateTimeKind.Utc),
+        };
+
+    // ── S01 — explicit sync watermark + conflict log REST endpoints ──────
+    // The bulk-sync POST /sync path already upserts watermarks and logs
+    // conflicts inline as a side-effect of the delta pull. These endpoints
+    // expose the same surfaces directly so a thin client (or a dashboard)
+    // can read/write them without a full element batch.
+
+    [HttpGet("~/api/projects/{projectId:guid}/sync/watermark")]
+    public async Task<ActionResult<SyncWatermarkDto>> GetWatermark(Guid projectId, [FromQuery] string deviceId)
+    {
+        if (RequireTenantClaim(out var tenantId) is { } badClaim) return badClaim;
+        if (string.IsNullOrWhiteSpace(deviceId))
+            return BadRequest(new { message = "deviceId query parameter is required" });
+
+        var projectExists = await _db.Projects
+            .AnyAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (!projectExists) return NotFound();
+
+        var wm = await _db.SyncWatermarks
+            .FirstOrDefaultAsync(x => x.ProjectId == projectId && x.DeviceId == deviceId);
+        if (wm == null) return NotFound();
+
+        return Ok(new SyncWatermarkDto
+        {
+            Id = wm.Id,
+            ProjectId = wm.ProjectId,
+            DeviceId = wm.DeviceId,
+            LastSyncUtc = wm.LastSyncUtc,
+            ElementCount = wm.ElementCount
+        });
+    }
+
+    [HttpPut("~/api/projects/{projectId:guid}/sync/watermark")]
+    public async Task<ActionResult<SyncWatermarkDto>> UpsertWatermark(Guid projectId, [FromBody] UpsertWatermarkRequest req)
+    {
+        if (RequireTenantClaim(out var tenantId) is { } badClaim) return badClaim;
+        if (string.IsNullOrWhiteSpace(req.DeviceId))
+            return BadRequest(new { message = "DeviceId is required" });
+
+        var projectExists = await _db.Projects
+            .AnyAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (!projectExists) return NotFound();
+
+        var wm = await _db.SyncWatermarks
+            .FirstOrDefaultAsync(x => x.ProjectId == projectId && x.DeviceId == req.DeviceId);
+        if (wm == null)
+        {
+            wm = new SyncWatermark
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                ProjectId = projectId,
+                DeviceId = req.DeviceId,
+                CreatedAt = DateTime.UtcNow
+            };
+            _db.SyncWatermarks.Add(wm);
+        }
+        // Monotonic — never rewind a device's cursor on an explicit upsert
+        // either. Matches the inline behaviour at the bulk-sync delta pull.
+        if (req.LastSyncUtc > wm.LastSyncUtc) wm.LastSyncUtc = req.LastSyncUtc;
+        wm.ElementCount = req.ElementCount;
+        wm.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new SyncWatermarkDto
+        {
+            Id = wm.Id,
+            ProjectId = wm.ProjectId,
+            DeviceId = wm.DeviceId,
+            LastSyncUtc = wm.LastSyncUtc,
+            ElementCount = wm.ElementCount
+        });
+    }
+
+    [HttpPost("~/api/projects/{projectId:guid}/sync/conflicts")]
+    public async Task<ActionResult<SyncConflictDto>> LogConflict(Guid projectId, [FromBody] LogConflictRequest req)
+    {
+        if (RequireTenantClaim(out var tenantId) is { } badClaim) return badClaim;
+        if (string.IsNullOrWhiteSpace(req.ElementId))
+            return BadRequest(new { message = "ElementId is required" });
+
+        var projectExists = await _db.Projects
+            .AnyAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (!projectExists) return NotFound();
+
+        var conflict = new SyncConflict
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            ProjectId = projectId,
+            ElementId = req.ElementId,
+            ConflictType = string.IsNullOrWhiteSpace(req.ConflictType) ? "STALE_UPDATE" : req.ConflictType,
+            Resolution = string.IsNullOrWhiteSpace(req.Resolution) ? "SERVER_WINS" : req.Resolution,
+            ClientUserName = req.ResolvedBy,
+            DetectedAt = DateTime.UtcNow
+        };
+        // ServerValue / ClientValue from the request are intentionally not
+        // persisted yet — the existing schema captures Server/ClientTimestamp
+        // instead. Adding a ConflictPayload JSON column is queued behind a
+        // concrete need for value-level diffing.
+
+        _db.SyncConflicts.Add(conflict);
+        await _db.SaveChangesAsync();
+
+        var dto = new SyncConflictDto
+        {
+            Id = conflict.Id,
+            ElementId = conflict.ElementId,
+            ConflictType = conflict.ConflictType,
+            Resolution = conflict.Resolution,
+            ResolvedAt = conflict.DetectedAt,
+            ResolvedBy = conflict.ClientUserName
+        };
+        return Created($"/api/projects/{projectId}/sync/conflicts/{conflict.Id}", dto);
+    }
+
+    [HttpGet("~/api/projects/{projectId:guid}/sync/conflicts")]
+    public async Task<ActionResult<List<SyncConflictDto>>> GetConflicts(Guid projectId,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+    {
+        if (RequireTenantClaim(out var tenantId) is { } badClaim) return badClaim;
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 200);
+
+        var projectExists = await _db.Projects
+            .AnyAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (!projectExists) return NotFound();
+
+        var rows = await _db.SyncConflicts
+            .Where(c => c.ProjectId == projectId)
+            .OrderByDescending(c => c.DetectedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(c => new SyncConflictDto
+            {
+                Id = c.Id,
+                ElementId = c.ElementId,
+                ConflictType = c.ConflictType,
+                ServerTimestamp = c.ServerTimestamp,
+                ClientTimestamp = c.ClientTimestamp,
+                Resolution = c.Resolution,
+                ResolvedAt = c.DetectedAt,
+                ResolvedBy = c.ClientUserName
+            })
+            .ToListAsync();
+
+        return Ok(rows);
+    }
+
     private Guid GetTenantId()
     {
         var claim = User.FindFirst("tenant_id")?.Value;
-        return claim != null ? Guid.Parse(claim) : Guid.Empty;
+        return claim != null && Guid.TryParse(claim, out var id) ? id : Guid.Empty;
+    }
+
+    /// <summary>
+    /// P6 — null/empty tenant_id claim should yield a 400, not a silent
+    /// "no projects matched" 404. The bare GetTenantId returning
+    /// <see cref="Guid.Empty"/> caused TagSync to look exactly like
+    /// "wrong project id" — un-debuggable for plugin authors.
+    /// </summary>
+    private ActionResult? RequireTenantClaim(out Guid tenantId)
+    {
+        tenantId = GetTenantId();
+        if (tenantId == Guid.Empty)
+        {
+            return BadRequest(new
+            {
+                error = "missing_tenant_claim",
+                message = "JWT is missing or has an unparseable tenant_id claim. Re-authenticate."
+            });
+        }
+        return null;
     }
 }

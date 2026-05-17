@@ -526,7 +526,7 @@ namespace StingTools.Tags
                 bool sawActiveParam = false;
                 foreach (string param in allStyleParams)
                 {
-                    Parameter p = el.LookupParameter(param);
+                    Parameter p = ParameterHelpers.CachedLookup(el, param);
                     if (p == null || p.IsReadOnly) continue;
                     if (p.StorageType != StorageType.Integer && p.StorageType != StorageType.String) continue;
                     sawAnyStyleParam = true;
@@ -551,6 +551,70 @@ namespace StingTools.Tags
             StingLog.Info($"TagStyle: Applied {preset.TypeName} — scanned={scanned}, " +
                 $"hadStyleParams={hadAnyStyleParam}, missingActive={missingActiveParam}, updated={updated}");
             return updated;
+        }
+
+        // ── TAG-01: Single style code parameter ──────────────────────────────────
+
+        /// <summary>
+        /// TAG-01: Write the style code string to TAG_STYLE_CODE_TXT AND keep the
+        /// corresponding BOOL param set to true for backwards compat with existing
+        /// .rfa families. Clears all other BOOL style params.
+        /// </summary>
+        public static void ApplyStyleCode(Document doc, Element el, string styleCode)
+        {
+            if (el == null || string.IsNullOrEmpty(styleCode)) return;
+            try
+            {
+                // Write the code string
+                ParameterHelpers.SetString(el, ParamRegistry.TAG_STYLE_CODE, styleCode, overwrite: true);
+
+                // Maintain BOOL params for compat: set matching BOOL true, all others false
+                string activeParam = $"TAG_{styleCode}_BOOL";
+                string[] allStyleParams = ParamRegistry.AllTagStyleParams;
+                foreach (string pname in allStyleParams)
+                {
+                    Parameter p = ParameterHelpers.CachedLookup(el, pname);
+                    if (p == null || p.IsReadOnly) continue;
+                    bool shouldBeOn = string.Equals(pname, activeParam, StringComparison.Ordinal);
+                    SetTagFormulaBool(p, shouldBeOn);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ApplyStyleCode({styleCode}): {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// TAG-01: Read TAG_STYLE_CODE_TXT first; if empty, fall back to scanning the
+        /// 128 BOOL params and returning the first true one's code string.
+        /// Returns empty string if no style is set.
+        /// </summary>
+        public static string GetStyleCode(Element el)
+        {
+            if (el == null) return "";
+            try
+            {
+                string code = ParameterHelpers.GetString(el, ParamRegistry.TAG_STYLE_CODE);
+                if (!string.IsNullOrEmpty(code)) return code;
+
+                // Fallback: scan BOOL params
+                string[] allStyleParams = ParamRegistry.AllTagStyleParams;
+                foreach (string pname in allStyleParams)
+                {
+                    Parameter p = ParameterHelpers.CachedLookup(el, pname);
+                    if (p == null) continue;
+                    int val = 0;
+                    if (p.StorageType == StorageType.Integer) val = p.AsInteger();
+                    else if (p.StorageType == StorageType.String && int.TryParse(p.AsString(), out int sv)) val = sv;
+                    if (val != 0)
+                    {
+                        // Strip "TAG_" prefix and "_BOOL" suffix to get type name e.g. "2BOLD_BLUE"
+                        if (pname.StartsWith("TAG_") && pname.EndsWith("_BOOL"))
+                            return pname.Substring(4, pname.Length - 9);
+                        return pname;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetStyleCode: {ex.Message}"); }
+            return "";
         }
 
         /// <summary>
@@ -603,7 +667,7 @@ namespace StingTools.Tags
                 bool any = false;
                 foreach (string param in allStyleParams)
                 {
-                    Parameter p = typeEl.LookupParameter(param);
+                    Parameter p = ParameterHelpers.CachedLookup(typeEl, param);
                     if (p == null || p.IsReadOnly) continue;
                     if (p.StorageType != StorageType.Integer && p.StorageType != StorageType.String) continue;
                     bool shouldBeOn = (param == activeParam);
@@ -731,12 +795,12 @@ namespace StingTools.Tags
                 bool any = false;
                 for (int i = 0; i < states.Length; i++)
                 {
-                    Parameter p = typeEl.LookupParameter(states[i]);
+                    Parameter p = ParameterHelpers.CachedLookup(typeEl, states[i]);
                     if (SetTagFormulaBool(p, i < maxTier) == 1) any = true;
                 }
 
                 // Warning visibility
-                Parameter warnP = typeEl.LookupParameter(ParamRegistry.WARN_VISIBLE);
+                Parameter warnP = ParameterHelpers.CachedLookup(typeEl, ParamRegistry.WARN_VISIBLE);
                 if (SetTagFormulaBool(warnP, warnVisible) == 1) any = true;
 
                 if (any) updated++;
@@ -774,7 +838,7 @@ namespace StingTools.Tags
                 string activeStyle = null;
                 foreach (string param in allStyleParams)
                 {
-                    Parameter p = typeEl.LookupParameter(param);
+                    Parameter p = ParameterHelpers.CachedLookup(typeEl, param);
                     if (ReadTagFormulaBool(p))
                     {
                         activeStyle = param.Replace("TAG_", "").Replace("_BOOL", "");
@@ -816,7 +880,7 @@ namespace StingTools.Tags
                 typeSample++;
                 for (int i = 0; i < states.Length; i++)
                 {
-                    Parameter p = typeEl.LookupParameter(states[i]);
+                    Parameter p = ParameterHelpers.CachedLookup(typeEl, states[i]);
                     if (ReadTagFormulaBool(p)) stateOnCounts[i]++;
                 }
             }
@@ -945,7 +1009,7 @@ namespace StingTools.Tags
                 bool any = false;
                 foreach (string param in allStyleParams)
                 {
-                    Parameter p = typeEl.LookupParameter(param);
+                    Parameter p = ParameterHelpers.CachedLookup(typeEl, param);
                     if (p == null || p.IsReadOnly) continue;
                     if (p.StorageType != StorageType.Integer && p.StorageType != StorageType.String) continue;
                     bool shouldBeOn = (param == activeParam);
@@ -974,10 +1038,10 @@ namespace StingTools.Tags
             SetIntParam(el, ParamRegistry.TAG_BOX_COLOR_G, preset.G);
             SetIntParam(el, ParamRegistry.TAG_BOX_COLOR_B, preset.B);
 
-            Parameter boxVis = el.LookupParameter(ParamRegistry.TAG_BOX_VISIBLE);
+            Parameter boxVis = ParameterHelpers.CachedLookup(el, ParamRegistry.TAG_BOX_VISIBLE);
             SetTagFormulaBool(boxVis, preset.BoxVisible);
 
-            Parameter boxStyle = el.LookupParameter(ParamRegistry.TAG_BOX_STYLE);
+            Parameter boxStyle = ParameterHelpers.CachedLookup(el, ParamRegistry.TAG_BOX_STYLE);
             if (boxStyle != null && !boxStyle.IsReadOnly && boxStyle.StorageType == StorageType.String)
                 boxStyle.Set(preset.BoxStyle);
         }
@@ -1022,7 +1086,7 @@ namespace StingTools.Tags
 
         private static void SetIntParam(Element el, string paramName, int value)
         {
-            Parameter p = el.LookupParameter(paramName);
+            Parameter p = ParameterHelpers.CachedLookup(el, paramName);
             if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Integer)
                 p.Set(value);
         }
@@ -1095,9 +1159,10 @@ namespace StingTools.Tags
                 string.IsNullOrEmpty(size) ? "2.5" : size,
                 string.IsNullOrEmpty(style) ? "NOM" : style,
                 string.IsNullOrEmpty(colour) ? "BLACK" : colour);
-            foreach (string pname in ParamRegistry.AllTagStyleParams)
+            var allTagStyleParams = ParamRegistry.AllTagStyleParams;
+            foreach (string pname in allTagStyleParams)
             {
-                var p = typeEl.LookupParameter(pname);
+                var p = ParameterHelpers.CachedLookup(typeEl, pname);
                 bool want = string.Equals(pname, activeStyle, StringComparison.OrdinalIgnoreCase);
                 changed += SetTagFormulaBool(p, want);
             }
@@ -1107,11 +1172,11 @@ namespace StingTools.Tags
             string[] states = ParamRegistry.AllParaStates;
             for (int i = 0; i < states.Length; i++)
             {
-                var p = typeEl.LookupParameter(states[i]);
+                var p = ParameterHelpers.CachedLookup(typeEl, states[i]);
                 changed += SetTagFormulaBool(p, i < d);
             }
             // Cache the active depth tier
-            var depthFp = typeEl.LookupParameter(ParamRegistry.TAG_DEPTH_TIER);
+            var depthFp = ParameterHelpers.CachedLookup(typeEl, ParamRegistry.TAG_DEPTH_TIER);
             if (depthFp != null && !depthFp.IsReadOnly && depthFp.StorageType == StorageType.Integer
                 && depthFp.AsInteger() != d) { depthFp.Set(d); changed++; }
 
@@ -1147,12 +1212,12 @@ namespace StingTools.Tags
             c += SetIntIfChanged(typeEl, ParamRegistry.TAG_BOX_COLOR_G, box.G);
             c += SetIntIfChanged(typeEl, ParamRegistry.TAG_BOX_COLOR_B, box.B);
 
-            var vis = typeEl.LookupParameter(ParamRegistry.TAG_BOX_VISIBLE);
+            var vis = ParameterHelpers.CachedLookup(typeEl, ParamRegistry.TAG_BOX_VISIBLE);
             c += SetTagFormulaBool(vis, box.Visible);
 
             if (!string.IsNullOrEmpty(box.Style))
             {
-                var st = typeEl.LookupParameter(ParamRegistry.TAG_BOX_STYLE);
+                var st = ParameterHelpers.CachedLookup(typeEl, ParamRegistry.TAG_BOX_STYLE);
                 if (st != null && !st.IsReadOnly && st.StorageType == StorageType.String
                     && !string.Equals(st.AsString(), box.Style, StringComparison.OrdinalIgnoreCase))
                 { st.Set(box.Style); c++; }
@@ -1171,7 +1236,7 @@ namespace StingTools.Tags
 
         private static int SetIntIfChanged(Element el, string pname, int want)
         {
-            var p = el.LookupParameter(pname);
+            var p = ParameterHelpers.CachedLookup(el, pname);
             if (p == null || p.IsReadOnly || p.StorageType != StorageType.Integer) return 0;
             if (p.AsInteger() != want) { p.Set(want); return 1; }
             return 0;

@@ -235,29 +235,10 @@ namespace StingTools.BIMManager
             ["VOID"]        = "Issue withdrawn or superseded"
         };
 
-        // ── Issue Types (BCF-compatible + ISO 19650 / NEC / JCT standard forms) ──
-        internal static readonly Dictionary<string, string> IssueTypes = new Dictionary<string, string>
-        {
-            ["RFI"]      = "Request for Information",
-            ["RFA"]      = "Request for Approval",
-            ["TQ"]       = "Technical Query",
-            ["CLASH"]    = "Coordination Clash",
-            ["DESIGN"]   = "Design Issue/Query",
-            ["SITE"]     = "Site Observation",
-            ["SI"]       = "Site Instruction",
-            ["NCR"]      = "Non-Conformance Report",
-            ["SNAGGING"] = "Snagging/Defect",
-            ["CHANGE"]   = "Change Request",
-            ["VO"]       = "Variation Order",
-            ["AI"]       = "Architect's Instruction",
-            ["CVI"]      = "Confirmation of Verbal Instruction",
-            ["EWN"]      = "Early Warning Notice (NEC)",
-            ["CE"]       = "Compensation Event (NEC)",
-            ["PMI"]      = "Proposed Material/Product Instruction",
-            ["RISK"]     = "Risk Item",
-            ["ACTION"]   = "Action Item",
-            ["COMMENT"]  = "General Comment"
-        };
+        // ── Issue Types — derived from BIMCoordinationCenter.IsoIssueTypes (single source of truth) ──
+        internal static readonly Dictionary<string, string> IssueTypes =
+            UI.BIMCoordinationCenter.IsoIssueTypes
+                .ToDictionary(t => t.Code, t => t.Label, StringComparer.OrdinalIgnoreCase);
 
         // ── Issue Priority Levels ──
         internal static readonly Dictionary<string, string> IssuePriorities = new Dictionary<string, string>
@@ -415,23 +396,25 @@ namespace StingTools.BIMManager
             },
             ["HEALTHCARE_NHS"] = new COBiePreset
             {
-                Name = "Healthcare (NHS)", Description = "NHS hospital/clinic — HTM/HBN compliant, full medical equipment tracking",
+                Name = "Healthcare (NHS)", Description = "NHS hospital/clinic — HTM/HBN compliant; integrates Healthcare Pack H-1..H-30 clinical equipment overlay",
                 RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "Issue", "PickLists" },
-                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Medical Equipment", "Fire Alarm Devices", "Sprinklers" },
+                // "Specialty Equipment" matches Revit's display name (the BuiltInCategory enum is OST_SpecialityEquipment).
+                // It stays as a fallback for FF&E that's not strictly medical (pendants, bedhead trunking, scrub troughs, isolators).
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Medical Equipment", "Nurse Call Devices", "Specialty Equipment", "Fire Alarm Devices", "Sprinklers", "Pipes", "Pipe Accessories" },
                 AssetTypes = new[] { "Fixed", "Moveable", "Portable" },
-                ZoneTypes = new[] { "Clinical Zone", "Ward", "Theatre", "Clean Room", "Fire Zone", "Decontamination Zone" },
-                MaintenanceEmphasis = "Critical — HTM 00/01 risk-based maintenance",
-                Notes = "NHS Premises Assurance Model (PAM). Department of Health (HTM/HBN) compliance required. Medical gas, ventilation validation, nurse call, and infection control zones tracked."
+                ZoneTypes = new[] { "Clinical Zone", "Ward", "Theatre", "Clean Room", "Fire Zone", "Decontamination Zone", "AIIR", "Protective Environment", "MRI Suite", "USP Cleanroom" },
+                MaintenanceEmphasis = "Critical — HTM 00/01 risk-based maintenance + SFG20-Healthcare schedules",
+                Notes = "NHS Premises Assurance Model (PAM). HTM/HBN compliance required. Healthcare Pack tracks medical gas (HTM 02-01), ventilation (HTM 03-01), water safety (HTM 04-01), fire (HTM 05-02), electrical (HTM 06-01), waste (HTM 07-01), acoustics (HTM 08-01), endoscopy (HTM 01-06)."
             },
             ["HEALTHCARE_PRIVATE"] = new COBiePreset
             {
                 Name = "Healthcare (Private)", Description = "Private hospital/clinic — CQC compliant asset management",
                 RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "Issue", "PickLists" },
-                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Fire Alarm Devices", "Sprinklers" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Medical Equipment", "Nurse Call Devices", "Specialty Equipment", "Fire Alarm Devices", "Sprinklers" },
                 AssetTypes = new[] { "Fixed", "Moveable" },
                 ZoneTypes = new[] { "Clinical Zone", "Patient Area", "Fire Zone", "HVAC Zone" },
                 MaintenanceEmphasis = "CQC statutory maintenance compliance",
-                Notes = "Care Quality Commission (CQC) compliance. Similar to NHS but simplified governance."
+                Notes = "Care Quality Commission (CQC) compliance. Similar to NHS but simplified governance. Healthcare Pack overlay applies."
             },
             ["EDUCATION_SCHOOL"] = new COBiePreset
             {
@@ -781,12 +764,20 @@ namespace StingTools.BIMManager
                 string dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
+
                 // Atomic write: write to temp file first, then move (overwrite) to target.
                 // File.Move with overwrite=true is atomic on NTFS, preventing corruption
                 // if the process crashes mid-write.
                 string tmpPath = path + ".tmp";
                 File.WriteAllText(tmpPath, data.ToString(Formatting.Indented));
                 File.Move(tmpPath, path, true);
+
+                // BIM-SIDECAR-VER-01: Stamp the companion `<path>.meta.json` so
+                // future schema additions can detect older files and migrate.
+                // Non-blocking — meta failures are logged but never abort the main write.
+                string schema = Path.GetFileNameWithoutExtension(path);
+                SidecarMetaStamper.Stamp(path, schema);
+
                 StingLog.Info($"BIMManager: saved {Path.GetFileName(path)}");
             }
             catch (Exception ex)
@@ -2806,6 +2797,25 @@ namespace StingTools.BIMManager
                     }
                 }
             }
+            // BIM-COBIE-SYS-01: Augment the System sheet with the live
+            // distribution from CobieSystemDistribution. The existing builder
+            // walks `components` (which are the elements that survived the
+            // Component-sheet pipeline including phase / tag filters); the
+            // engine walks every tagged element. Merge the two so a SYS code
+            // present in the model but missing from the components pass is
+            // still captured (e.g. when an element was skipped by a phase
+            // filter but its SYS still needs to appear).
+            try
+            {
+                var liveRows = CobieSystemDistribution.Build(doc);
+                foreach (var lr in liveRows)
+                {
+                    if (sysGroups.ContainsKey(lr.SysCode)) continue;
+                    sysGroups[lr.SysCode] = lr.Components.Take(20).ToList();
+                }
+            }
+            catch (Exception cdEx) { StingLog.Warn($"CobieSystemDistribution merge: {cdEx.Message}"); }
+
             foreach (var kvp in sysGroups.OrderBy(k => k.Key))
             {
                 string sysDesc = TagConfig.SysMap.TryGetValue(kvp.Key, out var smVal)
@@ -2975,9 +2985,11 @@ namespace StingTools.BIMManager
             data["Assembly"] = assemblies;
 
             // ── Connection (MEP system connections via Connector API) ──
+            // PERF: reuse cobieElements (same WhereElementIsNotElementType filter)
+            // instead of opening a second collector pass over the document.
             var connections = new List<Dictionary<string, string>>();
             int connIdx = 0;
-            foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            foreach (var el in cobieElements)
             {
                 ConnectorSet connectorSet = null;
                 if (el is FamilyInstance fi && fi.MEPModel?.ConnectorManager != null)
@@ -5661,6 +5673,24 @@ namespace StingTools.BIMManager
             var transmittal = BIMManagerEngine.CreateTransmittal(
                 doc, "", "", suitability, "Model drop per MIDP schedule", outgoingIds);
 
+            // BIM-TRANSMIT-GATE-01: ISO 19650-2 §5.3 requires every document in
+            // an outgoing transmittal to have reached at least SHARED state.
+            // The gate scans document_register.json and surfaces blockers; when
+            // any document fails the rank check we log the breach and add the
+            // result to the transmittal record so reviewers see it on open.
+            try
+            {
+                var gate = TransmittalGate.Validate(doc, transmittal, requiredRank: 1);
+                transmittal["gate_pass"] = gate.Pass;
+                transmittal["gate_summary"] = gate.Summary;
+                if (!gate.Pass)
+                {
+                    transmittal["gate_blockers"] = new Newtonsoft.Json.Linq.JArray(gate.Blockers);
+                    StingLog.Warn($"TransmittalGate: {gate.Summary} — {gate.Blockers.Count} blocker(s).");
+                }
+            }
+            catch (Exception gex) { StingLog.Warn($"TransmittalGate.Validate: {gex.Message}"); }
+
             string txPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "transmittals.json");
             var transmittals = BIMManagerEngine.LoadJsonArray(txPath);
             transmittals.Add(transmittal);
@@ -5861,6 +5891,28 @@ namespace StingTools.BIMManager
                         approvalDlg.Show();
                         return Result.Failed;
                     }
+                }
+
+                // BIM-CDE-APPROVAL-01: ISO 19650-2 §5.6 role-based gate for every
+                // CDE transition. The user's role is resolved from project_team.json
+                // (Originator / Reviewer / Approver). PUBLISHED requires Approver,
+                // SHARED requires Reviewer, etc. Hard-block if role rank insufficient
+                // unless user explicitly overrides via the existing gate dialog.
+                var roleGate = CdeApprovalGate.Validate(doc, currentCDE ?? "WIP", status);
+                if (!roleGate.Pass)
+                {
+                    var roleDlg = new TaskDialog("STING CDE Role Gate");
+                    roleDlg.MainInstruction = $"Role check failed: {roleGate.RequiredRole} required";
+                    roleDlg.MainContent = roleGate.Reason;
+                    roleDlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                    roleDlg.DefaultButton = TaskDialogResult.No;
+                    roleDlg.FooterText = "Yes = override and log to STING log. No = abort transition.";
+                    if (roleDlg.Show() != TaskDialogResult.Yes)
+                    {
+                        StingLog.Warn($"CDE role gate aborted: {roleGate.Reason}");
+                        return Result.Cancelled;
+                    }
+                    StingLog.Warn($"CDE role gate overridden by '{Environment.UserName}': {roleGate.Reason}");
                 }
             }
 
@@ -6621,9 +6673,14 @@ namespace StingTools.BIMManager
                 string outputDir;
                 if (!string.IsNullOrEmpty(modelPath))
                 {
-                    string dir = Path.GetDirectoryName(modelPath);
                     string name = Path.GetFileNameWithoutExtension(modelPath);
-                    outputDir = Path.Combine(dir, $"{name}_Briefcase_{DateTime.Now:yyyyMMdd_HHmmss}");
+                    // Folder consolidation: nest the briefcase inside the unified
+                    // project root's 17_BRIEFCASE_<code>/ folder rather than a
+                    // sibling timestamp directory next to the .rvt.
+                    string briefcaseRoot = ProjectFolderEngine.GetFolderPath(doc, "BRIEFCASE");
+                    if (string.IsNullOrEmpty(briefcaseRoot))
+                        briefcaseRoot = Path.GetDirectoryName(modelPath);
+                    outputDir = Path.Combine(briefcaseRoot, $"{name}_Briefcase_{DateTime.Now:yyyyMMdd_HHmmss}");
                 }
                 else
                 {
@@ -6659,6 +6716,11 @@ namespace StingTools.BIMManager
 
                 // 8. MIDP Register
                 filesGenerated += BriefcaseEngine.ExportMidpRegister(doc, outputDir);
+
+                // 9. HC-18: Healthcare evidence pack — RDS snapshots, MGPS verification
+                //    logs, pressure logs, anti-ligature audits scanned from
+                //    _BIM_COORD/healthcare/. Skipped silently on non-healthcare projects.
+                filesGenerated += BriefcaseEngine.ExportHealthcareEvidence(doc, outputDir);
 
                 sw.Stop();
 
@@ -6910,8 +6972,12 @@ namespace StingTools.BIMManager
                 if (ctx == null) return Result.Failed;
                 Document doc = ctx.Doc;
 
-                string logPath = System.IO.Path.Combine(
-                    System.IO.Path.GetDirectoryName(doc.PathName ?? "") ?? "", ".sting_coord_log.json");
+                string logPath = StingTools.Core.ProjectFolderEngine.GetDataPath(doc, "coord_log.json");
+                if (string.IsNullOrEmpty(logPath) || !System.IO.File.Exists(logPath))
+                {
+                    logPath = System.IO.Path.Combine(
+                        System.IO.Path.GetDirectoryName(doc.PathName ?? "") ?? "", ".sting_coord_log.json");
+                }
                 if (!System.IO.File.Exists(logPath))
                 { TaskDialog.Show("STING", "No coordination log found."); return Result.Succeeded; }
 
@@ -7755,6 +7821,61 @@ namespace StingTools.BIMManager
                 return 1;
             }
             catch (Exception ex) { StingLog.Warn($"ExportMidpRegister: {ex.Message}"); return 0; }
+        }
+
+        // HC-18: Healthcare evidence pack — scans _BIM_COORD/healthcare/ for RDS snapshots,
+        // MGPS verifications, pressure logs, anti-ligature audits and copies summary CSVs
+        // into the briefcase. Returns 0 silently on non-healthcare projects.
+        public static int ExportHealthcareEvidence(Document doc, string outputDir)
+        {
+            try
+            {
+                string modelDir = Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(modelDir)) return 0;
+                string hcDir = Path.Combine(modelDir, "_BIM_COORD", "healthcare");
+                if (!Directory.Exists(hcDir)) return 0;
+
+                int copied = 0;
+                string targetDir = Path.Combine(outputDir, "09_HEALTHCARE");
+                Directory.CreateDirectory(targetDir);
+
+                foreach (var sub in new[] { "rds_snapshots", "mgas_verifications", "pressure_logs", "anti_ligature_audits" })
+                {
+                    string src = Path.Combine(hcDir, sub);
+                    if (!Directory.Exists(src)) continue;
+                    string dst = Path.Combine(targetDir, sub);
+                    Directory.CreateDirectory(dst);
+                    foreach (var f in Directory.GetFiles(src, "*.json"))
+                    {
+                        File.Copy(f, Path.Combine(dst, Path.GetFileName(f)), overwrite: true);
+                        copied++;
+                    }
+                    foreach (var f in Directory.GetFiles(src, "*.csv"))
+                    {
+                        File.Copy(f, Path.Combine(dst, Path.GetFileName(f)), overwrite: true);
+                        copied++;
+                    }
+                    foreach (var f in Directory.GetFiles(src, "*.docx"))
+                    {
+                        File.Copy(f, Path.Combine(dst, Path.GetFileName(f)), overwrite: true);
+                        copied++;
+                    }
+                }
+
+                // Index file summarising contents
+                string idxPath = Path.Combine(targetDir, "00_INDEX.csv");
+                var idx = new StringBuilder();
+                idx.AppendLine("File,Subfolder,Size_Bytes,Modified");
+                foreach (var f in Directory.GetFiles(targetDir, "*", SearchOption.AllDirectories))
+                {
+                    if (Path.GetFileName(f) == "00_INDEX.csv") continue;
+                    var fi = new FileInfo(f);
+                    idx.AppendLine($"\"{fi.Name}\",\"{Path.GetFileName(fi.DirectoryName)}\",{fi.Length},\"{fi.LastWriteTime:yyyy-MM-dd HH:mm}\"");
+                }
+                File.WriteAllText(idxPath, idx.ToString());
+                return copied > 0 ? 1 : 0;
+            }
+            catch (Exception ex) { StingLog.Warn($"ExportHealthcareEvidence: {ex.Message}"); return 0; }
         }
 
         internal static string Esc(string s) => (s ?? "").Replace("\"", "\"\"");
@@ -8756,9 +8877,16 @@ namespace StingTools.BIMManager
                     break;
             }
 
+            // F11: Clash budget check — every stage gate ≥ 4 (Technical/IFC)
+            //      requires ZERO active CRITICAL clashes; stage 5+ tightens to
+            //      zero CRITICAL OR HIGH. Reads clashes.json from the project
+            //      output directory; absence is treated as a non-blocking warn.
+            var (clashOk, clashSummary) = EvaluateClashBudget(doc, ribaStage);
+            bool combinedPass = passed && clashOk;
+
             var report = new System.Text.StringBuilder();
             report.AppendLine($"RIBA Stage: {ribaStage} — {stageName}");
-            report.AppendLine($"Result: {(passed ? "PASSED ✓" : "FAILED ✗")}");
+            report.AppendLine($"Result: {(combinedPass ? "PASSED ✓" : "FAILED ✗")}");
             report.AppendLine();
             report.AppendLine($"Requirement: {requirement}");
             report.AppendLine($"Maximum suitability code: {suitabilityMax}");
@@ -8769,17 +8897,70 @@ namespace StingTools.BIMManager
             report.AppendLine($"  Complete tags:       {hasComplete,5} ({completePct:F1}%)");
             report.AppendLine($"  Fully resolved:      {fullyResolved,5} ({resolvedPct:F1}%)");
             report.AppendLine();
+            report.AppendLine($"── Clash Budget ──");
+            report.AppendLine($"  {clashSummary}");
+            report.AppendLine();
             report.AppendLine($"── RAG Status: {scan.RAGStatus} ({scan.CompliancePercent:F0}%) ──");
             report.AppendLine($"  {scan.TopIssues}");
 
             TaskDialog td = new TaskDialog("Stage Compliance Gate");
-            td.MainInstruction = passed
-                ? $"PASSED — Stage {ribaStage} compliance met"
+            td.MainInstruction = combinedPass
+                ? $"PASSED — Stage {ribaStage} compliance + clash budget met"
                 : $"FAILED — Stage {ribaStage} requirements not met";
             td.MainContent = report.ToString();
             td.Show();
 
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// F11: Stage-aware clash budget. Reads {output}/clashes.json and
+        /// gates the stage transition on:
+        ///   Stage 0–3: warning only — no hard gate.
+        ///   Stage 4 (Technical/IFC): zero active CRITICAL.
+        ///   Stage 5+: zero active CRITICAL or HIGH.
+        /// Returns (passed, human-readable summary). Missing clashes.json
+        /// is non-blocking with a warn message — stage gates predate the
+        /// clash subsystem on legacy projects.
+        /// </summary>
+        private static (bool ok, string summary) EvaluateClashBudget(Document doc, int ribaStage)
+        {
+            try
+            {
+                string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                if (string.IsNullOrEmpty(outDir)) return (true, "no project output dir — clash budget skipped");
+                string clashesJson = Path.Combine(outDir, "clashes.json");
+                if (!File.Exists(clashesJson))
+                    return (true, "no clashes.json — clash budget skipped (run clash detection first)");
+
+                var run = StingTools.Core.Clash.ClashPersistence.Load(clashesJson);
+                if (run?.Clashes == null) return (true, "clashes.json empty — clash budget skipped");
+                int activeCritical = 0, activeHigh = 0;
+                foreach (var c in run.Clashes)
+                {
+                    if (c.State == "Resolved" || c.State == "Void") continue;
+                    if (c.Severity == "CRITICAL") activeCritical++;
+                    else if (c.Severity == "HIGH") activeHigh++;
+                }
+
+                if (ribaStage <= 3)
+                    return (true, $"informational — {activeCritical} active CRITICAL, {activeHigh} active HIGH (no hard budget pre-Stage 4)");
+                if (ribaStage == 4)
+                    return (activeCritical == 0,
+                        activeCritical == 0
+                            ? $"PASS — {activeCritical} active CRITICAL"
+                            : $"FAIL — {activeCritical} active CRITICAL (Stage 4 requires zero)");
+                // Stage 5+
+                return ((activeCritical + activeHigh) == 0,
+                    (activeCritical + activeHigh) == 0
+                        ? $"PASS — {activeCritical} CRITICAL / {activeHigh} HIGH"
+                        : $"FAIL — {activeCritical} active CRITICAL + {activeHigh} active HIGH (Stage {ribaStage} requires zero of each)");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"EvaluateClashBudget: {ex.Message}");
+                return (true, $"clash budget check errored — {ex.Message}");
+            }
         }
 
         private static int DetectRIBAStage(Document doc)
@@ -9637,7 +9818,9 @@ namespace StingTools.BIMManager
                 $"STING_TagMap_{DateTime.Now:yyyyMMdd_HHmm}.sting_tagmap.json");
             if (string.IsNullOrEmpty(exportPath))
             {
-                string dir = Path.GetDirectoryName(doc.PathName) ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                string dir = StingTools.Core.ProjectFolderEngine.GetDataPath(doc)
+                    ?? Path.GetDirectoryName(doc.PathName)
+                    ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
                 exportPath = Path.Combine(dir, $"STING_TagMap_{DateTime.Now:yyyyMMdd_HHmm}.sting_tagmap.json");
             }
 
@@ -9979,14 +10162,14 @@ namespace StingTools.BIMManager
                 // COBie column → STING parameter mapping
                 var columnMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
-                    ["Description"] = "ASS_DESC_TXT",
-                    ["SerialNumber"] = "ASS_SERIAL_NUM_TXT",
+                    ["Description"] = "ASS_DESCRIPTION_TXT",
+                    ["SerialNumber"] = "ASS_SERIAL_NR_TXT",
                     ["BarCode"] = "ASS_BARCODE_TXT",
                     ["AssetIdentifier"] = "ASS_ASSET_ID_TXT",
-                    ["WarrantyDurationParts"] = "MNT_WARRANTY_YRS_TXT",
-                    ["WarrantyGuarantorParts"] = "MNT_WARRANTY_PROVIDER_TXT",
-                    ["InstallationDate"] = "ASS_INSTALL_DATE_TXT",
-                    ["WarrantyStartDate"] = "MNT_WARRANTY_START_TXT",
+                    ["WarrantyDurationParts"] = "ASS_WARRANTY_DURATION_PARTS_YRS",
+                    ["WarrantyGuarantorParts"] = "ASS_WARRANTY_PARTS_TXT",
+                    ["InstallationDate"] = "ASS_INSTALLATION_DATE_TXT",
+                    ["WarrantyStartDate"] = "COM_WARRANTY_START_TXT",
                 };
 
                 using (Transaction tx = new Transaction(doc, "STING COBie Import"))
@@ -10556,7 +10739,7 @@ namespace StingTools.BIMManager
                 .ToList();
             foreach (var wall in walls)
             {
-                string thermal = ParameterHelpers.GetString(wall, "BLE_U_VALUE_TXT");
+                string thermal = ParameterHelpers.GetString(wall, "BLE_WALL_THERMAL_TRANSMITTANCE_U_VALUE_W_M_2K_NR");
                 if (!string.IsNullOrEmpty(thermal)) wallsWithU++;
             }
             report.AppendLine($"\nWalls with U-value: {wallsWithU}/{walls.Count}");

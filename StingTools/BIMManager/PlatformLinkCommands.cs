@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Globalization;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using System.Xml.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -1974,6 +1975,44 @@ namespace StingTools.BIMManager
             var doc = app.ActiveUIDocument?.Document;
             if (doc == null) { TaskDialog.Show("Planscape", "No document open."); return; }
 
+            // D-2: warn the user when this sync would push from a non-central
+            // or unsynced local copy. We block only on user choice — once
+            // accepted, the sync proceeds with whatever payload the local
+            // model carries.
+            try
+            {
+                if (!doc.IsWorkshared)
+                {
+                    StingLog.Info("Planscape sync: document is not workshared — local model is the source of truth");
+                    var nonShared = new TaskDialog("Planscape Sync — Confirm")
+                    {
+                        MainInstruction = "Document is not workshared",
+                        MainContent = "The current document is not workshared. The sync will include only elements visible in this local copy. Continue?",
+                        CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.Cancel,
+                        DefaultButton = TaskDialogResult.Cancel,
+                    };
+                    if (nonShared.Show() != TaskDialogResult.Yes) return;
+                }
+                else
+                {
+                    bool isModified = false;
+                    try { isModified = doc.IsModified; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    StingLog.Info($"Planscape sync: workshared (IsModified={isModified})");
+                    if (isModified)
+                    {
+                        var unsynced = new TaskDialog("Planscape Sync — Confirm")
+                        {
+                            MainInstruction = "Local changes have not been synced to central",
+                            MainContent = "Document has unsaved local changes. Sync to central before pushing tags to Planscape so the server reflects authoritative state. Continue with the local snapshot anyway?",
+                            CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.Cancel,
+                            DefaultButton = TaskDialogResult.Cancel,
+                        };
+                        if (unsynced.Show() != TaskDialogResult.Yes) return;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Planscape sync worksharing pre-check: {ex.Message}"); }
+
             // Load project ID from connection config
             string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
             string cfgPath = Path.Combine(bimDir, "planscape_connection.json");
@@ -2010,7 +2049,11 @@ namespace StingTools.BIMManager
             Planscape.Shared.Models.SyncResult sResult;
             try
             {
-                sResult = Planscape.PluginSync.SyncScheduler.SyncNow(payload).GetAwaiter().GetResult();
+                // Task.Run escapes the WPF DispatcherSynchronizationContext
+                // so SyncNow's continuations don't deadlock against the
+                // dispatcher we're blocking on with GetResult().
+                sResult = Task.Run(() => Planscape.PluginSync.SyncScheduler.SyncNow(payload))
+                    .GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -2039,10 +2082,22 @@ namespace StingTools.BIMManager
             }
             catch (Exception ex) { StingLog.Warn($"Planscape sync timestamp update: {ex.Message}"); }
 
+            // Pull issues from server into local issues.json so the BCC can see
+            // issues created in the Planscape mobile app or web.
+            int issuesMerged = 0;
+            try
+            {
+                string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+                issuesMerged = Task.Run(() => client.SyncIssuesFromServerAsync(projectId, issuesPath))
+                    .GetAwaiter().GetResult();
+            }
+            catch (Exception ex) { StingLog.Warn($"Issue pull from server: {ex.Message}"); }
+
             TaskDialog.Show("Planscape Sync — Complete",
                 $"Sync to Planscape server complete!\n\n" +
                 $"Elements sent:    {tagSync.Count:N0}\n" +
-                $"Drained payloads: {sResult.TagsCreated:N0}\n\n" +
+                $"Drained payloads: {sResult.TagsCreated:N0}\n" +
+                $"Issues pulled:    {issuesMerged:N0}\n\n" +
                 $"Server: {client.ServerUrl}\n" +
                 $"User: {client.ConnectedUser}\n\n" +
                 $"Compliance metrics will arrive on the ComplianceHub.");
@@ -2065,25 +2120,49 @@ namespace StingTools.BIMManager
             {
                 foreach (Element el in collector)
                 {
-                    string tag1 = ParameterHelpers.GetString(el, "ASS_TAG_1") ?? "";
+                    string tag1 = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG1) ?? "";
                     if (string.IsNullOrEmpty(tag1)) continue;
 
-                    string disc = ParameterHelpers.GetString(el, "ASS_DISC") ?? "";
-                    string loc  = ParameterHelpers.GetString(el, "ASS_LOC")  ?? "";
-                    string zone = ParameterHelpers.GetString(el, "ASS_ZONE") ?? "";
-                    string lvl  = ParameterHelpers.GetString(el, "ASS_LVL")  ?? "";
-                    string sys  = ParameterHelpers.GetString(el, "ASS_SYS")  ?? "";
-                    string func = ParameterHelpers.GetString(el, "ASS_FUNC") ?? "";
-                    string prod = ParameterHelpers.GetString(el, "ASS_PROD") ?? "";
-                    string seq  = ParameterHelpers.GetString(el, "ASS_SEQ")  ?? "";
-                    string tag7 = ParameterHelpers.GetString(el, "ASS_TAG_7") ?? "";
-                    string status = ParameterHelpers.GetString(el, "ASS_STATUS") ?? "";
-                    string rev   = ParameterHelpers.GetString(el, "ASS_REV")    ?? "";
+                    string disc = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.DISC) ?? "";
+                    string loc  = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.LOC)  ?? "";
+                    string zone = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.ZONE) ?? "";
+                    string lvl  = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.LVL)  ?? "";
+                    string sys  = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.SYS)  ?? "";
+                    string func = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.FUNC) ?? "";
+                    string prod = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.PROD) ?? "";
+                    string seq  = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.SEQ)  ?? "";
+                    string tag7 = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7) ?? "";
+                    string status = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.STATUS) ?? "";
+                    string rev   = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.REV)    ?? "";
                     string cat   = ParameterHelpers.GetCategoryName(el);
                     string fam   = (el as FamilyInstance)?.Symbol?.FamilyName ?? "";
 
                     bool isComplete     = !string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(seq);
                     bool isFullyResolved = isComplete && !string.IsNullOrEmpty(loc) && !string.IsNullOrEmpty(lvl);
+
+                    // ─── Phase 165 — T4-T10 payload ───
+                    // Read TAG7A-TAG7F directly (already written by WriteTag7All),
+                    // build T4-T10 summaries fresh from element parameters,
+                    // resolve active depth and pattern mode for the server.
+                    string tag7a = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7A) ?? "";
+                    string tag7b = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7B) ?? "";
+                    string tag7c = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7C) ?? "";
+                    string tag7d = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7D) ?? "";
+                    string tag7e = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7E) ?? "";
+                    string tag7f = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7F) ?? "";
+
+                    StingTools.Core.TagConfig.Tag7Result tier = null;
+                    try
+                    {
+                        var tokens = new[] { disc, loc, zone, lvl, sys, func, prod, seq };
+                        tier = StingTools.Core.TagConfig.BuildTag7Sections(doc, el, cat, tokens);
+                    }
+                    catch { /* tier hydration is best-effort */ }
+
+                    Element typeEl = null;
+                    try { typeEl = doc.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    int paraDepth   = StingTools.Core.TagConfig.ReadActiveParagraphDepth(typeEl, el);
+                    string pattern  = StingTools.Core.TagConfig.ResolveActivePatternMode(typeEl, el);
 
                     elements.Add(new TagElementPayload
                     {
@@ -2099,7 +2178,23 @@ namespace StingTools.BIMManager
                         // INT-03 (Phase 91): per-element wall-clock timestamp from
                         // ASS_TAG_MODIFIED_DT audit trail, with DateTime.UtcNow
                         // fallback. Enables server-side delta detection.
-                        LastModifiedUtc = ResolveElementLastModifiedUtc(el)
+                        LastModifiedUtc = ResolveElementLastModifiedUtc(el),
+                        // Phase 165 — T4-T10 + sections + depth + pattern mode
+                        Tag7A = string.IsNullOrEmpty(tag7a) ? null : tag7a,
+                        Tag7B = string.IsNullOrEmpty(tag7b) ? null : tag7b,
+                        Tag7C = string.IsNullOrEmpty(tag7c) ? null : tag7c,
+                        Tag7D = string.IsNullOrEmpty(tag7d) ? null : tag7d,
+                        Tag7E = string.IsNullOrEmpty(tag7e) ? null : tag7e,
+                        Tag7F = string.IsNullOrEmpty(tag7f) ? null : tag7f,
+                        T4Commissioning  = string.IsNullOrEmpty(tier?.SectionT4)  ? null : tier.SectionT4,
+                        T5Cost           = string.IsNullOrEmpty(tier?.SectionT5)  ? null : tier.SectionT5,
+                        T6Carbon         = string.IsNullOrEmpty(tier?.SectionT6)  ? null : tier.SectionT6,
+                        T7Fabrication    = string.IsNullOrEmpty(tier?.SectionT7)  ? null : tier.SectionT7,
+                        T8ClashTriage    = string.IsNullOrEmpty(tier?.SectionT8)  ? null : tier.SectionT8,
+                        T9AsBuilt        = string.IsNullOrEmpty(tier?.SectionT9)  ? null : tier.SectionT9,
+                        T10Compliance    = string.IsNullOrEmpty(tier?.SectionT10) ? null : tier.SectionT10,
+                        ParaDepth        = paraDepth,
+                        PatternMode      = pattern,
                     });
                 }
             }
@@ -2326,6 +2421,16 @@ namespace StingTools.BIMManager
 
                     queue.Enqueue(payload);
                     StingLog.Info($"PluginSyncTickBridge tick: enqueued payload with {count:N0} tagged elements for {doc.Title} (queue depth: {queue.Count})");
+
+                    // Phase 177-B — reconcile any deliverables.json rows
+                    // whose ServerSyncedAt is missing or stale. Fire-and-
+                    // forget; ReconcileAsync caps each pass at 50 rows.
+                    var docCapture = doc;
+                    _ = Task.Run(async () =>
+                    {
+                        try { await Planscape.Docs.Templates.DeliverableServerSync.ReconcileAsync(docCapture); }
+                        catch (Exception ex) { StingLog.Warn($"DeliverableServerSync.Reconcile: {ex.Message}"); }
+                    });
                 }
                 catch (Exception ex)
                 {
@@ -2515,40 +2620,57 @@ namespace StingTools.BIMManager
                     return Result.Cancelled;
                 }
 
-                // Blocking async call — safe in ExternalEvent context
-                bool ok = PlanscapeServerClient.Instance
-                    .LoginAsync(serverUrl.Trim(), email.Trim(), password)
+                // Run on the threadpool, not directly on the API thread.
+                // ExternalEvent.Execute runs on the Revit API thread which
+                // carries the WPF DispatcherSynchronizationContext; bare
+                // `LoginAsync(...).GetAwaiter().GetResult()` deadlocks the
+                // dispatcher because LoginAsync's continuation needs to
+                // resume on that same dispatcher. Task.Run escapes the
+                // SyncContext so the continuation runs on the threadpool.
+                bool ok = Task.Run(() => PlanscapeServerClient.Instance
+                    .LoginAsync(serverUrl.Trim(), email.Trim(), password))
                     .GetAwaiter().GetResult();
 
                 if (!ok)
                 {
                     TaskDialog.Show("Planscape Connect — Failed",
-                        $"Authentication failed.\n\n{PlanscapeServerClient.Instance.LastError ?? "Unknown error"}\n\n" +
-                        $"Please check:\n  • Server URL is reachable\n  • Email and password are correct\n  • Network connection is available");
+                        $"Authentication failed.\n\n{PlanscapeServerClient.Instance.LastError ?? "Unknown error"}");
                     return Result.Failed;
                 }
 
-                // Persist connection settings (no password stored)
-                var doc = commandData.Application.ActiveUIDocument?.Document;
-                if (doc != null)
+                // Login succeeded — anything that fails below is post-connect
+                // bookkeeping (save settings, start SyncScheduler, refresh dock
+                // chip). None of it should turn a working connection into a
+                // 'Connection error' popup. Wrap the whole tail in a try/catch
+                // that downgrades to a log line and still reports success.
+                try
                 {
-                    string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
-                    string cfgPath = Path.Combine(bimDir, "planscape_connection.json");
-                    PlanscapeServerClient.Instance.SaveConnectionSettings(cfgPath, email.Trim());
-
-                    // Save the project ID if provided
-                    if (!string.IsNullOrWhiteSpace(projectId))
+                    // Persist connection settings (no password stored)
+                    var doc = commandData.Application.ActiveUIDocument?.Document;
+                    if (doc != null)
                     {
-                        try
+                        string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
+                        string cfgPath = Path.Combine(bimDir, "planscape_connection.json");
+                        PlanscapeServerClient.Instance.SaveConnectionSettings(cfgPath, email.Trim());
+
+                        // Save the project ID if provided
+                        if (!string.IsNullOrWhiteSpace(projectId))
                         {
-                            JObject cfg = File.Exists(cfgPath)
-                                ? JObject.Parse(File.ReadAllText(cfgPath))
-                                : new JObject();
-                            cfg["projectId"] = projectId.Trim();
-                            File.WriteAllText(cfgPath, cfg.ToString(Formatting.Indented));
+                            try
+                            {
+                                JObject cfg = File.Exists(cfgPath)
+                                    ? JObject.Parse(File.ReadAllText(cfgPath))
+                                    : new JObject();
+                                cfg["projectId"] = projectId.Trim();
+                                File.WriteAllText(cfgPath, cfg.ToString(Formatting.Indented));
+                            }
+                            catch { /* non-fatal */ }
                         }
-                        catch { /* non-fatal */ }
                     }
+                }
+                catch (Exception persistEx)
+                {
+                    StingLog.Warn($"Planscape: post-login persist step failed (non-fatal) — {persistEx.Message}");
                 }
 
                 var client = PlanscapeServerClient.Instance;
@@ -2572,7 +2694,11 @@ namespace StingTools.BIMManager
                         {
                             Planscape.PluginSync.SyncScheduler.Instance.OnSyncComplete += _ =>
                             {
-                                UI.StingDockPanel.LastInstance?.RefreshSyncIndicator();
+                                try { UI.StingDockPanel.LastInstance?.RefreshSyncIndicator(); }
+                                catch (Exception refreshEx)
+                                {
+                                    StingLog.Warn($"RefreshSyncIndicator (post-sync): {refreshEx.Message}");
+                                }
                             };
                         }
                     }
@@ -2584,16 +2710,23 @@ namespace StingTools.BIMManager
                 }
                 catch (Exception schEx)
                 {
-                    StingLog.Warn($"SyncScheduler start from PlanscapeConnect: {schEx.Message}");
+                    StingLog.Warn($"SyncScheduler start from PlanscapeConnect (non-fatal): {schEx.Message}");
                 }
 
-                TaskDialog.Show("Planscape — Connected",
-                    $"✅ Successfully connected to Planscape!\n\n" +
-                    $"Server:  {client.ServerUrl}\n" +
-                    $"User:    {client.ConnectedUser}\n" +
-                    $"Tier:    {client.TierName}\n" +
-                    $"MIM:     {(client.MimEnabled ? "Enabled" : "Not enabled")}\n\n" +
-                    "You can now use 'Sync Now' to push tagged elements to the server.");
+                try
+                {
+                    TaskDialog.Show("Planscape — Connected",
+                        $"✅ Successfully connected to Planscape!\n\n" +
+                        $"Server:  {client.ServerUrl}\n" +
+                        $"User:    {client.ConnectedUser}\n" +
+                        $"Tier:    {client.TierName}\n" +
+                        $"MIM:     {(client.MimEnabled ? "Enabled" : "Not enabled")}\n\n" +
+                        "You can now use 'Sync Now' to push tagged elements to the server.");
+                }
+                catch (Exception dlgEx)
+                {
+                    StingLog.Warn($"Planscape: success TaskDialog failed (non-fatal) — {dlgEx.Message}");
+                }
 
                 StingLog.Info($"Planscape: Connected — {client.ConnectedUser} @ {client.ServerUrl}");
                 return Result.Succeeded;
@@ -2601,7 +2734,91 @@ namespace StingTools.BIMManager
             catch (Exception ex)
             {
                 StingLog.Error("PlanscapeConnectCommand failed", ex);
-                TaskDialog.Show("Planscape Connect Error", $"Connection error: {ex.Message}");
+                // Only show the error dialog if login itself failed. If we got
+                // a JWT but a downstream hook NRE'd, the user is already
+                // connected — surfacing 'Connection error' is misleading.
+                if (!PlanscapeServerClient.Instance.IsConnected)
+                {
+                    TaskDialog.Show("Planscape Connect Error", $"Connection error: {ex.Message}");
+                    return Result.Failed;
+                }
+                StingLog.Warn("Planscape: connection succeeded but a downstream step threw — suppressing error dialog because IsConnected=true");
+                return Result.Succeeded;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Disconnects the current Planscape server session. Mirrors the inline
+    /// PlanscapeDisconnect handler in WarningsManager.ProcessAction so the
+    /// action can also be resolved via WorkflowEngine.GetCommandInstance
+    /// (Phase 167 dispatch-gap fix).
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class PlanscapeDisconnectCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                PlanscapeServerClient.Instance.Disconnect();
+                StingLog.Info("Planscape: Disconnected via PlanscapeDisconnectCommand");
+                TaskDialog.Show("Planscape", "Disconnected from Planscape server.");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlanscapeDisconnectCommand failed", ex);
+                TaskDialog.Show("Planscape Disconnect Error", $"Disconnect error: {ex.Message}");
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Opens the Planscape web dashboard in the default browser. Reads the
+    /// saved server URL from planscape_connection.json, falls back to the
+    /// public hosted instance when nothing is configured. Mirrors the inline
+    /// PlanscapeOpenWebDashboard handler in WarningsManager.ProcessAction
+    /// (Phase 167 dispatch-gap fix).
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class PlanscapeOpenWebCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                string url = PlanscapeServerClient.Instance.ServerUrl;
+
+                if (string.IsNullOrWhiteSpace(url))
+                {
+                    var doc = commandData.Application.ActiveUIDocument?.Document;
+                    if (doc != null)
+                    {
+                        string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
+                        string cfgPath = Path.Combine(bimDir, "planscape_connection.json");
+                        var (savedUrl, _, _) = PlanscapeServerClient.LoadConnectionSettings(cfgPath);
+                        if (!string.IsNullOrWhiteSpace(savedUrl)) url = savedUrl;
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(url))
+                    url = "https://planscape-api.onrender.com";
+
+                string dashboardUrl = url.TrimEnd('/') + "/dashboard";
+                Process.Start(new ProcessStartInfo(dashboardUrl) { UseShellExecute = true })?.Dispose();
+                StingLog.Info($"Planscape: opened dashboard {dashboardUrl}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlanscapeOpenWebCommand failed", ex);
+                TaskDialog.Show("Planscape", $"Could not open web dashboard:\n{ex.Message}");
                 return Result.Failed;
             }
         }

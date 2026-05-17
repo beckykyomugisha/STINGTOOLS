@@ -1296,6 +1296,57 @@ namespace StingTools.Tags
                     "WARN_SLV_NO_SEAL"
                 };
             }
+            // ── Lightning Protection (#54-#59 — Phase 176, BS EN 62305) ──
+            // Six LPS tag families share the same data params + 10 warning slots;
+            // the LPS class / count / resistance / risk-assessment validators in
+            // PreTagAuditCommand + ResolveAllIssuesCommand evaluate these and
+            // populate the WARN_ELC_LPS_* params per element.
+            else if (name.Contains("LPS") || name.Contains("LIGHTNING") ||
+                     name.Contains("AIR TERMINAL") || name.Contains("DOWN CONDUCTOR") ||
+                     name.Contains("EARTH ELECTRODE") || name.Contains("BOND TAG") ||
+                     name.Contains("SPD TAG") || name.Contains("TEST CLAMP"))
+            {
+                familySpecific = new List<string>
+                {
+                    "ELC_LPS_AIRTERM_TAG_TXT",
+                    "ELC_LPS_DOWNCOND_TAG_TXT",
+                    "ELC_LPS_EARTH_TAG_TXT",
+                    "ELC_LPS_BOND_TAG_TXT",
+                    "ELC_LPS_SPD_TAG_TXT",
+                    "ELC_LPS_TESTCLAMP_TAG_TXT",
+                    "ELC_LPS_CLASS_TXT",
+                    "ELC_LPS_ZONE_TXT",
+                    "ELC_LPS_AIR_TERMINAL_COUNT_NR",
+                    "ELC_LPS_DOWN_CONDUCTOR_COUNT_NR",
+                    "ELC_LPS_EARTH_ELECTRODE_COUNT_NR",
+                    "ELC_LPS_EARTH_RESISTANCE_OHM",
+                    "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2",
+                    "ELC_LPS_CONDUCTOR_MATERIAL_TXT",
+                    "ELC_LPS_BOND_TYPE_TXT",
+                    "ELC_LPS_SURGE_PROTECTION_LVL_TXT",
+                    "ELC_LPS_SEPARATION_DISTANCE_MM",
+                    "ELC_LPS_PROTECTION_ANGLE_DEG",
+                    "ELC_LPS_MESH_SIZE_M",
+                    "ELC_LPS_ROLLING_SPHERE_RADIUS_M",
+                    "ELC_LPS_RISK_ASSESSMENT_TXT",
+                    "ELC_LPS_INSPECTION_INTERVAL_MONTHS",
+                    "ELC_LPS_TEST_DATE_TXT",
+                    "ELC_LPS_CERT_REF_TXT",
+                    "ELC_LPS_EARTH_TYPE_TXT",
+                    "ELC_LPS_COMPLIANCE_STATUS_TXT",
+                    "ELC_TAG_7_PARA_LPS_TXT",
+                    "WARN_ELC_LPS_NO_CLASS",
+                    "WARN_ELC_LPS_DOWN_COND_INSUFFICIENT",
+                    "WARN_ELC_LPS_EARTH_RESISTANCE_HIGH",
+                    "WARN_ELC_LPS_NO_RISK_ASSESSMENT",
+                    "WARN_ELC_LPS_SEPARATION_FAIL",
+                    "WARN_ELC_LPS_INSPECTION_OVERDUE",
+                    "WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW",
+                    "WARN_ELC_LPS_NO_BONDING",
+                    "WARN_ELC_LPS_MESH_SIZE_EXCEEDED",
+                    "WARN_ELC_LPS_NO_ZONE"
+                };
+            }
 
             if (familySpecific == null) return null;
 

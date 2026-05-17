@@ -19,6 +19,12 @@ namespace StingTools.Temp
     /// </summary>
     internal static class MaterialPropertyHelper
     {
+        // SAFETY-001: Resets the static "shared parameter not bound" warning counter
+        // so subsequent runs of CreateBLE/MEPMaterials commands re-emit warnings on
+        // first encounter rather than silently suppressing them. Currently a no-op
+        // (the engine emits warnings unconditionally), retained for caller compatibility.
+        public static void ResetSharedParamWarnings() { }
+
         // CSV column indices (0-based, matches MATERIAL_SCHEMA.json column_order)
         // --- Identity & Classification ---
         public const int ColSourceSheet = 0;        // SOURCE_SHEET
@@ -1232,6 +1238,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
+            // SAFETY-001: Reset static warning counter so a previous failed run
+            // does not suppress warnings for this execution.
+            MaterialPropertyHelper.ResetSharedParamWarnings();
             try
             {
                 var ctx = ParameterHelpers.GetContext(commandData);
@@ -1261,6 +1270,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
+            // SAFETY-001: Reset static warning counter so a previous failed run
+            // does not suppress warnings for this execution.
+            MaterialPropertyHelper.ResetSharedParamWarnings();
             try
             {
                 var ctx = ParameterHelpers.GetContext(commandData);

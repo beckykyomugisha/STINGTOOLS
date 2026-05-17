@@ -1,0 +1,254 @@
+{
+  "version": "1.0",
+  "standard": "STING SEED FAMILY — Fire Damper (BS EN 1366-2, BS EN 15650, NFPA 90A)",
+  "_notes": [
+    "12 type variants: rectangular fusible-link (FR60/FR90/FR120),",
+    "rectangular motorised (FR60/FR120), round motorised (FR60/FR90/FR120),",
+    "smoke-only (24 V motorised), combined fire+smoke (FSD FR60 / FR120),",
+    "and curtain-type FR60 for restricted-depth installations.",
+    "FD_BSEN15650_CLASS_TXT encodes the EI/EIS class per BS EN 15650.",
+    "PenetrationProductSelector dispatches to this seed when the",
+    "penetrating member is a duct and the host is a fire-rated barrier."
+  ],
+  "symbols": [
+    {
+      "id": "STING_SEED_FireDamper",
+      "name": "STING Seed — Fire Damper",
+      "category": "Specialty Equipment",
+      "familyType": "SeedFamily",
+      "discipline": "Mechanical",
+      "subcategory": "STING_SEED",
+      "isSeed": true,
+      "protectExisting": true,
+      "hosting": "FaceBased",
+      "symbolSize": 6.0,
+      "parameters": [
+        { "name": "STING_SEED_FAMILY_TXT",     "type": "Text", "shared": true, "isInstance": true,  "default": "STING_SEED_FireDamper" },
+        { "name": "STING_DESIGN_REF_TXT",      "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "STING_SWAP_HISTORY_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "ASS_TAG_1",                 "type": "Text", "shared": true, "isInstance": true },
+        { "name": "ASS_DISCIPLINE_COD_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "M" },
+        { "name": "ASS_PRODCT_COD_TXT",        "type": "Text", "shared": true, "isInstance": true,  "default": "FD" },
+        { "name": "PEN_FIRE_RATING_TXT",       "type": "Text", "shared": true, "isInstance": false, "default": "FR60" },
+        { "name": "PEN_OD_MM",                 "type": "Text", "shared": true, "isInstance": true,  "default": "0" },
+        { "name": "PEN_HOST_REF_TXT",          "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_HOST_TYPE_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_MEMBER_ID_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_CERTIFICATION_TXT",     "type": "Text", "shared": true, "isInstance": false, "default": "BS EN 15650 / EN 1366-2" },
+        { "name": "PEN_INSTALL_STATUS_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "DRAFT" },
+        { "name": "PEN_INSTALLER_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_INSTALL_DATE",          "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_INSPECTOR_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_INSPECTION_DATE",       "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_CONTROL_NUMBER_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "PEN_PFV_UUID_TXT",          "type": "Text", "shared": true, "isInstance": true,  "default": "" },
+        { "name": "FD_ACTUATION_TXT",          "type": "Text", "shared": true, "isInstance": false, "default": "FUSIBLE_LINK_72C" },
+        { "name": "FD_TRIGGER_TEMP_C",         "type": "Text", "shared": true, "isInstance": false, "default": "72" },
+        { "name": "FD_BSEN15650_CLASS_TXT",    "type": "Text", "shared": true, "isInstance": false, "default": "EI60S" },
+        { "name": "FD_RESET_AFTER_TEST_TXT",   "type": "Text", "shared": true, "isInstance": true,  "default": "" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5 },
+          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5 },
+          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5 },
+          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5 },
+          { "x1": -0.5, "y1":  0.0, "x2":  0.5, "y2":  0.0 },
+          { "x1":  0.0, "y1": -0.5, "x2":  0.0, "y2":  0.5 },
+          { "x1": -0.4, "y1": -0.4, "x2":  0.4, "y2":  0.4 },
+          { "x1": -0.4, "y1":  0.4, "x2":  0.4, "y2": -0.4 }
+        ],
+        "section": {
+          "view": "Front",
+          "lines": [
+            { "x1": -1.0, "y1":  0.0, "x2":  1.0, "y2":  0.0 },
+            { "x1": -0.5, "y1":  0.0, "x2": -0.5, "y2":  0.5 },
+            { "x1":  0.5, "y1":  0.0, "x2":  0.5, "y2":  0.5 },
+            { "x1": -0.5, "y1":  0.5, "x2":  0.5, "y2":  0.5 }
+          ]
+        }
+      },
+      "solid3D": { "type": "Box", "widthMm": 400, "depthMm": 200, "heightMm": 400 },
+      "formulaBindings": [
+        { "target": "Mark", "expression": "PEN_CONTROL_NUMBER_TXT" }
+      ],
+      "swapCandidates": [
+        {
+          "label": "Actionair / Ruskin Rectangular Fire Damper",
+          "familyPath": "",
+          "variantPattern": "FD_FR*_RECT*",
+          "priority": 1,
+          "autoLoad": false
+        },
+        {
+          "label": "Flamgard / Trox Round Motorised FD",
+          "familyPath": "",
+          "variantPattern": "FD_FR*_ROUND*",
+          "priority": 2,
+          "autoLoad": false
+        },
+        {
+          "label": "Gilberts / Price Industries FSD Combined",
+          "familyPath": "",
+          "variantPattern": "FSD*",
+          "priority": 3,
+          "autoLoad": false
+        },
+        {
+          "label": "Halton / Swegon Curtain Fire Damper",
+          "familyPath": "",
+          "variantPattern": "FD_CURTAIN*",
+          "priority": 4,
+          "autoLoad": false
+        }
+      ],
+      "typeVariants": [
+        {
+          "_group": "--- RECTANGULAR — FUSIBLE LINK (passive) ---"
+        },
+        {
+          "name": "FD_FR60_RECT_FUSIBLE",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR60",
+            "ASS_PRODCT_COD_TXT": "FD",
+            "FD_BSEN15650_CLASS_TXT": "EI60S",
+            "FD_ACTUATION_TXT": "FUSIBLE_LINK_72C",
+            "FD_TRIGGER_TEMP_C": "72"
+          }
+        },
+        {
+          "name": "FD_FR90_RECT_FUSIBLE",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR90",
+            "ASS_PRODCT_COD_TXT": "FD",
+            "FD_BSEN15650_CLASS_TXT": "EI90S",
+            "FD_ACTUATION_TXT": "FUSIBLE_LINK_72C",
+            "FD_TRIGGER_TEMP_C": "72"
+          }
+        },
+        {
+          "name": "FD_FR120_RECT_FUSIBLE",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR120",
+            "ASS_PRODCT_COD_TXT": "FD",
+            "FD_BSEN15650_CLASS_TXT": "EI120S",
+            "FD_ACTUATION_TXT": "FUSIBLE_LINK_72C",
+            "FD_TRIGGER_TEMP_C": "72"
+          }
+        },
+        {
+          "_group": "--- RECTANGULAR — MOTORISED (active, fail-safe close) ---"
+        },
+        {
+          "name": "FD_FR60_RECT_MOTORISED",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR60",
+            "ASS_PRODCT_COD_TXT": "FD",
+            "FD_BSEN15650_CLASS_TXT": "EI60S",
+            "FD_ACTUATION_TXT": "MOTORISED_24V",
+            "FD_TRIGGER_TEMP_C": "N/A"
+          }
+        },
+        {
+          "name": "FD_FR120_RECT_MOTORISED",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR120",
+            "ASS_PRODCT_COD_TXT": "FD",
+            "FD_BSEN15650_CLASS_TXT": "EI120S",
+            "FD_ACTUATION_TXT": "MOTORISED_24V",
+            "FD_TRIGGER_TEMP_C": "N/A"
+          }
+        },
+        {
+          "_group": "--- ROUND DUCT — MOTORISED ---"
+        },
+        {
+          "name": "FD_FR30_ROUND_MOTORISED",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR30",
+            "ASS_PRODCT_COD_TXT": "FD",
+            "FD_BSEN15650_CLASS_TXT": "EI30S",
+            "FD_ACTUATION_TXT": "MOTORISED_24V",
+            "FD_TRIGGER_TEMP_C": "N/A"
+          }
+        },
+        {
+          "name": "FD_FR60_ROUND_MOTORISED",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR60",
+            "ASS_PRODCT_COD_TXT": "FD",
+            "FD_BSEN15650_CLASS_TXT": "EI60S",
+            "FD_ACTUATION_TXT": "MOTORISED_24V",
+            "FD_TRIGGER_TEMP_C": "N/A"
+          }
+        },
+        {
+          "name": "FD_FR90_ROUND_MOTORISED",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR90",
+            "ASS_PRODCT_COD_TXT": "FD",
+            "FD_BSEN15650_CLASS_TXT": "EI90S",
+            "FD_ACTUATION_TXT": "MOTORISED_24V",
+            "FD_TRIGGER_TEMP_C": "N/A"
+          }
+        },
+        {
+          "name": "FD_FR120_ROUND_MOTORISED",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR120",
+            "ASS_PRODCT_COD_TXT": "FD",
+            "FD_BSEN15650_CLASS_TXT": "EI120S",
+            "FD_ACTUATION_TXT": "MOTORISED_24V",
+            "FD_TRIGGER_TEMP_C": "N/A"
+          }
+        },
+        {
+          "_group": "--- FIRE/SMOKE (FSD) AND SMOKE-ONLY ---"
+        },
+        {
+          "name": "FSD_SMOKE_ONLY",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "SMOKE_ONLY",
+            "ASS_PRODCT_COD_TXT": "SD",
+            "FD_BSEN15650_CLASS_TXT": "ES",
+            "FD_ACTUATION_TXT": "MOTORISED_24V",
+            "FD_TRIGGER_TEMP_C": "N/A"
+          }
+        },
+        {
+          "name": "FD_FR60_COMBINED_SMOKE",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR60",
+            "ASS_PRODCT_COD_TXT": "FSD",
+            "FD_BSEN15650_CLASS_TXT": "EIS60",
+            "FD_ACTUATION_TXT": "MOTORISED_24V_FUSIBLE_LINK",
+            "FD_TRIGGER_TEMP_C": "72"
+          }
+        },
+        {
+          "name": "FD_FR120_COMBINED_SMOKE",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR120",
+            "ASS_PRODCT_COD_TXT": "FSD",
+            "FD_BSEN15650_CLASS_TXT": "EIS120",
+            "FD_ACTUATION_TXT": "MOTORISED_24V_FUSIBLE_LINK",
+            "FD_TRIGGER_TEMP_C": "72"
+          }
+        },
+        {
+          "_group": "--- CURTAIN TYPE (restricted depth) ---"
+        },
+        {
+          "name": "FD_CURTAIN_FR60",
+          "params": {
+            "PEN_FIRE_RATING_TXT": "FR60",
+            "ASS_PRODCT_COD_TXT": "FD-C",
+            "FD_BSEN15650_CLASS_TXT": "EI60",
+            "FD_ACTUATION_TXT": "GRAVITY_FUSIBLE_LINK",
+            "FD_TRIGGER_TEMP_C": "72"
+          }
+        }
+      ]
+    }
+  ]
+}

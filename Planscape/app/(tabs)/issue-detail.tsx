@@ -20,7 +20,7 @@
  *      offline they queue as an ATTACH_PHOTO action via offlineQueue.
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,7 @@ import {
   Alert,
   Platform,
   RefreshControl,
+  Linking,
 } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import NetInfo from '@react-native-community/netinfo';
@@ -43,11 +44,17 @@ import {
   getAttachmentThumbnailUrl,
   uploadIssueAttachment,
   listProjects,
+  listIssues,
+  listAvailableXkts,
   updateIssue,
   listProjectMembers,
+  getIssueActivity,
 } from '@/api/endpoints';
 import { apiFetch, getToken } from '@/api/client';
-import type { BimIssue, IssueAttachment, Project, ProjectMember } from '@/types/api';
+import { getModel, modelFileUrl } from '@/api/models';
+import { ModelViewer, type ModelViewerHandle } from '@/components/ModelViewer';
+import type { BimIssue, IssueAttachment, Project, ProjectMember, IssueActivityEntry } from '@/types/api';
+import type { ModelMeta, ModelPin } from '@/types/models';
 import { theme, getPriorityColor } from '@/utils/theme';
 import { imageService } from '@/services/imageService';
 import { locationService } from '@/services/locationService';
@@ -76,10 +83,31 @@ export default function IssueDetailScreen() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // MODEL-VIEWER — when issue.modelId is set we embed <ModelViewer> inline so
+  // coordinators see 3D context without leaving the detail screen. The viewer
+  // WebView can't forward an Authorization header, so the geometry URL gets
+  // the JWT appended as ?access_token=...; same pattern as app/models/[id].tsx.
+  const viewerRef = useRef<ModelViewerHandle>(null);
+  const [viewerReady, setViewerReady] = useState(false);
+  const [viewerMeta, setViewerMeta] = useState<ModelMeta | null>(null);
+  const [viewerModelUrl, setViewerModelUrl] = useState<string | undefined>(undefined);
+  const [viewerPins, setViewerPins] = useState<ModelPin[]>([]);
+  const [viewerError, setViewerError] = useState<string | null>(null);
+  // Phase 164 caveat 2 — toggle to surface resolved/closed sibling pins.
+  // Off by default so the embed stays focused on actionable items.
+  const [showResolvedSiblings, setShowResolvedSiblings] = useState(false);
+  // Phase 164 caveat 2 — track resolved-sibling count separately so the
+  // toggle's label can announce how many pins it would add.
+  const [resolvedSiblingCount, setResolvedSiblingCount] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  // T3-14 — activity timeline. Same /issues/{iid}/activity endpoint the
+  // viewer + BCC consume; here we render a stacked rich-card list under
+  // the existing Linked Elements block.
+  const [activity, setActivity] = useState<IssueActivityEntry[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
 
   const authUserId = useAuthStore((s) => s.userId);
 
@@ -174,6 +202,134 @@ export default function IssueDetailScreen() {
     }
   }, [issue, project, loadAttachments]);
 
+  // T3-14 — Pull the activity timeline whenever the issue is (re)loaded.
+  // Errors are non-fatal; the section just stays empty rather than blocking
+  // the rest of the screen.
+  useEffect(() => {
+    if (!issue || !project) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        setActivityLoading(true);
+        const rows = await getIssueActivity(project.id, issue.id);
+        if (!cancelled) setActivity(rows || []);
+      } catch (e) {
+        crashReporter.warn('issue-detail.tsx:loadActivity', { e: String(e) });
+        if (!cancelled) setActivity([]);
+      } finally {
+        if (!cancelled) setActivityLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [issue, project]);
+
+  // MODEL-VIEWER — load the linked model + auth-tokened URL whenever the
+  // issue's modelId changes. Failure (model deleted, network down) is
+  // non-fatal — the embed silently disappears and the existing
+  // WebBrowser-based "Open in 3D" button still works as a fallback.
+  useEffect(() => {
+    if (!issue || !project) return;
+    if (!issue.modelId) {
+      setViewerMeta(null);
+      setViewerModelUrl(undefined);
+      setViewerPins([]);
+      setViewerError(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        // Phase 164 caveat 3 — pass modelId to listIssues so the server's
+        // existing single-column index on BimIssue.ModelId does the
+        // filtering. Cheap one-page request even on 5K-issue projects
+        // (typical model has 5–50 anchored issues). The Phase 164 server
+        // projection now also returns ModelId/ModelX/Y/Z so the pin
+        // construction below actually has data to work with — Phase 163's
+        // version filtered on fields the wire envelope didn't carry.
+        const [meta, token, base, siblings] = await Promise.all([
+          getModel(project.id, issue.modelId!),
+          getToken(),
+          modelFileUrl(project.id, issue.modelId!),
+          listIssues(project.id, { modelId: issue.modelId! }).catch((err) => {
+            console.warn('[issue-detail] sibling-issue fetch failed', err);
+            return [] as BimIssue[];
+          }),
+        ]);
+        if (cancelled) return;
+        const url = token ? `${base}?access_token=${encodeURIComponent(token)}` : base;
+        setViewerMeta(meta);
+        setViewerModelUrl(url);
+
+        // Build the pin list: the issue's own pin first (when anchored),
+        // followed by sibling pins per the resolved-toggle gate. Pin id ==
+        // issue id matches the convention in app/models/[id].tsx so
+        // onPinTap can route by id directly. Resolved-sibling count is
+        // computed unconditionally so the toggle can announce it.
+        const pins: ModelPin[] = [];
+        const x = issue.modelX, y = issue.modelY, z = issue.modelZ;
+        if (typeof x === 'number' && typeof y === 'number' && typeof z === 'number') {
+          pins.push({
+            id: issue.id,
+            x, y, z,
+            priority: issue.priority as ModelPin['priority'],
+          });
+        }
+        let resolvedCount = 0;
+        for (const sib of siblings ?? []) {
+          if (sib.id === issue.id) continue;
+          // Server already filters by modelId; this is a defensive belt-
+          // and-braces check for any future caller that bypasses the filter.
+          if (sib.modelId !== issue.modelId) continue;
+          if (typeof sib.modelX !== 'number' ||
+              typeof sib.modelY !== 'number' ||
+              typeof sib.modelZ !== 'number') continue;
+          const isResolved = sib.status === 'CLOSED' || sib.status === 'RESOLVED';
+          if (isResolved) {
+            resolvedCount++;
+            if (!showResolvedSiblings) continue;
+          }
+          pins.push({
+            id: sib.id,
+            x: sib.modelX,
+            y: sib.modelY,
+            z: sib.modelZ,
+            priority: sib.priority as ModelPin['priority'],
+          });
+        }
+        setViewerPins(pins);
+        setResolvedSiblingCount(resolvedCount);
+        setViewerError(null);
+      } catch (err) {
+        if (cancelled) return;
+        console.warn('[issue-detail] model load failed', err);
+        setViewerError(String((err as Error)?.message ?? err));
+        setViewerMeta(null);
+        setViewerModelUrl(undefined);
+        setViewerPins([]);
+        setResolvedSiblingCount(0);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [issue, project, showResolvedSiblings]);
+
+  /**
+   * Zoom to element — once the embedded ModelViewer reports ready and the
+   * issue carries a modelElementGuid, fit the whole model for context then
+   * targeted-zoom to the matching mesh via the viewer handle's
+   * `selectAndZoom` command (wired through to viewer.html, which traverses
+   * the scene by elementGuid and frames the AABB).
+   */
+  useEffect(() => {
+    if (!viewerReady || !issue?.modelElementGuid || !viewerRef.current) return;
+    // Two-step zoom: whole-model fit (for context), then targeted zoom.
+    viewerRef.current.fit();
+    // Give the renderer one frame to commit the fit before the targeted zoom.
+    const t = setTimeout(() => {
+      viewerRef.current?.selectAndZoom(issue.modelElementGuid!);
+    }, 120);
+    return () => clearTimeout(t);
+  }, [viewerReady, issue?.modelElementGuid]);
+
   /**
    * Phase 96 — look up the current user's project role so action gating can
    * hide edit affordances from read-only members. Falls back silently if the
@@ -228,7 +384,23 @@ export default function IssueDetailScreen() {
     try {
       const base = await _getBaseUrl();
       const params = new URLSearchParams();
-      params.set('model', `${project.code}.xkt`);
+      // Phase 164 caveat 4 — probe GET /api/viewer/models (cached per session)
+      // before deciding which XKT to point WebBrowser at. If the issue is
+      // linked to a model AND a `<modelId>.xkt` file is published, use it;
+      // otherwise fall back to the project default so the user gets *some*
+      // viewer rather than a 404. When the list endpoint itself is
+      // unreachable, the cache is an empty Set — we then optimistically try
+      // the modelId route and let WebBrowser surface any 404 through its
+      // own UI (better than blocking the action on a probe failure).
+      let xktBase = project.code;
+      if (issue.modelId) {
+        const available = await listAvailableXkts();
+        const modelXkt = `${issue.modelId}.xkt`;
+        if (available.size === 0 || available.has(modelXkt)) {
+          xktBase = issue.modelId;
+        }
+      }
+      params.set('model', `${xktBase}.xkt`);
       if (issue.modelElementGuid) params.set('element', issue.modelElementGuid);
       if (typeof issue.modelX === 'number' && typeof issue.modelY === 'number' && typeof issue.modelZ === 'number') {
         params.set('camera', `${issue.modelX},${issue.modelY},${issue.modelZ}`);
@@ -487,6 +659,31 @@ export default function IssueDetailScreen() {
           <Field label="Updated" value={formatDate(issue.updatedAt)} />
         </View>
 
+        {/* Phase 142 — GPS strip. We capture coords at create time but never
+            surfaced them; managers walking the site need a one-tap path to
+            their device's map app. Falls back to platform-appropriate URL
+            schemes (geo: on Android, maps:// on iOS, Google Maps web on web). */}
+        {(issue.latitude != null && issue.longitude != null) && (
+          <TouchableOpacity
+            style={styles.gpsStrip}
+            onPress={() => openInMaps(issue.latitude!, issue.longitude!, issue.issueCode)}
+            accessibilityLabel="Open issue location in maps"
+          >
+            <Text style={styles.gpsEmoji}>📍</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.gpsTitle}>
+                {issue.latitude!.toFixed(5)}, {issue.longitude!.toFixed(5)}
+              </Text>
+              <Text style={styles.gpsSub}>
+                {(issue.locationAccuracy ?? 0) > 0
+                  ? `±${Math.round(issue.locationAccuracy ?? 0)} m · tap to open in maps`
+                  : 'EXIF · tap to open in maps'}
+              </Text>
+            </View>
+            <Text style={styles.gpsArrow}>›</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Phase 96 — status transition bar. Hidden on CLOSED unless the
             coordinator wants to re-open. Buttons disabled in-flight to
             prevent double-submit. Wifi-aware: the underlying transitionTo
@@ -524,6 +721,24 @@ export default function IssueDetailScreen() {
           >
             <Text style={styles.actionButtonPrimaryText}>🧊  View in 3D</Text>
           </TouchableOpacity>
+          {/* View in model — only shown when the issue has a model anchor.
+              Navigates to /models/[id] with the element pre-selected and
+              zoomed. The inline viewer (below) auto-zooms on load; this
+              button is the fullscreen alternative. */}
+          {issue.modelId && issue.modelElementGuid ? (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.actionButtonModel]}
+              onPress={() =>
+                router.push(
+                  `/models/${issue.modelId}?highlightElement=${encodeURIComponent(issue.modelElementGuid!)}&issueId=${issue.id}` as any
+                )
+              }
+              accessibilityRole="button"
+              accessibilityLabel="View linked element in 3D model viewer"
+            >
+              <Text style={styles.actionButtonModelText}>📐  View in model</Text>
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity
             style={[styles.actionButton, styles.actionButtonSecondary]}
             onPress={handleAttachPress}
@@ -538,6 +753,68 @@ export default function IssueDetailScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* MODEL-VIEWER — inline 3D context for issues linked to a model.
+            Replaces the previous WebBrowser-only flow when modelId is set;
+            the actionBar's "View in 3D" button is still the right fallback
+            for un-linked issues and a "fullscreen" alternative for linked
+            ones. Fixed height keeps the surrounding ScrollView usable. */}
+        {issue.modelId && viewerModelUrl && (
+          <View style={styles.viewerSection}>
+            <Text style={styles.viewerHeader}>
+              3D model{viewerMeta?.name ? ` — ${viewerMeta.name}` : ''}
+            </Text>
+            <View style={styles.viewerHost}>
+              <ModelViewer
+                ref={viewerRef}
+                modelUrl={viewerModelUrl}
+                pins={viewerPins}
+                onReady={() => setViewerReady(true)}
+                onError={(err) => setViewerError(err)}
+                onPinTap={(e) => {
+                  // Phase 163 — tapping a sibling pin navigates to that
+                  // issue's detail screen. Tapping the current issue's own
+                  // pin is a no-op (router.push to the same id is harmless
+                  // but visually pointless), so we guard explicitly.
+                  if (e.issueId && e.issueId !== issue.id) {
+                    router.push(`/(tabs)/issue-detail?id=${e.issueId}&projectId=${project!.id}`);
+                  }
+                }}
+              />
+            </View>
+            {viewerPins.length === 0 && (
+              <Text style={styles.viewerHint}>
+                Issue is linked to this model but has no anchor coordinates.
+              </Text>
+            )}
+            {/* Phase 164 caveat 2 — toggle resolved/closed sibling pins. Hidden
+                when no resolved siblings exist (no point offering an empty
+                action). Tapping refires the viewer-load effect via the
+                showResolvedSiblings dep so pins recompute server-side
+                client-side. */}
+            {resolvedSiblingCount > 0 && (
+              <TouchableOpacity
+                style={styles.viewerToggle}
+                onPress={() => setShowResolvedSiblings((prev) => !prev)}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: showResolvedSiblings }}
+                accessibilityLabel={
+                  showResolvedSiblings
+                    ? `Hide ${resolvedSiblingCount} resolved/closed neighbours`
+                    : `Show ${resolvedSiblingCount} resolved/closed neighbours`
+                }
+              >
+                <Text style={styles.viewerToggleText}>
+                  {showResolvedSiblings ? '✓ ' : '○ '}
+                  Show resolved neighbours ({resolvedSiblingCount})
+                </Text>
+              </TouchableOpacity>
+            )}
+            {viewerError && (
+              <Text style={styles.viewerError}>{viewerError}</Text>
+            )}
+          </View>
+        )}
 
         {/* Photo gallery */}
         <View style={styles.gallerySection}>
@@ -588,10 +865,196 @@ export default function IssueDetailScreen() {
             <Text style={styles.elementsValue}>{issue.elementIds}</Text>
           </View>
         ) : null}
+
+        {/* T3-14 — Activity timeline. The same /activity endpoint the viewer
+            and BCC consume; here we render rich cards: avatar + verb +
+            relative time + contextual chip (priority/status/file). */}
+        <View style={styles.activitySection}>
+          <Text style={styles.activityHeader}>
+            Activity ({activity.length})
+          </Text>
+          {activityLoading && activity.length === 0 ? (
+            <ActivityIndicator color={theme.colors.accent} size="small" />
+          ) : activity.length === 0 ? (
+            <Text style={styles.activityEmpty}>No activity yet.</Text>
+          ) : (
+            activity.map((entry) => (
+              <ActivityCard key={entry.id || `${entry.timestamp}-${entry.action}`} entry={entry} />
+            ))
+          )}
+        </View>
       </ScrollView>
     </View>
   );
 }
+
+/**
+ * T3-14 — Rich activity timeline card. Mirrors the viewer's
+ * `renderActivityCard` JS implementation so the visual language stays
+ * consistent across surfaces. Same JSON contract: action / userName /
+ * timestamp / details(.priority|.status|.thumbnailUrl|.fileName).
+ */
+function ActivityCard({ entry }: { entry: IssueActivityEntry }) {
+  const userName = entry.userName ?? 'System';
+  const action = entry.action ?? '';
+  const detailsRaw = entry.details ?? {};
+  const details: Record<string, unknown> =
+    typeof detailsRaw === 'string'
+      ? (() => { try { return JSON.parse(detailsRaw as string); } catch { return {}; } })()
+      : (detailsRaw as Record<string, unknown>);
+
+  const verb = activityVerb(action);
+  const inline = activityInlineDetail(details);
+  const chip = activityChip(details);
+  const thumb = (details.thumbnailUrl as string | undefined) ?? null;
+  const fileName = (details.fileName as string | undefined) ?? null;
+
+  return (
+    <View style={activityStyles.card}>
+      <View style={[activityStyles.avatar, { backgroundColor: avatarColor(userName) }]}>
+        <Text style={activityStyles.avatarText}>{initials(userName)}</Text>
+      </View>
+      <View style={activityStyles.body}>
+        <View style={activityStyles.headRow}>
+          <Text style={activityStyles.who}>{userName}</Text>
+          <Text style={activityStyles.verb}>{' ' + verb}</Text>
+          <Text style={activityStyles.when}>{relativeTime(entry.timestamp)}</Text>
+        </View>
+        {inline ? <Text style={activityStyles.detail}>{inline}</Text> : null}
+        {thumb ? (
+          <Image source={{ uri: thumb }} style={activityStyles.thumb} resizeMode="cover" />
+        ) : null}
+        {chip ? (
+          <View style={[activityStyles.chip, chip.style]}>
+            <Text style={[activityStyles.chipText, chip.textStyle]}>{chip.label}</Text>
+          </View>
+        ) : null}
+        {!chip && !thumb && fileName ? (
+          <Text style={activityStyles.fileChip}>📎 {fileName}</Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+function activityVerb(action: string): string {
+  const a = String(action || '').toUpperCase();
+  if (a === 'CREATE') return 'created the issue';
+  if (a === 'COMMENT') return 'commented';
+  if (a === 'ATTACH' || a === 'ATTACHMENT_ADD') return 'attached a file';
+  if (a === 'ATTACHMENT_DELETE') return 'removed an attachment';
+  if (a === 'STATUS') return 'changed status';
+  if (a === 'PRIORITY') return 'changed priority';
+  if (a === 'ASSIGN') return 'changed assignee';
+  if (a === 'RESOLVE') return 'marked resolved';
+  if (a === 'CLOSE') return 'closed the issue';
+  if (a === 'REOPEN') return 're-opened the issue';
+  if (a === 'UPDATE') return 'updated the issue';
+  return action || 'updated';
+}
+function activityInlineDetail(details: Record<string, unknown>): string {
+  const parts: string[] = [];
+  for (const k of Object.keys(details || {})) {
+    if (k === 'priority' || k === 'status' || k === 'thumbnailUrl' || k === 'fileName') continue;
+    const v = details[k] as unknown;
+    if (v && typeof v === 'object' && 'from' in (v as object) && 'to' in (v as object)) {
+      const tv = v as { from: unknown; to: unknown };
+      parts.push(`${k}: ${tv.from} → ${tv.to}`);
+    } else if (k === 'body' || k === 'comment') {
+      parts.push(String(v));
+    } else if (typeof v === 'string' && v.length < 200) {
+      parts.push(`${k}: ${v}`);
+    }
+  }
+  return parts.join(' · ');
+}
+function activityChip(details: Record<string, unknown>): { label: string; style: any; textStyle: any } | null {
+  const pri = (details.priority as { to?: string } | string | undefined);
+  const priVal = typeof pri === 'string' ? pri : pri?.to;
+  if (priVal) {
+    const k = String(priVal).toUpperCase();
+    return {
+      label: k,
+      style: priorityChipStyle(k),
+      textStyle: { color: '#fff' },
+    };
+  }
+  const st = (details.status as { to?: string } | string | undefined);
+  const stVal = typeof st === 'string' ? st : st?.to;
+  if (stVal) {
+    const k = String(stVal).toUpperCase();
+    return {
+      label: k,
+      style: { backgroundColor: '#3a4a5e' },
+      textStyle: { color: '#fff' },
+    };
+  }
+  return null;
+}
+function priorityChipStyle(p: string) {
+  const c = getPriorityColor(p);
+  return { backgroundColor: c };
+}
+function initials(name: string) {
+  const parts = String(name || '?').trim().split(/\s+/).slice(0, 2);
+  return parts.map((p) => p[0]?.toUpperCase() ?? '').join('') || '?';
+}
+function avatarColor(name: string) {
+  let h = 0;
+  for (const ch of String(name || '')) h = (h * 31 + ch.charCodeAt(0)) | 0;
+  return `hsl(${Math.abs(h) % 360}, 55%, 38%)`;
+}
+function relativeTime(iso?: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const s = Math.round((Date.now() - d.getTime()) / 1000);
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.round(s / 60) + 'm ago';
+  if (s < 86400) return Math.round(s / 3600) + 'h ago';
+  if (s < 86400 * 7) return Math.round(s / 86400) + 'd ago';
+  return d.toLocaleDateString();
+}
+
+const activityStyles = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.border,
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  avatarText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  body: { flex: 1, minWidth: 0 },
+  headRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+  who: { fontSize: 13, fontWeight: '600', color: theme.colors.text },
+  verb: { fontSize: 13, color: theme.colors.text, flex: 1 },
+  when: { fontSize: 10, color: theme.colors.disabled },
+  detail: { fontSize: 12, color: theme.colors.disabled, marginTop: 2 },
+  thumb: {
+    width: 220,
+    height: 130,
+    borderRadius: 6,
+    marginTop: 6,
+    backgroundColor: theme.colors.border,
+  },
+  chip: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginTop: 4,
+  },
+  chipText: { fontSize: 10, fontWeight: '700' },
+  fileChip: { fontSize: 11, color: theme.colors.text, marginTop: 4 },
+});
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -616,6 +1079,23 @@ function TransitionButton({
       <Text style={[styles.transitionButtonText, { color }]}>{label}</Text>
     </TouchableOpacity>
   );
+}
+
+// Phase 142 — open the issue's GPS in the device's native map app.
+// Android understands `geo:lat,lng?q=lat,lng(label)`; iOS Apple Maps
+// understands `maps://?ll=lat,lng&q=label`; everything else falls back to
+// Google Maps web. We never throw — a missing map app on a degoogled
+// Android still opens the URL handler chooser.
+function openInMaps(lat: number, lng: number, label?: string) {
+  const safeLabel = encodeURIComponent(label ?? 'Issue');
+  const url = Platform.select({
+    ios: `maps://?ll=${lat},${lng}&q=${safeLabel}`,
+    android: `geo:${lat},${lng}?q=${lat},${lng}(${safeLabel})`,
+    default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
+  })!;
+  Linking.canOpenURL(url)
+    .then((ok) => Linking.openURL(ok ? url : `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`))
+    .catch(() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`));
 }
 
 function formatDate(iso: string): string {
@@ -747,6 +1227,23 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
 
+  // Phase 142 — GPS strip
+  gpsStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    borderLeftWidth: 4,
+    borderLeftColor: theme.colors.accent,
+  },
+  gpsEmoji: { fontSize: 22, marginRight: theme.spacing.sm },
+  gpsTitle: { fontSize: theme.fontSize.sm, color: theme.colors.text, fontWeight: '600' },
+  gpsSub: { fontSize: theme.fontSize.xs, color: theme.colors.textSecondary, marginTop: 2 },
+  gpsArrow: { fontSize: theme.fontSize.xl, color: theme.colors.textSecondary, paddingHorizontal: theme.spacing.sm },
+
   transitionBar: {
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
@@ -805,6 +1302,56 @@ const styles = StyleSheet.create({
     color: theme.colors.surface,
     fontSize: theme.fontSize.md,
     fontWeight: '600',
+  },
+  actionButtonModel: {
+    backgroundColor: theme.colors.primary + 'CC',
+  },
+  actionButtonModelText: {
+    color: theme.colors.surface,
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+  },
+
+  // MODEL-VIEWER — inline 3D context.
+  viewerSection: {
+    padding: theme.spacing.md,
+    paddingBottom: 0,
+  },
+  viewerHeader: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.sm,
+  },
+  viewerHost: {
+    height: 280,
+    borderRadius: theme.borderRadius.md,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.surface,
+  },
+  viewerHint: {
+    marginTop: theme.spacing.sm,
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  // Phase 164 caveat 2 — resolved-sibling toggle.
+  viewerToggle: {
+    marginTop: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.background,
+    alignSelf: 'flex-start',
+  },
+  viewerToggleText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+  },
+  viewerError: {
+    marginTop: theme.spacing.sm,
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.danger,
   },
 
   gallerySection: {
@@ -868,5 +1415,24 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     color: theme.colors.text,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+
+  // T3-14 activity timeline section.
+  activitySection: {
+    margin: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+  },
+  activityHeader: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.sm,
+  },
+  activityEmpty: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.disabled,
+    fontStyle: 'italic',
   },
 });

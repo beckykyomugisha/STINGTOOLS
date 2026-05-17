@@ -189,7 +189,7 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_SitePropertyLineSegment, "Generic Tag.rft" },
             { BuiltInCategory.OST_ToposolidLink, "Generic Tag.rft" },
             { BuiltInCategory.OST_StructConnectionWelds, "Generic Tag.rft" },
-            { BuiltInCategory.OST_Wire, "Electrical Equipment Tag.rft" },
+            { BuiltInCategory.OST_Wire, "Wire Tag.rft" },
 
             // ── Sheets (base category for all discipline sheet tags) ─────────
             { BuiltInCategory.OST_Sheets, "Generic Tag.rft" },
@@ -396,7 +396,14 @@ namespace StingTools.Tags
         /// </summary>
         public static readonly (BuiltInCategory bic, string template, string display, string suffix)[] MepVariantFamilies =
         {
-            (BuiltInCategory.OST_GenericModel, "Generic Model Tag.rft", "MEP Sleeve (Fire-rated penetration)", "MEP Sleeve"),
+            (BuiltInCategory.OST_GenericModel,        "Generic Model Tag.rft",         "MEP Sleeve (Fire-rated penetration)", "MEP Sleeve"),
+            // ── Lightning Protection System (BS EN 62305) — MEP CSV families #54..#59
+            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Air Terminal (BS EN 62305-3 §5.2)",   "LPS Air Terminal"),
+            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Down Conductor (BS EN 62305-3 §5.3)", "LPS Down Conductor"),
+            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Earth Electrode (BS EN 62305-3 §5.4)","LPS Earth Electrode"),
+            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Bond / Spark Gap (BS EN 62305-3)",    "LPS Bond"),
+            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS SPD (BS EN 62305-4)",                 "LPS SPD"),
+            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Test Clamp / Inspection Point",       "LPS Test Clamp"),
         };
 
         /// <summary>Total tag family count including standard categories + all variant arrays.</summary>
@@ -930,6 +937,38 @@ namespace StingTools.Tags
                 return Result.Succeeded;
             }
 
+            // Count how many .rfa files already exist on disk (built by a
+            // previous run but not loaded into this project). These can be
+            // skipped on incremental runs so we only build the genuinely new
+            // families (e.g. when adding the 6 LPS variants).
+            string outputDirEarly = TagFamilyConfig.GetOutputDirectory();
+            int onDisk = 0;
+            foreach (var bic in categories)
+            {
+                if (File.Exists(Path.Combine(outputDirEarly, TagFamilyConfig.GetFamilyFileName(bic))))
+                    onDisk++;
+            }
+            foreach (var tiein in TagFamilyConfig.TieInPointFamilies)
+            {
+                if (File.Exists(Path.Combine(outputDirEarly, TagFamilyConfig.GetTieInFamilyFileName(tiein.suffix))))
+                    onDisk++;
+            }
+            foreach (var ds in TagFamilyConfig.DisciplineSheetFamilies)
+            {
+                if (File.Exists(Path.Combine(outputDirEarly, TagFamilyConfig.GetTieInFamilyFileName(ds.suffix))))
+                    onDisk++;
+            }
+            foreach (var sv in TagFamilyConfig.StructuralVariantFamilies)
+            {
+                if (File.Exists(Path.Combine(outputDirEarly, TagFamilyConfig.GetTieInFamilyFileName(sv.suffix))))
+                    onDisk++;
+            }
+            foreach (var mv in TagFamilyConfig.MepVariantFamilies)
+            {
+                if (File.Exists(Path.Combine(outputDirEarly, TagFamilyConfig.GetTieInFamilyFileName(mv.suffix))))
+                    onDisk++;
+            }
+
             TaskDialog confirm = new TaskDialog("Create Tag Families");
             confirm.MainInstruction = $"Create {toCreate} STING tag families?";
             int familiesWithPlan = 0;
@@ -940,7 +979,8 @@ namespace StingTools.Tags
             }
             confirm.MainContent =
                 $"Total taggable categories: {total}\n" +
-                $"Already loaded: {alreadyLoaded}\n" +
+                $"Already loaded in project: {alreadyLoaded}\n" +
+                $"Already built on disk: {onDisk}\n" +
                 $"To create: {toCreate}\n\n" +
                 $"Mode: {activeMode}  •  Preserve hand-edits: {(preserveHandEdits ? "on" : "off")}\n" +
                 $"Families with a CSV plan: {familiesWithPlan} (of {categories.Count} primary categories)\n\n" +
@@ -953,8 +993,9 @@ namespace StingTools.Tags
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
+            bool skipExistingOnDisk = (choice == TaskDialogResult.CommandLink1);
 
-            string outputDir = TagFamilyConfig.GetOutputDirectory();
+            string outputDir = outputDirEarly;
             report.AppendLine($"STING Tag Family Creation Report");
             report.AppendLine(new string('=', 50));
             report.AppendLine($"Template directory: {templateDir}");
@@ -1014,6 +1055,11 @@ namespace StingTools.Tags
                     // Verify it has parameters — if empty, delete and recreate
                     if (File.Exists(outputPath))
                     {
+                        if (skipExistingOnDisk)
+                        {
+                            report.AppendLine($"  [SKIP] {catDisplay} — .rfa exists on disk, skipped (incremental run)");
+                            continue;
+                        }
                         bool hasParams = VerifyFamilyHasParams(app, outputPath);
                         if (hasParams)
                         {
@@ -1123,6 +1169,11 @@ namespace StingTools.Tags
                 string existingRfa = Path.Combine(outputDir, fileName);
                 if (File.Exists(existingRfa))
                 {
+                    if (skipExistingOnDisk)
+                    {
+                        report.AppendLine($"  [SKIP] {tiein.display} — .rfa exists on disk, skipped (incremental run)");
+                        continue;
+                    }
                     try
                     {
                         using (Transaction t = new Transaction(doc, "STING Load Tie-In Tag"))
@@ -1232,6 +1283,11 @@ namespace StingTools.Tags
                 string existingRfa = Path.Combine(outputDir, fileName);
                 if (File.Exists(existingRfa))
                 {
+                    if (skipExistingOnDisk)
+                    {
+                        report.AppendLine($"  [SKIP] {ds.display} — .rfa exists on disk, skipped (incremental run)");
+                        continue;
+                    }
                     try
                     {
                         using (Transaction t = new Transaction(doc, "STING Load Sheet Tag"))
@@ -1339,6 +1395,11 @@ namespace StingTools.Tags
                 string existingRfa = Path.Combine(outputDir, fileName);
                 if (File.Exists(existingRfa))
                 {
+                    if (skipExistingOnDisk)
+                    {
+                        report.AppendLine($"  [SKIP] {sv.display} — .rfa exists on disk, skipped (incremental run)");
+                        continue;
+                    }
                     try
                     {
                         using (Transaction t = new Transaction(doc, "STING Load Struct Variant Tag"))
@@ -1446,6 +1507,11 @@ namespace StingTools.Tags
                 string existingRfa = Path.Combine(outputDir, fileName);
                 if (File.Exists(existingRfa))
                 {
+                    if (skipExistingOnDisk)
+                    {
+                        report.AppendLine($"  [SKIP] {mv.display} — .rfa exists on disk, skipped (incremental run)");
+                        continue;
+                    }
                     try
                     {
                         using (Transaction t = new Transaction(doc, "STING Load MEP Variant Tag"))
@@ -2721,6 +2787,94 @@ namespace StingTools.Tags
                     report.AppendLine($"  {pname}: {stype}");
             }
 
+            // ── Style-pack coverage (review fix for leader-and-style #2) ──
+            // Tag families should expose all 128 TAG_{SIZE}{STYLE}_{COLOR}_BOOL
+            // params. If injection partly failed, ApplyTagStyle silently
+            // updates 0 types and the user sees no error — this audit makes
+            // the partial state visible. Counted on type-elements that have
+            // at least ONE style param (i.e. STING tag types).
+            var stylePack = ParamRegistry.AllTagStyleParams;
+            int stingTypesScanned = 0;
+            int stingTypesFullPack = 0;
+            int stingTypesPartialPack = 0;
+            int stingTypesNoPack = 0;
+            int worstMissing = 0;
+            string worstTypeName = "";
+            foreach (Element typeEl in new FilteredElementCollector(doc).WhereElementIsElementType())
+            {
+                if (typeEl?.Category == null) continue;
+                if (typeEl.Category.CategoryType != CategoryType.Annotation) continue;
+                int present = 0;
+                foreach (var name in stylePack)
+                    if (typeEl.LookupParameter(name) != null) present++;
+                if (present == 0) continue;
+                stingTypesScanned++;
+                int typeMissing = stylePack.Length - present;
+                if (typeMissing == 0) stingTypesFullPack++;
+                else
+                {
+                    stingTypesPartialPack++;
+                    if (typeMissing > worstMissing)
+                    {
+                        worstMissing = typeMissing;
+                        worstTypeName = $"{typeEl.Name} ({((typeEl as ElementType)?.FamilyName) ?? "?"})";
+                    }
+                }
+                if (present < 8) stingTypesNoPack++;
+            }
+            if (stingTypesScanned > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("── Style-pack coverage (128 TAG_*_BOOL params) ──");
+                report.AppendLine($"  Annotation types with style params: {stingTypesScanned}");
+                report.AppendLine($"  Full pack (all 128):                {stingTypesFullPack}");
+                report.AppendLine($"  Partial pack (silent style failure): {stingTypesPartialPack}");
+                if (stingTypesPartialPack > 0)
+                {
+                    report.AppendLine($"  Worst: {worstTypeName} — missing {worstMissing} of {stylePack.Length} params");
+                    report.AppendLine("  → ApplyTagStyle will silently no-op for missing slots.");
+                    report.AppendLine("  → Re-run 'Create Tag Families' or 'Family Parameter Processor'.");
+                }
+            }
+
+            // ── Paragraph BOOL storage mix (review fix for leader-and-style #5) ──
+            // Mixed YESNO + TEXT bindings cause SetParagraphDepth to update
+            // half the project; surface the count so a migration can be run.
+            var paraStates = ParamRegistry.AllParaStates;
+            int paraStringTypes = 0, paraIntegerTypes = 0, paraMixed = 0;
+            foreach (Element typeEl in new FilteredElementCollector(doc).WhereElementIsElementType())
+            {
+                bool sawString = false, sawInt = false;
+                foreach (var pn in paraStates)
+                {
+                    Parameter p = typeEl.LookupParameter(pn);
+                    if (p == null) continue;
+                    if (p.StorageType == StorageType.String) sawString = true;
+                    else if (p.StorageType == StorageType.Integer) sawInt = true;
+                }
+                if (sawString && sawInt) paraMixed++;
+                else if (sawString) paraStringTypes++;
+                else if (sawInt) paraIntegerTypes++;
+            }
+            if (paraStringTypes + paraIntegerTypes + paraMixed > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("── Paragraph BOOL storage (TAG_PARA_STATE_*_BOOL) ──");
+                report.AppendLine($"  TEXT-storage (v5.3+):  {paraStringTypes}");
+                report.AppendLine($"  YESNO-storage (legacy): {paraIntegerTypes}");
+                report.AppendLine($"  Mixed within one type:  {paraMixed}");
+                if (paraIntegerTypes > 0 || paraMixed > 0)
+                {
+                    report.AppendLine("  ⚠ Mixed bindings make SetParagraphDepth half-silent.");
+                    report.AppendLine("    Calculated-Value `if(BOOL, …)` only resolves on TEXT params.");
+                    report.AppendLine("    Re-load MR_PARAMETERS.txt v5.3+ then re-bind from project.");
+                }
+            }
+
+            StingLog.Info($"TagFamilyAudit stylePack: scanned={stingTypesScanned}, " +
+                $"full={stingTypesFullPack}, partial={stingTypesPartialPack}; " +
+                $"paraBOOL: text={paraStringTypes}, yesno={paraIntegerTypes}, mixed={paraMixed}");
+
             TaskDialog td = new TaskDialog("Tag Family Audit");
             td.MainInstruction = $"Tag coverage: {stingLoaded + otherTag}/{TagFamilyConfig.CategoryTemplateMap.Count} categories";
             td.MainContent = report.ToString();
@@ -2787,8 +2941,17 @@ namespace StingTools.Tags
                     string pname = parts[2];
                     string ptype = parts[3];
 
-                    if (labelParams.Contains(pname) && !string.Equals(ptype, "TEXT", StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(ptype, "YESNO", StringComparison.OrdinalIgnoreCase))
+                    if (!labelParams.Contains(pname)) continue;
+
+                    // Per LABEL_DEFINITIONS.json (v5.3+): every parameter referenced by a
+                    // label/calculated-value template — including _BOOL ones — must be TEXT,
+                    // because Revit label formulas cannot use YESNO parameters as the
+                    // condition of if(...). STING writers detect storage and write
+                    // 'Yes'/'No' for TEXT vs 1/0 for legacy INTEGER families.
+                    // Pure-flag _BOOL params (NOT referenced by label tiers) are governed
+                    // by MR_PARAMETERS.txt directly and stay YESNO — they never reach this
+                    // validator because labelParams only contains label-tier references.
+                    if (!string.Equals(ptype, "TEXT", StringComparison.OrdinalIgnoreCase))
                     {
                         mismatches.Add((pname, ptype));
                     }
@@ -2839,7 +3002,8 @@ namespace StingTools.Tags
                 if (def == null) continue;
                 if (!labelParams.Contains(def.Name)) continue;
 
-                // Check if the spec says non-text
+                // Label-tier params (including _BOOL) must be TEXT — see ValidateSourceFile
+                // and the LABEL_DEFINITIONS.json _comment for the rationale.
                 try
                 {
                     var spec = def.GetDataType();
@@ -2880,6 +3044,8 @@ namespace StingTools.Tags
                     if (parts.Length < 4) continue;
                     if (namesToFix.Contains(parts[2]))
                     {
+                        // Label-tier params (including _BOOL ones used in if(...) formulas)
+                        // must be TEXT. See ValidateSourceFile rationale.
                         parts[3] = "TEXT";
                         lines[i] = string.Join("\t", parts);
                         fixed_++;
@@ -2887,7 +3053,7 @@ namespace StingTools.Tags
                 }
 
                 File.WriteAllLines(mrFile, lines);
-                StingLog.Info($"LabelParamTypeValidator: Fixed {fixed_} params to TEXT in MR_PARAMETERS.txt");
+                StingLog.Info($"LabelParamTypeValidator: Fixed {fixed_} label-tier params to TEXT in MR_PARAMETERS.txt");
                 return fixed_;
             }
             catch (Exception ex)

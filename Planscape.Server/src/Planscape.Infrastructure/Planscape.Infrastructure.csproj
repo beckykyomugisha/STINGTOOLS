@@ -5,6 +5,11 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Planscape.Infrastructure</RootNamespace>
   </PropertyGroup>
+  <!-- Phase 150 — let the test assembly see internal types
+       (BoundedLruCache, etc.) without promoting them to public surface. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Planscape.Tests" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.11" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
@@ -26,6 +31,30 @@
     <!-- STORAGE-01 — S3-compatible object storage (AWS S3, MinIO, R2, Spaces) -->
     <PackageReference Include="AWSSDK.S3" Version="3.7.412" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.7.301" />
+    <!-- P8 — used by GltfBoundsThumbnailGenerator to render placeholder previews. -->
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.6" />
+    <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="2.1.5" />
+    <!-- Phase 178 — site-photo redaction pipeline (face / plate blur +
+         watermark composition). SkiaSharp's blur ImageFilter is faster
+         and easier than ImageSharp's region pipeline; the native binary
+         (~10 MB on Linux) ships in the worker container, not the API. -->
+    <PackageReference Include="SkiaSharp" Version="2.88.8" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.8" />
+    <!-- Phase 178b — ONNX face detector (YuNet) for the worker container.
+         The .onnx model file is NOT in source control; the worker image
+         downloads it at build time per Dockerfile (see ENV
+         PLANSCAPE_FACE_MODEL_PATH). API process never loads ONNX. -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.18.1" />
+    <!-- T4-27 — IFC property + element-tree ingest. xbim.Essentials gives
+         us IFC2x3 + IFC4 readers, header parsing, and the IfcStore /
+         IModel API. Geometry is in xbim.Geometry (separate, larger
+         package + native deps) — DEFERRED. We ingest property sets and
+         IfcRelDefinesByProperties relationships only, which is enough
+         to pull a "tag → properties" index off any uploaded IFC. -->
+    <PackageReference Include="Xbim.Essentials" Version="6.0.445" />
+    <!-- S2.5.1 — Unicode-safe invoice PDF rendering. Apache 2.0 / community
+         license is fine for our use; no Pro license needed for invoices. -->
+    <PackageReference Include="QuestPDF" Version="2024.10.2" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Planscape.Core\Planscape.Core.csproj" />

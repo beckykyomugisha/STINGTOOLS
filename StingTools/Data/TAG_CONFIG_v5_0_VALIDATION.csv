@@ -17,6 +17,10 @@ VALID_DISC,S,Structural,Structural elements
 VALID_DISC,FP,Fire Protection,Sprinklers and fire systems
 VALID_DISC,LV,Low Voltage,Communications/ICT/security
 VALID_DISC,G,Generic,Unclassified elements
+# Phase 179 — Healthcare Pack disciplines (H/MG/RP)
+VALID_DISC,H,Healthcare,Clinical rooms and clinical equipment
+VALID_DISC,MG,Medical Gas,Medical gas pipeline systems (HTM 02-01 / NFPA 99)
+VALID_DISC,RP,Radiation Protection,Radiation shielding and controlled-area elements (NCRP 147 / IRR17)
 #
 # SECTION 2: VALID SYSTEM CODES (CIBSE / Uniclass 2015)
 # Format: VALID_SYS,Code,FullName,DisciplineAssociation
@@ -57,6 +61,35 @@ VALID_SYS,CCTV,CCTV / Surveillance,LV
 VALID_SYS,PA,Public Address,LV
 VALID_SYS,LTG,Lighting Control,E
 VALID_SYS,ELV,Elevators / Lifts,M
+# Phase 178b — Extended plumbing systems
+VALID_SYS,SWD,Surface Water Drainage,P
+VALID_SYS,GWR,Grey Water Recycling,P
+VALID_SYS,RWH,Rainwater Harvesting,P
+VALID_SYS,SDS,Sustainable Drainage System,P
+VALID_SYS,SEP,Septic / Sewage Treatment,P
+VALID_SYS,STW,Sewage Treatment Works,P
+VALID_SYS,BGD,Below-Ground Drainage,P
+VALID_SYS,SPH,Specialist Plumbing (Healthcare),P
+VALID_SYS,INT,Interceptor / Oil Separator,P
+VALID_SYS,POL,Polluted Water,P
+VALID_SYS,LBW,Laboratory Wastewater,P
+VALID_SYS,IRR,Irrigation,P
+VALID_SYS,FOL,Foul Drainage (legacy alias for SAN),P
+VALID_SYS,CHE,Chemical Waste,P
+# Phase 179 — Healthcare Pack system codes (H/MG/RP disciplines)
+VALID_SYS,MGS-O2,Medical Oxygen Pipeline,MG
+VALID_SYS,MGS-AIR,Medical Air Pipeline,MG
+VALID_SYS,MGS-VAC,Medical Vacuum Pipeline,MG
+VALID_SYS,MGS-N2O,Nitrous Oxide Pipeline,MG
+VALID_SYS,MGS-CO2,Carbon Dioxide Pipeline,MG
+VALID_SYS,MGS-N2,Nitrogen Pipeline,MG
+VALID_SYS,MGS-AGS,Anaesthetic Gas Scavenging,MG
+VALID_SYS,EES-LS,Essential Electrical System — Life Safety Branch,E
+VALID_SYS,EES-CR,Essential Electrical System — Critical Branch,E
+VALID_SYS,EES-EB,Essential Electrical System — Equipment Branch,E
+VALID_SYS,LPS,Lightning Protection System,E
+VALID_SYS,CLN,Clinical Environment Systems,H
+VALID_SYS,RAD,Radiation Protection Barriers,RP
 #
 # SECTION 3: VALID FUNCTION CODES (CIBSE / Uniclass sub-functions)
 # Format: VALID_FUNC,Code,FullName,SystemAssociation
@@ -128,6 +161,12 @@ XVAL,SEQ_FORMAT,SEQ,,SEQ length != NumPad OR SEQ contains non-digit,SEQ must be 
 XVAL,TAG_FORMAT,TAG1,,TAG1 segment count != 8,Full tag must have exactly 8 segments
 XVAL,LOC_PLACEHOLDER,LOC,,LOC=XX,Location code is unresolved placeholder
 XVAL,ZONE_PLACEHOLDER,ZONE,,ZONE=XX,Zone code is unresolved placeholder
+# Phase 178b / 179 — extended discipline cross-validation
+XVAL,DISC_SYS_MATCH,DISC,SYS,DISC=P AND SYS NOT IN (DCW;DHW;SAN;RWD;GAS;MED;BWD;TRD;SWD;GWR;RWH;SDS;SEP;STW;BGD;SPH;INT;POL;LBW;IRR;FOL;CHE),Plumbing DISC should have a plumbing SYS code
+XVAL,DISC_SYS_MATCH,DISC,SYS,DISC=H AND SYS NOT IN (CLN;MGS-O2;MGS-AIR;MGS-VAC;MGS-N2O;MGS-CO2;MGS-N2;MGS-AGS),Healthcare DISC should have a clinical or medical-gas SYS code
+XVAL,DISC_SYS_MATCH,DISC,SYS,DISC=MG AND SYS NOT IN (MGS-O2;MGS-AIR;MGS-VAC;MGS-N2O;MGS-CO2;MGS-N2;MGS-AGS),Medical Gas DISC should have an MGS-* SYS code
+XVAL,DISC_SYS_MATCH,DISC,SYS,DISC=RP AND SYS NOT IN (RAD),Radiation Protection DISC should have RAD SYS code
+XVAL,DISC_SYS_MATCH,DISC,SYS,DISC=E AND SYS NOT IN (LV;LTG;EES-LS;EES-CR;EES-EB;LPS),Electrical DISC should have an electrical SYS code (LV/LTG/EES/LPS)
 #
 # SECTION 8: WARNING SEVERITY LEVELS
 # Used by FormulaEvaluatorCommand and TAG_WARN_SEVERITY_FILTER_TXT parameter
@@ -156,6 +195,15 @@ WARN_RULE,WARN_PLM_PIPE_VELOCITY_M_S_NR,Velocity > 3.0,MEDIUM,Pipe velocity exce
 WARN_RULE,WARN_ELC_CIRCUIT_LOADING_PCT,Loading > 80%,HIGH,Circuit loading exceeds 80% capacity
 WARN_RULE,WARN_PER_CONDENSATION_RISK_BOOL,Risk=TRUE,HIGH,Condensation risk detected (dew point analysis)
 WARN_RULE,WARN_PER_EMBODIED_CARBON_KG_CO2_M2,Carbon > 500,MEDIUM,Embodied carbon exceeds target (500 kgCO2/m2)
+# Phase 179 — structural beam penetration rules (PenetrationsDetectAndPlaceCommand)
+WARN_RULE,WARN_STR_BEAM_WEB_OPENING,STR_BEAM_WEB_OPENING_TXT contains FAIL,CRITICAL,Beam web opening violates AISC DG2 §3.2 or BS EN 1992-1-1 Cl 6.2.5
+WARN_RULE,WARN_STR_BEAM_PENETRATION_REVIEW,STR_BEAM_WEB_OPENING_TXT contains REVIEW,HIGH,Beam penetration flagged for structural review before fabrication
+# Phase 179 — v4 MVP fabrication completeness rules
+WARN_RULE,WARN_FAB_SPOOL_NR_MISSING,ASS_SPOOL_NR_TXT empty AND ASS_FAB_STATUS_TXT != PENDING,HIGH,Fabricated element missing spool number
+WARN_RULE,WARN_FAB_LOC_MISSING,ASS_FAB_STATUS_TXT empty AND ASS_SPOOL_NR_TXT not empty,HIGH,Fabrication status/location not set despite spool number being assigned
+# Phase 176 — panel schedule completeness
+WARN_RULE,WARN_ELC_PNL_SCHEDULE_MISSING,ELC_PANEL_SCHEDULE_REF_TXT empty AND ELC_PNL_DESIGNATION_NAME_TXT not empty,HIGH,Electrical panel has no panel schedule view reference
+WARN_RULE,WARN_ELC_PNL_LOAD_BALANCE,ELC_PNL_LOAD_BALANCE_PCT > 10,HIGH,3-phase panel load imbalance exceeds 10% threshold
 #
 # SECTION 10: COMPLETENESS THRESHOLDS (for ComplianceScan RAG status)
 # Format: RAG,Threshold,Status,Color,Description
@@ -214,3 +262,33 @@ SLV_RULE,HIGH,WARN_SLV_NO_SEAL,SLV_SEAL_TYPE_TXT empty,BS EN 1366-3:2009,No seal
 SLV_RULE,MEDIUM,WARN_SLV_NO_SERVICE,SLV_SERVICE_TXT empty,ISO 19650-2:2018,Service through sleeve not identified
 SLV_RULE,MEDIUM,WARN_SLV_NO_FIRESTOP,SLV_FIRESTOP_PRODUCT_TXT empty,BS EN 1366-3:2009,Firestop product not specified — cannot verify fire test compliance
 SLV_RULE,LOW,WARN_SLV_NO_INSPECTION,SLV_INSPECTION_DATE_TXT empty,BS 9999:2017,No inspection date recorded for sleeve
+# --- Section 15: Lightning Protection System (LPS) validation rules ---
+# Phase 176 — BS EN 62305 lightning protection compliance gates
+LPS_RULE,CRITICAL,WARN_ELC_LPS_NO_CLASS,ELC_LPS_CLASS_TXT empty,BS EN 62305-1:2011 §8,LPS class not assigned — set to I / II / III / IV based on risk assessment
+LPS_RULE,HIGH,WARN_ELC_LPS_DOWN_COND_INSUFFICIENT,ELC_LPS_DOWN_CONDUCTOR_COUNT_NR below class minimum (I=4 II=3 III/IV=2),BS EN 62305-3:2011 Table 4,Down conductor count below class minimum — strike currents cannot dissipate safely
+LPS_RULE,HIGH,WARN_ELC_LPS_EARTH_RESISTANCE_HIGH,ELC_LPS_EARTH_RESISTANCE_OHM > 10,BS EN 62305-3:2011 §5.4.1,Earth resistance exceeds 10 ohm — supplement electrodes or add ring earth
+LPS_RULE,HIGH,WARN_ELC_LPS_NO_RISK_ASSESSMENT,ELC_LPS_RISK_ASSESSMENT_TXT empty,BS EN 62305-2:2012,Risk assessment (R1..R4) reference missing — class selection cannot be justified
+LPS_RULE,HIGH,WARN_ELC_LPS_SEPARATION_FAIL,ELC_LPS_SEPARATION_DISTANCE_MM below s = ki·kc·l/km,BS EN 62305-3:2011 §6.3,Separation distance below computed value — flashover risk to internal services
+LPS_RULE,MEDIUM,WARN_ELC_LPS_INSPECTION_OVERDUE,ELC_LPS_TEST_DATE_TXT older than ELC_LPS_INSPECTION_INTERVAL_MONTHS,BS EN 62305-3:2011 §E.7,Inspection interval exceeded (Class I/II=12mo III/IV=24mo)
+LPS_RULE,HIGH,WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW,ELC_LPS_CONDUCTOR_CROSS_SECT_MM2 < 50 (Cu) / 70 (Al) / 50 (Steel),BS EN 62305-3:2011 Table 6,Down conductor cross-section below class minimum
+LPS_RULE,HIGH,WARN_ELC_LPS_NO_BONDING,ELC_LPS_BOND_TYPE_TXT empty,BS EN 62305-3:2011 §6.2,Equipotential bonding type not specified — DIRECT / SPD / ISOLATING_SPARK_GAP required
+LPS_RULE,HIGH,WARN_ELC_LPS_MESH_SIZE_EXCEEDED,ELC_LPS_MESH_SIZE_M > class limit (I=5 II=10 III=15 IV=20),BS EN 62305-3:2011 Table 2,Air-termination mesh exceeds class limit
+LPS_RULE,MEDIUM,WARN_ELC_LPS_NO_ZONE,ELC_LPS_ZONE_TXT empty,BS EN 62305-4:2011 §4.1,Lightning protection zone (LPZ) not assigned — internal zoning model incomplete
+HEALTHCARE_RULE,CRITICAL,WARN_CLN_PRESS_REGIME_INVALID,CLN_PRESS_REGIME_TXT not in (NEG POS NEUTRAL),HTM 03-01 / ASHRAE 170,Invalid pressure regime code
+HEALTHCARE_RULE,CRITICAL,WARN_CLN_AIIR_NOT_NEGATIVE,CLN_INFECT_CLASS_TXT=AIIR AND CLN_PRESS_REGIME_TXT<>NEG,HTM 03-01 / CDC,AIIR rooms must be negative pressure
+HEALTHCARE_RULE,CRITICAL,WARN_CLN_PE_NOT_POSITIVE,CLN_INFECT_CLASS_TXT=PE AND CLN_PRESS_REGIME_TXT<>POS,HTM 03-01 / CDC,Protective Environment rooms must be positive pressure
+HEALTHCARE_RULE,HIGH,WARN_CLN_OR_LOW_ACH,CLN_ROOM_CLASS_TXT in (OR-CONV OR-HYBRID) AND HVC_AIR_CHANGES_PER_HR<20,HTM 03-01 / ASHRAE 170,Operating room ACH below minimum 20
+HEALTHCARE_RULE,HIGH,WARN_CLN_OR_ULTRA_LOW_ACH,CLN_ROOM_CLASS_TXT=OR-ULTRA AND HVC_AIR_CHANGES_PER_HR<300,HTM 03-01,Ultra-clean OR ACH below minimum 300
+HEALTHCARE_RULE,HIGH,WARN_CLN_HEPA_GRADE_INVALID,HVC_HEPA_REQ_BOOL=1 AND HVC_HEPA_GRADE_TXT not in (H13 H14 U15 U16),BS EN 1822,Invalid HEPA grade specification
+HEALTHCARE_RULE,CRITICAL,WARN_MGS_GAS_TYPE_MISSING,MGS_TU_BS5682_BOOL=1 AND MGS_GAS_TYPE_TXT empty,BS 5682,Terminal unit missing gas type
+HEALTHCARE_RULE,HIGH,WARN_MGS_NOT_BRAZED,MGS_GAS_TYPE_TXT not empty AND MGS_PIPE_BRAZED_BOOL<>1,HTM 02-01,Medical gas pipework must be inert-gas brazed
+HEALTHCARE_RULE,HIGH,WARN_MGS_VERIFY_FAILED,MGS_VERIFY_DT not empty AND MGS_VERIFY_PASS_BOOL<>1,NFPA 99 §5.1.12,Latest medical gas verification failed
+HEALTHCARE_RULE,CRITICAL,WARN_ELC_EES_BRANCH_INVALID,ELC_EES_BRANCH_TXT not in (LIFE-SAF CRIT EQP-BR NORMAL),NFPA 99,Invalid EES branch designation
+HEALTHCARE_RULE,CRITICAL,WARN_ELC_ATS_TIME_EXCEEDED,ELC_EES_BRANCH_TXT in (LIFE-SAF CRIT) AND ELC_ATS_TIME_S_NR>10,NFPA 99 §6.4,ATS transfer time exceeds 10 s for LS/CR branch
+HEALTHCARE_RULE,HIGH,WARN_PLM_DEAD_LEG_EXCEEDED,PLM_SENTINEL_BOOL=1 AND PLM_DEAD_LEG_M_NR>1,HTM 04-01,Sentinel point dead-leg exceeds 1 m
+HEALTHCARE_RULE,HIGH,WARN_PLM_AUG_CARE_NO_FILTER,PLM_AUG_CARE_BOOL=1 AND PLM_POU_FILTER_BOOL<>1,HTM 04-01 Pt C,Augmented-care outlet missing point-of-use filter
+HEALTHCARE_RULE,HIGH,WARN_RAD_LEAD_INSUFFICIENT,RAD_BARRIER_TYPE_TXT not empty AND RAD_LEAD_MM_NR<2,NCRP 147,Lead-equivalent thickness below typical minimum 2 mm
+HEALTHCARE_RULE,HIGH,WARN_RAD_QE_NOT_SIGNED,RAD_BARRIER_TYPE_TXT=PRIMARY AND RAD_QE_NAME_TXT empty,NCRP 147,Primary barrier missing Qualified Expert sign-off
+HEALTHCARE_RULE,HIGH,WARN_CLN_ANTERM_MISSING,CLN_INFECT_CLASS_TXT in (AIIR PE) AND CLN_ANTERM_LINKED_ID_TXT empty,HBN 04-01 / CDC,AIIR/PE room missing linked anteroom
+HEALTHCARE_RULE,MEDIUM,WARN_CEQ_GMDN_MISSING,CEQ_CLINICAL_BOOL=1 AND CEQ_GMDN_CODE_TXT empty,COBie healthcare,Clinical asset missing GMDN classification code
+HEALTHCARE_RULE,HIGH,WARN_LIG_RES_NO_RATING,CLN_LIGATURE_RES_BOOL=1 AND LIG_PRODUCT_RATING_TXT empty,HBN 03-01,Anti-ligature room missing fitting rating

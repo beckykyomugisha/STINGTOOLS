@@ -1,9 +1,13 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.SignalR;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -13,11 +17,17 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId}/workflows")]
 [Authorize]
+[ProjectAccess]
 public class WorkflowsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
+    private readonly IHubContext<NotificationHub> _hub;
 
-    public WorkflowsController(PlanscapeDbContext db) => _db = db;
+    public WorkflowsController(PlanscapeDbContext db, IHubContext<NotificationHub> hub)
+    {
+        _db = db;
+        _hub = hub;
+    }
 
     /// <summary>
     /// Log a workflow execution from the Revit plugin.
@@ -28,6 +38,7 @@ public class WorkflowsController : ControllerBase
         var tenantId = GetTenantId();
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         var run = new WorkflowRun
         {
@@ -59,6 +70,15 @@ public class WorkflowsController : ControllerBase
         });
 
         await _db.SaveChangesAsync();
+
+        // Phase 178b — real-time event so dashboards refresh the trend
+        // chart + workflow-runs panel without polling.
+        _ = _hub.Clients.Group($"project-{projectId}").SendAsync("WorkflowRunCompleted", new {
+            projectId, runId = run.Id, run.PresetName, run.UserName,
+            run.StepsPassed, run.StepsFailed, run.StepsSkipped,
+            run.DurationMs, run.ComplianceBefore, run.ComplianceAfter,
+            run.ExecutedAt
+        });
 
         return CreatedAtAction(nameof(GetHistory), new { projectId }, new { id = run.Id, executedAt = run.ExecutedAt });
     }

@@ -16,10 +16,77 @@ public class Tenant
     public int MaxProjects { get; set; } = 1;
     public long StorageLimitBytes { get; set; } = 500 * 1024 * 1024; // 500 MB
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    // F3 — track last modification time so the admin dashboard and audit trail
+    // can surface "last changed" without querying AuditLog on every page load.
+    // Auto-stamped by PlanscapeDbContext.SaveChangesAsync on every Modified entry.
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? TrialExpiresAt { get; set; }
     public bool IsActive { get; set; } = true;
     public string? StripeCustomerId { get; set; }
     public string? StripeSubscriptionId { get; set; }
+
+    /// <summary>
+    /// S1.3 — canonical billing plan for the East-Africa pricing strategy.
+    /// Populated alongside the legacy <see cref="Tier"/> field; new code
+    /// (signup, billing, quota guards, dashboards) reads <see cref="Plan"/>.
+    /// Tier stays for backwards compatibility and legacy license-key lookups.
+    /// Mapping in <see cref="BillingPlanLimits"/>.
+    /// </summary>
+    public BillingPlan Plan { get; set; } = BillingPlan.Trial;
+
+    /// <summary>
+    /// S1.3 — current billing currency. Determines whether invoices use
+    /// Stripe (USD/EUR/GBP) or Flutterwave (UGX/KES/TZS/RWF/NGN/ZAR/...).
+    /// ISO 4217 code; defaults to USD for new accounts.
+    /// </summary>
+    public string Currency { get; set; } = "USD";
+
+    /// <summary>
+    /// S1.3 — billing cycle. Annual prepay grants two months free per the
+    /// pricing plan; monthly renews via the chosen payment provider.
+    /// </summary>
+    public BillingCycle BillingCycle { get; set; } = BillingCycle.Monthly;
+
+    /// <summary>
+    /// S1.6 — bitmask of which trial-expiry reminders have been sent.
+    /// Bit 4 = 7-day · Bit 2 = 3-day · Bit 1 = 1-day. Stops the trial
+    /// state machine job from emailing the same warning every day.
+    /// </summary>
+    public int TrialReminderSentDays { get; set; }
+
+    /// <summary>
+    /// S7.4 — set when the Owner requests erasure under GDPR/POPIA. The
+    /// tenant is frozen immediately; a daily DataErasureJob hard-deletes
+    /// the rows after this timestamp passes (30-day cooling-off period
+    /// during which the request can be cancelled).
+    /// </summary>
+    public DateTime? PendingErasureAt { get; set; }
+
+    /// <summary>
+    /// Phase 151 — tenant-scoped keyword extensions for the deliverable
+    /// state machine. JSON shape mirrors the per-project block:
+    ///   { "working": ["PARKED"], "terminal": ["DECOMMISSIONED"] }
+    /// Sits between platform-wide keywords (deployment-global, in
+    /// appsettings) and project-level keywords (per-project JSON).
+    /// Project-level wins, then tenant, then platform, then built-ins.
+    /// Null/empty means "use platform + built-ins only" — same behaviour
+    /// as Phase 150.
+    /// </summary>
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "jsonb")]
+    public string? KeywordExtensionsJson { get; set; }
+
+    /// <summary>
+    /// Phase 154 — tenant-scoped override for the BIM-Manager grant
+    /// list used by <c>BimManagerOrAdminHandler</c>. JSON array of
+    /// ISO 19650 single-letter role codes, e.g. <c>["K", "C", "M"]</c>.
+    /// Null/empty falls back to the deployment-wide
+    /// <c>Authorization:BimManagerIso19650Roles</c> appsettings list,
+    /// which itself defaults to <c>["K"]</c>. Lets a multi-tenant
+    /// deployment grant tenant-coordinator (C) keyword-edit rights on
+    /// one tenant without affecting others.
+    /// </summary>
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "jsonb")]
+    public string? BimManagerIso19650RolesJson { get; set; }
 
     // Navigation
     public ICollection<Project> Projects { get; set; } = new List<Project>();
@@ -41,4 +108,62 @@ public enum MimTier
     MimStarter = 1,
     MimProfessional = 2,
     MimEnterprise = 3
+}
+
+/// <summary>
+/// S1.3 — canonical billing plans aligned to the East-Africa pricing
+/// strategy (proposal Apr 2026). Trial is the entry state for new
+/// signups; the rest map to monthly USD price points.
+/// </summary>
+public enum BillingPlan
+{
+    /// <summary>Free 30-day trial; converts to PluginOnly on expiry unless cancelled.</summary>
+    Trial = 0,
+    /// <summary>$15/mo — Revit plugin only, local storage, no cloud sync.</summary>
+    PluginOnly = 1,
+    /// <summary>$35/mo — plugin + cloud · up to 6 users · 5 projects · 10 GB</summary>
+    Studio = 2,
+    /// <summary>$55/mo — plugin + cloud · up to 12 users · 10 projects · 25 GB</summary>
+    Practice = 3,
+    /// <summary>$90/mo — plugin + cloud · up to 20 users · unlimited projects · 50 GB</summary>
+    Network = 4,
+    /// <summary>Custom — unlimited seats + projects; SSO · SLA · on-prem option</summary>
+    Enterprise = 5,
+}
+
+public enum BillingCycle
+{
+    Monthly = 0,
+    Annual = 1,
+}
+
+/// <summary>
+/// S1.3 — single source of truth for the per-plan quota envelope. Driven by
+/// the proposal's pricing table and consumed by the quota-guard middleware
+/// (S1.4). Storage in MB to keep numbers human-readable.
+/// </summary>
+public static class BillingPlanLimits
+{
+    public record Limits(int MaxAuthors, int MaxCoordinators, int MaxProjects, long StorageMb, decimal MonthlyUsd);
+
+    public static Limits For(BillingPlan plan) => plan switch
+    {
+        BillingPlan.Trial      => new Limits(1,  0,           1,           5_000,      0m),
+        BillingPlan.PluginOnly => new Limits(1,  0, int.MaxValue,               0,     15m),
+        BillingPlan.Studio     => new Limits(1,  5,           5,          10_000,      35m),
+        BillingPlan.Practice   => new Limits(1, 11,          10,          25_000,      55m),
+        BillingPlan.Network    => new Limits(1, 19, int.MaxValue,          50_000,      90m),
+        BillingPlan.Enterprise => new Limits(int.MaxValue, int.MaxValue, int.MaxValue, long.MaxValue, 0m),
+        _ => new Limits(1, 5, 1, 500, 0m),
+    };
+
+    /// <summary>Map a legacy LicenseTier onto the new BillingPlan for migrations.</summary>
+    public static BillingPlan FromLegacyTier(LicenseTier tier) => tier switch
+    {
+        LicenseTier.Starter      => BillingPlan.PluginOnly,
+        LicenseTier.Professional => BillingPlan.Studio,
+        LicenseTier.Premium      => BillingPlan.Practice,
+        LicenseTier.Enterprise   => BillingPlan.Enterprise,
+        _ => BillingPlan.Trial,
+    };
 }

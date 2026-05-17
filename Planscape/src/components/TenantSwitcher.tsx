@@ -19,6 +19,10 @@ import {
 import { useTenantStore } from "@/stores/tenantStore";
 import { switchTenant } from "@/api/tenants";
 import { pendingCount, clearQueue } from "@/utils/offlineQueue";
+import { useProjectStore } from "@/stores/projectStore";
+import { useIssueStore } from "@/stores/issueStore";
+import { clearProjectsCache } from "@/api/endpoints";
+import { useNotificationStore } from "@/stores/notificationStore";
 import { t } from "@/i18n";
 
 export function TenantSwitcher() {
@@ -65,11 +69,17 @@ export function TenantSwitcher() {
     try {
       await switchTenant(tenantId);
       setCurrent(tenantId);
-      // Tenant-scoped caches: clear the queue so we don't replay actions
-      // belonging to the previous organisation against the new one. Saved
-      // filters are keyed by projectId so they refresh naturally when the
-      // project list reloads.
+      // M8 — wipe every tenant-scoped in-memory cache so the user can't
+      // briefly see Tenant A's project list while Tenant B is loading.
+      // Previous code only cleared the offline queue; projectStore +
+      // issueStore residue meant the dashboard re-rendered with the
+      // *old* tenant's data on the first frame after switching. Also
+      // clears the endpoint-level project cache and notification badges.
       await clearQueue();
+      useProjectStore.getState().clear();
+      useIssueStore.getState().clear();
+      useNotificationStore.getState().clear();
+      try { clearProjectsCache(); } catch { /* never block on cache clear */ }
       setOpen(false);
     } catch (err) {
       Alert.alert("Switch failed", String(err));

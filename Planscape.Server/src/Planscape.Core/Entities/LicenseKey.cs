@@ -3,7 +3,7 @@ namespace Planscape.Core.Entities;
 /// <summary>
 /// License key for Revit plugin activation. Validated on plugin startup.
 /// </summary>
-public class LicenseKey
+public class LicenseKey : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }

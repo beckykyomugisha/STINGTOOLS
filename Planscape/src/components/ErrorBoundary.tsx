@@ -30,11 +30,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }): void {
-    // Forward to crash reporter so we get the trail even if the user silently
-    // taps Reset and carries on (which is what we want — recoverable UX).
-    crashReporter.error('ErrorBoundary caught render exception', {
-      message: error.message,
-      stack: error.stack,
+    // M4 — was calling crashReporter.error, which doesn't exist on the
+    // exported surface; first render exception would crash the boundary
+    // itself. Use captureError, which IS the canonical entry point.
+    crashReporter.captureError(error, {
+      where: 'ErrorBoundary',
       componentStack: info.componentStack,
     });
     this.setState({ info: info.componentStack });

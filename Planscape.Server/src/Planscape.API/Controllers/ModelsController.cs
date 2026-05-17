@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -26,6 +27,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId:guid}/models")]
 [Authorize]
+[ProjectAccess]
 public class ModelsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
@@ -74,6 +76,7 @@ public class ModelsController : ControllerBase
 
     [HttpPost]
     [RequestSizeLimit(MaxModelSizeBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = MaxModelSizeBytes)]
     [Authorize(Roles = "Admin,Owner,Coordinator")]
     public async Task<ActionResult> Upload(
         Guid projectId,
@@ -94,18 +97,28 @@ public class ModelsController : ControllerBase
         var tenantSlug = await TenantSlug(ct);
         var projectCode = string.IsNullOrWhiteSpace(project.Code) ? project.Id.ToString("N") : project.Code;
 
-        // Hash first so we can short-circuit duplicate uploads.
+        // Hash first so we can short-circuit duplicate uploads — unless
+        // the caller explicitly set Force=true (e.g. Revit plugin's
+        // "republish anyway" flow when bytes haven't changed but the
+        // user wants a new revision row).
         string hash;
         using (var hashStream = req.File.OpenReadStream())
         {
             hash = await ComputeHashAsync(hashStream, ct);
         }
-        var existing = await _db.ProjectModels.AsNoTracking()
-            .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.ContentHash == hash && m.DeletedAt == null, ct);
-        if (existing != null)
+        if (!req.Force)
         {
-            _logger.LogInformation("Model upload skipped — duplicate hash {Hash} for project {ProjectId}", hash, projectId);
-            return Conflict(new { error = "duplicate_content", id = existing.Id });
+            var existing = await _db.ProjectModels.AsNoTracking()
+                .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.ContentHash == hash && m.DeletedAt == null, ct);
+            if (existing != null)
+            {
+                _logger.LogInformation("Model upload skipped — duplicate hash {Hash} for project {ProjectId}", hash, projectId);
+                return Conflict(new { error = "duplicate_content", id = existing.Id });
+            }
+        }
+        else
+        {
+            _logger.LogInformation("Model upload forced — bypassing SHA-256 dedup for project {ProjectId}", projectId);
         }
 
         // Store geometry.
@@ -220,6 +233,136 @@ public class ModelsController : ControllerBase
         return NoContent();
     }
 
+    // ── Compliance heatmap ─────────────────────────────────────────────
+    /// <summary>
+    /// Returns STING tag completeness per element GUID for the project so
+    /// the 3D viewer can colour each mesh red/amber/green.
+    ///
+    /// GET /api/projects/{projectId}/models/heatmap
+    /// Response: { elements: [{ guid, disc, isComplete, missingTokens[] }] }
+    /// </summary>
+    [HttpGet("/api/projects/{projectId:guid}/models/heatmap")]
+    public async Task<ActionResult> GetHeatmap(Guid projectId, CancellationToken ct)
+    {
+        if (!await ProjectInTenant(projectId, ct)) return Forbid();
+
+        var elements = await _db.TaggedElements.AsNoTracking()
+            .Where(e => e.ProjectId == projectId)
+            .Select(e => new
+            {
+                e.UniqueId,
+                e.Disc, e.Loc, e.Zone, e.Lvl, e.Sys, e.Func, e.Prod, e.Seq,
+                e.IsComplete,
+            })
+            .ToListAsync(ct);
+
+        var result = elements.Select(e =>
+        {
+            var missing = new List<string>();
+            if (string.IsNullOrEmpty(e.Disc)) missing.Add("disc");
+            if (string.IsNullOrEmpty(e.Loc))  missing.Add("loc");
+            if (string.IsNullOrEmpty(e.Zone)) missing.Add("zone");
+            if (string.IsNullOrEmpty(e.Lvl))  missing.Add("lvl");
+            if (string.IsNullOrEmpty(e.Sys))  missing.Add("sys");
+            if (string.IsNullOrEmpty(e.Func)) missing.Add("func");
+            if (string.IsNullOrEmpty(e.Prod)) missing.Add("prod");
+            if (string.IsNullOrEmpty(e.Seq))  missing.Add("seq");
+            return new
+            {
+                guid = e.UniqueId,
+                disc = e.Disc,
+                isComplete = e.IsComplete,
+                missingTokens = missing,
+            };
+        });
+
+        return Ok(new { projectId, elements = result });
+    }
+
+    // ── Federation status (Phase 143) ──────────────────────────────────
+
+    /// <summary>
+    /// BIM Coordinator's "are all disciplines up-to-date?" view. Aggregates
+    /// the latest published model per discipline + counts of total / stale
+    /// models. Stale = not republished in <paramref name="staleDays"/> days
+    /// (default 14, the typical ISO 19650 information-exchange cadence on
+    /// UK projects).
+    /// </summary>
+    [HttpGet("/api/projects/{projectId:guid}/federation-status")]
+    public async Task<ActionResult> GetFederationStatus(
+        Guid projectId,
+        [FromQuery] int staleDays = 14,
+        CancellationToken ct = default)
+    {
+        if (!await ProjectInTenant(projectId, ct)) return Forbid();
+        if (staleDays < 1) staleDays = 1;
+        if (staleDays > 365) staleDays = 365;
+
+        var staleCutoff = DateTime.UtcNow.AddDays(-staleDays);
+
+        var allModels = await _db.ProjectModels.AsNoTracking()
+            .Where(m => m.ProjectId == projectId && m.DeletedAt == null)
+            .Select(m => new
+            {
+                m.Id, m.Discipline, m.Name, m.FileName, m.UploadedAt,
+                m.UploadedBy, m.Revision, m.ElementCount, m.FileSizeBytes
+            })
+            .ToListAsync(ct);
+
+        // Group by discipline; "??" coalesces missing/empty into a synthetic
+        // "GEN" bucket so the manager can spot models uploaded without a
+        // discipline tag (a workflow gap).
+        var perDiscipline = allModels
+            .GroupBy(m => string.IsNullOrWhiteSpace(m.Discipline) ? "GEN" : m.Discipline!.ToUpperInvariant())
+            .Select(g =>
+            {
+                var latest = g.OrderByDescending(m => m.UploadedAt).First();
+                var stale = latest.UploadedAt < staleCutoff;
+                return new
+                {
+                    discipline = g.Key,
+                    modelCount = g.Count(),
+                    latest = new
+                    {
+                        latest.Id, latest.Name, latest.FileName, latest.Revision,
+                        latest.UploadedAt, latest.UploadedBy,
+                        latest.ElementCount, latest.FileSizeBytes
+                    },
+                    daysSinceUpload = (int)(DateTime.UtcNow - latest.UploadedAt).TotalDays,
+                    stale
+                };
+            })
+            .OrderBy(x => x.discipline)
+            .ToList();
+
+        var totalModels = allModels.Count;
+        var staleModels = allModels.Count(m => m.UploadedAt < staleCutoff);
+        var disciplinesWithStale = perDiscipline.Count(d => d.stale);
+
+        // RAG status — the dashboard tile colour. Red if any discipline is
+        // stale and the project has expected disciplines; amber if any model
+        // is stale; green otherwise. Empty project (no models yet) is amber.
+        string rag = totalModels == 0 ? "AMBER"
+            : disciplinesWithStale > 0 ? "RED"
+            : staleModels > 0 ? "AMBER" : "GREEN";
+
+        return Ok(new
+        {
+            projectId,
+            generatedAt = DateTime.UtcNow,
+            staleDays,
+            totals = new
+            {
+                models = totalModels,
+                disciplines = perDiscipline.Count,
+                staleModels,
+                disciplinesWithStale
+            },
+            rag,
+            disciplines = perDiscipline
+        });
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────
 
     private static ModelMetaDto ToMetaDto(ProjectModel m) => new(
@@ -283,6 +426,89 @@ public class ModelsController : ControllerBase
 
     private Guid? CurrentUserId() =>
         Guid.TryParse(User.FindFirst("sub")?.Value, out var id) ? id : null;
+
+    // ── Federation manifest — unified scene catalogue for the viewer ──
+
+    /// <summary>
+    /// GET /api/projects/{id}/federation/manifest — unified scene manifest.
+    /// Returns the list of scene chunks the viewer needs to load, grouped by
+    /// discipline + level. Mobile/web fetches this once and streams chunks on
+    /// demand based on camera position + filter state.
+    /// </summary>
+    [HttpGet("/api/projects/{projectId:guid}/federation/manifest")]
+    public async Task<ActionResult> GetFederationManifest(Guid projectId, CancellationToken ct)
+    {
+        if (!await ProjectInTenant(projectId, ct)) return Forbid();
+
+        var models = await _db.ProjectModels.AsNoTracking()
+            .Where(m => m.ProjectId == projectId && m.DeletedAt == null)
+            .Select(m => new {
+                id = m.Id,
+                name = m.Name,
+                discipline = m.Discipline ?? "?",
+                format = m.Format.ToString(),
+                uploadedAt = m.UploadedAt,
+                elementCount = m.ElementCount,
+                bounds = (m.BoundsMinX.HasValue && m.BoundsMaxX.HasValue) ? new {
+                    min = new[] { m.BoundsMinX, m.BoundsMinY, m.BoundsMinZ },
+                    max = new[] { m.BoundsMaxX, m.BoundsMaxY, m.BoundsMaxZ },
+                } : null,
+                units = m.Units,
+                revision = m.Revision,
+            }).ToListAsync(ct);
+
+        var chunks = await _db.SceneNodes.AsNoTracking()
+            .Where(n => n.ProjectId == projectId && n.DeletedAt == null)
+            .Select(n => new {
+                id = n.Id,
+                sourceModelId = n.SourceModelId,
+                discipline = n.Discipline,
+                level = n.LevelCode,
+                system = n.SystemCode,
+                storagePath = n.StoragePath,
+                contentHash = n.ContentHash,
+                sizeBytes = n.FileSizeBytes,
+                vertexCount = n.VertexCount,
+                aabb = new { min = new[] { n.MinX, n.MinY, n.MinZ }, max = new[] { n.MaxX, n.MaxY, n.MaxZ } },
+                compression = n.Compression,
+            }).ToListAsync(ct);
+
+        // Compute overall federation bounds
+        double? minX = chunks.Count > 0 ? chunks.Min(c => c.aabb.min[0]) : null;
+        double? minY = chunks.Count > 0 ? chunks.Min(c => c.aabb.min[1]) : null;
+        double? minZ = chunks.Count > 0 ? chunks.Min(c => c.aabb.min[2]) : null;
+        double? maxX = chunks.Count > 0 ? chunks.Max(c => c.aabb.max[0]) : null;
+        double? maxY = chunks.Count > 0 ? chunks.Max(c => c.aabb.max[1]) : null;
+        double? maxZ = chunks.Count > 0 ? chunks.Max(c => c.aabb.max[2]) : null;
+
+        // Get alignment reports for cross-checks
+        var alignmentReports = await _db.IfcAlignmentReports.AsNoTracking()
+            .Where(r => r.ProjectId == projectId)
+            .GroupBy(r => r.ProjectModelId)
+            .Select(g => g.OrderByDescending(r => r.ValidatedAt).First())
+            .ToListAsync(ct);
+
+        var disciplines = models.GroupBy(m => m.discipline).Select(g => new {
+            code = g.Key,
+            modelCount = g.Count(),
+            chunkCount = chunks.Count(c => g.Select(x => x.id).Contains(c.sourceModelId)),
+        }).ToList();
+
+        return Ok(new {
+            projectId,
+            generatedAt = DateTime.UtcNow,
+            models,
+            chunks,
+            disciplines,
+            bounds = new { min = new[] { minX, minY, minZ }, max = new[] { maxX, maxY, maxZ } },
+            alignment = new {
+                reported = alignmentReports.Count,
+                passed = alignmentReports.Count(r => r.Verdict == "PASS"),
+                warned = alignmentReports.Count(r => r.Verdict == "WARN"),
+                failed = alignmentReports.Count(r => r.Verdict == "FAIL"),
+            },
+        });
+    }
 }
 
 public class UploadModelRequest
@@ -302,6 +528,14 @@ public class UploadModelRequest
     public double? BoundsMaxX { get; set; }
     public double? BoundsMaxY { get; set; }
     public double? BoundsMaxZ { get; set; }
+    /// <summary>
+    /// When true, bypasses the SHA-256 content-hash dedup and creates a
+    /// new ProjectModel row even if an entry with the same bytes
+    /// already exists. Used by the Revit plugin's "republish anyway"
+    /// flow when a user wants to re-issue an unchanged GLB as a new
+    /// revision (e.g. updated element map only).
+    /// </summary>
+    public bool Force { get; set; }
 }
 
 public record ModelMetaDto(

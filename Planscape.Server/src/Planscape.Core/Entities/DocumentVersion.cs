@@ -5,9 +5,10 @@ namespace Planscape.Core.Entities;
 /// When the same project + filename is re-uploaded, a new version row is created
 /// and DocumentRecord.Revision is incremented.
 /// </summary>
-public class DocumentVersion
+public class DocumentVersion : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid DocumentId { get; set; }
     public int VersionNumber { get; set; }
     public string FilePath { get; set; } = "";
@@ -15,6 +16,13 @@ public class DocumentVersion
     public string? ContentHash { get; set; }
     public string UploadedBy { get; set; } = "";
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Optional human-readable note describing what changed in this revision
+    /// (e.g. "Updated section 4 floor plans", "Tagged S4 for client review").
+    /// Nullable — additive, safe for legacy rows.
+    /// </summary>
+    public string? ChangeDescription { get; set; }
 
     // Navigation
     public DocumentRecord? Document { get; set; }

@@ -146,7 +146,7 @@ namespace StingTools.UI
         {
             "ASS_ROOM_NAME_TXT", "ASS_ROOM_NUMBER_TXT", "ASS_DEPARTMENT_TXT",
             "ASS_LEVEL_NAME_TXT", "ASS_GRID_REF_TXT", "ASS_MANUFACTURER_TXT",
-            "ASS_MODEL_TXT", "ASS_DESCRIPTION_TXT"
+            "ASS_MODEL_NR_TXT", "ASS_DESCRIPTION_TXT"
         };
 
         private static readonly List<string> SpatialParams = new()
@@ -173,15 +173,15 @@ namespace StingTools.UI
         private static readonly List<string> CobieParams = new()
         {
             ParamRegistry.TAG1, "ASS_DESCRIPTION_TXT", "ASS_MANUFACTURER_TXT",
-            "ASS_MODEL_TXT", "ASS_SERIAL_NO_TXT", "ASS_INSTALL_DATE_TXT",
+            "ASS_MODEL_NR_TXT", "ASS_SERIAL_NR_TXT", "ASS_INSTALLATION_DATE_TXT",
             "COM_WARRANTY_START_TXT", "ASS_WARRANTY_DUR_TXT", "ASS_BARCODE_TXT",
             "MNT_INTERVAL_TXT", "MNT_RESPONSIBILITY_TXT", "MNT_TASK_TXT"
         };
 
         private static readonly List<string> LifecycleParams = new()
         {
-            ParamRegistry.STATUS, ParamRegistry.REV, "ASS_INSTALL_DATE_TXT",
-            "ASS_COMMISSION_DATE_TXT", "MNT_CONDITION_TXT", "MNT_NEXT_SERVICE_TXT",
+            ParamRegistry.STATUS, ParamRegistry.REV, "ASS_INSTALLATION_DATE_TXT",
+            "ASS_COMMISSION_DATE_TXT", "MNT_CONDITION_GRADE_TXT", "MNT_NEXT_SERVICE_TXT",
             "ASS_EXPECTED_LIFE_TXT", "ASS_REPLACEMENT_COST_TXT"
         };
 
@@ -331,9 +331,9 @@ namespace StingTools.UI
             Add("COBie / Handover", "COBie Type Export", "Equipment types for COBie Type worksheet.",
                 AllMepCategories, Concat(CobieParams, new List<string> { "ASS_WARRANTY_PARTS_TXT", "ASS_WARRANTY_LABOR_TXT", "ASS_NOMINAL_LENGTH_TXT", "ASS_NOMINAL_WIDTH_TXT", "ASS_NOMINAL_HEIGHT_TXT" }), "Excel");
             Add("COBie / Handover", "Maintenance Schedule", "Maintenance tasks, intervals, and responsibilities.",
-                AllMepCategories, Concat(TagTokens, new List<string> { "MNT_INTERVAL_TXT", "MNT_RESPONSIBILITY_TXT", "MNT_TASK_TXT", "MNT_CONDITION_TXT", "MNT_NEXT_SERVICE_TXT", "MNT_COST_TXT" }));
+                AllMepCategories, Concat(TagTokens, new List<string> { "MNT_INTERVAL_TXT", "MNT_RESPONSIBILITY_TXT", "MNT_TASK_TXT", "MNT_CONDITION_GRADE_TXT", "MNT_NEXT_SERVICE_TXT", "MNT_COST_TXT" }));
             Add("COBie / Handover", "Asset Health Report", "Condition grading and lifecycle data per asset.",
-                TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, LifecycleParams, new List<string> { "MNT_CONDITION_TXT" }));
+                TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, LifecycleParams, new List<string> { "MNT_CONDITION_GRADE_TXT" }));
             Add("COBie / Handover", "Space Handover", "Room-based handover data with spatial tags.",
                 new List<string> { "Rooms" }, Concat(SpatialParams, new List<string> { "BLE_AREA_TXT", "BLE_VOLUME_TXT", "BLE_PERIMETER_TXT" }));
 
@@ -381,7 +381,7 @@ namespace StingTools.UI
             Add("Electrical", "Electrical Equipment", "Panels, transformers, and switchgear.",
                 new List<string> { "Electrical Equipment" }, Concat(TagTokens, MepParams, IdentityParams));
             Add("Electrical", "Lighting Fixtures", "Lighting schedule with wattage and lumen output.",
-                new List<string> { "Lighting Fixtures" }, Concat(TagTokens, MepParams, new List<string> { "ASS_MANUFACTURER_TXT", "ASS_MODEL_TXT" }));
+                new List<string> { "Lighting Fixtures" }, Concat(TagTokens, MepParams, new List<string> { "ASS_MANUFACTURER_TXT", "ASS_MODEL_NR_TXT" }));
             Add("Electrical", "Cable Tray Schedule", "Cable tray routes, sizes, and fill ratios.",
                 new List<string> { "Cable Trays", "Cable Tray Fittings" }, Concat(TagTokens, DimensionParams));
             Add("Electrical", "Conduit Schedule", "Conduit routes, sizes, and fill ratios.",

@@ -339,6 +339,52 @@ namespace StingTools.Model
             return numbered;
         }
 
+        /// <summary>
+        /// Phase-140 P1-E: Apply numbering for every category in <paramref name="perCategory"/>.
+        /// Each category is processed independently with its own NumberingConfig — its
+        /// prefix, counter, grouping all run in isolation. Returns the total count of
+        /// numbered elements summed across categories.
+        /// </summary>
+        public static int ApplyAllPerCategory(Document doc,
+            Dictionary<BuiltInCategory, NumberingConfig> perCategory,
+            IList<ElementId> scope = null)
+        {
+            if (doc == null || perCategory == null || perCategory.Count == 0) return 0;
+
+            int total = 0;
+            foreach (var kvp in perCategory)
+            {
+                var cfg = kvp.Value;
+                if (cfg == null) continue;
+                cfg.Category = kvp.Key; // defensive — ensure config aligns with key
+
+                IList<ElementId> filtered = null;
+                if (scope != null)
+                {
+                    filtered = scope
+                        .Select(id => doc.GetElement(id))
+                        .Where(el => el != null && el.Category != null
+                            && el.Category.Id.Value == (long)kvp.Key)
+                        .Select(el => el.Id)
+                        .ToList();
+                    if (filtered.Count == 0) continue;
+                }
+
+                try
+                {
+                    int n = ApplyNumbering(doc, cfg, filtered);
+                    total += n;
+                    StingLog.Info($"NumberingEngine: numbered {n} {kvp.Key} element(s) " +
+                        $"with prefix '{cfg.Prefix}'");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"NumberingEngine per-category {kvp.Key}: {ex.Message}");
+                }
+            }
+            return total;
+        }
+
         private static string BuildNumberTag(NumberingConfig config, int groupNum, int elemNum)
         {
             string tag = config.Prefix;
@@ -505,13 +551,14 @@ namespace StingTools.Model
     /// Single-page WPF dialog for Structural DWG-to-BIM conversion.
     /// Replaces the old 5-page wizard with a comprehensive scrollable layout.
     /// </summary>
-    public class StructuralCADWizard : Window
+    public class StructuralDWGDialog : Window
     {
         // ── State ────────────────────────────────────────────────────────
         private readonly Document _doc;
         private readonly StructuralCADPipeline _pipeline;
         private ImportInstance _selectedImport;
         private StructuralExtractionResult _extraction;
+        private readonly List<DetectedElementGroup> _detectedGroups = new();
 
         // Layer data
         private ObservableCollection<LayerRowData> _layerRows = new();
@@ -543,6 +590,30 @@ namespace StingTools.Model
         private TextBox _txtMinWallThickness, _txtMaxWallThickness, _txtParallelDot;
         private TextBox _txtParallelGap, _txtEndpointTol;
         private TextBox _txtMinOpeningWidth, _txtMaxOpeningWidth;
+        // Phase-140 accuracy controls
+        private TextBox _txtEndpointGap, _txtGridSnapTol, _txtSpanToDepth, _txtBeamDepthMin, _txtBeamDepthMax, _txtDuplicateTol;
+        private CheckBox _chkUseSpanToDepth, _chkUseGridLabelMarks, _chkSkipDuplicates, _chkTrimBeamsToColumns, _chkShowWarningsInView;
+        // Phase-142 controls
+        private TextBox _txtMinColDiam, _txtMaxColDiam, _txtOverlapRatio, _txtStripOversize, _txtBeamSupportTol;
+        private CheckBox _chkDetectStripFoundations, _chkMarkCantilevers;
+        // Phase-143 controls
+        private TextBox _txtRaftMinArea, _txtRoomLabelRadius;
+        private CheckBox _chkSeedRoomsFromSlabs, _chkCreateStructuralViews, _chkInferBeamMaterial,
+            _chkClassifyFoundations, _chkStampJunctionMarks;
+        // DWG-STRUCT-DEEP-5: EC7 foundation sizing controls
+        private CheckBox _chkRunFoundationSizing;
+        private ComboBox _cboSoilClass;
+        private TextBox _txtColumnLoad_Gk, _txtColumnLoad_Qk;
+        // DWG-STRUCT-DEEP-6b: Connection synthesis controls
+        private CheckBox _chkSynthesizeConnections;
+        private TextBox _txtConnectionShear_kN, _txtConnectionMoment_kNm;
+        private CheckBox _chkPerCategoryNumbering;
+        // Per-category numbering state — keyed by NumberingCategories[] index. Snapshot of
+        // the visible UI state for the previously-selected category, captured on category
+        // change so the user can configure each category independently.
+        private readonly Dictionary<int, NumberingEngine.NumberingConfig> _numConfigByCatIndex
+            = new Dictionary<int, NumberingEngine.NumberingConfig>();
+        private int _activeNumCatIndex = 0;
 
         // Phase-97 per-element size detection + type creation toggles
         private CheckBox _chkDetectSizes_Wall, _chkDetectSizes_Column, _chkDetectSizes_Beam;
@@ -599,8 +670,7 @@ namespace StingTools.Model
         };
 
         // ── Constructor ──────────────────────────────────────────────────
-
-        public StructuralCADWizard(Document doc)
+        public StructuralDWGDialog(Document doc)
         {
             _doc = doc ?? throw new ArgumentNullException(nameof(doc));
             _pipeline = new StructuralCADPipeline(doc);
@@ -714,17 +784,24 @@ namespace StingTools.Model
             footerGrid.Children.Add(_statusBar);
 
             var btnPanel = new StackPanel { Orientation = Orientation.Horizontal };
+            // Phase-140 P3-D: dry-run preview button — stays in the dialog so users
+            // can adjust tolerances and re-run detection without dismissing.
+            var btnDryRun = MakeBtn("Re-analyse (dry-run)", OnDryRunPreview);
+            btnDryRun.MinWidth = 160;
+            btnDryRun.ToolTip = "Run extraction + detection with current settings and " +
+                "report what WOULD be created. No Revit transactions are opened. " +
+                "Adjust tolerances and click again to iterate.";
             var btnConvert = MakeBtn("Convert to BIM", OnConvert);
             btnConvert.Background = AccentOrange;
             btnConvert.Foreground = Brushes.White;
             btnConvert.FontWeight = FontWeights.Bold;
             btnConvert.MinWidth = 140;
             var btnCancel = MakeBtn("Cancel", (s, e) => { Confirmed = false; Close(); });
+            btnPanel.Children.Add(btnDryRun);
             btnPanel.Children.Add(btnConvert);
             btnPanel.Children.Add(btnCancel);
             Grid.SetColumn(btnPanel, 1);
             footerGrid.Children.Add(btnPanel);
-
             footer.Child = footerGrid;
             Grid.SetRow(footer, 2);
             root.Children.Add(footer);
@@ -972,8 +1049,25 @@ namespace StingTools.Model
             {
                 Content = "Columns continuous through repeat levels",
                 Margin = new Thickness(0, 0, 0, 0), FontSize = 10,
+                ToolTip = "OFF (default): a fresh column is created at each repeat level " +
+                    "(stacked, NOT analytically continuous in Revit's analytical model). " +
+                    "ON: only a single column is created on the base level, sized tall " +
+                    "enough to span every repeat level. Neither produces a truly continuous " +
+                    "analytical column — for that, set Top Constraint = top level on each " +
+                    "column manually after import.",
             };
             levelStack.Children.Add(_chkColumnsContinuousCad);
+
+            // Phase-140 note: column heights now derived from level-to-level spacing
+            // when repeat levels are configured.
+            levelStack.Children.Add(new TextBlock
+            {
+                Text = "Note: column heights at repeat levels are derived from " +
+                    "level-to-level spacing, not the BEAM/COLUMN Height field.",
+                FontStyle = FontStyles.Italic, FontSize = 9,
+                Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 4, 0, 0),
+            });
 
             Grid.SetColumn(levelStack, 0);
             mainGrid.Children.Add(levelStack);
@@ -1216,7 +1310,7 @@ namespace StingTools.Model
             // Foundations
             AddSizingRow(grid, 4, "Foundations",
                 out _chkDetectSizes_Foundation, out _chkCreateTypes_Foundation,
-                "Plan size from column bbox × 1.5× oversize (EC7 §6.5) or parsed from block name (e.g. 'PAD 1500x1500').");
+                "Plan size from column bbox × 1.5× oversize* or parsed from block name (e.g. 'PAD 1500x1500').");
 
             // Slabs
             AddSizingRow(grid, 5, "Slabs",
@@ -1244,6 +1338,19 @@ namespace StingTools.Model
             AddFallback(fallbackGrid, 2, "Column D (mm):", out _txtColDepthFallback, "300");
             AddFallback(fallbackGrid, 4, "Foundation W (mm):", out _txtFdnWidthFallback, "1200");
             stack.Children.Add(fallbackGrid);
+
+            // EC7 disclaimer footer
+            stack.Children.Add(new TextBlock
+            {
+                Text = "* The 1.5× pad oversize is a heuristic for first-pass automation, " +
+                    "not a code-compliant sizing rule. EC7 §6.5 covers verification " +
+                    "against sliding for spread foundations — bearing capacity and " +
+                    "settlement still require structural-engineer review against soil " +
+                    "class, load combinations, and serviceability checks.",
+                FontStyle = FontStyles.Italic, FontSize = 9,
+                Foreground = Brushes.DarkGray, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 8, 0, 0),
+            });
 
             return section;
         }
@@ -1405,25 +1512,374 @@ namespace StingTools.Model
                 "Parallel line pairs farther than this are never treated as a single " +
                 "wall — prevents accidental pairing across a corridor.");
 
-            AddKnobRow(grid, 1, 0, "Parallel dot tolerance:", out _txtParallelDot, "0.98",
-                "Dot-product threshold for the parallel-line check. 0.98 ≈ ±11°, " +
-                "0.995 ≈ ±5.7°. Lower values accept more lines as 'parallel'.");
-            AddKnobRow(grid, 1, 2, "Parallel max gap (mm):", out _txtParallelGap, "500",
-                "Global hard cap on the measured parallel gap. Always wins over " +
-                "Max wall thickness when the two disagree.");
+            AddKnobRow(grid, 1, 0, "Parallelism tolerance (cos θ):", out _txtParallelDot, "0.98",
+                "Dot-product threshold for the parallel-line check. " +
+                "0.98 ≈ allows up to 11° skew, 0.995 ≈ 5.7° skew, 1.0 = exact " +
+                "parallel only. Lower values accept more lines as 'parallel'.");
+            AddKnobRow(grid, 1, 2, "Parallel pair max gap (mm):", out _txtParallelGap, "500",
+                "Global hard cap on the perpendicular distance between two parallel lines " +
+                "that the spatial index will consider as a pair. Applies to ALL pair " +
+                "detection (walls, beams). NOT a longitudinal end-to-end gap — see " +
+                "'Endpoint gap' for that. Distinct from 'Max wall thickness' which is " +
+                "wall-specific.");
 
-            AddKnobRow(grid, 2, 0, "Endpoint tolerance (mm):", out _txtEndpointTol, "5",
+            AddKnobRow(grid, 2, 0, "Line snap tolerance (mm):", out _txtEndpointTol, "5",
                 "Two line endpoints within this distance are treated as the same " +
-                "vertex for merge/join operations.");
-            AddKnobRow(grid, 2, 2, "Min opening width (mm):", out _txtMinOpeningWidth, "400",
+                "vertex for merge/join operations. Used during topology cleanup.");
+            AddKnobRow(grid, 2, 2, "Endpoint gap bridge (mm):", out _txtEndpointGap, "50",
+                "Wall continuity recovery — when two parallel-pair lines have endpoints " +
+                "within this longitudinal gap, the shorter line is virtually extended " +
+                "to close the gap before the centreline is computed. Recovers walls " +
+                "where the draughtsperson left a small gap at corners. Set to 0 to disable.");
+
+            AddKnobRow(grid, 3, 0, "Min opening width (mm):", out _txtMinOpeningWidth, "400",
                 "Minimum gap along a wall to count as an opening. Smaller gaps are " +
                 "ignored.");
-
-            AddKnobRow(grid, 3, 0, "Max opening width (mm):", out _txtMaxOpeningWidth, "3000",
+            AddKnobRow(grid, 3, 2, "Max opening width (mm):", out _txtMaxOpeningWidth, "3000",
                 "Maximum gap along a wall to count as an opening. Larger gaps are " +
                 "assumed to be two separate wall segments rather than one wall with a hole.");
 
             stack.Children.Add(grid);
+
+            // ── Phase-140 accuracy controls ──
+            var p140Header = new TextBlock
+            {
+                Text = "ACCURACY (Phase-140)",
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 10,
+                Foreground = Brushes.Gray,
+                Margin = new Thickness(0, 10, 0, 4),
+            };
+            stack.Children.Add(p140Header);
+
+            // Toggle row: skip duplicates, trim beams to columns, show warnings, grid label marks
+            var p140ToggleRow = new WrapPanel { Margin = new Thickness(0, 2, 0, 6) };
+            _chkSkipDuplicates = new CheckBox
+            {
+                Content = "Skip duplicates",
+                IsChecked = true, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "Before creating each detected element, check for an existing " +
+                    "Revit element of the same category within Duplicate-check tolerance. " +
+                    "Skips creation if found, preventing pile-up on re-import.",
+            };
+            _chkTrimBeamsToColumns = new CheckBox
+            {
+                Content = "Trim beams to column faces",
+                IsChecked = true, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "After column placement, move each beam endpoint that lands on a " +
+                    "column from the column centroid to the column face (+25 mm cover). " +
+                    "Produces correct connection geometry; analytical model offsets work.",
+            };
+            _chkShowWarningsInView = new CheckBox
+            {
+                Content = "Show structural warnings in view",
+                IsChecked = true, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "After post-creation load-path analysis, places TextNote markers " +
+                    "(prefix '⚠ STING-STRUCT:') in the active view at each warning. Wraps " +
+                    "in its own sub-transaction so warnings don't roll back the conversion.",
+            };
+            _chkUseGridLabelMarks = new CheckBox
+            {
+                Content = "Use grid labels as column marks",
+                IsChecked = true, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "When grid lines are detected and a column snaps to a grid " +
+                    "intersection, set Mark to '{vert}/{horiz}' (e.g. 'A/1'). Non-snapped " +
+                    "columns fall through to sequential numbering.",
+            };
+            _chkUseSpanToDepth = new CheckBox
+            {
+                Content = "Span-proportional beam depth",
+                IsChecked = true, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "Derives each beam's depth from span / span-to-depth ratio, " +
+                    "clamped to [Beam depth min, Beam depth max], rounded to nearest 25 mm, " +
+                    "floored at the wizard's BEAM Depth value. When off, every beam uses " +
+                    "the wizard BEAM Depth value.",
+            };
+            p140ToggleRow.Children.Add(_chkSkipDuplicates);
+            p140ToggleRow.Children.Add(_chkTrimBeamsToColumns);
+            p140ToggleRow.Children.Add(_chkShowWarningsInView);
+            p140ToggleRow.Children.Add(_chkUseGridLabelMarks);
+            p140ToggleRow.Children.Add(_chkUseSpanToDepth);
+            stack.Children.Add(p140ToggleRow);
+
+            // Knob grid (Phase-140) — span-to-depth, beam clamps, grid snap, duplicate tol
+            var p140Grid = new Grid { Margin = new Thickness(0, 0, 0, 0) };
+            for (int i = 0; i < 4; i++)
+                p140Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            for (int i = 0; i < 3; i++)
+                p140Grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            AddKnobRow(p140Grid, 0, 0, "Span/depth ratio:", out _txtSpanToDepth, "15.0",
+                "Beam depth = span / this ratio. 15 ≈ concrete framing; 20-25 for steel " +
+                "I-sections. Only used when 'Span-proportional beam depth' is checked.");
+            AddKnobRow(p140Grid, 0, 2, "Grid snap tol (mm):", out _txtGridSnapTol, "100",
+                "Column centres within this distance of a detected grid intersection are " +
+                "moved to the intersection. Set to 0 to disable grid snapping.");
+
+            AddKnobRow(p140Grid, 1, 0, "Beam depth min (mm):", out _txtBeamDepthMin, "250",
+                "Lower clamp on derived beam depth. Practical minimum for a structural beam.");
+            AddKnobRow(p140Grid, 1, 2, "Beam depth max (mm):", out _txtBeamDepthMax, "1200",
+                "Upper clamp on derived beam depth.");
+
+            AddKnobRow(p140Grid, 2, 0, "Duplicate-check tol (mm):", out _txtDuplicateTol, "50",
+                "Treat a detected element as a duplicate of an existing element when " +
+                "their reference points are within this distance. Only applied when " +
+                "'Skip duplicates' is on.");
+
+            stack.Children.Add(p140Grid);
+
+            // ── Phase-142 detection knobs ───────────────────────────────
+            var p142Header = new TextBlock
+            {
+                Text = "ACCURACY (Phase-142)",
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 10,
+                Foreground = Brushes.Gray,
+                Margin = new Thickness(0, 10, 0, 4),
+            };
+            stack.Children.Add(p142Header);
+
+            // Toggle row
+            var p142ToggleRow = new WrapPanel { Margin = new Thickness(0, 2, 0, 6) };
+            _chkDetectStripFoundations = new CheckBox
+            {
+                Content = "Detect strip foundations under walls",
+                IsChecked = true, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "Synthesise strip foundations along every detected wall " +
+                    "centreline. Foundation extends past the wall by 'Strip oversize' " +
+                    "per side. Created as structural Floors at the base level.",
+            };
+            _chkMarkCantilevers = new CheckBox
+            {
+                Content = "Mark cantilever / free beams in Comments",
+                IsChecked = true, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "Stamp the Comments parameter with 'STING: Cantilever (start)' / " +
+                    "'(end)' / 'STING: Free beam (no support)' for beams that lack " +
+                    "column or wall support at one or both ends. Lets you find them in " +
+                    "schedules.",
+            };
+            p142ToggleRow.Children.Add(_chkDetectStripFoundations);
+            p142ToggleRow.Children.Add(_chkMarkCantilevers);
+            stack.Children.Add(p142ToggleRow);
+
+            // Knob grid
+            var p142Grid = new Grid { Margin = new Thickness(0, 0, 0, 0) };
+            for (int i = 0; i < 4; i++)
+                p142Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            for (int i = 0; i < 3; i++)
+                p142Grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            AddKnobRow(p142Grid, 0, 0, "Min column diameter (mm):", out _txtMinColDiam, "150",
+                "Lower bound for DetectCircularColumns. Circles smaller than this are " +
+                "rejected (could be holes, drilled penetrations, dimension circles).");
+            AddKnobRow(p142Grid, 0, 2, "Max column diameter (mm):", out _txtMaxColDiam, "1500",
+                "Upper bound for DetectCircularColumns. Circles larger than this are " +
+                "rejected (could be tank outlines, equipment).");
+
+            AddKnobRow(p142Grid, 1, 0, "Beam overlap ratio:", out _txtOverlapRatio, "0.5",
+                "Minimum longitudinal overlap as a fraction of the shorter line. 0.5 = 50% " +
+                "(legacy default); lower values pair short connection stubs and diagonal " +
+                "bracing that the legacy detector misses. Walls use ratio - 0.1.");
+            AddKnobRow(p142Grid, 1, 2, "Strip oversize (mm/side):", out _txtStripOversize, "150",
+                "Strip foundation extends this distance beyond each face of the wall it " +
+                "supports. Engineering rule of thumb; verify against soil class.");
+
+            AddKnobRow(p142Grid, 2, 0, "Beam-support tol (mm):", out _txtBeamSupportTol, "200",
+                "Beam endpoints within this distance of a column footprint or wall " +
+                "centreline are classified as supported; outside, as cantilever / free.");
+
+            stack.Children.Add(p142Grid);
+
+            // ── Phase-143 post-processing toggles ───────────────────────
+            var p143Header = new TextBlock
+            {
+                Text = "POST-PROCESSING (Phase-143)",
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 10,
+                Foreground = Brushes.Gray,
+                Margin = new Thickness(0, 10, 0, 4),
+            };
+            stack.Children.Add(p143Header);
+
+            var p143ToggleRow = new WrapPanel { Margin = new Thickness(0, 2, 0, 6) };
+            _chkSeedRoomsFromSlabs = new CheckBox
+            {
+                Content = "Seed rooms from slab centroids",
+                IsChecked = false, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "After slab creation, place a Revit Room at each slab centroid " +
+                    "(skipping points inside a slab void). Skips points already inside an " +
+                    "existing room. Default OFF — enable for greenfield projects.",
+            };
+            _chkCreateStructuralViews = new CheckBox
+            {
+                Content = "Create structural views after conversion",
+                IsChecked = false, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "After conversion, create one StructuralPlan ViewPlan per level " +
+                    "that received elements. Looks up the corporate 'S-PLAN' DrawingType " +
+                    "via the Phase-113 registry and applies it. Default OFF.",
+            };
+            _chkInferBeamMaterial = new CheckBox
+            {
+                Content = "Infer beam material (steel / concrete)",
+                IsChecked = true, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "Heuristically classify each detected beam as steel I-section " +
+                    "(single centreline) or concrete rectangle (parallel pair). Adds " +
+                    "STING:Material= suffix to LayerName for type-matching downstream.",
+            };
+            _chkClassifyFoundations = new CheckBox
+            {
+                Content = "Classify foundations (pad / raft / pile cap)",
+                IsChecked = true, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "Split detected rectangular foundations into Pad / Raft / PileCap " +
+                    "based on plan area + clustering. Rafts route to slab creation " +
+                    "(structural floor); pads + pile caps stay as pad foundations.",
+            };
+            _chkStampJunctionMarks = new CheckBox
+            {
+                Content = "Stamp junction marks on participating elements",
+                IsChecked = false, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "Append 'J:T' / 'J:L' / 'J:X' / 'J:S' (T/L/Cross/Splice) to the " +
+                    "Mark of every column and beam that participates in a junction. " +
+                    "Lets you find junction participants via schedule filters. Default OFF.",
+            };
+            p143ToggleRow.Children.Add(_chkSeedRoomsFromSlabs);
+            p143ToggleRow.Children.Add(_chkCreateStructuralViews);
+            p143ToggleRow.Children.Add(_chkInferBeamMaterial);
+            p143ToggleRow.Children.Add(_chkClassifyFoundations);
+            p143ToggleRow.Children.Add(_chkStampJunctionMarks);
+            stack.Children.Add(p143ToggleRow);
+
+            // Knob grid (Phase-143)
+            var p143Grid = new Grid { Margin = new Thickness(0, 0, 0, 0) };
+            for (int i = 0; i < 4; i++)
+                p143Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            for (int i = 0; i < 1; i++)
+                p143Grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            AddKnobRow(p143Grid, 0, 0, "Raft min area (m²):", out _txtRaftMinArea, "4.0",
+                "Foundation rectangles with plan area ≥ this are classified as rafts " +
+                "instead of isolated pads. Default 4 m² (≈ 2 m × 2 m).");
+            AddKnobRow(p143Grid, 0, 2, "Room label search (mm):", out _txtRoomLabelRadius, "3000",
+                "Maximum distance from a slab centroid that a layer-text label can sit " +
+                "and still be used as the seeded room's Name.");
+            stack.Children.Add(p143Grid);
+
+            // DWG-STRUCT-DEEP-5: EC7 foundation sizing section
+            var ec7Section = new Border
+            {
+                BorderBrush = System.Windows.Media.Brushes.DimGray,
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Padding = new Thickness(0, 8, 0, 0),
+                Margin = new Thickness(0, 8, 0, 0),
+            };
+            var ec7Stack = new StackPanel();
+            ec7Stack.Children.Add(new TextBlock
+            {
+                Text = "EC7 FOUNDATION SIZING (DWG-STRUCT-DEEP-5)",
+                FontSize = 11, FontWeight = FontWeights.Bold,
+                Foreground = System.Windows.Media.Brushes.SteelBlue,
+                Margin = new Thickness(0, 0, 0, 4),
+            });
+            _chkRunFoundationSizing = new CheckBox
+            {
+                Content = "Auto-size pad foundations to EC7 DA1 from soil class + column load",
+                IsChecked = false,
+                Margin = new Thickness(0, 2, 0, 4),
+                ToolTip = "When checked, FoundationSizingEngine.ComputePadFoundation() runs for every detected pad and writes results to STING shared parameters.",
+            };
+            ec7Stack.Children.Add(_chkRunFoundationSizing);
+
+            var ec7Grid = new Grid();
+            ec7Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            ec7Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(160) });
+            ec7Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            ec7Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            ec7Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            ec7Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            ec7Grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            void AddEc7Label(string text, int col)
+            {
+                var lbl = new TextBlock { Text = text, FontSize = 11, Margin = new Thickness(4, 3, 6, 2), VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetRow(lbl, 0); Grid.SetColumn(lbl, col);
+                ec7Grid.Children.Add(lbl);
+            }
+
+            AddEc7Label("Soil class:", 0);
+            _cboSoilClass = new ComboBox { Width = 160, Margin = new Thickness(0, 2, 8, 2) };
+            foreach (SoilClass sc in Enum.GetValues(typeof(SoilClass)))
+                _cboSoilClass.Items.Add(FoundationSizingEngine.SoilClassName(sc));
+            _cboSoilClass.SelectedIndex = (int)SoilClass.StiffClay;
+            Grid.SetRow(_cboSoilClass, 0); Grid.SetColumn(_cboSoilClass, 1);
+            ec7Grid.Children.Add(_cboSoilClass);
+
+            AddEc7Label("Gk (kN):", 2);
+            _txtColumnLoad_Gk = new TextBox { Text = "800", Width = 80, Margin = new Thickness(0, 2, 8, 2), ToolTip = "Characteristic permanent column load (kN) — used when load cannot be derived from analysis." };
+            Grid.SetRow(_txtColumnLoad_Gk, 0); Grid.SetColumn(_txtColumnLoad_Gk, 3);
+            ec7Grid.Children.Add(_txtColumnLoad_Gk);
+
+            AddEc7Label("Qk (kN):", 4);
+            _txtColumnLoad_Qk = new TextBox { Text = "300", Width = 80, Margin = new Thickness(0, 2, 0, 2), ToolTip = "Characteristic variable column load (kN) — used when load cannot be derived from analysis." };
+            Grid.SetRow(_txtColumnLoad_Qk, 0); Grid.SetColumn(_txtColumnLoad_Qk, 5);
+            ec7Grid.Children.Add(_txtColumnLoad_Qk);
+
+            ec7Stack.Children.Add(ec7Grid);
+            ec7Section.Child = ec7Stack;
+            stack.Children.Add(ec7Section);
+
+            // DWG-STRUCT-DEEP-6b: Connection detail synthesis section
+            var connSection = new Border
+            {
+                BorderBrush = System.Windows.Media.Brushes.DimGray,
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Padding = new Thickness(0, 8, 0, 0),
+                Margin = new Thickness(0, 8, 0, 0),
+            };
+            var connStack = new StackPanel();
+            connStack.Children.Add(new TextBlock
+            {
+                Text = "CONNECTION DETAIL SYNTHESIS (DWG-STRUCT-DEEP-6b)",
+                FontSize = 11, FontWeight = FontWeights.Bold,
+                Foreground = System.Windows.Media.Brushes.Goldenrod,
+                Margin = new Thickness(0, 0, 0, 4),
+            });
+            _chkSynthesizeConnections = new CheckBox
+            {
+                Content = "Synthesize connection detail elements at detected beam/column junctions",
+                IsChecked = false,
+                Margin = new Thickness(0, 2, 0, 4),
+                ToolTip = "Places plate outlines, bolt-grid crosses, weld lines and text callouts in the active view for every detected junction.",
+            };
+            connStack.Children.Add(_chkSynthesizeConnections);
+
+            var connGrid = new Grid();
+            connGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            connGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            connGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            connGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            connGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            void AddConnLabel(string text, int col)
+            {
+                var lbl = new TextBlock { Text = text, FontSize = 11, Margin = new Thickness(4, 3, 6, 2), VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetRow(lbl, 0); Grid.SetColumn(lbl, col);
+                connGrid.Children.Add(lbl);
+            }
+
+            AddConnLabel("Shear demand Vd (kN):", 0);
+            _txtConnectionShear_kN = new TextBox { Text = "200", Width = 80, Margin = new Thickness(0, 2, 8, 2), ToolTip = "Characteristic shear demand per connection (kN). Used to size bolt groups." };
+            Grid.SetRow(_txtConnectionShear_kN, 0); Grid.SetColumn(_txtConnectionShear_kN, 1);
+            connGrid.Children.Add(_txtConnectionShear_kN);
+
+            AddConnLabel("Moment demand Md (kNm):", 2);
+            _txtConnectionMoment_kNm = new TextBox { Text = "50", Width = 80, Margin = new Thickness(0, 2, 0, 2), ToolTip = "Characteristic moment demand for end-plate connections (kNm, 0 for simple shear)." };
+            Grid.SetRow(_txtConnectionMoment_kNm, 0); Grid.SetColumn(_txtConnectionMoment_kNm, 3);
+            connGrid.Children.Add(_txtConnectionMoment_kNm);
+
+            connStack.Children.Add(connGrid);
+            connSection.Child = connStack;
+            stack.Children.Add(connSection);
+
             return section;
         }
 
@@ -1468,7 +1924,24 @@ namespace StingTools.Model
             foreach (var (name, _) in NumberingCategories)
                 _cboNumCategory.Items.Add(name);
             _cboNumCategory.SelectedIndex = 0;
-            _cboNumCategory.SelectionChanged += (s, e) => UpdateNumberingPreview();
+            _cboNumCategory.SelectionChanged += (s, e) =>
+            {
+                // Phase-140 P1-E: snapshot the previous category's UI state and
+                // restore the newly-selected category's state (if previously edited).
+                if (_chkPerCategoryNumbering?.IsChecked == true)
+                {
+                    int prev = _activeNumCatIndex;
+                    if (prev >= 0 && prev < NumberingCategories.Length)
+                        _numConfigByCatIndex[prev] = SnapshotCurrentNumberingUI();
+                    int next = _cboNumCategory.SelectedIndex;
+                    _activeNumCatIndex = next;
+                    if (next >= 0 && _numConfigByCatIndex.TryGetValue(next, out var nextCfg))
+                        ApplyNumberingUIFrom(nextCfg);
+                    else if (next >= 0 && next < NumberingCategories.Length)
+                        ApplyNumberingUIFrom(DefaultPerCategoryConfig(NumberingCategories[next].Cat));
+                }
+                UpdateNumberingPreview();
+            };
             catStack.Children.Add(_cboNumCategory);
             Grid.SetColumn(catStack, 0);
             topRow.Children.Add(catStack);
@@ -1621,8 +2094,92 @@ namespace StingTools.Model
             };
             stack.Children.Add(_chkOmitAlreadyNumbered);
 
+            // Phase-140 P1-E: per-category numbering toggle
+            _chkPerCategoryNumbering = new CheckBox
+            {
+                Content = "Number every structural category independently (Phase-140)",
+                FontSize = 10, Margin = new Thickness(0, 4, 0, 4),
+                IsChecked = true,
+                ToolTip = "When ON, every structural category (Columns, Framing, Walls, Floors, " +
+                    "Foundations) is numbered with its own prefix and counter. Switch the " +
+                    "Category dropdown to configure each one — your edits are remembered. " +
+                    "Defaults: COL-, BM-, W-, SL-, FDN-. When OFF, only the visible category " +
+                    "is numbered.",
+            };
+            stack.Children.Add(_chkPerCategoryNumbering);
+
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Tip: with the toggle on, switch the Category dropdown above to set up " +
+                    "each structural category independently. The ELEMENT NUMBERING template " +
+                    "shown is for the active category only.",
+                FontStyle = FontStyles.Italic, FontSize = 9, Foreground = Brushes.Gray,
+                TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4),
+            });
+
+            // Initialise the active-category index to whatever the dropdown shows now.
+            _activeNumCatIndex = _cboNumCategory?.SelectedIndex ?? 0;
+
             UpdateNumberingPreview();
             return section;
+        }
+
+        // ── Phase-140 P1-E helpers ────────────────────────────────────────
+
+        /// <summary>Snapshot the visible numbering UI into a NumberingConfig.</summary>
+        private NumberingEngine.NumberingConfig SnapshotCurrentNumberingUI()
+        {
+            return BuildNumberingConfig();
+        }
+
+        /// <summary>Restore the visible numbering UI from a NumberingConfig snapshot.</summary>
+        private void ApplyNumberingUIFrom(NumberingEngine.NumberingConfig cfg)
+        {
+            if (cfg == null) return;
+            if (_txtNumPrefix != null) _txtNumPrefix.Text = cfg.Prefix ?? "";
+            if (_txtNumSeparator != null) _txtNumSeparator.Text = cfg.Separator ?? "-";
+            if (_chkGroupEnum != null) _chkGroupEnum.IsChecked = cfg.UseGroupEnum;
+            if (_chkElementEnum != null) _chkElementEnum.IsChecked = cfg.UseElementEnum;
+            if (_txtStartFrom != null) _txtStartFrom.Text = cfg.StartFrom.ToString();
+            if (_txtDigits != null) _txtDigits.Text = cfg.NumberOfDigits.ToString();
+            if (_txtIncrement != null) _txtIncrement.Text = cfg.IncrementBy.ToString();
+            if (_chkOmitAlreadyNumbered != null) _chkOmitAlreadyNumbered.IsChecked = cfg.OmitAlreadyNumbered;
+            // Note: ParameterName/Category dropdowns aren't restored here because
+            // Category is what just changed and ParameterName defaults to "Mark" for
+            // every structural category in our default configs.
+        }
+
+        /// <summary>Reasonable default NumberingConfig per structural category.</summary>
+        private static NumberingEngine.NumberingConfig DefaultPerCategoryConfig(BuiltInCategory cat)
+        {
+            string prefix = cat switch
+            {
+                BuiltInCategory.OST_StructuralColumns    => "COL",
+                BuiltInCategory.OST_StructuralFraming    => "BM",
+                BuiltInCategory.OST_Walls                => "W",
+                BuiltInCategory.OST_Floors               => "SL",
+                BuiltInCategory.OST_StructuralFoundation => "FDN",
+                BuiltInCategory.OST_Doors                => "DR",
+                BuiltInCategory.OST_Windows              => "WIN",
+                BuiltInCategory.OST_Rooms                => "RM",
+                BuiltInCategory.OST_Sheets               => "S",
+                BuiltInCategory.OST_Views                => "V",
+                _                                        => "EL",
+            };
+            return new NumberingEngine.NumberingConfig
+            {
+                Category = cat,
+                ParameterName = "Mark",
+                Prefix = prefix,
+                Separator = "-",
+                UseGroupEnum = false,
+                UseElementEnum = true,
+                StartFrom = 1,
+                NumberOfDigits = 3,
+                IncrementBy = 1,
+                ElementStyle = NumberingEngine.EnumStyle.Numeric,
+                Grouping = NumberingEngine.GroupingAlgorithm.ByLevel,
+            };
         }
 
         // ── Event Handlers ───────────────────────────────────────────────
@@ -1899,6 +2456,84 @@ namespace StingTools.Model
             Close();
         }
 
+        /// <summary>
+        /// Phase-140 P3-D — Run extraction + detection in dry-run mode without
+        /// closing the dialog. Updates the status bar with a per-element-type
+        /// summary so the user can adjust tolerances and re-run.
+        /// </summary>
+        private void OnDryRunPreview(object sender, RoutedEventArgs e)
+        {
+            if (_selectedImport == null)
+            {
+                _statusBar.Text = "⚠ No DWG import selected. Click Analyze Layers first.";
+                _statusBar.Foreground = Brushes.Red;
+                return;
+            }
+            if (_layerRows.Count == 0)
+            {
+                _statusBar.Text = "⚠ No layers analyzed. Click Analyze Layers first.";
+                _statusBar.Foreground = Brushes.Red;
+                return;
+            }
+
+            try
+            {
+                _statusBar.Text = "Running dry-run preview…";
+                _statusBar.Foreground = Brushes.Gray;
+                Mouse.OverrideCursor = Cursors.Wait;
+
+                var cfg = BuildConfig();
+                cfg.DryRun = true; // Force, regardless of the dry-run checkbox state
+
+                var result = _pipeline.RunFullPipelineWithConfig(_selectedImport, cfg);
+                if (result == null)
+                {
+                    _statusBar.Text = "⚠ Dry-run produced no result.";
+                    _statusBar.Foreground = Brushes.Red;
+                    return;
+                }
+
+                int total = result.WallsCreated + result.ColumnsCreated
+                          + result.BeamsCreated + result.SlabsCreated
+                          + result.FootingsCreated + result.OpeningsDetected;
+
+                string summary = $"DRY-RUN: {total} element(s) WOULD be created — " +
+                    $"{result.WallsCreated} walls, " +
+                    $"{result.ColumnsCreated} columns, " +
+                    $"{result.BeamsCreated} beams, " +
+                    $"{result.SlabsCreated} slabs, " +
+                    $"{result.FootingsCreated} foundations" +
+                    (result.OpeningsDetected > 0 ? $", {result.OpeningsDetected} openings" : "") +
+                    (result.WallsRejectedByThickness > 0
+                        ? $"  (rejected: {result.WallsRejectedByThickness} pairs out of [Min,Max] wall thickness)"
+                        : "");
+
+                _statusBar.Text = summary;
+                _statusBar.Foreground = total > 0 ? Brushes.DarkGreen : Brushes.Goldenrod;
+
+                // Surface up to 3 warnings as a tooltip on the status bar
+                if (result.Warnings != null && result.Warnings.Count > 0)
+                {
+                    _statusBar.ToolTip = string.Join(Environment.NewLine,
+                        result.Warnings.Take(20));
+                }
+                else
+                {
+                    _statusBar.ToolTip = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                _statusBar.Text = $"⚠ Dry-run failed: {ex.Message}";
+                _statusBar.Foreground = Brushes.Red;
+                StingLog.Error("OnDryRunPreview", ex);
+            }
+            finally
+            {
+                Mouse.OverrideCursor = null;
+            }
+        }
+
         // ── Build Config ─────────────────────────────────────────────────
 
         private DWGConversionConfig BuildConfig()
@@ -2007,14 +2642,113 @@ namespace StingTools.Model
             if (double.TryParse(_txtMaxOpeningWidth?.Text, out double maxOW) && maxOW > 0)
                 config.MaxOpeningWidthMm = maxOW;
 
+            // Phase-140 accuracy knobs
+            if (double.TryParse(_txtEndpointGap?.Text, out double endGap) && endGap >= 0)
+                config.EndpointGapToleranceMm = endGap;
+            if (double.TryParse(_txtGridSnapTol?.Text, out double gridSnap) && gridSnap >= 0)
+                config.GridSnapToleranceMm = gridSnap;
+            if (double.TryParse(_txtSpanToDepth?.Text, out double s2d) && s2d > 0)
+                config.SpanToDepthRatio = s2d;
+            if (double.TryParse(_txtBeamDepthMin?.Text, out double bdMin) && bdMin > 0)
+                config.BeamDepthMinMm = bdMin;
+            if (double.TryParse(_txtBeamDepthMax?.Text, out double bdMax) && bdMax > 0)
+                config.BeamDepthMaxMm = bdMax;
+            if (double.TryParse(_txtDuplicateTol?.Text, out double dupTol) && dupTol >= 0)
+                config.DuplicateCheckToleranceMm = dupTol;
+            config.UseSpanToDepthRatio = _chkUseSpanToDepth?.IsChecked != false;
+            config.UseGridLabelsAsMarks = _chkUseGridLabelMarks?.IsChecked != false;
+            config.SkipDuplicates = _chkSkipDuplicates?.IsChecked != false;
+            config.TrimBeamsToColumnFaces = _chkTrimBeamsToColumns?.IsChecked != false;
+            config.ShowStructuralWarningsInView = _chkShowWarningsInView?.IsChecked != false;
+
+            // Phase-142
+            if (double.TryParse(_txtMinColDiam?.Text, out double minCD) && minCD > 0)
+                config.MinColumnDiameterMm = minCD;
+            if (double.TryParse(_txtMaxColDiam?.Text, out double maxCD) && maxCD > 0)
+                config.MaxColumnDiameterMm = maxCD;
+            if (double.TryParse(_txtOverlapRatio?.Text, out double overlap) && overlap > 0)
+                config.BeamOverlapMinRatio = overlap;
+            if (double.TryParse(_txtStripOversize?.Text, out double stripOver) && stripOver >= 0)
+                config.StripFndOversizeMm = stripOver;
+            if (double.TryParse(_txtBeamSupportTol?.Text, out double bSupTol) && bSupTol > 0)
+                config.BeamSupportToleranceMm = bSupTol;
+            config.DetectStripFoundations = _chkDetectStripFoundations?.IsChecked != false;
+            config.MarkCantileverBeams = _chkMarkCantilevers?.IsChecked != false;
+
+            // Phase-143
+            config.SeedRoomsFromSlabs = _chkSeedRoomsFromSlabs?.IsChecked == true;
+            config.CreateStructuralViewsAfterConversion = _chkCreateStructuralViews?.IsChecked == true;
+            config.InferBeamMaterial = _chkInferBeamMaterial?.IsChecked != false;
+            config.ClassifyFoundations = _chkClassifyFoundations?.IsChecked != false;
+            config.StampJunctionMarks = _chkStampJunctionMarks?.IsChecked == true;
+            if (double.TryParse(_txtRaftMinArea?.Text, out double raftA) && raftA > 0)
+                config.RaftMinAreaM2 = raftA;
+            if (double.TryParse(_txtRoomLabelRadius?.Text, out double rmR) && rmR > 0)
+                config.RoomLabelSearchRadiusMm = rmR;
+
             // Tagging
             config.AutoTag = _chkAutoTag?.IsChecked == true;
             config.AutoSeqNumbers = _chkAutoSeqNumbers?.IsChecked == true;
             config.TagPrefix = _txtTagPrefix?.Text ?? "";
             config.NumberingMode = _cboNumbering?.SelectedIndex ?? 0;
 
-            // Numbering
+            // Numbering — visible (active) category
             config.NumberingConfig = BuildNumberingConfig();
+
+            // Phase-140 P1-E: per-category numbering. Snapshot the visible UI into
+            // its category slot, then fill in defaults for any structural category
+            // the user didn't explicitly configure. NumberingEngine.ApplyAllPerCategory
+            // iterates this dictionary at execution time.
+            config.NumberingPerCategory.Clear();
+            if (_chkPerCategoryNumbering?.IsChecked == true)
+            {
+                // Snapshot the active category as a fresh config (preserves its prefix etc.).
+                if (_activeNumCatIndex >= 0 && _activeNumCatIndex < NumberingCategories.Length)
+                {
+                    var activeCfg = BuildNumberingConfig();
+                    activeCfg.Category = NumberingCategories[_activeNumCatIndex].Cat;
+                    _numConfigByCatIndex[_activeNumCatIndex] = activeCfg;
+                }
+                // Add every structural category — explicit edits win over defaults.
+                var structuralCats = new[]
+                {
+                    BuiltInCategory.OST_StructuralColumns,
+                    BuiltInCategory.OST_StructuralFraming,
+                    BuiltInCategory.OST_Walls,
+                    BuiltInCategory.OST_Floors,
+                    BuiltInCategory.OST_StructuralFoundation,
+                };
+                foreach (var cat in structuralCats)
+                {
+                    int idx = Array.FindIndex(NumberingCategories, t => t.Cat == cat);
+                    NumberingEngine.NumberingConfig cfg;
+                    if (idx >= 0 && _numConfigByCatIndex.TryGetValue(idx, out cfg))
+                    {
+                        cfg.Category = cat; // Defensive
+                        config.NumberingPerCategory[cat] = cfg;
+                    }
+                    else
+                    {
+                        config.NumberingPerCategory[cat] = DefaultPerCategoryConfig(cat);
+                    }
+                }
+            }
+
+            // DWG-STRUCT-DEEP-6b: Connection detail synthesis knobs
+            config.SynthesizeConnectionDetails = _chkSynthesizeConnections?.IsChecked == true;
+            if (double.TryParse(_txtConnectionShear_kN?.Text, out double connShear) && connShear > 0)
+                config.ConnectionShearDemand_kN = connShear;
+            if (double.TryParse(_txtConnectionMoment_kNm?.Text, out double connMom) && connMom >= 0)
+                config.ConnectionMomentDemand_kNm = connMom;
+
+            // DWG-STRUCT-DEEP-5: EC7 foundation sizing knobs
+            config.RunFoundationSizing = _chkRunFoundationSizing?.IsChecked == true;
+            if (_cboSoilClass != null && _cboSoilClass.SelectedIndex >= 0)
+                config.SoilClass = (SoilClass)_cboSoilClass.SelectedIndex;
+            if (double.TryParse(_txtColumnLoad_Gk?.Text, out double fdnGk) && fdnGk > 0)
+                config.DefaultColumnLoad_Gk_kN = fdnGk;
+            if (double.TryParse(_txtColumnLoad_Qk?.Text, out double fdnQk) && fdnQk > 0)
+                config.DefaultColumnLoad_Qk_kN = fdnQk;
 
             return config;
         }
@@ -2049,7 +2783,8 @@ namespace StingTools.Model
             return border;
         }
 
-        private Button MakeBtn(string text, RoutedEventHandler handler)
+        private Button MakeBtn(string text, RoutedEventHandler handler,
+            Brush bg = null, Brush fg = null, bool bold = false)
         {
             var btn = new Button
             {
@@ -2058,6 +2793,9 @@ namespace StingTools.Model
                 Padding = new Thickness(10, 4, 10, 4),
                 FontSize = 11,
             };
+            if (bg != null) btn.Background = bg;
+            if (fg != null) btn.Foreground = fg;
+            if (bold) btn.FontWeight = FontWeights.Bold;
             btn.Click += handler;
             return btn;
         }
@@ -2348,6 +3086,27 @@ namespace StingTools.Model
         public bool CreateNewTypes_Foundation { get; set; } = true;
         public bool CreateNewTypes_Slab { get; set; } = true;
 
+        // DWG-STRUCT-DEEP-6b: Connection detail synthesis
+        /// <summary>When true, ConnectionDetailSynthesizer.SynthesizeAll() is called after junction
+        /// detection and detail-line elements are created in the active view.</summary>
+        public bool SynthesizeConnectionDetails { get; set; } = false;
+        /// <summary>Characteristic shear demand per connection (kN) used for connection sizing.</summary>
+        public double ConnectionShearDemand_kN { get; set; } = 200;
+        /// <summary>Characteristic moment demand per moment connection (kNm).</summary>
+        public double ConnectionMomentDemand_kNm { get; set; } = 50;
+
+        // DWG-STRUCT-DEEP-5: EC7 foundation sizing
+        /// <summary>Soil class used for EC7 bearing capacity lookup when sizing pad foundations.</summary>
+        public SoilClass SoilClass { get; set; } = SoilClass.StiffClay;
+        /// <summary>When true, run FoundationSizingEngine on every detected pad and write results
+        /// to STING shared parameters (FOUND_WIDTH_MM_TXT etc.).</summary>
+        public bool RunFoundationSizing { get; set; } = true;
+        /// <summary>Characteristic permanent axial load per column (kN) — used when load cannot
+        /// be derived from analysis (fallback for DWG-only workflows).</summary>
+        public double DefaultColumnLoad_Gk_kN { get; set; } = 800;
+        /// <summary>Characteristic variable axial load per column (kN) — fallback.</summary>
+        public double DefaultColumnLoad_Qk_kN { get; set; } = 300;
+
         // Construction logic
         public bool BeamsRestOnWalls { get; set; } = true;
         public bool BeamsConnectToSlabs { get; set; } = true;
@@ -2398,14 +3157,162 @@ namespace StingTools.Model
         /// geometry hidden inside blocks onto its host layer.</summary>
         public bool ExplodeOnImport { get; set; } = false;
 
+        // ── Phase-140 accuracy knobs ─────────────────────────────────────
+
+        /// <summary>Snap detected column centres to nearest grid intersection within this
+        /// distance (mm). Set to 0 to disable. Defaults to 100 mm.</summary>
+        public double GridSnapToleranceMm { get; set; } = 100;
+
+        /// <summary>When true, beam depth is derived from span/SpanToDepthRatio
+        /// (clamped to [BeamDepthMinMm, BeamDepthMaxMm], rounded to nearest 25 mm,
+        /// floored at BeamDepthMm). When false, every beam uses BeamDepthMm.</summary>
+        public bool UseSpanToDepthRatio { get; set; } = true;
+
+        /// <summary>Span-to-depth ratio used to derive beam depth. 15 ≈ concrete framing,
+        /// 20-25 for steel I-sections.</summary>
+        public double SpanToDepthRatio { get; set; } = 15.0;
+
+        /// <summary>Lower clamp on derived beam depth (mm).</summary>
+        public double BeamDepthMinMm { get; set; } = 250;
+
+        /// <summary>Upper clamp on derived beam depth (mm).</summary>
+        public double BeamDepthMaxMm { get; set; } = 1200;
+
+        /// <summary>If grid lines are detected and a column snaps to a grid intersection,
+        /// use the grid labels as the column Mark (e.g. "A/1"). Sequential numbering
+        /// applies to non-snapped columns regardless.</summary>
+        public bool UseGridLabelsAsMarks { get; set; } = true;
+
+        /// <summary>Wall endpoint bridging tolerance (mm). Pairs whose endpoints have a
+        /// gap ≤ this are extended to close the gap during centreline computation.</summary>
+        public double EndpointGapToleranceMm { get; set; } = 50;
+
+        /// <summary>Treat a detected element as a duplicate of an existing element when
+        /// their reference points are within this distance (mm). Skip duplicates when
+        /// applied with the wizard's "Skip duplicates" toggle.</summary>
+        public double DuplicateCheckToleranceMm { get; set; } = 50;
+
+        /// <summary>When true, skip creating a new element if an existing element of the
+        /// same category sits within DuplicateCheckToleranceMm of its insertion point.</summary>
+        public bool SkipDuplicates { get; set; } = true;
+
+        /// <summary>Move beam endpoints from junction centroids out to the face of the
+        /// connecting column (column half-width + 25 mm cover). No-op for beams that
+        /// don't reach a column.</summary>
+        public bool TrimBeamsToColumnFaces { get; set; } = true;
+
+        /// <summary>After post-creation load-path analysis, place TextNote markers in
+        /// the active view at each warning location with prefix "⚠ STING-STRUCT:".</summary>
+        public bool ShowStructuralWarningsInView { get; set; } = true;
+
+        // ── Phase-141 detection knobs (column-circle classifier + junction warnings) ──
+
+        /// <summary>Minimum detected circular-column diameter (mm). Circles smaller than this
+        /// are rejected as columns by <c>DetectCircularColumns</c>. Defaults to 150 mm
+        /// (matches the legacy `MinColumnSizeMm` constant).</summary>
+        public double MinColumnDiameterMm { get; set; } = 150;
+
+        /// <summary>Maximum detected circular-column diameter (mm). Circles larger than this
+        /// are rejected as columns. Defaults to 1500 mm (matches `MaxColumnSizeMm`).</summary>
+        public double MaxColumnDiameterMm { get; set; } = 1500;
+
+        /// <summary>After extraction, place TextNote markers in the active view at each
+        /// junction whose classification contains "WARNING" (e.g. beam intersection
+        /// without a column) or "Free end" — surfaces the data that <c>DetectJunctions</c>
+        /// has always produced but the legacy pipeline only used for the summary string.</summary>
+        public bool ShowJunctionWarningsInView { get; set; } = true;
+
+        // ── Phase-142 detection / construction logic ──
+
+        /// <summary>Minimum longitudinal overlap ratio for parallel-pair detection
+        /// (walls + beams). 0.5 ≈ 50% — the legacy default; lower values pair short
+        /// connection stubs and diagonal bracing that the legacy detector misses.
+        /// Range [0.1, 1.0]. </summary>
+        public double BeamOverlapMinRatio { get; set; } = 0.5;
+
+        /// <summary>When true, run <c>BeamSupportClassifier</c> after detection and
+        /// stamp cantilever beams' instance Comments parameter "Cantilever (start|end)".
+        /// Lets the analytical engineer find them quickly without reading the warning log.</summary>
+        public bool MarkCantileverBeams { get; set; } = true;
+
+        /// <summary>Tolerance (mm) for the beam-end → column / wall support classifier.
+        /// Endpoints within this distance of a column footprint or wall centreline are
+        /// classified as supported; outside, as cantilever / free.</summary>
+        public double BeamSupportToleranceMm { get; set; } = 200;
+
+        /// <summary>When <see cref="ColumnsContinuousThrough"/> is on, set the column's
+        /// Top Constraint to the top level instead of stacking discrete column elements
+        /// at each repeat level. Produces a single analytically-continuous column.</summary>
+        public bool UseTopConstraintForContinuousColumns { get; set; } = true;
+
+        /// <summary>Strip foundation oversize (mm per side) — the foundation extends
+        /// this distance beyond each face of the wall it supports. Used by
+        /// <c>StripFoundationDetector</c>.</summary>
+        public double StripFndOversizeMm { get; set; } = 150;
+
+        /// <summary>Detect strip foundations under structural walls and create them as
+        /// structural floors along the wall centrelines.</summary>
+        public bool DetectStripFoundations { get; set; } = true;
+
+        // ── Phase-143 post-processing knobs ──
+
+        /// <summary>After slabs are created, seed Revit Rooms at each slab centroid
+        /// (skipping points that fall inside a slab void). Re-uses any text on the
+        /// slab layer near the centroid as the room name.</summary>
+        public bool SeedRoomsFromSlabs { get; set; } = false;
+
+        /// <summary>When seeding rooms, the maximum distance (mm) from a slab
+        /// centroid that a layer-text label can sit and still be used as the
+        /// room's Name. Larger values risk picking up a label from a neighbouring
+        /// slab.</summary>
+        public double RoomLabelSearchRadiusMm { get; set; } = 3000;
+
+        /// <summary>After conversion, create one structural ViewPlan per level that
+        /// received elements. Uses Phase-113 DrawingTypeRegistry to look up the
+        /// corporate "S-PLAN" drawing type and apply via DrawingTypePresentation.</summary>
+        public bool CreateStructuralViewsAfterConversion { get; set; } = false;
+
+        /// <summary>Heuristically classify beams as steel I-section vs concrete
+        /// rectangle. Pure-line beams (single centreline detection) hint steel;
+        /// parallel-pair beams (with a measured width) hint concrete. The hint is
+        /// passed to <c>StructuralTypeFactory.FindOrCreateBeamType</c> for type
+        /// matching. Only affects beams whose detected width was inferred from
+        /// the wizard fallback (no parallel-line evidence).</summary>
+        public bool InferBeamMaterial { get; set; } = true;
+
+        /// <summary>Foundation classifier mode. When on, detected foundations are
+        /// classified as Pad / Raft / Pile cap based on plan-area + clustering
+        /// heuristics. Pads route to <c>CreatePadFoundations</c>; rafts route to
+        /// <c>CreateSlabsFromBoundaries</c> (structural floor); pile caps stay as
+        /// pad foundations but are stamped with "STING: PileCap" Comments for
+        /// downstream connection design.</summary>
+        public bool ClassifyFoundations { get; set; } = true;
+
+        /// <summary>Plan-area threshold (m²) above which a detected rectangular
+        /// foundation is classified as a raft instead of an isolated pad. Default
+        /// 4 m² (≈ 2 m × 2 m).</summary>
+        public double RaftMinAreaM2 { get; set; } = 4.0;
+
+        /// <summary>Stamp the Mark parameter of every column and beam participating
+        /// in each detected junction with a junction-type tag (e.g. "J:T-junction"
+        /// when nothing is set, appended otherwise). Lets engineers find junction
+        /// participants via schedules without traversing the analytical graph.</summary>
+        public bool StampJunctionMarks { get; set; } = false;
+
         // Tagging
         public bool AutoTag { get; set; } = true;
         public bool AutoSeqNumbers { get; set; } = true;
         public string TagPrefix { get; set; } = "";
         public int NumberingMode { get; set; } = 0;
 
-        // Numbering
+        // Numbering — single category (legacy) and per-category (Phase-140)
         public NumberingEngine.NumberingConfig NumberingConfig { get; set; } = new();
+
+        /// <summary>Per-category numbering configurations. When populated, each category
+        /// is numbered independently using its own NumberingConfig. Falls back to
+        /// NumberingConfig when empty.</summary>
+        public Dictionary<BuiltInCategory, NumberingEngine.NumberingConfig> NumberingPerCategory { get; set; }
+            = new Dictionary<BuiltInCategory, NumberingEngine.NumberingConfig>();
     }
 
     #endregion

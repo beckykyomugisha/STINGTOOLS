@@ -1,0 +1,86 @@
+{
+  "_comment": "Lightning Protection class parameters per BS EN 62305-3:2011. rollingSphereRadiusM, meshSizeM, downConductorSpacingM and minConductorCrossSectionMm2 are taken directly from Table 2 (mesh + rolling sphere) and Table 6 (conductor cross-section). protectionAngleDeg_* are read from Figure 2 — protection angle is height-dependent. earthResistanceTargetOhm reflects the BS EN 62305-3 §5.4.2.2 design target of 10 ohm for a Type B foundation electrode arrangement. protectionEfficiency is BS EN 62305-2 Table 6 (used for residual risk = R1 × (1 − PE)). minConductorCrossSectionMm2ByMaterial overrides the scalar baseline per BS EN 62305-3 Table 6 row split (copper / aluminium / steel).",
+  "classes": [
+    {
+      "id": "I",
+      "rollingSphereRadiusM": 20,
+      "meshSizeM": 5,
+      "protectionAngleDeg_10m": 70,
+      "protectionAngleDeg_20m": 25,
+      "protectionAngleDeg_30m": 0,
+      "protectionAngleDeg_45m": 0,
+      "protectionAngleDeg_60m": 0,
+      "downConductorSpacingM": 10,
+      "minConductorCrossSectionMm2": 50,
+      "minConductorCrossSectionMm2ByMaterial": { "COPPER": 50, "ALUMINIUM": 70, "STEEL": 50 },
+      "inspectionIntervalMonths": 12,
+      "earthResistanceTargetOhm": 10.0,
+      "kiFactor": 0.08,
+      "protectionEfficiency": 0.98
+    },
+    {
+      "id": "II",
+      "rollingSphereRadiusM": 30,
+      "meshSizeM": 10,
+      "protectionAngleDeg_10m": 72,
+      "protectionAngleDeg_20m": 35,
+      "protectionAngleDeg_30m": 25,
+      "protectionAngleDeg_45m": 0,
+      "protectionAngleDeg_60m": 0,
+      "downConductorSpacingM": 10,
+      "minConductorCrossSectionMm2": 50,
+      "minConductorCrossSectionMm2ByMaterial": { "COPPER": 50, "ALUMINIUM": 70, "STEEL": 50 },
+      "inspectionIntervalMonths": 12,
+      "earthResistanceTargetOhm": 10.0,
+      "kiFactor": 0.06,
+      "protectionEfficiency": 0.95
+    },
+    {
+      "id": "III",
+      "rollingSphereRadiusM": 45,
+      "meshSizeM": 15,
+      "protectionAngleDeg_10m": 76,
+      "protectionAngleDeg_20m": 45,
+      "protectionAngleDeg_30m": 35,
+      "protectionAngleDeg_45m": 25,
+      "protectionAngleDeg_60m": 0,
+      "downConductorSpacingM": 15,
+      "minConductorCrossSectionMm2": 50,
+      "minConductorCrossSectionMm2ByMaterial": { "COPPER": 50, "ALUMINIUM": 70, "STEEL": 50 },
+      "inspectionIntervalMonths": 24,
+      "earthResistanceTargetOhm": 10.0,
+      "kiFactor": 0.04,
+      "protectionEfficiency": 0.90
+    },
+    {
+      "id": "IV",
+      "rollingSphereRadiusM": 60,
+      "meshSizeM": 20,
+      "protectionAngleDeg_10m": 79,
+      "protectionAngleDeg_20m": 55,
+      "protectionAngleDeg_30m": 45,
+      "protectionAngleDeg_45m": 35,
+      "protectionAngleDeg_60m": 25,
+      "downConductorSpacingM": 20,
+      "minConductorCrossSectionMm2": 50,
+      "minConductorCrossSectionMm2ByMaterial": { "COPPER": 50, "ALUMINIUM": 70, "STEEL": 50 },
+      "inspectionIntervalMonths": 24,
+      "earthResistanceTargetOhm": 10.0,
+      "kiFactor": 0.04,
+      "protectionEfficiency": 0.80
+    }
+  ],
+  "materialFactors": {
+    "_comment": "km factor used in separation distance s = (ki/km) * kc * l (BS EN 62305-3 §6.3).",
+    "COPPER": 1.0,
+    "ALUMINIUM": 0.44,
+    "STEEL": 0.5
+  },
+  "tolerableRisk": {
+    "_comment": "Tolerable annual risk Rt per loss type (BS EN 62305-2 Table 7).",
+    "L1_human_life":      0.00001,
+    "L2_public_service":  0.001,
+    "L3_cultural":        0.0001,
+    "L4_economic":        0.001
+  }
+}

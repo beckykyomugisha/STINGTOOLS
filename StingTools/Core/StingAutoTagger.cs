@@ -47,9 +47,10 @@ namespace StingTools.Core
         private static Dictionary<string, int> _cachedSeqCounters;
         private static bool _contextInvalid = true;
         // PERF-07: TTL-based context rebuild to avoid redundant rebuilds in multi-command workflows.
-        // Instead of rebuilding immediately on every InvalidateContext(), use a 5-second TTL.
+        // 30 s matches SpatialAutoDetect room-index TTL so a typical auto-tag → save → combine
+        // chain (≤10 s) never triggers a redundant context rebuild.
         private static DateTime _contextCacheTime = DateTime.MinValue;
-        private const int ContextCacheTtlMs = 5000;
+        private const int ContextCacheTtlMs = 30000;
         // G2.3: Cached formulas and grid lines for pipeline helper
         private static List<Temp.FormulaEngine.FormulaDefinition> _formulas;
         private static List<Grid> _gridLines;
@@ -57,6 +58,48 @@ namespace StingTools.Core
         // LOG-04: Token hash cache to skip redundant TAG7 rebuilds
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<long, string>
             _tag7HashCache = new System.Collections.Concurrent.ConcurrentDictionary<long, string>();
+
+        // A-6: bounded LRU eviction for _tag7HashCache to prevent unbounded
+        // memory growth in long sessions. Mirrors the _elementVersionHash
+        // 20%-eviction pattern (~lines 790-802) — once the cache exceeds
+        // _tag7CacheCap entries, the oldest 20% are dropped.
+        private const int _tag7CacheCap = 10000;
+
+        /// <summary>
+        /// A-6: store a TAG7 hash for an element id. Performs the same
+        /// 20%-eviction-at-cap dance used elsewhere so callers don't have to.
+        /// </summary>
+        public static void StoreTag7Hash(long elementId, string hash)
+        {
+            if (string.IsNullOrEmpty(hash)) return;
+            _tag7HashCache[elementId] = hash;
+
+            if (_tag7HashCache.Count > _tag7CacheCap)
+            {
+                int original = _tag7HashCache.Count;
+                int target = original / 5;
+                int evicted = 0;
+                foreach (var kvp in _tag7HashCache)
+                {
+                    if (evicted >= target) break;
+                    _tag7HashCache.TryRemove(kvp.Key, out _);
+                    evicted++;
+                }
+                StingLog.Info($"_tag7HashCache: evicted {evicted} of {original} entries (cap {_tag7CacheCap}).");
+            }
+        }
+
+        /// <summary>A-6: read a previously cached TAG7 hash; returns null when absent.</summary>
+        public static string TryGetTag7Hash(long elementId)
+        {
+            if (_tag7HashCache.TryGetValue(elementId, out var h))
+            {
+                StingLog.RecordHit(StingLog.CacheKind.Tag7Hash); // E-1
+                return h;
+            }
+            StingLog.RecordMiss(StingLog.CacheKind.Tag7Hash); // E-1
+            return null;
+        }
 
         // BUG-04: ExternalEvent queue for deferred tag processing
         private static readonly ConcurrentQueue<ElementId> _pendingQueue = new ConcurrentQueue<ElementId>();
@@ -115,15 +158,84 @@ namespace StingTools.Core
             {
                 string projectPath = doc?.PathName;
                 if (string.IsNullOrEmpty(projectPath)) return;
-                string sidecarPath = System.IO.Path.ChangeExtension(projectPath, ".sting_deferred_elements.json");
+                string sidecarPath = ProjectFolderEngine.GetDataPath(doc, "deferred_elements.json");
+                if (string.IsNullOrEmpty(sidecarPath))
+                    sidecarPath = System.IO.Path.ChangeExtension(projectPath, ".sting_deferred_elements.json");
                 var ids = _droppedElementIds.ToArray();
                 string json = $"{{\"version\":\"1.0\",\"timestamp\":\"{DateTime.Now:o}\",\"dropped_count\":{ids.Length},\"element_ids\":[{string.Join(",", ids)}]}}";
                 string tempPath = sidecarPath + ".tmp";
                 System.IO.File.WriteAllText(tempPath, json);
                 System.IO.File.Move(tempPath, sidecarPath, true);
                 StingLog.Info($"AutoTagger: saved {ids.Length} dropped element IDs to sidecar for recovery");
+
+                // TAG-DEFERRED-OVERFLOW-01: Clear the in-memory bag so the next document
+                // doesn't inherit dropped IDs from the previous one. The sidecar is the
+                // durable record from this point forward.
+                while (_droppedElementIds.TryTake(out _)) { }
+                _droppedElementCount = 0;
             }
             catch (Exception ex) { StingLog.Warn($"Deferred sidecar save: {ex.Message}"); }
+        }
+
+        /// <summary>TAG-DEFERRED-OVERFLOW-01: On document open, restore element IDs that
+        /// previously overflowed the deferred queue and re-enqueue any that still resolve
+        /// to live elements in the model. Loaded once per document; the sidecar is rotated
+        /// to a `.consumed` filename so a second open does not re-queue stale IDs.
+        /// Returns the number of elements re-enqueued.</summary>
+        public static int LoadDroppedElementsSidecar(Document doc)
+        {
+            try
+            {
+                string projectPath = doc?.PathName;
+                if (string.IsNullOrEmpty(projectPath)) return 0;
+                string sidecarPath = ProjectFolderEngine.GetDataPath(doc, "deferred_elements.json");
+                if (string.IsNullOrEmpty(sidecarPath) || !System.IO.File.Exists(sidecarPath))
+                    sidecarPath = System.IO.Path.ChangeExtension(projectPath, ".sting_deferred_elements.json");
+                if (!System.IO.File.Exists(sidecarPath)) return 0;
+
+                string json = System.IO.File.ReadAllText(sidecarPath);
+                var parsed = Newtonsoft.Json.Linq.JObject.Parse(json);
+                var idArr = parsed["element_ids"] as Newtonsoft.Json.Linq.JArray;
+                if (idArr == null || idArr.Count == 0)
+                {
+                    // Empty sidecar — clean up and exit.
+                    try { System.IO.File.Delete(sidecarPath); } catch { /* best effort */ }
+                    return 0;
+                }
+
+                int restored = 0;
+                int missing = 0;
+                foreach (var token in idArr)
+                {
+                    // CS7036 fix: JToken.Value<T>() requires a key when called on JObject;
+                    // for a JArray element we want the scalar conversion via cast / ToObject<T>().
+                    long raw = (long)token;
+                    ElementId id = new ElementId(raw);
+                    Element el = null;
+                    try { el = doc.GetElement(id); } catch { /* ignore — id may belong to a deleted element */ }
+                    if (el == null || !el.IsValidObject) { missing++; continue; }
+                    EnqueueDeferred(id);
+                    restored++;
+                }
+
+                // Rotate the sidecar so a re-open of the same document doesn't replay it.
+                try
+                {
+                    string consumed = sidecarPath + ".consumed";
+                    if (System.IO.File.Exists(consumed)) System.IO.File.Delete(consumed);
+                    System.IO.File.Move(sidecarPath, consumed);
+                }
+                catch (Exception rotEx) { StingLog.Warn($"Deferred sidecar rotate: {rotEx.Message}"); }
+
+                StingLog.Info($"AutoTagger: restored {restored} dropped element IDs from sidecar " +
+                    $"({missing} no longer resolved). Will retry on next sync-to-central.");
+                return restored;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Deferred sidecar load: {ex.Message}");
+                return 0;
+            }
         }
 
         /// <summary>Phase 78: Get dropped element count for dashboard display.</summary>
@@ -158,7 +270,7 @@ namespace StingTools.Core
             // R2-FIX: Clear container cache so reloaded ParamRegistry is reflected
             ParamRegistry.ClearContainerCache();
             // A3: Clear processed cache on context invalidation to prevent stale-skip on document reload
-            lock (_recentlyProcessed)
+            lock (_processedLock)
             {
                 _recentlyProcessed.Clear();
                 _recentlyProcessedQueue.Clear();
@@ -271,7 +383,7 @@ namespace StingTools.Core
                 WasAutoDisabled = false;
                 _consecutiveFailures = 0;
                 // PERF-R2: Acquire lock before clearing to prevent ConcurrentModificationException
-                lock (_recentlyProcessed)
+                lock (_processedLock)
                 {
                     _recentlyProcessed.Clear();
                     _recentlyProcessedQueue.Clear();
@@ -522,15 +634,72 @@ namespace StingTools.Core
                     var existingTags = _cachedExistingTags;
                     var seqCounters = _cachedSeqCounters;
 
-                    // Dequeue up to MaxPerBatch elements
-                    var batch = new List<ElementId>();
-                    while (batch.Count < MaxPerBatch && _pendingQueue.TryDequeue(out ElementId eid))
-                        batch.Add(eid);
+                    // C-7: resolve the active view's DrawingType discipline (if
+                    // any) once for this drain pass so per-element decisions in
+                    // ProcessBatch are an O(1) string compare.
+                    string activeViewDtDiscipline = ResolveActiveViewDrawingTypeDiscipline(app, doc);
 
-                    if (batch.Count == 0) return;
+                    // A-3: Drain the entire pending queue inside a single TransactionGroup
+                    // so the user sees one undo entry for a full bulk-paste session.
+                    // Each MaxPerBatch chunk still commits its own child Transaction (preserves
+                    // IUpdater safety + per-chunk rollback on failure), but they assimilate into
+                    // one parent group for a clean undo stack and one journal entry.
+                    int totalProcessed = 0;
+                    int totalAttempted = 0;
+                    using (var txGroup = new TransactionGroup(doc, "STING Auto-Tag"))
+                    {
+                        txGroup.Start();
 
-                    int processed = 0;
-                    using (var trans = new Transaction(doc, "STING Auto-Tag"))
+                        while (!_pendingQueue.IsEmpty)
+                        {
+                            var batch = new List<ElementId>();
+                            while (batch.Count < MaxPerBatch && _pendingQueue.TryDequeue(out ElementId eid))
+                                batch.Add(eid);
+                            if (batch.Count == 0) break;
+                            totalAttempted += batch.Count;
+
+                            int processed = ProcessBatch(doc, batch, ctx, existingTags, seqCounters, activeViewDtDiscipline);
+                            totalProcessed += processed;
+                        }
+
+                        txGroup.Assimilate();
+                    }
+
+                    // A-3 / A-8: Save SEQ sidecar once after the group assimilates,
+                    // not per child batch. Guarantees the sidecar always reflects a committed state.
+                    try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+                    catch (Exception ssEx) { StingLog.Warn($"AutoTagger SaveSeqSidecar: {ssEx.Message}"); }
+
+                    ComplianceScan.InvalidateCache();
+                    _consecutiveFailures = 0;
+
+                    if (totalProcessed > 0)
+                        StingLog.Info($"AutoTagger queue: processed {totalProcessed}/{totalAttempted} elements (single undo entry)");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("AutoTagQueueHandler.Execute", ex);
+                }
+            }
+
+            /// <summary>
+            /// A-3: Per-chunk processing wrapped in one Transaction. Returns the
+            /// number of elements successfully tagged in this chunk. Failure of an
+            /// individual element is swallowed and logged; chunk-level Transaction
+            /// failure is logged and the chunk's contribution is zero.
+            /// </summary>
+            private int ProcessBatch(
+                Document doc,
+                List<ElementId> batch,
+                TokenAutoPopulator.PopulationContext ctx,
+                HashSet<string> existingTags,
+                Dictionary<string, int> seqCounters,
+                string activeViewDtDiscipline)
+            {
+                int processed = 0;
+                try
+                {
+                    using (var trans = new Transaction(doc, "STING Auto-Tag (chunk)"))
                     {
                         trans.Start();
                         foreach (ElementId id in batch)
@@ -545,6 +714,17 @@ namespace StingTools.Core
 
                             string catName = ParameterHelpers.GetCategoryName(el);
                             if (string.IsNullOrEmpty(catName)) continue;
+
+                            // C-7: when the active view is stamped with a
+                            // DrawingType whose discipline is not "*", defer
+                            // off-discipline elements rather than tag them
+                            // and clutter the view.
+                            if (!string.IsNullOrEmpty(activeViewDtDiscipline)
+                                && !DoesElementMatchDiscipline(el, catName, activeViewDtDiscipline))
+                            {
+                                EnqueueDeferred(id);
+                                continue;
+                            }
 
                             try
                             {
@@ -611,7 +791,9 @@ namespace StingTools.Core
 
                                     if (_recentlyProcessed.Count > 10000)
                                     {
-                                        int toRemove = 1000;
+                                        // Evict oldest 20% (2000 of 10000) — matches the
+                                        // _tag7HashCache 20%-eviction pattern for consistency.
+                                        int toRemove = 2000;
                                         while (toRemove-- > 0 && _recentlyProcessedQueue.Count > 0)
                                         {
                                             long oldest = _recentlyProcessedQueue.Dequeue();
@@ -619,6 +801,28 @@ namespace StingTools.Core
                                         }
                                     }
                                 }
+
+                                // Phase 175 — symbol overlay auto-placement.
+                                try
+                                {
+                                    if (IsSymbolAutoPlaceEnabled(doc) && doc.ActiveView != null
+                                        && !(doc.ActiveView is ViewSheet))
+                                    {
+                                        var concept = StingTools.Core.Symbols.SymbolConceptRegistry
+                                            .GetConceptsForCategory(el.Category?.Name)
+                                            .FirstOrDefault();
+                                        if (concept != null)
+                                        {
+                                            string std = StingTools.Core.Symbols.SymbolStandardResolver
+                                                .ResolveStandard(doc, doc.ActiveView, el);
+                                            StingTools.Core.Symbols.SymbolOverlayManager
+                                                .PlaceSymbolOverlay(doc, doc.ActiveView, el,
+                                                    concept.ConceptId, std);
+                                        }
+                                    }
+                                }
+                                catch (Exception sEx)
+                                { StingLog.Warn($"AutoTagger symbol overlay: {sEx.Message}"); }
 
                                 processed++;
                             }
@@ -628,25 +832,13 @@ namespace StingTools.Core
                             }
                         }
                         trans.Commit();
-
-                        // FIX-02: Save SEQ sidecar after commit for session continuity
-                        try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
-                        catch (Exception ssEx) { StingLog.Warn($"AutoTagger SaveSeqSidecar: {ssEx.Message}"); }
                     }
-
-                    ComplianceScan.InvalidateCache();
-                    _consecutiveFailures = 0;
-
-                    if (processed > 0)
-                        StingLog.Info($"AutoTagger queue: processed {processed}/{batch.Count} elements");
-
-                    // If more items remain in queue, raise event again
-                    if (!_pendingQueue.IsEmpty && _autoTagEvent != null)
-                        _autoTagEvent.Raise();
                 }
-                catch (Exception ex)
+                catch (Exception batchEx)
                 {
-                    StingLog.Error("AutoTagQueueHandler.Execute", ex);
+                    StingLog.Error($"AutoTagQueueHandler.ProcessBatch ({batch.Count} elements)", batchEx);
+                    // A-3: chunk-level failure rolls back this chunk only; outer
+                    // TransactionGroup continues with the next chunk.
                     _consecutiveFailures++;
 
                     if (_consecutiveFailures >= MaxFailuresBeforeAutoDisable)
@@ -664,6 +856,72 @@ namespace StingTools.Core
                         catch (Exception uiEx) { StingLog.Warn($"Auto-tagger status bar update failed: {uiEx.Message}"); }
                     }
                 }
+                return processed;
+            }
+
+            /// <summary>
+            /// Phase 175 — gate symbol overlay auto-placement on
+            /// project_config.json &quot;symbol_auto_place&quot; (default false to
+            /// avoid surprising existing projects).
+            /// </summary>
+            private static bool IsSymbolAutoPlaceEnabled(Document doc)
+            {
+                try
+                {
+                    if (doc == null || string.IsNullOrEmpty(doc.PathName)) return false;
+                    string p = System.IO.Path.Combine(
+                        System.IO.Path.GetDirectoryName(doc.PathName), "project_config.json");
+                    if (!System.IO.File.Exists(p)) return false;
+                    var root = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText(p));
+                    return (bool)(root["symbol_auto_place"] ?? false);
+                }
+                catch (Exception ex) { StingLog.Warn($"IsSymbolAutoPlaceEnabled: {ex.Message}"); return false; }
+            }
+
+            /// <summary>
+            /// C-7: returns the discipline string of the active view's stamped
+            /// DrawingType, or null when the view is not stamped, the type
+            /// can't be resolved, or its discipline is "*" / empty (all
+            /// disciplines welcome). The caller treats null as "no filter".
+            /// </summary>
+            private static string ResolveActiveViewDrawingTypeDiscipline(UIApplication app, Document doc)
+            {
+                try
+                {
+                    View view = doc?.ActiveView ?? app?.ActiveUIDocument?.ActiveView;
+                    if (view == null || view is ViewSheet) return null;
+                    // GAP-N: route through Stamper.Read so a template-controlled
+                    // pack=…|cs=… stamp doesn't leak into the registry lookup.
+                    string dtId = Drawing.DrawingTypeStamper.Read(view);
+                    if (string.IsNullOrWhiteSpace(dtId)) return null;
+                    var dt = Drawing.DrawingTypeRegistry.Get(doc, dtId);
+                    if (dt == null) return null;
+                    if (string.IsNullOrWhiteSpace(dt.Discipline) || dt.Discipline == "*") return null;
+                    return dt.Discipline;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"ResolveActiveViewDrawingTypeDiscipline: {ex.Message}");
+                    return null;
+                }
+            }
+
+            /// <summary>
+            /// C-7: returns true when the element's derived discipline matches
+            /// the requested filter. Falls back to TagConfig.DiscMap by category
+            /// when DISC isn't yet populated; returns true (i.e. don't drop) when
+            /// the element's discipline can't be inferred.
+            /// </summary>
+            private static bool DoesElementMatchDiscipline(Element el, string catName, string requiredDisc)
+            {
+                if (string.IsNullOrEmpty(requiredDisc)) return true;
+                string elDisc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                if (string.IsNullOrEmpty(elDisc))
+                {
+                    if (!TagConfig.DiscMap.TryGetValue(catName, out elDisc) || string.IsNullOrEmpty(elDisc))
+                        return true;
+                }
+                return string.Equals(elDisc, requiredDisc, StringComparison.OrdinalIgnoreCase);
             }
         }
 
@@ -835,6 +1093,7 @@ namespace StingTools.Core
                 BuiltInCategory.OST_CommunicationDevices,
                 BuiltInCategory.OST_SecurityDevices,
                 BuiltInCategory.OST_NurseCallDevices,
+                BuiltInCategory.OST_MedicalEquipment,
                 BuiltInCategory.OST_DuctAccessory,
                 BuiltInCategory.OST_DuctFitting,
                 BuiltInCategory.OST_DuctTerminal,
@@ -1105,17 +1364,30 @@ namespace StingTools.Core
 
         private const int MaxElementsPerTrigger = 20;
 
-        // PERF-CRIT: Cached room index to avoid FilteredElementCollector on every trigger
-        private static Dictionary<ElementId, Autodesk.Revit.DB.Architecture.Room> _cachedRoomIndex;
+        // A-2: Per-document project-LOC cache, complementary to
+        // SpatialAutoDetect.BuildRoomIndex (which already caches the room index
+        // per-document with a 30 s TTL). The full room index is no longer
+        // duplicated here — calling SpatialAutoDetect.BuildRoomIndex is cheap
+        // when the cache is warm. Only the project LOC is stored locally
+        // because DetectProjectLoc is currently uncached.
         private static string _cachedProjectLoc;
-        private static DateTime _roomIndexCacheTime = DateTime.MinValue;
+        private static string _cachedProjectLocDocKey;
+        private static DateTime _projectLocCacheTime = DateTime.MinValue;
+        private static readonly object _projectLocCacheLock = new object();
 
-        /// <summary>Clear cached room index (call on document close/switch).</summary>
+        /// <summary>Clear cached project LOC (call on document close/switch).</summary>
         internal static void ClearRoomIndexCache()
         {
-            _cachedRoomIndex = null;
-            _cachedProjectLoc = null;
-            _roomIndexCacheTime = DateTime.MinValue;
+            lock (_projectLocCacheLock)
+            {
+                _cachedProjectLoc = null;
+                _cachedProjectLocDocKey = null;
+                _projectLocCacheTime = DateTime.MinValue;
+            }
+            // A-2: also nudge the shared SpatialAutoDetect cache so a stale
+            // index from a closed document never resurfaces.
+            try { SpatialAutoDetect.InvalidateRoomIndex(); }
+            catch (Exception ex) { StingLog.Warn($"ClearRoomIndexCache: {ex.Message}"); }
         }
 
         public void Execute(UpdaterData data)
@@ -1139,31 +1411,44 @@ namespace StingTools.Core
                     return;
                 }
 
-                // PERF-CRIT: Cache room index across stale marker triggers to avoid rebuilding
-                // on every geometry change. Room index is expensive (FilteredElementCollector scan).
-                // TTL of 30 seconds — rooms don't change during normal geometry editing.
+                // A-2: defer to the shared SpatialAutoDetect.BuildRoomIndex
+                // (already TTL-cached per-document); only project LOC is
+                // memoised locally to avoid repeating DetectProjectLoc on
+                // every IUpdater trigger.
                 Dictionary<ElementId, Autodesk.Revit.DB.Architecture.Room> roomIndex = null;
                 string projectLoc = null;
                 try
                 {
-                    if (_cachedRoomIndex != null && (DateTime.UtcNow - _roomIndexCacheTime).TotalSeconds < 30)
+                    roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
+
+                    string docKey = doc?.PathName ?? doc?.Title ?? "";
+                    lock (_projectLocCacheLock)
                     {
-                        roomIndex = _cachedRoomIndex;
-                        projectLoc = _cachedProjectLoc;
+                        if (string.Equals(_cachedProjectLocDocKey, docKey, StringComparison.Ordinal)
+                            && (DateTime.UtcNow - _projectLocCacheTime).TotalSeconds < 30)
+                        {
+                            projectLoc = _cachedProjectLoc;
+                        }
                     }
-                    else
+                    if (projectLoc == null)
                     {
-                        roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
                         projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
-                        _cachedRoomIndex = roomIndex;
-                        _cachedProjectLoc = projectLoc;
-                        _roomIndexCacheTime = DateTime.UtcNow;
+                        lock (_projectLocCacheLock)
+                        {
+                            _cachedProjectLoc = projectLoc;
+                            _cachedProjectLocDocKey = docKey;
+                            _projectLocCacheTime = DateTime.UtcNow;
+                        }
                     }
                 }
                 catch (Exception riEx)
                 {
                     StingLog.Warn($"StingStaleMarker room index build: {riEx.Message}");
                 }
+
+                // TAG-STALE-WARN-01: count the elements newly flagged as stale this batch
+                // so we can decide whether to schedule a stale-warning promotion job.
+                int staleMarkedThisBatch = 0;
 
                 foreach (ElementId id in modifiedIds)
                 {
@@ -1209,7 +1494,10 @@ namespace StingTools.Core
                                     }
                                 }
                             }
-                            catch (Exception spEx) { StingLog.Warn($"StaleMarker spatial detection: {spEx.Message}"); }
+                            // Rate-limited: this catch lives inside an IUpdater that fires
+                            // on every element change. An ungated Warn here could emit
+                            // hundreds of lines per save.
+                            catch (Exception spEx) { StingLog.WarnRateLimited("StaleMarker.SpatialDetect", $"StaleMarker spatial detection: {spEx.Message}"); }
                         }
 
                         // R-06: MEP system change detection — SYS/FUNC become stale on system reassignment
@@ -1232,7 +1520,8 @@ namespace StingTools.Core
                                     }
                                 }
                             }
-                            catch (Exception mepEx) { StingLog.Warn($"StaleMarker MEP detection: {mepEx.Message}"); }
+                            // Rate-limited: see SpatialDetect catch above. IUpdater hot path.
+                            catch (Exception mepEx) { StingLog.WarnRateLimited("StaleMarker.MepDetect", $"StaleMarker MEP detection: {mepEx.Message}"); }
                         }
 
                         if (isStale)
@@ -1240,12 +1529,28 @@ namespace StingTools.Core
                             Parameter p = el.LookupParameter(ParamRegistry.STALE);
                             if (p != null && !p.IsReadOnly)
                                 p.Set(1);
+                            staleMarkedThisBatch++;
                         }
                     }
                     catch (Exception ex)
                     {
                         StingLog.Warn($"StingStaleMarker element {id.Value}: {ex.Message}");
                     }
+                }
+
+                // TAG-STALE-WARN-01: When this batch flags any element stale, schedule a
+                // single-shot idle job to promote the stale flag into a BIM issue once the
+                // total stale count crosses TagConfig.StaleWarningThreshold. Enqueueing is
+                // safe inside the IUpdater callback (the job runs later on idle, after the
+                // transaction has committed and the document is no longer write-locked).
+                if (staleMarkedThisBatch > 0 && TagConfig.StaleWarningThreshold > 0)
+                {
+                    try { StingIdlingScheduler.Enqueue(new StaleWarningPromotionJob()); }
+                    catch (Exception schEx) { StingLog.Warn($"StaleMarker enqueue stale-warning job: {schEx.Message}"); }
+                    // Also invalidate the compliance scan so the dashboard reflects the
+                    // new stale count without waiting for the 30 s cache TTL to expire.
+                    try { ComplianceScan.InvalidateCache(); }
+                    catch (Exception ciEx) { StingLog.Warn($"StaleMarker invalidate compliance cache: {ciEx.Message}"); }
                 }
             }
             catch (Exception ex)

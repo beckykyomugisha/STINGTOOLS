@@ -23,6 +23,14 @@ namespace StingTools.Core.Clash
     public sealed class ClashMatrix
     {
         public List<ClashCell> Cells { get; set; } = new List<ClashCell>();
+        // C6: Auto-export critical/high clashes to BCF after a run finishes.
+        // Defaulted to false so existing matrix files round-trip without
+        // changing behaviour. When true, ClashRunCommand calls
+        // ClashBcfExportCommand.ExportToBcf() inline and logs the path.
+        public bool AutoBcfOnCritical { get; set; } = false;
+        // B3: Per-project tick interval for the headless scheduler (minutes).
+        // Falls back to ClashScheduler's hardcoded default when 0 / unset.
+        public int SchedulerIntervalMinutes { get; set; } = 0;
 
         public static ClashMatrix LoadOrDefault(string path)
         {

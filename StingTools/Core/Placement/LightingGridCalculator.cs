@@ -36,6 +36,11 @@ namespace StingTools.Core.Placement
         public double SpacingYMm { get; set; }
         public List<XYZ> Points { get; } = new List<XYZ>();
         public List<string> Warnings { get; } = new List<string>();
+
+        // Phase 139.2 — extensions.
+        public List<XYZ> NogginRequiredPoints { get; } = new List<XYZ>();
+        public int       TileSnapAdjustments  { get; set; }
+        public double    ActualUniformityRatio { get; set; }
     }
 
     /// <summary>
@@ -77,7 +82,26 @@ namespace StingTools.Core.Placement
             LoadLuxTargets();
         }
 
-        public LightingGridResult Compute(Room room)
+        /// <summary>
+        /// Phase 139.27 (X-02) — minimum acceptable BS EN 12464-1 / CIBSE LG7
+        /// uniformity ratio (Uo = Emin / Eavg). 0.40 is the published
+        /// minimum for general areas; 0.60 for tasks; 0.70 for fine work
+        /// (drawing offices, healthcare, classrooms). Below this floor
+        /// <see cref="LightingGridResult.Warnings"/> reports the rule as
+        /// non-compliant and the engine surfaces it in the run report.
+        /// Tunable per rule via <c>PlacementRule.MinUniformityRatio</c> when
+        /// set (> 0); otherwise this default applies.
+        /// </summary>
+        public double DefaultMinimumUniformity { get; set; } = 0.40;
+
+        public LightingGridResult Compute(Room room) => Compute(room, null);
+
+        /// <summary>
+        /// Phase 139.2 — rule-aware grid compute. When the rule asks for
+        /// CeilingTileSnap, StructuralFixingCheck or uniformity reporting,
+        /// the corresponding post-processing pass runs after grid generation.
+        /// </summary>
+        public LightingGridResult Compute(Room room, PlacementRule rule)
         {
             var r = new LightingGridResult();
             if (room == null) { r.Warnings.Add("Room is null"); return r; }
@@ -106,6 +130,16 @@ namespace StingTools.Core.Placement
             if (r.FixturesRequired < 1) r.FixturesRequired = 1;
 
             GenerateGridPoints(room, r);
+
+            if (rule != null)
+            {
+                if (rule.CeilingTileSnap) SnapToCeilingTileGrid(room, r, rule);
+                if (rule.StructuralFixingCheck) CheckStructuralFixing(room, r, rule);
+                CheckSprinklerSeparation(room, r);   // Phase 139.3 — BS 5306 ≥600mm
+                EnforceMinSpacing(r, rule);          // Phase 139.6 LX-1 — drop points violating MinSpacingMm
+                ComputeUniformityRatio(room, r, rule);
+            }
+
             return r;
         }
 
@@ -241,7 +275,391 @@ namespace StingTools.Core.Placement
                 var p = room.get_Parameter(BuiltInParameter.ROOM_NAME);
                 return p?.AsString() ?? room.Name ?? "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
+        }
+
+        // ── Phase 139.2 — post-processing passes ────────────────────
+
+        private void SnapToCeilingTileGrid(Room room, LightingGridResult r, PlacementRule rule)
+        {
+            try
+            {
+                // Phase 139.27 (N-06) — default 1200×600 to match CeilingGridSnap
+                // (UK ceiling tile baseline). When the rule pack ships explicit
+                // 600 / 600 (US troffer tiles), TileGridSpacing*Mm carry
+                // the override.
+                double tileXMm = rule.TileGridSpacingXMm > 0 ? rule.TileGridSpacingXMm : 1200.0;
+                double tileYMm = rule.TileGridSpacingYMm > 0 ? rule.TileGridSpacingYMm : 600.0;
+
+                Document doc = room?.Document;
+                if (doc == null) return;
+
+                var ceilingTypeNames = new List<string>();
+                XYZ tileOrigin = null;
+
+                try
+                {
+                    var bb = room.get_BoundingBox(null);
+                    if (bb != null)
+                    {
+                        var pad = 0.5;
+                        var outline = new Outline(
+                            new XYZ(bb.Min.X - pad, bb.Min.Y - pad, bb.Min.Z - pad),
+                            new XYZ(bb.Max.X + pad, bb.Max.Y + pad, bb.Max.Z + pad));
+                        var bbf = new BoundingBoxIntersectsFilter(outline);
+                        foreach (var el in new FilteredElementCollector(doc)
+                            .OfCategory(BuiltInCategory.OST_Ceilings)
+                            .WhereElementIsNotElementType()
+                            .WherePasses(bbf))
+                        {
+                            var ct = doc.GetElement(el.GetTypeId()) as ElementType;
+                            string typeName = ct?.Name ?? "";
+                            if (!string.IsNullOrEmpty(typeName)) ceilingTypeNames.Add(typeName);
+                            if (tileOrigin == null)
+                            {
+                                var bb2 = el.get_BoundingBox(null);
+                                if (bb2 != null) tileOrigin = bb2.Min;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+
+                bool nameSuggestsTiles = ceilingTypeNames.Any(n =>
+                    n.IndexOf("600x600", StringComparison.OrdinalIgnoreCase) >= 0
+                 || n.IndexOf("600 x 600", StringComparison.OrdinalIgnoreCase) >= 0
+                 || n.IndexOf("Grid", StringComparison.OrdinalIgnoreCase) >= 0
+                 || n.IndexOf("Tile", StringComparison.OrdinalIgnoreCase) >= 0);
+
+                // Fall back to room bbox if no ceiling found.
+                if (tileOrigin == null)
+                {
+                    var bb = room.get_BoundingBox(null);
+                    if (bb == null) return;
+                    tileOrigin = bb.Min;
+                }
+
+                double stepX = tileXMm * MmToFt;
+                double stepY = tileYMm * MmToFt;
+                // Phase 139.27 (C-05) — guard against pathological rule
+                // configs (TileGridSpacingXMm / Y < 1mm). The fallback at
+                // the top of this method gates ≤ 0, but a 0.5mm rule slips
+                // through and Math.Round((p.X - origin) / 0.0016) returns
+                // ±Infinity. Re-floor the step to 100mm here so the grid
+                // is at least usable.
+                if (stepX < 100.0 * MmToFt) stepX = 600.0 * MmToFt;
+                if (stepY < 100.0 * MmToFt) stepY = 600.0 * MmToFt;
+
+                // Phase 139.27 (C-05) — snap can push a point outside the
+                // room polygon (corner case: corner tile, tile origin from
+                // an adjacent ceiling). Track points that drift outside
+                // the room AABB and revert them; if reverting still leaves
+                // them out of room, drop them entirely. Without this,
+                // downstream RoomMatchesScope flips the rule's room hit
+                // off post-snap and the engine reports "31 placed" against
+                // a zero-fixture room.
+                BoundingBoxXYZ roomBb = null;
+                try { roomBb = room.get_BoundingBox(null); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+
+                int adjustments = 0;
+                int reverted = 0;
+                int dropped  = 0;
+                var snappedList = new List<XYZ>(r.Points.Count);
+                for (int i = 0; i < r.Points.Count; i++)
+                {
+                    var p = r.Points[i];
+                    double snappedX = tileOrigin.X + Math.Round((p.X - tileOrigin.X) / stepX) * stepX + stepX * 0.5;
+                    double snappedY = tileOrigin.Y + Math.Round((p.Y - tileOrigin.Y) / stepY) * stepY + stepY * 0.5;
+                    var snapped = new XYZ(snappedX, snappedY, p.Z);
+
+                    bool snappedInBbox = roomBb == null
+                        || (snapped.X >= roomBb.Min.X && snapped.X <= roomBb.Max.X
+                         && snapped.Y >= roomBb.Min.Y && snapped.Y <= roomBb.Max.Y);
+                    bool snappedInRoom = snappedInBbox;
+                    if (snappedInBbox)
+                    {
+                        try { snappedInRoom = room.IsPointInRoom(snapped); }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); snappedInRoom = true; }
+                    }
+
+                    if (snappedInRoom)
+                    {
+                        if (snapped.DistanceTo(p) > 50.0 * MmToFt) adjustments++;
+                        snappedList.Add(snapped);
+                    }
+                    else
+                    {
+                        // Try the original (un-snapped) point — it was
+                        // generated from the room's own AABB so it should
+                        // still be inside the polygon.
+                        bool originalInRoom = false;
+                        try { originalInRoom = room.IsPointInRoom(p); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        if (originalInRoom) { snappedList.Add(p); reverted++; }
+                        else                { dropped++; }
+                    }
+                }
+                r.Points.Clear();
+                r.Points.AddRange(snappedList);
+                r.FixturesPlaced = r.Points.Count;
+                r.TileSnapAdjustments = adjustments;
+                if (reverted > 0)
+                    r.Warnings.Add($"Tile snap: {reverted} luminaire(s) reverted to grid position because the snapped tile centre fell outside the room boundary.");
+                if (dropped > 0)
+                    r.Warnings.Add($"Tile snap: {dropped} luminaire(s) dropped — neither the snapped nor the original position lay inside the room.");
+                if (nameSuggestsTiles)
+                    StingLog.Info($"LightingGridCalculator: tile snap applied ({adjustments} adjustments) to room {room.Id}.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LightingGridCalculator.SnapToCeilingTileGrid: {ex.Message}");
+            }
+        }
+
+        private void CheckStructuralFixing(Room room, LightingGridResult r, PlacementRule rule)
+        {
+            try
+            {
+                Document doc = room?.Document;
+                if (doc == null) return;
+                double clearanceFt = (rule.JoistClearanceMm > 0 ? rule.JoistClearanceMm : 300.0) * MmToFt;
+                double clearanceSqFt = clearanceFt * clearanceFt;
+
+                var bb = room.get_BoundingBox(null);
+                if (bb == null) return;
+                double pad = clearanceFt + 1.0;
+                var outline = new Outline(
+                    new XYZ(bb.Min.X - pad, bb.Min.Y - pad, bb.Min.Z - pad),
+                    new XYZ(bb.Max.X + pad, bb.Max.Y + pad, bb.Max.Z + 5.0));
+                var bbf = new BoundingBoxIntersectsFilter(outline);
+
+                var joists = new List<XYZ>();
+                foreach (var el in new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(bbf))
+                {
+                    var fbb = el.get_BoundingBox(null);
+                    if (fbb == null) continue;
+                    joists.Add((fbb.Min + fbb.Max) * 0.5);
+                }
+
+                foreach (var p in r.Points)
+                {
+                    bool foundJoist = false;
+                    foreach (var j in joists)
+                    {
+                        double dx = j.X - p.X, dy = j.Y - p.Y;
+                        if (dx * dx + dy * dy <= clearanceSqFt) { foundJoist = true; break; }
+                    }
+                    if (!foundJoist && rule.EmitNogginRequirement)
+                    {
+                        r.NogginRequiredPoints.Add(p);
+                        StingLog.Info($"LightingGridCalculator: noggin required at {p.X:F2},{p.Y:F2} room {room.Id}.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LightingGridCalculator.CheckStructuralFixing: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Phase 139.3 — BS 5306-2 / BS EN 12845 require ≥ 600 mm clear
+        /// horizontal distance between a sprinkler head and any obstruction
+        /// to spray pattern (lighting fixtures count). Push grid points
+        /// outside the 600 mm exclusion ring of every sprinkler in scope;
+        /// when no clear nudge is possible, drop the point and warn.
+        /// </summary>
+        private void CheckSprinklerSeparation(Room room, LightingGridResult r)
+        {
+            try
+            {
+                Document doc = room?.Document;
+                if (doc == null || r.Points.Count == 0) return;
+                const double minSepFt = 600.0 / 304.8;
+                double minSepSq = minSepFt * minSepFt;
+
+                var bb = room.get_BoundingBox(null);
+                if (bb == null) return;
+                double pad = minSepFt + 0.5;
+                var outline = new Outline(
+                    new XYZ(bb.Min.X - pad, bb.Min.Y - pad, bb.Min.Z - pad),
+                    new XYZ(bb.Max.X + pad, bb.Max.Y + pad, bb.Max.Z + 5.0));
+                var bbf = new BoundingBoxIntersectsFilter(outline);
+
+                var sprinklers = new List<XYZ>();
+                foreach (var el in new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Sprinklers)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(bbf))
+                {
+                    XYZ p = (el.Location as LocationPoint)?.Point;
+                    if (p != null) sprinklers.Add(p);
+                }
+                if (sprinklers.Count == 0) return;
+
+                // Phase 139.5 Q13 — nudge each conflicting point along the
+                // axis away from the nearest sprinkler. If nudging keeps it
+                // inside the room bbox AND clear of every other sprinkler,
+                // accept the nudge. Drop only as last resort so the lux grid
+                // doesn't lose fixture count to false rejection.
+                var bbRoom = room.get_BoundingBox(null);
+                int nudged = 0, dropped = 0;
+                var keep = new List<XYZ>();
+                foreach (var pt in r.Points)
+                {
+                    XYZ nearest = null; double nearestSq = double.MaxValue;
+                    foreach (var s in sprinklers)
+                    {
+                        double dx = s.X - pt.X, dy = s.Y - pt.Y;
+                        double d2 = dx * dx + dy * dy;
+                        if (d2 < nearestSq) { nearestSq = d2; nearest = s; }
+                    }
+                    if (nearest == null || nearestSq >= minSepSq) { keep.Add(pt); continue; }
+
+                    XYZ away = pt - nearest;
+                    if (away.GetLength() < 1e-6) away = new XYZ(1, 0, 0);
+                    away = away.Normalize();
+                    XYZ nudgedPt = nearest + away.Multiply(minSepFt + 0.05);
+
+                    bool inRoom = bbRoom == null
+                        || (nudgedPt.X >= bbRoom.Min.X && nudgedPt.X <= bbRoom.Max.X
+                         && nudgedPt.Y >= bbRoom.Min.Y && nudgedPt.Y <= bbRoom.Max.Y);
+                    bool clearOfOthers = true;
+                    if (inRoom)
+                    {
+                        foreach (var s in sprinklers)
+                        {
+                            double dx = s.X - nudgedPt.X, dy = s.Y - nudgedPt.Y;
+                            if (dx * dx + dy * dy < minSepSq) { clearOfOthers = false; break; }
+                        }
+                    }
+                    if (inRoom && clearOfOthers)
+                    {
+                        keep.Add(new XYZ(nudgedPt.X, nudgedPt.Y, pt.Z));
+                        nudged++;
+                    }
+                    else
+                    {
+                        dropped++;
+                    }
+                }
+
+                if (nudged > 0 || dropped > 0)
+                {
+                    r.Points.Clear();
+                    r.Points.AddRange(keep);
+                    r.FixturesPlaced = r.Points.Count;
+                    if (nudged > 0)
+                        r.Warnings.Add($"BS 5306-2: nudged {nudged} luminaire grid point(s) away from sprinklers.");
+                    if (dropped > 0)
+                        r.Warnings.Add($"BS 5306-2: dropped {dropped} luminaire grid point(s) — no clear position within room.");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LightingGridCalculator.CheckSprinklerSeparation: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Phase 139.6 LX-1 — drop grid points that fall closer than
+        /// rule.MinSpacingMm to a previously kept point. The lumen-method
+        /// formula and ceiling-tile snap can both produce two points
+        /// inside the minimum-spacing radius, especially in narrow rooms;
+        /// this pass is the last word before placement.
+        /// </summary>
+        private void EnforceMinSpacing(LightingGridResult r, PlacementRule rule)
+        {
+            try
+            {
+                if (rule == null || rule.MinSpacingMm <= 0) return;
+                if (r.Points == null || r.Points.Count < 2) return;
+                double minFt = rule.MinSpacingMm * MmToFt;
+                double minSq = minFt * minFt;
+
+                var keep = new List<XYZ>();
+                int dropped = 0;
+                foreach (var pt in r.Points)
+                {
+                    bool tooClose = false;
+                    foreach (var k in keep)
+                    {
+                        double dx = k.X - pt.X, dy = k.Y - pt.Y;
+                        if (dx * dx + dy * dy < minSq) { tooClose = true; break; }
+                    }
+                    if (tooClose) dropped++;
+                    else keep.Add(pt);
+                }
+                if (dropped > 0)
+                {
+                    r.Points.Clear();
+                    r.Points.AddRange(keep);
+                    r.FixturesPlaced = r.Points.Count;
+                    r.Warnings.Add($"MinSpacing: dropped {dropped} luminaire grid point(s) closer than {rule.MinSpacingMm:F0}mm.");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LightingGridCalculator.EnforceMinSpacing: {ex.Message}"); }
+        }
+
+        private void ComputeUniformityRatio(Room room, LightingGridResult r, PlacementRule rule)
+        {
+            try
+            {
+                if (r.Points == null || r.Points.Count == 0) return;
+                var bb = room.get_BoundingBox(null);
+                if (bb == null) return;
+                double areaFt2 = (bb.Max.X - bb.Min.X) * (bb.Max.Y - bb.Min.Y);
+                if (areaFt2 <= 0) return;
+
+                // Cap sample density when fixture count is high — uniformity
+                // surface converges quickly and 8×8 × 30+ fixtures dominates
+                // per-room runtime in large open-plan offices.
+                int samplesX = (r.FixturesRequired > 30) ? 4 : 8;
+                int samplesY = samplesX;
+                double minE = double.MaxValue, sumE = 0; int n = 0;
+                double illumPerLumPerFt2 = DefaultLumensPerLuminaire * UtilisationFactor * MaintenanceFactor / 1000.0;
+                for (int j = 0; j < samplesY; j++)
+                for (int i = 0; i < samplesX; i++)
+                {
+                    double sx = bb.Min.X + (i + 0.5) * (bb.Max.X - bb.Min.X) / samplesX;
+                    double sy = bb.Min.Y + (j + 0.5) * (bb.Max.Y - bb.Min.Y) / samplesY;
+                    double E = 0.0;
+                    foreach (var p in r.Points)
+                    {
+                        double dx = sx - p.X, dy = sy - p.Y;
+                        double d2 = Math.Max(dx * dx + dy * dy, 0.5);
+                        E += illumPerLumPerFt2 / d2;
+                    }
+                    if (E < minE) minE = E;
+                    sumE += E; n++;
+                }
+                if (n == 0) return;
+                double avgE = sumE / n;
+                if (avgE <= 0) return;
+                double uniformity = minE / avgE;
+                r.ActualUniformityRatio = uniformity;
+                // Phase 139.27 (X-02) — escalate to a per-rule threshold when
+                // the rule sets MinUniformityRatio (e.g. 0.70 for healthcare,
+                // 0.60 for offices). Falls back to the calculator's
+                // DefaultMinimumUniformity (0.40 = BS EN 12464-1 floor).
+                double minRatio = (rule != null && rule.MinUniformityRatio > 0)
+                    ? rule.MinUniformityRatio
+                    : DefaultMinimumUniformity;
+                if (uniformity < minRatio)
+                {
+                    string standard = minRatio >= 0.60 ? "CIBSE LG7" : "BS EN 12464-1";
+                    r.Warnings.Add(
+                        $"Uniformity Uo={uniformity:F2} below {minRatio:F2} ({standard}) — " +
+                        $"increase fixture count or reduce spacing. " +
+                        $"Required {r.FixturesRequired}, placed {r.FixturesPlaced} in room area {r.RoomAreaM2:F1}m².");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LightingGridCalculator.ComputeUniformityRatio: {ex.Message}");
+            }
         }
     }
 }

@@ -17,9 +17,13 @@ import * as Device from 'expo-device';
 import { theme } from '@/utils/theme';
 import { getBaseUrl, setBaseUrl, clearTokens } from '@/api/client';
 import { getMe } from '@/api/endpoints';
+import { useAuthStore } from '@/stores/authStore';
+import { realtime } from '@/services/realtimeClient';
+import { useProjectStore } from '@/stores/projectStore';
 import { useOfflineQueue } from '@/hooks/useOfflineQueue';
 import type { UserProfile } from '@/types/api';
 import { crashReporter } from '@/services/crashReporter';
+import { getThemePref, setThemePref, type ThemeMode } from '@/theme/theme';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -43,6 +47,15 @@ export default function SettingsScreen() {
   const [pushToken, setPushToken] = useState<string | null>(null);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [registeringPush, setRegisteringPush] = useState(false);
+
+  // Phase 165 (MOB-11) — theme preference state
+  const [themeMode, setThemeMode] = useState<ThemeMode>(getThemePref());
+
+  const handleThemeChange = useCallback(async (next: ThemeMode) => {
+    setThemeMode(next);
+    try { await setThemePref(next); }
+    catch (e) { crashReporter.warn('settings.theme persist failed', { err: String(e) }); }
+  }, []);
 
   // Load user profile and server URL on mount
   useEffect(() => {
@@ -137,7 +150,12 @@ export default function SettingsScreen() {
         text: 'Logout',
         style: 'destructive',
         onPress: async () => {
+          // A6 — clear auth state BEFORE disconnecting SignalR so any
+          // in-flight reconnect attempt finds no token and aborts.
+          useAuthStore.getState().clear();
+          useProjectStore.getState().clear();
           await clearTokens();
+          realtime.disconnect().catch(() => {});
           router.replace('/login');
         },
       },
@@ -277,6 +295,41 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      {/* ── Appearance (Phase 165 / MOB-11) ── */}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Appearance</Text>
+        <Text style={styles.mutedText}>
+          Light, dark, or follow your device. Restart the app for the change to apply across every screen.
+        </Text>
+        <View style={[styles.switchRow, { flexWrap: 'wrap' }]}>
+          {(['light', 'dark', 'system'] as ThemeMode[]).map((m) => (
+            <TouchableOpacity
+              key={m}
+              accessibilityRole="button"
+              accessibilityLabel={`Theme: ${m}`}
+              accessibilityState={{ selected: themeMode === m }}
+              onPress={() => handleThemeChange(m)}
+              style={[
+                styles.actionBtn,
+                themeMode === m
+                  ? { backgroundColor: theme.colors.accent, borderColor: theme.colors.accent }
+                  : { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 },
+                { minWidth: 80, marginHorizontal: theme.spacing.xs, marginVertical: theme.spacing.xs },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.actionBtnText,
+                  themeMode !== m && { color: theme.colors.text },
+                ]}
+              >
+                {m.charAt(0).toUpperCase() + m.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
       {/* ── Push Notifications ── */}
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Push Notifications</Text>
@@ -313,6 +366,17 @@ export default function SettingsScreen() {
         <InfoRow label="Version" value="1.0.0" />
         <InfoRow label="Platform" value={Platform.OS} />
       </View>
+
+      {/* Phase 144 — Project admin link. Always visible; permission to
+          actually flip toggles is enforced server-side. */}
+      <TouchableOpacity
+        style={styles.linkBtn}
+        onPress={() => router.push('/project-settings' as any)}
+        accessibilityLabel="Open project admin settings"
+      >
+        <Text style={styles.linkBtnText}>Project admin settings</Text>
+        <Text style={styles.linkArrow}>›</Text>
+      </TouchableOpacity>
 
       {/* ── Logout ── */}
       <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
@@ -538,6 +602,17 @@ const styles = StyleSheet.create({
   },
 
   // Logout
+  // Phase 144 — link row used for project-admin-settings entry point
+  linkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  linkBtnText: { flex: 1, fontSize: theme.fontSize.md, color: theme.colors.text, fontWeight: '600' },
+  linkArrow: { fontSize: theme.fontSize.xl, color: theme.colors.textSecondary, paddingLeft: theme.spacing.sm },
   logoutBtn: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,

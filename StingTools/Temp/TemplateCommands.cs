@@ -729,6 +729,7 @@ namespace StingTools.Temp
                     // Find appropriate base view, falling back to floor plan
                     if (!baseViews.TryGetValue(baseViewType, out View baseView))
                     {
+                        StingLog.Warn($"[TemplateCommands] No '{baseViewType}' base view found — falling back to FloorPlan for template '{name}'. Review template manually.");
                         if (!baseViews.TryGetValue(ViewType.FloorPlan, out baseView))
                         {
                             noBase++;

@@ -276,6 +276,26 @@ namespace StingTools.BIMManager
                         });
                     }
                 }
+
+                // BIM-EXCEL-CROSS-01: FUNC↔SYS validity matrix (Phase148Engine).
+                // Catches invalid combinations like FUNC=PWR on SYS=HVAC that the
+                // legacy ValidateTokenCrossRefs path doesn't cover.
+                if (!string.IsNullOrEmpty(sys) && !string.IsNullOrEmpty(func))
+                {
+                    var hits = FuncSysValidator.Validate(new[] {
+                        (row: 0, tagId: group.Key.ToString(), sys: sys, func: func)
+                    });
+                    foreach (var hit in hits)
+                    {
+                        warnings.Add(new ValidationWarning
+                        {
+                            ElementId = group.Key,
+                            Column = "FUNC_SYS_MATRIX",
+                            Value = $"SYS={sys},FUNC={func}",
+                            Message = hit.Reason
+                        });
+                    }
+                }
             }
 
             return warnings;
@@ -702,7 +722,25 @@ namespace StingTools.BIMManager
         {
             var result = new StreamingImportResult();
 
-            using var wb = new XLWorkbook(path);
+            // Phase 165 (BIM-EXCEL-STREAM-01 hardening): the underlying ClosedXML
+            // workbook still materialises the whole package into memory. Catch
+            // OOM here and surface guidance — the alternative would be a full
+            // OpenXmlReader rewrite, which is deferred until ClosedXML 1.x.
+            XLWorkbook wb;
+            try
+            {
+                wb = new XLWorkbook(path);
+            }
+            catch (OutOfMemoryException oom)
+            {
+                StingLog.Error($"Excel streaming import OOM at workbook load: {path}", oom);
+                throw new InvalidOperationException(
+                    "Excel file too large to load even in streaming mode. " +
+                    "Split the workbook into smaller files (e.g. one sheet per discipline) " +
+                    "and re-run the import.", oom);
+            }
+
+            using var _ = wb;
             var ws = wb.Worksheet("STING Data");
             if (ws == null)
             {
@@ -2770,7 +2808,7 @@ namespace StingTools.BIMManager
                                                 written = true;
                                                 break;
                                             case StorageType.Double:
-                                                if (double.TryParse(excelVal, out double dv))
+                                                if (double.TryParse(excelVal, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double dv))
                                                 { param.Set(dv); written = true; }
                                                 break;
                                             case StorageType.Integer:

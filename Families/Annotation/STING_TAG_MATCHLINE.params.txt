@@ -1,0 +1,57 @@
+# STING — Phase 169 — Match-line annotation tag family
+#
+# Author the .rfa in Revit as a Generic Annotation family
+# (OST_GenericAnnotation). MatchLineEngine prefers this family over
+# the TextNote fallback when it is loaded into the project.
+#
+# Behaviour: a chevron / arrow graphic + label, rotation respects the
+# detail-line direction so the arrow always points TOWARDS the paired
+# sheet. The label reads STING_MATCH_REF_TXT (the paired sheet's
+# STING_SHEET_FULL_REF). The leader (when present) extends from the
+# tag head to the line tip.
+
+REQUIRED PARAMETERS
+
+# Bound to shared params via GUID — must match
+# Data/STING_PARAMS_MATCHLINE.txt and the constants on
+# StingTools.Core.ParamRegistry.
+
+A6B7C8D9-EAFB-4ACC-5D6E-7F8A9BACDBEC    STING_MATCH_REF_TXT         (Text, Instance)
+A7B8C9DA-FBAC-4BCD-6E7F-8A9BACDBECFD    STING_MATCH_LINE_GUID_TXT   (Text, Instance)
+A8B9CADB-ACBD-4CDE-7F8A-9BACDBECFDAE    STING_MATCH_DIR_TXT         (Text, Instance)
+
+# Optional family-internal parameters
+ARROW_DIRECTION_TXT     (Text, Instance)         — "left" / "right" / "up" / "down"
+LEADER_LENGTH_MM        (Length, Instance)       — extension from tag head to line tip
+SHOW_ARROW_BOOL         (Yes/No, Instance)       — toggle the chevron graphic
+
+LAYOUT NOTES
+
+• Chevron / arrow graphic 6 mm × 4 mm at the tag head, drawn in the
+  matching discipline tint when MatchLineConfig.discipline.tintByDiscipline
+  is true (or always-red as per BS 1192 §A.6 default).
+• Label below / above the chevron carries STING_MATCH_REF_TXT;
+  caption format "see {paired_ref} →" matches MatchLineConfig.captions.tipFormat.
+• Tag rotation: bound to STING_MATCH_DIR_TXT — vertical match line ↔
+  horizontal arrow (pointing left or right), horizontal match line ↔
+  vertical arrow (up / down).
+• Sized at 2.5 mm text height (STING corporate text style baseline).
+
+WIRING
+
+When loaded into the project, MatchLineEngine.PlaceCurveSegment uses
+this tag instead of the TextNote fallback. The engine writes
+STING_MATCH_REF_TXT on the placed instance and reads STING_MATCH_DIR_TXT
+back to compute the rotation.
+
+When NOT loaded, MatchLineEngine falls back to TextNote.Create with
+the project's STING - 2.5mm text type — visually acceptable but the
+chevron arrow doesn't appear. StingLog.Warn surfaces the missing
+family on first run.
+
+FALLBACK CHAIN
+
+1. STING_TAG_MATCHLINE (preferred — chevron + leader + rotation)
+2. Project's TextNote type "STING - 2.5mm" (caption only)
+3. Default text-note type (no STING - 2.5mm in project)
+4. TaskDialog warning, no caption placed

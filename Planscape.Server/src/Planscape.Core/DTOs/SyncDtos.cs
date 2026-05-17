@@ -63,6 +63,57 @@ public record SyncConflictDto
     public DateTime? ServerTimestamp { get; init; }
     public DateTime? ClientTimestamp { get; init; }
     public string Resolution { get; init; } = "";
+    // S01 — additional fields populated by the GET /sync/conflicts list
+    // endpoint. Optional on the inline bulk-sync path, which still only
+    // sets ElementId/Server|ClientTimestamp/Resolution.
+    public Guid? Id { get; init; }
+    public string? ConflictType { get; init; }
+    public DateTime? ResolvedAt { get; init; }
+    public string? ResolvedBy { get; init; }
+}
+
+// ── S01 — sync watermark + conflict log REST DTOs ────────────────────
+public record SyncWatermarkDto
+{
+    public Guid Id { get; init; }
+    public Guid ProjectId { get; init; }
+    public string DeviceId { get; init; } = "";
+    public DateTime LastSyncUtc { get; init; }
+    public int ElementCount { get; init; }
+}
+
+public record UpsertWatermarkRequest
+{
+    public string DeviceId { get; init; } = "";
+    public DateTime LastSyncUtc { get; init; }
+    public int ElementCount { get; init; }
+}
+
+public record LogConflictRequest
+{
+    public string ElementId { get; init; } = "";
+    public string ConflictType { get; init; } = "";
+    /// <summary>
+    /// Optional value-level diff fields. Currently ignored server-side —
+    /// kept on the wire for forward compatibility so a future
+    /// ConflictPayload column can be populated without a client change.
+    /// </summary>
+    public string? ServerValue { get; init; }
+    public string? ClientValue { get; init; }
+    public string Resolution { get; init; } = "";
+    public string? ResolvedBy { get; init; }
+}
+
+public record DocumentVersionDto
+{
+    public Guid Id { get; init; }
+    public int VersionNumber { get; init; }
+    public string FilePath { get; init; } = "";
+    public string? FileHash { get; init; }
+    public long? FileSize { get; init; }
+    public string? UploadedBy { get; init; }
+    public DateTime UploadedAt { get; init; }
+    public string? ChangeDescription { get; init; }
 }
 
 public record ComplianceSummaryDto
@@ -128,6 +179,15 @@ public record RegisterRequest
     public string DisplayName      { get; init; } = "";
     public string Email            { get; init; } = "";
     public string Password         { get; init; } = "";
+
+    // S1.5 — optional billing surface picked up at signup time. Plan defaults
+    // to "Trial" (always 30 days regardless of the value the user picks);
+    // Currency drives whether the future invoices route to Stripe (USD/EUR/GBP)
+    // or Flutterwave (UGX/KES/TZS/RWF/NGN/ZAR/ZMW). Country is a 2-letter ISO
+    // hint that the signup flow uses to default the currency client-side.
+    public string? Plan        { get; init; }   // "Studio" | "Practice" | "Network"; null = "Network"
+    public string? Currency    { get; init; }   // "USD" | "UGX" | "KES" | "TZS" | "RWF" | "NGN" | "ZAR" | "EUR" | "GBP"
+    public string? CountryCode { get; init; }   // ISO 3166-1 alpha-2 hint
 }
 
 public record ChangePasswordRequest

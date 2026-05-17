@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Infrastructure.Data;
 using Planscape.MIM.Entities;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -13,6 +14,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId}/mim")]
 [Authorize]
+[ProjectAccess]
 public class MimController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
@@ -146,6 +148,61 @@ public class MimController : ControllerBase
             .ToListAsync();
 
         return Ok(tasks);
+    }
+
+    /// <summary>
+    /// Phase 178c (T3-22) — FM dashboard summary of upcoming + overdue
+    /// maintenance tasks for the next <paramref name="days"/> (default 30).
+    /// </summary>
+    [HttpGet("maintenance/upcoming")]
+    public async Task<ActionResult> GetUpcomingMaintenance(Guid projectId, [FromQuery] int days = 30)
+    {
+        if (!await IsMimEnabledAsync()) return Forbid("Planscape MIM addon not enabled");
+
+        if (days < 1) days = 1;
+        if (days > 365) days = 365;
+        var now = DateTime.UtcNow;
+        var horizon = now.AddDays(days);
+
+        var tasks = await _db.MaintenanceTasks
+            .Where(m => m.Asset!.ProjectId == projectId
+                     && m.Status != "COMPLETED"
+                     && m.NextDueDate.HasValue
+                     && m.NextDueDate <= horizon)
+            .Select(m => new
+            {
+                m.Id, m.TaskCode, m.Title, m.Description, m.Type, m.Priority, m.Status,
+                DueDate     = m.NextDueDate,
+                Assignee    = m.AssignedTo,
+                m.IsStatutory,
+                m.StandardReference,
+                AssetTag    = m.Asset!.AssetTag,
+                AssetName   = m.Asset.AssetName,
+                IsOverdue   = m.NextDueDate < now,
+                DaysUntilDue = m.NextDueDate.HasValue ? (int)(m.NextDueDate.Value - now).TotalDays : (int?)null,
+            })
+            .OrderBy(m => m.DueDate)
+            .ToListAsync();
+
+        var overdue   = tasks.Where(t => t.IsOverdue).ToList();
+        var dueSoon   = tasks.Where(t => !t.IsOverdue).ToList();
+        var statutory = tasks.Where(t => t.IsStatutory).ToList();
+
+        return Ok(new
+        {
+            horizonDays = days,
+            asOf = now,
+            counts = new
+            {
+                total = tasks.Count,
+                overdue = overdue.Count,
+                dueSoon = dueSoon.Count,
+                statutory = statutory.Count
+            },
+            overdue,
+            dueSoon,
+            statutory
+        });
     }
 
     [HttpPost("maintenance")]

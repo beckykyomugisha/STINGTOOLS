@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
@@ -149,6 +150,13 @@ namespace StingTools.Core
     /// Intelligent Revit warnings analysis engine. Classifies warnings by BIM domain,
     /// identifies auto-fixable issues, tracks trends against baseline, and provides
     /// per-level/workset/discipline breakdown for BIM coordinator triage.
+    ///
+    /// PERF NOTE: WarningsEngine does NOT subscribe to DocumentChanged or register
+    /// any IUpdater. Every entry point (ScanWarnings, BatchAutoFix, etc.) is invoked
+    /// on-demand from commands. ScanWarnings carries a 30-second cache TTL to absorb
+    /// rapid repeat calls. There is no concurrency risk with StingAutoTagger /
+    /// StingStaleMarker IUpdaters because WarningsEngine never runs inside a
+    /// DocumentChanged callback.
     /// </summary>
     internal static class WarningsEngine
     {
@@ -467,6 +475,12 @@ namespace StingTools.Core
             ("has duplicate Number value", WarningCategory.Data, WarningSeverity.Medium, "Auto-increment sheet/level number", true),
         };
 
+        // PERF-WARN-01: Pre-compiled Regex array — compiled once at class load,
+        // available for callers that need full regex semantics (e.g. boundary matching).
+        // The primary classification path uses _loweredPatterns + Contains for speed;
+        // _compiledPatterns is provided as an additive layer for exact-word matching.
+        private static readonly Regex[] _compiledPatterns;
+
         // PERF: Pre-build lookup dictionary for first-word matching to speed up classification.
         // Instead of O(n) linear scan through 120+ rules, first check if the warning's first
         // significant word matches any rule pattern prefix for O(1) average case.
@@ -477,10 +491,23 @@ namespace StingTools.Core
         static WarningsEngine()
         {
             _loweredPatterns = new string[ClassificationRules.Length];
+            _compiledPatterns = new Regex[ClassificationRules.Length];
             _ruleFirstWordIndex = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < ClassificationRules.Length; i++)
             {
                 _loweredPatterns[i] = ClassificationRules[i].pattern.ToLowerInvariant();
+                // PERF-WARN-01: compile each pattern as a regex for callers that need word-boundary matching
+                try
+                {
+                    _compiledPatterns[i] = new Regex(
+                        Regex.Escape(ClassificationRules[i].pattern),
+                        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+                }
+                catch
+                {
+                    // If pattern isn't valid regex (shouldn't happen with Escape, but be safe)
+                    _compiledPatterns[i] = new Regex("(?!)", RegexOptions.Compiled);
+                }
                 string firstWord = _loweredPatterns[i].Split(' ')[0];
                 if (!_ruleFirstWordIndex.TryGetValue(firstWord, out var list))
                 {
@@ -489,6 +516,14 @@ namespace StingTools.Core
                 }
                 list.Add(i);
             }
+        }
+
+        /// <summary>PERF-WARN-01: Check whether a description matches rule[i] using the pre-compiled Regex.
+        /// Use for callers needing full regex semantics; the primary classification path uses Contains.</summary>
+        internal static bool MatchesCompiledPattern(string description, int ruleIndex)
+        {
+            if (ruleIndex < 0 || ruleIndex >= _compiledPatterns.Length) return false;
+            return _compiledPatterns[ruleIndex].IsMatch(description);
         }
 
         // ── Suppression list (loaded from project_config.json) ──
@@ -1543,6 +1578,12 @@ namespace StingTools.Core
         {
             string docPath = doc?.PathName;
             if (string.IsNullOrEmpty(docPath)) return null;
+            try
+            {
+                string p = ProjectFolderEngine.GetDataPath(doc, "warnings_baseline.json");
+                if (!string.IsNullOrEmpty(p)) return p;
+            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return Path.ChangeExtension(docPath, ".sting_warnings_baseline.json");
         }
 
@@ -2023,7 +2064,9 @@ namespace StingTools.Core
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return;
                 // CRIT-06: JSONL append-only — avoids read/parse/rewrite on every call
-                string logPath = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", ".sting_coord_log.jsonl");
+                string logPath = ProjectFolderEngine.GetDataPath(doc, "coord_log.jsonl");
+                if (string.IsNullOrEmpty(logPath))
+                    logPath = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", ".sting_coord_log.jsonl");
 
                 var entry = new UI.BIMCoordinationCenter.CoordLogEntry
                 {
@@ -2243,7 +2286,7 @@ namespace StingTools.Core
                 string tempPath = path + ".tmp";
                 File.WriteAllText(tempPath, sb.ToString(), Encoding.UTF8);
                 try { File.Replace(tempPath, path, path + ".bak"); }
-                catch { if (File.Exists(tempPath)) { File.Copy(tempPath, path, true); try { File.Delete(tempPath); } catch { } } }
+                catch { if (File.Exists(tempPath)) { File.Copy(tempPath, path, true); try { File.Delete(tempPath); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } } }
 
                 StingLog.Info($"Extended warning baseline saved: {count} warnings, {typeEntries.Count} types with first-seen timestamps");
             }
@@ -3960,7 +4003,9 @@ namespace StingTools.Core
                             {
                                 string st = item.Value<string>("status") ?? "";
                                 bool overdue = false;
-                                string created = item.Value<string>("created_date") ?? "";
+                                string created = item.Value<string>("created_date")
+                                    ?? item.Value<string>("createdAt")
+                                    ?? item.Value<string>("date_raised") ?? "";
                                 string daysOpen = "";
                                 if (DateTime.TryParse(created, out DateTime cDate))
                                 {
@@ -3981,7 +4026,9 @@ namespace StingTools.Core
                                         if (!string.IsNullOrWhiteSpace(av)) assigneeList.Add(av.Trim());
                                     }
                                 }
-                                string singleAssignee = item.Value<string>("assignee") ?? item.Value<string>("created_by") ?? "";
+                                string singleAssignee = item.Value<string>("assignee")
+                                    ?? item.Value<string>("assigned_to")
+                                    ?? item.Value<string>("created_by") ?? "";
                                 if (assigneeList.Count == 0 && !string.IsNullOrWhiteSpace(singleAssignee))
                                     assigneeList.Add(singleAssignee.Trim());
 
@@ -3990,9 +4037,19 @@ namespace StingTools.Core
                                 var elemArr = item["element_ids"] as Newtonsoft.Json.Linq.JArray;
                                 if (elemArr != null) elemCount = elemArr.Count;
 
+                                // Location: prefer explicit field, fall back to lat/lng when available.
+                                string location = item.Value<string>("location") ?? "";
+                                if (string.IsNullOrEmpty(location))
+                                {
+                                    double? lat = item.Value<double?>("latitude");
+                                    double? lng = item.Value<double?>("longitude");
+                                    if (lat.HasValue && lng.HasValue)
+                                        location = $"{lat:F5},{lng:F5}";
+                                }
+
                                 issueRows.Add(new UI.BIMCoordinationCenter.IssueRow
                                 {
-                                    Id = item.Value<string>("id") ?? "",
+                                    Id = item.Value<string>("id") ?? item.Value<string>("issue_id") ?? "",
                                     Title = item.Value<string>("title") ?? "",
                                     Type = item.Value<string>("type") ?? "",
                                     Priority = item.Value<string>("priority") ?? "",
@@ -4005,7 +4062,11 @@ namespace StingTools.Core
                                     ElementCount = elemCount,
                                     Created = created.Length > 10 ? created.Substring(0, 10) : created,
                                     IsOverdue = overdue,
-                                    DaysOpen = daysOpen
+                                    DaysOpen = daysOpen,
+                                    RaisedBy = item.Value<string>("raised_by")
+                                               ?? item.Value<string>("created_by")
+                                               ?? item.Value<string>("createdBy") ?? "",
+                                    Location = location
                                 });
                             }
                         }
@@ -4155,8 +4216,12 @@ namespace StingTools.Core
                 // Phase 49: Load coordination log from sidecar
                 try
                 {
-                    string coordLogPath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "",
-                        ".sting_coord_log.json");
+                    string coordLogPath = ProjectFolderEngine.GetDataPath(doc, "coord_log.json");
+                    if (string.IsNullOrEmpty(coordLogPath) || !File.Exists(coordLogPath))
+                    {
+                        coordLogPath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "",
+                            ".sting_coord_log.json");
+                    }
                     if (File.Exists(coordLogPath))
                     {
                         var logEntries = Newtonsoft.Json.JsonConvert.DeserializeObject<List<UI.BIMCoordinationCenter.CoordLogEntry>>(
@@ -4289,6 +4354,44 @@ namespace StingTools.Core
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"BuildCoordData: permissions restore failed: {ex.Message}"); }
+
+                // Phase 165 (TPL-FOLLOW-03) — populate the user's workflow queue.
+                // Driven by the workflow instance store under _BIM_COORD/workflows/.
+                // Failures are logged and the empty list flows through so the
+                // Workflows tab shows the "inbox zero" hint instead of crashing.
+                try
+                {
+                    string userKey = Environment.UserName ?? "";
+                    var instances = Planscape.Docs.Workflow.WorkflowEngine.GetMyQueue(doc, userKey);
+                    if (instances != null && instances.Count > 0)
+                    {
+                        var registry = Planscape.Docs.Workflow.WorkflowRegistry.Load(doc);
+                        foreach (var inst in instances)
+                        {
+                            var def = registry?.Get(inst.WorkflowId);
+                            string sla = "GREEN";
+                            string dueLocal = "";
+                            if (!string.IsNullOrEmpty(inst.SlaDeadline) &&
+                                DateTime.TryParse(inst.SlaDeadline, out var deadline))
+                            {
+                                dueLocal = deadline.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+                                var hoursLeft = (deadline - DateTime.UtcNow).TotalHours;
+                                if (hoursLeft < 0) sla = "RED";
+                                else if (hoursLeft < 8) sla = "AMBER";
+                            }
+                            coordData.MyQueue.Add(new UI.BIMCoordinationCenter.MyQueueRow
+                            {
+                                DocId = inst.DocId ?? "",
+                                Subject = "",
+                                Step = inst.State ?? "",
+                                Workflow = def?.Name ?? inst.WorkflowId ?? "",
+                                DueLocal = dueLocal,
+                                SlaStatus = sla,
+                            });
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BuildCoordData: My Queue load failed: {ex.Message}"); }
 
                 StingLog.Info($"BIMCoordCenter built: health={healthScore}, warnings={warningReport.Total}, compliance={tagPct:F1}%");
                 return coordData;
@@ -4555,7 +4658,7 @@ namespace StingTools.Core
                         string projectName = doc?.Title ?? "BIMProject";
                         string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmm");
                         string link = $"planscape://dashboard/{projectName}/{timestamp}";
-                        try { System.Windows.Clipboard.SetText(link); } catch { }
+                        try { System.Windows.Clipboard.SetText(link); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         TaskDialog.Show("STING — Planscape",
                             $"Dashboard link copied to clipboard:\n{link}\n\nShare with your team or embed in a QR code.");
                         return;
@@ -4572,7 +4675,7 @@ namespace StingTools.Core
                             "  - Deliverables and revisions\n\n" +
                             "Generated by BIM Coordination Center (STINGTOOLS BCC).\n" +
                             "For the full dashboard, request the HTML export from your BIM Manager.";
-                        try { System.Windows.Clipboard.SetText(body); } catch { }
+                        try { System.Windows.Clipboard.SetText(body); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         TaskDialog.Show("STING — Email Report",
                             "Email draft copied to clipboard.\n\n" +
                             "Paste into your email client (Outlook, Gmail, etc.). Attach the HTML " +
@@ -4591,7 +4694,7 @@ namespace StingTools.Core
                             "\u2022 Open issues and action items\n" +
                             "\u2022 Deliverables tracking\n\n" +
                             "[View Dashboard] \u2014 Use STING > BCC > Platform > Planscape to export HTML dashboard";
-                        try { System.Windows.Clipboard.SetText(msg); } catch { }
+                        try { System.Windows.Clipboard.SetText(msg); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         TaskDialog.Show("STING — Teams Message",
                             "Teams message copied to clipboard.\nPaste into your Microsoft Teams or Slack channel.");
                         return;
@@ -4604,7 +4707,7 @@ namespace StingTools.Core
                             $"{DateTime.Today:dd/MM/yyyy}\n\n" +
                             "Coordination status updated. Open issues and action items require attention.\n\n" +
                             "For full dashboard: Request HTML report from BIM Manager.";
-                        try { System.Windows.Clipboard.SetText(msg); } catch { }
+                        try { System.Windows.Clipboard.SetText(msg); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         TaskDialog.Show("STING — WhatsApp",
                             "WhatsApp message copied to clipboard.\nPaste into WhatsApp chat.");
                         return;
@@ -4682,7 +4785,7 @@ namespace StingTools.Core
                         {
                             var ids = rawIds.Select(v => new ElementId(v)).ToList();
                             uiDoc.Selection.SetElementIds(ids);
-                            try { uiDoc.ShowElements(ids); } catch { }
+                            try { uiDoc.ShowElements(ids); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                         else
                         {
@@ -5399,6 +5502,24 @@ namespace StingTools.Core
                 { "ACCPublish", "ACCPublish" },
                 { "SharePointExport", "SharePointExport" },
 
+                // Phase 167 — Planscape BCC dispatch entries. Disconnect /
+                // OpenWebDashboard short-circuit inline in ProcessAction; the
+                // remaining tags need an explicit dictionary entry so the
+                // resolver lookup hits a real command and never falls through
+                // to the "Action 'X' is not handled" toast.
+                { "PlanscapeConnect",          "PlanscapeConnect" },
+                { "PlanscapeDisconnect",       "PlanscapeDisconnect" },
+                { "PlanscapeOpenWebDashboard", "PlanscapeOpenWebDashboard" },
+                { "PlanscapeSyncNow",          "PlanscapeSyncNow" },
+                { "PlanscapeAddMember",        "PlanscapeConnect" },
+                { "PlanscapeRemoveMember",     "PlanscapeConnect" },
+                { "PlanscapeLinkProject",      "PlanscapeConnect" },
+                { "PlanscapeTestConnection",   "PlanscapeConnect" },
+                { "PlanscapeUnlinkProject",    "PlanscapeDisconnect" },
+                { "PlanscapeClearCredentials", "PlanscapeDisconnect" },
+                { "PlanscapeOpenBrowser",      "PlanscapeOpenWebDashboard" },
+                { "PublishModelToPlanscape",   "PublishModelToPlanscape" },
+
                 // Workflow actions
                 { "RunWorkflowPreset", "WorkflowPreset" },
                 { "CreateWorkflowPreset", "CreateWorkflowPreset" },
@@ -5565,6 +5686,34 @@ namespace StingTools.Core
                 return;
             }
 
+            // BCC Platform tab → Planscape inline actions that aren't IExternalCommand classes.
+            // StingCommandHandler.Execute handles these inline; mirror that here so BCC's
+            // ExternalEvent path doesn't fall through to "Action 'X' is not handled".
+            if (string.Equals(action, "PlanscapeDisconnect", StringComparison.OrdinalIgnoreCase)
+             || string.Equals(action, "PlanscapeUnlinkProject", StringComparison.OrdinalIgnoreCase)
+             || string.Equals(action, "PlanscapeClearCredentials", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    BIMManager.PlanscapeServerClient.Instance.Disconnect();
+                    if (string.Equals(action, "PlanscapeDisconnect", StringComparison.OrdinalIgnoreCase))
+                        TaskDialog.Show("Planscape", "Disconnected from Planscape server.");
+                }
+                catch (Exception ex) { StingLog.Warn($"{action} dispatch: {ex.Message}"); }
+                return;
+            }
+            if (string.Equals(action, "PlanscapeSyncNow", StringComparison.OrdinalIgnoreCase)
+             || string.Equals(action, "PlanscapeOpenBrowser", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var uiApp = UI.StingCommandHandler.CurrentApp;
+                    if (uiApp != null) BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(uiApp);
+                }
+                catch (Exception ex) { StingLog.Warn($"{action} dispatch: {ex.Message}"); }
+                return;
+            }
+
             // Handle DocumentManager inline (opens WPF dialog directly)
             if (string.Equals(action, "DocumentManager", StringComparison.OrdinalIgnoreCase))
             {
@@ -5576,6 +5725,31 @@ namespace StingTools.Core
                         UI.DocumentManagementDialog.Show(doc2);
                 }
                 catch (Exception ex) { StingLog.Warn($"DocumentManager dispatch: {ex.Message}"); }
+                return;
+            }
+
+            // BCC's Planscape Native Collaboration Hub fires Planscape* actions
+            // (PlanscapeConnect / PlanscapeDisconnect / PlanscapeSyncNow / etc).
+            // StingCommandHandler already wires every Planscape tag with its own
+            // case block — including the ones that aren't IExternalCommands like
+            // Disconnect (which just calls PlanscapeServerClient.Instance.Disconnect()).
+            // Forward the whole Planscape namespace to StingCommandHandler so the
+            // BCC dispatch path doesn't have to duplicate every binding here.
+            if (action.StartsWith("Planscape", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    bool ok = UI.StingDockPanel.DispatchCommand(action);
+                    if (ok)
+                        StingLog.Info($"DispatchCoordAction: forwarded '{action}' to StingCommandHandler");
+                    else
+                        StingLog.Warn($"DispatchCoordAction: forward '{action}' failed — StingDockPanel handler not initialised");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"DispatchCoordAction: forward '{action}' failed — {ex.Message}");
+                    TaskDialog.Show("STING", $"Command '{action}' failed:\n{ex.Message}");
+                }
                 return;
             }
 

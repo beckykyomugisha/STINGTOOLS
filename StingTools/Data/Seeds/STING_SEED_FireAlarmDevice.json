@@ -1,0 +1,292 @@
+{
+  "version": "1.0",
+  "standard": "STING SEED FAMILY — Fire Alarm Devices (BS 5839-1, BS EN 54)",
+  "_notes": [
+    "14 type variants covering detectors (optical, ionisation, heat,",
+    "multi-sensor, CO, combined, duct, gas), call points, sounder/beacon",
+    "VADs, beam detectors, and addressable loop interface modules."
+  ],
+  "symbols": [
+    {
+      "id": "STING_SEED_FireAlarmDevice",
+      "name": "STING Seed — Fire Alarm Device",
+      "category": "Fire Alarm Devices",
+      "familyType": "SeedFamily",
+      "discipline": "FireProtection",
+      "subcategory": "STING_SEED",
+      "isSeed": true,
+      "protectExisting": true,
+      "hosting": "FaceBased",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_FireAlarmDevice"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "FP"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "SMK"
+        },
+        {
+          "name": "FLS_DEV_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "SMOKE_OPTICAL"
+        },
+        {
+          "name": "FLS_DEV_MOUNT_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "CEILING"
+        },
+        {
+          "name": "FLS_DEV_ZONE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "ZONE_01"
+        },
+        {
+          "name": "FLS_DEV_LOOP_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "L1"
+        },
+        {
+          "name": "FLS_DEV_LOOP_ADDR_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "FLS_DEV_CERT_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "BS EN 54-7"
+        },
+        {
+          "name": "ELC_CIRCUIT_GROUP_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "fire-alarm"
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          { "x1": -0.35, "y1": -0.35, "x2": 0.35, "y2": 0.35 },
+          { "x1": -0.35, "y1": 0.35, "x2": 0.35, "y2": -0.35 }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 110,
+        "depthMm": 110,
+        "heightMm": 50
+      },
+      "swapCandidates": [
+        {
+          "label": "Apollo / Hochiki Detector Range",
+          "familyPath": "",
+          "variantPattern": "SMOKE_*|HEAT_*|MULTI_*",
+          "priority": 1,
+          "autoLoad": false
+        },
+        {
+          "label": "Hochiki VAD/Sounder",
+          "familyPath": "",
+          "variantPattern": "SOUNDER_BEACON_VAD",
+          "priority": 2,
+          "autoLoad": false
+        }
+      ],
+      "typeVariants": [
+        {
+          "_group": "--- SMOKE DETECTORS ---"
+        },
+        {
+          "name": "SMOKE_OPTICAL",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "SMOKE_OPTICAL",
+            "ASS_PRODCT_COD_TXT": "SMK",
+            "FLS_DEV_CERT_TXT": "BS EN 54-7"
+          }
+        },
+        {
+          "name": "SMOKE_IONISATION",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "SMOKE_IONISATION",
+            "ASS_PRODCT_COD_TXT": "SMK-I",
+            "FLS_DEV_CERT_TXT": "BS EN 54-7"
+          }
+        },
+        {
+          "_group": "--- HEAT DETECTORS ---"
+        },
+        {
+          "name": "HEAT_DETECTOR",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "HEAT_DETECTOR",
+            "ASS_PRODCT_COD_TXT": "HEA",
+            "FLS_DEV_CERT_TXT": "BS EN 54-5"
+          }
+        },
+        {
+          "_group": "--- MULTI / COMBINED ---"
+        },
+        {
+          "name": "MULTI_SENSOR",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "MULTI_SENSOR",
+            "ASS_PRODCT_COD_TXT": "MSD",
+            "FLS_DEV_CERT_TXT": "BS EN 54-29"
+          }
+        },
+        {
+          "name": "SMOKE_HEAT_COMBINED",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "SMOKE_HEAT_COMBINED",
+            "ASS_PRODCT_COD_TXT": "SHD",
+            "FLS_DEV_CERT_TXT": "BS EN 54-7 / 54-5"
+          }
+        },
+        {
+          "_group": "--- GAS / CO DETECTORS ---"
+        },
+        {
+          "name": "CARBON_MONOXIDE",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "CARBON_MONOXIDE",
+            "ASS_PRODCT_COD_TXT": "CO",
+            "FLS_DEV_CERT_TXT": "BS EN 50291 / BS EN 54-26"
+          }
+        },
+        {
+          "name": "GAS_DETECTOR",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "GAS_DETECTOR",
+            "ASS_PRODCT_COD_TXT": "GSD",
+            "FLS_DEV_CERT_TXT": "BS EN 61779"
+          }
+        },
+        {
+          "_group": "--- SPECIALIST DETECTORS ---"
+        },
+        {
+          "name": "DUCT_DETECTOR",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "DUCT_DETECTOR",
+            "ASS_PRODCT_COD_TXT": "DDT",
+            "FLS_DEV_MOUNT_TXT": "DUCT",
+            "FLS_DEV_CERT_TXT": "BS EN 54-7 (duct sampling)"
+          }
+        },
+        {
+          "name": "BEAM_DETECTOR",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "BEAM_DETECTOR",
+            "ASS_PRODCT_COD_TXT": "BMD",
+            "FLS_DEV_CERT_TXT": "BS EN 54-12"
+          }
+        },
+        {
+          "_group": "--- MANUAL CALL POINTS ---"
+        },
+        {
+          "name": "CALL_POINT_MCP",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "CALL_POINT_MCP",
+            "ASS_PRODCT_COD_TXT": "MCP",
+            "FLS_DEV_MOUNT_TXT": "WALL",
+            "FLS_DEV_CERT_TXT": "BS EN 54-11"
+          }
+        },
+        {
+          "_group": "--- SOUNDERS / NOTIFICATION ---"
+        },
+        {
+          "name": "SOUNDER_BEACON_VAD",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "SOUNDER_BEACON_VAD",
+            "ASS_PRODCT_COD_TXT": "SVC",
+            "FLS_DEV_CERT_TXT": "BS EN 54-3 / 54-23"
+          }
+        },
+        {
+          "_group": "--- INTERFACE / ADDRESSABLE MODULES ---"
+        },
+        {
+          "name": "INTERFACE_MODULE",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "INTERFACE_MODULE",
+            "ASS_PRODCT_COD_TXT": "IFM",
+            "FLS_DEV_CERT_TXT": "BS EN 54-17"
+          }
+        },
+        {
+          "name": "INPUT_MODULE",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "INPUT_MODULE",
+            "ASS_PRODCT_COD_TXT": "INM",
+            "FLS_DEV_CERT_TXT": "BS EN 54-17"
+          }
+        },
+        {
+          "name": "OUTPUT_MODULE",
+          "params": {
+            "FLS_DEV_TYPE_TXT": "OUTPUT_MODULE",
+            "ASS_PRODCT_COD_TXT": "OTM",
+            "FLS_DEV_CERT_TXT": "BS EN 54-17"
+          }
+        }
+      ]
+    }
+  ]
+}

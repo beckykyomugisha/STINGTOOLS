@@ -1,9 +1,14 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
+using Planscape.Infrastructure.SignalR;
+using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
 
@@ -13,11 +18,59 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId}/transmittals")]
 [Authorize]
+[ProjectAccess]
 public class TransmittalsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
+    // GAP-FIX-SIGNALR — broadcast TransmittalUpdated to project subscribers on
+    // create / bulk-create / send. Both the Revit plugin (PlanscapeRealtimeClient)
+    // and the mobile app (realtimeClient.ts) already listen for this event;
+    // server-side broadcasts had been missed in the original wiring.
+    private readonly IHubContext<NotificationHub> _notifHub;
+    private readonly ISequenceCounterService _seq;
 
-    public TransmittalsController(PlanscapeDbContext db) => _db = db;
+    // Phase 175 audit P1-15-tx — single counter key per project. Bump
+    // the suffix when a different code series is introduced (e.g.
+    // "tx:rev2") so the SeqCounter row stays unique-per-format.
+    private const string TransmittalCounterKey = "transmittal:tx";
+
+    public TransmittalsController(PlanscapeDbContext db, IHubContext<NotificationHub> notifHub, ISequenceCounterService seq)
+    {
+        _db = db;
+        _notifHub = notifHub;
+        _seq = seq;
+    }
+
+    /// <summary>
+    /// Phase 175 — one-shot scan of existing TX-#### codes so the
+    /// counter starts ahead of any historic value. After the SeqCounter
+    /// row is materialised, subsequent allocations skip this scan.
+    /// </summary>
+    private async Task<int> ResolveSeedFloorAsync(Guid projectId, CancellationToken ct)
+    {
+        // Already-materialised counters short-circuit immediately.
+        var existing = await _db.SeqCounters.AsNoTracking()
+            .Where(s => s.ProjectId == projectId && s.CounterKey == TransmittalCounterKey)
+            .Select(s => (int?)s.CurrentValue)
+            .FirstOrDefaultAsync(ct);
+        if (existing.HasValue) return 0;
+
+        // Cold start — scan once. The seed only matters until the
+        // first allocation writes the row; from then on the counter
+        // is authoritative.
+        var maxFromHistory = await _db.Transmittals
+            .Where(t => t.ProjectId == projectId)
+            .Select(t => t.TransmittalCode)
+            .ToListAsync(ct);
+        int floor = 0;
+        foreach (var code in maxFromHistory)
+        {
+            var parts = code.Split('-');
+            if (parts.Length == 2 && int.TryParse(parts[1], out int n) && n > floor)
+                floor = n;
+        }
+        return floor;
+    }
 
     [HttpGet]
     public async Task<ActionResult> GetTransmittals(Guid projectId,
@@ -42,20 +95,19 @@ public class TransmittalsController : ControllerBase
         var tenantId = GetTenantId();
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
-        // Auto-generate collision-safe TX code — scan max numeric suffix
-        var existingCodes = await _db.Transmittals
-            .Where(t => t.ProjectId == projectId)
-            .Select(t => t.TransmittalCode)
-            .ToListAsync();
-
-        int nextNum = 1;
-        foreach (var code in existingCodes)
-        {
-            var parts = code.Split('-');
-            if (parts.Length == 2 && int.TryParse(parts[1], out int n) && n >= nextNum)
-                nextNum = n + 1;
-        }
+        // Phase 175 audit P1-15-tx — atomic counter via SeqCounter +
+        // Postgres UPSERT RETURNING. Replaces the prior O(N) scan +
+        // race-prone in-memory MAX. seedFloor handles cold start
+        // against legacy data so the counter never collides with
+        // historic codes.
+        var seedFloor = await ResolveSeedFloorAsync(projectId, HttpContext.RequestAborted);
+        var nextNum = await _seq.AllocateAsync(
+            tenantId, projectId, TransmittalCounterKey,
+            seedFloor: seedFloor, count: 1,
+            updatedBy: User.FindFirst("display_name")?.Value,
+            ct: HttpContext.RequestAborted);
 
         var transmittal = new Transmittal
         {
@@ -84,7 +136,99 @@ public class TransmittalsController : ControllerBase
         });
 
         await _db.SaveChangesAsync();
+
+        // GAP-FIX-SIGNALR — broadcast TransmittalUpdated. Fire-and-forget so
+        // a slow SignalR fanout doesn't block the API response.
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("TransmittalUpdated", new
+        {
+            transmittal.Id, transmittal.TransmittalCode, transmittal.Recipient,
+            transmittal.Status, transmittal.CreatedAt, transmittal.SentAt,
+            projectId, kind = "created"
+        });
+
         return CreatedAtAction(nameof(GetTransmittals), new { projectId }, transmittal);
+    }
+
+    /// <summary>
+    /// Phase 142 — bulk-create endpoint so the offline queue and the
+    /// plugin's PlanscapeServerClient can flush a backlog in one round-trip
+    /// instead of N. Caps at 200 per call to keep request bodies bounded;
+    /// caller must chunk larger batches. The TX code sequence is computed
+    /// once and incremented in-memory to avoid scanning N times.
+    /// </summary>
+    [HttpPost("bulk")]
+    public async Task<ActionResult> BulkCreate(Guid projectId, [FromBody] List<CreateTransmittalRequest> reqs)
+    {
+        if (reqs == null) return BadRequest("Body must be a JSON array");
+        if (reqs.Count == 0) return Ok(new { created = 0, items = Array.Empty<object>() });
+        if (reqs.Count > 200) return BadRequest("Maximum 200 transmittals per bulk operation");
+
+        var tenantId = GetTenantId();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (project == null) return NotFound("Project not found");
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+
+        // Phase 175 audit P1-15-tx — bulk allocation in one round-trip.
+        // The counter is bumped by `count` atomically; we then iterate
+        // (lastValue - count + 1) … lastValue for per-row codes.
+        var seedFloor = await ResolveSeedFloorAsync(projectId, HttpContext.RequestAborted);
+        var lastNum = await _seq.AllocateAsync(
+            tenantId, projectId, TransmittalCounterKey,
+            seedFloor: seedFloor, count: reqs.Count,
+            updatedBy: User.FindFirst("display_name")?.Value,
+            ct: HttpContext.RequestAborted);
+        int nextNum = lastNum - reqs.Count + 1;
+
+        var createdBy = User.FindFirst("display_name")?.Value ?? "Unknown";
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+
+        var rows = new List<Transmittal>(reqs.Count);
+        foreach (var req in reqs)
+        {
+            var t = new Transmittal
+            {
+                ProjectId = projectId,
+                TransmittalCode = $"TX-{nextNum:D4}",
+                Recipient = req.Recipient,
+                Notes = req.Notes,
+                DocumentIdsJson = req.DocumentIdsJson,
+                CreatedBy = createdBy
+            };
+            nextNum++;
+            rows.Add(t);
+            _db.Transmittals.Add(t);
+            _db.AuditLogs.Add(new AuditLog
+            {
+                TenantId = tenantId,
+                ProjectId = projectId,
+                UserId = userId,
+                Action = "transmittal_created",
+                EntityType = "Transmittal",
+                EntityId = t.Id.ToString(),
+                DetailsJson = JsonSerializer.Serialize(new { t.TransmittalCode, t.Recipient, bulk = true }),
+                Timestamp = DateTime.UtcNow
+            });
+        }
+
+        await _db.SaveChangesAsync();
+
+        // GAP-FIX-SIGNALR — single bulk-event with the count + first/last code,
+        // not one event per row. A 200-row bulk would otherwise spam every
+        // subscribed client with 200 individual messages.
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("TransmittalUpdated", new
+        {
+            projectId,
+            kind = "bulk_created",
+            count = rows.Count,
+            firstCode = rows.FirstOrDefault()?.TransmittalCode,
+            lastCode  = rows.LastOrDefault()?.TransmittalCode,
+        });
+
+        return Ok(new
+        {
+            created = rows.Count,
+            items = rows.Select(r => new { r.Id, r.TransmittalCode, r.Recipient, r.Status, r.CreatedAt })
+        });
     }
 
     [HttpPut("{txId}/send")]
@@ -94,6 +238,7 @@ public class TransmittalsController : ControllerBase
         var tx = await _db.Transmittals
             .FirstOrDefaultAsync(t => t.Id == txId && t.ProjectId == projectId && t.Project!.TenantId == tenantId);
         if (tx == null) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         tx.Status = "SENT";
         tx.SentAt = DateTime.UtcNow;
@@ -113,6 +258,16 @@ public class TransmittalsController : ControllerBase
         });
 
         await _db.SaveChangesAsync();
+
+        // GAP-FIX-SIGNALR — broadcast TransmittalUpdated. The "sent" transition
+        // is the most interesting moment for clients to react to (mobile inbox
+        // moves the row to "Sent", plugin closes any open compose dialog).
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("TransmittalUpdated", new
+        {
+            tx.Id, tx.TransmittalCode, tx.Recipient, tx.Status, tx.SentAt,
+            projectId, kind = "sent"
+        });
+
         return Ok(tx);
     }
 

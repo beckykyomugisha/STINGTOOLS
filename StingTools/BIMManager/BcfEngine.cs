@@ -73,6 +73,16 @@ namespace Planscape.Shared.BCF
 
         /// <summary>Optional reference link (BCF Topic/ReferenceLink) — usually the STING issue code.</summary>
         public string? ReferenceLink { get; set; }
+
+        /// <summary>
+        /// Optional pre-built BCF 2.1 viewpoint XML (.bcfv contents). When set,
+        /// <see cref="BcfEngine.Export"/> writes this in place of the default
+        /// stub camera so downstream viewers (BIMcollab, ACC, Solibri) open
+        /// the topic with a real spatial anchor. Build via
+        /// <c>StingTools.Core.Clash.BcfViewpointBuilder</c> or any other
+        /// source that emits VisualizationInfo XML.
+        /// </summary>
+        public string? ViewpointBcfvXml { get; set; }
     }
 
     /// <summary>
@@ -203,7 +213,7 @@ namespace Planscape.Shared.BCF
                         : issue.Guid;
 
                     WriteXmlEntry(zip, $"{guid}/markup.bcf",     BuildMarkupXml(issue, guid));
-                    WriteXmlEntry(zip, $"{guid}/viewpoint.bcfv", BuildViewpointStubXml(System.Guid.NewGuid().ToString()));
+                    WriteViewpointEntry(zip, guid, issue);
                     topicCount++;
                 }
             }
@@ -233,10 +243,36 @@ namespace Planscape.Shared.BCF
                     if (issue == null) continue;
                     string guid = string.IsNullOrWhiteSpace(issue.Guid) ? System.Guid.NewGuid().ToString() : issue.Guid;
                     WriteXmlEntry(zip, $"{guid}/markup.bcf",     BuildMarkupXml(issue, guid));
-                    WriteXmlEntry(zip, $"{guid}/viewpoint.bcfv", BuildViewpointStubXml(System.Guid.NewGuid().ToString()));
+                    WriteViewpointEntry(zip, guid, issue);
                 }
             }
             return ms.ToArray();
+        }
+
+        /// <summary>
+        /// Writes the viewpoint.bcfv entry for a topic. Uses
+        /// <see cref="CoordIssue.ViewpointBcfvXml"/> when supplied (caller
+        /// built a real spatial viewpoint) and falls back to the stub
+        /// camera otherwise.
+        /// </summary>
+        private static void WriteViewpointEntry(ZipArchive zip, string guid, CoordIssue issue)
+        {
+            string entry = $"{guid}/viewpoint.bcfv";
+            if (!string.IsNullOrWhiteSpace(issue.ViewpointBcfvXml))
+            {
+                try
+                {
+                    var doc = XDocument.Parse(issue.ViewpointBcfvXml);
+                    WriteXmlEntry(zip, entry, doc);
+                    return;
+                }
+                catch
+                {
+                    // Caller-supplied XML was malformed; fall through to stub.
+                    Warn?.Invoke($"BcfEngine: invalid ViewpointBcfvXml on topic {guid}; using stub.");
+                }
+            }
+            WriteXmlEntry(zip, entry, BuildViewpointStubXml(System.Guid.NewGuid().ToString()));
         }
 
         // ── Import ─────────────────────────────────────────────────────────

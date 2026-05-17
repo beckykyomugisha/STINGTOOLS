@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 357 320" width="357mm" height="320mm" style="background:#fafafa;font-family:Helvetica,Arial,sans-serif;">
+<rect x="0" y="0" width="357" height="50" fill="#1F4E79"/>
+<text x="178.5" y="22.5" text-anchor="middle" fill="#fff" font-size="14" font-weight="bold">STING_TB_A4_BIM_v2.0</text>
+<text x="178.5" y="39.0" text-anchor="middle" fill="#cfe2ff" font-size="9">paper 297 × 210 mm   ·   mode=BIM</text>
+<g transform="translate(30,290) scale(1,-1)">
+<rect x="0" y="0" width="297" height="210" fill="#ffffff" stroke="#1a1a1a" stroke-width="0.6"/>
+<rect x="65.34" y="64.8" width="59.39999999999999" height="7.200000000000003" fill="#F2A341" opacity="0.85"/>
+<rect x="0" y="70.5" width="297" height="1.5" fill="#1F4E79" opacity="0.85"/>
+<line x1="0" y1="0" x2="841"  y2="0" stroke="#000" stroke-width="0.7"/>
+<line x1="841" y1="0" x2="841"  y2="594" stroke="#000" stroke-width="0.7"/>
+<line x1="841" y1="594" x2="0"  y2="594" stroke="#000" stroke-width="0.7"/>
+<line x1="0" y1="594" x2="0"  y2="0" stroke="#000" stroke-width="0.7"/>
+<line x1="0" y1="110" x2="841"  y2="110" stroke="#222" stroke-width="0.35"/>
+<line x1="200" y1="0" x2="200"  y2="110" stroke="#444" stroke-width="0.18"/>
+<line x1="400" y1="0" x2="400"  y2="110" stroke="#444" stroke-width="0.18"/>
+<line x1="620" y1="0" x2="620"  y2="110" stroke="#444" stroke-width="0.18"/>
+<line x1="820" y1="0" x2="820"  y2="110" stroke="#444" stroke-width="0.18"/>
+<line x1="0" y1="50" x2="200"  y2="50" stroke="#444" stroke-width="0.18"/>
+<line x1="0" y1="35" x2="200"  y2="35" stroke="#444" stroke-width="0.18"/>
+<line x1="0" y1="20" x2="200"  y2="20" stroke="#444" stroke-width="0.18"/>
+<line x1="200" y1="85" x2="400"  y2="85" stroke="#444" stroke-width="0.18"/>
+<line x1="200" y1="60" x2="400"  y2="60" stroke="#444" stroke-width="0.18"/>
+<line x1="200" y1="35" x2="400"  y2="35" stroke="#444" stroke-width="0.18"/>
+<line x1="620" y1="90" x2="820"  y2="90" stroke="#444" stroke-width="0.18"/>
+<line x1="620" y1="72" x2="820"  y2="72" stroke="#444" stroke-width="0.18"/>
+<line x1="680" y1="72" x2="680"  y2="110" stroke="#444" stroke-width="0.18"/>
+<line x1="750" y1="72" x2="750"  y2="110" stroke="#444" stroke-width="0.18"/>
+<line x1="0" y1="0" x2="297"  y2="0" stroke="#000" stroke-width="0.7"/>
+<line x1="297" y1="0" x2="297"  y2="210" stroke="#000" stroke-width="0.7"/>
+<line x1="297" y1="210" x2="0"  y2="210" stroke="#000" stroke-width="0.7"/>
+<line x1="0" y1="210" x2="0"  y2="0" stroke="#000" stroke-width="0.7"/>
+<line x1="0" y1="56" x2="297"  y2="56" stroke="#222" stroke-width="0.35"/>
+<line x1="65" y1="0" x2="65"  y2="56" stroke="#444" stroke-width="0.18"/>
+<line x1="125" y1="0" x2="125"  y2="56" stroke="#444" stroke-width="0.18"/>
+<line x1="196" y1="0" x2="196"  y2="56" stroke="#444" stroke-width="0.18"/>
+<line x1="255" y1="0" x2="255"  y2="56" stroke="#444" stroke-width="0.18"/>
+<line x1="0" y1="9.3" x2="65"  y2="9.3" stroke="#444" stroke-width="0.18"/>
+<line x1="0" y1="18.7" x2="65"  y2="18.7" stroke="#444" stroke-width="0.18"/>
+<line x1="0" y1="28.0" x2="65"  y2="28.0" stroke="#444" stroke-width="0.18"/>
+<line x1="0" y1="37.3" x2="65"  y2="37.3" stroke="#444" stroke-width="0.18"/>
+<line x1="0" y1="46.7" x2="65"  y2="46.7" stroke="#444" stroke-width="0.18"/>
+<line x1="65" y1="16.8" x2="125"  y2="16.8" stroke="#444" stroke-width="0.18"/>
+<line x1="65" y1="30.8" x2="125"  y2="30.8" stroke="#444" stroke-width="0.18"/>
+<line x1="65" y1="43.7" x2="125"  y2="43.7" stroke="#444" stroke-width="0.18"/>
+<line x1="196" y1="14.0" x2="255"  y2="14.0" stroke="#444" stroke-width="0.18"/>
+<line x1="196" y1="28.0" x2="255"  y2="28.0" stroke="#444" stroke-width="0.18"/>
+<line x1="196" y1="42.0" x2="255"  y2="42.0" stroke="#444" stroke-width="0.18"/>
+<line x1="0" y1="72" x2="297"  y2="72" stroke="#222" stroke-width="0.35"/>
+<line x1="0" y1="64.8" x2="297"  y2="64.8" stroke="#444" stroke-width="0.18"/>
+<line x1="65.3" y1="64.8" x2="65.3"  y2="72" stroke="#444" stroke-width="0.18"/>
+<line x1="124.7" y1="64.8" x2="124.7"  y2="72" stroke="#444" stroke-width="0.18"/>
+<line x1="163.4" y1="64.8" x2="163.4"  y2="72" stroke="#444" stroke-width="0.18"/>
+<line x1="207.9" y1="64.8" x2="207.9"  y2="72" stroke="#444" stroke-width="0.18"/>
+<line x1="252.4" y1="64.8" x2="252.4"  y2="72" stroke="#444" stroke-width="0.18"/>
+<line x1="37.1" y1="56" x2="37.1"  y2="64.8" stroke="#444" stroke-width="0.18"/>
+<line x1="74.2" y1="56" x2="74.2"  y2="64.8" stroke="#444" stroke-width="0.18"/>
+<line x1="111.4" y1="56" x2="111.4"  y2="64.8" stroke="#444" stroke-width="0.18"/>
+<line x1="148.5" y1="56" x2="148.5"  y2="64.8" stroke="#444" stroke-width="0.18"/>
+<line x1="185.6" y1="56" x2="185.6"  y2="64.8" stroke="#444" stroke-width="0.18"/>
+<line x1="222.8" y1="56" x2="222.8"  y2="64.8" stroke="#444" stroke-width="0.18"/>
+<line x1="259.9" y1="56" x2="259.9"  y2="64.8" stroke="#444" stroke-width="0.18"/>
+<g transform="translate(4,105) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#000">CLIENT</text></g>
+<g transform="translate(4,80) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#000">PROJECT</text></g>
+<g transform="translate(4,46) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">ARCHITECT</text></g>
+<g transform="translate(4,31) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">STRUCTURAL</text></g>
+<g transform="translate(4,16) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">MEP</text></g>
+<g transform="translate(4,2) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">CONTRACTOR</text></g>
+<g transform="translate(204,105) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#000">NOTES</text></g>
+<g transform="translate(404,105) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#000">DRAWING TITLE</text></g>
+<g transform="translate(204,82) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">PROJECT REF.</text></g>
+<g transform="translate(204,56) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">DISCIPLINE</text></g>
+<g transform="translate(204,31) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">RIBA STAGE</text></g>
+<g transform="translate(624,105) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">DATE</text></g>
+<g transform="translate(684,105) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">PAPER</text></g>
+<g transform="translate(754,105) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">SCALE</text></g>
+<g transform="translate(624,87) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">DRAWN BY</text></g>
+<g transform="translate(684,87) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">CHECKED BY</text></g>
+<g transform="translate(754,87) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">APPROVED BY</text></g>
+<g transform="translate(624,69) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#000">DATES</text></g>
+<g transform="translate(2,53) scale(1,-1)"><text x="0" y="0" font-size="0.77" text-anchor="start" fill="#000">CLIENT</text></g>
+<g transform="translate(2,43.666666666666664) scale(1,-1)"><text x="0" y="0" font-size="0.66" text-anchor="start" fill="#000">PROJECT</text></g>
+<g transform="translate(2,34.33333333333333) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#000">ARCHITECT</text></g>
+<g transform="translate(2,25.0) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#000">STRUCTURAL</text></g>
+<g transform="translate(2,15.666666666666664) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#000">MEP</text></g>
+<g transform="translate(2,6.333333333333329) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#000">CONTRACTOR</text></g>
+<g transform="translate(67,53) scale(1,-1)"><text x="0" y="0" font-size="0.66" text-anchor="start" fill="#000">NOTES</text></g>
+<g transform="translate(67,40.68) scale(1,-1)"><text x="0" y="0" font-size="0.5" text-anchor="start" fill="#000">PROJECT REF</text></g>
+<g transform="translate(67,27.800000000000004) scale(1,-1)"><text x="0" y="0" font-size="0.5" text-anchor="start" fill="#000">DISCIPLINE</text></g>
+<g transform="translate(67,13.8) scale(1,-1)"><text x="0" y="0" font-size="0.5" text-anchor="start" fill="#000">RIBA STAGE</text></g>
+<g transform="translate(127,53) scale(1,-1)"><text x="0" y="0" font-size="0.77" text-anchor="start" fill="#000">DRAWING TITLE</text></g>
+<g transform="translate(198,53) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#000">DATE</text></g>
+<g transform="translate(198,39.0) scale(1,-1)"><text x="0" y="0" font-size="0.5" text-anchor="start" fill="#000">DRAWN BY</text></g>
+<g transform="translate(198,25.0) scale(1,-1)"><text x="0" y="0" font-size="0.5" text-anchor="start" fill="#000">CHECKED BY</text></g>
+<g transform="translate(198,11.0) scale(1,-1)"><text x="0" y="0" font-size="0.5" text-anchor="start" fill="#000">APPROVED BY</text></g>
+<g transform="translate(257,53) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#000">SHEET</text></g>
+<g transform="translate(257,30.6) scale(1,-1)"><text x="0" y="0" font-size="0.5" text-anchor="start" fill="#000">SCALE</text></g>
+<g transform="translate(257,13.8) scale(1,-1)"><text x="0" y="0" font-size="0.5" text-anchor="start" fill="#000">PAPER</text></g>
+<g transform="translate(1.5,70.9) scale(1,-1)"><text x="0" y="0" font-size="0.5" text-anchor="start" fill="#000">STATUS</text></g>
+<g transform="translate(66.84,70.9) scale(1,-1)"><text x="0" y="0" font-size="0.5" text-anchor="start" fill="#000">SUITABILITY</text></g>
+<g transform="translate(126.24,70.9) scale(1,-1)"><text x="0" y="0" font-size="0.5" text-anchor="start" fill="#000">REV</text></g>
+<g transform="translate(164.85000000000002,70.9) scale(1,-1)"><text x="0" y="0" font-size="0.5" text-anchor="start" fill="#000">REV DATE</text></g>
+<g transform="translate(209.39999999999998,70.9) scale(1,-1)"><text x="0" y="0" font-size="0.5" text-anchor="start" fill="#000">LOIN/LOD</text></g>
+<g transform="translate(253.95,70.9) scale(1,-1)"><text x="0" y="0" font-size="0.5" text-anchor="start" fill="#000">FED</text></g>
+<g transform="translate(1.5,63.699999999999996) scale(1,-1)"><text x="0" y="0" font-size="0.44" text-anchor="start" fill="#000">ISO 19650 SHEET ID</text></g>
+<g transform="translate(1.5,59.699999999999996) scale(1,-1)"><text x="0" y="0" font-size="0.39" text-anchor="start" fill="#000">PRJ</text></g>
+<g transform="translate(38.625,59.699999999999996) scale(1,-1)"><text x="0" y="0" font-size="0.39" text-anchor="start" fill="#000">ORIG</text></g>
+<g transform="translate(75.75,59.699999999999996) scale(1,-1)"><text x="0" y="0" font-size="0.39" text-anchor="start" fill="#000">VOL</text></g>
+<g transform="translate(112.875,59.699999999999996) scale(1,-1)"><text x="0" y="0" font-size="0.39" text-anchor="start" fill="#000">LVL</text></g>
+<g transform="translate(150.0,59.699999999999996) scale(1,-1)"><text x="0" y="0" font-size="0.39" text-anchor="start" fill="#000">TYPE</text></g>
+<g transform="translate(187.125,59.699999999999996) scale(1,-1)"><text x="0" y="0" font-size="0.39" text-anchor="start" fill="#000">ROLE</text></g>
+<g transform="translate(224.25,59.699999999999996) scale(1,-1)"><text x="0" y="0" font-size="0.39" text-anchor="start" fill="#000">SEQ</text></g>
+<g transform="translate(261.375,59.699999999999996) scale(1,-1)"><text x="0" y="0" font-size="0.39" text-anchor="start" fill="#000">OF</text></g>
+<g transform="translate(4,95) scale(1,-1)"><text x="0" y="0" font-size="2.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CLIENT_NAME}</text></g>
+<g transform="translate(4,86) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CLIENT_ADDRESS}</text></g>
+<g transform="translate(4,70) scale(1,-1)"><text x="0" y="0" font-size="2.0" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_NAME}</text></g>
+<g transform="translate(4,60) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_ADDRESS}</text></g>
+<g transform="translate(40,46) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CONSULTANT_NAME}</text></g>
+<g transform="translate(40,41) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CONSULTANT_ADDRESS}</text></g>
+<g transform="translate(40,31) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·STRUCTURAL_CONSULTANTS_NAME}</text></g>
+<g transform="translate(40,26) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·STRUCTURAL_CONSULTANTS_ADDRESS}</text></g>
+<g transform="translate(40,16) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·MEP_CONSULTANTS_NAME}</text></g>
+<g transform="translate(40,11) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·MEP_CONSULTANTS_ADDRESS}</text></g>
+<g transform="translate(40,2) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CONTRACTOR_NAME}</text></g>
+<g transform="translate(120,2) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CONTRACTOR_ADDRESS}</text></g>
+<g transform="translate(204,75) scale(1,-1)"><text x="0" y="0" font-size="1.6" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_CODE}</text></g>
+<g transform="translate(300,75) scale(1,-1)"><text x="0" y="0" font-size="1.6" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_NUMBER}</text></g>
+<g transform="translate(204,50) scale(1,-1)"><text x="0" y="0" font-size="1.6" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DISCIPLINE}</text></g>
+<g transform="translate(204,25) scale(1,-1)"><text x="0" y="0" font-size="1.6" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·RIBA_STAGE}</text></g>
+<g transform="translate(204,95) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·NOTES_LEGEND_REF}</text></g>
+<g transform="translate(404,90) scale(1,-1)"><text x="0" y="0" font-size="3.5" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_NAME}</text></g>
+<g transform="translate(624,96) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_DRAWN}</text></g>
+<g transform="translate(684,96) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·PAPER_SZ}</text></g>
+<g transform="translate(754,96) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·SCALE_OVERRIDE}</text></g>
+<g transform="translate(624,78) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DRAWN_BY}</text></g>
+<g transform="translate(684,78) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CHECKED_BY}</text></g>
+<g transform="translate(754,78) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·APVD_BY}</text></g>
+<g transform="translate(624,64) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_DRAWN}</text></g>
+<g transform="translate(684,64) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_CHECKED}</text></g>
+<g transform="translate(754,64) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_APVD}</text></g>
+<g transform="translate(2,50.86666666666667) scale(1,-1)"><text x="0" y="0" font-size="0.88" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CLIENT_NAME}</text></g>
+<g transform="translate(2,47.06666666666666) scale(1,-1)"><text x="0" y="0" font-size="0.5" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CLIENT_ADDRESS}</text></g>
+<g transform="translate(2,42.53333333333333) scale(1,-1)"><text x="0" y="0" font-size="0.83" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_NAME}</text></g>
+<g transform="translate(2,38.733333333333334) scale(1,-1)"><text x="0" y="0" font-size="0.47" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_ADDRESS}</text></g>
+<g transform="translate(2,33.199999999999996) scale(1,-1)"><text x="0" y="0" font-size="0.61" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CONSULTANT_NAME}</text></g>
+<g transform="translate(2,29.399999999999995) scale(1,-1)"><text x="0" y="0" font-size="0.41" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CONSULTANT_ADDRESS}</text></g>
+<g transform="translate(2,23.866666666666667) scale(1,-1)"><text x="0" y="0" font-size="0.61" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·STRUCTURAL_CONSULTANTS_NAME}</text></g>
+<g transform="translate(2,20.066666666666666) scale(1,-1)"><text x="0" y="0" font-size="0.41" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·STRUCTURAL_CONSULTANTS_ADDRESS}</text></g>
+<g transform="translate(2,14.533333333333331) scale(1,-1)"><text x="0" y="0" font-size="0.61" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·MEP_CONSULTANTS_NAME}</text></g>
+<g transform="translate(2,10.73333333333333) scale(1,-1)"><text x="0" y="0" font-size="0.41" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·MEP_CONSULTANTS_ADDRESS}</text></g>
+<g transform="translate(2,5.199999999999995) scale(1,-1)"><text x="0" y="0" font-size="0.61" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CONTRACTOR_NAME}</text></g>
+<g transform="translate(2,1.3999999999999946) scale(1,-1)"><text x="0" y="0" font-size="0.41" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CONTRACTOR_ADDRESS}</text></g>
+<g transform="translate(67,46.6) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·NOTES_LEGEND_REF}</text></g>
+<g transform="translate(67,38.76) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_CODE}</text></g>
+<g transform="translate(67,25.88) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DISCIPLINE}</text></g>
+<g transform="translate(67,11.88) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·RIBA_STAGE}</text></g>
+<g transform="translate(127,44.8) scale(1,-1)"><text x="0" y="0" font-size="1.65" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_NAME}</text></g>
+<g transform="translate(198,50.4) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_DRAWN}</text></g>
+<g transform="translate(198,37.080000000000005) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DRAWN_BY}</text></g>
+<g transform="translate(198,23.08) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CHECKED_BY}</text></g>
+<g transform="translate(198,9.08) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·APVD_BY}</text></g>
+<g transform="translate(257,27.0) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·SCALE_OVERRIDE}</text></g>
+<g transform="translate(257,10.200000000000001) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·PAPER_SZ}</text></g>
+<g transform="translate(1.5,60.8) scale(1,-1)"><text x="0" y="0" font-size="0.77" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DELIVERABLE_STATUS}</text></g>
+<g transform="translate(66.84,60.8) scale(1,-1)"><text x="0" y="0" font-size="0.77" text-anchor="start" fill="#1F4E79" font-style="italic">{DWG·SUITABILITY_COD}</text></g>
+<g transform="translate(126.24,60.8) scale(1,-1)"><text x="0" y="0" font-size="0.77" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·REVISION_NR}</text></g>
+<g transform="translate(164.85000000000002,60.8) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·REVISION_DATE}</text></g>
+<g transform="translate(209.39999999999998,60.8) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#1F4E79" font-style="italic">{ST·LOIN_LOD}</text></g>
+<g transform="translate(253.95,60.8) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#1F4E79" font-style="italic">{ST·FEDERATION_STATUS}</text></g>
+<g transform="translate(1.5,58.88) scale(1,-1)"><text x="0" y="0" font-size="0.66" text-anchor="start" fill="#1F4E79" font-style="italic">{ST·SHEET_PROJECT}</text></g>
+<g transform="translate(38.625,58.88) scale(1,-1)"><text x="0" y="0" font-size="0.66" text-anchor="start" fill="#1F4E79" font-style="italic">{ST·SHEET_ORIG}</text></g>
+<g transform="translate(75.75,58.88) scale(1,-1)"><text x="0" y="0" font-size="0.66" text-anchor="start" fill="#1F4E79" font-style="italic">{ST·SHEET_VOLUME}</text></g>
+<g transform="translate(112.875,58.88) scale(1,-1)"><text x="0" y="0" font-size="0.66" text-anchor="start" fill="#1F4E79" font-style="italic">{ST·SHEET_LEVEL}</text></g>
+<g transform="translate(150.0,58.88) scale(1,-1)"><text x="0" y="0" font-size="0.66" text-anchor="start" fill="#1F4E79" font-style="italic">{ST·SHEET_TYPE}</text></g>
+<g transform="translate(187.125,58.88) scale(1,-1)"><text x="0" y="0" font-size="0.66" text-anchor="start" fill="#1F4E79" font-style="italic">{ST·SHEET_ROLE}</text></g>
+<g transform="translate(224.25,58.88) scale(1,-1)"><text x="0" y="0" font-size="0.66" text-anchor="start" fill="#1F4E79" font-style="italic">{ST·SHEET_SEQ}</text></g>
+<g transform="translate(261.375,58.88) scale(1,-1)"><text x="0" y="0" font-size="0.55" text-anchor="start" fill="#1F4E79" font-style="italic">{ST·SHEET_OF_TOTAL}</text></g>
+<rect x="10" y="61" width="277" height="144" fill="#1F4E79" fill-opacity="0.05" stroke="#1F4E79" stroke-width="0.5" stroke-dasharray="" opacity="1.0"/>
+<rect x="10" y="198" width="12" height="7" fill="#1F4E79" opacity="0.9"/>
+<g transform="translate(12,203.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">S01</text></g>
+<g transform="translate(12,196) scale(1,-1)"><text x="0" y="0" font-size="3" fill="#1F4E79" opacity="0.85">main-plan</text></g>
+<rect x="10" y="61" width="133" height="144" fill="#5fa8d3" fill-opacity="0.05" stroke="#5fa8d3" stroke-width="0.5" stroke-dasharray="" opacity="1.0"/>
+<rect x="10" y="198" width="12" height="7" fill="#5fa8d3" opacity="0.9"/>
+<g transform="translate(12,203.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">S02</text></g>
+<g transform="translate(12,196) scale(1,-1)"><text x="0" y="0" font-size="3" fill="#5fa8d3" opacity="0.85">main-plan-half-left</text></g>
+<rect x="153" y="61" width="133" height="144" fill="#5fa8d3" fill-opacity="0.05" stroke="#5fa8d3" stroke-width="0.5" stroke-dasharray="" opacity="1.0"/>
+<rect x="153" y="198" width="12" height="7" fill="#5fa8d3" opacity="0.9"/>
+<g transform="translate(155,203.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">S03</text></g>
+<g transform="translate(155,196) scale(1,-1)"><text x="0" y="0" font-size="3" fill="#5fa8d3" opacity="0.85">main-plan-half-right</text></g>
+<rect x="10" y="61" width="133" height="64" fill="#5fa8d3" fill-opacity="0.05" stroke="#5fa8d3" stroke-width="0.5" stroke-dasharray="" opacity="1.0"/>
+<rect x="10" y="118" width="12" height="7" fill="#5fa8d3" opacity="0.9"/>
+<g transform="translate(12,123.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">S04</text></g>
+<g transform="translate(12,116) scale(1,-1)"><text x="0" y="0" font-size="3" fill="#5fa8d3" opacity="0.85">quad-bottom-left</text></g>
+<rect x="153" y="61" width="133" height="64" fill="#5fa8d3" fill-opacity="0.05" stroke="#5fa8d3" stroke-width="0.5" stroke-dasharray="" opacity="1.0"/>
+<rect x="153" y="118" width="12" height="7" fill="#5fa8d3" opacity="0.9"/>
+<g transform="translate(155,123.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">S05</text></g>
+<g transform="translate(155,116) scale(1,-1)"><text x="0" y="0" font-size="3" fill="#5fa8d3" opacity="0.85">quad-bottom-right</text></g>
+<rect x="10" y="130" width="133" height="64" fill="#5fa8d3" fill-opacity="0.05" stroke="#5fa8d3" stroke-width="0.5" stroke-dasharray="" opacity="1.0"/>
+<rect x="10" y="187" width="12" height="7" fill="#5fa8d3" opacity="0.9"/>
+<g transform="translate(12,192.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">S06</text></g>
+<g transform="translate(12,185) scale(1,-1)"><text x="0" y="0" font-size="3" fill="#5fa8d3" opacity="0.85">quad-top-left</text></g>
+<rect x="153" y="130" width="133" height="64" fill="#5fa8d3" fill-opacity="0.05" stroke="#5fa8d3" stroke-width="0.5" stroke-dasharray="" opacity="1.0"/>
+<rect x="153" y="187" width="12" height="7" fill="#5fa8d3" opacity="0.9"/>
+<g transform="translate(155,192.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">S07</text></g>
+<g transform="translate(155,185) scale(1,-1)"><text x="0" y="0" font-size="3" fill="#5fa8d3" opacity="0.85">quad-top-right</text></g>
+<rect x="690" y="130" width="120" height="100" fill="#4CAF50" fill-opacity="0.05" stroke="#4CAF50" stroke-width="0.5" stroke-dasharray="" opacity="1.0"/>
+<rect x="690" y="223" width="12" height="7" fill="#4CAF50" opacity="0.9"/>
+<g transform="translate(692,228.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">KP</text></g>
+<g transform="translate(692,221) scale(1,-1)"><text x="0" y="0" font-size="3" fill="#4CAF50" opacity="0.85">key-plan</text></g>
+</g>
+<text x="30" y="55" font-size="6" fill="#666" font-weight="bold">slot legend:</text>
+<rect x="80" y="51" width="6" height="6" fill="#1F4E79" opacity="0.85"/>
+<text x="89" y="55" font-size="5" fill="#333">main-plan</text>
+<rect x="119" y="51" width="6" height="6" fill="#5fa8d3" opacity="0.85"/>
+<text x="128" y="55" font-size="5" fill="#333">main-plan-half-left</text>
+<rect x="188" y="51" width="6" height="6" fill="#5fa8d3" opacity="0.85"/>
+<text x="197" y="55" font-size="5" fill="#333">main-plan-half-right</text>
+<rect x="260" y="51" width="6" height="6" fill="#5fa8d3" opacity="0.85"/>
+<text x="269" y="55" font-size="5" fill="#333">quad-bottom-left</text>
+<rect x="320" y="51" width="6" height="6" fill="#5fa8d3" opacity="0.85"/>
+<text x="329" y="55" font-size="5" fill="#333">quad-bottom-right</text>
+<rect x="383" y="51" width="6" height="6" fill="#5fa8d3" opacity="0.85"/>
+<text x="392" y="55" font-size="5" fill="#333">quad-top-left</text>
+<rect x="434" y="51" width="6" height="6" fill="#5fa8d3" opacity="0.85"/>
+<text x="443" y="55" font-size="5" fill="#333">quad-top-right</text>
+<rect x="488" y="51" width="6" height="6" fill="#4CAF50" opacity="0.85"/>
+<text x="497" y="55" font-size="5" fill="#333">key-plan</text>
+<text x="30" y="305.0" font-size="7" fill="#444">parameters 63  ·  lines 53  ·  labels 64  ·  static-text 51  ·  fills 2  ·  slots 8</text>
+<text x="30" y="315.0" font-size="6" fill="#666">A4 landscape working sheet — full ISO 19650 BIM identity (top BIM strip with status / suitability chip / revision / LOIN / federation, plus 7-segment sheet ID row). Extends A4_LAND_common_v2.0 — inher…</text>
+</svg>

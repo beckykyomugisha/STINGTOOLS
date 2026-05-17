@@ -122,6 +122,9 @@ namespace StingTools.Core
             // PERF: Clear cached last phase on document switch
             _lastPhaseDocKey = null;
             _lastPhaseCache = null;
+            // TAG-PREFLIGHT-DUP-01: Clear cached PopulationContext on document switch
+            // so a stale room / phase index from a closed document never resurfaces.
+            TokenAutoPopulator.PopulationContext.InvalidateCache();
             // Phase 79b: Reset read-only skip counter on document switch
             // to prevent stale counts from previous document leaking through
             _readOnlySkipCount = 0;
@@ -132,6 +135,12 @@ namespace StingTools.Core
         {
             return doc.PathName ?? doc.Title ?? "Untitled";
         }
+
+        // A-7: hard cap to prevent unbounded growth across many documents
+        // opened/closed in one session. 50_000 is generous (a typical project
+        // has far fewer unique (typeId, paramName) pairs); a clear is logged
+        // at Warn so unexpected growth is visible.
+        private const int _paramCacheCap = 50_000;
 
         /// <summary>Cached parameter lookup. Uses stable document key + element's TypeId + paramName as cache key.
         /// Falls back to LookupParameter on first access per type, then O(1) thereafter.
@@ -145,12 +154,29 @@ namespace StingTools.Core
 
             if (!_paramCache.TryGetValue(key, out Definition cachedDef))
             {
+                StingLog.RecordMiss(StingLog.CacheKind.ParamCache); // E-1
                 Parameter found = el.LookupParameter(paramName);
+                if (_paramCache.Count >= _paramCacheCap)
+                {
+                    // Evict oldest 20% rather than clearing entirely.
+                    // ConcurrentDictionary has no age tracking, so take a snapshot
+                    // of 20% of the keys and remove them.
+                    int evictCount = _paramCacheCap / 5;
+                    int removed = 0;
+                    foreach (var k in _paramCache.Keys)
+                    {
+                        if (removed >= evictCount) break;
+                        _paramCache.TryRemove(k, out _);
+                        removed++;
+                    }
+                    StingLog.Warn($"_paramCache evicted {removed} entries (cap={_paramCacheCap}).");
+                }
                 // Cache the Definition (not Parameter — that's per-element)
                 _paramCache[key] = found?.Definition;
                 return found;
             }
 
+            StingLog.RecordHit(StingLog.CacheKind.ParamCache); // E-1
             if (cachedDef == null) return null; // Known miss
             return el.get_Parameter(cachedDef);
         }
@@ -222,11 +248,30 @@ namespace StingTools.Core
         private static bool IsSourceTokenParam(string paramName)
         {
             if (string.IsNullOrEmpty(paramName)) return false;
-            return paramName == ParamRegistry.DISC || paramName == ParamRegistry.LOC
-                || paramName == ParamRegistry.ZONE || paramName == ParamRegistry.LVL
-                || paramName == ParamRegistry.SYS  || paramName == ParamRegistry.FUNC
-                || paramName == ParamRegistry.PROD || paramName == ParamRegistry.SEQ;
+            // Phase 165 perf — was 8 sequential string equals on every
+            // SetString call (~30-50× per element for container writes
+            // → ~30-50k compares on a 1000-element batch). Replaced with a
+            // HashSet<string> lookup populated lazily from the live
+            // ParamRegistry token names so a Reload that renames a token
+            // automatically refreshes the gate.
+            return (_sourceTokenSet ??= BuildSourceTokenSet()).Contains(paramName);
         }
+
+        // Phase 165 perf — lazy + invalidatable so a ParamRegistry.Reload
+        // that renames any source-token param refreshes the gate on next call.
+        private static HashSet<string> _sourceTokenSet;
+        private static HashSet<string> BuildSourceTokenSet()
+        {
+            return new HashSet<string>(StringComparer.Ordinal)
+            {
+                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                ParamRegistry.LVL,  ParamRegistry.SYS, ParamRegistry.FUNC,
+                ParamRegistry.PROD, ParamRegistry.SEQ,
+            };
+        }
+        /// <summary>Phase 165 perf — invalidate the source-token gate after
+        /// a ParamRegistry.Reload that may have renamed any ISO 19650 token.</summary>
+        public static void InvalidateSourceTokenSet() { _sourceTokenSet = null; }
 
         /// <summary>
         /// PROD-CONCAT-FIX: shape-guard for source-token writes. Returns the
@@ -1404,10 +1449,100 @@ namespace StingTools.Core
                 $"LOC={ProjectLoc ?? "null"}, REV={ProjectRev ?? "null"}";
 
             /// <summary>
+            /// Phase 165 perf — cached active TagMode for the duration of a
+            /// batch. WriteTag7All previously read it per element via
+            /// GetActiveTagMode → 3 LookupParameter calls on ProjectInformation
+            /// per element. With this cache the lookup happens once during
+            /// PopulationContext.Build and every WriteTag7All call reads the
+            /// stored value directly.
+            /// </summary>
+            public ParamRegistry.TagMode ActiveTagMode { get; set; } = ParamRegistry.TagMode.DC;
+
+            /// <summary>EFF-05 (Phase 149b): per-batch memo of type-level LOC/ZONE
+            /// overrides so PopulateAll doesn't pay a Document.GetElement +
+            /// 2× GetString per instance when most types don't have overrides
+            /// set. Key is type ElementId; null tuple value means "no override".</summary>
+            public Dictionary<ElementId, (string Loc, string Zone)> TypeOverrideCache { get; set; }
+                = new Dictionary<ElementId, (string, string)>();
+
+            // TAG-PREFLIGHT-DUP-01: Per-document cached PopulationContext so consecutive
+            // commands (e.g. PreTagAudit followed by BatchTag) reuse the spatial / room /
+            // phase / grid indices instead of rebuilding them from scratch each time.
+            // 30 s TTL matches the room index cache; the cache is invalidated on document
+            // close, on TagConfig reload, and after any tagging command via PostTagCleanup.
+            private static (string docKey, DateTime time, PopulationContext ctx) _cached;
+            private static readonly object _cacheLock = new object();
+            private static readonly TimeSpan _cacheTtl = TimeSpan.FromSeconds(30);
+
+            /// <summary>
+            /// TAG-PREFLIGHT-DUP-01: Drop the cached PopulationContext. Call from
+            /// PostTagCleanup, document close, and TagConfig reload paths.
+            /// </summary>
+            /// <summary>
+            /// Phase 165 follow-up — explicit teardown helper. Ends the
+            /// SpatialAutoDetect batch session opened by <see cref="Build"/>
+            /// so the room-index TTL drops back to 30 s. Idempotent and
+            /// safe to call when no session is active.
+            ///
+            /// Usage pattern in batch commands:
+            ///   var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
+            ///   try { ... } finally { TokenAutoPopulator.PopulationContext.EndSession(); }
+            /// </summary>
+            public static void EndSession() => SpatialAutoDetect.EndBatchSession();
+
+            public static void InvalidateCache()
+            {
+                lock (_cacheLock)
+                {
+                    _cached = default;
+                }
+            }
+
+            /// <summary>
             /// Build a PopulationContext once for a batch operation.
             /// Caches all project-level lookups: room index, LOC, REV, phases.
+            /// TAG-PREFLIGHT-DUP-01: Cached per-document with a 30 s TTL so back-to-back
+            /// callers (pre-flight audit, batch tag, combine) share the same heavy indices.
             /// </summary>
             public static PopulationContext Build(Document doc)
+            {
+                // Phase 165 — Issue #21. Mark the room-index cache as in an
+                // active batch session so a 500-element pipeline can't expire
+                // it mid-loop. Callers that finish a batch should call
+                // EndBatchSession (or ForceRefresh) on their tear-down path.
+                SpatialAutoDetect.BeginBatchSession();
+
+                // Match original behaviour: a null document is a programmer error and
+                // should fail fast in the collector below rather than be silently masked.
+                if (doc != null)
+                {
+                    string docKey = ParameterHelpers.GetStableDocKey(doc);
+                    lock (_cacheLock)
+                    {
+                        if (_cached.ctx != null
+                            && _cached.docKey == docKey
+                            && (DateTime.UtcNow - _cached.time) < _cacheTtl
+                            && _cached.ctx.IsValid())
+                        {
+                            return _cached.ctx;
+                        }
+                    }
+
+                    var fresh = BuildFresh(doc);
+                    if (fresh != null)
+                    {
+                        lock (_cacheLock)
+                        {
+                            _cached = (docKey, DateTime.UtcNow, fresh);
+                        }
+                    }
+                    return fresh;
+                }
+
+                return BuildFresh(doc);
+            }
+
+            private static PopulationContext BuildFresh(Document doc)
             {
                 var phases = new FilteredElementCollector(doc)
                     .OfClass(typeof(Phase))
@@ -1432,6 +1567,9 @@ namespace StingTools.Core
                     // GAP-019: Apply config overrides for STATUS/REV defaults
                     DefaultStatus = !string.IsNullOrEmpty(TagConfig.StatusDefault) ? TagConfig.StatusDefault : "NEW",
                     DefaultRev = !string.IsNullOrEmpty(TagConfig.RevDefault) ? TagConfig.RevDefault : "P01",
+                    // Phase 165 perf — cache the active TagMode here so
+                    // WriteTag7All doesn't re-read ProjectInformation per element.
+                    ActiveTagMode = ParamRegistry.GetActiveTagMode(doc),
                 };
             }
         }
@@ -1543,14 +1681,6 @@ namespace StingTools.Core
                             }
                         }
 
-                        // AE-04: Write connector inherit status for diagnostics
-                        if (copied > 0)
-                        {
-                            string sourceTag = connTag.Length > 30 ? connTag.Substring(0, 30) : connTag;
-                            ParameterHelpers.SetIfEmpty(el, "STING_TOKEN_COPY_SOURCE",
-                                $"ConnectorInherit:{connected.Id.Value}:{sourceTag}:{copied}tok");
-                        }
-
                         // Phase 56b CRIT-02 FIX: Check if ALL tokens now populated before returning
                         // Previously returned after first tagged element even if some tokens still empty
                         bool nowComplete = true;
@@ -1643,17 +1773,30 @@ namespace StingTools.Core
                 if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) result.TokensSet++;
             }
 
-            // Phase 19: Type-level LOC/ZONE overrides — check before spatial detection
+            // Phase 19: Type-level LOC/ZONE overrides — check before spatial detection.
+            // EFF-05 (Phase 149b): cache per-type so a family with 100 instances
+            // does ONE Document.GetElement + 2 GetString calls, not 100.
             string typeLocOverride = null;
             string typeZoneOverride = null;
             ElementId popTypeId = el.GetTypeId();
             if (popTypeId != null && popTypeId != ElementId.InvalidElementId)
             {
-                Element popTypeEl = doc.GetElement(popTypeId);
-                if (popTypeEl != null)
+                if (ctx?.TypeOverrideCache != null
+                    && ctx.TypeOverrideCache.TryGetValue(popTypeId, out var cached))
                 {
-                    typeLocOverride = ParameterHelpers.GetString(popTypeEl, ParamRegistry.TYPE_LOC_OVERRIDE);
-                    typeZoneOverride = ParameterHelpers.GetString(popTypeEl, ParamRegistry.TYPE_ZONE_OVERRIDE);
+                    typeLocOverride = cached.Loc;
+                    typeZoneOverride = cached.Zone;
+                }
+                else
+                {
+                    Element popTypeEl = doc.GetElement(popTypeId);
+                    if (popTypeEl != null)
+                    {
+                        typeLocOverride = ParameterHelpers.GetString(popTypeEl, ParamRegistry.TYPE_LOC_OVERRIDE);
+                        typeZoneOverride = ParameterHelpers.GetString(popTypeEl, ParamRegistry.TYPE_ZONE_OVERRIDE);
+                    }
+                    if (ctx?.TypeOverrideCache != null)
+                        ctx.TypeOverrideCache[popTypeId] = (typeLocOverride, typeZoneOverride);
                 }
             }
 
@@ -2295,7 +2438,17 @@ namespace StingTools.Core
         /// Only writes to empty STING parameters (non-destructive).
         /// Returns the number of values written.
         /// </summary>
+        /// <summary>
+        /// EFF-04 (Phase 149b) overload: take a pre-built room index so we don't
+        /// pay a fresh GetRoomAtPoint spatial query per element. The legacy
+        /// signature (Document, Element) delegates here with a null index and
+        /// keeps the old behaviour for non-batch callers.
+        /// </summary>
         public static int MapAll(Document doc, Element el)
+            => MapAll(doc, el, null);
+
+        public static int MapAll(Document doc, Element el,
+            Dictionary<ElementId, Room> roomIndex)
         {
             int written = 0;
 
@@ -2352,7 +2505,20 @@ namespace StingTools.Core
                 written += SetIfEmptyInt(el, ParamRegistry.FAMILY_NAME, familyName);
 
             // ── Spatial / Room data ────────────────────────────────────────────
-            Room room = ParameterHelpers.GetRoomAtElement(doc, el);
+            // EFF-04 (Phase 149b): consult the pre-built room index when we have
+            // one. The cheap FamilyInstance.Room property is still tried first
+            // inside GetRoomAtElement; the index covers curve-based MEP elements
+            // that would otherwise force a fresh GetRoomAtPoint spatial query
+            // per element. ConnectorInherit / SpatialAutoDetect already share
+            // the same index from PopulationContext, so this just plugs the
+            // last per-element room lookup into the same shared cache.
+            Room room = null;
+            if (roomIndex != null)
+            {
+                if (el is FamilyInstance fiPre && fiPre.Room != null) room = fiPre.Room;
+                else if (roomIndex.TryGetValue(el.Id, out var indexed)) room = indexed;
+            }
+            if (room == null) room = ParameterHelpers.GetRoomAtElement(doc, el);
             if (room != null)
             {
                 written += SetIfEmptyInt(el, ParamRegistry.ROOM_NAME, room.Name ?? "");
@@ -3674,6 +3840,15 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"{commandName} SaveSeqSidecar: {ex.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+            // TAG-PREFLIGHT-DUP-01: Drop the cached PopulationContext so the next
+            // tagging command sees fresh room / phase / grid data after writes.
+            TokenAutoPopulator.PopulationContext.InvalidateCache();
+            // EFF-06 (Phase 149d): drop per-type formula-applicability cache.
+            // Surviving entries are still correct (parameter bindings don't
+            // typically vanish mid-session) but the cache grows linearly with
+            // unique types tagged across the project's lifetime; clearing at
+            // batch boundary keeps memory bounded.
+            ClearFormulaApplicabilityCache();
             // DIAG-01: Reset read-only skip counter at batch boundary so each operation
             // gets fresh diagnostic logging (first 5 warnings + every 100th).
             ParameterHelpers.ResetReadOnlySkipCount();
@@ -3699,9 +3874,11 @@ namespace StingTools.Core
         {
             try
             {
-                // MEDIUM-09: Reset read-only skip counter at pipeline entry to prevent
-                // cross-batch counter leakage from [ThreadStatic] persistence
-                ParameterHelpers.ResetReadOnlySkipCount();
+                // EFF-01 (Phase 149a): per-element ResetReadOnlySkipCount removed.
+                // The throttle (`first 5 + every 100th`) is intentional batch-wide
+                // behaviour; resetting it per element forced the counter to ≤ 5
+                // for every element so any read-only param produced 50K log lines
+                // on a 50K batch. PostTagCleanup still resets at batch boundary.
 
                 string catName = ParameterHelpers.GetCategoryName(el);
                 if (string.IsNullOrEmpty(catName)) return false;
@@ -3827,20 +4004,23 @@ namespace StingTools.Core
                 }
 
                 // P2: Bridge Revit native params → STING shared params
-                NativeParamMapper.MapAll(doc, el);
+                // EFF-04 (Phase 149b): pass the cached RoomIndex so MapAll's
+                // spatial lookup hits the same dictionary PopulateAll already used.
+                NativeParamMapper.MapAll(doc, el, ctx?.RoomIndex);
 
                 // P3: Evaluate formulas in dependency order
-                // FUT-18: Lazy formula evaluation — skip formulas whose target parameter
-                // doesn't exist on this element's category (saves ~40% formula iterations)
+                // EFF-06 (Phase 149b): pre-filter to formulas whose target parameter
+                // actually exists on this element's TYPE. Once we know "Family X
+                // type T has 17 of the 199 formulas applicable", every subsequent
+                // instance of that type iterates 17, not 199. Cache lives in
+                // _formulasApplicableByType (per-type, per-formula-list-version).
                 if (formulas != null && formulas.Count > 0)
                 {
-                    foreach (var formula in formulas)
+                    var applicable = GetApplicableFormulas(el, formulas);
+                    foreach (var formula in applicable)
                     {
                         try
                         {
-                            // FUT-18: Early-exit skip — avoids expensive BuildContext
-                            // PERF: cached lookup so the same formula target on repeated types
-                            // doesn't rescan the element's parameter collection each time.
                             Parameter targetParam = ParameterHelpers.CachedLookup(el, formula.ParameterName);
                             if (targetParam == null || targetParam.IsReadOnly) continue;
 
@@ -3869,6 +4049,11 @@ namespace StingTools.Core
                 }
 
                 // C-01 FIX: Check BuildAndWriteTag return value — skip containers/TAG7 on failure
+                // EFF-03 / CONS-03 (Phase 149a): pass _prevTag in so BuildAndWriteTag
+                // doesn't read TAG1 a second time, and pass tokenValuesOut so we get
+                // the freshly-built token array back instead of doing our own
+                // ReadTokenValues below. Two reads × 8 params per element saved.
+                string[] tokenVals = new string[8];
                 bool tagWriteOk = TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                     skipComplete: skipComplete,
                     existingTags: tagIndex,
@@ -3876,7 +4061,9 @@ namespace StingTools.Core
                     stats: stats,
                     cachedRev: ctx?.ProjectRev,
                     cachedPhases: ctx?.CachedPhases,
-                    lastPhaseId: ctx?.LastPhaseId);
+                    lastPhaseId: ctx?.LastPhaseId,
+                    prevTagHint: _prevTag,
+                    tokenValuesOut: tokenVals);
                 if (!tagWriteOk)
                 {
                     StingLog.Warn($"TagPipeline: BuildAndWriteTag failed for {el.Id} — skipping containers/TAG7");
@@ -3909,9 +4096,20 @@ namespace StingTools.Core
                 }
                 catch (Exception dtEx) { StingLog.Warn($"Tag audit trail write: {dtEx.Message}"); }
 
-                // C-02 FIX: Re-read token values AFTER BuildAndWriteTag (which applies overrides
-                // and SetIfEmpty) so container retry uses ACTUAL stored values, not stale pre-override values
-                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                // EFF-03 (Phase 149a): tokenVals was filled by BuildAndWriteTag via
+                // tokenValuesOut. Verify it has at least one populated slot — if
+                // BuildAndWriteTag short-circuited (e.g. idempotency early-exit
+                // returned true), tokenVals will be all-null/empty and we need to
+                // fall back to a fresh read so downstream container/TAG7 writers
+                // see real data.
+                bool tokensFilled = false;
+                if (tokenVals != null)
+                {
+                    for (int i = 0; i < tokenVals.Length; i++)
+                        if (!string.IsNullOrEmpty(tokenVals[i])) { tokensFilled = true; break; }
+                }
+                if (!tokensFilled)
+                    tokenVals = ParamRegistry.ReadTokenValues(el);
 
                 // Read TAG1 once — reused for hook, container guard, and downstream checks
                 string tag1Check = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
@@ -3925,6 +4123,14 @@ namespace StingTools.Core
                 // (53 × 2 = 106 per element, 5.3M redundant calls on 50K-element batches).
 
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
+
+                // Phase 176 — Lightning Protection System warnings (BS EN 62305).
+                // Cheap inline check: only LPS-tagged families incur the cost
+                // of LpsValidator.EvaluateAndWrite (10 rules + verdict roll-up).
+                // Hooked here so PreTagAudit, AutoTag, BatchTag, TagAndCombine,
+                // TagNewOnly, ReTag and the IUpdater all share one code path.
+                if (TagConfig.IsLightningProtection(el))
+                    StingTools.Core.Validation.LpsValidator.EvaluateAndWrite(doc, el, overwrite: true);
 
                 // P5: Auto-populate GRID_REF if empty and grids are available
                 // LOGIC-010: Log once per session when no grids exist in document
@@ -3944,10 +4150,22 @@ namespace StingTools.Core
                     StingLog.Info("TagPipeline: No grids found in document — GRID_REF will be empty. Create grid lines if grid references are required.");
                 }
 
+                // Phase 175 (Design Options): write ASS_DESIGN_OPTION_TXT /
+                // ASS_OPTION_SET_TXT / ASS_OPTION_PRIMARY_BOOL so every
+                // schedule, dashboard, legend, and Excel export becomes
+                // option-aware without bespoke wiring. Idempotent and safe
+                // on main-model elements.
+                StingTools.Core.DesignOptions.DesignOptionRegistry.WriteOptionParams(doc, el, overwrite);
+
                 // PERF-02: Inline FUNC/PROD empty tracking from tokenVals (avoids 2 GetString calls per element)
                 // tokenVals: [0]=DISC [1]=LOC [2]=ZONE [3]=LVL [4]=SYS [5]=FUNC [6]=PROD [7]=SEQ
                 if (stats != null && tokenVals != null && tokenVals.Length >= 7)
                     stats.RecordEmptyTokens(tokenVals[5], tokenVals[6]);
+
+                // PERF-02: Inline FUNC/PROD empty tracking to avoid post-loop re-scans
+                stats?.RecordEmptyTokens(
+                    ParameterHelpers.GetString(el, ParamRegistry.FUNC),
+                    ParameterHelpers.GetString(el, ParamRegistry.PROD));
 
                 return true;
             }
@@ -3964,6 +4182,48 @@ namespace StingTools.Core
 
         // ── Finding-5: Throttle counter for locked token restoration logging ──
         private static int _lockedTokenRestoreCount;
+
+        // EFF-06 (Phase 149d): per-type formula applicability cache. Key is
+        // (typeId.Value, formulasIdentity), value is the subset of formulas
+        // whose target parameter exists on instances of that type. The
+        // formulasIdentity discriminator (RuntimeHelpers.GetHashCode of the
+        // shared list reference) lets us invalidate when the formula list is
+        // reloaded. Cleared by ClearFormulaApplicabilityCache.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<
+            (long typeId, int formulasId),
+            List<Temp.FormulaEngine.FormulaDefinition>> _formulasApplicableByType
+            = new System.Collections.Concurrent.ConcurrentDictionary<
+                (long, int), List<Temp.FormulaEngine.FormulaDefinition>>();
+
+        public static void ClearFormulaApplicabilityCache()
+        {
+            _formulasApplicableByType.Clear();
+        }
+
+        /// <summary>EFF-06: get the subset of formulas whose target parameter
+        /// actually exists on this element's type. First-touch per type does
+        /// the full O(formulas) scan; subsequent instances of the same type
+        /// hit the cache in O(applicable). Falls back to the full list when
+        /// the type lookup fails.</summary>
+        private static IEnumerable<Temp.FormulaEngine.FormulaDefinition> GetApplicableFormulas(
+            Element el, List<Temp.FormulaEngine.FormulaDefinition> formulas)
+        {
+            if (el == null || formulas == null || formulas.Count == 0) return formulas;
+            ElementId typeId = el.GetTypeId();
+            long key = (typeId == null || typeId == ElementId.InvalidElementId)
+                ? -1L : typeId.Value;
+            int formulasId = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(formulas);
+            return _formulasApplicableByType.GetOrAdd((key, formulasId), _ =>
+            {
+                var subset = new List<Temp.FormulaEngine.FormulaDefinition>();
+                foreach (var f in formulas)
+                {
+                    var p = ParameterHelpers.CachedLookup(el, f.ParameterName);
+                    if (p != null && !p.IsReadOnly) subset.Add(f);
+                }
+                return subset;
+            });
+        }
 
         // ── Session caches for formulas and grid lines ──
         private static List<Temp.FormulaEngine.FormulaDefinition> _cachedFormulas;

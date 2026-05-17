@@ -86,6 +86,14 @@ namespace StingTools.Core
         /// <summary>Tokens that must be non-empty for compliant tags (e.g., ["DISC","SYS","FUNC","PROD","SEQ"]).</summary>
         public HashSet<string> RequiredTokens { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// Default paragraph depth (1-10) for this discipline's TAG7 tier
+        /// visibility. Null = use the global ParaDepth value. Used by
+        /// SetParagraphDepthCommand's "By discipline" scope and read by
+        /// WriteTag7All when no per-element override is set.
+        /// </summary>
+        public int? DefaultParagraphDepth { get; set; }
+
         /// <summary>Parse a DisciplineProfile from a JSON dictionary.</summary>
         public static DisciplineProfile FromDict(Dictionary<string, object> dict)
         {
@@ -125,6 +133,12 @@ namespace StingTools.Core
             {
                 if (vs is bool vsb) p.ValidationStrictness = vsb;
                 else if (vs is string vss) p.ValidationStrictness = vss.Equals("true", StringComparison.OrdinalIgnoreCase);
+            }
+            if (dict.TryGetValue("default_paragraph_depth", out object dpd))
+            {
+                if (dpd is long dpdl && dpdl >= 1 && dpdl <= 10) p.DefaultParagraphDepth = (int)dpdl;
+                else if (int.TryParse(dpd?.ToString(), out int dpdi) && dpdi >= 1 && dpdi <= 10)
+                    p.DefaultParagraphDepth = dpdi;
             }
             return p;
         }
@@ -972,8 +986,34 @@ namespace StingTools.Core
         /// <summary>HC-001: Configurable proximity radius in feet for CopyTokensFromNearest. Default 10 ft.</summary>
         public static double ProximityRadiusFt { get; internal set; } = 10.0;
 
+        /// <summary>
+        /// Default collision mode for bulk commands that don't show an explicit user dialog
+        /// (TagAndCombine, StingAutoTagger). Loaded from project_config.json
+        /// <c>DEFAULT_COLLISION_MODE</c>: "skip" | "overwrite" | "increment" (default).
+        /// AutoTagCommand always shows its own dialog and ignores this setting.
+        /// </summary>
+        public static TagCollisionMode DefaultCollisionMode { get; internal set; } = TagCollisionMode.AutoIncrement;
+
         /// <summary>HC-003: Configurable batch size for ResolveAllIssues. Default 500.</summary>
         public static int ResolveBatchSize { get; internal set; } = 500;
+
+        /// <summary>TAG-STALE-WARN-01: Minimum stale-element count before the auto-warning
+        /// promotion job opens a BIM issue. 0 disables the auto-promotion. Default 5.</summary>
+        public static int StaleWarningThreshold { get; internal set; } = 5;
+
+        /// <summary>BIM-CDE-FOLDER-01: When true, the plugin runs
+        /// `ProjectFolderEngine.CreateFolderStructure(doc)` on every
+        /// DocumentOpened event so the WIP / SHARED / PUBLISHED / ARCHIVE
+        /// CDE folders exist before any export tries to write into them.
+        /// Idempotent — folders that already exist are skipped. Default true.</summary>
+        public static bool AutoCreateCdeFolders { get; internal set; } = true;
+
+        /// <summary>Phase 165 (NEW-02): When true, ClashScheduler starts on
+        /// DocumentOpened with the cadence from default_clash_matrix.json
+        /// (SchedulerIntervalMinutes; default 60). Off keeps the scheduler
+        /// dormant until the user starts it from the Clash tab. Default false
+        /// because the per-tick run on a large model is non-trivial.</summary>
+        public static bool AutoStartClashScheduler { get; internal set; } = false;
 
         /// <summary>Configurable batch size for streaming COBie export. Default 5000.</summary>
         public static int CobieStreamBatchSize { get; internal set; } = 5000;
@@ -1375,7 +1415,8 @@ namespace StingTools.Core
                     "AUTO_TAGGER_ENABLED","AUTO_TAGGER_VISUAL","AUTO_TAGGER_STALE_MARKER",
                     "CUSTOM_VALID_DISC","CUSTOM_VALID_SYS","CUSTOM_VALID_FUNC",
                     "CUSTOM_VALID_LOC","CUSTOM_VALID_ZONE",
-                    "PROXIMITY_RADIUS_FT","RESOLVE_BATCH_SIZE",
+                    "PROXIMITY_RADIUS_FT","RESOLVE_BATCH_SIZE","STALE_WARNING_THRESHOLD",
+                    "AUTO_CREATE_CDE_FOLDERS",
                     "COBIE_STREAM_BATCH_SIZE","PERF_TRACKING_ENABLED",
                     "COST_RATES_FILE","SHEET_NAMING_STRICT_MODE",
                     "COST_PRELIMINARIES_PCT","COST_CONTINGENCY_PCT","COST_OVERHEAD_PROFIT_PCT",
@@ -1548,15 +1589,44 @@ namespace StingTools.Core
                         StingLog.Info($"TagConfig: loaded {DisciplineProfiles.Count} discipline profile(s): {string.Join(", ", DisciplineProfiles.Keys)}");
                 }
 
-                // HC-001: Configurable proximity radius for CopyTokensFromNearest
-                ProximityRadiusFt = 10.0; // default 10 ft
-                if (data.TryGetValue("PROXIMITY_RADIUS_FT", out object proxObj))
+                // HC-001: Configurable proximity radius for CopyTokensFromNearest.
+                // Revit internal coordinates are always in feet, so ProximityRadiusFt
+                // is the canonical internal unit.  Three config keys are accepted so
+                // metric-project teams can author the value in their natural units:
+                //   PROXIMITY_RADIUS_FT  — value is already in feet (legacy/default)
+                //   PROXIMITY_RADIUS_M   — value in metres  → converted to feet
+                //   PROXIMITY_RADIUS_MM  — value in millimetres → converted to feet
+                // All keys share the same 1–200 ft clamp after conversion.
+                ProximityRadiusFt = 10.0; // default 10 ft ≈ 3 m
+                double rawRadius = double.NaN;
+                double unitToFt = 1.0; // default: value already in feet
+                if (data.TryGetValue("PROXIMITY_RADIUS_FT", out object proxFt))
                 {
-                    if (proxObj is double pd) ProximityRadiusFt = pd;
-                    else if (proxObj is long pl) ProximityRadiusFt = pl;
-                    else if (double.TryParse(proxObj?.ToString(), out double pv)) ProximityRadiusFt = pv;
+                    if (proxFt is double pd) rawRadius = pd;
+                    else if (proxFt is long pl) rawRadius = pl;
+                    else double.TryParse(proxFt?.ToString(), out rawRadius);
+                    unitToFt = 1.0;
+                }
+                else if (data.TryGetValue("PROXIMITY_RADIUS_M", out object proxM))
+                {
+                    if (proxM is double pd) rawRadius = pd;
+                    else if (proxM is long pl) rawRadius = pl;
+                    else double.TryParse(proxM?.ToString(), out rawRadius);
+                    unitToFt = 3.28084; // 1 m = 3.28084 ft
+                }
+                else if (data.TryGetValue("PROXIMITY_RADIUS_MM", out object proxMm))
+                {
+                    if (proxMm is double pd) rawRadius = pd;
+                    else if (proxMm is long pl) rawRadius = pl;
+                    else double.TryParse(proxMm?.ToString(), out rawRadius);
+                    unitToFt = 0.00328084; // 1 mm = 0.00328084 ft
+                }
+                if (!double.IsNaN(rawRadius))
+                {
+                    ProximityRadiusFt = rawRadius * unitToFt;
                     if (ProximityRadiusFt < 1.0) ProximityRadiusFt = 1.0;
                     if (ProximityRadiusFt > 200.0) ProximityRadiusFt = 200.0;
+                    StingLog.Info($"TagConfig: ProximityRadiusFt = {ProximityRadiusFt:F2} ft (raw={rawRadius}, unitToFt={unitToFt})");
                 }
 
                 // HC-003: Configurable batch size for ResolveAllIssues
@@ -1567,6 +1637,39 @@ namespace StingTools.Core
                     else if (int.TryParse(bsObj?.ToString(), out int bi)) ResolveBatchSize = bi;
                     if (ResolveBatchSize < 50) ResolveBatchSize = 50;
                     if (ResolveBatchSize > 5000) ResolveBatchSize = 5000;
+                }
+
+                // DEFAULT_COLLISION_MODE: controls TagAndCombineCommand and StingAutoTagger bulk path.
+                // AutoTagCommand always shows its own dialog and ignores this setting.
+                DefaultCollisionMode = TagCollisionMode.AutoIncrement;
+                if (data.TryGetValue("DEFAULT_COLLISION_MODE", out object dcmObj))
+                {
+                    string dcmStr = dcmObj?.ToString()?.ToLowerInvariant() ?? "";
+                    DefaultCollisionMode = dcmStr switch
+                    {
+                        "skip"      => TagCollisionMode.Skip,
+                        "overwrite" => TagCollisionMode.Overwrite,
+                        _           => TagCollisionMode.AutoIncrement,
+                    };
+                    StingLog.Info($"TagConfig: DefaultCollisionMode = {DefaultCollisionMode}");
+                }
+
+                // TAG-STALE-WARN-01: Configurable threshold for auto-creating stale-element issues.
+                StaleWarningThreshold = 5; // default
+                if (data.TryGetValue("STALE_WARNING_THRESHOLD", out object swtObj))
+                {
+                    if (swtObj is long sl) StaleWarningThreshold = (int)sl;
+                    else if (int.TryParse(swtObj?.ToString(), out int si)) StaleWarningThreshold = si;
+                    if (StaleWarningThreshold < 0) StaleWarningThreshold = 0;
+                    if (StaleWarningThreshold > 100000) StaleWarningThreshold = 100000;
+                }
+
+                // BIM-CDE-FOLDER-01: Auto-bootstrap CDE folder structure on doc open.
+                AutoCreateCdeFolders = true;
+                if (data.TryGetValue("AUTO_CREATE_CDE_FOLDERS", out object accfObj))
+                {
+                    if (accfObj is bool b) AutoCreateCdeFolders = b;
+                    else if (bool.TryParse(accfObj?.ToString(), out bool bp)) AutoCreateCdeFolders = bp;
                 }
 
                 // Streaming COBie batch size
@@ -1740,6 +1843,10 @@ namespace StingTools.Core
                 ISO19650Validator.InvalidateValidatorCaches(); // PERF-01: clear cached code sets after config reload
                 try { BIMManager.ExcelLinkEngine.InvalidateValidationCache(); } // DI-02: clear Excel validation caches on config reload
                 catch (Exception) { /* ExcelLinkEngine may not be loaded yet */ }
+                // TAG-PREFLIGHT-DUP-01: Drop the cached PopulationContext because
+                // KnownCategories is derived from DiscMap and may have changed.
+                try { TokenAutoPopulator.PopulationContext.InvalidateCache(); }
+                catch (Exception) { /* harmless if helper not yet initialised */ }
 
                 // Load category warnings and paragraph containers from LABEL_DEFINITIONS
                 LoadCategoryWarningsFromLabels();
@@ -2192,6 +2299,68 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Phase 176 — Lightning Protection family-aware FUNC resolution.
+        /// When SYS=LPS, the FUNC token is one of 6 sub-functions
+        /// (AT / DC / EE / BOND / SPD / TC) chosen from family/type name.
+        /// Returns null for non-LPS elements (caller should fall back to
+        /// FuncMap[sys]). Wired into the tagging pipeline by the
+        /// Smart-FUNC layer so LPS finials → AT, down conductors → DC, etc.
+        /// </summary>
+        public static string ResolveLpsFunc(Element el)
+        {
+            if (el == null) return null;
+            string fam = ParameterHelpers.GetFamilyName(el);
+            string sym = ParameterHelpers.GetFamilySymbolName(el);
+            string upper = ($"{fam} {sym}").ToUpperInvariant();
+            if (upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
+                upper.Contains("STRIKE TERMINATION") || upper.Contains("AIR ROD") ||
+                upper.Contains("AIR MESH") || upper.Contains("CATENARY"))
+                return "AT";
+            if (upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
+                upper.Contains("DESCENT"))
+                return "DC";
+            if (upper.Contains("EARTH ROD") || upper.Contains("EARTH ELECTRODE") ||
+                upper.Contains("RING EARTH") || upper.Contains("FOUNDATION EARTH") ||
+                upper.Contains("MESH EARTH") || upper.Contains("EARTH MESH") ||
+                upper.Contains("EARTH PLATE"))
+                return "EE";
+            if (upper.Contains("EQUIPOTENTIAL") || upper.Contains("BONDING BAR") ||
+                upper.Contains("EARTH BAR") || (upper.Contains("BOND") && upper.Contains("LPS")) ||
+                upper.Contains("SPARK GAP"))
+                return "BOND";
+            if ((upper.Contains("SPD") || upper.Contains("SURGE PROTECT")) &&
+                (upper.Contains("LIGHTNING") || upper.Contains("TYPE 1") ||
+                 upper.Contains("TYPE 2") || upper.Contains("TYPE 3")))
+                return "SPD";
+            if (upper.Contains("TEST CLAMP") || upper.Contains("INSPECTION POINT"))
+                return "TC";
+            // Generic LPS family — leave as base "LPS" so caller falls back
+            return null;
+        }
+
+        /// <summary>
+        /// Phase 176 — true when family/type name shows lightning-protection
+        /// markers. Used by validators, container resolvers and LPS warning
+        /// writers to scope BS EN 62305 checks to the relevant elements only.
+        /// </summary>
+        public static bool IsLightningProtection(Element el)
+        {
+            if (el == null) return false;
+            string fam = ParameterHelpers.GetFamilyName(el);
+            string sym = ParameterHelpers.GetFamilySymbolName(el);
+            string upper = ($"{fam} {sym}").ToUpperInvariant();
+            return upper.Contains("LPS") || upper.Contains("LIGHTNING") ||
+                   upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
+                   upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
+                   upper.Contains("EARTH ROD") || upper.Contains("EARTH ELECTRODE") ||
+                   upper.Contains("RING EARTH") || upper.Contains("FOUNDATION EARTH") ||
+                   upper.Contains("MESH EARTH") || upper.Contains("EARTH MESH") ||
+                   upper.Contains("EQUIPOTENTIAL") || upper.Contains("BONDING BAR") ||
+                   upper.Contains("EARTH BAR") || upper.Contains("TEST CLAMP") ||
+                   upper.Contains("INSPECTION POINT") || upper.Contains("SPARK GAP");
+        }
+
+        /// <summary>
         /// Get a guaranteed default SYS code from a discipline code.
         /// Used as a fallback when MEP system detection returns empty —
         /// ensures every element gets a valid SYS token.
@@ -2337,6 +2506,57 @@ namespace StingTools.Core
             {
                 // Search both family name and combined (family + type) name for patterns
                 string upper = combinedName;
+
+                // ── Lightning Protection System (BS EN 62305) ────────────────
+                // LPS elements may be modelled in Electrical Equipment, Generic Models,
+                // Conduits, or Specialty Equipment. Family-name discriminates the
+                // 6 LPS sub-element kinds (12 PROD codes) regardless of category.
+                // Phase 176 — wired into LPS tag families #54 to #59.
+                if (upper.Contains("LPS") || upper.Contains("LIGHTNING") ||
+                    upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
+                    upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
+                    upper.Contains("EARTH ROD") || upper.Contains("EARTH ELECTRODE") ||
+                    upper.Contains("RING EARTH") || upper.Contains("FOUNDATION EARTH") ||
+                    upper.Contains("TEST CLAMP") || upper.Contains("EQUIPOTENTIAL"))
+                {
+                    if (upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
+                        upper.Contains("STRIKE TERMINATION") || upper.Contains("AIR ROD"))
+                        return "ATR";  // Air terminal rod
+                    if (upper.Contains("AIR MESH") || upper.Contains("MESH NODE"))
+                        return "AMS";  // Air mesh section
+                    if (upper.Contains("CATENARY"))
+                        return "ACT";  // Air catenary
+                    if (upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
+                        upper.Contains("DESCENT"))
+                        return "DCN";  // Down conductor
+                    if (upper.Contains("EARTH ROD") || upper.Contains("ROD EARTH"))
+                        return "ERD";  // Earth rod
+                    if (upper.Contains("RING EARTH") || upper.Contains("EARTH RING"))
+                        return "ERG";  // Ring earth
+                    if (upper.Contains("FOUNDATION EARTH"))
+                        return "EFE";  // Foundation earth
+                    if (upper.Contains("MESH EARTH") || upper.Contains("EARTH MESH"))
+                        return "EME";  // Mesh earth
+                    if (upper.Contains("EARTH ELECTRODE") || upper.Contains("EARTH PLATE"))
+                        return "ERD";
+                    if (upper.Contains("BOND") || upper.Contains("EQUIPOTENTIAL"))
+                        return "BCN";  // Bond conductor (default)
+                    if (upper.Contains("BONDING BAR") || upper.Contains("EARTH BAR"))
+                        return "BBR";
+                    if (upper.Contains("SPARK GAP"))
+                        return "BSG";
+                    if (upper.Contains("TYPE 1") && upper.Contains("SPD"))
+                        return "SPD1";
+                    if (upper.Contains("TYPE 2") && upper.Contains("SPD"))
+                        return "SPD2";
+                    if (upper.Contains("TYPE 3") && upper.Contains("SPD"))
+                        return "SPD3";
+                    if (upper.Contains("TEST CLAMP") || upper.Contains("INSPECTION POINT"))
+                        return "TCL";
+                    // Generic LPS fallback — always return some LPS PROD code
+                    if (upper.Contains("LPS") || upper.Contains("LIGHTNING"))
+                        return "LPS";
+                }
 
                 // Mechanical Equipment — distinguish AHU, FCU, VAV, CHR, BLR, PMP, FAN, etc.
                 if (categoryName == "Mechanical Equipment")
@@ -2572,16 +2792,35 @@ namespace StingTools.Core
             TaggingStats stats = null,
             string cachedRev = null,
             List<Phase> cachedPhases = null,
-            ElementId lastPhaseId = null)
+            ElementId lastPhaseId = null,
+            string prevTagHint = null,
+            string[] tokenValuesOut = null)
         {
             string catName = ParameterHelpers.GetCategoryName(el);
             // F-14: Merge ContainsKey guard + TryGetValue into a single map lookup
             if (string.IsNullOrEmpty(catName) || !DiscMap.TryGetValue(catName, out string disc))
                 return false;
 
-            // Handle already-tagged elements based on collision mode
-            string existingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+            // CONS-03 (Phase 149a): RunFullPipeline already read TAG1 once — accept
+            // the value via the new prevTagHint parameter to avoid a second read.
+            string existingTag = prevTagHint
+                ?? ParameterHelpers.GetString(el, ParamRegistry.TAG1);
             bool hasCompleteTag = TagIsComplete(existingTag);
+
+            // A-9: idempotency guard — if the element's last-written tag equals
+            // the current tag and the tag is complete, the element was already
+            // processed in this session. Cheap O(1) escape that avoids the
+            // collision loop entirely (only honoured when not overwriting).
+            if (collisionMode != TagCollisionMode.Overwrite && hasCompleteTag)
+            {
+                string prev = ParameterHelpers.GetString(el, "ASS_TAG_PREV_TXT");
+                if (!string.IsNullOrEmpty(prev)
+                    && string.Equals(prev, existingTag, StringComparison.Ordinal))
+                {
+                    stats?.RecordSkipped(catName);
+                    return true;
+                }
+            }
 
             if (hasCompleteTag)
             {
@@ -2629,29 +2868,52 @@ namespace StingTools.Core
             // Guaranteed LVL default: replace unresolved "XX"/"" with "L00" for levelless elements
             if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
 
-            // Intelligence Layer: MEP system-aware SYS/FUNC derivation
-            // 6-layer system detection: connector → sys param → circuit → family → room → category
-            string sys = GetMepSystemAwareSysCode(el, catName);
-
-            // Guaranteed SYS default: derive from discipline when MEP detection returns empty
+            // EFF-02 (Phase 149b): on the non-overwrite path we trust whatever
+            // PopulateAll already wrote — reading the element bypasses the
+            // expensive per-element MEP connector walk inside
+            // GetMepSystemAwareSysCode (and the Smart FUNC / family-aware PROD
+            // helpers). On the overwrite path we deliberately want fresh
+            // derivation so users can force a re-detect, so the legacy path
+            // still runs.
+            //
+            // Independent callers like BuildTagsCommand pass overwriteTokens=
+            // false but DON'T pre-populate the element first; for them, the
+            // GetString returns empty and we fall through to the same derivation
+            // that ran before — behaviour unchanged.
+            string sys = null;
+            if (!overwriteTokens) sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
             if (string.IsNullOrEmpty(sys))
-                sys = GetDiscDefaultSysCode(disc);
+            {
+                // Intelligence Layer: MEP system-aware SYS/FUNC derivation
+                // 6-layer system detection: connector → sys param → circuit → family → room → category
+                sys = GetMepSystemAwareSysCode(el, catName);
+                if (string.IsNullOrEmpty(sys))
+                    sys = GetDiscDefaultSysCode(disc);
+            }
 
             // Intelligence Layer: System-aware DISC correction for pipes
             // Pipes are mapped to "M" by default, but if the connected system is plumbing
             // (DCW, DHW, SAN, RWD, GAS), the DISC should be "P" (Plumbing).
             disc = GetSystemAwareDisc(disc, sys, catName);
 
-            // Smart FUNC: differentiates HVAC (SUP/RTN/EXH/FRA) and HWS (HTG/DHW) subsystems
-            string func = GetSmartFuncCode(el, sys);
-            // Guaranteed FUNC default: derive from SYS via FuncMap when smart detection is empty
+            string func = null;
+            if (!overwriteTokens) func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
             if (string.IsNullOrEmpty(func))
-                func = FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+            {
+                // Smart FUNC: differentiates HVAC (SUP/RTN/EXH/FRA) and HWS (HTG/DHW) subsystems
+                func = GetSmartFuncCode(el, sys);
+                if (string.IsNullOrEmpty(func))
+                    func = FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+            }
 
-            string prod = GetFamilyAwareProdCode(el, catName);
-            // Guaranteed PROD default: category map or GEN
+            string prod = null;
+            if (!overwriteTokens) prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
             if (string.IsNullOrEmpty(prod))
-                prod = ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
+            {
+                prod = GetFamilyAwareProdCode(el, catName);
+                if (string.IsNullOrEmpty(prod))
+                    prod = ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
+            }
 
             // PERF-R13: Throttle default-value warnings — record count, not per-element message.
             // Previously: 1000 elements with default ZONE → 1000 warning records with file I/O.
@@ -2790,6 +3052,12 @@ namespace StingTools.Core
                 ParameterHelpers.SetString(el, ParamRegistry.FUNC, func, overwrite: true);
                 ParameterHelpers.SetString(el, ParamRegistry.PROD, prod, overwrite: true);
                 ParameterHelpers.SetString(el, ParamRegistry.SEQ, seq, overwrite: true);
+
+                // EFF-03 (Phase 149a): we just wrote 8 known values — populate
+                // _cachedReadTokens from them so the container-write path below
+                // and the caller's tokenValuesOut don't trigger a fresh
+                // ReadTokenValues that would just read what we wrote.
+                _cachedReadTokens = new[] { disc, loc, zone, lvl, sys, func, prod, seq };
             }
             else
             {
@@ -2837,21 +3105,31 @@ namespace StingTools.Core
                 seq = actualTokens[7];
             }
 
-            // PERF-R11: Validate segment count by counting separators instead of allocating split array.
-            // Phase 86b: Use full separator string (not Separator[0] char) for multi-char separator support.
-            int sepCount = 0;
-            string sepStr = !string.IsNullOrEmpty(Separator) ? Separator : "-";
-            int sIdx = 0;
-            while ((sIdx = tag.IndexOf(sepStr, sIdx, StringComparison.Ordinal)) >= 0)
+            // EFF-11 (Phase 149a): segment-count validation only runs on the
+            // SetIfEmpty path where the actual stored tokens may legitimately
+            // differ from the freshly-derived ones (e.g. user manually edited
+            // ASS_DISCIPLINE_COD_TXT). On the overwrite path we just built the
+            // tag from 8 known non-empty tokens via string.Join with a fixed
+            // separator, so the segment count is statically 8 and the check is
+            // dead work. Skip it.
+            if (!overwriteTokens)
             {
-                sepCount++;
-                sIdx += sepStr.Length;
-            }
-            if (sepCount < 7) // 8 segments = 7 separators
-            {
-                StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {sepCount + 1} segments (expected 8)");
-                stats?.RecordWarning($"Element {el.Id}: malformed tag with {sepCount + 1} segments — skipped");
-                return false;
+                // PERF-R11: Validate segment count by counting separators instead of allocating split array.
+                // Phase 86b: Use full separator string (not Separator[0] char) for multi-char separator support.
+                int sepCount = 0;
+                string sepStr = !string.IsNullOrEmpty(Separator) ? Separator : "-";
+                int sIdx = 0;
+                while ((sIdx = tag.IndexOf(sepStr, sIdx, StringComparison.Ordinal)) >= 0)
+                {
+                    sepCount++;
+                    sIdx += sepStr.Length;
+                }
+                if (sepCount < 7) // 8 segments = 7 separators
+                {
+                    StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {sepCount + 1} segments (expected 8)");
+                    stats?.RecordWarning($"Element {el.Id}: malformed tag with {sepCount + 1} segments — skipped");
+                    return false;
+                }
             }
             bool tagWriteSucceeded = ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
 
@@ -2923,6 +3201,15 @@ namespace StingTools.Core
                     if (tokenVals[i] == null) tokenVals[i] = "";
                 }
                 ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: overwriteTokens);
+
+                // EFF-03 (Phase 149a): hand the freshly-built token array back to
+                // the caller so RunFullPipeline doesn't have to do its own
+                // ReadTokenValues a second time after we return.
+                if (tokenValuesOut != null && tokenValuesOut.Length >= 8)
+                {
+                    int copyLen = Math.Min(tokenValuesOut.Length, tokenVals.Length);
+                    for (int i = 0; i < copyLen; i++) tokenValuesOut[i] = tokenVals[i];
+                }
             }
             catch (Exception ex)
             {
@@ -2935,11 +3222,23 @@ namespace StingTools.Core
             // default visibility parameters. Without this, tag families using
             // paragraph depth or style matrix BOOLs would show blank labels.
             // Uses SetYesNo to handle YESNO (StorageType.Integer) parameters correctly.
+            //
+            // EFF-10 (Phase 149a): the display-mode sentinel is only empty on a
+            // first-ever tag; once it has any value the 13 init writes below are
+            // all overwriting current state with their default values, wasting a
+            // LookupParameter per call. Skip the block when STING_DISPLAY_MODE is
+            // already populated (sentinel covers the whole init group).
+            string displayModeSentinel = ParameterHelpers.GetString(el, ParamRegistry.DISPLAY_MODE);
+            if (!string.IsNullOrEmpty(displayModeSentinel))
+            {
+                stats?.RecordTagged(catName, disc, sys, lvl);
+                return true;
+            }
             try
             {
                 // LOG-08 FIX: Initialize DISPLAY_MODE so tag families show the correct
                 // display variant immediately (default = PROD-SEQ mode 2)
-                ParameterHelpers.SetIfEmpty(el, "STING_DISPLAY_MODE", ParamRegistry.DisplayModeDefault.ToString());
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISPLAY_MODE, ParamRegistry.DisplayModeDefault.ToString());
 
                 // ORPHAN-FIX: honour the Tokens & Depth paragraph-depth slider.
                 // When the user has pushed a ParaDepth value from the sub-tab we
@@ -2948,15 +3247,62 @@ namespace StingTools.Core
                 // we keep the historic behaviour of only seeding PARA_STATE_1 to
                 // avoid stomping manual tier selections.
                 int paraDepth = 0;
+                bool preserveParaState = false;
                 try
                 {
                     string pd = StingTools.UI.StingCommandHandler.GetExtraParam("ParaDepth");
                     if (!string.IsNullOrEmpty(pd) && int.TryParse(pd, out int v) && v >= 1 && v <= 10)
                         paraDepth = v;
+
+                    // Review fix for token-depth issue #2: when the user has
+                    // explicitly run SetParagraphDepthCommand the resulting
+                    // type-level state must not be clobbered by every Auto-Tag
+                    // pass. The ExtraParam below is set by that command and
+                    // makes WriteTag7All only seed PARA_STATE_1 when depth has
+                    // never been written.
+                    string ps = StingTools.UI.StingCommandHandler.GetExtraParam("PreserveParaState");
+                    if (!string.IsNullOrEmpty(ps) &&
+                        (ps.Equals("1", StringComparison.OrdinalIgnoreCase) ||
+                         ps.Equals("true", StringComparison.OrdinalIgnoreCase)))
+                        preserveParaState = true;
                 }
                 catch { /* ignore — use default */ }
 
-                if (paraDepth >= 1)
+                // Discipline-default fallback (review fix for token-depth #3):
+                // when no slider value is set, prefer the active discipline's
+                // configured DefaultParagraphDepth before defaulting to depth=1.
+                if (paraDepth == 0 && doc != null)
+                {
+                    try
+                    {
+                        string elDisc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                        if (!string.IsNullOrEmpty(elDisc))
+                        {
+                            var profile = GetDisciplineProfile(elDisc);
+                            if (profile?.DefaultParagraphDepth.HasValue == true)
+                                paraDepth = profile.DefaultParagraphDepth.Value;
+                        }
+                    }
+                    catch { /* discipline-default resolution is best-effort */ }
+                }
+
+                if (preserveParaState)
+                {
+                    // Honour any existing PARA_STATE_1 setting; only seed if the
+                    // element has never been touched (all states empty).
+                    bool anySet = false;
+                    foreach (var pn in ParamRegistry.AllParaStates)
+                    {
+                        Parameter pp = el.LookupParameter(pn);
+                        if (pp == null) continue;
+                        if (pp.StorageType == StorageType.Integer && pp.AsInteger() != 0) { anySet = true; break; }
+                        if (pp.StorageType == StorageType.String &&
+                            !string.IsNullOrEmpty(pp.AsString())) { anySet = true; break; }
+                    }
+                    if (!anySet)
+                        ParameterHelpers.SetYesNo(el, ParamRegistry.PARA_STATE_1, true);
+                }
+                else if (paraDepth >= 1)
                 {
                     string[] paraStates = ParamRegistry.AllParaStates;
                     for (int i = 0; i < paraStates.Length; i++)
@@ -2997,11 +3343,31 @@ namespace StingTools.Core
         ///   3 = DISC-SYS-SEQ        (e.g. "M-HVAC-0042")
         ///   4 = DISC-PROD-SEQ       (e.g. "M-AHU-0042")
         ///   5 = Full 8-segment      (default — current behaviour)
+        ///   6 = TAG7 plain narrative (Phase 165 — client-facing prose
+        ///       e.g. "AHU-01 — primary supply unit serving Level 02. Located
+        ///       in plant room PR-02. Status: NEW.")
         /// Returns the full tag if mode is unrecognised.
         /// </summary>
         public static string BuildDisplayTag(Element el, int mode)
         {
             if (el == null) return "";
+
+            // Phase 165 — mode 6 reads the rich TAG7 narrative directly.
+            // The narrative is composed by WriteTag7All; if empty (element
+            // hasn't been tagged yet) we fall through to the technical tag
+            // so the display never goes blank on a partially-tagged model.
+            if (mode == 6)
+            {
+                string narrative = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
+                if (!string.IsNullOrEmpty(narrative)) return narrative;
+                // Fallback: best plain-language hint we can build right now.
+                // Throttled log so a partially-tagged model surfaces the
+                // missing-narrative state instead of pretending mode-4 is by
+                // design — see review TAG-token-toggling issue #2.
+                StingLog.Warn($"BuildDisplayTag: mode 6 requested on element {el.Id} but ASS_TAG_7_TXT is empty; falling back to mode 4. Run Auto Tag / WriteTag7All to populate the narrative.");
+                mode = 4; // DISC-PROD-SEQ — most readable compact form
+            }
+
             string[] tokens = ParamRegistry.ReadTokenValues(el);
             if (tokens == null || tokens.Length < 8) return "";
 
@@ -3039,20 +3405,42 @@ namespace StingTools.Core
         public static string BuildDisplayTag(Element el)
         {
             if (el == null) return "";
-            int mode = ParameterHelpers.GetInt(el, "STING_DISPLAY_MODE", 0);
+            int mode = ParameterHelpers.GetInt(el, ParamRegistry.DISPLAY_MODE, 0);
             // Mode 0 means unset — use the configurable default from ParamRegistry
             if (mode == 0) mode = ParamRegistry.DisplayModeDefault;
             string display = BuildDisplayTag(el, mode);
 
-            // ORPHAN-FIX: honour the Tokens & Depth TokenMask when the user is in
-            // full 8-segment mode. Other modes already display subsets.
+            // Token-mask precedence (highest first):
+            //   1. STING_VIEW_TOKEN_MASK_TXT on the active view — user-set
+            //      "hide ZONE in this view" without mutating ASS_TAG_1_TXT
+            //      (review fix for TAG-token-toggling #1).
+            //   2. TAG_SEG_MASK_TXT on the element — written by
+            //      TokenProfileApplier step 7.5.
+            //   3. UI ExtraParam "TokenMask" — ad-hoc preview override.
+            // Mask now applies in modes 1-5/0 (was 5/0 only). Modes that
+            // already drop segments by design just no-op when the mask
+            // matches, so layered masks stay safe.
             try
             {
-                if (mode == 5 || mode == 0)
+                string mask = null;
+                try
                 {
-                    string mask = StingTools.UI.StingCommandHandler.GetExtraParam("TokenMask");
-                    if (!string.IsNullOrEmpty(mask) && mask.Length >= 8 && mask != "11111111")
-                        display = ApplySegmentMask(display, mask);
+                    var doc = el.Document;
+                    var view = doc?.ActiveView;
+                    if (view != null)
+                        mask = ParameterHelpers.GetString(view, ParamRegistry.VIEW_TOKEN_MASK);
+                }
+                catch { /* view lookup is best-effort */ }
+
+                if (string.IsNullOrEmpty(mask))
+                    mask = ParameterHelpers.GetString(el, ParamRegistry.TAG_SEG_MASK);
+                if (string.IsNullOrEmpty(mask))
+                    mask = StingTools.UI.StingCommandHandler.GetExtraParam("TokenMask");
+
+                if (!string.IsNullOrEmpty(mask) && mask.Length >= 8 && mask != "11111111"
+                    && (mode == 0 || mode == 5))
+                {
+                    display = ApplySegmentMask(display, mask);
                 }
             }
             catch { /* mask is an optional UX hint — ignore failures */ }
@@ -3060,7 +3448,7 @@ namespace StingTools.Core
             {
                 try
                 {
-                    ParameterHelpers.SetString(el, "ASS_DISPLAY_TXT", display, overwrite: true);
+                    ParameterHelpers.SetString(el, ParamRegistry.DISPLAY_TXT, display, overwrite: true);
                 }
                 catch (Exception ex) { StingLog.Warn($"ASS_DISPLAY_TXT param may not be bound: {ex.Message}"); }
             }
@@ -3218,6 +3606,21 @@ namespace StingTools.Core
             string familyName = ParameterHelpers.GetFamilyName(el);
             if (string.IsNullOrEmpty(familyName)) return null;
             string upper = familyName.ToUpperInvariant();
+
+            // Phase 176 — Lightning Protection System pattern (BS EN 62305).
+            // Match BEFORE LV / electrical patterns so an LPS finial in
+            // Electrical Equipment doesn't get tagged as LV.
+            if (upper.Contains("LPS") || upper.Contains("LIGHTNING") ||
+                upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
+                upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
+                upper.Contains("EARTH ROD") || upper.Contains("EARTH ELECTRODE") ||
+                upper.Contains("RING EARTH") || upper.Contains("FOUNDATION EARTH") ||
+                upper.Contains("MESH EARTH") || upper.Contains("EARTH MESH") ||
+                upper.Contains("EQUIPOTENTIAL") || upper.Contains("BONDING BAR") ||
+                upper.Contains("EARTH BAR") || upper.Contains("TEST CLAMP") ||
+                upper.Contains("INSPECTION POINT") || upper.Contains("SPARK GAP") ||
+                ((upper.Contains("SPD") || upper.Contains("SURGE PROTECT")) && upper.Contains("LIGHTNING")))
+                return "LPS";
 
             // HVAC equipment patterns
             if (upper.Contains("AHU") || upper.Contains("AIR HANDLING") ||
@@ -3686,6 +4089,14 @@ namespace StingTools.Core
         /// for each (DISC, SYS, LVL) group. Returns a dictionary that can be passed
         /// to BuildAndWriteTag so new tags continue from existing numbering.
         /// </summary>
+        /// <remarks>
+        /// <b>Obsolete</b>: Use <see cref="BuildTagIndexAndCounters"/> instead.
+        /// That method merges the sidecar <c>.sting_seq.json</c> counter store with
+        /// the live project scan so SEQ numbering survives Revit session boundaries.
+        /// Calling this method directly skips the sidecar, which can produce SEQ
+        /// collisions after the project has been reopened.
+        /// </remarks>
+        [Obsolete("Use BuildTagIndexAndCounters(doc) — it merges sidecar counters with the live scan, preventing SEQ collisions across sessions.")]
         public static Dictionary<string, int> GetExistingSequenceCounters(Document doc)
         {
             var maxSeq = new Dictionary<string, int>();
@@ -3870,6 +4281,11 @@ namespace StingTools.Core
                 string sidecarPath = GetSeqSidecarPath(doc);
                 if (sidecarPath == null || !System.IO.File.Exists(sidecarPath)) return null;
 
+                // S3.6.2 — version gate before deserialise.
+                StingTools.Core.PluginSchemaVersion.EnsureFileVersion(
+                    sidecarPath, "planscape.sting-seq-sidecar",
+                    StingTools.Core.PluginSchemaVersion.CurrentSeqSidecar);
+
                 var (loaded, ver) = BIMManager.SidecarVersioning.ReadSidecar<Dictionary<string, int>>(sidecarPath, "1.0");
                 if (loaded != null && loaded.Count > 0)
                     StingLog.Info($"SEQ sidecar loaded: {loaded.Count} groups (v{ver ?? "legacy"}) from {sidecarPath}");
@@ -3934,6 +4350,13 @@ namespace StingTools.Core
             if (doc == null || !doc.IsValidObject) return null;
             string projectPath = doc.PathName;
             if (string.IsNullOrEmpty(projectPath)) return null;
+            // Phase 167: prefer _data folder
+            try
+            {
+                string p = StingTools.Core.ProjectFolderEngine.GetDataPath(doc, "seq_counters.json");
+                if (!string.IsNullOrEmpty(p)) return p;
+            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string dir = System.IO.Path.GetDirectoryName(projectPath);
             string fileName = System.IO.Path.GetFileNameWithoutExtension(projectPath);
             if (string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(fileName)) return null;
@@ -4073,6 +4496,27 @@ namespace StingTools.Core
                 { "GAS", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes" } },
                 { "FP", new List<string> { "Sprinklers", "Fire Protection", "Fire Alarm Devices", "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
                 { "LV", new List<string> { "Electrical Equipment", "Electrical Fixtures", "Electrical Connectors", "Lighting Fixtures", "Lighting Devices", "Conduits", "Conduit Fittings", "Cable Trays", "Cable Tray Fittings", "MEP Fabrication Containment" } },
+                // Lightning Protection — BS EN 62305. LPS-bearing elements may be modelled as
+                // Electrical Equipment (SPDs, test clamps), Generic Models (rods, mesh, ring earth),
+                // Conduits / Conduit Fittings (down-conductor channels), or Specialty Equipment.
+                // Family-name discrimination in GetFamilyAwareProdCode picks the correct LPS sub-tag.
+                // Phase 176 cross-discipline integration:
+                //   - Structural Foundations / Rebar / Reinforcement reused as Type-B foundation earth
+                //     (BS EN 62305-3 Annex E.5.3) → STR Tag #22 STING - LPS Foundation Earth Tag
+                //   - Roofs / Walls / Curtain Wall / Wall Sweeps / Fascia / Gutter / Roof Soffits acting
+                //     as natural air termination (BS EN 62305-3 §5.2.5) → ARCH Tag #36 STING - LPS Natural
+                //     Air Termination Tag
+                //   - Detail Items used for LPS schematic / installation details → GEN Tag #34 STING - LPS
+                //     Generic Component Tag (catch-all)
+                { "LPS", new List<string>
+                    {
+                        // Electrical / generic LPS modelling
+                        "Electrical Equipment", "Generic Models", "Conduits", "Conduit Fittings", "Specialty Equipment", "Detail Items",
+                        // Structural reuse — Type-B foundation earth (BS EN 62305-3 Annex E.5.3)
+                        "Structural Foundations", "Structural Rebar", "Structural Area Reinforcement", "Structural Path Reinforcement", "Structural Fabric Reinforcement",
+                        // Architectural reuse — natural air termination (BS EN 62305-3 §5.2.5)
+                        "Roofs", "Walls", "Curtain Wall Mullions", "Wall Sweeps", "Fascia", "Gutter", "Roof Soffits"
+                    } },
                 { "FLS", new List<string> { "Fire Alarm Devices", "Fire Protection" } },
                 { "COM", new List<string> { "Communication Devices", "Telephone Devices", "Audio Visual Devices" } },
                 { "ICT", new List<string> { "Data Devices" } },
@@ -4184,6 +4628,9 @@ namespace StingTools.Core
                 { "HVAC", "SUP" }, { "HWS", "HTG" }, { "DHW", "DHW" },
                 { "DCW", "DCW" }, { "SAN", "SAN" }, { "RWD", "RWD" }, { "GAS", "GAS" },
                 { "FP", "FP" }, { "LV", "PWR" }, { "FLS", "FLS" },
+                // Lightning protection — default FUNC. The 6 LPS sub-functions (AT / DC / EE / BOND / SPD / TC)
+                // are family-aware overrides resolved by GetFamilyAwareProdCode + ResolveLpsFunc.
+                { "LPS", "LPS" },
                 { "COM", "COM" }, { "ICT", "ICT" }, { "NCL", "NCL" },
                 { "SEC", "SEC" },
                 { "ARC", "FIT" }, { "STR", "STR" }, { "GEN", "GEN" },
@@ -4404,8 +4851,45 @@ namespace StingTools.Core
             /// <summary>Section F: Classification &amp; Reference (plain).</summary>
             public string SectionF { get; set; } = "";
 
-            /// <summary>All 6 sections as an array (A-F), matching TAG7Sections order.</summary>
-            public string[] AllSections => new[] { SectionA, SectionB, SectionC, SectionD, SectionE, SectionF };
+            /// <summary>
+            /// All 6 sections as an array (A-F), matching TAG7Sections order.
+            /// Phase 165 perf — array is materialised once on first read and
+            /// cached on the instance. Tag7Result is per-tagging-call so the
+            /// cache lives only as long as the surrounding write.
+            /// </summary>
+            public string[] AllSections =>
+                _allSectionsCache ??= new[] { SectionA, SectionB, SectionC, SectionD, SectionE, SectionF };
+            private string[] _allSectionsCache;
+
+            // ─── T4-T10 tier summaries (Phase 165 — tagging workflow repair) ───
+            // Each is a single-line formatted summary built from the relevant
+            // shared parameters. Empty string means the element carries no data
+            // for that tier — the writer skips those tiers silently.
+
+            /// <summary>T4: Commissioning &amp; handover summary.</summary>
+            public string SectionT4 { get; set; } = "";
+            /// <summary>T5: Cost &amp; procurement summary (UGX/USD/install hrs/labour).</summary>
+            public string SectionT5 { get; set; } = "";
+            /// <summary>T6: Carbon &amp; sustainability summary (A1-A3, A4, B6, C-stages).</summary>
+            public string SectionT6 { get; set; } = "";
+            /// <summary>T7: Fabrication &amp; QC summary (spool / status / inspector).</summary>
+            public string SectionT7 { get; set; } = "";
+            /// <summary>T8: Clash triage &amp; resolution summary.</summary>
+            public string SectionT8 { get; set; } = "";
+            /// <summary>T9: As-built reconciliation &amp; model-health summary.</summary>
+            public string SectionT9 { get; set; } = "";
+            /// <summary>T10: Compliance / audit-trail summary (IFC PSet / ACC).</summary>
+            public string SectionT10 { get; set; } = "";
+
+            /// <summary>
+            /// T4..T10 summaries indexed 0..6 (i.e. Tier4Summaries[0] == SectionT4).
+            /// Phase 165 perf — cached on first read, identical lifetime to AllSections.
+            /// </summary>
+            public string[] Tier4Summaries => _tier4SummariesCache ??= new[]
+            {
+                SectionT4, SectionT5, SectionT6, SectionT7, SectionT8, SectionT9, SectionT10
+            };
+            private string[] _tier4SummariesCache;
         }
 
         /// <summary>
@@ -4535,7 +5019,7 @@ namespace StingTools.Core
                 {
                     Name = "Discipline",
                     Description = "Color-code by discipline: Mechanical=Blue, Electrical=Amber, Plumbing=Green, etc.",
-                    DiscriminatorParam = "ASS_DISCIPLINE_COD_TXT",
+                    DiscriminatorParam = ParamRegistry.DISC,
                     Styles = new Dictionary<string, Tag7DisplayStyle>
                     {
                         { "M",  new Tag7DisplayStyle { HeaderColor = "#1565C0", BackgroundTint = "#E3F2FD", Label = "Mechanical",
@@ -4572,7 +5056,7 @@ namespace StingTools.Core
                 {
                     Name = "Status",
                     Description = "Color-code by lifecycle status: NEW=Green, EXISTING=Blue, DEMOLISHED=Red, TEMPORARY=Orange",
-                    DiscriminatorParam = "ASS_STATUS_TXT",
+                    DiscriminatorParam = ParamRegistry.STATUS,
                     Styles = new Dictionary<string, Tag7DisplayStyle>
                     {
                         { "NEW",         new Tag7DisplayStyle { HeaderColor = "#2E7D32", BackgroundTint = "#E8F5E9", Label = "New Construction",
@@ -4598,7 +5082,7 @@ namespace StingTools.Core
                 {
                     Name = "System",
                     Description = "Color-code by system type: HVAC=Blue, DCW=Cyan, HWS=Red, SAN=Brown, LV=Amber, FP=Orange",
-                    DiscriminatorParam = "ASS_SYSTEM_TYPE_TXT",
+                    DiscriminatorParam = ParamRegistry.SYS,
                     Styles = new Dictionary<string, Tag7DisplayStyle>
                     {
                         { "HVAC", new Tag7DisplayStyle { HeaderColor = "#1565C0", BackgroundTint = "#E3F2FD", Label = "HVAC",
@@ -4667,7 +5151,7 @@ namespace StingTools.Core
                 {
                     Name = "Accessible",
                     Description = "Colorblind-safe palette using blue/orange contrast (deuteranopia/protanopia friendly)",
-                    DiscriminatorParam = "ASS_DISCIPLINE_COD_TXT",
+                    DiscriminatorParam = ParamRegistry.DISC,
                     Styles = new Dictionary<string, Tag7DisplayStyle>
                     {
                         { "M",  new Tag7DisplayStyle { HeaderColor = "#0072B2", BackgroundTint = "#E1F5FE", Label = "Mechanical",
@@ -4855,6 +5339,7 @@ namespace StingTools.Core
             { "M", "Mechanical" }, { "E", "Electrical" }, { "P", "Plumbing" },
             { "A", "Architectural" }, { "S", "Structural" }, { "FP", "Fire Protection" },
             { "LV", "Low Voltage" }, { "G", "Gas" }, { "GEN", "General" },
+            { "H", "Healthcare" }, { "MG", "Medical Gas" }, { "RP", "Radiation Protection" },
         };
 
         /// <summary>Full system name for human-readable narrative.</summary>
@@ -4870,6 +5355,16 @@ namespace StingTools.Core
             { "COM", "Communications" }, { "NCL", "Nurse Call Systems" },
             { "ARC", "Architectural Fabric" }, { "STR", "Structural Elements" },
             { "GEN", "General Services" },
+            // Healthcare Pack (Phase H-1)
+            { "MGS-O2", "Medical Oxygen Supply" }, { "MGS-AIR", "Medical Compressed Air" },
+            { "MGS-VAC", "Medical Vacuum" }, { "MGS-N2O", "Nitrous Oxide Supply" },
+            { "MGS-CO2", "Carbon Dioxide Supply" }, { "MGS-N2", "Nitrogen Supply" },
+            { "MGS-AGS", "Anaesthetic Gas Scavenging" },
+            { "EES-LS", "Essential Electrical Services (Life Safety)" },
+            { "EES-CR", "Essential Electrical Services (Critical)" },
+            { "EES-EB", "Essential Electrical Services (Enhanced)" },
+            { "LPS", "Lightning Protection System" },
+            { "CLN", "Clinical Environment" }, { "RAD", "Radiation Shielding" },
         };
 
         /// <summary>Full function description for human-readable narrative.</summary>
@@ -4888,6 +5383,12 @@ namespace StingTools.Core
             { "NCL", "Patient Nurse Call" }, { "SEC", "Security and Access Control" },
             { "FIT", "Finishes and Fitout" }, { "STR", "Primary Structure" },
             { "GEN", "General Purpose" },
+            // Healthcare Pack (Phase H-1)
+            { "AT", "Air Termination" }, { "DC", "Down Conductor" }, { "EB", "Equipotential Bond" },
+            { "EP", "Earth Pit" }, { "SPD", "Surge Protection Device" },
+            { "DIST", "Distribution" }, { "ISO", "Isolation" }, { "ALM", "Area Alarm" },
+            { "TU", "Terminal Unit" }, { "ZVB", "Zone Valve Box" },
+            { "AAP", "Area Alarm Panel" }, { "SHLD", "Shielding" }, { "ZONE", "Safety Zone" },
         };
 
         /// <summary>Full product type description for human-readable narrative.</summary>
@@ -5411,34 +5912,42 @@ namespace StingTools.Core
                 classMarked.Append($"\u00ABV\u00BB{typeComments}\u00AB/V\u00BB");
             }
 
-            // ISO reference always added with connecting language
-            // S02 defensive guards — trap upstream token corruption so the narrative stays readable
-            // even when a PROD/SYS/etc. writer accidentally concatenated multiple descriptors into
-            // one token slot, or when TagPrefix/TagSuffix already appears in the joined string.
-            string[] isoTokens = new string[tokenValues.Length];
-            for (int i = 0; i < tokenValues.Length; i++)
+            // FG-07: prefer ASS_TAG_1 (already assembled by BuildAndWriteTag,
+            // the single source of truth for tag composition) when it is
+            // populated. Falls back to inline re-assembly only when the
+            // canonical tag has not been built yet — avoids divergence
+            // between Section F and the assembled tag.
+            string fullTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+            if (string.IsNullOrEmpty(fullTag))
             {
-                string v = tokenValues[i];
-                if (!string.IsNullOrEmpty(v) && !string.IsNullOrEmpty(Separator) && v.Contains(Separator))
+                // S02 defensive guards — trap upstream token corruption so the narrative stays readable
+                // even when a PROD/SYS/etc. writer accidentally concatenated multiple descriptors into
+                // one token slot, or when TagPrefix/TagSuffix already appears in the joined string.
+                string[] isoTokens = new string[tokenValues.Length];
+                for (int i = 0; i < tokenValues.Length; i++)
                 {
-                    StingLog.Warn($"BuildTag7Sections: token[{i}]='{v}' contains separator '{Separator}'. " +
-                                  $"ElementId={el?.Id}. Truncating to first segment.");
-                    v = v.Split(new[] { Separator }, 2, StringSplitOptions.None)[0];
+                    string v = tokenValues[i];
+                    if (!string.IsNullOrEmpty(v) && !string.IsNullOrEmpty(Separator) && v.Contains(Separator))
+                    {
+                        StingLog.Warn($"BuildTag7Sections: token[{i}]='{v}' contains separator '{Separator}'. " +
+                                      $"ElementId={el?.Id}. Truncating to first segment.");
+                        v = v.Split(new[] { Separator }, 2, StringSplitOptions.None)[0];
+                    }
+                    isoTokens[i] = v;
                 }
-                isoTokens[i] = v;
-            }
-            string fullTag = string.Join(Separator, isoTokens);
-            if (!string.IsNullOrEmpty(TagPrefix) &&
-                !fullTag.StartsWith(TagPrefix + Separator, StringComparison.Ordinal) &&
-                !fullTag.StartsWith(TagPrefix, StringComparison.Ordinal))
-            {
-                fullTag = TagPrefix + Separator + fullTag;
-            }
-            if (!string.IsNullOrEmpty(TagSuffix) &&
-                !fullTag.EndsWith(Separator + TagSuffix, StringComparison.Ordinal) &&
-                !fullTag.EndsWith(TagSuffix, StringComparison.Ordinal))
-            {
-                fullTag = fullTag + Separator + TagSuffix;
+                fullTag = string.Join(Separator, isoTokens);
+                if (!string.IsNullOrEmpty(TagPrefix) &&
+                    !fullTag.StartsWith(TagPrefix + Separator, StringComparison.Ordinal) &&
+                    !fullTag.StartsWith(TagPrefix, StringComparison.Ordinal))
+                {
+                    fullTag = TagPrefix + Separator + fullTag;
+                }
+                if (!string.IsNullOrEmpty(TagSuffix) &&
+                    !fullTag.EndsWith(Separator + TagSuffix, StringComparison.Ordinal) &&
+                    !fullTag.EndsWith(TagSuffix, StringComparison.Ordinal))
+                {
+                    fullTag = fullTag + Separator + TagSuffix;
+                }
             }
             if (classPlain.Length > 0) { classPlain.Append(". Assigned "); classMarked.Append(". Assigned "); }
             classPlain.Append($"ISO 19650 tag {fullTag}");
@@ -5542,7 +6051,146 @@ namespace StingTools.Core
             result.PlainNarrative = plainParts.ToString();
             result.MarkedUpNarrative = markedParts.ToString();
 
+            // ─── T4-T10 tier summaries (Phase 165) ────────────────────────
+            // Read element data and build single-line summaries per tier. Each
+            // builder is independently try/catch wrapped — a failure in one
+            // tier never breaks TAG7A-TAG7F or the other tiers.
+            BuildTier4To10Summaries(el, result);
+
             return result;
+        }
+
+        /// <summary>
+        /// Phase 165 — assemble T4-T10 tier summaries from element parameters.
+        /// Each tier reads a small group of shared parameters and formats a
+        /// human-readable single-line summary. Empty tier → empty string
+        /// (callers skip silently).
+        /// </summary>
+        private static void BuildTier4To10Summaries(Element el, Tag7Result result)
+        {
+            if (el == null) return;
+
+            // T4 — Commissioning & handover (N-G16 QR workflow)
+            try
+            {
+                string state    = ParameterHelpers.GetString(el, ParamRegistry.COMM_STATE_TXT);
+                string date     = ParameterHelpers.GetString(el, ParamRegistry.COMM_DATE_TXT);
+                string oper     = ParameterHelpers.GetString(el, ParamRegistry.COMM_OPERATIVE_TXT);
+                string witness  = ParameterHelpers.GetString(el, ParamRegistry.COMM_WITNESS_TXT);
+                string notes    = ParameterHelpers.GetString(el, ParamRegistry.COMM_NOTES_TXT);
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(state))   parts.Add(state);
+                if (!string.IsNullOrEmpty(date))    parts.Add(date);
+                if (!string.IsNullOrEmpty(oper))    parts.Add($"by {oper}");
+                if (!string.IsNullOrEmpty(witness)) parts.Add($"witness {witness}");
+                if (!string.IsNullOrEmpty(notes))   parts.Add(notes);
+                if (parts.Count > 0) result.SectionT4 = string.Join(" • ", parts);
+            }
+            catch (Exception ex) { StingLog.Warn("BuildTier4To10Summaries T4 failed: " + ex.Message); }
+
+            // T5 — Cost & procurement
+            try
+            {
+                string ugx      = ParameterHelpers.GetString(el, ParamRegistry.CST_UG_PRICE_UGX);
+                string usd      = ParameterHelpers.GetString(el, ParamRegistry.CST_INTL_PRICE_USD);
+                string quote    = ParameterHelpers.GetString(el, ParamRegistry.CST_QUOTE_REF_TXT);
+                string hrs      = ParameterHelpers.GetString(el, ParamRegistry.CST_INSTALL_HRS);
+                string crew     = ParameterHelpers.GetString(el, ParamRegistry.CST_LABOUR_CREW_TXT);
+                string rate     = ParameterHelpers.GetString(el, ParamRegistry.CST_LABOUR_RATE_GBP);
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(ugx))   parts.Add($"UGX {ugx}");
+                if (!string.IsNullOrEmpty(usd))   parts.Add($"USD {usd}");
+                if (!string.IsNullOrEmpty(quote)) parts.Add($"quote {quote}");
+                if (!string.IsNullOrEmpty(hrs))   parts.Add($"{hrs} hrs install");
+                if (!string.IsNullOrEmpty(crew))  parts.Add($"crew {crew}");
+                if (!string.IsNullOrEmpty(rate))  parts.Add($"GBP {rate}/hr");
+                if (parts.Count > 0) result.SectionT5 = string.Join(" • ", parts);
+            }
+            catch (Exception ex) { StingLog.Warn("BuildTier4To10Summaries T5 failed: " + ex.Message); }
+
+            // T6 — Carbon & sustainability (BS EN 15978 lifecycle stages)
+            try
+            {
+                string a13   = ParameterHelpers.GetString(el, ParamRegistry.CBN_A1_A3_KG_CO2E);
+                string a4    = ParameterHelpers.GetString(el, ParamRegistry.CBN_A4_KG_CO2E);
+                string a5    = ParameterHelpers.GetString(el, ParamRegistry.CBN_A5_KG_CO2E);
+                string b6    = ParameterHelpers.GetString(el, ParamRegistry.CBN_B6_KG_CO2E_YR);
+                string c1    = ParameterHelpers.GetString(el, ParamRegistry.CBN_C1_KG_CO2E);
+                string c2    = ParameterHelpers.GetString(el, ParamRegistry.CBN_C2_KG_CO2E);
+                string c34   = ParameterHelpers.GetString(el, ParamRegistry.CBN_C3_C4_KG_CO2E);
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(a13)) parts.Add($"A1-A3 {a13} kgCO2e");
+                if (!string.IsNullOrEmpty(a4))  parts.Add($"A4 {a4}");
+                if (!string.IsNullOrEmpty(a5))  parts.Add($"A5 {a5}");
+                if (!string.IsNullOrEmpty(b6))  parts.Add($"B6 {b6}/yr");
+                if (!string.IsNullOrEmpty(c1))  parts.Add($"C1 {c1}");
+                if (!string.IsNullOrEmpty(c2))  parts.Add($"C2 {c2}");
+                if (!string.IsNullOrEmpty(c34)) parts.Add($"C3-C4 {c34}");
+                if (parts.Count > 0) result.SectionT6 = string.Join(" • ", parts);
+            }
+            catch (Exception ex) { StingLog.Warn("BuildTier4To10Summaries T6 failed: " + ex.Message); }
+
+            // T7 — Fabrication & QC
+            try
+            {
+                string spool   = ParameterHelpers.GetString(el, ParamRegistry.ASS_SPOOL_NR_TXT);
+                string status  = ParameterHelpers.GetString(el, ParamRegistry.ASS_FAB_STATUS_TXT);
+                string insp    = ParameterHelpers.GetString(el, ParamRegistry.ASS_QC_INSPECTOR_TXT);
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(spool))  parts.Add($"spool {spool}");
+                if (!string.IsNullOrEmpty(status)) parts.Add(status);
+                if (!string.IsNullOrEmpty(insp))   parts.Add($"insp {insp}");
+                if (parts.Count > 0) result.SectionT7 = string.Join(" • ", parts);
+            }
+            catch (Exception ex) { StingLog.Warn("BuildTier4To10Summaries T7 failed: " + ex.Message); }
+
+            // T8 — Clash triage & resolution
+            try
+            {
+                string sev     = ParameterHelpers.GetString(el, ParamRegistry.CLASH_TRIAGE_SEVERITY_NR);
+                string cat     = ParameterHelpers.GetString(el, ParamRegistry.CLASH_TRIAGE_CATEGORY_TXT);
+                string resStat = ParameterHelpers.GetString(el, ParamRegistry.CLASH_RESOLUTION_STATUS_TXT);
+                string score   = ParameterHelpers.GetString(el, ParamRegistry.CLASH_TRIAGE_SCORE);
+                string action  = ParameterHelpers.GetString(el, ParamRegistry.CLASH_RESOLUTION_ACTION_TXT);
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(sev))     parts.Add($"sev {sev}");
+                if (!string.IsNullOrEmpty(cat))     parts.Add(cat);
+                if (!string.IsNullOrEmpty(resStat)) parts.Add(resStat);
+                if (!string.IsNullOrEmpty(score))   parts.Add($"score {score}");
+                if (!string.IsNullOrEmpty(action))  parts.Add($"action: {action}");
+                if (parts.Count > 0) result.SectionT8 = string.Join(" • ", parts);
+            }
+            catch (Exception ex) { StingLog.Warn("BuildTier4To10Summaries T8 failed: " + ex.Message); }
+
+            // T9 — As-built reconciliation & model health
+            try
+            {
+                string dev      = ParameterHelpers.GetString(el, ParamRegistry.ASBUILT_DEVIATION_MM);
+                string capDate  = ParameterHelpers.GetString(el, ParamRegistry.ASBUILT_CAPTURE_DATE_TXT);
+                string health   = ParameterHelpers.GetString(el, ParamRegistry.HEALTH_SCORE_LAST_NR);
+                string healthDt = ParameterHelpers.GetString(el, ParamRegistry.HEALTH_SCORE_DATE_TXT);
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(dev))      parts.Add($"Δ {dev} mm");
+                if (!string.IsNullOrEmpty(capDate))  parts.Add($"captured {capDate}");
+                if (!string.IsNullOrEmpty(health))   parts.Add($"health {health}");
+                if (!string.IsNullOrEmpty(healthDt)) parts.Add($"on {healthDt}");
+                if (parts.Count > 0) result.SectionT9 = string.Join(" • ", parts);
+            }
+            catch (Exception ex) { StingLog.Warn("BuildTier4To10Summaries T9 failed: " + ex.Message); }
+
+            // T10 — Compliance / audit (IFC PSet + ACC round-trip)
+            try
+            {
+                string pset    = ParameterHelpers.GetString(el, ParamRegistry.IFC_PSET_OVERRIDE_TXT);
+                string accId   = ParameterHelpers.GetString(el, ParamRegistry.ACC_ISSUE_ID_TXT);
+                string accStat = ParameterHelpers.GetString(el, ParamRegistry.ACC_SYNC_STATUS_TXT);
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(pset))    parts.Add($"IFC PSet: {pset}");
+                if (!string.IsNullOrEmpty(accId))   parts.Add($"ACC #{accId}");
+                if (!string.IsNullOrEmpty(accStat)) parts.Add($"sync {accStat}");
+                if (parts.Count > 0) result.SectionT10 = string.Join(" • ", parts);
+            }
+            catch (Exception ex) { StingLog.Warn("BuildTier4To10Summaries T10 failed: " + ex.Message); }
         }
 
         /// <summary>
@@ -5555,9 +6203,61 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Phase 165 — Issue #5. Mode-aware overload of BuildTag7Sections.
+        ///
+        /// Both modes return identical SectionA-C (Identity / System / Spatial)
+        /// because T1-T3 are common. The remaining sections differ:
+        ///
+        ///  - <c>TagMode.DC</c> — SectionD/E/F = Lifecycle / Technical / Classification
+        ///    (the System A TAG7D-F content). Tier4Summaries are still hydrated
+        ///    from element parameters so the data is visible to both clients,
+        ///    but in DC mode the consumer (WriteTag7All) writes only A-F.
+        ///
+        ///  - <c>TagMode.Handover</c> — Section D/E/F return the same plain
+        ///    System A content, but the writer pulls T4-T10 from
+        ///    <see cref="Tag7Result.Tier4Summaries"/> (T4=Commissioning,
+        ///    T5=Cost, T6=Carbon, T7=Fab, T8=Clash, T9=AsBuilt, T10=Audit).
+        ///
+        ///  - <c>TagMode.Custom</c> — same shape as Handover; project supplies
+        ///    its own T4-T10 mapping via project_config.json overrides.
+        ///
+        /// The method itself is mode-agnostic at read time — it just hydrates
+        /// every section + every tier — so two calls return identical Tag7Result.
+        /// The branch happens at write time in <see cref="WriteTag7All"/>.
+        /// </summary>
+        public static Tag7Result BuildTag7Sections(Document doc, Element el,
+            string categoryName, string[] tokenValues, ParamRegistry.TagMode mode)
+        {
+            // Hydrate the Tag7Result the same way regardless of mode — the writer
+            // selects which subset to persist based on `mode`. Centralising the
+            // build keeps DC ↔ Handover round-trips lossless: switching modes
+            // does NOT erase data that lives outside the active mode's tier set.
+            var result = BuildTag7Sections(doc, el, categoryName, tokenValues);
+            return result;
+        }
+
+        /// <summary>
         /// Write TAG7 + all sub-section parameters (TAG7A-TAG7F) for an element.
         /// Also writes warning text, and populates the category-specific paragraph container.
         /// Returns number of parameters written.
+        ///
+        /// Phase 165 — Issue #2. The writer is mode-aware: it reads
+        /// <see cref="ParamRegistry.GetActiveTagMode"/> from the document and
+        /// branches the T4-T10 surface:
+        ///
+        ///  - <c>TagMode.DC</c>     — writes TAG7A-F as today (System A).
+        ///  - <c>TagMode.Handover</c> — writes TAG7A-C as today; appends T4-T10
+        ///    via <see cref="Tag7Result.Tier4Summaries"/> read out of the System
+        ///    B parameter groups (COMM_*, CST_*, CBN_*, FAB_*, CLH_*, ASB_*,
+        ///    AUD_*) which were hydrated by BuildTier4To10Summaries.
+        ///  - <c>TagMode.Custom</c>  — same surface as Handover; project-defined
+        ///    payload via project_config.json.
+        ///
+        /// In every mode the assembled narrative is also written to
+        /// <see cref="ParamRegistry.TAG7"/> as the combined human-readable form.
+        ///
+        /// Switching mode does NOT erase the other system's parameter data —
+        /// only the visible TAG7A-F + appended tier set changes.
         /// </summary>
         public static int WriteTag7All(Document doc, Element el, string categoryName, string[] tokenValues, bool overwrite = true)
         {
@@ -5565,62 +6265,198 @@ namespace StingTools.Core
             var tag7 = BuildTag7Sections(doc, el, categoryName, tokenValues);
             int written = 0;
 
-            // TAG7 gets the marked-up narrative (with «H»/«L»/«V»/«C» tokens)
-            if (!string.IsNullOrEmpty(tag7.MarkedUpNarrative))
-            {
-                if (ParameterHelpers.SetString(el, ParamRegistry.TAG7, tag7.MarkedUpNarrative, overwrite))
-                    written++;
-            }
+            // Phase 165 — resolve active mode once per element-write so the
+            // branch is stable for the duration of this call.
+            ParamRegistry.TagMode activeMode = ParamRegistry.GetActiveTagMode(doc);
+
+            // EFF-08 (Phase 149a): build the final TAG7 string locally before
+            // the single write so the post-write read-back can be eliminated.
+            // The previous code wrote TAG7, then re-read it just to append
+            // warnings — wasted LookupParameter + GetString per element.
+            string tag7Final = tag7.MarkedUpNarrative ?? "";
 
             // TAG7A-TAG7F get plain section text for tag family labels
-            // PERF-R12: Track consecutive empties — once 4+ empty sections hit, skip rest.
-            // Threshold raised from 2 to 4 so sections D/E/F are still written when C is empty.
+            // Phase 165 — Issue #2. Mode branch:
+            //   DC      → write all six (TAG7A-F = System A T1-T6)
+            //   Handover → write only TAG7A-C (T1-T3 == identity/system/spatial,
+            //              shared with DC). TAG7D-F are blanked because in
+            //              Handover mode the tier 4-6 narrative is owned by
+            //              the System B append (T4 commissioning / T5 cost /
+            //              T6 carbon) appended below — leaving the old DC
+            //              text in TAG7D-F would conflict.
+            //   Custom  → same as Handover.
             string[] sectionParams = ParamRegistry.TAG7Sections;
             string[] sectionValues = tag7.AllSections;
+            int sectionLimit = (activeMode == ParamRegistry.TagMode.DC)
+                ? sectionParams.Length     // 6 — full A-F
+                : 3;                       // Handover / Custom: A-C only
             for (int i = 0; i < sectionParams.Length && i < sectionValues.Length; i++)
             {
-                if (!string.IsNullOrEmpty(sectionValues[i]))
+                if (i < sectionLimit)
                 {
-                    if (ParameterHelpers.SetString(el, sectionParams[i], sectionValues[i], overwrite))
-                        written++;
+                    if (!string.IsNullOrEmpty(sectionValues[i]))
+                    {
+                        if (ParameterHelpers.SetString(el, sectionParams[i], sectionValues[i], overwrite))
+                            written++;
+                    }
                 }
-                // FIX: Removed early-exit on consecutive empties (was silently dropping
-                // non-empty sections E/F when B/C/D were empty). Only 6 sections total —
-                // skipping 1-2 SetString calls is not worth risking data loss.
+                else
+                {
+                    // Issue #22 — Handover/Custom: blank D-F so old DC content
+                    // doesn't shadow the System B tier appends that follow.
+                    // Phase 165 perf — CachedLookup avoids per-instance
+                    // LookupParameter cost.
+                    Parameter p = ParameterHelpers.CachedLookup(el, sectionParams[i]);
+                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
+                    {
+                        string cur = p.AsString();
+                        if (!string.IsNullOrEmpty(cur))
+                        {
+                            try { p.Set(string.Empty); written++; } catch { /* defensive */ }
+                        }
+                    }
+                }
+            }
+
+            // ── T4-T10 tier appends (Phase 165 — tagging workflow repair) ──
+            // Issue #2 / #11 — only fire the tier append in Handover or Custom
+            // mode. DC mode uses TAG7D-F (written above) for tiers 4-6; firing
+            // the tier append in DC would write T4-T6 twice (once via TAG7D-F
+            // narrative, once via tier-summary append).
+            // Pattern mode (HANDOVER / DC / CUSTOM) is read once and surfaced as
+            // a tag prefix once at least one tier 4+ payload is appended.
+            // Reads pull from the element-type first (depth lives on type per
+            // SetParagraphDepthCommand) then fall back to the instance.
+            if (activeMode != ParamRegistry.TagMode.DC)
+            try
+            {
+                Element typeEl = doc?.GetElement(el.GetTypeId());
+                bool[] enabled = new bool[7]; // index 0 = T4 .. 6 = T10
+                // Phase 165 perf — reuse the cached ParamRegistry.AllParaStates
+                // (10 entries) instead of allocating a 7-string array per
+                // element. Slot index 3 in AllParaStates == PARA_STATE_4.
+                string[] allStates = ParamRegistry.AllParaStates;
+                for (int i = 0; i < 7; i++)
+                {
+                    string pname = allStates[i + 3]; // 0..6 → PARA_STATE_4..10
+                    enabled[i] = ReadParaStateBool(typeEl, pname)
+                              || ReadParaStateBool(el,     pname);
+                }
+
+                string[] tierStrings = tag7.Tier4Summaries; // T4..T10
+                bool anyTierAppended = false;
+                var tierAppend = new System.Text.StringBuilder();
+
+                for (int i = 0; i < tierStrings.Length; i++)
+                {
+                    if (!enabled[i] || string.IsNullOrEmpty(tierStrings[i])) continue;
+                    string label = $"T{i + 4}";
+                    tierAppend.Append(" | ").Append(label).Append(": ").Append(tierStrings[i]);
+                    anyTierAppended = true;
+                }
+
+                if (anyTierAppended)
+                {
+                    // Resolve active pattern mode for prefix; default to DC.
+                    string mode = ResolveActivePatternMode(typeEl, el);
+                    tag7Final = tag7Final + " | [" + mode + "]" + tierAppend.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn("WriteTag7All T4-T10 append failed: " + ex.Message);
             }
 
             // ── Warning parameter population (v5.6) ────────────────────────
-            // Populate each individual WARN_ parameter with its evaluated text
-            // so tag family labels (gated by TAG_WARN_VISIBLE_BOOL) can display them.
-            int warnWritten = PopulateWarningParameters(doc, el, categoryName);
-            written += warnWritten;
-
-            // Also build concatenated warning text for TAG7 narrative append
-            string warningText = EvaluateElementWarnings(doc, el, categoryName);
-            if (!string.IsNullOrEmpty(warningText))
+            // EFF-07 (Phase 149d): combined warning evaluation. The previous
+            // code called PopulateWarningParameters AND EvaluateElementWarnings,
+            // each walking the same GetCategoryWarnings list, calling the same
+            // GetWarningDataValue per warning, calling the same EvaluateWarning.
+            // The new EvaluateAndPopulateWarnings does both in one pass and
+            // returns (writtenCount, concatenatedText).
+            var warnPass = EvaluateAndPopulateWarnings(doc, el, categoryName);
+            written += warnPass.WrittenCount;
+            string warningText = warnPass.ConcatenatedText;
+            if (!string.IsNullOrEmpty(warningText)
+                && !string.IsNullOrEmpty(tag7Final)
+                && !tag7Final.Contains(warningText))
             {
-                // Append warnings to TAG7 — but only once per unique warning text.
-                // In overwrite mode, TAG7 was freshly written above so append once.
-                // In non-overwrite mode, only append if the exact warning text is not already present.
-                string existingTag7 = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
-                if (!string.IsNullOrEmpty(existingTag7) && !existingTag7.Contains(warningText))
+                tag7Final = tag7Final + " | " + warningText;
+            }
+
+            // Single TAG7 write covers narrative + appended warnings.
+            if (!string.IsNullOrEmpty(tag7Final))
+            {
+                if (ParameterHelpers.SetString(el, ParamRegistry.TAG7, tag7Final, overwrite))
+                    written++;
+            }
+
+            // ── Paragraph container write (v5.5 + Phase 165 Issue #22) ───
+            // Write the full plain narrative to the category-specific paragraph parameter
+            string paraContainer = ParamRegistry.GetParagraphContainer(categoryName);
+
+            // Phase 165 — Issue #22. Clear stale paragraph data before
+            // re-writing. When an element changes category or pattern mode,
+            // an old narrative could otherwise persist in containers that
+            // should now be empty (each category has its own paragraph
+            // container, and the active one varies). Iterate the registered
+            // container set and blank every container EXCEPT the one we're
+            // about to write so the active payload survives.
+            //
+            // Phase 165 perf — skip the entire clear pass when the active
+            // paragraph container hasn't changed since the last write. We
+            // stamp ASS_LAST_PARA_CONTAINER_TXT after a successful clear and
+            // re-read it next time. If the value matches the active
+            // container, no other container can have stale data on this
+            // element (only WriteTag7All ever writes them). The pass falls
+            // through to the actual write below either way.
+            const string LAST_PARA_PARAM = "ASS_LAST_PARA_CONTAINER_TXT";
+            string lastPara = ParameterHelpers.GetString(el, LAST_PARA_PARAM);
+            bool needClear = !string.Equals(lastPara, paraContainer ?? "", StringComparison.Ordinal);
+            if (needClear)
+            {
+                try
                 {
-                    string withWarnings = existingTag7 + " | " + warningText;
-                    if (ParameterHelpers.SetString(el, ParamRegistry.TAG7, withWarnings, true))
-                        written++;
+                    string[] allParas = ParamRegistry.AllParagraphContainers;
+                    for (int i = 0; i < allParas.Length; i++)
+                    {
+                        string containerName = allParas[i];
+                        if (string.IsNullOrEmpty(containerName)) continue;
+                        if (!string.IsNullOrEmpty(paraContainer)
+                            && string.Equals(containerName, paraContainer, StringComparison.Ordinal))
+                            continue; // skip the active container — we're writing it next.
+                        // Phase 165 perf — CachedLookup short-circuits the
+                        // LookupParameter cost when the same family carries
+                        // (or doesn't carry) this container parameter.
+                        Parameter p = ParameterHelpers.CachedLookup(el, containerName);
+                        if (p == null || p.IsReadOnly) continue;
+                        if (p.StorageType != StorageType.String) continue;
+                        string cur = p.AsString();
+                        if (string.IsNullOrEmpty(cur)) continue;
+                        try { p.Set(string.Empty); written++; } catch { /* defensive */ }
+                    }
+                    // Stamp the new active container name so the next pass
+                    // can short-circuit when nothing has changed.
+                    ParameterHelpers.SetString(el, LAST_PARA_PARAM, paraContainer ?? "", overwrite: true);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn("WriteTag7All paragraph clear pass failed: " + ex.Message);
                 }
             }
 
-            // ── Paragraph container write (v5.5) ─────────────────────────
-            // Write the full plain narrative to the category-specific paragraph parameter
-            string paraContainer = ParamRegistry.GetParagraphContainer(categoryName);
             if (!string.IsNullOrEmpty(paraContainer) && !string.IsNullOrEmpty(tag7.PlainNarrative))
             {
-                string paraText = tag7.PlainNarrative;
-                // If warnings exist and are visible, append them to the paragraph
+                // Use a local StringBuilder to avoid intermediate string allocations when
+                // warnings are appended — one paraText per element across 1000-element batches
+                // was generating 1000 throwaway string objects.
+                var paraBuilder = new System.Text.StringBuilder(tag7.PlainNarrative);
                 if (!string.IsNullOrEmpty(warningText))
-                    paraText += " | WARNINGS: " + warningText;
-                if (ParameterHelpers.SetString(el, paraContainer, paraText, overwrite))
+                {
+                    paraBuilder.Append(" | WARNINGS: ");
+                    paraBuilder.Append(warningText);
+                }
+                if (ParameterHelpers.SetString(el, paraContainer, paraBuilder.ToString(), overwrite))
                     written++;
             }
 
@@ -5628,10 +6464,137 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Phase 165 — read a TAG_PARA_STATE_N_BOOL parameter. Mirrors the
+        /// Yes/No vs. integer storage handling in SetParagraphDepthCommand.
+        /// Treats missing parameter as false.
+        /// </summary>
+        public static bool ReadParaStateBool(Element host, string paramName)
+        {
+            if (host == null || string.IsNullOrEmpty(paramName)) return false;
+            // Phase 165 perf — use the shared parameter cache so the same
+            // (typeId, paramName) pair pays the LookupParameter cost only once
+            // per session. WriteTag7All calls this 14× per element so a
+            // 1000-element batch was 14000 fresh LookupParameter calls; with
+            // CachedLookup most calls become an O(1) Definition fetch.
+            Parameter p = ParameterHelpers.CachedLookup(host, paramName);
+            if (p == null) return false;
+            try
+            {
+                if (p.StorageType == StorageType.String)
+                {
+                    string s = p.AsString();
+                    if (string.IsNullOrEmpty(s)) return false;
+                    return s.Equals("Yes", StringComparison.OrdinalIgnoreCase)
+                        || s.Equals("1", StringComparison.OrdinalIgnoreCase)
+                        || s.Equals("true", StringComparison.OrdinalIgnoreCase);
+                }
+                if (p.StorageType == StorageType.Integer) return p.AsInteger() != 0;
+            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            return false;
+        }
+
+        /// <summary>
+        /// Phase 165 — resolve active pattern mode (HANDOVER / DC / CUSTOM) by
+        /// inspecting the type then instance. Defaults to DC if none set.
+        /// </summary>
+        public static string ResolveActivePatternMode(Element typeEl, Element instEl)
+        {
+            // Type takes precedence (matches paragraph-state location).
+            if (ReadParaStateBool(typeEl, ParamRegistry.MODE_HANDOVER)) return "HANDOVER";
+            if (ReadParaStateBool(typeEl, ParamRegistry.MODE_CUSTOM))   return "CUSTOM";
+            if (ReadParaStateBool(typeEl, ParamRegistry.MODE_DC))       return "DC";
+            if (ReadParaStateBool(instEl, ParamRegistry.MODE_HANDOVER)) return "HANDOVER";
+            if (ReadParaStateBool(instEl, ParamRegistry.MODE_CUSTOM))   return "CUSTOM";
+            if (ReadParaStateBool(instEl, ParamRegistry.MODE_DC))       return "DC";
+            return "DC"; // default per Phase 165 spec
+        }
+
+        /// <summary>
+        /// Phase 165 — read active paragraph depth (1-10) on an element type.
+        /// Returns the highest enabled PARA_STATE_N (cumulative scheme).
+        /// Defaults to 3 if no states are enabled (legacy "Comprehensive").
+        /// </summary>
+        public static int ReadActiveParagraphDepth(Element typeEl, Element instEl)
+        {
+            // Phase 165 perf — use the cached ParamRegistry.AllParaStates
+            // array instead of allocating a 10-string array per call.
+            string[] paraNames = ParamRegistry.AllParaStates;
+            int max = 0;
+            for (int i = 0; i < paraNames.Length; i++)
+            {
+                if (ReadParaStateBool(typeEl, paraNames[i]) ||
+                    ReadParaStateBool(instEl, paraNames[i]))
+                    max = i + 1;
+            }
+            return max == 0 ? 3 : max;
+        }
+
+        /// <summary>
         /// Evaluate all applicable warning thresholds for an element.
         /// Returns a concatenated warning string, or null if no warnings triggered.
         /// Respects TAG_WARN_VISIBLE_BOOL and TAG_WARN_SEVERITY_FILTER_TXT.
         /// </summary>
+        /// <summary>EFF-07 (Phase 149d): one-pass replacement for the
+        /// PopulateWarningParameters + EvaluateElementWarnings combo. Both
+        /// legacy methods walked the same warning list and called the same
+        /// per-warning helpers; this method does it once, returning the
+        /// number of WARN_ params written and the concatenated narrative
+        /// fragment for the TAG7 append.</summary>
+        public static (int WrittenCount, string ConcatenatedText)
+            EvaluateAndPopulateWarnings(Document doc, Element el, string categoryName)
+        {
+            if (el == null || string.IsNullOrEmpty(categoryName))
+                return (0, null);
+
+            // Visibility gate (matches EvaluateElementWarnings).
+            string warnVisible = ParameterHelpers.GetString(el, ParamRegistry.WARN_VISIBLE);
+            bool visible = !(warnVisible == "No" || warnVisible == "0"
+                || warnVisible == "FALSE" || warnVisible == "false");
+
+            // Severity filter (matches EvaluateElementWarnings).
+            string severityFilter = ParameterHelpers.GetString(el, ParamRegistry.WARN_SEVERITY_FILTER);
+            if (string.IsNullOrEmpty(severityFilter)) severityFilter = "ALL";
+            int filterLevel = severityFilter == "ALL" ? 0 : SeverityLevel(severityFilter);
+
+            var warningParamNames = ParamRegistry.GetCategoryWarnings(categoryName);
+            if (warningParamNames == null || warningParamNames.Count == 0)
+                return (0, null);
+
+            int written = 0;
+            List<string> concat = null;
+
+            foreach (string warnParam in warningParamNames)
+            {
+                if (!ParamRegistry.WarningThresholds.TryGetValue(warnParam, out var def))
+                    continue;
+
+                string dataValue = GetWarningDataValue(el, warnParam, categoryName);
+                string evalResult = string.IsNullOrEmpty(dataValue)
+                    ? null : ParamRegistry.EvaluateWarning(def, dataValue);
+
+                // PopulateWarningParameters semantic — always overwrite to keep
+                // params current; clear when no violation so stale text doesn't
+                // linger.
+                string warnText = string.IsNullOrEmpty(evalResult) ? "" : evalResult;
+                if (ParameterHelpers.SetString(el, warnParam, warnText, overwrite: true))
+                    written++;
+
+                // EvaluateElementWarnings semantic — collect into concat string
+                // when visible AND severity passes the filter AND there's a
+                // violation to report.
+                if (visible
+                    && !string.IsNullOrEmpty(evalResult)
+                    && (filterLevel == 0 || SeverityLevel(def.Severity) >= filterLevel))
+                {
+                    if (concat == null) concat = new List<string>();
+                    concat.Add(evalResult);
+                }
+            }
+
+            return (written, concat == null ? null : string.Join(" ", concat));
+        }
+
         public static string EvaluateElementWarnings(Document doc, Element el, string categoryName)
         {
             // Check if warnings are enabled on this element
@@ -6086,6 +7049,32 @@ namespace StingTools.Core
             else if (disc == "FP" || categoryName == "Sprinklers" || categoryName == "Fire Alarm Devices")
             {
                 AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "providing {0} minutes of fire resistance");
+            }
+            else if (disc == "H" || categoryName == "Rooms" && !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "CLN_ROOM_CLASS_TXT")))
+            {
+                // Healthcare: Clinical Room
+                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_ROOM_CLASS_TXT"), "classified as a {0} clinical space");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_PRESS_REGIME_TXT"), "operating under {0} pressure regime");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_INFECT_CLASS_TXT"), "with infection control class {0}");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_HTM_REF_TXT"), "per {0}");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_ADB_CODE_TXT"), "ADB room code {0}");
+            }
+            else if (disc == "MG" || categoryName == "Pipes" && !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "MGS_GAS_TYPE_TXT")))
+            {
+                // Healthcare: Medical Gas
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_GAS_TYPE_TXT"), "carrying {0} medical gas");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_DESIGN_FLOW_LS_NR"), "at a design flow of {0} L/s");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_DESIGN_PRESS_KPA_NR"), "at {0} kPa design pressure");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_OUTLET_COUNT_INT"), "serving {0} outlets");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_NFPA99_ZONE_TXT"), "in NFPA 99 zone {0}");
+            }
+            else if (disc == "RP" || !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "RAD_LEAD_MM_NR")))
+            {
+                // Healthcare: Radiation Protection
+                AppendNatural(tech, ParameterHelpers.GetString(el, "RAD_LEAD_MM_NR"), "with {0} mm Pb shielding");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "RAD_MODALITY_TXT"), "protecting against {0}");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "RAD_WORKLOAD_WK_NR"), "workload {0} mA·min/wk");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "RAD_QE_NAME_TXT"), "certified by {0}");
             }
 
             return tech.Length > 0 ? tech.ToString() : "";

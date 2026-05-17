@@ -271,6 +271,8 @@ namespace StingTools.Tags
             td.MainContent = report.ToString();
             td.Show();
 
+            // Phase 165 follow-up — explicit batch teardown.
+            TokenAutoPopulator.PopulationContext.EndSession();
             return Result.Succeeded;
         }
 
@@ -515,101 +517,28 @@ namespace StingTools.Tags
                 {
                     tx.Start();
 
-                    foreach (var (el, currentTag) in mfBatch)
+                    foreach (var (el, _) in mfBatch)
                     {
                         if (mfProgress != null) mfProgress.Increment($"Migrating {el.Id}");
                         try
                         {
-                            // FIX-V01-C: Re-derive tokens before format rebuild so stale/wrong
-                            // tokens are corrected, not just reformatted
-                            if (mfPopCtx != null)
-                            {
-                                try
-                                {
-                                    TokenAutoPopulator.TypeTokenInherit(doc, el);
-                                    TokenAutoPopulator.PopulateAll(doc, el, mfPopCtx, overwrite: false);
-                                }
-                                catch (Exception popEx)
-                                {
-                                    StingLog.Warn($"TagFormatMigration Populate for {el.Id}: {popEx.Message}");
-                                }
-                            }
-
-                            // FIX-V01-C: Bridge native params before tag format migration
-                            try { NativeParamMapper.MapAll(doc, el); }
-                            catch (Exception nmEx) { StingLog.Warn($"TagFormatMigration NativeMapper for {el.Id}: {nmEx.Message}"); }
-
-                            // FIX-V01-C: Evaluate formulas after populate + native mapping
-                            if (mfFormulas != null && mfFormulas.Count > 0)
-                            {
-                                try
-                                {
-                                    foreach (var formula in mfFormulas)
-                                    {
-                                        try
-                                        {
-                                            Parameter fp = el.LookupParameter(formula.ParameterName);
-                                            if (fp == null || fp.IsReadOnly) continue;
-                                            var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
-                                            if (fCtx == null) continue;
-                                            if (formula.DataType == "TEXT")
-                                            {
-                                                string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
-                                                if (fResult != null && fp.StorageType == StorageType.String
-                                                    && string.IsNullOrEmpty(fp.AsString()))
-                                                    fp.Set(fResult);
-                                            }
-                                            else
-                                            {
-                                                double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
-                                                if (fResult.HasValue && !double.IsNaN(fResult.Value)
-                                                    && !double.IsInfinity(fResult.Value))
-                                                    Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
-                                            }
-                                        }
-                                        catch (Exception frmEx) { StingLog.Warn($"Formula eval for element {el.Id}: {frmEx.Message}"); }
-                                    }
-                                }
-                                catch (Exception fExMf)
-                                {
-                                    StingLog.Warn($"TagFormatMigration formula eval for {el.Id}: {fExMf.Message}");
-                                }
-                            }
-
-                            TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                            // Route migration through the canonical pipeline so the
+                            // cached RoomIndex feeds NativeParamMapper, the type-cached
+                            // formula filter avoids the 199-formula-per-element scan,
+                            // and BuildAndWriteTag's internal container write replaces
+                            // the previous external WriteTag7All + WriteContainers
+                            // double-write. overwrite=false preserves existing tokens
+                            // (this is a format rebuild, not a re-derivation);
+                            // collisionMode=Overwrite forces TAG1 to be rewritten with
+                            // current Separator/NumPad even when tag is "complete".
+                            bool pipelineOk = TagPipelineHelper.RunFullPipeline(
+                                doc, el, mfPopCtx, tagIndex, seqCounters,
+                                mfFormulas, mfGridLines,
+                                overwrite: false,
                                 skipComplete: false,
-                                existingTags: tagIndex,
                                 collisionMode: TagCollisionMode.Overwrite,
                                 stats: stats);
-
-                            // Write TAG7 + containers with migrated tag
-                            try
-                            {
-                                string catName = ParameterHelpers.GetCategoryName(el);
-                                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                                TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
-                                // NP3: Write containers after format migration
-                                ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true,
-                                    skipParam: ParamRegistry.TAG1);
-                            }
-                            catch (Exception tag7Ex)
-                            {
-                                StingLog.Warn($"Migration TAG7+containers for {el.Id}: {tag7Ex.Message}");
-                            }
-
-                            // FIX-R06: Write GridRef per element
-                            if (mfGridLines != null && mfGridLines.Count > 0)
-                            {
-                                try
-                                {
-                                    string gridRef = SpatialAutoDetect.GetGridRef(el, mfGridLines);
-                                    if (!string.IsNullOrEmpty(gridRef))
-                                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef);
-                                }
-                                catch (Exception grEx) { StingLog.Warn($"Migration GridRef for {el.Id}: {grEx.Message}"); }
-                            }
-
-                            migrated++;
+                            if (pipelineOk) migrated++;
                         }
                         catch (Exception ex)
                         {
@@ -634,6 +563,8 @@ namespace StingTools.Tags
             TaskDialog.Show("Tag Format Migration",
                 $"Migration{mfCancelNote} complete.\n\n  Scope:    {mfScopeLabel}\n  Migrated: {migrated}\n  Total:    {tagged.Count}");
             StingLog.Info($"Tag format migration: {migrated}/{tagged.Count} tags reformatted");
+            // Phase 165 follow-up — explicit batch teardown.
+            TokenAutoPopulator.PopulationContext.EndSession();
             return Result.Succeeded;
         }
     }
@@ -941,6 +872,8 @@ namespace StingTools.Tags
             TaskDialog.Show("Tag Changed",
                 $"Delta update complete.\n\n  Stale tokens: {stale}\n  Elements updated: {updated}\n  Tags rebuilt: {processedElements.Count}");
             StingLog.Info($"Delta tagging: {stale} stale tokens, {updated} elements updated");
+            // Phase 165 follow-up — explicit batch teardown.
+            TokenAutoPopulator.PopulationContext.EndSession();
             return Result.Succeeded;
         }
     }

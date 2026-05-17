@@ -488,7 +488,9 @@ namespace StingTools.BIMManager
                                 if (headers.ContainsKey("SerialNumber"))
                                 {
                                     string sn = ws.Cell(r, headers["SerialNumber"]).GetString().Trim();
-                                    if (!string.IsNullOrEmpty(sn)) ParameterHelpers.SetString(el, "ASS_SERIAL_TXT", sn, overwrite: true);
+                                    // Fix: was "ASS_SERIAL_TXT" which does not exist in MR_PARAMETERS.txt;
+                                    // the canonical parameter is ASS_SERIAL_NR_TXT (ParamRegistry.SERIAL_NR).
+                                    if (!string.IsNullOrEmpty(sn)) ParameterHelpers.SetString(el, ParamRegistry.SERIAL_NR, sn, overwrite: true);
                                 }
                                 if (headers.ContainsKey("BarCode"))
                                 {
@@ -958,7 +960,10 @@ namespace StingTools.BIMManager
                     string linkPath = link.GetLinkDocument()?.PathName ?? "";
                     if (string.IsNullOrEmpty(linkPath)) continue;
 
-                    string sidecarPath = Path.ChangeExtension(linkPath, ".sting_linked_revision.json");
+                    string sidecarPath = StingTools.Core.ProjectFolderEngine.GetDataPath(
+                        doc, $"linked_revision_{Path.GetFileNameWithoutExtension(linkPath)}.json");
+                    if (string.IsNullOrEmpty(sidecarPath))
+                        sidecarPath = Path.ChangeExtension(linkPath, ".sting_linked_revision.json");
                     var sidecar = new JObject
                     {
                         ["source_project"] = doc.Title,
@@ -982,7 +987,9 @@ namespace StingTools.BIMManager
 
         internal static string ForecastCompliance(Document doc)
         {
-            string trendPath = Path.ChangeExtension(doc.PathName, ".sting_compliance_trend.json");
+            string trendPath = StingTools.Core.ProjectFolderEngine.GetDataPath(doc, "compliance_trend.json");
+            if (string.IsNullOrEmpty(trendPath) || !File.Exists(trendPath))
+                trendPath = Path.ChangeExtension(doc.PathName, ".sting_compliance_trend.json");
             if (!File.Exists(trendPath)) return "No compliance trend data. Run tagging workflows to build history.";
 
             var data = LoadJsonArray(trendPath);

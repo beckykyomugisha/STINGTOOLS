@@ -178,7 +178,7 @@ namespace StingTools.BIMManager
 
             var typeColumnMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                ["Description"] = "ASS_DESC_TXT",
+                ["Description"] = "ASS_DESCRIPTION_TXT",
                 ["Manufacturer"] = "ASS_MANUFACTURER_TXT",
                 ["ModelNumber"] = "ASS_MODEL_NUM_TXT",
                 ["WarrantyDurationParts"] = "MNT_WARRANTY_YRS_TXT",
@@ -308,13 +308,13 @@ namespace StingTools.BIMManager
 
             var columnMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                ["Description"] = "ASS_DESC_TXT",
-                ["SerialNumber"] = "ASS_SERIAL_NUM_TXT",
+                ["Description"] = "ASS_DESCRIPTION_TXT",
+                ["SerialNumber"] = "ASS_SERIAL_NR_TXT",
                 ["BarCode"] = "ASS_BARCODE_TXT",
                 ["AssetIdentifier"] = "ASS_ASSET_ID_TXT",
                 ["WarrantyDurationParts"] = "MNT_WARRANTY_YRS_TXT",
                 ["WarrantyGuarantorParts"] = "MNT_WARRANTY_PROVIDER_TXT",
-                ["InstallationDate"] = "ASS_INSTALL_DATE_TXT",
+                ["InstallationDate"] = "ASS_INSTALLATION_DATE_TXT",
                 ["WarrantyStartDate"] = "MNT_WARRANTY_START_TXT",
             };
 

@@ -10,7 +10,7 @@ public enum PushPlatform
 /// <summary>
 /// Stores device push notification tokens for FCM/APNs/Web push.
 /// </summary>
-public class DevicePushToken
+public class DevicePushToken : ITenantScoped
 {
     public Guid Id { get; set; }
     public Guid UserId { get; set; }

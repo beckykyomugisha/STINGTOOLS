@@ -29,10 +29,32 @@ namespace StingTools.Core.Fabrication
         public List<string> Warnings { get; } = new List<string>();
         public int FailedCount { get; set; }
 
+        /// <summary>Gap-6: Records every title-block resolution that fell back to a
+        /// non-profile family so operators can audit which spools lacked the
+        /// expected family. Tuple is (SheetId long, ExpectedFamily, UsedFamily).</summary>
+        public List<(long SheetId, string ExpectedFamily, string UsedFamily)> TitleBlockFallbacks { get; }
+            = new List<(long, string, string)>();
+
+        // ISO 6412 symbol placement results — populated by IsoSymbolPlacer
+        // after each discipline's transaction commits. Surfaced in the
+        // FabricationResultDialog so users see whether the option had effect.
+        public int SymbolsPlaced { get; set; }
+        public int SymbolsReplaced { get; set; }
+        public int UnmatchedMembers { get; set; }
+        public List<ElementId> SymbolIds { get; } = new List<ElementId>();
+        public List<string> UnmatchedSamples { get; } = new List<string>();
+        public HashSet<string> MissingFamilies { get; }
+            = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, int> SymbolsByDiscipline { get; }
+            = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
         public string FormatSummary()
         {
             int total = AssembliesByDiscipline.Values.Sum();
-            return $"Assemblies: {total}, Sheets: {SheetIds.Count}, Failed: {FailedCount}";
+            string s = $"Assemblies: {total}, Sheets: {SheetIds.Count}, Failed: {FailedCount}, Symbols: {SymbolsPlaced}";
+            if (TitleBlockFallbacks.Count > 0)
+                s += $", TBFallbacks: {TitleBlockFallbacks.Count}";
+            return s;
         }
     }
 
@@ -83,6 +105,66 @@ namespace StingTools.Core.Fabrication
                 result.Warnings.Add($"FabricationEngine fatal: {ex.Message}");
             }
             return result;
+        }
+
+        /// <summary>
+        /// Run IsoSymbolPlacer for each (assembly, ISO view) pair when the
+        /// user has ticked PlaceISO6412Symbols on the Fabrication tab and
+        /// the per-discipline toggle for <paramref name="discipline"/> is
+        /// also on. Must be called AFTER the discipline's transaction
+        /// commits — the placer opens its own Transaction.
+        /// </summary>
+        public static void PlaceSymbolsIfRequested(
+            Document doc,
+            string discipline,
+            IList<(ElementId AssyId, ElementId IsoViewId)> targets,
+            FabricationResult result)
+        {
+            if (doc == null || result == null) return;
+            if (targets == null || targets.Count == 0) return;
+            // FabricationOptions is a static class, so it can't be assigned
+            // to a local. Reference its static members directly.
+            if (!StingTools.Commands.Fabrication.FabricationOptions.PlaceISO6412Symbols) return;
+            if (StingTools.Commands.Fabrication.FabricationOptions.SymbolPlacementMode ==
+                StingTools.Commands.Fabrication.FabricationOptions.PlacementMode.Off) return;
+            if (!IsDisciplineOn(discipline)) return;
+
+            int totalForDisc = 0;
+            foreach (var pair in targets)
+            {
+                try
+                {
+                    var view = doc.GetElement(pair.IsoViewId) as View;
+                    if (view == null) continue;
+                    int placed = IsoSymbolPlacer.PlaceSymbolsForAssembly(
+                        doc, pair.AssyId, view, result);
+                    result.SymbolsPlaced += placed;
+                    totalForDisc += placed;
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"PlaceSymbolsIfRequested {pair.AssyId}: {ex.Message}");
+                }
+            }
+            if (totalForDisc > 0)
+            {
+                if (!result.SymbolsByDiscipline.ContainsKey(discipline))
+                    result.SymbolsByDiscipline[discipline] = 0;
+                result.SymbolsByDiscipline[discipline] += totalForDisc;
+            }
+        }
+
+        private static bool IsDisciplineOn(string discipline)
+        {
+            // FabricationOptions is static — read the per-discipline flag
+            // directly rather than aliasing the type to a local.
+            switch ((discipline ?? "").ToUpperInvariant())
+            {
+                case "PIPE":       return StingTools.Commands.Fabrication.FabricationOptions.PlaceISOPipe;
+                case "DUCT":       return StingTools.Commands.Fabrication.FabricationOptions.PlaceISODuct;
+                case "ELECTRICAL": return StingTools.Commands.Fabrication.FabricationOptions.PlaceISOElectrical;
+                default:           return true;
+            }
         }
 
         public static string DisciplineFor(Element el)

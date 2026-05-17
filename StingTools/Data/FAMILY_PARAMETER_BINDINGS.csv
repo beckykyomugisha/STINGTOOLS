@@ -2394,21 +2394,21 @@ ASS_MNG,ASS_SERIAL_NR_TXT,56584938-d8f5-5c70-9ca1-2ac4568e9ff9,TEXT,Type,Ass Ser
 ASS_MNG,ASS_SERIAL_NR_TXT,56584938-d8f5-5c70-9ca1-2ac4568e9ff9,TEXT,Type,Ass Serial Nr Txt [ISO 19650-3:2020],Specialty Equipment,56584938-d8f5-5c70-9ca1-2ac4568e9ff9
 ASS_MNG,ASS_SERIAL_NR_TXT,56584938-d8f5-5c70-9ca1-2ac4568e9ff9,TEXT,Type,Ass Serial Nr Txt [ISO 19650-3:2020],Sprinklers,56584938-d8f5-5c70-9ca1-2ac4568e9ff9
 TPL_TRACKING,PH_DESCRIPTION_TXT,590c7438-ad1b-4126-88b0-2fbe81c5759a,TEXT,Type,Phase description [ISO 19650-1:2018],Generic Models,590c7438-ad1b-4126-88b0-2fbe81c5759a
-ELC_PWR,ELE_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Air Terminals,6b727a38-f448-4b8e-81fb-a2570637ee57
-ELC_PWR,ELE_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Cable Trays,6b727a38-f448-4b8e-81fb-a2570637ee57
-ELC_PWR,ELE_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Casework,6b727a38-f448-4b8e-81fb-a2570637ee57
-ELC_PWR,ELE_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Conduit Fittings,6b727a38-f448-4b8e-81fb-a2570637ee57
-ELC_PWR,ELE_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Conduits,6b727a38-f448-4b8e-81fb-a2570637ee57
-ELC_PWR,ELE_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Electrical Equipment,6b727a38-f448-4b8e-81fb-a2570637ee57
-ELC_PWR,ELE_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Electrical Fixtures,6b727a38-f448-4b8e-81fb-a2570637ee57
-ELC_PWR,ELE_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Furniture,6b727a38-f448-4b8e-81fb-a2570637ee57
-ELC_PWR,ELE_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Generic Models,6b727a38-f448-4b8e-81fb-a2570637ee57
-ELC_PWR,ELE_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Lighting Fixtures,6b727a38-f448-4b8e-81fb-a2570637ee57
-ELC_PWR,ELE_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Mechanical Equipment,6b727a38-f448-4b8e-81fb-a2570637ee57
-ELC_PWR,ELE_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Plumbing Equipment,6b727a38-f448-4b8e-81fb-a2570637ee57
-ELC_PWR,ELE_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Plumbing Fixtures,6b727a38-f448-4b8e-81fb-a2570637ee57
-ELC_PWR,ELE_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Specialty Equipment,6b727a38-f448-4b8e-81fb-a2570637ee57
-ELC_PWR,ELE_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Sprinklers,6b727a38-f448-4b8e-81fb-a2570637ee57
+ELC_PWR,ELC_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Air Terminals,6b727a38-f448-4b8e-81fb-a2570637ee57
+ELC_PWR,ELC_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Cable Trays,6b727a38-f448-4b8e-81fb-a2570637ee57
+ELC_PWR,ELC_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Casework,6b727a38-f448-4b8e-81fb-a2570637ee57
+ELC_PWR,ELC_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Conduit Fittings,6b727a38-f448-4b8e-81fb-a2570637ee57
+ELC_PWR,ELC_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Conduits,6b727a38-f448-4b8e-81fb-a2570637ee57
+ELC_PWR,ELC_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Electrical Equipment,6b727a38-f448-4b8e-81fb-a2570637ee57
+ELC_PWR,ELC_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Electrical Fixtures,6b727a38-f448-4b8e-81fb-a2570637ee57
+ELC_PWR,ELC_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Furniture,6b727a38-f448-4b8e-81fb-a2570637ee57
+ELC_PWR,ELC_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Generic Models,6b727a38-f448-4b8e-81fb-a2570637ee57
+ELC_PWR,ELC_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Lighting Fixtures,6b727a38-f448-4b8e-81fb-a2570637ee57
+ELC_PWR,ELC_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Mechanical Equipment,6b727a38-f448-4b8e-81fb-a2570637ee57
+ELC_PWR,ELC_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Plumbing Equipment,6b727a38-f448-4b8e-81fb-a2570637ee57
+ELC_PWR,ELC_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Plumbing Fixtures,6b727a38-f448-4b8e-81fb-a2570637ee57
+ELC_PWR,ELC_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Specialty Equipment,6b727a38-f448-4b8e-81fb-a2570637ee57
+ELC_PWR,ELC_FIX_TAG_2_TXT,6b727a38-f448-4b8e-81fb-a2570637ee57,TEXT,Type,Elc fix tag 2,Sprinklers,6b727a38-f448-4b8e-81fb-a2570637ee57
 TPL_TRACKING,PH_END_DATE_TXT,49abb038-93e9-4a39-84ba-d7b3961d441e,TEXT,Type,Phase end date [ISO 19650-2:2018],Generic Models,49abb038-93e9-4a39-84ba-d7b3961d441e
 CST_PROC,BLE_APP-SHININESS,a556243a-8e3c-58ce-a26d-66e2442d2d20,TEXT,Instance,Ble App-shininess [ISO 19650-1:2018],Materials,a556243a-8e3c-58ce-a26d-66e2442d2d20
 CST_PROC,BLE_WALL_PRIMARY_WALL_MAT_TXT,83fce03a-5dbf-57cf-b9d5-d797969487f9,TEXT,Type,Ble Wall Primary Wall Mat Txt [ISO 19650-1:2018],Curtain Panels,83fce03a-5dbf-57cf-b9d5-d797969487f9
@@ -2490,7 +2490,6 @@ CST_PROC,BLE_STAIR_RISE_MM,0dcbfb44-1130-51b2-bea9-832d4ee087f7,LENGTH,Type,Ble 
 TPL_TRACKING,DS_TYPE_TXT,88647645-8e89-45ba-b6bd-e44fd4f4a70d,TEXT,Type,Dimension type [ISO 19650-1:2018],Generic Models,88647645-8e89-45ba-b6bd-e44fd4f4a70d
 MAT_INFO,MAT_PERF_TAG_2_TXT,28487745-251e-4555-bf56-b1d06c933cc5,TEXT,Instance,"Acoustic performance tag: STC, IIC, NRC [ISO 19650-1:2018]",Materials,28487745-251e-4555-bf56-b1d06c933cc5
 CST_PROC,BLE_APP-CUT-BG-COLOR,27a62c46-4ab1-56d4-8474-b090cf7406df,TEXT,Instance,Ble App-cut-bg-color [ISO 19650-1:2018],Materials,27a62c46-4ab1-56d4-8474-b090cf7406df
-PRJ_INFORMATION,PRJ_TB_DESIGN_STAGE_TXT,da480448-0e4c-53bf-9e45-5f8641a5d82c,TEXT,Type,Prj Tb Design Stage Txt [ISO 19650-1:2018],Generic Models,da480448-0e4c-53bf-9e45-5f8641a5d82c
 MAT_INFO,MAT_LAYER_4_MATERIAL,646ebf48-0f81-5596-bc9e-e404360ba703,TEXT,Instance,Mat Layer 4 Material [ISO 19650-1:2018],Materials,646ebf48-0f81-5596-bc9e-e404360ba703
 COM_DAT,CST_CALC_PLASTER_M3,cc247d49-6c49-486d-ad77-ef0a182d658d,VOLUME,Type,Calculated plaster volume in cubic meters [ISO 19650-3:2020],Air Terminals,cc247d49-6c49-486d-ad77-ef0a182d658d
 COM_DAT,CST_CALC_PLASTER_M3,cc247d49-6c49-486d-ad77-ef0a182d658d,VOLUME,Type,Calculated plaster volume in cubic meters [ISO 19650-3:2020],Cable Trays,cc247d49-6c49-486d-ad77-ef0a182d658d
@@ -2837,21 +2836,21 @@ ELC_PWR,ELC_LP_CONNECTION_TYPE_TXT,6ec4e66a-d15d-5715-aa76-190f6ef5f628,TEXT,Typ
 ELC_PWR,ELC_LP_CONNECTION_TYPE_TXT,6ec4e66a-d15d-5715-aa76-190f6ef5f628,TEXT,Type,Elc Lp Connection Type Txt [ISO 19650-1:2018],Electrical Fixtures,6ec4e66a-d15d-5715-aa76-190f6ef5f628
 ELC_PWR,ELC_LP_CONNECTION_TYPE_TXT,6ec4e66a-d15d-5715-aa76-190f6ef5f628,TEXT,Type,Elc Lp Connection Type Txt [ISO 19650-1:2018],Generic Models,6ec4e66a-d15d-5715-aa76-190f6ef5f628
 ELC_PWR,ELC_LP_CONNECTION_TYPE_TXT,6ec4e66a-d15d-5715-aa76-190f6ef5f628,TEXT,Type,Elc Lp Connection Type Txt [ISO 19650-1:2018],Lighting Fixtures,6ec4e66a-d15d-5715-aa76-190f6ef5f628
-ELC_PWR,ELE_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Air Terminals,5b5c4c6c-c420-4f30-a67e-bdeca6944577
-ELC_PWR,ELE_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Cable Trays,5b5c4c6c-c420-4f30-a67e-bdeca6944577
-ELC_PWR,ELE_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Casework,5b5c4c6c-c420-4f30-a67e-bdeca6944577
-ELC_PWR,ELE_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Conduit Fittings,5b5c4c6c-c420-4f30-a67e-bdeca6944577
-ELC_PWR,ELE_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Conduits,5b5c4c6c-c420-4f30-a67e-bdeca6944577
-ELC_PWR,ELE_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Electrical Equipment,5b5c4c6c-c420-4f30-a67e-bdeca6944577
-ELC_PWR,ELE_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Electrical Fixtures,5b5c4c6c-c420-4f30-a67e-bdeca6944577
-ELC_PWR,ELE_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Furniture,5b5c4c6c-c420-4f30-a67e-bdeca6944577
-ELC_PWR,ELE_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Generic Models,5b5c4c6c-c420-4f30-a67e-bdeca6944577
-ELC_PWR,ELE_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Lighting Fixtures,5b5c4c6c-c420-4f30-a67e-bdeca6944577
-ELC_PWR,ELE_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Mechanical Equipment,5b5c4c6c-c420-4f30-a67e-bdeca6944577
-ELC_PWR,ELE_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Plumbing Equipment,5b5c4c6c-c420-4f30-a67e-bdeca6944577
-ELC_PWR,ELE_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Plumbing Fixtures,5b5c4c6c-c420-4f30-a67e-bdeca6944577
-ELC_PWR,ELE_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Specialty Equipment,5b5c4c6c-c420-4f30-a67e-bdeca6944577
-ELC_PWR,ELE_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Sprinklers,5b5c4c6c-c420-4f30-a67e-bdeca6944577
+ELC_PWR,ELC_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Air Terminals,5b5c4c6c-c420-4f30-a67e-bdeca6944577
+ELC_PWR,ELC_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Cable Trays,5b5c4c6c-c420-4f30-a67e-bdeca6944577
+ELC_PWR,ELC_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Casework,5b5c4c6c-c420-4f30-a67e-bdeca6944577
+ELC_PWR,ELC_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Conduit Fittings,5b5c4c6c-c420-4f30-a67e-bdeca6944577
+ELC_PWR,ELC_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Conduits,5b5c4c6c-c420-4f30-a67e-bdeca6944577
+ELC_PWR,ELC_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Electrical Equipment,5b5c4c6c-c420-4f30-a67e-bdeca6944577
+ELC_PWR,ELC_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Electrical Fixtures,5b5c4c6c-c420-4f30-a67e-bdeca6944577
+ELC_PWR,ELC_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Furniture,5b5c4c6c-c420-4f30-a67e-bdeca6944577
+ELC_PWR,ELC_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Generic Models,5b5c4c6c-c420-4f30-a67e-bdeca6944577
+ELC_PWR,ELC_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Lighting Fixtures,5b5c4c6c-c420-4f30-a67e-bdeca6944577
+ELC_PWR,ELC_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Mechanical Equipment,5b5c4c6c-c420-4f30-a67e-bdeca6944577
+ELC_PWR,ELC_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Plumbing Equipment,5b5c4c6c-c420-4f30-a67e-bdeca6944577
+ELC_PWR,ELC_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Plumbing Fixtures,5b5c4c6c-c420-4f30-a67e-bdeca6944577
+ELC_PWR,ELC_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Specialty Equipment,5b5c4c6c-c420-4f30-a67e-bdeca6944577
+ELC_PWR,ELC_FIX_TAG_1_TXT,5b5c4c6c-c420-4f30-a67e-bdeca6944577,TEXT,Type,Elc fix tag 1,Sprinklers,5b5c4c6c-c420-4f30-a67e-bdeca6944577
 PRJ_INFORMATION,PRJ_DRAWING_SCALE_TXT,82264d6c-097e-5bcb-910e-e5e9f17eab65,TEXT,Type,Prj Drawing Scale Txt [ISO 19650-1:2018],Generic Models,82264d6c-097e-5bcb-910e-e5e9f17eab65
 TPL_TRACKING,FLT_LINE_COLOR_G_INT,bd79836c-16ed-4892-8cd3-785882f977ea,INTEGER,Type,Override line color green [ISO 19650-1:2018],Generic Models,bd79836c-16ed-4892-8cd3-785882f977ea
 COM_DAT,CST_CALC_SAND_M3,97c8b96c-3b7f-478a-8293-8b1b83083b27,VOLUME,Type,Calculated sand volume in cubic meters [ISO 19650-3:2020],Air Terminals,97c8b96c-3b7f-478a-8293-8b1b83083b27
@@ -2965,7 +2964,6 @@ TPL_TRACKING,TS_ITALIC_BOOL,53f2ce73-56a8-4b6b-a607-a5256ca163ca,YESNO,Type,Ital
 CST_PROC,BLE_MAT_TEXTURE_URL,dda46a75-078f-5701-bb0e-67fb11002872,URL,Instance,Ble Mat Texture Url [ISO 19650-1:2018],Materials,dda46a75-078f-5701-bb0e-67fb11002872
 CST_PROC,BLE_APP-SURFACE-FG-PATTERN,a389b775-f56d-5c0f-8863-c1acca491c62,TEXT,Instance,Ble App-surface-fg-pattern [ISO 19650-1:2018],Materials,a389b775-f56d-5c0f-8863-c1acca491c62
 TPL_TRACKING,SYS_INSULATION_TYPE_TXT,14246a76-589b-4b6c-ab1b-cb1ff88daae3,TEXT,Type,Insulation type [ISO 19650-1:2018],Generic Models,14246a76-589b-4b6c-ab1b-cb1ff88daae3
-PRJ_INFORMATION,PRJ_TB_CONSULTANT_ADDRESS_TXT,8e83ae76-71fe-55a8-8af1-0408c799f801,TEXT,Type,Prj Tb Consultant Address Txt [ISO 19650-1:2018],Generic Models,8e83ae76-71fe-55a8-8af1-0408c799f801
 COM_DAT,CST_CALC_SAND_PLASTER_M3,eeffb276-c8ea-45f3-8a0c-c8a624119b61,VOLUME,Type,Calculated sand for plaster in cubic meters [ISO 19650-3:2020],Air Terminals,eeffb276-c8ea-45f3-8a0c-c8a624119b61
 COM_DAT,CST_CALC_SAND_PLASTER_M3,eeffb276-c8ea-45f3-8a0c-c8a624119b61,VOLUME,Type,Calculated sand for plaster in cubic meters [ISO 19650-3:2020],Cable Trays,eeffb276-c8ea-45f3-8a0c-c8a624119b61
 COM_DAT,CST_CALC_SAND_PLASTER_M3,eeffb276-c8ea-45f3-8a0c-c8a624119b61,VOLUME,Type,Calculated sand for plaster in cubic meters [ISO 19650-3:2020],Casework,eeffb276-c8ea-45f3-8a0c-c8a624119b61
@@ -3657,7 +3655,6 @@ ASS_MNG,ASS_LVL_COD_TXT,b1e51fab-fa88-50df-8b2f-bcdbe48e7c78,TEXT,Type,Ass Lvl C
 ASS_MNG,ASS_LVL_COD_TXT,b1e51fab-fa88-50df-8b2f-bcdbe48e7c78,TEXT,Type,Ass Lvl Cod Txt [ISO 19650-3:2020],Plumbing Fixtures,b1e51fab-fa88-50df-8b2f-bcdbe48e7c78
 ASS_MNG,ASS_LVL_COD_TXT,b1e51fab-fa88-50df-8b2f-bcdbe48e7c78,TEXT,Type,Ass Lvl Cod Txt [ISO 19650-3:2020],Specialty Equipment,b1e51fab-fa88-50df-8b2f-bcdbe48e7c78
 ASS_MNG,ASS_LVL_COD_TXT,b1e51fab-fa88-50df-8b2f-bcdbe48e7c78,TEXT,Type,Ass Lvl Cod Txt [ISO 19650-3:2020],Sprinklers,b1e51fab-fa88-50df-8b2f-bcdbe48e7c78
-PRJ_INFORMATION,PRJ_TB_CLIENT_NAME_TXT,720b78ac-264c-5e0d-8d59-81f51714b167,TEXT,Type,Prj Tb Client Name Txt [ISO 19650-1:2018],Generic Models,720b78ac-264c-5e0d-8d59-81f51714b167
 MAT_INFO,MAT_DURABILITY,b40a8bae-2267-5cbd-863b-a237932e520e,TEXT,Instance,Mat Durability [ISO 19650-1:2018],Materials,b40a8bae-2267-5cbd-863b-a237932e520e
 PRJ_INFORMATION,PRJ_DRAWING_NR_TXT,b16817af-f02d-504f-933b-8c83ef1d0a60,TEXT,Type,Prj Drawing Nr Txt [ISO 19650-1:2018],Generic Models,b16817af-f02d-504f-933b-8c83ef1d0a60
 PER_SUST,PER_SUST_SPARE_02_TXT,842f36af-502d-4c69-9e52-18aeeb012d6a,TEXT,Type,Spare parameter 2 for PER_SUST group,Generic Models,842f36af-502d-4c69-9e52-18aeeb012d6a
@@ -4030,7 +4027,6 @@ PRJ_INFORMATION,PRJ_ADDRESS_2_TXT,4390abcd-ec43-5e4c-9d70-3c3f933fe7df,TEXT,Type
 TPL_TRACKING,VT_BACKGROUND_IMAGE_TXT,d4d1d2ce-a3ba-4633-afa1-ac49dfa5ae38,TEXT,Type,Background image filename [ISO 19650-1:2018],Generic Models,d4d1d2ce-a3ba-4633-afa1-ac49dfa5ae38
 TPL_TRACKING,VT_SHADOWS_BOOL,bd39c2cf-1ba3-42ad-87f5-39bf25ec91fb,YESNO,Type,Shadows enabled [ISO 19650-1:2018],Generic Models,bd39c2cf-1ba3-42ad-87f5-39bf25ec91fb
 CST_PROC,BLE_APP-SHADING_RGB,abead5cf-a33a-583e-9cc9-a7cbc321149a,TEXT,Instance,Ble App-shading Rgb [ISO 19650-1:2018],Materials,abead5cf-a33a-583e-9cc9-a7cbc321149a
-PRJ_INFORMATION,PRJ_TB_CONSULTANT_NAME_TXT,3d16e4cf-32c6-5761-ae73-8f264cbab54c,TEXT,Type,Prj Tb Consultant Name Txt [ISO 19650-1:2018],Generic Models,3d16e4cf-32c6-5761-ae73-8f264cbab54c
 TPL_TRACKING,PH_STATUS_TXT,652b46d0-949e-4a6f-b6e3-6ec1fafac962,TEXT,Type,Phase status [ISO 19650-2:2018],Generic Models,652b46d0-949e-4a6f-b6e3-6ec1fafac962
 MAT_INFO,MAT_CODE,758ba3d0-ea41-51fc-8dbf-3bb444174385,TEXT,Instance,Mat Code [ISO 19650-1:2018],Materials,758ba3d0-ea41-51fc-8dbf-3bb444174385
 CST_PROC,CST_TOTAL_EQUIPMENT_COST,a7b8c9d0-e1f2-3456-abcd-7890123456a7,CURRENCY,Type,Total equipment cost in UGX [ISO 19650-3:2020],Ceilings,a7b8c9d0-e1f2-3456-abcd-7890123456a7

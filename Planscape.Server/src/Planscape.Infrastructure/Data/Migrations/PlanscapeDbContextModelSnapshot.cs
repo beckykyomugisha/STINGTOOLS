@@ -20,6 +20,59 @@ namespace Planscape.Infrastructure.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63)
                 .UseIdentityByDefaultColumns();
 
+            modelBuilder.Entity("Planscape.Core.Entities.AccessProfile", b =>
+            {
+                b.Property<Guid>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("uuid");
+
+                b.Property<string>("AllowedCdeStates")
+                    .HasColumnType("text");
+
+                b.Property<string>("AllowedDisciplines")
+                    .HasColumnType("text");
+
+                b.Property<string>("AllowedSuitabilities")
+                    .HasColumnType("text");
+
+                b.Property<DateTime>("CreatedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<string>("CreatedBy")
+                    .HasColumnType("text");
+
+                b.Property<string>("DefaultIso19650Role")
+                    .IsRequired()
+                    .HasMaxLength(8)
+                    .HasColumnType("character varying(8)");
+
+                b.Property<string>("DefaultProjectRole")
+                    .IsRequired()
+                    .HasMaxLength(32)
+                    .HasColumnType("character varying(32)");
+
+                b.Property<string>("Description")
+                    .HasMaxLength(500)
+                    .HasColumnType("character varying(500)");
+
+                b.Property<bool>("IsActive")
+                    .HasColumnType("boolean");
+
+                b.Property<string>("Name")
+                    .IsRequired()
+                    .HasMaxLength(120)
+                    .HasColumnType("character varying(120)");
+
+                b.Property<Guid>("TenantId")
+                    .HasColumnType("uuid");
+
+                b.HasKey("Id");
+
+                b.HasIndex("TenantId", "Name").IsUnique();
+
+                b.ToTable("AccessProfiles");
+            });
+
             modelBuilder.Entity("Planscape.Core.Entities.AuditLog", b =>
             {
                 b.Property<long>("Id")
@@ -75,6 +128,13 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<DateTime>("CreatedAt")
                     .HasColumnType("timestamp with time zone");
 
+                // F2 — soft-delete columns
+                b.Property<DateTime?>("DeletedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<string>("DeletedByUserId")
+                    .HasColumnType("text");
+
                 b.Property<string>("DisplayName")
                     .IsRequired()
                     .HasColumnType("text");
@@ -84,6 +144,10 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .HasColumnType("text");
 
                 b.Property<bool>("IsActive")
+                    .HasColumnType("boolean");
+
+                // F2 — soft-delete flag; false by default
+                b.Property<bool>("IsDeleted")
                     .HasColumnType("boolean");
 
                 b.Property<string>("Iso19650Role")
@@ -111,7 +175,8 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                 b.HasKey("Id");
 
-                b.HasIndex("Email")
+                // F1 — per-tenant email uniqueness (was global single-column IX_Users_Email)
+                b.HasIndex("TenantId", "Email")
                     .IsUnique();
 
                 b.HasIndex("TenantId");
@@ -146,6 +211,10 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .HasColumnType("uuid");
 
                 b.Property<DateTime>("CreatedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<DateTime>("UpdatedAt")
+                    .HasDefaultValueSql("now()")
                     .HasColumnType("timestamp with time zone");
 
                 b.Property<string>("DeviceId")
@@ -191,6 +260,9 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<DateTime?>("ResolvedAt")
                     .HasColumnType("timestamp with time zone");
 
+                b.Property<string>("ResolvedBy")
+                    .HasColumnType("text");
+
                 b.Property<string>("Revision")
                     .HasColumnType("text");
 
@@ -206,6 +278,9 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .IsRequired()
                     .HasColumnType("text");
 
+                b.Property<string>("WatcherUserIds")
+                    .HasColumnType("text");
+
                 b.HasKey("Id");
 
                 b.HasIndex("DueDate")
@@ -218,7 +293,76 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                 b.HasIndex("ProjectId", "AssigneeUserId");
 
+                b.HasIndex("UpdatedAt");
+
                 b.ToTable("Issues");
+            });
+
+            modelBuilder.Entity("Planscape.Core.Entities.BoqSnapshot", b =>
+            {
+                b.Property<int>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("integer")
+                    .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+                b.Property<DateTime>("CreatedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<string>("CreatedByUserId")
+                    .IsRequired()
+                    .HasColumnType("text");
+
+                b.Property<Guid>("ProjectId")
+                    .HasColumnType("uuid");
+
+                b.Property<string>("SnapshotJson")
+                    .IsRequired()
+                    .HasColumnType("text");
+
+                b.Property<Guid>("TenantId")
+                    .HasColumnType("uuid");
+
+                b.HasKey("Id");
+
+                b.HasIndex("ProjectId");
+
+                b.HasIndex("TenantId");
+
+                b.ToTable("BoqSnapshots");
+            });
+
+            modelBuilder.Entity("Planscape.Core.Entities.P6SyncLog", b =>
+            {
+                b.Property<int>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("integer")
+                    .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+                b.Property<int>("ActivitiesPolled")
+                    .HasColumnType("integer");
+
+                b.Property<int>("ElementsUpdated")
+                    .HasColumnType("integer");
+
+                b.Property<string>("ErrorMessage")
+                    .HasColumnType("text");
+
+                b.Property<Guid>("ProjectId")
+                    .HasColumnType("uuid");
+
+                b.Property<DateTime>("SyncedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<Guid>("TenantId")
+                    .HasColumnType("uuid");
+
+                b.HasKey("Id");
+
+                b.HasIndex("ProjectId");
+
+                b.HasIndex("TenantId");
+
+                b.ToTable("P6SyncLogs");
             });
 
             modelBuilder.Entity("Planscape.Core.Entities.ComplianceSnapshot", b =>
@@ -385,6 +529,68 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.ToTable("IssueAttachments");
             });
 
+            // ── Phase 178c (T3-12) — ApprovalChain ──
+            modelBuilder.Entity("Planscape.Core.Entities.ApprovalChain", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("TenantId").HasColumnType("uuid");
+                b.Property<Guid>("ProjectId").HasColumnType("uuid");
+                b.Property<Guid>("DocumentId").HasColumnType("uuid");
+                b.Property<string>("Transition").IsRequired().HasMaxLength(80).HasColumnType("character varying(80)");
+                b.Property<string>("Status").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)");
+                b.Property<string>("CreatedBy").IsRequired().HasMaxLength(120).HasColumnType("character varying(120)");
+                b.Property<DateTime>("CreatedAt").HasColumnType("timestamp with time zone");
+                b.Property<DateTime?>("CompletedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("Description").HasMaxLength(500).HasColumnType("character varying(500)");
+                b.HasKey("Id");
+                b.HasIndex("DocumentId", "Transition", "Status");
+                b.HasIndex("ProjectId");
+                b.HasIndex("TenantId");
+                b.ToTable("ApprovalChains");
+            });
+
+            // ── Phase 178c (T3-12) — ApprovalStage ──
+            modelBuilder.Entity("Planscape.Core.Entities.ApprovalStage", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("TenantId").HasColumnType("uuid");
+                b.Property<Guid>("ChainId").HasColumnType("uuid");
+                b.Property<int>("Order").HasColumnType("integer");
+                b.Property<string>("Mode").IsRequired().HasMaxLength(16).HasColumnType("character varying(16)");
+                b.Property<string>("RequiredApproversJson").IsRequired().HasColumnType("text");
+                b.Property<string>("Status").IsRequired().HasMaxLength(16).HasColumnType("character varying(16)");
+                b.Property<string>("DecisionsJson").IsRequired().HasColumnType("text");
+                b.Property<DateTime?>("StartedAt").HasColumnType("timestamp with time zone");
+                b.Property<DateTime?>("CompletedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("Label").HasMaxLength(120).HasColumnType("character varying(120)");
+                b.HasKey("Id");
+                b.HasIndex("ChainId", "Order");
+                b.HasIndex("TenantId");
+                b.ToTable("ApprovalStages");
+            });
+
+            // ── Phase 178c (T3-24) — DocumentRevision ──
+            modelBuilder.Entity("Planscape.Core.Entities.DocumentRevision", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("TenantId").HasColumnType("uuid");
+                b.Property<Guid>("DocumentId").HasColumnType("uuid");
+                b.Property<string>("Revision").IsRequired().HasMaxLength(16).HasColumnType("character varying(16)");
+                b.Property<string>("CdeStateAtRevision").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)");
+                b.Property<string>("SuitabilityAtRevision").HasMaxLength(8).HasColumnType("character varying(8)");
+                b.Property<string>("FilePath").HasMaxLength(500).HasColumnType("character varying(500)");
+                b.Property<long?>("FileSizeBytes").HasColumnType("bigint");
+                b.Property<string>("ContentHash").HasMaxLength(128).HasColumnType("character varying(128)");
+                b.Property<string>("CreatedBy").IsRequired().HasMaxLength(120).HasColumnType("character varying(120)");
+                b.Property<DateTime>("CreatedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("CommentSummary").HasMaxLength(2000).HasColumnType("character varying(2000)");
+                b.Property<string>("Source").IsRequired().HasMaxLength(40).HasColumnType("character varying(40)");
+                b.HasKey("Id");
+                b.HasIndex("DocumentId", "CreatedAt");
+                b.HasIndex("TenantId");
+                b.ToTable("DocumentRevisions");
+            });
+
             modelBuilder.Entity("Planscape.Core.Entities.DocumentRecord", b =>
             {
                 b.Property<Guid>("Id")
@@ -429,6 +635,16 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<string>("Revision")
                     .HasColumnType("text");
 
+                b.Property<DateTime?>("ScanScannedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<string>("ScanStatus")
+                    .IsRequired()
+                    .HasColumnType("text");
+
+                b.Property<string>("ScanThreatName")
+                    .HasColumnType("text");
+
                 b.Property<string>("StatusHistoryJson")
                     .HasColumnType("text");
 
@@ -453,6 +669,10 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.HasIndex("ProjectId", "Discipline");
 
                 b.HasIndex("ProjectId", "UploadedAt");
+
+                b.HasIndex("ScanStatus")
+                    .HasFilter("\"ScanStatus\" = 'PENDING'")
+                    .HasDatabaseName("IX_Documents_ScanStatus_Pending");
 
                 b.ToTable("Documents");
             });
@@ -612,6 +832,9 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<DateTime>("CreatedAt")
                     .HasColumnType("timestamp with time zone");
 
+                b.Property<Guid?>("CreatedById")
+                    .HasColumnType("uuid");
+
                 b.Property<string>("Description")
                     .HasColumnType("text");
 
@@ -663,6 +886,8 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.HasIndex("TenantId", "Code")
                     .IsUnique();
 
+                b.HasIndex("TenantId", "CreatedById");
+
                 b.ToTable("Projects");
             });
 
@@ -671,6 +896,15 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
                     .HasColumnType("uuid");
+
+                b.Property<string>("AllowedCdeStates")
+                    .HasColumnType("text");
+
+                b.Property<string>("AllowedDisciplines")
+                    .HasColumnType("text");
+
+                b.Property<string>("AllowedSuitabilities")
+                    .HasColumnType("text");
 
                 b.Property<string>("InvitedBy")
                     .HasColumnType("text");
@@ -703,6 +937,63 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.ToTable("ProjectMembers");
             });
 
+            // Phase 178 — SitePhoto (site photo workflow). Mirrors the
+            // schema in 20260510000000_AddSitePhotos and PlanscapeDbContext
+            // so future `dotnet ef migrations add` runs see a stable model.
+            modelBuilder.Entity("Planscape.Core.Entities.SitePhoto", b =>
+            {
+                b.Property<Guid>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("uuid");
+                b.Property<Guid>("TenantId").HasColumnType("uuid");
+                b.Property<Guid>("ProjectId").HasColumnType("uuid");
+                b.Property<Guid>("DocumentId").HasColumnType("uuid");
+                b.Property<string>("Reason").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)");
+                b.Property<string>("Audience").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)");
+                b.Property<string>("BlurStatus").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)");
+                b.Property<bool>("WatermarkApplied").HasColumnType("boolean");
+                b.Property<string>("RedactedFilePath").HasMaxLength(500).HasColumnType("character varying(500)");
+                b.Property<string>("Caption").HasMaxLength(2000).HasColumnType("character varying(2000)");
+                b.Property<DateTime>("CapturedAt").HasColumnType("timestamp with time zone");
+                b.Property<Guid?>("CapturedByUserId").HasColumnType("uuid");
+                b.Property<string>("DeviceId").HasColumnType("text");
+                b.Property<string>("Source").HasMaxLength(20).HasColumnType("character varying(20)");
+                b.Property<double?>("Latitude").HasColumnType("double precision");
+                b.Property<double?>("Longitude").HasColumnType("double precision");
+                b.Property<double?>("AccuracyM").HasColumnType("double precision");
+                b.Property<string>("LevelCode").HasMaxLength(40).HasColumnType("character varying(40)");
+                b.Property<string>("ZoneCode").HasMaxLength(40).HasColumnType("character varying(40)");
+                b.Property<Guid?>("WorkPackageId").HasColumnType("uuid");
+                b.Property<Guid?>("AnchorIssueId").HasColumnType("uuid");
+                b.Property<string>("AnchorElementGuid").HasMaxLength(80).HasColumnType("character varying(80)");
+                b.Property<Guid?>("ModelId").HasColumnType("uuid");
+                b.Property<double?>("ModelX").HasColumnType("double precision");
+                b.Property<double?>("ModelY").HasColumnType("double precision");
+                b.Property<double?>("ModelZ").HasColumnType("double precision");
+                b.Property<double>("ClassifierConfidence").HasColumnType("double precision");
+                b.Property<string>("ClassifierSignals").HasColumnType("jsonb");
+                b.Property<string>("PairKey").HasMaxLength(80).HasColumnType("character varying(80)");
+                b.Property<DateTime?>("ApprovedAt").HasColumnType("timestamp with time zone");
+                b.Property<Guid?>("ApprovedByUserId").HasColumnType("uuid");
+                b.Property<DateTime?>("RejectedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("RejectedReason").HasMaxLength(500).HasColumnType("character varying(500)");
+                b.Property<Guid?>("RejectedByUserId").HasColumnType("uuid");
+                b.Property<DateTime?>("WithdrawnAt").HasColumnType("timestamp with time zone");
+                b.Property<Guid?>("WithdrawnByUserId").HasColumnType("uuid");
+                b.HasKey("Id");
+                b.HasIndex("ProjectId");
+                b.HasIndex("ProjectId", "Audience");
+                b.HasIndex("ProjectId", "Reason");
+                b.HasIndex("CapturedAt");
+                b.HasIndex("PairKey");
+                b.HasIndex("AnchorElementGuid");
+                b.HasIndex("DocumentId");
+                b.HasIndex("CapturedByUserId");
+                b.HasIndex("ApprovedByUserId");
+                b.HasIndex("AnchorIssueId");
+                b.ToTable("SitePhotos");
+            });
+
             modelBuilder.Entity("Planscape.Core.Entities.SeqCounter", b =>
             {
                 b.Property<Guid>("Id")
@@ -732,6 +1023,96 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .IsUnique();
 
                 b.ToTable("SeqCounters");
+            });
+
+            // HC-06 — Healthcare Pack tables (migration 20260515000000_HealthcarePack).
+            modelBuilder.Entity("Planscape.Core.Entities.HealthcarePressureLog", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("TenantId").HasColumnType("uuid");
+                b.Property<Guid>("ProjectId").HasColumnType("uuid");
+                b.Property<string>("RoomBimId").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasDefaultValue("");
+                b.Property<string>("RoomName").IsRequired().HasMaxLength(400).HasColumnType("character varying(400)").HasDefaultValue("");
+                b.Property<string>("RoomClass").IsRequired().HasMaxLength(80).HasColumnType("character varying(80)").HasDefaultValue("");
+                b.Property<string>("DesignRegime").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)").HasDefaultValue("");
+                b.Property<double>("DesignDeltaPa").HasColumnType("double precision").HasDefaultValue(0.0);
+                b.Property<double>("LiveDeltaPa").HasColumnType("double precision").HasDefaultValue(0.0);
+                b.Property<bool>("InBand").HasColumnType("boolean").HasDefaultValue(false);
+                b.Property<DateTime>("CapturedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("CapturedBy").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasDefaultValue("");
+                b.Property<string>("Source").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)").HasDefaultValue("MANUAL");
+                b.HasKey("Id");
+                b.HasIndex("TenantId");
+                b.HasIndex("ProjectId");
+                b.HasIndex("ProjectId", "CapturedAt");
+                b.HasIndex("ProjectId", "RoomBimId");
+                b.ToTable("HealthcarePressureLogs");
+            });
+
+            modelBuilder.Entity("Planscape.Core.Entities.HealthcareMgasVerification", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("TenantId").HasColumnType("uuid");
+                b.Property<Guid>("ProjectId").HasColumnType("uuid");
+                b.Property<string>("Zone").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)").HasDefaultValue("");
+                b.Property<string>("GasCode").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)").HasDefaultValue("");
+                b.Property<string>("VerifierName").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasDefaultValue("");
+                b.Property<string>("VerifierAsse6030Id").IsRequired().HasMaxLength(50).HasColumnType("character varying(50)").HasDefaultValue("");
+                b.Property<string>("CertReference").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)").HasDefaultValue("");
+                b.Property<DateTime>("CapturedAt").HasColumnType("timestamp with time zone");
+                b.Property<bool>("OverallPass").HasColumnType("boolean").HasDefaultValue(false);
+                b.Property<int>("PassCount").HasColumnType("integer").HasDefaultValue(0);
+                b.Property<int>("FailCount").HasColumnType("integer").HasDefaultValue(0);
+                b.Property<string>("CheckResultsJson").IsRequired().HasColumnType("jsonb").HasDefaultValue("{}");
+                b.Property<string>("Notes").IsRequired().HasMaxLength(2000).HasColumnType("character varying(2000)").HasDefaultValue("");
+                b.HasKey("Id");
+                b.HasIndex("TenantId");
+                b.HasIndex("ProjectId");
+                b.HasIndex("ProjectId", "CapturedAt");
+                b.ToTable("HealthcareMgasVerifications");
+            });
+
+            modelBuilder.Entity("Planscape.Core.Entities.HealthcareAntiLigatureAudit", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("TenantId").HasColumnType("uuid");
+                b.Property<Guid>("ProjectId").HasColumnType("uuid");
+                b.Property<string>("RoomBimId").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasDefaultValue("");
+                b.Property<string>("RoomName").IsRequired().HasMaxLength(400).HasColumnType("character varying(400)").HasDefaultValue("");
+                b.Property<string>("FittingType").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)").HasDefaultValue("");
+                b.Property<bool>("Pass").HasColumnType("boolean").HasDefaultValue(false);
+                b.Property<string>("Notes").IsRequired().HasMaxLength(2000).HasColumnType("character varying(2000)").HasDefaultValue("");
+                b.Property<string>("PhotoBlobId").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasDefaultValue("");
+                b.Property<double?>("GpsLat").HasColumnType("double precision");
+                b.Property<double?>("GpsLon").HasColumnType("double precision");
+                b.Property<DateTime>("CapturedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("CapturedBy").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasDefaultValue("");
+                b.HasKey("Id");
+                b.HasIndex("TenantId");
+                b.HasIndex("ProjectId");
+                b.HasIndex("ProjectId", "CapturedAt");
+                b.ToTable("HealthcareAntiLigatureAudits");
+            });
+
+            modelBuilder.Entity("Planscape.Core.Entities.HealthcareRdsSnapshot", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("TenantId").HasColumnType("uuid");
+                b.Property<Guid>("ProjectId").HasColumnType("uuid");
+                b.Property<string>("RoomBimId").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasDefaultValue("");
+                b.Property<string>("RoomNumber").IsRequired().HasMaxLength(50).HasColumnType("character varying(50)").HasDefaultValue("");
+                b.Property<string>("RoomName").IsRequired().HasMaxLength(400).HasColumnType("character varying(400)").HasDefaultValue("");
+                b.Property<string>("RoomClass").IsRequired().HasMaxLength(80).HasColumnType("character varying(80)").HasDefaultValue("");
+                b.Property<string>("HbnRef").IsRequired().HasMaxLength(50).HasColumnType("character varying(50)").HasDefaultValue("");
+                b.Property<string>("AdbCode").IsRequired().HasMaxLength(50).HasColumnType("character varying(50)").HasDefaultValue("");
+                b.Property<DateTime>("CapturedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("ContextJson").IsRequired().HasColumnType("jsonb").HasDefaultValue("{}");
+                b.Property<string>("DocxRelPath").IsRequired().HasMaxLength(500).HasColumnType("character varying(500)").HasDefaultValue("");
+                b.HasKey("Id");
+                b.HasIndex("TenantId");
+                b.HasIndex("ProjectId");
+                b.HasIndex("ProjectId", "RoomBimId");
+                b.ToTable("HealthcareRdsSnapshots");
             });
 
             modelBuilder.Entity("Planscape.Core.Entities.TaggedElement", b =>
@@ -808,12 +1189,28 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<string>("Status")
                     .HasColumnType("text");
 
+                b.Property<string>("Source")
+                    .HasMaxLength(40)
+                    .HasColumnType("character varying(40)");
+
                 b.Property<DateTime>("SyncedAt")
                     .HasColumnType("timestamp with time zone");
 
                 b.Property<string>("SyncedBy")
                     .IsRequired()
                     .HasColumnType("text");
+
+                b.Property<string>("ActualFinish")
+                    .HasColumnType("text");
+
+                b.Property<string>("ActualStart")
+                    .HasColumnType("text");
+
+                b.Property<string>("P6ActivityId")
+                    .HasColumnType("text");
+
+                b.Property<double?>("PercentComplete")
+                    .HasColumnType("double precision");
 
                 b.Property<string>("Sys")
                     .IsRequired()
@@ -871,12 +1268,16 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                 b.HasIndex("IsStale");
 
+                b.HasIndex("Source");
+
                 b.HasIndex("Tag1");
 
                 b.HasIndex("ProjectId", "RevitElementId")
                     .IsUnique();
 
                 b.HasIndex("ProjectId", "LastModifiedUtc");
+
+                b.HasIndex("P6ActivityId");
 
                 b.ToTable("TaggedElements");
             });
@@ -896,6 +1297,10 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                 b.Property<bool>("IsActive")
                     .HasColumnType("boolean");
+
+                // F3 — track last modification time; auto-stamped by SaveChangesAsync
+                b.Property<DateTime>("UpdatedAt")
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<int>("MaxProjects")
                     .HasColumnType("integer");
@@ -1290,6 +1695,17 @@ namespace Planscape.Infrastructure.Data.Migrations
 
             // ── Relationships ──
 
+            modelBuilder.Entity("Planscape.Core.Entities.AccessProfile", b =>
+            {
+                b.HasOne("Planscape.Core.Entities.Tenant", "Tenant")
+                    .WithMany()
+                    .HasForeignKey("TenantId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.Navigation("Tenant");
+            });
+
             modelBuilder.Entity("Planscape.Core.Entities.AppUser", b =>
             {
                 b.HasOne("Planscape.Core.Entities.Tenant", "Tenant")
@@ -1343,10 +1759,13 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
 
+                // F5 — Restrict (not Cascade) paired with F2 soft-delete: a user's
+                // push tokens must be explicitly removed before the user row can be
+                // hard-deleted, preserving the cleanup-job audit trail.
                 b.HasOne("Planscape.Core.Entities.AppUser", "User")
                     .WithMany()
                     .HasForeignKey("UserId")
-                    .OnDelete(DeleteBehavior.Cascade)
+                    .OnDelete(DeleteBehavior.Restrict)
                     .IsRequired();
 
                 b.Navigation("Tenant");
@@ -1454,10 +1873,12 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
 
+                // F5 — Restrict (not Cascade) so a user with active memberships
+                // cannot be hard-deleted; the soft-delete workflow must run first.
                 b.HasOne("Planscape.Core.Entities.AppUser", "User")
                     .WithMany()
                     .HasForeignKey("UserId")
-                    .OnDelete(DeleteBehavior.Cascade)
+                    .OnDelete(DeleteBehavior.Restrict)
                     .IsRequired();
 
                 b.Navigation("Project");
@@ -1509,6 +1930,37 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Navigation("Project");
             });
 
+            modelBuilder.Entity("Planscape.Core.Entities.SitePhoto", b =>
+            {
+                b.HasOne("Planscape.Core.Entities.Project", "Project")
+                    .WithMany()
+                    .HasForeignKey("ProjectId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+                b.HasOne("Planscape.Core.Entities.DocumentRecord", "Document")
+                    .WithMany()
+                    .HasForeignKey("DocumentId")
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .IsRequired();
+                b.HasOne("Planscape.Core.Entities.AppUser", "CapturedByUser")
+                    .WithMany()
+                    .HasForeignKey("CapturedByUserId")
+                    .OnDelete(DeleteBehavior.SetNull);
+                b.HasOne("Planscape.Core.Entities.AppUser", "ApprovedByUser")
+                    .WithMany()
+                    .HasForeignKey("ApprovedByUserId")
+                    .OnDelete(DeleteBehavior.SetNull);
+                b.HasOne("Planscape.Core.Entities.BimIssue", "AnchorIssue")
+                    .WithMany()
+                    .HasForeignKey("AnchorIssueId")
+                    .OnDelete(DeleteBehavior.SetNull);
+                b.Navigation("Project");
+                b.Navigation("Document");
+                b.Navigation("CapturedByUser");
+                b.Navigation("ApprovedByUser");
+                b.Navigation("AnchorIssue");
+            });
+
             modelBuilder.Entity("Planscape.MIM.Entities.MaintenanceTask", b =>
             {
                 b.HasOne("Planscape.MIM.Entities.Asset", "Asset")
@@ -1518,6 +1970,28 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .IsRequired();
 
                 b.Navigation("Asset");
+            });
+
+            modelBuilder.Entity("Planscape.Core.Entities.BoqSnapshot", b =>
+            {
+                b.HasOne("Planscape.Core.Entities.Project", "Project")
+                    .WithMany()
+                    .HasForeignKey("ProjectId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.Navigation("Project");
+            });
+
+            modelBuilder.Entity("Planscape.Core.Entities.P6SyncLog", b =>
+            {
+                b.HasOne("Planscape.Core.Entities.Project", "Project")
+                    .WithMany()
+                    .HasForeignKey("ProjectId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.Navigation("Project");
             });
 
             // ── Collection navigations ──

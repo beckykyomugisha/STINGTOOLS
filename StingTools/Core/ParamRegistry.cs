@@ -40,6 +40,14 @@ namespace StingTools.Core
         private static string _overrideSeparator;
         private static int? _overrideNumPad;
         private static string[] _overrideSegmentOrder;
+        // PERF-05: lazy cache, invalidated on override change. Reader was
+        // refactored away in a later sweep but the invalidation hooks
+        // remain as guard infrastructure for the next time the cache is
+        // re-introduced. Silence CS0414 since the field is intentionally
+        // write-only for now.
+#pragma warning disable CS0414
+        private static string[] _cachedSegmentOrder;
+#pragma warning restore CS0414
 
         public static string Separator => _overrideSeparator ?? _baseSeparator;
         public static int NumPad => _overrideNumPad ?? _baseNumPad;
@@ -78,12 +86,14 @@ namespace StingTools.Core
                     {
                         StingLog.Warn($"Invalid segment name '{seg}' in tag format override — ignoring segment order override");
                         _overrideSegmentOrder = null;
+                        _cachedSegmentOrder = null; // PERF-05: Invalidate on rejection too
                         StingLog.Info($"Tag format override applied: sep='{Separator}', pad={NumPad}, segments={SegmentOrder.Length} (segment order rejected)");
                         return;
                     }
                 }
                 _overrideSegmentOrder = (string[])segmentOrder.Clone();
             }
+            _cachedSegmentOrder = null; // PERF-05: invalidate cached order
             StingLog.Info($"Tag format override applied: sep='{Separator}', pad={NumPad}, segments={SegmentOrder.Length}");
         }
 
@@ -95,6 +105,7 @@ namespace StingTools.Core
             _overrideSeparator = null;
             _overrideNumPad = null;
             _overrideSegmentOrder = null;
+            _cachedSegmentOrder = null; // PERF-05: invalidate cached order
         }
 
         // ── Source token definitions ────────────────────────────────────
@@ -162,6 +173,74 @@ namespace StingTools.Core
         public const string VIEW_TAG_STYLE_GUID = "E2F3A4B5-C6D7-4E8F-9A0B-1C2D3E4F5A6C";
         public const string TAG_SEG_MASK = "TAG_SEG_MASK_TXT";
         public const string TAG_SEG_MASK_GUID = "F3A4B5C6-D7E8-4F9A-0B1C-2D3E4F5A6B7D";
+        // Per-view 8-char "1"/"0" mask gating which segments render in
+        // BuildDisplayTag without mutating the canonical ASS_TAG_1_TXT.
+        // Bound to OST_Views so users can hide ZONE in a presentation view
+        // without breaking exports — review fix for TAG-token-toggling #1.
+        public const string VIEW_TOKEN_MASK = "STING_VIEW_TOKEN_MASK_TXT";
+        public const string VIEW_TOKEN_MASK_GUID = "F4A5B6C7-D8E9-4F0A-1B2C-3D4E5F6A7B8E";
+
+        // ── Phase 175 — Symbol system parameters ─────────────────────────
+        public const string SYMBOL_ID                 = "STING_SYMBOL_ID";
+        public const string SYMBOL_ID_GUID            = "A4B5C6D7-E8F9-4A0B-1C2D-3E4F5A6B7C8D";
+        public const string SYMBOL_STANDARD           = "STING_SYMBOL_STANDARD";
+        public const string SYMBOL_STANDARD_GUID      = "B5C6D7E8-F9A0-4B1C-2D3E-4F5A6B7C8D9E";
+        public const string SYMBOL_HOST_ELEMENT_ID    = "STING_HOST_ELEMENT_ID";
+        public const string SYMBOL_HOST_ELEMENT_ID_GUID = "C6D7E8F9-A0B1-4C2D-3E4F-5A6B7C8D9E0F";
+        public const string SYMBOL_LABEL_ID           = "STING_SYMBOL_LABEL_ID";
+        public const string SYMBOL_LABEL_ID_GUID      = "D7E8F9A0-B1C2-4D3E-4F5A-6B7C8D9E0F1A";
+        public const string SYMBOL_OVERRIDE           = "STING_SYMBOL_OVERRIDE";
+        public const string SYMBOL_OVERRIDE_GUID      = "E8F9A0B1-C2D3-4E4F-5A6B-7C8D9E0F1A2B";
+        public const string VIEW_SYMBOL_STANDARD      = "STING_VIEW_SYMBOL_STANDARD";
+        public const string VIEW_SYMBOL_STANDARD_GUID = "F9A0B1C2-D3E4-4F5A-6B7C-8D9E0F1A2B3C";
+        public const string SLD_ELEMENT_ID            = "STING_SLD_ELEMENT_ID";
+        public const string SLD_ELEMENT_ID_GUID       = "0A1B2C3D-4E5F-4A6B-7C8D-9E0F1A2B3C4D";
+        public const string SYMBOL_LIBRARY_VERSION    = "STING_SYMBOL_LIBRARY_VERSION";
+        public const string SYMBOL_LIBRARY_VERSION_GUID = "1B2C3D4E-5F6A-4B7C-8D9E-0F1A2B3C4D5E";
+
+        // Phase 175 — Circuit-annotation parameters consumed by
+        // Core/Symbols/SymbolAnnotationEngine.BuildLabel. STING-prefixed
+        // names take precedence; the legacy bare names (CIRCUIT_REF /
+        // RATING / POLES / LABEL) remain supported as fallback so imported
+        // third-party families render labels without re-binding.
+        public const string CIRCUIT_REF               = "ELC_CIRCUIT_REF_TXT";
+        public const string CIRCUIT_REF_GUID          = "C2A7E5B1-3001-5333-9333-300000000001";
+        public const string CIRCUIT_RATING            = "ELC_CIRCUIT_RATING_TXT";
+        public const string CIRCUIT_RATING_GUID       = "C2A7E5B1-3002-5333-9333-300000000002";
+        public const string CIRCUIT_POLES             = "ELC_CIRCUIT_POLES_NR";
+        public const string CIRCUIT_POLES_GUID        = "C2A7E5B1-3003-5333-9333-300000000003";
+        public const string CIRCUIT_LABEL             = "ELC_CIRCUIT_LABEL_TXT";
+        public const string CIRCUIT_LABEL_GUID        = "C2A7E5B1-3004-5333-9333-300000000004";
+
+        // ── Phase 137 — Drawing production stamps ────────────────────────
+        // Written onto views/sheets by the production engine so audits and
+        // browser organisers can find STING-produced artefacts.
+        public const string STING_VIEW_CONTEXT_TAG     = "STING_VIEW_CONTEXT_TAG_TXT";
+        public const string STING_DRAWING_PACKAGE_ID   = "STING_DRAWING_PACKAGE_ID_TXT";
+        public const string STING_AUTO_PLACED_BOOL     = "STING_AUTO_PLACED_BOOL";
+        public const string STING_PRODUCTION_RULE_IDX  = "STING_PRODUCTION_RULE_IDX_INT";
+        public const string STING_SHEET_SEQUENCE       = "STING_SHEET_SEQUENCE_INT";
+
+        // ── Annotation marker constants (Phase 179) ──────────────────────
+        public const string STING_WIRE_ANNOT_MARKER   = "STING_WIRE_ANNOT";
+        public const string STING_HOMERUN_MARKER      = "STING_WIRE_HOMERUN";
+        public const string STING_TICK_MARKER         = "STING_WIRE_TICK";
+
+        // ── Phase 168 — Match-line subsystem ─────────────────────────────
+        // Stamped onto every auto-placed match-line DetailCurve + caption
+        // tag by MatchLineEngine.PlacePair. STING_MATCH_REF_TXT carries
+        // the paired sheet's STING_SHEET_FULL_REF (so cross-references
+        // re-resolve when sheets are renumbered); STING_MATCH_LINE_GUID
+        // is the stable pair identifier that lets re-runs find existing
+        // pairs and update them in place; STING_MATCH_DIR encodes
+        // vertical/horizontal/dogleg so the drift detector knows what
+        // shape to expect when validating against the scope-box graph.
+        public const string MATCH_REF       = "STING_MATCH_REF_TXT";
+        public const string MATCH_REF_GUID  = "A6B7C8D9-EAFB-4ACC-5D6E-7F8A9BACDBEC";
+        public const string MATCH_LINE_GUID = "STING_MATCH_LINE_GUID_TXT";
+        public const string MATCH_LINE_GUID_GUID = "A7B8C9DA-FBAC-4BCD-6E7F-8A9BACDBECFD";
+        public const string MATCH_DIR       = "STING_MATCH_DIR_TXT";
+        public const string MATCH_DIR_GUID  = "A8B9CADB-ACBD-4CDE-7F8A-9BACDBECFDAE";
 
         // LOG-01: Detection source tracking parameters
         public const string LOC_SOURCE = "ASS_LOC_SOURCE_TXT";
@@ -256,12 +335,17 @@ namespace StingTools.Core
         public const string TB_LAST_SYNC_BY_GUID   = "eb514ec7-6636-5987-9667-8e85c31a8f85";
         public const string TB_LOCK                = "PRJ_TB_LOCK_BOOL";
         public const string TB_LOCK_GUID           = "74c9d75f-840c-5263-9acf-8fecf80ec6aa";
-        public const string TB_SHOW_KEYPLAN        = "PRJ_TB_SHOW_KEYPLAN_BOOL";
-        public const string TB_SHOW_KEYPLAN_GUID   = "8dd6b517-7173-5a8d-b951-a08807fed830";
-        public const string TB_SHOW_SCALEBAR       = "PRJ_TB_SHOW_SCALEBAR_BOOL";
-        public const string TB_SHOW_SCALEBAR_GUID  = "fa841ad5-15e1-5ec2-91bc-a69d70cf9c42";
-        public const string TB_SHOW_NORTHARROW     = "PRJ_TB_SHOW_NORTHARROW_BOOL";
-        public const string TB_SHOW_NORTHARROW_GUID= "58c6e51f-6f22-546b-ac02-086ab6f6fbbf";
+        // Canonical home for these toggles is TB_SHOW_*_BOOL on the GROUP 26 TBL_TITLEBLOCK
+        // FamilyInstance (added in Drawing Template Manager). The PRJ_TB_SHOW_*_BOOL
+        // constants below are kept on ViewSheet for backwards compat with sheets that
+        // were authored before STING TB v1; new title block families should bind to the
+        // GROUP 26 TB_ versions.
+        public const string TB_SHOW_KEYPLAN        = "TB_SHOW_KEY_PLAN_BOOL";
+        public const string TB_SHOW_KEYPLAN_GUID   = "9a64e982-1b97-5922-9831-0948aaf1cf76";
+        public const string TB_SHOW_SCALEBAR       = "TB_SHOW_SCALEBAR_BOOL";
+        public const string TB_SHOW_SCALEBAR_GUID  = "afcd0647-42e0-537f-bd18-5f46ed1871df";
+        public const string TB_SHOW_NORTHARROW     = "TB_SHOW_NORTH_ARROW_BOOL";
+        public const string TB_SHOW_NORTHARROW_GUID= "0981c0a9-7805-568a-8fee-abb012f6239c";
         public const string TB_SHOW_DISCBAND       = "PRJ_TB_SHOW_DISCBAND_BOOL";
         public const string TB_SHOW_DISCBAND_GUID  = "483f47d7-a6cd-5fa7-bfde-ff2ab6e43178";
         public const string TB_SCALE_OVERRIDE      = "PRJ_TB_SCALE_OVERRIDE_TXT";
@@ -455,6 +539,65 @@ namespace StingTools.Core
         public static string ELC_WAYS       => Ext("ELC_WAYS");
         public static string ELC_IP_RATING  => Ext("ELC_IP_RATING");
 
+        // ── Phase 178 — Advanced calculations & automation ───────────────
+        // 4 of these reuse existing TEXT params (short-circuit, voltage drop,
+        // cable size, conduit fill); the remaining 7 are net-new in
+        // MR_PARAMETERS.txt (AIC tier, feeder CSA + rating, emerg coverage,
+        // LPD value + limit + status). All TEXT for cross-binding flexibility.
+        public static string ELC_PNL_FAULT_KA      => Ext("ELC_PNL_FAULT_KA");      // → ELC_PNL_SHORT_CIRCUIT_RATING_KA (existing)
+        public static string ELC_PNL_AIC_KA        => Ext("ELC_PNL_AIC_KA");        // → ELC_PNL_AIC_RATING_KA (new)
+        public static string ELC_FEEDER_CSA        => Ext("ELC_FEEDER_CSA");        // → ELC_FEEDER_CSA_MM2 (new)
+        public static string ELC_FEEDER_RATING_A   => Ext("ELC_FEEDER_RATING_A");   // → ELC_FEEDER_RATING_A (new)
+        public static string ELC_CKT_VD_PCT        => Ext("ELC_CKT_VD_PCT");        // → ELC_VLT_DROP_PCT (existing)
+        public static string ELC_CKT_CSA_MM2       => Ext("ELC_CKT_CSA_MM2");       // → ELC_CBL_SZ_MM (existing)
+        public static string ELC_CONDUIT_FILL_PCT  => Ext("ELC_CONDUIT_FILL_PCT");  // → ELC_CDT_CBL_FILL_PCT (existing)
+        public static string ELC_CDT_BEND_ANGLE_DEG => Ext("ELC_CDT_BEND_ANGLE_DEG"); // BS 7671 §522.8 bend angle on conduit fittings
+        public static string ELC_CDT_BEND_COUNT_NR  => Ext("ELC_CDT_BEND_COUNT_NR");  // BS 7671 §522.8.5 — max 3 between draw-in points
+        public static string ELC_CDT_RUN_LENGTH_M   => Ext("ELC_CDT_RUN_LENGTH_M");   // BS 7671 — typical max 6m between draw-in points
+        public static string ELC_CDT_CABLE_COUNT_NR => Ext("ELC_CDT_CABLE_COUNT_NR"); // BS EN 61386 — fill table varies by cable count (1/2/3+)
+        public static string ELC_EMERG_COVERED     => Ext("ELC_EMERG_COVERED");     // → ELC_EMERG_COVERED_BOOL (new)
+        public static string ELC_LPD_W_M2          => Ext("ELC_LPD_W_M2");          // → ELC_LPD_W_PER_M2 (new)
+        public static string ELC_LPD_LIMIT_W_M2    => Ext("ELC_LPD_LIMIT_W_M2");    // → ELC_LPD_LIMIT_W_PER_M2 (new)
+        public static string ELC_LPD_STATUS        => Ext("ELC_LPD_STATUS");        // → ELC_LPD_STATUS_TXT (new)
+
+        // ── Phase 179 — Advanced analysis & external integration ─────────
+        public static string ELC_ARC_FLASH_IE     => Ext("ELC_ARC_FLASH_IE");     // → ELC_ARC_FLASH_IE_CAL_CM2
+        public static string ELC_ARC_FLASH_BD     => Ext("ELC_ARC_FLASH_BD");     // → ELC_ARC_FLASH_BOUNDARY_MM
+        public static string ELC_ARC_FLASH_PPE    => Ext("ELC_ARC_FLASH_PPE");    // → ELC_ARC_FLASH_PPE_CAT
+        public static string ELC_ARC_FLASH_WD     => Ext("ELC_ARC_FLASH_WD");     // → ELC_ARC_FLASH_WORK_DIST_MM
+        public static string ELC_ARC_FLASH_LABEL  => Ext("ELC_ARC_FLASH_LABEL");  // → ELC_ARC_FLASH_LABEL_TXT
+        public static string ELC_SEL_COORD_OK     => Ext("ELC_SEL_COORD_OK");     // → ELC_SEL_COORD_VERIFIED_BOOL
+        public static string ELC_BUSBAR_CSA       => Ext("ELC_BUSBAR_CSA");       // → ELC_BUSBAR_CSA_MM2
+        public static string ELC_BUSBAR_RATING    => Ext("ELC_BUSBAR_RATING");    // → ELC_BUSBAR_RATING_A
+        public static string ELC_BUSBAR_FILL      => Ext("ELC_BUSBAR_FILL");      // → ELC_BUSBAR_FILL_PCT
+        public static string ELC_CONDUIT_ROUTE    => Ext("ELC_CONDUIT_ROUTE");    // → ELC_CONDUIT_ROUTE_TXT
+        public static string ELC_PHOTO_LUX        => Ext("ELC_PHOTO_LUX");        // → ELC_PHOTO_LUX_CALC
+        public static string ELC_PHOTO_UGR        => Ext("ELC_PHOTO_UGR");        // → ELC_PHOTO_UGR_CALC
+
+        // ── Phase 180 — photometric library / luminaire metadata ──────────
+        public static string ELC_PHOTO_FILE_PATH  => Ext("ELC_PHOTO_FILE_PATH");  // → ELC_PHOTO_FILE_PATH_TXT
+        public static string ELC_PHOTO_LUMENS     => Ext("ELC_PHOTO_LUMENS");     // → ELC_PHOTO_LUMENS_NR
+        public static string ELC_PHOTO_WATTS      => Ext("ELC_PHOTO_WATTS");      // → ELC_PHOTO_WATTS_NR
+        public static string ELC_PHOTO_EFFICACY   => Ext("ELC_PHOTO_EFFICACY");   // → ELC_PHOTO_EFFICACY_LM_W
+        public static string ELC_PHOTO_BEAM_ANGLE => Ext("ELC_PHOTO_BEAM_ANGLE"); // → ELC_PHOTO_BEAM_ANGLE_DEG
+        public static string ELC_PHOTO_CCT        => Ext("ELC_PHOTO_CCT");        // → ELC_PHOTO_CCT_K
+        public static string ELC_PHOTO_CRI        => Ext("ELC_PHOTO_CRI");        // → ELC_PHOTO_CRI_NR
+        public static string ELC_PHOTO_SYMMETRY   => Ext("ELC_PHOTO_SYMMETRY");   // → ELC_PHOTO_SYMMETRY_TXT
+
+        // ── Phase 181 — multi-engine photometric results ──────────────────
+        public static string ELC_PHOTO_LUX_DIALUX     => Ext("ELC_PHOTO_LUX_DIALUX");     // → ELC_PHOTO_LUX_DIALUX_NR
+        public static string ELC_PHOTO_LUX_ELUMTOOLS  => Ext("ELC_PHOTO_LUX_ELUMTOOLS");  // → ELC_PHOTO_LUX_ELUMTOOLS_NR
+        public static string ELC_PHOTO_LUX_RELUX      => Ext("ELC_PHOTO_LUX_RELUX");      // → ELC_PHOTO_LUX_RELUX_NR
+        public static string ELC_PHOTO_UNIFORMITY     => Ext("ELC_PHOTO_UNIFORMITY");     // → ELC_PHOTO_UNIFORMITY_NR
+        public static string ELC_PHOTO_LAST_ENGINE    => Ext("ELC_PHOTO_LAST_ENGINE");    // → ELC_PHOTO_LAST_ENGINE_TXT
+        public static string ELC_PHOTO_LAST_CALC_DATE => Ext("ELC_PHOTO_LAST_CALC_DATE"); // → ELC_PHOTO_LAST_CALC_DATE_TXT
+
+        // ── Wire annotation / conduit-fill new params (Phase 179) ──
+        public const string ELC_WIRE_BEND_COUNT_INT        = "ELC_WIRE_BEND_COUNT_INT";
+        public const string ELC_CDT_STALE_ANNOT_BOOL       = "ELC_CDT_STALE_ANNOT_BOOL";
+        public const string ELC_RECONCILE_DRIFT_BOOL       = "ELC_RECONCILE_DRIFT_BOOL";
+        public const string STING_CONDUIT_FILL_SUMMARY_TXT = "STING_CONDUIT_FILL_SUMMARY_TXT";
+
         // ── Lighting parameters ──────────────────────────────────────────
         public static string LTG_WATTAGE    => Ext("LTG_WATTAGE");
         public static string LTG_LUMENS     => Ext("LTG_LUMENS");
@@ -477,6 +620,99 @@ namespace StingTools.Core
         public static string PLM_VELOCITY   => Ext("PLM_VELOCITY");
         public static string PLM_FLOW_RATE  => Ext("PLM_FLOW_RATE");
         public static string PLM_PIPE_LENGTH => Ext("PLM_PIPE_LENGTH");
+
+        // ── Phase 178b plumbing engine constants ────────────────────────
+        public static string PLM_DFU_COUNT     => Ext("PLM_DFU_COUNT");
+        public static string PLM_WSFU_COUNT    => Ext("PLM_WSFU_COUNT");
+        public static string PLM_TRAP_TYPE     => Ext("PLM_TRAP_TYPE");
+        public static string PLM_TRAP_SEAL     => Ext("PLM_TRAP_SEAL");
+        public static string PLM_VENT_DN       => Ext("PLM_VENT_DN");
+        public static string PLM_AAV_REQ       => Ext("PLM_AAV_REQ");
+        public static string PLM_CALC_DN       => Ext("PLM_CALC_DN");
+        public static string PLM_CALC_SLOPE    => Ext("PLM_CALC_SLOPE");
+        public static string PLM_DEMAND_FLOW   => Ext("PLM_DEMAND_FLOW");
+        public static string PLM_VEL           => Ext("PLM_VEL");
+        public static string PLM_FRICTION      => Ext("PLM_FRICTION");
+        public static string PLM_PTEST         => Ext("PLM_PTEST");
+        public static string PLM_FLUID_CAT     => Ext("PLM_FLUID_CAT");
+        public static string PLM_BF_TYPE       => Ext("PLM_BF_TYPE");
+        public static string PLM_PPE_STD       => Ext("PLM_PPE_STD");
+        public static string PLM_PPE_SCH       => Ext("PLM_PPE_SCH");
+        public static string PLM_PPE_GRADE     => Ext("PLM_PPE_GRADE");
+        public static string PLM_PPE_WRAS      => Ext("PLM_PPE_WRAS");
+        public static string PLM_PPE_COLOR     => Ext("PLM_PPE_COLOR");
+        public static string PLM_PPE_WALL_THK  => Ext("PLM_PPE_WALL_THK");
+        public static string PLM_MAT           => Ext("PLM_MAT");
+        public static string PLM_RWH_AREA      => Ext("PLM_RWH_AREA");
+        public static string PLM_RWH_TANK      => Ext("PLM_RWH_TANK");
+        public static string PLM_RWH_YIELD     => Ext("PLM_RWH_YIELD");
+        public static string PLM_SUDS_VOL      => Ext("PLM_SUDS_VOL");
+        public static string PLM_SEPTIC_VOL    => Ext("PLM_SEPTIC_VOL");
+        public static string PLM_PRV_SET       => Ext("PLM_PRV_SET");
+        public static string PLM_PRV_INLET     => Ext("PLM_PRV_INLET");
+        public static string PLM_PRESSURE_ZONE => Ext("PLM_PRESSURE_ZONE");
+        public static string PLM_TMV_CLASS     => Ext("PLM_TMV_CLASS");
+        public static string PLM_TMV_BLEND     => Ext("PLM_TMV_BLEND");
+        public static string PLM_VLV_SET_P     => Ext("PLM_VLV_SET_P");
+        public static string PLM_VLV_FLOW      => Ext("PLM_VLV_FLOW");
+        public static string PLM_VLV_DP        => Ext("PLM_VLV_DP");
+        public static string PLM_VLV_FAIL      => Ext("PLM_VLV_FAIL");
+        public static string PLM_VLV_WRAS      => Ext("PLM_VLV_WRAS");
+        public static string PLM_DEAD_LEG_M    => Ext("PLM_DEAD_LEG_M");
+        public static string PLM_AUG_CARE      => Ext("PLM_AUG_CARE");
+        public static string PLM_RO_LOOP       => Ext("PLM_RO_LOOP");
+        public static string PLM_POU_FILTER    => Ext("PLM_POU_FILTER");
+        public static string PLM_SENTINEL      => Ext("PLM_SENTINEL");
+        public static string PRJ_PLUMBING_CODE => Ext("PRJ_PLUMBING_CODE");
+
+        // ── Phase 179a — Plumbing enhancement (drainage / supply / system) ──
+        public static string PLM_DRN_DU            => Ext("PLM_DRN_DU");
+        public static string PLM_DRN_DN_REQ        => Ext("PLM_DRN_DN_REQ");
+        public static string PLM_DRN_QWW           => Ext("PLM_DRN_QWW");
+        public static string PLM_DRN_HD_RATIO      => Ext("PLM_DRN_HD_RATIO");
+        public static string PLM_DRN_INV_US        => Ext("PLM_DRN_INV_US");
+        public static string PLM_DRN_INV_DS        => Ext("PLM_DRN_INV_DS");
+        public static string PLM_DRN_COVER_US      => Ext("PLM_DRN_COVER_US");
+        public static string PLM_DRN_COVER_DS      => Ext("PLM_DRN_COVER_DS");
+        public static string PLM_HAS_TRAP          => Ext("PLM_HAS_TRAP");
+        public static string PLM_TRAP_ARM          => Ext("PLM_TRAP_ARM");
+        public static string PLM_VENT_TYPE         => Ext("PLM_VENT_TYPE");
+        public static string PLM_SUP_LU_CW         => Ext("PLM_SUP_LU_CW");
+        public static string PLM_SUP_LU_HW         => Ext("PLM_SUP_LU_HW");
+        public static string PLM_SUP_WSFU          => Ext("PLM_SUP_WSFU");
+        public static string PLM_SUP_QD            => Ext("PLM_SUP_QD");
+        public static string PLM_SUP_DN_REQ        => Ext("PLM_SUP_DN_REQ");
+        public static string PLM_SUP_PRES          => Ext("PLM_SUP_PRES");
+        public static string PLM_SUP_VEL           => Ext("PLM_SUP_VEL");
+        public static string PLM_SUP_DP            => Ext("PLM_SUP_DP");
+        public static string PLM_DRV_PRESET        => Ext("PLM_DRV_PRESET");
+        public static string PLM_EXPVSL_SZ         => Ext("PLM_EXPVSL_SZ");
+        public static string PLM_PRV_SET_BAR       => Ext("PLM_PRV_SET_BAR");
+        public static string PLM_MAT_DCW           => Ext("PLM_MAT_DCW");
+        public static string PLM_MAT_DHW           => Ext("PLM_MAT_DHW");
+        public static string PLM_MAT_DRN           => Ext("PLM_MAT_DRN");
+        public static string PLM_MAT_VNT           => Ext("PLM_MAT_VNT");
+        public static string PLM_BLDG_TYPE         => Ext("PLM_BLDG_TYPE");
+        public static string PLM_K_FACTOR          => Ext("PLM_K_FACTOR");
+        public static string PLM_STD_DRAIN         => Ext("PLM_STD_DRAIN");
+        public static string PLM_STD_SUPPLY        => Ext("PLM_STD_SUPPLY");
+        public static string PLM_AUDIT_DATE        => Ext("PLM_AUDIT_DATE");
+
+        // ── Phase 179d — Plumbing network, pump, TMV, spool, real-time sizer ──
+        public static string PLM_PUMP_DUTY_HEAD_M   => Ext("PLM_PUMP_DUTY_HEAD_M");
+        public static string PLM_PUMP_DUTY_FLOW_LPS => Ext("PLM_PUMP_DUTY_FLOW_LPS");
+        public static string PLM_PUMP_MODEL         => Ext("PLM_PUMP_MODEL");
+        public static string PLM_PUMP_EFF_PCT       => Ext("PLM_PUMP_EFF_PCT");
+        public static string PLM_TMV_INLET_HOT_C    => Ext("PLM_TMV_INLET_HOT_C");
+        public static string PLM_TMV_INLET_COLD_C   => Ext("PLM_TMV_INLET_COLD_C");
+        public static string PLM_TMV_TEST_DATE      => Ext("PLM_TMV_TEST_DATE");
+        public static string PLM_TMV_NEXT_TEST      => Ext("PLM_TMV_NEXT_TEST");
+        public static string PLM_TMV_OVERDUE        => Ext("PLM_TMV_OVERDUE");
+        public static string PLM_VENT_PIPE_ID       => Ext("PLM_VENT_PIPE_ID");
+        public static string PLM_PIPE_REAL_SIZE     => Ext("PLM_PIPE_REAL_SIZE");
+        public static string PLM_PRESSURE_KPA       => Ext("PLM_PRESSURE_KPA");
+        public static string PLM_SPOOL_NR           => Ext("PLM_SPOOL_NR");
+        public static string PLM_NETWORK_NODE_TYPE  => Ext("PLM_NETWORK_NODE_TYPE");
 
         // ── COBie / Warranty / Asset fields ──
         public static string WARR_GUAR_PARTS  => Ext("WARR_GUAR_PARTS");
@@ -625,7 +861,12 @@ namespace StingTools.Core
         public static void RegisterParagraphContainer(string categoryName, string paramName)
         {
             if (!string.IsNullOrEmpty(categoryName) && !string.IsNullOrEmpty(paramName))
+            {
                 _paragraphContainers[categoryName] = paramName;
+                // Phase 165 perf — invalidate the AllParagraphContainers cache
+                // so the next reader rebuilds it including this entry.
+                _allParagraphContainersCache = null;
+            }
         }
 
         /// <summary>Get the paragraph container param name for a category (null if none).</summary>
@@ -633,6 +874,44 @@ namespace StingTools.Core
         {
             if (string.IsNullOrEmpty(categoryName)) return null;
             return _paragraphContainers.TryGetValue(categoryName, out string p) ? p : null;
+        }
+
+        /// <summary>
+        /// Phase 165 — Issue #22. Distinct paragraph-container parameter names
+        /// across every category, used by WriteTag7All to clear stale entries
+        /// before writing the new narrative.
+        ///
+        /// Phase 165 perf — materialised once into a string[] on first call,
+        /// invalidated by RegisterParagraphContainer (which sets the field
+        /// back to null). Replaces a LINQ chain that allocated an iterator
+        /// + a HashSet for Distinct on every WriteTag7All call (~1000 elements
+        /// × ~47 containers in a typical model = wasted millions of cycles).
+        /// </summary>
+        private static string[] _allParagraphContainersCache;
+
+        // Phase 165 perf — per-thread reusable buffers for AssembleContainer
+        // and WriteContainers. ThreadStatic so each Revit thread gets its
+        // own. Reset on every call to be safe even though Revit pins
+        // commands to the API thread.
+        [ThreadStatic] private static List<string> _assembleScratch;
+        [ThreadStatic] private static HashSet<string> _writtenParamsScratch;
+        public static string[] AllParagraphContainers
+        {
+            get
+            {
+                var cache = _allParagraphContainersCache;
+                if (cache != null) return cache;
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                var list = new List<string>(_paragraphContainers.Count);
+                foreach (var v in _paragraphContainers.Values)
+                {
+                    if (string.IsNullOrEmpty(v)) continue;
+                    if (seen.Add(v)) list.Add(v);
+                }
+                cache = list.ToArray();
+                _allParagraphContainersCache = cache;
+                return cache;
+            }
         }
 
         /// <summary>All 10 paragraph state parameter names indexed by tier (1-based: index 0 = state 1).</summary>
@@ -654,10 +933,30 @@ namespace StingTools.Core
         // corresponding BOOL set to Yes; switching type switches visible label row.
         //
         // These are TEXT type names, resolved dynamically. Use TagStyleParamName() to build.
+        //
+        // TAG TEXT STYLE MATRIX — 128 universal YESNO parameters
+        // Pattern: TAG_{size}{style}_{color}_BOOL where
+        //   size  = 2 / 2.5 / 3 / 3.5 (mm text height)
+        //   style = NOM / BOLD / ITALIC / BOLDITALIC
+        //   color = BLACK / BLUE / GREEN / RED / GREY / ORANGE / PURPLE / WHITE
+        //
+        // Exactly one of these 128 is set to true per element at any given time,
+        // making the corresponding label row visible in the tag family. The mutual
+        // exclusion is enforced by TagStyleEngine.ApplyStyle(), not by the data model.
+        //
+        // ARCHITECTURE NOTE: Adding a new size or color requires adding 32 or 16
+        // new shared parameters respectively. The long-term replacement is a single
+        // TAG_STYLE_CODE_TXT param ("2BOLD_BLUE") with calculated BOOL formulas
+        // inside the tag family — see ROADMAP.md TAG-01. Do not expand this matrix
+        // further without updating ROADMAP.md.
         /// <summary>Tag text colour (Integer code for calculated value rendering).</summary>
         public static string TAG_TEXT_COLOUR { get; private set; } = "TAG_TEXT_COLOUR_TEXT";
         /// <summary>VG Projection/Surface visibility control.</summary>
         public static string VGPS_VISIBLE { get; private set; } = "VGPS_VISIBLE_BOOL";
+        /// <summary>TAG-01: Single style code replaces 128 BOOL params. Value is the type-name
+        /// string, e.g. "2BOLD_BLUE". Backwards-compatible: BOOL params still written alongside.</summary>
+        public const string TAG_STYLE_CODE = "TAG_STYLE_CODE_TXT";
+        public const string TAG_STYLE_CODE_GUID = "d4e5f6a7-b8c9-4d0e-af12-345678901bcd";
 
         /// <summary>Available text sizes for tag style parameters.</summary>
         public static readonly string[] TagStyleSizes = { "2", "2.5", "3", "3.5" };
@@ -866,6 +1165,166 @@ namespace StingTools.Core
             return paramName == TAG7 || paramName == TAG7A || paramName == TAG7B ||
                    paramName == TAG7C || paramName == TAG7D || paramName == TAG7E ||
                    paramName == TAG7F;
+        }
+
+        // Phase 165 — Issue #10. Ordered lead parameter names for System B
+        // (Handover) tiers T4..T10. WriteTag7All in Handover mode picks the
+        // first non-empty parameter from each tier's group; this property
+        // surfaces the lead/canonical param of each tier so callers can
+        // iterate Tag7SystemBSections[i] alongside AllParaStates[i+3].
+        // Index 0 = T4, index 6 = T10.
+        private static string[] _tag7SystemBSections;
+        public static string[] Tag7SystemBSections => _tag7SystemBSections ??= new[]
+        {
+            COMM_STATE_TXT,             // T4 — Commissioning lead
+            CST_UG_PRICE_UGX,           // T5 — Cost lead
+            CBN_A1_A3_KG_CO2E,          // T6 — Carbon lead
+            ASS_SPOOL_NR_TXT,           // T7 — Fabrication lead
+            CLASH_TRIAGE_SEVERITY_NR,   // T8 — Clash triage lead
+            ASBUILT_DEVIATION_MM,       // T9 — As-built lead
+            IFC_PSET_OVERRIDE_TXT,      // T10 — Compliance lead
+        };
+
+        /// <summary>
+        /// Phase 165 — Issue #17. Active tag-mode enum used by WriteTag7All
+        /// branch selection, depth-label rendering and UI mode toggles.
+        /// </summary>
+        public enum TagMode
+        {
+            /// <summary>Design &amp; Construction (default). T4-T6 == TAG7D-F.</summary>
+            DC,
+            /// <summary>Handover / FM. T4-T10 == COMM_/CST_/CBN_/FAB_/CLH_/ASB_/AUD_ groups.</summary>
+            Handover,
+            /// <summary>Project-specific custom T4-T10 payload.</summary>
+            Custom,
+        }
+
+        /// <summary>
+        /// Phase 165 — Issue #17. Resolve the active tag mode from the document.
+        ///
+        /// Lookup order: <c>ProjectInformation</c> first (so the mode is a
+        /// project-wide setting), then <c>HANDOVER_MODE_HANDOVER_BOOL</c> /
+        /// <c>HANDOVER_MODE_CUSTOM_BOOL</c> on Project Information; <c>DC</c>
+        /// is the default when nothing is explicitly set.
+        ///
+        /// Per-element overrides (e.g. element-type level pattern flags) are
+        /// resolved separately by <c>TagConfig.ResolveActivePatternMode</c>;
+        /// this helper answers the project-default question.
+        /// </summary>
+        public static TagMode GetActiveTagMode(Document doc)
+        {
+            if (doc == null) return TagMode.DC;
+
+            // Phase 165 perf — doc-keyed mode cache. WriteTag7All used to call
+            // this per element; for a 1000-element batch that was 3000
+            // LookupParameter calls on ProjectInformation per second tag pass.
+            // Cache by doc.PathName (cheap key, stable for the duration of a
+            // doc session). InvalidateModeCache flips it on Reload /
+            // SetActiveTagMode.
+            string key = doc.PathName ?? doc.Title ?? string.Empty;
+            if (_modeCache.TryGetValue(key, out var cached)) return cached;
+
+            TagMode resolved = TagMode.DC;
+            try
+            {
+                var pi = doc.ProjectInformation;
+                if (pi != null)
+                {
+                    if      (ReadBoolParam(pi, MODE_HANDOVER)) resolved = TagMode.Handover;
+                    else if (ReadBoolParam(pi, MODE_CUSTOM))   resolved = TagMode.Custom;
+                    else                                        resolved = TagMode.DC;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); resolved = TagMode.DC; }
+
+            _modeCache[key] = resolved;
+            return resolved;
+        }
+
+        // Phase 165 perf — doc-keyed cache for GetActiveTagMode.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, TagMode>
+            _modeCache = new System.Collections.Concurrent.ConcurrentDictionary<string, TagMode>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Phase 165 perf — invalidate the mode cache for a given document
+        /// (or all documents when doc is null). Called by SetActiveTagMode
+        /// after writing the trio so subsequent reads see the fresh value.
+        /// </summary>
+        public static void InvalidateModeCache(Document doc = null)
+        {
+            if (doc == null) { _modeCache.Clear(); return; }
+            string key = doc.PathName ?? doc.Title ?? string.Empty;
+            _modeCache.TryRemove(key, out _);
+        }
+
+        /// <summary>
+        /// Phase 165 — Issue #17. Set the active tag mode on
+        /// ProjectInformation, flipping the three HANDOVER_MODE_*_BOOL params
+        /// mutually exclusively. Caller must wrap the call in a Transaction.
+        /// </summary>
+        public static bool SetActiveTagMode(Document doc, TagMode mode)
+        {
+            if (doc == null) return false;
+            var pi = doc.ProjectInformation;
+            if (pi == null) return false;
+            bool a = WriteBoolParam(pi, MODE_DC,       mode == TagMode.DC);
+            bool b = WriteBoolParam(pi, MODE_HANDOVER, mode == TagMode.Handover);
+            bool c = WriteBoolParam(pi, MODE_CUSTOM,   mode == TagMode.Custom);
+            // Phase 165 perf — drop any cached value for this doc so the next
+            // GetActiveTagMode read sees what we just wrote.
+            InvalidateModeCache(doc);
+            return a || b || c;
+        }
+
+        // Internal Yes/No helpers — match the storage convention used by
+        // SetParagraphDepthCommand (string "Yes"/"No" or integer 0/1) so the
+        // mode params behave identically to PARA_STATE_N_BOOL.
+        private static bool ReadBoolParam(Element host, string paramName)
+        {
+            if (host == null || string.IsNullOrEmpty(paramName)) return false;
+            try
+            {
+                var p = host.LookupParameter(paramName);
+                if (p == null) return false;
+                if (p.StorageType == StorageType.String)
+                {
+                    string s = p.AsString();
+                    if (string.IsNullOrEmpty(s)) return false;
+                    return s.Equals("Yes", StringComparison.OrdinalIgnoreCase)
+                        || s.Equals("1", StringComparison.OrdinalIgnoreCase)
+                        || s.Equals("true", StringComparison.OrdinalIgnoreCase);
+                }
+                if (p.StorageType == StorageType.Integer) return p.AsInteger() != 0;
+            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            return false;
+        }
+
+        private static bool WriteBoolParam(Element host, string paramName, bool target)
+        {
+            if (host == null || string.IsNullOrEmpty(paramName)) return false;
+            try
+            {
+                var p = host.LookupParameter(paramName);
+                if (p == null || p.IsReadOnly) return false;
+                if (p.StorageType == StorageType.String)
+                {
+                    string want = target ? "Yes" : "No";
+                    string cur = p.AsString() ?? "";
+                    if (string.Equals(cur, want, StringComparison.OrdinalIgnoreCase)) return false;
+                    p.Set(want);
+                    return true;
+                }
+                if (p.StorageType == StorageType.Integer)
+                {
+                    int want = target ? 1 : 0;
+                    if (p.AsInteger() == want) return false;
+                    p.Set(want);
+                    return true;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            return false;
         }
 
         // ── Token presets (named token index arrays) ────────────────────
@@ -1101,6 +1560,13 @@ namespace StingTools.Core
             }
             // Invalidate downstream caches that depend on our data
             SharedParamGuids.InvalidateCache();
+            // Phase 165 perf — refresh the source-token-name gate and the
+            // doc-keyed mode cache so a Reload that renames any token /
+            // changes any HANDOVER_MODE_* binding doesn't leak stale cached
+            // values into the next tag-write batch.
+            ParameterHelpers.InvalidateSourceTokenSet();
+            InvalidateModeCache();
+            _allParagraphContainersCache = null;
             EnsureLoaded();
         }
 
@@ -1230,6 +1696,7 @@ namespace StingTools.Core
                     _baseSeparator = fmt["separator"]?.ToString() ?? "-";
                     _baseNumPad = fmt["num_pad"]?.Value<int>() ?? 4;
                     _baseSegmentOrder = fmt["segment_order"]?.ToObject<string[]>() ?? _baseSegmentOrder;
+                    _cachedSegmentOrder = null; // PERF-05: Invalidate cache after loading base values
                 }
 
                 StingLog.Info("ParamRegistry.LoadFromFile: tag_format loaded");
@@ -1669,6 +2136,26 @@ namespace StingTools.Core
                     _nameByGuid[wg] = wt.ParamName;
                 }
             }
+
+            // Phase 165 — register the three HANDOVER_MODE_*_BOOL GUIDs so
+            // ParamRegistry.AddBindings can bind them as ProjectInformation
+            // shared parameters and ParamRegistry.GetGuid resolves them.
+            // Issue #16 — without this, the mode toggles can't be written.
+            RegisterModeGuid(MODE_HANDOVER, MODE_HANDOVER_GUID);
+            RegisterModeGuid(MODE_DC,       MODE_DC_GUID);
+            RegisterModeGuid(MODE_CUSTOM,   MODE_CUSTOM_GUID);
+            // TAG-01: single style code parameter
+            RegisterModeGuid(TAG_STYLE_CODE, TAG_STYLE_CODE_GUID);
+        }
+
+        private static void RegisterModeGuid(string name, string guidStr)
+        {
+            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(guidStr)) return;
+            if (Guid.TryParse(guidStr, out Guid g))
+            {
+                _guidByName[name] = g;
+                _nameByGuid[g] = name;
+            }
         }
 
         private static void BuildUniversalParams(JObject root)
@@ -1735,6 +2222,7 @@ namespace StingTools.Core
             _baseSeparator = "-";
             _baseNumPad = 4;
             _baseSegmentOrder = new[] { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
+            _cachedSegmentOrder = null; // PERF-05: Invalidate cache when defaults are reloaded
 
             AllTokenParams = new[]
             {
@@ -1789,7 +2277,7 @@ namespace StingTools.Core
             _extendedParams["ROOM_NAME"] = "ASS_ROOM_NAME_TXT"; _extendedParams["ROOM_NUM"] = "ASS_ROOM_NUM_TXT";
             _extendedParams["ROOM_AREA"] = "ASS_ROOM_AREA_SQ_M"; _extendedParams["ROOM_VOLUME"] = "ASS_ROOM_VOLUME_CU_M";
             _extendedParams["DEPT"] = "ASS_DEPARTMENT_ASSIGNMENT_TXT"; _extendedParams["GRID_REF"] = "PRJ_GRID_REF_TXT";
-            _extendedParams["BLE_ROOM_NAME"] = "BLE_ROOM_NAME_TXT"; _extendedParams["BLE_ROOM_NUM"] = "BLE_ROOM_NUM_TXT";
+            _extendedParams["BLE_ROOM_NAME"] = "BLE_ROOM_NAME_TXT"; _extendedParams["BLE_ROOM_NUM"] = "ASS_ROOM_NUM_TXT";
             // Extended tokens
             _extendedParams["ORIGIN"] = "ASS_ORIGIN_TXT"; _extendedParams["PROJECT"] = "ASS_PROJECT_TXT";
             _extendedParams["REV"] = "ASS_REV_TXT"; _extendedParams["VOLUME"] = "ASS_VOL_TXT";
@@ -1800,6 +2288,7 @@ namespace StingTools.Core
             _extendedParams["WINDOW_HEIGHT"] = "BLE_WINDOW_HEIGHT_MM";
             _extendedParams["WINDOW_SILL"] = "BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM";
             _extendedParams["FLR_THICKNESS"] = "BLE_FLR_THICKNESS_MM"; _extendedParams["ELE_AREA"] = "BLE_ELE_AREA_SQ_M";
+            _extendedParams["CBL_TRAY_WIDTH"] = "BLE_CBL_TRAY_WIDTH_MM"; _extendedParams["CBL_TRAY_DEPTH"] = "BLE_CBL_TRAY_DEPTH_MM";
             _extendedParams["CEILING_HEIGHT"] = "BLE_CEILING_HEIGHT_MM"; _extendedParams["ROOF_SLOPE"] = "BLE_ROOF_SLOPE_DEG";
             _extendedParams["STAIR_TREAD"] = "BLE_STAIR_GOING_MM"; _extendedParams["STAIR_RISE"] = "BLE_STAIR_RISE_MM";
             _extendedParams["STAIR_WIDTH"] = "BLE_STAIR_WIDTH_MM"; _extendedParams["RAMP_SLOPE"] = "BLE_RAMP_SLOPE_PCT";
@@ -1812,6 +2301,52 @@ namespace StingTools.Core
             _extendedParams["ELC_PNL_LOAD"] = "ELC_PNL_CONNECTED_LOAD_KW"; _extendedParams["ELC_PNL_FED_FROM"] = "ELC_PNL_FED_FROM_PNL_TXT";
             _extendedParams["ELC_MAIN_BRK"] = "ELC_PNL_MAIN_BRK_A"; _extendedParams["ELC_WAYS"] = "ELC_PNL_NUM_OF_WAYS_NR";
             _extendedParams["ELC_IP_RATING"] = "ELC_IP_RATING_TXT";
+            // Phase 178 — Electrical advanced calculations & automation
+            // Reuse existing 4 (no MR_PARAMETERS additions); add 7 new ones.
+            _extendedParams["ELC_PNL_FAULT_KA"]      = "ELC_PNL_SHORT_CIRCUIT_RATING_KA";
+            _extendedParams["ELC_PNL_AIC_KA"]        = "ELC_PNL_AIC_RATING_KA";
+            _extendedParams["ELC_FEEDER_CSA"]        = "ELC_FEEDER_CSA_MM2";
+            _extendedParams["ELC_FEEDER_RATING_A"]   = "ELC_FEEDER_RATING_A";
+            _extendedParams["ELC_CKT_VD_PCT"]        = "ELC_VLT_DROP_PCT";
+            _extendedParams["ELC_CKT_CSA_MM2"]       = "ELC_CBL_SZ_MM";
+            _extendedParams["ELC_CONDUIT_FILL_PCT"]  = "ELC_CDT_CBL_FILL_PCT";
+            _extendedParams["ELC_CDT_BEND_ANGLE_DEG"] = "ELC_CDT_BEND_ANGLE_DEG";
+            _extendedParams["ELC_CDT_BEND_COUNT_NR"]  = "ELC_CDT_BEND_COUNT_NR";
+            _extendedParams["ELC_CDT_RUN_LENGTH_M"]   = "ELC_CDT_RUN_LENGTH_M";
+            _extendedParams["ELC_CDT_CABLE_COUNT_NR"] = "ELC_CDT_CABLE_COUNT_NR";
+            _extendedParams["ELC_EMERG_COVERED"]     = "ELC_EMERG_COVERED_BOOL";
+            _extendedParams["ELC_LPD_W_M2"]          = "ELC_LPD_W_PER_M2";
+            _extendedParams["ELC_LPD_LIMIT_W_M2"]    = "ELC_LPD_LIMIT_W_PER_M2";
+            _extendedParams["ELC_LPD_STATUS"]        = "ELC_LPD_STATUS_TXT";
+            // Phase 179 — advanced analysis & external integration
+            _extendedParams["ELC_ARC_FLASH_IE"]     = "ELC_ARC_FLASH_IE_CAL_CM2";
+            _extendedParams["ELC_ARC_FLASH_BD"]     = "ELC_ARC_FLASH_BOUNDARY_MM";
+            _extendedParams["ELC_ARC_FLASH_PPE"]    = "ELC_ARC_FLASH_PPE_CAT";
+            _extendedParams["ELC_ARC_FLASH_WD"]     = "ELC_ARC_FLASH_WORK_DIST_MM";
+            _extendedParams["ELC_ARC_FLASH_LABEL"]  = "ELC_ARC_FLASH_LABEL_TXT";
+            _extendedParams["ELC_SEL_COORD_OK"]     = "ELC_SEL_COORD_VERIFIED_BOOL";
+            _extendedParams["ELC_BUSBAR_CSA"]       = "ELC_BUSBAR_CSA_MM2";
+            _extendedParams["ELC_BUSBAR_RATING"]    = "ELC_BUSBAR_RATING_A";
+            _extendedParams["ELC_BUSBAR_FILL"]      = "ELC_BUSBAR_FILL_PCT";
+            _extendedParams["ELC_CONDUIT_ROUTE"]    = "ELC_CONDUIT_ROUTE_TXT";
+            _extendedParams["ELC_PHOTO_LUX"]        = "ELC_PHOTO_LUX_CALC";
+            _extendedParams["ELC_PHOTO_UGR"]        = "ELC_PHOTO_UGR_CALC";
+            // Phase 180 — photometric library / luminaire metadata
+            _extendedParams["ELC_PHOTO_FILE_PATH"]  = "ELC_PHOTO_FILE_PATH_TXT";
+            _extendedParams["ELC_PHOTO_LUMENS"]     = "ELC_PHOTO_LUMENS_NR";
+            _extendedParams["ELC_PHOTO_WATTS"]      = "ELC_PHOTO_WATTS_NR";
+            _extendedParams["ELC_PHOTO_EFFICACY"]   = "ELC_PHOTO_EFFICACY_LM_W";
+            _extendedParams["ELC_PHOTO_BEAM_ANGLE"] = "ELC_PHOTO_BEAM_ANGLE_DEG";
+            _extendedParams["ELC_PHOTO_CCT"]        = "ELC_PHOTO_CCT_K";
+            _extendedParams["ELC_PHOTO_CRI"]        = "ELC_PHOTO_CRI_NR";
+            _extendedParams["ELC_PHOTO_SYMMETRY"]   = "ELC_PHOTO_SYMMETRY_TXT";
+            // Phase 181 — multi-engine photometric results
+            _extendedParams["ELC_PHOTO_LUX_DIALUX"]     = "ELC_PHOTO_LUX_DIALUX_NR";
+            _extendedParams["ELC_PHOTO_LUX_ELUMTOOLS"]  = "ELC_PHOTO_LUX_ELUMTOOLS_NR";
+            _extendedParams["ELC_PHOTO_LUX_RELUX"]      = "ELC_PHOTO_LUX_RELUX_NR";
+            _extendedParams["ELC_PHOTO_UNIFORMITY"]     = "ELC_PHOTO_UNIFORMITY_NR";
+            _extendedParams["ELC_PHOTO_LAST_ENGINE"]    = "ELC_PHOTO_LAST_ENGINE_TXT";
+            _extendedParams["ELC_PHOTO_LAST_CALC_DATE"] = "ELC_PHOTO_LAST_CALC_DATE_TXT";
             // Lighting
             _extendedParams["LTG_WATTAGE"] = "LTG_FIX_LMP_WATTAGE_W"; _extendedParams["LTG_LUMENS"] = "CST_FIX_LUMEN_OUTPUT_LM";
             _extendedParams["LTG_EFFICACY"] = "LTG_FIX_EFFICACY_LM_W"; _extendedParams["LTG_LAMP_TYPE"] = "LTG_FIX_LAMP_TYPE_TXT";
@@ -1822,6 +2357,97 @@ namespace StingTools.Core
             _extendedParams["PLM_PIPE_FLOW"] = "PLM_PPE_FLW_LPS"; _extendedParams["PLM_PIPE_SIZE"] = "PLM_PPE_SZ_MM";
             _extendedParams["PLM_VELOCITY"] = "PLM_VEL_MPS"; _extendedParams["PLM_FLOW_RATE"] = "PLM_FLOW_RATE_LPS";
             _extendedParams["PLM_PIPE_LENGTH"] = "PLM_PPE_LENGTH_M";
+            // Phase 178b plumbing engine constants — fixture units, sizing, vent, trap, backflow,
+            // RWH/SuDS, PRV/TMV, valve metadata, materials, healthcare flags, project standards toggle.
+            _extendedParams["PLM_DFU_COUNT"]    = "PLM_DFU_COUNT_INT";
+            _extendedParams["PLM_WSFU_COUNT"]   = "PLM_WSFU_COUNT_INT";
+            _extendedParams["PLM_TRAP_TYPE"]    = "PLM_TRAP_TYPE_TXT";
+            _extendedParams["PLM_TRAP_SEAL"]    = "PLM_TRAP_SEAL_DEPTH_MM";
+            _extendedParams["PLM_VENT_DN"]      = "PLM_VENT_SIZE_DN";
+            _extendedParams["PLM_AAV_REQ"]      = "PLM_AAV_REQUIRED_BOOL";
+            _extendedParams["PLM_CALC_DN"]      = "PLM_CALC_DN_MM";
+            _extendedParams["PLM_CALC_SLOPE"]   = "PLM_CALC_SLOPE_PCT";
+            _extendedParams["PLM_DEMAND_FLOW"]  = "PLM_DEMAND_FLOW_LPS";
+            _extendedParams["PLM_VEL"]          = "PLM_VELOCITY_MPS";
+            _extendedParams["PLM_FRICTION"]     = "PLM_FRICTION_LOSS_PA_M";
+            _extendedParams["PLM_PTEST"]        = "PLM_PRESSURE_TEST_KPA";
+            _extendedParams["PLM_FLUID_CAT"]    = "PLM_FLUID_CATEGORY_TXT";
+            _extendedParams["PLM_BF_TYPE"]      = "PLM_VLV_BACKFLOW_TYPE_TXT";
+            _extendedParams["PLM_PPE_STD"]      = "PLM_PPE_STANDARD_TXT";
+            _extendedParams["PLM_PPE_SCH"]      = "PLM_PPE_SCHEDULE_TXT";
+            _extendedParams["PLM_PPE_GRADE"]    = "PLM_PPE_GRADE_TXT";
+            _extendedParams["PLM_PPE_WRAS"]     = "PLM_PPE_WRAS_APPROVED_BOOL";
+            _extendedParams["PLM_PPE_COLOR"]    = "PLM_PPE_COLOR_BS1710_TXT";
+            _extendedParams["PLM_PPE_WALL_THK"] = "PLM_PPE_WALL_THK_MM";
+            _extendedParams["PLM_MAT"]          = "PLM_MAT_TXT";
+            _extendedParams["PLM_RWH_AREA"]     = "PLM_RWH_ROOF_AREA_M2";
+            _extendedParams["PLM_RWH_TANK"]     = "PLM_RWH_TANK_VOL_M3";
+            _extendedParams["PLM_RWH_YIELD"]    = "PLM_RWH_ANNUAL_YIELD_M3";
+            _extendedParams["PLM_SUDS_VOL"]     = "PLM_SUDS_ATTEN_VOL_M3";
+            _extendedParams["PLM_SEPTIC_VOL"]   = "PLM_SEPTIC_TANK_VOL_L";
+            _extendedParams["PLM_PRV_SET"]      = "PLM_PRV_SET_PRESSURE_KPA";
+            _extendedParams["PLM_PRV_INLET"]    = "PLM_PRV_INLET_PRESSURE_KPA";
+            _extendedParams["PLM_PRESSURE_ZONE"]= "PLM_PRESSURE_ZONE_TXT";
+            _extendedParams["PLM_TMV_CLASS"]    = "PLM_TMV_CLASS_TXT";
+            _extendedParams["PLM_TMV_BLEND"]    = "PLM_TMV_BLEND_TEMP_C";
+            _extendedParams["PLM_VLV_SET_P"]    = "PLM_VLV_SET_PRESSURE_BAR";
+            _extendedParams["PLM_VLV_FLOW"]     = "PLM_VLV_DESIGN_FLOW_LS";
+            _extendedParams["PLM_VLV_DP"]       = "PLM_VLV_DESIGN_DP_KPA";
+            _extendedParams["PLM_VLV_FAIL"]     = "PLM_VLV_FAIL_POSITION_TXT";
+            _extendedParams["PLM_VLV_WRAS"]     = "PLM_VLV_WRAS_APPROVED_BOOL";
+            _extendedParams["PLM_DEAD_LEG_M"]   = "PLM_DEAD_LEG_LENGTH_M";
+            _extendedParams["PLM_AUG_CARE"]     = "PLM_AUG_CARE_BOOL";
+            _extendedParams["PLM_RO_LOOP"]      = "PLM_RO_LOOP_BOOL";
+            _extendedParams["PLM_POU_FILTER"]   = "PLM_POU_FILTER_BOOL";
+            _extendedParams["PLM_SENTINEL"]     = "PLM_SENTINEL_BOOL";
+            _extendedParams["PRJ_PLUMBING_CODE"]= "PLM_PRJ_PLUMBING_CODE_TXT";
+            // Phase 179a — plumbing enhancement: drainage / supply / system params.
+            _extendedParams["PLM_DRN_DU"]       = "PLM_DRN_DU_NR";
+            _extendedParams["PLM_DRN_DN_REQ"]   = "PLM_DRN_DN_REQ_MM";
+            _extendedParams["PLM_DRN_QWW"]      = "PLM_DRN_QWW_LPS";
+            _extendedParams["PLM_DRN_HD_RATIO"] = "PLM_DRN_HD_RATIO_NR";
+            _extendedParams["PLM_DRN_INV_US"]   = "PLM_DRN_INV_US_M";
+            _extendedParams["PLM_DRN_INV_DS"]   = "PLM_DRN_INV_DS_M";
+            _extendedParams["PLM_DRN_COVER_US"] = "PLM_DRN_COVER_US_M";
+            _extendedParams["PLM_DRN_COVER_DS"] = "PLM_DRN_COVER_DS_M";
+            _extendedParams["PLM_HAS_TRAP"]     = "PLM_HAS_TRAP_BOOL";
+            _extendedParams["PLM_TRAP_ARM"]     = "PLM_TRAP_ARM_M";
+            _extendedParams["PLM_VENT_TYPE"]    = "PLM_VENT_TYPE_TXT";
+            _extendedParams["PLM_SUP_LU_CW"]    = "PLM_SUP_LU_CW_NR";
+            _extendedParams["PLM_SUP_LU_HW"]    = "PLM_SUP_LU_HW_NR";
+            _extendedParams["PLM_SUP_WSFU"]     = "PLM_SUP_WSFU_NR";
+            _extendedParams["PLM_SUP_QD"]       = "PLM_SUP_QD_LPS";
+            _extendedParams["PLM_SUP_DN_REQ"]   = "PLM_SUP_DN_REQ_MM";
+            _extendedParams["PLM_SUP_PRES"]     = "PLM_SUP_PRES_BAR";
+            _extendedParams["PLM_SUP_VEL"]      = "PLM_SUP_VEL_MPS";
+            _extendedParams["PLM_SUP_DP"]       = "PLM_SUP_DP_PAM";
+            _extendedParams["PLM_DRV_PRESET"]   = "PLM_DRV_PRESET_KPA";
+            _extendedParams["PLM_EXPVSL_SZ"]    = "PLM_EXPVSL_SZ_L";
+            _extendedParams["PLM_PRV_SET_BAR"]  = "PLM_PRV_SET_BAR_NR";
+            _extendedParams["PLM_MAT_DCW"]      = "PLM_MAT_DCW_TXT";
+            _extendedParams["PLM_MAT_DHW"]      = "PLM_MAT_DHW_TXT";
+            _extendedParams["PLM_MAT_DRN"]      = "PLM_MAT_DRN_TXT";
+            _extendedParams["PLM_MAT_VNT"]      = "PLM_MAT_VNT_TXT";
+            _extendedParams["PLM_BLDG_TYPE"]    = "PLM_BLDG_TYPE_TXT";
+            _extendedParams["PLM_K_FACTOR"]     = "PLM_K_FACTOR_NR";
+            _extendedParams["PLM_STD_DRAIN"]    = "PLM_STD_DRAIN_TXT";
+            _extendedParams["PLM_STD_SUPPLY"]   = "PLM_STD_SUPPLY_TXT";
+            _extendedParams["PLM_AUDIT_DATE"]   = "PLM_AUDIT_DATE_TXT";
+            // Phase 179d — pump, TMV, vent, spool, real-time sizer
+            _extendedParams["PLM_PUMP_DUTY_HEAD_M"]   = "PLM_PUMP_DUTY_HEAD_M";
+            _extendedParams["PLM_PUMP_DUTY_FLOW_LPS"] = "PLM_PUMP_DUTY_FLOW_LPS";
+            _extendedParams["PLM_PUMP_MODEL"]         = "PLM_PUMP_MODEL_TXT";
+            _extendedParams["PLM_PUMP_EFF_PCT"]       = "PLM_PUMP_EFF_PCT";
+            _extendedParams["PLM_TMV_INLET_HOT_C"]    = "PLM_TMV_INLET_HOT_C";
+            _extendedParams["PLM_TMV_INLET_COLD_C"]   = "PLM_TMV_INLET_COLD_C";
+            _extendedParams["PLM_TMV_TEST_DATE"]      = "PLM_TMV_TEST_DATE_TXT";
+            _extendedParams["PLM_TMV_NEXT_TEST"]      = "PLM_TMV_NEXT_TEST_TXT";
+            _extendedParams["PLM_TMV_OVERDUE"]        = "PLM_TMV_OVERDUE_BOOL";
+            _extendedParams["PLM_VENT_PIPE_ID"]       = "PLM_VENT_PIPE_ID_TXT";
+            _extendedParams["PLM_PIPE_REAL_SIZE"]     = "PLM_PIPE_REAL_SIZE_BOOL";
+            _extendedParams["PLM_PRESSURE_KPA"]       = "PLM_PRESSURE_KPA";
+            _extendedParams["PLM_SPOOL_NR"]           = "PLM_SPOOL_NR_TXT";
+            _extendedParams["PLM_NETWORK_NODE_TYPE"]  = "PLM_NETWORK_NODE_TYPE_TXT";
             // Volume, length, head heights, function
             _extendedParams["ELE_VOLUME"] = "BLE_ELE_VOLUME_CU_M"; _extendedParams["ELE_LENGTH"] = "BLE_ELE_LENGTH_M";
             _extendedParams["DOOR_HEAD_HT"] = "BLE_DOOR_HEAD_HEIGHT_MM"; _extendedParams["DOOR_FUNC"] = "BLE_DOOR_FUNCTION_TXT";
@@ -1836,7 +2462,7 @@ namespace StingTools.Core
             _extendedParams["HVC_INSULATION"] = "HVC_INS_THICKNESS_MM"; _extendedParams["HVC_DUCT_LENGTH"] = "HVC_DCT_LENGTH_M";
             // ISO 19650 naming
             _extendedParams["PROJECT_COD"] = "ASS_PROJECT_COD_TXT"; _extendedParams["ORIGINATOR_COD"] = "ASS_ORIGINATOR_COD_TXT";
-            _extendedParams["VOLUME_COD"] = "ASS_VOLUME_COD_TXT"; _extendedParams["STATUS_COD"] = "ASS_STATUS_TXT";
+            _extendedParams["VOLUME_COD"] = "ASS_VOLUME_COD_TXT"; _extendedParams["STATUS_COD"] = "ASS_CDE_SUITABILITY_TXT";
             _extendedParams["REV_COD"] = "ASS_REV_COD_TXT";
             // Paragraph containers
             _extendedParams["PARA_WALL"] = "ARCH_TAG_7_PARA_WALL_TXT"; _extendedParams["PARA_FLOOR"] = "ARCH_TAG_7_PARA_FLOOR_TXT";
@@ -1914,8 +2540,8 @@ namespace StingTools.Core
             _extendedParams["WARN_HW_FLOW"] = "WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE";
             _extendedParams["WARN_ACCESS_WIDTH"] = "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C";
             // ISO 19650 project-level naming (PRJ_ prefix variants)
-            _extendedParams["PRJ_PROJECT_COD"] = "PRJ_PROJECT_COD_TXT"; _extendedParams["PRJ_ORIGINATOR_COD"] = "PRJ_ORIGINATOR_COD_TXT";
-            _extendedParams["PRJ_VOLUME_COD"] = "PRJ_VOLUME_COD_TXT"; _extendedParams["PRJ_STATUS_COD"] = "PRJ_STATUS_COD_TXT";
+            _extendedParams["PRJ_PROJECT_COD"] = "PRJ_PROJECT_COD_TXT"; _extendedParams["PRJ_ORIGINATOR_COD"] = "PRJ_ORG_ORIGINATOR_CODE_TXT";
+            _extendedParams["PRJ_VOLUME_COD"] = "PRJ_VOLUME_CODE"; _extendedParams["PRJ_STATUS_COD"] = "PRJ_STATUS_COD_TXT";
             _extendedParams["PRJ_REV_COD"] = "PRJ_REV_COD_TXT";
             // COBie / warranty / commissioning / asset management
             _extendedParams["BARCODE"] = "ASS_BARCODE_TXT"; _extendedParams["ASSET_ID"] = "ASS_ASSET_ID_TXT";
@@ -2197,20 +2823,80 @@ namespace StingTools.Core
         {
             if (container.TokenIndices == null || container.TokenIndices.Length == 0)
                 return "";
-            var parts = new List<string>();
+
+            // Phase 165 follow-up — token-write hardening pass.
+            // Two defensive measures applied here:
+            //
+            //  1. De-duplicate TokenIndices in-flight. If a config drift, hand-
+            //     edit, or upstream merge introduces the same slot twice (e.g.
+            //     [0,6,6,7]), the assembled string previously rendered the
+            //     PROD value twice ("M-AHU-AHU-0001"). We now emit each slot
+            //     at most once and preserve the original FIRST-OCCURRENCE
+            //     order so legitimate non-duplicated configs are unchanged.
+            //
+            //  2. Skip empty token values rather than emitting an empty
+            //     string. The previous code added '' to `parts` and let
+            //     string.Join produce double separators ("M-BLD1--L02"
+            //     when ZONE was empty). Stripping empties at this layer is
+            //     consistent with the "any non-empty token writes" sanity
+            //     in WriteContainers.
+
+            // Phase 165 perf — replace the per-call HashSet<int> with an int
+            // bitmask. TokenIndices slots are 0..7 (eight ISO 19650 source
+            // tokens), so a single int holds the seen-set. Replaces a heap
+            // allocation per AssembleContainer call (~30k allocations for a
+            // 1000-element batch — AssembleContainer fires once per
+            // container per element).
+            // The parts list is recycled via a [ThreadStatic] buffer so the
+            // List<string> backing array is reused across calls within the
+            // same thread. Revit hosts plugins on a single thread, so this
+            // is safe and eliminates another ~30k allocations per batch.
+            int seen = 0;
+            var parts = _assembleScratch ??= new List<string>(8);
+            parts.Clear();
             bool anyValue = false;
             foreach (int idx in container.TokenIndices)
             {
-                string val = idx >= 0 && idx < tokenValues.Length ? tokenValues[idx] : "";
+                if (idx < 0 || idx > 31) continue;          // bitmask scope
+                int bit = 1 << idx;
+                if ((seen & bit) != 0) continue;            // dedupe
+                seen |= bit;
+                string val = idx < tokenValues.Length ? tokenValues[idx] : "";
+                if (string.IsNullOrEmpty(val)) continue;    // strip empty slots
                 parts.Add(val);
-                if (!string.IsNullOrEmpty(val)) anyValue = true;
+                anyValue = true;
             }
             if (!anyValue) return "";
 
-            string assembled = string.Join(container.Separator, parts);
+            // Phase 165 follow-up — honour the literal escape form '\\n' /
+            // '\\r\\n' (two-char) emitted by JSON authors who can't paste a
+            // real newline into the file. Tag families render the resulting
+            // characters as line breaks, fixing the "label breaks not
+            // honoured" report. A real '\n' in the JSON value is left intact.
+            string sep = ResolveSeparator(container.Separator);
+
+            string assembled = string.Join(sep, parts);
             if (!string.IsNullOrEmpty(container.Prefix)) assembled = container.Prefix + assembled;
             if (!string.IsNullOrEmpty(container.Suffix)) assembled = assembled + container.Suffix;
             return assembled;
+        }
+
+        /// <summary>
+        /// Phase 165 follow-up — turn an escaped-string separator from JSON
+        /// into the real character(s) it represents. Recognised escapes:
+        ///   '\\n'   → '\n'   (LF — single line break, Revit-native)
+        ///   '\\r\\n'→ '\r\n' (CRLF — Windows newline, also accepted by Revit)
+        ///   '\\t'   → '\t'   (rarely useful, but supported for symmetry)
+        /// All other inputs (including real LF / CRLF already in the JSON
+        /// value, dashes, pipes, etc.) pass through unchanged.
+        /// </summary>
+        private static string ResolveSeparator(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return "-";
+            if (raw == "\\n")    return "\n";
+            if (raw == "\\r\\n") return "\r\n";
+            if (raw == "\\t")    return "\t";
+            return raw;
         }
 
         /// <summary>
@@ -2356,6 +3042,26 @@ namespace StingTools.Core
             if (tokenValues == null || tokenValues.Length < 8) return 0;
             int written = 0;
 
+            // EFF-15 (Phase 149c): re-tag fast path. Hash the 8 token values; if
+            // the element's stored ASS_LAST_TOKEN_HASH_TXT matches, none of the
+            // ~53 containers can have changed, so we can skip the entire write
+            // sweep. First tag write produces a fresh hash and the writes
+            // proceed normally. Massive win on re-tag passes (the dominant
+            // case for daily users) — ~50× fewer SetString calls per element.
+            //
+            // Skipped when skipParam is set (caller is doing a partial /
+            // single-container write) so we don't lie about behaviour.
+            string newHash = ComputeTokenHash(tokenValues);
+            if (string.IsNullOrEmpty(skipParam))
+            {
+                string priorHash = ParameterHelpers.GetString(el, "ASS_LAST_TOKEN_HASH_TXT");
+                if (!string.IsNullOrEmpty(priorHash)
+                    && string.Equals(priorHash, newHash, StringComparison.Ordinal))
+                {
+                    return 0; // tokens unchanged — every container would have written its current value
+                }
+            }
+
             // FUT-20: Get discipline code for selective container writes (60-80% fewer writes)
             string disc = tokenValues.Length > 0 ? tokenValues[0] : null;
 
@@ -2364,9 +3070,26 @@ namespace StingTools.Core
             HashSet<string> allowedGroupCodes = LoadAllowedContainerGroups();
 
             var containers = ContainersForCategory(categoryName);
+
+            // Phase 165 follow-up — write-once guard. ContainersForCategory
+            // unions the universal-group containers (Categories == null) with
+            // any category-specific group entries. If a future config defines
+            // the same ParamName in both lists (e.g. ASS_TAG_2_TXT in
+            // Universal AND in HVAC for one category), the loop below would
+            // assemble + write that param twice — producing TAG7 narrative
+            // duplication if the two definitions disagree on TokenIndices.
+            // We dedupe on ParamName so each container writes exactly once
+            // per element.
+            // Phase 165 perf — recycle a per-thread HashSet so a 1000-element
+            // batch doesn't allocate 1000 transient HashSets.
+            var writtenParams = _writtenParamsScratch
+                ??= new HashSet<string>(StringComparer.Ordinal);
+            writtenParams.Clear();
+
             foreach (var c in containers)
             {
                 if (c.ParamName == skipParam) continue;
+                if (!writtenParams.Add(c.ParamName)) continue; // already wrote this param this pass
                 // TAG7 + sub-sections use the narrative builder, not token concatenation
                 if (IsTag7Param(c.ParamName)) continue;
 
@@ -2386,7 +3109,41 @@ namespace StingTools.Core
                         StingLog.Warn($"WriteContainers: failed to write {c.ParamName} on element {el.Id.Value}");
                 }
             }
+
+            // EFF-15: stamp the new hash AFTER successful writes so a partial
+            // failure (logged above) doesn't trick the next pass into skipping
+            // containers that didn't actually get written. We only stamp on
+            // the full-sweep path (skipParam null).
+            if (string.IsNullOrEmpty(skipParam))
+                ParameterHelpers.SetString(el, "ASS_LAST_TOKEN_HASH_TXT", newHash, overwrite: true);
+
             return written;
+        }
+
+        /// <summary>
+        /// EFF-15 (Phase 149c): build a stable hash of the 8 ISO 19650 tokens
+        /// for the container fast-path gate. djb2-style hash returned as
+        /// 16-char hex — short enough to fit any TEXT param without bloat,
+        /// long enough to make collisions vanishingly rare for the value
+        /// space (alphanumeric tokens, ~10^15 distinct combinations).
+        /// </summary>
+        private static string ComputeTokenHash(string[] tokenValues)
+        {
+            unchecked
+            {
+                ulong h = 5381;
+                if (tokenValues != null)
+                {
+                    for (int i = 0; i < tokenValues.Length; i++)
+                    {
+                        string t = tokenValues[i] ?? "";
+                        for (int j = 0; j < t.Length; j++)
+                            h = ((h << 5) + h) ^ (byte)t[j];
+                        h = ((h << 5) + h) ^ 0x1F; // unit separator between tokens
+                    }
+                }
+                return h.ToString("x16");
+            }
         }
 
         /// <summary>
@@ -2395,21 +3152,38 @@ namespace StingTools.Core
         /// when the user hasn't pushed a selection yet — callers treat null as
         /// "accept everything".
         /// </summary>
+        // Phase 165 perf — cache the parsed HashSet keyed by the raw CSV
+        // value. WriteContainers calls LoadAllowedContainerGroups per element;
+        // for an unchanged CSV (the typical case during a batch) the cache
+        // hits and avoids the per-element string.Split + HashSet allocation.
+        private static string _allowedGroupsCsvCache;
+        private static HashSet<string> _allowedGroupsSetCache;
         private static HashSet<string> LoadAllowedContainerGroups()
         {
             try
             {
                 string csv = StingTools.UI.StingCommandHandler.GetExtraParam("TagContainers");
-                if (string.IsNullOrWhiteSpace(csv)) return null;
+                if (string.IsNullOrWhiteSpace(csv))
+                {
+                    _allowedGroupsCsvCache = null;
+                    _allowedGroupsSetCache = null;
+                    return null;
+                }
+                if (string.Equals(csv, _allowedGroupsCsvCache, StringComparison.Ordinal))
+                    return _allowedGroupsSetCache;
+
                 var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (string raw in csv.Split(','))
                 {
                     string tok = raw?.Trim();
                     if (!string.IsNullOrEmpty(tok)) set.Add(tok);
                 }
-                return set.Count == 0 ? null : set;
+                if (set.Count == 0) { _allowedGroupsCsvCache = csv; _allowedGroupsSetCache = null; return null; }
+                _allowedGroupsCsvCache = csv;
+                _allowedGroupsSetCache = set;
+                return set;
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         /// <summary>
@@ -2510,6 +3284,14 @@ namespace StingTools.Core
         // PLM_SLOPE_PCT — drainage pipe slope per BS EN 12056 (1:80 default for sanitary)
         public const string PLM_SLOPE_PCT_V4 = "PLM_SLOPE_PCT";
         public const string PLM_SLOPE_PCT_V4_GUID = "f9a0b1c2-d3e4-4f5a-db6c-7d8e9fa0b1c2";
+
+        // Phase 139.2 — first-fix box ↔ second-fix device matching key.
+        public const string BOX_LOCATION_ID = "STING_BOX_LOCATION_ID";
+        public const string BOX_LOCATION_ID_GUID = "C7A3F2E1-9B04-4D88-B5A1-3E6F8D2C1047";
+
+        // Phase 139.2 — flag set on placed pendant/downlight when noggin is required.
+        public const string NOGGIN_REQUIRED = "STING_NOGGIN_REQUIRED";
+        public const string NOGGIN_REQUIRED_GUID = "D8B4A3F2-7C05-4E99-C6B2-4F7B9E3D2158";
 
         #endregion
 

@@ -539,5 +539,12 @@ namespace StingTools.UI
         public string Discipline { get; set; } = "Z";
         public string DueDate { get; set; } = "";
         public string Location { get; set; } = "";
+
+        // Phase 175 — design-option binding. When the issue is raised
+        // against an element whose Element.DesignOption is non-null, the
+        // wizard pre-fills these so server BimIssue / mobile inbox can
+        // group queries by option.
+        public string OptionSetName { get; set; } = "";
+        public string OptionName { get; set; } = "";
     }
 }

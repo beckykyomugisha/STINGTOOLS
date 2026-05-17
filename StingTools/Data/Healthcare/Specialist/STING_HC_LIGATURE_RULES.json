@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1.0,
+  "description": "H-11 — anti-ligature rules per HBN 03-01 / FGI Pt 2.",
+  "highRiskRoomClasses": ["SECL","PSY-OBS","PSY-BED"],
+  "fittingMustHaveRating": [
+    "OST_Doors","OST_PlumbingFixtures","OST_LightingFixtures",
+    "OST_DataDevices","OST_CommunicationDevices","OST_GenericModel"
+  ],
+  "ratingCodesAccepted": ["BS9263-LR1","BS9263-LR2","BS9263-LR3","BS9263-LR4","FGI-LR-Cat1","FGI-LR-Cat2"],
+  "observationLOSRequired": ["SECL","PSY-OBS"],
+  "antiBarricadeRoomClasses": ["PSY-BED","SECL"]
+}

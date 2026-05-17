@@ -3,7 +3,7 @@ namespace Planscape.Core.Entities;
 /// <summary>
 /// BIM project container. Each project holds tagged elements, compliance data, and documents.
 /// </summary>
-public class Project
+public class Project : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
@@ -15,6 +15,16 @@ public class Project
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastSyncAt { get; set; }
 
+    /// <summary>
+    /// AppUser.Id of the project author (whoever called POST /api/projects).
+    /// Nullable because pre-existing projects predate this column; the
+    /// backfill migration leaves them at NULL and grants every existing
+    /// tenant user a ProjectMember row so legacy projects stay visible
+    /// to whoever could see them before. New projects start private to
+    /// the author + their invited members + tenant admins.
+    /// </summary>
+    public Guid? CreatedById { get; set; }
+
     // Tag format configuration
     public string TagSeparator { get; set; } = "-";
     public int SeqNumPad { get; set; } = 4;
@@ -22,9 +32,35 @@ public class Project
     public string? TagSuffix { get; set; }
     public string? ConfigJson { get; set; } // project_config.json equivalent
 
+    // Phase 143 — when true, document uploads must satisfy the ISO 19650
+    // naming pattern. Defaults to false (advisory only) so existing
+    // projects don't suddenly start rejecting uploads. BIM Manager turns
+    // it on once the team has migrated naming.
+    public bool EnforceIso19650Naming { get; set; }
+
+    /// <summary>
+    /// Phase 145 — optional JSONB override for the
+    /// <see cref="InformationDeliverable"/> state machine. Shape:
+    /// <c>{ "states": ["A","B",…], "transitions": [{"from":"A","to":"B"}, …],
+    /// "terminal": ["X"] }</c>. Null means use the canonical 6-state ISO
+    /// 19650 flow. Validated by <c>DeliverableStateMachine.LoadOrDefault</c>
+    /// at request time so a malformed config falls back rather than locking
+    /// the project out of transitions.
+    /// </summary>
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "jsonb")]
+    public string? CustomDeliverableStateMachineJson { get; set; }
+
     // Geofence boundary (S12) — GeoJSON Polygon
     [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "jsonb")]
     public string? BoundaryPolygon { get; set; }
+
+    // Project location + dashboard metadata (Phase 169 — ACC-style cards + map view)
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public string? City { get; set; }
+    public string? Country { get; set; }
+    public string? CoverImageUrl { get; set; }
+    public bool IsPinned { get; set; } = false;
 
     // Compliance metrics (cached)
     public double CompliancePercent { get; set; }

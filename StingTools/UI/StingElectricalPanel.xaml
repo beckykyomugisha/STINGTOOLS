@@ -1,0 +1,1304 @@
+<Page x:Class="StingTools.UI.StingElectricalPanel"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="STING Electrical"
+      Background="{DynamicResource PrimaryBg}">
+
+    <Page.Resources>
+        <Style x:Key="ElecSectionHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,4,0,2"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+        <Style x:Key="ElecLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Margin" Value="0,2,4,2"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="ElecActionBtn" TargetType="Button">
+            <Setter Property="MinWidth" Value="64"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Margin" Value="2,1"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style x:Key="ElecToolBtn" TargetType="Button" BasedOn="{StaticResource ElecActionBtn}">
+            <Setter Property="MinWidth" Value="28"/>
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+        <Style x:Key="ElecPrimaryBtn" TargetType="Button" BasedOn="{StaticResource ElecActionBtn}">
+            <Setter Property="Background" Value="#FF1976D2"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="Height" Value="26"/>
+        </Style>
+        <Style x:Key="ElecExpander" TargetType="Expander">
+            <Setter Property="Margin" Value="0,3"/>
+            <Setter Property="Padding" Value="2"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+            <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+        </Style>
+        <Style x:Key="LockBadge" TargetType="Border">
+            <Setter Property="Background" Value="#33FF6B6B"/>
+            <Setter Property="CornerRadius" Value="2"/>
+            <Setter Property="Padding" Value="3,1"/>
+            <Setter Property="Margin" Value="6,0,0,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+    </Page.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title strip -->
+        <Border Grid.Row="0" Background="{DynamicResource HeaderBg}" Padding="8,4">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="⚡ STING ELECTRICAL" FontWeight="Bold" FontSize="13"
+                           Foreground="{DynamicResource HeaderFg}"/>
+                <TextBlock x:Name="txtElecStatus" Text="Ready" FontSize="9" Margin="14,0,0,0"
+                           Foreground="{DynamicResource HeaderFg}" Opacity="0.7"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Project context strip: Standard + Voltage profile -->
+        <Border Grid.Row="1" Background="{DynamicResource SecondaryBg}" Padding="8,4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Standard:" Style="{StaticResource ElecLabel}"/>
+                <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbStandard" Margin="0,1" FontSize="10"
+                          SelectionChanged="cmbStandard_SelectionChanged">
+                    <ComboBoxItem Content="BS 7671:2018 (UK/UG)" IsSelected="True" Tag="BS7671"/>
+                    <ComboBoxItem Content="NEC 2023 (US)" Tag="NEC2023"/>
+                    <ComboBoxItem Content="IEC 60364" Tag="IEC60364"/>
+                    <ComboBoxItem Content="AS/NZS 3000" Tag="ASNZS"/>
+                </ComboBox>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Voltage:" Style="{StaticResource ElecLabel}"/>
+                <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbVoltage" Margin="0,1" FontSize="10"
+                          SelectionChanged="cmbVoltage_SelectionChanged">
+                    <ComboBoxItem Content="415V 3Ph+N (TN-S)" IsSelected="True" Tag="415V3Ph"/>
+                    <ComboBoxItem Content="400V 3Ph+N (TT)" Tag="400V3Ph"/>
+                    <ComboBoxItem Content="240V 1Ph+N" Tag="240V1Ph"/>
+                    <ComboBoxItem Content="480V 3Ph (US)" Tag="480V3Ph"/>
+                    <ComboBoxItem Content="208V 3Ph (US)" Tag="208V3Ph"/>
+                    <ComboBoxItem Content="120V 1Ph (US)" Tag="120V1Ph"/>
+                </ComboBox>
+            </Grid>
+        </Border>
+
+        <TabControl Grid.Row="2" x:Name="tabElec" Background="{DynamicResource PrimaryBg}">
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="FontSize" Value="10"/>
+                    <Setter Property="Padding" Value="6,3"/>
+                    <Setter Property="Foreground" Value="{DynamicResource TabFg}"/>
+                    <Setter Property="Background" Value="{DynamicResource TabBg}"/>
+                    <Style.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource TabSelectedFg}"/>
+                            <Setter Property="Background" Value="{DynamicResource TabSelectedBg}"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </TabControl.Resources>
+
+            <!-- ============== TAB 0: PNLS ============== -->
+            <TabItem Header="PNLS">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="PANEL SCHEDULE MANAGEMENT" Style="{StaticResource ElecSectionHeader}"/>
+                        <WrapPanel>
+                            <Button Content="⚡" Style="{StaticResource ElecToolBtn}" Tag="Panel_BatchSchedules"
+                                    ToolTip="Batch Create Schedules" Click="Cmd_Click"/>
+                            <Button Content="🔍" Style="{StaticResource ElecToolBtn}" Tag="Panel_Audit"
+                                    ToolTip="Audit All Panels" Click="Cmd_Click"/>
+                            <Button Content="🔄" Style="{StaticResource ElecToolBtn}" Tag="Panel_SyncParams"
+                                    ToolTip="Sync Panel Parameters" Click="Cmd_Click"/>
+                            <Button Content="📋" Style="{StaticResource ElecToolBtn}" Tag="Panel_ExcelExport"
+                                    ToolTip="Export/Import Excel" Click="Cmd_Click"/>
+                            <Button Content="⚙" Style="{StaticResource ElecToolBtn}" Tag="Panel_EditTemplateRules"
+                                    ToolTip="Template Rules" Click="Cmd_Click"/>
+                        </WrapPanel>
+                        <TextBox x:Name="txtPanelFilter" Margin="0,4" FontSize="10"
+                                 ToolTip="Filter panels by name" TextChanged="txtPanelFilter_TextChanged"/>
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox x:Name="chkPanelActive" Content="Active" IsChecked="True" Margin="0,2,8,2"/>
+                            <CheckBox x:Name="chkPanelSpare"  Content="Spare"  IsChecked="True" Margin="0,2,8,2"/>
+                            <CheckBox x:Name="chkPanelVoid"   Content="Void"   Margin="0,2"/>
+                        </StackPanel>
+                        <DataGrid x:Name="PanelGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                  HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                  FontSize="10" RowHeight="22" Height="180" Margin="0,4">
+                            <DataGrid.Columns>
+                                <DataGridCheckBoxColumn Header="" Binding="{Binding IsSelected}" Width="24"/>
+                                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
+                                <DataGridTextColumn Header="V" Binding="{Binding Voltage}" Width="55" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Phase" Binding="{Binding Phase}" Width="60" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Way" Binding="{Binding Ways}" Width="35" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Schedule" Binding="{Binding ScheduleStatusText}" Width="80" IsReadOnly="True"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <TextBlock x:Name="txtPanelSummary" FontSize="10" Margin="0,2"
+                                   Foreground="{DynamicResource PanelFg}" Opacity="0.8"
+                                   Text="0 panels"/>
+
+                        <Expander Header="PANEL PARAMETERS" Style="{StaticResource ElecExpander}">
+                            <Grid Margin="4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/>
+                                    <RowDefinition/><RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Main Breaker (A)" Style="{StaticResource ElecLabel}"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="txtMainBreaker" Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Fed From" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbFedFrom" Margin="2" FontSize="10" IsEditable="True"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Location" Style="{StaticResource ElecLabel}"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="txtLocation" Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="IP Rating" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox Grid.Row="3" Grid.Column="1" x:Name="cmbIpRating" Margin="2" FontSize="10">
+                                    <ComboBoxItem Content="IP20"/><ComboBoxItem Content="IP44"/>
+                                    <ComboBoxItem Content="IP55" IsSelected="True"/><ComboBoxItem Content="IP65"/>
+                                </ComboBox>
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Manufacturer" Style="{StaticResource ElecLabel}"/>
+                                <TextBox Grid.Row="4" Grid.Column="1" x:Name="txtManufacturer" Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Fault Level (kA)" Style="{StaticResource ElecLabel}"/>
+                                <TextBox Grid.Row="5" Grid.Column="1" x:Name="txtFaultKA" Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="Enclosure Type" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox Grid.Row="6" Grid.Column="1" x:Name="cmbEnclosure" Margin="2" FontSize="10">
+                                    <ComboBoxItem Content="Floor Standing" IsSelected="True"/>
+                                    <ComboBoxItem Content="Wall Mounted"/>
+                                    <ComboBoxItem Content="Din Rail"/>
+                                </ComboBox>
+                                <Button Grid.Row="7" Grid.Column="1" Content="Save to Model" Margin="2,4,2,2"
+                                        Style="{StaticResource ElecPrimaryBtn}" Tag="Panel_WriteParams" Click="Cmd_Click"/>
+                            </Grid>
+                        </Expander>
+
+                        <Expander Header="SLOTS" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <WrapPanel>
+                                    <Button Content="+ Spare" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Panel_AddSpare" Click="Cmd_Click"/>
+                                    <Button Content="+ Space" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Panel_AddSpace" Click="Cmd_Click"/>
+                                    <Button Content="Convert" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Panel_ConvertSpaceToSpare" Click="Cmd_Click"/>
+                                    <Button Content="Clear All" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Panel_ClearSlots" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <TextBlock Text="Fill mode" Style="{StaticResource ElecLabel}" Margin="0,4,0,1"/>
+                                <ComboBox x:Name="cmbSlotFillMode" FontSize="10">
+                                    <ComboBoxItem Content="Spares — all empty slots" IsSelected="True"/>
+                                    <ComboBoxItem Content="Spaces — all empty slots"/>
+                                    <ComboBoxItem Content="Mixed (split)"/>
+                                </ComboBox>
+                                <TextBlock Text="Scope" Style="{StaticResource ElecLabel}" Margin="0,4,0,1"/>
+                                <ComboBox x:Name="cmbSlotScope" FontSize="10">
+                                    <ComboBoxItem Content="Active panel" IsSelected="True"/>
+                                    <ComboBoxItem Content="Selected panels"/>
+                                    <ComboBoxItem Content="All panels"/>
+                                </ComboBox>
+                                <Button Content="▶ Run Slot Fill" Margin="0,6,0,0"
+                                        Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Panel_FillSlots" Click="Cmd_Click"/>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="TEMPLATE RULES" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <DataGrid x:Name="TemplateRuleGrid" AutoGenerateColumns="False"
+                                          IsReadOnly="True" HeadersVisibility="Column" Height="140"
+                                          FontSize="10" RowHeight="20">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Pri" Binding="{Binding Priority}" Width="40"/>
+                                        <DataGridTextColumn Header="Pattern" Binding="{Binding Pattern}" Width="100"/>
+                                        <DataGridTextColumn Header="Template" Binding="{Binding Template}" Width="*"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <CheckBox x:Name="chkGlobalFallback" Content="Use first available template as fallback"
+                                          IsChecked="True" Margin="0,4,0,0"/>
+                                <Button Content="Edit Rules JSON" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Panel_EditTemplateRules" Click="Cmd_Click" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="SHEET PLACEMENT (Revit 2024+ workaround)" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Mode" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="cmbSheetPlacementMode" FontSize="10"
+                                          SelectionChanged="SheetPlacementMode_Changed">
+                                    <ComboBoxItem Content="Guided manual — step-through" IsSelected="True" Tag="GuidedManual"/>
+                                    <ComboBoxItem Content="Convert to linked ViewSchedule" Tag="ViewSchedule"/>
+                                    <ComboBoxItem Content="Export PDF → embed as image" Tag="PDF"/>
+                                </ComboBox>
+                                <Button Content="▶ Place Schedules on Sheets" Margin="0,6,0,0"
+                                        Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Panel_PlaceOnSheets" Click="Cmd_Click"/>
+                                <TextBlock Text="PanelScheduleSheetInstance.Create is broken in Revit 2024+ — STING does not call it; the Guided Manual flow opens each sheet for you to drag the schedule onto."
+                                           FontSize="9" TextWrapping="Wrap" Margin="0,4,0,0"
+                                           Foreground="{DynamicResource PanelFg}" Opacity="0.7"/>
+                            </StackPanel>
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 1: CIRCTS ============== -->
+            <TabItem Header="CIRCTS">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="CIRCUIT MANAGER" Style="{StaticResource ElecSectionHeader}"/>
+                        <ComboBox x:Name="cmbCircuitPanel" FontSize="10" Margin="0,2"
+                                  SelectionChanged="cmbCircuitPanel_SelectionChanged"/>
+                        <TextBox x:Name="txtCircuitFilter" FontSize="10" Margin="0,2"
+                                 ToolTip="Filter circuits..." TextChanged="txtCircuitFilter_TextChanged"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <CheckBox x:Name="chkCircuitActive" Content="Active" IsChecked="True" Margin="0,0,8,0"/>
+                            <CheckBox x:Name="chkCircuitSpare"  Content="Spare"  IsChecked="True" Margin="0,0,8,0"/>
+                            <CheckBox x:Name="chkCircuitSpace"  Content="Space"/>
+                        </StackPanel>
+                        <WrapPanel Margin="0,2">
+                            <Button Content="🔤" Style="{StaticResource ElecToolBtn}" Tag="Circuit_AutoDesc"
+                                    ToolTip="Auto-fill circuit descriptions" Click="Cmd_Click"/>
+                            <Button Content="↔" Style="{StaticResource ElecToolBtn}" Tag="Circuit_Move"
+                                    ToolTip="Move circuit between slots" Click="Cmd_Click"/>
+                            <Button Content="⚖" Style="{StaticResource ElecToolBtn}" Tag="Circuit_Balance"
+                                    ToolTip="Balance phases" Click="Cmd_Click"/>
+                            <Button Content="🔢" Style="{StaticResource ElecToolBtn}" Tag="Circuit_Renumber"
+                                    ToolTip="Renumber circuits" Click="Cmd_Click"/>
+                            <Button Content="➕" Style="{StaticResource ElecToolBtn}" Tag="Circuit_Create"
+                                    ToolTip="Create circuits" Click="Cmd_Click"/>
+                            <Button Content="🗑" Style="{StaticResource ElecToolBtn}" Tag="Circuit_Delete"
+                                    ToolTip="Delete circuit" Click="Cmd_Click"/>
+                            <Button Content="⬇" Style="{StaticResource ElecToolBtn}" Tag="Circuit_Sort"
+                                    ToolTip="Sort circuits" Click="Cmd_Click"/>
+                            <Button Content="📋" Style="{StaticResource ElecToolBtn}" Tag="Circuit_Excel"
+                                    ToolTip="Export to Excel" Click="Cmd_Click"/>
+                        </WrapPanel>
+                        <DataGrid x:Name="CircuitGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                  HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                  FontSize="10" RowHeight="22" Height="200" Margin="0,4">
+                            <DataGrid.Columns>
+                                <DataGridCheckBoxColumn Header="" Binding="{Binding IsSelected}" Width="22"/>
+                                <DataGridTextColumn Header="CKT" Binding="{Binding CircuitNumber}" Width="38" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*"/>
+                                <DataGridTextColumn Header="Ph" Binding="{Binding Phase}" Width="28"/>
+                                <DataGridTextColumn Header="A" Binding="{Binding CurrentDisplay}" Width="44" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="kW" Binding="{Binding LoadDisplay}" Width="44" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="VD%" Binding="{Binding VDDisplay}" Width="44" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Wire" Binding="{Binding WireSize}" Width="58" IsReadOnly="True"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <TextBlock x:Name="txtPhaseSummary" Margin="0,2"
+                                   FontSize="10" FontWeight="SemiBold"
+                                   Text="Phase A: 0 kW   B: 0 kW   C: 0 kW"
+                                   Foreground="{DynamicResource PanelFg}"/>
+                        <TextBlock x:Name="txtImbalance" Margin="0,1" FontSize="10"
+                                   Text="Imbalance: 0 kW (0%)"
+                                   Foreground="{DynamicResource AccentBrush}"/>
+
+                        <Expander Header="CIRCUIT DESCRIPTION AUTO-FILL" Style="{StaticResource ElecExpander}">
+                            <Grid Margin="4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/>
+                                    <RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Source 1" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbDescSrc1" Margin="2" FontSize="10">
+                                    <ComboBoxItem Content="Connected equipment name" IsSelected="True"/>
+                                    <ComboBoxItem Content="Equipment mark/tag"/>
+                                    <ComboBoxItem Content="Room/space name"/>
+                                    <ComboBoxItem Content="System name"/>
+                                    <ComboBoxItem Content="Load name"/>
+                                    <ComboBoxItem Content="(none)"/>
+                                </ComboBox>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Source 2" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbDescSrc2" Margin="2" FontSize="10">
+                                    <ComboBoxItem Content="Equipment mark/tag" IsSelected="True"/>
+                                    <ComboBoxItem Content="Connected equipment name"/>
+                                    <ComboBoxItem Content="Room/space name"/>
+                                    <ComboBoxItem Content="System name"/>
+                                    <ComboBoxItem Content="Load name"/>
+                                    <ComboBoxItem Content="(none)"/>
+                                </ComboBox>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Source 3" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox Grid.Row="2" Grid.Column="1" x:Name="cmbDescSrc3" Margin="2" FontSize="10">
+                                    <ComboBoxItem Content="Room/space name" IsSelected="True"/>
+                                    <ComboBoxItem Content="System name"/>
+                                    <ComboBoxItem Content="Equipment mark/tag"/>
+                                    <ComboBoxItem Content="Connected equipment name"/>
+                                    <ComboBoxItem Content="Load name"/>
+                                    <ComboBoxItem Content="(none)"/>
+                                </ComboBox>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Separator" Style="{StaticResource ElecLabel}"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" x:Name="txtDescSeparator" Margin="2" FontSize="10" Text=" — "/>
+                                <CheckBox Grid.Row="4" Grid.Column="1" x:Name="chkDescTitleCase"
+                                          Content="Title Case" IsChecked="True" Margin="2"/>
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Preview" Style="{StaticResource ElecLabel}"/>
+                                <TextBlock Grid.Row="5" Grid.Column="1" x:Name="txtDescPreview" Margin="2"
+                                           FontSize="10" Foreground="{DynamicResource AccentBrush}"
+                                           Text="(no preview yet)"/>
+                                <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Margin="0,4,0,0">
+                                    <Button Content="▶ Preview All" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Circuit_PreviewDesc" Click="Cmd_Click"/>
+                                    <Button Content="▶ Apply to Selected" Style="{StaticResource ElecPrimaryBtn}"
+                                            Tag="Circuit_ApplyDesc" Click="Cmd_Click"/>
+                                </StackPanel>
+                            </Grid>
+                        </Expander>
+
+                        <Expander Header="CIRCUIT WIZARD" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="The wizard runs in a modal window. It collects unconnected fixtures, groups them into proposed circuits with greedy phase balancing, and lets you edit before committing."
+                                           FontSize="9" TextWrapping="Wrap" Margin="0,0,0,4"
+                                           Foreground="{DynamicResource PanelFg}" Opacity="0.7"/>
+                                <Button Content="▶ Propose Circuits (in panel)"
+                                        Style="{StaticResource ElecActionBtn}"
+                                        Tag="Circuit_WizardPropose" Click="Cmd_Click"/>
+                                <Button Content="▶ Launch Wizard…"
+                                        Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Circuit_CreateWizard" Click="Cmd_Click"/>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="PHASE ASSIGNMENT" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Algorithm" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="cmbBalanceAlgo" FontSize="10">
+                                    <ComboBoxItem Content="Greedy (largest first)" IsSelected="True"/>
+                                    <ComboBoxItem Content="Sequential"/>
+                                    <ComboBoxItem Content="Manual"/>
+                                </ComboBox>
+                                <CheckBox x:Name="chkRespectGrouped" Content="Respect grouped circuits (multi-pole)"
+                                          IsChecked="True" Margin="0,4,0,1"/>
+                                <CheckBox x:Name="chkBalancePreview" Content="Preview before apply"
+                                          IsChecked="True" Margin="0,1,0,4"/>
+                                <TextBlock x:Name="txtBalanceBefore" FontSize="10"
+                                           Text="Before: A 0 kW │ B 0 kW │ C 0 kW  Δ=0 kW"/>
+                                <TextBlock x:Name="txtBalanceAfter" FontSize="10"
+                                           Text="After:  A 0 kW │ B 0 kW │ C 0 kW  Δ=0 kW"/>
+                                <Button Content="▶ Apply Balance" Margin="0,4,0,0"
+                                        Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Circuit_Balance" Click="Cmd_Click"/>
+                                <Separator Margin="0,8,0,4"/>
+                                <Button Content="🤖 Auto-assign Unassigned Circuits" Margin="0,4,0,0"
+                                        Style="{StaticResource ElecActionBtn}"
+                                        Tag="Circuit_AssignAuto" Click="Cmd_Click"
+                                        ToolTip="Greedy load balancer — picks the smallest voltage-compatible panel with free slots (and least connected load) for every ElectricalSystem with no BaseEquipment. Always previews before applying; uses ElectricalSystem.SelectPanel + writes ELC_PANEL_REF_TXT for tag pipelines."/>
+                            </StackPanel>
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 2: CALCS ============== -->
+            <TabItem Header="CALCS">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="ELECTRICAL CALCULATIONS" Style="{StaticResource ElecSectionHeader}"/>
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="rbBS7671" Content="BS 7671" GroupName="CalcStd" IsChecked="True"
+                                         FontSize="10" Margin="0,0,8,0" Checked="CalcStd_Checked" Tag="BS7671"/>
+                            <RadioButton x:Name="rbNEC2023" Content="NEC 2023" GroupName="CalcStd"
+                                         FontSize="10" Margin="0,0,8,0" Checked="CalcStd_Checked" Tag="NEC2023"/>
+                            <RadioButton x:Name="rbIEC60364" Content="IEC 60364" GroupName="CalcStd"
+                                         FontSize="10" Checked="CalcStd_Checked" Tag="IEC60364"/>
+                        </StackPanel>
+
+                        <Expander Header="LOAD SUMMARY" Style="{StaticResource ElecExpander}" IsExpanded="True">
+                            <StackPanel Margin="4">
+                                <DataGrid x:Name="LoadSummaryGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          IsReadOnly="True" HeadersVisibility="Column" Height="120" FontSize="10">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Panel" Binding="{Binding Name}" Width="*"/>
+                                        <DataGridTextColumn Header="Conn (kW)" Binding="{Binding ConnectedKW}" Width="80"/>
+                                        <DataGridTextColumn Header="Demand (kW)" Binding="{Binding DemandKW}" Width="90"/>
+                                        <DataGridTextColumn Header="Spare %" Binding="{Binding SparePct}" Width="70"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <CheckBox x:Name="chkApplyDemand" Content="Apply NEC/IEC demand factors"
+                                          IsChecked="True" Margin="0,4,0,2"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/><RowDefinition/><RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Receptacles" Style="{StaticResource ElecLabel}"/>
+                                    <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbDemandRecep" FontSize="10">
+                                        <ComboBoxItem Content="NEC 220.42 (100/50%)" IsSelected="True"/>
+                                        <ComboBoxItem Content="BS 7671 — actual"/>
+                                    </ComboBox>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Lighting" Style="{StaticResource ElecLabel}"/>
+                                    <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbDemandLighting" FontSize="10">
+                                        <ComboBoxItem Content="NEC 220.12 (125% cont)" IsSelected="True"/>
+                                        <ComboBoxItem Content="Connected — actual"/>
+                                    </ComboBox>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="HVAC" Style="{StaticResource ElecLabel}"/>
+                                    <ComboBox Grid.Row="2" Grid.Column="1" x:Name="cmbDemandHvac" FontSize="10">
+                                        <ComboBoxItem Content="IEC — actual load" IsSelected="True"/>
+                                        <ComboBoxItem Content="NEC 220.60 (largest motor)"/>
+                                    </ComboBox>
+                                </Grid>
+                                <Button Content="▶ Recalculate Load Summary" Margin="0,6,0,0"
+                                        Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Calc_LoadSummary" Click="Cmd_Click"/>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="VOLTAGE DROP" Style="{StaticResource ElecExpander}" IsExpanded="True">
+                            <StackPanel Margin="4">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="60"/>
+                                        <ColumnDefinition Width="80"/>
+                                        <ColumnDefinition Width="60"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Branch (%)" Style="{StaticResource ElecLabel}"/>
+                                    <TextBox Grid.Column="1" x:Name="txtVDBranch" Text="3" FontSize="10" Margin="2"/>
+                                    <TextBlock Grid.Column="2" Text="Feeder (%)" Style="{StaticResource ElecLabel}"/>
+                                    <TextBox Grid.Column="3" x:Name="txtVDFeeder" Text="2" FontSize="10" Margin="2"/>
+                                </Grid>
+                                <TextBlock Text="Wire temp" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="cmbWireTemp" FontSize="10">
+                                    <ComboBoxItem Content="70°C (PVC, BS 7671 Appx 4)" Tag="70" IsSelected="True"/>
+                                    <ComboBoxItem Content="90°C (XLPE)" Tag="90"/>
+                                    <ComboBoxItem Content="60°C (legacy)" Tag="60"/>
+                                </ComboBox>
+                                <TextBlock Text="Conductor" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="cmbConductor" FontSize="10">
+                                    <ComboBoxItem Content="Copper" Tag="Cu" IsSelected="True"/>
+                                    <ComboBoxItem Content="Aluminium" Tag="Al"/>
+                                </ComboBox>
+                                <DataGrid x:Name="VDGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          IsReadOnly="True" HeadersVisibility="Column" Height="150"
+                                          FontSize="10" Margin="0,4">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="CKT" Binding="{Binding CircuitNumber}" Width="40"/>
+                                        <DataGridTextColumn Header="Load" Binding="{Binding Description}" Width="*"/>
+                                        <DataGridTextColumn Header="I(A)" Binding="{Binding CurrentDisplay}" Width="50"/>
+                                        <DataGridTextColumn Header="L(m)" Binding="{Binding LengthDisplay}" Width="50"/>
+                                        <DataGridTextColumn Header="Wire" Binding="{Binding WireSize}" Width="60"/>
+                                        <DataGridTextColumn Header="VD%" Binding="{Binding VDDisplay}" Width="55"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <WrapPanel>
+                                    <Button Content="▶ Recalculate All" Style="{StaticResource ElecPrimaryBtn}"
+                                            Tag="Calc_VoltageDrop" Click="Cmd_Click"/>
+                                    <Button Content="▶ Flag Exceedances" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Calc_FlagVD" Click="Cmd_Click"/>
+                                    <Button Content="▶ Auto-Upsize Failing" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Calc_UpsizeWires" Click="Cmd_Click"
+                                            ToolTip="Auto-upsize conductors on circuits exceeding the VD threshold. Reviews before applying."/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="BREAKER SIZING" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Standard" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="cmbBreakerStd" FontSize="10">
+                                    <ComboBoxItem Content="BS EN 60898 (UK MCB)" IsSelected="True" Tag="BS_MCB"/>
+                                    <ComboBoxItem Content="BS EN 60947-2 (UK MCCB)" Tag="BS_MCCB"/>
+                                    <ComboBoxItem Content="NEC OCPD" Tag="NEC"/>
+                                </ComboBox>
+                                <CheckBox x:Name="chkContinuous" Content="125% factor for continuous loads"
+                                          IsChecked="True" Margin="0,4"/>
+                                <DataGrid x:Name="BreakerGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          IsReadOnly="True" HeadersVisibility="Column" Height="150"
+                                          FontSize="10" Margin="0,4">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="CKT" Binding="{Binding CircuitNumber}" Width="40"/>
+                                        <DataGridTextColumn Header="Load" Binding="{Binding Description}" Width="*"/>
+                                        <DataGridTextColumn Header="Ic(A)" Binding="{Binding CurrentDisplay}" Width="55"/>
+                                        <DataGridTextColumn Header="Min(A)" Binding="{Binding MinBreakerA}" Width="60"/>
+                                        <DataGridTextColumn Header="Proposed" Binding="{Binding ProposedBreakerA}" Width="80"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <WrapPanel>
+                                    <Button Content="▶ Preview" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Calc_SizeBreakers" Click="Cmd_Click"/>
+                                    <Button Content="▶ Apply to Model" Style="{StaticResource ElecPrimaryBtn}"
+                                            Tag="Calc_ApplyBreakers" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="FEEDER SIZING" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Feeder derate (grouping)" Style="{StaticResource ElecLabel}"/>
+                                <TextBox x:Name="FeederDerateFactor" Text="0.8" FontSize="10"/>
+                                <TextBlock Text="Install method" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="FeederInstallMethod" FontSize="10">
+                                    <ComboBoxItem Content="A1 — Conduit in insulated wall" Tag="A1"/>
+                                    <ComboBoxItem Content="B1 — Conduit on a wall" Tag="B1"/>
+                                    <ComboBoxItem Content="C — Clipped direct" IsSelected="True" Tag="C"/>
+                                    <ComboBoxItem Content="E — Free air" Tag="E"/>
+                                </ComboBox>
+                                <TextBlock Text="Diversity mode" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="FeederDiversityMode" FontSize="10"
+                                          SelectionChanged="FeederDiversityMode_Changed">
+                                    <ComboBoxItem Content="None" IsSelected="True" Tag="None"/>
+                                    <ComboBoxItem Content="BS 7671 App 1 (domestic)" Tag="BS"/>
+                                    <ComboBoxItem Content="NEC 220.83 (existing)" Tag="NEC"/>
+                                    <ComboBoxItem Content="User-defined %" Tag="User"/>
+                                </ComboBox>
+                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                    <TextBlock Text="Diversity %" Style="{StaticResource ElecLabel}"/>
+                                    <TextBox x:Name="FeederDiversityPct" Text="100" Width="60"
+                                             FontSize="10" IsEnabled="False"/>
+                                </StackPanel>
+                                <Button Content="▶ Size All Feeders" Margin="0,4"
+                                        Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Calc_FeederSize" Click="Cmd_Click"/>
+                                <DataGrid x:Name="FeederResultsGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          IsReadOnly="True" HeadersVisibility="Column" Height="120" FontSize="10" Margin="0,4">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Panel" Binding="{Binding PanelName}" Width="*"/>
+                                        <DataGridTextColumn Header="Demand kW" Binding="{Binding DemandDisplay}" Width="80"/>
+                                        <DataGridTextColumn Header="Ic(A)" Binding="{Binding CurrentDisplay}" Width="60"/>
+                                        <DataGridTextColumn Header="CSA" Binding="{Binding CsaDisplay}" Width="70"/>
+                                        <DataGridTextColumn Header="VD%" Binding="{Binding VDDisplay}" Width="55"/>
+                                        <DataGridTextColumn Header="Rating A" Binding="{Binding RatingDisplay}" Width="70"/>
+                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="70"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="FAULT CURRENT" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Utility fault level (kA)" Style="{StaticResource ElecLabel}"/>
+                                <TextBox x:Name="UtilityFaultKa" Text="25.0" FontSize="10"
+                                         TextChanged="UtilityFaultKa_TextChanged"/>
+                                <TextBlock Text="Method" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="FaultCalcMethod" FontSize="10">
+                                    <ComboBoxItem Content="Simplified resistive (IEC 60909)" IsSelected="True"/>
+                                    <ComboBoxItem Content="Full impedance method"/>
+                                </ComboBox>
+                                <DataGrid x:Name="FaultResultsGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          IsReadOnly="True" HeadersVisibility="Column" Height="120" FontSize="10" Margin="0,4">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Panel" Binding="{Binding PanelName}" Width="*"/>
+                                        <DataGridTextColumn Header="V" Binding="{Binding Voltage}" Width="50"/>
+                                        <DataGridTextColumn Header="CSA" Binding="{Binding CsaDisplay}" Width="65"/>
+                                        <DataGridTextColumn Header="Z mΩ" Binding="{Binding ZDisplay}" Width="60"/>
+                                        <DataGridTextColumn Header="Iₖ kA" Binding="{Binding FaultDisplay}" Width="60"/>
+                                        <DataGridTextColumn Header="AIC" Binding="{Binding AicDisplay}" Width="55"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <WrapPanel Margin="0,4">
+                                    <Button Content="▶ Calculate Fault Levels" Style="{StaticResource ElecPrimaryBtn}"
+                                            Tag="Calc_FaultCurrent" Click="Cmd_Click"/>
+                                    <Button Content="▶ Stamp to Panels" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Calc_AicStamp" Click="Cmd_Click"/>
+                                    <Button Content="▶ Create Fault Schedule" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Rprt_FaultSchedule" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="ARC FLASH (IEEE 1584-2018)" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <Button Content="⚡ Arc Flash Calc" Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Elec_ArcFlash" Click="Cmd_Click"
+                                        ToolTip="IEEE 1584-2018 simplified — incident energy + boundary + PPE category. Requires fault current run first."/>
+                                <Button Content="🏷 Arc Flash Label Sheet" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_ArcFlashLabels" Click="Cmd_Click"
+                                        ToolTip="Creates a drafting view with NFPA 70E warning labels (one per panel)."/>
+                                <Button Content="📋 Arc Flash Schedule" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_ArcFlashSched" Click="Cmd_Click"
+                                        ToolTip="Creates a Revit ViewSchedule of OST_ElectricalEquipment with arc flash columns."/>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="SELECTIVE COORDINATION" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <Button Content="📈 Selective Coordination Viewer" Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Elec_SelectCoord" Click="Cmd_Click"
+                                        ToolTip="Walks the SLD hierarchy and checks upstream / downstream device coordination using STING_TCC_DATABASE.json. Opens a log-log TCC chart + violations grid."/>
+                            </StackPanel>
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 3: CABLE ============== -->
+            <TabItem Header="CABLE">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="CABLE &amp; CONDUIT" Style="{StaticResource ElecSectionHeader}"/>
+
+                        <Expander Header="CABLE / CONDUCTOR SIZER" Style="{StaticResource ElecExpander}" IsExpanded="True">
+                            <Grid Margin="4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Load (kW)" Style="{StaticResource ElecLabel}"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="txtCblLoad" Text="5.5" Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Voltage (V)" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbCblVoltage" Margin="2" FontSize="10">
+                                    <ComboBoxItem Content="240V / 1Ph+N" IsSelected="True" Tag="240,1"/>
+                                    <ComboBoxItem Content="415V / 3Ph+N" Tag="415,3"/>
+                                    <ComboBoxItem Content="120V / 1Ph (US)" Tag="120,1"/>
+                                    <ComboBoxItem Content="208V / 3Ph (US)" Tag="208,3"/>
+                                    <ComboBoxItem Content="480V / 3Ph (US)" Tag="480,3"/>
+                                </ComboBox>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="PF" Style="{StaticResource ElecLabel}"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="txtCblPF" Text="0.85" Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Length (m)" Style="{StaticResource ElecLabel}"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" x:Name="txtCblLength" Text="35" Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Install method" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox Grid.Row="4" Grid.Column="1" x:Name="cmbCblMethod" Margin="2" FontSize="10">
+                                    <ComboBoxItem Content="A1 — Conduit in insulated wall" Tag="A1"/>
+                                    <ComboBoxItem Content="A2 — Multi-core in insulated wall" Tag="A2"/>
+                                    <ComboBoxItem Content="B1 — Conduit on a wall" Tag="B1"/>
+                                    <ComboBoxItem Content="B2 — Multi-core in conduit on wall" Tag="B2"/>
+                                    <ComboBoxItem Content="C — Clipped direct" IsSelected="True" Tag="C"/>
+                                    <ComboBoxItem Content="E — Multi-core in free air" Tag="E"/>
+                                    <ComboBoxItem Content="F — Single core in free air" Tag="F"/>
+                                </ComboBox>
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Material" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox Grid.Row="5" Grid.Column="1" x:Name="cmbCblMaterial" Margin="2" FontSize="10">
+                                    <ComboBoxItem Content="Copper (Cu)" IsSelected="True" Tag="Cu"/>
+                                    <ComboBoxItem Content="Aluminium (Al)" Tag="Al"/>
+                                </ComboBox>
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="Insulation" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox Grid.Row="6" Grid.Column="1" x:Name="cmbCblInsulation" Margin="2" FontSize="10">
+                                    <ComboBoxItem Content="PVC (70°C)" Tag="PVC70"/>
+                                    <ComboBoxItem Content="XLPE (90°C)" IsSelected="True" Tag="XLPE90"/>
+                                    <ComboBoxItem Content="LSOH (90°C)" Tag="LSOH90"/>
+                                </ComboBox>
+                                <TextBlock Grid.Row="7" Grid.Column="0" Text="VD limit (%)" Style="{StaticResource ElecLabel}"/>
+                                <TextBox Grid.Row="7" Grid.Column="1" x:Name="txtCblVDLimit" Text="3" Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="8" Grid.Column="0" Text="Standard" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox Grid.Row="8" Grid.Column="1" x:Name="cmbCblStandard" Margin="2" FontSize="10">
+                                    <ComboBoxItem Content="BS 7671:2018" IsSelected="True" Tag="BS7671"/>
+                                    <ComboBoxItem Content="NEC 2023" Tag="NEC"/>
+                                </ComboBox>
+                                <Border Grid.Row="9" Grid.ColumnSpan="2" Margin="0,8,0,0" Padding="6"
+                                        BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                                        CornerRadius="4">
+                                    <StackPanel>
+                                        <TextBlock Text="RESULT" FontWeight="Bold" FontSize="11"
+                                                   Foreground="{DynamicResource AccentBrush}"/>
+                                        <TextBlock x:Name="txtCblResultCurrent" FontSize="10" Margin="0,2,0,0"
+                                                   Text="Design current: —"/>
+                                        <TextBlock x:Name="txtCblResultSize"    FontSize="10" Margin="0,1,0,0"
+                                                   Text="Min cable size: —"/>
+                                        <TextBlock x:Name="txtCblResultVD"      FontSize="10" Margin="0,1,0,0"
+                                                   Text="Actual VD: —"/>
+                                        <TextBlock x:Name="txtCblResultBreaker" FontSize="10" Margin="0,1,0,0"
+                                                   Text="Breaker: —"/>
+                                        <TextBlock x:Name="txtCblResultNote"    FontSize="9"  Margin="0,2,0,0"
+                                                   Foreground="{DynamicResource PanelFg}" Opacity="0.7"
+                                                   TextWrapping="Wrap"/>
+                                        <WrapPanel Margin="0,4,0,0">
+                                            <Button Content="▶ Calculate" Style="{StaticResource ElecPrimaryBtn}"
+                                                    Tag="Cable_Calculate" Click="Cmd_Click"/>
+                                            <Button Content="▶ Apply to Circuit" Style="{StaticResource ElecActionBtn}"
+                                                    x:Name="btnCblApply" IsEnabled="False"
+                                                    Tag="Cable_ApplyToCircuit" Click="Cmd_Click"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Expander>
+
+                        <Expander Header="WIRE SIZE REFERENCE TABLE" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="80"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/><RowDefinition/><RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Material" Style="{StaticResource ElecLabel}"/>
+                                    <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbWireRefMaterial" Margin="2" FontSize="10"
+                                              SelectionChanged="WireRef_Changed">
+                                        <ComboBoxItem Content="Copper" IsSelected="True" Tag="Cu"/>
+                                        <ComboBoxItem Content="Aluminium" Tag="Al"/>
+                                    </ComboBox>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Insulation" Style="{StaticResource ElecLabel}"/>
+                                    <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbWireRefInsulation" Margin="2" FontSize="10"
+                                              SelectionChanged="WireRef_Changed">
+                                        <ComboBoxItem Content="XLPE 90°C" IsSelected="True" Tag="XLPE90"/>
+                                        <ComboBoxItem Content="PVC 70°C" Tag="PVC70"/>
+                                    </ComboBox>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Method" Style="{StaticResource ElecLabel}"/>
+                                    <ComboBox Grid.Row="2" Grid.Column="1" x:Name="cmbWireRefMethod" Margin="2" FontSize="10"
+                                              SelectionChanged="WireRef_Changed">
+                                        <ComboBoxItem Content="C — Clipped direct" IsSelected="True" Tag="C"/>
+                                        <ComboBoxItem Content="A1" Tag="A1"/>
+                                        <ComboBoxItem Content="B1" Tag="B1"/>
+                                        <ComboBoxItem Content="E" Tag="E"/>
+                                    </ComboBox>
+                                </Grid>
+                                <DataGrid x:Name="WireRefGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          IsReadOnly="True" HeadersVisibility="Column" Height="200"
+                                          FontSize="10" Margin="0,4">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Size" Binding="{Binding Size}" Width="70"/>
+                                        <DataGridTextColumn Header="1Ph Imax" Binding="{Binding Imax1Ph}" Width="80"/>
+                                        <DataGridTextColumn Header="3Ph Imax" Binding="{Binding Imax3Ph}" Width="80"/>
+                                        <DataGridTextColumn Header="mΩ/m" Binding="{Binding MohmPerM}" Width="*"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="CONDUIT FILL CALCULATOR" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Conduit type" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="cmbConduitType" FontSize="10">
+                                    <ComboBoxItem Content="PVC circular — BS 4568" IsSelected="True" Tag="PVC_BS4568"/>
+                                    <ComboBoxItem Content="Steel — BS 31" Tag="Steel_BS31"/>
+                                </ComboBox>
+                                <TextBlock Text="Conduit size" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="cmbConduitSize" FontSize="10">
+                                    <ComboBoxItem Content="20mm" Tag="PVC_BS4568_20mm"/>
+                                    <ComboBoxItem Content="25mm" IsSelected="True" Tag="PVC_BS4568_25mm"/>
+                                    <ComboBoxItem Content="32mm" Tag="PVC_BS4568_32mm"/>
+                                    <ComboBoxItem Content="40mm" Tag="PVC_BS4568_40mm"/>
+                                </ComboBox>
+                                <TextBlock Text="Allowed fill (%)" Style="{StaticResource ElecLabel}"/>
+                                <TextBox x:Name="txtConduitMaxFill" Text="45" FontSize="10"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,4">
+                                    <ComboBox x:Name="cmbConduitWireSize" FontSize="10" Width="80">
+                                        <ComboBoxItem Content="1.5mm²" Tag="1.5"/>
+                                        <ComboBoxItem Content="2.5mm²" IsSelected="True" Tag="2.5"/>
+                                        <ComboBoxItem Content="4mm²" Tag="4"/>
+                                        <ComboBoxItem Content="6mm²" Tag="6"/>
+                                        <ComboBoxItem Content="10mm²" Tag="10"/>
+                                    </ComboBox>
+                                    <TextBox x:Name="txtConduitWireQty" Text="3" Width="40" Margin="4,0" FontSize="10"/>
+                                    <Button Content="+ Add" Style="{StaticResource ElecActionBtn}"
+                                            x:Name="btnConduitAdd" Click="ConduitAdd_Click"/>
+                                </StackPanel>
+                                <DataGrid x:Name="ConduitWireGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          HeadersVisibility="Column" Height="80" FontSize="10">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Wire" Binding="{Binding Size}" Width="70" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="Qty" Binding="{Binding Qty}" Width="50"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <TextBlock x:Name="txtConduitFillResult" Margin="0,4" FontSize="10"
+                                           Text="Fill: — / — (— %)" />
+                                <Button Content="▶ Calculate Fill" x:Name="btnConduitCalc"
+                                        Style="{StaticResource ElecPrimaryBtn}" IsEnabled="False"
+                                        Tag="Cable_ConduitFill" Click="Cmd_Click" Margin="0,4,0,0"
+                                        ToolTip="BETA — manual calculator. Use 'Validate Model Conduits' for whole-model audit."/>
+                                <Separator Margin="0,8,0,4"/>
+                                <Button Content="▶ Validate Model Conduits"
+                                        Style="{StaticResource ElecActionBtn}"
+                                        Tag="Cable_ValidateConduitFill" Click="Cmd_Click"
+                                        ToolTip="Audit every conduit / cable tray in the model against the BS 7671 / NEC fill limit. Writes ELC_CONDUIT_FILL_PCT and red-overrides failing containment."/>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="CONDUIT ROUTING" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <Button Content="🗺 Auto-Route Conduit (rectilinear)" Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Elec_AutoRoute" Click="Cmd_Click"
+                                        ToolTip="Walks the cable manifest and creates Conduit elements along an L/Z Manhattan path between each circuit's load and panel."/>
+                                <Button Content="▶ Validate containment fill in model" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Cable_ValidateConduitFill" Click="Cmd_Click"
+                                        ToolTip="Audit every conduit / tray against the regulatory fill limit (alias of Validate Model Conduits)."/>
+                                <Button Content="📐 BS 7671 Compliance Check" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Validation_BS7671" Click="Cmd_Click"
+                                        ToolTip="Run the ElectricalStandardsValidator across every conduit + fitting in the model. Checks bend count (§522.8.5), run length between draw-in points (§522.8.4), cable fill ceilings (BS EN 61386 — 40% straight / 35% with bends), and non-standard bend angles. Thresholds load from STING_FAB_RULES.json so projects can override the BS 7671 defaults."/>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="BUSBAR TRUNKING" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <Button Content="🔲 Busbar Trunking Sizer (BS EN 60439-1)"
+                                        Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Elec_BusbarModel" Click="Cmd_Click"
+                                        ToolTip="Sizes cable-tray runs whose name contains 'Busbar' or 'Trunking'. Demand from the manifest or parsed from the tray name (e.g. 'Busbar 400A')."/>
+                            </StackPanel>
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 4: SLD ============== -->
+            <TabItem Header="SLD">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="SINGLE LINE DIAGRAM / DISTRIBUTION HIERARCHY" Style="{StaticResource ElecSectionHeader}"/>
+                        <WrapPanel>
+                            <Button Content="⚡ Generate" Style="{StaticResource ElecPrimaryBtn}"
+                                    Tag="SLD_Generate" Click="Cmd_Click"/>
+                            <Button Content="🔄 Refresh" Style="{StaticResource ElecActionBtn}"
+                                    Tag="SLD_Refresh" Click="Cmd_Click"/>
+                            <Button Content="📤 Export" Style="{StaticResource ElecActionBtn}"
+                                    Tag="SLD_Export" Click="Cmd_Click"/>
+                        </WrapPanel>
+                        <TextBox x:Name="txtSLDFind" FontSize="10" Margin="0,4"
+                                 ToolTip="Find panel..." TextChanged="txtSLDFind_TextChanged"/>
+                        <TextBlock Text="View mode" Style="{StaticResource ElecLabel}"/>
+                        <ComboBox x:Name="cmbSLDViewMode" FontSize="10">
+                            <ComboBoxItem Content="Hierarchy Tree" IsSelected="True"/>
+                            <ComboBoxItem Content="Riser Diagram View"/>
+                            <ComboBoxItem Content="Load Summary View"/>
+                        </ComboBox>
+                        <TreeView x:Name="SLDTree" Height="280" Margin="0,4" FontSize="10"
+                                  SelectedItemChanged="SLDTree_SelectedItemChanged">
+                            <TreeView.ItemTemplate>
+                                <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Icon}" Margin="0,0,4,0"/>
+                                        <TextBlock Text="{Binding Label}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="  "/>
+                                        <TextBlock Text="{Binding Rating}" Foreground="{DynamicResource AccentBrush}"/>
+                                        <TextBlock Text="  "/>
+                                        <TextBlock Text="{Binding LoadDisplay}" Opacity="0.7"/>
+                                    </StackPanel>
+                                </HierarchicalDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+                        <Border Padding="6" Margin="0,4" CornerRadius="3"
+                                BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock x:Name="txtSLDSelected" Text="Selected: (none)" FontWeight="Bold"
+                                           FontSize="10"/>
+                                <TextBlock x:Name="txtSLDConnLoad" Text="Connected load: —" FontSize="10"/>
+                                <TextBlock x:Name="txtSLDDmdLoad"  Text="Demand load: —" FontSize="10"/>
+                                <TextBlock x:Name="txtSLDFeederA"  Text="Feeder rating: —" FontSize="10"/>
+                                <TextBlock x:Name="txtSLDFeederUtil" Text="Feeder utilisation: —" FontSize="10"/>
+                                <TextBlock x:Name="txtSLDVDFeeder" Text="VD feeder: —" FontSize="10"/>
+                                <TextBlock x:Name="txtSLDFault"    Text="Fault level: —" FontSize="10"/>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Content="🎯 Zoom to in Model" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SLD_ZoomTo" Click="Cmd_Click"/>
+                                    <Button Content="📋 Open Schedule" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SLD_OpenSchedule" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Expander Header="SLD GENERATION" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Output" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="cmbSLDOutput" FontSize="10">
+                                    <ComboBoxItem Content="Revit Drafting View (native)" IsSelected="True"/>
+                                    <ComboBoxItem Content="Revit Sheet (linked)"/>
+                                    <ComboBoxItem Content="Export DWG"/>
+                                    <ComboBoxItem Content="Export PDF"/>
+                                </ComboBox>
+                                <TextBlock Text="Style" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="cmbSLDStyle" FontSize="10">
+                                    <ComboBoxItem Content="Single-line — IEC 60617" IsSelected="True"/>
+                                    <ComboBoxItem Content="Block diagram"/>
+                                </ComboBox>
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox x:Name="chkSLDShowRatings" Content="Ratings" IsChecked="True" Margin="0,2,8,2"/>
+                                    <CheckBox x:Name="chkSLDShowLoads"   Content="Loads"   IsChecked="True" Margin="0,2,8,2"/>
+                                    <CheckBox x:Name="chkSLDShowVD"      Content="VD%"     IsChecked="True" Margin="0,2"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox x:Name="chkSLDShowFault" Content="Fault kA" Margin="0,2,8,2"/>
+                                    <CheckBox x:Name="chkSLDShowWires" Content="Wire sizes" Margin="0,2"/>
+                                </StackPanel>
+                                <TextBlock Text="Scale" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="cmbSLDScale" FontSize="10">
+                                    <ComboBoxItem Content="Auto-fit to page" IsSelected="True"/>
+                                    <ComboBoxItem Content="1:50"/>
+                                    <ComboBoxItem Content="1:100"/>
+                                    <ComboBoxItem Content="1:200"/>
+                                </ComboBox>
+                                <Button Content="▶ Generate SLD Drafting View" Margin="0,6,0,0"
+                                        Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="SLD_Generate" Click="Cmd_Click"/>
+                                <Button Content="▶ Update Existing SLD"
+                                        Style="{StaticResource ElecActionBtn}"
+                                        Tag="SLD_Update" Click="Cmd_Click"/>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="RISER DIAGRAM" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Layout" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="RiserLayout" FontSize="10"
+                                          SelectionChanged="RiserOptions_Changed">
+                                    <ComboBoxItem Content="Horizontal — left to right" IsSelected="True" Tag="Horizontal"/>
+                                    <ComboBoxItem Content="Vertical — top to bottom" Tag="Vertical"/>
+                                </ComboBox>
+                                <CheckBox x:Name="RiserShowFaultKa" Content="Show fault kA" IsChecked="True"
+                                          Margin="0,2" Click="RiserOptions_Changed"/>
+                                <CheckBox x:Name="RiserShowFeederCsa" Content="Show feeder CSA" IsChecked="True"
+                                          Margin="0,2" Click="RiserOptions_Changed"/>
+                                <CheckBox x:Name="RiserShowLoadingPct" Content="Show panel loading %" IsChecked="True"
+                                          Margin="0,2" Click="RiserOptions_Changed"/>
+                                <Button Content="▶ Generate Riser Diagram" Margin="0,4"
+                                        Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="SLD_RiserDiagram" Click="Cmd_Click"/>
+                                <Button Content="▶ Update Existing Riser" Style="{StaticResource ElecActionBtn}"
+                                        Tag="SLD_UpdateRiser" Click="Cmd_Click"/>
+                            </StackPanel>
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 5: LITE ============== -->
+            <TabItem Header="LITE">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="LIGHTING" Style="{StaticResource ElecSectionHeader}"/>
+                        <Expander Header="FIXTURE SCHEDULE" Style="{StaticResource ElecExpander}" IsExpanded="True">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Scope" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="cmbLiteScope" FontSize="10">
+                                    <ComboBoxItem Content="Active view" IsSelected="True"/>
+                                    <ComboBoxItem Content="Whole project"/>
+                                    <ComboBoxItem Content="Selected rooms"/>
+                                </ComboBox>
+                                <Button Content="▶ Refresh" Margin="0,4"
+                                        Style="{StaticResource ElecActionBtn}"
+                                        Tag="Lite_Refresh" Click="Cmd_Click"/>
+                                <DataGrid x:Name="LightingGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          IsReadOnly="True" HeadersVisibility="Column" Height="160" FontSize="10">
+                                    <DataGrid.Columns>
+                                        <DataGridCheckBoxColumn Header="" Binding="{Binding IsSelected}" Width="22"/>
+                                        <DataGridTextColumn Header="Family Type" Binding="{Binding FamilyType}" Width="*"/>
+                                        <DataGridTextColumn Header="Watts" Binding="{Binding Watts}" Width="60"/>
+                                        <DataGridTextColumn Header="Qty" Binding="{Binding Qty}" Width="44"/>
+                                        <DataGridTextColumn Header="CKT" Binding="{Binding Circuit}" Width="44"/>
+                                        <DataGridTextColumn Header="Lm/W" Binding="{Binding LmPerW}" Width="56"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <TextBlock x:Name="txtLiteSummary" FontSize="10" Margin="0,4"
+                                           Text="Total: 0 W normal | 0 W emergency"/>
+                                <Button Content="▶ Create Lighting Schedule in Revit"
+                                        Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Lite_CreateSchedule" Click="Cmd_Click"/>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="ROOM TARGETS" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Standard" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="cmbLiteStandard" FontSize="10">
+                                    <ComboBoxItem Content="BS EN 12464-1:2021" IsSelected="True"/>
+                                    <ComboBoxItem Content="CIBSE SLL"/>
+                                    <ComboBoxItem Content="ASHRAE 90.1"/>
+                                    <ComboBoxItem Content="AS/NZS 1680"/>
+                                </ComboBox>
+                                <DataGrid x:Name="RoomTargetGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          IsReadOnly="True" HeadersVisibility="Column" Height="120" FontSize="10">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Room" Binding="{Binding Room}" Width="*"/>
+                                        <DataGridTextColumn Header="Target lx" Binding="{Binding TargetLx}" Width="80"/>
+                                        <DataGridTextColumn Header="Estimated lx" Binding="{Binding EstimatedLx}" Width="100"/>
+                                        <DataGridTextColumn Header="Δ" Binding="{Binding Delta}" Width="50"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <CheckBox x:Name="chkLiteShowSLL" Content="Show CIBSE SLL recommendations"/>
+                                <Button Content="▶ Update from connected load data"
+                                        Style="{StaticResource ElecActionBtn}" Margin="0,4,0,0"
+                                        Tag="Lite_UpdateTargets" Click="Cmd_Click"/>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="EMERGENCY LIGHTING" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Mode" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox FontSize="10">
+                                    <ComboBoxItem Content="Maintained" IsSelected="True"/>
+                                    <ComboBoxItem Content="Non-maintained"/>
+                                </ComboBox>
+                                <TextBlock Text="Grade" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox FontSize="10">
+                                    <ComboBoxItem Content="BS 5266-1 Grade A" IsSelected="True"/>
+                                </ComboBox>
+                                <CheckBox Content="Flag circuits with no emergency backup" IsChecked="True"/>
+                                <WrapPanel Margin="0,4">
+                                    <Button Content="▶ Emergency Circuit Audit" Style="{StaticResource ElecPrimaryBtn}"
+                                            Tag="Lite_EmergAudit" Click="Cmd_Click"/>
+                                    <Button Content="▶ Mark emergency fixtures" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Lite_MarkEmerg" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <DataGrid x:Name="EmergAuditGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          IsReadOnly="True" HeadersVisibility="Column" Height="120" FontSize="10" Margin="0,4">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Room" Binding="{Binding RoomName}" Width="*"/>
+                                        <DataGridTextColumn Header="Occupancy" Binding="{Binding OccupancyType}" Width="80"/>
+                                        <DataGridTextColumn Header="Norm" Binding="{Binding NormalCircuits}" Width="50"/>
+                                        <DataGridTextColumn Header="Emerg" Binding="{Binding EmergCircuits}" Width="55"/>
+                                        <DataGridTextColumn Header="Same?" Binding="{Binding SameCircuitDisplay}" Width="55"/>
+                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="80"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="LIGHTING POWER DENSITY" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Standard" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="LpdStandard" FontSize="10"
+                                          SelectionChanged="LpdStandard_Changed">
+                                    <ComboBoxItem Content="ASHRAE 90.1-2019" IsSelected="True" Tag="ASHRAE_90_1_2019"/>
+                                    <ComboBoxItem Content="Part L 2021 (UK)" Tag="PartL_2021"/>
+                                    <ComboBoxItem Content="CIBSE LG7" Tag="CIBSE_LG7"/>
+                                    <ComboBoxItem Content="Custom" Tag="Custom"/>
+                                </ComboBox>
+                                <StackPanel x:Name="LpdCustomRow" Orientation="Horizontal"
+                                            Margin="0,2" Visibility="Collapsed">
+                                    <TextBlock Text="Custom limit (W/m²)" Style="{StaticResource ElecLabel}"/>
+                                    <TextBox x:Name="LpdCustomLimit" Text="11.8" Width="60" FontSize="10"/>
+                                </StackPanel>
+                                <WrapPanel Margin="0,4">
+                                    <Button Content="▶ Calculate W/m²" Style="{StaticResource ElecPrimaryBtn}"
+                                            Tag="Lite_LPD" Click="Cmd_Click"/>
+                                    <Button Content="▶ Color rooms in view" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Lite_LpdColor" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <DataGrid x:Name="LpdGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                          IsReadOnly="True" HeadersVisibility="Column" Height="120" FontSize="10" Margin="0,4">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Room" Binding="{Binding RoomName}" Width="*"/>
+                                        <DataGridTextColumn Header="m²" Binding="{Binding AreaDisplay}" Width="55"/>
+                                        <DataGridTextColumn Header="Total W" Binding="{Binding WattsDisplay}" Width="65"/>
+                                        <DataGridTextColumn Header="W/m²" Binding="{Binding LpdDisplay}" Width="55"/>
+                                        <DataGridTextColumn Header="Limit" Binding="{Binding LimitDisplay}" Width="55"/>
+                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="65"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="PHOTOMETRIC LIBRARY (Phase 180)" Style="{StaticResource ElecExpander}" IsExpanded="True">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="IES / LDT luminaire library — bind manufacturer photometric data onto Revit families."
+                                           FontSize="10" TextWrapping="Wrap" Margin="0,0,0,4"
+                                           Foreground="{DynamicResource PanelFg}" Opacity="0.7"/>
+                                <Button Content="📚 Open Photometric Library…" Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Photo_Library" Click="Cmd_Click"
+                                        ToolTip="Modal viewer over a directory of IES / LDT files. Filter, inspect and assign onto selected luminaire types."/>
+                                <Button Content="⚙ Pre-Flight Check" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Photo_Preflight" Click="Cmd_Click"
+                                        ToolTip="Audit every fixture has a bound IES/LDT, every room has reflectances, every fixture is inside a room boundary — before export."/>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="DIALUX ROUND-TRIP (Phase 181)" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="STING → DIALux evo → STING via IFC 4 with the Pset_StingLightingResults contract."
+                                           FontSize="10" TextWrapping="Wrap" Margin="0,0,0,4"
+                                           Foreground="{DynamicResource PanelFg}" Opacity="0.7"/>
+                                <Button Content="🔁 DIALux Round-Trip…" Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Photo_RoundTrip" Click="Cmd_Click"
+                                        ToolTip="One-button orchestrator: pre-flight → IFC export → walks you through DIALux evo → reminds you to import results."/>
+                                <Button Content="📥 Import IFC Results" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Photo_IfcImport" Click="Cmd_Click"
+                                        ToolTip="Read an IFC file produced by DIALux / ElumTools / Relux and map results back to Revit by GUID + name."/>
+                                <Button Content="📊 Multi-Engine Aggregator" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Photo_Aggregator" Click="Cmd_Click"
+                                        ToolTip="Compare DIALux / ElumTools / Relux / STING-estimate lux side-by-side per room. Excel export with delta highlighting."/>
+                                <Separator Margin="0,8,0,4"/>
+                                <Button Content="🎯 Photometric Design Review" Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Photo_DesignReview" Click="Cmd_Click"
+                                        ToolTip="Closes the loop — compare imported lux against BS EN 12464-1 / CIBSE / ASHRAE targets, colour-codes rooms in the active view, and produces an Excel report with quantified 'add N more fixtures' recommendations per room."/>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="PHOTOMETRIC LINK (legacy)" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Phase 178 handoff command — superseded by DIALux Round-Trip above. Keep for backward compatibility."
+                                           FontSize="10" TextWrapping="Wrap" Margin="0,0,0,4"
+                                           Foreground="{DynamicResource PanelFg}" Opacity="0.7"/>
+                                <Button Content="☀ Photometric Link…" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_PhotoLink" Click="Cmd_Click"/>
+                            </StackPanel>
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 6: RPRT ============== -->
+            <TabItem Header="RPRT">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="REPORTS &amp; EXPORT" Style="{StaticResource ElecSectionHeader}"/>
+
+                        <Expander Header="COMPLIANCE REPORT" Style="{StaticResource ElecExpander}" IsExpanded="True">
+                            <StackPanel Margin="4">
+                                <ListBox x:Name="ComplianceList" Height="180" FontSize="10">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Icon}" Margin="0,0,4,0"/>
+                                                <TextBlock Text="{Binding Message}" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Content="▶ Full Compliance Audit" Style="{StaticResource ElecPrimaryBtn}"
+                                            Tag="Rprt_Audit" Click="Cmd_Click"/>
+                                    <Button Content="📄 PDF Report" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Rprt_PDF" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="EXCEL ROUND-TRIP" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Scope" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="cmbExcelScope" FontSize="10">
+                                    <ComboBoxItem Content="All panels" IsSelected="True"/>
+                                    <ComboBoxItem Content="Active panel"/>
+                                    <ComboBoxItem Content="Selected panels"/>
+                                </ComboBox>
+                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                    <CheckBox x:Name="chkExHeader" Content="Header" IsChecked="True" Margin="0,0,8,0"/>
+                                    <CheckBox x:Name="chkExBody"   Content="Body"   IsChecked="True" Margin="0,0,8,0"/>
+                                    <CheckBox x:Name="chkExSummary" Content="Summary" IsChecked="True"/>
+                                </StackPanel>
+                                <CheckBox x:Name="chkEmptyCellGuard" Content="Empty-cell guard (preserve Revit data)"
+                                          IsChecked="True" IsEnabled="False" Margin="0,2"/>
+                                <WrapPanel>
+                                    <Button Content="▶ Export to Excel" Style="{StaticResource ElecPrimaryBtn}"
+                                            Tag="Rprt_ExcelExport" Click="Cmd_Click"/>
+                                    <Button Content="▶ Import from Excel" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Rprt_ExcelImport" Click="Cmd_Click"/>
+                                    <Button Content="▶ Show Last Import Diff" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Rprt_ShowDiff" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="CIRCUIT REGISTER EXPORT" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Format" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="cmbCircuitExportFormat" FontSize="10">
+                                    <ComboBoxItem Content="Excel (.xlsx)" IsSelected="True"/>
+                                    <ComboBoxItem Content="CSV"/>
+                                    <ComboBoxItem Content="JSON"/>
+                                    <ComboBoxItem Content="XML (ProDesign)"/>
+                                </ComboBox>
+                                <Grid Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition/><ColumnDefinition/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/><RowDefinition/><RowDefinition/>
+                                        <RowDefinition/><RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                    <CheckBox Grid.Row="0" Grid.Column="0" Content="Panel" IsChecked="True"/>
+                                    <CheckBox Grid.Row="0" Grid.Column="1" Content="Circuit#" IsChecked="True"/>
+                                    <CheckBox Grid.Row="1" Grid.Column="0" Content="Description" IsChecked="True"/>
+                                    <CheckBox Grid.Row="1" Grid.Column="1" Content="Poles" IsChecked="True"/>
+                                    <CheckBox Grid.Row="2" Grid.Column="0" Content="Rating" IsChecked="True"/>
+                                    <CheckBox Grid.Row="2" Grid.Column="1" Content="Load (VA)" IsChecked="True"/>
+                                    <CheckBox Grid.Row="3" Grid.Column="0" Content="VD%" IsChecked="True"/>
+                                    <CheckBox Grid.Row="3" Grid.Column="1" Content="Wire" IsChecked="True"/>
+                                    <CheckBox Grid.Row="4" Grid.Column="0" Content="Length" IsChecked="True"/>
+                                    <CheckBox Grid.Row="4" Grid.Column="1" Content="Phase" IsChecked="True"/>
+                                </Grid>
+                                <Button Content="▶ Export Circuit Register" Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="Rprt_CircuitExport" Click="Cmd_Click"/>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="COBie ELECTRICAL ASSET EXPORT" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                    <CheckBox Content="ElecEquipment" IsChecked="True" Margin="0,0,8,0"/>
+                                    <CheckBox Content="Circuits"      IsChecked="True" Margin="0,0,8,0"/>
+                                    <CheckBox Content="Panels"        IsChecked="True"/>
+                                </StackPanel>
+                                <CheckBox Content="Wiring" Margin="0,2"/>
+                                <WrapPanel>
+                                    <Button Content="▶ Include in main COBie export" Style="{StaticResource ElecPrimaryBtn}"
+                                            Tag="Rprt_COBie" Click="Cmd_Click"/>
+                                    <Button Content="▶ Standalone electrical COBie sheet" Style="{StaticResource ElecActionBtn}"
+                                            Tag="Rprt_COBieStandalone" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="EXTERNAL TOOL INTEGRATION" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <Button Content="🔌 Export to EasyPower (XML)" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_ExportEasyPower" Click="Cmd_Click"
+                                        ToolTip="Best-effort EasyPower-compatible XML (buses + branches + arc flash). Real EasyPower import format is licensed; this is a documented approximation."/>
+                                <Button Content="💡 Export to DIALux evo (IFC 4)" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_ExportDIALux" Click="Cmd_Click"
+                                        ToolTip="IFC 4 STEP file with IfcLightFixture + IfcSpace entities. DIALux 12+ accepts this."/>
+                                <Button Content="⚙ Export to ETAP (CIM XML)" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_ExportEtap" Click="Cmd_Click"
+                                        ToolTip="IEC 61968 / 61970 CIM XML — substations + energy consumers for ETAP load-flow."/>
+                                <Button Content="▶ Export to SKM PowerTools 🔒" Style="{StaticResource ElecActionBtn}"
+                                        IsEnabled="False"
+                                        ToolTip="Planned for Phase 180 — SKM PowerTools requires a licensed import format."/>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="CALCULATION SCHEDULES" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <Button Content="▶ Create VD schedule in model" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Rprt_VDSchedule" Click="Cmd_Click"/>
+                                <Button Content="▶ Create fault current schedule" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Rprt_FaultSchedule" Click="Cmd_Click"
+                                        ToolTip="Build a Revit ViewSchedule of OST_ElectricalEquipment showing the fault levels stamped by Calc → Fault Current."/>
+                                <Button Content="▶ Create arc flash schedule" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Elec_ArcFlashSched" Click="Cmd_Click"
+                                        ToolTip="Creates a Revit ViewSchedule of OST_ElectricalEquipment with Phase 179 arc flash columns (IE / boundary / PPE)."/>
+                                <Button Content="▶ Demand Factor Report" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Rprt_DemandFactors" Click="Cmd_Click"
+                                        ToolTip="Per-panel NEC 2023 / BS 7671 demand-factor breakdown exported to Excel."/>
+                            </StackPanel>
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Page>

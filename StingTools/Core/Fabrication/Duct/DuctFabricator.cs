@@ -22,6 +22,7 @@ namespace StingTools.Core.Fabrication.Duct
             var groups = grouper.GroupForDiscipline(doc, elementIds, "Duct",
                 out List<AssemblyGrouper.SpoolMetrics> metrics);
             int seq = 1;
+            var symbolTargets = new List<(ElementId AssyId, ElementId IsoViewId)>();
 
             using (var tx = new Transaction(doc, "STING v4 Duct fabrication"))
             {
@@ -42,6 +43,8 @@ namespace StingTools.Core.Fabrication.Duct
                         var sheetId = ShopDrawingComposer.ComposeSheet(doc, "Duct", assyId, views, result);
                         if (sheetId != null && sheetId != ElementId.InvalidElementId)
                             result.SheetIds.Add(sheetId);
+                        if (views.ViewIso6412 != null && views.ViewIso6412 != ElementId.InvalidElementId)
+                            symbolTargets.Add((assyId, views.ViewIso6412));
                     }
                     tx.Commit();
                 }
@@ -52,6 +55,8 @@ namespace StingTools.Core.Fabrication.Duct
                 }
             }
             result.AssembliesByDiscipline["Duct"] = seq - 1;
+
+            FabricationEngine.PlaceSymbolsIfRequested(doc, "Duct", symbolTargets, result);
 
             try { EmitSeamTallyCsv(doc, elementIds, result); }
             catch (Exception ex) { result.Warnings.Add($"Seam tally csv: {ex.Message}"); }
@@ -83,7 +88,7 @@ namespace StingTools.Core.Fabrication.Duct
 
         private static string ReadString(Element el, string param)
         {
-            try { return el?.LookupParameter(param)?.AsString() ?? ""; } catch { return ""; }
+            try { return el?.LookupParameter(param)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
     }
 }

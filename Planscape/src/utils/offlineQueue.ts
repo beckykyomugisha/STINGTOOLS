@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createIssue, updateIssue, transitionCDE, uploadIssueAttachment } from '@/api/endpoints';
-import type { OfflineAction } from '@/types/api';
+import * as FileSystem from 'expo-file-system/legacy';
+import { createIssue, updateIssue, transitionCDE, uploadIssueAttachment, captureSitePhoto } from '@/api/endpoints';
+import type { DeliverableUpsertArgs } from '@/api/endpoints';
+import type { OfflineAction, SitePhotoCaptureMeta } from '@/types/api';
 
 const QUEUE_KEY = 'planscape_offline_queue';
 const LAST_SYNC_KEY = 'planscape_last_sync';
@@ -109,6 +111,10 @@ export async function enqueue(
   };
 
   const queue = await loadQueue();
+  if (queue.length >= MAX_QUEUE_SIZE) {
+    console.warn(`[OfflineQueue] Queue full (${MAX_QUEUE_SIZE}), dropping oldest action: ${queue[0].type}`);
+    queue.shift();
+  }
   queue.push(action);
   await saveQueue(queue);
   return action;
@@ -183,6 +189,261 @@ async function replayAction(action: OfflineAction): Promise<void> {
         idempotencyKey: p.idempotencyKey as string | undefined,
       });
       break;
+
+    // S3.7 — extended replay handlers. Each one delegates to its endpoint
+    // module; the modules add the `idempotencyKey` header on every call so
+    // a retried action can't double-apply.
+    case 'POST_COMMENT': {
+      const { postIssueComment } = await import('@/api/endpoints');
+      await postIssueComment(
+        p.projectId as string,
+        p.issueId as string,
+        { body: p.body as string, idempotencyKey: p.idempotencyKey as string },
+      );
+      break;
+    }
+    case 'PIN_PLACE': {
+      const { placeIssuePin } = await import('@/api/endpoints');
+      await placeIssuePin(p.projectId as string, p.issueId as string, {
+        modelId: p.modelId as string,
+        x: p.x as number, y: p.y as number, z: p.z as number,
+        elementGuid: p.elementGuid as string | undefined,
+        idempotencyKey: p.idempotencyKey as string,
+      });
+      break;
+    }
+    case 'PIN_DELETE': {
+      const { deleteIssuePin } = await import('@/api/endpoints');
+      await deleteIssuePin(p.projectId as string, p.issueId as string, p.pinId as string);
+      break;
+    }
+    case 'ADD_MEETING_ACTION': {
+      const { addMeetingAction } = await import('@/api/endpoints');
+      await addMeetingAction(p.projectId as string, p.meetingId as string, {
+        ...(p.action as Record<string, unknown>),
+        idempotencyKey: p.idempotencyKey as string,
+      });
+      break;
+    }
+    case 'UPDATE_MEETING_ACTION': {
+      const { updateMeetingAction } = await import('@/api/endpoints');
+      await updateMeetingAction(
+        p.projectId as string, p.meetingId as string, p.actionId as string,
+        p.updates as Record<string, unknown>,
+      );
+      break;
+    }
+    case 'DIARY_ENTRY': {
+      const { upsertDiaryEntry } = await import('@/api/endpoints');
+      await upsertDiaryEntry(p.projectId as string, {
+        ...(p.entry as Record<string, unknown>),
+        idempotencyKey: p.idempotencyKey as string,
+      });
+      break;
+    }
+    case 'STAGE_SIGNOFF': {
+      const { signOffStageCriterion } = await import('@/api/endpoints');
+      await signOffStageCriterion(
+        p.projectId as string, p.gateId as string, p.criterionId as string,
+        { decision: p.decision as string, comment: p.comment as string | undefined },
+      );
+      break;
+    }
+    case 'ATTACH_AUDIO': {
+      const { uploadAudioNote } = await import('@/api/endpoints');
+      await uploadAudioNote({
+        projectId: p.projectId as string,
+        issueId: p.issueId as string,
+        uri: p.localUri as string,
+        fileName: (p.fileName as string) ?? `voice-${Date.now()}.m4a`,
+        contentType: (p.mimeType as string) ?? 'audio/mp4',
+        durationSec: p.durationSec as number | undefined,
+        idempotencyKey: p.idempotencyKey as string | undefined,
+      });
+      break;
+    }
+    case 'ATTACH_MARKUP': {
+      const { uploadModelMarkup } = await import('@/api/endpoints');
+      await uploadModelMarkup({
+        projectId: p.projectId as string,
+        modelId: p.modelId as string,
+        polylines: p.polylines as Array<{ points: number[][]; color: string; thickness: number }>,
+        label: p.label as string | undefined,
+        idempotencyKey: p.idempotencyKey as string | undefined,
+      });
+      break;
+    }
+
+    // Phase 178 — replay a queued site-photo capture. The photo bytes
+    // live on disk under FileSystem.documentDirectory + queued-photos/
+    // so AsyncStorage doesn't bloat with base64. On success we delete
+    // the local file; on permanent failure (4xx) the file is dropped
+    // when the action moves to the failed side-queue (see drainFailedFiles).
+    case 'CAPTURE_SITE_PHOTO': {
+      const localUri = p.localUri as string;
+      const fileName = (p.fileName as string) ?? `photo-${Date.now()}.jpg`;
+      const contentType = (p.mimeType as string) ?? 'image/jpeg';
+      const meta = p.meta as SitePhotoCaptureMeta;
+      await captureSitePhoto({
+        projectId: p.projectId as string,
+        uri: localUri,
+        fileName,
+        contentType,
+        meta: { ...meta, queuedClient: true },
+      });
+      // Best-effort cleanup — failure to delete the local copy is
+      // non-fatal; drainQueuedPhotoFiles() reaps stragglers later.
+      try { await FileSystem.deleteAsync(localUri, { idempotent: true }); } catch { /* ignore */ }
+      break;
+    }
+
+    // T3-17 — deliverable CRUD + transition.
+    case 'CREATE_DELIVERABLE': {
+      const { createDeliverable } = await import('@/api/endpoints');
+      await createDeliverable(
+        p.projectId as string,
+        p.body as DeliverableUpsertArgs,
+      );
+      break;
+    }
+    case 'UPDATE_DELIVERABLE': {
+      const { updateDeliverable } = await import('@/api/endpoints');
+      await updateDeliverable(
+        p.projectId as string,
+        p.deliverableId as string,
+        p.body as DeliverableUpsertArgs,
+      );
+      break;
+    }
+    case 'TRANSITION_DELIVERABLE': {
+      const { transitionDeliverable } = await import('@/api/endpoints');
+      await transitionDeliverable(
+        p.projectId as string,
+        p.deliverableId as string,
+        p.newStatus as string,
+        { documentId: p.documentId as string | undefined, reason: p.reason as string | undefined },
+      );
+      break;
+    }
+
+    // HC-11 — Healthcare Pack offline replay handlers.
+    case 'HC_MGAS_VERIFICATION': {
+      const { postMgasVerification } = await import('@/api/endpoints');
+      await postMgasVerification(
+        p.projectId as string,
+        p.payload as Parameters<typeof postMgasVerification>[1],
+      );
+      break;
+    }
+    case 'HC_PRESSURE_LOG': {
+      const { postPressureLog } = await import('@/api/endpoints');
+      await postPressureLog(
+        p.projectId as string,
+        p.payload as Parameters<typeof postPressureLog>[1],
+      );
+      break;
+    }
+    case 'HC_ANTI_LIGATURE_AUDIT': {
+      const { postAntiLigatureAudit } = await import('@/api/endpoints');
+      await postAntiLigatureAudit(
+        p.projectId as string,
+        p.payload as Parameters<typeof postAntiLigatureAudit>[1],
+      );
+      break;
+    }
+  }
+}
+
+// ── Queued photo file management (Phase 178) ────────────────────────────
+// Photos are persisted to FileSystem.documentDirectory + queued-photos/
+// so we don't blow out AsyncStorage with base64 strings. The capture flow
+// calls `persistPhotoForQueue` to copy the camera URI into a stable path
+// before enqueuing the action; the replay handler calls
+// `FileSystem.deleteAsync` on success.
+
+const QUEUED_PHOTO_DIR = `${FileSystem.documentDirectory ?? ''}queued-photos/`;
+const QUEUED_PHOTO_WARN_AT = 200;
+const QUEUED_PHOTO_HARD_CAP = 500;
+
+/** Make sure the queued-photos directory exists. Idempotent. */
+export async function ensureQueuedPhotoDir(): Promise<string> {
+  if (!FileSystem.documentDirectory) throw new Error('No document directory on this platform');
+  const info = await FileSystem.getInfoAsync(QUEUED_PHOTO_DIR);
+  if (!info.exists) {
+    await FileSystem.makeDirectoryAsync(QUEUED_PHOTO_DIR, { intermediates: true });
+  }
+  return QUEUED_PHOTO_DIR;
+}
+
+/** Copy a camera/picker URI into a stable path under queued-photos/.
+ *  Returns the on-disk URI; caller stores it on the OfflineAction payload. */
+export async function persistPhotoForQueue(srcUri: string, suffix = '.jpg'): Promise<string> {
+  const dir = await ensureQueuedPhotoDir();
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const dest = `${dir}${id}${suffix}`;
+  await FileSystem.copyAsync({ from: srcUri, to: dest });
+  return dest;
+}
+
+export interface QueuedPhotoStats {
+  count: number;
+  bytes: number;
+  warn: boolean;
+  hardCap: boolean;
+}
+
+/** Cheap stats for the capture flow's "you have N queued, Wi-Fi recommended" hint. */
+export async function queuedPhotoStats(): Promise<QueuedPhotoStats> {
+  try {
+    if (!FileSystem.documentDirectory) return { count: 0, bytes: 0, warn: false, hardCap: false };
+    const info = await FileSystem.getInfoAsync(QUEUED_PHOTO_DIR);
+    if (!info.exists) return { count: 0, bytes: 0, warn: false, hardCap: false };
+    const files = await FileSystem.readDirectoryAsync(QUEUED_PHOTO_DIR);
+    let bytes = 0;
+    for (const f of files) {
+      const fi = await FileSystem.getInfoAsync(`${QUEUED_PHOTO_DIR}${f}`);
+      if (fi.exists && !fi.isDirectory) bytes += (fi.size ?? 0);
+    }
+    return {
+      count: files.length,
+      bytes,
+      warn: files.length >= QUEUED_PHOTO_WARN_AT,
+      hardCap: files.length >= QUEUED_PHOTO_HARD_CAP,
+    };
+  } catch {
+    return { count: 0, bytes: 0, warn: false, hardCap: false };
+  }
+}
+
+/** Reap orphan files: any file under queued-photos/ NOT referenced by an
+ *  action in the live or failed queue. Called opportunistically after a
+ *  drain; prevents orphans from accumulating after a permanent failure. */
+export async function reapOrphanQueuedPhotos(): Promise<number> {
+  try {
+    if (!FileSystem.documentDirectory) return 0;
+    const info = await FileSystem.getInfoAsync(QUEUED_PHOTO_DIR);
+    if (!info.exists) return 0;
+    const files = await FileSystem.readDirectoryAsync(QUEUED_PHOTO_DIR);
+    if (files.length === 0) return 0;
+    const live = await loadQueue();
+    const failed = await loadFailedQueue();
+    const referenced = new Set<string>();
+    for (const a of [...live, ...failed]) {
+      if (a.type === 'CAPTURE_SITE_PHOTO') {
+        const uri = a.payload?.localUri as string | undefined;
+        if (uri) referenced.add(uri);
+      }
+    }
+    let reaped = 0;
+    for (const f of files) {
+      const full = `${QUEUED_PHOTO_DIR}${f}`;
+      if (!referenced.has(full)) {
+        try { await FileSystem.deleteAsync(full, { idempotent: true }); reaped++; } catch { /* ignore */ }
+      }
+    }
+    return reaped;
+  } catch {
+    return 0;
   }
 }
 
@@ -195,6 +456,7 @@ export interface SyncResult {
 }
 
 const MAX_RETRIES_PER_ACTION = 3;
+const MAX_QUEUE_SIZE = 200;
 
 /**
  * N-G17 — compute exponential-backoff delay in milliseconds.

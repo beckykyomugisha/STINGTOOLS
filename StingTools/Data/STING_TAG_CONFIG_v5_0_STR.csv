@@ -339,6 +339,12 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Framing
 3,HIGH,WARN_STR_BEAM_SPAN_DEPTH,Span/depth ratio exceeds guidance,SCI P363 / Steel Designer Manual,Common,Text,⚠ Warning: Span-Depth Ratio,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_SPAN_DEPTH, """")"
 4,MEDIUM,WARN_PER_EMBODIED_CARBON_KG_STR_BEAMS,Carbon > 600 kgCO₂/m²,RIBA 2030 Climate Challenge,Common,Text,⚠ Warning: Beam Embodied Carbon,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_EMBODIED_CARBON_KG_STR_BEAMS, """")"
 5,MEDIUM,WARN_STR_BEAM_LATERAL_BRACING,Lateral bracing interval not specified,BS EN 1993-1-1 / EC3 6.3.2,Common,Text,⚠ Warning: Lateral Bracing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_LATERAL_BRACING, """")"
+# Beam penetration / web opening warnings (PenetrationsDetectAndPlaceCommand — AISC DG2 / BS EN 1992)
+6,CRITICAL,WARN_STR_BEAM_WEB_OPENING,Web opening location or size violates AISC DG2 §3.2 / BS EN 1992-1-1,AISC Design Guide 2 §3.2 / BS EN 1992-1-1 Cl 6.2.5,Common,Text,⚠ Warning: Beam Web Opening Violation,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_WEB_OPENING, """")"
+7,HIGH,WARN_STR_BEAM_NOTCH,Beam-end notch depth exceeds permitted ratio — section capacity reduced,SCI P363 / BS EN 1993-1-1 §6.2.6,Common,Text,⚠ Warning: Beam Notch Depth Exceeded,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_NOTCH, """")"
+8,HIGH,WARN_STR_BEAM_PENETRATION_REVIEW,Beam penetration flagged STRUCT_REVIEW — reroute or reinforce before fabrication,AISC DG2 / BS EN 1992 Cl 6.2.5,Common,Text,⚠ Warning: Beam Penetration Requires Review,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_PENETRATION_REVIEW, """")"
+9,HIGH,WARN_STR_TRANSFER_BEAM,Transfer beam identified — enhanced peer review and specialist approval required,SCI P363 / NHBC Technical Requirements,Common,Text,⚠ Warning: Transfer Beam — Peer Review Required,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_TRANSFER_BEAM, """")"
+10,MEDIUM,WARN_STR_COMPOSITE_SHEAR_STUD,Composite beam has no shear stud count or spacing specified,BS EN 1994-1-1 / EC4 Cl 6.6,Common,Text,⚠ Warning: Shear Stud Spec Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_COMPOSITE_SHEAR_STUD, """")"
 
 Tag Family #3: STING - Structural Foundation Tag
 TAG7: STR_TAG_7_PARA_FDN_TXT  •  Category: Structural Foundations
@@ -1094,3 +1100,30 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — Structural discipline
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_SHT_NAMING_STR,Sheet name does not match ISO 19650 naming convention for structural drawings,ISO 19650-2 / BS EN ISO 7200,Common,Text,⚠ Warning: Sheet Naming Convention,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_NAMING_STR, """")"
+
+Tag Family #22: STING - LPS Foundation Earth (Structural Reuse) Tag
+# Category: Structural Foundations, Structural Rebar, Structural Area Reinforcement, Structural Path Reinforcement, Structural Fabric Reinforcement | PROD: EFE (Foundation Earth) | SYS: LPS | FUNC: EE | DISC: S
+# Cross-discipline integration: structural foundation rebar / area reinforcement reused as a BS EN 62305-3 Type B foundation earth electrode (Annex E.5.3).
+# The structural team owns the rebar layout but the electrical team needs the same elements tagged for LPS continuity tests + Bill of Quantities reconciliation.
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Structural Foundations / Rebar
+
+★ TIER 1 — COMPACT (always visible)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ELC_LPS_EARTH_TAG_TXT,,,0,✓,---,---,---,Add directly,BOLD,BLUE,2.5,None,None
+
+★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T2,ELC_LPS_EARTH_TYPE_TXT,Type:,,0,✓,Common,Text,Earth Electrode Type (FOUNDATION),"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_EARTH_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+2,T2,ELC_LPS_CLASS_TXT,Class:,,0,✓,Common,Text,LPS Class,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CLASS_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ELC_LPS_EARTH_RESISTANCE_OHM,R:,Ω,0,✓,Common,Text,Earth Resistance,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_EARTH_RESISTANCE_OHM, """")",NOM,BLACK,2.0,None,None
+4,T2,ELC_LPS_TEST_DATE_TXT,Tested:,,0,✓,Common,Text,Last Test Date,"if(TAG_PARA_STATE_2_BOOL, ELC_LPS_TEST_DATE_TXT, """")",NOM,BLACK,2.0,None,None
+
+★ TIER 3 — FULL SPECIFICATION (gated by TAG_PARA_STATE_3_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T3,ELC_LPS_BOND_TYPE_TXT,Bond:,,0,✓,Common,Text,Bonding Method to Steel,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_BOND_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+2,T3,ELC_LPS_CERT_REF_TXT,Cert:,,0,✓,Common,Text,Continuity Certificate,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_CERT_REF_TXT, """")",NOM,BLACK,2.0,None,None
+
+⚠ WARNING PARAMETERS — add after all Tier rows
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_ELC_LPS_EARTH_RESISTANCE_HIGH,Foundation earth resistance > 10 ohm — supplement with Type-A rod electrodes,BS EN 62305-3:2011 §5.4.1 + Annex E.5.3,Common,Text,⚠ Warning: Foundation Earth Resistance High,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_EARTH_RESISTANCE_HIGH, """")"
+2,HIGH,WARN_ELC_LPS_NO_BONDING,Rebar-to-LPS bonding method not specified — continuity is not guaranteed without welded / clamped bonds,BS EN 62305-3:2011 Annex E.5.3,Common,Text,⚠ Warning: No Rebar-LPS Bond,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_BONDING, """")"

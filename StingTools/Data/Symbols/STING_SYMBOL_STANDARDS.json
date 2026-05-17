@@ -1,0 +1,108 @@
+{
+  "version": "1.0",
+  "standards": {
+    "IEC": {
+      "name": "IEC 60617:2020",
+      "region": ["EU", "AF", "AS", "ME", "UG"],
+      "disciplines": ["ALL"],
+      "symbolSizeMm": 3.0,
+      "symbolScaleTiers": { "large": 5.0, "standard": 3.0, "small": 2.0, "diagram": 1.5 },
+      "annotationRules": {
+        "labelPosition": "Above",
+        "textHeightMm": 2.0,
+        "leaderRequired": false,
+        "ratingFormat": "{poles}P {rating}{unit}",
+        "circuitRefPrefix": "",
+        "circuitRefSuffix": ""
+      },
+      "lineWeightSymbol": 3,
+      "lineWeightConnection": 1,
+      "colorScheme": "Monochrome"
+    },
+    "IEEE": {
+      "name": "IEEE/ANSI 315:1975",
+      "region": ["US", "CA"],
+      "disciplines": ["Electrical", "SLD"],
+      "symbolSizeMm": 4.0,
+      "symbolScaleTiers": { "large": 6.0, "standard": 4.0, "small": 2.5, "diagram": 2.0 },
+      "annotationRules": {
+        "labelPosition": "Right",
+        "textHeightMm": 2.5,
+        "leaderRequired": false,
+        "ratingFormat": "{rating}{unit}, Curve {curve}",
+        "circuitRefPrefix": "CB-",
+        "circuitRefSuffix": ""
+      },
+      "lineWeightSymbol": 2,
+      "lineWeightConnection": 1,
+      "colorScheme": "Monochrome"
+    },
+    "NFPA": {
+      "name": "NFPA 170:2021 / NFPA 72:2022 / NFPA 13:2022",
+      "region": ["US", "CA"],
+      "disciplines": ["FireProtection", "FireAlarm"],
+      "symbolSizeMm": 4.0,
+      "symbolScaleTiers": { "large": 6.0, "standard": 4.0, "small": 3.0, "diagram": 2.0 },
+      "annotationRules": {
+        "labelPosition": "Below",
+        "textHeightMm": 2.0,
+        "leaderRequired": true,
+        "ratingFormat": "{rating}{unit}",
+        "circuitRefPrefix": "Z",
+        "circuitRefSuffix": ""
+      },
+      "lineWeightSymbol": 3,
+      "lineWeightConnection": 1,
+      "colorScheme": "Monochrome"
+    },
+    "CIBSE": {
+      "name": "CIBSE Guide / BSRIA",
+      "region": ["GB"],
+      "disciplines": ["HVAC", "Plumbing"],
+      "symbolSizeMm": 3.0,
+      "symbolScaleTiers": { "large": 5.0, "standard": 3.0, "small": 2.0, "diagram": 1.5 },
+      "annotationRules": {
+        "labelPosition": "Right",
+        "textHeightMm": 1.8,
+        "leaderRequired": false,
+        "ratingFormat": "{rating} {unit}",
+        "circuitRefPrefix": "",
+        "circuitRefSuffix": ""
+      },
+      "lineWeightSymbol": 2,
+      "lineWeightConnection": 1,
+      "colorScheme": "Monochrome"
+    },
+    "BS": {
+      "name": "BS 1553",
+      "region": ["GB"],
+      "disciplines": ["Electrical"],
+      "symbolSizeMm": 3.0,
+      "symbolScaleTiers": { "large": 5.0, "standard": 3.0, "small": 2.0, "diagram": 1.5 },
+      "annotationRules": {
+        "labelPosition": "Above",
+        "textHeightMm": 2.0,
+        "leaderRequired": false,
+        "ratingFormat": "{rating}{unit}",
+        "circuitRefPrefix": "",
+        "circuitRefSuffix": ""
+      },
+      "lineWeightSymbol": 3,
+      "lineWeightConnection": 1,
+      "colorScheme": "Monochrome"
+    }
+  },
+  "fallbackChain": {
+    "IEEE": "IEC",
+    "NFPA": "IEC",
+    "CIBSE": "IEC",
+    "BS": "IEC",
+    "AS": "IEC"
+  },
+  "scaleTierThresholds": {
+    "large": 75,
+    "standard": 150,
+    "small": 300,
+    "diagram": 1000
+  }
+}

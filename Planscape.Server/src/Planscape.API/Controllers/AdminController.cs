@@ -16,8 +16,15 @@ namespace Planscape.API.Controllers;
 public class AdminController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
+    private readonly Planscape.Infrastructure.Authorization.IPermissionRevocationStore _revocations;
 
-    public AdminController(PlanscapeDbContext db) => _db = db;
+    public AdminController(
+        PlanscapeDbContext db,
+        Planscape.Infrastructure.Authorization.IPermissionRevocationStore revocations)
+    {
+        _db = db;
+        _revocations = revocations;
+    }
 
     // ── Organization Management ──
 
@@ -96,27 +103,68 @@ public class AdminController : ControllerBase
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId && u.TenantId == tenantId);
         if (user == null) return NotFound();
 
+        // Phase 156 — detect permission-changing fields before
+        // applying. If any of them changed value, bump the user's
+        // revocation floor after the save commits so old tokens
+        // can't pivot through policy-gated endpoints. Display-name
+        // changes don't trigger revocation — they're not security-
+        // relevant.
+        var permissionChanged = false;
         if (req.DisplayName != null) user.DisplayName = req.DisplayName;
-        if (req.Role != null && Enum.TryParse<UserRole>(req.Role, true, out var r)) user.Role = r;
-        if (req.Iso19650Role != null) user.Iso19650Role = req.Iso19650Role;
-        if (req.IsActive.HasValue) user.IsActive = req.IsActive.Value;
+        if (req.Role != null && Enum.TryParse<UserRole>(req.Role, true, out var r) && user.Role != r)
+        {
+            user.Role = r; permissionChanged = true;
+        }
+        if (req.Iso19650Role != null && user.Iso19650Role != req.Iso19650Role)
+        {
+            user.Iso19650Role = req.Iso19650Role; permissionChanged = true;
+        }
+        if (req.IsActive.HasValue && user.IsActive != req.IsActive.Value)
+        {
+            user.IsActive = req.IsActive.Value; permissionChanged = true;
+        }
 
         await _db.SaveChangesAsync();
+        if (permissionChanged)
+        {
+            // Fire-and-forget; a Redis blip mustn't block the admin
+            // action. The store no-ops on connection failure so the
+            // worst case is the pre-Phase-156 lag for that one user.
+            _ = _revocations.RevokeAllPriorTokensAsync(user.Id);
+        }
         return Ok(new { user.Id, user.Email, user.DisplayName, user.Role, user.IsActive });
     }
+
+    // Phase 157 added a revoke-tokens endpoint here. Phase 158 moved
+    // it to the new SecurityController under the SecurityOfficerOrAdmin
+    // policy so the action no longer requires tenant-Admin/Owner role
+    // (separation of duties for SOC2 / ISO 27001). The new route is
+    // POST /api/security/users/{userId}/revoke-tokens and accepts a
+    // caller-supplied reason + category.
 
     // ── Audit Log ──
 
     [HttpGet("audit")]
     public async Task<ActionResult> GetAuditLog(
         [FromQuery] Guid? projectId = null, [FromQuery] string? action = null,
+        [FromQuery] string? source = null,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
         var tenantId = GetTenantId();
+        // S12 — refuse to query AuditLog with an empty tenant claim. Without
+        // this gate a misconfigured JWT would silently match nothing AND
+        // leave the predicate `TenantId == Guid.Empty` in place — which is
+        // accidentally safe today (no rows have an empty tenant) but
+        // brittle to future seed-data changes.
+        if (tenantId == Guid.Empty)
+            return BadRequest(new { error = "Missing tenant_id claim" });
         var query = _db.AuditLogs.Where(a => a.TenantId == tenantId);
 
         if (projectId.HasValue) query = query.Where(a => a.ProjectId == projectId);
         if (!string.IsNullOrEmpty(action)) query = query.Where(a => a.Action == action);
+        // M12 — let admins filter by which client originated the write so a
+        // misbehaving mobile build or plugin version can be triaged at a glance.
+        if (!string.IsNullOrEmpty(source)) query = query.Where(a => a.Source == source);
 
         var total = await query.CountAsync();
         var logs = await query
@@ -146,6 +194,12 @@ public class AdminController : ControllerBase
         return Ok(keys);
     }
 
+    // Phase 151 → 152: tenant-keywords endpoints moved to
+    // TenantKeywordsController so the auth gate can drop the
+    // class-level Admin/Owner restriction in favour of the finer-
+    // grained BimManagerOrAdmin policy. Routes are unchanged
+    // (/api/admin/tenant-keywords) so existing clients are unaffected.
+
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
 
@@ -155,3 +209,5 @@ public class AdminController : ControllerBase
 
 public record CreateUserRequest(string Email, string DisplayName, string Password, string? Role, string? Iso19650Role);
 public record UpdateUserRequest(string? DisplayName, string? Role, string? Iso19650Role, bool? IsActive);
+/// <summary>Phase 151 — body for PUT /admin/tenant-keywords. Null/empty Json clears.</summary>
+public record TenantKeywordsRequest(string? Json);

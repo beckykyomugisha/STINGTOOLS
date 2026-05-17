@@ -187,6 +187,19 @@ namespace StingTools.UI
         {
             if (sender is Button btn && btn.Tag is string cmdTag)
             {
+                // Phase 165 — Issue #14. After a mode-switch button fires,
+                // refresh the depth-tier labels under the depth slider so
+                // the user sees the correct tier-set for the new active mode.
+                // Schedule the refresh via the dispatcher so it runs after
+                // the IExternalEvent finishes writing the mode params.
+                if (cmdTag == "SetPatternMode_DC" ||
+                    cmdTag == "SetPatternMode_Handover" ||
+                    cmdTag == "SetPatternMode_Custom")
+                {
+                    Dispatcher.BeginInvoke(new System.Action(RefreshParagraphTierLabels),
+                        System.Windows.Threading.DispatcherPriority.Background);
+                }
+
                 // SDP-MEDIUM-01: Pre-compute repeated string tests once to avoid duplicate scans
                 bool isPlaceCmd     = cmdTag.Contains("Place");
                 bool isSmartPlace   = isPlaceCmd && cmdTag.Contains("SmartPlace");
@@ -898,8 +911,110 @@ namespace StingTools.UI
         }
 
         /// <summary>
-        /// Push the latest sync status into the header chip. Safe to call from any thread.
+        /// Repaint the active Standards region chip in the header. Reads
+        /// ProjectStandardsManager.Instance and is safe to call from any thread.
         /// </summary>
+        public void RefreshRegionIndicator()
+        {
+            void Apply()
+            {
+                try
+                {
+                    if (txtRegion == null) return;
+                    var mgr = StingTools.Standards.ProjectStandardsManager.Instance;
+                    string region = mgr?.Region;
+                    txtRegion.Text = string.IsNullOrEmpty(region)
+                        ? "Region: —"
+                        : $"Region: {region}";
+                    if (bdrRegion != null && mgr != null)
+                    {
+                        bdrRegion.ToolTip =
+                            $"Active Standards region: {region ?? "(unset)"}.\n" +
+                            $"Electrical: {mgr.ElectricalStandard}\n" +
+                            $"HVAC: {mgr.HVACStandard}\n" +
+                            $"Plumbing: {mgr.PlumbingStandard}\n" +
+                            $"Structural: {mgr.StructuralStandard}\n" +
+                            $"Fire: {mgr.FireProtectionStandard}\n" +
+                            $"Lighting: {mgr.LightingStandard}\n" +
+                            $"Energy: {mgr.EnergyStandard}\n" +
+                            $"Units: {mgr.UnitSystem}\n\n" +
+                            "Click to switch (writes PROJECT_REGION onto ProjectInformation).";
+                    }
+                }
+                catch (System.Exception ex) { Core.StingLog.Warn($"RefreshRegionIndicator: {ex.Message}"); }
+            }
+            if (Dispatcher.CheckAccess()) Apply();
+            else Dispatcher.BeginInvoke(new System.Action(Apply));
+        }
+
+        // Region chip click — fires StdExt_SetRegion via the existing handler.
+        // The command's ApplyRegionalPreset triggers StandardsChanged which
+        // refreshes the chip automatically.
+        private void RegionIndicator_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            try
+            {
+                _handler?.SetCommand("StdExt_SetRegion");
+                _externalEvent?.Raise();
+            }
+            catch (System.Exception ex) { Core.StingLog.Warn($"RegionIndicator_Click: {ex.Message}"); }
+        }
+
+        /// <summary>
+        // ── INT-07 ────────────────────────────────────────────────────────────────
+
+        public enum SyncState { Offline, Syncing, Synced, Error }
+
+        private static readonly SolidColorBrush _syncGreenBrush =
+            FZ(Color.FromRgb(46, 204, 113));
+        private static readonly SolidColorBrush _syncBlueBrush =
+            FZ(Color.FromRgb(52, 152, 219));
+        private static readonly SolidColorBrush _syncOrangeBrush =
+            FZ(Color.FromRgb(230, 126, 34));
+        private static readonly SolidColorBrush _syncGreyBrush =
+            FZ(Color.FromRgb(127, 140, 141));
+
+        /// <summary>
+        /// Updates the SyncStatusChip label and colour. Safe to call from any thread.
+        /// </summary>
+        public void UpdateSyncStatus(SyncState state, string errorDetail = null)
+        {
+            void Apply()
+            {
+                try
+                {
+                    if (bdrSync == null || txtSync == null) return;
+                    switch (state)
+                    {
+                        case SyncState.Syncing:
+                            txtSync.Text = "⟳ Syncing…";
+                            bdrSync.Background = _syncBlueBrush;
+                            break;
+                        case SyncState.Synced:
+                            txtSync.Text = "● Synced";
+                            bdrSync.Background = _syncGreenBrush;
+                            break;
+                        case SyncState.Error:
+                            txtSync.Text = "⚠ Sync error";
+                            bdrSync.Background = _syncOrangeBrush;
+                            if (!string.IsNullOrEmpty(errorDetail))
+                                bdrSync.ToolTip = errorDetail;
+                            break;
+                        default: // Offline
+                            txtSync.Text = "◌ Offline";
+                            bdrSync.Background = _syncGreyBrush;
+                            break;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    Core.StingLog.Warn($"UpdateSyncStatus failed: {ex.Message}");
+                }
+            }
+            if (Dispatcher.CheckAccess()) Apply();
+            else Dispatcher.BeginInvoke(new System.Action(Apply));
+        }
+
         public void RefreshSyncIndicator()
         {
             void Apply()
@@ -1779,6 +1894,81 @@ namespace StingTools.UI
                     UpdateStatus("Busy — warning mode not applied");
                 }
             }
+        }
+
+        // ─── Phase 165 — Issue #14. Mode-aware depth-tier labels ───
+        // Reads ParamRegistry.GetActiveTagMode() against the active document
+        // and updates the 10 lblParaTier{N} TextBlocks under the depth slider
+        // so the visible tier names match what WriteTag7All will persist.
+        private void RefreshParagraphTierLabels()
+        {
+            try
+            {
+                var app = StingCommandHandler.CurrentApp;
+                var doc = app?.ActiveUIDocument?.Document;
+                var mode = doc != null
+                    ? StingTools.Core.ParamRegistry.GetActiveTagMode(doc)
+                    : StingTools.Core.ParamRegistry.TagMode.DC;
+
+                string[] labels = new string[10];
+                if (mode == StingTools.Core.ParamRegistry.TagMode.DC)
+                {
+                    labels[0] = "T1 Identity";
+                    labels[1] = "T2 System";
+                    labels[2] = "T3 Spatial";
+                    labels[3] = "T4 Lifecycle";
+                    labels[4] = "T5 Technical";
+                    labels[5] = "T6 Class.";
+                    labels[6] = "T7 —";
+                    labels[7] = "T8 —";
+                    labels[8] = "T9 —";
+                    labels[9] = "T10 —";
+                }
+                else
+                {
+                    string p = mode == StingTools.Core.ParamRegistry.TagMode.Custom ? "C:" : "";
+                    labels[0] = "T1 Identity";
+                    labels[1] = "T2 System";
+                    labels[2] = "T3 Spatial";
+                    labels[3] = $"{p}T4 Comm.";
+                    labels[4] = $"{p}T5 Cost";
+                    labels[5] = $"{p}T6 Carbon";
+                    labels[6] = $"{p}T7 Fab";
+                    labels[7] = $"{p}T8 Clash";
+                    labels[8] = $"{p}T9 As-Built";
+                    labels[9] = $"{p}T10 Audit";
+                }
+
+                ApplyTierLabel("lblParaTier1",  labels[0]);
+                ApplyTierLabel("lblParaTier2",  labels[1]);
+                ApplyTierLabel("lblParaTier3",  labels[2]);
+                ApplyTierLabel("lblParaTier4",  labels[3]);
+                ApplyTierLabel("lblParaTier5",  labels[4]);
+                ApplyTierLabel("lblParaTier6",  labels[5]);
+                ApplyTierLabel("lblParaTier7",  labels[6]);
+                ApplyTierLabel("lblParaTier8",  labels[7]);
+                ApplyTierLabel("lblParaTier9",  labels[8]);
+                ApplyTierLabel("lblParaTier10", labels[9]);
+
+                if (FindName("lblParaDepthHint") is System.Windows.Controls.TextBlock hint)
+                {
+                    hint.Text = mode == StingTools.Core.ParamRegistry.TagMode.DC
+                        ? "DC mode — T4-T6 shows Lifecycle / Technical / Classification."
+                        : (mode == StingTools.Core.ParamRegistry.TagMode.Custom
+                            ? "Custom mode — project-defined T4-T10 payload (Custom: prefix)."
+                            : "Handover mode — T4-T10 shows Commissioning / Cost / Carbon / Fab / Clash / As-Built / Audit.");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                StingTools.Core.StingLog.Warn("RefreshParagraphTierLabels failed: " + ex.Message);
+            }
+        }
+
+        private void ApplyTierLabel(string controlName, string text)
+        {
+            if (FindName(controlName) is System.Windows.Controls.TextBlock tb)
+                tb.Text = text;
         }
     }
 }

@@ -1,0 +1,290 @@
+{
+  "version": "1.0",
+  "standard": "STING SEED FAMILY — Air Terminals (CIBSE Guide B, BS EN 13779)",
+  "_notes": [
+    "14 type variants covering supply and extract diffusers (square,",
+    "round, slot, swirl, displacement), grilles (supply, extract, linear",
+    "bar, perforated face), louvres, VAV terminals, and ceiling plenum."
+  ],
+  "symbols": [
+    {
+      "id": "STING_SEED_AirTerminal",
+      "name": "STING Seed — Air Terminal",
+      "category": "Air Terminals",
+      "familyType": "SeedFamily",
+      "discipline": "Mechanical",
+      "subcategory": "STING_SEED",
+      "isSeed": true,
+      "protectExisting": true,
+      "hosting": "CeilingBased",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_AirTerminal"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "M"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "DIF"
+        },
+        {
+          "name": "HVC_TERM_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "SUPPLY_DIFFUSER_SQ"
+        },
+        {
+          "name": "HVC_TERM_FLOW_LS",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "100"
+        },
+        {
+          "name": "HVC_TERM_NECK_DN_MM",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "200"
+        },
+        {
+          "name": "HVC_TERM_THROW_M",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "3"
+        },
+        {
+          "name": "HVC_TERM_NOISE_DBA",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "30"
+        }
+      ],
+      "connectors": [
+        {
+          "domain": "HVAC",
+          "systemType": "SupplyAir",
+          "shape": "Round",
+          "sizeMm": 200,
+          "direction": "In",
+          "offsetX": 0.0,
+          "offsetY": 0.0,
+          "offsetZ": 0.5,
+          "facing": "+Z"
+        }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.5, "x2": 0.5, "y2": -0.5 },
+          { "x1": 0.5, "y1": -0.5, "x2": 0.5, "y2": 0.5 },
+          { "x1": 0.5, "y1": 0.5, "x2": -0.5, "y2": 0.5 },
+          { "x1": -0.5, "y1": 0.5, "x2": -0.5, "y2": -0.5 },
+          { "x1": -0.25, "y1": 0.0, "x2": 0.25, "y2": 0.0 },
+          { "x1": 0.0, "y1": -0.25, "x2": 0.0, "y2": 0.25 },
+          { "x1": -0.18, "y1": -0.18, "x2": 0.18, "y2": 0.18 },
+          { "x1": -0.18, "y1": 0.18, "x2": 0.18, "y2": -0.18 }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 595,
+        "depthMm": 595,
+        "heightMm": 60
+      },
+      "swapCandidates": [
+        {
+          "label": "Trox / Price Diffuser Range",
+          "familyPath": "",
+          "variantPattern": "SUPPLY_DIFFUSER_*",
+          "priority": 1,
+          "autoLoad": false
+        },
+        {
+          "label": "Holyoake / Waterloo VAV Terminal",
+          "familyPath": "",
+          "variantPattern": "VAV_*",
+          "priority": 2,
+          "autoLoad": false
+        }
+      ],
+      "typeVariants": [
+        {
+          "_group": "--- SQUARE / RECTANGULAR DIFFUSERS ---"
+        },
+        {
+          "name": "SUPPLY_DIFFUSER_SQ",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "SUPPLY_DIFFUSER_SQ",
+            "ASS_PRODCT_COD_TXT": "DIF",
+            "HVC_TERM_FLOW_LS": "100"
+          }
+        },
+        {
+          "_group": "--- ROUND DIFFUSERS ---"
+        },
+        {
+          "name": "SUPPLY_DIFFUSER_RD",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "SUPPLY_DIFFUSER_RD",
+            "ASS_PRODCT_COD_TXT": "DIF-R",
+            "HVC_TERM_FLOW_LS": "80",
+            "HVC_TERM_NECK_DN_MM": "150"
+          }
+        },
+        {
+          "name": "EXTRACT_DIFFUSER_RD",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "EXTRACT_DIFFUSER_RD",
+            "ASS_PRODCT_COD_TXT": "EXD-R",
+            "HVC_TERM_FLOW_LS": "80",
+            "HVC_TERM_NECK_DN_MM": "150"
+          }
+        },
+        {
+          "name": "SWIRL_DIFFUSER",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "SWIRL_DIFFUSER",
+            "ASS_PRODCT_COD_TXT": "SWD",
+            "HVC_TERM_FLOW_LS": "150",
+            "HVC_TERM_NECK_DN_MM": "200"
+          }
+        },
+        {
+          "_group": "--- SLOT DIFFUSER ---"
+        },
+        {
+          "name": "SLOT_DIFFUSER",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "SLOT_DIFFUSER",
+            "ASS_PRODCT_COD_TXT": "SLT",
+            "HVC_TERM_FLOW_LS": "75"
+          }
+        },
+        {
+          "_group": "--- GRILLES ---"
+        },
+        {
+          "name": "SUPPLY_GRILLE",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "SUPPLY_GRILLE",
+            "ASS_PRODCT_COD_TXT": "GRL",
+            "HVC_TERM_FLOW_LS": "120"
+          }
+        },
+        {
+          "name": "EXTRACT_GRILLE",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "EXTRACT_GRILLE",
+            "ASS_PRODCT_COD_TXT": "EXG",
+            "HVC_TERM_FLOW_LS": "100"
+          }
+        },
+        {
+          "name": "LINEAR_BAR_GRILLE",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "LINEAR_BAR_GRILLE",
+            "ASS_PRODCT_COD_TXT": "LBG",
+            "HVC_TERM_FLOW_LS": "90"
+          }
+        },
+        {
+          "name": "PERFORATED_FACE_DIFFUSER",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "PERFORATED_FACE_DIFFUSER",
+            "ASS_PRODCT_COD_TXT": "PFD",
+            "HVC_TERM_FLOW_LS": "110"
+          }
+        },
+        {
+          "_group": "--- LOUVRE ---"
+        },
+        {
+          "name": "LOUVRE",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "LOUVRE",
+            "ASS_PRODCT_COD_TXT": "LVR",
+            "HVC_TERM_FLOW_LS": "500"
+          }
+        },
+        {
+          "_group": "--- VAV TERMINALS ---"
+        },
+        {
+          "name": "VAV_SUPPLY",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "VAV_SUPPLY",
+            "ASS_PRODCT_COD_TXT": "VAV-S",
+            "HVC_TERM_FLOW_LS": "200",
+            "HVC_TERM_NECK_DN_MM": "250"
+          }
+        },
+        {
+          "name": "VAV_EXTRACT",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "VAV_EXTRACT",
+            "ASS_PRODCT_COD_TXT": "VAV-E",
+            "HVC_TERM_FLOW_LS": "200",
+            "HVC_TERM_NECK_DN_MM": "250"
+          }
+        },
+        {
+          "_group": "--- SPECIALIST ---"
+        },
+        {
+          "name": "CEILING_SUPPLY_PLENUM",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "CEILING_SUPPLY_PLENUM",
+            "ASS_PRODCT_COD_TXT": "CSP",
+            "HVC_TERM_FLOW_LS": "300",
+            "HVC_TERM_NECK_DN_MM": "315"
+          }
+        },
+        {
+          "name": "DISPLACEMENT_UNIT",
+          "params": {
+            "HVC_TERM_TYPE_TXT": "DISPLACEMENT_UNIT",
+            "ASS_PRODCT_COD_TXT": "DSP",
+            "HVC_TERM_FLOW_LS": "50",
+            "HVC_TERM_THROW_M": "1"
+          }
+        }
+      ]
+    }
+  ]
+}

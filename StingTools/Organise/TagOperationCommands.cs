@@ -154,6 +154,8 @@ namespace StingTools.Organise
             if (visualTagsPlaced == 0 && stats.TotalTagged > 0)
                 report += "\n\nNote: No visual tags could be placed. Use 'Smart Place Tags' for advanced annotation placement.";
             TaskDialog.Show("Tag Selected", report);
+            // Phase 165 follow-up — explicit batch teardown.
+            TokenAutoPopulator.PopulationContext.EndSession();
             return Result.Succeeded;
         }
 
@@ -268,6 +270,8 @@ namespace StingTools.Organise
             StingAutoTagger.InvalidateContext();
 
             TaskDialog.Show("Re-Tag", $"Re-tagged {retagged} of {selected.Count} elements.");
+            // Phase 165 follow-up — explicit batch teardown.
+            TokenAutoPopulator.PopulationContext.EndSession();
             return Result.Succeeded;
         }
     }
@@ -3953,21 +3957,29 @@ namespace StingTools.Organise
         /// away from the leader line with proper clearance.
         /// Falls back to host center when elbow data is unavailable.
         /// </summary>
+        // Diagnostic counters from the most recent AutoAlignTagsToLeaders call.
+        // Surfaced by the caller's TaskDialog so users see WHY a leader op
+        // appeared to do nothing (review fix for leader-and-style #3).
+        public static int LastAutoAlignOrphanCount;
+        public static int LastAutoAlignNoLeaderCount;
+
         public static int AutoAlignTagsToLeaders(Document doc, List<IndependentTag> tags, View view)
         {
             int aligned = 0;
+            int orphans = 0;
+            int noLeader = 0;
             double scaleFactor = view.Scale / 100.0; // Normalize scale for offset calculations
 
             foreach (IndependentTag tag in tags)
             {
                 try
                 {
-                    if (!tag.HasLeader) continue;
+                    if (!tag.HasLeader) { noLeader++; continue; }
 
                     var hostIds = tag.GetTaggedLocalElementIds();
-                    if (hostIds.Count == 0) continue;
+                    if (hostIds.Count == 0) { orphans++; continue; }
                     Element host = doc.GetElement(hostIds.First());
-                    if (host == null) continue;
+                    if (host == null) { orphans++; continue; }
 
                     XYZ hostCenter = GetElementCenter(host);
                     if (hostCenter == null) continue;
@@ -4037,6 +4049,11 @@ namespace StingTools.Organise
                     StingLog.Warn($"AutoAlignTag {tag.Id}: {ex.Message}");
                 }
             }
+            LastAutoAlignOrphanCount = orphans;
+            LastAutoAlignNoLeaderCount = noLeader;
+            if (orphans > 0 || noLeader > 0)
+                StingLog.Info($"AutoAlignTagsToLeaders: aligned={aligned}, " +
+                    $"orphans (no host)={orphans}, no-leader={noLeader}");
             return aligned;
         }
     }
@@ -4299,9 +4316,15 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
+            // Surface orphan / missing-host counts so users see why
+            // some tags appeared to be skipped (review fix #3).
+            string orphanNote = "";
+            if (LeaderHelper.LastAutoAlignOrphanCount > 0)
+                orphanNote = $"\n⚠ {LeaderHelper.LastAutoAlignOrphanCount} tags skipped: " +
+                    "host element missing or unbound (orphaned tags).";
             TaskDialog.Show("Auto-Align Leader Text",
                 $"Auto-aligned {aligned} of {tags.Count} tagged leaders.\n" +
-                "Tags repositioned so text reads away from leader direction.");
+                "Tags repositioned so text reads away from leader direction." + orphanNote);
             return Result.Succeeded;
         }
     }

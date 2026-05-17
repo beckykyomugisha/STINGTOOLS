@@ -106,6 +106,14 @@ namespace StingTools.Core.Placement
         }
 
         /// <summary>
+        /// Phase 139.27 (M-05) — last validation result, surfaced to the
+        /// engine and result panel so misconfigured rules don't only show
+        /// up in the .log file (where users never look). Cleared and
+        /// rebuilt by every <see cref="MergeRules"/> call.
+        /// </summary>
+        public static List<string> LastValidationWarnings { get; private set; } = new List<string>();
+
+        /// <summary>
         /// Project overrides win on MergeKey match. Rules with a unique
         /// MergeKey are appended. Priority is NOT used for merge — it is
         /// a scoring tie-breaker at placement time.
@@ -115,12 +123,24 @@ namespace StingTools.Core.Placement
             List<PlacementRule> overrides)
         {
             var result = new Dictionary<string, PlacementRule>(StringComparer.OrdinalIgnoreCase);
+            var warnings = new List<string>();
 
             if (defaults != null)
             {
                 foreach (var rule in defaults)
                 {
                     if (rule == null) continue;
+                    // Phase 139.27 (M-04) — track BOTH sources of the
+                    // colliding MergeKey so the warning is actionable.
+                    // Pre-139.27 the warning only named the loser's
+                    // SourcePack; users couldn't tell which pack file to
+                    // edit because the winner is anonymous.
+                    if (result.TryGetValue(rule.MergeKey, out var existing))
+                    {
+                        string msg = $"PlacementRuleLoader: duplicate MergeKey '{rule.MergeKey}' — pack '{rule.SourcePack ?? "?"}' overrides earlier '{existing.SourcePack ?? "?"}'. Truncated RuleIds may collide silently — verify the long form differs.";
+                        warnings.Add(msg);
+                        StingLog.Warn(msg);
+                    }
                     result[rule.MergeKey] = rule.Clone();
                 }
             }
@@ -130,12 +150,88 @@ namespace StingTools.Core.Placement
                 foreach (var rule in overrides)
                 {
                     if (rule == null) continue;
-                    // Project override wins on same merge key.
+                    // Project override wins on same merge key — that's by design;
+                    // surface as Info-level so the user can confirm the override
+                    // landed without flooding the warnings list.
+                    if (result.ContainsKey(rule.MergeKey))
+                        StingLog.Info($"PlacementRuleLoader: project override '{rule.MergeKey}' replaces baseline rule.");
                     result[rule.MergeKey] = rule.Clone();
                 }
             }
 
+            ValidateRuleSet(result.Values, warnings);
+            LastValidationWarnings = warnings;
             return new List<PlacementRule>(result.Values);
+        }
+
+        /// <summary>
+        /// Phase 139.4 — log warnings for misconfigured rules so they
+        /// surface at session start instead of failing silently inside
+        /// the engine. Validation never throws — degraded-mode load
+        /// still returns the rules. Phase 139.27 (M-05) — also append
+        /// every validation warning into <paramref name="sink"/> so the
+        /// engine can surface them in <see cref="PlacementResult.Warnings"/>.
+        /// </summary>
+        private static void ValidateRuleSet(IEnumerable<PlacementRule> rules, List<string> sink)
+        {
+            if (rules == null) return;
+            foreach (var r in rules)
+            {
+                if (r == null) continue;
+
+                // Density rule must declare at least one rate.
+                if (r.RuleKind == PlacementRuleKind.Density
+                    && r.PerAreaM2 <= 0 && r.PerOccupant <= 0
+                    && r.PerBed <= 0 && r.PerWorkstation <= 0
+                    && r.PerPupil <= 0 && r.PerToiletCubicle <= 0)
+                {
+                    string msg = $"PlacementRuleLoader: rule '{r.MergeKey}' is RuleKind=Density but declares no PerAreaM2/PerOccupant/PerBed/PerWorkstation/PerPupil/PerToiletCubicle rate. Will place at most one fixture per room.";
+                    sink?.Add(msg);
+                    StingLog.Warn(msg);
+                }
+
+                // Routing rule must declare a segment category.
+                if (!string.IsNullOrEmpty(r.RoutingMode)
+                    && !string.Equals(r.RoutingMode, "NONE", StringComparison.OrdinalIgnoreCase)
+                    && string.IsNullOrEmpty(r.RouteSegmentCategory))
+                {
+                    string msg = $"PlacementRuleLoader: rule '{r.MergeKey}' has RoutingMode={r.RoutingMode} but no RouteSegmentCategory — defaulting to PIPE.";
+                    sink?.Add(msg);
+                    StingLog.Warn(msg);
+                }
+
+                // Two-phase + cluster contradiction (#43): cluster placement
+                // assumes a single XYZ for the whole frame, two-phase assumes
+                // per-rule first-fix boxes — they don't compose.
+                if (r.TwoPhaseEnabled && r.IsClusterMember)
+                {
+                    string msg = $"PlacementRuleLoader: rule '{r.MergeKey}' has both TwoPhaseEnabled and IsClusterMember — undefined behaviour. Disabling cluster membership for this rule.";
+                    sink?.Add(msg);
+                    StingLog.Warn(msg);
+                    r.IsClusterMember = false;
+                }
+
+                // Density rule with MaxPerRoom = 0 may runaway in big rooms.
+                if (r.RuleKind == PlacementRuleKind.Density && r.MaxPerRoom == 0)
+                {
+                    StingLog.Info($"PlacementRuleLoader: rule '{r.MergeKey}' is Density with MaxPerRoom=0 — placement count is bounded only by PerAreaM2/PerOccupant.");
+                }
+
+                // Phase 139.27 (M-05) — flag truncated RuleIds so users
+                // know their rule may collide with another rule whose
+                // long form starts the same. The MergeKey is whatever
+                // PlacementRule.MergeKey returns; if the underlying
+                // RuleId looks truncated (≥ 50 chars and not ending in
+                // a delimiter), warn. This is a heuristic, not a hard
+                // gate.
+                if (!string.IsNullOrEmpty(r.RuleId) && r.RuleId.Length >= 50
+                    && !r.RuleId.EndsWith("-") && !r.RuleId.EndsWith("_"))
+                {
+                    string msg = $"PlacementRuleLoader: rule '{r.MergeKey}' RuleId is {r.RuleId.Length} chars — may have been truncated. Two rules whose long form starts the same will silently collide on MergeKey.";
+                    sink?.Add(msg);
+                    StingLog.Warn(msg);
+                }
+            }
         }
 
         /// <summary>

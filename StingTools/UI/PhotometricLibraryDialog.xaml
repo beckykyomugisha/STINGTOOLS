@@ -1,0 +1,100 @@
+<Window x:Class="StingTools.UI.PhotometricLibraryDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="STING — Photometric Library"
+        Width="980" Height="640" MinWidth="640" MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        Background="#FF1E1E1E" Foreground="#FFEEEEEE">
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="160"/>
+            <RowDefinition Height="40"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,6">
+            <TextBlock Text="🔎" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="14"/>
+            <TextBox x:Name="txtSearch" DockPanel.Dock="Left" Width="280" Height="26"
+                     Background="#FF252525" Foreground="#FFEEEEEE"
+                     BorderBrush="#FF4FC3F7" Margin="0,0,8,0"
+                     VerticalContentAlignment="Center" Padding="6,0"
+                     ToolTip="Filter by manufacturer, name or filename"
+                     TextChanged="Search_TextChanged"/>
+            <Button x:Name="btnRescan" DockPanel.Dock="Left" Content="🔄 Rescan"
+                    Width="80" Height="26" Margin="0,0,4,0"
+                    Background="#FF333333" Foreground="#FFEEEEEE"
+                    Click="Rescan_Click"/>
+            <Button x:Name="btnAddRoot" DockPanel.Dock="Left" Content="📁 Add Root…"
+                    Width="100" Height="26" Margin="0,0,4,0"
+                    Background="#FF333333" Foreground="#FFEEEEEE"
+                    Click="AddRoot_Click"/>
+            <Button x:Name="btnPreflight" DockPanel.Dock="Right" Content="⚙ Pre-Flight"
+                    Width="100" Height="26"
+                    Background="#FF333333" Foreground="#FFEEEEEE"
+                    Click="Preflight_Click"
+                    ToolTip="Audit the model for photometric round-trip readiness"/>
+            <TextBlock x:Name="txtRootSummary" DockPanel.Dock="Right" Margin="8,0"
+                       VerticalAlignment="Center" FontSize="10" Foreground="#FF888888"/>
+        </DockPanel>
+
+        <!-- Library grid -->
+        <DataGrid Grid.Row="1" x:Name="LibraryGrid"
+                  AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+                  HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                  Background="#FF252525" Foreground="#FFEEEEEE"
+                  RowBackground="#FF252525" AlternatingRowBackground="#FF2A2A2A"
+                  BorderThickness="0" SelectionChanged="Library_SelectionChanged">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="File" Binding="{Binding FileName}" Width="220"/>
+                <DataGridTextColumn Header="Format" Binding="{Binding FileFormat}" Width="60"/>
+                <DataGridTextColumn Header="Manufacturer" Binding="{Binding Manufacturer}" Width="140"/>
+                <DataGridTextColumn Header="Luminaire" Binding="{Binding LuminaireName}" Width="*"/>
+                <DataGridTextColumn Header="Lumens" Binding="{Binding LumensDisplay}" Width="70"/>
+                <DataGridTextColumn Header="Watts" Binding="{Binding WattsDisplay}" Width="60"/>
+                <DataGridTextColumn Header="lm/W" Binding="{Binding EfficacyDisplay}" Width="55"/>
+                <DataGridTextColumn Header="Beam°" Binding="{Binding BeamDisplay}" Width="55"/>
+                <DataGridTextColumn Header="CCT K" Binding="{Binding CctDisplay}" Width="55"/>
+                <DataGridTextColumn Header="CRI" Binding="{Binding CriDisplay}" Width="40"/>
+                <DataGridTextColumn Header="Symmetry" Binding="{Binding Symmetry}" Width="80"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Detail panel -->
+        <Border Grid.Row="2" Margin="0,4,0,4" Padding="8"
+                BorderBrush="#FF4FC3F7" BorderThickness="1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="DETAIL" FontWeight="Bold" Foreground="#FF4FC3F7" FontSize="11" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="txtDetailHeader" Text="Select a row above" Foreground="#FFEEEEEE" FontSize="11"/>
+                    <TextBlock x:Name="txtDetailPath" Text="" Foreground="#FF888888" FontSize="9" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="txtDetailMetrics" Text="" Foreground="#FFEEEEEE" FontSize="10" Margin="0,6,0,0"/>
+                    <TextBlock x:Name="txtDetailWarnings" Text="" Foreground="#FFFF6B6B" FontSize="10" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                    <TextBlock Text="ASSIGN TO" FontWeight="Bold" Foreground="#FF4FC3F7" FontSize="11" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="txtAssignTargets" Text="(no fixtures selected — pick one or more lighting fixtures in the model and click Assign)"
+                               Foreground="#FFEEEEEE" FontSize="10" TextWrapping="Wrap"/>
+                    <Button x:Name="btnAssign" Content="▶ Assign to Selected Fixtures"
+                            Margin="0,8,0,0" Height="28" MinWidth="220"
+                            Background="#FF1976D2" Foreground="White" FontWeight="Bold"
+                            Click="Assign_Click" IsEnabled="False"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+            <TextBlock x:Name="StatusLabel" VerticalAlignment="Center" Margin="0,0,12,0"
+                       Foreground="#FF888888"/>
+            <Button Content="Close" Width="70" Height="28"
+                    Click="Close_Click"
+                    Background="#FF333333" Foreground="#FFEEEEEE"/>
+        </StackPanel>
+    </Grid>
+</Window>

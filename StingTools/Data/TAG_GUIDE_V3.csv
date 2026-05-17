@@ -1,6 +1,12 @@
 ## STING TAG GUIDE V3 — Comprehensive Tag Configuration & Manual Input Reference
-## Version: 3.0 | Date: 2026-03-03 | Standard: ISO 19650 | Plugin: StingTools v1.0
+## Version: 3.2 | Date: 2026-05-06 | Standard: ISO 19650 + BS EN 62305 | Plugin: StingTools v1.0
 ## Replaces: TAG GUIDE V2.xlsx and TAG_GUIDE.xlsx
+## v3.2 / Phase 175: + 4 ELC_CIRCUIT_* manual-input parameters for SLD label rendering (REF / RATING /
+##                   POLES / LABEL). SymbolAnnotationEngine prefers STING-prefixed names; bare
+##                   CIRCUIT_REF / RATING / POLES / LABEL remain as fallback for imported families.
+## v3.1 / Phase 176: + SYS=LPS, + 6 LPS FUNC sub-codes (AT/DC/EE/BOND/SPD/TC), + 14 LPS PROD codes,
+##                   + 7 LPS containers, + 19 LPS manual-input parameters. WARN_ELC_LPS_* parameters
+##                   are TEXT type per Revit-label calculated-value rule.
 ## Note: External formulae and Dynamo workflows removed — all operations use STING CombineParameters
 ##
 ## ═══════════════════════════════════════════════════════════════════════════════
@@ -53,6 +59,7 @@ COM,Communications,LV,"Communication Devices, Data Devices",COM,"Select for data
 ICT,ICT Infrastructure,LV,"Communication Devices, Data Devices",ICT,"Select for structured cabling, server rooms, network infrastructure."
 SEC,Security Systems,LV,"Security Devices",SEC,"Select for CCTV, access control, intruder detection."
 NCL,Nurse Call / Life Safety,LV,"Nurse Call Devices",NCL,"Select for nurse call, patient monitoring, emergency call systems."
+LPS,Lightning Protection System,E,"Electrical Equipment, Generic Models, Conduits, Conduit Fittings, Specialty Equipment","AT, DC, EE, BOND, SPD, TC","Select for BS EN 62305 lightning protection — air terminals, down conductors, earth electrodes, bonds, SPDs, test clamps. Family-name auto-detection sets SYS=LPS for any element whose family/type contains 'LPS', 'Lightning', 'Air Terminal', 'Down Conductor', 'Earth Rod', 'Earth Electrode', 'Equipotential', 'Test Clamp' or 'Spark Gap'."
 ARC,Architectural,A,"Walls, Doors, Windows, Floors, Ceilings, Roofs",ARC,"Default for architectural elements."
 STR,Structural,S,"Structural Columns, Structural Framing, Structural Foundations",STR,"Default for structural elements."
 GEN,General,G,"Generic Models, Topography",GEN,"Default for unclassified elements."
@@ -83,6 +90,13 @@ NCL,Nurse Call,NCL,Nurse call and patient monitoring,Default function for NCL sy
 ARC,Architectural,ARC,General architectural function,Default function for ARC system
 STR,Structural,STR,Structural support function,Default function for STR system
 GEN,General,GEN,Unclassified function,Fallback for all unmapped elements
+LPS,Lightning Protection,LPS,Generic LPS function — sub-functions resolve via family name,Default function for SYS=LPS
+AT,Air Termination,LPS,"Air terminal / finial / mesh / catenary (BS EN 62305-3 §5.2)",Family contains 'Air Terminal' / 'Finial' / 'Air Mesh' / 'Catenary'
+DC,Down Conductor,LPS,"Descent conductor — BS EN 62305-3 §5.3, min count = class minimum",Family contains 'Down Conductor' / 'DownCond' / 'Descent'
+EE,Earth Electrode,LPS,"Rod / ring / foundation / mesh earth (BS EN 62305-3 §5.4)",Family contains 'Earth Rod' / 'Earth Electrode' / 'Ring Earth' / 'Foundation Earth' / 'Mesh Earth'
+BOND,Equipotential Bonding,LPS,"Bond conductor / bonding bar / spark gap (BS EN 62305-3 §6.2)",Family contains 'Equipotential' / 'Bonding Bar' / 'Earth Bar' / 'Spark Gap'
+SPD,Surge Protective Device,LPS,"SPD Type 1/2/3 (BS EN 62305-4 / BS EN 61643)",Family contains 'SPD' or 'Surge Protect' AND 'Lightning' / 'Type 1/2/3'
+TC,Test Clamp,LPS,"Inspection point for periodic earth resistance test (BS EN 62305-3 §7.2)",Family contains 'Test Clamp' / 'Inspection Point'
 ##
 ## ═══════════════════════════════════════════════════════════════════════════════
 ## SHEET 5: PRODUCT CODES (PROD) — Family-Aware Mapping
@@ -112,6 +126,21 @@ ACR,Access Reader,Security Devices,"Access, Card Reader, Keypad","Use for access
 SEN,Sensor,Mechanical Equipment,"Sensor, Temperature, Humidity, Pressure","Use for sensors and meters."
 MET,Meter,Mechanical Equipment,"Meter, Flow Meter, Energy","Use for flow/energy meters."
 TNK,Tank,Plumbing Equipment,"Tank, Water Tank, Storage","Use for water storage tanks."
+ATR,Air Terminal Rod,"Electrical Equipment, Generic Models, Specialty Equipment","Air Terminal, Finial, Strike Termination, Air Rod","LPS air-termination rod / finial (BS EN 62305-3 §5.2)."
+AMS,Air Mesh Section,"Generic Models","Air Mesh, Mesh Node","LPS roof mesh section node — used in mesh-method air termination."
+ACT,Air Catenary,"Generic Models","Catenary","LPS air-termination catenary wire."
+DCN,Down Conductor,"Conduits, Generic Models","Down Conductor, DownCond, Descent","LPS down conductor segment (BS EN 62305-3 §5.3)."
+ERD,Earth Rod,"Generic Models, Specialty Equipment","Earth Rod, Rod Earth, Earth Electrode, Earth Plate","LPS Type-A earth electrode (rod/plate) per BS EN 62305-3 §5.4."
+ERG,Ring Earth,"Generic Models","Ring Earth, Earth Ring","LPS Type-B ring earth electrode."
+EFE,Foundation Earth,"Generic Models, Specialty Equipment","Foundation Earth","LPS Type-B foundation earth electrode (in concrete)."
+EME,Mesh Earth,"Generic Models","Mesh Earth, Earth Mesh","LPS Type-B mesh earth network."
+BCN,Bond Conductor,"Generic Models, Conduits","Equipotential, Bond Conductor","LPS equipotential bond conductor (BS EN 62305-3 §6.2)."
+BBR,Bonding Bar,"Electrical Equipment, Generic Models","Bonding Bar, Earth Bar","LPS main equipotential bonding bar."
+BSG,Spark Gap,"Electrical Equipment, Specialty Equipment","Spark Gap","LPS isolating spark gap for indirect bonding."
+SPD1,SPD Type 1,Electrical Equipment,"SPD Type 1, Class I SPD","Lightning current arrester at LPZ 0/1 boundary (BS EN 61643-11)."
+SPD2,SPD Type 2,Electrical Equipment,"SPD Type 2, Class II SPD","Surge arrester at LPZ 1/2 boundary."
+SPD3,SPD Type 3,Electrical Equipment,"SPD Type 3, Class III SPD","Equipment-protection SPD at point of use."
+TCL,Test Clamp,"Electrical Equipment, Generic Models, Specialty Equipment","Test Clamp, Inspection Point","LPS test clamp / inspection point (BS EN 62305-3 §7.2)."
 WCL,WC / Toilet,Plumbing Fixtures,"WC, Toilet, Lavatory","Use for toilet fixtures."
 BSN,Basin,Plumbing Fixtures,"Basin, Wash Basin, Sink","Use for wash basins and sinks."
 SHW,Shower,Plumbing Fixtures,"Shower","Use for shower fixtures."
@@ -182,6 +211,13 @@ Material,MAT_TAG_3_TXT,"1,2,3",-,Material tag 3 (location),Auto-populated.
 Material,MAT_TAG_4_TXT,"4,5",-,Material tag 4 (system),Auto-populated.
 Material,MAT_TAG_5_TXT,"0,1,2,3,4,5,6,7",newline,Material tag 5 (multi-line),Auto-populated.
 Material,MAT_TAG_6_TXT,"0,1,2,3,4,5,6,7",newline,Material tag 6 (multi-line),Auto-populated.
+LPS,ELC_LPS_AIRTERM_TAG_TXT,"0,1,2,3,4,5,6,7",-,Lightning protection air terminal tag,Auto-populated for LPS air terminal / finial families per BS EN 62305-3 §5.2.
+LPS,ELC_LPS_DOWNCOND_TAG_TXT,"0,1,2,3,4,5,6,7",-,Lightning protection down conductor tag,Auto-populated for LPS down conductor families per BS EN 62305-3 §5.3.
+LPS,ELC_LPS_EARTH_TAG_TXT,"0,1,2,3,4,5,6,7",-,Lightning protection earth electrode tag,Auto-populated for LPS earth rod / ring / foundation / mesh families per BS EN 62305-3 §5.4.
+LPS,ELC_LPS_BOND_TAG_TXT,"0,1,2,3,4,5,6,7",-,Lightning protection equipotential bond tag,Auto-populated for LPS bond conductor / bonding bar families per BS EN 62305-3 §6.2.
+LPS,ELC_LPS_SPD_TAG_TXT,"0,1,2,3,4,5,6,7",-,Lightning protection SPD tag,Auto-populated for SPD Type 1/2/3 families per BS EN 62305-4 / BS EN 61643.
+LPS,ELC_LPS_TESTCLAMP_TAG_TXT,"0,1,2,3,4,5,6,7",-,Lightning protection test clamp tag,Auto-populated for LPS test clamp / inspection point families per BS EN 62305-3 §7.2.
+LPS,ELC_TAG_7_PARA_LPS_TXT,—,—,LPS TAG7 paragraph container,"Auto-populated. Holds class, LPZ, conductor counts, earth resistance, separation distance and compliance verdict for the LPS narrative section."
 ##
 ## ═══════════════════════════════════════════════════════════════════════════════
 ## SHEET 9: TAG7 — Rich Descriptive Narrative Sections
@@ -256,6 +292,29 @@ ASS_PMT_INV_UNIT_TXT,TEXT,Cost,NO,Auto,"Measurement unit (NO/LM/SM/CM)","Element
 ASS_MNT_TYPE_TXT,TEXT,Maintenance,NO,"","Maintenance type/schedule","Element properties panel","Enter for TAG7D section. E.g. 'Quarterly service' or 'Annual inspection'."
 ASS_FIRE_RATING_TXT,TEXT,Fire,NO,"","Fire rating classification","Element properties panel","Enter for fire-rated elements. E.g. 'FRL 120/120/120' or '2HR'."
 ASS_KEYNOTE_TXT,TEXT,Classification,NO,"","Keynote reference","Element properties panel","Enter for TAG7F section and specification cross-reference."
+ELC_LPS_CLASS_TXT,TEXT,LPS,YES,"","LPS class — I/II/III/IV per BS EN 62305-2 risk assessment","Element properties panel","Enter on every lightning-protection element BEFORE tagging. Drives down-conductor min count, mesh max, inspection interval."
+ELC_LPS_ZONE_TXT,TEXT,LPS,YES,"","Lightning protection zone — LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3 (BS EN 62305-4)","Element properties panel","Enter for every LPS element to record the zone topology of the building."
+ELC_LPS_AIR_TERMINAL_COUNT_NR,TEXT,LPS,YES,0,Air terminal count on protected zone,Element properties panel,Enter on the lead air-terminal element only — used for compliance roll-up.
+ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,TEXT,LPS,YES,0,Down conductor count,Element properties panel,Enter on the lead down-conductor element. Min 4 (Class I) / 3 (II) / 2 (III/IV) — validator fires if below.
+ELC_LPS_EARTH_ELECTRODE_COUNT_NR,TEXT,LPS,YES,0,Earth electrode count,Element properties panel,Enter on the lead earth-electrode element.
+ELC_LPS_EARTH_RESISTANCE_OHM,TEXT,LPS,YES,0,Measured earth resistance in Ω,Element properties panel,Enter after commissioning earth test. Validator fires if > 10 Ω.
+ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,TEXT,LPS,YES,0,Down conductor cross-section in mm²,Element properties panel,Enter to verify class minimum (50 mm² Cu / 70 mm² Al / 50 mm² Steel).
+ELC_LPS_CONDUCTOR_MATERIAL_TXT,TEXT,LPS,YES,COPPER,"Conductor material — COPPER / ALUMINIUM / STEEL","Element properties panel","Drives separation distance km factor and minimum cross-section validator."
+ELC_LPS_BOND_TYPE_TXT,TEXT,LPS,YES,"","Bonding type — DIRECT / SPD / ISOLATING_SPARK_GAP","Element properties panel","Enter on each bond element. Validator fires if empty."
+ELC_LPS_SURGE_PROTECTION_LVL_TXT,TEXT,LPS,NO,"","SPD type — Type 1 / Type 2 / Type 3","Element properties panel","Enter on each SPD element."
+ELC_LPS_SEPARATION_DISTANCE_MM,TEXT,LPS,NO,0,Separation distance s (mm) between LPS and services,Element properties panel,Enter computed s = ki·kc·l/km — validator fires if below safe minimum.
+ELC_LPS_PROTECTION_ANGLE_DEG,TEXT,LPS,NO,0,Protection cone half-angle (°),Element properties panel,Enter when using protection-angle method (BS EN 62305-3 §A.2).
+ELC_LPS_MESH_SIZE_M,TEXT,LPS,NO,0,Air-termination mesh size (m),Element properties panel,"Enter when using mesh method. Class limits: I=5×5, II=10×10, III=15×15, IV=20×20 m."
+ELC_LPS_ROLLING_SPHERE_RADIUS_M,TEXT,LPS,NO,0,Rolling sphere radius (m),Element properties panel,"Enter when using rolling-sphere method. Class radii: I=20, II=30, III=45, IV=60 m."
+ELC_LPS_RISK_ASSESSMENT_TXT,TEXT,LPS,YES,"","BS EN 62305-2 risk assessment reference (R1..R4)","Project Information or element properties","Enter the risk-assessment document reference. Validator fires if empty."
+ELC_LPS_INSPECTION_INTERVAL_MONTHS,TEXT,LPS,YES,12,Inspection interval in months,Element properties panel,Enter 12 (Class I/II) or 24 (Class III/IV).
+ELC_LPS_TEST_DATE_TXT,TEXT,LPS,NO,"","ISO 8601 date of last LPS test","Element properties panel","Enter after each commissioning / periodic test (yyyy-mm-dd)."
+ELC_LPS_CERT_REF_TXT,TEXT,LPS,NO,"","Certificate / commissioning report reference","Element properties panel","Enter the BS EN 62305 certification document reference."
+ELC_LPS_EARTH_TYPE_TXT,TEXT,LPS,NO,"","Earth electrode type — ROD / RING / FOUNDATION / MESH","Element properties panel","Enter to record Type-A vs Type-B earth electrode design."
+ELC_CIRCUIT_REF_TXT,TEXT,SLD,NO,"","Electrical circuit reference (e.g. L1 / DB1-3) — rendered into SLD labels","Element properties panel","Enter on distribution-board outgoing circuits + protective devices for SLD label rendering. SymbolAnnotationEngine reads this first; falls back to bare CIRCUIT_REF for imported families."
+ELC_CIRCUIT_RATING_TXT,TEXT,SLD,NO,"","Circuit / device rating string (e.g. 32A / 100A) — rendered into SLD labels","Element properties panel","Enter the protective device rating string. Auto-included in SLD labels via {rating} token in AnnotationRules.RatingFormat."
+ELC_CIRCUIT_POLES_NR,INTEGER,SLD,NO,0,"Number of poles (1/2/3/4) for circuit breakers and switches","Element properties panel","Enter pole count for SLD label rendering. Used in {poles} token of AnnotationRules.RatingFormat (e.g. '32A 3P')."
+ELC_CIRCUIT_LABEL_TXT,TEXT,SLD,NO,"","Free-text display-label override appended to SLD label","Element properties panel","Enter a free-text label that gets appended after circuit ref + rating in the SLD annotation."
 ##
 ## ═══════════════════════════════════════════════════════════════════════════════
 ## SHEET 12: TAGGING WORKFLOW — Step-by-Step Guide

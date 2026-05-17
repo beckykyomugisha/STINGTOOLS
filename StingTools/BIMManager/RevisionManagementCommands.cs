@@ -154,6 +154,21 @@ namespace StingTools.BIMManager
                             catch (Exception wsEx) { Core.StingLog.Warn($"Snapshot workset capture: {wsEx.Message}"); }
                             // MEP system context for system-level change classification
                             tokens["_SYSTEM"] = ParameterHelpers.GetString(el, "ASS_SYSTEM_TYPE_TXT");
+                            // Phase 175 — capture design option context so
+                            // RevisionCompare can group deltas per option.
+                            // Without this, accepting Option B emits a
+                            // misleading "every Option A element removed"
+                            // delta. Stored under "_OPTION_SET" /
+                            // "_OPTION" / "_OPTION_PRIMARY".
+                            try
+                            {
+                                var dopt = el.DesignOption;
+                                tokens["_OPTION"] = dopt?.Name ?? "";
+                                tokens["_OPTION_PRIMARY"] = (dopt == null || dopt.IsPrimary) ? "1" : "0";
+                                tokens["_OPTION_SET"] = ParameterHelpers.GetString(el,
+                                    StingTools.Core.DesignOptions.DesignOptionParams.OPTION_SET_TXT);
+                            }
+                            catch (Exception optEx) { Core.StingLog.Warn($"Snapshot option capture: {optEx.Message}"); }
                         }
                         catch (Exception ex) { Core.StingLog.Warn($"Snapshot context capture: {ex.Message}"); }
                         snapshot[el.Id.Value] = tokens;
@@ -627,6 +642,21 @@ namespace StingTools.BIMManager
                 }
                 catch (Exception ex) { StingLog.Warn($"Pre-revision compliance check: {ex.Message}"); }
 
+                // WF-03: Pre-revision compliance gate — warn if tag compliance is below threshold
+                try
+                {
+                    var preRevScan = ComplianceScan.Scan(doc);
+                    if (preRevScan.CompliancePercent < 80)
+                    {
+                        string ack = UI.StingCommandHandler.GetExtraParam("RevisionComplianceAck") ?? "";
+                        StingLog.Warn(
+                            $"Pre-revision compliance gate: {preRevScan.CompliancePercent:F0}% " +
+                            $"(below 80%). Tagged={preRevScan.TaggedComplete} Untagged={preRevScan.Untagged} " +
+                            $"Stale={preRevScan.StaleCount}. User ack='{ack}'. Proceeding.");
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Pre-revision compliance check: {ex.Message}"); }
+
                 // Take pre-revision snapshot
                 var snapshot = RevisionEngine.TakeTagSnapshot(doc);
                 RevisionEngine.SaveSnapshot(doc, snapshot, $"pre_rev_{prefix}");
@@ -674,6 +704,50 @@ namespace StingTools.BIMManager
                     catch (Exception wbEx) { StingLog.Warn($"Auto-save baseline on revision: {wbEx.Message}"); }
                 }
 
+                // BIM-CROSS-LINK-01: Stamp the new revision id onto every OPEN
+                // issue whose own `revision` field matches (or is empty) so
+                // CrossLinkEngine.WalkFromIssue can hop from an issue to the
+                // revision that closes it. Symmetric link is added on the
+                // revision sidecar by RevisionEngine.SaveRevisionRecord.
+                try
+                {
+                    string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
+                    if (!string.IsNullOrEmpty(bimDir))
+                    {
+                        string issuesPath = System.IO.Path.Combine(bimDir, "issues.json");
+                        if (System.IO.File.Exists(issuesPath))
+                        {
+                            var issuesArr = BIMManagerEngine.LoadJsonArray(issuesPath);
+                            int linked = 0;
+                            string newRevId = prefix;
+                            foreach (var rec in SidecarMetaStamper.Records(issuesArr))
+                            {
+                                string status = rec["status"]?.ToString() ?? "";
+                                string revOnIssue = rec["revision"]?.ToString() ?? "";
+                                if (!string.Equals(status, "OPEN", System.StringComparison.OrdinalIgnoreCase)) continue;
+                                if (!string.IsNullOrEmpty(revOnIssue)
+                                    && !string.Equals(revOnIssue, newRevId, System.StringComparison.OrdinalIgnoreCase))
+                                    continue;
+                                if (CrossLinkEngine.AppendLink(rec, "revision", newRevId)) linked++;
+                            }
+                            if (linked > 0) BIMManagerEngine.SaveJsonFile(issuesPath, issuesArr);
+                            StingLog.Info($"CrossLinkEngine: linked revision {newRevId} to {linked} OPEN issue(s)");
+                        }
+                    }
+                }
+                catch (Exception clEx) { StingLog.Warn($"CrossLinkEngine revision↔issue: {clEx.Message}"); }
+
+                // GAP-FIX: Auto-save warning baseline on revision creation
+                if (TagConfig.AutoSaveBaselineOnRevision)
+                {
+                    try
+                    {
+                        WarningsEngine.SaveExtendedBaseline(doc);
+                        StingLog.Info($"Auto-saved warning baseline on revision creation ({prefix})");
+                    }
+                    catch (Exception wbEx) { StingLog.Warn($"Auto-save baseline on revision: {wbEx.Message}"); }
+                }
+
                 // GAP-R9: Auto-propagate new REV to all tagged elements
                 // so tags reflect the current revision immediately
                 try
@@ -703,6 +777,31 @@ namespace StingTools.BIMManager
                 // Invalidate compliance cache ONCE after all rev-related transactions
                 ComplianceScan.InvalidateCache();
                 StingAutoTagger.InvalidateContext();
+
+                // GAP-R9: Auto-propagate new REV to all tagged elements
+                // so tags reflect the current revision immediately
+                try
+                {
+                    int revUpdated = 0;
+                    using (var revTx = new Transaction(doc, "STING Propagate REV"))
+                    {
+                        revTx.Start();
+                        var allTagged = new FilteredElementCollector(doc)
+                            .WhereElementIsNotElementType()
+                            .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                            .ToList();
+                        foreach (var el in allTagged)
+                        {
+                            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                            if (string.IsNullOrEmpty(tag1)) continue;
+                            if (ParameterHelpers.SetString(el, "ASS_REV_TXT", prefix, overwrite: true))
+                                revUpdated++;
+                        }
+                        revTx.Commit();
+                    }
+                    StingLog.Info($"GAP-R9: Propagated REV '{prefix}' to {revUpdated} tagged elements");
+                }
+                catch (Exception revEx) { StingLog.Warn($"REV propagation: {revEx.Message}"); }
 
                 // NTF-03: Notify team that revision is open
                 try
@@ -2454,7 +2553,7 @@ namespace StingTools.BIMManager
                                     {
                                         return s.GetAllPlacedViews().Contains(ownerViewId);
                                     }
-                                    catch { return false; }
+                                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
                                 });
                             if (viewSheet != null)
                                 sheetKey = $"{viewSheet.SheetNumber} - {viewSheet.Name}";
@@ -2494,7 +2593,7 @@ namespace StingTools.BIMManager
                 {
                     int count = cloudsByRevision.TryGetValue(rev.Id, out var cList) ? cList.Count : 0;
                     string revNum = "";
-                    try { revNum = rev.RevisionNumber; } catch { revNum = "—"; }
+                    try { revNum = rev.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); revNum = "—"; }
                     string status = rev.Issued ? "Issued" : "Draft";
                     sb.AppendLine($"  [{revNum}] {rev.Description ?? "(no description)"}: {count} clouds ({status})");
                 }

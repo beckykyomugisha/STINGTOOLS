@@ -2,6 +2,971 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 177 — Code-quality sweep: locale safety, null-guard fixes, parameter registry alignment)
+
+Branch: `claude/review-codebase-FlVmh`. Twelve commits. Touched 20+ source files
+and both parameter registries. Zero new features — all correctness and
+silent-failure fixes. Verified with `dotnet build` (build-free sandbox; verified
+by grep and Python parsing).
+
+##### InvariantCulture gaps sealed
+
+Every `double.TryParse` / `float.TryParse` call in a **data path** — rule JSON
+comparisons, Excel round-trips, Revit parameter string reads, structural notation
+parsing — was checked and converted to use `CultureInfo.InvariantCulture`. UI
+`TextBox` parses intentionally left on thread culture so users can type with their
+locale's decimal separator.
+
+| File | Lines fixed |
+|---|---|
+| `BIMManager/QualityAssuranceCommands.cs` | `greater_than` / `less_than` rule operators (2 sites) |
+| `BIMManager/Phase148Engine.cs` | `compliance_pct` JSON field (1 site) |
+| `UI/StingCommandHandler.cs` | Numeric filter conditions `>` / `<` / `>=` / `<=` (4 sites) |
+| `BIMManager/ExcelLinkCommands.cs` | Excel StorageType.Double import branch (1 site) |
+| `Model/ExcelStructuralEngine.cs` | Bar-spacing notation, column NxN split, ClosedXML cell fallback (3 sites) |
+| `Model/StructuralTypeFactory.cs` | Section-name regex captures UB/UC/W (2 sites) |
+| `Commands/Healthcare/Specialist/PharmacyUspAuditCommand.cs` | `GetD` string-param fallback (1 site) |
+| `Commands/Healthcare/Specialist/HybridOrCheckCommand.cs` | `AreaSqM` string-param fallback (1 site) |
+
+##### Null-guard / safe-parse fixes
+
+- **`Phase148Engine.cs` line 376**: `int.Parse(row.OldestDays)` replaced with
+  `int.TryParse` — `OldestDays` is populated from JSON and could be empty or
+  malformed, causing an unhandled exception on the Revit main thread.
+
+##### Parameter-name typo fixes (25+ parameters, prior commit)
+
+`BLE_ELEMENT_AREA_NR` → `BLE_ELE_AREA_SQ_M`, `BLE_CBL_TRAY_WIDTH_NR` →
+`BLE_CBL_TRAY_WIDTH_MM`, `BLE_CBL_TRAY_DEPTH_NR` → `BLE_CBL_TRAY_DEPTH_MM`
+across `DataPipelineCommands.cs` and `MaterialManagerDialog.cs`. All
+`LookupParameter()` call-sites now use names that actually exist in the registry.
+
+##### MR_PARAMETERS.txt conflict resolution + new entries
+
+The Phase 174 branch consolidation (`-X ours`) left **three unresolved conflict
+blocks** in `MR_PARAMETERS.txt` that would silently corrupt Revit shared-parameter
+loading. All three were resolved:
+
+- `GROUP 33` collision (remote `PEN_PENETRATION` vs HEAD `Identity`) — resolved by
+  keeping `PEN_PENETRATION` as group 33, adding `GROUP 35 = STING_IDENTITY` for
+  the identity-tracking params, and reassigning `STING_SEED_FAMILY_TXT` /
+  `STING_DESIGN_REF_TXT` / `STING_SWAP_HISTORY_TXT` to group 35.
+- Stray `=======` marker between groups 33 and 34 — removed.
+- Duplicate `STING_PENETRATION_REF_TXT` / `STING_PENETRATION_FIRE_RATING_TXT`
+  (both HEAD and remote versions preserved) — group-33 duplicates dropped, keeping
+  the group-34 versions with better descriptions.
+
+**21 net-new params registered** (new `PARAM` lines with fresh UUIDs):
+
+| Group | Params added |
+|---|---|
+| GROUP 2 (BLE) | `BLE_CBL_TRAY_WIDTH_MM`, `BLE_CBL_TRAY_DEPTH_MM` |
+| GROUP 27 (STING_DRAWING) | `STING_DRAWING_TYPE_ID_TXT`, `STING_STYLE_LOCKED_BOOL`, `STING_PACK_ID_TXT`, `STING_PACK_CHECKSUM_TXT`, `STING_CDE_STATE_TXT` |
+| GROUP 17 (STINGTags_ISO19650) | `TAG_CLUSTER_KEY_TXT`, `TAG_FAMILY_HINT_TXT` |
+| GROUP 4 (ELC_PWR) | `ELC_SYS_TXT`, `ELC_CBL_SIZE_TXT`, `ELC_CABLE_SEG_CLASS_TXT`, `ELC_CDT_CABLE_MANIFEST_TXT` |
+| GROUP 5 (HVC_SYSTEMS) | `MEC_SYS_TXT`, `HVC_DCT_INSULATION_THK_MM` |
+| GROUP 6 (PLM_DRN) | `PLM_SYS_TXT` |
+| GROUP 1 (ASS_MNG) | `ASS_ITEM_CODE_TXT`, `ASS_SYSTEMS_TXT`, `ASS_TERM_CAPPED_BOOL`, `ASS_TERM_REASON_TXT`, `ASS_TRACE_SEQ_NR` |
+
+##### PARAMETER_REGISTRY.json alignment
+
+All 21 new params added to the matching sections of `PARAMETER_REGISTRY.json`
+(`ble_dimensional`, `electrical`, `hvac`, `plumbing`, `identity`, and new
+`system_params` subsection). A new `system_params` section was inserted before
+`paragraph_containers` to hold Drawing Template Manager + tag-engine system params
+(`STING_DRAWING_TYPE_ID_TXT`, `STING_STYLE_LOCKED_BOOL`, `STING_PACK_ID_TXT`,
+`STING_PACK_CHECKSUM_TXT`, `STING_CDE_STATE_TXT`, `TAG_CLUSTER_KEY_TXT`,
+`TAG_FAMILY_HINT_TXT`). Total registry entries: 462 → 483. JSON validated clean
+with no duplicate param names or GUIDs.
+
+##### ParamRegistry.cs cable-tray aliases
+
+`_extendedParams["CBL_TRAY_WIDTH"] = "BLE_CBL_TRAY_WIDTH_MM"` and
+`_extendedParams["CBL_TRAY_DEPTH"] = "BLE_CBL_TRAY_DEPTH_MM"` added so short-key
+lookups in `DataPipelineCommands` and `MaterialManagerDialog` resolve correctly at
+runtime without another string-literal rename.
+
+##### Hot-path log rate-limiting (prior commit)
+
+`StingLog.WarnRateLimited(key, message)` added — emits first 5 then every 100th
+call with the same `key`. Applied to `StingAutoTagger.Execute` and
+`StingStaleMarker.Execute` (IUpdater hot paths) and 3 tight `foreach` loops in
+`ParameterHelpers.cs` that were flooding the log file on projects with many
+elements.
+
+##### Caveats
+
+- The 21 new UUIDs in `MR_PARAMETERS.txt` and `PARAMETER_REGISTRY.json` are newly
+  generated for this session. They will become stable once bound to a Revit project;
+  do not regenerate them.
+- Built without `dotnet build` verification (Linux sandbox). No Revit API call sites
+  were changed — all fixes are pure C# / JSON / data-file edits.
+- Three resource-leak fixes in `ParameterHelpers.cs` (IDisposable collectors not
+  disposed in exception paths) were also applied in the same commit batch.
+
+---
+
+#### Completed (Phase 179 — Plumbing panel enhancement: 8 tabs · 27 commands · 10 engines)
+
+Lifts the STING Plumbing Center from the Phase 178c 6-tab / 8-button
+prototype to a consultant-grade 8-tab / 36-button workflow that wires
+every existing engine to the panel and fills the foundation gaps
+identified in the deep code-base review. Branch:
+`claude/plumbing-enhancements-phase-17-UVb6z`.
+
+| Sub-phase | Scope |
+|---|---|
+| **179a — Foundation** | SYSTEM tab + `PlumbingSystemConfig` POCO + 3 JSON tables (`STING_PLUMBING_DRAINAGE_TABLES.json`, `STING_PLUMBING_SUPPLY_TABLES.json`, `STING_PIPE_MATERIALS_HYDRAULIC.json`) + `PlumbingTables` loader + 31 net-new `PLM_*` params (`PLM_DRN_DU` … `PLM_AUDIT_DATE`) + `PlumbingSystemConfigDialog` (modal WPF) + 2 commands (`Plumb_SaveSystemConfig`, `Plumb_LoadSystemConfig`). |
+| **179b — Sizing engines** | `FixtureUnitScanner` (per-type histogram + write `PLM_DRN_DU/PLM_SUP_LU/PLM_SUP_WSFU`); `WaterSupplySizer` (Hazen-Williams + Hunter / BS EN 806-3 picker + velocity / Pa-per-m audit); `ExpansionVesselSizer` (BS 7074-1); 6 commands (`Plumb_ScanFixtures`, `Plumb_SizeSupply`, `Plumb_SizeDrainage`, `Plumb_PressureCheck`, `Plumb_ExpVessel`, `Plumb_TMVRegister`). |
+| **179c — Routing** | `PTrapInserter` (idempotent connector-graph trap detector + STING_SEED-style family resolver); 5 wrapper commands (`Plumb_AutoRoute` → `AutoPipeDrop`, `Plumb_FixSlopes` → `SlopeAutoCorrector`, `Plumb_InsertPTraps`, `Plumb_PlaceSleeves` → `SleeveEngine`, `Plumb_PlaceHangers` → `HangerPlacementEngine`). |
+| **179d — Vent + Inverts** | `InvertLevelEngine` (US/DS invert mAOD + cover depth + writeback to `PLM_DRN_INV_*`); 2 commands (`Plumb_VentDesign`, `Plumb_InvertLevels`). |
+| **179e — Audit + Storm** | `PlumbingComplianceScanner` aggregating Supply / Drainage / Vents / Backflow / HTM 04-01 into a single `PlumbingComplianceResult` (RAG dashboard tile feed); `PlumbingSustainabilityCalc` façade (BS 8515 / CIRIA C753 / BRE 365 / BS EN 12566-1 / BS EN 12056-3); 6 commands (`Plumb_RWH`, `Plumb_SuDS`, `Plumb_Soakaway`, `Plumb_SepticTank`, `Plumb_RoofDrainage`, `Plumb_FullAudit`). |
+| **179f — Documentation** | `PlumbingBOQBuilder` (pipes-by-system+DN+material, fittings, accessories); 5 commands (`Plumb_PipeSchedule`, `Plumb_BOQ`, `Plumb_ManholeSchedule`, `Plumb_Isometric`, `Plumb_CommPack`). |
+| **+ Workflow presets** | `WORKFLOW_PlumbingDesign.json` (12-step end-to-end), `WORKFLOW_PlumbingAudit.json` (6-step read-only). |
+| **+ Wiring** | `StingPlumbingPanel.cs` rebuilt to 8 tabs (SYSTEM / SUPPLY / DRAINAGE / ROUTE / STORM / SPECIALTY / AUDIT / DOCS); `StingPlumbingCommandHandler` switch covers all 27 new tags + retains all 10 Phase 178c tags; `WorkflowEngine.ResolveCommand` extended with all 37 plumbing tags. |
+
+**Engines reused without modification**: `SleeveEngine`, `SlopeAutoCorrector`, `AutoPipeDrop`, `HangerPlacementEngine`, `BackflowClassifier`, `CrossConnectionChecker`, `DeadLegDetector`, `RecircLoopBalancer`, `StackCapacityValidator`, `PlumbingMaterialValidator`, `RainwaterHarvestingCalc`, `TrapDesigner`, `VentDesigner`, `DrainageSizer`, `FixtureUnitAggregator`. Phase 178c commands (`Plumbing_*`) remain unchanged and still wired.
+
+Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge to `master`.
+
+#### Completed (Phase 178f — Deferred-list completion: damper / acoustic / UL / mobile / formula / section)
+
+Closes the five items deferred at the end of Phase 178e. All
+implemented in priority order against the plan I'd posted.
+
+**#15 — Mark formula injection.** New `FormulaBinding` schema entry on
+`SymbolDefinition.FormulaBindings`. `SymbolLibraryCreator.AddFormulaBindings`
+calls `FamilyManager.SetFormula` with `BuiltInParameter.ALL_MODEL_MARK`
+fallback. The SpecialityEquipment seed now ships
+`{ target: "Mark", expression: "PEN_CONTROL_NUMBER_TXT" }` so every
+firestop instance's Mark mirrors its control number — tag schedules
+read it for free.
+
+**#14 — Section symbology auto-gen.** New `SectionSymbology` block on
+`SymbolGeometry.Section` with optional view filter (Front / Back /
+Left / Right / All). `SymbolLibraryCreator.DrawSectionGeometry` walks
+the family doc's elevation views, builds a vertical sketch plane
+matching each view's normal, and renders lines / arcs / text into the
+elevation. SpecialityEquipment seed gets a 200 mm vertical bar with
+in/out arrows (matches the README guidance for section views).
+
+**#11 — Fire damper + acoustic seal.** Two new seeds:
+`STING_SEED_FireDamper.json` (BS EN 1366-2 / BS EN 15650; FR60 / FR90
+/ FR120 / motorised / combined-smoke variants; FD_*-prefix params for
+actuation / trigger temp / EN-15650 class) and
+`STING_SEED_AcousticSeal.json` (BS 8233 / Approved Doc E; Rw45 / Rw55
+/ Rw63 / flexible-boot variants). Both wired into the BuildSeedFamilies
+tier list. New `Core/Routing/PenetrationProductSelector` picks the
+right product family per (member-category, host-rating-type) — ducts
+through fire-rated barriers go to fire dampers, acoustically-rated
+hosts (with `STING_ACOUSTIC_RW_DB > 0`) go to acoustic seals, beams
+stay on SLEEVE_GENERIC for structural review only.
+`FrpPenetrationPlacer` now resolves three families up front and
+dispatches via the selector; `StampInstance` pulls the family name
+off the placed symbol so dampers / seals carry their own
+`STING_SEED_FAMILY_TXT`. `PenetrationCoverageValidator` recognises
+all three seeds.
+
+**#13 — UL-system framework.** Extended `STING_FAMILY_SWAP_REGISTRY.json`
+with optional `ulSystemMatch[]` blocks per candidate carrying
+`fireRatingPattern` / `hostTypePattern` / `minOdMm` / `maxOdMm` /
+`ulSystem` rules. Initial dataset covers Hilti, Promat, Nullifire,
+STI, 3M for firestops; Hilti, TROX, Halton, Ruskin for fire dampers;
+CMS, Kingspan / Isover for acoustic seals — about 25 named systems.
+New `Core/Symbols/ULSystemMatcher` walks the rules against a placed
+penetration's `PEN_FIRE_RATING_TXT` + `PEN_HOST_TYPE_TXT` + `PEN_OD_MM`
+and returns the matching UL / EN-1366-3 reference.
+`SwapToManufacturerCommand.SwapCandidate.RawNode` now carries the
+JSON candidate; the swap loop calls the matcher post-`ChangeTypeId`
+and stamps `PEN_CERTIFICATION_TXT` with the chosen system.
+
+**#12 — Mobile commissioning sign-off.** Server: new
+`PenetrationSignoff` entity (`ITenantScoped`) + `PenetrationsController`
+with `PUT /api/projects/{id}/penetrations/{controlNumber}/signoff`
+(idempotent on control-number + UUID), `GET /signoff`, `GET` (list,
+filter by status / hostType), `GET /dashboard` aggregator;
+`PlanscapeDbContext.PenetrationSignoffs` `DbSet`. Mobile: new
+`Planscape/app/penetrations/` flow with `index.tsx` (dashboard +
+recent rows) and `signoff.tsx` (QR scan via `expo-camera`,
+photo via `expo-image-picker`, GPS via `expo-location`, status chips
+DRAFT / INSTALLED / INSPECTED / SIGNED-OFF / REWORK, idempotent PUT
+with offline-queue fallback). QR payload format:
+`STING-PEN|<controlNumber>|<pfvUuid>|<projectId>`. Endpoint wrappers
+`putPenetrationSignoff` / `getPenetrationSignoff` /
+`listPenetrationSignoffs` / `getPenetrationDashboard` added to
+`Planscape/src/api/endpoints.ts`.
+
+Files: `StingTools/Core/Symbols/SymbolDefinition.cs` +
+`SymbolLibraryCreator.cs` (formula bindings + section renderer +
+per-variant connector minting); `STING_SEED_SpecialityEquipment.json`
+(formula binding + section block); new
+`Core/Symbols/ULSystemMatcher.cs`; new
+`Core/Routing/PenetrationProductSelector.cs`;
+`Core/Routing/FrpPenetrationPlacer.cs` (three-family dispatch);
+`Core/Validation/PenetrationCoverageValidator.cs` (recognise three
+seeds); new `STING_SEED_FireDamper.json` + `STING_SEED_AcousticSeal.json`;
+`STING_FAMILY_SWAP_REGISTRY.json` (UL system rules);
+`Commands/Symbols/SwapToManufacturerCommand.cs` (UL stamp on swap);
+`Commands/Symbols/BuildSeedFamiliesCommand.cs` (+2 specs);
+new `Planscape.Server/src/Planscape.Core/Entities/PenetrationSignoff.cs`;
+new `Planscape.Server/src/Planscape.API/Controllers/PenetrationsController.cs`;
+`Planscape.Server/src/Planscape.Infrastructure/Data/PlanscapeDbContext.cs`
+(`DbSet<PenetrationSignoff>`); new `Planscape/app/penetrations/{_layout,index,signoff}.tsx`;
+appended `Planscape/src/api/endpoints.ts`. Code committed without
+`dotnet build` / `dotnet ef migrations` — run
+`dotnet ef migrations add Phase178f_PenetrationSignoff` against
+`Planscape.Server` once before deploy. Mobile builds without `npx expo
+start` verification.
+
+Standards basis: BS EN 1366-2 / BS EN 15650 (fire dampers, EI##S
+classification), BS 8233 + Approved Document E + DW/144 (acoustic
+penetration sealing), UL Building Materials Directory + UL 555
+(damper listings), the named UL systems above (Hilti / Promat / STI /
+3M / Nullifire / TROX / Halton / Ruskin / CMS Danskin / Kingspan-Isover),
+BS 9999 + Building Safety Act 2022 (golden-thread record).
+
+#### Completed (Phase 178e — Multi-service drops + plumbing/medgas/lab seeds)
+
+Continuation of Phase 178d. Closes the remaining items in the priority
+order from the seed-and-penetration review.
+
+**Multi-service drop pipeline.** `DropEngineBase` gains
+`MultiServiceMode` flag + `TryDropFromFixtureAllConnectors` helper +
+`TryDropFromFixtureUsingConnector` per-connector driver +
+`ServiceIdForConnector` virtual hook. `AutoPipeDrop` flips the flag on
+and overrides the hook to map `Connector.PipeSystemType` to the right
+`ServiceId` (`DomesticCold → PLM_CWS`, `DomesticHot → PLM_DHW`,
+`Sanitary → PLM_SAN`, `Vent → PLM_VEN`, `FireProtect* → PLM_FPS`,
+`Storm → PLM_RWD`, hydronic supply/return). `AutoDuctDrop` does the
+same for `DuctSystemType` (`SupplyAir → HVC_SA`, `ReturnAir → HVC_RA`,
+`ExhaustAir → HVC_EA`). A basin now drops cold + hot + waste in one
+pass; an AHU drops supply + return + outdoor + relief; each drop
+claims its own corridor band.
+
+**Three new seeds (tier-3).** `STING_SEED_PlumbingEquipment.json` —
+seven variants for central water-handling plant (calorifier / DHW
+cylinder / electric water heater / booster set / manifold / expansion
+vessel / inline pump) with a 4-connector union (DCW + DHW + LTHW
+supply + LTHW return). `STING_SEED_MedGasOutlet.json` — seven HTM
+02-01 / EN ISO 7396-1 variants (O₂ / N₂O / Med Air / Surg Air / Vac
+terminal units + 5-gas AVSU + area alarm panel) with a 4-connector
+union and `MGS_*` parameter pack (gas list, BS 5682 socket, operating
+kPa, hospital area, AVSU zone). `STING_SEED_LabFixture.json` — eight
+BS EN 14056 / ANSI Z358.1 / BS 7258 variants (fume hood / low-flow
+fume hood / BSL3 cabinet / eyewash / emergency shower / combo /
+lab gas tap / DI water tap) with a 6-connector union covering
+DCW + DHW + waste + 2 lab services + duct exhaust. All three wired
+into `BuildSeedFamiliesCommand` tier-3 list — re-run builds them.
+
+**Discipline router extended.** `AutoDropCommand.DisciplineFor` adds
+`OST_PlumbingEquipment` + `OST_PipeAccessory` to plumbing scope and
+`OST_DuctAccessory` to HVAC scope. Selecting a calorifier or a duct
+damper now routes through the right drop engine.
+
+**PlumbingConnectorCompletenessValidator.** Audits every plumbing
+fixture against an expected-connector-count lookup keyed on
+`PLM_FIX_TYPE_TXT` (WC=2, basin=3, shower=3, kitchen-sink=4, etc.).
+Catches the swap-to-manufacturer regression where a vendor family
+ships fewer connectors than the seed authored — AutoPipeDrop would
+silently leave the fixture only partly wired. Codes:
+`PLM.CONN.MISSING` / `PLM.CONN.EXTRA` / `PLM.CONN.UNTYPED` /
+`PLM.CONN.NO_TYPE`. Appended to `RunAllValidatorsCommand`.
+
+**SymbolLibraryCreator per-variant connectors.** `AddConnectors` now
+folds `def.TypeVariants[].Connectors` into the family doc alongside
+`def.Connectors`, with the source label visible in any warning.
+Connector-mint gate updated so a variant-only declaration still
+fires.
+
+**BuildSeedFamiliesCommand connector audit.** Post-build step opens
+each loaded seed family (`Document.EditFamily`), counts
+`ConnectorElement` instances, and surfaces a warning when the count
+is below the JSON-declared count. Catches silent connector-mint
+failures without forcing the user to inspect every .rfa.
+
+Files: `Core/Routing/DropEngineBase.cs` (multi-service helper +
+per-connector driver + ServiceIdForConnector hook);
+`Core/Routing/AutoPipeDrop.cs` + `AutoDuctDrop.cs` (multi-service
+mode + per-connector ServiceId map);
+`Commands/Routing/AutoDropCommand.cs` (DisciplineFor +3 categories);
+new `STING_SEED_PlumbingEquipment.json` + `STING_SEED_MedGasOutlet.json` +
+`STING_SEED_LabFixture.json`;
+`Commands/Symbols/BuildSeedFamiliesCommand.cs` (+3 specs + connector
+audit step); `Core/Symbols/SymbolLibraryCreator.cs` (per-variant
+connector minting);
+new `Core/Validation/PlumbingConnectorCompletenessValidator.cs`;
+`Commands/Validation/RunAllValidatorsCommand.cs` (+ validator).
+Code committed without `dotnet build` verification.
+
+Standards basis: BS 6465-2 (fixture-unit + connector counts),
+BS 8558 / BS 6700 (DCW/DHW supply, dead-leg control), HTM 02-01 +
+EN ISO 7396-1 + BS 5682 (medical-gas terminals, AVSU, alarm panels),
+BS EN 14056 + BS 7258 + ANSI Z358.1 + BS EN 1717 (lab fixture
+backflow categories, deluge flow rates, fume-hood face velocity).
+
+#### Completed (Phase 178d — Penetration coverage: floors + walls + beams)
+
+Closes the gaps identified in the Phase 178c seed-and-penetration review.
+Branch: `claude/review-sting-equipment-aV6qM`.
+
+**Shared parameter pack (group 33: PEN_PENETRATION).** 19 new parameters
+in `MR_PARAMETERS.txt` with stable UUIDv5-style GUIDs in the Planscape
+namespace: `PEN_FIRE_RATING_TXT`, `PEN_SEALANT_TYPE_TXT`, `PEN_OD_MM`,
+`PEN_HOST_REF_TXT`, `PEN_HOST_TYPE_TXT`, `PEN_MEMBER_ID_TXT`,
+`PEN_CERTIFICATION_TXT`, `PEN_INSTALL_STATUS_TXT`, `PEN_INSTALLER_TXT`,
+`PEN_INSTALL_DATE`, `PEN_INSPECTOR_TXT`, `PEN_INSPECTION_DATE`,
+`PEN_CONTROL_NUMBER_TXT`, `PEN_PFV_UUID_TXT`, `PEN_BEAM_OFFSET_PCT`,
+`PEN_BEAM_DEPTH_RATIO`, `PEN_STRUCTURAL_FLAG_TXT`, plus
+`STING_PENETRATION_REF_TXT` and `STING_PENETRATION_FIRE_RATING_TXT` as
+member-side stamps. `LoadSharedParamsCommand` binds them on first run.
+
+**Three detectors (was: floors only).** `SlabPenetrationDetector` keeps
+its existing 30°-from-vertical filter for vertical drops; new
+`WallPenetrationDetector` covers fire-rated compartment walls (skips
+non-rated partitions to keep the register clean) via 2-D segment
+intersection against `Wall.Location`; new `BeamPenetrationDetector`
+runs a 3-D segment-vs-segment shortest-distance test, reads beam
+material + depth, and classifies per AISC Design Guide 2 + BS EN 1992
+location/size limits (`STRUCT_OK` / `STRUCT_REVIEW` / `STRUCT_FAIL`).
+
+**FrpPenetrationPlacer generalised.** Single entry point dispatches on
+`rec.HostKind` to floor / wall / beam face-resolution strategies, all
+using one `PenetrationRecord` schema. Adds `PEN_PFV_UUID_TXT` keyed on
+UUIDv5(host, member) for cross-pipeline pairing with `SleeveEngine`.
+Idempotent — re-runs update the existing instance via the UUID lookup
+instead of duplicating.
+
+**Seed connectors.** `STING_SEED_PlumbingFixture.json` now declares
+DCW + DHW + Sanitary connectors at the symbol level so `AutoPipeDrop`
+can wire each fixture into all three services. `STING_SEED_AirTerminal`
+and `STING_SEED_Sprinkler` get one connector each (supply-air,
+fire-water-wet). `TypeVariantDefinition.Connectors` added as a forward-
+compatible field for variant-specific overrides.
+
+**Two new commands.** `Penetrations_DetectAndPlace` runs the full
+sweep against selection or active-view scope; `Validation_PenetrationCoverage`
+is a read-only audit surfacing orphan members, orphan FRP instances,
+beam structural-review findings, and missing fire ratings. Both
+dispatched through `StingCommandHandler`. `AutoDropCommand` triggers
+the three-detector sweep + placer in the same transaction (previously
+fired only from `ConduitAutoRouteCommand`). `RunAllValidatorsCommand`
+appends `PenetrationCoverageValidator` so the daily-QA preset catches
+uncovered penetrations + structural violations alongside the existing
+clearance / maintenance / classification findings.
+
+**Penetration Register schedule.** New `STING - Penetration Register`
+row in `MR_SCHEDULES.csv` with 18 columns covering identity, host,
+rating, dimensions, install / inspect, beam structural review, and
+swap history. Grouped by `PEN_HOST_TYPE_TXT` so floors / walls / beams
+read as distinct sections.
+
+**Workflow presets.** `WORKFLOW_PenetrationSweep.json` (5 steps: build
+seeds → load params → detect & place → coverage audit → register
+schedule). `WORKFLOW_PlumbingRoughIn.json` (8 steps chaining the
+existing plumbing audit + sizing commands with the new penetration
+sweep so multi-service drops + firestop placement happen together).
+
+Files: `MR_PARAMETERS.txt` (+19 PEN_* + new GROUP 33);
+`Core/Routing/{WallPenetrationDetector,BeamPenetrationDetector}.cs`
+(new); generalised `FrpPenetrationPlacer.cs` +
+`SlabPenetrationDetector.cs`;
+`Commands/Routing/PenetrationsDetectAndPlaceCommand.cs` (new);
+`Core/Validation/PenetrationCoverageValidator.cs` (new);
+`Commands/Validation/PenetrationCoverageCommand.cs` (new); schedule row;
+two workflow JSONs; updated seed JSONs (Plumbing / AirTerminal / Sprinkler);
+updated `Families/Seeds/README.md`. Code committed without `dotnet build`
+verification (Linux sandbox); verify in Revit before merge.
+
+Standards basis: AISC Design Guide 2 §3 (steel beam web openings, ≤ 0.7 d,
+≥ max(d, span/10) clearance from supports); BS EN 1992-1-1 + IStructE
+practice (RC beam openings ≤ 0.4 d for OK without ad-hoc reinforcement);
+BS 9999 / Approved Document B (fire-rated compartmentation); BS 476-20 /
+EN 1366-3 (firestop certification); UUIDv5 deterministic identity from
+the existing `SleeveEngine` schema for cross-pipeline pairing.
+
+#### Completed (Healthcare Pack H-1..H-30 — Hospital design content layer)
+
+Delivers the full Healthcare Pack against [`HEALTHCARE_PACK_DESIGN.md`](HEALTHCARE_PACK_DESIGN.md).
+Branch: `claude/research-hospital-design-0Uxbi`.
+
+| Phase | Scope | Highlights |
+|---|---|---|
+| **H-1** | Vocabulary + parameter pack | 5 new groups (28 CLN_CLINICAL / 29 MGS_SYSTEMS / 30 RAD_PROTECTION / 31 CEQ_CLINICAL / 32 LIG_BEHAVIOURAL) + ~100 net-new shared parameters; H/MG/RP disciplines; 60 healthcare tag families |
+| **H-2** | Filters + ViewStylePacks | 58 filters + 8 packs (clinical / shielding / pressure / fire / mgs / ees / water / ligature) + 12 routing rules |
+| **H-3** | Drawing Type catalogue | 22 healthcare drawing types + 22 routing rules (RDS / MGPS / pressure / EES / IPS / decon / mortuary / fire / radiation / MRI / ligature / bedhead / OR-RCP / water-safety / acoustic / structural / RTLS / waste / nuclear-medicine) |
+| **H-4** | Standards-API skeleton | 7 modules: HTM / HBN / FGI / NFPA99 / NCRP147 / ASHRAE170 / USP797800 |
+| **H-5** | Healthcare validators (8) | PressureRegime / MgasFlow / EesBranch / WaterSafety / RadShield / Adjacency / AntiLigature / RdsCompleteness + RunAllHealthcareValidators gated on facility-type |
+| **H-6** | COBie healthcare overlay | 50 equipment types + 16 systems + 70 picklist values + 35 PPM templates + 12 doc types + 26 spare-part templates |
+| **H-7** | Medical-gas package | MgasNetwork / MgasFlowSolver / MgasVerificationLog + 2 commands + BS 5682 TU table + HTM 02-01 pipe-sizing + family stubs |
+| **H-8** | RDS engine | RdsContextBuilder + RdsRenderer + 2 commands + 50-token field map |
+| **H-9** | Radiation & MRI | NCRP 147 / 151 calc commands (chest / CT / LINAC) + MriZoneEngine + MriZoneAuditCommand |
+| **H-10** | Adjacency + flow | RoomGraphBuilder (door graph) + CleanDirtyFlowSolver (BFS depth 3) + AdjacencyAuditCommand + HBN adjacency CSV |
+| **H-11..H-19** | 9 specialist packs | Anti-ligature / Hybrid-OR / USP / Behavioural / Mortuary / Maternity-NICU / HSDU / Dialysis / HBO — 9 audit commands + 9 rule JSONs |
+| **H-20** | Digital twin / IoT | IoTDeviceRegistry + TwinReadback (BACnet / OPC-UA stubs) + IoTStalenessValidator + IoTRegistryCommand + HEALTHCARE_ALERT_ROUTING.json (10 alert types) |
+| **H-21** | Mobile commissioning | 6 screens under `Planscape/app/healthcare/` (overview / mgas-checklist / pressure-live / water-flush / anti-ligature-audit / rds-viewer) |
+| **H-22** | Server APIs | 4 entities (PressureLog / MgasVerification / AntiLigatureAudit / RdsSnapshot) + HealthcareController with 9 endpoints + DbContext registration |
+| **H-23..H-30** | Structural / Acoustic / Advanced-rad / Endoscope / EES-resilience / Pack-profiles / RTLS / Waste | 8 new validators + 1 gate + Pet511 / SPECT / Brachy calculators + 6 reference data files |
+| **+** | Workflow presets | 8 JSON presets covering commissioning / MGPS verify / pressure audit / RDS issue / HTM 04-01 annual / anti-ligature / NFPA 110 generator / HTM 01-06 endoscope |
+
+Total: ~70 commits; ~3,000 net-new lines of C# + ~1,500 lines of data
+files + ~400 lines of TS for the mobile app + the design doc itself.
+
+Built without `dotnet build` verification (Linux sandbox). Verify in
+Revit before merge to `master`.
+
+#### Completed (Phase 180+181 — Photometric Library + DIALux Round-Trip Loop)
+
+Closes the design loop for lighting: engineer models luminaires in Revit
+→ exports IFC 4 to DIALux evo → calculates → imports IFC results back
+→ STING colour-codes rooms by pass / fail and emits an Excel design
+review with quantified "add N more fixtures" recommendations per room.
+Implements the recommendations from the DIALux STF research report —
+sticks with IFC 4 (DIAL's strategic direction), skips STF (legacy), and
+adds the multi-engine aggregator the report flagged as the
+killer differentiator vs. ElumTools.
+
+**Phase 180 — Photometric Library Engine**
+
+- `Photometrics/IesParser.cs` — IESNA LM-63 (1986/1991/1995/2002)
+  pure parser. Reads keyword block, TILT directive, lamp / luminaire
+  count, candela grid; resolves beam (50 % peak) + field (10 % peak)
+  angles + symmetry from horizontal angle pattern. No Revit refs.
+- `Photometrics/LdtParser.cs` — EULUMDAT pure parser per Stockmar 1990
+  / Paul Bourke spec. Line-oriented fixed-slot layout; converts mm →
+  metres; maps Isym 1-4 to STING symmetry tokens.
+- `Photometrics/PhotometricFile.cs` — common DTO with manufacturer,
+  luminaire name, lumens, watts, efficacy, beam / field angles, peak
+  candela, CCT, CRI, symmetry, dimensions.
+- `Photometrics/PhotometricLibrary.cs` — directory-scoped scanner +
+  lazy cache keyed by `(fullPath, lastWriteTimeUtc)`. Skips GLDF
+  parsing (deferred to Phase 182 to avoid GLDF.Net NuGet transitive-
+  dep risk per existing csproj comments).
+
+**Three new commands**
+
+| Tag | Class | Description |
+|---|---|---|
+| `Photo_Library` | `PhotometricLibraryCommand` | Modal viewer over a directory of IES / LDT files. Per-project root paths persisted to `_BIM_COORD/photometric_roots.txt` |
+| `Photo_Assign` | `AssignPhotometricCommand` | Stamps every selected luminaire TYPE with the chosen photometric file: `ELC_PHOTO_FILE_PATH` + `LUMENS` + `WATTS` + `EFFICACY` + `BEAM_ANGLE` + `CCT` + `CRI` + `SYMMETRY`. Mirrors lumens/watts onto LTG_LUMENS / LTG_WATTAGE so Phase 178 LPD calc stays honest |
+| `Photo_Preflight` | `PhotometricPreflightCommand` | Differentiator #3 from the research: read-only audit catching missing IES bindings, missing reflectances, fixtures outside room boundaries. Catches 90 % of "garbage in" failures before round-trip |
+
+**One new modal dialog**
+
+`UI/PhotometricLibraryDialog.xaml(.cs)` — 980 × 640 dark-theme window:
+search-filter TextBox, library DataGrid (filename, format,
+manufacturer, luminaire, lumens, watts, lm/W, beam°, CCT, CRI,
+symmetry), live detail panel, Assign button dispatching to
+`AssignPhotometricCommand` via the IExternalEventHandler.
+
+**Phase 181 — IFC Results Contract + Multi-Engine Aggregator**
+
+- `IfcResults/StingLightingPSet.cs` — defines the
+  `Pset_StingLightingResults` field set: `IlluminanceLux`,
+  `AverageLux`, `MinimumLux`, `MaximumLux`, `UniformityRatio`, `UGR`,
+  `CalculationDate`, `EngineUsed`, `EngineVersion`,
+  `WorkingPlaneHeightM`. Aliases for `MaintainedIlluminance` /
+  `Em` / `Uo` etc. so importers from DIALux / ElumTools / Relux all
+  match.
+- `IfcResults/IfcSimpleParser.cs` — minimal STEP-format reader, no
+  xbim / GeometryGym dependency. Pre-flows multi-line entities onto
+  one line, then regex-anchors on `#NN=TYPE(`. Handles
+  IFCRELDEFINESBYPROPERTIES → IFCPROPERTYSET → IFCPROPERTYSINGLEVALUE
+  chain to attach numeric / string properties to IFCSPACE +
+  IFCLIGHTFIXTURE entities by GlobalId.
+- **Upgraded** `Export/DIALuxExportCommand.cs` — now writes the
+  STING PSet contract on every IfcSpace + IfcLightFixture, preserves
+  Revit `Element.UniqueId` as `IfcGloballyUniqueId` so the round-trip
+  back matches by GUID. Logs every export to
+  `_BIM_COORD/dialux_roundtrips.json` for the orchestrator dialog.
+
+**Five new commands**
+
+| Tag | Class | Description |
+|---|---|---|
+| `Photo_IfcImport` | `IfcResultsImportCommand` | User picks the engine (DIALux / ElumTools / Relux / Other) + IFC file. Maps `IfcSpace.GlobalId` to Revit room `UniqueId`; falls back to room-name match. Writes engine-specific lux to `ELC_PHOTO_LUX_DIALUX` / `ELUMTOOLS` / `RELUX`, plus the headline `ELC_PHOTO_LUX_CALC` |
+| `Photo_Aggregator` | `MultiEngineAggregatorCommand` | Differentiator #1 — Excel report comparing DIALux / ElumTools / Relux / STING-estimate lux side-by-side per room with delta highlighting (yellow > 10 %, red > 25 %). ElumTools cannot do this because it ships its own engine and ignores the others |
+| `Photo_RoundTrip` | `DialuxRoundTripCommand` | One-button orchestrator: pre-flight → IFC export → opens output folder in Explorer → walk-through dialog reminding the user of the DIALux evo steps and pointing at the import command |
+| `Photo_DesignReview` | `PhotometricDesignReviewCommand` | **The loop closer.** Compares imported lux against BS EN 12464-1 / CIBSE LG7 / ASHRAE 90.1 targets per room-name pattern; colour-codes rooms in the active view (green = pass, amber = over-lit, red = below target); emits an Excel report with quantified `add ~N more fixture(s)` or `remove ~N fixture(s)` recommendations per room |
+
+**14 new shared parameters (all TEXT)**
+
+Phase 180 (luminaire metadata, type-bound):
+`ELC_PHOTO_FILE_PATH_TXT`, `_LUMENS_NR`, `_WATTS_NR`, `_EFFICACY_LM_W`,
+`_BEAM_ANGLE_DEG`, `_CCT_K`, `_CRI_NR`, `_SYMMETRY_TXT`.
+
+Phase 181 (engine-specific results, instance-bound on rooms):
+`ELC_PHOTO_LUX_DIALUX_NR`, `_ELUMTOOLS_NR`, `_RELUX_NR`,
+`ELC_PHOTO_UNIFORMITY_NR`, `_LAST_ENGINE_TXT`, `_LAST_CALC_DATE_TXT`.
+
+**Dock-panel XAML — three new sections in LITE tab**
+
+PHOTOMETRIC LIBRARY (Phase 180), DIALUX ROUND-TRIP (Phase 181 — round-
+trip + import + aggregator + design review buttons), and a kept-for-
+backward-compat PHOTOMETRIC LINK (legacy Phase 178 entry).
+
+**API limits honoured**
+
+- All photometric parameters TEXT-typed for cross-binding flexibility,
+  matching the existing electrical block convention.
+- IFC parser uses regex over a flattened string — no NuGet dependency,
+  no xbim runtime cost. Adequate for DIALux evo / ElumTools / Relux
+  IFC outputs; multi-line nested-list edge cases would justify
+  switching to xbim in a later phase.
+- Display-name parameter lookups (`LookupParameter("Phase")`) where
+  BIP enum stability is uncertain.
+- All file outputs through `OutputLocationHelper.GetOutputDirectory(doc)
+  + electrical/`.
+- Design review recommendations use a linear-scaling assumption (lux
+  scales with installed lumens at constant geometry) — sufficient for
+  "add ~3 more 4000 lm panels" guidance, documented as approximate in
+  the recommendation text.
+
+**Built without `dotnet build` verification** (Linux sandbox). Verify
+in Revit before merge.
+
+#### Completed (Phase 179 — STING Electrical: Advanced Analysis & External Integration)
+
+Unlocks the remaining placeholder cards from Phase 178 — arc flash,
+selective coordination, conduit auto-routing, busbar trunking,
+photometric link, and the external-tool exporters (EasyPower / DIALux /
+ETAP).
+
+**12 new commands**
+
+| Tag | Class | Description |
+|---|---|---|
+| `Elec_ArcFlash` | `ArcFlashCommand` | IEEE 1584-2018 simplified — incident energy + boundary + PPE category. Reads `FaultCurrentCommand.LastResults`; stamps `ELC_ARC_FLASH_*` parameters; applies green/amber/orange/red graphic override per PPE level |
+| `Elec_ArcFlashLabels` | `ArcFlashLabelSheetCommand` | Drafting view with one NFPA 70E warning label per panel — FilledRegion border + TextNote, 5 labels/row, colour-coded by PPE |
+| `Elec_ArcFlashSched` | `ArcFlashScheduleCommand` | Revit ViewSchedule of OST_ElectricalEquipment with arc flash columns (IE / boundary / PPE / working distance) |
+| `Elec_SelectCoord` | `SelectiveCoordCommand` | Walks the SLD hierarchy and asserts upstream-clears-slower-than-downstream at sampled fault levels; opens `SelectiveCoordDialog` |
+| `Elec_ExportEasyPower` | `EasyPowerExportCommand` | Best-effort EasyPower-compatible XML (buses + branches + arc flash). Real format is licensed; this is a documented approximation |
+| `Elec_ExportDIALux` | `DIALuxExportCommand` | IFC 4 STEP file with IfcLightFixture + IfcSpace entities for DIALux evo import |
+| `Elec_ExportEtap` | `EtapExportCommand` | IEC 61968 / 61970 CIM XML — substations + energy consumers — for ETAP load-flow |
+| `Elec_AutoRoute` | `ConduitAutoRouteCommand` | Walks `CableManifest`, creates Conduit elements along an L/Z Manhattan path between each circuit's load and panel; sizes conduit to ≤40 % fill |
+| `Elec_BusbarModel` | `BusbarModelingCommand` | Sizes cable-tray runs whose name contains 'Busbar' or 'Trunking'; demand from manifest or parsed from name; red-overrides > 80 % fill |
+| `Elec_PhotoLink` | `PhotometricLinkCommand` | Three-way: import lux + UGR from a DIALux IFC, estimate from connected watts (CIBSE LG7 lumen-method), or open the workflow guide |
+
+**4 pure-math engines (no Revit API)**
+
+- `ArcFlashEngine` — IEEE 1584-2018 simplified empirical formula
+  (`E = 0.0093 × F^0.9956 × t × (610^x / D^x)`); `PpeCategory()` lookup
+  per NFPA 70E Table 130.5(G); default working distance + bus gap by
+  voltage class.
+- `SelectiveCoordEngine` — recursive hierarchy walk with 10-point fault
+  sampling; records first violation per parent / child pair so the grid
+  stays compact.
+- `ConduitRouteEngine` — rectilinear L/Z route generator + conduit
+  diameter selection from STING_WIRE_TABLES.json targeting ≤40 % fill;
+  cable OD lookup from CSA per IEC 60228.
+- `BusbarSizerEngine` — BS EN 60439-1 indicative copper flat-bar table
+  (12 sizes 100–2000 mm² CSA / 250–2000 A); ambient temperature derate
+  ; insulation-factor fill calculation.
+
+**1 modal WPF dialog**
+
+`SelectiveCoordDialog` — dark-theme 900 × 660 window with TreeView of
+the SLD hierarchy on the left, log-log TCC chart canvas (4 decades x ×
+4 decades y, axis labels every decade), and DataGrid of violations
+below. CSV export via `OutputLocationHelper`.
+
+**12 new shared parameters (all TEXT, instance binding)**
+
+`ELC_ARC_FLASH_IE_CAL_CM2`, `ELC_ARC_FLASH_BOUNDARY_MM`,
+`ELC_ARC_FLASH_PPE_CAT`, `ELC_ARC_FLASH_WORK_DIST_MM`,
+`ELC_ARC_FLASH_LABEL_TXT`, `ELC_SEL_COORD_VERIFIED_BOOL`,
+`ELC_BUSBAR_CSA_MM2`, `ELC_BUSBAR_RATING_A`, `ELC_BUSBAR_FILL_PCT`,
+`ELC_CONDUIT_ROUTE_TXT`, `ELC_PHOTO_LUX_CALC`, `ELC_PHOTO_UGR_CALC`.
+12 ParamRegistry constants exposed.
+
+**3 new data files (auto-included via `Data/**` glob)**
+
+- `STING_TCC_DATABASE.json` — 18 generic device entries (MCB-B/C/D,
+  MCCB, ACB) at standard ratings 6 A → 800 A; default clearing 100 ms.
+- `STING_ARC_FLASH_PPE.json` — NFPA 70E PPE category thresholds
+  (0 → 4 + dangerous), working-distance + bus-gap tables by voltage.
+- `STING_EXTERNAL_FORMATS.json` — field-mapping reference for
+  EasyPower / DIALux IFC 4 / ETAP CIM exporters.
+
+**Dock-panel XAML — 7 sections unlocked**
+
+CALCS · Arc Flash expander (3 buttons) and Selective Coordination
+expander (1 button — opens the modal viewer) — both were 🔒 PLANNED in
+Phase 178. CABLE · Conduit Routing + Busbar Trunking expanders.
+LITE · Photometric Link expander. RPRT · External Tool Integration
+expander (3 active exporters + SKM placeholder kept disabled for
+Phase 180) and the Create-arc-flash-schedule button.
+
+**API limits honoured**
+
+- `Conduit.Create(Document, ElementId, XYZ, XYZ, ElementId)` is
+  Revit 2024+'s 5-arg form; each segment creation wrapped in its own
+  try/catch so a single failure doesn't abort the run.
+- `FilledRegion.Create` boundary loops are checked with
+  `IsCounterclockwise(XYZ.BasisZ)` and reflected if needed.
+- `Doc.Create.NewDetailCurve` (not `NewModelCurve`) for any drafting-
+  view geometry.
+- Log-log canvas mapping clamps `Math.Log10(max(value, 1e-6))` so the
+  TCC chart never produces NaN or `-Infinity` near the axes.
+- `panel.LookupParameter("Voltage")` (display-name lookup) avoids the
+  brittle `BuiltInParameter.RBS_ELEC_PANEL_TOTAL_*VOLTAGE` enum that
+  varies between Revit versions.
+- All exports go through `OutputLocationHelper.GetOutputDirectory(doc)`
+  + an `electrical/` subfolder; UTF-8 encoding for XML / IFC / CSV.
+- DIALux IFC parser is regex-based — sufficient for standard DIALux
+  evo output, documented as best-effort. Production hardening could
+  swap in xbim / GeometryGym.
+
+**Built without `dotnet build` verification** (Linux sandbox). Verify
+in Revit before merge.
+
+#### Completed (Phase 178 — STING Electrical: Advanced Calculations & Automation)
+
+Unlocks every 🔒 placeholder card in the Phase 177 dock panel except the
+Phase 179 reservations (arc flash, selective coordination, conduit
+auto-routing, busbar trunking, photometric IFC link, EasyPower / SKM /
+DIALux / ETAP exporters).
+
+**MR_PARAMETERS crosscheck — 4 reuses + 7 new instead of 11 net-new**
+
+The brief proposed 11 new shared parameters; auditing
+`Data/MR_PARAMETERS.txt` showed four already exist and should be reused:
+`ELC_PNL_SHORT_CIRCUIT_RATING_KA` (line 210) for the panel fault level,
+`ELC_VLT_DROP_PCT` (line 214) for the circuit voltage drop,
+`ELC_CDT_CBL_FILL_PCT` (line 292) for conduit fill, and
+`ELC_CBL_SZ_MM` (line 191) for circuit cable CSA. The seven net-new
+parameters are `ELC_PNL_AIC_RATING_KA`, `ELC_FEEDER_CSA_MM2`,
+`ELC_FEEDER_RATING_A`, `ELC_EMERG_COVERED_BOOL`, `ELC_LPD_W_PER_M2`,
+`ELC_LPD_LIMIT_W_PER_M2`, `ELC_LPD_STATUS_TXT`, all `TEXT` datatype to
+match the existing electrical block's cross-binding convention.
+`ParamRegistry.cs` exposes 11 new constants (`ELC_PNL_FAULT_KA`,
+`ELC_PNL_AIC_KA`, `ELC_FEEDER_CSA`, `ELC_FEEDER_RATING_A`,
+`ELC_CKT_VD_PCT`, `ELC_CKT_CSA_MM2`, `ELC_CONDUIT_FILL_PCT`,
+`ELC_EMERG_COVERED`, `ELC_LPD_W_M2`, `ELC_LPD_LIMIT_W_M2`,
+`ELC_LPD_STATUS`) wired through `_extendedParams` so the seven new
+literals and the four existing literals are addressable from the same
+namespace.
+
+**New commands (15)**
+
+| Tag | Class | Description |
+|---|---|---|
+| `Calc_FaultCurrent` | `FaultCurrentCommand` | Resistive fault propagation through `SLDCircuitTraverser` (IEC 60909 simplified). Stamps `ELC_PNL_SHORT_CIRCUIT_RATING_KA` |
+| `Calc_AicStamp` | `AicRatingCommand` | Maps each panel's fault level to the next standard AIC tier (6 → 100 kA from `STING_AIC_TIERS.json`) and stamps `ELC_PNL_AIC_RATING_KA` |
+| `Calc_FeederSize` | `FeederSizerCommand` | Per-panel feeder demand current from the SLD hierarchy + diversity / derate from the dock panel; sizes via `CableSizerEngine`; writes `ELC_FEEDER_CSA_MM2` + `ELC_FEEDER_RATING_A` + `ELC_VLT_DROP_PCT` |
+| `Calc_UpsizeWires` | `AutoUpsizeWiresCommand` | Reads VD results, calls `VoltageDropEngine.MinimumCsaForVDLimit()`, prompts before writing `ELC_CBL_SZ_MM` + best-effort `RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM` |
+| `SLD_RiserDiagram` | `SLDRiserDiagramCommand` | Horizontal riser in a `ViewDrafting` using `FilledRegion` boxes + `NewDetailCurve` feeder lines + `TextNote` ratings. Stamped with `elec-riser-A2-1to100` |
+| `SLD_UpdateRiser` | `SLDUpdateRiserCommand` | Replaces detail items in the existing riser view in-place to preserve sheet placement |
+| `Panel_PlaceOnSheets` | `PanelViewScheduleCommand` | Three placement modes (Guided manual / ViewSchedule via `Viewport.Create()` / PDF). Works around the broken `PanelScheduleSheetInstance.Create()` |
+| `Cable_ValidateConduitFill` | `ConduitFillValidateCommand` | Wraps existing `TrayFillCalculator.Compute()` for whole-model audit; writes `ELC_CDT_CBL_FILL_PCT`; red-overrides failing containment |
+| `Lite_EmergAudit` | `EmergencyLightingAuditCommand` | Per-room emergency lighting audit + same-circuit fault detection; writes `ELC_EMERG_COVERED_BOOL` |
+| `Lite_MarkEmerg` | `EmergencyLightingMarkCommand` | Blue projection-line override on emergency fixtures in active view |
+| `Lite_LPD` | `LightingPowerDensityCommand` | W/m² per room vs ASHRAE 90.1 / Part L 2021 / CIBSE LG7 from `STING_LPD_LIMITS.json`; writes `ELC_LPD_W_PER_M2` / `_LIMIT_W_PER_M2` / `_STATUS_TXT`; green / amber / red overrides |
+| `Lite_LpdColor` | `LpdColorCommand` | Re-applies graphic overrides from existing status without recalculating |
+| `Rprt_VDSchedule` | `VoltageDropScheduleCommand` | Writes `ELC_VLT_DROP_PCT` then creates a `ViewSchedule` of `OST_ElectricalCircuit` sorted by panel/circuit |
+| `Rprt_FaultSchedule` | `FaultCurrentScheduleCommand` | `ViewSchedule` of `OST_ElectricalEquipment` showing fault kA + AIC tiers; requires `Calc_FaultCurrent` first |
+| `Rprt_DemandFactors` | `DemandFactorReportCommand` | Per-panel NEC 220 / BS 7671 App 1 demand-factor breakdown to Excel via ClosedXML, one worksheet per panel |
+| `Circuit_CreateWizard` | `CircuitWizardCommand` | Materialises the proposed circuits from `CircuitWizardDialog` via `ElectricalSystem.Create()` + `AddToCircuit()` + `SelectPanel()` in a single `TransactionGroup` with per-circuit `Transaction` rollback |
+
+**New engines (no Revit API)**
+
+- `Commands/Electrical/FaultCurrent/FaultCurrentEngine.cs` — IEC 60909
+  resistive fault propagation; `WireTableSet` loader for
+  `STING_WIRE_TABLES.json`; `NextAicTierKa()` with 10 % safety margin.
+- `Commands/Electrical/FeederSizing/FeederSizerEngine.cs` — diversity +
+  derate + `CableSizerEngine` delegation; `CalculateAll()` batch.
+- `Commands/Electrical/CircuitWizard/CircuitWizardEngine.cs` —
+  classification by family-name pattern from
+  `STING_DEMAND_FACTORS.json`; bin-packing into `ProposedCircuit` with
+  greedy least-loaded phase assignment + Phase 177
+  `CableSizerEngine` for cable sizing.
+
+**New WPF dialog**
+
+`UI/CircuitWizardDialog.xaml(.cs)` — modal 900 × 680 wizard with
+target-panel picker, options card, editable proposal grid (label /
+class / phase as DataGridComboBoxColumn), merge / split / add-element
+/ remove-element / reset toolbar, live phase summary, expandable
+unconnected-element grid (double-click adds to selected proposal).
+
+**New data files** (auto-included via `Data/**` glob)
+
+- `Data/STING_AIC_TIERS.json` — 12 standard AIC tiers (6 → 100 kA) +
+  IEC 60947-2 / BS EN 60898 / NEC UL489 sub-arrays + 10 % safety margin.
+- `Data/STING_LPD_LIMITS.json` — three standards
+  (ASHRAE 90.1-2019 / Part L 2021 / CIBSE LG7) with name-pattern → LPD
+  mapping + occupancy classification (escape route / high risk / open
+  area) used by the emergency-lighting audit.
+- `Data/STING_DEMAND_FACTORS.json` — NEC 2023 (220.12 / 220.14 /
+  220.60) + BS 7671:2018 App.1 demand factors with bracketed thresholds
+  (NEC 220.14(A) 100 % first 10 kVA / 50 % remainder modelled
+  explicitly) + classification patterns shared by
+  `CircuitWizardEngine.ClassifyLoad()` and
+  `DemandFactorReportCommand.ClassifySystem()`.
+
+**Dock-panel XAML — 11 sections unlocked**
+
+CALCS · Auto-Upsize Failing button (was 🔒); Feeder Sizing expander
+(was 🔒 BETA — full inputs + result grid); Fault Current expander (was
+🔒 PLANNED — utility kA TextBox + method ComboBox + result grid + 3
+buttons). SLD · Riser Diagram expander (was 🔒 PLANNED — layout
+ComboBox + 3 show-checkboxes + Generate / Update buttons). PNLS ·
+Sheet Placement now reads three modes (`GuidedManual` /
+`ViewSchedule` / `PDF`) via `Tag` on the ComboBoxItems. CIRCTS ·
+Circuit Wizard expander (was 🔒 BETA — 'Launch Wizard' opens the
+modal). CABLE · Conduit Fill BETA badge removed; new "Validate Model
+Conduits" button added below the inline calculator. LITE · Emergency
+Lighting expander (was 🔒 BETA — 2 buttons + audit grid); Lighting
+Power Density expander (was 🔒 PLANNED — standard ComboBox + custom
+limit + 2 buttons + result grid). RPRT · "Create fault current
+schedule" button enabled (was 🔒); new "Demand Factor Report" button
+added.
+
+**Static state expansion in StingElectricalCommandHandler**
+
+7 new static input fields (`CurrentUtilityFaultKa`,
+`CurrentFeederSettings`, `CurrentSheetPlacementMode`,
+`CurrentSheetPlacementSheetId`, `CurrentRiserOptions`,
+`CurrentLpdStandard`, `CurrentLpdCustomLimit`) and 3 new output caches
+(`LastConduitFills`, `LastEmergAudit`, `LastLpdRows`).
+`ElectricalSnapshotBuilder` extended to surface
+`FeederSizerCommand.LastResults` and
+`FaultCurrentCommand.LastResults` plus the three handler caches into
+the panel snapshot. `OpenCircuitWizard()` private helper invokes
+`Application.Current.Dispatcher.Invoke` to show the wizard on the WPF
+thread; `RunWizardPropose()` surfaces a hint pointing the user at the
+modal.
+
+**API limits honoured**
+
+- `PanelScheduleSheetInstance.Create()` still not called — Phase 178
+  routes the ViewSchedule mode through `Viewport.Create()` instead and
+  keeps the Guided Manual taskdialog for the native panel schedule.
+- `ElectricalSystem.PolesNumber` and `Voltage` remain read-only.
+- `ElectricalSystem.Length` × 0.3048 in every consumer.
+- `Room.Area` × 0.0929 (m² conversion) in `LightingPowerDensityCommand`.
+- `Doc.Create.NewDetailCurve` (not `NewModelCurve`) in `SLDRiserDiagramCommand`.
+- `FilledRegion.Create()` collects the first available `FilledRegionType`.
+- `ElectricalSystem.Create()` + `AddToCircuit()` (modern Revit 2024+
+  API) inside per-circuit `Transaction`s nested in a
+  `TransactionGroup`; `SelectPanel()` wrapped in try/catch with mismatch
+  logging that fails just that circuit's transaction.
+- `RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM` write in `AutoUpsizeWiresCommand`
+  is best-effort with silent fallback to the STING-only
+  `ELC_CBL_SZ_MM` parameter; the count of soft-failures is reported.
+
+**Built without `dotnet build` verification** (Linux sandbox). Verify
+in Revit before merge. Phase 179 reservations (arc flash, selective
+coordination, conduit auto-routing, busbar trunking, photometric IFC
+link, external-tool exports) remain disabled placeholders with
+explanatory tooltips.
+
+#### Completed (Phase 177 — STING Electrical Center)
+
+A dedicated 7-tab WPF dockable panel for electrical work, sitting tabbed
+behind the Properties palette so it cohabits with the main STING panel
+on the right rail. Persistent workspace for panel scheduling, circuit
+description / phase / breaker sizing, voltage-drop calculation, single-
+line viewer, lighting checks and reports — picking up where Revit 2026's
+removed native voltage-drop calculation left off.
+
+**New dockable panel**: `StingElectricalPanel` (tabs PNLS · CIRCTS ·
+CALCS · CABLE · SLD · LITE · RPRT). Registered via
+`StingElectricalPanelProvider` (GUID `E5F6A7B8-9012-CDEF-0123-456789012CDE`),
+toggled from a new "⚡ Electrical" ribbon group on the STING Tools tab.
+All button clicks dispatch through `StingElectricalCommandHandler`
+(`IExternalEventHandler`) so Revit API calls run on the API thread; the
+handler also publishes the running UIApplication via the new
+`StingCommandHandler.SetCurrentApp(UIApplication)` helper so commands
+invoked with null `ExternalCommandData` resolve their UIApplication
+through the standard `ParameterHelpers.GetApp()` fallback.
+
+**New commands (12)**
+
+| Tag | Class | Description |
+|---|---|---|
+| `Panel_SyncParams` | `ElecPanelParamSyncCommand` | Bulk-fill ELC_PNL_* shared parameters across every panel from Revit native data + spatial detect |
+| `Panel_WriteParams` | `ElecPanelWriteParamsCommand` | Save the PANEL PARAMETERS card on the dock panel back to the selected panel |
+| `Circuit_AutoDesc` | `CircuitDescriptionCommand` | Auto-fill `ElectricalSystem.LoadName` from connected equipment name + mark + room name; configurable sources, separator and Title-Case toggle; preview mode without committing |
+| `Circuit_Balance` | `PhaseBalanceCommand` | Greedy largest-first 3-phase load balance using `ElectricalSystem.StartingPhase`; skips 3-pole circuits and (when honoured) grouped 2-pole circuits; shows before/after Δ on the panel and prompts before applying |
+| `Circuit_Renumber` | `ElecCircuitRenumberCommand` | Resequence circuit slots using `RBS_ELEC_CIRCUIT_NUMBER` |
+| `Calc_LoadSummary` | `ElecLoadSummaryCommand` | Refresh per-panel connected/demand load summary |
+| `Calc_VoltageDrop` | `VoltageDropCommand` | BS 7671 + NEC voltage-drop calc using actual 3D wire lengths from `ElectricalSystem.Length` (ft × 0.3048 → m); pushes results to the circuit grid |
+| `Calc_FlagVD` | `VoltageDropFlagCommand` | Apply red graphic override to elements on circuits exceeding the VD threshold in the active view |
+| `Calc_SizeBreakers` | `BreakerSizerCommand` | Read-only preview of next standard breaker sizes (BS EN 60898 / BS EN 60947-2 / NEC) |
+| `Calc_ApplyBreakers` | `BreakerSizerApplyCommand` | Write proposed ratings via `RBS_ELEC_CIRCUIT_RATING_PARAM` |
+| `Cable_Calculate` | `CableSizerCommand` | Inline cable size calculator (CABLE tab) using the pure `CableSizerEngine` |
+| `Lite_CreateSchedule` | `ElecLightingScheduleCommand` | Create `STING - Lighting Fixtures` `ViewSchedule` |
+
+**New engines (no Revit API dependency)**
+
+- `Commands/Electrical/VoltageDrop/VoltageDropEngine.cs` — copper /
+  aluminium resistance tables, BS 7671 Appx 4 temperature correction,
+  1-phase / 3-phase voltage-drop formula, minimum-CSA finder, BS / NEC
+  standard breaker rounding (with 125 % continuous-load multiplier).
+- `Commands/Electrical/CableSizer/CableSizerEngine.cs` — install-method,
+  insulation and ambient-temperature correction factor lookups, design-
+  current calculation, full sizing pipeline returning recommended CSA +
+  actual VD % + breaker rating, plus a `CalculateConduitFill` helper.
+- `Commands/Electrical/ElectricalSnapshotBuilder.cs` — read-only Revit
+  scan that assembles the `ElectricalPanelSnapshot` pushed back to the
+  dock panel after every command (panels, circuits, SLD root, load
+  summary, lighting fixtures, room targets, wire reference table,
+  compliance items).
+
+**New data files** (auto-included via the existing `Data/**` glob in
+`StingTools.csproj`)
+
+- `Data/STING_WIRE_TABLES.json` — BS 7671 Method C XLPE-90 + PVC-70
+  copper tables, NEC THWN copper (75 °C), aluminium-resistance factor,
+  install-method / insulation / ambient-temperature correction-factor
+  tables, BS EN 60898 + BS EN 60947-2 + NEC OCPD breaker arrays,
+  conduit internal-area lookup keyed by BS 4568 size, wire outer-area
+  table, six rated voltage profiles (UK / EU / US).
+- `Data/WORKFLOW_ElectricalQA.json` — 7-step QA preset chaining
+  `Panel_Audit → Calc_LoadSummary → Circuit_Balance → Calc_SizeBreakers
+  → Calc_VoltageDrop → Rprt_Audit → Rprt_ExcelExport`.
+
+**SLD tab** — wraps the existing `SLDCircuitTraverser.BuildHierarchy()`
+in a `TreeView` driven by `SLDNodeViewModel`. Selecting a node fills a
+detail card with connected / demand load, feeder rating and VD %; "Zoom
+to in Model" calls `UIDocument.ShowElements`; "Open Schedule" activates
+the matching `PanelScheduleView`.
+
+**Compliance + reports** — RPRT tab's compliance list flags panels
+without schedules and circuits exceeding the VD threshold. Excel
+round-trip / circuit register export delegate to the existing Phase 176
+panel commands and `ExportCircuitsCommand`. COBie buttons hand off to
+the existing `BIMManager.COBieExportCommand`.
+
+**Placeholder buttons** — every Phase 178+ feature has a visible
+placeholder card in the XAML with `IsEnabled="False"` and a tooltip
+explaining the deferral: feeder sizing, fault current (utility kA →
+panel AIC), arc flash IEEE 1584-2018, selective coordination, conduit
+auto-routing, busbar trunking, riser-diagram generation, emergency-
+lighting grading, lighting-power density, photometric IFC link,
+EasyPower / SKM / DIALux / ETAP exporters.
+
+**API limits honoured**
+
+- `PanelScheduleSheetInstance.Create` is broken in Revit 2024+; the
+  Sheet Placement card explicitly does NOT call it — it offers a
+  Guided Manual flow instead.
+- `ElectricalSystem.PolesNumber` and voltage are read-only —
+  `PhaseBalanceCommand` only writes `StartingPhase`.
+- `ElectricalSystem.Length` is read in feet and converted to metres
+  (`× 0.3048`) before the VD formula.
+- `RBS_ELEC_CIRCUIT_RATING_PARAM` is the writable lever for breaker
+  ratings; `BreakerSizerApplyCommand` wraps the writes in a single
+  `Transaction` and skips read-only circuits gracefully.
+- `CableSizerEngine` and `VoltageDropEngine` import zero Revit
+  assemblies and are unit-testable in isolation.
+
+**Built without `dotnet build` verification** (Linux sandbox, no .NET /
+Revit API). Verify in Revit before merge. Phase 177 ships the panel
+shell + the 12 must-have commands; Phase 178 will add fault current,
+arc flash, riser auto-generation and the external-tool exporters.
+
+#### Completed (Phase 176 — Electrical Panel Schedule Automation)
+
+End-to-end electrical panel schedule pipeline with rule-based template
+selection, Excel round-trip, slot management, configuration-aware
+fallback, drawing-type stamping, and STING tag integration. Replaces the
+single-pass `templates.First()` heuristic in
+`Temp.PanelScheduleCommand` with a configurable engine driven by
+`Data/STING_PANEL_SCHEDULE_TEMPLATES.json`. The legacy `"PanelSchedule"`
+button tag now dispatches to the new pipeline so users transparently
+receive the upgrade.
+
+#### New namespace
+
+`StingTools.Commands.Panels` — `Commands/Panels/` (4 source files
++ 1 audit file, ~1,100 lines).
+
+#### New commands (8)
+
+| Tag | Class | Description |
+|---|---|---|
+| `Panel_BatchSchedules` | `BatchPanelSchedulesCommand` | Rule-based per-panel `PanelScheduleView.CreateInstanceView` with multi-template fallback, drawing-type stamp, ELC_PNL_* fill, circuit back-refs |
+| `Panel_Audit` | `PanelScheduleAuditCommand` | Read-only audit: panels without schedules, template drift (current vs. rule-suggested), missing PNL params |
+| `Panel_ExportToExcel` | `ExportPanelSchedulesToExcelCommand` | Header + Body + Summary sections to `.xlsx`, one worksheet per panel + INDEX cover sheet |
+| `Panel_ImportFromExcel` | `ImportPanelSchedulesFromExcelCommand` | Round-trip Body cells via `TableSectionData.SetCellText`. Empty-cell guard prevents accidental erasure |
+| `Panel_FillSpares` | `FillEmptySlotsWithSparesCommand` | `AddSpare` on every empty slot of active schedule |
+| `Panel_FillSpaces` | `FillEmptySlotsWithSpacesCommand` | `AddSpace` variant |
+| `Panel_FillSparesAll` | `FillSparesAllSchedulesCommand` | Project-wide `AddSpare` with `TransactionGroup` so per-panel failures don't roll back others |
+| `Panel_SpacesToSpares` | `ConvertSpacesToSparesCommand` | `RemoveSpace` + `AddSpare` on every Space slot |
+| `Panel_ClearSparesSpaces` | `ClearSparesAndSpacesCommand` | Wipe spares and spaces from active schedule |
+
+#### New data files
+
+- `Data/STING_PANEL_SCHEDULE_TEMPLATES.json` — 5 priority-ordered rules
+  (switchboard / 3-phase DB / 1-phase consumer unit / data panel /
+  catch-all), skip patterns (SPARE / FUTURE / TBD …), `globalFallback`
+  for first-available template selection, `panelType` field used by the
+  reflection-based `PanelScheduleTemplate.GetPanelConfiguration` probe
+  in the registry.
+- `Data/WORKFLOW_PanelScheduleProduction.json` — preset chaining
+  Audit → BatchSchedules → FillSparesAll (optional) → ExportToExcel
+  (optional) → re-Audit.
+
+#### Drawing Type
+
+`elec-panel-schedule-A3` added to `Data/STING_DRAWING_TYPES.json`,
+routed by `(discipline=Electrical, docType=PANEL_SCHEDULE)`. `BatchPanelSchedules`
+calls `DrawingTypeStamper.Stamp(psv, "elec-panel-schedule-A3")` so
+every created `PanelScheduleView` participates in Browser Organizer +
+drift detection + SyncStyles.
+
+#### Integration with existing systems
+
+- **STING tag containers** — `BatchPanelSchedulesCommand` populates
+  `ELC_PNL_NAME`, `ELC_PNL_VOLTAGE`, `ELC_PNL_LOAD`, `ELC_PNL_FED_FROM`,
+  `ELC_MAIN_BRK`, `ELC_WAYS` on the panel element via `SetIfEmpty`
+  (user-authored values are never overwritten).
+- **Circuit tags** — every `ElectricalSystem` whose `BaseEquipment` is
+  the panel gets `PARA_ELC_PANEL` and `ELC_PANEL_SCHEDULE_REF_TXT`
+  written as `"PS: <schedule-name>"`. The latter is consumed by the
+  T7 panel-schedule-ref tag in `STING_TAG_CONFIG_v5_0_MEP.csv`.
+- **`ActionAuditLog`** — every command writes a line so Phase 74
+  audit trail sees panel-schedule operations.
+- **`WorkflowEngine.ResolveCommand`** — all 9 panel commands wired so
+  workflow JSON presets can chain them.
+- **Output folder** — Excel exports default to
+  `<project>/_BIM_COORD/electrical/` matching the convention in
+  `Commands/Electrical/ExportCircuitsCommand`.
+
+#### Revit API limitations honoured
+
+- `PanelScheduleSheetInstance.Create` is broken in Revit 2024-2026
+  (verified via Autodesk Ideas backlog + Dynamo forum threads).
+  STING does NOT attempt programmatic placement; the result panel
+  surfaces "drag onto sheet manually" instructions.
+- `PanelScheduleTemplate` structure (columns, formulas, headers) is
+  read-only via API. The registry only chooses *which* existing
+  template to apply; templates must be authored via the Revit UI
+  Panel Schedule Template Editor.
+- Read-only Revit-managed cells (computed loads, totals, breaker
+  ratings driven by circuit data) reject `SetCellText` silently or
+  throw — caught and reported as `cellsRejected` in the import result.
+- `IsCircuitRow` does not exist on `PanelScheduleView`. Real-circuit
+  detection uses `GetCircuitByCell(row, col)` which returns the
+  `ElectricalSystem` or null.
+
+#### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The 5 named templates in `STING_PANEL_SCHEDULE_TEMPLATES.json`
+   (`STING - Switchboard Schedule`, etc.) must exist in the host `.rvt`.
+   Without them the registry falls back to "first available template".
+3. `PanelScheduleTemplate.GetPanelConfiguration` is invoked via
+   reflection so the codebase compiles even on Revit versions where the
+   method signature differs. The `PanelType` field in the rule
+   contributes additional configuration-matched fallback templates,
+   but is not authoritative.
+4. CLAUDE.md "Quick Stats" file/line counters not refreshed — the
+   numbers were calibrated up to Phase 175 and would need a new
+   walk-through to be accurate.
+
+
 ## Conventions
 
 - Each phase is a `#### Completed (Phase N — short title)` heading. Entries inside a phase are numbered and imperative ("Added X", "Fixed Y"). Numbering spans across phases, so an entry numbered "525" is the 525th item since Phase 1.

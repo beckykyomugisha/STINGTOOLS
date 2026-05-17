@@ -12,6 +12,21 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 - **763+ `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
 - **72 runtime / embedded data files** (CSV, JSON, TXT, XLSX, PY, MD, DOCX) — includes the template engine v1.1 pack (16 templates + 5 workflow definitions + `manifest.json`)
 - **WPF dockable panel** (9 tabs, primary UI) + 1 BIM Coordination Center (13 tabs) + 1 Material Manager (7 tabs) + 1 Document Management Center (8 tabs) + ribbon retained for legacy compat
+- **Top-level workspace** ships 15 directories: `StingTools/` · `Planscape/` · `Planscape.Server/` · `StingBIM.Server/` · `StingTools.Clash.Tests/` · `StingTools.Dynamo/` · `StingTools.Headless/` · `StingTools.Standards/` · `Tests/` · `Families/` · `CompiledPlugin/` · `docs/` · `docs-site/` · `marketing-site/` · `tools/`
+
+### Phase 174 — Branch consolidation
+
+This branch (`claude/merge-branches-update-docs-SvA31`) absorbs every
+outstanding `claude/*` feature branch that had unique commits not yet in
+HEAD. Seventy-five branches were merged in a single pass, ranging from
+single-commit fix branches up to the 1,148-commit
+`document-missing-parameters-9tTAr` history. Conflict policy was
+`-X ours` (keep the Phase 168–173 baseline, take new files from the
+incoming branch); for `modify/delete` and `rename/delete` collisions the
+HEAD copy was kept. Sixty-four branches fast-forwarded or auto-merged
+cleanly; eleven required `ours` conflict resolution. After consolidation
+`git branch -r --no-merged HEAD` reports zero remote branches with
+unique commits not in HEAD. Verify in Revit before merging to `main`.
 
 ## Documentation Map
 
@@ -46,7 +61,7 @@ When you finish a piece of work, log it in `docs/CHANGELOG.md` rather than exten
 | `StingTools/Data/Placement/` | STING_PLACEMENT_RULES.json (43 rules) |
 | `StingTools/Data/Fabrication/` | STING_FAB_RULES.json (6 disciplines), STING_ISO_SYMBOLS_INDEX.csv (180+ symbols) |
 | `StingTools/Data/Parameters/` | STING_PARAMS_V4.txt shared-parameter fragment |
-| `Families/AssemblyTitleBlocks/` | 8 title block parameter spec stubs + README |
+| `Families/AssemblyTitleBlocks/` | 7 title block parameter spec stubs + README |
 
 ### New namespaces
 
@@ -82,7 +97,506 @@ When you finish a piece of work, log it in `docs/CHANGELOG.md` rather than exten
 ### Caveats
 
 1. Built without `dotnet build` verification — every Revit API call uses the documented signature but has not been compile-checked. `// TODO-VERIFY-API` comments mark the most uncertain spots (`AssemblyInstance.Create` category arg, `Conduit.Create` / `Pipe.Create` / `Duct.Create` overloads, ISO 6412 axonometric section transform).
-2. The 8 title block `.rfa` families are NOT shipped — only their parameter specs. `ShopDrawingComposer.ResolveTitleBlock` falls back to the first available title block in the project.
+2. The 7 title block `.rfa` families are NOT shipped — only their parameter specs. `ShopDrawingComposer.ResolveTitleBlock` falls back to the first available title block in the project (now warns loudly via `FabricationResult.Warnings` and `StingLog`).
+3. ISO 6412 detail families (180 entries) are referenced by name in `STING_ISO_SYMBOLS_INDEX.csv`; `IsoSymbolPlacer` lazy-loads from `Families/ISO6412/` and warns once per missing family.
+
+## Electrical Panel Schedules (Phase 176)
+
+**Status**: Landed on branch `claude/research-panel-schedules-J0qqo`. Built without `dotnet build` verification — the Revit API surface for `PanelScheduleTemplate.GetPanelConfiguration` is invoked via reflection so the call compiles regardless of Revit version. Verify in Revit before merge.
+
+### New folder
+
+`StingTools/Commands/Panels/` — `PanelScheduleTemplateRegistry.cs` (rule loader + project override merge + multi-candidate `ResolveCandidates` for AUTO-2 fallback), `BatchPanelSchedulesCommand.cs` (rule-based create + drawing-type stamp + ELC_PNL_* fill + circuit back-refs), `PanelScheduleAuditCommand.cs` (read-only drift report), `PanelScheduleExcelCommands.cs` (round-trip with empty-cell guard + load-delta diff), `PanelScheduleSlotCommands.cs` (5 slot-management commands using `GetCircuitByCell` for real-circuit detection).
+
+### New namespace
+
+`StingTools.Commands.Panels`.
+
+### Commands (9)
+
+| Tag | Class | Description |
+|---|---|---|
+| `Panel_BatchSchedules` | `BatchPanelSchedulesCommand` | Rule-based per-panel `PanelScheduleView.CreateInstanceView` with multi-template fallback, drawing-type stamp, ELC_PNL_* fill, circuit back-refs. The legacy `"PanelSchedule"` tag now redirects here. |
+| `Panel_Audit` | `PanelScheduleAuditCommand` | Read-only audit: panels without schedules, template drift, missing PNL params |
+| `Panel_ExportToExcel` | `ExportPanelSchedulesToExcelCommand` | Header + Body + Summary to `.xlsx` (one worksheet per panel + INDEX) |
+| `Panel_ImportFromExcel` | `ImportPanelSchedulesFromExcelCommand` | Round-trip Body cells via `TableSectionData.SetCellText` with empty-cell guard + load-delta diff |
+| `Panel_FillSpares` | `FillEmptySlotsWithSparesCommand` | `AddSpare` on empty slots of active schedule |
+| `Panel_FillSpaces` | `FillEmptySlotsWithSpacesCommand` | `AddSpace` variant |
+| `Panel_FillSparesAll` | `FillSparesAllSchedulesCommand` | Project-wide `AddSpare` with `TransactionGroup` so per-panel failures don't roll back others |
+| `Panel_SpacesToSpares` | `ConvertSpacesToSparesCommand` | `RemoveSpace` + `AddSpare` |
+| `Panel_ClearSparesSpaces` | `ClearSparesAndSpacesCommand` | Wipe spares and spaces |
+
+### Data files
+
+- `StingTools/Data/STING_PANEL_SCHEDULE_TEMPLATES.json` — 5 priority-ordered rules (switchboard / 3-phase DB / 1-phase consumer unit / data panel / catch-all) + skip patterns + `globalFallback`. Project override at `<project>/_BIM_COORD/panel_schedule_templates.json`.
+- `StingTools/Data/WORKFLOW_PanelScheduleProduction.json` — workflow preset chaining Audit → BatchSchedules → FillSparesAll → ExportToExcel → re-Audit.
+
+### Drawing Type
+
+`elec-panel-schedule-A3` added to `STING_DRAWING_TYPES.json`, routed by `(discipline=Electrical, docType=PANEL_SCHEDULE)`. `BatchPanelSchedules` stamps every created `PanelScheduleView` with this id so Browser Organizer + drift detection + SyncStyles work on panel schedules.
+
+### API limits honoured
+
+- `PanelScheduleSheetInstance.Create` is broken in Revit 2024-2026 — STING does NOT attempt programmatic sheet placement. The result panel surfaces "drag onto sheet manually" guidance.
+- `PanelScheduleTemplate` cell layout / column order / formulas remain read-only. The registry chooses *which* template to apply, never edits structure.
+- Read-only Revit-managed cells (computed loads, totals) reject `SetCellText` silently — caught and reported as `cellsRejected` in import.
+- Real-circuit detection uses `PanelScheduleView.GetCircuitByCell(r, c)` (returns the `ElectricalSystem` or null) — `IsCircuitRow` does not exist on PanelScheduleView.
+
+### Caveats
+
+1. The 5 named templates in the JSON (`STING - Switchboard Schedule`, etc.) must exist in the host `.rvt`. Without them the registry falls back to "first available template".
+2. `PanelTypeMatches` in `PanelScheduleTemplateRegistry` invokes `GetPanelConfiguration` via reflection. If the method signature differs between Revit versions, configuration-aware fallback degrades to no-op (rule-name + global-fallback still work).
+3. Excel import preserves Revit data when the xlsx cell is blank but the Revit cell is non-empty (anti-erasure guard). To intentionally clear a cell, use the Revit Panel Schedule UI directly.
+
+## Drawing Template Manager (Phase 113)
+
+**Status**: Foundation landed on `claude/fix-text-visibility-layouts-OsiY9`. A single-source engine for how every drawing is produced — sheet size, title block, scale, view template, slot layout, annotation rule pack, crop strategy, section-marker family, viewport type, sheet numbering — replacing four scattered configuration surfaces (SheetTemplateEngine, ShopDrawingComposer hard-codes, DocAutomation TaskDialog prompts, SheetManager presets).
+
+### New folders
+
+| Path | Purpose |
+|---|---|
+| `StingTools/Core/Drawing/` | Drawing Type engine: POCO model, loader with 15 built-ins, routing dispatcher, pre-flight validator |
+| `StingTools/Commands/Drawing/` | Diagnostic commands (Inspect + Reload) |
+| `StingTools/Data/STING_DRAWING_TYPES.json` | Corporate baseline: 15 drawing types + routing table, extracted to `data/` at build |
+
+### New namespaces
+
+`StingTools.Core.Drawing`, `StingTools.Commands.Drawing`.
+
+### Concept
+
+A **DrawingType** is a named JSON bundle that answers every presentation question for a single produced drawing:
+
+| Field | Purpose |
+|---|---|
+| `id` / `name` | Stable identifier + human label |
+| `purpose` | Plan / RCP / Section / Elevation / Detail / Schedule / Spool / Coordination / Legend / 3D |
+| `discipline`, `phase` | Routing keys (wildcarded with `*`) |
+| `paperSize`, `titleBlockFamily`, `orientation` | Sheet identity |
+| `scale`, `detailLevel` | View appearance basics |
+| `viewTemplateName`, `viewportTypeName` | Graphic standards binding |
+| `sheetNumberPattern`, `sheetNamePattern` | Token-substituted (see below) |
+| `crop` | `ScopeBox` / `ScopeBoxOrBbox` / `TightBbox` / `RoomBoundary` / `None` + margin |
+| `sectionMarker` | Family + mark prefix + bubble style + far-clip offset |
+| `slots[]` | Normalised 0..1 positions on the drawable zone (paper-size independent) |
+| `annotation` | `AnnotationRulePack` — what to auto-dim / auto-tag, dimension strategy, per-category tag families, `denseUntilScale` modifier |
+| `print` | Colour scheme, line-weight scale, halftone links |
+| `origin` | `corporate` (SHA-256 checksum-locked) vs `project` (editable) |
+
+Rules live in the same JSON as `routing[]` — first-match-wins rules of the shape `(discipline, phase, docType) → drawingTypeId`.
+
+### Token patterns
+
+Sheet number and sheet name patterns are substituted by `ShopDrawingComposer.SubstituteTokens`:
+
+| Token | Replaced with |
+|---|---|
+| `{spool}` | Spool number from `AssyParams.SPOOL_NR_TXT` |
+| `{disc}` | ISO single-letter discipline code |
+| `{discipline}` | Full discipline name (e.g. "Pipe", "Electrical") |
+| `{sys}` | Sanitised system code |
+| `{lvl}` | Level code |
+| `{mark}` | Section / elevation / detail mark |
+| `{seq}` | Zero-padded 4-digit sequence (default) |
+| `{seq:D2}` / `{seq:D3}` / `{seq:D4}` | Zero-padded sequence with explicit width |
+
+### New classes
+
+| Class | Purpose |
+|---|---|
+| `Core.Drawing.DrawingType` | Root POCO — all 15 fields above |
+| `Core.Drawing.DrawingSlot` | Normalised viewport slot with optional per-slot scale / detailLevel / viewTemplate / viewportType override |
+| `Core.Drawing.AnnotationRulePack` | Auto-dim / auto-tag flags, dimension style, per-category `tagFamilies`, scale-aware density |
+| `Core.Drawing.DrawingCropStrategy` | Crop mode + margin + optional scope-box name |
+| `Core.Drawing.SectionMarkerSpec` | Section / elevation / callout marker family + mark prefix |
+| `Core.Drawing.PrintOverride` | Colour scheme + line-weight scale + halftone links |
+| `Core.Drawing.DrawingRoutingRule` | `(discipline, phase, docType) → drawingTypeId` |
+| `Core.Drawing.DrawingTypeLibrary` | Root JSON document (`drawingTypes[]` + `routing[]`) |
+| `Core.Drawing.DrawingTypeRegistry` | Loader + SHA-256 corporate-lock + project-override merge; cached per-document |
+| `Core.Drawing.DrawingDispatcher` | `Resolve(doc, disc, phase, docType)` + `CandidatesForDiscipline` |
+| `Core.Drawing.DrawingTypeValidator` | Pre-flight: missing title block / view template / viewport type / section-marker / tag family + slot geometry sanity |
+
+### New commands (2)
+
+| Tag | Class | Purpose |
+|---|---|---|
+| `DrawingTypes_Inspect` | `DrawingTypesInspectCommand` | Read-only diagnostic: lists all types + routing + validation issues |
+| `DrawingTypes_Reload` | `DrawingTypesReloadCommand` | Force registry cache refresh after editing JSON on disk |
+
+### Built-in corporate catalogue (40)
+
+Shipped in `Data/STING_DRAWING_TYPES.json`. Core 15 (phase 113 foundation): `arch-plan-A1-1to100`, `arch-rcp-A1-1to100`, `arch-section-A1-1to50`, `arch-elev-A1-1to100`, `arch-detail-A3-1to20`, `struct-plan-A1-1to100`, `struct-section-A1-1to50`, `mep-plan-A1-1to100`, `mep-coord-A1-1to50`, `pipe-spool-A1-1to50`, `duct-spool-A1-1to50`, `elec-riser-A2-1to100`, `door-schedule-A2`, `handover-A1`, `legend-A2`.
+
+Week 1 expansion adds 17 production types covering the AEC/FM lifecycle:
+
+| Discipline | Added types |
+|---|---|
+| Architectural | `arch-site-A1-1to500`, `arch-roof-A1-1to100`, `arch-floor-finishes-A1-1to100`, `arch-fire-strategy-A1-1to100`, `arch-accessibility-A1-1to100`, `arch-interior-elev-A1-1to50`, `arch-window-schedule-A2` |
+| Structural    | `struct-foundation-A1-1to100`, `struct-rebar-detail-A3-1to20` |
+| Mechanical    | `mep-hvac-duct-A1-1to100`, `mep-plantroom-A1-1to50` |
+| Electrical    | `elec-power-A1-1to100`, `elec-lighting-A1-1to100`, `elec-fire-alarm-A1-1to100` |
+| Public Health | `plumb-drainage-A1-1to100` |
+| FM / handover | `fm-asset-location-A1-1to100` |
+| Coordination  | `coord-clash-A1-1to50` |
+
+Presentation + clarification pack adds 8 client-facing types (all print with `colourScheme: PresentationRich` or `ClarificationRed`, lighter line weights, minimal grid/room tagging):
+
+| Purpose | Types |
+|---|---|
+| Client presentation | `pres-3d-axon-A1` (3D + key plan + caption), `pres-perspective-A1` (full-bleed perspective), `pres-exterior-elev-A1` (material callouts, mono halftone), `pres-render-board-A1` (4-up renders), `pres-context-site-A1` (aerial + legend + caption) |
+| Clarification       | `clar-markup-A1` (plan + query log + revision strip), `clar-rfi-A3` (single-issue A3 sketch + question + revision), `clar-design-intent-A1` (plan + 3D + narrative + materials strip) |
+
+Routing table grew to 43 rules covering doc types: `SITE`, `ROOF_PLAN`, `FLOOR_FINISHES`, `FIRE_STRATEGY`, `ACCESSIBILITY`, `INTERIOR_ELEVATION`, `WIN_SCHEDULE`, `FOUNDATION`, `REBAR_DETAIL`, `HVAC_DUCT`, `PLANTROOM`, `POWER`, `LIGHTING`, `FIRE_ALARM`, `DRAINAGE`, `ASSET_LOCATION`, `CLASH`, `PERSPECTIVE`, `RENDER_BOARD`, `CONTEXT`, `DESIGN_INTENT`, `CLARIFICATION`, `RFI`; presentation rules match on `phase: PRESENTATION` so the same discipline can dispatch to production vs presentation types by phase.
+
+### Project-scoped overrides
+
+Registry layers a project override from `<project>/_BIM_COORD/drawing_types.json` on top of the corporate baseline. Project entries win by `id`; project routing rules are **prepended** (first-match-wins). Mutating a corporate entry on disk flips its `origin` to `project` via SHA-256 checksum drift detection (see `DrawingTypeRegistry.ComputeChecksums`).
+
+### Wiring — fabrication is the Phase I proof point
+
+`ShopDrawingComposer` consults the registry via a 3-tier fallback chain (no regression):
+
+1. User-picked `FabricationOptions.ShopDrawing.TitleBlockSymbolId` / `SheetNumberPattern` / `SheetNamePattern` (win)
+2. Drawing Type resolved by `DrawingDispatcher.Resolve(doc, disc, "*", Spool)` — `pipe-spool-A1-1to50` / `duct-spool-A1-1to50`
+3. Historic hard-coded per-discipline dict + session sequence counter
+
+Phase II (complete, commit `384a374b`) wired `DocAutomationExtCommands.BatchSectionsCommand` / `BatchElevationsCommand` / `BatchSheetsCommand` into the registry via `DrawingTypePresentation.Apply`; each falls back to its historic template search when no profile matches. `SheetManagerCommands.CreateFromTemplateCommand` still uses the hard-coded 6 C# templates in `SheetTemplateEngine.cs` — Phase III follow-up.
+
+### Week 2–6 enhancements (complete)
+
+**Week 2 — ViewStylePack shared-style layer** (`Core/Drawing/ViewStylePack.cs`, `ViewStylePackRegistry.cs`, `ViewStylePackApplier.cs`). Factors graphic overrides / filters / VG overrides / text+dim styles / tag-family maps out of `DrawingType` so the 40 profiles share ~11 visual packs. `DrawingType.ViewStylePackId` references a pack by id; `Extends` field on packs supports inheritance chains. Shipped as `Data/STING_VIEW_STYLE_PACKS.json`: `corp-base`, `corp-standard-plan`, `corp-standard-rcp`, `corp-standard-section`, `corp-standard-elevation`, `corp-standard-detail`, `corp-fabrication-shop`, `corp-presentation-rich`, `corp-presentation-mono`, `corp-coordination`, `corp-clarification`. Applier walks the extends chain, resolves category names / BIC strings / subcategory `<brackets>` → ElementId, writes `OverrideGraphicSettings` on categories + filters.
+
+**Week 3 — Parameter stamping + browser organizer** (`Core/Drawing/DrawingTypeStamper.cs`, `Commands/Drawing/DrawingBrowserOrganizerCommand.cs`). Two new shared parameters written onto every view/sheet a generator creates: `STING_DRAWING_TYPE_ID_TXT` and `STING_STYLE_LOCKED_BOOL`. Stamper is workshared-safe (`WorksharingUtils.GetCheckoutStatus` gate). Browser Organizer creates `'STING - by Drawing Type'` organizations for views + sheets, keyed off the shared param GUID via `FolderItemsParameter`. `DrawingTypes_BrowserOrganize` button in DOCS.
+
+**Week 4 — SyncStyles + drift detection** (`Core/Drawing/DrawingDriftDetector.cs`, `Commands/Drawing/DrawingSyncStylesCommand.cs`). Detector scans every stamped view, reports SCALE / DETAIL / TEMPLATE drift. SyncStyles shows first-10 preview, on confirm re-runs `DrawingTypePresentation.Apply` (annotation off to avoid re-dimensioning) against each drifted view. Skips `STING_STYLE_LOCKED_BOOL == 1`. Inspect command surfaces drift count in its headline. `DrawingTypes_SyncStyles` button in DOCS.
+
+**Week 5 — Scope-box auto-binding** (`Core/Drawing/ScopeBoxBinder.cs`, `Commands/Drawing/GenerateFromScopeBoxesCommand.cs`). Scope boxes named `STING::<drawing-type-id>::<level-code?>::<tag?>` auto-bind to a profile. One command creates views + applies the profile + crops to the scope box. Idempotent — re-run finds existing stamped views and re-applies rather than duplicating. `DrawingTypes_FromScopeBoxes` button in DOCS.
+
+**Week 6 — Conditional routing + profile inheritance**. `DrawingRoutingRule` gains 5 optional regex predicates: `disciplineMatches`, `phaseMatches`, `docTypeMatches`, `levelMatches`, `projectCodeMatches`; all set predicates must match (logical AND). `DrawingDispatcher.Resolve(doc, disc, phase, docType, levelCode)` new level-aware overload; existing 4-arg form delegates. `DrawingType.Extends` field + `DrawingTypeRegistry.ResolveExtends` fold parent → child at lookup time with loop detection, mirror of the pack extends chain.
+
+**Bonus — DrawingCropApplier**. Executes the previously-declarative `DrawingType.Crop`: `ScopeBox`, `ScopeBoxOrBbox`, `TightBbox`, `RoomBoundary`, `None`. mm margins, element-bbox unions, scope-box resolution by name. Wired into `DrawingTypePresentation.Apply` between view-template and style-pack steps.
+
+**Bonus (4) — Title-block parameter binding**. `DrawingType.TitleBlockParams` (Dictionary<string,string>) binds title-block instance parameters declaratively. `Core/Drawing/TitleBlockParamApplier.cs` resolves the value template with two substitution kinds: `${PRJ_ORG_xxx}` (reads from `ProjectInformation` by parameter name) and `{disc}/{lvl}/{sys}/{spool}/{mark}/{seq:Dn}` (caller-supplied token dict). Unknown tokens pass through literal. Handles String / Integer / Double storage types; warns on unparsable numeric input. Wired into `ShopDrawingComposer.ApplySheetMetadata` so fabrication sheets get both hard-coded fab cells (spool, weight, FAB_LOC, status, BOM rev) and declarative corporate cells (client, project code, suitability, revision, sheet number). Editor gets a new 'Title-block parameter binding' card — row-per-param, rename-key-preserves-value. Three shipped profiles seeded with examples: `arch-plan-A1-1to100` (10 params), `pipe-spool-A1-1to50` (12 params), `pres-3d-axon-A1` (9 params).
+
+**Phase III — SheetManager integration (complete)**. `SheetManager.CreateFromTemplateCommand` picker now lists Drawing Type profiles alongside the 6 built-in SheetTemplates + user-saved ones. `Docs/DrawingTypeSheetAdapter.cs` converts `DrawingType → SheetTemplate` on pick (slot coords pass through verbatim; both use 0..1-over-drawable-zone). Title-block resolution prefers the profile's declared family when loaded, else falls through to the historic picker. Post-create step stamps `STING_DRAWING_TYPE_ID_TXT` and runs `TitleBlockParamApplier` so every sheet from the profile path is registry-tracked and title-block-populated. Retires the last non-registry drawing-production path — every sheet-creation entry point now routes through the same profile catalogue.
+
+### Pipeline order (final)
+
+`DrawingTypePresentation.Apply(doc, view, dt)` runs:
+
+1. **Lock check** — `DrawingTypeStamper.IsLocked` → skip
+2. **Stamp** `STING_DRAWING_TYPE_ID_TXT`
+3. **Scale** `view.Scale = dt.Scale`
+4. **Detail level** `view.DetailLevel = dt.DetailLevel`
+5. **View template** lookup by name + apply
+6. **Crop strategy** via `DrawingCropApplier`
+7. **View style pack** resolve + `ViewStylePackApplier.Apply`
+8. **Annotation pass** via `AnnotationRunner` (auto-dim + auto-tag)
+
+For sheet creation (fabrication composer, SheetManager CreateFromTemplate), an additional pair runs after the sheet is minted:
+
+9. **DrawingType stamp** via `DrawingTypeStamper.Stamp(sheet, dt.Id)`
+10. **Title-block param binding** via `TitleBlockParamApplier.Apply(doc, sheet, dt, tokens)` — `${PRJ_ORG_xxx}` + `{disc}/{lvl}/{sys}/{spool}/{mark}/{seq:Dn}` resolved against ProjectInformation + caller's token dict.
+
+Every step is try/catch-wrapped; warnings collect into `ApplyResult.Warnings`, the run continues on failures.
+
+### Week 7 — ViewStylePack editor tab
+
+`DrawingTypeEditorDialog` is now a two-tab editor. Tab 1 "Drawing Types" is the original content unchanged. Tab 2 "View Style Packs" mirrors the same shape — search-filtered list on the left with `＋ New / Clone / Delete`, scrollable form on the right with five cards: Identity (id / name / description / **extends parent id combo** / origin), Appearance (lineWeightScale, textStyle, dimensionStyle, hatchPalette), Filter rules (row-per-rule grid: name / Visible / Halftone / projection colour+weight / cut colour+weight / transparency / × delete), VG overrides (per-category row grid with same cells + rename-key-preserves-value), Tag families (category → family-name map).
+
+Save button routes to the active tab: `drawing_types.json` (tab 0, existing) or `view_style_packs.json` (tab 1, new). Only project-origin entries are written — corporate baseline on disk stays pristine. Edits to corporate packs silently flip `origin` to `project` via `ViewStylePackRegistry.ComputeChecksums` drift detection, same mechanism Drawing Types use.
+
+The tab is a pure UI layer on top of the Week 2 data model — no changes to `ViewStylePack` / `ViewStylePackRegistry` / `ViewStylePackApplier`.
+
+### Phase 135 — DrawingType TokenProfile
+
+`DrawingType.TokenProfile` adds per-profile tag depth, style preset, segment mask, and colour scheme. `Core/Drawing/TokenProfileApplier.cs` runs as Step 7.5 between the View Style Pack apply and the Annotation pass so any auto-tags emitted by `AnnotationRunner` inherit the active profile's appearance. Drift detection has a `TOKEN_PROFILE_DRIFT` kind in `DrawingDriftDetector` that compares `STING_VIEW_TAG_STYLE` + `TAG_SEG_MASK_TXT` on stamped views against the resolved profile/pack pair; SyncStyles heals automatically.
+
+### Phase 136 — Editor: ViewStylePack dropdown + full Revit VG editor + fallback chain
+
+Editor gains a `ViewStylePackId` dropdown on Drawing Types > Views card and a full Revit-style 4-tab VG editor on the View Style Packs tab (Model / Annotation / Imported / Filters) with sub-dialogs for line + pattern overrides. `ViewStylePack` extended with `ViewTemplate`, `DetailLevel`, `ScaleHint`, `ColorScheme` so the runtime can read the same fields the editor writes; `DrawingTypePresentation.Apply` resolves the pack early and uses pack settings as fallback when the DrawingType doesn't set its own (DrawingType always wins). Bidirectional template copy: View Style Packs tab gains "Push template → bound types"; Drawing Types tab gains "↑ Push to pack" and "Use pack template" links. `docs/AEC_PRODUCTION_SET_STRATEGY.md` lays out an 11-pack × 80+ DrawingType strategy indexed by RIBA stage × discipline × output.
+
+### Phase 137 — STING-Managed View Templates (Architecture C — Hybrid)
+
+Each `ViewStylePack` now carries a `templateMode` field (`managed | external`). In **managed mode** STING auto-generates and maintains Revit view templates named `STING:<pack-id>:<ViewType>` from the pack JSON. `DrawingTypePresentation.Apply` Step 7 routes through `Core/Drawing/ManagedTemplateSyncer.cs` — `EnsureTemplate(doc, pack, viewType)` is idempotent (absent → copy seed of the right ViewType + rename; present + checksum match → no-op; present + drift → re-apply pack settings + restamp). Managed fields whitelist: `vg`, `filters`, `detailLevel`, `discipline`, `visualStyle`, `phaseFilter`, `phaseName`, `annotationCrop`, `farClipMm`, `viewRange`, `underlay`. Two shared parameters stamp the template for drift detection: `STING_PACK_ID_TXT`, `STING_PACK_CHECKSUM_TXT`. Three migration commands in `Commands/Drawing/ManagedTemplateCommands.cs` — `ConvertPackToManagedCommand` / `DetachFromManagedCommand` / `RegeneratePackTemplatesCommand` — wired into the DRAWING TYPES wrap-panel and the editor toolbar. `MANAGED_TEMPLATE` drift kind added to `DrawingDriftDetector`. Editor's View Style Packs tab gains a `templateMode` toggle plus managed-mode-only fields (Visual style / View discipline / Phase filter / Phase / View range sub-card / Far clip / Annotation crop / managed-fields multi-select). `displayOptions` (shadows / sketchy lines / ambient shadows) flagged as warnings — no public Revit API.
+
+### Phase 138 — Revit VG editor parity + branch consolidation
+
+The Phase 137 entry shipped a compact VG editor and noted the
+Revit-VG-cell-style grid as deferred. That follow-up has now landed
+and every outstanding feature branch has been consolidated into the
+working tree.
+
+**New UI files** under `StingTools/UI/`:
+
+| File | Lines | Purpose |
+|---|---|---|
+| `RevitVgEditor.cs` | 1,194 | Full Revit VG dialog replica embedded inline in the View Style Pack form. Backed by `RevitCategoryTree.TaggableCategories` + `CategoriesWithCut`. Exposes Cut Fg/Bg / Projection Fg/Bg / Halftone / Transparency / Detail-Level cells + filter-rule rows + line-styles tab + working chevron expanders + modeless editor + dispatch surfacing. |
+| `VgFillPatternDialog.cs` | 197 | Fill Pattern Graphics popup mirroring Revit's Override… cell. Resolves `FillPatternElement` ids by name with solid-fill fallback. |
+| `VgLineGraphicsDialog.cs` | 157 | Line Graphics Override popup with line-pattern dropdown + colour picker + weight spinner. |
+| `VgColorPicker.cs` | 120 | Windows colour picker shell with recent-colours strip and discipline-palette swatches sourced from `ColorHelper`. |
+| `TitleBlockSlotLoader.cs` | 146 | Slot-dropdown helper that lazy-loads `<project>/Title Blocks/*.rfa` slot definitions. Exposes `GetSlotsForFamily(...)`. Replaces hardcoded slot index in `DrawingProductionConfigDialog`. |
+
+Typo-prevention pass replaces free-text TextBoxes with dropdowns for fill pattern / line pattern / colour / filter-rule names; override cells render the resolved colour swatch in-grid; per-row swatches update live on edit.
+
+**Branches consolidated**: `claude/implementation-prompt-phase-137-OrI6I` (fast-forward), `claude/merge-branches-main-HB2FF` (April-17 work — twelve content conflicts resolved with `--ours` to keep newer state), `claude/review-template-manager-JEiuF` (Phase 92 reference palettes — one trivial variable-name conflict). After consolidation `git for-each-ref` reports zero remote branches with unique commits not in HEAD. Full per-file resolution log lives in `docs/CHANGELOG.md` Phase 138 entry.
+
+### Caveats (Drawing Template Manager)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The 40 corporate drawing types + 11 style packs reference title-block / view-template / tag-family names that projects must supply; the validator reports missing assets as Warnings (not Errors) so the JSON ships usable on a stock project.
+3. Crop strategy `RoomBoundary` falls back to `TightBbox` when no rooms are in the view; plan views that should be room-bounded need rooms placed first.
+4. `IUpdater`-based live style propagation (automatic re-apply when a profile / pack changes in-session) is not implemented — the manual `SyncStyles` command covers the same ground on demand. Runtime cost vs. always-on drift-zero trade-off means this stays deferred.
+5. `TitleBlockParamApplier` writes the first title-block instance found on a sheet. Sheets hosting multiple title blocks (unusual) only get the first one populated — the applier warns and moves on.
+
+### Phase 166 — AEC/FM Corporate Filter Library (199 filters)
+
+A complete corporate-baseline `ParameterFilterElement` library for the
+Drawing Template Manager. Until this phase, `ViewStylePackApplier` could
+*reference* filters by name but couldn't *create* them — the only filter
+factory in the codebase was the hard-coded ~40-filter
+`TemplateCommands.CreateFiltersCommand`. Phase 166 adds a full
+JSON-defined registry with 199 filter definitions covering every
+discipline an AEC/FM firm produces drawings for, plus matching
+`OverrideGraphicSettings` recipes per BS 1192 / ISO 19650 / Uniclass 2015 /
+BS 1710 / ASME A13.1 / GSA MEP / CIBSE-SDE / BS 9999 / BS 8300 /
+BIMForum LOD.
+
+**New files**
+
+| Path | Role |
+|---|---|
+| `StingTools/Data/STING_AEC_FILTERS.json` | 199 definitions: 47 Arch · 33 HVAC · 31 Struct · 30 Fire · 27 Elec · 18 Plumb · 11 FM/COBie · 8 ISO 19650 · 8 Coord/LOD · 5 VT · 5 QA |
+| `StingTools/Core/Drawing/AecFilterDefinition.cs` | POCO + rule grammar (`leaf | compound`, 14 operators, `kind=builtin/shared/phase/workset/level`) |
+| `StingTools/Core/Drawing/AecFilterRegistry.cs` | Per-document loader; layers `<project>/_BIM_COORD/aec_filters.json` over corporate; `Get` / `GetByName` / `ListAll` / `ListByTag` / `Reload` |
+| `StingTools/Core/Drawing/AecFilterFactory.cs` | JSON rule tree → `LogicalAnd`/`OrFilter` + `ElementParameterFilter` + `ParameterFilterElement.Create`; resolves built-in / shared / phase / workset / level params; sniffs storage type via `Definition.GetDataType()` |
+| `StingTools/Commands/Drawing/AecFilterCommands.cs` | `AecFiltersCreate` (mint all into doc, idempotent) / `AecFiltersInspect` (read-only diagnostic) / `AecFiltersReload` (cache invalidate) |
+| `docs/AEC_FILTER_LIBRARY.md` | Reference doc — rule grammar, override recipe, lazy-create flow, standards table, per-drawing-type filter sets |
+
+**Wiring**
+
+`ViewStylePackApplier.ApplyFilterRules` now lazy-creates missing filters
+from the registry under the active transaction (was: warned "create it
+first" and skipped). Field-by-field merge: pack `StyleFilterRule` field
+wins → registry `defaultOverride` fills nulls when `inheritDefaults != false`
+→ Revit default. `StyleFilterRule` extended with 11 fields covering surface
+foreground/background patterns + line patterns + `detailLevel` to support
+fire-rated wall washes and CIBSE-SDE pipe colour fills properly. Schema-key
+drift fixed: `ViewStylePackLibrary` now accepts both `stylePacks` and
+`viewStylePacks`; `ViewStylePack.filters` ↔ `filterRules`; short-form
+field names (`name`/`projColor`/`projWeight`/`cutColor`/`cutWeight`)
+deserialise alongside long-form. The corporate `STING_VIEW_STYLE_PACKS.json`
+is now actually consumed at runtime for the first time.
+
+**Curated filter references**
+
+Four major packs populated with 64 filter references using
+`inheritDefaults: true` — they pull the corporate-baseline override
+styling without redefining it: `corp-coordination` (21 — MEP services +
+clash + insulation), `corp-standard-plan` (19 — phase + fire-rated walls
+/ doors + accessibility + escape), `corp-structural-plan` (20 — material
++ steel sections + foundations + bracing + rebar bands),
+`corp-demolition-phase` (4 — phase rules with full corporate styling).
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox). API calls
+   target Revit 2025/2026/2027: `paramId.Value` (Int64) replaces
+   deprecated `IntegerValue`; `Definition.GetDataType()` (ForgeTypeId)
+   replaces `ParameterType`.
+2. Categories that don't exist in the target Revit version are silently
+   dropped with a warning; if all drop, the filter creation is skipped.
+3. Shared parameters referenced by `kind: "shared"` must be bound on the
+   project before the filter can be created — the factory warns + skips
+   gracefully rather than failing the whole batch.
+
+## Template Engine v1.1 (Phase 112)
+
+**Status**: S01–S18 landed on `claude/implement-template-engine-COd9n`
+(commits `e92a504f` + `a37c4c61`). Everything from the
+`20260423_planscape_template_engine_runner_v1.1.pdf` runner is
+implemented against the nested repo layout — the runner assumed a flat
+root, but `.cs` files live under `StingTools/Docs/{Templates,Workflow,Search}/`.
+S19 (signature provider) and S20 (AI metadata extraction) are design-
+complete and deferred to v1.2 per the runner.
+
+### New folders
+
+| Path | Purpose |
+|---|---|
+| `StingTools/Docs/Templates/` | MiniWord + ClosedXML render pipeline (14 files) |
+| `StingTools/Docs/Workflow/` | WorkflowEngine + AuditLog + DistributionGroups (6 files) |
+| `StingTools/Docs/Search/` | Lucene.NET document index + saved searches (2 files) |
+| `StingTools/Docs/_template_sources/` | 16 embedded `.docx` / `.xlsx` templates (EmbeddedResource) |
+| `StingTools/Docs/_workflow_sources/` | 5 embedded workflow JSONs (EmbeddedResource) |
+
+### New namespaces
+
+`Planscape.Docs.Templates`, `Planscape.Docs.Workflow`,
+`Planscape.Docs.Search`. The plugin assembly remains `StingTools` — these
+namespaces coexist with the existing `StingTools.*` tree.
+
+### New parameters (13)
+
+All `PRJ_ORG_*` scoped to `ProjectInformation`, UUIDv5 in Planscape docs
+namespace `a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a`. Constants on
+`ParamRegistry`: `ORG_PROJECT_CODE`, `ORG_ORIGINATOR_CODE`,
+`ORG_COMPANY_NAME`, `ORG_COMPANY_ADDRESS`, `ORG_CLIENT_NAME`,
+`ORG_APPOINTING_PARTY`, `ORG_LEAD_APPOINTED_PARTY`, `ORG_PARTICIPANTS`,
+`ORG_PHASE`, `ORG_CLASS`, `ORG_WORKFLOW_PROFILE`,
+`ORG_SIGNATURE_PROVIDER`, `ORG_AI_EXTRACT_ENABLED`. Exposed as
+`AllOrganisationParams[]` + `OrganisationDefaults{}` (seeds `"PLNS"` /
+`"Planscape Limited"` / `"Kampala, Uganda"` / phase `DE` / class `2` /
+workflow profile `default`).
+
+### New commands (8)
+
+Registered in the BIM tab of the dock panel and in `StingCommandHandler`:
+
+| Tag | Class | Transaction | Description |
+|---|---|---|---|
+| `IssueDeliverable` | `Planscape.Docs.Templates.IssueDeliverableCommand` | Manual | Render A01, write revision history, start `deliverable_issue_default` workflow, audit |
+| `ReIssueDeliverable` | `ReIssueDeliverableCommand` | Manual | Bump revision + re-issue |
+| `PublishDeliverable` | `PublishDeliverableCommand` | Manual | Promote to S4 / `PUBLISHED` CDE container |
+| `CancelDeliverable` | `CancelDeliverableCommand` | Manual | Render A02 cancellation notice, archive |
+| `SupersedeDeliverable` | `SupersedeDeliverableCommand` | Manual | Mint new number, render A03 |
+| `ReplaceDeliverable` | `ReplaceDeliverableCommand` | Manual | Render A04 replacing notice, cross-link |
+| `CreateTransmittalOrchestrated` | `CreateTransmittalOrchestratedCommand` | Manual | Full pipeline: mint id → render B06 → start `transmittal_default` workflow → audit |
+| `BulkIssueDeliverables` | `BulkIssueDeliverablesCommand` | Manual | Issue all currently-selected deliverables in one `TransactionGroup` |
+
+Existing `DocumentManagementDialog.QuickTransmittal` and
+`BIMManagerCommands.CreateTransmittalCommand` also delegate to
+`TransmittalOrchestrator.Create` after their classic JSON write — both
+entry points produce rendered docx + workflow instance + audit entry,
+while keeping their existing UI rows (`delivery_tracking`,
+`recipient_count`, `status_history`) unchanged for backwards compat.
+
+### Runtime artefacts (per project)
+
+Written under `<project>/_BIM_COORD/`:
+
+| File | Purpose |
+|---|---|
+| `templates/manifest.json` | Seeded from `ProjectInformation` + `PRJ_ORG_*` on first open |
+| `templates/*.docx` / `*.xlsx` | 16 default templates extracted from embedded resources |
+| `workflows/*.json` | 5 default workflow definitions extracted from embedded resources |
+| `generated/YYYYMMDD_{doc_number}_{template_id}.{ext}` | Rendered output |
+| `doc_sequences.json` | Atomic counter store per `(type\|role\|fb\|sb)` key |
+| `deliverables.json` | Lifecycle state + revision history per deliverable |
+| `transmittals.json` | Enriched with `template_id`, `rendered_file_path`, `workflow_instance_id` |
+| `workflow_state.json` | `WorkflowInstance` rows per open workflow |
+| `audit_log_{yyyy}_{MM}.jsonl` | Append-only SHA-256 tamper-evidence chain |
+| `distribution_groups.json` | Type/role/suitability-scored recipient groups |
+| `saved_searches.json` | Per-user saved document search queries |
+| `search_index/` | Lucene FSDirectory index over register + deliverables |
+
+### Extraction lifecycle
+
+`StingToolsApp.OnDocumentOpened` calls
+`EmbeddedTemplates.ExtractIfMissing(doc)` on first open per project.
+This streams the 16 templates + 5 workflow JSONs onto disk and writes
+a default `manifest.json` seeded from `ProjectInformation` and
+`PRJ_ORG_*`. Idempotent — re-opens are no-ops.
+
+### Caveats (template engine)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The 16 `.docx` / `.xlsx` templates ship as professional-quality stubs
+   — proper Word tables, banded header, footer `PAGE`/`NUMPAGES` fields,
+   loop tables, signature blocks — but designers can still expand
+   bespoke layouts in Word without breaking the `{{token}}` contract.
+3. S19 (signature provider) and S20 (AI extraction) are deferred to v1.2
+   per the runner PDF. `PRJ_ORG_SIGNATURE_PROVIDER_TXT` and
+   `PRJ_ORG_AI_EXTRACT_ENABLED_BOOL` are already defined so enabling
+   them is additive only.
+
+## Healthcare Pack (H-1..H-30)
+
+**Status**: full pack landed on branch `claude/research-hospital-design-0Uxbi` across ~22 commits. Built clean on Windows with 0 warnings. See [`docs/HEALTHCARE_PACK_DESIGN.md`](docs/HEALTHCARE_PACK_DESIGN.md) for the full spec; [`docs/CHANGELOG.md`](docs/CHANGELOG.md) for the per-phase summary.
+
+### What it adds at a glance
+
+- **5 new shared-parameter groups** (28 `CLN_CLINICAL`, 29 `MGS_SYSTEMS`, 30 `RAD_PROTECTION`, 31 `CEQ_CLINICAL`, 32 `LIG_BEHAVIOURAL`) plus extensions to existing groups 4 / 5 / 6 / 8 / 13 / 25; ~100 net-new shared parameters in `MR_PARAMETERS.txt`.
+- **3 new disciplines** in the tag taxonomy (`H` Healthcare, `MG` Medical Gas, `RP` Radiation Protection); ~30 healthcare PROD codes; 60 tag families in `STING_TAG_CONFIG_v5_0_HEALTH.csv`.
+- **16 healthcare validators** under `Core/Validation/Healthcare/` (Pressure / MGPS / EES / Water / Radiation / Adjacency / Anti-Ligature / RDS / IoT-staleness / Structural / Acoustic / Advanced-Rad / Endoscope / EES-Resilience / RTLS / Waste) gated through `HealthcareValidatorGate` against `PRJ_ORG_HEALTH_PACK_PROFILE_TXT` (FULL / ACUTE / COMMUNITY / DENTAL / IMAGING-ONLY / MENTAL-HEALTH).
+- **7 standards modules** under `StingTools.Standards/{HTM, HBN, FGI, NFPA99, NCRP147, ASHRAE170, USP797800}` — stateless lookup tables + checklist generators + an NCRP 147 W·U·T → mm-Pb calculator (Archer α/β/γ digitised for 70/100/125/150/200 kVp lead).
+- **22 corporate Drawing Types** (RDS / EQP / MGPS / pressure / EES riser / IPS / decon / mortuary / fire / radiation / MRI / ligature / bedhead / OR-RCP / water-safety / acoustic / structural / RTLS / waste / nuclear-medicine) with routing rules; 8 ViewStylePacks; 58 healthcare filters in `STING_AEC_FILTERS.json`.
+- **MGPS package** (`Core/MedGas/`) — `MgasNetwork` graph builder, `MgasFlowSolver` (NFPA 99 §5.1.13 diversity), `MgasVerificationLog` (persists 12-step NFPA 99 §5.1.12 records to `_BIM_COORD/healthcare/mgas_verifications/`).
+- **RDS engine** (`Docs/Templates/Rds*`) — token-context builder + MiniWord renderer; one .docx per clinical room; mandatory parameter set enforced by `RdsCompletenessValidator`.
+- **40+ commands** under `Commands/Healthcare/`, `Commands/MedGas/`, `Commands/Adjacency/`, `Commands/Twin/`, `Commands/Radiation/` — 14 thin validator wrappers plus 9 specialist audits (anti-lig / hybrid OR / USP / behavioural / mortuary / maternity / HSDU / dialysis / HBO).
+- **8 workflow JSON presets** (`WORKFLOW_HealthcareCommissioning`, `MgasVerification`, `PressureRegimeAudit`, `RdsIssue`, `HTM-04-01-Annual`, `AntiLigatureAudit`, `NFPA110-GeneratorTest`, `HTM-01-06-EndoReprocess`) — auto-discovered by `WorkflowEngine.AppendUserPresets`.
+- **COBie healthcare overlay** — 50 clinical equipment types, 16 systems, 70 picklist values, 35 PPM templates, 12 doc types, 26 spare-part templates added to the existing `COBIE_*.csv` files; existing `HEALTHCARE_NHS` and `HEALTHCARE_PRIVATE` presets updated with the correct Speciality Equipment focus category.
+- **Mobile commissioning app** — new `Planscape/app/healthcare/` tab with 6 screens (overview / mgas-checklist / pressure-live / water-flush / anti-ligature-audit / rds-viewer) calling typed wrappers in `Planscape/src/api/endpoints.ts`.
+- **Server APIs** — `Planscape.Server/src/Planscape.API/Controllers/HealthcareController.cs` + 4 entities (`HealthcarePressureLog`, `HealthcareMgasVerification`, `HealthcareAntiLigatureAudit`, `HealthcareRdsSnapshot`) all `ITenantScoped`. Run `dotnet ef migrations add HealthcarePack` against `Planscape.Server` once before deploying.
+- **NLP processor** — 19 healthcare patterns added to `Tags/NLPCommandProcessor.cs` so users can type "run pressure audit" / "mgps verify" / "rds completeness" etc.
+- **Integration with the unified `RunAllValidatorsCommand`** — the v4 validator chain now runs `RunAllHealthcareValidators` after the 8 v4 validators (gated on facility-type so non-healthcare projects pay 0 cost).
+
+### Caveats
+
+1. `healthcare_rds.docx` template ships only as a README authoring guide; the .docx itself is authored separately.
+2. MGS family stubs (Manifold / VIE / ZVB / AAP / MAP / TU) ship parameter specs only — real `.rfa` files come from manufacturers (Beaconmedaes, Pattons, GCE, Wandsworth, Static Systems).
+3. `TwinReadback` BACnet / OPC-UA transports are abstract stubs — real transports plug in behind the same interface (no third-party libs bundled).
+4. `RAD_QE_NAME_TXT` sign-off remains mandatory before the radiation calculators are treated as authoritative — STING does not certify shielding.
+5. EF migration not run yet — `dotnet ef migrations add HealthcarePack` is the next deployment step.
+6. Dock-panel UI does not yet have a Healthcare tab — commands dispatch via `WorkflowEngine.ResolveCommand` and `StingCommandHandler` button tags only. A WPF Healthcare tab is the natural next phase.
+
+## v4 MVP
+
+**Status**: Phase 1 (parameters) → Phase 5 (fabrication) implemented across ~50 commits on branch `claude/sting-tools-v4-mvp-SiPGw`. Code committed without `dotnet build` verification (Linux sandbox, no .NET / Revit API). Verify in Revit before merge.
+
+### New folders
+
+| Path | Purpose |
+|---|---|
+| `StingTools/Core/Placement/` | Fixture placement engine (rule + scorer + candidate + lighting grid) |
+| `StingTools/Core/Routing/` | Auto-drop engines (DropEngineBase + AutoConduitDrop / AutoPipeDrop / AutoDuctDrop) |
+| `StingTools/Core/Validation/` | Five v4 validators (connectivity / fill / spec / termination / slope) + ValidationResult record |
+| `StingTools/Core/Fabrication/` | Fabrication coordinator + AssemblyGrouper + AssemblyBuilder + AssemblyViewBuilder + ShopDrawingComposer + IsoSymbolPlacer + per-discipline subfolders (Electrical / Pipe / Duct) |
+| `StingTools/Commands/Placement/` | PlaceFixturesCommand, LightingGridCommand, LearnPlacementV4Command |
+| `StingTools/Commands/Routing/` | AutoDropCommand, GenerateLayoutCommand, ValidateFillsCommand |
+| `StingTools/Commands/Validation/` | RunAllValidatorsCommand |
+| `StingTools/Commands/Fabrication/` | GenerateFabPackageCommand, ExportCutListCommand, ExportIsometricsCommand, ExportWeldMapCommand |
+| `StingTools/Data/Placement/` | STING_PLACEMENT_RULES.json (43 rules) |
+| `StingTools/Data/Fabrication/` | STING_FAB_RULES.json (6 disciplines), STING_ISO_SYMBOLS_INDEX.csv (180+ symbols) |
+| `StingTools/Data/Parameters/` | STING_PARAMS_V4.txt shared-parameter fragment |
+| `Families/AssemblyTitleBlocks/` | 7 title block parameter spec stubs + README |
+
+### New namespaces
+
+`StingTools.Core.Placement`, `StingTools.Core.Routing`, `StingTools.Core.Validation`, `StingTools.Core.Fabrication`, `StingTools.Core.Fabrication.Electrical`, `StingTools.Core.Fabrication.Pipe`, `StingTools.Core.Fabrication.Duct`, `StingTools.Commands.Placement`, `StingTools.Commands.Routing`, `StingTools.Commands.Validation`, `StingTools.Commands.Fabrication`.
+
+### New commands (12)
+
+| Command tag | Class | Tab |
+|---|---|---|
+| `Placement_PlaceFixtures` | `PlaceFixturesCommand` | Fixtures |
+| `Placement_LightingGrid` | `LightingGridCommand` | Fixtures |
+| `Placement_Learn` | `LearnPlacementV4Command` | Fixtures |
+| `Routing_AutoDrop` | `AutoDropCommand` | Routing |
+| `Routing_GenerateLayout` | `GenerateLayoutCommand` | Routing |
+| `Routing_ValidateFills` | `ValidateFillsCommand` | Routing |
+| `Validation_RunAll` | `RunAllValidatorsCommand` | (called from Routing) |
+| `Fabrication_GeneratePackage` | `GenerateFabPackageCommand` | Fabrication |
+| `Fabrication_ExportCutList` | `ExportCutListCommand` | Fabrication |
+| `Fabrication_ExportIsometrics` | `ExportIsometricsCommand` | Fabrication |
+| `Fabrication_ExportWeldMap` | `ExportWeldMapCommand` | Fabrication |
+| `Fabrication_PlaceISOSymbols` | inline TaskDialog (placement runs in GeneratePackage) | Fabrication |
+
+### New tags Studio sub-tabs (3)
+
+`Fabrication`, `Routing`, `Fixtures` — added to `tagStudioTabs` inside the existing TAGS top-tab. Each follows the proven DockPanel + pinned WrapPanel + ScrollViewer pattern.
+
+### New parameter count
+
+- **6 net-new shared parameters** (S1.1 + S1.2): PLACE_ANCHOR / PLACE_OFFSET_X_MM / PLACE_SIDE / CPC_SZ_MM / PPE_INSULATION_THK_MM / PLM_SLOPE_PCT_V4
+- **46 fabrication / LPS / pricing constants** (S1.3) in `StingTools.Core.Fabrication.{AssyParams,LpsParams,CostParams}` with placeholder `v4-YYYY-xxxx` GUIDs awaiting family library authoring.
+- **Total**: 52 new constants. The 6 net-new ones use stable GUIDs; the 46 placeholders need real GUIDs assigned during family-library authoring.
+
+### Caveats
+
+1. Built without `dotnet build` verification — every Revit API call uses the documented signature but has not been compile-checked. `// TODO-VERIFY-API` comments mark the most uncertain spots (`AssemblyInstance.Create` category arg, `Conduit.Create` / `Pipe.Create` / `Duct.Create` overloads, ISO 6412 axonometric section transform).
+2. The 7 title block `.rfa` families are NOT shipped — only their parameter specs. `ShopDrawingComposer.ResolveTitleBlock` falls back to the first available title block in the project (now warns loudly via `FabricationResult.Warnings` and `StingLog`).
 3. ISO 6412 detail families (180 entries) are referenced by name in `STING_ISO_SYMBOLS_INDEX.csv`; `IsoSymbolPlacer` lazy-loads from `Families/ISO6412/` and warns once per missing family.
 
 ## Drawing Template Manager (Phase 113)
@@ -2022,22 +2536,34 @@ Planscape.Server/
 
 ### Plugin ↔ Server Sync Architecture
 
-> **CRITICAL NOTE**: Two parallel sync systems exist. Only one is actually used.
+> **NOTE**: Two HTTP layers coexist. Both are wired into the plugin; consolidating
+> them onto one client is INT-01 in `docs/ROADMAP.md`.
 
-| System | Location | Status | Mechanism |
+| System | Location | Role | Mechanism |
 |---|---|---|---|
-| `Planscape.PluginSync` | `Planscape.Server/src/Planscape.PluginSync/` | **DEAD CODE** — never referenced by StingTools | Automatic 5-min scheduler, file-backed offline queue |
-| `PlanscapeServerClient` | `StingTools/BIMManager/PlatformLinkCommands.cs` | **ACTUALLY USED** | Manual on-demand sync via BIM Coordination Center buttons |
+| `Planscape.PluginSync` | `Planscape.Server/src/Planscape.PluginSync/` | Background scheduler — wired to dock-panel sync chip and `PlatformSyncCommand` lazy-start (since Phase 90s); fires every 5 min once logged in | `SyncScheduler.SyncNow()` + `OfflineQueue` for store-and-forward |
+| `PlanscapeServerClient` | `StingTools/BIMManager/PlanscapeServerClient.cs` | Manual on-demand sync triggered by BIM Coordination Center buttons; thread-safe singleton | Direct HTTP POST/GET to specific endpoints |
 
-The `PlanscapeServerClient` (2,222 lines in `PlatformLinkCommands.cs`) provides:
+The `PlanscapeServerClient` (now ≈970 lines) covers:
 - JWT login/token refresh via `/api/auth/login` and `/api/auth/refresh`
 - Tag sync via `/api/tagsync/sync` (bulk POST)
 - Compliance push via `/api/projects/{id}/compliance` (POST snapshot)
-- Issue sync via `/api/projects/{id}/issues` (GET/POST)
-- Document register via `/api/projects/{id}/documents` (GET/POST)
+- Issue sync via `/api/projects/{id}/issues` (GET/POST + comments)
+- Document register via `/api/projects/{id}/documents` (GET/POST + CDE transition)
 - SEQ counter sync via `/api/projects/{id}/seq` (POST max-per-key merge)
+- Workflow run logging via `/api/projects/{id}/workflows` (POST — auto-pushed by `WorkflowEngine` after every preset run, Phase 141)
+- Warnings push via `/api/projects/{id}/warnings`
+- Transmittal create / send via `/api/projects/{id}/transmittals` + bulk via `/transmittals/bulk` (Phase 142)
+- Meeting create via `/api/projects/{id}/meetings` + bulk via `/meetings/bulk` (Phase 142)
+- MIM asset bulk push via `/api/projects/{id}/mim/assets/bulk` (Phase 141)
+- Model upload via `/api/projects/{id}/models`
+- Platform connection listing
+- All requests carry `X-Client-Type: plugin` for audit-source classification (Phase 141)
 
-Missing from `PlanscapeServerClient`: warnings sync, workflow run sync, meeting sync, transmittal sync, MIM asset sync, platform connections. See `PLANSCAPE_GAPS.md` INT-01 through INT-10 for details.
+Bulk transmittal + bulk meeting endpoints landed in Phase 142, so the
+batch sync paths the offline queue and workflow flush rely on are now
+all single-round-trip. See `PLANSCAPE_GAPS.md` for the up-to-date open
+list.
 
 ## Planscape Mobile App
 
@@ -2064,24 +2590,44 @@ Planscape/
 ├── package.json                          # Dependencies
 ├── tsconfig.json                         # TypeScript config
 ├── app/
-│   ├── _layout.tsx                       # Root layout with tab navigation
+│   ├── _layout.tsx                       # Root layout (root navigation, push register on auth)
 │   ├── login.tsx                         # Auth screen
-│   └── (tabs)/
-│       ├── _layout.tsx                   # Tab bar layout (5 tabs)
-│       ├── index.tsx                     # Dashboard tab
-│       ├── issues.tsx                    # Issues tab (list + create)
-│       ├── documents.tsx                 # Documents tab (list + CDE status)
-│       ├── scanner.tsx                   # QR/barcode scanner (828 lines)
-│       └── settings.tsx                  # Settings tab
+│   ├── accept-invitation.tsx             # Tenant invite accept flow
+│   ├── (tabs)/
+│   │   ├── _layout.tsx                   # Tab bar layout (6 primary tabs)
+│   │   ├── index.tsx                     # Dashboard (compliance gauge + sparkline)
+│   │   ├── issues.tsx                    # Issues list + create with photo/GPS/assignee picker
+│   │   ├── issue-detail.tsx              # Issue detail with comments, attachments, timeline
+│   │   ├── documents.tsx                 # Documents list + CDE status + version history
+│   │   ├── scanner.tsx                   # QR scanner — element lookup → issue pre-fill
+│   │   └── settings.tsx                  # Settings (push toggle, biometric lock, theme)
+│   ├── meetings/                         # Meeting list + agenda + actions
+│   ├── transmittals/                     # Transmittal list + create + send
+│   ├── warnings/                         # Warnings dashboard
+│   ├── workflows/                        # Workflow run history
+│   ├── models/                           # 3D model viewer (issue pin overlay)
+│   ├── inbox/                            # "My Actions" aggregator (Phase 142)
+│   ├── diary/                            # Daily site diary (Phase 142)
+│   ├── conflicts/                        # Sync-conflict triage (Phase 143)
+│   ├── heatmap/                          # Tag completeness heatmap (Phase 144, raw-SQL aggregator since Phase 145)
+│   ├── stages/                           # RIBA stage gates + MIDP deliverables (Phase 144) + criterion sign-off (Phase 145, normalised table since Phase 146)
+│   └── project-settings/                 # Project admin settings (Phase 144) + custom state machine (Phase 145)
 └── src/
     ├── api/
-    │   ├── client.ts                     # HTTP client with JWT auth (97 lines)
-    │   └── endpoints.ts                  # API endpoint constants (100 lines)
-    ├── components/                       # Reusable UI components
-    ├── hooks/                            # Custom React hooks
-    ├── types/                            # TypeScript type definitions
-    └── utils/
-        └── offlineQueue.ts              # AsyncStorage-backed offline queue (124 lines)
+    │   ├── client.ts                     # HTTP client (JWT, auto-refresh, X-Client-Type=mobile)
+    │   └── endpoints.ts                  # Typed endpoint wrappers
+    ├── components/                       # MemberPicker, TenantSwitcher, ErrorBoundary, …
+    ├── hooks/                            # useAuth, useOfflineQueue, useQrScan
+    ├── i18n/                             # FLEX-15 i18n loader
+    ├── services/                         # apiClient, biometricLock, crashReporter,
+    │                                     # documentCache, imageService, locationService,
+    │                                     # notificationService, notificationTapRouter,
+    │                                     # ocr, qrParser, realtimeClient (SignalR),
+    │                                     # secureStorage, offlineQueue
+    ├── stores/                           # Zustand: auth, issue, project, tenant, notification
+    ├── theme/                            # Theme constants
+    ├── types/                            # API DTO types
+    └── utils/                            # offlineQueue (legacy), connectivity, theme
 ```
 
 ### Mobile Offline Queue
@@ -2095,16 +2641,20 @@ Queue is persisted to `AsyncStorage` and flushed when connectivity is restored.
 
 ### Mobile Gap Summary
 
-The mobile app is at **prototype/demo stage** — NOT production-ready for on-site use. Key gaps documented in `PLANSCAPE_GAPS.md`:
-- No photo attachment support (MOB-01)
-- No GPS/location capture (MOB-02)
-- No offline-first data caching (MOB-03)
-- No push notification integration (MOB-04)
-- No document viewer/markup (MOB-06)
-- No compliance dashboard (MOB-09)
-- No meeting/transmittal screens (MOB-10, MOB-11)
+> **2026-04-27 update:** the previous "prototype/demo stage" framing is out of
+> date. The mobile app now ships production-grade implementations of every
+> on-site critical path — camera + GPS + offline queue + SignalR + push
+> notifications + biometric lock + image compression + document viewer +
+> dashboard + meetings + transmittals + warnings + 3D viewer. See
+> `Planscape.Server/docs/PLANSCAPE_GAPS.md` § 2.2 for the per-row status
+> table; only MOB-11 (dark mode) and a partial MOB-12 (accessibility audit)
+> remain open.
 
-Estimated effort to reach on-site production readiness: **12-16 weeks, £33K-£39K** (see `PLANSCAPE_GAPS.md` sections 5-6 for detailed breakdown).
+Phase 141 closed the last critical mobile gap: the Expo push token was
+retrieved but never POSTed to the server, so the `DevicePushToken` table
+stayed empty and pushes were dropped. `useAuth.login`, `useAuth.restoreSession`,
+and `_layout.checkAuth` now all call `notificationService.register()` so the
+token reaches the server on every cold start and after every login.
 
 ### Running Locally
 

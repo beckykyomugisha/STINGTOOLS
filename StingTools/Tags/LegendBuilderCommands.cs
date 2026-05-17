@@ -561,16 +561,37 @@ namespace StingTools.Tags
         /// </summary>
         public static List<LegendEntry> AutoFromProject(Document doc, string colorBy = "Discipline")
         {
+            return AutoFromProject(doc, colorBy, CollectAutoFromProjectBase(doc));
+        }
+
+        /// <summary>
+        /// Build the base element collection used by <see cref="AutoFromProject"/>.
+        /// Hoist this once at batch-level and pass to the overload below to avoid
+        /// repeating the collector pass per colour scheme.
+        /// </summary>
+        public static List<Element> CollectAutoFromProjectBase(Document doc)
+        {
             // TAG-L-02: Pre-filter with ElementMulticategoryFilter to restrict collection to
             // taggable categories before the LINQ Where clause. Avoids iterating all model
             // elements (walls, annotations, levels, grids, etc.) when only tagged elements are needed.
             var categoryFilter = new ElementMulticategoryFilter(
                 new List<BuiltInCategory>(SharedParamGuids.AllCategoryEnums));
-            var elems = new FilteredElementCollector(doc)
+            return new FilteredElementCollector(doc)
                 .WherePasses(categoryFilter)
                 .WhereElementIsNotElementType()
                 .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
                 .ToList();
+        }
+
+        /// <summary>
+        /// Overload accepting a pre-collected base element list. Used by batch
+        /// callers (e.g., OneClickLegendPipeline runs Discipline + Category +
+        /// System back-to-back) to avoid repeating the same collector pass per
+        /// colour scheme.
+        /// </summary>
+        public static List<LegendEntry> AutoFromProject(Document doc, string colorBy, List<Element> elems)
+        {
+            if (elems == null) elems = CollectAutoFromProjectBase(doc);
 
             // Delegate shared groupings (Discipline, Category, System, Status)
             if (colorBy == "Discipline" || colorBy == "Category" ||
@@ -2032,6 +2053,10 @@ namespace StingTools.Tags
             {
                 tx.Start();
 
+                // PERF: hoist base element collection once (lazy) for any scheme
+                // that falls through to AutoFromProject below.
+                List<Element> autoBase = null;
+
                 foreach (string scheme in schemesToCreate)
                 {
                     List<LegendBuilder.LegendEntry> entries;
@@ -2128,7 +2153,8 @@ namespace StingTools.Tags
                             };
                             break;
                         default:
-                            entries = LegendBuilder.AutoFromProject(doc, scheme);
+                            if (autoBase == null) autoBase = LegendBuilder.CollectAutoFromProjectBase(doc);
+                            entries = LegendBuilder.AutoFromProject(doc, scheme, autoBase);
                             config = new LegendBuilder.LegendConfig
                             {
                                 Title = $"Elements by {scheme}",
@@ -3235,6 +3261,10 @@ namespace StingTools.Tags
             {
                 tx.Start();
 
+                // PERF: hoist base element collection once for the batch
+                // (lazily — only computed if any legend matches a scheme that needs it).
+                List<Element> updateBase = null;
+
                 foreach (View legendView in toUpdate)
                 {
                     // Delete all existing content from the view (batch)
@@ -3270,32 +3300,38 @@ namespace StingTools.Tags
 
                         if (name.Contains("Discipline"))
                         {
-                            entries = LegendBuilder.AutoFromProject(doc, "Discipline");
+                            if (updateBase == null) updateBase = LegendBuilder.CollectAutoFromProjectBase(doc);
+                            entries = LegendBuilder.AutoFromProject(doc, "Discipline", updateBase);
                             config = new LegendBuilder.LegendConfig { Title = "Elements by Discipline", Footer = "Refreshed by STING Tools" };
                         }
                         else if (name.Contains("Category"))
                         {
-                            entries = LegendBuilder.AutoFromProject(doc, "Category");
+                            if (updateBase == null) updateBase = LegendBuilder.CollectAutoFromProjectBase(doc);
+                            entries = LegendBuilder.AutoFromProject(doc, "Category", updateBase);
                             config = new LegendBuilder.LegendConfig { Title = "Elements by Category", Footer = "Refreshed by STING Tools", Columns = 2 };
                         }
                         else if (name.Contains("System"))
                         {
-                            entries = LegendBuilder.AutoFromProject(doc, "System");
+                            if (updateBase == null) updateBase = LegendBuilder.CollectAutoFromProjectBase(doc);
+                            entries = LegendBuilder.AutoFromProject(doc, "System", updateBase);
                             config = new LegendBuilder.LegendConfig { Title = "Elements by System", Footer = "Refreshed by STING Tools" };
                         }
                         else if (name.Contains("Level"))
                         {
-                            entries = LegendBuilder.AutoFromProject(doc, "Level");
+                            if (updateBase == null) updateBase = LegendBuilder.CollectAutoFromProjectBase(doc);
+                            entries = LegendBuilder.AutoFromProject(doc, "Level", updateBase);
                             config = new LegendBuilder.LegendConfig { Title = "Elements by Level", Footer = "Refreshed by STING Tools" };
                         }
                         else if (name.Contains("Type"))
                         {
-                            entries = LegendBuilder.AutoFromProject(doc, "Type");
+                            if (updateBase == null) updateBase = LegendBuilder.CollectAutoFromProjectBase(doc);
+                            entries = LegendBuilder.AutoFromProject(doc, "Type", updateBase);
                             config = new LegendBuilder.LegendConfig { Title = "Elements by Type", Footer = "Refreshed by STING Tools", Columns = 2 };
                         }
                         else if (name.Contains("Status"))
                         {
-                            entries = LegendBuilder.AutoFromProject(doc, "Status");
+                            if (updateBase == null) updateBase = LegendBuilder.CollectAutoFromProjectBase(doc);
+                            entries = LegendBuilder.AutoFromProject(doc, "Status", updateBase);
                             config = new LegendBuilder.LegendConfig { Title = "Elements by Status", Footer = "Refreshed by STING Tools" };
                         }
                         else if (name.Contains("Segment"))
@@ -3545,10 +3581,14 @@ namespace StingTools.Tags
             {
                 tx.Start();
 
+                // PERF: hoist base element collection once for all 3 colour schemes
+                // instead of paying the FilteredElementCollector pass three times.
+                var pipelineBase = LegendBuilder.CollectAutoFromProjectBase(doc);
+
                 // Step 1-3: Color legends
                 foreach (string scheme in new[] { "Discipline", "Category", "System" })
                 {
-                    var entries = LegendBuilder.AutoFromProject(doc, scheme);
+                    var entries = LegendBuilder.AutoFromProject(doc, scheme, pipelineBase);
                     if (entries.Count > 0)
                     {
                         var config = new LegendBuilder.LegendConfig
@@ -6340,8 +6380,13 @@ namespace StingTools.Tags
                     }
                 }
 
+                // PERF: hoist base element collection once for the Discipline and
+                // Category legends below — both call AutoFromProject which would
+                // otherwise re-collect the same elements per scheme.
+                var masterBase = LegendBuilder.CollectAutoFromProjectBase(doc);
+
                 // 1f. Discipline Legend
-                var discEntries = LegendBuilder.AutoFromProject(doc, "Discipline");
+                var discEntries = LegendBuilder.AutoFromProject(doc, "Discipline", masterBase);
                 if (discEntries.Count > 0)
                 {
                     var existing = LegendIntelligence.FindExistingLegend(doc, "Elements by Discipline");
@@ -6364,7 +6409,7 @@ namespace StingTools.Tags
                 }
 
                 // 1g. Category Legend
-                var catEntries = LegendBuilder.AutoFromProject(doc, "Category");
+                var catEntries = LegendBuilder.AutoFromProject(doc, "Category", masterBase);
                 if (catEntries.Count > 0)
                 {
                     var existing = LegendIntelligence.FindExistingLegend(doc, "Elements by Category");

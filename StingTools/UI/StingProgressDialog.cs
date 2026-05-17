@@ -32,7 +32,7 @@ namespace StingTools.UI
         private readonly TextBlock _countText;
         private readonly TextBlock _etaText;
         private readonly Stopwatch _stopwatch;
-        private readonly int _total;
+        private int _total;
         private int _current;
         private volatile bool _cancelled;
 
@@ -122,6 +122,11 @@ namespace StingTools.UI
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 ResizeMode = ResizeMode.NoResize,
                 ShowInTaskbar = false,
+                // Phase 139.14 — Topmost ensures the progress dialog
+                // stays in front when triggered from a modeless WPF
+                // window (Placement Centre, Sheet Manager, etc.) which
+                // would otherwise paint over the dialog.
+                Topmost = true,
                 Content = panel,
             };
 
@@ -215,6 +220,29 @@ namespace StingTools.UI
                 }));
             }
             catch (Exception ex) { StingLog.Warn($"Progress dialog dispose failed: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Update the dialog's total count after construction. Useful for
+        /// long-prep operations that show the dialog before they know the
+        /// final element count.
+        /// </summary>
+        public void UpdateTotal(int total)
+        {
+            _total = Math.Max(total, 1);
+            try
+            {
+                _window.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    try
+                    {
+                        _progressBar.Maximum = _total;
+                        _countText.Text = $"{_current:N0} / {_total:N0}";
+                    }
+                    catch (Exception ex) { StingLog.Warn($"UpdateTotal UI: {ex.Message}"); }
+                }));
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateTotal dispatch: {ex.Message}"); }
         }
 
         /// <summary>

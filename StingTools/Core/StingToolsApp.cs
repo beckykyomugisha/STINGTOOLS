@@ -1,5 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Text;
+// Disambiguate System.Drawing.Color from Autodesk.Revit.DB.Color (CS0104).
+using DrawingColor = System.Drawing.Color;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -11,7 +16,7 @@ using Autodesk.Revit.Attributes;
 using Newtonsoft.Json.Linq;
 using StingTools.UI;
 using StingTools.BIMManager;
-using StingTools.Clash;
+using StingTools.Core.Clash;
 using Planscape.PluginSync;
 
 namespace StingTools.Core
@@ -28,6 +33,7 @@ namespace StingTools.Core
     {
         public static string AssemblyPath { get; private set; }
         public static string DataPath { get; private set; }
+        private static UpdaterId _sldUpdaterId;
 
         public Result OnStartup(UIControlledApplication application)
         {
@@ -59,6 +65,8 @@ namespace StingTools.Core
 
                 // Register the dockable panel — the single unified UI
                 RegisterDockablePanel(application);
+                RegisterElectricalPanel(application);
+                RegisterPlumbingPanel(application);
 
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
@@ -72,6 +80,24 @@ namespace StingTools.Core
                 // deferred to a follow-on phase so models that don't use clash
                 // detection pay zero cost at startup.
                 LiveClashUpdater.Register(application);
+
+                // Register real-time plumbing pipe auto-sizer (IUpdater) — starts disabled.
+                // Enabled via Plumbing tab toggle; sizes newly placed pipes on-the-fly.
+                StingTools.Core.Plumbing.RealTimePipeSizer.Register(application);
+
+                // Subscribe DocumentChanged → drain LiveClashUpdater.DirtyQueue
+                // by raising LiveClashHandler.Event. Without this, edits queue
+                // forever and the live + scheduled clash paths never run after
+                // the first scheduler tick (the scheduler's dirty gate reads
+                // ClashSession.LastDirtyAtUtc, which is only advanced inside
+                // RefreshElement/RemoveElement on the live path).
+                LiveClashWireup.Subscribe(application);
+
+                // Eager-init the GeometrySyncHandler ExternalEvent so it is
+                // created on the Revit API thread at startup, not lazily inside
+                // the DocumentSaved event handler where it would be too late.
+                try { var _ = StingTools.Commands.IFC.GeometrySyncHandler.Instance; }
+                catch (Exception geoEx) { StingLog.Warn($"GeometrySyncHandler init: {geoEx.Message}"); }
 
                 // CRASH FIX: Eagerly load ParamRegistry at startup instead of lazy-loading
                 // on first command. This ensures:
@@ -152,9 +178,28 @@ namespace StingTools.Core
                         // INT-07 — keep the dock-panel sync chip in step with each sync attempt.
                         if (SyncScheduler.Instance != null)
                         {
-                            SyncScheduler.Instance.OnSyncComplete += _ =>
+                            SyncScheduler.Instance.OnSyncComplete += result =>
                             {
-                                StingDockPanel.LastInstance?.RefreshSyncIndicator();
+                                var panel = StingDockPanel.LastInstance;
+                                if (panel == null) return;
+                                panel.RefreshSyncIndicator();
+                                var state = result.Success
+                                    ? UI.StingDockPanel.SyncState.Synced
+                                    : UI.StingDockPanel.SyncState.Error;
+                                panel.UpdateSyncStatus(state, result.ErrorMessage);
+
+                                // INT-10 — pull server issues on every successful background sync
+                                // so locally-created mobile issues appear in the plugin's sidecar.
+                                if (result.Success)
+                                {
+                                    try
+                                    {
+                                        var doc = _lastActiveDoc;
+                                        if (doc != null)
+                                            _ = BIMManager.PlanscapeServerClient.Instance.PullServerIssuesAsync(doc);
+                                    }
+                                    catch (Exception pullEx) { StingLog.Warn($"INT-10 PullServerIssues: {pullEx.Message}"); }
+                                }
                             };
                         }
                     }
@@ -207,6 +252,9 @@ namespace StingTools.Core
                 ComplianceScan.InvalidateCache();
                 Temp.FormulaEngine.InvalidateFormulaCache();
                 UI.StingCommandHandler.ClearStaticState();
+                // Phase 167: Drop the per-doc ProjectSetup cache so reopens re-detect.
+                try { ProjectFolderEngine.InvalidateSetupCache(e.Document?.PathName); }
+                catch (Exception cEx) { StingLog.Warn($"Setup cache invalidate: {cEx.Message}"); }
                 // Phase 78: Save dropped element IDs to sidecar before clearing queue
                 StingAutoTagger.SaveDroppedElementsSidecar(e.Document);
                 // R-02: Clear deferred elements on document close
@@ -220,7 +268,12 @@ namespace StingTools.Core
                 Model.ModelWorksetAssigner.ClearCache();
                 // TAG-SORT-LEVEL-01: Clear cached level elevations to prevent stale data
                 Tags.BatchTagCommand.ClearLevelElevationCache();
-                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, workset, and level caches");
+                // C-6 / D-3: cascade through Drawing-Type subsystem caches so
+                // a stale ElementId from this document never resolves to an
+                // element in the next.
+                try { Drawing.DrawingTypeRegistry.Reload(e.Document); }
+                catch (Exception ex) { StingLog.Warn($"DocumentClosing DrawingTypeRegistry.Reload: {ex.Message}"); }
+                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, workset, level, and drawing-type caches");
             }
             catch (Exception ex)
             {
@@ -337,6 +390,13 @@ namespace StingTools.Core
 
                 StingLog.Info("Planscape: auto-sync triggered by STC");
 
+                // Enqueue a full geometry sync job so dirty element geometry accumulated
+                // since the last save is pushed to the federated-model endpoint.
+                // The IdlingScheduler defers it to the next quiet Revit moment so the
+                // STC callback returns immediately (never blocks the worksharing path).
+                try { StingIdlingScheduler.Enqueue(new FullGeometrySyncJob()); }
+                catch (Exception geoEx) { StingLog.Warn($"STC geometry sync enqueue: {geoEx.Message}"); }
+
                 // UIApplication fallback chain:
                 //   1. StingCommandHandler.CurrentApp (set during any prior command)
                 //   2. Construct from the document's Application (available in event args)
@@ -370,6 +430,34 @@ namespace StingTools.Core
                 // FIX-C01: Reset selection scope to view-only on document switch
                 // Prevents stale project-wide scope from carrying over between projects
                 Select.SelectionScopeHelper.SetScope(false);
+
+                // Standards: sync ProjectStandardsManager from this document.
+                // The manager persists to %APPDATA% (per-user, not per-project)
+                // so without a per-project hint, opening a different .rvt keeps
+                // the previous region's electrical / fire / structural bindings
+                // active. Read order: PROJECT_REGION param → sidecar JSON next
+                // to the .rvt → leave singleton unchanged.
+                try
+                {
+                    var pi = e.Document?.ProjectInformation;
+                    string projectRegion = pi?.LookupParameter("PROJECT_REGION")?.AsString();
+                    string source = "PROJECT_REGION";
+                    if (string.IsNullOrWhiteSpace(projectRegion))
+                    {
+                        projectRegion = ProjectRegionSidecar.Read(e.Document);
+                        source = "sting_region.json";
+                    }
+                    if (!string.IsNullOrWhiteSpace(projectRegion))
+                    {
+                        var mgr = StingTools.Standards.ProjectStandardsManager.Instance;
+                        if (!string.Equals(mgr.Region, projectRegion, StringComparison.OrdinalIgnoreCase))
+                        {
+                            mgr.ApplyRegionalPreset(projectRegion);
+                            StingLog.Info($"Standards: synced active region → {projectRegion} (from {source})");
+                        }
+                    }
+                }
+                catch (Exception regEx) { StingLog.Warn($"Standards region sync skipped: {regEx.Message}"); }
 
                 // C4 / G1.3: Reload TagConfig on document open — prefer project-adjacent config
                 // to prevent config bleed between projects
@@ -475,9 +563,15 @@ namespace StingTools.Core
                                 {
                                     if (Planscape.PluginSync.SyncScheduler.Instance != null)
                                     {
-                                        Planscape.PluginSync.SyncScheduler.Instance.OnSyncComplete += _ =>
+                                        Planscape.PluginSync.SyncScheduler.Instance.OnSyncComplete += result =>
                                         {
-                                            StingTools.UI.StingDockPanel.LastInstance?.RefreshSyncIndicator();
+                                            var panel = StingTools.UI.StingDockPanel.LastInstance;
+                                            if (panel == null) return;
+                                            panel.RefreshSyncIndicator();
+                                            var state = result.Success
+                                                ? StingTools.UI.StingDockPanel.SyncState.Synced
+                                                : StingTools.UI.StingDockPanel.SyncState.Error;
+                                            panel.UpdateSyncStatus(state, result.ErrorMessage);
                                         };
                                     }
                                 }
@@ -507,6 +601,18 @@ namespace StingTools.Core
                 {
                     StingLog.Warn($"AutoTagger state restore: {atEx.Message}");
                 }
+
+                // TAG-DEFERRED-OVERFLOW-01: Restore previously-dropped auto-tag elements
+                // from sidecar so a session that overflowed the deferred queue does not
+                // permanently lose those elements. The sidecar is rotated to .consumed
+                // after a successful load so we never replay it twice.
+                try
+                {
+                    int restored = StingAutoTagger.LoadDroppedElementsSidecar(e.Document);
+                    if (restored > 0)
+                        StingLog.Info($"DocumentOpened: re-queued {restored} previously-dropped auto-tag elements; will drain on next sync-to-central.");
+                }
+                catch (Exception drEx) { StingLog.Warn($"DocumentOpened deferred sidecar load: {drEx.Message}"); }
 
                 // AL-07: Notify user of auto-run workflow on open
                 try
@@ -676,6 +782,29 @@ namespace StingTools.Core
                 }
                 catch (Exception slaEx) { StingLog.Warn($"Morning briefing SLA: {slaEx.Message}"); }
 
+                // Healthcare Pack HC-07 — surface healthcare facility-type and run
+                // a quick gated healthcare validator sweep. Hits the cache built
+                // by RunAllHealthcareValidators so the cost is bounded.
+                bool isHealthcareProject = false;
+                int healthcareErrors = 0, healthcareWarnings = 0;
+                try
+                {
+                    var p = doc.ProjectInformation?.LookupParameter("PRJ_ORG_HEALTH_FACILITY_TYPE_TXT");
+                    string facType = "";
+                    if (p != null && p.HasValue && p.StorageType == StorageType.String)
+                        facType = (p.AsString() ?? "").Trim();
+                    if (!string.IsNullOrEmpty(facType))
+                    {
+                        isHealthcareProject = true;
+                        var hcResults = Core.Validation.Healthcare.RunAllHealthcareValidators.Validate(doc);
+                        healthcareErrors   = hcResults.Count(r => r.Severity == Core.Validation.ValidationSeverity.Error);
+                        healthcareWarnings = hcResults.Count(r => r.Severity == Core.Validation.ValidationSeverity.Warning);
+                        briefing.AppendLine($"Healthcare ({facType}): {hcResults.Count} findings — {healthcareErrors} errors, {healthcareWarnings} warnings");
+                        if (healthcareErrors > 0) hasAlerts = true;
+                    }
+                }
+                catch (Exception hcEx) { StingLog.Warn($"Morning briefing healthcare: {hcEx.Message}"); }
+
                 // 4. Show briefing only if alerts — now safe to show TaskDialog (not in event handler)
                 if (hasAlerts)
                 {
@@ -686,6 +815,9 @@ namespace StingTools.Core
                     dlg.MainContent = briefing.ToString();
                     dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
                         "Run Morning Health Check workflow", "Auto-fix stale elements, warnings, and validate tags");
+                    if (isHealthcareProject)
+                        dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                            "Run Healthcare Commissioning workflow", "Healthcare validators + Room Data Sheets + COBie export");
                     dlg.CommonButtons = TaskDialogCommonButtons.Close;
                     var dlgResult = dlg.Show();
 
@@ -693,6 +825,11 @@ namespace StingTools.Core
                     {
                         UI.StingCommandHandler.SetExtraParam("WorkflowPresetName", "MorningHealthCheck");
                         StingLog.Info("Morning briefing: user requested MorningHealthCheck workflow");
+                    }
+                    else if (dlgResult == TaskDialogResult.CommandLink2 && isHealthcareProject)
+                    {
+                        UI.StingCommandHandler.SetExtraParam("WorkflowPresetName", "HealthcareCommissioning");
+                        StingLog.Info("Morning briefing: user requested HealthcareCommissioning workflow");
                     }
                 }
                 else
@@ -919,6 +1056,19 @@ namespace StingTools.Core
                     StingLog.Warn($"DocumentSaved enqueue: {qEx.Message}");
                 }
             }
+                // Geometry delta sync — raise GeometrySyncHandler if any elements changed.
+                // Must happen AFTER the compliance/tag enqueue so the ExternalEvent fires
+                // on the next available Revit API idle slot (never inside this handler).
+                try
+                {
+                    if (!StingTools.Core.Clash.LiveClashUpdater.GeometrySyncQueue.IsEmpty)
+                        StingTools.Commands.IFC.GeometrySyncHandler.RaiseIfConnected();
+                }
+                catch (Exception geoEx)
+                {
+                    StingLog.Warn($"DocumentSaved geometry sync trigger: {geoEx.Message}");
+                }
+            }
             catch (Exception ex)
             {
                 StingLog.Error($"DocumentSaved handler error: {ex.Message}");
@@ -951,7 +1101,7 @@ namespace StingTools.Core
                 string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 if (string.IsNullOrEmpty(tag1)) continue;
 
-                string FromReg(string p) { try { return ParameterHelpers.GetString(el, p); } catch { return ""; } }
+                string FromReg(string p) { try { return ParameterHelpers.GetString(el, p); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; } }
 
                 results.Add(new Planscape.Shared.Models.TagElementSync
                 {
@@ -1010,6 +1160,8 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"LiveClashUpdater unregister: {ex.Message}"); }
 
             UI.ThemeManager.ClearTarget(); // H-02: Prevent memory leak from static WPF reference
+            try { Planscape.Docs.Workflow.AuditLog.Shutdown(); }
+            catch (Exception ex) { StingLog.Warn($"AuditLog shutdown: {ex.Message}"); }
             StingLog.Shutdown();
             return Result.Succeeded;
         }
@@ -1180,6 +1332,13 @@ namespace StingTools.Core
                 const string tabName = "STING Tools";
                 application.CreateRibbonTab(tabName);
                 string asmPath = AssemblyPath;
+
+                // STING Hub — quick-launch panel (added FIRST so it sits at the
+                // left end of the tab). 9 small stacked buttons with runtime-
+                // drawn letter icons; no image files on disk.
+                RibbonPanel hubPanel = application.CreateRibbonPanel(tabName, "STING Hub");
+                BuildHubPanel(hubPanel);
+
                 var togglePanel = application.CreateRibbonPanel(tabName, "Panel");
                 AddButton(togglePanel, "btnTogglePanel", "STING\nPanel",
                     asmPath, typeof(ToggleDockPanelCommand).FullName,
@@ -1190,6 +1349,63 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Error("Failed to register dockable panel", ex);
+            }
+        }
+
+        // ── Phase 177 — STING Electrical Center registration ────────────
+
+        /// <summary>
+        /// Register the STING Electrical Center as a second dockable panel
+        /// (tabbed behind the Properties palette so it sits alongside the
+        /// main panel) plus a ribbon button to toggle it.
+        /// </summary>
+        private void RegisterElectricalPanel(UIControlledApplication application)
+        {
+            try
+            {
+                var provider = new StingTools.UI.StingElectricalPanelProvider();
+                application.RegisterDockablePane(
+                    StingTools.UI.StingElectricalPanelProvider.PaneId,
+                    "⚡ STING Electrical",
+                    provider);
+
+                const string tabName = "STING Tools";
+                string asmPath = AssemblyPath;
+                var elecPanel = application.CreateRibbonPanel(tabName, "⚡ Electrical");
+                AddButton(elecPanel, "btnToggleElectrical", "STING\nElectrical",
+                    asmPath, typeof(ToggleElectricalPanelCommand).FullName,
+                    "Show/hide the STING Electrical Center dockable panel.");
+                StingLog.Info("Electrical dockable panel registered successfully");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Failed to register Electrical dockable panel", ex);
+            }
+        }
+
+        // ── Phase 178c — STING Plumbing Center registration ─────────────
+        private void RegisterPlumbingPanel(UIControlledApplication application)
+        {
+            try
+            {
+                StingTools.UI.Plumbing.StingPlumbingCommandHandler.Initialise(application);
+                var provider = new StingTools.UI.Plumbing.StingPlumbingPanelProvider();
+                application.RegisterDockablePane(
+                    StingTools.UI.Plumbing.StingPlumbingPanelProvider.PaneId,
+                    "💧 STING Plumbing",
+                    provider);
+
+                const string tabName = "STING Tools";
+                string asmPath = AssemblyPath;
+                var plumbPanel = application.CreateRibbonPanel(tabName, "💧 Plumbing");
+                AddButton(plumbPanel, "btnTogglePlumbing", "STING\nPlumbing",
+                    asmPath, typeof(TogglePlumbingPanelCommand).FullName,
+                    "Show/hide the STING Plumbing Center dockable panel.");
+                StingLog.Info("Plumbing dockable panel registered successfully");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Failed to register Plumbing dockable panel", ex);
             }
         }
 
@@ -1339,6 +1555,154 @@ namespace StingTools.Core
             data.ToolTip = tooltip;
             pulldown.AddPushButton(data);
         }
+
+        // ── STING Hub ribbon panel ──────────────────────────────────────────
+
+        /// <summary>
+        /// Render a square letter-tile icon at runtime: rounded rectangle in
+        /// <paramref name="bgColor"/> with white bold Arial letters centred
+        /// on top. Returned as a frozen <see cref="BitmapImage"/> suitable
+        /// for <c>PushButtonData.Image</c> / <c>LargeImage</c>.
+        /// </summary>
+        private static BitmapImage MakeLetterIcon(string letters, DrawingColor bgColor, int size = 32)
+        {
+            try
+            {
+                using (var bmp = new Bitmap(size, size))
+                {
+                    using (var g = Graphics.FromImage(bmp))
+                    {
+                        g.SmoothingMode = SmoothingMode.AntiAlias;
+                        g.TextRenderingHint = TextRenderingHint.AntiAlias;
+                        g.Clear(DrawingColor.Transparent);
+
+                        int radius = Math.Max(2, size / 5);
+                        int d = radius * 2;
+                        using (var path = new GraphicsPath())
+                        {
+                            path.AddArc(0, 0, d, d, 180, 90);
+                            path.AddArc(size - d - 1, 0, d, d, 270, 90);
+                            path.AddArc(size - d - 1, size - d - 1, d, d, 0, 90);
+                            path.AddArc(0, size - d - 1, d, d, 90, 90);
+                            path.CloseFigure();
+                            using (var brush = new SolidBrush(bgColor))
+                                g.FillPath(brush, path);
+                        }
+
+                        // Scale font to letter count so 2-character labels fill
+                        // the tile without clipping.
+                        float fontSize = letters != null && letters.Length >= 2
+                            ? size * 0.42f
+                            : size * 0.55f;
+                        using (var font = new Font("Arial", fontSize, FontStyle.Bold, GraphicsUnit.Pixel))
+                        using (var sf = new StringFormat
+                        {
+                            Alignment = StringAlignment.Center,
+                            LineAlignment = StringAlignment.Center
+                        })
+                        using (var textBrush = new SolidBrush(DrawingColor.White))
+                        {
+                            g.DrawString(letters ?? string.Empty, font, textBrush,
+                                new RectangleF(0, 0, size, size), sf);
+                        }
+                    }
+
+                    using (var ms = new MemoryStream())
+                    {
+                        bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                        ms.Position = 0;
+                        var img = new BitmapImage();
+                        img.BeginInit();
+                        img.CacheOption = BitmapCacheOption.OnLoad;
+                        img.StreamSource = ms;
+                        img.EndInit();
+                        img.Freeze();
+                        return img;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Info($"MakeLetterIcon('{letters}') failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Build the STING Hub ribbon panel: 9 quick-launch small buttons laid
+        /// out as three vertical stacks of three. Each button's icon is drawn
+        /// at runtime via <see cref="MakeLetterIcon"/> — no image files on disk.
+        ///
+        /// Tag wiring (via the wrapper IExternalCommand classes below) routes
+        /// through <see cref="StingDockPanel.DispatchCommand"/>, so each tag
+        /// must be handled in <c>StingCommandHandler.Execute</c>.
+        ///
+        /// TODO — verify these tag strings are wired in StingCommandHandler.cs;
+        /// the closest existing dispatchers use slightly different names
+        /// (e.g. "BIMCoordinationCenter", "DocumentManager", "BOQCostManager",
+        /// "Fabrication_OpenWorkspace", "Placement_OpenCentre",
+        /// "DrawingTypes_Editor"). Add aliases or switch the hub tag strings
+        /// when wiring up the handler:
+        ///   BIMCoordCenter_Open, SheetManager_Open, DrawingTypes_Edit,
+        ///   DocumentMgmt_Open, BOQ_ExportCost, Fabrication_Open,
+        ///   Placement_Open, StructuralDWGWizard, Scheduling_Dashboard.
+        /// </summary>
+        private static void BuildHubPanel(RibbonPanel panel)
+        {
+            string asm = AssemblyPath;
+
+            var specs = new (string tag, string label, string letters, DrawingColor color, string cls)[]
+            {
+                ("BIMCoordCenter_Open",  "Coord Center",  "CC", DrawingColor.SteelBlue,    typeof(HubBIMCoordCenterCommand).FullName),
+                ("SheetManager_Open",    "Sheet Manager", "SM", DrawingColor.Teal,         typeof(HubSheetManagerCommand).FullName),
+                ("DrawingTypes_Edit",    "Drawing Types", "DT", DrawingColor.MediumPurple, typeof(HubDrawingTypesCommand).FullName),
+                ("DocumentMgmt_Open",    "Doc Manager",   "DM", DrawingColor.DarkOrange,   typeof(HubDocumentMgmtCommand).FullName),
+                ("BOQ_ExportCost",       "BOQ / Cost",    "BQ", DrawingColor.SeaGreen,     typeof(HubBoqExportCostCommand).FullName),
+                ("Fabrication_Open",     "Fabrication",   "FW", DrawingColor.Firebrick,    typeof(HubFabricationCommand).FullName),
+                ("Placement_Open",       "Placement",     "PC", DrawingColor.Goldenrod,    typeof(HubPlacementCommand).FullName),
+                ("StructuralDWGWizard",  "Struct Wizard", "SW", DrawingColor.SlateGray,    typeof(HubStructuralDwgWizardCommand).FullName),
+                ("Scheduling_Dashboard", "Scheduling",    "SD", DrawingColor.MidnightBlue, typeof(HubSchedulingDashboardCommand).FullName),
+                ("Tag3D",                "3D Tag",        "T3", DrawingColor.Crimson,      typeof(HubTag3DCommand).FullName),
+                ("CreateTagFamilies",    "Tag Families",  "TF", DrawingColor.DarkCyan,     typeof(HubCreateTagFamiliesCommand).FullName),
+                ("AutoTag",              "Auto Tag",      "AT", DrawingColor.DarkGreen,    typeof(HubAutoTagCommand).FullName),
+            };
+
+            var buttons = new List<PushButtonData>(12);
+            foreach (var s in specs)
+            {
+                var data = new PushButtonData("Hub_" + s.tag, s.label, asm, s.cls)
+                {
+                    ToolTip = $"{s.label} — Right-click to pin to Quick Access Toolbar"
+                };
+                try
+                {
+                    data.Image      = MakeLetterIcon(s.letters, s.color, 16);
+                    data.LargeImage = MakeLetterIcon(s.letters, s.color, 32);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Info($"Hub icon '{s.letters}' failed: {ex.Message}");
+                }
+                buttons.Add(data);
+            }
+
+            try
+            {
+                panel.AddStackedItems(buttons[0], buttons[1], buttons[2]);
+                panel.AddStackedItems(buttons[3], buttons[4], buttons[5]);
+                panel.AddStackedItems(buttons[6], buttons[7], buttons[8]);
+                panel.AddStackedItems(buttons[9], buttons[10], buttons[11]);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BuildHubPanel: AddStackedItems failed, falling back to AddItem: {ex.Message}");
+                foreach (var b in buttons)
+                {
+                    try { panel.AddItem(b); }
+                    catch (Exception innerEx) { StingLog.Warn($"BuildHubPanel AddItem '{b.Name}': {innerEx.Message}"); }
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -1377,5 +1741,190 @@ namespace StingTools.Core
                 return Result.Failed;
             }
         }
+    }
+
+    /// <summary>
+    /// Phase 177 — toggle the STING Electrical Center dockable panel from the
+    /// "⚡ Electrical" ribbon button. Mirrors <see cref="ToggleDockPanelCommand"/>
+    /// but targets the electrical pane GUID.
+    /// </summary>
+    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.ReadOnly)]
+    public class ToggleElectricalPanelCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var pane = ParameterHelpers.GetApp(commandData)
+                    .GetDockablePane(StingTools.UI.StingElectricalPanelProvider.PaneId);
+                if (pane == null)
+                {
+                    TaskDialog.Show("STING Electrical",
+                        "Electrical panel not found. Restart Revit to register it.");
+                    return Result.Failed;
+                }
+                if (pane.IsShown()) pane.Hide(); else pane.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Toggle Electrical panel failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Phase 178c — toggle the STING Plumbing Center dockable panel.
+    /// </summary>
+    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.ReadOnly)]
+    public class TogglePlumbingPanelCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var pane = ParameterHelpers.GetApp(commandData)
+                    .GetDockablePane(StingTools.UI.Plumbing.StingPlumbingPanelProvider.PaneId);
+                if (pane == null)
+                {
+                    TaskDialog.Show("STING Plumbing",
+                        "Plumbing panel not found. Restart Revit to register it.");
+                    return Result.Failed;
+                }
+                if (pane.IsShown()) pane.Hide(); else pane.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Toggle Plumbing panel failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ── STING Hub button dispatchers ────────────────────────────────────────
+    // Each ribbon button on the STING Hub panel is bound to one of these thin
+    // wrappers. They delegate to StingDockPanel.DispatchCommand, which raises
+    // the shared ExternalEvent so the request is processed by
+    // StingCommandHandler.Execute on the Revit API thread — same dispatch
+    // path the dockable panel buttons use.
+
+    internal static class HubDispatcher
+    {
+        public static Result Run(string tag, ref string message)
+        {
+            try
+            {
+                StingTools.UI.StingDockPanel.DispatchCommand(tag);
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"Hub dispatch '{tag}' failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubBIMCoordCenterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("BIMCoordinationCenter", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubSheetManagerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("SheetManager", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubDrawingTypesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("DrawingTypes_Editor", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubDocumentMgmtCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("DocumentManager", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubBoqExportCostCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("BOQCostManager", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubFabricationCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("Fabrication_OpenWorkspace", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubPlacementCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("Placement_OpenCentre", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubStructuralDwgWizardCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("StrCADWizard", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubSchedulingDashboardCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("AutoSchedule4D", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubTag3DCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("Tag3D", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubCreateTagFamiliesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("CreateTagFamilies", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubAutoTagCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("AutoTag", ref message);
     }
 }

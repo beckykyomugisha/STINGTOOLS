@@ -1,0 +1,61 @@
+{
+  "_comment": "Token contract for the future lps_compliance_report.docx template (Template Engine v1.1). The .docx itself is not authored yet; the StingTools.Commands.Lightning.LpsFullReportCommand falls back to CSV until a designer ships the docx. When authored, the .docx must reference these tokens via {{token}} placeholders. The runner already understands MiniWord formatting + {{#if}} branches.",
+  "templateId": "lps_compliance_report",
+  "purpose": "LPS_COMPLIANCE_REPORT",
+  "standard": "BS EN 62305",
+  "tokens": [
+    { "token": "{{project_name}}",         "source": "ProjectInformation.Name" },
+    { "token": "{{project_code}}",         "source": "ProjectInformation.Number" },
+    { "token": "{{client_name}}",          "source": "PRJ_ORG_CLIENT_NAME_TXT" },
+    { "token": "{{building_name}}",        "source": "ProjectInformation.BuildingName" },
+    { "token": "{{report_date}}",          "source": "DateTime.Today (ISO 8601)" },
+    { "token": "{{lps_class}}",            "source": "ELC_LPS_CLASS_TXT" },
+    { "token": "{{risk_assessment_ref}}",  "source": "ELC_LPS_RISK_ASSESSMENT_TXT" },
+    { "token": "{{rolling_sphere_m}}",     "source": "ELC_LPS_ROLLING_SPHERE_RADIUS_M" },
+    { "token": "{{mesh_size_m}}",          "source": "ELC_LPS_MESH_SIZE_M" },
+    { "token": "{{protection_angle_deg}}", "source": "ELC_LPS_PROTECTION_ANGLE_DEG" },
+    { "token": "{{down_conductor_spacing_m}}", "source": "Class table → downConductorSpacingM" },
+    { "token": "{{air_terminal_count}}",   "source": "ELC_LPS_AIR_TERMINAL_COUNT_NR" },
+    { "token": "{{down_conductor_count}}", "source": "ELC_LPS_DOWN_CONDUCTOR_COUNT_NR" },
+    { "token": "{{earth_electrode_count}}","source": "ELC_LPS_EARTH_ELECTRODE_COUNT_NR" },
+    { "token": "{{earth_resistance_avg_ohm}}", "source": "Mean of ELC_LPS_EARTH_RESISTANCE_OHM across electrodes" },
+    { "token": "{{earth_resistance_target_ohm}}", "source": "Class table → earthResistanceTargetOhm" },
+    { "token": "{{conductor_cross_sect_mm2}}", "source": "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2" },
+    { "token": "{{conductor_material}}",   "source": "ELC_LPS_CONDUCTOR_MATERIAL_TXT" },
+    { "token": "{{separation_distance_mm}}", "source": "Max ELC_LPS_SEPARATION_DISTANCE_MM across down conductors" },
+    { "token": "{{surge_protection_lvl}}", "source": "ELC_LPS_SURGE_PROTECTION_LVL_TXT" },
+    { "token": "{{compliance_status}}",    "source": "LpsEngine.ValidateModel verdict (PASS / WARN / FAIL — N items)" },
+    { "token": "{{compliance_pass}}",      "source": "Count of pass items" },
+    { "token": "{{compliance_warn}}",      "source": "Count of warn items" },
+    { "token": "{{compliance_fail}}",      "source": "Count of fail items" },
+    { "token": "{{inspection_interval}}",  "source": "ELC_LPS_INSPECTION_INTERVAL_MONTHS" },
+    { "token": "{{test_date}}",            "source": "ELC_LPS_TEST_DATE_TXT" },
+    { "token": "{{cert_ref}}",             "source": "ELC_LPS_CERT_REF_TXT" },
+    { "token": "{{ng_value}}",             "source": "Selected region Ng (flash density)" },
+    { "token": "{{annual_strikes}}",       "source": "LpsRiskResult.AnnualStrikeFrequency" },
+    { "token": "{{collection_area_m2}}",   "source": "LpsRiskResult.CollectionAreaM2" }
+  ],
+  "loops": [
+    {
+      "tag": "{{compliance_items}}",
+      "row": "CheckName, Severity, Message",
+      "source": "LpsEngine.ValidateModel() → LpsComplianceItem[]"
+    },
+    {
+      "tag": "{{down_conductors}}",
+      "row": "Id, Family, Level, Length (m), Material, Cross-section (mm²), Separation Distance (mm), Compliance Status",
+      "source": "LpsEngine.CollectLpsFamily(\"Down Conductor\")"
+    },
+    {
+      "tag": "{{earth_electrodes}}",
+      "row": "Id, Family, Level, Earth Type, Resistance (Ω), Test Date, Cert Ref, Compliance Status",
+      "source": "LpsEngine.CollectLpsFamily(\"Earth\", \"Ground Rod\")"
+    }
+  ],
+  "branches": [
+    { "if": "{{#if compliance_fail > 0}}",
+      "then": "Render red FAIL banner with compliance_items table",
+      "else": "Render green PASS banner" }
+  ],
+  "_status": "Active — .docx authored at lps_compliance_report.docx (built via tools/build_lps_docx.py). LpsFullReportCommand renders the docx via MiniWord and writes a parallel CSV audit trail. CSV is no longer flagged as a fallback warning."
+}

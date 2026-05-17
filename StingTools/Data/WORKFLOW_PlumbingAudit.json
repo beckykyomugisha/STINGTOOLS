@@ -1,0 +1,14 @@
+{
+  "name": "PlumbingAudit",
+  "displayName": "Plumbing Audit (Phase 179)",
+  "description": "Read-only audit pipeline: scan fixtures → audit Supply / Drainage / Backflow / HTM 04-01 → export RAG dashboard.",
+  "version": "179",
+  "steps": [
+    { "label": "1. Scan Fixtures",           "commandTag": "Plumb_ScanFixtures" },
+    { "label": "2. Backflow Audit",          "commandTag": "Plumbing_BackflowAudit" },
+    { "label": "3. Cross-Connection Scan",   "commandTag": "Plumbing_CrossConnection" },
+    { "label": "4. Dead-Leg Scan",           "commandTag": "Plumbing_DeadLegScan" },
+    { "label": "5. Material Audit",          "commandTag": "Plumbing_MaterialAudit" },
+    { "label": "6. Full RAG Audit",          "commandTag": "Plumb_FullAudit" }
+  ]
+}

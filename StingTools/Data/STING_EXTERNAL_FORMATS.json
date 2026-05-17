@@ -1,0 +1,50 @@
+{
+  "_comment": "External tool export configuration and field mappings for EasyPower / DIALux evo / ETAP.",
+  "formats": [
+    {
+      "id": "easypower-xml",
+      "name": "EasyPower XML",
+      "fileExt": ".xml",
+      "description": "EasyPower-compatible load-flow bus / branch format (best-effort; full schema is licensed).",
+      "fieldMap": {
+        "busId":          "panel.Name",
+        "busKv":          "panel.VoltageV / 1000",
+        "busPhases":      "panel.Phases",
+        "busFaultKA":     "faultResults.FaultKa",
+        "branchId":       "circuit.CircuitId",
+        "branchLoadKW":   "circuit.LoadVA / 1000",
+        "branchLoadKVAR": "circuit.LoadVA × tan(acos(0.85)) / 1000",
+        "branchRatingA":  "circuit.RatingA",
+        "branchCsaMm2":   "parsed from circuit.WireSize",
+        "branchLengthM":  "circuit.LengthM"
+      }
+    },
+    {
+      "id": "dialux-ifc4",
+      "name": "DIALux evo IFC 4",
+      "fileExt": ".ifc",
+      "description": "IFC 4 file with IfcLightFixture + IfcSpace for DIALux import.",
+      "fieldMap": {
+        "fixtureId":     "fixture.Id",
+        "fixtureName":   "fixture.Name",
+        "fixtureLumens": "param.LTG_LUMENS",
+        "fixtureWatts":  "param.LTG_WATTAGE",
+        "spaceId":       "room.Id",
+        "spaceName":     "room.Name",
+        "spaceAreaM2":   "room.Area * 0.0929"
+      }
+    },
+    {
+      "id": "etap-cim",
+      "name": "ETAP CIM XML",
+      "fileExt": ".xml",
+      "description": "IEC 61968 / 61970 CIM XML for ETAP load-flow import.",
+      "fieldMap": {
+        "substationId":   "panel.Name (sanitised)",
+        "substationKv":   "panel.VoltageV / 1000",
+        "consumerPfixed": "circuit.LoadVA / 1000",
+        "consumerQfixed": "circuit.LoadVA × tan(acos(0.85)) / 1000"
+      }
+    }
+  ]
+}

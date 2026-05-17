@@ -1,0 +1,8 @@
+{
+  "id": "NFPA110-GeneratorTest",
+  "name": "NFPA 110 generator + ATS log-freshness audit (BIM-side only)",
+  "description": "Audits BIM parameter timestamps only — does NOT trigger physical tests. NFPA 110 weekly load tests and monthly ATS transfer tests must be conducted and logged manually by the facilities team; this workflow verifies that those logs have been recorded in the model within the required intervals (generator ≤ 35 days, ATS ≤ 35 days, UPS battery ≤ 4 years).",
+  "steps": [
+    { "tag": "Healthcare_EesResilience", "description": "EesResilienceValidator: check EES_GEN_TEST_LOG_DT, EES_ATS_TEST_LOG_DT, and EES_UPS_BATTERY_DT freshness against NFPA 110 intervals — flags overdue logs only, does not perform or schedule physical tests" }
+  ]
+}

@@ -13,19 +13,24 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Vibration,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { theme, getPriorityColor } from '@/utils/theme';
-import { listProjects, listIssues, createIssue, uploadIssueAttachment, updateIssue, _getBaseUrl } from '@/api/endpoints';
+import { listProjects, listIssues, createIssue, uploadIssueAttachment, updateIssue, listAvailableXkts, _getBaseUrl } from '@/api/endpoints';
+import { listModels } from '@/api/models';
+import type { ModelMeta } from '@/types/models';
 import type { BimIssue, Project, ProjectMember } from '@/types/api';
 import { imageService, CapturedImage } from '@/services/imageService';
 import { locationService } from '@/services/locationService';
 import { MemberPicker } from '@/components/MemberPicker';
+import { AudioRecorder } from '@/components/AudioRecorder';
 import * as Application from 'expo-application';
 import * as Device from 'expo-device';
 import { crashReporter } from '@/services/crashReporter';
 import { useNotificationStore } from '@/stores/notificationStore';
+import { useAuthStore } from '@/stores/authStore';
 import { debounce } from '@/utils/debounce';
 
 /**
@@ -34,10 +39,25 @@ import { debounce } from '@/utils/debounce';
  * The viewer itself lives in wwwroot on the Planscape.Server and reads the
  * 'model' query parameter to fetch the xkt bundle.
  */
-async function openViewer(projectCode: string): Promise<void> {
+async function openViewer(projectCode: string, modelId?: string | null): Promise<void> {
   try {
     const base = await _getBaseUrl();
-    const url = `${base}/viewer/index.html?model=${encodeURIComponent(projectCode)}.xkt`;
+    // Phase 164 caveat 4 — probe the cached XKT availability list before
+    // committing to a per-model URL. When a `<modelId>.xkt` file is
+    // published we use it; when only the project default exists, fall back
+    // to `<projectCode>.xkt` so the user lands in a working viewer rather
+    // than a 404. Empty cache (network failure on the list endpoint) →
+    // optimistically use modelId so configured projects don't get punished
+    // by transient list-endpoint failures.
+    let xktBase = projectCode;
+    if (modelId) {
+      const available = await listAvailableXkts();
+      const modelXkt = `${modelId}.xkt`;
+      if (available.size === 0 || available.has(modelXkt)) {
+        xktBase = modelId;
+      }
+    }
+    const url = `${base}/viewer/index.html?model=${encodeURIComponent(xktBase)}.xkt`;
     await WebBrowser.openBrowserAsync(url, {
       // Corporate-themed in-app browser tab — falls back to Safari View
       // Controller on iOS and Custom Tabs on Android automatically.
@@ -50,6 +70,7 @@ async function openViewer(projectCode: string): Promise<void> {
   }
 }
 
+
 type PriorityFilter = 'ALL' | 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 type StatusFilter = 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
 
@@ -58,14 +79,28 @@ export default function IssuesScreen() {
   // ?projectId=Y. Scanner pushes ?createForElement=X&elementTag=Y to pre-fill
   // a new-issue form. The ref guards against re-firing the redirect/open on
   // every render while the user is browsing.
+  // Phase 163 — viewer's onPlaceIssue ("create issue here" gesture) pushes
+  // ?fromViewer=1&modelId=...&modelElementGuid=...&modelX/Y/Z=... so anchor
+  // coords flow into the creation form. Replaces the broken /issues/new
+  // target the viewer used to push to.
   const params = useLocalSearchParams<{
     issueId?: string;
     projectId?: string;
     createForElement?: string;
     elementTag?: string;
+    fromViewer?: string;
+    modelId?: string;
+    modelElementGuid?: string;
+    modelX?: string;
+    modelY?: string;
+    modelZ?: string;
+    tag?: string;
+    category?: string;
+    discipline?: string;
   }>();
   const deepLinkHandled = useRef(false);
   const scannerLinkHandled = useRef(false);
+  const viewerLinkHandled = useRef(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [issues, setIssues] = useState<BimIssue[]>([]);
@@ -77,6 +112,13 @@ export default function IssuesScreen() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  // Phase 142 — "Mine" toggle. When on, the list narrows to issues where
+  // the assignee resolves to the current user (FK first, then email, then
+  // display name for legacy rows).
+  const [mineOnly, setMineOnly] = useState(false);
+  const me = useAuthStore((s) => ({
+    userId: s.userId, email: s.email, displayName: s.displayName,
+  }));
 
   // Phase 96 — debounce so the filter re-run doesn't fire on every keystroke.
   // 250ms is the point of diminishing returns — coordinators typing a tag
@@ -89,6 +131,7 @@ export default function IssuesScreen() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newType, setNewType] = useState('RFI');
@@ -96,7 +139,24 @@ export default function IssuesScreen() {
   const [newAssignee, setNewAssignee] = useState<ProjectMember | null>(null);
   const [newPhotos, setNewPhotos] = useState<CapturedImage[]>([]);
   const [newElementIds, setNewElementIds] = useState<string>('');
+  // MODEL-VIEWER — model picker. `availableModels` is lazy-loaded the first
+  // time the create modal opens for a given project (cheap GET, project
+  // typically has 1–6 models). `newModelId === null` means "no model link".
+  const [availableModels, setAvailableModels] = useState<ModelMeta[]>([]);
+  const [newModelId, setNewModelId] = useState<string | null>(null);
+  // Phase 163 — anchor coords from the viewer's PlaceIssue gesture.
+  // Populated only via the deep-link path; the manual creation flow leaves
+  // them undefined so plain RFI issues stay anchor-less.
+  const [newModelElementGuid, setNewModelElementGuid] = useState<string | null>(null);
+  const [newModelXyz, setNewModelXyz] = useState<{ x: number; y: number; z: number } | null>(null);
+  const modelsLoadedForProject = useRef<string | null>(null);
   const [showMemberPicker, setShowMemberPicker] = useState(false);
+  // Watchers — multi-select; each MemberPicker selection appends to the list.
+  const [newWatchers, setNewWatchers] = useState<ProjectMember[]>([]);
+  const [showWatcherPicker, setShowWatcherPicker] = useState(false);
+  // Co-assignees — same pattern as watchers.
+  const [newCoAssignees, setNewCoAssignees] = useState<ProjectMember[]>([]);
+  const [showCoAssigneePicker, setShowCoAssigneePicker] = useState(false);
   const [creationStatus, setCreationStatus] = useState<string | null>(null);
 
   // Phase 96 — bulk action state. `bulkMode` toggles the list into multi-
@@ -171,6 +231,57 @@ export default function IssuesScreen() {
     }
   }, [params.createForElement, params.elementTag, activeProject]);
 
+  // Phase 163 — viewer's onPlaceIssue ("create issue here") pushes
+  // ?fromViewer=1&modelId=...&modelElementGuid=...&modelX/Y/Z=...&tag=...
+  // Pre-fill the create modal with the model link + anchor coords + a sensible
+  // default title so coordinators don't have to retype anything.
+  useEffect(() => {
+    if (viewerLinkHandled.current) return;
+    if (!params.fromViewer || !params.modelId || !activeProject) return;
+    viewerLinkHandled.current = true;
+
+    setNewModelId(params.modelId);
+    if (params.modelElementGuid) setNewModelElementGuid(params.modelElementGuid);
+
+    const x = params.modelX ? Number(params.modelX) : NaN;
+    const y = params.modelY ? Number(params.modelY) : NaN;
+    const z = params.modelZ ? Number(params.modelZ) : NaN;
+    if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) {
+      setNewModelXyz({ x, y, z });
+    }
+
+    if (params.tag) setNewTitle(`Issue at ${params.tag}`);
+    if (params.discipline) {
+      // Discipline preselect — falls through silently if the value isn't a
+      // recognised RFI/NCR/SI/etc type.
+    }
+    if (params.modelElementGuid) setNewElementIds(params.modelElementGuid);
+
+    setShowCreate(true);
+    router.setParams({
+      fromViewer: undefined,
+      modelId: undefined,
+      modelElementGuid: undefined,
+      modelX: undefined,
+      modelY: undefined,
+      modelZ: undefined,
+      tag: undefined,
+      category: undefined,
+      discipline: undefined,
+    });
+  }, [
+    params.fromViewer,
+    params.modelId,
+    params.modelElementGuid,
+    params.modelX,
+    params.modelY,
+    params.modelZ,
+    params.tag,
+    params.category,
+    params.discipline,
+    activeProject,
+  ]);
+
   function onRefresh() {
     setRefreshing(true);
     loadData(activeProject?.id);
@@ -179,6 +290,22 @@ export default function IssuesScreen() {
   const filtered = issues.filter((issue) => {
     if (priorityFilter !== 'ALL' && issue.priority !== priorityFilter) return false;
     if (statusFilter !== 'ALL' && issue.status !== statusFilter) return false;
+    if (mineOnly) {
+      // Phase 142 — match assignee against the current user. FK wins;
+      // fall back to email then display name for issues that pre-date
+      // the AssigneeUserId migration so legacy rows still surface for
+      // the right person.
+      const issueAny = issue as unknown as {
+        assigneeUserId?: string | null;
+        assigneeEmail?: string | null;
+        assignee?: string | null;
+      };
+      const matched =
+        (me.userId && issueAny.assigneeUserId === me.userId) ||
+        (me.email && issueAny.assigneeEmail && issueAny.assigneeEmail.toLowerCase() === me.email.toLowerCase()) ||
+        (me.displayName && issueAny.assignee && issueAny.assignee === me.displayName);
+      if (!matched) return false;
+    }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       return (
@@ -221,10 +348,31 @@ export default function IssuesScreen() {
     setNewType('RFI');
     setNewPriority('MEDIUM');
     setNewAssignee(null);
+    setNewWatchers([]);
+    setNewCoAssignees([]);
     setNewPhotos([]);
     setNewElementIds('');
+    setNewModelId(null);
+    setNewModelElementGuid(null);
+    setNewModelXyz(null);
     setCreationStatus(null);
+    setModalError(null);
   }
+
+  // MODEL-VIEWER — lazy-load the project's models the first time the create
+  // modal opens. Failures are non-fatal: the picker silently shows "(none)"
+  // only, so issue creation still works in offline / read-error scenarios.
+  useEffect(() => {
+    if (!showCreate || !activeProject) return;
+    if (modelsLoadedForProject.current === activeProject.id) return;
+    modelsLoadedForProject.current = activeProject.id;
+    listModels(activeProject.id)
+      .then((rows) => setAvailableModels(rows ?? []))
+      .catch((err) => {
+        console.warn('[issues.create] listModels failed', err);
+        setAvailableModels([]);
+      });
+  }, [showCreate, activeProject]);
 
   /**
    * Phase 96 — toggle an issue in/out of the bulk selection set. Clearing the
@@ -347,9 +495,23 @@ export default function IssuesScreen() {
         assignee: newAssignee?.displayName ?? '',
         assigneeEmail: newAssignee?.email,
         assigneeUserId: newAssignee?.userId,
+        watcherUserIds: newWatchers.length > 0 ? newWatchers.map(m => m.userId) : undefined,
+        coAssigneeUserIds: newCoAssignees.length > 0 ? newCoAssignees.map(m => m.userId) : undefined,
         // Phase 96 — scanner-initiated issues carry elementIds through so the
         // server can later lookup "which elements does this issue touch".
         elementIds: newElementIds || undefined,
+        // MODEL-VIEWER — link the issue to a 3D model when the user picked
+        // one in the model chip row. Server-side validation rejects model
+        // ids that don't belong to this project.
+        modelId: newModelId ?? undefined,
+        // Phase 163 — anchor coords come from the viewer's PlaceIssue
+        // gesture (deep-linked into this form via ?fromViewer=1...). Manual
+        // creation paths leave these undefined so plain RFI issues are
+        // anchor-less.
+        modelElementGuid: newModelElementGuid ?? undefined,
+        modelX: newModelXyz?.x,
+        modelY: newModelXyz?.y,
+        modelZ: newModelXyz?.z,
         latitude: location?.latitude,
         longitude: location?.longitude,
         locationAccuracy: location?.accuracy ?? undefined,
@@ -378,19 +540,22 @@ export default function IssuesScreen() {
       resetCreateForm();
       loadData(activeProject.id);
     } catch (err) {
-      // NEW-INFO-14 — Explicit handling for the geofence 403 so the user sees
-      // "Outside project boundary" rather than a raw HTTP error.
+      // NEW-INFO-14 — surface creation errors inside the modal so the user
+      // can see them without closing the form and losing their input.
       const msg = err instanceof Error ? err.message : 'Failed to create issue';
+      let friendly: string;
       if (msg.includes('HTTP 403') || msg.toLowerCase().includes('geofence')
           || msg.toLowerCase().includes('outside the project')) {
-        setError('Outside project geofence — move on site or ask your BIM manager to widen the boundary.');
+        friendly = 'Outside project geofence — move on site or ask your BIM manager to widen the boundary.';
       } else if (msg.includes('HTTP 400') && msg.toLowerCase().includes('latitude')) {
-        setError('Invalid GPS reading — try again in a moment.');
+        friendly = 'Invalid GPS reading — try again in a moment.';
       } else if (msg.includes('HTTP 400') && msg.toLowerCase().includes('assignee')) {
-        setError('Chosen assignee is not a member of this project.');
+        friendly = 'Chosen assignee is not a member of this project.';
       } else {
-        setError(msg);
+        friendly = msg;
       }
+      setModalError(friendly);
+      Vibration.vibrate(80);
     } finally {
       setCreating(false);
       setCreationStatus(null);
@@ -449,11 +614,25 @@ export default function IssuesScreen() {
 
       {/* Priority filter chips */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar} contentContainerStyle={styles.filterBarContent}>
+        {/* Phase 142 — "Mine" toggle. Disabled when authStore has no userId
+            (cold-start before /me resolves) so we never silently filter
+            everything out. */}
+        <TouchableOpacity
+          style={[styles.filterChip, mineOnly && styles.filterChipActive]}
+          onPress={() => setMineOnly((v) => !v)}
+          disabled={!me.userId && !me.displayName}
+          accessibilityLabel={mineOnly ? 'Show all issues' : 'Show only my issues'}
+        >
+          <Text style={[styles.filterChipText, mineOnly && styles.filterChipTextActive]}>👤 Mine</Text>
+        </TouchableOpacity>
         {(['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as PriorityFilter[]).map((p) => (
           <TouchableOpacity
             key={p}
             style={[styles.filterChip, priorityFilter === p && styles.filterChipActive]}
             onPress={() => setPriorityFilter(p)}
+            accessibilityRole="button"
+            accessibilityLabel={p === 'ALL' ? 'Show all priorities' : `Filter to ${p.toLowerCase()} priority`}
+            accessibilityState={{ selected: priorityFilter === p }}
           >
             {p !== 'ALL' && <View style={[styles.filterDot, { backgroundColor: getPriorityColor(p) }]} />}
             <Text style={[styles.filterChipText, priorityFilter === p && styles.filterChipTextActive]}>
@@ -511,7 +690,7 @@ export default function IssuesScreen() {
               }
             }}
             onLongPress={() => { if (!bulkMode) enterBulkMode(item.id); }}
-            onViewIn3D={() => openViewer(activeProject.code)}
+            onViewIn3D={() => openViewer(activeProject.code, item.modelId)}
           />
         )}
         contentContainerStyle={styles.listContent}
@@ -526,7 +705,14 @@ export default function IssuesScreen() {
       />
 
       {/* FAB — Create Issue */}
-      <TouchableOpacity style={styles.fab} onPress={() => setShowCreate(true)} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => setShowCreate(true)}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel="Create new issue"
+        accessibilityHint="Opens a form to log an RFI, NCR, or site instruction"
+      >
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
 
@@ -538,6 +724,25 @@ export default function IssuesScreen() {
         >
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>New Issue</Text>
+
+            {/* In-modal error banner — keeps user's input intact */}
+            {modalError ? (
+              <View style={styles.modalErrorBanner}>
+                <Text style={styles.modalErrorText}>{modalError}</Text>
+                <TouchableOpacity onPress={() => setModalError(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={styles.modalErrorDismiss}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {/* ScrollView keeps the Create button reachable even on small
+                screens or when the keyboard is visible. */}
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
 
             {newElementIds ? (
               <View style={styles.linkedElementChip}>
@@ -567,6 +772,20 @@ export default function IssuesScreen() {
               multiline
               numberOfLines={3}
             />
+            {/* T3-7 — Voice-to-text dictation. Recording is queued under
+                ATTACH_AUDIO with issueId="__pending__"; an issue-create
+                follow-up server PR will need to backfill the queued action
+                once the new issue id is known. For now the queued action
+                surfaces in the conflict-triage screen if the upload
+                404s, so nothing is silently lost.
+                TODO-SERVER: see endpoints.ts uploadAudioNote — receiver
+                endpoint not yet in place; will 404 until S6.1 lands. */}
+            {activeProject ? (
+              <AudioRecorder
+                projectId={activeProject.id}
+                contextTag="issue-create-description"
+              />
+            ) : null}
 
             <Text style={styles.inputLabel}>Type</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeRow}>
@@ -580,6 +799,39 @@ export default function IssuesScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+
+            {/* MODEL-VIEWER — Linked model picker. Hidden when the project has
+                no published models; otherwise renders a "(none)" + per-model
+                chip row so coordinators can anchor an issue to a specific
+                federated model at creation time. The detail screen embeds the
+                3D viewer when this is set. */}
+            {availableModels.length > 0 && (
+              <>
+                <Text style={styles.inputLabel}>Linked model</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeRow}>
+                  <TouchableOpacity
+                    key="__none__"
+                    style={[styles.typeChip, newModelId === null && styles.typeChipActive]}
+                    onPress={() => setNewModelId(null)}
+                  >
+                    <Text style={[styles.typeChipText, newModelId === null && styles.typeChipTextActive]}>
+                      (none)
+                    </Text>
+                  </TouchableOpacity>
+                  {availableModels.map((m) => (
+                    <TouchableOpacity
+                      key={m.id}
+                      style={[styles.typeChip, newModelId === m.id && styles.typeChipActive]}
+                      onPress={() => setNewModelId(m.id)}
+                    >
+                      <Text style={[styles.typeChipText, newModelId === m.id && styles.typeChipTextActive]} numberOfLines={1}>
+                        {m.name || m.fileName || m.id.slice(0, 8)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </>
+            )}
 
             <Text style={styles.inputLabel}>Priority</Text>
             <View style={styles.priorityRow}>
@@ -612,6 +864,60 @@ export default function IssuesScreen() {
                   : 'Tap to choose a project member'}
               </Text>
             </TouchableOpacity>
+
+            {/* Watchers — multi-select, add one at a time */}
+            <Text style={styles.inputLabel}>Watchers ({newWatchers.length})</Text>
+            <TouchableOpacity
+              style={[styles.modalInput, { paddingVertical: 10, minHeight: 40 }]}
+              onPress={() => setShowWatcherPicker(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Add a watcher"
+            >
+              <Text style={{ fontSize: theme.fontSize.sm, color: theme.colors.disabled }}>
+                + Add watcher…
+              </Text>
+            </TouchableOpacity>
+            {newWatchers.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
+                {newWatchers.map((m) => (
+                  <TouchableOpacity
+                    key={m.userId}
+                    onPress={() => setNewWatchers(prev => prev.filter(w => w.userId !== m.userId))}
+                    style={styles.assigneeChip}
+                    accessibilityLabel={`Remove watcher ${m.displayName}`}
+                  >
+                    <Text style={styles.assigneeChipText}>{m.displayName} ✕</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
+            {/* Co-assignees — multi-select */}
+            <Text style={styles.inputLabel}>Co-Assignees ({newCoAssignees.length})</Text>
+            <TouchableOpacity
+              style={[styles.modalInput, { paddingVertical: 10, minHeight: 40 }]}
+              onPress={() => setShowCoAssigneePicker(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Add a co-assignee"
+            >
+              <Text style={{ fontSize: theme.fontSize.sm, color: theme.colors.disabled }}>
+                + Add co-assignee…
+              </Text>
+            </TouchableOpacity>
+            {newCoAssignees.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
+                {newCoAssignees.map((m) => (
+                  <TouchableOpacity
+                    key={m.userId}
+                    onPress={() => setNewCoAssignees(prev => prev.filter(c => c.userId !== m.userId))}
+                    style={[styles.assigneeChip, { backgroundColor: theme.colors.warning + '20', borderColor: theme.colors.warning }]}
+                    accessibilityLabel={`Remove co-assignee ${m.displayName}`}
+                  >
+                    <Text style={[styles.assigneeChipText, { color: theme.colors.warning }]}>{m.displayName} ✕</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
 
             <Text style={styles.inputLabel}>Photos ({newPhotos.length})</Text>
             <View style={{ flexDirection: 'row', gap: theme.spacing.sm, marginTop: 4 }}>
@@ -654,30 +960,44 @@ export default function IssuesScreen() {
             )}
 
             {creationStatus && (
-              <Text style={{
-                marginTop: theme.spacing.sm,
-                fontSize: theme.fontSize.xs,
-                color: theme.colors.textSecondary,
-                textAlign: 'center',
-              }}>{creationStatus}</Text>
+              <Text style={styles.creationStatusText}>{creationStatus}</Text>
             )}
 
+            </ScrollView>
+
+            {/* Action row pinned below the scroll area so it's always visible */}
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.cancelButton}
                 onPress={() => { setShowCreate(false); resetCreateForm(); }}
+                activeOpacity={0.7}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.createButton, (!newTitle.trim() || creating) && styles.buttonDisabled]}
-                onPress={handleCreate}
+                style={[
+                  styles.createButton,
+                  creating && styles.createButtonBusy,
+                  (!newTitle.trim() || creating) && styles.buttonDisabled,
+                ]}
+                onPress={() => {
+                  if (!newTitle.trim() || creating) return;
+                  Vibration.vibrate(30);
+                  handleCreate();
+                }}
+                activeOpacity={0.75}
                 disabled={!newTitle.trim() || creating}
+                accessibilityRole="button"
+                accessibilityLabel="Create issue"
+                accessibilityState={{ disabled: !newTitle.trim() || creating, busy: creating }}
               >
                 {creating ? (
-                  <ActivityIndicator color={theme.colors.surface} size="small" />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <ActivityIndicator color={theme.colors.surface} size="small" />
+                    <Text style={styles.createButtonText}>Creating…</Text>
+                  </View>
                 ) : (
-                  <Text style={styles.createButtonText}>Create</Text>
+                  <Text style={styles.createButtonText}>Create issue →</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -703,6 +1023,36 @@ export default function IssuesScreen() {
           projectId={activeProject.id}
           onSelect={bulkReassign}
           onClose={() => setBulkAssignVisible(false)}
+        />
+      )}
+
+      {/* Watcher multi-picker — each selection appends to the list */}
+      {activeProject && (
+        <MemberPicker
+          visible={showWatcherPicker}
+          projectId={activeProject.id}
+          onSelect={(member) => {
+            setNewWatchers(prev =>
+              prev.some(w => w.userId === member.userId) ? prev : [...prev, member]
+            );
+            setShowWatcherPicker(false);
+          }}
+          onClose={() => setShowWatcherPicker(false)}
+        />
+      )}
+
+      {/* Co-assignee multi-picker */}
+      {activeProject && (
+        <MemberPicker
+          visible={showCoAssigneePicker}
+          projectId={activeProject.id}
+          onSelect={(member) => {
+            setNewCoAssignees(prev =>
+              prev.some(c => c.userId === member.userId) ? prev : [...prev, member]
+            );
+            setShowCoAssigneePicker(false);
+          }}
+          onClose={() => setShowCoAssigneePicker(false)}
         />
       )}
 
@@ -748,6 +1098,14 @@ function IssueCard({
     issue.status === 'OPEN' && !!issue.dueDate && new Date(issue.dueDate) < new Date()
   ) ?? (issue.status === 'OPEN' && daysSince(issue.createdAt) > 7);
   const hasPhotos = (issue.attachmentCount ?? 0) > 0;
+  // Parse watcher count from either a pre-parsed array or a JSON-encoded string.
+  const watcherCount = (() => {
+    const raw = issue.watcherUserIds;
+    if (!raw) return 0;
+    if (Array.isArray(raw)) return raw.filter(Boolean).length;
+    try { const arr = JSON.parse(raw as string); return Array.isArray(arr) ? arr.filter(Boolean).length : 0; }
+    catch { return 0; }
+  })();
 
   return (
     <TouchableOpacity
@@ -773,6 +1131,11 @@ function IssueCard({
             {hasPhotos ? (
               <View style={[styles.typeBadge, { backgroundColor: '#fff3e0' }]}>
                 <Text style={[styles.typeBadgeText, { color: '#E8912D' }]}>📷 {issue.attachmentCount}</Text>
+              </View>
+            ) : null}
+            {watcherCount > 0 ? (
+              <View style={[styles.typeBadge, { backgroundColor: '#e8f5e9' }]}>
+                <Text style={[styles.typeBadgeText, { color: '#2E7D32' }]}>👁 {watcherCount}</Text>
               </View>
             ) : null}
             <StatusBadge status={issue.status} small />
@@ -1229,14 +1592,58 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     backgroundColor: theme.colors.accent,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    shadowColor: theme.colors.accent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  createButtonBusy: {
+    backgroundColor: theme.colors.primary,
   },
   buttonDisabled: {
-    opacity: 0.5,
+    opacity: 0.45,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   createButtonText: {
     fontSize: theme.fontSize.md,
-    fontWeight: '600',
+    fontWeight: '700',
     color: theme.colors.surface,
+  },
+  modalScroll: {
+    flexShrink: 1,
+  },
+  modalScrollContent: {
+    paddingBottom: theme.spacing.sm,
+  },
+  modalErrorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFEBEE',
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+    gap: theme.spacing.sm,
+  },
+  modalErrorText: {
+    flex: 1,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.danger,
+  },
+  modalErrorDismiss: {
+    fontSize: 14,
+    color: theme.colors.danger,
+    fontWeight: '700',
+  },
+  creationStatusText: {
+    marginTop: theme.spacing.sm,
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
   },
 
   // Phase 96 — bulk action bar + multi-select checkbox
@@ -1323,6 +1730,24 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     color: theme.colors.text,
     marginTop: 2,
+  },
+
+  // Watcher / co-assignee chip
+  assigneeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary + '15',
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.lg,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 4,
+    marginRight: 6,
+  },
+  assigneeChipText: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: '600',
+    color: theme.colors.primary,
   },
 
   // Phase 94 — legacy "detail modal" styles removed. Issue detail now lives

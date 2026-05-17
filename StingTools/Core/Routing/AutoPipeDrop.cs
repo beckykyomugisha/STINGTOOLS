@@ -87,7 +87,10 @@ namespace StingTools.Core.Routing
                     {
                         try
                         {
-                            TryDropFromFixture(fx, BuiltInCategory.OST_PipeCurves, SearchRadiusMm, result);
+                            if (MultiServiceMode)
+                                TryDropFromFixtureAllConnectors(fx, BuiltInCategory.OST_PipeCurves, SearchRadiusMm, result);
+                            else
+                                TryDropFromFixture(fx, BuiltInCategory.OST_PipeCurves, SearchRadiusMm, result);
                         }
                         catch (Exception ex)
                         {

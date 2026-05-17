@@ -1,0 +1,4725 @@
+{
+  "version": "1.0",
+  "concepts": {
+    "SLD_MCB": {
+      "conceptId": "SLD_MCB",
+      "name": "Miniature Circuit Breaker",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Protection",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_MCB"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_MCB"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_MCB"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_MCB"
+        }
+      }
+    },
+    "SLD_MCCB": {
+      "conceptId": "SLD_MCCB",
+      "name": "Moulded Case Circuit Breaker",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Protection",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_MCCB"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_MCCB"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_MCCB"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_MCCB"
+        }
+      }
+    },
+    "SLD_ACB": {
+      "conceptId": "SLD_ACB",
+      "name": "Air Circuit Breaker",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Protection",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_ACB"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_ACB"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_MCB"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_ACB"
+        }
+      }
+    },
+    "SLD_FUSE": {
+      "conceptId": "SLD_FUSE",
+      "name": "Fuse",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Protection",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_FUSE"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_FUSE"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_FUSE"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_FUSE"
+        }
+      }
+    },
+    "SLD_FUSED_SWITCH": {
+      "conceptId": "SLD_FUSED_SWITCH",
+      "name": "Fused Switch Disconnector",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Protection",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_FUSED_SWITCH"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_FUSED_SWITCH"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_FUSED_SWITCH"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_FUSE"
+        }
+      }
+    },
+    "SLD_ISOLATOR": {
+      "conceptId": "SLD_ISOLATOR",
+      "name": "Isolator / Disconnector",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Protection",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_ISOLATOR"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_ISOLATOR"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_ISOLATOR"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_ISOLATOR"
+        }
+      }
+    },
+    "SLD_CONTACTOR": {
+      "conceptId": "SLD_CONTACTOR",
+      "name": "Contactor",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Protection",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_CONTACTOR"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_CONTACTOR"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_CONTACTOR"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_CONTACTOR"
+        }
+      }
+    },
+    "SLD_SOFT_STARTER": {
+      "conceptId": "SLD_SOFT_STARTER",
+      "name": "Soft Starter",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Protection",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_SOFT_STARTER"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_SOFT_STARTER"
+        }
+      }
+    },
+    "SLD_VSD": {
+      "conceptId": "SLD_VSD",
+      "name": "Variable Speed Drive",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Protection",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_VSD"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_VSD"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_VSD"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_MCB"
+        }
+      }
+    },
+    "SLD_RCD": {
+      "conceptId": "SLD_RCD",
+      "name": "Residual Current Device",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Protection",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_RCD"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_RCD"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_RCD"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_MCB"
+        }
+      }
+    },
+    "SLD_RCBO": {
+      "conceptId": "SLD_RCBO",
+      "name": "RCBO",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Protection",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_RCBO"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_RCBO"
+        }
+      }
+    },
+    "SLD_SPD": {
+      "conceptId": "SLD_SPD",
+      "name": "Surge Protective Device",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Protection",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_SPD"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_SPD"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_SPD"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_SPD"
+        }
+      }
+    },
+    "SLD_XFMR_2W": {
+      "conceptId": "SLD_XFMR_2W",
+      "name": "Transformer 2-Winding",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Transformer",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_XFMR_2W"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_XFMR_2W"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_TRANSFORMER"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_TRANSFORMER"
+        }
+      }
+    },
+    "SLD_XFMR_3W": {
+      "conceptId": "SLD_XFMR_3W",
+      "name": "Transformer 3-Winding",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Transformer",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_XFMR_3W"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_XFMR_3W"
+        }
+      }
+    },
+    "SLD_AUTOXFMR": {
+      "conceptId": "SLD_AUTOXFMR",
+      "name": "Auto-Transformer",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Transformer",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_AUTOXFMR"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_AUTOXFMR"
+        }
+      }
+    },
+    "SLD_XFMR_STAR_DELTA": {
+      "conceptId": "SLD_XFMR_STAR_DELTA",
+      "name": "Star-Delta Transformer",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Transformer",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_XFMR_STAR_DELTA"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_XFMR_STAR_DELTA"
+        }
+      }
+    },
+    "SLD_AMMETER": {
+      "conceptId": "SLD_AMMETER",
+      "name": "Ammeter",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Measurement",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_AMMETER"
+        }
+      }
+    },
+    "SLD_VOLTMETER": {
+      "conceptId": "SLD_VOLTMETER",
+      "name": "Voltmeter",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Measurement",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_VOLTMETER"
+        }
+      }
+    },
+    "SLD_WATTMETER": {
+      "conceptId": "SLD_WATTMETER",
+      "name": "Wattmeter",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Measurement",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_WATTMETER"
+        }
+      }
+    },
+    "SLD_KWH_METER": {
+      "conceptId": "SLD_KWH_METER",
+      "name": "kWh Energy Meter",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Measurement",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_KWH_METER"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_METER"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_METER"
+        }
+      }
+    },
+    "SLD_PF_METER": {
+      "conceptId": "SLD_PF_METER",
+      "name": "Power Factor Meter",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Measurement",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_PF_METER"
+        }
+      }
+    },
+    "SLD_CT": {
+      "conceptId": "SLD_CT",
+      "name": "Current Transformer",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Measurement",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_CT"
+        }
+      }
+    },
+    "SLD_VT": {
+      "conceptId": "SLD_VT",
+      "name": "Voltage Transformer",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Measurement",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_VT"
+        }
+      }
+    },
+    "SLD_BUSBAR": {
+      "conceptId": "SLD_BUSBAR",
+      "name": "Busbar",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Bus",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_BUSBAR"
+        }
+      }
+    },
+    "SLD_BUS_SECTION": {
+      "conceptId": "SLD_BUS_SECTION",
+      "name": "Bus Section / Bus Coupler",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Bus",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_BUS_SECTION"
+        }
+      }
+    },
+    "SLD_EARTH": {
+      "conceptId": "SLD_EARTH",
+      "name": "Earth / Ground Connection",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Bus",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_EARTH"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_EARTH"
+        }
+      }
+    },
+    "SLD_NEUTRAL": {
+      "conceptId": "SLD_NEUTRAL",
+      "name": "Neutral Bar",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Bus",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_NEUTRAL"
+        }
+      }
+    },
+    "SLD_EARTH_BAR": {
+      "conceptId": "SLD_EARTH_BAR",
+      "name": "Earth Bar",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Bus",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_EARTH_BAR"
+        }
+      }
+    },
+    "SLD_GENERATOR": {
+      "conceptId": "SLD_GENERATOR",
+      "name": "Generator",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Source",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_GENERATOR"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_GENERATOR"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_GENERATOR"
+        }
+      }
+    },
+    "SLD_UPS": {
+      "conceptId": "SLD_UPS",
+      "name": "Uninterruptible Power Supply",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Source",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_UPS"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_UPS"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_UPS"
+        }
+      }
+    },
+    "SLD_BATTERY": {
+      "conceptId": "SLD_BATTERY",
+      "name": "Battery / Battery Bank",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Source",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_BATTERY"
+        }
+      }
+    },
+    "SLD_SOLAR_PV": {
+      "conceptId": "SLD_SOLAR_PV",
+      "name": "Solar PV Array",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Source",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_SOLAR_PV"
+        }
+      }
+    },
+    "SLD_ATS": {
+      "conceptId": "SLD_ATS",
+      "name": "Automatic Transfer Switch",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Source",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_ATS"
+        }
+      }
+    },
+    "SLD_MOTOR_3PH": {
+      "conceptId": "SLD_MOTOR_3PH",
+      "name": "Motor (3-phase)",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Load",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_MOTOR_3PH"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_MOTOR_3PH"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_MOTOR"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_MOTOR"
+        }
+      }
+    },
+    "SLD_MOTOR_1PH": {
+      "conceptId": "SLD_MOTOR_1PH",
+      "name": "Motor (single-phase)",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Load",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_MOTOR_1PH"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_MOTOR_1PH"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_MOTOR"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_MOTOR"
+        }
+      }
+    },
+    "SLD_CAPACITOR": {
+      "conceptId": "SLD_CAPACITOR",
+      "name": "Capacitor / Capacitor Bank",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Load",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_CAPACITOR"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_CAPACITOR"
+        }
+      }
+    },
+    "SLD_HEATING": {
+      "conceptId": "SLD_HEATING",
+      "name": "Heating Element",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Load",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_HEATING"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_HEATING"
+        }
+      }
+    },
+    "SLD_LIGHT_LOAD": {
+      "conceptId": "SLD_LIGHT_LOAD",
+      "name": "Lighting Circuit Load",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Load",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_LIGHT_LOAD"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_LIGHT_LOAD"
+        }
+      }
+    },
+    "SLD_DB_DOWNSTREAM": {
+      "conceptId": "SLD_DB_DOWNSTREAM",
+      "name": "Distribution Board (downstream)",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Load",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_DB_DOWNSTREAM"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_DB_DOWNSTREAM"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_PANEL"
+        }
+      }
+    },
+    "SLD_SOCKET_LOAD": {
+      "conceptId": "SLD_SOCKET_LOAD",
+      "name": "Socket Circuit / Small Power",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Load",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_SOCKET_LOAD"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_SOCKET_LOAD"
+        }
+      }
+    },
+    "SLD_SWITCH_FUSE": {
+      "conceptId": "SLD_SWITCH_FUSE",
+      "name": "Switch Fuse",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Load",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_SWITCH_FUSE"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_SWITCH_FUSE"
+        }
+      }
+    },
+    "SLD_MAINS_SWITCH": {
+      "conceptId": "SLD_MAINS_SWITCH",
+      "name": "Mains Switch / Main Isolator",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Load",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_MAINS_SWITCH"
+        },
+        "IEEE": {
+          "genericAnnotation": "IEEE_SLD_MAINS_SWITCH"
+        }
+      }
+    },
+    "LTG_DOWNLIGHT_RND": {
+      "conceptId": "LTG_DOWNLIGHT_RND",
+      "name": "Downlight Rnd",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_DOWNLIGHT_RND_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_DOWNLIGHT_RND_TAG"
+        }
+      }
+    },
+    "LTG_DOWNLIGHT_SQ": {
+      "conceptId": "LTG_DOWNLIGHT_SQ",
+      "name": "Downlight Sq",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_DOWNLIGHT_SQ_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_DOWNLIGHT_SQ_TAG"
+        }
+      }
+    },
+    "LTG_SURFACE_RND": {
+      "conceptId": "LTG_SURFACE_RND",
+      "name": "Surface Rnd",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_SURFACE_RND_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_SURFACE_RND_TAG"
+        }
+      }
+    },
+    "LTG_SURFACE_SQ": {
+      "conceptId": "LTG_SURFACE_SQ",
+      "name": "Surface Sq",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_SURFACE_SQ_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_SURFACE_SQ_TAG"
+        }
+      }
+    },
+    "LTG_PENDANT": {
+      "conceptId": "LTG_PENDANT",
+      "name": "Pendant",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_PENDANT_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_PENDANT_TAG"
+        }
+      }
+    },
+    "LTG_TRACK_LINEAR": {
+      "conceptId": "LTG_TRACK_LINEAR",
+      "name": "Track Linear",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_TRACK_LINEAR_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_TRACK_LINEAR_TAG"
+        }
+      }
+    },
+    "LTG_FLUORO_1T": {
+      "conceptId": "LTG_FLUORO_1T",
+      "name": "Fluoro 1T",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_FLUORO_1T_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_FLUORO_1T_TAG"
+        }
+      }
+    },
+    "LTG_FLUORO_2T": {
+      "conceptId": "LTG_FLUORO_2T",
+      "name": "Fluoro 2T",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_FLUORO_2T_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_FLUORO_2T_TAG"
+        }
+      }
+    },
+    "LTG_LED_LINEAR": {
+      "conceptId": "LTG_LED_LINEAR",
+      "name": "Led Linear",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_LED_LINEAR_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_LED_LINEAR_TAG"
+        }
+      }
+    },
+    "LTG_EMERGENCY_MAINTAINED": {
+      "conceptId": "LTG_EMERGENCY_MAINTAINED",
+      "name": "Emergency Maintained",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_EMERGENCY_MAINTAINED_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_EMERGENCY_MAINTAINED_TAG"
+        }
+      }
+    },
+    "LTG_EMERGENCY_NON": {
+      "conceptId": "LTG_EMERGENCY_NON",
+      "name": "Emergency Non",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_EMERGENCY_NON_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_EMERGENCY_NON_TAG"
+        }
+      }
+    },
+    "LTG_EXIT_SIGN": {
+      "conceptId": "LTG_EXIT_SIGN",
+      "name": "Exit Sign",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_EXIT_SIGN_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_EXIT_SIGN_TAG"
+        }
+      }
+    },
+    "LTG_SPOTLIGHT": {
+      "conceptId": "LTG_SPOTLIGHT",
+      "name": "Spotlight",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_SPOTLIGHT_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_SPOTLIGHT_TAG"
+        }
+      }
+    },
+    "LTG_WALL_BRACKET": {
+      "conceptId": "LTG_WALL_BRACKET",
+      "name": "Wall Bracket",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_WALL_BRACKET_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_WALL_BRACKET_TAG"
+        }
+      }
+    },
+    "LTG_FLOODLIGHT_EXT": {
+      "conceptId": "LTG_FLOODLIGHT_EXT",
+      "name": "Floodlight Ext",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_FLOODLIGHT_EXT_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_FLOODLIGHT_EXT_TAG"
+        }
+      }
+    },
+    "LTG_BOLLARD": {
+      "conceptId": "LTG_BOLLARD",
+      "name": "Bollard",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_BOLLARD_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_BOLLARD_TAG"
+        }
+      }
+    },
+    "LTG_STREET_LIGHT": {
+      "conceptId": "LTG_STREET_LIGHT",
+      "name": "Street Light",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_STREET_LIGHT_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_STREET_LIGHT_TAG"
+        }
+      }
+    },
+    "LTG_HIGH_BAY": {
+      "conceptId": "LTG_HIGH_BAY",
+      "name": "High Bay",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_HIGH_BAY_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_HIGH_BAY_TAG"
+        }
+      }
+    },
+    "LTG_LOW_BAY": {
+      "conceptId": "LTG_LOW_BAY",
+      "name": "Low Bay",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_LOW_BAY_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_LOW_BAY_TAG"
+        }
+      }
+    },
+    "LTG_ANTI_VANDAL": {
+      "conceptId": "LTG_ANTI_VANDAL",
+      "name": "Anti Vandal",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_ANTI_VANDAL_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_ANTI_VANDAL_TAG"
+        }
+      }
+    },
+    "LTG_CLEAN_ROOM": {
+      "conceptId": "LTG_CLEAN_ROOM",
+      "name": "Clean Room",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_CLEAN_ROOM_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_CLEAN_ROOM_TAG"
+        }
+      }
+    },
+    "LTG_EXPLOSION_PROOF": {
+      "conceptId": "LTG_EXPLOSION_PROOF",
+      "name": "Explosion Proof",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_EXPLOSION_PROOF_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_EXPLOSION_PROOF_TAG"
+        }
+      }
+    },
+    "LTG_SENSOR_LIGHT": {
+      "conceptId": "LTG_SENSOR_LIGHT",
+      "name": "Sensor Light",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_SENSOR_LIGHT_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_SENSOR_LIGHT_TAG"
+        }
+      }
+    },
+    "LTG_RECESSED_TRIMLESS": {
+      "conceptId": "LTG_RECESSED_TRIMLESS",
+      "name": "Recessed Trimless",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_RECESSED_TRIMLESS_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_RECESSED_TRIMLESS_TAG"
+        }
+      }
+    },
+    "LTG_STEP_LIGHT": {
+      "conceptId": "LTG_STEP_LIGHT",
+      "name": "Step Light",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "revitCategory": "LightingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_LTG_STEP_LIGHT_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_LTG_STEP_LIGHT_TAG"
+        }
+      }
+    },
+    "HVAC_SAD_SQ": {
+      "conceptId": "HVAC_SAD_SQ",
+      "name": "Sad Sq",
+      "discipline": "HVAC",
+      "subcategory": "AirTerminal",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_SAD_SQ_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_HVAC_SAD_SQ_TAG",
+            "Section": "IEC_HVAC_SAD_SQ_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_SAD_SQ"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_SAD_SQ_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_HVAC_SAD_SQ_TAG",
+            "Section": "CIBSE_HVAC_SAD_SQ_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_SAD_SQ"
+          }
+        }
+      },
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "HVAC_SAD_RND": {
+      "conceptId": "HVAC_SAD_RND",
+      "name": "Sad Rnd",
+      "discipline": "HVAC",
+      "subcategory": "AirTerminal",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_SAD_RND_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_HVAC_SAD_RND_TAG",
+            "Section": "IEC_HVAC_SAD_RND_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_SAD_RND"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_SAD_RND_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_HVAC_SAD_RND_TAG",
+            "Section": "CIBSE_HVAC_SAD_RND_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_SAD_RND"
+          }
+        }
+      },
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "HVAC_RAG_SQ": {
+      "conceptId": "HVAC_RAG_SQ",
+      "name": "Rag Sq",
+      "discipline": "HVAC",
+      "subcategory": "AirTerminal",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_RAG_SQ_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_HVAC_RAG_SQ_TAG",
+            "Section": "IEC_HVAC_RAG_SQ_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_RAG_SQ"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_RAG_SQ_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_HVAC_RAG_SQ_TAG",
+            "Section": "CIBSE_HVAC_RAG_SQ_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_RAG_SQ"
+          }
+        }
+      },
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "HVAC_RAG_RND": {
+      "conceptId": "HVAC_RAG_RND",
+      "name": "Rag Rnd",
+      "discipline": "HVAC",
+      "subcategory": "AirTerminal",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_RAG_RND_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_HVAC_RAG_RND_TAG",
+            "Section": "IEC_HVAC_RAG_RND_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_RAG_RND"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_RAG_RND_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_HVAC_RAG_RND_TAG",
+            "Section": "CIBSE_HVAC_RAG_RND_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_RAG_RND"
+          }
+        }
+      },
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "HVAC_LINEAR_SLOT": {
+      "conceptId": "HVAC_LINEAR_SLOT",
+      "name": "Linear Slot",
+      "discipline": "HVAC",
+      "subcategory": "AirTerminal",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_LINEAR_SLOT_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_HVAC_LINEAR_SLOT_TAG",
+            "Section": "IEC_HVAC_LINEAR_SLOT_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_LINEAR_SLOT"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_LINEAR_SLOT_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_HVAC_LINEAR_SLOT_TAG",
+            "Section": "CIBSE_HVAC_LINEAR_SLOT_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_LINEAR_SLOT"
+          }
+        }
+      },
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "HVAC_EXTRACT_VALVE_RND": {
+      "conceptId": "HVAC_EXTRACT_VALVE_RND",
+      "name": "Extract Valve Rnd",
+      "discipline": "HVAC",
+      "subcategory": "AirTerminal",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_EXTRACT_VALVE_RND_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_HVAC_EXTRACT_VALVE_RND_TAG",
+            "Section": "IEC_HVAC_EXTRACT_VALVE_RND_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_EXTRACT_VALVE_RND"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_EXTRACT_VALVE_RND_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_HVAC_EXTRACT_VALVE_RND_TAG",
+            "Section": "CIBSE_HVAC_EXTRACT_VALVE_RND_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_EXTRACT_VALVE_RND"
+          }
+        }
+      },
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "HVAC_DISPLACEMENT": {
+      "conceptId": "HVAC_DISPLACEMENT",
+      "name": "Displacement",
+      "discipline": "HVAC",
+      "subcategory": "AirTerminal",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_DISPLACEMENT_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_HVAC_DISPLACEMENT_TAG",
+            "Section": "IEC_HVAC_DISPLACEMENT_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_DISPLACEMENT"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_DISPLACEMENT_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_HVAC_DISPLACEMENT_TAG",
+            "Section": "CIBSE_HVAC_DISPLACEMENT_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_DISPLACEMENT"
+          }
+        }
+      },
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "HVAC_SWIRL": {
+      "conceptId": "HVAC_SWIRL",
+      "name": "Swirl",
+      "discipline": "HVAC",
+      "subcategory": "AirTerminal",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_SWIRL_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_HVAC_SWIRL_TAG",
+            "Section": "IEC_HVAC_SWIRL_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_SWIRL"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_SWIRL_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_HVAC_SWIRL_TAG",
+            "Section": "CIBSE_HVAC_SWIRL_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_SWIRL"
+          }
+        }
+      },
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "HVAC_TRANSFER_GRILLE": {
+      "conceptId": "HVAC_TRANSFER_GRILLE",
+      "name": "Transfer Grille",
+      "discipline": "HVAC",
+      "subcategory": "AirTerminal",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_TRANSFER_GRILLE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_HVAC_TRANSFER_GRILLE_TAG",
+            "Section": "IEC_HVAC_TRANSFER_GRILLE_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_TRANSFER_GRILLE"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_TRANSFER_GRILLE_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_HVAC_TRANSFER_GRILLE_TAG",
+            "Section": "CIBSE_HVAC_TRANSFER_GRILLE_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_TRANSFER_GRILLE"
+          }
+        }
+      },
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "HVAC_FIRE_DAMPER": {
+      "conceptId": "HVAC_FIRE_DAMPER",
+      "name": "Fire Damper",
+      "discipline": "HVAC",
+      "subcategory": "Damper",
+      "revitCategory": "DuctAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_FIRE_DAMPER_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_HVAC_FIRE_DAMPER_TAG",
+            "Section": "IEC_HVAC_FIRE_DAMPER_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_FIRE_DAMPER"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_FIRE_DAMPER_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_HVAC_FIRE_DAMPER_TAG",
+            "Section": "CIBSE_HVAC_FIRE_DAMPER_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_FIRE_DAMPER"
+          }
+        }
+      },
+      "connectorDomain": "HVAC",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "HVAC_SMOKE_DAMPER": {
+      "conceptId": "HVAC_SMOKE_DAMPER",
+      "name": "Smoke Damper",
+      "discipline": "HVAC",
+      "subcategory": "Damper",
+      "revitCategory": "DuctAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_SMOKE_DAMPER_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_HVAC_SMOKE_DAMPER_TAG",
+            "Section": "IEC_HVAC_SMOKE_DAMPER_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_SMOKE_DAMPER"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_SMOKE_DAMPER_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_HVAC_SMOKE_DAMPER_TAG",
+            "Section": "CIBSE_HVAC_SMOKE_DAMPER_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_SMOKE_DAMPER"
+          }
+        }
+      },
+      "connectorDomain": "HVAC",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "HVAC_FIRE_SMOKE_DAMPER": {
+      "conceptId": "HVAC_FIRE_SMOKE_DAMPER",
+      "name": "Fire Smoke Damper",
+      "discipline": "HVAC",
+      "subcategory": "Damper",
+      "revitCategory": "DuctAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_FIRE_SMOKE_DAMPER_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_HVAC_FIRE_SMOKE_DAMPER_TAG",
+            "Section": "IEC_HVAC_FIRE_SMOKE_DAMPER_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_FIRE_SMOKE_DAMPER"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_FIRE_SMOKE_DAMPER_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_HVAC_FIRE_SMOKE_DAMPER_TAG",
+            "Section": "CIBSE_HVAC_FIRE_SMOKE_DAMPER_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_FIRE_SMOKE_DAMPER"
+          }
+        }
+      },
+      "connectorDomain": "HVAC",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "HVAC_VCD": {
+      "conceptId": "HVAC_VCD",
+      "name": "Vcd",
+      "discipline": "HVAC",
+      "subcategory": "Damper",
+      "revitCategory": "DuctAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_VCD_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_HVAC_VCD_TAG",
+            "Section": "IEC_HVAC_VCD_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_VCD"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_VCD_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_HVAC_VCD_TAG",
+            "Section": "CIBSE_HVAC_VCD_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_VCD"
+          }
+        }
+      },
+      "connectorDomain": "HVAC",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "HVAC_MOTORISED_DAMPER": {
+      "conceptId": "HVAC_MOTORISED_DAMPER",
+      "name": "Motorised Damper",
+      "discipline": "HVAC",
+      "subcategory": "Damper",
+      "revitCategory": "DuctAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_MOTORISED_DAMPER_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_HVAC_MOTORISED_DAMPER_TAG",
+            "Section": "IEC_HVAC_MOTORISED_DAMPER_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_MOTORISED_DAMPER"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_MOTORISED_DAMPER_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_HVAC_MOTORISED_DAMPER_TAG",
+            "Section": "CIBSE_HVAC_MOTORISED_DAMPER_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_MOTORISED_DAMPER"
+          }
+        }
+      },
+      "connectorDomain": "HVAC",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "HVAC_NR_DAMPER": {
+      "conceptId": "HVAC_NR_DAMPER",
+      "name": "Nr Damper",
+      "discipline": "HVAC",
+      "subcategory": "Damper",
+      "revitCategory": "DuctAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_NR_DAMPER_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_HVAC_NR_DAMPER_TAG",
+            "Section": "IEC_HVAC_NR_DAMPER_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_NR_DAMPER"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_NR_DAMPER_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_HVAC_NR_DAMPER_TAG",
+            "Section": "CIBSE_HVAC_NR_DAMPER_SECTION_TAG",
+            "Schematic": "IEC_SCH_HVAC_NR_DAMPER"
+          }
+        }
+      },
+      "connectorDomain": "HVAC",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "HVAC_FCU": {
+      "conceptId": "HVAC_FCU",
+      "name": "Fcu",
+      "discipline": "HVAC",
+      "subcategory": "Equipment",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_FCU_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_FCU_TAG"
+        }
+      }
+    },
+    "HVAC_FCU_2PIPE": {
+      "conceptId": "HVAC_FCU_2PIPE",
+      "name": "Fcu 2Pipe",
+      "discipline": "HVAC",
+      "subcategory": "Equipment",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_FCU_2PIPE_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_FCU_2PIPE_TAG"
+        }
+      }
+    },
+    "HVAC_VAV": {
+      "conceptId": "HVAC_VAV",
+      "name": "Vav",
+      "discipline": "HVAC",
+      "subcategory": "Equipment",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_VAV_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_VAV_TAG"
+        }
+      }
+    },
+    "HVAC_CAV": {
+      "conceptId": "HVAC_CAV",
+      "name": "Cav",
+      "discipline": "HVAC",
+      "subcategory": "Equipment",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_CAV_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_CAV_TAG"
+        }
+      }
+    },
+    "HVAC_AHU": {
+      "conceptId": "HVAC_AHU",
+      "name": "Ahu",
+      "discipline": "HVAC",
+      "subcategory": "Equipment",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_AHU_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_AHU_TAG"
+        }
+      }
+    },
+    "HVAC_FAN_AXIAL": {
+      "conceptId": "HVAC_FAN_AXIAL",
+      "name": "Fan Axial",
+      "discipline": "HVAC",
+      "subcategory": "Equipment",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_FAN_AXIAL_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_FAN_AXIAL_TAG"
+        }
+      }
+    },
+    "HVAC_FAN_CENTRIFUGAL": {
+      "conceptId": "HVAC_FAN_CENTRIFUGAL",
+      "name": "Fan Centrifugal",
+      "discipline": "HVAC",
+      "subcategory": "Equipment",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_FAN_CENTRIFUGAL_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_FAN_CENTRIFUGAL_TAG"
+        }
+      }
+    },
+    "HVAC_THERMOSTAT": {
+      "conceptId": "HVAC_THERMOSTAT",
+      "name": "Thermostat",
+      "discipline": "HVAC",
+      "subcategory": "Controls",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_THERMOSTAT_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_THERMOSTAT_TAG"
+        }
+      }
+    },
+    "HVAC_CO2_SENSOR": {
+      "conceptId": "HVAC_CO2_SENSOR",
+      "name": "Co2 Sensor",
+      "discipline": "HVAC",
+      "subcategory": "Controls",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_CO2_SENSOR_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_CO2_SENSOR_TAG"
+        }
+      }
+    },
+    "HVAC_TEMP_SENSOR": {
+      "conceptId": "HVAC_TEMP_SENSOR",
+      "name": "Temp Sensor",
+      "discipline": "HVAC",
+      "subcategory": "Controls",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_TEMP_SENSOR_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_TEMP_SENSOR_TAG"
+        }
+      }
+    },
+    "HVAC_HUMIDITY_SENSOR": {
+      "conceptId": "HVAC_HUMIDITY_SENSOR",
+      "name": "Humidity Sensor",
+      "discipline": "HVAC",
+      "subcategory": "Controls",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_HUMIDITY_SENSOR_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_HUMIDITY_SENSOR_TAG"
+        }
+      }
+    },
+    "HVAC_PRESSURE_DIFF": {
+      "conceptId": "HVAC_PRESSURE_DIFF",
+      "name": "Pressure Diff",
+      "discipline": "HVAC",
+      "subcategory": "Controls",
+      "revitCategory": "MechanicalEquipment",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_HVAC_PRESSURE_DIFF_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_HVAC_PRESSURE_DIFF_TAG"
+        }
+      }
+    },
+    "FP_SPKR_PENDANT": {
+      "conceptId": "FP_SPKR_PENDANT",
+      "name": "Spkr Pendant",
+      "discipline": "FireProtection",
+      "subcategory": "Sprinkler",
+      "revitCategory": "FireProtectionDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_SPKR_PENDANT_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_SPKR_PENDANT_TAG"
+        }
+      },
+      "connectorDomain": "Piping"
+    },
+    "FP_SPKR_UPRIGHT": {
+      "conceptId": "FP_SPKR_UPRIGHT",
+      "name": "Spkr Upright",
+      "discipline": "FireProtection",
+      "subcategory": "Sprinkler",
+      "revitCategory": "FireProtectionDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_SPKR_UPRIGHT_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_SPKR_UPRIGHT_TAG"
+        }
+      },
+      "connectorDomain": "Piping"
+    },
+    "FP_SPKR_SIDEWALL": {
+      "conceptId": "FP_SPKR_SIDEWALL",
+      "name": "Spkr Sidewall",
+      "discipline": "FireProtection",
+      "subcategory": "Sprinkler",
+      "revitCategory": "FireProtectionDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_SPKR_SIDEWALL_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_SPKR_SIDEWALL_TAG"
+        }
+      },
+      "connectorDomain": "Piping"
+    },
+    "FP_SPKR_CONCEALED": {
+      "conceptId": "FP_SPKR_CONCEALED",
+      "name": "Spkr Concealed",
+      "discipline": "FireProtection",
+      "subcategory": "Sprinkler",
+      "revitCategory": "FireProtectionDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_SPKR_CONCEALED_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_SPKR_CONCEALED_TAG"
+        }
+      },
+      "connectorDomain": "Piping"
+    },
+    "FP_SPKR_ESFR": {
+      "conceptId": "FP_SPKR_ESFR",
+      "name": "Spkr Esfr",
+      "discipline": "FireProtection",
+      "subcategory": "Sprinkler",
+      "revitCategory": "FireProtectionDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_SPKR_ESFR_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_SPKR_ESFR_TAG"
+        }
+      },
+      "connectorDomain": "Piping"
+    },
+    "FP_DELUGE_NOZZLE": {
+      "conceptId": "FP_DELUGE_NOZZLE",
+      "name": "Deluge Nozzle",
+      "discipline": "FireProtection",
+      "subcategory": "Sprinkler",
+      "revitCategory": "FireProtectionDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_DELUGE_NOZZLE_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_DELUGE_NOZZLE_TAG"
+        }
+      },
+      "connectorDomain": "Piping"
+    },
+    "FP_SMOKE_OPTICAL": {
+      "conceptId": "FP_SMOKE_OPTICAL",
+      "name": "Smoke Optical",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "revitCategory": "FireAlarmDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_SMOKE_OPTICAL_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_SMOKE_OPTICAL_TAG"
+        }
+      }
+    },
+    "FP_SMOKE_IONISATION": {
+      "conceptId": "FP_SMOKE_IONISATION",
+      "name": "Smoke Ionisation",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "revitCategory": "FireAlarmDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_SMOKE_IONISATION_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_SMOKE_IONISATION_TAG"
+        }
+      }
+    },
+    "FP_HEAT_FIXED": {
+      "conceptId": "FP_HEAT_FIXED",
+      "name": "Heat Fixed",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "revitCategory": "FireAlarmDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_HEAT_FIXED_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_HEAT_FIXED_TAG"
+        }
+      }
+    },
+    "FP_HEAT_RATE_OF_RISE": {
+      "conceptId": "FP_HEAT_RATE_OF_RISE",
+      "name": "Heat Rate Of Rise",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "revitCategory": "FireAlarmDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_HEAT_RATE_OF_RISE_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_HEAT_RATE_OF_RISE_TAG"
+        }
+      }
+    },
+    "FP_MULTI_SENSOR": {
+      "conceptId": "FP_MULTI_SENSOR",
+      "name": "Multi Sensor",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "revitCategory": "FireAlarmDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_MULTI_SENSOR_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_MULTI_SENSOR_TAG"
+        }
+      }
+    },
+    "FP_BEAM_TX": {
+      "conceptId": "FP_BEAM_TX",
+      "name": "Beam Tx",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "revitCategory": "FireAlarmDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_BEAM_TX_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_BEAM_TX_TAG"
+        }
+      }
+    },
+    "FP_BEAM_RX": {
+      "conceptId": "FP_BEAM_RX",
+      "name": "Beam Rx",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "revitCategory": "FireAlarmDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_BEAM_RX_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_BEAM_RX_TAG"
+        }
+      }
+    },
+    "FP_FLAME_DETECTOR": {
+      "conceptId": "FP_FLAME_DETECTOR",
+      "name": "Flame Detector",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "revitCategory": "FireAlarmDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_FLAME_DETECTOR_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_FLAME_DETECTOR_TAG"
+        }
+      }
+    },
+    "FP_MCP": {
+      "conceptId": "FP_MCP",
+      "name": "Mcp",
+      "discipline": "FireProtection",
+      "subcategory": "Alarm",
+      "revitCategory": "FireAlarmDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_MCP_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_MCP_TAG"
+        }
+      }
+    },
+    "FP_SOUNDER": {
+      "conceptId": "FP_SOUNDER",
+      "name": "Sounder",
+      "discipline": "FireProtection",
+      "subcategory": "Alarm",
+      "revitCategory": "FireAlarmDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_SOUNDER_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_SOUNDER_TAG"
+        }
+      }
+    },
+    "FP_SOUNDER_BEACON": {
+      "conceptId": "FP_SOUNDER_BEACON",
+      "name": "Sounder Beacon",
+      "discipline": "FireProtection",
+      "subcategory": "Alarm",
+      "revitCategory": "FireAlarmDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_SOUNDER_BEACON_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_SOUNDER_BEACON_TAG"
+        }
+      }
+    },
+    "FP_VAD": {
+      "conceptId": "FP_VAD",
+      "name": "Vad",
+      "discipline": "FireProtection",
+      "subcategory": "Alarm",
+      "revitCategory": "FireAlarmDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_VAD_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_VAD_TAG"
+        }
+      }
+    },
+    "FP_FAP": {
+      "conceptId": "FP_FAP",
+      "name": "Fap",
+      "discipline": "FireProtection",
+      "subcategory": "Alarm",
+      "revitCategory": "FireAlarmDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_FAP_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_FAP_TAG"
+        }
+      }
+    },
+    "FP_REPEATER": {
+      "conceptId": "FP_REPEATER",
+      "name": "Repeater",
+      "discipline": "FireProtection",
+      "subcategory": "Alarm",
+      "revitCategory": "FireAlarmDevices",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_REPEATER_TAG"
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_REPEATER_TAG"
+        }
+      }
+    },
+    "FP_ALARM_VALVE_WET": {
+      "conceptId": "FP_ALARM_VALVE_WET",
+      "name": "Alarm Valve Wet",
+      "discipline": "FireProtection",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_ALARM_VALVE_WET_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_FP_ALARM_VALVE_WET_TAG",
+            "Section": "IEC_FP_ALARM_VALVE_WET_SECTION_TAG",
+            "Schematic": "IEC_SCH_FP_ALARM_VALVE_WET"
+          }
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_ALARM_VALVE_WET_TAG",
+          "viewContextOverrides": {
+            "Plan": "NFPA_FP_ALARM_VALVE_WET_TAG",
+            "Section": "NFPA_FP_ALARM_VALVE_WET_SECTION_TAG",
+            "Schematic": "IEC_SCH_FP_ALARM_VALVE_WET"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "FP_ALARM_VALVE_DRY": {
+      "conceptId": "FP_ALARM_VALVE_DRY",
+      "name": "Alarm Valve Dry",
+      "discipline": "FireProtection",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_ALARM_VALVE_DRY_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_FP_ALARM_VALVE_DRY_TAG",
+            "Section": "IEC_FP_ALARM_VALVE_DRY_SECTION_TAG",
+            "Schematic": "IEC_SCH_FP_ALARM_VALVE_DRY"
+          }
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_ALARM_VALVE_DRY_TAG",
+          "viewContextOverrides": {
+            "Plan": "NFPA_FP_ALARM_VALVE_DRY_TAG",
+            "Section": "NFPA_FP_ALARM_VALVE_DRY_SECTION_TAG",
+            "Schematic": "IEC_SCH_FP_ALARM_VALVE_DRY"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "FP_DELUGE_VALVE": {
+      "conceptId": "FP_DELUGE_VALVE",
+      "name": "Deluge Valve",
+      "discipline": "FireProtection",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_DELUGE_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_FP_DELUGE_VALVE_TAG",
+            "Section": "IEC_FP_DELUGE_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_FP_DELUGE_VALVE"
+          }
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_DELUGE_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "NFPA_FP_DELUGE_VALVE_TAG",
+            "Section": "NFPA_FP_DELUGE_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_FP_DELUGE_VALVE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "FP_FLOW_SWITCH": {
+      "conceptId": "FP_FLOW_SWITCH",
+      "name": "Flow Switch",
+      "discipline": "FireProtection",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_FLOW_SWITCH_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_FP_FLOW_SWITCH_TAG",
+            "Section": "IEC_FP_FLOW_SWITCH_SECTION_TAG",
+            "Schematic": "IEC_SCH_FP_FLOW_SWITCH"
+          }
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_FLOW_SWITCH_TAG",
+          "viewContextOverrides": {
+            "Plan": "NFPA_FP_FLOW_SWITCH_TAG",
+            "Section": "NFPA_FP_FLOW_SWITCH_SECTION_TAG",
+            "Schematic": "IEC_SCH_FP_FLOW_SWITCH"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "FP_PRESSURE_GAUGE_FP": {
+      "conceptId": "FP_PRESSURE_GAUGE_FP",
+      "name": "Pressure Gauge Fp",
+      "discipline": "FireProtection",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_PRESSURE_GAUGE_FP_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_FP_PRESSURE_GAUGE_FP_TAG",
+            "Section": "IEC_FP_PRESSURE_GAUGE_FP_SECTION_TAG",
+            "Schematic": "IEC_SCH_FP_PRESSURE_GAUGE_FP"
+          }
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_PRESSURE_GAUGE_FP_TAG",
+          "viewContextOverrides": {
+            "Plan": "NFPA_FP_PRESSURE_GAUGE_FP_TAG",
+            "Section": "NFPA_FP_PRESSURE_GAUGE_FP_SECTION_TAG",
+            "Schematic": "IEC_SCH_FP_PRESSURE_GAUGE_FP"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "FP_TEST_VALVE": {
+      "conceptId": "FP_TEST_VALVE",
+      "name": "Test Valve",
+      "discipline": "FireProtection",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_TEST_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_FP_TEST_VALVE_TAG",
+            "Section": "IEC_FP_TEST_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_FP_TEST_VALVE"
+          }
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_TEST_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "NFPA_FP_TEST_VALVE_TAG",
+            "Section": "NFPA_FP_TEST_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_FP_TEST_VALVE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "FP_DRAIN_VALVE": {
+      "conceptId": "FP_DRAIN_VALVE",
+      "name": "Drain Valve",
+      "discipline": "FireProtection",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_DRAIN_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_FP_DRAIN_VALVE_TAG",
+            "Section": "IEC_FP_DRAIN_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_FP_DRAIN_VALVE"
+          }
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_DRAIN_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "NFPA_FP_DRAIN_VALVE_TAG",
+            "Section": "NFPA_FP_DRAIN_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_FP_DRAIN_VALVE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "FP_BFPV": {
+      "conceptId": "FP_BFPV",
+      "name": "Bfpv",
+      "discipline": "FireProtection",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_FP_BFPV_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_FP_BFPV_TAG",
+            "Section": "IEC_FP_BFPV_SECTION_TAG",
+            "Schematic": "IEC_SCH_FP_BFPV"
+          }
+        },
+        "NFPA": {
+          "tagFamily": "NFPA_FP_BFPV_TAG",
+          "viewContextOverrides": {
+            "Plan": "NFPA_FP_BFPV_TAG",
+            "Section": "NFPA_FP_BFPV_SECTION_TAG",
+            "Schematic": "IEC_SCH_FP_BFPV"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "ELEC_SOCKET_SINGLE": {
+      "conceptId": "ELEC_SOCKET_SINGLE",
+      "name": "Socket Single",
+      "discipline": "Electrical",
+      "subcategory": "Power",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_SOCKET_SINGLE_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_SOCKET_SINGLE_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_SOCKET_SINGLE_TAG"
+        }
+      }
+    },
+    "ELEC_SOCKET_DOUBLE": {
+      "conceptId": "ELEC_SOCKET_DOUBLE",
+      "name": "Socket Double",
+      "discipline": "Electrical",
+      "subcategory": "Power",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_SOCKET_DOUBLE_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_SOCKET_DOUBLE_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_SOCKET_DOUBLE_TAG"
+        }
+      }
+    },
+    "ELEC_FCU_DEVICE": {
+      "conceptId": "ELEC_FCU_DEVICE",
+      "name": "Fcu Device",
+      "discipline": "Electrical",
+      "subcategory": "Power",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_FCU_DEVICE_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_FCU_DEVICE_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_FCU_DEVICE_TAG"
+        }
+      }
+    },
+    "ELEC_EV_CHARGER": {
+      "conceptId": "ELEC_EV_CHARGER",
+      "name": "Ev Charger",
+      "discipline": "Electrical",
+      "subcategory": "Power",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_EV_CHARGER_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_EV_CHARGER_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_EV_CHARGER_TAG"
+        }
+      }
+    },
+    "ELEC_SOCKET_FLOOR": {
+      "conceptId": "ELEC_SOCKET_FLOOR",
+      "name": "Socket Floor",
+      "discipline": "Electrical",
+      "subcategory": "Power",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_SOCKET_FLOOR_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_SOCKET_FLOOR_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_SOCKET_FLOOR_TAG"
+        }
+      }
+    },
+    "ELEC_SWITCH_1G": {
+      "conceptId": "ELEC_SWITCH_1G",
+      "name": "Switch 1G",
+      "discipline": "Electrical",
+      "subcategory": "Switching",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_SWITCH_1G_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_SWITCH_1G_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_SWITCH_1G_TAG"
+        }
+      }
+    },
+    "ELEC_SWITCH_2G": {
+      "conceptId": "ELEC_SWITCH_2G",
+      "name": "Switch 2G",
+      "discipline": "Electrical",
+      "subcategory": "Switching",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_SWITCH_2G_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_SWITCH_2G_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_SWITCH_2G_TAG"
+        }
+      }
+    },
+    "ELEC_SWITCH_2WAY": {
+      "conceptId": "ELEC_SWITCH_2WAY",
+      "name": "Switch 2Way",
+      "discipline": "Electrical",
+      "subcategory": "Switching",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_SWITCH_2WAY_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_SWITCH_2WAY_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_SWITCH_2WAY_TAG"
+        }
+      }
+    },
+    "ELEC_DIMMER": {
+      "conceptId": "ELEC_DIMMER",
+      "name": "Dimmer",
+      "discipline": "Electrical",
+      "subcategory": "Switching",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_DIMMER_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_DIMMER_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_DIMMER_TAG"
+        }
+      }
+    },
+    "ELEC_PIR_SWITCH": {
+      "conceptId": "ELEC_PIR_SWITCH",
+      "name": "Pir Switch",
+      "discipline": "Electrical",
+      "subcategory": "Switching",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_PIR_SWITCH_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_PIR_SWITCH_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_PIR_SWITCH_TAG"
+        }
+      }
+    },
+    "ELEC_CONSUMER_UNIT": {
+      "conceptId": "ELEC_CONSUMER_UNIT",
+      "name": "Consumer Unit",
+      "discipline": "Electrical",
+      "subcategory": "Distribution",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_CONSUMER_UNIT_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_CONSUMER_UNIT_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_CONSUMER_UNIT_TAG"
+        }
+      }
+    },
+    "ELEC_DB": {
+      "conceptId": "ELEC_DB",
+      "name": "Db",
+      "discipline": "Electrical",
+      "subcategory": "Distribution",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_DB_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_DB_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_DB_TAG"
+        }
+      }
+    },
+    "ELEC_MCC": {
+      "conceptId": "ELEC_MCC",
+      "name": "Mcc",
+      "discipline": "Electrical",
+      "subcategory": "Distribution",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_MCC_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_MCC_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_MCC_TAG"
+        }
+      }
+    },
+    "ELEC_ISOLATOR_SWITCH": {
+      "conceptId": "ELEC_ISOLATOR_SWITCH",
+      "name": "Isolator Switch",
+      "discipline": "Electrical",
+      "subcategory": "Distribution",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_ISOLATOR_SWITCH_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_ISOLATOR_SWITCH_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_ISOLATOR_SWITCH_TAG"
+        }
+      }
+    },
+    "ELEC_KWH_METER_DEVICE": {
+      "conceptId": "ELEC_KWH_METER_DEVICE",
+      "name": "Kwh Meter Device",
+      "discipline": "Electrical",
+      "subcategory": "Distribution",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_KWH_METER_DEVICE_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_KWH_METER_DEVICE_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_KWH_METER_DEVICE_TAG"
+        }
+      }
+    },
+    "ELEC_CCTV_INTERNAL": {
+      "conceptId": "ELEC_CCTV_INTERNAL",
+      "name": "Cctv Internal",
+      "discipline": "Electrical",
+      "subcategory": "Security",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_CCTV_INTERNAL_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_CCTV_INTERNAL_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_CCTV_INTERNAL_TAG"
+        }
+      }
+    },
+    "ELEC_CCTV_EXTERNAL": {
+      "conceptId": "ELEC_CCTV_EXTERNAL",
+      "name": "Cctv External",
+      "discipline": "Electrical",
+      "subcategory": "Security",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_CCTV_EXTERNAL_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_CCTV_EXTERNAL_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_CCTV_EXTERNAL_TAG"
+        }
+      }
+    },
+    "ELEC_ACCESS_READER": {
+      "conceptId": "ELEC_ACCESS_READER",
+      "name": "Access Reader",
+      "discipline": "Electrical",
+      "subcategory": "Security",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_ACCESS_READER_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_ACCESS_READER_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_ACCESS_READER_TAG"
+        }
+      }
+    },
+    "ELEC_DATA_OUTLET": {
+      "conceptId": "ELEC_DATA_OUTLET",
+      "name": "Data Outlet",
+      "discipline": "Electrical",
+      "subcategory": "Data",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_DATA_OUTLET_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_DATA_OUTLET_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_DATA_OUTLET_TAG"
+        }
+      }
+    },
+    "ELEC_COMBINED_DATA_VOICE": {
+      "conceptId": "ELEC_COMBINED_DATA_VOICE",
+      "name": "Combined Data Voice",
+      "discipline": "Electrical",
+      "subcategory": "Data",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_COMBINED_DATA_VOICE_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_COMBINED_DATA_VOICE_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_COMBINED_DATA_VOICE_TAG"
+        }
+      }
+    },
+    "ELEC_SPEAKER": {
+      "conceptId": "ELEC_SPEAKER",
+      "name": "Speaker",
+      "discipline": "Electrical",
+      "subcategory": "Audio",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_SPEAKER_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_SPEAKER_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_SPEAKER_TAG"
+        }
+      }
+    },
+    "ELEC_DOOR_BELL": {
+      "conceptId": "ELEC_DOOR_BELL",
+      "name": "Door Bell",
+      "discipline": "Electrical",
+      "subcategory": "Audio",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_DOOR_BELL_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_DOOR_BELL_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_DOOR_BELL_TAG"
+        }
+      }
+    },
+    "ELEC_SMOKE_DETECTOR_ELEC": {
+      "conceptId": "ELEC_SMOKE_DETECTOR_ELEC",
+      "name": "Smoke Detector Elec",
+      "discipline": "Electrical",
+      "subcategory": "FireDetection",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_SMOKE_DETECTOR_ELEC_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_SMOKE_DETECTOR_ELEC_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_SMOKE_DETECTOR_ELEC_TAG"
+        }
+      }
+    },
+    "ELEC_HEAT_DETECTOR_ELEC": {
+      "conceptId": "ELEC_HEAT_DETECTOR_ELEC",
+      "name": "Heat Detector Elec",
+      "discipline": "Electrical",
+      "subcategory": "FireDetection",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_ELEC_HEAT_DETECTOR_ELEC_TAG"
+        },
+        "IEEE": {
+          "tagFamily": "IEEE_ELEC_HEAT_DETECTOR_ELEC_TAG"
+        },
+        "BS": {
+          "tagFamily": "BS_ELEC_HEAT_DETECTOR_ELEC_TAG"
+        }
+      }
+    },
+    "PLM_WC_WALL": {
+      "conceptId": "PLM_WC_WALL",
+      "name": "Wc Wall",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "revitCategory": "PlumbingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_WC_WALL_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_WC_WALL_TAG"
+        }
+      }
+    },
+    "PLM_WC_CLOSE_COUPLED": {
+      "conceptId": "PLM_WC_CLOSE_COUPLED",
+      "name": "Wc Close Coupled",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "revitCategory": "PlumbingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_WC_CLOSE_COUPLED_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_WC_CLOSE_COUPLED_TAG"
+        }
+      }
+    },
+    "PLM_URINAL_WALL": {
+      "conceptId": "PLM_URINAL_WALL",
+      "name": "Urinal Wall",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "revitCategory": "PlumbingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_URINAL_WALL_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_URINAL_WALL_TAG"
+        }
+      }
+    },
+    "PLM_WHB": {
+      "conceptId": "PLM_WHB",
+      "name": "Whb",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "revitCategory": "PlumbingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_WHB_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_WHB_TAG"
+        }
+      }
+    },
+    "PLM_VANITY_BASIN": {
+      "conceptId": "PLM_VANITY_BASIN",
+      "name": "Vanity Basin",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "revitCategory": "PlumbingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_VANITY_BASIN_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_VANITY_BASIN_TAG"
+        }
+      }
+    },
+    "PLM_SINK_SINGLE": {
+      "conceptId": "PLM_SINK_SINGLE",
+      "name": "Sink Single",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "revitCategory": "PlumbingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_SINK_SINGLE_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_SINK_SINGLE_TAG"
+        }
+      }
+    },
+    "PLM_SINK_DOUBLE": {
+      "conceptId": "PLM_SINK_DOUBLE",
+      "name": "Sink Double",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "revitCategory": "PlumbingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_SINK_DOUBLE_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_SINK_DOUBLE_TAG"
+        }
+      }
+    },
+    "PLM_CLEANERS_SINK": {
+      "conceptId": "PLM_CLEANERS_SINK",
+      "name": "Cleaners Sink",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "revitCategory": "PlumbingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_CLEANERS_SINK_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_CLEANERS_SINK_TAG"
+        }
+      }
+    },
+    "PLM_SHOWER_TRAY": {
+      "conceptId": "PLM_SHOWER_TRAY",
+      "name": "Shower Tray",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "revitCategory": "PlumbingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_SHOWER_TRAY_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_SHOWER_TRAY_TAG"
+        }
+      }
+    },
+    "PLM_BATH": {
+      "conceptId": "PLM_BATH",
+      "name": "Bath",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "revitCategory": "PlumbingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_BATH_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_BATH_TAG"
+        }
+      }
+    },
+    "PLM_BIDET": {
+      "conceptId": "PLM_BIDET",
+      "name": "Bidet",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "revitCategory": "PlumbingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_BIDET_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_BIDET_TAG"
+        }
+      }
+    },
+    "PLM_FLOOR_DRAIN_RND": {
+      "conceptId": "PLM_FLOOR_DRAIN_RND",
+      "name": "Floor Drain Rnd",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "revitCategory": "PlumbingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_FLOOR_DRAIN_RND_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_FLOOR_DRAIN_RND_TAG"
+        }
+      }
+    },
+    "PLM_FLOOR_DRAIN_SQ": {
+      "conceptId": "PLM_FLOOR_DRAIN_SQ",
+      "name": "Floor Drain Sq",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "revitCategory": "PlumbingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_FLOOR_DRAIN_SQ_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_FLOOR_DRAIN_SQ_TAG"
+        }
+      }
+    },
+    "PLM_GULLEY": {
+      "conceptId": "PLM_GULLEY",
+      "name": "Gulley",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "revitCategory": "PlumbingFixtures",
+      "universe": "Model",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_GULLEY_TAG"
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_GULLEY_TAG"
+        }
+      }
+    },
+    "PLM_GATE_VALVE": {
+      "conceptId": "PLM_GATE_VALVE",
+      "name": "Gate Valve",
+      "discipline": "Plumbing",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_GATE_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PLM_GATE_VALVE_TAG",
+            "Section": "IEC_PLM_GATE_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_GATE_VALVE"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_GATE_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PLM_GATE_VALVE_TAG",
+            "Section": "CIBSE_PLM_GATE_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_GATE_VALVE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PLM_GLOBE_VALVE": {
+      "conceptId": "PLM_GLOBE_VALVE",
+      "name": "Globe Valve",
+      "discipline": "Plumbing",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_GLOBE_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PLM_GLOBE_VALVE_TAG",
+            "Section": "IEC_PLM_GLOBE_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_GLOBE_VALVE"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_GLOBE_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PLM_GLOBE_VALVE_TAG",
+            "Section": "CIBSE_PLM_GLOBE_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_GLOBE_VALVE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PLM_BALL_VALVE": {
+      "conceptId": "PLM_BALL_VALVE",
+      "name": "Ball Valve",
+      "discipline": "Plumbing",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_BALL_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PLM_BALL_VALVE_TAG",
+            "Section": "IEC_PLM_BALL_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_BALL_VALVE"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_BALL_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PLM_BALL_VALVE_TAG",
+            "Section": "CIBSE_PLM_BALL_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_BALL_VALVE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PLM_BUTTERFLY_VALVE": {
+      "conceptId": "PLM_BUTTERFLY_VALVE",
+      "name": "Butterfly Valve",
+      "discipline": "Plumbing",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_BUTTERFLY_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PLM_BUTTERFLY_VALVE_TAG",
+            "Section": "IEC_PLM_BUTTERFLY_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_BUTTERFLY_VALVE"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_BUTTERFLY_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PLM_BUTTERFLY_VALVE_TAG",
+            "Section": "CIBSE_PLM_BUTTERFLY_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_BUTTERFLY_VALVE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PLM_CHECK_VALVE": {
+      "conceptId": "PLM_CHECK_VALVE",
+      "name": "Check Valve",
+      "discipline": "Plumbing",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_CHECK_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PLM_CHECK_VALVE_TAG",
+            "Section": "IEC_PLM_CHECK_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_CHECK_VALVE"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_CHECK_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PLM_CHECK_VALVE_TAG",
+            "Section": "CIBSE_PLM_CHECK_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_CHECK_VALVE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PLM_STRAINER": {
+      "conceptId": "PLM_STRAINER",
+      "name": "Strainer",
+      "discipline": "Plumbing",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_STRAINER_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PLM_STRAINER_TAG",
+            "Section": "IEC_PLM_STRAINER_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_STRAINER"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_STRAINER_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PLM_STRAINER_TAG",
+            "Section": "CIBSE_PLM_STRAINER_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_STRAINER"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PLM_FLEXIBLE_CONN": {
+      "conceptId": "PLM_FLEXIBLE_CONN",
+      "name": "Flexible Conn",
+      "discipline": "Plumbing",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_FLEXIBLE_CONN_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PLM_FLEXIBLE_CONN_TAG",
+            "Section": "IEC_PLM_FLEXIBLE_CONN_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_FLEXIBLE_CONN"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_FLEXIBLE_CONN_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PLM_FLEXIBLE_CONN_TAG",
+            "Section": "CIBSE_PLM_FLEXIBLE_CONN_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_FLEXIBLE_CONN"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PLM_PRESSURE_REDUCING": {
+      "conceptId": "PLM_PRESSURE_REDUCING",
+      "name": "Pressure Reducing",
+      "discipline": "Plumbing",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_PRESSURE_REDUCING_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PLM_PRESSURE_REDUCING_TAG",
+            "Section": "IEC_PLM_PRESSURE_REDUCING_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_PRESSURE_REDUCING"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_PRESSURE_REDUCING_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PLM_PRESSURE_REDUCING_TAG",
+            "Section": "CIBSE_PLM_PRESSURE_REDUCING_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_PRESSURE_REDUCING"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PLM_HWC_DIRECT": {
+      "conceptId": "PLM_HWC_DIRECT",
+      "name": "Hwc Direct",
+      "discipline": "Plumbing",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_HWC_DIRECT_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PLM_HWC_DIRECT_TAG",
+            "Section": "IEC_PLM_HWC_DIRECT_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_HWC_DIRECT"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_HWC_DIRECT_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PLM_HWC_DIRECT_TAG",
+            "Section": "CIBSE_PLM_HWC_DIRECT_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_HWC_DIRECT"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PLM_HWC_INDIRECT": {
+      "conceptId": "PLM_HWC_INDIRECT",
+      "name": "Hwc Indirect",
+      "discipline": "Plumbing",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_HWC_INDIRECT_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PLM_HWC_INDIRECT_TAG",
+            "Section": "IEC_PLM_HWC_INDIRECT_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_HWC_INDIRECT"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_HWC_INDIRECT_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PLM_HWC_INDIRECT_TAG",
+            "Section": "CIBSE_PLM_HWC_INDIRECT_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_HWC_INDIRECT"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PLM_PUMP_INLINE": {
+      "conceptId": "PLM_PUMP_INLINE",
+      "name": "Pump Inline",
+      "discipline": "Plumbing",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PLM_PUMP_INLINE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PLM_PUMP_INLINE_TAG",
+            "Section": "IEC_PLM_PUMP_INLINE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_PUMP_INLINE"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PLM_PUMP_INLINE_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PLM_PUMP_INLINE_TAG",
+            "Section": "CIBSE_PLM_PUMP_INLINE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PLM_PUMP_INLINE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_GATE_VALVE": {
+      "conceptId": "PIPE_GATE_VALVE",
+      "name": "Gate Valve",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_GATE_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_GATE_VALVE_TAG",
+            "Section": "IEC_PIPE_GATE_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_GATE_VALVE"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_GATE_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_GATE_VALVE_TAG",
+            "Section": "CIBSE_PIPE_GATE_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_GATE_VALVE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_GLOBE_VALVE": {
+      "conceptId": "PIPE_GLOBE_VALVE",
+      "name": "Globe Valve",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_GLOBE_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_GLOBE_VALVE_TAG",
+            "Section": "IEC_PIPE_GLOBE_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_GLOBE_VALVE"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_GLOBE_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_GLOBE_VALVE_TAG",
+            "Section": "CIBSE_PIPE_GLOBE_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_GLOBE_VALVE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_BALL_VALVE": {
+      "conceptId": "PIPE_BALL_VALVE",
+      "name": "Ball Valve",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_BALL_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_BALL_VALVE_TAG",
+            "Section": "IEC_PIPE_BALL_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_BALL_VALVE"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_BALL_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_BALL_VALVE_TAG",
+            "Section": "CIBSE_PIPE_BALL_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_BALL_VALVE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_BUTTERFLY_VALVE": {
+      "conceptId": "PIPE_BUTTERFLY_VALVE",
+      "name": "Butterfly Valve",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_BUTTERFLY_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_BUTTERFLY_VALVE_TAG",
+            "Section": "IEC_PIPE_BUTTERFLY_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_BUTTERFLY_VALVE"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_BUTTERFLY_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_BUTTERFLY_VALVE_TAG",
+            "Section": "CIBSE_PIPE_BUTTERFLY_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_BUTTERFLY_VALVE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_CHECK_VALVE": {
+      "conceptId": "PIPE_CHECK_VALVE",
+      "name": "Check Valve",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_CHECK_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_CHECK_VALVE_TAG",
+            "Section": "IEC_PIPE_CHECK_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_CHECK_VALVE"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_CHECK_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_CHECK_VALVE_TAG",
+            "Section": "CIBSE_PIPE_CHECK_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_CHECK_VALVE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_GATE_VALVE_INDICATING": {
+      "conceptId": "PIPE_GATE_VALVE_INDICATING",
+      "name": "Gate Valve Indicating",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_GATE_VALVE_INDICATING_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_GATE_VALVE_INDICATING_TAG",
+            "Section": "IEC_PIPE_GATE_VALVE_INDICATING_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_GATE_VALVE_INDICATING"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_GATE_VALVE_INDICATING_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_GATE_VALVE_INDICATING_TAG",
+            "Section": "CIBSE_PIPE_GATE_VALVE_INDICATING_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_GATE_VALVE_INDICATING"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_NEEDLE_VALVE": {
+      "conceptId": "PIPE_NEEDLE_VALVE",
+      "name": "Needle Valve",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_NEEDLE_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_NEEDLE_VALVE_TAG",
+            "Section": "IEC_PIPE_NEEDLE_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_NEEDLE_VALVE"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_NEEDLE_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_NEEDLE_VALVE_TAG",
+            "Section": "CIBSE_PIPE_NEEDLE_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_NEEDLE_VALVE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_DIAPHRAGM_VALVE": {
+      "conceptId": "PIPE_DIAPHRAGM_VALVE",
+      "name": "Diaphragm Valve",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_DIAPHRAGM_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_DIAPHRAGM_VALVE_TAG",
+            "Section": "IEC_PIPE_DIAPHRAGM_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_DIAPHRAGM_VALVE"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_DIAPHRAGM_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_DIAPHRAGM_VALVE_TAG",
+            "Section": "CIBSE_PIPE_DIAPHRAGM_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_DIAPHRAGM_VALVE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_SOLENOID_VALVE": {
+      "conceptId": "PIPE_SOLENOID_VALVE",
+      "name": "Solenoid Valve",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_SOLENOID_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_SOLENOID_VALVE_TAG",
+            "Section": "IEC_PIPE_SOLENOID_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_SOLENOID_VALVE"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_SOLENOID_VALVE_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_SOLENOID_VALVE_TAG",
+            "Section": "CIBSE_PIPE_SOLENOID_VALVE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_SOLENOID_VALVE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_PRESSURE_REDUCING": {
+      "conceptId": "PIPE_PRESSURE_REDUCING",
+      "name": "Pressure Reducing",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_PRESSURE_REDUCING_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_PRESSURE_REDUCING_TAG",
+            "Section": "IEC_PIPE_PRESSURE_REDUCING_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_PRESSURE_REDUCING"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_PRESSURE_REDUCING_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_PRESSURE_REDUCING_TAG",
+            "Section": "CIBSE_PIPE_PRESSURE_REDUCING_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_PRESSURE_REDUCING"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_PRESSURE_SUSTAINING": {
+      "conceptId": "PIPE_PRESSURE_SUSTAINING",
+      "name": "Pressure Sustaining",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_PRESSURE_SUSTAINING_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_PRESSURE_SUSTAINING_TAG",
+            "Section": "IEC_PIPE_PRESSURE_SUSTAINING_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_PRESSURE_SUSTAINING"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_PRESSURE_SUSTAINING_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_PRESSURE_SUSTAINING_TAG",
+            "Section": "CIBSE_PIPE_PRESSURE_SUSTAINING_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_PRESSURE_SUSTAINING"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_FLOW_CONTROL": {
+      "conceptId": "PIPE_FLOW_CONTROL",
+      "name": "Flow Control",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_FLOW_CONTROL_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_FLOW_CONTROL_TAG",
+            "Section": "IEC_PIPE_FLOW_CONTROL_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_FLOW_CONTROL"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_FLOW_CONTROL_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_FLOW_CONTROL_TAG",
+            "Section": "CIBSE_PIPE_FLOW_CONTROL_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_FLOW_CONTROL"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_Y_STRAINER": {
+      "conceptId": "PIPE_Y_STRAINER",
+      "name": "Y Strainer",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_Y_STRAINER_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_Y_STRAINER_TAG",
+            "Section": "IEC_PIPE_Y_STRAINER_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_Y_STRAINER"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_Y_STRAINER_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_Y_STRAINER_TAG",
+            "Section": "CIBSE_PIPE_Y_STRAINER_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_Y_STRAINER"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_BASKET_STRAINER": {
+      "conceptId": "PIPE_BASKET_STRAINER",
+      "name": "Basket Strainer",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_BASKET_STRAINER_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_BASKET_STRAINER_TAG",
+            "Section": "IEC_PIPE_BASKET_STRAINER_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_BASKET_STRAINER"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_BASKET_STRAINER_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_BASKET_STRAINER_TAG",
+            "Section": "CIBSE_PIPE_BASKET_STRAINER_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_BASKET_STRAINER"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_FLEXIBLE_COUPLING": {
+      "conceptId": "PIPE_FLEXIBLE_COUPLING",
+      "name": "Flexible Coupling",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_FLEXIBLE_COUPLING_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_FLEXIBLE_COUPLING_TAG",
+            "Section": "IEC_PIPE_FLEXIBLE_COUPLING_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_FLEXIBLE_COUPLING"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_FLEXIBLE_COUPLING_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_FLEXIBLE_COUPLING_TAG",
+            "Section": "CIBSE_PIPE_FLEXIBLE_COUPLING_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_FLEXIBLE_COUPLING"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_EXPANSION_JOINT": {
+      "conceptId": "PIPE_EXPANSION_JOINT",
+      "name": "Expansion Joint",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_EXPANSION_JOINT_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_EXPANSION_JOINT_TAG",
+            "Section": "IEC_PIPE_EXPANSION_JOINT_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_EXPANSION_JOINT"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_EXPANSION_JOINT_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_EXPANSION_JOINT_TAG",
+            "Section": "CIBSE_PIPE_EXPANSION_JOINT_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_EXPANSION_JOINT"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_PRESSURE_GAUGE": {
+      "conceptId": "PIPE_PRESSURE_GAUGE",
+      "name": "Pressure Gauge",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_PRESSURE_GAUGE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_PRESSURE_GAUGE_TAG",
+            "Section": "IEC_PIPE_PRESSURE_GAUGE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_PRESSURE_GAUGE"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_PRESSURE_GAUGE_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_PRESSURE_GAUGE_TAG",
+            "Section": "CIBSE_PIPE_PRESSURE_GAUGE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_PRESSURE_GAUGE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_TEMPERATURE_GAUGE": {
+      "conceptId": "PIPE_TEMPERATURE_GAUGE",
+      "name": "Temperature Gauge",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_TEMPERATURE_GAUGE_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_TEMPERATURE_GAUGE_TAG",
+            "Section": "IEC_PIPE_TEMPERATURE_GAUGE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_TEMPERATURE_GAUGE"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_TEMPERATURE_GAUGE_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_TEMPERATURE_GAUGE_TAG",
+            "Section": "CIBSE_PIPE_TEMPERATURE_GAUGE_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_TEMPERATURE_GAUGE"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_FLOW_METER": {
+      "conceptId": "PIPE_FLOW_METER",
+      "name": "Flow Meter",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_FLOW_METER_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_FLOW_METER_TAG",
+            "Section": "IEC_PIPE_FLOW_METER_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_FLOW_METER"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_FLOW_METER_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_FLOW_METER_TAG",
+            "Section": "CIBSE_PIPE_FLOW_METER_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_FLOW_METER"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "PIPE_PUMP": {
+      "conceptId": "PIPE_PUMP",
+      "name": "Pump",
+      "discipline": "Mechanical",
+      "subcategory": "PipeAccessory",
+      "revitCategory": "PipeAccessory",
+      "universe": "Model",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "tagFamily": "IEC_PIPE_PUMP_TAG",
+          "viewContextOverrides": {
+            "Plan": "IEC_PIPE_PUMP_TAG",
+            "Section": "IEC_PIPE_PUMP_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_PUMP"
+          }
+        },
+        "CIBSE": {
+          "tagFamily": "CIBSE_PIPE_PUMP_TAG",
+          "viewContextOverrides": {
+            "Plan": "CIBSE_PIPE_PUMP_TAG",
+            "Section": "CIBSE_PIPE_PUMP_SECTION_TAG",
+            "Schematic": "IEC_SCH_PIPE_PUMP"
+          }
+        }
+      },
+      "connectorDomain": "Piping",
+      "orientationStates": {
+        "PIPE_HORIZONTAL_VIEW_PLAN": "horizontal_plan",
+        "PIPE_HORIZONTAL_ENDVIEW": "horizontal_endview",
+        "PIPE_VERTICAL_VIEW_PLAN": "vertical_plan",
+        "PIPE_VERTICAL_ENDVIEW": "vertical_endview"
+      }
+    },
+    "SLD_RCBO_COMPOUND": {
+      "conceptId": "SLD_RCBO_COMPOUND",
+      "name": "RCBO (compound: MCB + RCD)",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Compound",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_RCBO_COMPOUND"
+        }
+      },
+      "compoundComponents": [
+        "SLD_MCB",
+        "SLD_RCD"
+      ]
+    },
+    "SLD_STAR_DELTA_STARTER": {
+      "conceptId": "SLD_STAR_DELTA_STARTER",
+      "name": "Star-Delta Motor Starter (3-rung ladder)",
+      "discipline": "Electrical",
+      "subcategory": "SLD_Compound",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_STAR_DELTA_STARTER"
+        }
+      },
+      "compoundComponents": [
+        "SLD_MCCB",
+        "SLD_FUSE",
+        "SLD_CONTACTOR",
+        "SLD_CONTACTOR",
+        "SLD_HEATING",
+        "SLD_CONTACTOR",
+        "SLD_MOTOR_3PH"
+      ],
+      "compoundRungs": [
+        {
+          "label": "Main supply",
+          "components": [
+            "SLD_MCCB",
+            "SLD_FUSE",
+            "SLD_CONTACTOR"
+          ]
+        },
+        {
+          "label": "Star contactor",
+          "components": [
+            "SLD_CONTACTOR",
+            "SLD_HEATING"
+          ]
+        },
+        {
+          "label": "Delta contactor",
+          "components": [
+            "SLD_CONTACTOR",
+            "SLD_MOTOR_3PH"
+          ]
+        }
+      ]
+    },
+    "SLD_LPS_AIR_TERMINAL": {
+      "conceptId": "SLD_LPS_AIR_TERMINAL",
+      "name": "Lightning Air Terminal",
+      "discipline": "Electrical",
+      "subcategory": "LPS",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_LPS_AIR_TERMINAL"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_62305_AIR_TERMINAL"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA780_AIR_TERMINAL"
+        }
+      }
+    },
+    "SLD_LPS_DOWN_CONDUCTOR": {
+      "conceptId": "SLD_LPS_DOWN_CONDUCTOR",
+      "name": "LPS Down Conductor",
+      "discipline": "Electrical",
+      "subcategory": "LPS",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_LPS_DOWN_CONDUCTOR"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_62305_DOWN_CONDUCTOR"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA780_DOWN_CONDUCTOR"
+        }
+      }
+    },
+    "SLD_LPS_EARTH_ELECTRODE": {
+      "conceptId": "SLD_LPS_EARTH_ELECTRODE",
+      "name": "LPS Earth Electrode",
+      "discipline": "Electrical",
+      "subcategory": "LPS",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_LPS_EARTH_ELECTRODE"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_62305_EARTH_ELECTRODE"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA780_EARTH_ELECTRODE"
+        }
+      }
+    },
+    "SLD_LPS_BONDING_BAR": {
+      "conceptId": "SLD_LPS_BONDING_BAR",
+      "name": "LPS Main Bonding Bar",
+      "discipline": "Electrical",
+      "subcategory": "LPS",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_LPS_BONDING_BAR"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_62305_BONDING_BAR"
+        }
+      }
+    },
+    "SLD_ATEX_ZONE_0": {
+      "conceptId": "SLD_ATEX_ZONE_0",
+      "name": "ATEX Zone 0 Boundary",
+      "discipline": "Electrical",
+      "subcategory": "HazardousArea",
+      "revitCategory": "Areas",
+      "universe": "Schematic",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60079_ZONE_0"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_60079_ZONE_0"
+        },
+        "DSEAR": {
+          "genericAnnotation": "DSEAR_ZONE_0"
+        }
+      }
+    },
+    "SLD_ATEX_ZONE_1": {
+      "conceptId": "SLD_ATEX_ZONE_1",
+      "name": "ATEX Zone 1 Boundary",
+      "discipline": "Electrical",
+      "subcategory": "HazardousArea",
+      "revitCategory": "Areas",
+      "universe": "Schematic",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60079_ZONE_1"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_60079_ZONE_1"
+        },
+        "DSEAR": {
+          "genericAnnotation": "DSEAR_ZONE_1"
+        }
+      }
+    },
+    "SLD_ATEX_ZONE_2": {
+      "conceptId": "SLD_ATEX_ZONE_2",
+      "name": "ATEX Zone 2 Boundary",
+      "discipline": "Electrical",
+      "subcategory": "HazardousArea",
+      "revitCategory": "Areas",
+      "universe": "Schematic",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60079_ZONE_2"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_60079_ZONE_2"
+        },
+        "DSEAR": {
+          "genericAnnotation": "DSEAR_ZONE_2"
+        }
+      }
+    },
+    "SLD_ATEX_EX_D": {
+      "conceptId": "SLD_ATEX_EX_D",
+      "name": "Ex d Flameproof Enclosure",
+      "discipline": "Electrical",
+      "subcategory": "ATEXEquipment",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60079_1_EX_D"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_60079_1_EX_D"
+        }
+      }
+    },
+    "SLD_ATEX_EX_E": {
+      "conceptId": "SLD_ATEX_EX_E",
+      "name": "Ex e Increased Safety",
+      "discipline": "Electrical",
+      "subcategory": "ATEXEquipment",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60079_7_EX_E"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_60079_7_EX_E"
+        }
+      }
+    },
+    "SLD_ATEX_EX_I": {
+      "conceptId": "SLD_ATEX_EX_I",
+      "name": "Ex i Intrinsic Safety",
+      "discipline": "Electrical",
+      "subcategory": "ATEXEquipment",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60079_11_EX_I"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_60079_11_EX_I"
+        }
+      }
+    },
+    "SLD_PHASE_SEQUENCE_ABC": {
+      "conceptId": "SLD_PHASE_SEQUENCE_ABC",
+      "name": "Phase Sequence ABC (Positive)",
+      "discipline": "Electrical",
+      "subcategory": "Notation",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60034_8_PHASE_ABC"
+        },
+        "BS": {
+          "genericAnnotation": "BS_7671_PHASE_ABC"
+        }
+      }
+    },
+    "SLD_PHASE_SEQUENCE_ACB": {
+      "conceptId": "SLD_PHASE_SEQUENCE_ACB",
+      "name": "Phase Sequence ACB (Negative)",
+      "discipline": "Electrical",
+      "subcategory": "Notation",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60034_8_PHASE_ACB"
+        },
+        "BS": {
+          "genericAnnotation": "BS_7671_PHASE_ACB"
+        }
+      }
+    },
+    "ELEC_MG_O2_OUTLET": {
+      "conceptId": "ELEC_MG_O2_OUTLET",
+      "name": "Medical Oxygen Outlet",
+      "discipline": "MedicalGas",
+      "subcategory": "MedGasOutlet",
+      "revitCategory": "MEPEquipment",
+      "universe": "FloorPlan",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_7396_1_O2_OUTLET"
+        },
+        "BS_HTM": {
+          "genericAnnotation": "BS_HTM_02_01_O2_OUTLET"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_99_O2_OUTLET"
+        }
+      }
+    },
+    "ELEC_MG_N2O_OUTLET": {
+      "conceptId": "ELEC_MG_N2O_OUTLET",
+      "name": "Nitrous Oxide Outlet",
+      "discipline": "MedicalGas",
+      "subcategory": "MedGasOutlet",
+      "revitCategory": "MEPEquipment",
+      "universe": "FloorPlan",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_7396_1_N2O_OUTLET"
+        },
+        "BS_HTM": {
+          "genericAnnotation": "BS_HTM_02_01_N2O_OUTLET"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_99_N2O_OUTLET"
+        }
+      }
+    },
+    "ELEC_MG_CO2_OUTLET": {
+      "conceptId": "ELEC_MG_CO2_OUTLET",
+      "name": "Carbon Dioxide Outlet",
+      "discipline": "MedicalGas",
+      "subcategory": "MedGasOutlet",
+      "revitCategory": "MEPEquipment",
+      "universe": "FloorPlan",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_7396_1_CO2_OUTLET"
+        },
+        "BS_HTM": {
+          "genericAnnotation": "BS_HTM_02_01_CO2_OUTLET"
+        }
+      }
+    },
+    "ELEC_MG_AIR_OUTLET": {
+      "conceptId": "ELEC_MG_AIR_OUTLET",
+      "name": "Medical Air Outlet",
+      "discipline": "MedicalGas",
+      "subcategory": "MedGasOutlet",
+      "revitCategory": "MEPEquipment",
+      "universe": "FloorPlan",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_7396_1_AIR_OUTLET"
+        },
+        "BS_HTM": {
+          "genericAnnotation": "BS_HTM_02_01_AIR_OUTLET"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_99_MEDICAL_AIR_OUTLET"
+        }
+      }
+    },
+    "ELEC_MG_VAC_OUTLET": {
+      "conceptId": "ELEC_MG_VAC_OUTLET",
+      "name": "Medical Vacuum Outlet",
+      "discipline": "MedicalGas",
+      "subcategory": "MedGasOutlet",
+      "revitCategory": "MEPEquipment",
+      "universe": "FloorPlan",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_7396_1_VAC_OUTLET"
+        },
+        "BS_HTM": {
+          "genericAnnotation": "BS_HTM_02_01_VAC_OUTLET"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_99_VACUUM_OUTLET"
+        }
+      }
+    },
+    "ELEC_MG_AGSS_OUTLET": {
+      "conceptId": "ELEC_MG_AGSS_OUTLET",
+      "name": "AGSS Outlet",
+      "discipline": "MedicalGas",
+      "subcategory": "MedGasOutlet",
+      "revitCategory": "MEPEquipment",
+      "universe": "FloorPlan",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "ISO_7396_2_AGSS_OUTLET"
+        },
+        "BS_HTM": {
+          "genericAnnotation": "BS_HTM_02_01_AGSS_OUTLET"
+        }
+      }
+    },
+    "ELEC_ATEX_ZONE_BOUNDARY": {
+      "conceptId": "ELEC_ATEX_ZONE_BOUNDARY",
+      "name": "ATEX Zone Boundary (Floor Plan)",
+      "discipline": "Electrical",
+      "subcategory": "ATEXZone",
+      "revitCategory": "GenericAnnotations",
+      "universe": "FloorPlan",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60079_10_1_ZONE_BOUNDARY"
+        },
+        "ATEX": {
+          "genericAnnotation": "ATEX_2014_34_EU_ZONE_BOUNDARY"
+        }
+      }
+    },
+    "ELEC_ATEX_EQUIPMENT_EXD": {
+      "conceptId": "ELEC_ATEX_EQUIPMENT_EXD",
+      "name": "ATEX Ex d Equipment Marker (Floor Plan)",
+      "discipline": "Electrical",
+      "subcategory": "ATEXEquipment",
+      "revitCategory": "GenericAnnotations",
+      "universe": "FloorPlan",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60079_1_EX_D_MARKER"
+        },
+        "ATEX": {
+          "genericAnnotation": "ATEX_2014_34_EU_EX_D_MARKER"
+        }
+      }
+    }
+  }
+}

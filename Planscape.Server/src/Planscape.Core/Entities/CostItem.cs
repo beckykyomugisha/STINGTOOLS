@@ -10,9 +10,10 @@ namespace Planscape.Core.Entities;
 /// generated from tagged element quantities. Currency is stored as ISO 4217
 /// (GBP / USD / EUR / UGX).
 /// </summary>
-public class CostItem
+public class CostItem : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TenantId { get; set; }
     public Guid ProjectId { get; set; }
 
     public string Code { get; set; } = "";

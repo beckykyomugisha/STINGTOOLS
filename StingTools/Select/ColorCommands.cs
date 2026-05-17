@@ -32,6 +32,20 @@ namespace StingTools.Select
                 new Color(128, 0, 255),    // LV = Purple
                 new Color(139, 90, 43),    // G = Brown
             },
+            // Phase 175: Design-Option palette — primary green, contenders
+            // amber → magenta, main model neutral grey. Maps onto values of
+            // ASS_DESIGN_OPTION_TXT for instant per-option isolation.
+            ["STING Design Options"] = new[]
+            {
+                new Color(0, 153, 51),     // Primary / Main Model
+                new Color(255, 165, 0),    // Option 2
+                new Color(0, 153, 204),    // Option 3
+                new Color(204, 51, 153),   // Option 4
+                new Color(128, 0, 255),    // Option 5
+                new Color(220, 60, 0),     // Option 6
+                new Color(102, 102, 102),  // Option 7
+                new Color(50, 50, 50),     // Option 8
+            },
             ["RAG Status"] = new[]
             {
                 new Color(204, 0, 0),      // Red

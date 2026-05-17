@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <!-- Pure-logic test project for STING routing math. Mirrors the
+         StingTools.Clash.Tests pattern: NO reference to Revit assemblies;
+         minimal Autodesk.Revit.DB.XYZ + BoundingBoxXYZ + Outline shims
+         live in TestHelpers/RevitStubs.cs so the routing files compile
+         cleanly against net8.0. Run via `dotnet test` on any CI host. -->
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <Nullable>disable</Nullable>
+    <NoWarn>CS0067;CS0168;CS8632;CS0108</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="RBush" Version="4.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Routing engine + math files that don't require Revit beyond
+         the XYZ/Outline/BoundingBoxXYZ surface our shim provides. -->
+    <Compile Include="..\StingTools\Core\Routing\AStarSolver.cs"
+             Link="Routing\AStarSolver.cs" />
+    <Compile Include="..\StingTools\Core\Routing\AcoRefiner.cs"
+             Link="Routing\AcoRefiner.cs" />
+    <Compile Include="..\StingTools\Core\Routing\VoxelGrid.cs"
+             Link="Routing\VoxelGrid.cs" />
+    <Compile Include="..\StingTools\Commands\Electrical\Routing\ConduitRouteEngine.cs"
+             Link="Routing\ConduitRouteEngine.cs" />
+
+    <!-- StingCable lives in Core.Electrical and is referenced by
+         ConduitRouteEngine.SelectConduitDiameterMm. The full
+         CableManifest depends on Revit Document for Load/Save which
+         we don't need; TestHelpers/StingCableShim.cs ships a minimal
+         POCO with just the public surface ConduitRouteEngine reads. -->
+  </ItemGroup>
+
+</Project>
