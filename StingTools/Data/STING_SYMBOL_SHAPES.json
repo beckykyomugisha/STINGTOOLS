@@ -1,0 +1,174 @@
+{
+  "version": "1.0",
+  "description": "IEC 60617 and ANSI/IEEE 315 normalised plan-symbol geometry for STING family authoring. Coordinates are normalised: 1.0 = halfWidth of the symbol bounding box. Scaled by FamilySymbolAuthorOptions.PlanHalfWidthFt at runtime.",
+  "categories": {
+
+    "OST_ElectricalFixtures": {
+      "IEC": [
+        { "type": "circle", "r": 1.0, "comment": "IEC 60617-2: general power outlet — circle" },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45, "comment": "connection tick at bottom" }
+      ],
+      "ANSI": [
+        { "type": "circle", "r": 1.0, "comment": "ANSI/IEEE 315: duplex receptacle — circle" },
+        { "type": "line", "x1": -0.4, "y1": 0.0, "x2": 0.4, "y2": 0.0, "comment": "horizontal dash = duplex" }
+      ]
+    },
+
+    "OST_LightingFixtures": {
+      "IEC": [
+        { "type": "circle", "r": 1.0, "comment": "IEC 60617-11: luminaire — circle" },
+        { "type": "line", "x1": -0.65, "y1": 0.0, "x2": 0.65, "y2": 0.0, "comment": "horizontal diameter" },
+        { "type": "line", "x1": 0.0, "y1": -0.65, "x2": 0.0, "y2": 0.65, "comment": "vertical diameter" }
+      ],
+      "ANSI": [
+        { "type": "circle", "r": 1.0, "comment": "ANSI/IEEE 315: lighting outlet — circle" },
+        { "type": "line", "x1": -0.7, "y1": 0.0, "x2": 0.7, "y2": 0.0, "comment": "horizontal bar" }
+      ]
+    },
+
+    "OST_ElectricalEquipment": {
+      "IEC": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "IEC: distribution board — rectangle" },
+        { "type": "line", "x1": -1.0, "y1": -1.0, "x2": 1.0, "y2": 1.0, "comment": "diagonal = panel symbol" }
+      ],
+      "ANSI": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "ANSI: panelboard — rectangle" },
+        { "type": "line", "x1": -1.0, "y1": -1.0, "x2": 1.0, "y2": 1.0 }
+      ]
+    },
+
+    "OST_LightingFixtures_Recessed": {
+      "IEC": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "circle", "r": 0.5, "comment": "inner circle = recessed" }
+      ],
+      "ANSI": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "circle", "r": 0.5 }
+      ]
+    },
+
+    "OST_PlumbingFixtures": {
+      "IEC": [
+        { "type": "circle", "r": 1.0, "comment": "IEC: general plumbing fixture — outer circle" },
+        { "type": "circle", "r": 0.6, "comment": "inner circle" }
+      ],
+      "ANSI": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "circle", "r": 0.6 }
+      ]
+    },
+
+    "OST_MechanicalEquipment": {
+      "IEC": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "IEC: general mechanical equipment" },
+        { "type": "line", "x1": -0.35, "y1": 0.0, "x2": 0.35, "y2": 0.0, "comment": "centre mark" },
+        { "type": "line", "x1": 0.0, "y1": -0.35, "x2": 0.0, "y2": 0.35 }
+      ],
+      "ANSI": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0 },
+        { "type": "line", "x1": -0.35, "y1": 0.0, "x2": 0.35, "y2": 0.0 },
+        { "type": "line", "x1": 0.0, "y1": -0.35, "x2": 0.0, "y2": 0.35 }
+      ]
+    },
+
+    "OST_FireAlarmDevices": {
+      "IEC": [
+        { "type": "circle", "r": 1.0, "comment": "IEC 60617 / EN 54: fire detector — circle" },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 }
+      ],
+      "ANSI": [
+        { "type": "circle", "r": 1.0, "comment": "NFPA 170: fire alarm device — circle" },
+        { "type": "line", "x1": -0.5, "y1": 0.5, "x2": 0.5, "y2": -0.5, "comment": "diagonal slash = smoke" }
+      ]
+    },
+
+    "OST_SecurityDevices": {
+      "IEC": [
+        { "type": "circle", "r": 1.0, "comment": "IEC: security device — circle" },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 }
+      ],
+      "ANSI": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 }
+      ]
+    },
+
+    "OST_CommunicationDevices": {
+      "IEC": [
+        { "type": "circle", "r": 1.0, "comment": "IEC: communications device — circle" },
+        { "type": "line", "x1": -0.5, "y1": 0.0, "x2": 0.5, "y2": 0.0, "comment": "horizontal dash = data/comms" }
+      ],
+      "ANSI": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "line", "x1": -0.5, "y1": 0.0, "x2": 0.5, "y2": 0.0 }
+      ]
+    },
+
+    "OST_DataDevices": {
+      "IEC": [
+        { "type": "circle", "r": 1.0, "comment": "IEC: data outlet — circle" },
+        { "type": "line", "x1": -0.5, "y1": 0.0, "x2": 0.5, "y2": 0.0 },
+        { "type": "line", "x1": 0.0, "y1": -0.5, "x2": 0.0, "y2": 0.5 }
+      ],
+      "ANSI": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "line", "x1": -0.5, "y1": 0.0, "x2": 0.5, "y2": 0.0 },
+        { "type": "line", "x1": 0.0, "y1": -0.5, "x2": 0.0, "y2": 0.5 }
+      ]
+    },
+
+    "OST_TelephoneDevices": {
+      "IEC": [
+        { "type": "circle", "r": 1.0, "comment": "IEC: telephone outlet — circle" },
+        { "type": "arc", "r": 0.55, "cx": 0, "cy": 0, "a1": 0.2, "a2": 2.94, "comment": "arc representing handset" }
+      ],
+      "ANSI": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "arc", "r": 0.55, "cx": 0, "cy": 0, "a1": 0.2, "a2": 2.94 }
+      ]
+    },
+
+    "OST_NurseCallDevices": {
+      "IEC": [
+        { "type": "circle", "r": 1.0, "comment": "IEC: nurse call device — circle" },
+        { "type": "circle", "r": 0.18, "comment": "central dot = call point" }
+      ],
+      "ANSI": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "circle", "r": 0.18 }
+      ]
+    },
+
+    "OST_Sprinklers": {
+      "IEC": [
+        { "type": "circle", "r": 0.8, "comment": "BSRIA / BS EN 12845: sprinkler head plan — circle" },
+        { "type": "line", "x1": -1.0, "y1": 0.0, "x2": -0.8, "y2": 0.0, "comment": "arm left" },
+        { "type": "line", "x1":  0.8, "y1": 0.0, "x2":  1.0, "y2": 0.0, "comment": "arm right" },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -0.8, "comment": "arm down" },
+        { "type": "line", "x1": 0.0, "y1":  0.8, "x2": 0.0, "y2":  1.0, "comment": "arm up" }
+      ],
+      "ANSI": [
+        { "type": "circle", "r": 0.8 },
+        { "type": "line", "x1": -1.0, "y1": 0.0, "x2": -0.8, "y2": 0.0 },
+        { "type": "line", "x1":  0.8, "y1": 0.0, "x2":  1.0, "y2": 0.0 },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -0.8 },
+        { "type": "line", "x1": 0.0, "y1":  0.8, "x2": 0.0, "y2":  1.0 }
+      ]
+    },
+
+    "OST_SpecialityEquipment": {
+      "IEC": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "ISO/IEC: speciality equipment — rectangle with X" },
+        { "type": "line", "x1": -1.0, "y1": -1.0, "x2": 1.0, "y2": 1.0 },
+        { "type": "line", "x1":  1.0, "y1": -1.0, "x2": -1.0, "y2": 1.0 }
+      ],
+      "ANSI": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0 },
+        { "type": "line", "x1": -1.0, "y1": -1.0, "x2": 1.0, "y2": 1.0 },
+        { "type": "line", "x1":  1.0, "y1": -1.0, "x2": -1.0, "y2": 1.0 }
+      ]
+    }
+
+  }
+}

@@ -1,84 +1,104 @@
-// StingTools — FamilySymbolAuthor.cs
+// StingTools — FamilySymbolAuthor.cs (Phase 175+)
 //
 // View-type-aware symbol authoring engine for Revit model families.
-// Implements four capabilities not covered by FamilyParamCreatorCommand:
 //
-//   1. StingSubcategoryScaffold   — creates four STING sub-categories on the
-//      family's own category so plan/elevation/clearance/hidden geometry can
-//      be independently controlled via project VG overrides.
+// Phase 175 capabilities (original):
+//   1. SubcategoryScaffold    — 4 STING sub-categories on the family category.
+//   2. SymbolicGeometryWirer  — plan/elevation bounding-box symbolic curves.
+//   3. NestedAnnotationEmbed  — electrical/lighting 2D plan symbols.
+//   4. ConnectorParametrizer  — MEP fitting connector → STING size params.
 //
-//   2. SymbolicGeometryWirer      — creates 2D plan and elevation bounding-box
-//      symbolic curves and wires each set's visibility to the corresponding
-//      STING_LOD_*_VISIBLE Yes/No family parameter so the family presents a
-//      schematic plan symbol at coarse detail and 3D geometry at fine detail.
-//
-//   3. NestedAnnotationEmbedder   — for electrical / lighting / plumbing
-//      categories: attempts to load a pre-authored annotation-symbol .rfa from
-//      Families/AnnotationSymbols/, falling back to creating category-specific
-//      schematic plan symbols (circle for outlets/luminaires, rectangle + cross
-//      for panels) using symbolic curves.
-//
-//   4. ConnectorParametrizer      — scans ConnectorElement objects in MEP
-//      fitting families (pipe, duct, conduit, cable-tray), creates STING family
-//      parameters (STING_CONN_{n}_RADIUS_MM / STING_CONN_{n}_W_MM / H_MM),
-//      and calls FamilyManager.AssociateElementParameterToFamilyParameter to
-//      drive connector size from the STING parameter.  For pipe and conduit
-//      fittings the primary STING size param (PLM_PPE_SZ_MM / ELC_CDT_SZ_MM)
-//      is also linked via a half-diameter formula when direct association fails.
-//
-// All methods are idempotent (skip when geometry or params already present),
-// try/catch-wrapped per STING convention, and marked TODO-VERIFY-API where
-// the Revit 2025/2026/2027 API surface is uncertain.
+// Phase 175+ additions:
+//   5. FamilyElementVisibility — 3D geometry IsShownInCoarse=false/Medium=true/Fine=true
+//      so families present symbolic curves at coarse/medium and real geometry at fine.
+//   6. Symbolic curve view-type isolation — plan curves restricted to plan/RCP via
+//      FamilyElementVisibilityType.CurvesInPlanViews; elevation curves to CurvesInFrontBack;
+//      side elevation curves to CurvesInLeftRight.
+//   7. Side elevation symbol  — YZ-plane bounding box, wired to STING_LOD_MEDIUM_VISIBLE.
+//   8. JSON-driven symbol geometry — IEC 60617 / ANSI IEEE 315 normalised shapes
+//      loaded from Data/STING_SYMBOL_SHAPES.json; falls back to built-in shapes.
+//   9. Missing categories     — OST_Sprinklers, OST_NurseCallDevices, OST_DataDevices,
+//      OST_TelephoneDevices, OST_SpecialityEquipment now handled.
+//  10. Bounding-box param link — creates STING_PLAN_HALF_W_FT / STING_PLAN_HALF_D_FT
+//      and links them to Width/Depth family params via SetFormula.
+//  11. Object Styles           — line weight and colour assigned per STING subcategory.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Autodesk.Revit.DB;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using StingTools.Tags;
 
 namespace StingTools.Core
 {
     // ─────────────────────────────────────────────────────────────────────────
+    //  Symbol standard enum
+    // ─────────────────────────────────────────────────────────────────────────
+
+    internal enum SymbolStandard
+    {
+        /// <summary>Auto-detect: use JSON shapes if available, otherwise built-in shapes.</summary>
+        AutoDetect,
+        /// <summary>IEC 60617 graphical symbols for diagrams.</summary>
+        IEC,
+        /// <summary>ANSI/IEEE 315 graphic symbols for electrical and electronics diagrams.</summary>
+        ANSI,
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     //  Options / Result DTOs
     // ─────────────────────────────────────────────────────────────────────────
 
-    /// <summary>Controls which authoring steps <see cref="FamilySymbolAuthor.AuthorSymbols"/> executes.</summary>
     internal sealed class FamilySymbolAuthorOptions
     {
-        /// <summary>Create the four STING sub-categories if they are absent.</summary>
+        // ── Existing options ──────────────────────────────────────────────────
         public bool CreateSubcategories       { get; set; } = true;
-        /// <summary>Create a plan-view bounding-box symbolic rectangle and wire to STING_LOD_COARSE_VISIBLE.</summary>
         public bool CreatePlanSymbol          { get; set; } = true;
-        /// <summary>Create a front-elevation bounding-box symbolic rectangle and wire to STING_LOD_MEDIUM_VISIBLE.</summary>
         public bool CreateElevationSymbol     { get; set; } = true;
-        /// <summary>Create a dashed clearance outline in plan, offset by STING_CLEARANCE_MM, wired to STING_LOD_FINE_VISIBLE.</summary>
         public bool CreateClearanceOutline    { get; set; } = false;
-        /// <summary>For electrical / lighting / plumbing categories: embed a 2D plan-symbol annotation
-        /// family (if found on disk) or generate schematic plan curves.</summary>
         public bool EmbedAnnotationPlanSymbol { get; set; } = true;
-        /// <summary>For MEP fitting categories: scan connectors, create STING size params, associate.</summary>
         public bool ParametrizeConnectors     { get; set; } = true;
 
-        /// <summary>Plan symbol half-width in Revit internal feet (default 150 mm ≈ 0.492 ft).</summary>
-        public double PlanHalfWidthFt  { get; set; } = 0.492;
-        /// <summary>Plan symbol half-depth in Revit internal feet (default 150 mm ≈ 0.492 ft).</summary>
+        public double PlanHalfWidthFt  { get; set; } = 0.492;  // ~150 mm
         public double PlanHalfDepthFt  { get; set; } = 0.492;
-        /// <summary>Elevation symbol full height in Revit internal feet (default 300 mm ≈ 0.984 ft).</summary>
-        public double ElevHeightFt     { get; set; } = 0.984;
-
-        /// <summary>Directory to search for annotation-symbol .rfa files.
-        /// Defaults to &lt;plugin&gt;/Families/AnnotationSymbols/.</summary>
+        public double ElevHeightFt     { get; set; } = 0.984;  // ~300 mm
         public string AnnotationSymbolDir { get; set; } = null;
+
+        // ── Phase 175+ options ────────────────────────────────────────────────
+
+        /// <summary>Set FamilyElementVisibility on 3D GenericForm elements
+        /// (IsShownInCoarse=false, Medium=true, Fine=true).</summary>
+        public bool SetElementVisibility      { get; set; } = true;
+
+        /// <summary>Set FamilyElementVisibilityType on symbolic curves so plan curves
+        /// are isolated to plan/RCP views and elevation curves to elevation views.</summary>
+        public bool SetCurveViewTypeVisibility { get; set; } = true;
+
+        /// <summary>Create a side-elevation bounding box (YZ plane) in addition to the
+        /// front-elevation one, wired to STING_LOD_MEDIUM_VISIBLE.</summary>
+        public bool CreateSideElevSymbol      { get; set; } = true;
+
+        /// <summary>Symbol geometry standard. AutoDetect tries JSON file first, then built-in.</summary>
+        public SymbolStandard SymbolStandard  { get; set; } = SymbolStandard.AutoDetect;
+
+        /// <summary>Apply line weight and colour to STING subcategories via Object Styles.</summary>
+        public bool ApplyLineStyles           { get; set; } = true;
+
+        /// <summary>Create STING_PLAN_HALF_W_FT / _D_FT params and link to Width/Depth
+        /// family params via SetFormula when a matching param is found.</summary>
+        public bool LinkBoundingBoxToParams   { get; set; } = true;
     }
 
-    /// <summary>Accumulates the results of a single <see cref="FamilySymbolAuthor.AuthorSymbols"/> run.</summary>
     internal sealed class FamilySymbolAuthorResult
     {
         public int  SubcategoriesCreated          { get; set; }
         public int  SubcategoriesExisting         { get; set; }
         public int  PlanCurvesCreated             { get; set; }
         public int  ElevCurvesCreated             { get; set; }
+        public int  SideElevCurvesCreated         { get; set; }
         public int  ClearanceCurvesCreated        { get; set; }
         public int  CurvesWiredToLodParam         { get; set; }
         public bool AnnotationSymbolFileEmbedded  { get; set; }
@@ -86,13 +106,15 @@ namespace StingTools.Core
         public int  ConnectorsFound               { get; set; }
         public int  ConnectorParamsCreated        { get; set; }
         public int  ConnectorParamsAssociated     { get; set; }
+        public int  ElementVisibilitySet          { get; set; }
         public List<string> Warnings              { get; } = new List<string>();
 
         public override string ToString()
         {
             return $"subcats:{SubcategoriesCreated}+{SubcategoriesExisting} " +
                    $"plan:{PlanCurvesCreated} elev:{ElevCurvesCreated} " +
-                   $"clr:{ClearanceCurvesCreated} wired:{CurvesWiredToLodParam} " +
+                   $"sideElev:{SideElevCurvesCreated} clr:{ClearanceCurvesCreated} " +
+                   $"wired:{CurvesWiredToLodParam} visSet:{ElementVisibilitySet} " +
                    $"annot(file:{AnnotationSymbolFileEmbedded} curves:{AnnotationSymbolCurvesCreated}) " +
                    $"conn:{ConnectorsFound}→{ConnectorParamsCreated}params/{ConnectorParamsAssociated}assoc";
         }
@@ -102,13 +124,8 @@ namespace StingTools.Core
     //  Main Engine
     // ─────────────────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// View-type-aware symbol authoring engine. Call <see cref="AuthorSymbols"/> inside
-    /// an open <see cref="Transaction"/> on a family document.
-    /// </summary>
     internal static class FamilySymbolAuthor
     {
-        // Sub-category display names — kept as constants so every call-site is consistent.
         public const string ScPlanSymbol  = "STING Plan Symbol";
         public const string ScElevSymbol  = "STING Elevation Symbol";
         public const string ScClearance   = "STING Clearance";
@@ -116,10 +133,6 @@ namespace StingTools.Core
 
         // ── Entry point ───────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Execute all requested authoring steps on <paramref name="famDoc"/>.
-        /// Must be called inside an open <see cref="Transaction"/>.
-        /// </summary>
         public static FamilySymbolAuthorResult AuthorSymbols(
             Document famDoc,
             FamilySymbolAuthorOptions opts = null)
@@ -140,12 +153,10 @@ namespace StingTools.Core
             if (opts.CreateSubcategories)
                 CreateSubcategories(famDoc, result);
 
-            // Resolve subcategory objects (may be null if creation failed)
             Category scPlan = FindSubcategory(famDoc, ScPlanSymbol);
             Category scElev = FindSubcategory(famDoc, ScElevSymbol);
             Category scClr  = FindSubcategory(famDoc, ScClearance);
 
-            // Resolve LOD visibility family parameters (injected by InjectAutomationPresentationPack)
             FamilyParameter lodCoarse = FindFamilyParam(fm, "STING_LOD_COARSE_VISIBLE");
             FamilyParameter lodMedium = FindFamilyParam(fm, "STING_LOD_MEDIUM_VISIBLE");
             FamilyParameter lodFine   = FindFamilyParam(fm, "STING_LOD_FINE_VISIBLE");
@@ -154,43 +165,68 @@ namespace StingTools.Core
             if (opts.CreatePlanSymbol && !HasSymbolicCurvesInSubcat(famDoc, scPlan))
             {
                 int n = CreatePlanRectangle(famDoc, scPlan, lodCoarse,
-                    opts.PlanHalfWidthFt, opts.PlanHalfDepthFt, result);
+                    opts.PlanHalfWidthFt, opts.PlanHalfDepthFt,
+                    opts.SetCurveViewTypeVisibility, result);
                 result.PlanCurvesCreated = n;
                 if (lodCoarse != null) result.CurvesWiredToLodParam += n;
             }
 
-            // ── Step 3: Elevation symbol ─────────────────────────────────────
+            // ── Step 3: Front elevation symbol ───────────────────────────────
             if (opts.CreateElevationSymbol && !HasSymbolicCurvesInSubcat(famDoc, scElev))
             {
                 int n = CreateElevationRectangle(famDoc, scElev, lodMedium,
-                    opts.PlanHalfWidthFt, opts.ElevHeightFt, result);
+                    opts.PlanHalfWidthFt, opts.ElevHeightFt,
+                    opts.SetCurveViewTypeVisibility, result);
                 result.ElevCurvesCreated = n;
+                if (lodMedium != null) result.CurvesWiredToLodParam += n;
+            }
+
+            // ── Step 3b: Side elevation symbol ───────────────────────────────
+            if (opts.CreateSideElevSymbol && opts.CreateElevationSymbol)
+            {
+                int n = CreateSideElevationRectangle(famDoc, scElev, lodMedium,
+                    opts.PlanHalfDepthFt, opts.ElevHeightFt,
+                    opts.SetCurveViewTypeVisibility, result);
+                result.SideElevCurvesCreated = n;
                 if (lodMedium != null) result.CurvesWiredToLodParam += n;
             }
 
             // ── Step 4: Clearance outline ────────────────────────────────────
             if (opts.CreateClearanceOutline && !HasSymbolicCurvesInSubcat(famDoc, scClr))
             {
-                double clearFt = GetFamilyParamFt(fm, "STING_CLEARANCE_MM", 0.984); // default 300 mm
+                double clearFt = GetFamilyParamFt(fm, "STING_CLEARANCE_MM", 0.984);
                 int n = CreatePlanRectangle(famDoc, scClr, lodFine,
                     opts.PlanHalfWidthFt + clearFt,
                     opts.PlanHalfDepthFt + clearFt,
-                    result);
+                    opts.SetCurveViewTypeVisibility, result);
                 result.ClearanceCurvesCreated = n;
                 if (lodFine != null) result.CurvesWiredToLodParam += n;
             }
 
-            // ── Step 5: Annotation plan symbol (electrical / lighting / plumbing) ──
+            // ── Step 5: Annotation plan symbol (electrical/lighting/plumbing) ─
             if (opts.EmbedAnnotationPlanSymbol && IsAnnotationCategory(bic))
             {
                 EmbedAnnotationPlanSymbol(famDoc, bic, scPlan, lodCoarse,
                     opts.AnnotationSymbolDir ?? GetDefaultAnnotationDir(),
-                    opts.PlanHalfWidthFt, opts.PlanHalfDepthFt, result);
+                    opts.PlanHalfWidthFt, opts.PlanHalfDepthFt,
+                    opts.SetCurveViewTypeVisibility, opts.SymbolStandard, result);
             }
 
             // ── Step 6: Connector parametrization (MEP fittings) ────────────
             if (opts.ParametrizeConnectors && IsMepFittingCategory(bic))
                 ParametrizeConnectors(famDoc, bic, fm, result);
+
+            // ── Step 7: 3D element LOD visibility ────────────────────────────
+            if (opts.SetElementVisibility)
+                AutoSetLodVisibility(famDoc, result);
+
+            // ── Step 8: Line styles per subcategory ──────────────────────────
+            if (opts.ApplyLineStyles)
+                ApplySubcategoryLineStyles(famDoc, result);
+
+            // ── Step 9: Link bounding box to family dimension params ─────────
+            if (opts.LinkBoundingBoxToParams)
+                TryLinkBoundingBoxToFamilyDimensions(famDoc, fm, result);
 
             StingLog.Info($"FamilySymbolAuthor: {result}");
             return result;
@@ -212,15 +248,11 @@ namespace StingTools.Core
                     try
                     {
                         if (SubcategoryExists(ownerCat, name)) { result.SubcategoriesExisting++; continue; }
-                        // TODO-VERIFY-API: NewSubcategory signature unchanged in Revit 2025+
                         famDoc.Settings.Categories.NewSubcategory(ownerCat, name);
                         result.SubcategoriesCreated++;
-                        StingLog.Info($"FamilySymbolAuthor: created subcategory '{name}'");
                     }
                     catch (Exception ex)
                     {
-                        // Creation may fail if the name already exists under a different casing,
-                        // or if the category doesn't support subcategories.
                         result.SubcategoriesExisting++;
                         result.Warnings.Add($"Subcategory '{name}': {ex.Message}");
                     }
@@ -256,28 +288,35 @@ namespace StingTools.Core
 
         private static int CreatePlanRectangle(
             Document famDoc, Category subcat, FamilyParameter lodParam,
-            double halfW, double halfD, FamilySymbolAuthorResult result)
+            double halfW, double halfD, bool setViewTypeVis,
+            FamilySymbolAuthorResult result)
         {
             try
             {
-                // Z = 0, normal = +Z  (horizontal / plan sketch plane)
                 SketchPlane sp = GetOrCreateSketchPlane(famDoc, XYZ.BasisZ, XYZ.Zero);
                 if (sp == null) { result.Warnings.Add("CreatePlanRectangle: could not create sketch plane"); return 0; }
+
+                // CurvesInPlanViews → only visible in plan/RCP views
+                FamilyElementVisibilityType? vtVis = setViewTypeVis
+                    ? FamilyElementVisibilityType.CurvesInPlanViews
+                    : (FamilyElementVisibilityType?)null;
+
                 return CreateRectangleCurves(famDoc, sp,
                     new XYZ(-halfW, -halfD, 0), new XYZ(halfW, -halfD, 0),
                     new XYZ(halfW,   halfD, 0), new XYZ(-halfW, halfD, 0),
-                    subcat, lodParam, result);
+                    subcat, lodParam, vtVis, result);
             }
             catch (Exception ex) { StingLog.Error("FamilySymbolAuthor.CreatePlanRectangle", ex); return 0; }
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        //  3. Elevation symbol — bounding box in front-elevation (XZ) plane
+        //  3. Front elevation symbol — bounding box in XZ plane
         // ─────────────────────────────────────────────────────────────────────
 
         private static int CreateElevationRectangle(
             Document famDoc, Category subcat, FamilyParameter lodParam,
-            double halfW, double heightFt, FamilySymbolAuthorResult result)
+            double halfW, double heightFt, bool setViewTypeVis,
+            FamilySymbolAuthorResult result)
         {
             try
             {
@@ -285,13 +324,46 @@ namespace StingTools.Core
                 SketchPlane sp = GetOrCreateSketchPlane(famDoc, XYZ.BasisY, XYZ.Zero);
                 if (sp == null) { result.Warnings.Add("CreateElevationRectangle: could not create sketch plane"); return 0; }
 
-                // Rectangle base at Z=0, top at Z=heightFt, width ±halfW in X; Y always 0
+                // CurvesInFrontBack → only visible in front/back elevation views
+                FamilyElementVisibilityType? vtVis = setViewTypeVis
+                    ? FamilyElementVisibilityType.CurvesInFrontBack
+                    : (FamilyElementVisibilityType?)null;
+
                 return CreateRectangleCurves(famDoc, sp,
                     new XYZ(-halfW, 0, 0),       new XYZ(halfW, 0, 0),
                     new XYZ(halfW,  0, heightFt), new XYZ(-halfW, 0, heightFt),
-                    subcat, lodParam, result);
+                    subcat, lodParam, vtVis, result);
             }
             catch (Exception ex) { StingLog.Error("FamilySymbolAuthor.CreateElevationRectangle", ex); return 0; }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        //  3b. Side elevation symbol — bounding box in YZ plane
+        // ─────────────────────────────────────────────────────────────────────
+
+        private static int CreateSideElevationRectangle(
+            Document famDoc, Category subcat, FamilyParameter lodParam,
+            double halfD, double heightFt, bool setViewTypeVis,
+            FamilySymbolAuthorResult result)
+        {
+            try
+            {
+                // YZ plane (right-side face), normal = +X
+                SketchPlane sp = GetOrCreateSketchPlane(famDoc, XYZ.BasisX, XYZ.Zero);
+                if (sp == null) { result.Warnings.Add("CreateSideElevationRectangle: could not create sketch plane"); return 0; }
+
+                // CurvesInLeftRight → only visible in left/right elevation views
+                FamilyElementVisibilityType? vtVis = setViewTypeVis
+                    ? FamilyElementVisibilityType.CurvesInLeftRight
+                    : (FamilyElementVisibilityType?)null;
+
+                // In YZ plane: Y axis = horizontal, Z axis = vertical; X always 0
+                return CreateRectangleCurves(famDoc, sp,
+                    new XYZ(0, -halfD, 0),        new XYZ(0, halfD, 0),
+                    new XYZ(0,  halfD, heightFt),  new XYZ(0, -halfD, heightFt),
+                    subcat, lodParam, vtVis, result);
+            }
+            catch (Exception ex) { StingLog.Error("FamilySymbolAuthor.CreateSideElevationRectangle", ex); return 0; }
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -302,12 +374,12 @@ namespace StingTools.Core
             Document famDoc, BuiltInCategory bic,
             Category planSubcat, FamilyParameter lodParam,
             string annotDir, double halfW, double halfD,
+            bool setViewTypeVis, SymbolStandard standard,
             FamilySymbolAuthorResult result)
         {
-            // Skip if plan-symbol curves already exist (subcategory-based check)
             if (HasSymbolicCurvesInSubcat(famDoc, planSubcat)) return;
 
-            // Try loading a pre-authored annotation family from disk first
+            // Try loading a pre-authored annotation family
             if (!string.IsNullOrEmpty(annotDir) && Directory.Exists(annotDir))
             {
                 string file = ResolveAnnotationFile(annotDir, bic);
@@ -318,22 +390,36 @@ namespace StingTools.Core
                 }
             }
 
-            // Fallback: generate schematic symbolic curves per category
-            CreateSchematicPlanSymbol(famDoc, bic, planSubcat, lodParam, halfW, halfD, result);
+            // Try JSON-driven shapes when standard is specified or AutoDetect finds the file
+            if (standard != SymbolStandard.AutoDetect || JsonSymbolShapesExist())
+            {
+                if (TryCreateJsonDrivenPlanSymbol(famDoc, bic, planSubcat, lodParam,
+                    halfW, halfD, setViewTypeVis, standard, result))
+                    return;
+            }
+
+            // Fallback: built-in schematic symbolic curves
+            CreateSchematicPlanSymbol(famDoc, bic, planSubcat, lodParam,
+                halfW, halfD, setViewTypeVis, result);
         }
 
         private static string ResolveAnnotationFile(string dir, BuiltInCategory bic)
         {
             var map = new Dictionary<BuiltInCategory, string>
             {
-                { BuiltInCategory.OST_ElectricalFixtures,  "STING Elec Outlet Plan.rfa"      },
-                { BuiltInCategory.OST_LightingFixtures,    "STING Luminaire Plan.rfa"         },
-                { BuiltInCategory.OST_ElectricalEquipment, "STING Panel Plan.rfa"             },
-                { BuiltInCategory.OST_PlumbingFixtures,    "STING Plumbing Fixture Plan.rfa"  },
-                { BuiltInCategory.OST_MechanicalEquipment, "STING MEP Equipment Plan.rfa"     },
-                { BuiltInCategory.OST_FireAlarmDevices,    "STING Fire Alarm Plan.rfa"        },
-                { BuiltInCategory.OST_SecurityDevices,     "STING Security Device Plan.rfa"   },
-                { BuiltInCategory.OST_CommunicationDevices,"STING Comms Device Plan.rfa"      },
+                { BuiltInCategory.OST_ElectricalFixtures,   "STING Elec Outlet Plan.rfa"       },
+                { BuiltInCategory.OST_LightingFixtures,     "STING Luminaire Plan.rfa"          },
+                { BuiltInCategory.OST_ElectricalEquipment,  "STING Panel Plan.rfa"              },
+                { BuiltInCategory.OST_PlumbingFixtures,     "STING Plumbing Fixture Plan.rfa"   },
+                { BuiltInCategory.OST_MechanicalEquipment,  "STING MEP Equipment Plan.rfa"      },
+                { BuiltInCategory.OST_FireAlarmDevices,     "STING Fire Alarm Plan.rfa"         },
+                { BuiltInCategory.OST_SecurityDevices,      "STING Security Device Plan.rfa"    },
+                { BuiltInCategory.OST_CommunicationDevices, "STING Comms Device Plan.rfa"       },
+                { BuiltInCategory.OST_Sprinklers,           "STING Sprinkler Plan.rfa"          },
+                { BuiltInCategory.OST_NurseCallDevices,     "STING Nurse Call Plan.rfa"         },
+                { BuiltInCategory.OST_DataDevices,          "STING Data Device Plan.rfa"        },
+                { BuiltInCategory.OST_TelephoneDevices,     "STING Telephone Plan.rfa"          },
+                { BuiltInCategory.OST_SpecialityEquipment,  "STING Speciality Equipment Plan.rfa" },
             };
             if (map.TryGetValue(bic, out string filename))
             {
@@ -347,18 +433,15 @@ namespace StingTools.Core
         {
             try
             {
-                // Load the annotation symbol family into this family document context.
                 // TODO-VERIFY-API: Document.LoadFamily(string, IFamilyLoadOptions, out Family)
                 // works in a family document context in Revit 2025/2026/2027.
-                Family annotFam;
-                bool loaded = famDoc.LoadFamily(annotPath, new LocalFamilyLoadOptions(), out annotFam);
+                bool loaded = famDoc.LoadFamily(annotPath, new LocalFamilyLoadOptions(), out Family annotFam);
                 if (!loaded || annotFam == null)
                 {
                     result.Warnings.Add($"TryLoadAnnotationFamily: LoadFamily failed for '{Path.GetFileName(annotPath)}'");
                     return false;
                 }
 
-                // Find the first symbol belonging to this family
                 FamilySymbol sym = new FilteredElementCollector(famDoc)
                     .OfClass(typeof(FamilySymbol))
                     .Cast<FamilySymbol>()
@@ -371,37 +454,163 @@ namespace StingTools.Core
                 }
 
                 if (!sym.IsActive)
-                {
                     try { sym.Activate(); } catch { }
-                }
 
-                // Place the annotation symbol at the family origin using the plan view.
-                // TODO-VERIFY-API: FamilyCreate.NewFamilyInstance with annotation symbol requires
-                // a View that accepts annotation placement (floor plan or ceiling plan).
                 View planView = GetPlanView(famDoc);
                 if (planView == null)
                 {
-                    result.Warnings.Add("TryLoadAnnotationFamily: no floor-plan view found in family document");
+                    result.Warnings.Add("TryLoadAnnotationFamily: no floor-plan view in family document");
                     return false;
                 }
 
                 famDoc.FamilyCreate.NewFamilyInstance(XYZ.Zero, sym, planView);
                 result.AnnotationSymbolFileEmbedded = true;
-                StingLog.Info($"FamilySymbolAuthor: embedded '{Path.GetFileName(annotPath)}'");
                 return true;
             }
             catch (Exception ex)
             {
                 result.Warnings.Add($"TryLoadAnnotationFamily '{Path.GetFileName(annotPath)}': {ex.Message}");
-                StingLog.Warn($"TryLoadAnnotationFamily: {ex.Message}");
                 return false;
             }
         }
 
+        // ─────────────────────────────────────────────────────────────────────
+        //  5a. JSON-driven symbol geometry (IEC 60617 / ANSI IEEE 315)
+        // ─────────────────────────────────────────────────────────────────────
+
+        private static JObject _symbolShapesCache = null;
+        private static bool    _symbolShapesCacheTried = false;
+
+        private static bool JsonSymbolShapesExist()
+        {
+            LoadSymbolShapesJson();
+            return _symbolShapesCache != null;
+        }
+
+        private static void LoadSymbolShapesJson()
+        {
+            if (_symbolShapesCacheTried) return;
+            _symbolShapesCacheTried = true;
+            try
+            {
+                string path = StingToolsApp.FindDataFile("STING_SYMBOL_SHAPES.json");
+                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
+                _symbolShapesCache = JObject.Parse(File.ReadAllText(path));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"FamilySymbolAuthor: could not load STING_SYMBOL_SHAPES.json: {ex.Message}");
+            }
+        }
+
+        private static bool TryCreateJsonDrivenPlanSymbol(
+            Document famDoc, BuiltInCategory bic,
+            Category planSubcat, FamilyParameter lodParam,
+            double halfW, double halfD, bool setViewTypeVis,
+            SymbolStandard standard, FamilySymbolAuthorResult result)
+        {
+            try
+            {
+                if (_symbolShapesCache == null) return false;
+
+                string catKey = bic.ToString(); // e.g. "OST_ElectricalFixtures"
+                string stdKey = standard == SymbolStandard.ANSI ? "ANSI" : "IEC";
+
+                var catNode = _symbolShapesCache["categories"]?[catKey];
+                if (catNode == null) return false;
+
+                var stdNode = catNode[stdKey] ?? catNode["IEC"]; // fallback to IEC
+                if (stdNode == null) return false;
+
+                SketchPlane sp = GetOrCreateSketchPlane(famDoc, XYZ.BasisZ, XYZ.Zero);
+                if (sp == null) return false;
+
+                FamilyElementVisibilityType? vtVis = setViewTypeVis
+                    ? FamilyElementVisibilityType.CurvesInPlanViews
+                    : (FamilyElementVisibilityType?)null;
+
+                int count = 0;
+                foreach (JObject seg in stdNode)
+                {
+                    string type = seg["type"]?.Value<string>() ?? "";
+                    switch (type)
+                    {
+                        case "circle":
+                        {
+                            double r = (seg["r"]?.Value<double>() ?? 1.0) * halfW;
+                            count += CreateCircle(famDoc, sp, r, planSubcat, lodParam, vtVis, result);
+                            break;
+                        }
+                        case "line":
+                        {
+                            double x1 = (seg["x1"]?.Value<double>() ?? 0) * halfW;
+                            double y1 = (seg["y1"]?.Value<double>() ?? 0) * halfD;
+                            double x2 = (seg["x2"]?.Value<double>() ?? 0) * halfW;
+                            double y2 = (seg["y2"]?.Value<double>() ?? 0) * halfD;
+                            count += CreateLine(famDoc, sp,
+                                new XYZ(x1, y1, 0), new XYZ(x2, y2, 0),
+                                planSubcat, lodParam, vtVis, result);
+                            break;
+                        }
+                        case "arc":
+                        {
+                            double r    = (seg["r"]?.Value<double>()     ?? 1.0) * halfW;
+                            double cx   = (seg["cx"]?.Value<double>()    ?? 0)   * halfW;
+                            double cy   = (seg["cy"]?.Value<double>()    ?? 0)   * halfD;
+                            double a1   =  seg["a1"]?.Value<double>()    ?? 0;
+                            double a2   =  seg["a2"]?.Value<double>()    ?? Math.PI;
+                            double aMid = (a1 + a2) / 2;
+                            XYZ ctr = new XYZ(cx, cy, 0);
+                            XYZ start = ctr + new XYZ(r * Math.Cos(a1),   r * Math.Sin(a1),   0);
+                            XYZ mid   = ctr + new XYZ(r * Math.Cos(aMid), r * Math.Sin(aMid), 0);
+                            XYZ end   = ctr + new XYZ(r * Math.Cos(a2),   r * Math.Sin(a2),   0);
+                            try
+                            {
+                                Arc arc = Arc.Create(start, end, mid);
+                                count += PlaceSymbolicCurve(famDoc, sp, arc, planSubcat, lodParam, vtVis, result);
+                            }
+                            catch (Exception ex) { result.Warnings.Add($"JSON arc: {ex.Message}"); }
+                            break;
+                        }
+                        case "rect":
+                        {
+                            double rx = (seg["x"]?.Value<double>()  ?? -1.0) * halfW;
+                            double ry = (seg["y"]?.Value<double>()  ?? -1.0) * halfD;
+                            double rw = (seg["w"]?.Value<double>()  ??  2.0) * halfW;
+                            double rh = (seg["h"]?.Value<double>()  ??  2.0) * halfD;
+                            count += CreateRectangleCurves(famDoc, sp,
+                                new XYZ(rx,      ry,      0),
+                                new XYZ(rx + rw, ry,      0),
+                                new XYZ(rx + rw, ry + rh, 0),
+                                new XYZ(rx,      ry + rh, 0),
+                                planSubcat, lodParam, vtVis, result);
+                            break;
+                        }
+                    }
+                }
+
+                if (count > 0)
+                {
+                    result.AnnotationSymbolCurvesCreated = count;
+                    if (lodParam != null) result.CurvesWiredToLodParam += count;
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"TryCreateJsonDrivenPlanSymbol: {ex.Message}");
+            }
+            return false;
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        //  5b. Built-in schematic plan symbols (fallback)
+        // ─────────────────────────────────────────────────────────────────────
+
         private static void CreateSchematicPlanSymbol(
             Document famDoc, BuiltInCategory bic,
             Category planSubcat, FamilyParameter lodParam,
-            double halfW, double halfD,
+            double halfW, double halfD, bool setViewTypeVis,
             FamilySymbolAuthorResult result)
         {
             try
@@ -409,64 +618,111 @@ namespace StingTools.Core
                 SketchPlane sp = GetOrCreateSketchPlane(famDoc, XYZ.BasisZ, XYZ.Zero);
                 if (sp == null) { result.Warnings.Add("CreateSchematicPlanSymbol: no sketch plane"); return; }
 
+                FamilyElementVisibilityType? vtVis = setViewTypeVis
+                    ? FamilyElementVisibilityType.CurvesInPlanViews
+                    : (FamilyElementVisibilityType?)null;
+
                 int curves = 0;
 
                 switch (bic)
                 {
-                    // Electrical outlets, fire alarm, security, comms — circle symbol
+                    // ── Electrical outlets / fire / security / comms — circle ─
                     case BuiltInCategory.OST_ElectricalFixtures:
                     case BuiltInCategory.OST_FireAlarmDevices:
                     case BuiltInCategory.OST_SecurityDevices:
                     case BuiltInCategory.OST_CommunicationDevices:
+                    case BuiltInCategory.OST_DataDevices:
+                    case BuiltInCategory.OST_TelephoneDevices:
                     {
                         double r = Math.Min(halfW, halfD);
-                        curves += CreateCircle(famDoc, sp, r, planSubcat, lodParam, result);
+                        curves += CreateCircle(famDoc, sp, r, planSubcat, lodParam, vtVis, result);
+                        // Tick line at bottom (IEC-style outlet indicator)
+                        curves += CreateLine(famDoc, sp,
+                            new XYZ(0, -r, 0), new XYZ(0, -r * 1.4, 0),
+                            planSubcat, lodParam, vtVis, result);
                         break;
                     }
 
-                    // Luminaires — circle + cross (standard IEC luminaire symbol)
+                    // ── Luminaires — circle + cross (IEC 60617) ───────────────
                     case BuiltInCategory.OST_LightingFixtures:
                     {
-                        double r = Math.Min(halfW, halfD);
-                        curves += CreateCircle(famDoc, sp, r, planSubcat, lodParam, result);
+                        double r   = Math.Min(halfW, halfD);
                         double arm = r * 0.65;
-                        curves += CreateLine(famDoc, sp, new XYZ(-arm, 0, 0), new XYZ(arm, 0, 0), planSubcat, lodParam, result);
-                        curves += CreateLine(famDoc, sp, new XYZ(0, -arm, 0), new XYZ(0, arm, 0), planSubcat, lodParam, result);
+                        curves += CreateCircle(famDoc, sp, r, planSubcat, lodParam, vtVis, result);
+                        curves += CreateLine(famDoc, sp, new XYZ(-arm, 0, 0), new XYZ(arm, 0, 0), planSubcat, lodParam, vtVis, result);
+                        curves += CreateLine(famDoc, sp, new XYZ(0, -arm, 0), new XYZ(0, arm, 0), planSubcat, lodParam, vtVis, result);
                         break;
                     }
 
-                    // Electrical panels / switchboards — rectangle + diagonal (standard schematic)
+                    // ── Nurse call — circle with central dot ──────────────────
+                    case BuiltInCategory.OST_NurseCallDevices:
+                    {
+                        double r     = Math.Min(halfW, halfD);
+                        double dotR  = r * 0.18;
+                        curves += CreateCircle(famDoc, sp, r,    planSubcat, lodParam, vtVis, result);
+                        curves += CreateCircle(famDoc, sp, dotR, planSubcat, lodParam, vtVis, result);
+                        break;
+                    }
+
+                    // ── Sprinkler — circle + perpendicular arms (IEC/BSRIA) ───
+                    case BuiltInCategory.OST_Sprinklers:
+                    {
+                        double r   = Math.Min(halfW, halfD) * 0.8;
+                        double arm = halfW;
+                        curves += CreateCircle(famDoc, sp, r, planSubcat, lodParam, vtVis, result);
+                        // Four arms radiating out (standard sprinkler head plan)
+                        curves += CreateLine(famDoc, sp, new XYZ(-arm, 0, 0), new XYZ(-r, 0, 0), planSubcat, lodParam, vtVis, result);
+                        curves += CreateLine(famDoc, sp, new XYZ(r, 0, 0),    new XYZ(arm, 0, 0),  planSubcat, lodParam, vtVis, result);
+                        curves += CreateLine(famDoc, sp, new XYZ(0, -arm, 0), new XYZ(0, -r, 0),  planSubcat, lodParam, vtVis, result);
+                        curves += CreateLine(famDoc, sp, new XYZ(0, r, 0),    new XYZ(0, arm, 0),  planSubcat, lodParam, vtVis, result);
+                        break;
+                    }
+
+                    // ── Electrical panels — rectangle + diagonal ───────────────
                     case BuiltInCategory.OST_ElectricalEquipment:
                     {
                         curves += CreateRectangleCurves(famDoc, sp,
                             new XYZ(-halfW, -halfD, 0), new XYZ(halfW, -halfD, 0),
                             new XYZ(halfW,   halfD, 0), new XYZ(-halfW,  halfD, 0),
-                            planSubcat, lodParam, result);
-                        curves += CreateLine(famDoc, sp, new XYZ(-halfW, -halfD, 0), new XYZ(halfW, halfD, 0), planSubcat, lodParam, result);
+                            planSubcat, lodParam, vtVis, result);
+                        curves += CreateLine(famDoc, sp,
+                            new XYZ(-halfW, -halfD, 0), new XYZ(halfW, halfD, 0),
+                            planSubcat, lodParam, vtVis, result);
                         break;
                     }
 
-                    // Plumbing fixtures — circle + two inner arcs (standard sanitary symbol)
+                    // ── Plumbing fixtures — outer + inner circle ───────────────
                     case BuiltInCategory.OST_PlumbingFixtures:
                     {
                         double r = Math.Min(halfW, halfD);
-                        curves += CreateCircle(famDoc, sp, r, planSubcat, lodParam, result);
-                        // Inner circle at 60% radius
-                        curves += CreateCircle(famDoc, sp, r * 0.6, planSubcat, lodParam, result);
+                        curves += CreateCircle(famDoc, sp, r,       planSubcat, lodParam, vtVis, result);
+                        curves += CreateCircle(famDoc, sp, r * 0.6, planSubcat, lodParam, vtVis, result);
                         break;
                     }
 
-                    // Mechanical equipment — rectangle with centre-mark cross
+                    // ── Speciality equipment — rectangle with X ───────────────
+                    case BuiltInCategory.OST_SpecialityEquipment:
+                    {
+                        curves += CreateRectangleCurves(famDoc, sp,
+                            new XYZ(-halfW, -halfD, 0), new XYZ(halfW, -halfD, 0),
+                            new XYZ(halfW,   halfD, 0), new XYZ(-halfW,  halfD, 0),
+                            planSubcat, lodParam, vtVis, result);
+                        curves += CreateLine(famDoc, sp, new XYZ(-halfW, -halfD, 0), new XYZ(halfW,  halfD, 0), planSubcat, lodParam, vtVis, result);
+                        curves += CreateLine(famDoc, sp, new XYZ( halfW, -halfD, 0), new XYZ(-halfW, halfD, 0), planSubcat, lodParam, vtVis, result);
+                        break;
+                    }
+
+                    // ── Mechanical equipment — rectangle + centre mark ─────────
                     case BuiltInCategory.OST_MechanicalEquipment:
                     default:
                     {
                         curves += CreateRectangleCurves(famDoc, sp,
                             new XYZ(-halfW, -halfD, 0), new XYZ(halfW, -halfD, 0),
                             new XYZ(halfW,   halfD, 0), new XYZ(-halfW,  halfD, 0),
-                            planSubcat, lodParam, result);
+                            planSubcat, lodParam, vtVis, result);
                         double arm = Math.Min(halfW, halfD) * 0.35;
-                        curves += CreateLine(famDoc, sp, new XYZ(-arm, 0, 0), new XYZ(arm, 0, 0), planSubcat, lodParam, result);
-                        curves += CreateLine(famDoc, sp, new XYZ(0, -arm, 0), new XYZ(0, arm, 0), planSubcat, lodParam, result);
+                        curves += CreateLine(famDoc, sp, new XYZ(-arm, 0, 0), new XYZ(arm, 0, 0), planSubcat, lodParam, vtVis, result);
+                        curves += CreateLine(famDoc, sp, new XYZ(0, -arm, 0), new XYZ(0, arm, 0), planSubcat, lodParam, vtVis, result);
                         break;
                     }
                 }
@@ -491,23 +747,15 @@ namespace StingTools.Core
         {
             try
             {
-                // Collect ConnectorElement objects from the family document
-                // TODO-VERIFY-API: FilteredElementCollector<ConnectorElement> works identically
-                // in family documents in Revit 2025/2026/2027.
                 var connectors = new FilteredElementCollector(famDoc)
                     .OfClass(typeof(ConnectorElement))
                     .Cast<ConnectorElement>()
                     .ToList();
 
                 result.ConnectorsFound = connectors.Count;
-                if (connectors.Count == 0)
-                {
-                    StingLog.Info($"FamilySymbolAuthor.ParametrizeConnectors: 0 connectors found ({bic})");
-                    return;
-                }
+                if (connectors.Count == 0) return;
 
                 bool isRound = IsRoundConnector(bic);
-
                 var existing = fm.GetParameters()
                     .Select(p => p.Definition.Name)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -516,16 +764,12 @@ namespace StingTools.Core
                 {
                     ConnectorElement conn = connectors[idx];
                     int n = idx + 1;
-
                     if (isRound)
                         AssociateRoundConnector(famDoc, fm, conn, n, existing, result);
                     else
                         AssociateProfileConnector(famDoc, fm, conn, n, existing, result);
                 }
 
-                // For pipe/conduit: wire STING_CONN_1_RADIUS_MM = PLM_PPE_SZ_MM / 2
-                // only when the direct element-parameter association above succeeded for
-                // connector 1 (i.e., the family param no longer needs SetFormula).
                 if (result.ConnectorParamsAssociated == 0)
                     TryLinkPrimaryStingParam(fm, bic, result);
             }
@@ -540,11 +784,9 @@ namespace StingTools.Core
             Document famDoc, FamilyManager fm, ConnectorElement conn, int n,
             HashSet<string> existing, FamilySymbolAuthorResult result)
         {
-            // TODO-VERIFY-API: BuiltInParameter.CONNECTOR_RADIUS available in Revit 2025+.
-            // In some Revit versions RBS_CONNECTOR_DIAMETER is preferred.
+            // TODO-VERIFY-API: CONNECTOR_RADIUS available in Revit 2025+; RBS_CONNECTOR_DIAMETER fallback.
             Parameter elemRadiusParam = conn.get_Parameter(BuiltInParameter.CONNECTOR_RADIUS)
                 ?? conn.get_Parameter(BuiltInParameter.RBS_CONNECTOR_DIAMETER);
-
             if (elemRadiusParam == null || elemRadiusParam.IsReadOnly) return;
 
             string pName = $"STING_CONN_{n}_RADIUS_MM";
@@ -555,8 +797,6 @@ namespace StingTools.Core
                     fm.AddParameter(pName, GroupTypeId.General, SpecTypeId.Length, false);
                     existing.Add(pName);
                     result.ConnectorParamsCreated++;
-
-                    // Seed: 25 mm nominal radius (50 mm nominal pipe), in feet
                     var fp = fm.GetParameters().FirstOrDefault(p => p.Definition.Name == pName);
                     if (fp != null && fm.CurrentType != null)
                         fm.Set(fp, 0.08202); // 25 mm in feet
@@ -571,7 +811,6 @@ namespace StingTools.Core
                 {
                     fm.AssociateElementParameterToFamilyParameter(elemRadiusParam, famP);
                     result.ConnectorParamsAssociated++;
-                    StingLog.Info($"FamilySymbolAuthor: connector {n} radius → {pName}");
                 }
                 catch (Exception ex) { result.Warnings.Add($"Associate radius {n}: {ex.Message}"); }
             }
@@ -581,7 +820,7 @@ namespace StingTools.Core
             Document famDoc, FamilyManager fm, ConnectorElement conn, int n,
             HashSet<string> existing, FamilySymbolAuthorResult result)
         {
-            // TODO-VERIFY-API: CONNECTOR_WIDTH_PARAM / CONNECTOR_HEIGHT_PARAM names in Revit 2025+
+            // TODO-VERIFY-API: CONNECTOR_WIDTH_PARAM / CONNECTOR_HEIGHT_PARAM in Revit 2025+
             Parameter widthP  = conn.get_Parameter(BuiltInParameter.CONNECTOR_WIDTH_PARAM);
             Parameter heightP = conn.get_Parameter(BuiltInParameter.CONNECTOR_HEIGHT_PARAM);
 
@@ -630,36 +869,250 @@ namespace StingTools.Core
             }
         }
 
-        /// <summary>
-        /// When direct connector association failed (e.g. the family has no connector elements),
-        /// fall back to a formula-based link: STING_CONN_1_RADIUS_MM = &lt;stingSize&gt; / 2.
-        /// Only applies to pipe (PLM_PPE_SZ_MM) and conduit (ELC_CDT_SZ_MM).
-        /// SetFormula on a non-shared family-local param is safe to call after AddParameter.
-        /// </summary>
         private static void TryLinkPrimaryStingParam(
             FamilyManager fm, BuiltInCategory bic, FamilySymbolAuthorResult result)
         {
             string stingParamName =
-                bic == BuiltInCategory.OST_PipeFitting      ? "PLM_PPE_SZ_MM" :
-                bic == BuiltInCategory.OST_ConduitFittings  ? "ELC_CDT_SZ_MM" :
+                bic == BuiltInCategory.OST_PipeFitting     ? "PLM_PPE_SZ_MM" :
+                bic == BuiltInCategory.OST_ConduitFittings ? "ELC_CDT_SZ_MM" :
                 null;
-
             if (string.IsNullOrEmpty(stingParamName)) return;
 
-            FamilyParameter stingP  = FindFamilyParam(fm, stingParamName);
-            FamilyParameter connR1  = FindFamilyParam(fm, "STING_CONN_1_RADIUS_MM");
-            if (stingP == null || connR1 == null) return;
-            if (connR1.IsShared) return; // SetFormula not allowed on shared params
-
+            FamilyParameter stingP = FindFamilyParam(fm, stingParamName);
+            FamilyParameter connR1 = FindFamilyParam(fm, "STING_CONN_1_RADIUS_MM");
+            if (stingP == null || connR1 == null || connR1.IsShared) return;
             try
             {
                 fm.SetFormula(connR1, $"{stingParamName} / 2");
-                StingLog.Info($"FamilySymbolAuthor: STING_CONN_1_RADIUS_MM = {stingParamName} / 2");
+            }
+            catch (Exception ex) { result.Warnings.Add($"TryLinkPrimaryStingParam: {ex.Message}"); }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        //  7. 3D element LOD visibility (Phase 175+)
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Sets FamilyElementVisibility on all GenericForm (solid extrusion/blend/revolve/sweep)
+        /// elements so they are hidden at Coarse LOD but visible at Medium and Fine.
+        /// This lets symbolic curves represent the family at Coarse while 3D geometry
+        /// takes over at Medium/Fine.
+        /// </summary>
+        private static void AutoSetLodVisibility(Document famDoc, FamilySymbolAuthorResult result)
+        {
+            try
+            {
+                // TODO-VERIFY-API: GenericForm.SetVisibility(FamilyElementVisibility) in Revit 2025+.
+                var forms = new FilteredElementCollector(famDoc)
+                    .OfClass(typeof(GenericForm))
+                    .Cast<GenericForm>()
+                    .ToList();
+
+                if (forms.Count == 0) return;
+
+                // Coarse=false so schematic plan/elevation symbols take over at Coarse LOD.
+                // Medium=true so elevation symbol + 3D both render at Medium.
+                // Fine=true for full 3D detail.
+                var vis = new FamilyElementVisibility(FamilyElementVisibilityType.Model);
+                vis.IsShownInCoarse = false;
+                vis.IsShownInMedium = true;
+                vis.IsShownInFine   = true;
+
+                foreach (GenericForm form in forms)
+                {
+                    try
+                    {
+                        form.SetVisibility(vis);
+                        result.ElementVisibilitySet++;
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Warnings.Add($"SetVisibility form {form.Id}: {ex.Message}");
+                    }
+                }
             }
             catch (Exception ex)
             {
-                result.Warnings.Add($"TryLinkPrimaryStingParam: {ex.Message}");
+                result.Warnings.Add($"AutoSetLodVisibility: {ex.Message}");
+                StingLog.Error("FamilySymbolAuthor.AutoSetLodVisibility", ex);
             }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        //  8. Line styles per subcategory (Phase 175+)
+        // ─────────────────────────────────────────────────────────────────────
+
+        private static void ApplySubcategoryLineStyles(Document famDoc, FamilySymbolAuthorResult result)
+        {
+            try
+            {
+                // Plan Symbol: weight 2, solid, dark grey
+                SetSubcategoryStyle(famDoc, ScPlanSymbol,
+                    lineWeight: 2,
+                    color: new Color(64, 64, 64),
+                    dashPatternName: null,  // solid (default)
+                    result);
+
+                // Elevation Symbol: weight 1, solid, dark grey
+                SetSubcategoryStyle(famDoc, ScElevSymbol,
+                    lineWeight: 1,
+                    color: new Color(64, 64, 64),
+                    dashPatternName: null,
+                    result);
+
+                // Clearance: weight 1, dashed, blue-grey
+                SetSubcategoryStyle(famDoc, ScClearance,
+                    lineWeight: 1,
+                    color: new Color(100, 120, 180),
+                    dashPatternName: "Dash",
+                    result);
+
+                // Hidden: weight 1, hidden, light grey
+                SetSubcategoryStyle(famDoc, ScHidden,
+                    lineWeight: 1,
+                    color: new Color(160, 160, 160),
+                    dashPatternName: "Hidden",
+                    result);
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"ApplySubcategoryLineStyles: {ex.Message}");
+            }
+        }
+
+        private static void SetSubcategoryStyle(
+            Document famDoc, string subcatName,
+            int lineWeight, Color color, string dashPatternName,
+            FamilySymbolAuthorResult result)
+        {
+            try
+            {
+                Category subcat = FindSubcategory(famDoc, subcatName);
+                if (subcat == null) return;
+
+                // Line weight
+                try { subcat.SetLineWeight(lineWeight, GraphicsStyleType.Projection); }
+                catch (Exception ex) { result.Warnings.Add($"LineWeight '{subcatName}': {ex.Message}"); }
+
+                // Line color
+                try { subcat.LineColor = color; }
+                catch (Exception ex) { result.Warnings.Add($"LineColor '{subcatName}': {ex.Message}"); }
+
+                // Line pattern (if dash pattern requested)
+                if (!string.IsNullOrEmpty(dashPatternName))
+                {
+                    try
+                    {
+                        ElementId patId = FindLinePatternId(famDoc, dashPatternName);
+                        if (patId != null && patId != ElementId.InvalidElementId)
+                            subcat.SetLinePatternId(patId, GraphicsStyleType.Projection);
+                    }
+                    catch (Exception ex) { result.Warnings.Add($"LinePattern '{subcatName}': {ex.Message}"); }
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"SetSubcategoryStyle '{subcatName}': {ex.Message}");
+            }
+        }
+
+        private static ElementId FindLinePatternId(Document famDoc, string patternName)
+        {
+            // TODO-VERIFY-API: LinePatternElement collector in family doc context in Revit 2025+.
+            return new FilteredElementCollector(famDoc)
+                .OfClass(typeof(LinePatternElement))
+                .Cast<LinePatternElement>()
+                .Where(lp => lp.Name.IndexOf(patternName, StringComparison.OrdinalIgnoreCase) >= 0)
+                .Select(lp => lp.Id)
+                .FirstOrDefault() ?? ElementId.InvalidElementId;
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        //  9. Bounding-box param link (Phase 175+)
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Creates STING_PLAN_HALF_W_FT and STING_PLAN_HALF_D_FT length parameters
+        /// and wires them to existing Width/Depth family params via SetFormula.
+        /// This seeds the parameters so future constraint wiring (reference planes +
+        /// alignments) can drive symbolic curve size parametrically.
+        /// </summary>
+        private static void TryLinkBoundingBoxToFamilyDimensions(
+            Document famDoc, FamilyManager fm, FamilySymbolAuthorResult result)
+        {
+            try
+            {
+                // Common names for width/depth dimension parameters in families
+                string[] widthCandidates = { "Width", "W", "Overall Width", "Nominal Width",
+                    "STING_WIDTH_MM", "Width_MM", "b", "dim_width" };
+                string[] depthCandidates = { "Depth", "D", "Overall Depth", "Nominal Depth",
+                    "STING_DEPTH_MM", "Depth_MM", "d", "dim_depth", "Length", "Length_MM" };
+
+                FamilyParameter widthParam = FindAnyFamilyParam(fm, widthCandidates);
+                FamilyParameter depthParam = FindAnyFamilyParam(fm, depthCandidates);
+
+                CreateHalfDimParam(fm, "STING_PLAN_HALF_W_FT", widthParam, result);
+                CreateHalfDimParam(fm, "STING_PLAN_HALF_D_FT", depthParam, result);
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"TryLinkBoundingBoxToFamilyDimensions: {ex.Message}");
+            }
+        }
+
+        private static void CreateHalfDimParam(
+            FamilyManager fm, string paramName, FamilyParameter sourceParam,
+            FamilySymbolAuthorResult result)
+        {
+            // Skip if already exists
+            if (FindFamilyParam(fm, paramName) != null) return;
+
+            try
+            {
+                fm.AddParameter(paramName, GroupTypeId.General, SpecTypeId.Length, false);
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"Create '{paramName}': {ex.Message}");
+                return;
+            }
+
+            var halfP = FindFamilyParam(fm, paramName);
+            if (halfP == null) return;
+
+            // Seed with a default value (150 mm = ~0.492 ft)
+            try
+            {
+                if (fm.CurrentType != null)
+                    fm.Set(halfP, 0.492);
+            }
+            catch { }
+
+            // Link via formula when source param found: STING_PLAN_HALF_W_FT = Width / 2
+            if (sourceParam != null && !halfP.IsShared)
+            {
+                try
+                {
+                    fm.SetFormula(halfP, $"{sourceParam.Definition.Name} / 2");
+                    StingLog.Info($"FamilySymbolAuthor: {paramName} = {sourceParam.Definition.Name} / 2");
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"SetFormula '{paramName}': {ex.Message}");
+                }
+            }
+        }
+
+        private static FamilyParameter FindAnyFamilyParam(FamilyManager fm, string[] candidates)
+        {
+            var all = fm.GetParameters();
+            foreach (string name in candidates)
+            {
+                var found = all.FirstOrDefault(p =>
+                    string.Equals(p.Definition.Name, name, StringComparison.OrdinalIgnoreCase));
+                if (found != null) return found;
+            }
+            return null;
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -671,8 +1124,7 @@ namespace StingTools.Core
             try
             {
                 Plane plane = Plane.CreateByNormalAndOrigin(normal, origin);
-                // TODO-VERIFY-API: SketchPlane.Create(Document, Plane) available in Revit 2014+;
-                // confirmed supported in 2025/2026/2027.
+                // TODO-VERIFY-API: SketchPlane.Create(Document, Plane) confirmed in Revit 2014+.
                 return SketchPlane.Create(famDoc, plane);
             }
             catch (Exception ex)
@@ -686,22 +1138,24 @@ namespace StingTools.Core
             Document famDoc, SketchPlane sp,
             XYZ p0, XYZ p1, XYZ p2, XYZ p3,
             Category subcat, FamilyParameter visParam,
+            FamilyElementVisibilityType? viewTypeVis,
             FamilySymbolAuthorResult result)
         {
             int count = 0;
             var corners = new[] { p0, p1, p2, p3 };
             for (int i = 0; i < 4; i++)
-                count += CreateLine(famDoc, sp, corners[i], corners[(i + 1) % 4], subcat, visParam, result);
+                count += CreateLine(famDoc, sp, corners[i], corners[(i + 1) % 4],
+                    subcat, visParam, viewTypeVis, result);
             return count;
         }
 
         private static int CreateCircle(
             Document famDoc, SketchPlane sp, double radius,
             Category subcat, FamilyParameter visParam,
+            FamilyElementVisibilityType? viewTypeVis,
             FamilySymbolAuthorResult result)
         {
             int count = 0;
-            // Four arc quadrants → full circle
             for (int q = 0; q < 4; q++)
             {
                 try
@@ -709,15 +1163,13 @@ namespace StingTools.Core
                     double a1   = q * Math.PI / 2;
                     double aMid = (q + 0.5) * Math.PI / 2;
                     double a2   = (q + 1) * Math.PI / 2;
-
                     XYZ start = new XYZ(radius * Math.Cos(a1),   radius * Math.Sin(a1),   0);
                     XYZ mid   = new XYZ(radius * Math.Cos(aMid), radius * Math.Sin(aMid), 0);
                     XYZ end   = new XYZ(radius * Math.Cos(a2),   radius * Math.Sin(a2),   0);
-
                     if (start.IsAlmostEqualTo(end)) continue;
-                    // TODO-VERIFY-API: Arc.Create(start, end, pointOnArc) — 3-point arc.
+                    // TODO-VERIFY-API: Arc.Create(start, end, pointOnArc) 3-point arc.
                     Arc arc = Arc.Create(start, end, mid);
-                    count += PlaceSymbolicCurve(famDoc, sp, arc, subcat, visParam, result);
+                    count += PlaceSymbolicCurve(famDoc, sp, arc, subcat, visParam, viewTypeVis, result);
                 }
                 catch (Exception ex) { result.Warnings.Add($"CreateCircle arc {q}: {ex.Message}"); }
             }
@@ -727,12 +1179,14 @@ namespace StingTools.Core
         private static int CreateLine(
             Document famDoc, SketchPlane sp, XYZ p1, XYZ p2,
             Category subcat, FamilyParameter visParam,
+            FamilyElementVisibilityType? viewTypeVis,
             FamilySymbolAuthorResult result)
         {
             try
             {
                 if (p1.IsAlmostEqualTo(p2)) return 0;
-                return PlaceSymbolicCurve(famDoc, sp, Line.CreateBound(p1, p2), subcat, visParam, result);
+                return PlaceSymbolicCurve(famDoc, sp, Line.CreateBound(p1, p2),
+                    subcat, visParam, viewTypeVis, result);
             }
             catch (Exception ex) { result.Warnings.Add($"CreateLine: {ex.Message}"); return 0; }
         }
@@ -740,12 +1194,12 @@ namespace StingTools.Core
         private static int PlaceSymbolicCurve(
             Document famDoc, SketchPlane sp, Curve geom,
             Category subcat, FamilyParameter visParam,
+            FamilyElementVisibilityType? viewTypeVis,
             FamilySymbolAuthorResult result)
         {
             try
             {
                 // TODO-VERIFY-API: FamilyCreate.NewSymbolicCurve returns ModelCurve in Revit 2014+.
-                // ModelCurve.Subcategory and ModelCurve.VisibilityParam confirmed in Revit 2025 API docs.
                 ModelCurve mc = famDoc.FamilyCreate.NewSymbolicCurve(geom, sp);
                 if (mc == null) return 0;
 
@@ -756,6 +1210,24 @@ namespace StingTools.Core
                 if (visParam != null)
                     try { mc.VisibilityParam = visParam; }
                     catch (Exception ex) { result.Warnings.Add($"Set VisibilityParam: {ex.Message}"); }
+
+                // Phase 175+: restrict which view type this curve appears in.
+                // CurvesInPlanViews  → only plan/RCP cut views
+                // CurvesInFrontBack  → only front/back elevation views
+                // CurvesInLeftRight  → only left/right elevation views
+                if (viewTypeVis.HasValue)
+                {
+                    try
+                    {
+                        // TODO-VERIFY-API: ModelCurve.SetVisibility(FamilyElementVisibility) in Revit 2025+.
+                        var fev = new FamilyElementVisibility(viewTypeVis.Value);
+                        mc.SetVisibility(fev);
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Warnings.Add($"SetVisibility curve: {ex.Message}");
+                    }
+                }
 
                 return 1;
             }
@@ -814,7 +1286,12 @@ namespace StingTools.Core
                    bic == BuiltInCategory.OST_MechanicalEquipment  ||
                    bic == BuiltInCategory.OST_FireAlarmDevices      ||
                    bic == BuiltInCategory.OST_SecurityDevices       ||
-                   bic == BuiltInCategory.OST_CommunicationDevices;
+                   bic == BuiltInCategory.OST_CommunicationDevices  ||
+                   bic == BuiltInCategory.OST_Sprinklers            ||
+                   bic == BuiltInCategory.OST_NurseCallDevices      ||
+                   bic == BuiltInCategory.OST_DataDevices           ||
+                   bic == BuiltInCategory.OST_TelephoneDevices      ||
+                   bic == BuiltInCategory.OST_SpecialityEquipment;
         }
 
         private static bool IsMepFittingCategory(BuiltInCategory bic)
@@ -829,8 +1306,8 @@ namespace StingTools.Core
 
         private static bool IsRoundConnector(BuiltInCategory bic)
         {
-            return bic == BuiltInCategory.OST_PipeFitting   ||
-                   bic == BuiltInCategory.OST_ConduitFittings ||
+            return bic == BuiltInCategory.OST_PipeFitting    ||
+                   bic == BuiltInCategory.OST_ConduitFittings  ||
                    bic == BuiltInCategory.OST_PipeCurves;
         }
 
@@ -847,7 +1324,7 @@ namespace StingTools.Core
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        //  Private IFamilyLoadOptions used for annotation family embedding
+        //  Private IFamilyLoadOptions for annotation family embedding
         // ─────────────────────────────────────────────────────────────────────
 
         private sealed class LocalFamilyLoadOptions : IFamilyLoadOptions
