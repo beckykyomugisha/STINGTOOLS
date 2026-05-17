@@ -182,9 +182,9 @@ export default function AlignmentScreen() {
     try {
       const result: AutoAlignResult = await autoAlignModel(activeProject.id, modelId);
       const msg = result.message
-        ?? (result.status === 'ok'
-          ? `Auto-alignment applied (confidence ${Math.round((result.confidenceScore ?? 0) * 100)}%).`
-          : `Status: ${result.status}`);
+        ?? (result.success
+          ? `Auto-alignment applied (TX:${result.translationX.toFixed(1)} TY:${result.translationY.toFixed(1)} mm, Rot:${result.rotationDeg.toFixed(3)}°).`
+          : 'Auto-alignment failed — no compatible georeferencing data found.');
       Alert.alert('Auto-Align', msg);
       // Refresh transforms to show the new values
       const updated = await getModelTransform(activeProject.id, modelId).catch(() => null);

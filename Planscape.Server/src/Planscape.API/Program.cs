@@ -499,6 +499,9 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.IAutoAlignService,
 // Gap G — Full project-wide federated coordinate coherence scan.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IFederatedCoherenceJob,
     Planscape.Infrastructure.Services.FederatedCoherenceJob>();
+// Gap A–D — IFC alignment / georeferencing validator (called after every IFC ingest).
+builder.Services.AddScoped<Planscape.Core.Interfaces.IIfcAlignmentValidator,
+    Planscape.Infrastructure.Services.IfcAlignmentValidator>();
 
 if (isWorker)
 {

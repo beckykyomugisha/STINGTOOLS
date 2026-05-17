@@ -100,6 +100,9 @@ public class ModelTransformController : ControllerBase
         if (!projectExists)
             return NotFound(new { message = "Model not found or does not belong to this project/tenant." });
 
+        if (dto.ScaleFactor <= 0)
+            return BadRequest(new { message = "ScaleFactor must be greater than zero." });
+
         // Look up or create the transform row
         var xf = await _db.Set<ProjectModelTransform>()
             .FirstOrDefaultAsync(

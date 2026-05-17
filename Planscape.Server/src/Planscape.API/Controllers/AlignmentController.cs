@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
-using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.Services;
 
@@ -15,10 +14,9 @@ public class AlignmentController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly ITenantContext _tenant;
-    private readonly IIfcAlignmentValidator _validator;
 
-    public AlignmentController(PlanscapeDbContext db, ITenantContext tenant, IIfcAlignmentValidator validator)
-    { _db = db; _tenant = tenant; _validator = validator; }
+    public AlignmentController(PlanscapeDbContext db, ITenantContext tenant)
+    { _db = db; _tenant = tenant; }
 
     // GET /api/projects/{id}/alignment — all alignment reports for the project
     [HttpGet]

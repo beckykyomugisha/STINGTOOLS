@@ -362,6 +362,17 @@ public sealed class IfcAlignmentValidator : IIfcAlignmentValidator
                 "If this is a combined physical+analytical export, re-export physical elements only."));
         }
 
+        // Gap I / G3 — populate centroid proxy from survey origin (m → mm).
+        // When the model is georeferenced the survey point IS the canonical
+        // anchor; this lets upstream drift-detection code compare centroids
+        // even before a full geometry tessellation pass has run.
+        if (report.SurveyEasting.HasValue)
+        {
+            report.GeometryCentroidX = report.SurveyEasting.Value  * 1000.0;
+            report.GeometryCentroidY = (report.SurveyNorthing ?? 0) * 1000.0;
+            report.GeometryCentroidZ = (report.SurveyElevation ?? 0) * 1000.0;
+        }
+
         // Determine verdict
         report.Verdict = findings.Any(f => f.Severity == "FAIL") ? "FAIL"
                        : findings.Any(f => f.Severity == "WARN") ? "WARN"

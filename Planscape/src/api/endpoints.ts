@@ -2128,15 +2128,14 @@ export function resetModelTransform(projectId: string, modelId: string): Promise
 // ── Gap F: Auto-align ─────────────────────────────────────────────────────
 
 export interface AutoAlignResult {
-  modelId: string;
-  status: string;
-  translationX?: number;
-  translationY?: number;
-  translationZ?: number;
-  rotationDeg?: number;
-  scaleFactor?: number;
-  confidenceScore?: number;
-  message?: string;
+  success: boolean;
+  translationX: number;
+  translationY: number;
+  translationZ: number;
+  rotationDeg: number;
+  scaleFactor: number;
+  referenceModelId?: string | null;
+  message?: string | null;
 }
 
 export function autoAlignModel(projectId: string, modelId: string): Promise<AutoAlignResult> {
@@ -2188,7 +2187,8 @@ export function getCoordinateSystem(projectId: string): Promise<ProjectCoordinat
   return apiFetch(`/api/projects/${projectId}/coordinate-system`);
 }
 
-export function upsertCoordinateSystem(
+// G11 fix: server POST returns 409 if CRS already exists; fall back to PUT.
+export async function upsertCoordinateSystem(
   projectId: string,
   body: {
     crsEpsgCode?: string; crsName?: string;
@@ -2197,8 +2197,18 @@ export function upsertCoordinateSystem(
     referenceModelId?: string; notes?: string;
   },
 ): Promise<ProjectCoordinateSystem> {
-  return apiFetch(`/api/projects/${projectId}/coordinate-system`, {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
+  try {
+    return await apiFetch(`/api/projects/${projectId}/coordinate-system`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  } catch (err: any) {
+    if (err?.status === 409) {
+      return apiFetch(`/api/projects/${projectId}/coordinate-system`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      });
+    }
+    throw err;
+  }
 }

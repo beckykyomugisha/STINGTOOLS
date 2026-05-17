@@ -66,6 +66,17 @@ public sealed class AutoAlignService : IAutoAlignService
             return Fail("Target model has no IfcMapConversion data");
         }
 
+        // ── 2b. Guard: target must not be the designated reference model ────────
+        // (ComputeAsync is a no-op and would produce a zero transform)
+        var pcsCheck = await _db.Set<ProjectCoordinateSystem>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.ProjectId == projectId && x.TenantId == tenantId, ct);
+        if (pcsCheck?.ReferenceModelId.HasValue == true
+            && pcsCheck.ReferenceModelId.Value == targetModelId)
+        {
+            return Fail("Target model is the designated reference model; nothing to align.");
+        }
+
         // ── 3. Check for ProjectCoordinateSystem ──────────────────────────────
         var pcs = await _db.Set<ProjectCoordinateSystem>()
             .AsNoTracking()
