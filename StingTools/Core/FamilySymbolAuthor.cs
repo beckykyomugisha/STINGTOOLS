@@ -46,6 +46,39 @@ namespace StingTools.Core
         IEC,
         /// <summary>ANSI/IEEE 315 graphic symbols for electrical and electronics diagrams.</summary>
         ANSI,
+        /// <summary>BS 1553 / BS 8888 British Standard symbols (largely mirrors IEC).</summary>
+        BS,
+        /// <summary>NFPA 170 Standard for Fire Safety and Emergency Symbols.</summary>
+        NFPA,
+        /// <summary>CIBSE Guide symbols for UK building services engineering.</summary>
+        CIBSE,
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Standard switching parameter bundle (returned by InjectStandardSwitchingParams)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    internal sealed class StandardSwitchingParams
+    {
+        public FamilyParameter StdParam   { get; set; }   // STING_SYMBOL_STD (Integer)
+        public FamilyParameter IecBool    { get; set; }   // STING_SHOW_IEC_BOOL
+        public FamilyParameter AnsiBool   { get; set; }   // STING_SHOW_ANSI_BOOL
+        public FamilyParameter BsBool     { get; set; }   // STING_SHOW_BS_BOOL
+        public FamilyParameter NfpaBool   { get; set; }   // STING_SHOW_NFPA_BOOL
+        public FamilyParameter CibseBool  { get; set; }   // STING_SHOW_CIBSE_BOOL
+
+        public FamilyParameter GetBool(SymbolStandard standard)
+        {
+            switch (standard)
+            {
+                case SymbolStandard.IEC:   return IecBool;
+                case SymbolStandard.ANSI:  return AnsiBool;
+                case SymbolStandard.BS:    return BsBool;
+                case SymbolStandard.NFPA:  return NfpaBool;
+                case SymbolStandard.CIBSE: return CibseBool;
+                default:                  return IecBool;
+            }
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -107,6 +140,7 @@ namespace StingTools.Core
         public int  ConnectorParamsCreated        { get; set; }
         public int  ConnectorParamsAssociated     { get; set; }
         public int  ElementVisibilitySet          { get; set; }
+        public int  StandardParamsCreated         { get; set; }  // STING_SYMBOL_STD + STING_SHOW_*_BOOL
         public List<string> Warnings              { get; } = new List<string>();
 
         public override string ToString()
@@ -115,6 +149,7 @@ namespace StingTools.Core
                    $"plan:{PlanCurvesCreated} elev:{ElevCurvesCreated} " +
                    $"sideElev:{SideElevCurvesCreated} clr:{ClearanceCurvesCreated} " +
                    $"wired:{CurvesWiredToLodParam} visSet:{ElementVisibilitySet} " +
+                   $"stdParams:{StandardParamsCreated} " +
                    $"annot(file:{AnnotationSymbolFileEmbedded} curves:{AnnotationSymbolCurvesCreated}) " +
                    $"conn:{ConnectorsFound}→{ConnectorParamsCreated}params/{ConnectorParamsAssociated}assoc";
         }
@@ -206,10 +241,25 @@ namespace StingTools.Core
             // ── Step 5: Annotation plan symbol (electrical/lighting/plumbing) ─
             if (opts.EmbedAnnotationPlanSymbol && IsAnnotationCategory(bic))
             {
-                EmbedAnnotationPlanSymbol(famDoc, bic, scPlan, lodCoarse,
-                    opts.AnnotationSymbolDir ?? GetDefaultAnnotationDir(),
-                    opts.PlanHalfWidthFt, opts.PlanHalfDepthFt,
-                    opts.SetCurveViewTypeVisibility, opts.SymbolStandard, result);
+                // Inject STING_SYMBOL_STD + derived STING_SHOW_*_BOOL params so the
+                // family can host all standards simultaneously and switch at instance level.
+                var switchParams = InjectStandardSwitchingParams(famDoc, fm, lodCoarse, result);
+
+                if (switchParams != null)
+                {
+                    // Multi-standard path: embed all available standard variants.
+                    CreateAllStandardSymbolSets(famDoc, bic, scPlan,
+                        switchParams, opts.PlanHalfWidthFt, opts.PlanHalfDepthFt,
+                        opts.SetCurveViewTypeVisibility, result);
+                }
+                else
+                {
+                    // Fallback: single standard (legacy annotation family or built-in shapes).
+                    EmbedAnnotationPlanSymbol(famDoc, bic, scPlan, lodCoarse,
+                        opts.AnnotationSymbolDir ?? GetDefaultAnnotationDir(),
+                        opts.PlanHalfWidthFt, opts.PlanHalfDepthFt,
+                        opts.SetCurveViewTypeVisibility, opts.SymbolStandard, result);
+                }
             }
 
             // ── Step 6: Connector parametrization (MEP fittings) ────────────
@@ -367,7 +417,352 @@ namespace StingTools.Core
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        //  5. Annotation plan symbol — electrical / lighting / plumbing
+        //  5. Standard switching params + multi-standard symbol sets
+        // ─────────────────────────────────────────────────────────────────────
+
+        private static readonly (SymbolStandard Std, string BoolName, string StdKey, int Code)[]
+            _standardDefs =
+        {
+            (SymbolStandard.IEC,   ParamRegistry.SHOW_IEC_BOOL,   "IEC",   ParamRegistry.STD_CODE_IEC),
+            (SymbolStandard.ANSI,  ParamRegistry.SHOW_ANSI_BOOL,  "ANSI",  ParamRegistry.STD_CODE_ANSI),
+            (SymbolStandard.BS,    ParamRegistry.SHOW_BS_BOOL,    "BS",    ParamRegistry.STD_CODE_BS),
+            (SymbolStandard.NFPA,  ParamRegistry.SHOW_NFPA_BOOL,  "NFPA",  ParamRegistry.STD_CODE_NFPA),
+            (SymbolStandard.CIBSE, ParamRegistry.SHOW_CIBSE_BOOL, "CIBSE", ParamRegistry.STD_CODE_CIBSE),
+        };
+
+        /// <summary>
+        /// Creates STING_SYMBOL_STD (Integer) and five derived Yes/No formula params
+        /// (STING_SHOW_IEC_BOOL … STING_SHOW_CIBSE_BOOL) inside the family.
+        /// Returns null if the family manager cannot accept parameters (non-family doc).
+        /// </summary>
+        private static StandardSwitchingParams InjectStandardSwitchingParams(
+            Document famDoc, FamilyManager fm, FamilyParameter lodCoarseParam,
+            FamilySymbolAuthorResult result)
+        {
+            try
+            {
+                var existing = fm.GetParameters()
+                    .ToDictionary(p => p.Definition.Name, StringComparer.OrdinalIgnoreCase);
+
+                // ── STING_SYMBOL_STD — Integer type param (controls which standard is shown) ──
+                FamilyParameter stdParam = existing.ContainsKey(ParamRegistry.SYMBOL_STD_PARAM)
+                    ? existing[ParamRegistry.SYMBOL_STD_PARAM]
+                    : null;
+                if (stdParam == null)
+                {
+                    try
+                    {
+                        stdParam = fm.AddParameter(
+                            ParamRegistry.SYMBOL_STD_PARAM,
+                            GroupTypeId.General,
+                            SpecTypeId.Int.Integer,
+                            false);   // type param so a single change affects all instances
+                        if (fm.CurrentType != null) fm.Set(stdParam, ParamRegistry.STD_CODE_IEC);
+                        result.StandardParamsCreated++;
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Warnings.Add($"InjectStd — create STING_SYMBOL_STD: {ex.Message}");
+                        return null;
+                    }
+                }
+
+                // ── Derived Yes/No params, one per standard ────────────────────────────────
+                var sp = new StandardSwitchingParams { StdParam = stdParam };
+
+                bool hasLod = lodCoarseParam != null;
+                foreach (var (std, boolName, _, code) in _standardDefs)
+                {
+                    FamilyParameter boolParam = existing.ContainsKey(boolName)
+                        ? existing[boolName]
+                        : null;
+
+                    if (boolParam == null)
+                    {
+                        try
+                        {
+                            boolParam = fm.AddParameter(
+                                boolName,
+                                GroupTypeId.General,
+                                SpecTypeId.Boolean.YesNo,
+                                false);
+                            result.StandardParamsCreated++;
+                        }
+                        catch (Exception ex)
+                        {
+                            result.Warnings.Add($"InjectStd — create {boolName}: {ex.Message}");
+                            continue;
+                        }
+                    }
+
+                    // Wire formula: if LOD coarse param exists combine both conditions,
+                    // otherwise gate on standard only (simpler but LOD-independent).
+                    string formula = hasLod
+                        ? $"if(STING_LOD_COARSE_VISIBLE, {ParamRegistry.SYMBOL_STD_PARAM} = {code}, false)"
+                        : $"{ParamRegistry.SYMBOL_STD_PARAM} = {code}";
+
+                    try { fm.SetFormula(boolParam, formula); }
+                    catch
+                    {
+                        // If the compound formula fails (LOD param not yet resolved),
+                        // fall back to the simpler form.
+                        try { fm.SetFormula(boolParam, $"{ParamRegistry.SYMBOL_STD_PARAM} = {code}"); }
+                        catch (Exception ex2)
+                        {
+                            result.Warnings.Add($"InjectStd — formula {boolName}: {ex2.Message}");
+                        }
+                    }
+
+                    switch (std)
+                    {
+                        case SymbolStandard.IEC:   sp.IecBool   = boolParam; break;
+                        case SymbolStandard.ANSI:  sp.AnsiBool  = boolParam; break;
+                        case SymbolStandard.BS:    sp.BsBool    = boolParam; break;
+                        case SymbolStandard.NFPA:  sp.NfpaBool  = boolParam; break;
+                        case SymbolStandard.CIBSE: sp.CibseBool = boolParam; break;
+                    }
+                }
+
+                return sp;
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"InjectStandardSwitchingParams: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Creates one set of symbolic curves per available standard (IEC / ANSI / BS / NFPA / CIBSE).
+        /// Each set is wired to its corresponding STING_SHOW_*_BOOL visibility parameter so exactly
+        /// one set is visible at any given time.  Falls back to built-in shapes for standards not
+        /// present in the JSON.
+        /// </summary>
+        private static void CreateAllStandardSymbolSets(
+            Document famDoc, BuiltInCategory bic,
+            Category planSubcat, StandardSwitchingParams sp,
+            double halfW, double halfD, bool setViewTypeVis,
+            FamilySymbolAuthorResult result)
+        {
+            if (HasSymbolicCurvesInSubcat(famDoc, planSubcat)) return;
+
+            LoadSymbolShapesJson();
+
+            SketchPlane sketchPlane = GetOrCreateSketchPlane(famDoc, XYZ.BasisZ, XYZ.Zero);
+            if (sketchPlane == null)
+            {
+                result.Warnings.Add("CreateAllStandardSymbolSets: could not get sketch plane");
+                return;
+            }
+
+            FamilyElementVisibilityType? vtVis = setViewTypeVis
+                ? FamilyElementVisibilityType.CurvesInPlanViews
+                : (FamilyElementVisibilityType?)null;
+
+            string catKey = bic.ToString();
+
+            foreach (var (std, _, stdKey, _) in _standardDefs)
+            {
+                FamilyParameter visParam = sp.GetBool(std);
+                if (visParam == null) continue;
+
+                // Try JSON geometry for this standard
+                bool created = TryCreateStandardCurvesFromJson(famDoc, catKey, stdKey,
+                    sketchPlane, planSubcat, visParam, halfW, halfD, vtVis, result);
+
+                if (!created)
+                {
+                    // JSON doesn't have this standard/category combo — try the IEC JSON fallback,
+                    // then the built-in schematic shapes.  Only do this for IEC to avoid duplicate
+                    // curves; other standards that have no unique definition will not be authored
+                    // (their bool stays false so nothing is shown for that standard).
+                    if (std == SymbolStandard.IEC)
+                    {
+                        created = TryCreateStandardCurvesFromJson(famDoc, catKey, "IEC",
+                            sketchPlane, planSubcat, visParam, halfW, halfD, vtVis, result);
+
+                        if (!created)
+                            CreateSchematicPlanSymbolWithVisParam(famDoc, bic, sketchPlane,
+                                planSubcat, visParam, halfW, halfD, vtVis, result);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Renders one standard's geometry segment list onto symbolic curves wired to <paramref name="visParam"/>.
+        /// Returns true when at least one curve was placed.
+        /// </summary>
+        private static bool TryCreateStandardCurvesFromJson(
+            Document famDoc, string catKey, string stdKey,
+            SketchPlane sp, Category planSubcat, FamilyParameter visParam,
+            double halfW, double halfD,
+            FamilyElementVisibilityType? vtVis,
+            FamilySymbolAuthorResult result)
+        {
+            if (_symbolShapesCache == null) return false;
+
+            JToken catNode  = _symbolShapesCache["categories"]?[catKey];
+            if (catNode == null) return false;
+
+            // Try the requested standard key; if missing fall back to "IEC"
+            JToken stdNode = catNode[stdKey] ?? (stdKey == "IEC" ? null : catNode["IEC"]);
+            if (stdNode == null) return false;
+
+            int count = 0;
+            foreach (JObject seg in stdNode)
+            {
+                string type = seg["type"]?.Value<string>() ?? "";
+                switch (type)
+                {
+                    case "circle":
+                    {
+                        double r = (seg["r"]?.Value<double>() ?? 1.0) * halfW;
+                        count += CreateCircle(famDoc, sp, r, planSubcat, visParam, vtVis, result);
+                        break;
+                    }
+                    case "line":
+                    {
+                        double x1 = (seg["x1"]?.Value<double>() ?? 0) * halfW;
+                        double y1 = (seg["y1"]?.Value<double>() ?? 0) * halfD;
+                        double x2 = (seg["x2"]?.Value<double>() ?? 0) * halfW;
+                        double y2 = (seg["y2"]?.Value<double>() ?? 0) * halfD;
+                        count += CreateLine(famDoc, sp,
+                            new XYZ(x1, y1, 0), new XYZ(x2, y2, 0),
+                            planSubcat, visParam, vtVis, result);
+                        break;
+                    }
+                    case "arc":
+                    {
+                        double r    = (seg["r"]?.Value<double>() ?? 1.0) * halfW;
+                        double cx   = (seg["cx"]?.Value<double>() ?? 0) * halfW;
+                        double cy   = (seg["cy"]?.Value<double>() ?? 0) * halfD;
+                        double a1   =  seg["a1"]?.Value<double>() ?? 0;
+                        double a2   =  seg["a2"]?.Value<double>() ?? Math.PI;
+                        double aMid = (a1 + a2) / 2;
+                        XYZ ctr   = new XYZ(cx, cy, 0);
+                        XYZ start = ctr + new XYZ(r * Math.Cos(a1),   r * Math.Sin(a1),   0);
+                        XYZ mid   = ctr + new XYZ(r * Math.Cos(aMid), r * Math.Sin(aMid), 0);
+                        XYZ end   = ctr + new XYZ(r * Math.Cos(a2),   r * Math.Sin(a2),   0);
+                        try
+                        {
+                            Arc arc = Arc.Create(start, end, mid);
+                            count += PlaceSymbolicCurve(famDoc, sp, arc, planSubcat, visParam, vtVis, result);
+                        }
+                        catch (Exception ex) { result.Warnings.Add($"JSON arc [{stdKey}]: {ex.Message}"); }
+                        break;
+                    }
+                    case "rect":
+                    {
+                        double rx = (seg["x"]?.Value<double>() ?? -1.0) * halfW;
+                        double ry = (seg["y"]?.Value<double>() ?? -1.0) * halfD;
+                        double rw = (seg["w"]?.Value<double>() ??  2.0) * halfW;
+                        double rh = (seg["h"]?.Value<double>() ??  2.0) * halfD;
+                        count += CreateRectangleCurves(famDoc, sp,
+                            new XYZ(rx,      ry,      0),
+                            new XYZ(rx + rw, ry,      0),
+                            new XYZ(rx + rw, ry + rh, 0),
+                            new XYZ(rx,      ry + rh, 0),
+                            planSubcat, visParam, vtVis, result);
+                        break;
+                    }
+                }
+            }
+
+            if (count > 0)
+            {
+                result.AnnotationSymbolCurvesCreated += count;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Built-in schematic fallback — same geometry as <see cref="CreateSchematicPlanSymbol"/>
+        /// but accepts an arbitrary <paramref name="visParam"/> instead of the LOD coarse param.
+        /// </summary>
+        private static void CreateSchematicPlanSymbolWithVisParam(
+            Document famDoc, BuiltInCategory bic, SketchPlane sp,
+            Category planSubcat, FamilyParameter visParam,
+            double halfW, double halfD,
+            FamilyElementVisibilityType? vtVis,
+            FamilySymbolAuthorResult result)
+        {
+            // Delegate to the existing schematic builder but swap the lodParam for visParam.
+            // We do this by temporarily creating curves directly with the correct vis param.
+            try
+            {
+                int curves = 0;
+                switch (bic)
+                {
+                    case BuiltInCategory.OST_ElectricalFixtures:
+                    case BuiltInCategory.OST_FireAlarmDevices:
+                    case BuiltInCategory.OST_SecurityDevices:
+                    case BuiltInCategory.OST_CommunicationDevices:
+                    case BuiltInCategory.OST_DataDevices:
+                    case BuiltInCategory.OST_TelephoneDevices:
+                    {
+                        double r = Math.Min(halfW, halfD);
+                        curves += CreateCircle(famDoc, sp, r, planSubcat, visParam, vtVis, result);
+                        curves += CreateLine(famDoc, sp,
+                            new XYZ(0, -r, 0), new XYZ(0, -r * 1.4, 0),
+                            planSubcat, visParam, vtVis, result);
+                        break;
+                    }
+                    case BuiltInCategory.OST_LightingFixtures:
+                    {
+                        double r = Math.Min(halfW, halfD);
+                        curves += CreateCircle(famDoc, sp, r, planSubcat, visParam, vtVis, result);
+                        curves += CreateLine(famDoc, sp,
+                            new XYZ(-r * 0.65, 0, 0), new XYZ(r * 0.65, 0, 0),
+                            planSubcat, visParam, vtVis, result);
+                        curves += CreateLine(famDoc, sp,
+                            new XYZ(0, -r * 0.65, 0), new XYZ(0, r * 0.65, 0),
+                            planSubcat, visParam, vtVis, result);
+                        break;
+                    }
+                    case BuiltInCategory.OST_NurseCallDevices:
+                    {
+                        double r = Math.Min(halfW, halfD);
+                        curves += CreateCircle(famDoc, sp, r,       planSubcat, visParam, vtVis, result);
+                        curves += CreateCircle(famDoc, sp, r * 0.18, planSubcat, visParam, vtVis, result);
+                        break;
+                    }
+                    case BuiltInCategory.OST_Sprinklers:
+                    {
+                        double r = Math.Min(halfW, halfD) * 0.8;
+                        curves += CreateCircle(famDoc, sp, r, planSubcat, visParam, vtVis, result);
+                        foreach (var (dx, dy, ex2, ey2) in new[]
+                        {
+                            (-halfW, 0.0, -r, 0.0),
+                            (halfW, 0.0, r, 0.0),
+                            (0.0, -halfD, 0.0, -r),
+                            (0.0, halfD, 0.0, r),
+                        })
+                        {
+                            curves += CreateLine(famDoc, sp,
+                                new XYZ(dx, dy, 0), new XYZ(ex2, ey2, 0),
+                                planSubcat, visParam, vtVis, result);
+                        }
+                        break;
+                    }
+                    default:
+                    {
+                        double r = Math.Min(halfW, halfD);
+                        curves += CreateCircle(famDoc, sp, r, planSubcat, visParam, vtVis, result);
+                        break;
+                    }
+                }
+                if (curves > 0) result.AnnotationSymbolCurvesCreated += curves;
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"CreateSchematicPlanSymbolWithVisParam: {ex.Message}");
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        //  5b. Annotation plan symbol — single-standard (legacy path)
         // ─────────────────────────────────────────────────────────────────────
 
         private static void EmbedAnnotationPlanSymbol(

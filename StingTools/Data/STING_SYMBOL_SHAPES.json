@@ -1,6 +1,6 @@
 {
-  "version": "1.0",
-  "description": "IEC 60617 and ANSI/IEEE 315 normalised plan-symbol geometry for STING family authoring. Coordinates are normalised: 1.0 = halfWidth of the symbol bounding box. Scaled by FamilySymbolAuthorOptions.PlanHalfWidthFt at runtime.",
+  "version": "1.1",
+  "description": "IEC 60617, ANSI/IEEE 315, BS 1553, NFPA 170, and CIBSE Guide normalised plan-symbol geometry for STING family authoring. Coordinates are normalised: 1.0 = halfWidth of the symbol bounding box. Scaled by FamilySymbolAuthorOptions.PlanHalfWidthFt at runtime. Standards: IEC (0), ANSI (1), BS (2), NFPA (3), CIBSE (4).",
   "categories": {
 
     "OST_ElectricalFixtures": {
@@ -11,6 +11,19 @@
       "ANSI": [
         { "type": "circle", "r": 1.0, "comment": "ANSI/IEEE 315: duplex receptacle — circle" },
         { "type": "line", "x1": -0.4, "y1": 0.0, "x2": 0.4, "y2": 0.0, "comment": "horizontal dash = duplex" }
+      ],
+      "BS": [
+        { "type": "circle", "r": 1.0, "comment": "BS 1553 Pt1: socket outlet — circle" },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45, "comment": "tick at bottom" },
+        { "type": "line", "x1": -0.35, "y1": -0.35, "x2": 0.35, "y2": 0.35, "comment": "diagonal = switched" }
+      ],
+      "NFPA": [
+        { "type": "circle", "r": 1.0, "comment": "NFPA 70: duplex outlet — circle" },
+        { "type": "line", "x1": -0.4, "y1": 0.0, "x2": 0.4, "y2": 0.0, "comment": "duplex bar" }
+      ],
+      "CIBSE": [
+        { "type": "circle", "r": 1.0, "comment": "CIBSE Guide: power outlet — circle" },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 }
       ]
     },
 
@@ -23,6 +36,20 @@
       "ANSI": [
         { "type": "circle", "r": 1.0, "comment": "ANSI/IEEE 315: lighting outlet — circle" },
         { "type": "line", "x1": -0.7, "y1": 0.0, "x2": 0.7, "y2": 0.0, "comment": "horizontal bar" }
+      ],
+      "BS": [
+        { "type": "circle", "r": 1.0, "comment": "BS 1553 Pt1: luminaire — circle with cross" },
+        { "type": "line", "x1": -0.65, "y1": 0.0, "x2": 0.65, "y2": 0.0 },
+        { "type": "line", "x1": 0.0, "y1": -0.65, "x2": 0.0, "y2": 0.65 }
+      ],
+      "NFPA": [
+        { "type": "circle", "r": 1.0, "comment": "NFPA: lighting outlet" },
+        { "type": "line", "x1": -0.7, "y1": 0.0, "x2": 0.7, "y2": 0.0 }
+      ],
+      "CIBSE": [
+        { "type": "circle", "r": 1.0, "comment": "CIBSE Guide B: luminaire plan — circle" },
+        { "type": "line", "x1": -0.65, "y1": 0.0, "x2": 0.65, "y2": 0.0 },
+        { "type": "line", "x1": 0.0, "y1": -0.65, "x2": 0.0, "y2": 0.65 }
       ]
     },
 
@@ -34,6 +61,19 @@
       "ANSI": [
         { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "ANSI: panelboard — rectangle" },
         { "type": "line", "x1": -1.0, "y1": -1.0, "x2": 1.0, "y2": 1.0 }
+      ],
+      "BS": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "BS 1553: distribution board" },
+        { "type": "line", "x1": -1.0, "y1": -1.0, "x2": 1.0, "y2": 1.0 },
+        { "type": "line", "x1":  1.0, "y1": -1.0, "x2": -1.0, "y2": 1.0, "comment": "double diagonal = main switch" }
+      ],
+      "NFPA": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0 },
+        { "type": "line", "x1": -1.0, "y1": -1.0, "x2": 1.0, "y2": 1.0 }
+      ],
+      "CIBSE": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "CIBSE Guide C: MV switchboard" },
+        { "type": "line", "x1": -1.0, "y1": 0.0, "x2": 1.0, "y2": 0.0, "comment": "horizontal bar = busbar" }
       ]
     },
 
@@ -43,6 +83,18 @@
         { "type": "circle", "r": 0.5, "comment": "inner circle = recessed" }
       ],
       "ANSI": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "circle", "r": 0.5 }
+      ],
+      "BS": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "circle", "r": 0.5 }
+      ],
+      "NFPA": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "circle", "r": 0.5 }
+      ],
+      "CIBSE": [
         { "type": "circle", "r": 1.0 },
         { "type": "circle", "r": 0.5 }
       ]
@@ -56,6 +108,20 @@
       "ANSI": [
         { "type": "circle", "r": 1.0 },
         { "type": "circle", "r": 0.6 }
+      ],
+      "BS": [
+        { "type": "circle", "r": 1.0, "comment": "BS 8888 / BS 1192: plumbing fixture" },
+        { "type": "circle", "r": 0.6 },
+        { "type": "line", "x1": -0.45, "y1": 0.0, "x2": 0.45, "y2": 0.0, "comment": "horizontal bar = sanitary fitting" }
+      ],
+      "NFPA": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "circle", "r": 0.6 }
+      ],
+      "CIBSE": [
+        { "type": "circle", "r": 1.0, "comment": "CIBSE Guide: sanitary appliance" },
+        { "type": "circle", "r": 0.6 },
+        { "type": "line", "x1": 0.0, "y1": -0.6, "x2": 0.0, "y2": -1.0, "comment": "drain connection" }
       ]
     },
 
@@ -69,6 +135,21 @@
         { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0 },
         { "type": "line", "x1": -0.35, "y1": 0.0, "x2": 0.35, "y2": 0.0 },
         { "type": "line", "x1": 0.0, "y1": -0.35, "x2": 0.0, "y2": 0.35 }
+      ],
+      "BS": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "BS 1553: mechanical equipment" },
+        { "type": "line", "x1": -0.35, "y1": 0.0, "x2": 0.35, "y2": 0.0 },
+        { "type": "line", "x1": 0.0, "y1": -0.35, "x2": 0.0, "y2": 0.35 }
+      ],
+      "NFPA": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0 },
+        { "type": "line", "x1": -0.35, "y1": 0.0, "x2": 0.35, "y2": 0.0 },
+        { "type": "line", "x1": 0.0, "y1": -0.35, "x2": 0.0, "y2": 0.35 }
+      ],
+      "CIBSE": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "CIBSE Guide B: AHU / fan coil" },
+        { "type": "line", "x1": -1.0, "y1": 0.0, "x2": 1.0, "y2": 0.0, "comment": "horizontal bisector = coil" },
+        { "type": "arc", "r": 0.45, "cx": 0, "cy": 0, "a1": 0.0, "a2": 3.14159, "comment": "semi-circle = fan" }
       ]
     },
 
@@ -78,8 +159,21 @@
         { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 }
       ],
       "ANSI": [
-        { "type": "circle", "r": 1.0, "comment": "NFPA 170: fire alarm device — circle" },
-        { "type": "line", "x1": -0.5, "y1": 0.5, "x2": 0.5, "y2": -0.5, "comment": "diagonal slash = smoke" }
+        { "type": "circle", "r": 1.0, "comment": "NFPA 72 / ANSI: fire alarm device — circle" },
+        { "type": "line", "x1": -0.5, "y1": 0.5, "x2": 0.5, "y2": -0.5, "comment": "diagonal slash = smoke detector" }
+      ],
+      "BS": [
+        { "type": "circle", "r": 1.0, "comment": "BS 5839 / BS EN 54: fire detector" },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 },
+        { "type": "line", "x1": -0.5, "y1": 0.5, "x2": 0.5, "y2": -0.5, "comment": "diagonal = smoke type" }
+      ],
+      "NFPA": [
+        { "type": "circle", "r": 1.0, "comment": "NFPA 170: fire alarm device — solid circle" },
+        { "type": "circle", "r": 0.5, "comment": "inner circle = smoke detector variant" }
+      ],
+      "CIBSE": [
+        { "type": "circle", "r": 1.0, "comment": "CIBSE Guide: fire detector" },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 }
       ]
     },
 
@@ -89,6 +183,19 @@
         { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 }
       ],
       "ANSI": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 }
+      ],
+      "BS": [
+        { "type": "circle", "r": 1.0, "comment": "BS 4737: intruder detector" },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 },
+        { "type": "line", "x1": -0.5, "y1": -0.5, "x2": 0.5, "y2": 0.5, "comment": "diagonal = PIR" }
+      ],
+      "NFPA": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 }
+      ],
+      "CIBSE": [
         { "type": "circle", "r": 1.0 },
         { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 }
       ]
@@ -101,6 +208,18 @@
       ],
       "ANSI": [
         { "type": "circle", "r": 1.0 },
+        { "type": "line", "x1": -0.5, "y1": 0.0, "x2": 0.5, "y2": 0.0 }
+      ],
+      "BS": [
+        { "type": "circle", "r": 1.0, "comment": "BS EN 50174: comms outlet" },
+        { "type": "line", "x1": -0.5, "y1": 0.0, "x2": 0.5, "y2": 0.0 }
+      ],
+      "NFPA": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "line", "x1": -0.5, "y1": 0.0, "x2": 0.5, "y2": 0.0 }
+      ],
+      "CIBSE": [
+        { "type": "circle", "r": 1.0, "comment": "CIBSE Guide: communications point" },
         { "type": "line", "x1": -0.5, "y1": 0.0, "x2": 0.5, "y2": 0.0 }
       ]
     },
@@ -115,6 +234,21 @@
         { "type": "circle", "r": 1.0 },
         { "type": "line", "x1": -0.5, "y1": 0.0, "x2": 0.5, "y2": 0.0 },
         { "type": "line", "x1": 0.0, "y1": -0.5, "x2": 0.0, "y2": 0.5 }
+      ],
+      "BS": [
+        { "type": "circle", "r": 1.0, "comment": "BS EN 50173: data outlet" },
+        { "type": "line", "x1": -0.5, "y1": 0.0, "x2": 0.5, "y2": 0.0 },
+        { "type": "line", "x1": 0.0, "y1": -0.5, "x2": 0.0, "y2": 0.5 }
+      ],
+      "NFPA": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "line", "x1": -0.5, "y1": 0.0, "x2": 0.5, "y2": 0.0 },
+        { "type": "line", "x1": 0.0, "y1": -0.5, "x2": 0.0, "y2": 0.5 }
+      ],
+      "CIBSE": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "line", "x1": -0.5, "y1": 0.0, "x2": 0.5, "y2": 0.0 },
+        { "type": "line", "x1": 0.0, "y1": -0.5, "x2": 0.0, "y2": 0.5 }
       ]
     },
 
@@ -126,6 +260,18 @@
       "ANSI": [
         { "type": "circle", "r": 1.0 },
         { "type": "arc", "r": 0.55, "cx": 0, "cy": 0, "a1": 0.2, "a2": 2.94 }
+      ],
+      "BS": [
+        { "type": "circle", "r": 1.0, "comment": "BS 1553 Pt3: telephone outlet" },
+        { "type": "arc", "r": 0.55, "cx": 0, "cy": 0, "a1": 0.2, "a2": 2.94 }
+      ],
+      "NFPA": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "arc", "r": 0.55, "cx": 0, "cy": 0, "a1": 0.2, "a2": 2.94 }
+      ],
+      "CIBSE": [
+        { "type": "circle", "r": 1.0, "comment": "CIBSE: telephone point" },
+        { "type": "arc", "r": 0.55, "cx": 0, "cy": 0, "a1": 0.2, "a2": 2.94 }
       ]
     },
 
@@ -136,6 +282,19 @@
       ],
       "ANSI": [
         { "type": "circle", "r": 1.0 },
+        { "type": "circle", "r": 0.18 }
+      ],
+      "BS": [
+        { "type": "circle", "r": 1.0, "comment": "BS 5588 / HTM 08-03: nurse call point" },
+        { "type": "circle", "r": 0.18 },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45, "comment": "pull cord indicator" }
+      ],
+      "NFPA": [
+        { "type": "circle", "r": 1.0 },
+        { "type": "circle", "r": 0.18 }
+      ],
+      "CIBSE": [
+        { "type": "circle", "r": 1.0, "comment": "CIBSE Guide: nurse call" },
         { "type": "circle", "r": 0.18 }
       ]
     },
@@ -154,6 +313,25 @@
         { "type": "line", "x1":  0.8, "y1": 0.0, "x2":  1.0, "y2": 0.0 },
         { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -0.8 },
         { "type": "line", "x1": 0.0, "y1":  0.8, "x2": 0.0, "y2":  1.0 }
+      ],
+      "BS": [
+        { "type": "circle", "r": 0.8, "comment": "BS EN 12845 / BSRIA BG 14: sprinkler head" },
+        { "type": "line", "x1": -1.0, "y1": 0.0, "x2": -0.8, "y2": 0.0 },
+        { "type": "line", "x1":  0.8, "y1": 0.0, "x2":  1.0, "y2": 0.0 },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -0.8 },
+        { "type": "line", "x1": 0.0, "y1":  0.8, "x2": 0.0, "y2":  1.0 }
+      ],
+      "NFPA": [
+        { "type": "circle", "r": 0.5, "comment": "NFPA 13: upright sprinkler — smaller centre circle" },
+        { "type": "line", "x1": -1.0, "y1": 0.0, "x2": 1.0, "y2": 0.0, "comment": "full width horizontal arm" },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": 1.0, "comment": "full height vertical arm" }
+      ],
+      "CIBSE": [
+        { "type": "circle", "r": 0.8, "comment": "CIBSE Guide: sprinkler head" },
+        { "type": "line", "x1": -1.0, "y1": 0.0, "x2": -0.8, "y2": 0.0 },
+        { "type": "line", "x1":  0.8, "y1": 0.0, "x2":  1.0, "y2": 0.0 },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -0.8 },
+        { "type": "line", "x1": 0.0, "y1":  0.8, "x2": 0.0, "y2":  1.0 }
       ]
     },
 
@@ -164,6 +342,21 @@
         { "type": "line", "x1":  1.0, "y1": -1.0, "x2": -1.0, "y2": 1.0 }
       ],
       "ANSI": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0 },
+        { "type": "line", "x1": -1.0, "y1": -1.0, "x2": 1.0, "y2": 1.0 },
+        { "type": "line", "x1":  1.0, "y1": -1.0, "x2": -1.0, "y2": 1.0 }
+      ],
+      "BS": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "BS: speciality equipment — rectangle with X" },
+        { "type": "line", "x1": -1.0, "y1": -1.0, "x2": 1.0, "y2": 1.0 },
+        { "type": "line", "x1":  1.0, "y1": -1.0, "x2": -1.0, "y2": 1.0 }
+      ],
+      "NFPA": [
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0 },
+        { "type": "line", "x1": -1.0, "y1": -1.0, "x2": 1.0, "y2": 1.0 },
+        { "type": "line", "x1":  1.0, "y1": -1.0, "x2": -1.0, "y2": 1.0 }
+      ],
+      "CIBSE": [
         { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0 },
         { "type": "line", "x1": -1.0, "y1": -1.0, "x2": 1.0, "y2": 1.0 },
         { "type": "line", "x1":  1.0, "y1": -1.0, "x2": -1.0, "y2": 1.0 }

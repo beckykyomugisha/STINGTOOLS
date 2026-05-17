@@ -50,14 +50,27 @@ namespace StingTools.Commands.Symbols
         internal static int SwapAllTags(Document doc, string newStandard)
         {
             int n = 0;
+            int stdCode = StandardNameToCode(newStandard);
+
             var tags = new FilteredElementCollector(doc)
                 .OfClass(typeof(IndependentTag))
                 .Cast<IndependentTag>()
                 .Where(t => !string.IsNullOrEmpty(t.LookupParameter("STING_SYMBOL_ID")?.AsString()))
                 .ToList();
+
+            // Collect model family instances that have STING_SYMBOL_STD so we can
+            // switch the embedded multi-standard curve set in one transaction.
+            var modelInstances = new FilteredElementCollector(doc)
+                .OfClass(typeof(FamilyInstance))
+                .Cast<FamilyInstance>()
+                .Where(fi => fi.LookupParameter(ParamRegistry.SYMBOL_STD_PARAM) != null)
+                .ToList();
+
             using (var tx = new Transaction(doc, "STING Swap Symbol Standard"))
             {
                 tx.Start();
+
+                // ── 1. Annotation tags: swap family type ────────────────────────
                 foreach (var tag in tags)
                 {
                     try
@@ -76,17 +89,48 @@ namespace StingTools.Commands.Symbols
                         if (sym == null) continue;
                         if (!sym.IsActive) sym.Activate();
                         tag.ChangeTypeId(sym.Id);
-                        var stdParam = tag.LookupParameter("STING_SYMBOL_STANDARD");
+                        var stdParam = tag.LookupParameter(ParamRegistry.SYMBOL_STANDARD);
                         if (stdParam != null && !stdParam.IsReadOnly) stdParam.Set(newStandard);
                         if (view != null)
                             SymbolAnnotationEngine.UpdateAnnotations(doc, view, newStandard);
                         n++;
                     }
-                    catch (Exception ex) { StingLog.Warn($"SwapAllTags inner: {ex.Message}"); }
+                    catch (Exception ex) { StingLog.Warn($"SwapAllTags tag: {ex.Message}"); }
                 }
+
+                // ── 2. Model family instances: set STING_SYMBOL_STD integer ───────
+                foreach (var fi in modelInstances)
+                {
+                    try
+                    {
+                        var p = fi.LookupParameter(ParamRegistry.SYMBOL_STD_PARAM);
+                        if (p != null && !p.IsReadOnly)
+                        {
+                            p.Set(stdCode);
+                            n++;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"SwapAllTags model fi: {ex.Message}"); }
+                }
+
                 tx.Commit();
             }
             return n;
+        }
+
+        /// <summary>Maps a standard name string to the STING_SYMBOL_STD integer code.</summary>
+        internal static int StandardNameToCode(string standardName)
+        {
+            if (string.IsNullOrEmpty(standardName)) return ParamRegistry.STD_CODE_IEC;
+            switch (standardName.ToUpperInvariant())
+            {
+                case "IEC":   return ParamRegistry.STD_CODE_IEC;
+                case "ANSI":  return ParamRegistry.STD_CODE_ANSI;
+                case "BS":    return ParamRegistry.STD_CODE_BS;
+                case "NFPA":  return ParamRegistry.STD_CODE_NFPA;
+                case "CIBSE": return ParamRegistry.STD_CODE_CIBSE;
+                default:      return ParamRegistry.STD_CODE_IEC;
+            }
         }
     }
 
