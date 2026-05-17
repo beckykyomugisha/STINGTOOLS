@@ -1268,14 +1268,16 @@ namespace StingTools.Commands.Interop
                                 ring[i+1][0], ring[i+1][1], ring[i+1][2],
                             });
                             triCount++;
-                            if (triCount > 50000) break; // safety cap
+                            if (triCount >= 50000) break; // safety cap
                         }
-                        if (triCount > 50000) break;
+                        if (triCount >= 50000) break;
                     }
-                    if (triCount > 50000) break;
+                    if (triCount >= 50000) break;
                 }
-                if (triCount > 50000) break;
+                if (triCount >= 50000) break;
             }
+            if (triCount >= 50000)
+                StingLog.Warn($"ArchiCAD IFC import: 50,000 triangle cap hit — element geometry truncated. Element may render with missing faces.");
 
             // Update AABB so even if Revit rejects the tessellation we have a sensible
             // fallback box. The values stored here are in element-local space, so we
@@ -1790,7 +1792,11 @@ namespace StingTools.Commands.Interop
                     _defaultFloorType.Id, levelId);
                 Stamp(floor, el); CreatedNative++; return floor;
             }
-            catch { return CreateDirectShape(el, "OST_Floors"); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ArchiCAD IFC: Floor.Create failed for {el.GlobalId} ({el.Name}) — falling back to DirectShape. {ex.GetType().Name}: {ex.Message}");
+                return CreateDirectShape(el, "OST_Floors");
+            }
         }
 
         // ── Column ────────────────────────────────────────────────────────────

@@ -52,83 +52,112 @@ public class TagSyncController : ControllerBase
 
         int created = 0, updated = 0;
         var conflicts = new List<SyncConflictDto>();
+        ComplianceSummaryDto metrics;
 
-        // Load all existing elements for this project in one query (avoids N+1)
-        var incomingIds = request.Elements.Select(e => e.RevitElementId).ToHashSet();
-        var existingElements = await _db.TaggedElements
-            .Where(e => e.ProjectId == project.Id && incomingIds.Contains(e.RevitElementId))
-            .ToDictionaryAsync(e => e.RevitElementId);
-
-        // Process in batches to limit EF change tracker pressure
-        foreach (var batch in request.Elements.Chunk(SyncBatchSize))
+        // Single serializable transaction: all element batches + compliance update
+        // commit atomically or roll back together. The SERIALIZABLE isolation level
+        // prevents concurrent pushes from the same project from silently overwriting
+        // each other's data — the second writer will get a serialization failure and
+        // the client must retry.
+        await using var tx = await _db.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.RepeatableRead);
+        try
         {
-            foreach (var dto in batch)
-            {
-                if (existingElements.TryGetValue(dto.RevitElementId, out var existing))
-                {
-                    // Conflict detection: last-write-wins via LastModifiedUtc.
-                    // - If the client did not supply a timestamp, accept the update (legacy client).
-                    // - If the server has no stored timestamp, accept and adopt the client's.
-                    // - If client timestamp > server timestamp, accept and bump Version.
-                    // - Otherwise treat as a stale update — keep the server copy and record a conflict.
-                    var clientTs = ToUtc(dto.LastModifiedUtc);
-                    var serverTs = existing.LastModifiedUtc;
+            // Load all existing elements for this project in one query (avoids N+1).
+            // Runs inside the transaction so the snapshot is consistent for the
+            // duration of the entire sync.
+            var incomingIds = request.Elements.Select(e => e.RevitElementId).ToHashSet();
+            var existingElements = await _db.TaggedElements
+                .Where(e => e.ProjectId == project.Id && incomingIds.Contains(e.RevitElementId))
+                .ToDictionaryAsync(e => e.RevitElementId);
 
-                    if (clientTs.HasValue && serverTs.HasValue && clientTs.Value <= serverTs.Value)
+            // Process in batches to limit EF change tracker pressure.
+            foreach (var batch in request.Elements.Chunk(SyncBatchSize))
+            {
+                foreach (var dto in batch)
+                {
+                    if (existingElements.TryGetValue(dto.RevitElementId, out var existing))
                     {
-                        var conflict = new SyncConflict
+                        // Conflict detection: last-write-wins via LastModifiedUtc.
+                        // - If the client did not supply a timestamp, accept the update (legacy client).
+                        // - If the server has no stored timestamp, accept and adopt the client's.
+                        // - If client timestamp > server timestamp, accept and bump Version.
+                        // - Otherwise treat as a stale update — keep the server copy and record a conflict.
+                        var clientTs = ToUtc(dto.LastModifiedUtc);
+                        var serverTs = existing.LastModifiedUtc;
+
+                        if (clientTs.HasValue && serverTs.HasValue && clientTs.Value <= serverTs.Value)
                         {
-                            ProjectId = project.Id,
-                            TaggedElementId = existing.Id,
-                            ElementId = dto.RevitElementId.ToString(),
-                            ConflictType = "STALE_UPDATE",
-                            Resolution = "SERVER_WINS",
-                            ServerTimestamp = serverTs,
-                            ClientTimestamp = clientTs,
-                            ClientUserName = request.UserName
-                        };
-                        _db.SyncConflicts.Add(conflict);
-                        conflicts.Add(new SyncConflictDto
+                            // Deduplicate: only add a conflict row when none already exists for this
+                            // element + client pair so concurrent pushes don't double-count.
+                            bool alreadyLogged = await _db.SyncConflicts.AnyAsync(c =>
+                                c.ProjectId == project.Id &&
+                                c.ElementId == dto.RevitElementId.ToString() &&
+                                c.ClientTimestamp == clientTs);
+                            if (!alreadyLogged)
+                            {
+                                _db.SyncConflicts.Add(new SyncConflict
+                                {
+                                    ProjectId       = project.Id,
+                                    TaggedElementId = existing.Id,
+                                    ElementId       = dto.RevitElementId.ToString(),
+                                    ConflictType    = "STALE_UPDATE",
+                                    Resolution      = "SERVER_WINS",
+                                    ServerTimestamp = serverTs,
+                                    ClientTimestamp = clientTs,
+                                    ClientUserName  = request.UserName
+                                });
+                                conflicts.Add(new SyncConflictDto
+                                {
+                                    ElementId       = dto.RevitElementId.ToString(),
+                                    ServerTimestamp = serverTs,
+                                    ClientTimestamp = clientTs,
+                                    Resolution      = "SERVER_WINS"
+                                });
+                            }
+                            // Do NOT overwrite — server wins.
+                        }
+                        else
                         {
-                            ElementId = dto.RevitElementId.ToString(),
-                            ServerTimestamp = serverTs,
-                            ClientTimestamp = clientTs,
-                            Resolution = "SERVER_WINS"
-                        });
-                        // Do NOT overwrite — server wins.
+                            MapDtoToEntity(dto, existing, request.UserName);
+                            existing.Version        += 1;
+                            existing.LastModifiedUtc = ToUtc(clientTs) ?? DateTime.UtcNow;
+                            updated++;
+                        }
                     }
                     else
                     {
-                        MapDtoToEntity(dto, existing, request.UserName);
-                        existing.Version += 1;
-                        existing.LastModifiedUtc = ToUtc(clientTs) ?? DateTime.UtcNow;
-                        updated++;
+                        var entity = new TaggedElement { ProjectId = project.Id, TenantId = tenantId };
+                        MapDtoToEntity(dto, entity, request.UserName);
+                        entity.Version        = 1;
+                        entity.LastModifiedUtc = ToUtc(dto.LastModifiedUtc) ?? DateTime.UtcNow;
+                        _db.TaggedElements.Add(entity);
+                        existingElements[dto.RevitElementId] = entity; // prevent duplicate adds
+                        created++;
                     }
                 }
-                else
-                {
-                    var entity = new TaggedElement { ProjectId = project.Id, TenantId = tenantId };
-                    MapDtoToEntity(dto, entity, request.UserName);
-                    entity.Version = 1;
-                    entity.LastModifiedUtc = ToUtc(dto.LastModifiedUtc) ?? DateTime.UtcNow;
-                    _db.TaggedElements.Add(entity);
-                    existingElements[dto.RevitElementId] = entity; // prevent duplicate adds
-                    created++;
-                }
+
+                await _db.SaveChangesAsync();
             }
 
+            // Compute compliance and update project metrics — inside the same
+            // transaction so metrics always reflect the elements we just wrote.
+            metrics = await ComputeComplianceAsync(project.Id);
+            project.TotalElements               = metrics.TotalElements;
+            project.TaggedElements              = metrics.Tagged;
+            project.CompliancePercent           = metrics.CompliancePercent;
+            project.ContainerCompliancePercent  = metrics.ContainerPercent;
+            project.RagStatus                   = metrics.RagStatus;
+            project.LastSyncAt                  = DateTime.UtcNow;
             await _db.SaveChangesAsync();
-        }
 
-        // Compute compliance and update project metrics in a single save
-        var metrics = await ComputeComplianceAsync(project.Id);
-        project.TotalElements = metrics.TotalElements;
-        project.TaggedElements = metrics.Tagged;
-        project.CompliancePercent = metrics.CompliancePercent;
-        project.ContainerCompliancePercent = metrics.ContainerPercent;
-        project.RagStatus = metrics.RagStatus;
-        project.LastSyncAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
+            await tx.CommitAsync();
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
 
         // Broadcast to web dashboard via SignalR (fire-and-forget, don't fail sync on hub errors)
         _ = Task.Run(async () =>
@@ -229,24 +258,19 @@ public class TagSyncController : ControllerBase
                 ? elements.Max(e => e.LastModifiedUtc ?? e.SyncedAt)
                 : lastSyncUtc.Value;
 
-            var existing = await _db.SyncWatermarks
-                .FirstOrDefaultAsync(w => w.ProjectId == projectId && w.DeviceId == deviceId);
-            if (existing == null)
-            {
-                _db.SyncWatermarks.Add(new SyncWatermark
-                {
-                    ProjectId = projectId,
-                    DeviceId = deviceId,
-                    LastSyncUtc = newCutoff
-                });
-            }
-            else
-            {
-                // Monotonic: never rewind a device's cursor.
-                if (newCutoff > existing.LastSyncUtc) existing.LastSyncUtc = newCutoff;
-                existing.UpdatedAt = DateTime.UtcNow;
-            }
-            await _db.SaveChangesAsync();
+            // Atomic upsert: PostgreSQL ON CONFLICT avoids the read-then-write
+            // race where two concurrent delta pulls both see "no watermark" and
+            // both try to INSERT, causing a unique-constraint failure on the second.
+            await _db.Database.ExecuteSqlRawAsync(
+                """
+                INSERT INTO "SyncWatermarks" ("Id","TenantId","ProjectId","DeviceId","LastSyncUtc","UpdatedAt")
+                VALUES ({0},{1},{2},{3},{4},NOW())
+                ON CONFLICT ("ProjectId","DeviceId")
+                DO UPDATE SET
+                    "LastSyncUtc" = GREATEST("SyncWatermarks"."LastSyncUtc", EXCLUDED."LastSyncUtc"),
+                    "UpdatedAt"   = NOW()
+                """,
+                Guid.NewGuid(), tenantId, projectId, deviceId, newCutoff);
         }
 
         return Ok(new { elements, total, page, pageSize });

@@ -102,6 +102,18 @@ namespace StingTools.Core.Drawing
         public static IReadOnlyList<DrawingRoutingRule> ListRouting(Document doc)
             => GetLibrary(doc).Routing;
 
+        /// <summary>
+        /// Resolve a ViewStylePack by id for the given document.
+        /// Returns null when no pack with that id is registered.
+        /// Used by DrawingDriftDetector and DrawingTypePresentation.
+        /// </summary>
+        public static ViewStylePack TryGetPack(Document doc, string packId)
+        {
+            if (string.IsNullOrWhiteSpace(packId)) return null;
+            try { return ViewStylePackRegistry.Get(doc, packId); }
+            catch { return null; }
+        }
+
         public static void Reload(Document doc)
         {
             lock (_lock)

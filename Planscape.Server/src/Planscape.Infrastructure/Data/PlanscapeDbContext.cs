@@ -188,6 +188,24 @@ public class PlanscapeDbContext : DbContext
     // FEDERATED-MODEL: per-element tessellated geometry (Revit plugin delta, IFC hot-folder, Speckle).
     public DbSet<FederatedElement> FederatedElements => Set<FederatedElement>();
 
+    // Gap 5 — Per-element IFC change tracking (Added / Modified / Deleted / Unchanged across uploads).
+    public DbSet<IfcElementSnapshot> IfcElementSnapshots => Set<IfcElementSnapshot>();
+    // Gap 6 — Cross-tool GlobalId registry (IFC / ArchiCAD / Revit / Tekla element identity mapping).
+    public DbSet<ElementGlobalIdRegistry> GlobalIdRegistry => Set<ElementGlobalIdRegistry>();
+    // Gap 7 — Level harmonisation (normalised storey dictionary + per-tool alias map).
+    public DbSet<ProjectLevel> ProjectLevels => Set<ProjectLevel>();
+    // Gap A — Project canonical coordinate system (CRS, origin, true north, unit).
+    public DbSet<ProjectCoordinateSystem> ProjectCoordinateSystems => Set<ProjectCoordinateSystem>();
+    // Gap B — Per-model coordinate transform (manual correction or auto-computed from IfcMapConversion).
+    public DbSet<ProjectModelTransform> ProjectModelTransforms => Set<ProjectModelTransform>();
+
+    // Gap 1 — CDE folder hierarchy (explicit information container tree).
+    public DbSet<CdeContainer> CdeContainers => Set<CdeContainer>();
+    // Gap 4 — E-signature / watermark records for S4 publications.
+    public DbSet<DocumentSignature> DocumentSignatures => Set<DocumentSignature>();
+    // Gap 5 — Version-snapshotting join table for transmittals.
+    public DbSet<TransmittalDocument> TransmittalDocuments => Set<TransmittalDocument>();
+
     // Phase 178c (T3-12) — Multi-step / parallel approval chains for CDE transitions.
     public DbSet<ApprovalChain> ApprovalChains => Set<ApprovalChain>();
     public DbSet<ApprovalStage> ApprovalStages => Set<ApprovalStage>();
@@ -1058,10 +1076,167 @@ public class PlanscapeDbContext : DbContext
         });
 
         // ── IfcAlignmentReport — per-model IFC alignment validation results ──
+        // New double fields (MapConversionScale, MapConversionRotationDeg, GeometryCentroid*)
+        // are nullable doubles — no max-length constraints needed.
         modelBuilder.Entity<IfcAlignmentReport>(e =>
         {
             e.HasIndex(r => new { r.ProjectId, r.ProjectModelId });
             e.HasIndex(r => r.TenantId);
+            e.HasIndex(r => new { r.ProjectId, r.ValidatedAt });
+        });
+
+        // ── Gap 5 — IfcElementSnapshot (per-element IFC change delta) ──────────
+        modelBuilder.Entity<IfcElementSnapshot>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.ProjectModelId, x.IfcGuid });
+            e.HasIndex(x => new { x.ProjectId, x.UploadSequence });
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.IfcGuid).HasMaxLength(80).IsRequired();
+            e.Property(x => x.IfcType).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(400);
+            e.Property(x => x.Storey).HasMaxLength(200);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.PropertiesHash).HasMaxLength(64).IsRequired();
+            e.Property(x => x.ChangeKind).HasMaxLength(20).IsRequired();
+        });
+
+        // ── Gap 6 — ElementGlobalIdRegistry (cross-tool element identity) ──────
+        modelBuilder.Entity<ElementGlobalIdRegistry>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.IfcGlobalId });
+            e.HasIndex(x => new { x.ProjectId, x.RevitUniqueId });
+            e.HasIndex(x => new { x.ProjectId, x.ArchiCadGuid });
+            e.HasIndex(x => new { x.ProjectId, x.TeklaGuid });
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.IfcGlobalId).HasMaxLength(80);
+            e.Property(x => x.ArchiCadGuid).HasMaxLength(80);
+            e.Property(x => x.RevitUniqueId).HasMaxLength(80);
+            e.Property(x => x.TeklaGuid).HasMaxLength(80);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.IfcType).HasMaxLength(100);
+            e.Property(x => x.ElementName).HasMaxLength(400);
+            e.Property(x => x.NormalizedLevelName).HasMaxLength(80);
+            e.Property(x => x.MappingStatus).HasMaxLength(40).IsRequired();
+            e.Property(x => x.MappedBy).HasMaxLength(200);
+            e.Property(x => x.Notes).HasMaxLength(2000);
+        });
+
+        // ── Gap 7 — ProjectLevel (harmonised storey dictionary) ──────────────
+        modelBuilder.Entity<ProjectLevel>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.NormalizedName }).IsUnique();
+            e.HasIndex(x => new { x.ProjectId, x.SortIndex });
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.NormalizedName).HasMaxLength(80).IsRequired();
+            e.Property(x => x.DisplayName).HasMaxLength(200);
+        });
+
+        // ── Gap A — ProjectCoordinateSystem ──────────────────────────────────
+        modelBuilder.Entity<ProjectCoordinateSystem>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId).IsUnique(); // one CRS per project
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.CrsEpsgCode).HasMaxLength(20);
+            e.Property(x => x.CrsName).HasMaxLength(200);
+            e.Property(x => x.LengthUnit).HasMaxLength(8).IsRequired();
+            e.Property(x => x.DefinedBy).HasMaxLength(200);
+            e.Property(x => x.Notes).HasMaxLength(2000);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Gap B — ProjectModelTransform ─────────────────────────────────────
+        modelBuilder.Entity<ProjectModelTransform>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectModelId).IsUnique(); // one active transform per model
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.AppliedBy).HasMaxLength(200);
+            e.Property(x => x.Notes).HasMaxLength(2000);
+            e.HasOne(x => x.Model).WithMany().HasForeignKey(x => x.ProjectModelId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Gap 1 — CdeContainer (CDE folder hierarchy) ──────────────────────
+        modelBuilder.Entity<CdeContainer>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => x.TenantId);
+            e.HasIndex(x => new { x.ProjectId, x.ParentContainerId });
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.ContainerType).HasMaxLength(40);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.CreatedBy).HasMaxLength(200);
+            // Self-referencing parent: restrict delete so deleting a folder
+            // with children requires explicit child removal first.
+            e.HasOne(x => x.Parent)
+             .WithMany(x => x.Children)
+             .HasForeignKey(x => x.ParentContainerId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Gap 1 — DocumentRecord.ContainerId FK
+        modelBuilder.Entity<DocumentRecord>(e =>
+        {
+            e.HasOne(x => x.Container)
+             .WithMany(c => c.Documents)
+             .HasForeignKey(x => x.ContainerId)
+             .OnDelete(DeleteBehavior.SetNull);
+            e.Property(x => x.PublishedByUserId).HasMaxLength(200);
+            e.Property(x => x.PublishedByName).HasMaxLength(200);
+        });
+
+        // ── Gap 4 — DocumentSignature (e-signature + watermark on S4) ─────────
+        modelBuilder.Entity<DocumentSignature>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.DocumentId);
+            e.HasIndex(x => x.TenantId);
+            // Partial index on PENDING rows — the stamp job queries by WatermarkStatus = 'PENDING'
+            // and this keeps that scan tight as the table grows.
+            e.HasIndex(x => x.WatermarkStatus)
+             .HasFilter("\"WatermarkStatus\" = 'PENDING'");
+            e.Property(x => x.SignedByUserId).HasMaxLength(200);
+            e.Property(x => x.SignedByName).HasMaxLength(200);
+            e.Property(x => x.SignatureNote).HasMaxLength(2000);
+            e.Property(x => x.WatermarkedFilePath).HasMaxLength(600);
+            e.Property(x => x.WatermarkStatus).HasMaxLength(20);
+            e.HasOne(x => x.Document)
+             .WithMany()
+             .HasForeignKey(x => x.DocumentId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Gap 5 — TransmittalDocument (version snapshot join table) ─────────
+        modelBuilder.Entity<TransmittalDocument>(e =>
+        {
+            e.HasKey(x => x.Id);
+            // Unique composite index — the critical GAP-04 duplicate guard.
+            // The two separate single-column indexes are kept for FK lookup
+            // performance but do not enforce uniqueness on their own.
+            e.HasIndex(x => new { x.TransmittalId, x.DocumentId }).IsUnique();
+            e.HasIndex(x => x.DocumentId);
+            e.Property(x => x.CdeStateAtTransmittal).HasMaxLength(20);
+            e.Property(x => x.SuitabilityAtTransmittal).HasMaxLength(10);
+            e.Property(x => x.FilePathAtTransmittal).HasMaxLength(600);
+            e.HasOne(x => x.Transmittal)
+             .WithMany(t => t.Documents)
+             .HasForeignKey(x => x.TransmittalId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Document)
+             .WithMany()
+             .HasForeignKey(x => x.DocumentId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.DocumentVersion)
+             .WithMany()
+             .HasForeignKey(x => x.DocumentVersionId)
+             .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── ClashAutomationRule — per-project automation rules for new clashes ──

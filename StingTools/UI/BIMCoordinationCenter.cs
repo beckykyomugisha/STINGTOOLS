@@ -11,6 +11,11 @@ using System.Windows.Media;
 using System.Windows.Controls.Primitives;
 using System.Windows.Shapes;
 using StingTools.Core;
+using StingTools.BIMManager;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using Path = System.IO.Path;
+using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 
 namespace StingTools.UI
 {
@@ -8687,7 +8692,7 @@ namespace StingTools.UI
 
             // Build workload rows from TeamWorkloadEngine
             var workloadRows = new List<TeamWorkloadEngine.WorkloadRow>();
-            try { workloadRows = TeamWorkloadEngine.Build(_doc); }
+            try { workloadRows = TeamWorkloadEngine.Build(StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document); }
             catch (Exception ex) { StingLog.Warn($"BCC workload tab: {ex.Message}"); }
 
             if (workloadRows.Count == 0)
@@ -8761,11 +8766,12 @@ namespace StingTools.UI
             {
                 try
                 {
-                    string rows2 = TeamWorkloadEngine.Build(_doc)
+                    var bccDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                    string rows2 = TeamWorkloadEngine.Build(bccDoc)
                         .OrderByDescending(r => r.Critical * 3 + r.High * 2 + r.OpenTotal)
                         .Select(r => $"{r.Assignee},{r.OpenTotal},{r.Critical},{r.High},{r.Overdue},{r.OldestDays}")
                         .Aggregate("Assignee,Open,Critical,High,Overdue,OldestDays\n", (a, b) => a + b + "\n");
-                    string path = Path.Combine(OutputLocationHelper.GetOutputDirectory(_doc), $"team_workload_{DateTime.Now:yyyyMMdd}.csv");
+                    string path = Path.Combine(OutputLocationHelper.GetOutputDirectory(bccDoc), $"team_workload_{DateTime.Now:yyyyMMdd}.csv");
                     File.WriteAllText(path, rows2);
                     TaskDialog.Show("STING — Team Workload", $"Exported to:\n{path}");
                 }

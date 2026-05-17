@@ -60,12 +60,12 @@ namespace StingTools.Tags
             (@"\b(batch.?tag|tag\s+all|tag\s+project|tag\s+everything)\b", "BatchTag", "BatchTag", "Tag all elements in project"),
             (@"\b(tag.?and.?combine|one.?click.?tag|full.?tag)\b", "TagAndCombine", "TagAndCombine", "One-click tag and combine pipeline"),
             (@"\b(tag\s+new|incremental.?tag|untag)\b", "TagNewOnly", "TagNewOnly", "Tag only new/untagged elements"),
-            (@"\b(validate|check\s+tags?|verify\s+tags?)\b", "Validate", "ValidateTags", "Validate tag completeness"),
-            (@"\b(combine|merge\s+param|write\s+containers?)\b", "CombineParams", "CombineParameters", "Combine parameters into containers"),
-            (@"\b(pre.?tag|audit\s+tags?|dry.?run)\b", "PreTagAudit", "PreTagAudit", "Dry-run tag prediction audit"),
+            (@"\b(verify\s+tags?|check\s+tags?\s+only)\b", "Validate", "ValidateTags", "Validate tag completeness"),
+            (@"\b(combine|merge\s+param|write\s+containers?)\b", "CombineParameters", "CombineParameters", "Combine parameters into containers"),
+            (@"\b(pre.?tag\s+audit|audit\s+tags?)\b", "PreTagAudit", "PreTagAudit", "Dry-run tag prediction audit"),
             (@"\b(duplicate.?tags?|find\s+dup|fix\s+dup)\b", "FixDuplicates", "FixDuplicates", "Find and fix duplicate tags"),
             (@"\b(build\s+tags?|rebuild\s+tags?|assemble)\b", "BuildTags", "BuildTags", "Rebuild tags from tokens"),
-            (@"\b(completeness|dashboard|compliance\s+dash)\b", "CompletenessDash", "CompletenessDashboard", "Tag completeness dashboard"),
+            (@"\b(completeness|dashboard|compliance\s+dash)\b", "CompletenessDashboard", "CompletenessDashboard", "Tag completeness dashboard"),
 
             // Token setting
             (@"\b(set\s+disc|discipline|set\s+discipline)\b", "SetDisc", "SetDiscipline", "Set discipline code"),
@@ -288,6 +288,54 @@ namespace StingTools.Tags
                 "LPS_Audit", "LPS", "Audit lightning protection system compliance (BS EN 62305)"),
             (@"\b(down\s*conduct|air\s*terminal\s*audit|lps\s*class)\b",
                 "LPS_Conductors", "LPS", "Check LPS down conductor count and cross-section"),
+
+            // GAP-NLP-01: Validation / ISO compliance patterns (previously unmapped)
+            (@"\b(validate\s+tags?|check\s+iso|iso\s+(audit|check|valid)|run\s+validation|tag\s+valid)\b",
+                "Validate", "ValidateTags", "Validate all tags against ISO 19650 rules"),
+            (@"\b(iso\s*19650\s*(deep|full|strict)|full\s+compliance\s+check|strict\s+(tag|iso)\s+check)\b",
+                "Validate", "ValidateTags", "Deep ISO 19650 compliance validation"),
+            (@"\b(pre\s+tag\s+audit|dry\s+run\s+tag|predict\s+tag|tag\s+predict)\b",
+                "PreTagAudit", "PreTagAudit", "Dry-run tag prediction audit before tagging"),
+
+            // GAP-NLP-01: Token-level commands (missing from original set)
+            (@"\b(set\s+level|set\s+lvl|assign\s+level)\b",
+                "AssignNumbers", "SetLevel", "Set level (LVL) token on selection"),
+            (@"\b(set\s+sys(tem)?|assign\s+sys(tem)?|system\s+code)\b",
+                "SetSeqScheme", "SetSystem", "Set system (SYS) token on selection"),
+            (@"\b(set\s+func(tion)?|assign\s+func(tion)?|function\s+code)\b",
+                "BuildTags", "SetFunction", "Set function (FUNC) token on selection"),
+            (@"\b(set\s+prod(uct)?|assign\s+prod(uct)?|product\s+code)\b",
+                "BuildTags", "SetProduct", "Set product (PROD) token on selection"),
+
+            // GAP-NLP-01: Placement resolution patterns (missing from original set)
+            (@"\b(fix\s+overlap|resolve\s+collision|fix\s+collision|untangle\s+tag)\b",
+                "ArrangeTags", "ArrangeTags", "Auto-arrange tags to resolve overlaps"),
+            (@"\b(reset\s+(tag\s+)?position|revert\s+placement|move\s+tag\s+back)\b",
+                "ResetTagPositions", "ResetPositions", "Reset tag positions to element centres"),
+            (@"\b(lock\s+(tag\s+)?position|freeze\s+(tag|placement)|pin\s+tag)\b",
+                "PinTags", "PinTags", "Lock tag positions to prevent accidental movement"),
+            (@"\b(align\s+(tag\s+)?horizon|horizontal\s+align\s+tag)\b",
+                "AlignTagsH", "AlignTagsH", "Align tags horizontally across the view"),
+            (@"\b(align\s+(tag\s+)?vert(ical)?|vertical\s+align\s+tag)\b",
+                "AlignTagsV", "AlignTagsV", "Align tags vertically across the view"),
+            (@"\b(stack\s+tag|stack\s+annot|column\s+tag)\b",
+                "ArrangeTags", "StackTags", "Stack tags in a vertical column layout"),
+            (@"\b(learn\s+placement|learn\s+tag|capture\s+placement)\b",
+                "LearnTagPlacement", "LearnPlacement", "Learn tag placement rules from current view"),
+            (@"\b(apply\s+(tag\s+)?template|placement\s+template)\b",
+                "ApplyTagTemplate", "ApplyTemplate", "Apply saved tag placement template to view"),
+            (@"\b(batch\s+place\s+tag|multi.?view\s+tag\s+place|all\s+view\s+tag)\b",
+                "BatchPlaceTags", "BatchPlace", "Place annotation tags across multiple views"),
+
+            // GAP-NLP-01: 3D tagging
+            (@"\b(tag\s+3d|3d\s+tag|tag\s+in\s+3d|perspective\s+tag)\b",
+                "Tag3D", "Tag3D", "Tag elements in 3D views with spatial auto-detect"),
+
+            // GAP-NLP-01: Repair / housekeeping
+            (@"\b(repair\s+(dup|duplicate)\s+(seq|num)|fix\s+seq\s+dup)\b",
+                "RepairDuplicateSeq", "RepairDuplicateSeq", "Repair duplicate SEQ numbers using spatial proximity"),
+            (@"\b(decluster\s+tag|uncluster\s+tag|break\s+cluster)\b",
+                "DeclusterTags", "DeclusterTags", "Break up clustered tags that share a position"),
         };
 
         // BIM Knowledge Base entries
@@ -378,6 +426,75 @@ namespace StingTools.Tags
                 .Distinct()
                 .Take(10)
                 .ToList();
+        }
+
+        // Tags that StingCommandHandler dispatches directly (not via WorkflowEngine.ResolveCommand).
+        // These bypass WorkflowEngine so ResolveCommandPublic returns null for them — that's correct.
+        // Keep this list in sync with the direct-dispatch cases in StingCommandHandler.Execute().
+        private static readonly HashSet<string> _directDispatchTags = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase)
+        {
+            // Smart placement
+            "SmartPlaceTags", "ArrangeTags", "RemoveAnnotationTags", "BatchPlaceTags",
+            "LearnTagPlacement", "ApplyTagTemplate", "TagOverlapAnalysis", "BatchTagTextSize",
+            "SetTagCategoryLineWeight", "AlignTagBands", "SwitchTagPosition", "ExportTagPositions",
+            "BatchPlaceLinkedTags", "ExportLinkedManifest", "AdjustElbows", "SetArrowheadStyle",
+            // Leader / organise
+            "AlignTagsH", "AlignTagsV", "StackTags", "PinTags",
+            "ToggleLeaders","AddLeaders","RemoveLeaders","AlignTags","ResetTagPositions",
+            "ToggleOrientation","SnapLeaderElbows","AutoAlignLeaderText",
+            "FlipTags","AlignTagText","PinUnpin","NudgeTags","AttachLeader","SelectLeaderTags",
+            // Tag style
+            "ApplyTagStyle","ApplyColorScheme","ClearColorScheme","SetParagraphDepthExt",
+            "TagStyleReport","SwitchTagStyleByDisc","BatchApplyColorScheme","ColorByVariable",
+            "SetBoxColor","SetViewTagStyle",
+            // Mode / tier switch patterns (dispatched inline by StingCommandHandler)
+            "SetPatternMode_Handover","SetPatternMode_DC","SetPatternMode_Custom",
+            "WriteSystemBTier_4","WriteSystemBTier_5","WriteSystemBTier_6",
+            "WriteSystemBTier_7","WriteSystemBTier_8","WriteSystemBTier_9","WriteSystemBTier_10",
+            // Misc direct-dispatch
+            "Validate","FixDuplicates","CompletenessDashboard",
+            "ColorByParameter","ClearColorOverrides","SaveColorPreset","LoadColorPreset","CreateFilters",
+        };
+
+        /// <summary>
+        /// Validates all IntentPatterns at startup — logs any commandTag that resolves via
+        /// neither WorkflowEngine nor the known direct-dispatch set.  Call once from OnStartup.
+        /// </summary>
+        internal static void ValidateIntentPatterns()
+        {
+            var unresolved = new System.Text.StringBuilder();
+            int unresolvedCount = 0;
+
+            var distinctTags = IntentPatterns
+                .Select(p => p.CommandTag)
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(t => t)
+                .ToList();
+
+            foreach (string tag in distinctTags)
+            {
+                // Direct-dispatch tags are known-valid — skip
+                if (_directDispatchTags.Contains(tag)) continue;
+
+                // WorkflowEngine-routed tags — attempt resolution
+                try
+                {
+                    var cmd = WorkflowEngine.ResolveCommandPublic(tag);
+                    if (cmd != null) continue; // resolved OK
+                }
+                catch { /* ignore instantiation errors */ }
+
+                // Tag not resolved by either path
+                unresolved.Append("  ").AppendLine(tag);
+                unresolvedCount++;
+            }
+
+            if (unresolvedCount == 0)
+                StingLog.Info($"NLPEngine: all {distinctTags.Count} distinct commandTags validated OK");
+            else
+                StingLog.Warn($"NLPEngine: {unresolvedCount} commandTag(s) not resolvable:\n{unresolved}");
         }
     }
 

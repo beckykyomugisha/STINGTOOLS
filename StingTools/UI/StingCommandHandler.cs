@@ -161,6 +161,8 @@ namespace StingTools.UI
                     case "Placement_PlaceFixtures": RunCommand<Commands.Placement.PlaceFixturesCommand>(app); break;
                     case "Placement_LightingGrid":  RunCommand<Commands.Placement.LightingGridCommand>(app); break;
                     case "Placement_Learn":         RunCommand<Commands.Placement.LearnPlacementV4Command>(app); break;
+                    // Phase 177 — toilet-room specific placement + BS 6465 provision check.
+                    case "Placement_ToiletRoom":    RunCommand<Commands.Placement.PlaceToiletRoomCommand>(app); break;
 
                     // ── Phase 139.2 — placement centre additions ──
                     case "Placement_AutoPopulateCatalogue":
@@ -8925,6 +8927,39 @@ For live data, open BCC in Revit and re-export.</p></div>
                 StingTools.Core.StingLog.Warn($"WriteModeBool {paramName} failed: {ex.Message}");
             }
             return false;
+        }
+
+        private static void HandleWireSaveStyleFromPanel(UIApplication app)
+        {
+            try
+            {
+                var doc = app?.ActiveUIDocument?.Document;
+                if (doc == null) return;
+                var panel = StingDockPanel.LastInstance;
+                if (panel == null) return;
+                // Read wire style selection from the dock panel and persist it.
+                var styleName = panel.GetSelectedWireStyle();
+                if (string.IsNullOrEmpty(styleName)) return;
+                using var t = new Autodesk.Revit.DB.Transaction(doc, "STING Set Wire Style");
+                t.Start();
+                var setting = Autodesk.Revit.DB.Electrical.ElectricalSetting.GetElectricalSettings(doc);
+                // WireType lookup by name — no-op if not found so the project stays clean.
+                foreach (Autodesk.Revit.DB.Electrical.WireType wt in
+                    new Autodesk.Revit.DB.FilteredElementCollector(doc)
+                        .OfClass(typeof(Autodesk.Revit.DB.Electrical.WireType)))
+                {
+                    if (string.Equals(wt.Name, styleName, System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        setting.SetDefaultWireType(wt.Id);
+                        break;
+                    }
+                }
+                t.Commit();
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"HandleWireSaveStyleFromPanel: {ex.Message}");
+            }
         }
     }
 }

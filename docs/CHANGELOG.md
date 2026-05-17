@@ -2,6 +2,51 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 179 — Placement Center canonical integration + DrawingType/Pack wiring)
+
+Branch: `claude/toilet-fixture-placement-research-aZtgU`. Six commits. Makes the Placement Center and dock-panel sub-tabs the single canonical surface for all placement / annotation / symbol results, fully integrated with the DrawingType / ViewStylePack system.
+
+##### PlacementResultBus (new)
+
+`Core/Placement/PlacementResultBus.cs` — static event bus with `PlacementRunSummary` (Source / DrawingTypeId / PackId / Headline / Metrics / Warnings / AffectedIds / RunUtc). Any placement/annotation/symbol command calls `PlacementResultBus.Publish(summary)` after its run; all subscribers update automatically with zero coupling. `LastResult` allows late-subscribers to replay the most recent run.
+
+##### Placement Center context strip
+
+`UI/PlacementCenter/StingPlacementCenter.xaml` + `.xaml.cs` — new `Grid.Row="0"` context strip above the TabControl showing the active view's DrawingType id, ViewStylePack id, and discipline code. Subscribes to `PlacementResultBus.ResultPublished`; on each result the strip headline updates instantly and the Run tab result panel (`grpRunResult`) populates with headline, metric badges, and the AffectedIds list backing the "Select" button. `RefreshDrawingTypeContext()` reads `DrawingTypeStamper.Read(activeView)` and resolves DT + pack via `DrawingTypeRegistry`. Re-opening the window replays the last result.
+
+##### ISO symbol placement wired through DrawingType
+
+`Commands/Fabrication/PlaceIsoSymbolsCommand.cs` — resolves discipline from the active view's stamped DrawingType, passes it as a filter to `IsoSymbolPlacer.PlaceSymbolsForAssembly`, then publishes a `PlacementRunSummary` and shows `FabricationResultDialog`. `IsoSymbolPlacer` gained `CategoryMatchesDiscipline` helper mapping DT discipline strings to CSV category column prefix patterns (Pipe/Duct/Electrical).
+
+##### AnnotationRunner fixes + CategoryTagStyles/CategoryDepths
+
+`Core/Drawing/AnnotationRunner.cs` — `Run` overloads added to fix the `DrawingTypePresentation.Apply` call-site mismatch. `ResolveTagTypeId` tier-3 fallback reads `ViewStylePack.CategoryTagStyles` to find a tag family whose name contains the style preset. `TagCategory` applies `ViewStylePack.CategoryDepths` paragraph depth via `ParameterHelpers.SetInt(el, "TAG_PARA_DEPTH_INT", depth)` after `IndependentTag.Create`.
+
+##### BuildAndWriteTag: TAG7 sections, DefaultTagStyle, CategoryTagStyles
+
+`Core/TagConfig.cs` — single pack-resolution pass in the display BOOL init block:
+- **CategoryTag7Sections**: per-category bool controls `TAG_7_SECTION_VISIBLE_A/B/C/D/E/F_BOOL` (false = hide all TAG7 sub-sections for this category in the active drawing type).
+- **CategoryTagStyles + DefaultTagStyle**: per-category or pack-level tag style code applied via inline BOOL-matrix logic (mirrors `TagStyleEngine.ApplyStyleCode` without crossing the `internal` class boundary). Replaces the hard-coded `TAG_2.5NOM_BLACK_BOOL = true` with pack-configured defaults.
+
+##### GenerateFabPackageCommand fabrication routing
+
+`Commands/Fabrication/GenerateFabPackageCommand.cs` — now publishes `PlacementRunSummary` to `PlacementResultBus` after every run so the Placement Center and dock panel strips update without the user switching windows. `FabricationResultDialog` wired as the result display (TaskDialog fallback if the WPF dialog fails).
+
+##### Inline result strips in dock panel
+
+`UI/StingDockPanel.xaml` + `.xaml.cs` — `PlacementResultBus` subscription added to the code-behind; `OnPlacementResultBus` routes "Tags"/"Fixtures" results to `bdrFixturesResult`/`txtFixturesResultHeadline` and "Routing"/"Symbols" results to `bdrRoutingResult`/`txtRoutingResultHeadline`. Strips are collapsed until a result arrives, then auto-show with the run headline.
+
+##### SmartTagPlacementCommand DrawingType wiring
+
+`Tags/SmartTagPlacementCommand.cs` — `ResolvePackForView` helper resolves the active DrawingType pack. During placement: tag family type resolution consults `CategoryTagStyles`; after `IndependentTag.Create`, `CategoryDepths` depth is applied; placed tag ElementIds collected into `AffectedIds`. After the transaction: publishes `PlacementRunSummary(Source="Tags")` so the context strip and dock panel strip update immediately.
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `CategoryTag7Sections` currently controls visibility of ALL TAG7 sub-sections for the category uniformly (one bool per category). Per-section granularity can be added later by extending the dict key to `"Category:SectionLetter"`.
+3. `DefaultTagStyle` / `CategoryTagStyles` values must match a valid `TagStyleParamName` code (e.g. `"2.5NOM_BLACK"`) — mismatches fall back to the hard-coded default silently.
+4. `PlacementResultBus` is purely in-process; no persistence. The Placement Center replays `LastResult` on re-open but not across Revit sessions.
+
 #### Completed (Phase 177 — Code-quality sweep: locale safety, null-guard fixes, parameter registry alignment)
 
 Branch: `claude/review-codebase-FlVmh`. Twelve commits. Touched 20+ source files
@@ -4090,3 +4135,66 @@ button continues to invoke the Centre as a modeless window.
      parameter rows that are intentionally unbound. A future
      `BINDING_COVERAGE_REPORT` job could flag the small subset of
      instance parameters that still lack a category binding.
+
+#### Completed (Phase 177 — Toilet Fixture Placement & Plumbing Auto-Router)
+
+**Scope**: 100% toilet-room fixture placement coverage + Naviate-inspired plumbing auto-router.
+
+**New files**:
+
+| File | Purpose |
+|---|---|
+| `StingTools/Data/Placement/STING_PLACEMENT_RULES.toilet-fixtures.json` | 30+ placement rules across 20 fixture groups for complete toilet-room coverage |
+| `StingTools/Core/Routing/PlumbingFixtureRouter.cs` | Naviate MEP-inspired pipe auto-router: soil/waste + CWS/HWS supply, gravity slope, AAV placement, BS EN 12056-2 pipe sizing |
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Core/Placement/PlacementScorer.AnchorTypes.cs` | Added `WINDOW_SIDE_WALL_RIGHT` and `WINDOW_SIDE_WALL_LEFT` anchor types + `EmitWindowSideWall()` implementation |
+| `StingTools/Core/Placement/PlacementRuleLoader.cs` | Added `STING_PLACEMENT_RULES.toilet-fixtures.json` to `DisciplinePacks[]` so rules auto-load |
+
+**Toilet-room fixture groups (20 groups, 30+ rules)**:
+
+| Group | Fixtures covered |
+|---|---|
+| 1 | WC / Water Closet (window-centred, comfort-height, wall-hung, no-window fallback) |
+| 2 | Urinal (standard 610mm AFF, ADA 432mm AFF) |
+| 3 | Lavatory / Basin (standard 850mm, ADA 865mm, commercial) |
+| 4 | Toilet paper holder (single, double, recessed — always RIGHT of WC) |
+| 5 | Grab bars (side right, side left fold-down ADA, rear) |
+| 6 | Sanitary bin + toilet brush (floor level, right side) |
+| 7 | Soap / sanitiser dispenser (wall-mounted and countertop) |
+| 8 | Mirror + medicine cabinet (above basin) |
+| 9 | Towel ring, towel bar, robe/towel hook |
+| 10 | Hand dryer (commercial) + paper towel dispenser |
+| 11 | Waste / rubbish bin |
+| 12 | Coat hook (back of door) |
+| 13 | Baby changing station (fold-down, 864mm AFF) |
+| 14 | Bathroom shelf |
+| 15 | Emergency pull cord (accessible + healthcare variant) |
+| 16 | Shower: head, TMV valve, fold-down seat, horizontal grab bar, curtain rod, shampoo niche, floor drain |
+| 17 | Commercial extras: feminine napkin disposal, entrance mat, sanitary vending machine |
+| 18 | Extract ventilation: ceiling grille (Approved Doc F) + wall-mounted fan |
+| 19 | Bidet |
+| 20 | Mirror / vanity light (IP44, 2000mm AFF) |
+
+**New anchor types**:
+- `WINDOW_SIDE_WALL_RIGHT` — emits candidate on the right side wall relative to the window-wall orientation; used for toilet paper holders, right grab bars, sanitary bin
+- `WINDOW_SIDE_WALL_LEFT` — mirror variant; used for left fold-down grab bars
+
+**PlumbingFixtureRouter — Naviate integration strategy**:
+- Connector-based fixture classification (soil vs waste vs CWS/HWS)
+- Gravity slope enforcement: 1:40 (2.5%) per BS EN 12056-2
+- Pipe sizing by discharge units: BS EN 12056-2 Table F.1 (32–110mm)
+- AAV auto-placement when vent run exceeds configurable threshold (default 3000mm)
+- Parameter stamping: `PLM_PIPE_SERVICE_TXT`, `PLM_SLOPE_PCT_V4`, `PLM_NOMINAL_DIA_MM`
+- `PlumbingStandards` constants class: BS EN 12056-2, CIBSE Guide G, HTM 04-01
+
+**Standards covered**: BS 6465-1:2006+A1:2009, BS 8300:2018, ADA §604/§605/§606/§608/§609, ANSI A117.1-2017, HTM 04-01/08-03, HTM HBN 00-02, BS EN 12056-2, CIBSE Guide G, Approved Doc F/H/M, WRAS, TMV3, BS 7671 (zone requirements).
+
+**Caveats**:
+1. Built without `dotnet build` verification (Linux sandbox, no Revit API).
+2. Toilet paper holder right-of-WC placement depends on `WINDOW_SIDE_WALL_RIGHT` anchor emitting correctly from `EmitWindowSideWall()`; verify in Revit when a window-wall WC is placed.
+3. `PlumbingFixtureRouter` requires soil-stack pipes (system abbrev `SS`/`SOIL`/`WASTE`/`SVP`) and rising mains (`CWS`/`HWS`) pre-routed in the model before auto-routing can connect fixtures.
+4. AAV family `STING_AAV_Inline` must be loaded in the project; router warns gracefully if missing.

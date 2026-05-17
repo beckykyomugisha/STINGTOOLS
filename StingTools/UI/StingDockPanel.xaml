@@ -4776,151 +4776,44 @@
                                 </DockPanel>
                             </TabItem>
 
-                            <!-- ─── v4 MVP: Auto-drop Routing Tab ─── -->
+                            <!-- ─── Routing launcher (full controls in Placement Centre > Run & Routing) ─── -->
                             <TabItem Header="Routing">
-                                <DockPanel>
-                                    <WrapPanel DockPanel.Dock="Bottom" Margin="4,6,4,4">
-                                        <Button Style="{StaticResource GreenBtn}"  Content="Auto-drop"        Tag="Routing_AutoDrop"        Click="Cmd_Click" Width="90" Height="30" ToolTip="Drop conduit/pipe/duct from selected fixtures to nearest containment"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Generate layout"  Tag="Routing_GenerateLayout"  Click="Cmd_Click" Width="100" Height="30" ToolTip="Manhattan layout for selected runs (preview)"/>
-                                        <Button Style="{StaticResource OrangeBtn}" Content="Validate fills"   Tag="Routing_ValidateFills"   Click="Cmd_Click" Width="90" Height="30" ToolTip="Run conduit/tray/pipe/duct fill validators"/>
-                                    </WrapPanel>
-                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                        <StackPanel Margin="4">
-
-                                            <TextBlock Text="DISCIPLINE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
-                                            <Border Style="{StaticResource GroupBorder}">
-                                                <StackPanel>
-                                                    <CheckBox Content="Electrical (conduit / tray drops)" x:Name="chkRtElec" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="Plumbing (DHW / DCW / waste)"      x:Name="chkRtPlm"  IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="HVAC (supply / extract / return)"  x:Name="chkRtHvac" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                </StackPanel>
-                                            </Border>
-
-                                            <TextBlock Text="SEARCH" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
-                                            <Border Style="{StaticResource GroupBorder}">
-                                                <StackPanel>
-                                                    <TextBlock Text="Max search radius (mm)" FontSize="9" Margin="0,0,0,2"/>
-                                                    <TextBox x:Name="txtRtSearchMm" Text="3000" FontSize="10" Padding="2"/>
-                                                    <CheckBox Content="Snap drop to host service zone" x:Name="chkRtSnapZone" IsChecked="True" Margin="0,4,0,0" FontSize="9"/>
-                                                </StackPanel>
-                                            </Border>
-
-                                            <TextBlock Text="FABRICATION" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
-                                            <Border Style="{StaticResource GroupBorder}">
-                                                <StackPanel>
-                                                    <TextBlock Text="Conduit install method" FontSize="9" Margin="0,0,0,2"/>
-                                                    <ComboBox x:Name="cboRtCdtInstall" FontSize="10" SelectedIndex="0">
-                                                        <ComboBoxItem Content="CLIPPED"/>
-                                                        <ComboBoxItem Content="SUSPENDED"/>
-                                                        <ComboBoxItem Content="EMBEDDED"/>
-                                                        <ComboBoxItem Content="CHASED"/>
-                                                    </ComboBox>
-                                                    <TextBlock Text="Duct seam (SMACNA A-F)" FontSize="9" Margin="0,4,0,2"/>
-                                                    <ComboBox x:Name="cboRtDuctSeam" FontSize="10" SelectedIndex="0">
-                                                        <ComboBoxItem Content="A — Pittsburgh lock"/>
-                                                        <ComboBoxItem Content="B — Snap lock"/>
-                                                        <ComboBoxItem Content="C — Grooved"/>
-                                                        <ComboBoxItem Content="D — Double seam"/>
-                                                        <ComboBoxItem Content="E — Government"/>
-                                                        <ComboBoxItem Content="F — TDC/TDF flange"/>
-                                                    </ComboBox>
-                                                    <TextBlock Text="Pipe hanger" FontSize="9" Margin="0,4,0,2"/>
-                                                    <ComboBox x:Name="cboRtPipeHanger" FontSize="10" SelectedIndex="0">
-                                                        <ComboBoxItem Content="CLEVIS_ROD"/>
-                                                        <ComboBoxItem Content="CLAMP"/>
-                                                        <ComboBoxItem Content="ROLLER"/>
-                                                        <ComboBoxItem Content="TRAPEZE"/>
-                                                    </ComboBox>
-                                                </StackPanel>
-                                            </Border>
-
-                                        </StackPanel>
-                                    </ScrollViewer>
-                                </DockPanel>
+                                <StackPanel Margin="6">
+                                    <TextBlock FontSize="9" Foreground="#888" TextWrapping="Wrap" Margin="0,0,0,8"
+                                               Text="Quick routing actions. Open the Placement Centre for scope selection, discipline filters, and inline results."/>
+                                    <Button Style="{StaticResource GreenBtn}"  Content="Auto-drop"        Tag="Routing_AutoDrop"        Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Drop conduit/pipe/duct from selected fixtures to nearest containment"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Generate layout"  Tag="Routing_GenerateLayout"  Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Manhattan layout for selected runs (preview)"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Validate fills"   Tag="Routing_ValidateFills"   Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Run conduit/tray/pipe/duct fill validators"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Place hangers"    Tag="Routing_PlaceHangers"    Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Auto-place pipe/duct support hangers at code spacing"/>
+                                    <Separator Margin="0,6"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="▶ Open Placement Centre (Run &amp; Routing tab)"
+                                            Tag="Placement_OpenCentre" Click="Cmd_Click" Height="30" Margin="0,2"
+                                            ToolTip="Open Placement Centre and switch to the Run &amp; Routing tab for full inline controls"/>
+                                    <!-- Placement result strip — updated by PlacementResultBus subscription in code-behind -->
+                                    <Border x:Name="bdrRoutingResult" Background="#1A27AE60" BorderBrush="#27AE60" BorderThickness="0,1,0,0" Padding="6,3" Visibility="Collapsed" Margin="0,4,0,0">
+                                        <TextBlock x:Name="txtRoutingResultHeadline" FontSize="11" Foreground="#2C3E50" TextWrapping="Wrap"/>
+                                    </Border>
+                                </StackPanel>
                             </TabItem>
 
-                            <!-- ─── v4 MVP: Fixture Placement Tab ─── -->
+                            <!-- ─── Fixtures launcher (full controls in Placement Centre > Run & Routing) ─── -->
                             <TabItem Header="Fixtures">
-                                <DockPanel>
-                                    <!-- Pinned action bar at bottom -->
-                                    <WrapPanel DockPanel.Dock="Bottom" Margin="4,6,4,4">
-                                        <Button Style="{StaticResource GreenBtn}"  Content="Place fixtures" Tag="Placement_PlaceFixtures" Click="Cmd_Click" Width="100" Height="30" ToolTip="Place all fixture categories per STING_PLACEMENT_RULES.json in scope rooms"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Lighting grid"  Tag="Placement_LightingGrid"  Click="Cmd_Click" Width="90"  Height="30" ToolTip="BS EN 12464-1 lux-target grid for the active room"/>
-                                        <Button Style="{StaticResource OrangeBtn}" Content="Learn"          Tag="Placement_Learn"          Click="Cmd_Click" Width="70"  Height="30" ToolTip="Extract project-level rule overrides from already-placed fixtures"/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Centre…"        Tag="Placement_OpenCentre"     Click="Cmd_Click" Width="74"  Height="30" ToolTip="Open the modeless STING Placement Centre — full rule editor, run/preview/validate, history, push-to-families."/>
-                                    </WrapPanel>
-
-                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                        <StackPanel Margin="4">
-
-                                            <!-- SCOPE -->
-                                            <TextBlock Text="SCOPE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
-                                            <Border Style="{StaticResource GroupBorder}">
-                                                <StackPanel>
-                                                    <TextBlock Text="Apply to" FontSize="9" Margin="0,0,0,2"/>
-                                                    <WrapPanel>
-                                                        <RadioButton Content="Selected rooms" GroupName="FxScope" x:Name="rbFxScopeSel" IsChecked="True" Margin="2" FontSize="9" ToolTip="Only placements in rooms currently selected"/>
-                                                        <RadioButton Content="Active view"    GroupName="FxScope" x:Name="rbFxScopeView" Margin="2" FontSize="9" ToolTip="All rooms visible in the active plan view"/>
-                                                        <RadioButton Content="All rooms"      GroupName="FxScope" x:Name="rbFxScopeAll" Margin="2" FontSize="9" ToolTip="Every room in the project"/>
-                                                    </WrapPanel>
-                                                    <CheckBox Content="Dry-run preview first" x:Name="chkFxDryRun" IsChecked="True" Margin="0,4,0,0" FontSize="9" ToolTip="Score candidates and show report without creating any instances"/>
-                                                </StackPanel>
-                                            </Border>
-
-                                            <!-- CATEGORY -->
-                                            <TextBlock Text="CATEGORY" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
-                                            <Border Style="{StaticResource GroupBorder}">
-                                                <StackPanel>
-                                                    <CheckBox Content="Electrical Fixtures" x:Name="chkFxElec" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="Lighting Devices"   x:Name="chkFxLtgDev" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="Lighting Fixtures"  x:Name="chkFxLtgFix" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="Communication Devices" x:Name="chkFxComm" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="Data Devices"         x:Name="chkFxData" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="Security Devices"     x:Name="chkFxSec"  IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="Fire Alarm Devices"   x:Name="chkFxFire" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="Plumbing Fixtures"    x:Name="chkFxPlm"  IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="Air Terminals"        x:Name="chkFxHvac" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="Sprinklers"           x:Name="chkFxSpr"  IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                </StackPanel>
-                                            </Border>
-
-                                            <!-- STANDARDS -->
-                                            <TextBlock Text="STANDARDS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
-                                            <Border Style="{StaticResource GroupBorder}">
-                                                <StackPanel>
-                                                    <CheckBox Content="Approved Doc M (300mm switch, 450mm socket)" x:Name="chkFxDocM" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="BS 7671 (socket/isolator heights)"             x:Name="chkFxBS7671" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="BS 5266-1 (emergency luminaire spacing)"       x:Name="chkFxBS5266" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="BS 5839-1 (smoke/heat detector coverage)"       x:Name="chkFxBS5839" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="BS 6465 (sanitary fitting clearances)"          x:Name="chkFxBS6465" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="BS EN 12464-1 (lux targets)"                    x:Name="chkFxEN12464" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                </StackPanel>
-                                            </Border>
-
-                                            <!-- SPACING -->
-                                            <TextBlock Text="SPACING" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
-                                            <Border Style="{StaticResource GroupBorder}">
-                                                <StackPanel>
-                                                    <TextBlock Text="Min spacing override (mm)" FontSize="9" Margin="0,0,0,2"/>
-                                                    <TextBox x:Name="txtFxMinSpacing" Text="" FontSize="10" Padding="2" ToolTip="Empty = use per-rule MinSpacingMm from JSON"/>
-                                                    <CheckBox Content="Snap placements to 300mm grid" x:Name="chkFxSnap300" IsChecked="True" Margin="0,4,0,0" FontSize="9"/>
-                                                </StackPanel>
-                                            </Border>
-
-                                            <!-- COLLISION -->
-                                            <TextBlock Text="COLLISION" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
-                                            <Border Style="{StaticResource GroupBorder}">
-                                                <StackPanel>
-                                                    <CheckBox Content="Reject placements inside walls"          x:Name="chkFxNoWall" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="Reject placements outside room boundary"  x:Name="chkFxNoRoomOut" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="Clearance from doors (min 300mm)"         x:Name="chkFxDoorClr" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                    <CheckBox Content="Clearance from windows (min 100mm)"       x:Name="chkFxWinClr" IsChecked="True" Margin="0,1" FontSize="9"/>
-                                                </StackPanel>
-                                            </Border>
-
-                                        </StackPanel>
-                                    </ScrollViewer>
-                                </DockPanel>
+                                <StackPanel Margin="6">
+                                    <TextBlock FontSize="9" Foreground="#888" TextWrapping="Wrap" Margin="0,0,0,8"
+                                               Text="Quick fixture placement. Open the Placement Centre for rule editing, scope selection, dry-run preview, and inline results."/>
+                                    <Button Style="{StaticResource GreenBtn}"  Content="Place fixtures"   Tag="Placement_PlaceFixtures" Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Place all fixture categories per STING_PLACEMENT_RULES.json in scope rooms"/>
+                                    <Button Style="{StaticResource GreenBtn}"  Content="Toilet rooms"     Tag="Placement_ToiletRoom"    Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Place all toilet-room fixtures (BS 6465-1 provision check, WC at window, accessories)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Lighting grid"    Tag="Placement_LightingGrid"  Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="BS EN 12464-1 lux-target grid for the active room"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Learn from model" Tag="Placement_Learn"         Click="Cmd_Click" Height="28" Margin="0,2" ToolTip="Extract project-level rule overrides from already-placed fixtures"/>
+                                    <Separator Margin="0,6"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="▶ Open Placement Centre (Rules + Run tabs)"
+                                            Tag="Placement_OpenCentre" Click="Cmd_Click" Height="30" Margin="0,2"
+                                            ToolTip="Open the full Placement Centre — rule editor, run options, inline results, tools"/>
+                                    <!-- Placement result strip — updated by PlacementResultBus subscription in code-behind -->
+                                    <Border x:Name="bdrFixturesResult" Background="#1A3498DB" BorderBrush="#3498DB" BorderThickness="0,1,0,0" Padding="6,3" Visibility="Collapsed" Margin="0,4,0,0">
+                                        <TextBlock x:Name="txtFixturesResultHeadline" FontSize="11" Foreground="#2C3E50" TextWrapping="Wrap"/>
+                                    </Border>
+                                </StackPanel>
                             </TabItem>
 
                         </TabControl>

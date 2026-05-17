@@ -2085,3 +2085,130 @@ export function listModelCheckRuns(projectId: string): Promise<ModelCheckRun[]> 
 export function getModelCheckRun(projectId: string, runId: string): Promise<ModelCheckRun> {
   return apiFetch(`/api/projects/${projectId}/model-checks/runs/${runId}`);
 }
+
+// ── Gap B/E: Model transform endpoints ───────────────────────────────────
+
+export interface ModelTransform {
+  id?: string;
+  projectModelId: string;
+  translationX: number;
+  translationY: number;
+  translationZ: number;
+  rotationDeg: number;
+  scaleFactor: number;
+  isConfirmed: boolean;
+  notes?: string | null;
+  updatedAt?: string;
+  updatedBy?: string | null;
+}
+
+export function getModelTransform(projectId: string, modelId: string): Promise<ModelTransform> {
+  return apiFetch(`/api/projects/${projectId}/models/${modelId}/transform`);
+}
+
+export function upsertModelTransform(
+  projectId: string,
+  modelId: string,
+  body: {
+    translationX: number; translationY: number; translationZ: number;
+    rotationDeg: number; scaleFactor: number;
+    isConfirmed: boolean; notes?: string;
+  },
+): Promise<ModelTransform> {
+  return apiFetch(`/api/projects/${projectId}/models/${modelId}/transform`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export function resetModelTransform(projectId: string, modelId: string): Promise<void> {
+  return apiFetch(`/api/projects/${projectId}/models/${modelId}/transform`, { method: 'DELETE' });
+}
+
+// ── Gap F: Auto-align ─────────────────────────────────────────────────────
+
+export interface AutoAlignResult {
+  success: boolean;
+  translationX: number;
+  translationY: number;
+  translationZ: number;
+  rotationDeg: number;
+  scaleFactor: number;
+  referenceModelId?: string | null;
+  message?: string | null;
+}
+
+export function autoAlignModel(projectId: string, modelId: string): Promise<AutoAlignResult> {
+  return apiFetch(`/api/projects/${projectId}/models/${modelId}/alignment/auto-align`, {
+    method: 'POST',
+  });
+}
+
+// ── Gap G: Federated coherence ────────────────────────────────────────────
+
+export interface CoherenceScanResult {
+  projectId: string;
+  scannedAt: string;
+  modelCount: number;
+  issuesFound: number;
+  issues: Array<{
+    severity: 'INFO' | 'WARN' | 'FAIL';
+    code: string;
+    message: string;
+    modelIds?: string[];
+    fixHint?: string;
+  }>;
+  verdict: 'PASS' | 'WARN' | 'FAIL';
+}
+
+export function runCoherenceScan(projectId: string): Promise<CoherenceScanResult> {
+  return apiFetch(`/api/projects/${projectId}/alignment/coherence`, { method: 'POST' });
+}
+
+// ── Gap A: Coordinate system ──────────────────────────────────────────────
+
+export interface ProjectCoordinateSystem {
+  id?: string;
+  projectId: string;
+  crsEpsgCode?: string | null;
+  crsName?: string | null;
+  originEasting?: number | null;
+  originNorthing?: number | null;
+  originElevation?: number | null;
+  trueNorthDeg: number;
+  lengthUnit: string;
+  referenceModelId?: string | null;
+  notes?: string | null;
+  updatedAt?: string;
+  updatedBy?: string | null;
+}
+
+export function getCoordinateSystem(projectId: string): Promise<ProjectCoordinateSystem> {
+  return apiFetch(`/api/projects/${projectId}/coordinate-system`);
+}
+
+// G11 fix: server POST returns 409 if CRS already exists; fall back to PUT.
+export async function upsertCoordinateSystem(
+  projectId: string,
+  body: {
+    crsEpsgCode?: string; crsName?: string;
+    originEasting?: number; originNorthing?: number; originElevation?: number;
+    trueNorthDeg: number; lengthUnit: string;
+    referenceModelId?: string; notes?: string;
+  },
+): Promise<ProjectCoordinateSystem> {
+  try {
+    return await apiFetch(`/api/projects/${projectId}/coordinate-system`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  } catch (err: any) {
+    if (err?.status === 409) {
+      return apiFetch(`/api/projects/${projectId}/coordinate-system`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      });
+    }
+    throw err;
+  }
+}

@@ -27,7 +27,9 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Drawing;
 using StingTools.Core.Fabrication;
+using StingTools.Core.Placement;
 
 namespace StingTools.Commands.Fabrication
 {
@@ -54,6 +56,12 @@ namespace StingTools.Commands.Fabrication
                 return Result.Cancelled;
             }
 
+            // Resolve DrawingType context from the active view for discipline-aware filtering.
+            var activeView = uidoc?.ActiveView;
+            var (dtId, packId, discipline) = ResolveDrawingTypeContext(doc, activeView);
+            string disciplineFilter = (string.IsNullOrEmpty(discipline) || discipline == "*")
+                ? null : discipline;
+
             var result = new FabricationResult();
             foreach (var pair in targets)
             {
@@ -62,7 +70,7 @@ namespace StingTools.Commands.Fabrication
                     var view = doc.GetElement(pair.IsoViewId) as View;
                     if (view == null) continue;
                     int placed = IsoSymbolPlacer.PlaceSymbolsForAssembly(
-                        doc, pair.AssyId, view, result);
+                        doc, pair.AssyId, view, result, disciplineFilter);
                     result.SymbolsPlaced += placed;
                 }
                 catch (Exception ex)
@@ -72,7 +80,38 @@ namespace StingTools.Commands.Fabrication
                 }
             }
 
-            ShowResult(result, targets.Count);
+            // Route result to PlacementResultBus so the Placement Centre + dock panel can display it.
+            var summary = new PlacementRunSummary
+            {
+                Source        = "Symbols",
+                DrawingTypeId = dtId,
+                PackId        = packId,
+                Headline      = result.SymbolsPlaced > 0
+                    ? $"{result.SymbolsPlaced} symbol(s) placed across {targets.Count} assembly(ies)"
+                    : "No symbols placed",
+                Metrics = new List<string>
+                {
+                    $"Assemblies: {targets.Count}",
+                    $"Symbols placed: {result.SymbolsPlaced}",
+                    $"Replaced: {result.SymbolsReplaced}",
+                    $"Unmatched: {result.UnmatchedMembers}",
+                    disciplineFilter != null ? $"Discipline filter: {disciplineFilter}" : "Filter: none",
+                },
+                Warnings = new List<string>(result.Warnings ?? new List<string>()),
+            };
+            PlacementResultBus.Publish(summary);
+
+            // Show rich dialog (falls back to TaskDialog if WPF fails).
+            try
+            {
+                var dlg = new StingTools.UI.FabricationResultDialog(doc, result);
+                dlg.ShowDialog();
+            }
+            catch
+            {
+                ShowResult(result, targets.Count); // existing TaskDialog fallback
+            }
+
             return Result.Succeeded;
         }
 
@@ -250,6 +289,33 @@ namespace StingTools.Commands.Fabrication
             }
             catch (Exception ex) { StingLog.Warn($"FindFirstSectionViewForAssembly: {ex.Message}"); }
             return ElementId.InvalidElementId;
+        }
+
+        // ─── DrawingType context resolution ────────────────────────────
+
+        private static (string dtId, string packId, string discipline) ResolveDrawingTypeContext(
+            Document doc, View view)
+        {
+            if (view == null) return (null, null, null);
+            try
+            {
+                var dtId = DrawingTypeStamper.Read(view);
+                if (string.IsNullOrEmpty(dtId)) return (null, null, null);
+                var dt = DrawingTypeRegistry.Get(doc, dtId);
+                if (dt == null) return (dtId, null, null);
+                string packId = null;
+                if (!string.IsNullOrEmpty(dt.ViewStylePackId))
+                {
+                    var pack = DrawingTypeRegistry.TryGetPack(doc, dt.ViewStylePackId);
+                    packId = pack?.Id;
+                }
+                return (dtId, packId, dt.Discipline);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlaceIsoSymbolsCommand.ResolveDrawingTypeContext: {ex.Message}");
+                return (null, null, null);
+            }
         }
 
         // ─── Result reporting ──────────────────────────────────────────
