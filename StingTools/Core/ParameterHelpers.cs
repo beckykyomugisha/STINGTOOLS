@@ -701,6 +701,33 @@ namespace StingTools.Core
         private static DateTime _roomCacheStamp;
         private static Dictionary<ElementId, Room> _roomCacheIndex;
 
+        // ── Batch-session pin ───────────────────────────────────────────────
+        // During a large batch operation (e.g. 500-element tagging run) the
+        // TTL-based room index expiry could fire mid-loop if the build takes
+        // longer than 30 s. BeginBatchSession / EndBatchSession bracket the
+        // run so the cache is held for the duration regardless of wall time.
+        private static int _batchSessionDepth;
+
+        /// <summary>
+        /// Pin the room-index cache for the duration of a batch operation.
+        /// Calls are reference-counted — every <c>BeginBatchSession</c>
+        /// must be paired with a matching <c>EndBatchSession</c>.
+        /// </summary>
+        public static void BeginBatchSession()
+        {
+            System.Threading.Interlocked.Increment(ref _batchSessionDepth);
+        }
+
+        /// <summary>
+        /// Release one batch-session pin. When the count drops to zero the
+        /// cache is allowed to expire normally via its TTL.
+        /// </summary>
+        public static void EndBatchSession()
+        {
+            if (_batchSessionDepth > 0)
+                System.Threading.Interlocked.Decrement(ref _batchSessionDepth);
+        }
+
         /// <summary>
         /// Invalidate the cached room index — called by
         /// <c>StingAutoTagger</c> when a Room changes so the next spatial

@@ -97,7 +97,7 @@ namespace StingTools.Core.Electrical
                     try
                     {
                         var wireData    = WireAnnotationEngine.ReadWireData(conduit);
-                        expectedText    = WireAnnotationEngine.BuildAnnotationText(wireData);
+                        expectedText    = WireAnnotationEngine.BuildAnnotationText(wireData, WireAnnotationStyle.Default());
                     }
                     catch (Exception ex)
                     {

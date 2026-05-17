@@ -92,6 +92,14 @@ namespace Planscape.Docs.Workflow
             return results;
         }
 
+        /// <summary>
+        /// Called during application shutdown to flush any pending buffered
+        /// state. The current implementation writes append-only JSONL entries
+        /// synchronously so there is nothing to flush, but callers should
+        /// still call this method to ensure forward-compatibility.
+        /// </summary>
+        public static void Shutdown() { /* No buffered state to flush. */ }
+
         public static bool VerifyChain(Document doc, string fileOrMonth)
         {
             string path = fileOrMonth != null && File.Exists(fileOrMonth)
