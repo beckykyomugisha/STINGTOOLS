@@ -531,11 +531,6 @@ namespace StingTools.Tags
             foreach (string sp in StyleParams)
                 if (!result.Contains(sp)) result.Add(sp);
 
-            // Always add style/appearance params (128 TAG_{size}{style}_{colour}_BOOL +
-            // box colour/visible/style + leader colour + scale-tier-auto + depth-tier cache)
-            foreach (string sp in StyleParams)
-                if (!result.Contains(sp)) result.Add(sp);
-
             // Add description param
             result.Add("ASS_DESCRIPTION_TXT");
 
