@@ -33,7 +33,7 @@ namespace StingTools.Tags
         /// Projects with dense annotations can reduce this; plant rooms may need 2–3 ft.
         /// </summary>
         private static double LeaderClearanceMargin
-            => TagConfig.TagConfig.GetConfigDouble("LEADER_CLEARANCE_MARGIN_FT", 0.5);
+            => TagConfig.GetConfigDouble("LEADER_CLEARANCE_MARGIN_FT", 0.5);
 
         // ── B-1 SpatialGrid view cache ───────────────────────────────────
         // Memoise the (existing-tag) SpatialGrid per (docKey, viewId) so two
@@ -1177,7 +1177,7 @@ namespace StingTools.Tags
                 }
 
                 // Leader length clamping: enforce min/max distance from element center
-                double leaderMinFt = 3.0;
+                double leaderMinFt = LeaderClearanceMargin;
                 double leaderMaxFt = 40.0;
                 double distToBest = bestPos.DistanceTo(center);
                 if (distToBest > 0.001)

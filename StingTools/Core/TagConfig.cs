@@ -786,28 +786,38 @@ namespace StingTools.Core
         private static readonly Dictionary<string, HashSet<string>> _validFuncsForSys =
             new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
             {
-                // Mechanical systems
-                { "HVAC", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SUP", "RTN", "EXH", "FRA", "HTG", "CLG", "VNT", "GEN" } },
-                { "HWS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "HTG", "DHW", "GEN" } },
-                { "DHW",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DHW", "GEN" } },
+                // Mechanical systems — aligned with STING_FUNC_SYS_MATRIX.csv
+                { "HVAC", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SUP", "RTN", "EXH", "FRA", "HTG", "CLG", "VNT", "OA", "TRF", "REL", "GRP", "GEN" } },
+                { "HWS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SUP", "RTN", "HTG", "DHW", "CND", "GEN" } },
+                { "DHW",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SUP", "RTN", "DHW", "GEN" } },
                 // Plumbing systems
-                { "DCW",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DCW", "GEN" } },
-                { "SAN",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SAN", "GEN" } },
-                { "RWD",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "RWD", "GEN" } },
-                { "GAS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GAS", "GEN" } },
+                { "DCW",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SUP", "CLD", "DCW", "GEN" } },
+                { "SAN",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SAN", "WAS", "SOI", "VNT", "GEN" } },
+                { "RWD",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "RWD", "SRF", "ATT", "GEN" } },
+                { "GAS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SUP", "GAS", "MED", "LOW", "GEN" } },
                 // Fire protection
-                { "FP",   new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "FP", "FLS", "GEN" } },
-                // Electrical systems
-                { "LV",   new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "PWR", "LTG", "GEN" } },
+                { "FP",   new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SUP", "SYS", "WET", "DRY", "DEL", "PRE", "FOA", "FP", "FLS", "GEN" } },
+                // Electrical systems — extended for BS 7671 sub-circuits
+                { "LV",   new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "PWR", "LTG", "EMG", "SML", "EAR", "UPS", "GNR", "GEN" } },
+                { "HV",   new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "PWR", "TRF", "GEN" } },
                 { "FLS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "FLS", "GEN" } },
-                // Communications / low voltage
-                { "COM",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "COM", "GEN" } },
-                { "ICT",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ICT", "COM", "GEN" } },
-                { "NCL",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "NCL", "GEN" } },
-                { "SEC",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SEC", "GEN" } },
+                // Fire alarm
+                { "FA",   new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DET", "MCP", "SND", "AVD", "IO", "SDA", "LDS", "GEN" } },
+                // Communications / low voltage — extended for ICT/AV sub-types
+                { "COM",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "PA", "TV", "TEL", "AV", "COM", "GEN" } },
+                { "ICT",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "NET", "WAP", "FBR", "SER", "PTS", "ICT", "COM", "GEN" } },
+                { "NCL",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "NCS", "EMR", "BDH", "NCL", "GEN" } },
+                { "SEC",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "CCTV", "ACC", "INT", "DOR", "SEC", "GEN" } },
+                { "BMS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "MON", "CTL", "SNS", "FCT", "GEN" } },
+                // Medical gas systems (HTM 02-01)
+                { "MGS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "O2", "N2O", "MAP", "VAC", "EVAC", "N2", "CO2", "GEN" } },
+                // Lightning protection (BS EN 62305)
+                { "LPS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AIR", "DOW", "ERT", "BND", "SPD", "TST", "GEN" } },
+                // Radiation protection (NCRP 147)
+                { "RAD",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SHD", "ZNE", "MON", "GEN" } },
                 // Architectural / structural / general
-                { "ARC",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "FIT", "GEN" } },
-                { "STR",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "STR", "GEN" } },
+                { "ARC",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WLL", "FLR", "CLG", "ROF", "DOR", "WIN", "STR", "RMP", "FAS", "FIT", "GEN" } },
+                { "STR",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "COL", "BM", "SLB", "FND", "WLL", "BRC", "TRS", "RBR", "STR", "GEN" } },
                 { "GEN",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GEN" } },
             };
 
@@ -1940,6 +1950,12 @@ namespace StingTools.Core
             SheetMarginTopMm = 10.0;
             SheetMarginBottomMm = 15.0;
             SheetMarginGapMm = 8.0;
+            // Reset auto-tagger and phase-correction flags so cross-project state cannot bleed
+            // when LoadDefaults() is called without a subsequent LoadFromFile().
+            AutoTaggerEnabled = null;
+            AutoTaggerVisual = null;
+            AutoTaggerStaleMarker = null;
+            AutoCorrectStatusFromPhase = false;
             // Load category warnings and paragraph containers from LABEL_DEFINITIONS
             LoadCategoryWarningsFromLabels();
         }
