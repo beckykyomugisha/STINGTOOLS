@@ -605,13 +605,38 @@ namespace StingTools.Core.Symbols
                         string.Equals(fs.FamilyName, famName, StringComparison.OrdinalIgnoreCase))
                         return fs;
 
-                // Try MEP symbols folder, then ISO6412 folder as fallback.
-                string[] candidatePaths = new[]
+                // Search order:
+                //  1) Families/ subdirs (manually authored or manually deployed bundles)
+                //  2) _BIM_COORD/Families/Symbols/ — output of SymbolLibraryCreator / Create All Symbols
+                //  3) Subdirectory scan of _BIM_COORD/Families/Symbols/ for nested group folders
+                var candidateList = new List<string>
                 {
-                    Path.Combine(StingToolsApp.DataPath ?? "", "..", "Families", "MEP", entry.FamilyFile),
-                    Path.Combine(StingToolsApp.DataPath ?? "", "..", "Families", "SLD", entry.FamilyFile),
+                    Path.Combine(StingToolsApp.DataPath ?? "", "..", "Families", "MEP",     entry.FamilyFile),
+                    Path.Combine(StingToolsApp.DataPath ?? "", "..", "Families", "SLD",     entry.FamilyFile),
                     Path.Combine(StingToolsApp.DataPath ?? "", "..", "Families", "ISO6412", entry.FamilyFile),
                 };
+
+                // _BIM_COORD path — where Create All Symbols writes generated .rfa files
+                try
+                {
+                    string docDir = string.IsNullOrEmpty(doc.PathName)
+                        ? null : Path.GetDirectoryName(doc.PathName);
+                    if (!string.IsNullOrEmpty(docDir))
+                    {
+                        string bimCoordRoot = Path.Combine(docDir, "_BIM_COORD", "Families", "Symbols");
+                        if (Directory.Exists(bimCoordRoot))
+                        {
+                            // Flat root
+                            candidateList.Add(Path.Combine(bimCoordRoot, entry.FamilyFile));
+                            // All sub-group folders (SLD/IEC, SLD/IEEE, HVAC, Lighting, etc.)
+                            foreach (var sub in Directory.GetDirectories(bimCoordRoot, "*", SearchOption.AllDirectories))
+                                candidateList.Add(Path.Combine(sub, entry.FamilyFile));
+                        }
+                    }
+                }
+                catch { /* non-fatal: document may not be saved yet */ }
+
+                string[] candidatePaths = candidateList.ToArray();
                 foreach (var fp in candidatePaths)
                 {
                     if (!File.Exists(fp)) continue;
