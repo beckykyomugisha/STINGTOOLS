@@ -18,6 +18,8 @@ using TaskDialogResult = Autodesk.Revit.UI.TaskDialogResult;
 // The wizard reads BoundingBoxXYZ.Transform (Revit) for scope-box rotation
 // math; alias the bare name to the Revit type so existing code resolves.
 using Transform = Autodesk.Revit.DB.Transform;
+using System.Text.RegularExpressions;
+using Autodesk.Revit.UI;
 
 namespace StingTools.UI
 {

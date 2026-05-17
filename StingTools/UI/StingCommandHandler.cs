@@ -7,6 +7,9 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Drawing;
+using Newtonsoft.Json;
+using System.Collections.Concurrent;
 
 namespace StingTools.UI
 {
@@ -8941,7 +8944,6 @@ For live data, open BCC in Revit and re-export.</p></div>
                 var styleName = panel.GetSelectedWireStyle();
                 if (string.IsNullOrEmpty(styleName)) return;
                 using var t = new Autodesk.Revit.DB.Transaction(doc, "STING Set Wire Style");
-using StingTools.Core.Drawing;
                 t.Start();
                 var setting = Autodesk.Revit.DB.Electrical.ElectricalSetting.GetElectricalSettings(doc);
                 // WireType lookup by name — no-op if not found so the project stays clean.

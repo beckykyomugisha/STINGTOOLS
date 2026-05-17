@@ -10,6 +10,7 @@ using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using StingTools.Core;
 using StingTools.UI;
+using System.Threading;
 
 namespace StingTools.BIMManager
 {

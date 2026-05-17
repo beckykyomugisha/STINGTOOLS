@@ -19,6 +19,10 @@ using StingTools.UI;
 using StingTools.BIMManager;
 using StingTools.Core.Clash;
 using Planscape.PluginSync;
+using StingTools.Core.Drawing;
+using StingTools.Core.Validation;
+using StingTools.Core.Validation.Healthcare;
+using StingTools.UI.Plumbing;
 
 namespace StingTools.Core
 {
@@ -1623,7 +1627,6 @@ namespace StingTools.Core
                     }
 
                     using (var ms = new MemoryStream())
-using StingTools.Core.Drawing;
                     {
                         bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
                         ms.Position = 0;

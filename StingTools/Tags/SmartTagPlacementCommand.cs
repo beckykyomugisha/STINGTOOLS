@@ -9,6 +9,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using StingTools.Core;
+using StingTools.Core.Drawing;
 
 namespace StingTools.Tags
 {
@@ -3659,7 +3660,6 @@ namespace StingTools.Tags
             int applied = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Apply Tag Control Session"))
-using StingTools.Core.Drawing;
             {
                 tx.Start();
 

@@ -32,6 +32,8 @@ using StingTools.Core;
 using StingTools.Core.Symbols;
 using StingTools.UI;
 using StingTools.Core.Routing;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 
 namespace StingTools.Commands.Symbols
 {

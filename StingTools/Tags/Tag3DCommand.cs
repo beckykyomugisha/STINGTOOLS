@@ -7,6 +7,9 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.UI;
+using StingTools.Core.Drawing;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 
 namespace StingTools.Tags
 {
@@ -506,7 +509,6 @@ namespace StingTools.Tags
             try
             {
                 using (var sub = new SubTransaction(doc))
-using StingTools.Core.Drawing;
                 {
                     sub.Start();
                     try

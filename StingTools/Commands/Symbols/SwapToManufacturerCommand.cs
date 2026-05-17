@@ -34,6 +34,8 @@ using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
 using StingTools.UI;
+using StingTools.Core.Validation;
+using StingTools.Core.Validation.Healthcare;
 
 namespace StingTools.Commands.Symbols
 {

@@ -17,6 +17,7 @@ using TextBox    = System.Windows.Controls.TextBox;
 using Visibility = System.Windows.Visibility;
 using SelectionChangedEventArgs = System.Windows.Controls.SelectionChangedEventArgs;
 using StingTools.Core;
+using Autodesk.Revit.DB.Architecture;
 namespace StingTools.UI
 {
     /// <summary>

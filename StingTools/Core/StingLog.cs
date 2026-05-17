@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using StingTools.Core.Drawing;
+using System.Collections.Concurrent;
 
 namespace StingTools.Core
 {

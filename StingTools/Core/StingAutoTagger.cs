@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using StingTools.Core.Drawing;
+using Newtonsoft.Json.Linq;
+using Autodesk.Revit.DB.Architecture;
 
 namespace StingTools.Core
 {
@@ -1030,7 +1033,6 @@ namespace StingTools.Core
                 }
 
                 using (Transaction tx = new Transaction(doc, "STING Mark Stale"))
-using StingTools.Core.Drawing;
                 {
                     tx.Start();
                     foreach (ElementId id in idsToMark)

@@ -20,6 +20,7 @@ using System.Linq;
 using System.IO;
 using Autodesk.Revit.DB;
 using StingTools.Core;
+using Autodesk.Revit.DB.Architecture;
 
 namespace StingTools.Model
 {

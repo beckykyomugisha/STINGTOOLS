@@ -17,6 +17,7 @@ using StingTools.Core.Placement;
 using TextBox = System.Windows.Controls.TextBox;
 using ComboBox = System.Windows.Controls.ComboBox;
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
+using System.Text.RegularExpressions;
 
 namespace StingTools.UI
 {

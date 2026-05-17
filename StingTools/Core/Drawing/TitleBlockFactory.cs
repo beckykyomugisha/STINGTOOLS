@@ -38,6 +38,7 @@ using System.Text;
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using System.Collections.Concurrent;
 
 namespace StingTools.Core.Drawing
 {

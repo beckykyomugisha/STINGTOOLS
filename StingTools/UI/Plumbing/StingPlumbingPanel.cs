@@ -12,6 +12,7 @@ using StingTools.Core;
 using StingTools.Core.Drawing;
 using StingTools.Core.Mep;
 using StingTools.Core.Routing;
+using StingTools.Core.Calc;
 namespace StingTools.UI.Plumbing
 {
     public class StingPlumbingPanel : Page

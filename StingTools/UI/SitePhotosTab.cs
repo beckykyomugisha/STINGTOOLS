@@ -34,6 +34,8 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using StingTools.BIMManager;
 using StingTools.Core;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 
 namespace StingTools.UI
 {

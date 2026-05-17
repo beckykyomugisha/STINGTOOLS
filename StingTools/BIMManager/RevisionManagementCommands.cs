@@ -9,6 +9,7 @@ using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
 using StingTools.UI;
+using System.Text.RegularExpressions;
 
 namespace StingTools.BIMManager
 {

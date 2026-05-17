@@ -12,6 +12,7 @@ using System;
 using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.Core.DesignOptions;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Drawing
 {

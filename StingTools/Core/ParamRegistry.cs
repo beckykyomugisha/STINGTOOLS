@@ -5,6 +5,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json.Linq;
 using StingTools.Core.Placement;
+using System.Collections.Concurrent;
 
 namespace StingTools.Core
 {

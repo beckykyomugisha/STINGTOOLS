@@ -28,6 +28,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Drawing;
 
 namespace StingTools.Commands.Drawing
 {
@@ -54,7 +55,6 @@ namespace StingTools.Commands.Drawing
                 var warnings = new List<string>();
 
                 using (var tx = new Transaction(doc, "STING Presentation Setup"))
-using StingTools.Core.Drawing;
                 {
                     tx.Start();
 

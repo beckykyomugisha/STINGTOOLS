@@ -38,6 +38,7 @@ using System.Text;
 using System.Threading;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
+using StingTools.Core.Mep;
 
 namespace StingTools.Core.Routing
 {
@@ -528,7 +529,6 @@ namespace StingTools.Core.Routing
             {
                 string seed = $"{host?.UniqueId}|{member?.UniqueId}";
                 using var sha = SHA1.Create();
-using StingTools.Core.Mep;
                 var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes("STING_PFV|" + seed));
                 var g = new byte[16];
                 Array.Copy(bytes, g, 16);

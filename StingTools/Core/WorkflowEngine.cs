@@ -10,6 +10,7 @@ using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.UI;
+using System.Threading;
 
 namespace StingTools.Core
 {

@@ -26,6 +26,7 @@
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.ExtensibleStorage;
+using StingTools.Core;
 
 namespace StingTools.Core.Storage
 {
@@ -146,7 +147,6 @@ namespace StingTools.Core.Storage
             try
             {
                 using (var t = new Transaction(doc, "STING ES: migrate stale flag"))
-using StingTools.Core;
                 {
                     t.Start();
                     var col = new FilteredElementCollector(doc).WhereElementIsNotElementType();

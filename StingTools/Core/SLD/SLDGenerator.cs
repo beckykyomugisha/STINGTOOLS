@@ -28,6 +28,7 @@ using System.IO;
 using Autodesk.Revit.DB;
 using StingTools.Core.Symbols;
 using StingTools.Commands.Electrical.Coordination;
+using StingTools.Core.Drawing;
 
 namespace StingTools.Core.SLD
 {
@@ -274,7 +275,6 @@ namespace StingTools.Core.SLD
             if (roots == null || roots.Count == 0) return;
 
             using (var tx = new Transaction(doc, "STING Rebuild SLD content"))
-using StingTools.Core.Drawing;
             {
                 tx.Start();
                 var stub = new SLDResult();

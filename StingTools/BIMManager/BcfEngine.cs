@@ -6,6 +6,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Xml.Linq;
+using StingTools.Core;
 
 namespace Planscape.Shared.BCF
 {
@@ -505,7 +506,6 @@ namespace Planscape.Shared.BCF
             using var s = entry.Open();
             // Write as UTF-8 with the XDeclaration to match BCF 2.1 producer behaviour.
             using var writer = new StreamWriter(s, new UTF8Encoding(false));
-using StingTools.Core;
             xml.Save(writer);
         }
 

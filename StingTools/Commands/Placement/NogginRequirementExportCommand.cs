@@ -16,6 +16,7 @@ using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Placement;
+using Autodesk.Revit.DB.Architecture;
 
 namespace StingTools.Commands.Placement
 {

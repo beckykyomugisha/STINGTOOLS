@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using ClosedXML.Excel;
+using StingTools.Core;
 
 namespace StingTools.Core.Placement.Excel
 {
@@ -26,7 +27,6 @@ namespace StingTools.Core.Placement.Excel
                 return (rules, errors);
             }
             using (var wb = new XLWorkbook(filePath))
-using StingTools.Core;
             {
                 foreach (var ws in wb.Worksheets)
                 {

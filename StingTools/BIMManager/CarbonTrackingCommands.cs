@@ -8,6 +8,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.UI;
+using Autodesk.Revit.DB.Architecture;
 
 namespace StingTools.BIMManager
 {

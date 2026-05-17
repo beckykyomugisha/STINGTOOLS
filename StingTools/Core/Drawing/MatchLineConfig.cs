@@ -18,6 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
+using Autodesk.Revit.DB;
 
 namespace StingTools.Core.Drawing
 {

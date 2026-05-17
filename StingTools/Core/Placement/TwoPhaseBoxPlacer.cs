@@ -17,6 +17,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Structure;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Placement
 {

@@ -13,6 +13,7 @@ using System;
 using System.IO;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json.Linq;
+using StingTools.Core.Drawing;
 
 namespace StingTools.Core.Symbols
 {
@@ -129,7 +130,6 @@ namespace StingTools.Core.Symbols
         {
             if (doc == null || view == null) return;
             using (var tx = new Transaction(doc, "STING Set View Symbol Standard"))
-using StingTools.Core.Drawing;
             {
                 tx.Start();
                 var p = view.LookupParameter("STING_VIEW_SYMBOL_STANDARD");

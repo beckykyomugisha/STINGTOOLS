@@ -30,6 +30,7 @@ using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.DB.Structure;
 using Newtonsoft.Json;
 using StingTools.Core;
+using StingTools.Core.Routing;
 
 namespace StingTools.Core.Symbols
 {
@@ -1668,7 +1669,6 @@ namespace StingTools.Core.Symbols
             try
             {
                 using (var tx = new Transaction(hostDoc, "STING Load Symbol Family"))
-using StingTools.Core.Routing;
                 {
                     tx.Start();
                     Family fam;

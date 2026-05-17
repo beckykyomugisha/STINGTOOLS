@@ -11,6 +11,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Autodesk.Revit.DB;
 using StingTools.Core;
+using StingTools.Core.Routing;
 
 namespace StingTools.Core.Fabrication.Electrical
 {
@@ -80,7 +81,6 @@ namespace StingTools.Core.Fabrication.Electrical
             Directory.CreateDirectory(outDir);
             string path = Path.Combine(outDir, "STING_v4_electrical_bends.csv");
             using (var w = new StreamWriter(path, false))
-using StingTools.Core.Routing;
             {
                 w.WriteLine("element_id,category,name,is_bend,bend_deg,bend_source,assembly");
                 foreach (var id in ids)

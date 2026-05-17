@@ -15,6 +15,7 @@ using System.Windows.Media;
 using System.IO;
 using Color = System.Windows.Media.Color;
 using StingTools.Core;
+using Newtonsoft.Json.Linq;
 
 namespace StingTools.UI
 {

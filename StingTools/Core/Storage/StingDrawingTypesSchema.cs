@@ -18,6 +18,8 @@ using System;
 using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.ExtensibleStorage;
+using StingTools.Core.Drawing;
+using StingTools.Core;
 
 namespace StingTools.Core.Storage
 {
@@ -117,8 +119,6 @@ namespace StingTools.Core.Storage
             try
             {
                 using var sha = System.Security.Cryptography.SHA256.Create();
-using StingTools.Core.Drawing;
-using StingTools.Core;
                 byte[] hash = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(s ?? ""));
                 return Convert.ToHexString(hash).ToLowerInvariant();
             }

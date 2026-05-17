@@ -6,6 +6,7 @@ using StingTools.Core;
 using System;
 using System.Linq;
 using System.Text;
+using StingTools.Core.Validation.Healthcare;
 
 namespace StingTools.Commands.Healthcare.Specialist
 {

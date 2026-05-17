@@ -9,6 +9,7 @@ using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Select;
 using StingTools.UI;
+using StingTools.Core.Placement;
 
 namespace StingTools.Tags
 {
@@ -1429,7 +1430,6 @@ namespace StingTools.Tags
                 result.DiscCode = discCode;
 
                 using (Transaction tx = new Transaction(famDoc, "STING Family Param Inject"))
-using StingTools.Core.Placement;
                 {
                     tx.Start();
 

@@ -5,6 +5,7 @@ using System;
 using Autodesk.Revit.DB;
 using System.Collections.Generic;
 using System.Linq;
+using Autodesk.Revit.DB.Architecture;
 
 namespace StingTools.Core.Validation.Healthcare
 {

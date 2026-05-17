@@ -22,6 +22,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Drawing
 {

@@ -39,6 +39,7 @@ using Autodesk.Revit.DB;
 using StingTools.Core;
 using Color = System.Windows.Media.Color;
 using Grid = System.Windows.Controls.Grid;
+using StingTools.Core.Drawing;
 
 namespace StingTools.Model
 {
@@ -300,7 +301,6 @@ namespace StingTools.Model
             int groupIndex = 1;
 
             using (var tx = new Transaction(doc, "STING Number Elements"))
-using StingTools.Core.Drawing;
             {
                 tx.Start();
                 foreach (var group in groups)

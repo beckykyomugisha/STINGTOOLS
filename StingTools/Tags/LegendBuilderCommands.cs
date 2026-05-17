@@ -8,6 +8,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.UI;
+using Newtonsoft.Json;
 
 namespace StingTools.Tags
 {
