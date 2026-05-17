@@ -83,7 +83,8 @@ namespace StingTools.Core.Symbols
             Document hostDoc,
             string jsonPath,
             string outputFolder,
-            bool loadIntoProject)
+            bool loadIntoProject,
+            SymbolSizeConfig sizeConfig = null)
         {
             var result = new SymbolCreationResult();
             if (!File.Exists(jsonPath))
@@ -137,6 +138,17 @@ namespace StingTools.Core.Symbols
                     result.Failed++;
                     result.Errors.Add("Symbol with empty id skipped.");
                     continue;
+                }
+
+                // Apply project-level size config (global multiplier / category / per-symbol override).
+                if (sizeConfig != null)
+                {
+                    double effective = sizeConfig.Resolve(def);
+                    if (Math.Abs(effective - def.SymbolSize) > 0.01)
+                    {
+                        StingLog.Info($"[SizeOverride] {def.Id}: {def.SymbolSize:F1}mm → {effective:F1}mm");
+                        def.SymbolSize = effective;
+                    }
                 }
 
                 var rfaPath = Path.Combine(outputFolder, def.Id + ".rfa");
