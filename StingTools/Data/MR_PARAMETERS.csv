@@ -1,4 +1,4 @@
-# v5.9 | 20260517 | BIM Template mr_parameters — 2615 params (+28: healthcare tag containers CLN/MGS/RAD/CEQ/LIG, STING_DRAWING params, ASS tie-in/trace, MEP system codes, cable tray dims, TAG cluster/hint — Phase 179 alignment)
+# v6.1 | 20260517 | BIM Template mr_parameters — 3015 unique params (auto-aligned with MR_PARAMETERS.txt; deduped 5 PLM_* rows)
 Revit_Category,Parameter_Name,Parameter_GUID,Data_Type,Group_Name,Binding_Type,Description,Has_Formula,Formula,Input_Parameters,Discipline,User_Modifiable,Hide_When_No_Value
 Generic Models,ASS_CAT_TXT,f8fe813a-44e9-5e47-9109-921171dc53b6,TEXT,ASS_MNG,Type,Ass Cat Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_CST_QUANTITY_NR,3c189e63-383c-5011-b7d9-873faed4e6c6,TEXT,ASS_MNG,Type,Ass Cst Quantity Nr [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -256,17 +256,17 @@ Generic Models,ELC_CDT_SZ_MM,3ab3a279-b143-42ae-ace3-8b3997dcc8a4,TEXT,ELC_PWR,T
 Generic Models,ELC_CDT_MAT_TXT,1d4c7468-66e8-4ee7-a13f-25fd28d4a875,TEXT,ELC_PWR,Type,Conduit material: GS-GALV/UPVC/SS316/AL-FLEX/EMT [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_CDT_INSTALL_METHOD_TXT,a6443de3-f5b7-4279-b348-1e6fbac12e88,TEXT,ELC_PWR,Type,Conduit install method: SURF-MTD/CONC-EMB/TRAY/BRAC/IN-FLOOR [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_CDT_CBL_FILL_PCT,2fdc3987-8e87-4d81-ada8-47514e7b50f2,TEXT,ELC_PWR,Type,Cable fill percentage of conduit cross-section (design value) [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ELC_CDT_BEND_ANGLE_DEG,c7f5a2e1-9b3d-4e1c-8a2f-7d6b3e4c5a90,TEXT,ELC_PWR,Type,"Conduit bend angle in degrees: 11.25/22.5/30/45/60/90/120 [BS 7671:2018+A2:2022 §522.8]",False,,,MULTI,1,0
+Generic Models,ELC_CDT_BEND_ANGLE_DEG,c7f5a2e1-9b3d-4e1c-8a2f-7d6b3e4c5a90,TEXT,ELC_PWR,Type,Conduit bend angle in degrees: 11.25/22.5/30/45/60/90/120 [BS 7671:2018+A2:2022 §522.8],False,,,MULTI,1,0
 Generic Models,ELC_CDT_BEND_COUNT_NR,d8e6b3f2-ac4e-5f2d-9b3e-8e7c4f5d6b01,TEXT,ELC_PWR,Type,Number of bends in this conduit run (BS 7671 §522.8.5 limits to 3 between draw-in points),False,,,MULTI,1,0
 Generic Models,ELC_CDT_RUN_LENGTH_M,e9f7c4f3-bd5f-6f3e-ac4f-9f8d5e6e7c12,TEXT,ELC_PWR,Type,Conduit run length in metres (BS 7671 max ~6m between draw-in points),False,,,MULTI,1,0
 Generic Models,ELC_CDT_CABLE_COUNT_NR,fa1b8d54-ce6f-7f4f-bd5f-af9e6f7f8d23,TEXT,ELC_PWR,Type,"Number of cables drawn in this conduit (BS EN 61386 fill: 1=53%/43%, 2=31%/20%, 3+=40%/35%)",False,,,MULTI,1,0
-Generic Models,ELC_CIRCUIT_GROUP_TXT,b1c2d3e4-fd6f-8e0d-ce7e-be0f7f8e9f34,TEXT,ELC_PWR,Instance,"Logical circuit group key (kitchen / emergency-lighting / fire-alarm / comms-room) — circuits with the same value tend to land on the same panel. Resolved by STING_ELECTRICAL_ASSIGNMENT.json or stamped manually.",False,,,MULTI,1,0
-Generic Models,ELC_PNL_CIRCUIT_GROUP_TXT,c2d3e4f5-1e7f-9f1e-df8f-cf1f8f9faf45,TEXT,ELC_PWR,Type,"Group key carried by a panel after the first BatchAssignCircuits run — pins the panel to a single logical group so subsequent runs converge.",False,,,MULTI,1,0
+Generic Models,ELC_CIRCUIT_GROUP_TXT,b1c2d3e4-fd6f-8e0d-ce7e-be0f7f8e9f34,TEXT,ELC_PWR,Instance,Logical circuit group key (kitchen / emergency-lighting / fire-alarm / comms-room) — circuits with the same value tend to land on the same panel. Resolved by STING_ELECTRICAL_ASSIGNMENT.json or stamped manually.,False,,,MULTI,1,0
+Generic Models,ELC_PNL_CIRCUIT_GROUP_TXT,c2d3e4f5-1e7f-9f1e-df8f-cf1f8f9faf45,TEXT,ELC_PWR,Type,Group key carried by a panel after the first BatchAssignCircuits run — pins the panel to a single logical group so subsequent runs converge.,False,,,MULTI,1,0
 Generic Models,STING_WALL_ROUTING_FLAG,d4e5f607-2f80-af2f-e1a0-d020909fc056,TEXT,Routing,Type,"When set to ALLOW, tells the auto-router that conduit / pipe runs MAY pass through this wall (chase / penetration / removable cover). DENY (default) leaves the wall as a hard obstacle. Read by RoutingPathfinder.CollectObstaclesInAABB.",False,,,MULTI,1,0
-Generic Models,STING_SLAB_ROUTING_FLAG,e5f60718-3091-b03f-f2b1-e131a1a01067,TEXT,Routing,Type,"Slab counterpart of STING_WALL_ROUTING_FLAG. ALLOW lets a vertical drop pass through this floor (slab penetration). DENY treats the slab as a hard obstacle.",False,,,MULTI,1,0
-Generic Models,STING_PENETRATION_REF_TXT,f6071829-41a2-c150-038c-f242b2b12178,TEXT,Routing,Instance,"Identifier stamped on a conduit / pipe / duct that crosses a fire-rated floor or wall. Format: FLR:<id>@<rating>. Drives FRP_PENETRATION family placement + register schedule.",False,,,MULTI,1,0
-Generic Models,STING_PENETRATION_FIRE_RATING_TXT,07182a3a-52b3-d261-149d-035303c23289,TEXT,Routing,Instance,"Required fire rating at the penetration point — copied from the host floor / wall (BS 9999 / BS 476). Empty defaults to FR60 typical floor rating.",False,,,MULTI,1,0
-Generic Models,STING_FIRE_RATING_TXT,18293b4b-63c4-e372-25ae-146414d34390,TEXT,Routing,Type,"Fire rating of the host wall / floor — FR30 / FR60 / FR90 / FR120. Read by SlabPenetrationDetector to stamp the required rating on every penetration.",False,,,MULTI,1,0
+Generic Models,STING_SLAB_ROUTING_FLAG,e5f60718-3091-b03f-f2b1-e131a1a01067,TEXT,Routing,Type,Slab counterpart of STING_WALL_ROUTING_FLAG. ALLOW lets a vertical drop pass through this floor (slab penetration). DENY treats the slab as a hard obstacle.,False,,,MULTI,1,0
+Generic Models,STING_PENETRATION_REF_TXT,f6071829-41a2-c150-038c-f242b2b12178,TEXT,Routing,Instance,Identifier stamped on a conduit / pipe / duct that crosses a fire-rated floor or wall. Format: FLR:<id>@<rating>. Drives FRP_PENETRATION family placement + register schedule.,False,,,MULTI,1,0
+Generic Models,STING_PENETRATION_FIRE_RATING_TXT,07182a3a-52b3-d261-149d-035303c23289,TEXT,Routing,Instance,Required fire rating at the penetration point — copied from the host floor / wall (BS 9999 / BS 476). Empty defaults to FR60 typical floor rating.,False,,,MULTI,1,0
+Generic Models,STING_FIRE_RATING_TXT,18293b4b-63c4-e372-25ae-146414d34390,TEXT,Routing,Type,Fire rating of the host wall / floor — FR30 / FR60 / FR90 / FR120. Read by SlabPenetrationDetector to stamp the required rating on every penetration.,False,,,MULTI,1,0
 Generic Models,ELC_CDT_TAG_01_TXT,f867c60f-1fda-4f3f-a052-cf81268c0600,TEXT,ELC_PWR,Type,"Conduit spec tag: size, material, install method [ISO 19650-1:2018]",False,,,MULTI,1,0
 Generic Models,ELC_CDT_TAG_02_TXT,aab93953-601b-4bab-8d52-079193f71524,TEXT,ELC_PWR,Type,Conduit fill + cable ref + installation detail tag [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_CTR_WIDTH_MM,d1f2feb5-c03b-44df-8b3d-41adf0720aa7,TEXT,ELC_PWR,Type,Cable tray width: 100/150/300/450/600/900mm [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -2645,14 +2645,14 @@ Rooms,ELC_PHOTO_LUX_RELUX_NR,c4a9badb-1813-5181-9181-100000000003,TEXT,ELC_PWR,I
 Rooms,ELC_PHOTO_UNIFORMITY_NR,c4a9badb-1814-5181-9181-100000000004,TEXT,ELC_PWR,Instance,Uniformity ratio (Emin / Eavg) per BS EN 12464-1 [STING Phase 181],False,,,ELECTRICAL,1,0
 Rooms,ELC_PHOTO_LAST_ENGINE_TXT,c4a9badb-1815-5181-9181-100000000005,TEXT,ELC_PWR,Instance,Engine ID that wrote the most recent photometric result (DIALux / ElumTools / Relux / Estimate) [STING Phase 181],False,,,ELECTRICAL,1,0
 Rooms,ELC_PHOTO_LAST_CALC_DATE_TXT,c4a9badb-1816-5181-9181-100000000006,TEXT,ELC_PWR,Instance,ISO 8601 date stamp of the most recent photometric calculation [STING Phase 181],False,,,ELECTRICAL,1,0
-Generic Models,STING_SEED_FAMILY_TXT,abc4d5e6-7f8a-9b0c-1d2e-3f4a5b6c7d8e,TEXT,Identity,Instance,"Seed family identifier (e.g. STING_SEED_LightingFixture). Stamped by SymbolLibraryCreator on every seed; SwapToManufacturerCommand reads it to find replacement candidates in STING_FAMILY_SWAP_REGISTRY.json.",False,,,MULTI,1,0
-Generic Models,STING_DESIGN_REF_TXT,bcd5e6f7-8a9b-0c1d-2e3f-4a5b6c7d8e9f,TEXT,Identity,Instance,"Original seed identity preserved when an instance is swapped to a manufacturer family. Lets schedules + audits trace which design intent every real fixture replaces.",False,,,MULTI,1,0
-Generic Models,STING_SWAP_HISTORY_TXT,cde6f708-9b0c-1d2e-3f4a-5b6c7d8e9fa0,TEXT,Identity,Instance,"Swap audit trail: pipe-delimited entries timestamp|operator|sourceFamily|destFamily. Append-only; SwapToManufacturerCommand prepends one entry per swap.",False,,,MULTI,1,0
-Generic Models,ELC_JB_TYPE_TXT,def7081a-9ac1-2d3e-4f50-6172839405a6,TEXT,ELC_PWR,Instance,"Junction box type: PULL_BOX / DRAW_IN_BOX / ADAPTABLE_BOX / TEE_BOX. Drives type-variant selection for the JB seed.",False,,,MULTI,1,0
-Generic Models,ELC_JB_SIZE_MM,ef8192ab-cdb2-3e4f-5061-7283940516b7,TEXT,ELC_PWR,Instance,"Trade-size of the junction box in W x D x H millimetres. Default 100x100x60.",False,,,MULTI,1,0
-Generic Models,ELC_JB_AUTO_PLACED_BOOL,f0a293bc-decb-4f50-6172-839405162718,TEXT,ELC_PWR,Instance,"True (1) when the box was auto-placed by JunctionBoxAutoPlacer at a bend-count or run-length break-point. False (0) for manually-placed boxes.",False,,,MULTI,1,0
-Generic Models,ELC_JB_REASON_TXT,a1b3a4cd-efdc-5061-7283-940516271829,TEXT,ELC_PWR,Instance,"Reason auto-placer put the box here: BENDS_EXCESS / RUN_TOO_LONG / FILL_OVER / WALL_PENETRATION / MANUAL. Surfaced in the Penetration / Pull-Box register schedule.",False,,,MULTI,1,0
-Generic Models,ELC_CDT_BREAKPOINT_TXT,b2c4a5dd-fe1d-6172-8394-051627182930,TEXT,ELC_PWR,Instance,"Reference stamped on a conduit by JunctionBoxAutoPlacer when the run hits a BS 7671 §522.8.5 break-point. Format: JB:<id>@<reason> when a box was placed; NEEDED:<reason>@<xyz> when the seed family wasn't loaded.",False,,,MULTI,1,0
+Generic Models,STING_SEED_FAMILY_TXT,abc4d5e6-7f8a-9b0c-1d2e-3f4a5b6c7d8e,TEXT,Identity,Instance,Seed family identifier (e.g. STING_SEED_LightingFixture). Stamped by SymbolLibraryCreator on every seed; SwapToManufacturerCommand reads it to find replacement candidates in STING_FAMILY_SWAP_REGISTRY.json.,False,,,MULTI,1,0
+Generic Models,STING_DESIGN_REF_TXT,bcd5e6f7-8a9b-0c1d-2e3f-4a5b6c7d8e9f,TEXT,Identity,Instance,Original seed identity preserved when an instance is swapped to a manufacturer family. Lets schedules + audits trace which design intent every real fixture replaces.,False,,,MULTI,1,0
+Generic Models,STING_SWAP_HISTORY_TXT,cde6f708-9b0c-1d2e-3f4a-5b6c7d8e9fa0,TEXT,Identity,Instance,Swap audit trail: pipe-delimited entries timestamp|operator|sourceFamily|destFamily. Append-only; SwapToManufacturerCommand prepends one entry per swap.,False,,,MULTI,1,0
+Generic Models,ELC_JB_TYPE_TXT,def7081a-9ac1-2d3e-4f50-6172839405a6,TEXT,ELC_PWR,Instance,Junction box type: PULL_BOX / DRAW_IN_BOX / ADAPTABLE_BOX / TEE_BOX. Drives type-variant selection for the JB seed.,False,,,MULTI,1,0
+Generic Models,ELC_JB_SIZE_MM,ef8192ab-cdb2-3e4f-5061-7283940516b7,TEXT,ELC_PWR,Instance,Trade-size of the junction box in W x D x H millimetres. Default 100x100x60.,False,,,MULTI,1,0
+Generic Models,ELC_JB_AUTO_PLACED_BOOL,f0a293bc-decb-4f50-6172-839405162718,TEXT,ELC_PWR,Instance,True (1) when the box was auto-placed by JunctionBoxAutoPlacer at a bend-count or run-length break-point. False (0) for manually-placed boxes.,False,,,MULTI,1,0
+Generic Models,ELC_JB_REASON_TXT,a1b3a4cd-efdc-5061-7283-940516271829,TEXT,ELC_PWR,Instance,Reason auto-placer put the box here: BENDS_EXCESS / RUN_TOO_LONG / FILL_OVER / WALL_PENETRATION / MANUAL. Surfaced in the Penetration / Pull-Box register schedule.,False,,,MULTI,1,0
+Generic Models,ELC_CDT_BREAKPOINT_TXT,b2c4a5dd-fe1d-6172-8394-051627182930,TEXT,ELC_PWR,Instance,Reference stamped on a conduit by JunctionBoxAutoPlacer when the run hits a BS 7671 §522.8.5 break-point. Format: JB:<id>@<reason> when a box was placed; NEEDED:<reason>@<xyz> when the seed family wasn't loaded.,False,,,MULTI,1,0
 Generic Models,CEQ_CATEGORY_TXT,c8d4f6e2-d001-4d27-8c61-0e7a3f9b3001,TEXT,CEQ_CLINICAL,Type,Clinical equipment category: PENDANT / BEDHEAD / IMAGING / PHARMACY / DIAL / MORT / MOBIL,False,,,HEALTHCARE,1,0
 Generic Models,CEQ_CLINICAL_BOOL,c8d4f6e2-d005-4d27-8c61-0e7a3f9b3005,YESNO,CEQ_CLINICAL,Type,Counts towards clinical asset register,False,,,HEALTHCARE,1,0
 Generic Models,CEQ_DECON_METHOD_TXT,c8d4f6e2-d007-4d27-8c61-0e7a3f9b3007,TEXT,CEQ_CLINICAL,Type,Decontamination route,False,,,HEALTHCARE,1,0
@@ -2803,7 +2803,6 @@ Generic Models,STING_SHEET_VOLUME_TXT,498273b7-a814-57e4-8316-8359609a8bdd,TEXT,
 Generic Models,STING_SUITABILITY_DESC_TXT,7d12b6b6-9c62-515e-a611-92ab4e74e93f,TEXT,PRJ_INFORMATION,Type,"Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT — e.g. for 'S2' the description is 'Shared, Non-contractual' [BS EN ISO 19650-2:2018 §5.6 Annex A]",False,,,MULTI,1,0
 Generic Models,PLM_DFU_COUNT_INT,9468e66a-ee14-50bb-b0e9-00005ea06497,INTEGER,PLM_DRN,Type,IPC 2021 Drainage Fixture Units assigned to fixture or pipe segment [Phase 178b],False,,,PLUMBING,1,0
 Generic Models,PLM_WSFU_COUNT_INT,689d24e8-c9b5-5705-8f7f-57a3e6436c19,INTEGER,PLM_DRN,Type,IPC 2021 Water Supply Fixture Units [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_TRAP_TYPE_TXT,6389d133-18f9-549b-81b2-a7854cc06dff,TEXT,PLM_DRN,Type,Trap type P-TRAP/BOTTLE-TRAP/DEEP-SEAL/INTEGRAL [BS EN 12056-2 Phase 178b],False,,,PLUMBING,1,0
 Generic Models,PLM_TRAP_SEAL_DEPTH_MM,cde11f1f-ce97-59b6-9e31-88733c0074bc,TEXT,PLM_DRN,Type,Trap water seal depth mm minimum 50 [BS EN 12056-2 Phase 178b],False,,,PLUMBING,1,0
 Generic Models,PLM_VENT_SIZE_DN,ce6f77ba-72d5-5904-ba1a-b01d6a09274c,INTEGER,PLM_DRN,Type,Vent pipe nominal diameter mm [IPC 2021 Table 916.1 Phase 178b],False,,,PLUMBING,1,0
 Generic Models,PLM_AAV_REQUIRED_BOOL,cd10ebf4-3e56-5f81-bde7-5a7efbb3312d,YESNO,PLM_DRN,Type,Air Admittance Valve required [BS EN 12380 Phase 178b],False,,,PLUMBING,1,0
@@ -2838,12 +2837,8 @@ Generic Models,PLM_VLV_DESIGN_DP_KPA,a0daacb6-3075-5571-adac-f16dd4986012,TEXT,P
 Generic Models,PLM_VLV_FAIL_POSITION_TXT,83e44d79-e601-5250-bcbc-d63193ac441f,TEXT,PLM_DRN,Type,Valve fail-safe position OPEN/CLOSED/LAST [Phase 178b],False,,,PLUMBING,1,0
 Generic Models,PLM_VLV_WRAS_APPROVED_BOOL,ab46d616-d864-572c-8d9d-5bb51ccaab79,YESNO,PLM_DRN,Type,Valve WRAS-approved [Phase 178b],False,,,PLUMBING,1,0
 Generic Models,PLM_DEAD_LEG_LENGTH_M,af8461f1-b314-5f60-8e8d-e38963de14f8,TEXT,PLM_DRN,Type,Dead-leg length m flagged by DeadLegDetector [HSG 274 Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_AUG_CARE_BOOL,a243bacd-1f2a-5c23-aa4e-f3c60c1ee37a,YESNO,PLM_DRN,Type,Augmented-care zone fixture HTM 04-01 Part B [Phase 178b],False,,,HEALTHCARE,1,0
-Generic Models,PLM_RO_LOOP_BOOL,bbab9ac4-5a21-5970-bab2-43532234f241,YESNO,PLM_DRN,Type,Member of dialysis RO recirculation loop [HTM 04-01 Part D Phase 178b],False,,,HEALTHCARE,1,0
-Generic Models,PLM_POU_FILTER_BOOL,59bd061b-2641-55e1-8e05-21f1f5dfd56b,YESNO,PLM_DRN,Type,Point-of-use filter fitted [HTM 04-01 Phase 178b],False,,,HEALTHCARE,1,0
-Generic Models,PLM_SENTINEL_BOOL,56f58de8-d502-585d-9f3b-57f169c6c7a2,YESNO,PLM_DRN,Type,TMV sentinel monitoring point [Phase 178b],False,,,PLUMBING,1,0
 Generic Models,PLM_PRJ_PLUMBING_CODE_TXT,98ab6e19-8d12-53c0-b388-8705f9413373,TEXT,ASS_MNG,Type,Project plumbing-code toggle BS-UK / IPC-US / UPC-US [Phase 178b],False,,,MULTI,1,0
-Generic Models,ELC_CDT_PENETRATION_COUNT_NR,c3d5b6ee-0f2e-7283-9405-162718304a5b,TEXT,ELC_PWR,Instance,"Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).",False,,,MULTI,1,0
+Generic Models,ELC_CDT_PENETRATION_COUNT_NR,c3d5b6ee-0f2e-7283-9405-162718304a5b,TEXT,ELC_PWR,Instance,Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).,False,,,MULTI,1,0
 Generic Models,ASS_ITEM_CODE_TXT,d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a,TEXT,ASS_MNG,Instance,Procurement item code for asset ordering,False,,,MULTI,1,0
 Generic Models,ASS_SYSTEMS_TXT,e3f4a5b6-c7d8-4e9f-a0b1-2c3d4e5f6a7b,TEXT,ASS_MNG,Instance,Pipe/duct systems this element connects to (pipe-delimited),False,,,MULTI,1,0
 Generic Models,ASS_TERM_CAPPED_BOOL,f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c,YESNO,ASS_MNG,Instance,Terminal point is capped (stub-end or blanked off),False,,,MULTI,1,0
@@ -2872,3 +2867,151 @@ Medical Equipment,CEQ_EQP_TAG,c724bdf9-9a08-53f9-92f3-a6b33470fc1e,TEXT,CEQ_CLIN
 Medical Equipment,CEQ_TAG_7_PARA_TXT,d3e4cf7f-2e40-5d11-aefd-662ceb933060,TEXT,CEQ_CLINICAL,Instance,Clinical specialist equipment TAG7 rich narrative paragraph container,False,,,MULTI,1,0
 Doors,LIG_FIT_TAG,11900001-0000-1190-0000-000000000001,TEXT,LIG_BEHAVIOURAL,Instance,Anti-ligature fitting ISO 19650 tag container,False,,,MULTI,1,0
 Doors,LIG_TAG_7_PARA_TXT,11900001-0000-1190-0000-000000000002,TEXT,LIG_BEHAVIOURAL,Instance,Anti-ligature TAG7 rich narrative paragraph container,False,,,MULTI,1,0
+Project,ELC_WIRE_CORE_COUNT_INT,c1a2b3c4-d5e6-4f70-8a9b-0c1d2e3f4a5b,INTEGER,ELC_PWR,Instance,Number of conductors/cores in the wire run (1-4). Drives slash-mark count on wire annotation tag. [BS 7671],False,,,,1,0
+Project,ELC_WIRE_PHASE_TXT,d2b3c4d5-e6f7-4081-9b0c-1d2e3f4a5b6c,TEXT,ELC_PWR,Instance,Phase designation: L1/L2/L3/N/PE/CPC/1P/3P [BS 7671 Appendix 7],False,,,,1,0
+Project,ELC_WIRE_CSA_MM2_NUM,e3c4d5e6-f708-4192-0c1d-2e3f4a5b6c7d,NUMBER,ELC_PWR,Instance,Conductor cross-sectional area in mm2 (1.5/2.5/4/6/10/16/25/35/50/70/95/120) [BS 7671 Table 4D1A],False,,,,1,0
+Project,ELC_WIRE_COND_MAT_TXT,f4d5e6f7-0819-42a3-1d2e-3f4a5b6c7d8e,TEXT,ELC_PWR,Instance,Conductor material: Cu (copper) / Al (aluminium) [BS 7671],False,,,,1,0
+Project,ELC_WIRE_VD_PCT_NUM,16f70819-2a3b-44c5-3f4a-5b6c7d8e9fa0,NUMBER,ELC_PWR,Instance,"Calculated voltage drop as percentage of nominal voltage [BS 7671 Appendix 12, limit 3% lighting / 5% power]",False,,,,1,0
+Project,ELC_WIRE_AMPACITY_A,27081920-3b4c-45d6-4a5b-6c7d8e9fa0b1,NUMBER,ELC_PWR,Instance,Cable current-carrying capacity (ampacity) in amperes at design installation method [BS 7671 Table 4D1A/4D2A],False,,,,1,0
+Project,ELC_WIRE_INSTALL_METHOD_TXT,38192031-4c5d-46e7-5b6c-7d8e9fa0b1c2,TEXT,ELC_PWR,Instance,Installation method reference: A1/A2/B1/B2/C/D1/D2/E/F/G [BS 7671 Table 4A2 / IEC 60364-5-52],False,,,,1,0
+Project,ELC_WIRE_MAX_DEMAND_A,492a3142-5d6e-47f8-6c7d-8e9fa0b1c2d3,NUMBER,ELC_PWR,Instance,Maximum design demand current for the circuit in amperes [BS 7671 load assessment],False,,,,1,0
+Project,ELC_WIRE_CIRCUIT_BREAKER_A,5a3b4253-6e7f-4809-7d8e-9fa0b1c2d3e4,NUMBER,ELC_PWR,Instance,Upstream overcurrent protective device rating in amperes [BS 7671 Section 433],False,,,,1,0
+Project,ELC_WIRE_EARTH_CSA_MM2,6b4c5364-7f80-4910-8e9f-a0b1c2d3e4f5,NUMBER,ELC_PWR,Instance,Earth/CPC conductor cross-sectional area in mm2 [BS 7671 Section 543],False,,,,1,0
+Project,ELC_WIRE_ARMOURED_BOOL,7c5d6475-8091-4a21-9fa0-b1c2d3e4f506,YESNO,ELC_PWR,Instance,True if cable is SWA (steel wire armoured) or equivalent [BS 7671],False,,,,1,0
+Project,ELC_WIRE_ARMOUR_CONT_OK_BOOL,7c5d6475-8091-4a21-9fa0-b1c2d3e4f507,YESNO,ELC_PWR,Instance,Set to 1 when SWA armour continuity at both terminations has been verified per BS 7671 _543 [STING Gap 12],False,,,,1,0
+Project,ELC_WIRE_FIRE_RATED_BOOL,8d6e7586-9102-4b32-a0b1-c2d3e4f50617,YESNO,ELC_PWR,Instance,"True if circuit requires fire-survival cable (e.g. MICC, FP200) [BS 9999 / BS 8519 / BS 7671 Ch.56]",False,,,,1,0
+Project,ELC_WIRE_SHIELDED_BOOL,9e7f8697-a213-4c43-b1c2-d3e4f5061728,YESNO,ELC_PWR,Instance,"True if cable is screened/shielded (data, fire-alarm, CCTV circuits) [BS 7671]",False,,,,1,0
+Project,ELC_WIRE_CIRCUIT_TYPE_TXT,af809708-b324-4d54-c2d3-e4f507182839,TEXT,ELC_PWR,Instance,Circuit type: FINAL/SUB-MAIN/FEEDER/RING/RADIAL/MOTOR/EV/LIGHTING/POWER/DATA [BS 7671],False,,,,1,0
+Project,ELC_WIRE_ANNOT_SLASH_LEN_MM,b0918819-c435-4e65-d3e4-f50718293940,NUMBER,ELC_PWR,Instance,Wire annotation slash/tick mark length in mm at model scale (default 6). Controls visual size of conductor-count slashes. [STING annotation style],False,,,,1,0
+Project,ELC_WIRE_ANNOT_SPACING_MM,c1a29920-d546-4f76-e4f5-061829394a51,NUMBER,ELC_PWR,Instance,Spacing between adjacent slash marks in mm along conduit (default 3). [STING annotation style],False,,,,1,0
+Project,ELC_WIRE_ANNOT_ANGLE_DEG,d2b3aa31-e657-4087-f506-17283a4b5c62,NUMBER,ELC_PWR,Instance,"Angle of slash marks relative to conduit axis in degrees (default 60, range 30-90). [STING annotation style]",False,,,,1,0
+Project,ELC_WIRE_ANNOT_OFFSET_MM,e3c4bb42-f768-4198-0617-28394b5c6d73,NUMBER,ELC_PWR,Instance,Perpendicular offset of label text from conduit centreline in mm (default 600). [STING annotation style],False,,,,1,0
+Project,ELC_WIRE_ANNOT_COLOR_CODE_INT,f4d5cc53-0879-42a9-1728-394a5b6c7e84,INTEGER,ELC_PWR,Instance,"Annotation colour override: 0=auto (black), 1=red (overloaded/warning), 2=blue (neutral/data), 3=orange (review), 4=green (safe/spare). [STING annotation style]",False,,,,1,0
+Project,ELC_WIRE_ANNOT_LINE_WEIGHT_INT,05e6dd64-198a-43ba-283a-4a5b6c7d8f95,INTEGER,ELC_PWR,Instance,Line weight index (1-16) for slash/tick marks. Default 3 (~0.25mm at 1:100). [STING annotation style],False,,,,1,0
+Project,ELC_WIRE_ANNOT_SCALE_FACTOR,16f7ee75-2a9b-44cb-394b-5b6c7d8e90a6,NUMBER,ELC_PWR,Instance,"Scale multiplier applied to all annotation geometry (slash length, spacing, offset). 1.0=nominal, 0.5=half-size for congested drawings. [STING annotation style]",False,,,,1,0
+Project,ELC_WIRE_ANNOT_SHOW_VD_BOOL,27088f86-3bac-45dc-4a5c-6c7d8e9fa1b7,YESNO,ELC_PWR,Instance,Show voltage drop percentage in wire annotation label. Default true when VD > 3%. [STING annotation style],False,,,,1,0
+Project,ELC_WIRE_ANNOT_SHOW_FILL_BOOL,38199097-4cbd-46ed-5b6d-7d8e9fa0b2c8,YESNO,ELC_PWR,Instance,Show conduit fill percentage in wire annotation label. Default true when fill > 40%. [STING annotation style],False,,,,1,0
+Project,ELC_WIRE_ANNOT_SHOW_DIA_BOOL,492aa108-5dce-47fe-6c7e-8e9fa0b1c3d9,YESNO,ELC_PWR,Instance,Show conduit diameter in wire annotation label. [STING annotation style],False,,,,1,0
+Project,ELC_WIRE_ANNOT_SHOW_AMPACITY_BOOL,5a3bb219-6edf-4800-7d8f-9fa0b1c2d4ea,YESNO,ELC_PWR,Instance,Show cable ampacity (Iz) and max demand (Ib) in wire annotation label. [STING annotation style],False,,,,1,0
+Project,ELC_WIRE_ANNOT_COMPACT_BOOL,6b4cc32a-7fe0-4911-8e90-a0b1c2d3e5fb,YESNO,ELC_PWR,Instance,Compact label mode: omits panel name and install method to fit tight drawings. [STING annotation style],False,,,,1,0
+Project,ELC_PANEL_MAIN_BREAKER_TXT,b04373ec-3a97-5c0e-a13b-b72450d52f00,TEXT,ELC_PWR,Instance,"Main incomer / MCCB rating label (e.g. ""250A 65kA MCCB"") used for TCC database lookup and selective coordination checks [BS 7671:2018 / STING Gap 13]",False,,,,1,0
+Project,ELC_SEL_COORD_OK,b04373ec-3a97-5c0e-a13b-b72450d52f01,YESNO,ELC_PWR,Instance,Selective coordination check result stamp: 1 = passes BS 7671 _536 / NEC 240.87 criteria for this panel [STING Gap 13],False,,,,1,0
+Project,ELC_PNL_NAME_TXT,b04373ec-3a97-5c0e-a13b-b72450d52f02,TEXT,ELC_PWR,Instance,Source panel / distribution board name stamped on conduit by WireParamStampCommand (matches ElectricalSystem.BaseEquipment.Name) [STING Gap 1/2],False,,,,1,0
+Project,PEN_FIRE_RATING_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1001,TEXT,Identity,Instance,"Required fire rating of the penetration: FR30/FR60/FR90/FR120/blank for non-rated [BS 9999, BS 476-20, EN 1366-3]",False,,,,1,0
+Project,PEN_SEALANT_TYPE_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1002,TEXT,Identity,Instance,Sealant system: INTUMESCENT/SILICONE/MORTAR/PILLOW/COLLAR/WRAP/NONE [BS 9999],False,,,,1,0
+Project,PEN_OD_MM,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1003,NUMBER,Identity,Instance,Penetrating member outside diameter (mm),False,,,,1,0
+Project,PEN_HOST_REF_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1004,TEXT,Identity,Instance,Host reference: FLR:<id> / WAL:<id> / BEM:<id>,False,,,,1,0
+Project,PEN_HOST_TYPE_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1005,TEXT,Identity,Instance,Host element class: FLOOR/WALL/BEAM/CEILING/ROOF,False,,,,1,0
+Project,PEN_MEMBER_ID_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1006,TEXT,Identity,Instance,Penetrating member element id (Pipe/Duct/Conduit/CableTray),False,,,,1,0
+Project,PEN_CERTIFICATION_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1007,TEXT,Identity,Instance,UL system / BS 476-20 / EN 1366-3 reference for the firestop assembly,False,,,,1,0
+Project,PEN_INSTALL_STATUS_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1008,TEXT,Identity,Instance,Install status: DRAFT/INSTALLED/INSPECTED/SIGNED-OFF/REWORK,False,,,,1,0
+Project,PEN_INSTALLER_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1009,TEXT,Identity,Instance,Installer name / company,False,,,,1,0
+Project,PEN_INSTALL_DATE,a7c0b2e4-3301-4d27-9c61-0e7a3f9d100a,TEXT,Identity,Instance,Install date ISO 8601 (YYYY-MM-DD) - stamped by mobile commissioning sign-off,False,,,,1,0
+Project,PEN_INSPECTOR_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d100b,TEXT,Identity,Instance,Inspector name / company,False,,,,1,0
+Project,PEN_INSPECTION_DATE,a7c0b2e4-3301-4d27-9c61-0e7a3f9d100c,TEXT,Identity,Instance,Inspection date ISO 8601 (YYYY-MM-DD),False,,,,1,0
+Project,PEN_CONTROL_NUMBER_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d100d,TEXT,Identity,Instance,Project-unique penetration control number (FRP-NNNN). Bind to Mark for tag use.,False,,,,1,0
+Project,PEN_PFV_UUID_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d100e,TEXT,Identity,Instance,"Deterministic UUIDv5(host,member) - shared with sleeve schema for cross-pipeline idempotence",False,,,,1,0
+Project,PEN_BEAM_OFFSET_PCT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d100f,NUMBER,Identity,Instance,"Beam-host only: distance from nearest support as %% of span (BS EN 1992 / AISC DG2 prefer >=10%%, ideally 20-33%%)",False,,,,1,0
+Project,PEN_BEAM_DEPTH_RATIO,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1010,NUMBER,Identity,Instance,"Beam-host only: penetration diameter / beam depth - AISC DG2 limit 0.7, BS EN 1992 prudent limit 0.4",False,,,,1,0
+Project,PEN_STRUCTURAL_FLAG_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1011,TEXT,Identity,Instance,Beam-host only: STRUCT_OK / STRUCT_REVIEW / STRUCT_FAIL based on AISC DG2 + BS EN 1992 location/size rules,False,,,,1,0
+Project,QTO_GROSS_AREA_M2,ac000000-0000-0000-0000-000000000001,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: element gross side/face area m2 (Qto BaseQuantities),False,,,,1,0
+Project,QTO_NET_AREA_M2,ac000000-0000-0000-0000-000000000002,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: element net side/face area m2 deducting openings (Qto BaseQuantities),False,,,,1,0
+Project,QTO_GROSS_VOLUME_M3,ac000000-0000-0000-0000-000000000003,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: element gross volume m3 (Qto BaseQuantities),False,,,,1,0
+Project,QTO_NET_VOLUME_M3,ac000000-0000-0000-0000-000000000004,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: element net volume m3 deducting openings and recesses (Qto BaseQuantities),False,,,,1,0
+Project,QTO_LENGTH_M,ac000000-0000-0000-0000-000000000005,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: element length or span m (Qto BaseQuantities),False,,,,1,0
+Project,QTO_WIDTH_M,ac000000-0000-0000-0000-000000000006,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: element width or thickness m (Qto BaseQuantities),False,,,,1,0
+Project,QTO_HEIGHT_M,ac000000-0000-0000-0000-000000000007,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: element height or depth m (Qto BaseQuantities),False,,,,1,0
+Project,QTO_WEIGHT_KG,ac000000-0000-0000-0000-000000000008,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: element weight kg (Qto beam/column quantities),False,,,,1,0
+Project,QTO_NET_FLOOR_AREA_M2,ac000000-0000-0000-0000-000000000009,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: room net floor area m2 (Qto_SpaceBaseQuantities),False,,,,1,0
+Project,QTO_GROSS_WALL_AREA_M2,ac000000-0000-0000-0000-00000000000a,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: room gross wall surface area m2 (Qto_SpaceBaseQuantities),False,,,,1,0
+Project,QTO_NET_CEILING_AREA_M2,ac000000-0000-0000-0000-00000000000b,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: room net ceiling area m2 (Qto_SpaceBaseQuantities),False,,,,1,0
+Project,QTO_PERIMETER_M,ac000000-0000-0000-0000-00000000000c,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: element perimeter m (door/window frame perimeter),False,,,,1,0
+Project,QTO_GLAZING_AREA_M2,ac000000-0000-0000-0000-00000000000d,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: window glazing (transparent) area m2 (Qto_WindowBaseQuantities),False,,,,1,0
+Project,CST_COST_CODE_TXT,ac000000-0000-0000-0000-000000000010,TEXT,PRJ_INFORMATION,Instance,ArchiCAD IFC: cost/trade code NRM1 / specification clause reference,False,,,,1,0
+Project,CST_UNIT_COST_NR,ac000000-0000-0000-0000-000000000011,NUMBER,PRJ_INFORMATION,Instance,ArchiCAD IFC: unit cost in project currency per unit of measure,False,,,,1,0
+Project,CST_ELEMENT_COST_NR,ac000000-0000-0000-0000-000000000012,NUMBER,PRJ_INFORMATION,Instance,ArchiCAD IFC: element cost = unit cost x quantity (computed by ArchiCAD),False,,,,1,0
+Project,CST_TOTAL_COST_NR,ac000000-0000-0000-0000-000000000013,NUMBER,PRJ_INFORMATION,Instance,ArchiCAD IFC: total cost for composite elements (sum of component costs),False,,,,1,0
+Project,CST_UNIT_TXT,ac000000-0000-0000-0000-000000000014,TEXT,PRJ_INFORMATION,Instance,ArchiCAD IFC: unit of measure for cost: m2 / m3 / m / EA / kg / tonne,False,,,,1,0
+Project,CST_COST_CATEGORY_TXT,ac000000-0000-0000-0000-000000000015,TEXT,PRJ_INFORMATION,Instance,ArchiCAD IFC: cost trade grouping category,False,,,,1,0
+Project,CST_TRADE_NAME_TXT,ac000000-0000-0000-0000-000000000016,TEXT,PRJ_INFORMATION,Instance,ArchiCAD IFC: subcontractor trade name,False,,,,1,0
+Project,CST_BOQ_ITEM_TXT,ac000000-0000-0000-0000-000000000017,TEXT,PRJ_INFORMATION,Instance,ArchiCAD IFC: bill of quantities item / section reference,False,,,,1,0
+Project,RNV_STATUS_TXT,ac000000-0000-0000-0000-000000000020,TEXT,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: authoritative renovation status from AC_Pset_RenovationInfo (EXISTING/NEW/DEMOLISHED/TEMPORARY/RELOCATED/UNDEFINED),False,,,,1,0
+Project,RNV_IS_EXISTING_BOOL,ac000000-0000-0000-0000-000000000021,YESNO,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: element is existing to remain (AC_Pset_RenovationInfo.IsExistingToRemain),False,,,,1,0
+Project,RNV_DEMOLITION_SEQ_TXT,ac000000-0000-0000-0000-000000000022,TEXT,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: demolition sequence code for phasing programme,False,,,,1,0
+Project,RNV_NEW_CONST_SEQ_TXT,ac000000-0000-0000-0000-000000000023,TEXT,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: new construction sequence identifier,False,,,,1,0
+Project,RNV_CONTRACTOR_TXT,ac000000-0000-0000-0000-000000000024,TEXT,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: demolition contractor name,False,,,,1,0
+Project,AC_ELEMENT_ID_TXT,ac000000-0000-0000-0000-000000000030,TEXT,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: ArchiCAD internal element GUID (AC_Pset_ElementID.ID) - distinct from IFC GlobalId,False,,,,1,0
+Project,AC_HOTLINK_ID_TXT,ac000000-0000-0000-0000-000000000031,TEXT,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: GUID of the originating hotlink module (AC_Pset_ElementID.Hotlink_ID),False,,,,1,0
+Project,AC_HOTLINK_FILE_TXT,ac000000-0000-0000-0000-000000000032,TEXT,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: relative path of the source hotlink .mod file,False,,,,1,0
+Project,AC_REVISION_TXT,ac000000-0000-0000-0000-000000000033,TEXT,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: element-level revision mark (AC_Pset_ElementID.Revision),False,,,,1,0
+Project,PER_ACOUSTIC_RATING_TXT,ac000000-0000-0000-0000-000000000040,TEXT,FLS_LIFE_SFTY,Instance,ArchiCAD IFC: acoustic rating Rw dB (from Pset_WallCommon / DoorCommon / WindowCommon),False,,,,1,0
+Project,PER_SOLAR_GAIN_NR,ac000000-0000-0000-0000-000000000041,NUMBER,FLS_LIFE_SFTY,Instance,ArchiCAD IFC: solar heat gain coefficient / g-value for glazing (Pset_WindowCommon),False,,,,1,0
+Project,PER_FRAME_MATERIAL_TXT,ac000000-0000-0000-0000-000000000042,TEXT,FLS_LIFE_SFTY,Instance,ArchiCAD IFC: window frame material: PVC / Timber / Aluminium / Steel,False,,,,1,0
+Project,PER_SURFACE_SPREAD_TXT,ac000000-0000-0000-0000-000000000043,TEXT,PER_SUST,Instance,ArchiCAD IFC: surface spread of flame class A/B/C/D/E/F (reaction to fire),False,,,,1,0
+Project,PER_COMBUSTIBLE_BOOL,ac000000-0000-0000-0000-000000000044,YESNO,PER_SUST,Instance,ArchiCAD IFC: element is combustible (Pset_WallCommon.Combustible),False,,,,1,0
+Project,PER_COMPARTMENT_BOOL,ac000000-0000-0000-0000-000000000045,YESNO,PER_SUST,Instance,ArchiCAD IFC: element is a fire compartment boundary (Pset_WallCommon.Compartmentation),False,,,,1,0
+Project,PER_LOAD_BEARING_BOOL,ac000000-0000-0000-0000-000000000046,YESNO,LTG_CONTROLS,Instance,ArchiCAD IFC: element is load-bearing structural (Pset_WallCommon / ColumnCommon.LoadBearing),False,,,,1,0
+Project,PER_IS_EXTERNAL_BOOL,ac000000-0000-0000-0000-000000000047,YESNO,FLS_LIFE_SFTY,Instance,ArchiCAD IFC: element is external / envelope (Pset_WallCommon / SlabCommon.IsExternal),False,,,,1,0
+Project,PER_SELF_CLOSING_BOOL,ac000000-0000-0000-0000-000000000048,YESNO,FLS_LIFE_SFTY,Instance,ArchiCAD IFC: door has self-closing device (Pset_DoorCommon.SelfClosing),False,,,,1,0
+Project,PER_SMOKE_STOP_BOOL,ac000000-0000-0000-0000-000000000049,YESNO,PER_SUST,Instance,ArchiCAD IFC: door/window is smoke-sealed (Pset_DoorCommon.SmokeStop),False,,,,1,0
+Project,PER_HANDICAP_ACCESS_BOOL,ac000000-0000-0000-0000-00000000004a,YESNO,FLS_LIFE_SFTY,Instance,ArchiCAD IFC: element is Part M / ADA accessible (Pset_DoorCommon / SpaceCommon.HandicapAccessible),False,,,,1,0
+Project,PER_SECURITY_RATING_TXT,ac000000-0000-0000-0000-00000000004b,TEXT,FLS_LIFE_SFTY,Instance,ArchiCAD IFC: security rating RC class / PAS 24 / BS EN 1627 (Pset_DoorCommon / WindowCommon),False,,,,1,0
+Project,PER_PITCH_ANGLE_DEG,ac000000-0000-0000-0000-00000000004c,NUMBER,FLS_LIFE_SFTY,Instance,ArchiCAD IFC: roof / slab pitch angle degrees (Pset_SlabCommon / RoofCommon.PitchAngle),False,,,,1,0
+Project,PER_AIR_EXCHANGE_RATE_NR,ac000000-0000-0000-0000-00000000004d,NUMBER,HVC_SYSTEMS,Instance,ArchiCAD IFC: room air change rate ACH (Pset_SpaceCommon.AirExchangeRate),False,,,,1,0
+Project,SPC_GROSS_AREA_M2,ac000000-0000-0000-0000-000000000050,NUMBER,COM_DAT,Instance,ArchiCAD IFC: room gross planned floor area m2 including half-wall thickness,False,,,,1,0
+Project,SPC_CEILING_HEIGHT_M,ac000000-0000-0000-0000-000000000051,NUMBER,COM_DAT,Instance,ArchiCAD IFC: room clear ceiling height m (Pset_SpaceCommon.CeilingHeight),False,,,,1,0
+Project,SPC_FINISH_FLOOR_TXT,ac000000-0000-0000-0000-000000000052,TEXT,COM_DAT,Instance,ArchiCAD IFC: room floor finish material (Pset_SpaceCommon.FinishFloor),False,,,,1,0
+Project,SPC_FINISH_CEILING_TXT,ac000000-0000-0000-0000-000000000053,TEXT,COM_DAT,Instance,ArchiCAD IFC: room ceiling finish material (Pset_SpaceCommon.FinishCeiling),False,,,,1,0
+Project,SPC_FINISH_WALLS_TXT,ac000000-0000-0000-0000-000000000054,TEXT,COM_DAT,Instance,ArchiCAD IFC: room wall finish material (Pset_SpaceCommon.FinishWalls),False,,,,1,0
+Project,SPC_MIN_HEADROOM_M,ac000000-0000-0000-0000-000000000055,NUMBER,COM_DAT,Instance,ArchiCAD IFC: minimum headroom clearance m (Pset_StairCommon.HeadRoom),False,,,,1,0
+Project,SPC_PUBLIC_ACCESSIBLE_BOOL,ac000000-0000-0000-0000-000000000056,YESNO,COM_DAT,Instance,ArchiCAD IFC: space is publicly accessible (Pset_SpaceCommon.PubliclyAccessible),False,,,,1,0
+Project,ZON_CATEGORY_NAME_TXT,ac000000-0000-0000-0000-000000000060,TEXT,COM_DAT,Instance,ArchiCAD IFC: zone functional category name (AC_Pset_ZoneCategory.ZoneCategoryName),False,,,,1,0
+Project,ZON_CATEGORY_CODE_TXT,ac000000-0000-0000-0000-000000000061,TEXT,COM_DAT,Instance,ArchiCAD IFC: zone category short code (AC_Pset_ZoneCategory.ZoneCategoryCode),False,,,,1,0
+Project,ZON_NET_AREA_M2,ac000000-0000-0000-0000-000000000062,NUMBER,COM_DAT,Instance,ArchiCAD IFC: zone net area m2 (AC_Pset_ZoneCategory.ZoneNetArea),False,,,,1,0
+Project,ZON_GROSS_AREA_M2,ac000000-0000-0000-0000-000000000063,NUMBER,COM_DAT,Instance,ArchiCAD IFC: zone gross area m2 (AC_Pset_ZoneCategory.ZoneGrossArea),False,,,,1,0
+Project,ZON_VOLUME_M3,ac000000-0000-0000-0000-000000000064,NUMBER,COM_DAT,Instance,ArchiCAD IFC: zone volume m3 (AC_Pset_ZoneCategory.ZoneVolume),False,,,,1,0
+Project,ZON_OCCUPANTS_NR,ac000000-0000-0000-0000-000000000065,NUMBER,COM_DAT,Instance,ArchiCAD IFC: zone design occupant count (AC_Pset_ZoneCategory.ZoneNumberOfOccupants),False,,,,1,0
+Project,CLS_OMNICLASS_NR_TXT,ac000000-0000-0000-0000-000000000070,TEXT,BLE_ELES,Instance,ArchiCAD IFC: OmniClass number (ArchiCAD_PropertyGroup_Classification.OmniClass Number),False,,,,1,0
+Project,CLS_OMNICLASS_TITLE_TXT,ac000000-0000-0000-0000-000000000071,TEXT,BLE_ELES,Instance,ArchiCAD IFC: OmniClass title description,False,,,,1,0
+Project,CLS_UNICLASS_EF_TXT,ac000000-0000-0000-0000-000000000072,TEXT,BLE_ELES,Instance,ArchiCAD IFC: Uniclass 2015 EF (Entity Form) code,False,,,,1,0
+Project,CLS_ETIM_CLASS_TXT,ac000000-0000-0000-0000-000000000073,TEXT,BLE_ELES,Instance,ArchiCAD IFC: ETIM classification code (MEP equipment),False,,,,1,0
+Project,CLS_CSI_MASTERFORMAT_TXT,ac000000-0000-0000-0000-000000000074,TEXT,BLE_ELES,Instance,ArchiCAD IFC: CSI MasterFormat classification (US projects),False,,,,1,0
+Project,CLS_NBS_DESCRIPTION_TXT,ac000000-0000-0000-0000-000000000075,TEXT,BLE_ELES,Instance,ArchiCAD IFC: NBS code description,False,,,,1,0
+Project,CLS_SYSTEM_NAME_TXT,ac000000-0000-0000-0000-000000000076,TEXT,BLE_ELES,Instance,ArchiCAD IFC: classification system name (Uniclass / OmniClass / ETIM / NBS),False,,,,1,0
+Project,CLS_EDITION_TXT,ac000000-0000-0000-0000-000000000077,TEXT,BLE_ELES,Instance,ArchiCAD IFC: classification edition / version year,False,,,,1,0
+Project,STR_PROFILE_TYPE_TXT,ac000000-0000-0000-0000-000000000080,TEXT,LTG_CONTROLS,Instance,ArchiCAD IFC: structural section profile type I/H/L/T/C/SHS/RHS/CHS (AC_Pset_ProfileData),False,,,,1,0
+Project,STR_PROFILE_NAME_TXT,ac000000-0000-0000-0000-000000000081,TEXT,LTG_CONTROLS,Instance,ArchiCAD IFC: section designation e.g. UB 254x102x22 (AC_Pset_ProfileData.ProfileName),False,,,,1,0
+Project,STR_PROFILE_DEPTH_MM,ac000000-0000-0000-0000-000000000082,NUMBER,LTG_CONTROLS,Instance,ArchiCAD IFC: section overall depth mm (AC_Pset_ProfileData.Depth),False,,,,1,0
+Project,STR_PROFILE_WIDTH_MM,ac000000-0000-0000-0000-000000000083,NUMBER,LTG_CONTROLS,Instance,ArchiCAD IFC: section flange width mm (AC_Pset_ProfileData.Width),False,,,,1,0
+Project,STR_CROSS_SECTION_AREA_MM2,ac000000-0000-0000-0000-000000000084,NUMBER,LTG_CONTROLS,Instance,ArchiCAD IFC: cross-section area mm2 (AC_Pset_ProfileData.CrossSectionArea),False,,,,1,0
+Project,STR_MOMENT_INERTIA_Y_CM4,ac000000-0000-0000-0000-000000000085,NUMBER,LTG_CONTROLS,Instance,ArchiCAD IFC: second moment of area Iy cm4 (AC_Pset_ProfileData.MomentOfInertiaY),False,,,,1,0
+Project,STR_SECTION_MOD_Y_CM3,ac000000-0000-0000-0000-000000000086,NUMBER,LTG_CONTROLS,Instance,ArchiCAD IFC: elastic section modulus Wy cm3 (AC_Pset_ProfileData.ElasticSectionModulusY),False,,,,1,0
+Project,STR_SURFACE_AREA_M2_M,ac000000-0000-0000-0000-000000000087,NUMBER,LTG_CONTROLS,Instance,ArchiCAD IFC: surface area per unit length m2/m for fire casing (AC_Pset_ProfileData.SurfaceAreaPerLength),False,,,,1,0
+Project,STR_RISER_COUNT_NR,ac000000-0000-0000-0000-000000000088,NUMBER,LTG_CONTROLS,Instance,ArchiCAD IFC: stair number of risers (Pset_StairCommon.NumberOfRiser),False,,,,1,0
+Project,STR_TREAD_COUNT_NR,ac000000-0000-0000-0000-000000000089,NUMBER,LTG_CONTROLS,Instance,ArchiCAD IFC: stair number of treads (Pset_StairCommon.NumberOfTreads),False,,,,1,0
+Project,STR_RISER_HEIGHT_MM,ac000000-0000-0000-0000-00000000008a,NUMBER,LTG_CONTROLS,Instance,ArchiCAD IFC: individual riser height mm,False,,,,1,0
+Project,STR_TREAD_DEPTH_MM,ac000000-0000-0000-0000-00000000008b,NUMBER,LTG_CONTROLS,Instance,ArchiCAD IFC: tread going depth mm,False,,,,1,0
+Project,STR_NOSING_MM,ac000000-0000-0000-0000-00000000008c,NUMBER,LTG_CONTROLS,Instance,ArchiCAD IFC: nosing projection mm,False,,,,1,0
+Project,RMP_SLOPE_DEG,ac000000-0000-0000-0000-00000000008d,NUMBER,LTG_CONTROLS,Instance,ArchiCAD IFC: ramp slope gradient degrees (Pset_RampCommon.Slope),False,,,,1,0
+Project,RMP_WIDTH_M,ac000000-0000-0000-0000-00000000008e,NUMBER,LTG_CONTROLS,Instance,ArchiCAD IFC: ramp clear width m (Pset_RampCommon.Width),False,,,,1,0
+Project,MEP_WORKING_PRESSURE_PA,ac000000-0000-0000-0000-000000000090,NUMBER,HVC_SYSTEMS,Instance,ArchiCAD IFC: MEP system working pressure Pa (Pset_DistributionFlowElementCommon),False,,,,1,0
+Project,MEP_NOMINAL_DIAMETER_MM,ac000000-0000-0000-0000-000000000091,NUMBER,HVC_SYSTEMS,Instance,ArchiCAD IFC: MEP nominal diameter DN mm (Pset_DistributionFlowElementCommon),False,,,,1,0
+Project,MEP_DESIGN_FLOW_M3S,ac000000-0000-0000-0000-000000000092,NUMBER,HVC_SYSTEMS,Instance,ArchiCAD IFC: MEP design flow rate m3/s (Pset_DistributionFlowElementCommon),False,,,,1,0
+Project,MEP_DESIGN_VEL_MS,ac000000-0000-0000-0000-000000000093,NUMBER,HVC_SYSTEMS,Instance,ArchiCAD IFC: MEP design velocity m/s,False,,,,1,0
+Project,MEP_INSULATED_BOOL,ac000000-0000-0000-0000-000000000094,YESNO,HVC_SYSTEMS,Instance,ArchiCAD IFC: MEP element is insulated,False,,,,1,0
+Project,MEP_MATERIAL_TXT,ac000000-0000-0000-0000-000000000095,TEXT,HVC_SYSTEMS,Instance,ArchiCAD IFC: MEP element material Steel/uPVC/Copper/Galvanised,False,,,,1,0
+Project,BLD_FIRE_CLASS_TXT,ac000000-0000-0000-0000-0000000000a0,TEXT,ASS_MNG,Instance,ArchiCAD IFC: building fire occupancy classification,False,,,,1,0
+Project,BLD_EPC_CERT_TXT,ac000000-0000-0000-0000-0000000000a1,TEXT,ASS_MNG,Instance,ArchiCAD IFC: EPC / SAP certificate number,False,,,,1,0
+Project,BLD_EPC_CLASS_TXT,ac000000-0000-0000-0000-0000000000a2,TEXT,ASS_MNG,Instance,ArchiCAD IFC: energy rating class A++ through G,False,,,,1,0
+Project,BLD_PLANNING_REF_TXT,ac000000-0000-0000-0000-0000000000a3,TEXT,ASS_MNG,Instance,ArchiCAD IFC: planning permission reference number,False,,,,1,0
+Project,BLD_YEAR_BUILT_TXT,ac000000-0000-0000-0000-0000000000a4,TEXT,ASS_MNG,Instance,ArchiCAD IFC: year of construction,False,,,,1,0
+Project,BLD_SPRINKLERS_BOOL,ac000000-0000-0000-0000-0000000000a5,YESNO,ASS_MNG,Instance,ArchiCAD IFC: building has sprinkler protection,False,,,,1,0
+Project,BLD_STOREY_ABOVE_GROUND_BOOL,ac000000-0000-0000-0000-0000000000a6,YESNO,ASS_MNG,Instance,ArchiCAD IFC: storey is above ground level,False,,,,1,0
+Project,BLD_STOREY_IMPOSED_LOAD_NR,ac000000-0000-0000-0000-0000000000a7,NUMBER,ASS_MNG,Instance,ArchiCAD IFC: storey design imposed load kN/m2 (Pset_BuildingStoreyCommon.LoadBearingCapacity),False,,,,1,0
+Project,NRG_HEATING_LOAD_W,ac000000-0000-0000-0000-0000000000b0,NUMBER,TPL_TRACKING,Instance,ArchiCAD IFC: design heating load W (ArchiCAD_PropertyGroup_Energy.HeatingLoad),False,,,,1,0
+Project,NRG_COOLING_LOAD_W,ac000000-0000-0000-0000-0000000000b1,NUMBER,TPL_TRACKING,Instance,ArchiCAD IFC: design cooling load W (ArchiCAD_PropertyGroup_Energy.CoolingLoad),False,,,,1,0
+Project,NRG_ANNUAL_HEAT_KWH,ac000000-0000-0000-0000-0000000000b2,NUMBER,TPL_TRACKING,Instance,ArchiCAD IFC: annual heating energy kWh/yr (ArchiCAD_PropertyGroup_Energy.AnnualHeatingEnergy),False,,,,1,0
+Project,NRG_ANNUAL_COOL_KWH,ac000000-0000-0000-0000-0000000000b3,NUMBER,TPL_TRACKING,Instance,ArchiCAD IFC: annual cooling energy kWh/yr (ArchiCAD_PropertyGroup_Energy.AnnualCoolingEnergy),False,,,,1,0
+Project,NRG_OPERATING_COST_YR,ac000000-0000-0000-0000-0000000000b4,NUMBER,TPL_TRACKING,Instance,ArchiCAD IFC: annual operating energy cost in project currency (EcoDesigner Star),False,,,,1,0
+Project,NRG_LIFECYCLE_COST_NR,ac000000-0000-0000-0000-0000000000b5,NUMBER,TPL_TRACKING,Instance,ArchiCAD IFC: lifecycle cost estimate NPV 25/60 year (EcoDesigner Star),False,,,,1,0
+Project,CBN_GWP_KG_CO2E,ac000000-0000-0000-0000-0000000000b6,NUMBER,TPL_TRACKING,Instance,ArchiCAD IFC: global warming potential kg CO2e (Pset_EnvironmentalImpactValues.GlobalWarmingPotential),False,,,,1,0
