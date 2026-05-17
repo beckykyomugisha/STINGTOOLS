@@ -102,7 +102,8 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Background="{DynamicResource HeaderBg}" Padding="8,5">
+        <Border Grid.Row="0" Background="{DynamicResource HeaderBg}" Padding="8,5,8,4">
+            <StackPanel>
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -148,6 +149,86 @@
                         FontSize="13" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"
                         ToolTip="Cycle theme: Light / Warm / Cool / Corporate" Tag="CycleTheme" Click="Cmd_Click"/>
             </Grid>
+
+            <!-- ═══ COMMAND BAR — NLP / AI entry point ═══ -->
+            <Grid x:Name="cmdBarRow" Margin="0,5,0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="28"/>
+                </Grid.ColumnDefinitions>
+                <Grid>
+                    <TextBox x:Name="txtCommandBar"
+                             Height="23" FontSize="10"
+                             Background="#22FFFFFF"
+                             Foreground="{DynamicResource HeaderFg}"
+                             BorderBrush="#7E57C2" BorderThickness="1"
+                             Padding="7,2" VerticalContentAlignment="Center"
+                             TextChanged="CommandBar_TextChanged"
+                             KeyDown="CommandBar_KeyDown"
+                             GotFocus="CommandBar_GotFocus"
+                             LostFocus="CommandBar_LostFocus"/>
+                    <TextBlock x:Name="txtCmdPlaceholder"
+                               Text="Type a command, question, or design brief…"
+                               FontSize="10" Foreground="{DynamicResource HeaderFg}"
+                               Opacity="0.4" IsHitTestVisible="False"
+                               VerticalAlignment="Center" Margin="9,0,0,0"/>
+                    <Popup x:Name="popSuggestions"
+                           PlacementTarget="{Binding ElementName=txtCommandBar}"
+                           Placement="Bottom" StaysOpen="False"
+                           AllowsTransparency="True" Width="360">
+                        <Border Background="#1A1A2E"
+                                BorderBrush="#7E57C2"
+                                BorderThickness="1,0,1,1" CornerRadius="0,0,4,4">
+                            <ListBox x:Name="lstSuggestions"
+                                     MaxHeight="230"
+                                     Background="Transparent"
+                                     Foreground="#E0E0E0"
+                                     BorderThickness="0"
+                                     SelectionMode="Single"
+                                     MouseLeftButtonUp="Suggestion_MouseUp"
+                                     KeyDown="Suggestions_KeyDown">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Padding" Value="8,5"/>
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#33AB47BC"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="#557E57C2"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,1">
+                                            <TextBlock Text="{Binding CommandName}"
+                                                       FontWeight="SemiBold" FontSize="11"
+                                                       Foreground="#E8E8FF"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Description}"
+                                                       FontSize="9" Foreground="#9090B8"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+                    </Popup>
+                </Grid>
+                <Button x:Name="btnAskAI" Grid.Column="1"
+                        Content="AI" Width="26" Height="23"
+                        Margin="2,0,0,0" FontSize="9" FontWeight="Bold"
+                        Background="#7E57C2" Foreground="White"
+                        BorderBrush="#5E35B1" BorderThickness="1"
+                        Cursor="Hand"
+                        ToolTip="Ask AI — design briefs, BIM knowledge, draft documents"
+                        Click="AskAI_Click"/>
+            </Grid>
+            </StackPanel>
         </Border>
 
         <!-- Tab control -->
@@ -1415,6 +1496,8 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Augment Families" Tag="Symbols_AugmentAll" Click="Cmd_Click" ToolTip="Inject STING symbol parameters into all loaded families"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Augment Selected" Tag="Symbols_AugmentSelected" Click="Cmd_Click" ToolTip="Augment selected families only"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Rollback Augment" Tag="Symbols_RollbackAugment" Click="Cmd_Click" ToolTip="Remove STING parameters from a previously augmented family"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Author Symbols" Tag="Symbols_AuthorSymbols" Click="Cmd_Click" ToolTip="Wire plan/elevation symbolic curves, STING subcategories, annotation plan symbol, and MEP connector size params into .rfa files"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Set Elem. Std" Tag="Symbols_SetElementStandard" Click="Cmd_Click" ToolTip="Set STING_SYMBOL_STD on selected instances to show IEC/ANSI/BS/NFPA/CIBSE symbol variant"/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource ActionBtn}" Content="Heal Orphans" Tag="Symbols_HealOrphans" Click="Cmd_Click" ToolTip="Delete symbol tags whose host has been deleted"/>

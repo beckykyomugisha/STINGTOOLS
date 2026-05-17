@@ -1,0 +1,10 @@
+{
+  "azure_endpoint": "",
+  "azure_api_key": "",
+  "azure_deployment": "gpt-4o-mini",
+  "claude_api_key": "",
+  "claude_model": "claude-haiku-4-5-20251001",
+  "timeout_seconds": 10,
+  "enabled": false,
+  "notes": "Set enabled=true and supply credentials to activate LLM features (design brief parsing, BIM Q&A, document drafting). Rule-based NLP is always active and offline. Sensitive project data is never sent to LLM APIs."
+}

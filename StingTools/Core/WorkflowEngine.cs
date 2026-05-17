@@ -1473,11 +1473,21 @@ namespace StingTools.Core
                 case "Cable_BuildSchedule":      return new Commands.Electrical.Routing.CableScheduleBuilderCommand();
                 case "Seeds_Build":              return new Commands.Symbols.BuildSeedFamiliesCommand();
                 case "Seeds_SwapToManufacturer": return new Commands.Symbols.SwapToManufacturerCommand();
-                case "Symbols_CreateCompound":   return new Commands.Symbols.CreateCompoundSymbolsCommand();
-                case "Symbols_CreateSLD_IEEE":   return new Commands.Symbols.CreateSLDSymbolsIEEECommand();
-                case "Symbols_CreateSLD_BS":     return new Commands.Symbols.CreateSLDSymbolsBSCommand();
-                case "Symbols_CreateSLD_NFPA":   return new Commands.Symbols.CreateSLDSymbolsNFPACommand();
-                case "Symbols_CreateCIBSE":      return new Commands.Symbols.CreateCIBSESymbolsCommand();
+                case "Symbols_CreateCompound":      return new Commands.Symbols.CreateCompoundSymbolsCommand();
+                case "Symbols_CreateSLD_IEEE":      return new Commands.Symbols.CreateSLDSymbolsIEEECommand();
+                case "Symbols_CreateSLD_BS":        return new Commands.Symbols.CreateSLDSymbolsBSCommand();
+                case "Symbols_CreateSLD_NFPA":      return new Commands.Symbols.CreateSLDSymbolsNFPACommand();
+                case "Symbols_CreateCIBSE":         return new Commands.Symbols.CreateCIBSESymbolsCommand();
+                // Phase 175 — multi-standard model family symbol commands
+                case "Symbols_AuthorSymbols":       return new Commands.Symbols.AuthorFamilySymbolsCommand();
+                case "Symbols_SwitchProject":       return new Commands.Symbols.SwitchProjectStandardCommand();
+                case "Symbols_SwitchView":          return new Commands.Symbols.SwitchViewStandardCommand();
+                case "Symbols_Audit":               return new Commands.Symbols.SymbolStandardAuditCommand();
+                case "Symbols_PlaceView":           return new Commands.Symbols.PlaceSymbolsInViewCommand();
+                case "Symbols_PlaceAll":            return new Commands.Symbols.PlaceSymbolsProjectWideCommand();
+                case "Symbols_SetElementStandard":  return new Commands.Symbols.SetElementSymbolStandardCommand();
+                case "Symbols_SyncFilters":         return new Commands.Symbols.SyncViewFilterVisibilityCommand();
+                case "Symbols_SetProfile":          return new Commands.Symbols.SetMixedStandardProfileCommand();
                 case "IFC_ArchiCADSync":         return new Commands.IFC.ArchiCADSyncCommand();
                 case "IFC_DropImport":           return new Commands.IFC.IfcDropImportCommand();
                 case "Validation_BS7671":       return new Commands.Electrical.ElectricalStandardsValidatorCommand();
