@@ -6,7 +6,11 @@
     "Connector-bearing — supports auto-routing termination + the panel-",
     "schedule pipeline (ELC_PNL_*). Standalone hosting since panels are",
     "typically wall-mounted but the family ships unhosted so it can be",
-    "placed in plant rooms / on Reference Lines / against work planes."
+    "placed in plant rooms / on Reference Lines / against work planes.",
+    "",
+    "16 type variants covering: consumer units (6/12/18W), distribution",
+    "boards (3-phase), main switchboards, isolators, MCCs, UPS, VFDs,",
+    "soft starters, busbar trunking, ATS, RCD units."
   ],
   "symbols": [
     {
@@ -17,6 +21,7 @@
       "discipline": "Electrical",
       "subcategory": "STING_SEED",
       "isSeed": true,
+      "protectExisting": true,
       "hosting": "Standalone",
       "symbolSize": 8.0,
       "parameters": [
@@ -62,6 +67,13 @@
           "default": "DB"
         },
         {
+          "name": "ELC_EQP_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "DISTRIBUTION_BOARD"
+        },
+        {
           "name": "ELC_PNL_NAME",
           "type": "Text",
           "shared": true,
@@ -102,6 +114,13 @@
           "default": "12"
         },
         {
+          "name": "ELC_KVA_RATING",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "0"
+        },
+        {
           "name": "ELC_PNL_CIRCUIT_GROUP_TXT",
           "type": "Text",
           "shared": true,
@@ -128,36 +147,11 @@
       ],
       "geometry": {
         "lines": [
-          {
-            "x1": -0.5,
-            "y1": -0.5,
-            "x2": 0.5,
-            "y2": -0.5
-          },
-          {
-            "x1": 0.5,
-            "y1": -0.5,
-            "x2": 0.5,
-            "y2": 0.5
-          },
-          {
-            "x1": 0.5,
-            "y1": 0.5,
-            "x2": -0.5,
-            "y2": 0.5
-          },
-          {
-            "x1": -0.5,
-            "y1": 0.5,
-            "x2": -0.5,
-            "y2": -0.5
-          },
-          {
-            "x1": -0.4,
-            "y1": 0.0,
-            "x2": 0.4,
-            "y2": 0.0
-          }
+          { "x1": -0.5, "y1": -0.5, "x2": 0.5, "y2": -0.5 },
+          { "x1": 0.5, "y1": -0.5, "x2": 0.5, "y2": 0.5 },
+          { "x1": 0.5, "y1": 0.5, "x2": -0.5, "y2": 0.5 },
+          { "x1": -0.5, "y1": 0.5, "x2": -0.5, "y2": -0.5 },
+          { "x1": -0.4, "y1": 0.0, "x2": 0.4, "y2": 0.0 }
         ]
       },
       "solid3D": {
@@ -166,45 +160,191 @@
         "depthMm": 200,
         "heightMm": 600
       },
+      "swapCandidates": [
+        {
+          "label": "Hager / Schneider Distribution Board",
+          "familyPath": "",
+          "variantPattern": "DISTRIBUTION_BOARD*",
+          "priority": 1,
+          "autoLoad": false
+        },
+        {
+          "label": "ABB / Siemens Motor Control Centre",
+          "familyPath": "",
+          "variantPattern": "MOTOR_CONTROL_CENTRE",
+          "priority": 2,
+          "autoLoad": false
+        },
+        {
+          "label": "APC / Eaton UPS",
+          "familyPath": "",
+          "variantPattern": "UPS_MODULE",
+          "priority": 3,
+          "autoLoad": false
+        }
+      ],
       "typeVariants": [
+        {
+          "_group": "--- CONSUMER UNITS (domestic / light commercial) ---"
+        },
+        {
+          "name": "CONSUMER_UNIT_6W",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "CU",
+            "ELC_EQP_TYPE_TXT": "CONSUMER_UNIT",
+            "ELC_WAYS": "6",
+            "ELC_MAIN_BRK": "63",
+            "ELC_PNL_VOLTAGE": "230"
+          }
+        },
+        {
+          "name": "CONSUMER_UNIT_12W",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "CU",
+            "ELC_EQP_TYPE_TXT": "CONSUMER_UNIT",
+            "ELC_WAYS": "12",
+            "ELC_MAIN_BRK": "100",
+            "ELC_PNL_VOLTAGE": "230"
+          }
+        },
+        {
+          "_group": "--- DISTRIBUTION BOARDS ---"
+        },
         {
           "name": "DISTRIBUTION_BOARD_DB",
           "params": {
             "ASS_PRODCT_COD_TXT": "DB",
+            "ELC_EQP_TYPE_TXT": "DISTRIBUTION_BOARD",
             "ELC_WAYS": "12",
-            "ELC_MAIN_BRK": "63"
+            "ELC_MAIN_BRK": "63",
+            "ELC_PNL_VOLTAGE": "230"
           }
+        },
+        {
+          "name": "DISTRIBUTION_BOARD_18W",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "DB",
+            "ELC_EQP_TYPE_TXT": "DISTRIBUTION_BOARD",
+            "ELC_WAYS": "18",
+            "ELC_MAIN_BRK": "100",
+            "ELC_PNL_VOLTAGE": "230"
+          }
+        },
+        {
+          "name": "DISTRIBUTION_BOARD_24W_3PHASE",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "DB",
+            "ELC_EQP_TYPE_TXT": "DISTRIBUTION_BOARD_3PHASE",
+            "ELC_WAYS": "24",
+            "ELC_MAIN_BRK": "125",
+            "ELC_PNL_VOLTAGE": "400"
+          }
+        },
+        {
+          "_group": "--- MAIN SWITCHBOARD ---"
         },
         {
           "name": "MAIN_SWITCHBOARD_MSB",
           "params": {
             "ASS_PRODCT_COD_TXT": "MSB",
+            "ELC_EQP_TYPE_TXT": "MAIN_SWITCHBOARD",
             "ELC_WAYS": "24",
             "ELC_MAIN_BRK": "400",
             "ELC_PNL_VOLTAGE": "400"
           }
         },
         {
-          "name": "CONSUMER_UNIT",
+          "_group": "--- MOTOR CONTROL / DRIVES ---"
+        },
+        {
+          "name": "MOTOR_CONTROL_CENTRE",
           "params": {
-            "ASS_PRODCT_COD_TXT": "CU",
-            "ELC_WAYS": "6",
-            "ELC_MAIN_BRK": "100",
+            "ASS_PRODCT_COD_TXT": "MCC",
+            "ELC_EQP_TYPE_TXT": "MOTOR_CONTROL_CENTRE",
+            "ELC_MAIN_BRK": "630",
+            "ELC_PNL_VOLTAGE": "400"
+          }
+        },
+        {
+          "name": "SOFT_STARTER",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "SST",
+            "ELC_EQP_TYPE_TXT": "SOFT_STARTER",
+            "ELC_WAYS": "0",
+            "ELC_PNL_VOLTAGE": "400"
+          }
+        },
+        {
+          "name": "VARIABLE_FREQUENCY_DRIVE",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "VFD",
+            "ELC_EQP_TYPE_TXT": "VFD",
+            "ELC_WAYS": "0",
+            "ELC_PNL_VOLTAGE": "400"
+          }
+        },
+        {
+          "_group": "--- UPS / STANDBY ---"
+        },
+        {
+          "name": "UPS_MODULE",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "UPS",
+            "ELC_EQP_TYPE_TXT": "UPS",
+            "ELC_WAYS": "0",
+            "ELC_KVA_RATING": "10",
             "ELC_PNL_VOLTAGE": "230"
           }
+        },
+        {
+          "name": "TRANSFER_SWITCH_ATS",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "ATS",
+            "ELC_EQP_TYPE_TXT": "AUTO_TRANSFER_SWITCH",
+            "ELC_MAIN_BRK": "400",
+            "ELC_PNL_VOLTAGE": "400"
+          }
+        },
+        {
+          "_group": "--- PROTECTION / METERING ---"
         },
         {
           "name": "ISOLATOR",
           "params": {
             "ASS_PRODCT_COD_TXT": "ISO",
+            "ELC_EQP_TYPE_TXT": "ISOLATOR",
             "ELC_WAYS": "0",
-            "ELC_MAIN_BRK": "63"
+            "ELC_MAIN_BRK": "63",
+            "ELC_PNL_VOLTAGE": "230"
           }
+        },
+        {
+          "name": "RCD_UNIT",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "RCD",
+            "ELC_EQP_TYPE_TXT": "RCD",
+            "ELC_WAYS": "2",
+            "ELC_MAIN_BRK": "63",
+            "ELC_PNL_VOLTAGE": "230"
+          }
+        },
+        {
+          "name": "BUSBAR_TRUNKING",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "BBT",
+            "ELC_EQP_TYPE_TXT": "BUSBAR_TRUNKING",
+            "ELC_MAIN_BRK": "800",
+            "ELC_PNL_VOLTAGE": "400"
+          }
+        },
+        {
+          "_group": "--- JUNCTION BOX / TRANSFORMER ---"
         },
         {
           "name": "JUNCTION_BOX",
           "params": {
             "ASS_PRODCT_COD_TXT": "JB",
+            "ELC_EQP_TYPE_TXT": "JUNCTION_BOX",
             "ELC_WAYS": "0"
           }
         },
@@ -212,6 +352,8 @@
           "name": "TRANSFORMER",
           "params": {
             "ASS_PRODCT_COD_TXT": "TX",
+            "ELC_EQP_TYPE_TXT": "TRANSFORMER",
+            "ELC_KVA_RATING": "1000",
             "ELC_PNL_VOLTAGE": "11000"
           }
         }

@@ -43,6 +43,8 @@ namespace StingTools.Core.SLD
             if (doc == null || view == null || root == null || layout == null) return;
             var rules = SymbolStandardRegistry.GetAnnotationRules(standardId);
             annotOpts = annotOpts ?? SLDAnnotationOptions.Default;
+            var std = SymbolStandardRegistry.GetStandard(standardId);
+            double symSizeMm = std?.SymbolSizeMm > 0 ? std.SymbolSizeMm : 8.0;
 
             var stack = new Stack<SLDNode>();
             stack.Push(root);
@@ -51,7 +53,7 @@ namespace StingTools.Core.SLD
                 var node = stack.Pop();
                 if (layout.SymbolPositions.TryGetValue(node.ElementId, out var pos))
                 {
-                    ElementId noteId = PlaceCircuitAnnotation(doc, view, node, pos, rules, annotOpts);
+                    ElementId noteId = PlaceCircuitAnnotation(doc, view, node, pos, rules, annotOpts, symSizeMm);
                     if (noteId != ElementId.InvalidElementId
                         && nodeToInstance != null
                         && nodeToInstance.TryGetValue(node.ElementId, out var instanceId))
@@ -68,7 +70,8 @@ namespace StingTools.Core.SLD
         /// Returns <see cref="ElementId.InvalidElementId"/> when no label is produced.
         /// </summary>
         public static ElementId PlaceCircuitAnnotation(Document doc, ViewDrafting view, SLDNode node,
-            XYZ position, AnnotationRules rules, SLDAnnotationOptions annotOpts = null)
+            XYZ position, AnnotationRules rules, SLDAnnotationOptions annotOpts = null,
+            double symSizeMm = 8.0)
         {
             annotOpts = annotOpts ?? SLDAnnotationOptions.Default;
             try
@@ -76,8 +79,9 @@ namespace StingTools.Core.SLD
                 string label = BuildCircuitLabel(node, rules, annotOpts);
                 if (string.IsNullOrWhiteSpace(label)) return ElementId.InvalidElementId;
 
+                // symSizeMm/2 clears the symbol body; + TextHeightMm adds one line of breathing room.
                 XYZ textPos = OffsetForRule(position, rules.LabelPosition,
-                    Mm(rules.TextHeightMm * 1.5));
+                    Mm(symSizeMm / 2.0 + rules.TextHeightMm));
                 var tnt = new FilteredElementCollector(doc)
                     .OfClass(typeof(TextNoteType))
                     .FirstElementId();

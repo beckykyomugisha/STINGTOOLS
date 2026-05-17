@@ -5,6 +5,21 @@
 // vertical drop conduit from the fixture point up to the intercept.
 // The created conduit is tagged with ELC_CDT_INSTALL_METHOD_TXT and
 // ELC_CDT_FAB_METHOD_TXT for downstream fabrication takeoff.
+//
+// Algorithm gaps addressed (Phase 179 review):
+//   Gap 1  — Multi-category search: prefers OST_CableTray, falls back
+//             to OST_Conduit when no tray is in radius. Controlled via
+//             SearchFallbackToConduit (default true).
+//   Gap 2  — Minimum run-length guard: drops shorter than MinDropMm
+//             (default 50 mm) are rejected with a warning rather than
+//             creating degenerate geometry.
+//   Gap 3  — Chase router stamps ELC_CDT_RUN_LENGTH_M and
+//             ELC_CDT_BEND_COUNT_NR on every created segment (was: only
+//             INSTALL_METHOD + FAB_METHOD were stamped).
+//   Gap 4  — Level fallback: when both host.LevelId and active-view
+//             GenLevel are unavailable (3D view, no linked model), the
+//             engine walks FilteredElementCollector<Level> and picks the
+//             nearest level below the drop origin.
 
 using System;
 using System.Collections.Generic;
@@ -22,6 +37,25 @@ namespace StingTools.Core.Routing
         /// above a fixture. 3000mm is conservative for building services.
         /// </summary>
         public double SearchRadiusMm { get; set; } = 3000.0;
+
+        /// <summary>
+        /// Gap 1 fix — when no cable tray is found within SearchRadiusMm,
+        /// attempt a second pass against OST_Conduit so that fixtures that
+        /// feed into an existing conduit branch rather than a tray are
+        /// handled correctly. Default true. Set false in projects where
+        /// every fixture must terminate on a tray (strict BS EN 50174-2
+        /// containment-system enforcement).
+        /// </summary>
+        public bool SearchFallbackToConduit { get; set; } = true;
+
+        /// <summary>
+        /// Gap 2 fix — reject drops shorter than this threshold (mm).
+        /// Fixtures placed directly on or within touching distance of a
+        /// tray would create sub-millimetre conduit geometry that confuses
+        /// Revit's MEP topology engine. 50 mm is the practical minimum for
+        /// a conduit entry stub with a locknut and bushing.
+        /// </summary>
+        public double MinDropMm { get; set; } = 50.0;
 
         /// <summary>
         /// Installation method written to ELC_CDT_INSTALL_METHOD_TXT
@@ -110,12 +144,32 @@ namespace StingTools.Core.Routing
                     return false;        // caller will fall back
                 }
 
+                // Gap 3 fix — compute total run length and bend count across all
+                // chase segments so downstream QA reads the same fields as a
+                // standard plumb-line drop.
+                double chaseTotalMm = 0;
+                foreach (var segId in route.CreatedSegments)
+                {
+                    var segEl = Doc.GetElement(segId) as MEPCurve;
+                    var segLoc = segEl?.Location as LocationCurve;
+                    if (segLoc?.Curve != null)
+                        chaseTotalMm += segLoc.Curve.Length * 304.8;
+                }
+                int chaseBends = Math.Max(0, route.CreatedSegments.Count - 1);
+
                 foreach (var id in route.CreatedSegments)
                 {
                     result.CreatedIds.Add(id);
                     var cdt = Doc.GetElement(id);
                     TrySetString(cdt, "ELC_CDT_INSTALL_METHOD_TXT", "CHASED");
                     TrySetString(cdt, "ELC_CDT_FAB_METHOD_TXT", FabMethod);
+                    try
+                    {
+                        TrySetString(cdt, "ELC_CDT_RUN_LENGTH_M",
+                            (chaseTotalMm / 1000.0).ToString("F3", System.Globalization.CultureInfo.InvariantCulture));
+                        TrySetString(cdt, "ELC_CDT_BEND_COUNT_NR", chaseBends.ToString());
+                    }
+                    catch (Exception ex) { result.Warnings.Add($"Stamp chase run-length: {ex.Message}"); }
                 }
                 foreach (var w in route.Warnings) result.Warnings.Add($"Chase: {w}");
                 return true;
@@ -190,7 +244,24 @@ namespace StingTools.Core.Routing
                     {
                         try
                         {
-                            TryDropFromFixture(fx, BuiltInCategory.OST_CableTray, SearchRadiusMm, result);
+                            // Gap 1 fix — try cable tray first; fall back to conduit
+                            // when the fixture is not beneath any tray.
+                            bool dropped = TryDropFromFixture(
+                                fx, BuiltInCategory.OST_CableTray, SearchRadiusMm, result);
+
+                            if (!dropped && SearchFallbackToConduit)
+                            {
+                                // Remove the "no tray found" warning from the first pass
+                                // so the caller sees only the conduit-pass result.
+                                var removable = result.Warnings.FindAll(
+                                    w => w.Contains("CableTray") && w.Contains(fx?.Id.Value.ToString() ?? ""));
+                                foreach (var w in removable) result.Warnings.Remove(w);
+                                // Reset the skip/fail counts so the fallback can re-score.
+                                result.SkippedCount = Math.Max(0, result.SkippedCount - 1);
+
+                                TryDropFromFixture(
+                                    fx, BuiltInCategory.OST_Conduit, SearchRadiusMm, result);
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -232,13 +303,55 @@ namespace StingTools.Core.Routing
             if (from == null || to == null) return ElementId.InvalidElementId;
             if (ConduitTypeId == null || ConduitTypeId == ElementId.InvalidElementId) return ElementId.InvalidElementId;
 
+            // Gap 2 fix — reject sub-MinDropMm runs before touching the document.
+            // Fixtures placed directly on or nearly touching a tray would otherwise
+            // produce degenerate conduit geometry that breaks Revit's MEP topology.
+            double dropMm = from.DistanceTo(to) * 304.8;
+            if (dropMm < MinDropMm)
+            {
+                result.Warnings.Add(
+                    $"Drop skipped: {dropMm:F0} mm < MinDropMm ({MinDropMm:F0} mm). " +
+                    "Fixture is too close to containment for a valid conduit entry stub.");
+                result.SkippedCount++;
+                return ElementId.InvalidElementId;
+            }
+
             ElementId levelId = host?.LevelId ?? ElementId.InvalidElementId;
             if (levelId == ElementId.InvalidElementId && Doc.ActiveView != null)
                 levelId = Doc.ActiveView.GenLevel?.Id ?? ElementId.InvalidElementId;
 
+            // Gap 4 fix — when the host has no LevelId and the active view is a
+            // 3D view (no GenLevel), walk every Level in the document and pick the
+            // nearest one below the drop origin. This covers detached/linked-model
+            // workflows where a 3D view is open and fixtures have no host level.
             if (levelId == ElementId.InvalidElementId)
             {
-                result.Warnings.Add("CreateRunBetween: no host level; skipping conduit drop");
+                try
+                {
+                    double originZFt = from.Z;
+                    Level nearest = null;
+                    double nearestDelta = double.MaxValue;
+                    foreach (var lvlEl in new FilteredElementCollector(Doc).OfClass(typeof(Level)))
+                    {
+                        if (!(lvlEl is Level lvl)) continue;
+                        double delta = originZFt - lvl.Elevation;
+                        if (delta >= 0 && delta < nearestDelta)
+                        {
+                            nearestDelta = delta;
+                            nearest = lvl;
+                        }
+                    }
+                    if (nearest != null) levelId = nearest.Id;
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"Level fallback collect: {ex.Message}");
+                }
+            }
+
+            if (levelId == ElementId.InvalidElementId)
+            {
+                result.Warnings.Add("CreateRunBetween: no level found (host, view, or collector); skipping conduit drop");
                 return ElementId.InvalidElementId;
             }
 
