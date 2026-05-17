@@ -39,6 +39,7 @@ namespace StingTools.Commands.Symbols
             ("STING_ELEC_SYMBOLS.json",      "Electrical", "Electrical Devices"),
             ("STING_PLUMBING_SYMBOLS.json",  "Plumbing",   "Plumbing"),
             ("STING_PIPE_ACCESSORIES.json",  "PipeAcc",    "Pipe Accessories"),
+            ("STING_ISO6412_SYMBOLS.json",   "ISO6412",    "ISO 6412 Piping/Duct/Conduit Spool Symbols"),
         };
 
         public static string ResolveOutputRoot(Document doc)
