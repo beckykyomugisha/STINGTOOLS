@@ -3007,7 +3007,7 @@ namespace StingTools.UI
             }
             AddHeader("Project info ${X}");
             foreach (var k in new[] {
-                "PRJ_ORG_PROJECT_CODE_TXT", "PRJ_ORG_PROJECT_NAME_TXT",
+                "PRJ_PROJECT_COD_TXT", "PRJ_ORG_PROJECT_NAME_TXT",
                 "PRJ_ORG_ORIGINATOR_CODE_TXT", "PRJ_ORG_COMPANY_NAME_TXT",
                 "PRJ_ORG_CLIENT_NAME_TXT", "PRJ_ORG_APPOINTING_PARTY_TXT",
                 "PRJ_ORG_LEAD_APPOINTED_PARTY_TXT",

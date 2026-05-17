@@ -209,7 +209,7 @@ These work in `sheetNumberPattern`, `sheetNamePattern`, and any
 
 | Token | Resolves to | Source |
 |---|---|---|
-| `{project}` | Project code | `ProjectInformation.PRJ_ORG_PROJECT_CODE` |
+| `{project}` | Project code | `ProjectInformation.PRJ_PROJECT_COD_TXT` |
 | `{originator}` | Originator code | `ProjectInformation.PRJ_ORG_ORIGINATOR_CODE` |
 | `{vol}` | Volume / system | `DrawingType.IsoNaming.Volume` |
 | `{type}` | Document type | `DrawingType.IsoNaming.Type` (DR / SH / VS / M3 / SP) |
@@ -225,7 +225,7 @@ These work in `sheetNumberPattern`, `sheetNamePattern`, and any
 | `{seq}` | Sequence (4-digit padded) | counter |
 | `{seq:D2}` / `{seq:D3}` / `{seq:D4}` | Sequence with explicit pad width | counter |
 
-In `titleBlockParams` only: `${PRJ_ORG_PROJECT_CODE}` style references read any
+In `titleBlockParams` only: `${PRJ_PROJECT_COD_TXT}` style references read any
 project info parameter directly.
 
 Unknown tokens pass through as literal text — so a pattern like
@@ -247,7 +247,7 @@ Each segment:
 
 | Segment | Meaning | Allowed values | Where it comes from |
 |---|---|---|---|
-| **Project** | Project code | Up to 6 chars, A-Z 0-9 | `PRJ_ORG_PROJECT_CODE` (set once per project) |
+| **Project** | Project code | Up to 6 chars, A-Z 0-9 | `PRJ_PROJECT_COD_TXT` (set once per project) |
 | **Originator** | Who authored it | 3-letter co. code | `PRJ_ORG_ORIGINATOR_CODE` |
 | **Vol** | Volume / system | `01`, `02`, `ZZ` | `DrawingType.IsoNaming.Volume` |
 | **Lvl** | Building level | `GF`, `01`, `B1`, `RF`, `XX` | derived from view |
@@ -268,7 +268,7 @@ Each segment:
 
 **To set the project codes once:**
 
-1. Project Information → fill `PRJ_ORG_PROJECT_CODE` (e.g. `PLNS`) and
+1. Project Information → fill `PRJ_PROJECT_COD_TXT` (e.g. `PLNS`) and
    `PRJ_ORG_ORIGINATOR_CODE` (e.g. `ABC`)
 2. Every sheet generated thereafter inherits both codes automatically — no
    per-sheet typing.
@@ -379,7 +379,7 @@ hand-tuned them and don't want them resynced.
 
 ### W8: Switch a project from informal numbering to ISO 19650
 
-1. Set `PRJ_ORG_PROJECT_CODE` and `PRJ_ORG_ORIGINATOR_CODE` once in
+1. Set `PRJ_PROJECT_COD_TXT` and `PRJ_ORG_ORIGINATOR_CODE` once in
    Project Information
 2. **Edit Types** → for each profile in use:
    - Open ISO 19650 naming card
@@ -583,7 +583,7 @@ profile system.
 
 ### Per-project setup (once)
 
-1. Project Information → set `PRJ_ORG_PROJECT_CODE`, `PRJ_ORG_ORIGINATOR_CODE`,
+1. Project Information → set `PRJ_PROJECT_COD_TXT`, `PRJ_ORG_ORIGINATOR_CODE`,
    `PRJ_ORG_CLIENT_NAME`, `PRJ_ORG_COMPANY_NAME`, `PRJ_ORG_COMPANY_ADDRESS`,
    `PRJ_ORG_APPOINTING_PARTY`
 2. Load the title block families the corporate profiles reference
@@ -628,7 +628,7 @@ After that, the system runs itself for the project lifetime.
 
 ### "Sheet number is empty / wrong / missing the project code"
 
-- ISO patterns need `${PRJ_ORG_PROJECT_CODE}` and `${PRJ_ORG_ORIGINATOR_CODE}`
+- ISO patterns need `${PRJ_PROJECT_COD_TXT}` and `${PRJ_ORG_ORIGINATOR_CODE}`
   set in Project Information. Empty values resolve to empty strings, which
   produces `--01-L02-DR-A-0003-S2-P01`.
 - Open Project Information → fill those parameters → re-run the batch command.

@@ -16137,7 +16137,7 @@ PRJ_ORG_HEALTH_OR_INT,Project Information,Instance,True
 PRJ_ORG_HEALTH_PACK_PROFILE_TXT,Project Information,Instance,True
 PRJ_ORG_HEALTH_QE_TXT,Project Information,Instance,True
 PRJ_ORG_PROJECT_ADDRESS_TXT,Project Information,Instance,True
-PRJ_ORG_PROJECT_CODE_TXT,Project Information,Instance,True
+PRJ_PROJECT_COD_TXT,Project Information,Instance,True
 PRJ_ORG_PROJECT_NAME_TXT,Project Information,Instance,True
 PRJ_ORG_PROJECT_NORTH_TXT,Project Information,Instance,True
 PRJ_ORG_PROJECT_NUMBER_TXT,Project Information,Instance,True

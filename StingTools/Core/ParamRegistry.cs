@@ -384,8 +384,8 @@ namespace StingTools.Core
         // UUID('a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a'). Originator code defaults to
         // "PLNS"; company name to "Planscape Limited". These feed TemplateManifest,
         // DocumentIdentityGenerator, TokenContext.FromDeliverable, and WorkflowEngine.
-        public const string ORG_PROJECT_CODE            = "PRJ_ORG_PROJECT_CODE_TXT";
-        public const string ORG_PROJECT_CODE_GUID       = "d72513d3-2aed-5048-a949-b262fcd51a39";
+        public const string ORG_PROJECT_CODE            = "PRJ_PROJECT_COD_TXT";
+        public const string ORG_PROJECT_CODE_GUID       = "b4e90d6e-0f81-57bf-a954-aa06b3134dd0";
         public const string ORG_ORIGINATOR_CODE         = "PRJ_ORG_ORIGINATOR_CODE_TXT";
         public const string ORG_ORIGINATOR_CODE_GUID    = "d9b568c8-0dcf-5226-add0-a6e3643589e8";
         public const string ORG_COMPANY_NAME            = "PRJ_ORG_COMPANY_NAME_TXT";

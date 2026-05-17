@@ -2503,7 +2503,6 @@ Generic Models,PRJ_ORG_LEAD_APPOINTED_PARTY_TXT,77069632-0604-5cb1-b6ef-5e2211f6
 Generic Models,PRJ_ORG_ORIGINATOR_CODE_TXT,d9b568c8-0dcf-5226-add0-a6e3643589e8,TEXT,PRJ_INFORMATION,Type,ISO 19650 originator code (default PLNS) [template engine v1.1],False,,,MULTI,1,0
 Generic Models,PRJ_ORG_PARTICIPANTS_TXT,a4c8ef52-5bb2-579f-9308-8a6c2177bf52,TEXT,PRJ_INFORMATION,Type,Semicolon-separated participants list [template engine v1.1],False,,,MULTI,1,0
 Generic Models,PRJ_ORG_PHASE_TXT,d187fdbd-f701-5334-90da-1ab6694c5034,TEXT,PRJ_INFORMATION,Type,ISO 19650 project phase code (default DE) [template engine v1.1],False,,,MULTI,1,0
-Generic Models,PRJ_ORG_PROJECT_CODE_TXT,d72513d3-2aed-5048-a949-b262fcd51a39,TEXT,PRJ_INFORMATION,Type,Project identifier code (alphanumeric) [template engine v1.1],False,,,MULTI,1,0
 Generic Models,PRJ_ORG_SIGNATURE_PROVIDER_TXT,e669eea3-d1fa-51b7-b820-83fa21d40877,TEXT,PRJ_INFORMATION,Type,Signature provider id (empty = signatures disabled) [template engine v1.1],False,,,MULTI,1,0
 Generic Models,PRJ_ORG_WORKFLOW_PROFILE_TXT,48a26ee9-211d-5525-8fbb-9f8eb1f38878,TEXT,PRJ_INFORMATION,Type,"Workflow profile key (default ""default"") [template engine v1.1]",False,,,MULTI,1,0
 Generic Models,PRJ_TB_DELIVERABLE_CDE_TXT,0d917e49-c6f6-5951-b2b7-7a00bdb3b0df,TEXT,PRJ_INFORMATION,Type,CDE container or folder reference where this deliverable is stored [ISO 19650-2:2018],False,,,MULTI,0,0

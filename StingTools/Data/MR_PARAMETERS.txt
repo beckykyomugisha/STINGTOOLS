@@ -2580,7 +2580,6 @@ PARAM	976ec939-fe4c-5af3-bdda-2edb342950ea	COMM_DATE_TXT	TEXT		25	1	ISO 8601 dat
 PARAM	65c612b4-4649-5a1b-a1b0-8c6d4d7aeb7a	COMM_OPERATIVE_TXT	TEXT		25	1	Commissioning operative name or ID who performed the test	1
 PARAM	e48f7316-380e-5e5a-b376-149eab440ad3	COMM_WITNESS_TXT	TEXT		25	1	Commissioning witness name or ID (client / CA representative)	1
 PARAM	6bafd748-d05f-5df4-bae9-ce3ed4ce34f4	COMM_NOTES_TXT	TEXT		25	1	Free-text commissioning notes captured from the QR workflow	1
-PARAM	d72513d3-2aed-5048-a949-b262fcd51a39	PRJ_ORG_PROJECT_CODE_TXT	TEXT		13	1	Project identifier code (alphanumeric) [template engine v1.1]	1
 PARAM	d9b568c8-0dcf-5226-add0-a6e3643589e8	PRJ_ORG_ORIGINATOR_CODE_TXT	TEXT		13	1	ISO 19650 originator code (default PLNS) [template engine v1.1]	1
 PARAM	f08b9a37-5e44-5074-a9e1-0a0f6418a305	PRJ_ORG_COMPANY_NAME_TXT	TEXT		13	1	Producing company name (default Planscape Limited) [template engine v1.1]	1
 PARAM	834df80b-0472-5724-afab-1c90ce7eac80	PRJ_ORG_COMPANY_ADDRESS_TXT	TEXT		13	1	Producing company address (default Kampala, Uganda) [template engine v1.1]	1
