@@ -174,6 +174,46 @@ namespace StingTools.Core.Drawing
             return result;
         }
 
+        /// <summary>Read category override keys that are currently active on
+        /// <paramref name="view"/> and return them as a
+        /// <see cref="StyleVgOverride"/> dictionary suitable for storing
+        /// directly into <see cref="ViewStylePack.VgOverrides"/>.
+        /// The dictionary is keyed by category name.
+        /// Returns an empty dictionary when <paramref name="view"/> is
+        /// null or has no overrides.</summary>
+        public static Dictionary<string, StyleVgOverride> ReadCategoryOverrides(Document doc, View view)
+        {
+            var result = new Dictionary<string, StyleVgOverride>();
+            if (doc == null || view == null) return result;
+            try
+            {
+                foreach (Category cat in doc.Settings.Categories)
+                {
+                    try
+                    {
+                        if (view.GetCategoryHidden(cat.Id)) continue;
+                        var ogs = view.GetCategoryOverrides(cat.Id);
+                        if (ogs == null) continue;
+                        var svo = new StyleVgOverride
+                        {
+                            Halftone             = ogs.Halftone ? (bool?)true : null,
+                            ProjectionLineWeight = ogs.ProjectionLineWeight > 0 ? (int?)ogs.ProjectionLineWeight : null,
+                            Transparency         = ogs.Transparency > 0 ? (int?)ogs.Transparency : null,
+                        };
+                        // Only store entries that carry at least one non-default field.
+                        if (svo.Halftone != null || svo.ProjectionLineWeight != null || svo.Transparency != null)
+                            result[cat.Name ?? cat.Id.ToString()] = svo;
+                    }
+                    catch { /* skip inaccessible categories */ }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"ReadCategoryOverrides(view): {ex.Message}");
+            }
+            return result;
+        }
+
         /// <summary>Apply the pack's VG + filter settings as a preset; delegates
         /// to <see cref="Apply"/>.</summary>
         public static void ApplyPresetOverrides(Document doc, View view, ViewStylePack pack)

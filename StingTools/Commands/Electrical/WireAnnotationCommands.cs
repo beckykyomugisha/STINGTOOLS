@@ -458,12 +458,12 @@ namespace StingTools.Commands.Electrical
                 if (p == null) {
                     double.TryParse(ParameterHelpers.GetString(conduit, "ELC_CDT_CBL_FILL_PCT"),
                         System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture, out fill);
+                        System.Globalization.CultureInfo.InvariantCulture, out fill2);
                 } else if (p.StorageType == StorageType.Double) {
-                    fill = p.AsDouble();
+                    fill2 = p.AsDouble();
                 } else if (p.StorageType == StorageType.String) {
                     double.TryParse(p.AsString(), System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture, out fill);
+                        System.Globalization.CultureInfo.InvariantCulture, out fill2);
                 }
             } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
@@ -1235,7 +1235,7 @@ namespace StingTools.Commands.Electrical
                 if (wireCat?.SubCategories == null) return null;
                 foreach (Category sub in wireCat.SubCategories)
                 {
-                    if (string.Equals(sub.Name, TickStyle, StringComparison.Ordinal))
+                    if (string.Equals(sub.Name, TickMarker, StringComparison.Ordinal))
                         return sub;
                 }
             }
