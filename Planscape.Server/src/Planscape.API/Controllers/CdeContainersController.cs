@@ -226,12 +226,15 @@ public class CdeContainersController : ControllerBase
         if (documentIds.Length > 500)
             return BadRequest("Maximum 500 documents per batch assignment");
 
-        // Only allow assigning documents that belong to the same project
-        await _db.Documents
+        // Only allow assigning documents that belong to the same project.
+        // ExecuteUpdateAsync returns the actual number of rows updated — use it
+        // instead of documentIds.Length so the response is accurate when some
+        // IDs don't exist or don't belong to this project.
+        var assigned = await _db.Documents
             .Where(d => documentIds.Contains(d.Id) && d.ProjectId == projectId)
             .ExecuteUpdateAsync(s => s.SetProperty(d => d.ContainerId, containerId), ct);
 
-        return Ok(new { assigned = documentIds.Length });
+        return Ok(new { assigned });
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

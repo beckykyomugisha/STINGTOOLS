@@ -1198,6 +1198,10 @@ public class PlanscapeDbContext : DbContext
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.DocumentId);
             e.HasIndex(x => x.TenantId);
+            // Partial index on PENDING rows — the stamp job queries by WatermarkStatus = 'PENDING'
+            // and this keeps that scan tight as the table grows.
+            e.HasIndex(x => x.WatermarkStatus)
+             .HasFilter("\"WatermarkStatus\" = 'PENDING'");
             e.Property(x => x.SignedByUserId).HasMaxLength(200);
             e.Property(x => x.SignedByName).HasMaxLength(200);
             e.Property(x => x.SignatureNote).HasMaxLength(2000);
@@ -1213,7 +1217,10 @@ public class PlanscapeDbContext : DbContext
         modelBuilder.Entity<TransmittalDocument>(e =>
         {
             e.HasKey(x => x.Id);
-            e.HasIndex(x => x.TransmittalId);
+            // Unique composite index — the critical GAP-04 duplicate guard.
+            // The two separate single-column indexes are kept for FK lookup
+            // performance but do not enforce uniqueness on their own.
+            e.HasIndex(x => new { x.TransmittalId, x.DocumentId }).IsUnique();
             e.HasIndex(x => x.DocumentId);
             e.Property(x => x.CdeStateAtTransmittal).HasMaxLength(20);
             e.Property(x => x.SuitabilityAtTransmittal).HasMaxLength(10);

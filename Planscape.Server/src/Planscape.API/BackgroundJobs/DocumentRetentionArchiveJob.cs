@@ -30,6 +30,12 @@ public class DocumentRetentionArchiveJob
 
     public async Task ExecuteAsync(CancellationToken ct = default)
     {
+        // Background jobs run without an ITenantContext, so CurrentTenantId is
+        // Guid.Empty and the global query filter would return zero rows for every
+        // Documents query. Bypass it here so the job sees all tenants, which is
+        // correct — retention enforcement must be tenant-wide.
+        _db.BypassTenantFilter = true;
+
         var now = DateTime.UtcNow;
 
         // Load in pages of 200 so a large register doesn't pin memory.

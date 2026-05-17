@@ -20,6 +20,7 @@ using Planscape.Infrastructure.Data;
 /// </summary>
 // GAP-07 — retry up to 3 times with Hangfire exponential back-off.
 [AutomaticRetry(Attempts = 3)]
+[Queue("maintenance")]
 public class DocumentPublicationStampJob
 {
     private readonly PlanscapeDbContext _db;
@@ -85,14 +86,31 @@ public class DocumentPublicationStampJob
 
         try
         {
-            using var sourceStream = await _storage.GetAsync(doc.FilePath);
-            if (sourceStream == null)
+            using var rawStream = await _storage.GetAsync(doc.FilePath);
+            if (rawStream == null)
             {
                 sig.WatermarkStatus = "FAILED";
                 await _db.SaveChangesAsync();
                 _logger.LogWarning(
                     "DocumentPublicationStampJob: source file not found at {Path}", doc.FilePath);
                 return;
+            }
+
+            // MinIO (and some other storage providers) return non-seekable streams.
+            // Buffer into a MemoryStream so we can rewind after the magic-bytes check.
+            // For very large PDFs this trades memory for correctness; the file must
+            // fit in process memory to be watermarked in-process anyway.
+            Stream sourceStream;
+            if (rawStream.CanSeek)
+            {
+                sourceStream = rawStream;
+            }
+            else
+            {
+                var ms = new MemoryStream();
+                await rawStream.CopyToAsync(ms);
+                ms.Position = 0;
+                sourceStream = ms;
             }
 
             // GAP-17 — magic-bytes check: PDF starts with 25 50 44 46 (%PDF).

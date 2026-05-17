@@ -697,6 +697,14 @@ public class DocumentsController : ControllerBase
         if (docs.Count == 0)
             return NotFound(new { message = "No accessible documents found for the provided IDs." });
 
+        // Guard against unbounded memory: reject if the total uncompressed size
+        // exceeds 500 MB. FileSizeBytes is set at upload time; treat 0 as unknown
+        // and allow it through (the 50-document cap limits exposure).
+        const long MaxBulkBytes = 500L * 1024 * 1024;
+        var totalBytes = docs.Sum(d => d.FileSizeBytes);
+        if (totalBytes > MaxBulkBytes)
+            return BadRequest(new { message = $"Total file size ({totalBytes / 1024 / 1024} MB) exceeds the 500 MB bulk-download limit. Select fewer documents." });
+
         var ms = new MemoryStream();
         using (var archive = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
         {
