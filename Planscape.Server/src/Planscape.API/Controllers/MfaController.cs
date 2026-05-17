@@ -132,7 +132,7 @@ public class MfaController : ControllerBase
             Succeeded     = isValid,
             ClientIp      = HttpContext.Connection.RemoteIpAddress?.ToString(),
             // Store a truncated UA (max 200 chars) to reduce fingerprinting surface.
-            UserAgent     = Request.Headers.UserAgent.ToString()[..Math.Min(200, Request.Headers.UserAgent.ToString().Length)],
+            UserAgent     = (Request.Headers.UserAgent.ToString() is { } ua ? ua[..Math.Min(200, ua.Length)] : null),
             FailureReason = isValid ? null : "InvalidCode",
         };
         _db.MfaChallenges.Add(challenge);
@@ -190,8 +190,15 @@ public class MfaController : ControllerBase
         var codes = Enumerable.Range(0, 10)
             .Select(_ => Guid.NewGuid().ToString("N")[..8].ToUpperInvariant())
             .ToList();
+        // Store SHA-256 hashes only — plaintext is returned once and never persisted.
         enrollment.RecoveryCodesJson = System.Text.Json.JsonSerializer.Serialize(
-            codes.Select(c => new { Code = c, Used = false }));
+            codes.Select(c => new
+            {
+                Hash = Convert.ToHexString(
+                    System.Security.Cryptography.SHA256.HashData(
+                        System.Text.Encoding.UTF8.GetBytes(c))),
+                Used = false
+            }));
         await _db.SaveChangesAsync();
 
         // Return codes plaintext once — user must store them

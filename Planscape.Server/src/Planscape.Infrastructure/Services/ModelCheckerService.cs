@@ -59,7 +59,7 @@ public class ModelCheckerService : IModelCheckerService
 
         var findings = new List<ModelCheckResult>();
         foreach (var rule in rules)
-            findings.AddRange(EvaluateRule(rule, elements, run.Id, tenantId, projectId));
+            findings.AddRange(EvaluateRule(rule, elements, run.Id, tenantId, projectId, projectModelId));
 
         _db.ModelCheckResults.AddRange(findings);
 
@@ -103,7 +103,7 @@ public class ModelCheckerService : IModelCheckerService
 
             var findings = new List<ModelCheckResult>();
             foreach (var rule in rules)
-                findings.AddRange(EvaluateRule(rule, elements, run.Id, run.TenantId, run.ProjectId));
+                findings.AddRange(EvaluateRule(rule, elements, run.Id, run.TenantId, run.ProjectId, run.ProjectModelId));
 
             _db.ModelCheckResults.AddRange(findings);
 
@@ -129,31 +129,32 @@ public class ModelCheckerService : IModelCheckerService
 
     private IEnumerable<ModelCheckResult> EvaluateRule(
         ModelCheckRule rule, IList<TaggedElement> elements,
-        Guid runId, Guid tenantId, Guid projectId)
+        Guid runId, Guid tenantId, Guid projectId, Guid? projectModelId = null)
         => rule.Kind switch
         {
-            "PropertyRequired" => CheckPropertyRequired(rule, elements, runId, tenantId, projectId),
+            "PropertyRequired" => CheckPropertyRequired(rule, elements, runId, tenantId, projectId, projectModelId),
             _ => Enumerable.Empty<ModelCheckResult>()
         };
 
     private IEnumerable<ModelCheckResult> CheckPropertyRequired(
         ModelCheckRule rule, IList<TaggedElement> elements,
-        Guid runId, Guid tenantId, Guid projectId)
+        Guid runId, Guid tenantId, Guid projectId, Guid? projectModelId)
     {
         foreach (var el in elements.Where(e => string.IsNullOrEmpty(e.Tag1)))
         {
             yield return new ModelCheckResult
             {
-                TenantId     = tenantId,
-                ProjectId    = projectId,
-                RunId        = runId,
-                RuleId       = rule.Id,
-                IfcGlobalId  = el.UniqueId,
-                IfcType      = null,
-                ElementName  = el.FamilyName ?? el.CategoryName,
-                Severity     = rule.Severity,
-                Status       = "Open",
-                Message      = $"Rule '{rule.Name}': required property missing.",
+                TenantId       = tenantId,
+                ProjectId      = projectId,
+                ProjectModelId = projectModelId,
+                RunId          = runId,
+                RuleId         = rule.Id,
+                IfcGlobalId    = el.UniqueId,
+                IfcType        = null,
+                ElementName    = el.FamilyName ?? el.CategoryName,
+                Severity       = rule.Severity,
+                Status         = "Open",
+                Message        = $"Rule '{rule.Name}': required property missing.",
             };
         }
     }
