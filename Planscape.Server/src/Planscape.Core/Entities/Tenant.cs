@@ -113,16 +113,18 @@ public enum MimTier
 /// </summary>
 public enum BillingPlan
 {
-    /// <summary>Free 30-day trial; converts to Studio on expiry unless cancelled.</summary>
+    /// <summary>Free 30-day trial; converts to PluginOnly on expiry unless cancelled.</summary>
     Trial = 0,
-    /// <summary>$30/mo — 1 author + 10 coordinators · 3 projects · 5 GB</summary>
-    Studio = 1,
-    /// <summary>$80/mo — 1 author + 25 coordinators · 10 projects · 25 GB</summary>
-    Practice = 2,
-    /// <summary>$150/mo — 3 authors + 35 coordinators · 10 projects · 50 GB</summary>
-    Network = 3,
-    /// <summary>≥$3,500/mo — custom; SLA + dedicated support + on-prem option</summary>
-    Enterprise = 4,
+    /// <summary>$15/mo — Revit plugin only, local storage, no cloud sync.</summary>
+    PluginOnly = 1,
+    /// <summary>$35/mo — plugin + cloud · up to 6 users · 5 projects · 10 GB</summary>
+    Studio = 2,
+    /// <summary>$55/mo — plugin + cloud · up to 12 users · 10 projects · 25 GB</summary>
+    Practice = 3,
+    /// <summary>$90/mo — plugin + cloud · up to 20 users · unlimited projects · 50 GB</summary>
+    Network = 4,
+    /// <summary>Custom — unlimited seats + projects; SSO · SLA · on-prem option</summary>
+    Enterprise = 5,
 }
 
 public enum BillingCycle
@@ -142,18 +144,19 @@ public static class BillingPlanLimits
 
     public static Limits For(BillingPlan plan) => plan switch
     {
-        BillingPlan.Trial      => new Limits(1, 25, 3,  5_000, 0m),
-        BillingPlan.Studio     => new Limits(1, 10, 3,  5_000, 30m),
-        BillingPlan.Practice   => new Limits(1, 25, 10, 25_000, 80m),
-        BillingPlan.Network    => new Limits(3, 35, 10, 50_000, 150m),
-        BillingPlan.Enterprise => new Limits(int.MaxValue, int.MaxValue, int.MaxValue, long.MaxValue, 3_500m),
+        BillingPlan.Trial      => new Limits(1,  0,           1,           5_000,      0m),
+        BillingPlan.PluginOnly => new Limits(1,  0, int.MaxValue,               0,     15m),
+        BillingPlan.Studio     => new Limits(1,  5,           5,          10_000,      35m),
+        BillingPlan.Practice   => new Limits(1, 11,          10,          25_000,      55m),
+        BillingPlan.Network    => new Limits(1, 19, int.MaxValue,          50_000,      90m),
+        BillingPlan.Enterprise => new Limits(int.MaxValue, int.MaxValue, int.MaxValue, long.MaxValue, 0m),
         _ => new Limits(1, 5, 1, 500, 0m),
     };
 
     /// <summary>Map a legacy LicenseTier onto the new BillingPlan for migrations.</summary>
     public static BillingPlan FromLegacyTier(LicenseTier tier) => tier switch
     {
-        LicenseTier.Starter      => BillingPlan.Trial,
+        LicenseTier.Starter      => BillingPlan.PluginOnly,
         LicenseTier.Professional => BillingPlan.Studio,
         LicenseTier.Premium      => BillingPlan.Practice,
         LicenseTier.Enterprise   => BillingPlan.Enterprise,
