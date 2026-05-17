@@ -6717,6 +6717,11 @@ namespace StingTools.BIMManager
                 // 8. MIDP Register
                 filesGenerated += BriefcaseEngine.ExportMidpRegister(doc, outputDir);
 
+                // 9. HC-18: Healthcare evidence pack — RDS snapshots, MGPS verification
+                //    logs, pressure logs, anti-ligature audits scanned from
+                //    _BIM_COORD/healthcare/. Skipped silently on non-healthcare projects.
+                filesGenerated += BriefcaseEngine.ExportHealthcareEvidence(doc, outputDir);
+
                 sw.Stop();
 
                 TaskDialog.Show("Document Briefcase",
@@ -7816,6 +7821,61 @@ namespace StingTools.BIMManager
                 return 1;
             }
             catch (Exception ex) { StingLog.Warn($"ExportMidpRegister: {ex.Message}"); return 0; }
+        }
+
+        // HC-18: Healthcare evidence pack — scans _BIM_COORD/healthcare/ for RDS snapshots,
+        // MGPS verifications, pressure logs, anti-ligature audits and copies summary CSVs
+        // into the briefcase. Returns 0 silently on non-healthcare projects.
+        public static int ExportHealthcareEvidence(Document doc, string outputDir)
+        {
+            try
+            {
+                string modelDir = Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(modelDir)) return 0;
+                string hcDir = Path.Combine(modelDir, "_BIM_COORD", "healthcare");
+                if (!Directory.Exists(hcDir)) return 0;
+
+                int copied = 0;
+                string targetDir = Path.Combine(outputDir, "09_HEALTHCARE");
+                Directory.CreateDirectory(targetDir);
+
+                foreach (var sub in new[] { "rds_snapshots", "mgas_verifications", "pressure_logs", "anti_ligature_audits" })
+                {
+                    string src = Path.Combine(hcDir, sub);
+                    if (!Directory.Exists(src)) continue;
+                    string dst = Path.Combine(targetDir, sub);
+                    Directory.CreateDirectory(dst);
+                    foreach (var f in Directory.GetFiles(src, "*.json"))
+                    {
+                        File.Copy(f, Path.Combine(dst, Path.GetFileName(f)), overwrite: true);
+                        copied++;
+                    }
+                    foreach (var f in Directory.GetFiles(src, "*.csv"))
+                    {
+                        File.Copy(f, Path.Combine(dst, Path.GetFileName(f)), overwrite: true);
+                        copied++;
+                    }
+                    foreach (var f in Directory.GetFiles(src, "*.docx"))
+                    {
+                        File.Copy(f, Path.Combine(dst, Path.GetFileName(f)), overwrite: true);
+                        copied++;
+                    }
+                }
+
+                // Index file summarising contents
+                string idxPath = Path.Combine(targetDir, "00_INDEX.csv");
+                var idx = new StringBuilder();
+                idx.AppendLine("File,Subfolder,Size_Bytes,Modified");
+                foreach (var f in Directory.GetFiles(targetDir, "*", SearchOption.AllDirectories))
+                {
+                    if (Path.GetFileName(f) == "00_INDEX.csv") continue;
+                    var fi = new FileInfo(f);
+                    idx.AppendLine($"\"{fi.Name}\",\"{Path.GetFileName(fi.DirectoryName)}\",{fi.Length},\"{fi.LastWriteTime:yyyy-MM-dd HH:mm}\"");
+                }
+                File.WriteAllText(idxPath, idx.ToString());
+                return copied > 0 ? 1 : 0;
+            }
+            catch (Exception ex) { StingLog.Warn($"ExportHealthcareEvidence: {ex.Message}"); return 0; }
         }
 
         internal static string Esc(string s) => (s ?? "").Replace("\"", "\"\"");

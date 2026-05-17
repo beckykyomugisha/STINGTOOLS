@@ -1093,6 +1093,7 @@ namespace StingTools.Core
                 BuiltInCategory.OST_CommunicationDevices,
                 BuiltInCategory.OST_SecurityDevices,
                 BuiltInCategory.OST_NurseCallDevices,
+                BuiltInCategory.OST_MedicalEquipment,
                 BuiltInCategory.OST_DuctAccessory,
                 BuiltInCategory.OST_DuctFitting,
                 BuiltInCategory.OST_DuctTerminal,

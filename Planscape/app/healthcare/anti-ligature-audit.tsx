@@ -1,9 +1,11 @@
 // Healthcare Pack H-21 — Anti-ligature on-site audit (mobile).
+// HC-11: POST wrapped in offline queue so audits survive network outages.
 // Per-fitting checklist, photo + GPS, persisted via offline queue.
 import { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useProjectStore } from '@/stores/projectStore';
 import { postAntiLigatureAudit } from '@/api/endpoints';
+import { enqueue } from '@/utils/offlineQueue';
 
 const FITTING_TYPES = ['Door handle','TV bracket','Curtain track','Tap','WC','Shower head','Light fitting','Smoke detector','Wardrobe rail','Other'];
 
@@ -20,13 +22,22 @@ export default function AntiLigatureAuditScreen() {
     if (!activeProject?.id) { Alert.alert('No project', 'Select a project first.'); return; }
     const ts = new Date().toISOString();
     setAudit(a => [{ room, fitting, pass: !!pass, notes, ts }, ...a]);
+    const auditPayload = {
+      roomBimId: room, roomName: room, fittingType: fitting, pass: !!pass, notes,
+    };
     try {
-      await postAntiLigatureAudit(activeProject.id, {
-        roomBimId: room, roomName: room, fittingType: fitting, pass: !!pass, notes,
-      });
+      await postAntiLigatureAudit(activeProject.id, auditPayload);
     } catch (e: any) {
-      // Will be picked up by offline queue when online — leave row in local list.
-      Alert.alert('Saved offline', `Submit failed: ${e?.message ?? 'unknown'}. Will retry.`);
+      // HC-11: Network error — enqueue for replay on reconnect.
+      try {
+        await enqueue('HC_ANTI_LIGATURE_AUDIT', {
+          projectId: activeProject.id,
+          payload: auditPayload,
+        });
+        Alert.alert('Queued offline', `Entry saved locally and will sync when back online.`);
+      } catch {
+        Alert.alert('Saved offline', `Submit failed: ${e?.message ?? 'unknown'}. Will retry when online.`);
+      }
     }
     setNotes(''); setPass(null);
   };

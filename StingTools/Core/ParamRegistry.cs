@@ -963,6 +963,10 @@ namespace StingTools.Core
         public static string TAG_TEXT_COLOUR { get; private set; } = "TAG_TEXT_COLOUR_TEXT";
         /// <summary>VG Projection/Surface visibility control.</summary>
         public static string VGPS_VISIBLE { get; private set; } = "VGPS_VISIBLE_BOOL";
+        /// <summary>TAG-01: Single style code replaces 128 BOOL params. Value is the type-name
+        /// string, e.g. "2BOLD_BLUE". Backwards-compatible: BOOL params still written alongside.</summary>
+        public const string TAG_STYLE_CODE = "TAG_STYLE_CODE_TXT";
+        public const string TAG_STYLE_CODE_GUID = "d4e5f6a7-b8c9-4d0e-af12-345678901bcd";
 
         /// <summary>Available text sizes for tag style parameters.</summary>
         public static readonly string[] TagStyleSizes = { "2", "2.5", "3", "3.5" };
@@ -2150,6 +2154,8 @@ namespace StingTools.Core
             RegisterModeGuid(MODE_HANDOVER, MODE_HANDOVER_GUID);
             RegisterModeGuid(MODE_DC,       MODE_DC_GUID);
             RegisterModeGuid(MODE_CUSTOM,   MODE_CUSTOM_GUID);
+            // TAG-01: single style code parameter
+            RegisterModeGuid(TAG_STYLE_CODE, TAG_STYLE_CODE_GUID);
         }
 
         private static void RegisterModeGuid(string name, string guidStr)

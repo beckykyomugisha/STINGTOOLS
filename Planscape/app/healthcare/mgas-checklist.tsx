@@ -1,8 +1,10 @@
 // Healthcare Pack H-21 — MGPS NFPA 99 §5.1.12 verification checklist (mobile).
+// HC-11: POST wrapped in offline queue so verifications survive network outages.
 import { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useProjectStore } from '@/stores/projectStore';
 import { postMgasVerification } from '@/api/endpoints';
+import { enqueue } from '@/utils/offlineQueue';
 
 const STEPS = [
   'Pre-purge with oil-free dry nitrogen',
@@ -31,16 +33,28 @@ export default function MgasChecklistScreen() {
     if (!activeProject?.id) { Alert.alert('No project', 'Select a project first.'); return; }
     const checkResults: Record<string, boolean> = {};
     STEPS.forEach((s, i) => { if (results[i] === 'PASS') checkResults[s] = true; if (results[i] === 'FAIL') checkResults[s] = false; });
+    const verificationPayload = {
+      zone: 'ALL', gasCode: 'ALL', verifierName: 'mobile-user',
+      overallPass: fails === 0, passCount: passes, failCount: fails,
+      checkResultsJson: JSON.stringify(checkResults),
+    };
     try {
-      await postMgasVerification(activeProject.id, {
-        zone: 'ALL', gasCode: 'ALL', verifierName: 'mobile-user',
-        overallPass: fails === 0, passCount: passes, failCount: fails,
-        checkResultsJson: JSON.stringify(checkResults),
-      });
+      await postMgasVerification(activeProject.id, verificationPayload);
       Alert.alert('Saved', `pass=${passes} fail=${fails} — submitted to server.`);
     } catch (e: any) {
-      // Offline-queue fallback would land here. For now surface the error.
-      Alert.alert('Save failed', e?.message ?? 'Submit later when online.');
+      // HC-11: Network error — enqueue so it replays automatically when reconnected.
+      try {
+        await enqueue('HC_MGAS_VERIFICATION', {
+          projectId: activeProject.id,
+          payload: verificationPayload,
+        });
+        Alert.alert(
+          'Queued offline',
+          `pass=${passes} fail=${fails} — saved locally and will sync when back online.`,
+        );
+      } catch (qErr: any) {
+        Alert.alert('Save failed', (e?.message ?? 'Network error') + '\nOffline queue also failed — please retry.');
+      }
     }
   };
 

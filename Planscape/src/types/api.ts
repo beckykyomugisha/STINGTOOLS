@@ -219,7 +219,11 @@ export interface OfflineAction {
     // T3-17 — mobile deliverable CRUD + transition, queued when offline.
     | 'CREATE_DELIVERABLE'
     | 'UPDATE_DELIVERABLE'
-    | 'TRANSITION_DELIVERABLE';
+    | 'TRANSITION_DELIVERABLE'
+    // HC-11 — Healthcare Pack mobile screens: queued when network is absent.
+    | 'HC_MGAS_VERIFICATION'
+    | 'HC_PRESSURE_LOG'
+    | 'HC_ANTI_LIGATURE_AUDIT';
   payload: Record<string, unknown>;
   createdAt: string;
   synced: boolean;

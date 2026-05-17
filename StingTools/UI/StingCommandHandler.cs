@@ -238,6 +238,21 @@ namespace StingTools.UI
                     case "Healthcare_Dialysis":          RunCommand<Commands.Healthcare.Specialist.DialysisAuditCommand>(app); break;
                     case "Healthcare_Hbo":               RunCommand<Commands.Healthcare.Specialist.HboAuditCommand>(app); break;
 
+                    // ── Healthcare short-alias tags (HC_*) for the dockable-panel HEALTHCARE tab ──
+                    case "HC_RunAll":                   RunCommand<Commands.Healthcare.HealthcareRunAllValidatorsCommand>(app); break;
+                    case "HC_PressureAudit":            RunCommand<Commands.Healthcare.HealthcarePressureAuditCommand>(app); break;
+                    case "HC_MgpsVerify":               RunCommand<Commands.MedGas.MgasVerifyCommand>(app); break;
+                    case "HC_WaterFlush":               RunCommand<Commands.Healthcare.HealthcareWaterSafetyCommand>(app); break;
+                    case "HC_AntiLigatureAudit":        RunCommand<Commands.Healthcare.Specialist.AntiLigatureAuditCommand>(app); break;
+                    case "HC_RdsCompleteness":          RunCommand<Commands.Healthcare.HealthcareRdsCompletenessCommand>(app); break;
+                    case "HC_RadiationAudit":           RunCommand<Commands.Healthcare.HealthcareRadShieldAuditCommand>(app); break;
+                    case "HC_AdjacencyAudit":           RunCommand<Commands.Adjacency.AdjacencyAuditCommand>(app); break;
+                    case "HC_EesResilience":            RunCommand<Commands.Healthcare.HealthcareEesResilienceCommand>(app); break;
+                    case "HC_CommissioningChecklist":   RunCommand<Commands.Healthcare.HealthcareRunAllValidatorsCommand>(app); break;
+                    case "HC_Workflow":                 RunCommand<Core.WorkflowPresetCommand>(app); break;
+                    case "HC_FacilityConfig":           HandleHcFacilityConfig(app); break;
+                    case "HC_HbnAutoPopulate":          RunCommand<Commands.Healthcare.HbnRoomAutoPopulatorCommand>(app); break;
+
                     // ── Lightning Protection System (BS EN 62305) ──
                     case "LPS_ClassSetup":           RunCommand<Commands.Lightning.LpsClassSetupCommand>(app); break;
                     case "LPS_ComplianceCheck":      RunCommand<Commands.Lightning.LpsComplianceCheckCommand>(app); break;
@@ -660,6 +675,7 @@ namespace StingTools.UI
                     case "SetTagCatLineWeight": RunCommand<Tags.SetTagCategoryLineWeightCommand>(app); break;
                     case "Tag3D": RunCommand<Tags.Tag3DCommand>(app); break;
                     case "RepairDuplicateSeq": RunCommand<Tags.RepairDuplicateSeqCommand>(app); break;
+                    case "Tags_MigrateStyleCode": RunCommand<Tags.MigrateTagStyleCodeCommand>(app); break;
 
                     // ── Rich TAG7 display ──
                     case "RichTagNote": RunCommand<Tags.RichTagNoteCommand>(app); break;
@@ -2500,6 +2516,66 @@ namespace StingTools.UI
                     // Platform Integration (12 commands)
                     case "ACCPublish": RunCommand<BIMManager.ACCPublishCommand>(app); break;
                     case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
+                    case "Folder_CloudSync": RunCommand<BIMManager.FolderCloudSyncSettingsCommand>(app); break;
+                    case "Folder_CloudMirrorNow": RunCommand<BIMManager.FolderCloudMirrorNowCommand>(app); break;
+                    case "Folder_ToggleWatcher":
+                    {
+                        // FOLDER-04: Toggle the FileSystemWatcher on/off.
+                        // When turned on, auto-classifies files dropped into 02_SHARED/
+                        // or 03_PUBLISHED/ by appending to document_register.json.
+                        var fwDoc = app.ActiveUIDocument?.Document;
+                        if (fwDoc == null) break;
+                        if (Core.ProjectFolderEngine.IsWatcherActive)
+                        {
+                            Core.ProjectFolderEngine.StopWatching();
+                            StingLog.Info("Folder watcher stopped by user.");
+                            Autodesk.Revit.UI.TaskDialog.Show("Folder Watcher", "Folder monitoring stopped.");
+                        }
+                        else
+                        {
+                            Core.ProjectFolderEngine.StartWatching(fwDoc, filePath =>
+                            {
+                                // Auto-classify new files in SHARED/PUBLISHED into document register
+                                try
+                                {
+                                    string normalised = filePath.Replace('\\', '/');
+                                    bool isShared    = normalised.Contains("/02_SHARED/")    || normalised.Contains("/SHARED/");
+                                    bool isPublished = normalised.Contains("/03_PUBLISHED/") || normalised.Contains("/PUBLISHED/");
+                                    if (!isShared && !isPublished) return;
+                                    if (!File.Exists(filePath)) return;
+                                    string cdeState = isPublished ? "PUBLISHED" : "SHARED";
+                                    string bimDir = Core.ProjectFolderEngine.GetDataPath(fwDoc);
+                                    string regPath = System.IO.Path.Combine(bimDir, "document_register.json");
+                                    var arr = File.Exists(regPath)
+                                        ? Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(regPath))
+                                        : new Newtonsoft.Json.Linq.JArray();
+                                    // Check not already in register
+                                    bool exists = arr.Any(d => string.Equals(d["file_path"]?.ToString(), filePath, StringComparison.OrdinalIgnoreCase));
+                                    if (!exists)
+                                    {
+                                        var entry = new Newtonsoft.Json.Linq.JObject
+                                        {
+                                            ["doc_id"]     = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
+                                            ["title"]      = System.IO.Path.GetFileNameWithoutExtension(filePath),
+                                            ["file_path"]  = filePath,
+                                            ["cde_status"] = cdeState,
+                                            ["date"]       = DateTime.Now.ToString("yyyy-MM-dd"),
+                                            ["source"]     = "FolderWatcher",
+                                        };
+                                        arr.Add(entry);
+                                        File.WriteAllText(regPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                                        StingLog.Info($"FolderWatcher: auto-registered '{System.IO.Path.GetFileName(filePath)}' as {cdeState}");
+                                    }
+                                    // FOLDER-01: Mirror to cloud if configured
+                                    Core.ProjectFolderEngine.TryMirrorToCloud(fwDoc, filePath, cdeState);
+                                }
+                                catch (Exception wex) { StingLog.Warn($"FolderWatcher auto-classify: {wex.Message}"); }
+                            });
+                            StingLog.Info("Folder watcher started by user.");
+                            Autodesk.Revit.UI.TaskDialog.Show("Folder Watcher", "Folder monitoring started.\nFiles dropped into SHARED or PUBLISHED will be auto-registered.");
+                        }
+                        break;
+                    }
                     case "ValidateCDEHandover":
                     {
                         var doc = app.ActiveUIDocument?.Document;
@@ -8738,6 +8814,76 @@ For live data, open BCC in Revit and re-export.</p></div>
         // Handover or Custom mode — emits a soft warning if the active mode is
         // DC (no error: the data is preserved, just not rendered until mode
         // is switched).
+        // HC-12 — Facility Type picker: opens a small WPF ComboBox dialog and writes
+        // PRJ_ORG_HEALTH_PACK_PROFILE_TXT to ProjectInformation.
+        private static void HandleHcFacilityConfig(UIApplication app)
+        {
+            try
+            {
+                var doc = app?.ActiveUIDocument?.Document;
+                if (doc == null) return;
+
+                var profiles = new[] { "FULL", "ACUTE", "COMMUNITY", "DENTAL", "IMAGING-ONLY", "MENTAL-HEALTH" };
+
+                // Read current value
+                var pi   = doc.ProjectInformation;
+                var pCur = pi?.LookupParameter("PRJ_ORG_HEALTH_PACK_PROFILE_TXT");
+                string current = pCur?.AsString() ?? "";
+
+                // Show picker
+                var dlg = new System.Windows.Window
+                {
+                    Title             = "Healthcare Facility Type",
+                    Width             = 340,
+                    Height            = 160,
+                    WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                    ResizeMode        = System.Windows.ResizeMode.NoResize,
+                    Background        = System.Windows.Media.Brushes.WhiteSmoke,
+                };
+                var sp = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(12) };
+                sp.Children.Add(new System.Windows.Controls.TextBlock
+                {
+                    Text = "Select healthcare facility type profile:",
+                    FontWeight = System.Windows.FontWeights.SemiBold,
+                    Margin = new System.Windows.Thickness(0, 0, 0, 8),
+                });
+                var combo = new System.Windows.Controls.ComboBox { Margin = new System.Windows.Thickness(0, 0, 0, 12) };
+                foreach (var p in profiles) combo.Items.Add(p);
+                combo.SelectedItem = current.Length > 0 && profiles.Contains(current) ? current : profiles[0];
+                sp.Children.Add(combo);
+                var btnOk = new System.Windows.Controls.Button
+                {
+                    Content = "Save",
+                    Width   = 80,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                };
+                bool confirmed = false;
+                btnOk.Click += (s, e) => { confirmed = true; dlg.Close(); };
+                sp.Children.Add(btnOk);
+                dlg.Content = sp;
+                dlg.ShowDialog();
+
+                if (!confirmed) return;
+                string chosen = combo.SelectedItem?.ToString() ?? "";
+                if (string.IsNullOrEmpty(chosen)) return;
+
+                using (var t = new Autodesk.Revit.DB.Transaction(doc, "STING Set Healthcare Facility Profile"))
+                {
+                    t.Start();
+                    Core.ParameterHelpers.SetString(pi, "PRJ_ORG_HEALTH_PACK_PROFILE_TXT", chosen, true);
+                    t.Commit();
+                }
+                Autodesk.Revit.UI.TaskDialog.Show("STING Healthcare",
+                    $"Healthcare facility type set to '{chosen}'.\n" +
+                    "Healthcare validators and workflows are now active for this project.");
+                Core.StingLog.Info($"HC_FacilityConfig: PRJ_ORG_HEALTH_PACK_PROFILE_TXT set to {chosen}");
+            }
+            catch (Exception ex)
+            {
+                Core.StingLog.Error("HandleHcFacilityConfig failed", ex);
+            }
+        }
+
         private static void WriteSystemBTier(UIApplication app, int tier)
         {
             UIDocument uidoc = app?.ActiveUIDocument;

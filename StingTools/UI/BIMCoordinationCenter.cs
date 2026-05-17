@@ -6192,6 +6192,28 @@ namespace StingTools.UI
                     priCb.SelectedIndex = 2;
                     priRow.Children.Add(priCb);
                     sp.Children.Add(priRow);
+                    // HC-14: Category picker — includes Healthcare sub-categories.
+                    var catRow = MakeCtxRow("Category:");
+                    var catCb = new System.Windows.Controls.ComboBox { Width = 200 };
+                    foreach (var cat in new[] { "General", "Architectural", "Structural", "MEP", "Electrical", "Plumbing", "Fire", "Safety", "Coordination", "Clash",
+                        "Healthcare" })
+                        catCb.Items.Add(new ComboBoxItem { Content = cat, Tag = cat });
+                    catCb.SelectedIndex = 0;
+                    catRow.Children.Add(catCb);
+                    sp.Children.Add(catRow);
+                    // HC-14: Healthcare sub-category — shown only when "Healthcare" is selected.
+                    var hcSubRow = MakeCtxRow("HC Sub-Category:");
+                    var hcSubCb = new System.Windows.Controls.ComboBox { Width = 200 };
+                    foreach (var sub in new[] { "Infection-Control", "MGPS-Defect", "Anti-Lig-Failure", "Calibration-Due", "RDS-Drift" })
+                        hcSubCb.Items.Add(new ComboBoxItem { Content = sub, Tag = sub });
+                    hcSubCb.SelectedIndex = 0;
+                    hcSubRow.Visibility = System.Windows.Visibility.Collapsed;
+                    sp.Children.Add(hcSubRow);
+                    catCb.SelectionChanged += (s, e) =>
+                    {
+                        bool isHc = (catCb.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "Healthcare";
+                        hcSubRow.Visibility = isHc ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+                    };
                     var titleRow = MakeCtxRow("Title:");
                     var titleBox = new System.Windows.Controls.TextBox { Width = 340 };
                     titleRow.Children.Add(titleBox);
@@ -6275,6 +6297,11 @@ namespace StingTools.UI
                         StingCommandHandler.SetExtraParam("IssueTitle", titleBox.Text);
                         StingCommandHandler.SetExtraParam("Assignees", string.Join(",", assignChecks2.Where(c => c.IsChecked == true).Select(c => c.Content?.ToString() ?? "")));
                         StingCommandHandler.SetExtraParam("NotifyRecipients", string.Join(",", notifyChecks.Where(c => c.IsChecked == true).Select(c => c.Content?.ToString() ?? "")));
+                        // HC-14: Pass category + optional healthcare sub-category.
+                        string issueCat = (catCb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "General";
+                        StingCommandHandler.SetExtraParam("IssueCategory", issueCat);
+                        if (issueCat == "Healthcare")
+                            StingCommandHandler.SetExtraParam("IssueHcSubCategory", (hcSubCb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "");
                         DispatchAction("RaiseIssue");
                     };
                     sp.Children.Add(raiseBtn);
@@ -8015,7 +8042,161 @@ namespace StingTools.UI
             actGrid.Children.Add(col1); actGrid.Children.Add(col2); actGrid.Children.Add(col3);
             root.Children.Add(actGrid);
 
+            // TPL-FOLLOW-04: Recipient matrix sub-section
+            root.Children.Add(BuildRecipientMatrixSection());
+
             return sv;
+        }
+
+        // ── TPL-FOLLOW-04: Recipient matrix sub-section ──────────────────────
+
+        private UIElement BuildRecipientMatrixSection()
+        {
+            var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+            var section = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
+            section.Children.Add(MakeSectionHeader("RECIPIENT MATRIX"));
+            section.Children.Add(new TextBlock
+            {
+                Text = "Distribution groups and their assigned deliverable types. " +
+                       "Edit in: _BIM_COORD/distribution_groups.json",
+                FontSize = 10,
+                Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 8),
+            });
+
+            try
+            {
+                if (doc == null)
+                {
+                    section.Children.Add(new TextBlock { Text = "No active document.", Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), FontSize = 11 });
+                    return section;
+                }
+                string bimDir = BIMManager.BIMManagerEngine.GetBIMManagerDir(doc);
+                string groupsPath = System.IO.Path.Combine(bimDir, "distribution_groups.json");
+                if (!System.IO.File.Exists(groupsPath))
+                {
+                    section.Children.Add(new TextBlock { Text = "No distribution_groups.json found. Run 'Create Transmittal' to seed the file.", Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), FontSize = 11 });
+                    return section;
+                }
+
+                var groups = Newtonsoft.Json.JsonConvert.DeserializeObject<
+                    List<Docs.Workflow.DistributionGroup>>(System.IO.File.ReadAllText(groupsPath))
+                    ?? new List<Docs.Workflow.DistributionGroup>();
+
+                if (groups.Count == 0)
+                {
+                    section.Children.Add(new TextBlock { Text = "Distribution groups list is empty.", Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), FontSize = 11 });
+                    return section;
+                }
+
+                // Build grid: rows = groups, columns = deliverable types / suitabilities
+                // Collect all unique suitabilities across groups
+                var allSuitabilities = new System.Collections.Generic.SortedSet<string>();
+                foreach (var g in groups)
+                    foreach (var s in g.AppliesSuitabilities ?? new List<string>())
+                        allSuitabilities.Add(s);
+
+                var matrixGrid = new Grid();
+                matrixGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(160) });  // group name
+                foreach (var _ in allSuitabilities)
+                    matrixGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50, GridUnitType.Star) });
+
+                // Header row
+                matrixGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                var hdrGroup = new TextBlock { Text = "Group", FontWeight = FontWeights.SemiBold, FontSize = 11, Margin = new Thickness(2) };
+                Grid.SetRow(hdrGroup, 0); Grid.SetColumn(hdrGroup, 0);
+                matrixGrid.Children.Add(hdrGroup);
+
+                int suitCol = 1;
+                foreach (string suit in allSuitabilities)
+                {
+                    var hdrSuit = new TextBlock
+                    {
+                        Text = suit, FontWeight = FontWeights.SemiBold, FontSize = 10,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Margin = new Thickness(2),
+                        ToolTip = suit,
+                        Foreground = Br(Color.FromRgb(0xB0, 0xBE, 0xC5)),
+                    };
+                    Grid.SetRow(hdrSuit, 0); Grid.SetColumn(hdrSuit, suitCol++);
+                    matrixGrid.Children.Add(hdrSuit);
+                }
+
+                // Data rows
+                int row = 1;
+                foreach (var grp in groups)
+                {
+                    matrixGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    Color rowBg = row % 2 == 0 ? CCardBg : CHeaderBg;
+
+                    var grpCell = new Border { Background = Br(rowBg), Padding = new Thickness(4, 3, 4, 3) };
+                    var grpSp = new StackPanel();
+                    grpSp.Children.Add(new TextBlock { Text = grp.Name ?? "Unnamed", FontSize = 11, FontWeight = FontWeights.SemiBold });
+                    if (!string.IsNullOrEmpty(grp.Description))
+                        grpSp.Children.Add(new TextBlock { Text = grp.Description, FontSize = 9, Foreground = Br(Color.FromRgb(0x90, 0xA4, 0xAE)) });
+                    grpCell.Child = grpSp;
+                    Grid.SetRow(grpCell, row); Grid.SetColumn(grpCell, 0);
+                    matrixGrid.Children.Add(grpCell);
+
+                    var grpSuits = new System.Collections.Generic.HashSet<string>(grp.AppliesSuitabilities ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+                    int c = 1;
+                    foreach (string suit in allSuitabilities)
+                    {
+                        bool receives = grpSuits.Contains(suit);
+                        var cell = new Border { Background = Br(rowBg), Padding = new Thickness(2) };
+                        var tick = new TextBlock
+                        {
+                            Text = receives ? "✓" : "–",
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            FontSize = receives ? 13 : 11,
+                            Foreground = receives ? Br(CGreen) : Br(Color.FromRgb(0x55, 0x55, 0x55)),
+                            FontWeight = receives ? FontWeights.Bold : FontWeights.Normal,
+                        };
+                        cell.Child = tick;
+                        Grid.SetRow(cell, row); Grid.SetColumn(cell, c++);
+                        matrixGrid.Children.Add(cell);
+                    }
+                    row++;
+                }
+
+                var matrixBorder = new Border
+                {
+                    BorderBrush = Br(Color.FromRgb(0x42, 0x42, 0x42)),
+                    BorderThickness = new Thickness(1),
+                    Margin = new Thickness(0, 0, 0, 12),
+                    Child = matrixGrid,
+                };
+                section.Children.Add(matrixBorder);
+
+                // Quick-edit button
+                var editBtn = new Button
+                {
+                    Content = "⟶  Edit Distribution Groups",
+                    Style = (Style)Application.Current.Resources["MaterialDesignRaisedButton"],
+                    Margin = new Thickness(0, 0, 0, 8),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Padding = new Thickness(10, 4, 10, 4),
+                    ToolTip = groupsPath,
+                };
+                editBtn.Click += (s, e) =>
+                {
+                    try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{groupsPath}\""); }
+                    catch (Exception ex) { StingLog.Warn($"Open groups file: {ex.Message}"); }
+                };
+                section.Children.Add(editBtn);
+            }
+            catch (Exception ex)
+            {
+                section.Children.Add(new TextBlock
+                {
+                    Text = $"Recipient matrix load error: {ex.Message}",
+                    Foreground = Br(CRed), FontSize = 10, TextWrapping = TextWrapping.Wrap,
+                });
+                StingLog.Warn($"BuildRecipientMatrixSection: {ex.Message}");
+            }
+
+            return section;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -8483,9 +8664,104 @@ namespace StingTools.UI
             tabCStack.Children.Add(cdeDg);
             tabC.Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = tabCStack };
 
+            // ══ Sub-tab 3D: Issue Workload (BIM-TEAM-WORKLOAD-01) ════════
+            var tabD = new System.Windows.Controls.TabItem { Header = "Issue Workload" };
+            var tabDStack = new StackPanel { Margin = new Thickness(8) };
+
+            // Build workload rows from TeamWorkloadEngine
+            var workloadRows = new List<TeamWorkloadEngine.WorkloadRow>();
+            try { workloadRows = TeamWorkloadEngine.Build(_doc); }
+            catch (Exception ex) { StingLog.Warn($"BCC workload tab: {ex.Message}"); }
+
+            if (workloadRows.Count == 0)
+            {
+                tabDStack.Children.Add(new TextBlock
+                {
+                    Text = "No open issues found in this project.\nCreate issues via the ISSUES tab to populate workload data.",
+                    FontSize = 12, Foreground = Brushes.Gray,
+                    Margin = new Thickness(0, 12, 0, 0),
+                    TextWrapping = TextWrapping.Wrap,
+                });
+            }
+            else
+            {
+                // KPI strip
+                int totalIssues = workloadRows.Sum(r => r.OpenTotal);
+                int totalCrit   = workloadRows.Sum(r => r.Critical);
+                int totalOver   = workloadRows.Sum(r => r.Overdue);
+                var wKpi = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, 0, 8) };
+                wKpi.Children.Add(MakeKPICard("ASSIGNEES",   workloadRows.Count.ToString(),  Br(CHeaderBg), "People with open issues"));
+                wKpi.Children.Add(MakeKPICard("OPEN TOTAL",  totalIssues.ToString(),          totalIssues > 20 ? Br(CRed) : Br(CGreen), "Open issues across team"));
+                wKpi.Children.Add(MakeKPICard("CRITICAL",    totalCrit.ToString(),            totalCrit > 0 ? Br(CRed) : Br(CGreen), "Critical-priority open issues"));
+                wKpi.Children.Add(MakeKPICard("OVERDUE",     totalOver.ToString(),            totalOver > 0 ? Br(CAmber) : Br(CGreen), "Past SLA deadline"));
+                tabDStack.Children.Add(wKpi);
+
+                // Sortable DataGrid
+                var wDg = new DataGrid
+                {
+                    AutoGenerateColumns  = false,
+                    CanUserAddRows       = false,
+                    CanUserDeleteRows    = false,
+                    IsReadOnly           = true,
+                    SelectionMode        = DataGridSelectionMode.Single,
+                    AlternatingRowBackground = Br(Color.FromRgb(38, 38, 40)),
+                    Background           = Br(Color.FromRgb(28, 28, 30)),
+                    RowBackground        = Br(Color.FromRgb(28, 28, 30)),
+                    Foreground           = Brushes.White,
+                    Margin               = new Thickness(0, 4, 0, 0),
+                    MaxHeight            = 420,
+                };
+                wDg.Columns.Add(new DataGridTextColumn { Header = "Assignee",  Binding = new Binding("Assignee"),  Width = new DataGridLength(160) });
+                wDg.Columns.Add(new DataGridTextColumn { Header = "Open",      Binding = new Binding("OpenTotal"), Width = new DataGridLength(55) });
+                wDg.Columns.Add(new DataGridTextColumn { Header = "Critical",  Binding = new Binding("Critical"),  Width = new DataGridLength(65) });
+                wDg.Columns.Add(new DataGridTextColumn { Header = "High",      Binding = new Binding("High"),      Width = new DataGridLength(55) });
+                wDg.Columns.Add(new DataGridTextColumn { Header = "Overdue",   Binding = new Binding("Overdue"),   Width = new DataGridLength(65) });
+                wDg.Columns.Add(new DataGridTextColumn { Header = "Oldest (d)",Binding = new Binding("OldestDays"),Width = new DataGridLength(80) });
+
+                wDg.ItemsSource = workloadRows.OrderByDescending(r => r.Critical * 3 + r.High * 2 + r.OpenTotal).ToList();
+
+                // Row style: red tint for Critical > 0
+                var rowStyle = new Style(typeof(DataGridRow));
+                rowStyle.Triggers.Add(new DataTrigger
+                {
+                    Binding = new Binding("Critical"), Value = 0
+                });
+                wDg.RowStyle = rowStyle;
+
+                tabDStack.Children.Add(wDg);
+
+                // Legend
+                tabDStack.Children.Add(new TextBlock
+                {
+                    Text = "Workload score = Critical×3 + High×2 + Open×1  |  Click column headers to sort",
+                    FontSize = 10, Foreground = Brushes.Gray, Margin = new Thickness(0, 4, 0, 0),
+                });
+            }
+
+            // Export button
+            var wExportBtn = new Button { Content = "Export CSV", Margin = new Thickness(0, 8, 0, 0), Padding = new Thickness(10, 4, 10, 4) };
+            wExportBtn.Click += (_, __) =>
+            {
+                try
+                {
+                    string rows2 = TeamWorkloadEngine.Build(_doc)
+                        .OrderByDescending(r => r.Critical * 3 + r.High * 2 + r.OpenTotal)
+                        .Select(r => $"{r.Assignee},{r.OpenTotal},{r.Critical},{r.High},{r.Overdue},{r.OldestDays}")
+                        .Aggregate("Assignee,Open,Critical,High,Overdue,OldestDays\n", (a, b) => a + b + "\n");
+                    string path = Path.Combine(OutputLocationHelper.GetOutputDirectory(_doc), $"team_workload_{DateTime.Now:yyyyMMdd}.csv");
+                    File.WriteAllText(path, rows2);
+                    TaskDialog.Show("STING — Team Workload", $"Exported to:\n{path}");
+                }
+                catch (Exception ex) { StingLog.Warn($"Workload export: {ex.Message}"); }
+            };
+            tabDStack.Children.Add(wExportBtn);
+
+            tabD.Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = tabDStack };
+
             tc.Items.Add(tabA);
             tc.Items.Add(tabB);
             tc.Items.Add(tabC);
+            tc.Items.Add(tabD);
             outerStack.Children.Add(tc);
 
             var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };

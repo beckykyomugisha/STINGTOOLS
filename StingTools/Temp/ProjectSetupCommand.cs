@@ -842,6 +842,22 @@ namespace StingTools.Temp
                     // Write discipline-specific design data to Project Information params
                     WriteDisciplineDesignParams(pi, data);
 
+                    // HC-08 — Write healthcare facility type profile to ProjectInformation
+                    // when the Healthcare discipline was selected in the wizard.
+                    if (!string.IsNullOrWhiteSpace(data.HealthcareFacilityProfile))
+                    {
+                        try
+                        {
+                            ParameterHelpers.SetString(pi, "PRJ_ORG_HEALTH_PACK_PROFILE_TXT",
+                                data.HealthcareFacilityProfile, overwrite: true);
+                            StingLog.Info($"ProjectSetup: Healthcare facility profile set to {data.HealthcareFacilityProfile}");
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Could not set PRJ_ORG_HEALTH_PACK_PROFILE_TXT: {ex.Message}");
+                        }
+                    }
+
                     // Standards regional preset — write PROJECT_REGION so the
                     // choice persists on the .rvt; the in-process singleton
                     // and per-project sidecar are updated below (after the

@@ -2175,9 +2175,16 @@ namespace StingTools.Docs
 
             // Build CSV
             var csv = new List<string>();
+            // DOC-REG-01: ISO 19650-2 §5.2 drawing register schema — adds CDE status
+            // (full code S0..S7/A/B), suitability code per ISO 19650-2 Table 1,
+            // approval history (initials + datetime stamps), originator + appointing
+            // party tokens, classification (Uniclass), and security classification.
             csv.Add("Sheet_Number,Sheet_Name,Discipline,Scale,Format," +
-                "Status,Suitability,Revision_Number,Revision_Date,Revision_Description," +
-                "Views_Count,Drawn_By,Checked_By,Approved_By");
+                "CDE_Status,Suitability_Code,Suitability_Description," +
+                "Revision_Number,Revision_Date,Revision_Description," +
+                "Views_Count,Drawn_By,Checked_By,Approved_By," +
+                "Originator,Appointing_Party,Project_Code,Uniclass_Code," +
+                "Security_Classification,Approved_DateTime,Issued_DateTime,Approval_Status");
 
             var discCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
@@ -2234,13 +2241,41 @@ namespace StingTools.Docs
                     }
                 }
 
-                // Status / suitability (ISO 19650)
-                string status = revIds.Count > 0 ? "S3" : "S2";
-                string suitability = revIds.Count > 0 ? "Stage approval" : "Information";
+                // DOC-REG-01: full ISO 19650-2 §5.2 CDE status + suitability code lookup.
+                // S0 WIP, S1 Suitable for coordination, S2 Suitable for information,
+                // S3 Suitable for review and comment, S4 Suitable for stage approval,
+                // S6 Suitable for PIM authorisation, S7 Suitable for AIM authorisation,
+                // A1..A7 Authorised for use (published), B1..B7 Partial sign-off.
+                string status;
+                string suitCode;
+                string suitDesc;
+                if (revIds.Count == 0) { status = "S0"; suitCode = "S0"; suitDesc = "Work in progress"; }
+                else if (revIds.Count == 1) { status = "S2"; suitCode = "S2"; suitDesc = "Suitable for information"; }
+                else if (revIds.Count == 2) { status = "S3"; suitCode = "S3"; suitDesc = "Suitable for review and comment"; }
+                else if (revIds.Count == 3) { status = "S4"; suitCode = "S4"; suitDesc = "Suitable for stage approval"; }
+                else                       { status = "A1"; suitCode = "A1"; suitDesc = "Authorised and accepted"; }
+
+                // Originator / appointing-party / project code from PRJ_ORG_* parameters.
+                var pi = doc.ProjectInformation;
+                string originator = pi?.LookupParameter("PRJ_ORG_ORIGINATOR_CODE_TXT")?.AsString() ?? "PLNS";
+                string appointing = pi?.LookupParameter("PRJ_ORG_APPOINTING_PARTY_TXT")?.AsString() ?? "";
+                string prjCode    = pi?.LookupParameter("PRJ_ORG_PROJECT_CODE_TXT")?.AsString() ?? projectNumber;
+                string uniclass   = sheet.LookupParameter("ASS_UNICLASS_TXT")?.AsString() ?? "";
+                string security   = pi?.LookupParameter("PRJ_ORG_SECURITY_CLASS_TXT")?.AsString() ?? "OFFICIAL";
+
+                // Approval history (most recent revision stamps).
+                string approvedDt = revIds.Count > 0
+                    ? (doc.GetElement(revIds[revIds.Count - 1]) as Revision)?.RevisionDate ?? ""
+                    : "";
+                string issuedDt   = approvedDt;
+                string approvalStatus = revIds.Count >= 4 ? "Approved" : revIds.Count >= 1 ? "Issued for review" : "Draft";
 
                 csv.Add($"\"{num}\",\"{name}\",\"{disc}\",\"\",\"{format}\"," +
-                    $"\"{status}\",\"{suitability}\",\"{revNum}\",\"{revDate}\",\"{revDesc.Replace("\"", "'")}\","+
-                    $"{viewCount},\"{drawnBy}\",\"{checkedBy}\",\"{approvedBy}\"");
+                    $"\"{status}\",\"{suitCode}\",\"{suitDesc}\"," +
+                    $"\"{revNum}\",\"{revDate}\",\"{revDesc.Replace("\"", "'")}\"," +
+                    $"{viewCount},\"{drawnBy}\",\"{checkedBy}\",\"{approvedBy}\"," +
+                    $"\"{originator}\",\"{appointing}\",\"{prjCode}\",\"{uniclass}\"," +
+                    $"\"{security}\",\"{approvedDt}\",\"{issuedDt}\",\"{approvalStatus}\"");
             }
 
             // Build report

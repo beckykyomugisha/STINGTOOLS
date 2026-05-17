@@ -1522,6 +1522,47 @@ namespace StingTools.Model
                     }
                 }
 
+                // DWG-STRUCT-DEEP-6b: Connection detail synthesis
+                if (config?.SynthesizeConnectionDetails == true)
+                {
+                    try
+                    {
+                        var activeView = _doc.ActiveView;
+                        if (activeView != null &&
+                            (activeView.ViewType == ViewType.Detail
+                             || activeView.ViewType == ViewType.DraftingView
+                             || activeView.ViewType == ViewType.FloorPlan
+                             || activeView.ViewType == ViewType.Section))
+                        {
+                            // Detect junctions from the extraction result already computed in this run
+                            // Re-extract to get junction list (importInstance is the param of RunFullPipelineWithConfig)
+                            var connExtract = ExtractAll(importInstance, config);
+                            var junctions = DetectJunctions(connExtract);
+                            using (var txConn = new Transaction(_doc, "STING STRUCT: Connection Details"))
+                            {
+                                txConn.Start();
+                                var synResults = ConnectionDetailSynthesizer.SynthesizeAll(
+                                    _doc, junctions, activeView,
+                                    config.ConnectionShearDemand_kN,
+                                    config.ConnectionMomentDemand_kNm);
+                                foreach (var sr in synResults)
+                                    totalResult.Warnings.AddRange(sr.Warnings);
+                                txConn.Commit();
+                                StingLog.Info($"ConnectionDetailSynthesizer: {synResults.Count} connections synthesized in {activeView.Name}");
+                            }
+                        }
+                        else
+                        {
+                            totalResult.Warnings.Add("Connection synthesis: active view is not a Detail/Plan/Section — skipping.");
+                        }
+                    }
+                    catch (Exception cex)
+                    {
+                        totalResult.Warnings.Add($"Connection synthesis failed: {cex.Message}");
+                        StingLog.Warn($"ConnectionDetailSynthesizer: {cex.Message}");
+                    }
+                }
+
                 sw.Stop();
                 totalResult.Duration = sw.Elapsed;
 
@@ -2970,6 +3011,13 @@ namespace StingTools.Model
             {
                 tx.Start();
 
+                // DWG-STRUCT-DEEP-5: EC7 sizing helper (runs inside same tx)
+                bool runEc7 = cfgF?.RunFoundationSizing ?? false;
+                SoilClass soilClass = cfgF?.SoilClass ?? SoilClass.StiffClay;
+                double gk = cfgF?.DefaultColumnLoad_Gk_kN ?? 800;
+                double qk = cfgF?.DefaultColumnLoad_Qk_kN ?? 300;
+                double depthMm_ec7 = cfgF?.PadFoundationDepthMm ?? 600;
+
                 foreach (var circle in circles ?? new List<DetectedCircle>())
                 {
                     try
@@ -2979,6 +3027,17 @@ namespace StingTools.Model
                             ? Math.Max(300, colDiaMm * PadOversizeFactor)
                             : fallbackFdnW;
                         double dMm = wMm; // square pad for circular columns
+
+                        // EC7: recompute pad size from structural load if requested
+                        if (runEc7)
+                        {
+                            var ec7 = FoundationSizingEngine.ComputePadFoundation(
+                                gk, qk, 0, 0, colDiaMm, 0, soilClass, depthMm_ec7);
+                            wMm = ec7.PadWidth_mm;
+                            dMm = ec7.PadLength_mm;
+                            foreach (var w in ec7.Warnings) result.Warnings.Add($"EC7: {w}");
+                        }
+
                         var fdnSymbol = ResolveFdnType(wMm, dMm);
                         if (fdnSymbol == null) continue;
 
@@ -2987,6 +3046,12 @@ namespace StingTools.Model
                         var fdn = _doc.Create.NewFamilyInstance(
                             pt, fdnSymbol, level, StructuralType.Footing);
                         ModelWorksetAssigner.Assign(_doc, fdn);
+                        if (runEc7)
+                        {
+                            var ec7r = FoundationSizingEngine.ComputePadFoundation(
+                                gk, qk, 0, 0, colDiaMm, 0, soilClass, depthMm_ec7);
+                            FoundationSizingEngine.WriteToElement(fdn, ec7r);
+                        }
                         result.CreatedIds.Add(fdn.Id);
                         count++;
                     }
@@ -3003,6 +3068,17 @@ namespace StingTools.Model
                         double dMm = detectFdn
                             ? Math.Max(300, rect.DepthMm * PadOversizeFactor)
                             : fallbackFdnW;
+
+                        // EC7: recompute pad size from structural load if requested
+                        if (runEc7)
+                        {
+                            var ec7 = FoundationSizingEngine.ComputePadFoundation(
+                                gk, qk, 0, 0, rect.WidthMm, rect.DepthMm, soilClass, depthMm_ec7);
+                            wMm = ec7.PadWidth_mm;
+                            dMm = ec7.PadLength_mm;
+                            foreach (var w in ec7.Warnings) result.Warnings.Add($"EC7: {w}");
+                        }
+
                         var fdnSymbol = ResolveFdnType(wMm, dMm);
                         if (fdnSymbol == null) continue;
 
@@ -3020,6 +3096,12 @@ namespace StingTools.Model
                         }
 
                         ModelWorksetAssigner.Assign(_doc, fdn);
+                        if (runEc7)
+                        {
+                            var ec7r = FoundationSizingEngine.ComputePadFoundation(
+                                gk, qk, 0, 0, rect.WidthMm, rect.DepthMm, soilClass, depthMm_ec7);
+                            FoundationSizingEngine.WriteToElement(fdn, ec7r);
+                        }
                         result.CreatedIds.Add(fdn.Id);
                         count++;
                     }

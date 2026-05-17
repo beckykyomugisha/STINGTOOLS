@@ -183,7 +183,7 @@ Critical review of the tagging workflow identified the following logic, automati
 | BIM-4D-HANDOVER-01 | 4D schedule linked to document handover dates | Critical | **DONE** Phase 148: `DataDropTracker.GetDD4HandoverDate(doc)` exposes the DD4 actual / planned date so `Scheduling4DEngine` can extend the timeline beyond construction-finish into handover. |
 | BIM-SIDECAR-VER-01 | Sidecar file versioning for forward compatibility | Medium | **DONE** Phase 148: `SidecarVersioning.EnsureArrayMeta(arr, schema)` stamps a `_meta` sentinel record (`version=1.1`, `schema`, `written_at`, `written_by`); readers iterate via `Records()` to skip the sentinel and tolerate missing-meta legacy files. |
 | BIM-TRANSMIT-GATE-01 | Transmittal CDE state validation | Medium | **DONE** Phase 148: `TransmittalGate.Validate(doc, transmittal, requiredRank=1)` blocks transmittals whose referenced documents are below SHARED, returning a structured `(pass, blockers, summary)` result. |
-| BIM-TEAM-WORKLOAD-01 | Team workload visualization per assignee | Medium | No way to see per-member issue/task distribution for resource balancing |
+| BIM-TEAM-WORKLOAD-01 | Team workload visualization per assignee | Medium | **DONE** Phase 149: `TeamWorkloadEngine.Build()` + `TeamWorkloadReportCommand` + BCC Project Members "Issue Workload" sub-tab with sortable DataGrid (Critical×3+High×2+Open×1 score), KPI strip, and CSV export. |
 | TAG-CACHE-01 | Parameter cache key instability | Critical | Cache key using doc.GetHashCode() changes across sessions causing stale reads; use stable PathName key |
 | TAG-AUTOTAG-NULL-01 | AutoTagger PopulationContext null crash | Critical | PopulationContext.Build() returns null on corrupted docs; no null check before PopulateAll |
 | TAG-BATCH-FINAL-01 | Batch tag final chunk silent failure | Critical | 200-element chunked transactions silently fail on final incomplete batch (<100 elements) |
@@ -439,3 +439,35 @@ blocks a healthcare project from using the pack today.
 | HC-23 | **CCTV / observation LOS computational geometry** — `LIG_AREA_OBS_LOS_TXT` is a TEXT code today. A proper visibility-cone solver would let the validator compute LOS percentage automatically against `MinObservationLOSPercent` per behavioural-health room class. | Low |
 | HC-24 | **Pneumatic tube / AGV path optimiser** — design doc §11 H-10 mentions a path planner; current implementation only does adjacency BFS. AGV path optimisation against `Core/Routing/DropEngineBase` is a future enhancement. | Low |
 | HC-25 | **iHFG / FGI 2026 facility code adoption tracking** — FGI 2026 transitions from guidance to enforceable code. As clauses become mandatory in jurisdictions, validators should escalate from `Warning` to `Error` automatically. | Low |
+
+### Phase 149 Status Update — Healthcare Pack Follow-ups
+
+Status as of 2026-05-15 (`claude/review-roadmap-b9GRS`):
+
+| ID | Status | Notes |
+|---|---|---|
+| HC-01 | **DONE** | HEALTHCARE tab added to `StingDockPanel.xaml` with 12 HC_* buttons |
+| HC-02 | **DONE** | 14th tab added to `BIMCoordinationCenter.cs` with 9 RAG cards |
+| HC-03 | **DONE** | Plain-text RDS fallback in `EmbeddedTemplates.cs`; `.docx` authoring deferred to design team |
+| HC-04 | **BLOCKED** | MGS `.rfa` families require manufacturer CAD — Beaconmedaes, Pattons, GCE, Wandsworth, Static Systems |
+| HC-05 | **DEFERRED** | `ITwinTransport` interface + `NullTwinTransport` already exist. Real BACnet/OPC-UA transport needs `yabe`/`opcfoundation/UA-.NETStandard` NuGet (Windows-only, ~4k LoC). Unblocker: pilot site agreement + `#if BACNET` compile flag. Document with `// TODO-HC-05` in `Core/IoT/` |
+| HC-06 | **DONE** | Migration file `20260515000000_HealthcarePack.cs` committed; run `dotnet ef database update` on first deploy |
+| HC-07 | **DONE** | `StingToolsApp.OnDocumentOpened` surfaces healthcare validator counts in morning briefing |
+| HC-08 | **DONE** | `ProjectSetupWizard` healthcare branch added — facility type ComboBox writes `PRJ_ORG_HEALTH_PACK_PROFILE_TXT` |
+| HC-09 | **DONE** | `MasterSetupCommand` Step 20 bootstraps healthcare pack |
+| HC-10 | **DONE** | `OST_MedicalEquipment` + `OST_NurseCallDevices` added to `StingAutoTagger` IUpdater category list |
+| HC-11 | **DONE** | Mobile screens use `OfflineQueue` for MGPS / pressure / anti-lig audit submissions |
+| HC-12 | **DEFERRED** | Facility-type picker UI in project-info panel — low risk, additive; schedule for next sprint |
+| HC-13 | **DEFERRED** | `AUTO_RUN_WORKFLOW_ON_OPEN` defaults to healthcare workflow when pack active — additive |
+| HC-14 | **DONE** | Healthcare picklist added to `BIMCoordinationCenter` issue category picker |
+| HC-15 | **DONE** | `HbnRoomAutoPopulatorCommand.cs` with 40-entry HTM/ASHRAE 170 design table |
+| HC-16 | **DONE** | `HealthcareCommandModule` self-registers all HC_* tags via `CommandRegistry` |
+| HC-17 | **DONE** | CLN/MGS/RAD/CEQ/LIG container groups in `PARAMETER_REGISTRY.json` |
+| HC-18 | **DONE** | `ExportHealthcareEvidence` added to `BIMManagerCommands`; scans `_BIM_COORD/healthcare/` |
+| HC-19 | **DONE** | `StingTools.Standards/iHFG/IhfgStandards.cs` — 90 room classes with iHFG + FGI 2022 values |
+| HC-20 | **DONE** | `StingTools.Standards/HTM/HtmRegionalVariants.cs` — England/Wales(WHTM)/Scotland(SHTM)/NI tables |
+| HC-21 | **BLOCKED** | STING Healthcare Title Block `.rfa` requires Revit family editor (Windows) |
+| HC-22 | **DONE** | `HealthcareHub.cs` SignalR hub at `/hubs/healthcare`; `pressure-live.tsx` connects via SignalR |
+| HC-23 | **DONE** | `ObservationLosSolver.cs` — 2D ray-cast, 200mm grid, multi-observer, LOS-A..E grading |
+| HC-24 | **DONE** | `AgvPathOptimiser.cs` — weighted Dijkstra + clinical-rule deny list |
+| HC-25 | **DONE** | `FgiAdoptionTracker.cs` — jurisdiction × effective-date → Warning/Error escalation |
