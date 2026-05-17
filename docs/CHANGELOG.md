@@ -4090,3 +4090,66 @@ button continues to invoke the Centre as a modeless window.
      parameter rows that are intentionally unbound. A future
      `BINDING_COVERAGE_REPORT` job could flag the small subset of
      instance parameters that still lack a category binding.
+
+#### Completed (Phase 177 — Toilet Fixture Placement & Plumbing Auto-Router)
+
+**Scope**: 100% toilet-room fixture placement coverage + Naviate-inspired plumbing auto-router.
+
+**New files**:
+
+| File | Purpose |
+|---|---|
+| `StingTools/Data/Placement/STING_PLACEMENT_RULES.toilet-fixtures.json` | 30+ placement rules across 20 fixture groups for complete toilet-room coverage |
+| `StingTools/Core/Routing/PlumbingFixtureRouter.cs` | Naviate MEP-inspired pipe auto-router: soil/waste + CWS/HWS supply, gravity slope, AAV placement, BS EN 12056-2 pipe sizing |
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Core/Placement/PlacementScorer.AnchorTypes.cs` | Added `WINDOW_SIDE_WALL_RIGHT` and `WINDOW_SIDE_WALL_LEFT` anchor types + `EmitWindowSideWall()` implementation |
+| `StingTools/Core/Placement/PlacementRuleLoader.cs` | Added `STING_PLACEMENT_RULES.toilet-fixtures.json` to `DisciplinePacks[]` so rules auto-load |
+
+**Toilet-room fixture groups (20 groups, 30+ rules)**:
+
+| Group | Fixtures covered |
+|---|---|
+| 1 | WC / Water Closet (window-centred, comfort-height, wall-hung, no-window fallback) |
+| 2 | Urinal (standard 610mm AFF, ADA 432mm AFF) |
+| 3 | Lavatory / Basin (standard 850mm, ADA 865mm, commercial) |
+| 4 | Toilet paper holder (single, double, recessed — always RIGHT of WC) |
+| 5 | Grab bars (side right, side left fold-down ADA, rear) |
+| 6 | Sanitary bin + toilet brush (floor level, right side) |
+| 7 | Soap / sanitiser dispenser (wall-mounted and countertop) |
+| 8 | Mirror + medicine cabinet (above basin) |
+| 9 | Towel ring, towel bar, robe/towel hook |
+| 10 | Hand dryer (commercial) + paper towel dispenser |
+| 11 | Waste / rubbish bin |
+| 12 | Coat hook (back of door) |
+| 13 | Baby changing station (fold-down, 864mm AFF) |
+| 14 | Bathroom shelf |
+| 15 | Emergency pull cord (accessible + healthcare variant) |
+| 16 | Shower: head, TMV valve, fold-down seat, horizontal grab bar, curtain rod, shampoo niche, floor drain |
+| 17 | Commercial extras: feminine napkin disposal, entrance mat, sanitary vending machine |
+| 18 | Extract ventilation: ceiling grille (Approved Doc F) + wall-mounted fan |
+| 19 | Bidet |
+| 20 | Mirror / vanity light (IP44, 2000mm AFF) |
+
+**New anchor types**:
+- `WINDOW_SIDE_WALL_RIGHT` — emits candidate on the right side wall relative to the window-wall orientation; used for toilet paper holders, right grab bars, sanitary bin
+- `WINDOW_SIDE_WALL_LEFT` — mirror variant; used for left fold-down grab bars
+
+**PlumbingFixtureRouter — Naviate integration strategy**:
+- Connector-based fixture classification (soil vs waste vs CWS/HWS)
+- Gravity slope enforcement: 1:40 (2.5%) per BS EN 12056-2
+- Pipe sizing by discharge units: BS EN 12056-2 Table F.1 (32–110mm)
+- AAV auto-placement when vent run exceeds configurable threshold (default 3000mm)
+- Parameter stamping: `PLM_PIPE_SERVICE_TXT`, `PLM_SLOPE_PCT_V4`, `PLM_NOMINAL_DIA_MM`
+- `PlumbingStandards` constants class: BS EN 12056-2, CIBSE Guide G, HTM 04-01
+
+**Standards covered**: BS 6465-1:2006+A1:2009, BS 8300:2018, ADA §604/§605/§606/§608/§609, ANSI A117.1-2017, HTM 04-01/08-03, HTM HBN 00-02, BS EN 12056-2, CIBSE Guide G, Approved Doc F/H/M, WRAS, TMV3, BS 7671 (zone requirements).
+
+**Caveats**:
+1. Built without `dotnet build` verification (Linux sandbox, no Revit API).
+2. Toilet paper holder right-of-WC placement depends on `WINDOW_SIDE_WALL_RIGHT` anchor emitting correctly from `EmitWindowSideWall()`; verify in Revit when a window-wall WC is placed.
+3. `PlumbingFixtureRouter` requires soil-stack pipes (system abbrev `SS`/`SOIL`/`WASTE`/`SVP`) and rising mains (`CWS`/`HWS`) pre-routed in the model before auto-routing can connect fixtures.
+4. AAV family `STING_AAV_Inline` must be loaded in the project; router warns gracefully if missing.
