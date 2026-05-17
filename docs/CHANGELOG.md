@@ -2,6 +2,23 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 183 — Model collaboration: Gaps H–N)
+
+Branch: `claude/review-archicad-revit-workflows-04E6q`. Third-pass review of the full collaboration layer, uncovering seven more gaps and fixing them all.
+
+| Gap | File(s) | Finding & Fix |
+|-----|---------|---------------|
+| H | `Program.cs` | **Critical:** `ArchiCADHub` and `FederatedModelHub` were declared but never registered with `app.MapHub<>()`. Every live ArchiCAD push and every federated model notification was dead code — no client could connect. Added `app.MapHub<ArchiCADHub>("/hubs/archicad")` and `app.MapHub<FederatedModelHub>("/hubs/model")`. |
+| I | `IfcDeltaService.cs` | **Hash instability:** SHA-256 was computed over `Dictionary<string,string>` with natural insertion order. The same element with properties in a different order produced a different hash on each upload and was always classified as "Modified". Fixed: sort keys with `SortedDictionary<string,string>(StringComparer.Ordinal)` before serialising. |
+| J | `IfcIngestController.cs` | After a successful IFC ingest the 3D viewer never refreshed — `FederatedModelHub.NotifyUpdate` was never called. Injected `IHubContext<FederatedModelHub>` and broadcast `ModelUpdated` (source `"archicad"` or `"ifc-ingest"`) after the audit log, non-fatally caught. |
+| K | `AutoAlignService.cs` | When `ComputeAsync` persisted a new coordinate transform, no SignalR event fired. Added optional `IHubContext<FederatedModelHub>` parameter; after `SaveChangesAsync` broadcasts `ModelUpdated(source="auto-align")` so viewer clients reload the coordinate frame. |
+| L | `archiCADLiveClient.ts` | On connect (and after reconnect) the client never called `GET /api/archicad/{projectId}/events/recent` — the ring buffer added in Phase 182 was unused. Added `_fetchRecentEvents()` called after `JoinProject` and `onreconnected`; events replayed in chronological order. |
+| M | `ArchiCADController.cs` | ArchiCAD push authors were never registered in `PresenceTracker` — the BCC "N people viewing" chip only showed web/mobile users. Injected `PresenceTracker` + `IHubContext<NotificationHub>`; on every `Push`, derive a stable synthetic `userId` from `MD5(author.Email)`, call `PresenceTracker.Join(projectId, connId, PresentUser(..., Source="archicad"))`, and broadcast `PresenceChanged` to the notification group. |
+| N | `PlanscapeRealtimeClient.cs` | The Revit plugin had no `ModelUpdated` event — when any tool (IFC upload, ArchiCAD push, auto-align) changed the federated model, the BIM Coordination Center didn't know. Added `ModelUpdated` event and `c.On<object>("ModelUpdated", ...)` registration in `RegisterHandlers`. |
+| O | `FederatedModelHub.cs` | `NotifyUpdate` had no `source` field — clients couldn't distinguish ArchiCAD pushes from IFC uploads from auto-align. Added `string source = "unknown"` parameter propagated in the `ModelUpdated` payload. All callers (FederatedModelController, IfcIngestController, AutoAlignService) pass the correct label. |
+
+---
+
 #### Completed (Phase 182 — ArchiCAD-Revit-Planscape deeper alignment: Gaps A–F)
 
 Branch: `claude/review-archicad-revit-workflows-04E6q`. Second-pass deep review uncovering six additional coordination gaps and implementing all fixes. Goal: zero coordinate drift, durable event delivery, stable GlobalIds, correct protocol versioning, and CRS-validated model origins across the ArchiCAD ↔ Revit ↔ Planscape federated model.
