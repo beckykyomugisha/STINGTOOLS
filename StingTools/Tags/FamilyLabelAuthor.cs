@@ -47,6 +47,12 @@ namespace StingTools.Tags
             public Application App { get; set; }
             public string SharedParamFile { get; set; }
             public bool PreserveHandEdits { get; set; }
+            /// <summary>
+            /// When true, warning-tier rows (tier 8+) are also subject to
+            /// hand-edit preservation; when false only T4-T7 tiers are
+            /// protected by <see cref="PreserveHandEdits"/>.
+            /// </summary>
+            public bool PreserveHandWarnings { get; set; }
             public string FamilyName { get; set; }
         }
 
