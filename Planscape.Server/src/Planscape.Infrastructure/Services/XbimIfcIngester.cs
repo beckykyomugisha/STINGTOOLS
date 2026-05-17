@@ -75,8 +75,9 @@ public class XbimIfcIngester : IIfcIngester
         var spatialAncestors = BuildSpatialAncestorIndex(model);
         var openingAreaByHost = BuildOpeningAreaIndex(model, qtysByElement);
 
-        // Detect ArchiCAD-specific pset names to set Source field.
-        bool hasAcPsets = false;
+        // Detect ArchiCAD-specific and Tekla-specific pset names to set Source field.
+        bool hasAcPsets    = false;
+        bool hasTeklaPsets = false;
 
         foreach (var element in model.Instances.OfType<IIfcElement>())
         {
@@ -115,6 +116,15 @@ public class XbimIfcIngester : IIfcIngester
                         hasAcPsets = true;
                     }
 
+                    // Track Tekla-specific psets for source detection.
+                    // Tekla uses exactly "Tekla " or "Tekla_" prefixed pset names.
+                    if (!hasTeklaPsets &&
+                        (psetName.StartsWith("Tekla ", StringComparison.Ordinal) ||
+                         psetName.StartsWith("Tekla_", StringComparison.Ordinal)))
+                    {
+                        hasTeklaPsets = true;
+                    }
+
                     foreach (var prop in pset.HasProperties.OfType<IIfcPropertySingleValue>())
                     {
                         var pname = prop.Name.Value?.ToString();
@@ -123,6 +133,50 @@ public class XbimIfcIngester : IIfcIngester
                         if (pvalue == null) continue;
                         bag[$"{psetName}.{pname}"] = pvalue;
                     }
+                }
+
+                // Tekla normalised keys: promote Tekla-specific bag entries to
+                // canonical STING names so mapping rules work without knowing the
+                // exact pset / property name combination.
+                if (hasTeklaPsets)
+                {
+                    // Assembly mark: "Tekla Assembly.AssemblyMark" or
+                    //                "Tekla Assembly.ASSEMBLY_MARK" or
+                    //                "Tekla Common.NAME"
+                    string? assemblyMark =
+                        bag.GetValueOrDefault("Tekla Assembly.AssemblyMark")
+                        ?? bag.GetValueOrDefault("Tekla Assembly.ASSEMBLY_MARK")
+                        ?? bag.GetValueOrDefault("Tekla Common.NAME");
+                    if (assemblyMark != null)
+                        bag["TeklaAssemblyMark"] = assemblyMark;
+
+                    // Cast unit mark: "Tekla Cast Unit.CAST_UNIT_MARK" or
+                    //                 "Tekla Cast Unit.CastUnitMark"
+                    string? castUnitMark =
+                        bag.GetValueOrDefault("Tekla Cast Unit.CAST_UNIT_MARK")
+                        ?? bag.GetValueOrDefault("Tekla Cast Unit.CastUnitMark");
+                    if (castUnitMark != null)
+                        bag["TeklarCastUnitMark"] = castUnitMark;
+
+                    // Part number: "Tekla Steel Part.PART_POS" or
+                    //              "Tekla Steel Part.PART_NUMBER"
+                    string? teklaPart =
+                        bag.GetValueOrDefault("Tekla Steel Part.PART_POS")
+                        ?? bag.GetValueOrDefault("Tekla Steel Part.PART_NUMBER");
+                    if (teklaPart != null)
+                        bag["TeklaPart"] = teklaPart;
+
+                    // Material: "Tekla Common.MATERIAL"
+                    string? teklaMaterial = bag.GetValueOrDefault("Tekla Common.MATERIAL");
+                    if (teklaMaterial != null)
+                        bag["TeklarMaterial"] = teklaMaterial;
+
+                    // Profile: "Tekla Profile.Profile" or "Tekla Common.Profile"
+                    string? teklaProfile =
+                        bag.GetValueOrDefault("Tekla Profile.Profile")
+                        ?? bag.GetValueOrDefault("Tekla Common.Profile");
+                    if (teklaProfile != null)
+                        bag["TeklaProfile"] = teklaProfile;
                 }
             }
 
@@ -181,10 +235,11 @@ public class XbimIfcIngester : IIfcIngester
         }
 
         sw.Stop();
+        string source = hasAcPsets ? "archicad" : hasTeklaPsets ? "tekla" : "ifc";
         _logger.LogInformation(
             "XbimIfcIngester: {Path} → {Schema} {Count} elements in {Ms}ms (quantitySets={HasQty}, source={Source})",
             ifcPath, schemaVersion, elements.Count, sw.ElapsedMilliseconds,
-            hasQuantities, hasAcPsets ? "archicad" : "ifc");
+            hasQuantities, source);
 
         return Task.FromResult(new IfcIngestResult(
             SchemaVersion: schemaVersion,
@@ -193,7 +248,7 @@ public class XbimIfcIngester : IIfcIngester
             Elements: elements,
             Duration: sw.Elapsed,
             Warnings: warnings.Count > 0 ? string.Join("; ", warnings) : null,
-            Source: hasAcPsets ? "archicad" : "ifc",
+            Source: source,
             HasQuantitySets: hasQuantities));
     }
 

@@ -29,6 +29,15 @@ public sealed class IfcAlignmentValidator : IIfcAlignmentValidator
 
         // Stream the IFC header. STEP/IFC files start with HEADER ... ENDSEC then DATA ... ENDSEC.
         // We only need a few lines to extract schema + IfcUnitAssignment + IfcGeometricRepresentationContext.
+        // Gap 9: Revit GlobalId stability — track application and GlobalIds found in this file
+        string? applicationName = null;
+        var currentFileGuids = new HashSet<string>(StringComparer.Ordinal);
+
+        // Gap 10: Analytical model detection counters
+        int polylineCount = 0;
+        int wallCount = 0;
+        string? analyticalAppShortName = null;
+
         try
         {
             using var fs = new FileStream(ifcPath, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024);
@@ -101,6 +110,42 @@ public sealed class IfcAlignmentValidator : IIfcAlignmentValidator
                     var m = Regex.Match(line, @"IFCSITE\('([^']+)'");
                     if (m.Success) report.IfcSiteGuid = m.Groups[1].Value;
                 }
+
+                // Gap 9 + 10: Detect authoring application
+                // IFCAPPLICATION pattern: IFCAPPLICATION(#org,'version','full name','short name')
+                if (applicationName == null && line.Contains("IFCAPPLICATION"))
+                {
+                    var m = Regex.Match(line, @"IFCAPPLICATION\([^,]*,'[^']*','([^']+)'");
+                    if (m.Success) applicationName = m.Groups[1].Value;
+
+                    // Gap 10: Check for analytical authoring tools
+                    if (applicationName != null)
+                    {
+                        if (applicationName.Contains("ETABS", StringComparison.OrdinalIgnoreCase))
+                            analyticalAppShortName = "ETABS";
+                        else if (applicationName.Contains("SAP2000", StringComparison.OrdinalIgnoreCase))
+                            analyticalAppShortName = "SAP2000";
+                        else if (applicationName.Contains("CSi", StringComparison.OrdinalIgnoreCase))
+                            analyticalAppShortName = "CSi";
+                        else if (applicationName.Contains("SAFE", StringComparison.OrdinalIgnoreCase))
+                            analyticalAppShortName = "SAFE";
+                        else if (applicationName.Contains("RAM ", StringComparison.OrdinalIgnoreCase))
+                            analyticalAppShortName = "RAM Structural";
+                    }
+                }
+
+                // Gap 9: Collect 22-char IFC GlobalIds (base64-like) from the DATA section.
+                // IFC GlobalIds appear as quoted 22-char alphanumeric strings at the start of entity records.
+                // We harvest them from any IFC entity line (e.g. #123=IFCWALL('AbCdEfGhIjKlMnOpQrStUv',...)).
+                {
+                    var gm = Regex.Match(line, @"=IFC[A-Z]+\('([0-9A-Za-z_$]{22})'");
+                    if (gm.Success) currentFileGuids.Add(gm.Groups[1].Value);
+                }
+
+                // Gap 10: Count IFCPOLYLINE and wall/slab entity lines for stick-model detection
+                if (line.Contains("IFCPOLYLINE")) polylineCount++;
+                if (line.Contains("IFCWALLSTANDARDCASE") || line.Contains("IFCWALL(") || line.Contains("IFCSLAB"))
+                    wallCount++;
             }
         }
         catch (Exception ex)
@@ -151,6 +196,67 @@ public sealed class IfcAlignmentValidator : IIfcAlignmentValidator
                 findings.Add(new("WARN", "INCONSISTENT_GEOREF",
                     "Project reference model has IfcMapConversion but this one doesn't — coordinate alignment will fail",
                     "Acquire coordinates from the project's survey-of-record before re-exporting."));
+        }
+
+        // Gap 9: Revit GlobalId stability check
+        // Only meaningful when: (a) the authoring tool is Revit, and (b) we have a prior upload to compare against.
+        bool isRevitModel = applicationName != null &&
+                            applicationName.Contains("Revit", StringComparison.OrdinalIgnoreCase);
+
+        if (isRevitModel && siblings.Count > 0 && currentFileGuids.Count > 0)
+        {
+            // Fetch the distinct IfcGuids that were recorded for OTHER uploads of this project model
+            // (previous versions / other disciplines that have been processed before).
+            var previousGuids = await _db.FederatedElements
+                .AsNoTracking()
+                .Where(fe => fe.ProjectId == projectId && fe.ProjectModelId != projectModelId)
+                .Select(fe => fe.IfcGuid)
+                .Distinct()
+                .ToListAsync(ct);
+
+            if (previousGuids.Count > 0)
+            {
+                int missingCount = previousGuids.Count(g => !currentFileGuids.Contains(g));
+                double pctMissing = (double)missingCount / previousGuids.Count * 100.0;
+
+                if (pctMissing > 15.0)
+                {
+                    findings.Add(new("WARN", "REVIT_GLOBALID_INSTABILITY",
+                        $"Approximately {pctMissing:F0}% of element GlobalIds changed since the last upload. " +
+                        "This breaks BCF round-trips, clash history, and issue element links.",
+                        "In Revit: Manage > Project Information > set STING_IFC_GUID or use the IFC Exporter with " +
+                        "'Export IFC GUIDs' shared parameter. Ensure all team members use the same IFC export settings."));
+                }
+            }
+        }
+
+        // Gap 10: Analytical/structural analysis model detection
+        // ETABS, SAP2000, CSi, SAFE, RAM Structural produce stick-geometry IFC unsuitable for coordination.
+        if (analyticalAppShortName != null)
+        {
+            findings.Add(new("WARN", "ANALYTICAL_MODEL_DETECTED",
+                $"This IFC appears to be an analytical/structural model from {analyticalAppShortName}. " +
+                "Analytical stick geometry will not coordinate correctly with architectural models.",
+                "Export a physical (solid geometry) model for coordination, not the analytical model. " +
+                "In ETABS: File > Export > IFC > select 'Physical Model' export option."));
+        }
+        else if (polylineCount > 0 && wallCount == 0 && polylineCount > 50)
+        {
+            // Heuristic: heavy polyline usage with no wall/slab entities suggests a stick model
+            // even when the application name is generic or absent.
+            findings.Add(new("WARN", "POSSIBLE_STICK_MODEL",
+                $"This IFC contains {polylineCount} IFCPOLYLINE entities but no wall or slab elements. " +
+                "This pattern is typical of analytical stick models that cannot be used for spatial coordination.",
+                "Verify this is a physical-geometry IFC. Analytical models should be replaced with a " +
+                "solid-body export before uploading for coordination."));
+        }
+        else if (analyticalAppShortName == null && wallCount > 0 && polylineCount > wallCount * 5)
+        {
+            // Mixed model with disproportionate polyline count — flag as suspicious
+            findings.Add(new("INFO", "HIGH_POLYLINE_RATIO",
+                $"This IFC has a high ratio of curve geometry ({polylineCount} polylines) relative to " +
+                $"solid elements ({wallCount} walls/slabs). Confirm this is a full physical model.",
+                "If this is a combined physical+analytical export, re-export physical elements only."));
         }
 
         // Determine verdict

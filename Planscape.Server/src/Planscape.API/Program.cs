@@ -484,6 +484,15 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPipeline.IPhot
 // ~500 MB native dep + worker build pipeline.
 builder.Services.AddScoped<Planscape.Core.Interfaces.IIfcIngester,
     Planscape.Infrastructure.Services.XbimIfcIngester>();
+// Gap 1 — Per-element AABB extraction from IFC bounding-box representations.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IIfcGeometryExtractor,
+    Planscape.Infrastructure.Services.XbimIfcGeometryExtractor>();
+// Gap 4 — IFC tessellation + SceneNode population job (AABB-based sidecar; GLB when Xbim.Geometry added).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IIfcTessellationJob,
+    Planscape.Infrastructure.Services.IfcTessellationJob>();
+// Gap 5 — Per-element IFC delta tracking (Added / Modified / Deleted across uploads).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IIfcDeltaService,
+    Planscape.Infrastructure.Services.IfcDeltaService>();
 
 if (isWorker)
 {

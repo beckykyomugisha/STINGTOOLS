@@ -188,6 +188,13 @@ public class PlanscapeDbContext : DbContext
     // FEDERATED-MODEL: per-element tessellated geometry (Revit plugin delta, IFC hot-folder, Speckle).
     public DbSet<FederatedElement> FederatedElements => Set<FederatedElement>();
 
+    // Gap 5 — Per-element IFC change tracking (Added / Modified / Deleted / Unchanged across uploads).
+    public DbSet<IfcElementSnapshot> IfcElementSnapshots => Set<IfcElementSnapshot>();
+    // Gap 6 — Cross-tool GlobalId registry (IFC / ArchiCAD / Revit / Tekla element identity mapping).
+    public DbSet<ElementGlobalIdRegistry> GlobalIdRegistry => Set<ElementGlobalIdRegistry>();
+    // Gap 7 — Level harmonisation (normalised storey dictionary + per-tool alias map).
+    public DbSet<ProjectLevel> ProjectLevels => Set<ProjectLevel>();
+
     // Phase 178c (T3-12) — Multi-step / parallel approval chains for CDE transitions.
     public DbSet<ApprovalChain> ApprovalChains => Set<ApprovalChain>();
     public DbSet<ApprovalStage> ApprovalStages => Set<ApprovalStage>();
@@ -1062,6 +1069,55 @@ public class PlanscapeDbContext : DbContext
         {
             e.HasIndex(r => new { r.ProjectId, r.ProjectModelId });
             e.HasIndex(r => r.TenantId);
+        });
+
+        // ── Gap 5 — IfcElementSnapshot (per-element IFC change delta) ──────────
+        modelBuilder.Entity<IfcElementSnapshot>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.ProjectModelId, x.IfcGuid });
+            e.HasIndex(x => new { x.ProjectId, x.UploadSequence });
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.IfcGuid).HasMaxLength(80).IsRequired();
+            e.Property(x => x.IfcType).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(400);
+            e.Property(x => x.Storey).HasMaxLength(200);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.PropertiesHash).HasMaxLength(64).IsRequired();
+            e.Property(x => x.ChangeKind).HasMaxLength(20).IsRequired();
+        });
+
+        // ── Gap 6 — ElementGlobalIdRegistry (cross-tool element identity) ──────
+        modelBuilder.Entity<ElementGlobalIdRegistry>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.IfcGlobalId });
+            e.HasIndex(x => new { x.ProjectId, x.RevitUniqueId });
+            e.HasIndex(x => new { x.ProjectId, x.ArchiCadGuid });
+            e.HasIndex(x => new { x.ProjectId, x.TeklaGuid });
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.IfcGlobalId).HasMaxLength(80);
+            e.Property(x => x.ArchiCadGuid).HasMaxLength(80);
+            e.Property(x => x.RevitUniqueId).HasMaxLength(80);
+            e.Property(x => x.TeklaGuid).HasMaxLength(80);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.IfcType).HasMaxLength(100);
+            e.Property(x => x.ElementName).HasMaxLength(400);
+            e.Property(x => x.NormalizedLevelName).HasMaxLength(80);
+            e.Property(x => x.MappingStatus).HasMaxLength(40).IsRequired();
+            e.Property(x => x.MappedBy).HasMaxLength(200);
+            e.Property(x => x.Notes).HasMaxLength(2000);
+        });
+
+        // ── Gap 7 — ProjectLevel (harmonised storey dictionary) ──────────────
+        modelBuilder.Entity<ProjectLevel>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.NormalizedName }).IsUnique();
+            e.HasIndex(x => new { x.ProjectId, x.SortIndex });
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.NormalizedName).HasMaxLength(80).IsRequired();
+            e.Property(x => x.DisplayName).HasMaxLength(200);
         });
 
         // ── ClashAutomationRule — per-project automation rules for new clashes ──
