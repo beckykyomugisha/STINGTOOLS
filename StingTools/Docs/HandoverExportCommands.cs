@@ -380,7 +380,7 @@ namespace StingTools.Docs
                         coordinateLines.Add($"{Esc(tag1)},STING Tools,{DateTime.Now:yyyy-MM-dd}," +
                             $"point,Component,{Esc(tag1)},{pt2.X * 304.8:F0},{pt2.Y * 304.8:F0},{pt2.Z * 304.8:F0}");
                     }
-                    catch (Exception ex) { StingLog.Warn($"COBie Coordinate: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"COBie Coordinate: {ex2.Message}"); }
                 }
 
                 var spareLines = new List<string>();
@@ -404,7 +404,7 @@ namespace StingTools.Docs
                         impactLines.Add($"{Esc(tag1 + "_carbon")},STING Tools,{DateTime.Now:yyyy-MM-dd}," +
                             $"Embodied Energy,Construction,Component,{Esc(tag1)},{Esc(embodied)},kgCO2e/m2,Embodied carbon");
                     }
-                    catch (Exception ex) { StingLog.Warn($"COBie Impact: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"COBie Impact: {ex2.Message}"); }
                 }
 
                 // Write all 18 COBie CSV files

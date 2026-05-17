@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using System.Text;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -117,7 +118,7 @@ namespace StingTools.BIMManager
                         result.Pushed++;
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     StingLog.Warn($"MobileIssueBridge.Push failed for {localIssue.Value<string>("id")}: {ex.Message}");
                 }

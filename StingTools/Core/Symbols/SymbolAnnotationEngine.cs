@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — annotation engine (Phase 175)
 //
 // Places / updates / removes per-standard rating + circuit annotations

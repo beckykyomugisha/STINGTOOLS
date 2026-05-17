@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — view-context resolver (Phase 175)
 //
 // Maps a Revit View to one of the seven contexts that drive symbol
@@ -6,6 +7,7 @@
 
 using System;
 using Autodesk.Revit.DB;
+using StingTools.Core.Drawing;
 
 namespace StingTools.Core.Symbols
 {

@@ -2,6 +2,7 @@
 // Phase 179b. Pure static calculator — no Revit dependency.
 
 using System;
+using System.Linq;
 
 namespace StingTools.Core.Plumbing
 {

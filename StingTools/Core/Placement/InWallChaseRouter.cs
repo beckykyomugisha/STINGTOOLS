@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139.3 — In-wall chase pipe router.
 //
 // Routes Pipe / Conduit segments parallel to a host wall's location
@@ -41,6 +42,7 @@ using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Electrical;
 using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.DB.Structure;
+using StingTools.Core.Mep;
 
 namespace StingTools.Core.Placement
 {
@@ -499,7 +501,7 @@ namespace StingTools.Core.Placement
                         StingTools.Core.Calc.ConcreteCoverTable.DefaultStructuralClass,
                         fireResistance: "");
                 }
-                catch (Exception ex) { StingLog.Warn($"ConcreteCoverTable: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"ConcreteCoverTable: {ex2.Message}"); }
             }
             double requiredMm   = pipeOdMm + 2 * insulationMm + clearanceMm + coverMm;
             return (availableMm, requiredMm);

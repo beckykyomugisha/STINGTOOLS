@@ -1,3 +1,4 @@
+using System;
 // Pack 126 / Gap K — IFC PropertySet wiring for §5.5 classification.
 //
 // The five identity / classification parameters added in Phase 120

@@ -14,6 +14,7 @@ using Autodesk.Revit.UI;
 using StingTools.Commands.Standards;
 using StingTools.Core;
 using StingTools.UI;
+using System.Linq;
 
 namespace StingTools.Commands.StructuralExt
 {

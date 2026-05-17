@@ -25,6 +25,7 @@ using Autodesk.Revit.UI;
 using Planscape.Shared.BCF;
 using StingTools.Core;
 using StingTools.V6;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Clash
 {

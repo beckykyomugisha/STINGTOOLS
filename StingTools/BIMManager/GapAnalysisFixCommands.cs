@@ -1010,7 +1010,7 @@ namespace StingTools.BIMManager
                     else sb.AppendLine("  No open issues.");
                     sb.AppendLine();
                 }
-                catch (Exception ex) { StingLog.Warn($"Auto-minutes issues: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Auto-minutes issues: {ex2.Message}"); }
             }
 
             // Section 3: Warnings summary

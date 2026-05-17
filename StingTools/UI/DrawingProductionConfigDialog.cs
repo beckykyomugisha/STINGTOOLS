@@ -21,15 +21,23 @@
 // produces the same PresetCategoryOverride list. Cell-level fidelity
 // can land in a follow-up.
 
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 using StingTools.Core.Drawing;
-// Resolve type collisions between WPF and Revit API:
-using StingTools.Core.Drawing;
-//   System.Windows.Controls.Grid vs Autodesk.Revit.DB.Grid
-using StingTools.Core.Drawing;
-//   System.Windows.Visibility    vs Autodesk.Revit.DB.WorksetVisibility ("Visibility" prefix)
-using Visibility = System.Windows.Visibility;
+using Button     = System.Windows.Controls.Button;
+using ComboBox   = System.Windows.Controls.ComboBox;
+using Grid       = System.Windows.Controls.Grid;
+using TextBox    = System.Windows.Controls.TextBox;
 using Visibility = System.Windows.Visibility;
 using StingTools.Core;
+using Grid = System.Windows.Controls.Grid;
 namespace StingTools.UI
 {
     public sealed class DrawingProductionConfigDialog : Window

@@ -479,7 +479,7 @@ namespace StingTools.Commands.Plumbing
                         var ogs = ColorHelper.BuildOverride(color, solidFill);
                         view.SetElementOverrides(pipe.Id, ogs);
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         StingLog.Warn($"PlumbNetworkPressure pipe {pipe.Id}: {ex.Message}");
                     }

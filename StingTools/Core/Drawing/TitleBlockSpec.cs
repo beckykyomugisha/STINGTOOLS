@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager · Title-block factory POCOs
 //
 // Spec model loaded from Data/STING_TITLE_BLOCKS.json. Each

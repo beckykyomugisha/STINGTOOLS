@@ -10,6 +10,7 @@ using System.Numerics;
 using Autodesk.Revit.DB;
 // Autodesk.Revit.DB.IFC dropped with the ExporterIFCUtils call site.
 using StingTools.Core;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Clash
 {

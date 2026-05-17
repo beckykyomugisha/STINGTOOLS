@@ -1,3 +1,4 @@
+using StingTools.Core;
 // PlacementResultBus — event bus that routes run summaries from placement,
 // tagging, and symbol commands to the Placement Centre panel and dock-panel
 // inline result strips without creating direct dependencies between UI layers.
@@ -5,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
+using StingTools.Core.Drawing;
 
 namespace StingTools.Core.Placement
 {

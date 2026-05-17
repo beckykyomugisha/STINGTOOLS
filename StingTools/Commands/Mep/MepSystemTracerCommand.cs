@@ -88,7 +88,7 @@ namespace StingTools.Commands.Mep
                 {
                     if (c == null) continue;
                     ConnectorSet others = null;
-                    try { others = c.AllRefs; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    try { others = c.AllRefs; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                     if (others == null) continue;
                     foreach (Connector other in others)
                     {
@@ -131,7 +131,7 @@ namespace StingTools.Commands.Mep
                             if (p.StorageType == StorageType.Integer) p.Set(seq);
                             else if (p.StorageType == StorageType.String) p.Set(seq.ToString("D4"));
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                         seq++;
                     }
                     tx.Commit();

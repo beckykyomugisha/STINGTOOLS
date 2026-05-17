@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager · Phase 168 — Match-line subsystem
 //
 // Walks the project's scope-box adjacency graph and emits paired
@@ -31,6 +32,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.DB;
 
 namespace StingTools.Core.Drawing

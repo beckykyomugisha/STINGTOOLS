@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using System;
 
 [assembly: AssemblyTitle("StingTools")]
 [assembly: AssemblyDescription("Unified STING Tools Revit Plugin — Docs, Tags, Temp")]

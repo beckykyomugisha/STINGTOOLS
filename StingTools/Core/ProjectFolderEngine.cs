@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json.Linq;
 
@@ -189,7 +190,7 @@ namespace StingTools.Core
                     string code = DetectProjectCode(doc);
                     string stingRoot = Path.Combine(projDir, code);
                     try { Directory.CreateDirectory(stingRoot); _rootPath = stingRoot; return stingRoot; }
-                    catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Cannot create at project dir: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"ProjectFolderEngine: Cannot create at project dir: {ex2.Message}"); }
                 }
             }
 
@@ -354,7 +355,7 @@ namespace StingTools.Core
                         foreach (string disc in setup.Disciplines)
                         {
                             try { Directory.CreateDirectory(Path.Combine(folderPath, disc)); }
-                            catch (Exception ex) { StingLog.Warn($"InitSetup disc {disc}: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"InitSetup disc {disc}: {ex2.Message}"); }
                         }
                     }
                     if (f.SubFolders != null)
@@ -362,7 +363,7 @@ namespace StingTools.Core
                         foreach (string s in f.SubFolders)
                         {
                             try { Directory.CreateDirectory(Path.Combine(folderPath, s)); }
-                            catch (Exception ex) { StingLog.Warn($"InitSetup sub {s}: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"InitSetup sub {s}: {ex2.Message}"); }
                         }
                     }
                 }
@@ -452,9 +453,9 @@ namespace StingTools.Core
                         string root = GetRootPath(doc);
                         string suffixedH = ProjectSetup.WithCodeSuffix(name, codeH);
                         string p = Path.Combine(root, suffixedH);
-                        bool ex = Directory.Exists(p);
+                        bool dirExists = Directory.Exists(p);
                         int n = 0; DateTime? lm = null;
-                        if (ex)
+                        if (dirExists)
                         {
                             try
                             {
@@ -469,10 +470,10 @@ namespace StingTools.Core
                         {
                             Id = id,
                             DisplayName = name,
-                            Exists = ex,
+                            Exists = dirExists,
                             FileCount = n,
                             LastModified = lm,
-                            IsEmpty = ex && n == 0,
+                            IsEmpty = dirExists && n == 0,
                             FullPath = p,
                         });
                     }
@@ -485,9 +486,9 @@ namespace StingTools.Core
                 {
                     if (setup.HiddenFolders.Contains(f.Id, StringComparer.OrdinalIgnoreCase)) continue;
                     string p = Path.Combine(root2, f.DisplayName);
-                    bool ex = Directory.Exists(p);
+                    bool dirExists2 = Directory.Exists(p);
                     int n = 0; DateTime? lm = null;
-                    if (ex)
+                    if (dirExists2)
                     {
                         try
                         {
@@ -502,10 +503,10 @@ namespace StingTools.Core
                     {
                         Id = f.Id,
                         DisplayName = f.DisplayName,
-                        Exists = ex,
+                        Exists = dirExists2,
                         FileCount = n,
                         LastModified = lm,
-                        IsEmpty = ex && n == 0,
+                        IsEmpty = dirExists2 && n == 0,
                         FullPath = p,
                     });
                 }
@@ -592,12 +593,12 @@ namespace StingTools.Core
                                 File.Move(f, dest);
                                 rep.FilesMoved++;
                             }
-                            catch (Exception ex) { rep.Warnings.Add($"Move {f}: {ex.Message}"); }
+                            catch (Exception ex2) { rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
                         }
                         try { if (!Directory.EnumerateFiles(legacy, "*.*", SearchOption.AllDirectories).Any()) { Directory.Delete(legacy, true); rep.FoldersRemoved++; } }
-                        catch (Exception ex) { rep.Warnings.Add($"Delete {legacy}: {ex.Message}"); }
+                        catch (Exception ex2) { rep.Warnings.Add($"Delete {legacy}: {ex2.Message}"); }
                     }
-                    catch (Exception ex) { rep.Warnings.Add($"Process {legacy}: {ex.Message}"); }
+                    catch (Exception ex2) { rep.Warnings.Add($"Process {legacy}: {ex2.Message}"); }
                 }
 
                 // 2b. Hidden helper folder used by clash detection
@@ -621,12 +622,12 @@ namespace StingTools.Core
                                     File.Move(f, dst);
                                     rep.FilesMoved++;
                                 }
-                                catch (Exception ex) { rep.Warnings.Add($"Move {f}: {ex.Message}"); }
+                                catch (Exception ex2) { rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
                             }
                             try { if (!Directory.EnumerateFiles(hiddenLegacy, "*.*", SearchOption.AllDirectories).Any()) { Directory.Delete(hiddenLegacy, true); rep.FoldersRemoved++; } }
-                            catch (Exception ex) { rep.Warnings.Add($"Delete {hiddenLegacy}: {ex.Message}"); }
+                            catch (Exception ex2) { rep.Warnings.Add($"Delete {hiddenLegacy}: {ex2.Message}"); }
                         }
-                        catch (Exception ex) { rep.Warnings.Add($"Process {hiddenLegacy}: {ex.Message}"); }
+                        catch (Exception ex2) { rep.Warnings.Add($"Process {hiddenLegacy}: {ex2.Message}"); }
                     }
                 }
 
@@ -642,7 +643,7 @@ namespace StingTools.Core
                         File.Move(src, dst);
                         rep.FilesMoved++;
                     }
-                    catch (Exception ex) { rep.Warnings.Add($"Move {src}: {ex.Message}"); }
+                    catch (Exception ex2) { rep.Warnings.Add($"Move {src}: {ex2.Message}"); }
                 }
 
                 // 2d. BOQ rate-source heat-map exports
@@ -666,12 +667,12 @@ namespace StingTools.Core
                                     File.Move(f, dst);
                                     rep.FilesMoved++;
                                 }
-                                catch (Exception ex) { rep.Warnings.Add($"Move {f}: {ex.Message}"); }
+                                catch (Exception ex2) { rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
                             }
                             try { if (!Directory.EnumerateFiles(boqLegacy, "*.*", SearchOption.AllDirectories).Any()) { Directory.Delete(boqLegacy, true); rep.FoldersRemoved++; } }
-                            catch (Exception ex) { rep.Warnings.Add($"Delete {boqLegacy}: {ex.Message}"); }
+                            catch (Exception ex2) { rep.Warnings.Add($"Delete {boqLegacy}: {ex2.Message}"); }
                         }
-                        catch (Exception ex) { rep.Warnings.Add($"Process {boqLegacy}: {ex.Message}"); }
+                        catch (Exception ex2) { rep.Warnings.Add($"Process {boqLegacy}: {ex2.Message}"); }
                     }
                 }
 
@@ -691,7 +692,7 @@ namespace StingTools.Core
                                 Directory.Move(sub, dest);
                                 rep.FoldersRemoved++;
                             }
-                            catch (Exception ex) { rep.Warnings.Add($"Move {sub}: {ex.Message}"); }
+                            catch (Exception ex2) { rep.Warnings.Add($"Move {sub}: {ex2.Message}"); }
                         }
                     }
                 }
@@ -733,7 +734,7 @@ namespace StingTools.Core
                                 File.Move(f, dest);
                                 rep.FilesMoved++;
                             }
-                            catch (Exception ex) { rep.Warnings.Add($"Move {f}: {ex.Message}"); }
+                            catch (Exception ex2) { rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
                         }
                         try
                         {
@@ -744,9 +745,9 @@ namespace StingTools.Core
                                 rep.FoldersRemoved++;
                             }
                         }
-                        catch (Exception ex) { rep.Warnings.Add($"Delete {legacy}: {ex.Message}"); }
+                        catch (Exception ex2) { rep.Warnings.Add($"Delete {legacy}: {ex2.Message}"); }
                     }
-                    catch (Exception ex) { rep.Warnings.Add($"Process {legacy}: {ex.Message}"); }
+                    catch (Exception ex2) { rep.Warnings.Add($"Process {legacy}: {ex2.Message}"); }
                 }
 
                 InvalidateFolderStatsCache();
@@ -1029,7 +1030,7 @@ namespace StingTools.Core
             if (!Directory.Exists(path))
             {
                 try { Directory.CreateDirectory(path); }
-                catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.GetFolderPath: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"ProjectFolderEngine.GetFolderPath: {ex2.Message}"); }
             }
             return path;
         }

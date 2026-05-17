@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — orphan healer (Phase 175)
 //
 // Finds STING symbol tags whose host element has been deleted and

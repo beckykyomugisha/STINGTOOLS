@@ -1,3 +1,4 @@
+using StingTools.Core.Validation;
 // Healthcare Pack H-20 — IoT staleness validator.
 // Reports devices in IoTDeviceRegistry whose LastSeenUtc is older than
 // the configured threshold. Real LastSeenUtc populates from the Twin

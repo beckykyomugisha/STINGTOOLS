@@ -8,8 +8,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.DB;
 using StingTools.Core;
+using StingTools.Core.Drawing;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Fabrication
 {
@@ -212,7 +215,7 @@ namespace StingTools.Core.Fabrication
                             RunFabricationDimPass(doc, v, drawingType, result);
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         result.Warnings.Add($"DrawingType view apply {viewId.Value}: {ex.Message}");
                     }

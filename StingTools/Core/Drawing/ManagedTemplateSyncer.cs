@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager · Phase 137
 //
 // ManagedTemplateSyncer mints (or updates) a per-pack-per-viewtype
@@ -21,6 +22,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Drawing
 {
@@ -354,7 +356,7 @@ namespace StingTools.Core.Drawing
             catch
             {
                 try { newView.Name = templateName + "_(2)"; }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     result.Warnings.Add($"ManagedTemplateSyncer: rename failed — {ex.Message}");
                     return ElementId.InvalidElementId;

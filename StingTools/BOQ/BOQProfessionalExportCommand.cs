@@ -40,6 +40,7 @@ using Autodesk.Revit.UI;
 using ClosedXML.Excel;
 using StingTools.Core;
 using StingTools.UI;
+using System.Text.RegularExpressions;
 
 namespace StingTools.BOQ
 {

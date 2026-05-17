@@ -24,6 +24,7 @@ using Visibility = System.Windows.Visibility;
 // full qualification.
 using TextBox    = System.Windows.Controls.TextBox;
 using ComboBox   = System.Windows.Controls.ComboBox;
+using Color = System.Windows.Media.Color;
 
 namespace StingTools.UI
 {

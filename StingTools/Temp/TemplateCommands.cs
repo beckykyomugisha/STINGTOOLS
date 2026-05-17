@@ -748,7 +748,7 @@ namespace StingTools.Temp
                             created++;
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         StingLog.Warn($"View template create failed '{name}': {ex.Message}");
                         skipped++;
@@ -869,13 +869,13 @@ namespace StingTools.Temp
                                     if (scaleP != null && !scaleP.IsReadOnly)
                                         scaleP.Set(scaleVal);
                                 }
-                                catch (Exception ex) { StingLog.Warn($"Set view template scale: {ex.Message}"); }
+                                catch (Exception ex2) { StingLog.Warn($"Set view template scale: {ex2.Message}"); }
                             }
 
                             csvCreated++;
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         StingLog.Warn($"CSV template '{fullName}': {ex.Message}");
                         csvSkipped++;

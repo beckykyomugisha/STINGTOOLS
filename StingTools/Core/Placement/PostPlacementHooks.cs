@@ -1,3 +1,4 @@
+using StingTools.Core;
 // PC-17 — Post-placement hooks.
 //
 // Optional side-effects fired by FixturePlacementEngine after every

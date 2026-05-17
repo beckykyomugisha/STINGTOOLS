@@ -1,3 +1,4 @@
+using System;
 // DWG-MULTI-01: Multi-layer wall detection.
 //
 // The Phase 142 detector finds parallel-pair walls (two adjacent lines forming a single

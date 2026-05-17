@@ -18,6 +18,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Clash;
+using System.Linq;
 
 namespace StingTools.Commands.IFC
 {

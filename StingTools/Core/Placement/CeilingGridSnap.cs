@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Licensed to Planscape under the STING Tools plug-in LICENSE. See LICENSE.
 //
 // StingTools/Core/Placement/CeilingGridSnap.cs — S2.15 (L-G1).

@@ -16,6 +16,7 @@
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.ExtensibleStorage;
+using StingTools.Core;
 
 namespace StingTools.Core.Storage
 {

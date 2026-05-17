@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools Phase 177 — Plumbing Fixture Auto-Router.
 //
 // Naviate MEP pipe routing concepts integrated into the STING engine:
@@ -22,6 +23,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.DB.Mechanical;
+using StingTools.Core.Placement;
 
 namespace StingTools.Core.Routing
 {

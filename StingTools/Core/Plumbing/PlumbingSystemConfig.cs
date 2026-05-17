@@ -1,3 +1,4 @@
+using StingTools.Core;
 // PlumbingSystemConfig — Phase 179a foundation.
 //
 // Project-scoped configuration that every other plumbing engine reads:

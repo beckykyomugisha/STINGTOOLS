@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139 B — Additional anchor types for the placement scorer.
 //
 // This partial class extends PlacementScorer with the 22 new anchor
@@ -15,6 +16,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Placement
 {

@@ -8,6 +8,7 @@ using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Select;
 using StingTools.UI;
+using StingTools.Core.Drawing;
 
 namespace StingTools.Docs
 {

@@ -9,6 +9,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.IfcResults;
+using Newtonsoft.Json;
 
 namespace StingTools.Commands.Electrical.Export
 {
