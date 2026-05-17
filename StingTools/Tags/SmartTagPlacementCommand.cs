@@ -1344,6 +1344,24 @@ namespace StingTools.Tags
             }
             catch { return 0.25; }
         }
+
+        /// <summary>
+        /// B-3: Estimate a bounding box for a tag whose get_BoundingBox() returned null.
+        /// Uses the tag's head position and the caller-supplied width/height estimates
+        /// (derived from view scale) so the SpatialGrid still reserves space for it.
+        /// </summary>
+        private static Box2D EstimateTagBoxFallback(IndependentTag tag, View view, double tagWidth, double tagHeight)
+        {
+            try
+            {
+                XYZ head = tag.TagHeadPosition;
+                if (head == null) return new Box2D(0, 0, 0, 0);
+                double hw = tagWidth  / 2.0;
+                double hh = tagHeight / 2.0;
+                return new Box2D(head.X - hw, head.Y - hh, head.X + hw, head.Y + hh);
+            }
+            catch { return new Box2D(0, 0, 0, 0); }
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════

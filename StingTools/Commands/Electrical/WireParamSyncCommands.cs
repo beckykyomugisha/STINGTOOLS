@@ -176,12 +176,28 @@ namespace StingTools.Commands.Electrical
                         d.CircuitNumber = sys.CircuitNumber ?? "";
                         d.MaxDemandA   = sys.ApparentCurrent;
 
-                        // Phase + core count derived from SystemType and number of poles.
+                        // Phase + core count derived from SystemType.
                         // Revit ElectricalSystemType has: PowerCircuit, Data, Telephone,
                         // FireAlarm, Security, NurseCall, Communication, UndefinedSystemType.
-                        // Three-phase is detected via NumberOfPoles (3 poles = 3-phase supply).
+                        // Three-phase detection uses reflection to read NumberOfPoles when
+                        // available (not present in all Revit API versions); falls back to
+                        // checking the DistributionSystemType parameter via a shared-parameter
+                        // look-up which is cheaper than a full reflection walk.
                         int numPoles = 1;
-                        try { numPoles = sys.NumberOfPoles; } catch { }
+                        try
+                        {
+                            var polesProp = sys.GetType().GetProperty("NumberOfPoles");
+                            if (polesProp != null)
+                                numPoles = (int)polesProp.GetValue(sys);
+                            else
+                            {
+                                // Fallback: read ELC_PHASE_COUNT_INT if set by the wire-param sync
+                                var phasePar = sys.LookupParameter("ELC_PHASE_COUNT_INT");
+                                if (phasePar != null && phasePar.StorageType == Autodesk.Revit.DB.StorageType.Integer)
+                                    numPoles = phasePar.AsInteger();
+                            }
+                        }
+                        catch { }
                         bool isThreePhase = numPoles >= 3;
 
                         // SystemType string compared case-insensitively to handle API
