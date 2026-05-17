@@ -2079,7 +2079,7 @@ namespace StingTools.Core
             string existingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
             bool statusNeedsWrite = string.IsNullOrEmpty(existingStatus)
                 || overwrite
-                || TagConfig.TagConfig.AutoCorrectStatusFromPhase;
+                || TagConfig.AutoCorrectStatusFromPhase;
             if (statusNeedsWrite)
             {
                 // Use cached phase data when available (batch), fall back to uncached (single element)
@@ -2087,7 +2087,7 @@ namespace StingTools.Core
                     ? PhaseAutoDetect.DetectStatusCached(doc, el, ctx.CachedPhases, ctx.LastPhaseId)
                     : PhaseAutoDetect.DetectStatus(doc, el);
                 if (string.IsNullOrEmpty(status)) status = ctx.DefaultStatus;
-                bool forceWrite = overwrite || TagConfig.TagConfig.AutoCorrectStatusFromPhase;
+                bool forceWrite = overwrite || TagConfig.AutoCorrectStatusFromPhase;
                 if (forceWrite)
                 {
                     if (ParameterHelpers.SetString(el, ParamRegistry.STATUS, status, overwrite: true))

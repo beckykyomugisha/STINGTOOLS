@@ -34,6 +34,7 @@ namespace StingTools.Commands.Routing
         public static string ConduitInstallMethod { get; set; } = "CLIPPED";
         public static string DuctSeamType       { get; set; } = "A";
         public static string PipeHangerType     { get; set; } = "CLEVIS_ROD";
+        public static bool   EmitSupports       { get; set; } = true;
     }
 
     [Transaction(TransactionMode.Manual)]

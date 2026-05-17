@@ -1536,7 +1536,7 @@ namespace StingTools.Model
                         {
                             // Detect junctions from the extraction result already computed in this run
                             // Re-extract to get junction list (importInstance is the param of RunFullPipelineWithConfig)
-                            var connExtract = ExtractAll(importInstance, config);
+                            var connExtract = ExtractStructuralGeometry(importInstance);
                             var junctions = DetectJunctions(connExtract);
                             using (var txConn = new Transaction(_doc, "STING STRUCT: Connection Details"))
                             {

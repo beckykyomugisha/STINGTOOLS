@@ -140,6 +140,22 @@ namespace StingTools.Core
         }
     }
 
+    public class FullGeometrySyncJob : IIdlingJob
+    {
+        public string Name => "FullGeometrySync";
+        public int Priority => 5;
+        public int BudgetMs => 200;
+        public bool Execute(UIApplication uiApp) { return true; }
+    }
+
+    public class StaleWarningPromotionJob : IIdlingJob
+    {
+        public string Name => "StaleWarningPromotion";
+        public int Priority => 4;
+        public int BudgetMs => 100;
+        public bool Execute(UIApplication uiApp) { return true; }
+    }
+
     /// <summary>
     /// Pack 8 pilot consumer — compliance-scan refresh. Drops itself after
     /// a single tick so it only runs once per enqueue.

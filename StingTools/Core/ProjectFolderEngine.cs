@@ -452,9 +452,9 @@ namespace StingTools.Core
                         string root = GetRootPath(doc);
                         string suffixedH = ProjectSetup.WithCodeSuffix(name, codeH);
                         string p = Path.Combine(root, suffixedH);
-                        bool ex = Directory.Exists(p);
+                        bool dirExists = Directory.Exists(p);
                         int n = 0; DateTime? lm = null;
-                        if (ex)
+                        if (dirExists)
                         {
                             try
                             {
@@ -469,10 +469,10 @@ namespace StingTools.Core
                         {
                             Id = id,
                             DisplayName = name,
-                            Exists = ex,
+                            Exists = dirExists,
                             FileCount = n,
                             LastModified = lm,
-                            IsEmpty = ex && n == 0,
+                            IsEmpty = dirExists && n == 0,
                             FullPath = p,
                         });
                     }
@@ -485,9 +485,9 @@ namespace StingTools.Core
                 {
                     if (setup.HiddenFolders.Contains(f.Id, StringComparer.OrdinalIgnoreCase)) continue;
                     string p = Path.Combine(root2, f.DisplayName);
-                    bool ex = Directory.Exists(p);
+                    bool dirExists2 = Directory.Exists(p);
                     int n = 0; DateTime? lm = null;
-                    if (ex)
+                    if (dirExists2)
                     {
                         try
                         {
@@ -502,10 +502,10 @@ namespace StingTools.Core
                     {
                         Id = f.Id,
                         DisplayName = f.DisplayName,
-                        Exists = ex,
+                        Exists = dirExists2,
                         FileCount = n,
                         LastModified = lm,
-                        IsEmpty = ex && n == 0,
+                        IsEmpty = dirExists2 && n == 0,
                         FullPath = p,
                     });
                 }

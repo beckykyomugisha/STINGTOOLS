@@ -14,11 +14,19 @@ using StingTools.Core;
 using StingTools.BIMManager;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using Path     = System.IO.Path;
-using TaskDialog = Autodesk.Revit.UI.TaskDialog;
-using Button     = System.Windows.Controls.Button;
-using Color      = System.Windows.Media.Color;
-using Grid       = System.Windows.Controls.Grid;
+using Path        = System.IO.Path;
+using TaskDialog  = Autodesk.Revit.UI.TaskDialog;
+using Button      = System.Windows.Controls.Button;
+using Binding     = System.Windows.Data.Binding;
+using Color       = System.Windows.Media.Color;
+using ComboBox    = System.Windows.Controls.ComboBox;
+using ContextMenu = System.Windows.Controls.ContextMenu;
+using Ellipse     = System.Windows.Shapes.Ellipse;
+using Grid        = System.Windows.Controls.Grid;
+using Line        = System.Windows.Shapes.Line;
+using MenuItem    = System.Windows.Controls.MenuItem;
+using TextBox     = System.Windows.Controls.TextBox;
+using Visibility  = System.Windows.Visibility;
 
 namespace StingTools.UI
 {

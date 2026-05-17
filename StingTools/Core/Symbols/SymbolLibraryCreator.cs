@@ -39,6 +39,7 @@ namespace StingTools.Core.Symbols
         public int Created { get; set; }
         public int Existed { get; set; }
         public int Failed { get; set; }
+        public int Protected { get; set; }
         public List<string> Warnings { get; } = new List<string>();
         public List<string> Errors { get; } = new List<string>();
         public List<string> CreatedRfaPaths { get; } = new List<string>();

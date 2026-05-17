@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using RevitGroup = Autodesk.Revit.DB.Group;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
@@ -3425,7 +3426,7 @@ namespace StingTools.Core
 
                 // Penalty for excessive model groups
                 int groups = new FilteredElementCollector(doc)
-                    .OfClass(typeof(Group))
+                    .OfClass(typeof(RevitGroup))
                     .GetElementCount();
                 if (groups > 100) perfScore -= 3;
 

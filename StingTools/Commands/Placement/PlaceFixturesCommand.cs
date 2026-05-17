@@ -60,6 +60,9 @@ namespace StingTools.Commands.Placement
         public static bool StampProvenance        { get; set; } = true;
         public static bool HonourLearned          { get; set; } = true;
 
+        public enum FixtureScopeMode { ActiveView, AllRooms, SelectedRooms }
+        public static FixtureScopeMode ScopeMode { get; set; } = FixtureScopeMode.ActiveView;
+
         /// <summary>
         /// Return the set of Revit category names this command should
         /// consider, based on the discipline checkboxes. Used by
@@ -259,10 +262,6 @@ namespace StingTools.Commands.Placement
 
         private bool PromptDryRunChoice(string scopeLabel)
         {
-            string scope = selectedRoomCount > 0
-                ? $"{selectedRoomCount} selected room(s)"
-                : "ALL rooms in project";
-
             // Revit's TaskDialog.DefaultButton must refer to a button in CommonButtons —
             // it cannot point at a CommandLink. Leave DefaultButton unset so Revit picks
             // the first-added CommandLink as the default.

@@ -185,6 +185,8 @@ namespace StingTools.Core.Drawing
             /// VG/template re-apply but no auto-dim/auto-tag).
             /// </summary>
             public AnnotationRunOptions AnnotationOptions { get; set; }
+            /// <summary>When true, no writes are made; only validation is run.</summary>
+            public bool DryRun { get; set; }
         }
 
         public sealed class ApplyResult

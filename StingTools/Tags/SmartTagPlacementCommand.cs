@@ -432,6 +432,14 @@ namespace StingTools.Tags
             set { /* cap is config-driven now; setter kept for API back-compat */ }
         }
 
+        /// <summary>Returns a per-scale offset in feet used as the base tag spacing.</summary>
+        public static double GetModelOffset(View view)
+        {
+            if (view == null) return 1.0 / 12.0;
+            int scale = view.Scale > 0 ? view.Scale : 100;
+            return (scale * 2.0) / (304.8);
+        }
+
         /// <summary>Get element center point in view coordinates.</summary>
         public static XYZ GetElementCenter(Element elem, View view)
         {

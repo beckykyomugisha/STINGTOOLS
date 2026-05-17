@@ -364,7 +364,7 @@ namespace StingTools.Commands.Electrical
             bool fireRated= ReadBoolParam(conduit, "ELC_WIRE_FIRE_RATED_BOOL");
             bool shielded = ReadBoolParam(conduit, "ELC_WIRE_SHIELDED_BOOL");
 
-            double csa = 0, vd = 0, fill2 = 0;
+            double csa = 0, vd = 0, fill2 = 0, fill = 0;
             try
             {
                 var p = conduit.LookupParameter("ELC_WIRE_CSA_MM2_NUM");
