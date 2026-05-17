@@ -113,6 +113,7 @@ public class TransmittalsController : ControllerBase
             updatedBy: User.FindFirst("display_name")?.Value,
             ct: HttpContext.RequestAborted);
 
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
         var transmittal = new Transmittal
         {
             ProjectId       = projectId,
@@ -123,6 +124,9 @@ public class TransmittalsController : ControllerBase
             CreatedBy       = User.FindFirst("display_name")?.Value ?? "Unknown",
             // Gap 6 — store named recipient for targeted push on send.
             RecipientUserId = req.RecipientUserId,
+            // Fix: store sender ID so Acknowledge/Respond can push back without a fragile DisplayName lookup.
+            SenderUserId    = userId,
+            SlaDeadline     = req.SlaDeadline,
         };
 
         _db.Transmittals.Add(transmittal);
@@ -138,8 +142,7 @@ public class TransmittalsController : ControllerBase
             snapshotSkippedNotPublished = skippedNP;
         }
 
-        // Audit trail for transmittal creation
-        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        // Audit trail for transmittal creation (userId already resolved above)
         _db.AuditLogs.Add(new AuditLog
         {
             TenantId = tenantId,
@@ -209,12 +212,15 @@ public class TransmittalsController : ControllerBase
         {
             var t = new Transmittal
             {
-                ProjectId = projectId,
+                ProjectId       = projectId,
                 TransmittalCode = $"TX-{nextNum:D4}",
-                Recipient = req.Recipient,
-                Notes = req.Notes,
+                Recipient       = req.Recipient,
+                Notes           = req.Notes,
                 DocumentIdsJson = req.DocumentIdsJson,
-                CreatedBy = createdBy
+                CreatedBy       = createdBy,
+                RecipientUserId = req.RecipientUserId,
+                SenderUserId    = userId,
+                SlaDeadline     = req.SlaDeadline,
             };
             nextNum++;
             rows.Add(t);
@@ -391,25 +397,20 @@ public class TransmittalsController : ControllerBase
         });
 
         // Push back to the sender so they know the transmittal was received.
-        if (tx.RecipientUserId.HasValue)
+        if (tx.SenderUserId.HasValue)
         {
-            // Resolve sender from CreatedBy string — best effort via display_name lookup.
-            var senderUser = await _db.Users.FirstOrDefaultAsync(u => u.DisplayName == tx.CreatedBy && u.TenantId == tenantId);
-            if (senderUser != null)
+            _ = _push.SendToUserAsync(tx.SenderUserId.Value, new PushPayload
             {
-                _ = _push.SendToUserAsync(senderUser.Id, new PushPayload
+                Title = "Transmittal Acknowledged",
+                Body = $"{tx.TransmittalCode} acknowledged by {actorName}",
+                Channel = "transmittals",
+                Data = new Dictionary<string, string>
                 {
-                    Title = "Transmittal Acknowledged",
-                    Body = $"{tx.TransmittalCode} acknowledged by {actorName}",
-                    Channel = "transmittals",
-                    Data = new Dictionary<string, string>
-                    {
-                        ["type"] = "transmittal_acknowledged",
-                        ["transmittalId"] = tx.Id.ToString(),
-                        ["projectId"] = projectId.ToString()
-                    }
-                });
-            }
+                    ["type"] = "transmittal_acknowledged",
+                    ["transmittalId"] = tx.Id.ToString(),
+                    ["projectId"] = projectId.ToString()
+                }
+            });
         }
 
         return Ok(new { tx.Id, tx.TransmittalCode, tx.Status, tx.AcknowledgedAt, tx.AcknowledgedBy });
@@ -456,10 +457,9 @@ public class TransmittalsController : ControllerBase
         });
 
         // Push back to sender so they can act on the response.
-        var senderUser2 = await _db.Users.FirstOrDefaultAsync(u => u.DisplayName == tx.CreatedBy && u.TenantId == tenantId);
-        if (senderUser2 != null)
+        if (tx.SenderUserId.HasValue)
         {
-            _ = _push.SendToUserAsync(senderUser2.Id, new PushPayload
+            _ = _push.SendToUserAsync(tx.SenderUserId.Value, new PushPayload
             {
                 Title = "Transmittal Response Received",
                 Body = $"{tx.TransmittalCode} responded by {actorName}" +
@@ -613,7 +613,9 @@ public record CreateTransmittalRequest(
     string? DocumentIdsJson,
     Guid[]? DocumentIds = null,
     // Gap 6 — named recipient for targeted push notification on send.
-    Guid? RecipientUserId = null);
+    Guid? RecipientUserId = null,
+    // Gap 7 — optional SLA deadline by which recipient must acknowledge.
+    DateTime? SlaDeadline = null);
 
 // Gap 7 — response body for the Respond endpoint.
 public record TransmittalRespondRequest(string? ResponseNotes);

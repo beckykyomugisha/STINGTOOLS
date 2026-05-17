@@ -1279,6 +1279,8 @@ public class DocumentsController : ControllerBase
 
     // GAP-11 — suitability↔state pairing.
     // PUBLISHED requires S4+; SHARED requires at least S1 (not S0/WIP codes).
+    // WITHDRAWN rejects any explicit suitability override — the code from the
+    // preceding state is preserved as-is by PerformCdeTransitionAsync fallback.
     private static readonly Dictionary<string, string[]> StateAllowedSuitabilities = new()
     {
         ["WIP"]       = new[] { "S0" },
@@ -1286,6 +1288,7 @@ public class DocumentsController : ControllerBase
         ["PUBLISHED"] = new[] { "S4", "S5", "S6", "AB" },
         ["ARCHIVE"]   = new[] { "S7" },
         ["SUPERSEDED"]= new[] { "S4", "S5", "S6", "S7", "AB" },
+        ["WITHDRAWN"] = Array.Empty<string>(), // no suitability change on withdrawal; callers must omit the field
     };
 
     private static ActionResult? ValidateSuitabilityForState(string state, string suitabilityCode)

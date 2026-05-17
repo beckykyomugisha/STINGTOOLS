@@ -10,7 +10,7 @@ public class Transmittal : ITenantScoped
     public Guid ProjectId { get; set; }
     public string TransmittalCode { get; set; } = ""; // TX-0001
     public string Recipient { get; set; } = "";
-    public string Status { get; set; } = "DRAFT"; // DRAFT, SENT, ACKNOWLEDGED
+    public string Status { get; set; } = "DRAFT"; // DRAFT, SENT, ACKNOWLEDGED, RESPONDED
     public string? Notes { get; set; }
     /// <summary>
     /// Legacy: JSON array of document IDs. Preserved for backwards compat.
@@ -24,6 +24,8 @@ public class Transmittal : ITenantScoped
 
     /// <summary>Named recipient user ID — used for targeted push notification on send.</summary>
     public Guid? RecipientUserId { get; set; }
+    /// <summary>User ID of the sender (JWT sub at creation time) — used for push-back on acknowledge/respond.</summary>
+    public Guid? SenderUserId { get; set; }
     /// <summary>Optional SLA deadline by which the recipient must acknowledge.</summary>
     public DateTime? SlaDeadline { get; set; }
     /// <summary>When the recipient acknowledged this transmittal (ACKNOWLEDGED state).</summary>
