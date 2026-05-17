@@ -231,6 +231,8 @@ namespace StingTools.Tags
                 SymbolAuthorResult.ClearanceCurvesCreated + SymbolAuthorResult.AnnotationSymbolCurvesCreated;
             /// <summary>Connector size params created from the symbol author step.</summary>
             public int ConnectorParamsCreated => SymbolAuthorResult?.ConnectorParamsCreated ?? 0;
+            /// <summary>STING_SYMBOL_STD + STING_SHOW_*_BOOL params injected for standard switching.</summary>
+            public int StandardParamsCreated  => SymbolAuthorResult?.StandardParamsCreated  ?? 0;
         }
 
         /// <summary>

@@ -252,8 +252,7 @@ namespace StingTools.Commands.Symbols
 
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class SyncViewFilterVisibilityCommand : IExternalCommand
-    {
+    public class SyncViewFilterVisibilityCommand : IExternalCommand    {
         public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
         {
             var ctx = ParameterHelpers.GetContext(data);
@@ -266,6 +265,75 @@ namespace StingTools.Commands.Symbols
                 tx.Commit();
             }
             TaskDialog.Show("STING", $"Synced filter visibility on {n} symbol tag(s).");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Writes STING_SYMBOL_STD on selected model family instances so the embedded
+    /// multi-standard curve set shows the chosen standard for those instances only,
+    /// without affecting other placed instances of the same family.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetElementSymbolStandardCommand : IExternalCommand
+    {
+        private static readonly (string Label, string Tag, int Code)[] _opts =
+        {
+            ("IEC — IEC 60617 / EN 60617",        "IEC",   ParamRegistry.STD_CODE_IEC),
+            ("ANSI — ANSI/IEEE 315",               "ANSI",  ParamRegistry.STD_CODE_ANSI),
+            ("BS — BS 1553 / BS 8888",             "BS",    ParamRegistry.STD_CODE_BS),
+            ("NFPA — NFPA 170",                    "NFPA",  ParamRegistry.STD_CODE_NFPA),
+            ("CIBSE — CIBSE Guide symbols",        "CIBSE", ParamRegistry.STD_CODE_CIBSE),
+        };
+
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) return Result.Failed;
+
+            var pick = StingTools.Select.StingListPicker.Show(
+                "Set element symbol standard",
+                "Pick the standard to apply to the selected model family instances. " +
+                "Only instances that already have the STING_SYMBOL_STD parameter (authored " +
+                "via Author Symbols) will be updated.",
+                _opts.Select(o => o.Label).ToList());
+            if (string.IsNullOrEmpty(pick)) return Result.Cancelled;
+
+            var chosen = _opts.FirstOrDefault(o => pick.StartsWith(o.Label));
+            if (chosen.Label == null) return Result.Cancelled;
+
+            var instances = ctx.UIDoc.Selection
+                .GetElementIds()
+                .Select(id => ctx.Doc.GetElement(id))
+                .OfType<FamilyInstance>()
+                .ToList();
+
+            if (instances.Count == 0)
+            {
+                TaskDialog.Show("STING", "Select model family instances first.");
+                return Result.Cancelled;
+            }
+
+            int updated = 0, skipped = 0;
+            using (var tx = new Transaction(ctx.Doc, "STING Set Element Symbol Standard"))
+            {
+                tx.Start();
+                foreach (var fi in instances)
+                {
+                    var p = fi.LookupParameter(ParamRegistry.SYMBOL_STD_PARAM);
+                    if (p == null || p.IsReadOnly) { skipped++; continue; }
+                    p.Set(chosen.Code);
+                    updated++;
+                }
+                tx.Commit();
+            }
+
+            string detail = skipped > 0
+                ? $"\n{skipped} instance(s) skipped — STING_SYMBOL_STD not present (run Author Symbols first)."
+                : "";
+            TaskDialog.Show("STING",
+                $"Set standard to {chosen.Tag} on {updated} instance(s).{detail}");
             return Result.Succeeded;
         }
     }

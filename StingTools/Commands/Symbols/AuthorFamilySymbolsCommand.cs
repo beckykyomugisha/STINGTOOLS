@@ -183,6 +183,8 @@ namespace StingTools.Commands.Symbols
                         int curves = res.PlanCurvesCreated + res.ElevCurvesCreated +
                                      res.ClearanceCurvesCreated + res.AnnotationSymbolCurvesCreated;
                         sb.Append($"  curves:{curves}");
+                        if (res.StandardParamsCreated > 0)
+                            sb.Append($"  std-params:{res.StandardParamsCreated}");
                         if (res.ConnectorParamsCreated > 0)
                             sb.Append($"  conn-params:{res.ConnectorParamsCreated}");
                     }
@@ -288,14 +290,16 @@ namespace StingTools.Commands.Symbols
         {
             int ok  = results.Count(r => r.Success);
             int err = results.Count(r => !r.Success);
-            int totalCurves = results.Sum(r => r.SymbolCurvesCreated);
-            int totalConn   = results.Sum(r => r.ConnectorParamsCreated);
-            int totalLoaded = results.Count(r => r.LoadedIntoProject);
+            int totalCurves  = results.Sum(r => r.SymbolCurvesCreated);
+            int totalConn    = results.Sum(r => r.ConnectorParamsCreated);
+            int totalStdPar  = results.Sum(r => r.StandardParamsCreated);
+            int totalLoaded  = results.Count(r => r.LoadedIntoProject);
 
             var sb = new StringBuilder();
             sb.AppendLine($"Files processed: {results.Count} — {ok} succeeded, {err} failed");
-            if (totalCurves > 0) sb.AppendLine($"Symbol curves created: {totalCurves}");
-            if (totalConn > 0)   sb.AppendLine($"Connector params created: {totalConn}");
+            if (totalCurves > 0)  sb.AppendLine($"Symbol curves created: {totalCurves}");
+            if (totalStdPar > 0)  sb.AppendLine($"Standard-switching params created: {totalStdPar} (IEC/ANSI/BS/NFPA/CIBSE)");
+            if (totalConn > 0)    sb.AppendLine($"Connector params created: {totalConn}");
             if (totalLoaded > 0 && !string.IsNullOrEmpty(projectTitle))
                 sb.AppendLine($"Loaded into '{projectTitle}': {totalLoaded}/{ok}");
 
