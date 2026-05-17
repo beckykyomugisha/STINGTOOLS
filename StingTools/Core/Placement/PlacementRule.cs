@@ -385,6 +385,9 @@ namespace StingTools.Core.Placement
         /// <summary>Mounting context identifier — SURFACE / FLUSH / CHASED / PENDANT / TRACK.</summary>
         public string MountingContext { get; set; } = "";
 
+        /// <summary>Material specification for the fixture or route segment (e.g. "COPPER", "UPVC", "STEEL").</summary>
+        public string Material { get; set; } = "";
+
         /// <summary>Eurocode 2 / BS EN 1992-1-1 exposure class for concrete cover calculations (XC1 / XC2 / XS1 etc.).</summary>
         public string ExposureClass { get; set; } = "";
 
@@ -523,6 +526,7 @@ namespace StingTools.Core.Placement
                 ExposureClass        = this.ExposureClass,
                 EmitSupports         = this.EmitSupports,
                 SourcePack           = this.SourcePack,
+                Material             = this.Material,
             };
         }
 

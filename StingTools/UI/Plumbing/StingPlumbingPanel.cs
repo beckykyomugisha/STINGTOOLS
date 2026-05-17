@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Autodesk.Revit.UI;
+using StingTools.Core;
 
 namespace StingTools.UI.Plumbing
 {

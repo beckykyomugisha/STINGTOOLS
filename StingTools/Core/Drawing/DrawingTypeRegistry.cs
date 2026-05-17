@@ -102,6 +102,19 @@ namespace StingTools.Core.Drawing
         public static IReadOnlyList<DrawingRoutingRule> ListRouting(Document doc)
             => GetLibrary(doc).Routing;
 
+        /// <summary>
+        /// Convenience method: look up a <see cref="ViewStylePack"/> by id via
+        /// <see cref="ViewStylePackRegistry"/>.  Returns null when the pack is not
+        /// found (no exception).  Used by <c>DrawingDriftDetector</c> and other
+        /// consumers that want a null-check rather than a try/catch.
+        /// </summary>
+        public static ViewStylePack TryGetPack(Document doc, string packId)
+        {
+            if (string.IsNullOrWhiteSpace(packId)) return null;
+            try { return ViewStylePackRegistry.Get(doc, packId); }
+            catch { return null; }
+        }
+
         public static void Reload(Document doc)
         {
             lock (_lock)

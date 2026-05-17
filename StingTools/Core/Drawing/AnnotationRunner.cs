@@ -64,6 +64,7 @@ namespace StingTools.Core.Drawing
 
             bool dense = !pack.DenseUntilScale.HasValue || view.Scale <= pack.DenseUntilScale.Value;
 
+#pragma warning disable CS0618 // legacy AutoXxx flags are folded into Rules at load time; readers still consult them for backward compat
             try { if (!opts.SkipAutoDim && pack.AutoDimGrids)  DimGrids(doc, view, pack, new AnnotationRunStats()); } catch (Exception ex) { result.Warnings.Add("AutoDimGrids: " + ex.Message); }
             try { if (!opts.SkipAutoDim && pack.AutoDimLevels) DimLevels(doc, view, pack, new AnnotationRunStats()); } catch (Exception ex) { result.Warnings.Add("AutoDimLevels: " + ex.Message); }
 
@@ -77,6 +78,7 @@ namespace StingTools.Core.Drawing
                 result.TagsPlaced = s.TagsPlaced;
                 result.DimsPlaced = s.DimsCreated;
             }
+#pragma warning restore CS0618
 
             return result;
         }

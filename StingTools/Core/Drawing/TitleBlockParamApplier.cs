@@ -300,6 +300,36 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>
+        /// Resolves the value of each TitleBlockParams entry in <paramref name="dt"/>
+        /// using the same ${ProjectInfo} and {token} substitution rules as
+        /// <see cref="Apply"/>, but does NOT write anything to the title block.
+        /// Returns a dictionary of parameter-name → resolved-value strings.
+        /// Used by pre-flight validators and drift detectors to compare what
+        /// would be written against what is already on the sheet.
+        /// </summary>
+        public static Dictionary<string, string> Peek(
+            Document doc, DrawingType dt,
+            IDictionary<string, string> tokens = null)
+        {
+            var result = new Dictionary<string, string>();
+            if (doc == null || dt?.TitleBlockParams == null) return result;
+            foreach (var kv in dt.TitleBlockParams)
+            {
+                if (string.IsNullOrWhiteSpace(kv.Key)) continue;
+                try
+                {
+                    result[kv.Key] = ResolveTemplate(doc, kv.Value ?? "", tokens);
+                }
+                catch (Exception ex)
+                {
+                    StingTools.Core.StingLog.Warn($"TitleBlockParamApplier.Peek '{kv.Key}': {ex.Message}");
+                    result[kv.Key] = "";
+                }
+            }
+            return result;
+        }
+
         private static FamilyInstance FindTitleBlockInstance(Document doc, ViewSheet sheet)
         {
             try

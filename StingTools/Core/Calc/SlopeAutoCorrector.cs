@@ -24,15 +24,36 @@ using Autodesk.Revit.DB.Plumbing;
 
 namespace StingTools.Core.Calc
 {
+    /// <summary>
+    /// Describes the connector topology impact of a proposed slope fix.
+    /// </summary>
+    public enum ConnectorImpact
+    {
+        /// <summary>No connected elements — fix is fully safe.</summary>
+        NoConnections = 0,
+        /// <summary>Pipe direction is flipped; connector inlet/outlet roles are re-evaluated.</summary>
+        FlipDirection = 1,
+        /// <summary>A connected fitting is moved with the pipe endpoint to preserve topology.</summary>
+        MovedAttachedFitting = 2,
+        /// <summary>Both ends are connected — the fix is skipped to avoid disconnecting the network.</summary>
+        SkippedConnected = 3,
+    }
+
     public class SlopeFix
     {
-        public ElementId PipeId     { get; set; } = ElementId.InvalidElementId;
-        public double OriginalPct   { get; set; }
-        public double TargetPct     { get; set; }
-        public double AppliedPct    { get; set; }
-        public string Action        { get; set; } = "";
-        public bool   Success       { get; set; }
-        public string FailureReason { get; set; } = "";
+        public ElementId PipeId           { get; set; } = ElementId.InvalidElementId;
+        public double OriginalPct         { get; set; }
+        public double TargetPct           { get; set; }
+        public double AppliedPct          { get; set; }
+        public string Action              { get; set; } = "";
+        public bool   Success             { get; set; }
+        public string FailureReason       { get; set; } = "";
+        /// <summary>Elevation delta applied at the downstream endpoint (Revit internal feet).</summary>
+        public double DeltaZFt            { get; set; }
+        /// <summary>Connector topology impact classification for this fix.</summary>
+        public ConnectorImpact ConnectorImpact { get; set; } = ConnectorImpact.NoConnections;
+        /// <summary>ElementId of a fitting that was moved with the endpoint to preserve topology (InvalidElementId when not applicable).</summary>
+        public ElementId MovedFittingId   { get; set; } = ElementId.InvalidElementId;
     }
 
     public class SlopeAutoCorrectionResult

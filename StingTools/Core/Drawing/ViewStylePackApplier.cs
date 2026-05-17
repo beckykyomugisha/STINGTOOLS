@@ -221,6 +221,41 @@ namespace StingTools.Core.Drawing
             Apply(doc, view, pack);
         }
 
+        /// <summary>Apply a list of <see cref="PresetCategoryOverride"/> entries
+        /// (from <see cref="DrawingProductionPreset.VgOverrides"/>) onto a view.
+        /// Results are collected into <paramref name="r"/>.</summary>
+        public static void ApplyPresetOverrides(
+            Document doc, View view,
+            System.Collections.Generic.List<PresetCategoryOverride> overrides,
+            PackApplyResult r)
+        {
+            if (doc == null || view == null || overrides == null || r == null) return;
+            foreach (var o in overrides)
+            {
+                if (string.IsNullOrWhiteSpace(o.Category)) continue;
+                try
+                {
+                    var catId = ResolveCategoryId(doc, o.Category);
+                    if (catId == ElementId.InvalidElementId)
+                    {
+                        r.Warnings.Add($"PresetOverride: category '{o.Category}' not found.");
+                        continue;
+                    }
+                    var ogs = view.GetCategoryOverrides(catId) ?? new OverrideGraphicSettings();
+                    if (o.Halftone.HasValue)          ogs.SetHalftone(o.Halftone.Value);
+                    if (o.ProjLineWeight.HasValue)     ogs.SetProjectionLineWeight(o.ProjLineWeight.Value);
+                    if (!string.IsNullOrEmpty(o.ProjLineColor)) ogs.SetProjectionLineColor(HexColor(o.ProjLineColor));
+                    if (o.CutLineWeight.HasValue)      ogs.SetCutLineWeight(o.CutLineWeight.Value);
+                    if (!string.IsNullOrEmpty(o.CutLineColor))  ogs.SetCutLineColor(HexColor(o.CutLineColor));
+                    if (o.Transparency.HasValue)       ogs.SetSurfaceTransparency(Clamp(o.Transparency.Value, 0, 100));
+                    if (o.Visible.HasValue)            view.SetCategoryHidden(catId, !o.Visible.Value);
+                    view.SetCategoryOverrides(catId, ogs);
+                    r.OverridesSet++;
+                }
+                catch (Exception ex) { r.Warnings.Add($"PresetOverride '{o.Category}': {ex.Message}"); }
+            }
+        }
+
         /// <summary>Apply only category VG overrides from the pack, skipping filter
         /// rules.</summary>
         public static void ApplyCategoryOverridesOnly(Document doc, View view, ViewStylePack pack)
@@ -230,6 +265,15 @@ namespace StingTools.Core.Drawing
             ApplyCategoryOverrides(doc, view, pack, dummy);
         }
 
+        /// <summary>Apply only category VG overrides from the pack, collecting
+        /// results into an existing <see cref="PackApplyResult"/>.</summary>
+        public static void ApplyCategoryOverridesOnly(
+            Document doc, View view, ViewStylePack pack, PackApplyResult r)
+        {
+            if (doc == null || view == null || pack == null || r == null) return;
+            ApplyCategoryOverrides(doc, view, pack, r);
+        }
+
         /// <summary>Apply only filter rules from the pack, skipping category VG
         /// overrides.</summary>
         public static void ApplyFilterRulesOnly(Document doc, View view, ViewStylePack pack)
@@ -237,6 +281,27 @@ namespace StingTools.Core.Drawing
             if (doc == null || view == null || pack == null) return;
             var dummy = new PackApplyResult();
             ApplyFilterRules(doc, view, pack, dummy);
+        }
+
+        /// <summary>Apply only filter rules from the pack, collecting results into
+        /// an existing <see cref="PackApplyResult"/>.</summary>
+        public static void ApplyFilterRulesOnly(
+            Document doc, View view, ViewStylePack pack, PackApplyResult r)
+        {
+            if (doc == null || view == null || pack == null || r == null) return;
+            ApplyFilterRules(doc, view, pack, r);
+        }
+
+        /// <summary>Apply workset visibility settings from the pack onto the view.
+        /// Currently a no-op stub — workset visibility is set project-wide in Revit
+        /// and cannot be overridden per-view via the API; this method exists so
+        /// callers that reference it compile correctly and warnings are surfaced at
+        /// runtime via <paramref name="r"/>.</summary>
+        public static void ApplyWorksetVisibility(
+            Document doc, View view, ViewStylePack pack, PackApplyResult r)
+        {
+            if (r != null)
+                r.Warnings.Add("ApplyWorksetVisibility: workset visibility has no per-view public Revit API — skipped.");
         }
     }
 }
