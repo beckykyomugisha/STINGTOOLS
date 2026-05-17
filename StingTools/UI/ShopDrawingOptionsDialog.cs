@@ -21,7 +21,13 @@
 // reads + returns a ShopDrawingOptions record the calling command
 // passes into the engine.
 
+using System;
+using System.Collections.Generic;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 // Autodesk.Revit.DB and System.Windows.* share a batch of type names
 // (Grid line, Color, Binding parameter, …). Alias the WPF ones so
 // every control / binding / colour ref in this file binds to WPF.

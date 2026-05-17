@@ -14,6 +14,10 @@
 // committed values (or null if Cancelled). Used by the inline VG
 // editor's Lines / Cut Lines columns.
 
+using System;
+using System.Collections.Generic;
+using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using StingTools.Core;
 namespace StingTools.UI

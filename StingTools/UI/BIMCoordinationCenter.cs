@@ -14,8 +14,10 @@ using StingTools.Core;
 using StingTools.BIMManager;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using Path = System.IO.Path;
+using Path     = System.IO.Path;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
+using Color    = System.Windows.Media.Color;
+using Grid     = System.Windows.Controls.Grid;
 
 namespace StingTools.UI
 {

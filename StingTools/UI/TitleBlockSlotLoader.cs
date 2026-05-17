@@ -12,6 +12,8 @@
 // canonical slot names ("Main Plan", "Key Plan", etc.) so the dropdown
 // is still useful.
 
+using System.Collections.Generic;
+using Autodesk.Revit.DB;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
 namespace StingTools.UI

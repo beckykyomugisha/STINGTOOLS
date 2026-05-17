@@ -24,8 +24,19 @@
 //
 // Performance: DataGrid virtualization on (ScrollUnit=Item, recycling).
 
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Media;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 using StingTools.Core.Drawing;
 using Color      = System.Windows.Media.Color;
+using SelectionChangedEventArgs = System.Windows.Controls.SelectionChangedEventArgs;
 using StingTools.Core;
 namespace StingTools.UI
 {

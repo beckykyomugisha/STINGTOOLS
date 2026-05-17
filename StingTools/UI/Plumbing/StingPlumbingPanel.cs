@@ -2,6 +2,8 @@
 // Programmatic WPF (no XAML) for a tight commit. Buttons dispatch via
 // StingPlumbingCommandHandler on the Revit API thread.
 
+using System.Windows;
+using System.Windows.Controls;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 namespace StingTools.UI.Plumbing

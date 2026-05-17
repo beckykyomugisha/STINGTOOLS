@@ -21,6 +21,14 @@
 // produces the same PresetCategoryOverride list. Cell-level fidelity
 // can land in a follow-up.
 
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 using StingTools.Core.Drawing;
 using Visibility = System.Windows.Visibility;
 using StingTools.Core;
