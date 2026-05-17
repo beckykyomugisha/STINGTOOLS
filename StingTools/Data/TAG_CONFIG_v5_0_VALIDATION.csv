@@ -1,7 +1,7 @@
 #!SCHEMA_VERSION=5.0
 # TAG_CONFIG_v5_0_VALIDATION.csv
 # ISO 19650 Tag Validation Rules — token validation, cross-checks, warnings
-# Version: 5.0 | Updated: 2026-03-15
+# Version: 5.1 | Updated: 2026-05-17
 # Used by: ISO19650Validator, ValidateTagsCommand, PreTagAuditCommand, FormulaEvaluatorCommand
 # Changes from v4: Added warning severity filtering, formula skip tracking,
 #   cross-validation rules, BIMManager compliance checks, cached phase detection.
@@ -292,3 +292,17 @@ HEALTHCARE_RULE,HIGH,WARN_RAD_QE_NOT_SIGNED,RAD_BARRIER_TYPE_TXT=PRIMARY AND RAD
 HEALTHCARE_RULE,HIGH,WARN_CLN_ANTERM_MISSING,CLN_INFECT_CLASS_TXT in (AIIR PE) AND CLN_ANTERM_LINKED_ID_TXT empty,HBN 04-01 / CDC,AIIR/PE room missing linked anteroom
 HEALTHCARE_RULE,MEDIUM,WARN_CEQ_GMDN_MISSING,CEQ_CLINICAL_BOOL=1 AND CEQ_GMDN_CODE_TXT empty,COBie healthcare,Clinical asset missing GMDN classification code
 HEALTHCARE_RULE,HIGH,WARN_LIG_RES_NO_RATING,CLN_LIGATURE_RES_BOOL=1 AND LIG_PRODUCT_RATING_TXT empty,HBN 03-01,Anti-ligature room missing fitting rating
+HEALTHCARE_RULE,MEDIUM,WARN_CLN_IOT_STALE,CLN_IOT_LAST_SEEN_DT older than configured staleness threshold,ISO 15686-3,IoT or RTLS asset tag data stale beyond configured monitoring threshold
+HEALTHCARE_RULE,HIGH,WARN_CLN_RDS_INCOMPLETE,CLN_ROOM_CLASS_TXT not empty AND mandatory RDS parameter set incomplete,HBN / HTM,Room Data Sheet mandatory parameter set incomplete for clinical room
+HEALTHCARE_RULE,HIGH,WARN_CLN_RTLS_NO_COVERAGE,CLN_ROOM_CLASS_TXT not empty AND no RTLS reader within coverage radius,RTLS design standard,Clinical space has no RTLS reader within configured coverage radius
+HEALTHCARE_RULE,HIGH,WARN_CLN_WASTE_ROUTE_UNRESOLVED,CLN_WASTE_CLASS_TXT not empty AND CLN_WASTE_ROUTE_TXT empty,HTM 07-01,Clinical waste route not resolved or conflicts with clean-side corridor
+HEALTHCARE_RULE,MEDIUM,WARN_CLN_ACOUSTIC_STC_LOW,CLN_ROOM_CLASS_TXT not empty AND CLN_NOISE_NR_NR exceeds class maximum,HTM / BB93,Clinical room STC below minimum for assigned room use class
+HEALTHCARE_RULE,HIGH,WARN_MGS_ZVB_NO_REF,MGS_GAS_TYPE_TXT not empty AND MGS_ZVB_REF_TXT empty,HTM 02-01,Medical gas zone valve box has no reference code assigned
+HEALTHCARE_RULE,HIGH,WARN_MGS_FLOW_RATE_LOW,MGS_DESIGN_FLOW_LPM_NR less than NFPA 99 §5.1.13 diversity-adjusted minimum,NFPA 99 §5.1.13,Calculated MGPS peak flow rate below NFPA 99 diversity-adjusted minimum
+HEALTHCARE_RULE,HIGH,WARN_MGS_PRESSURE_DROP_HIGH,MGS_NOM_PRESS_KPA_NR below minimum after calculated pipeline pressure drop,HTM 02-01 / NFPA 99,MGPS pipeline segment pressure drop exceeds allowable design limit
+HEALTHCARE_RULE,HIGH,WARN_RAD_DOOR_NO_INTERLOCKS,RAD_BARRIER_TYPE_TXT=DOOR AND radiation interlock specification not recorded,NCRP 151 / RCR,Radiation-controlled access door missing interlock specification
+HEALTHCARE_RULE,HIGH,WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,CLN_RAD_CONTROLLED_BOOL=1 AND radiation area signage element not placed in model,IRR17 / NCRP,Controlled radiation area has no regulatory signage element placed in model
+HEALTHCARE_RULE,MEDIUM,WARN_RAD_DOSIMETRY_POST_MISSING,CLN_RAD_CONTROLLED_BOOL=1 AND dosimetry monitoring post not placed within boundary,IRR17,Controlled area boundary has no dosimetry monitoring post placed in model
+HEALTHCARE_RULE,HIGH,WARN_CLN_MRI_ZONE_UNASSIGNED,CLN_MRI_ZONE_INT=0 OR CLN_MRI_ZONE_INT empty,IEC 60601-2-33,Element in MRI suite area has no zone classification (Z1-Z4) assigned
+HEALTHCARE_RULE,MEDIUM,WARN_CLN_RF_SHIELD_UNSPECIFIED,CLN_RF_SHIELD_BOOL=1 AND RF shielding attenuation method not recorded,IEC 60601-2-33,MRI Faraday cage panel has no RF shielding method or attenuation value specified
+HEALTHCARE_RULE,HIGH,WARN_CEQ_IMAGING_STRUCT_LOAD,CEQ_CATEGORY_TXT not empty AND CLN_STRUCT_SIGN_OFF_DT empty,AISC / BS EN 1991-1-1,Imaging equipment slab structural load not verified against structural model
