@@ -1,6 +1,6 @@
 {
-  "version": "1.2",
-  "description": "IEC 60617, ANSI/IEEE 315, BS 1553, NFPA 170, and CIBSE Guide normalised plan-symbol geometry for STING family authoring. Coordinates are normalised: 1.0 = halfWidth of the symbol bounding box. Scaled by FamilySymbolAuthorOptions.PlanHalfWidthFt at runtime. Standards: IEC (0), ANSI (1), BS (2), NFPA (3), CIBSE (4).",
+  "version": "1.3",
+  "description": "IEC 60617, ANSI/IEEE 315, BS 1553, NFPA 72/13, and CIBSE Guide normalised plan-symbol geometry for STING family authoring. Coordinates are normalised: 1.0 = halfWidth of the symbol bounding box. Scaled by FamilySymbolAuthorOptions.PlanHalfWidthFt at runtime. Standards: IEC (0), ANSI (1), BS (2), NFPA (3), CIBSE (4). v1.3: corrected FireAlarm ANSI/NFPA geometry (NFPA 72), PlumbingFixtures → rectangle, ElectricalEquipment diagonals removed (IEEE 315), PipeAccessory bowtie end-caps removed (IEC 60617-6), Sprinklers NFPA → pendant (NFPA 13), SecurityDevices BS diagonal removed, DuctAccessory CIBSE actuator arc added.",
   "angles": "radians",
   "categories": {
 
@@ -19,7 +19,7 @@
         { "type": "line", "x1": -0.35, "y1": -0.35, "x2": 0.35, "y2": 0.35, "comment": "diagonal = switched" }
       ],
       "NFPA": [
-        { "type": "circle", "r": 1.0, "comment": "NFPA 70: duplex outlet — circle" },
+        { "type": "circle", "r": 1.0, "comment": "ANSI Y32.9 / IEEE 315A: duplex outlet — circle (NFPA 70 is NEC wiring code, not a symbol standard)" },
         { "type": "line", "x1": -0.4, "y1": 0.0, "x2": 0.4, "y2": 0.0, "comment": "duplex bar" }
       ],
       "CIBSE": [
@@ -56,24 +56,21 @@
 
     "OST_ElectricalEquipment": {
       "IEC": [
-        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "IEC: distribution board — rectangle" },
-        { "type": "line", "x1": -1.0, "y1": -1.0, "x2": 1.0, "y2": 1.0, "comment": "diagonal = panel symbol" }
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "IEC 60617: switchboard / distribution board — plain rectangle (no diagonal; diagonal = fuse/variable in IEC)" }
       ],
       "ANSI": [
-        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "ANSI: panelboard — rectangle" },
-        { "type": "line", "x1": -1.0, "y1": -1.0, "x2": 1.0, "y2": 1.0 }
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "IEEE 315: panelboard — plain rectangle (IEEE 315 uses unfilled or hatched rect; no diagonal)" }
       ],
       "BS": [
-        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "BS 1553: distribution board" },
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "BS 1553: distribution board — rectangle with X = main incomer isolator" },
         { "type": "line", "x1": -1.0, "y1": -1.0, "x2": 1.0, "y2": 1.0 },
-        { "type": "line", "x1":  1.0, "y1": -1.0, "x2": -1.0, "y2": 1.0, "comment": "double diagonal = main switch" }
+        { "type": "line", "x1":  1.0, "y1": -1.0, "x2": -1.0, "y2": 1.0 }
       ],
       "NFPA": [
-        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0 },
-        { "type": "line", "x1": -1.0, "y1": -1.0, "x2": 1.0, "y2": 1.0 }
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "NFPA / ANSI Y32.9: panelboard — plain rectangle" }
       ],
       "CIBSE": [
-        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "CIBSE Guide C: MV switchboard" },
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "CIBSE Guide C: MV switchboard — rectangle with busbar line" },
         { "type": "line", "x1": -1.0, "y1": 0.0, "x2": 1.0, "y2": 0.0, "comment": "horizontal bar = busbar" }
       ]
     },
@@ -103,26 +100,20 @@
 
     "OST_PlumbingFixtures": {
       "IEC": [
-        { "type": "circle", "r": 1.0, "comment": "IEC: general plumbing fixture — outer circle" },
-        { "type": "circle", "r": 0.6, "comment": "inner circle" }
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "ISO 3792 / IEC: sanitary appliance — generic rectangle (no standard uses concentric circles; equipment-specific outlines per fixture type)" }
       ],
       "ANSI": [
-        { "type": "circle", "r": 1.0 },
-        { "type": "circle", "r": 0.6 }
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "ANSI A117.1: plumbing fixture — generic rectangle" }
       ],
       "BS": [
-        { "type": "circle", "r": 1.0, "comment": "BS 8888 / BS 1192: plumbing fixture" },
-        { "type": "circle", "r": 0.6 },
-        { "type": "line", "x1": -0.45, "y1": 0.0, "x2": 0.45, "y2": 0.0, "comment": "horizontal bar = sanitary fitting" }
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "BS 1192 / BS 8888: sanitary fitting — rectangle (WC = D-shape, basin = trapezoid per fixture-specific families)" }
       ],
       "NFPA": [
-        { "type": "circle", "r": 1.0 },
-        { "type": "circle", "r": 0.6 }
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "NFPA / local code: plumbing fixture — rectangle" }
       ],
       "CIBSE": [
-        { "type": "circle", "r": 1.0, "comment": "CIBSE Guide: sanitary appliance" },
-        { "type": "circle", "r": 0.6 },
-        { "type": "line", "x1": 0.0, "y1": -0.6, "x2": 0.0, "y2": -1.0, "comment": "drain connection" }
+        { "type": "rect", "x": -1.0, "y": -1.0, "w": 2.0, "h": 2.0, "comment": "CIBSE Guide G: sanitary appliance — rectangle with drain stub" },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45, "comment": "drain connection" }
       ]
     },
 
@@ -157,39 +148,37 @@
     "OST_FireAlarmDevices": {
       "IEC": [
         { "type": "circle", "r": 1.0, "comment": "IEC 60617 / EN 54: fire detector — circle" },
-        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 }
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45, "comment": "wiring stub" }
       ],
       "ANSI": [
-        { "type": "circle", "r": 1.0, "comment": "NFPA 72 / ANSI: fire alarm device — circle" },
-        { "type": "line", "x1": -0.5, "y1": 0.5, "x2": 0.5, "y2": -0.5, "comment": "diagonal slash = smoke detector" }
+        { "type": "circle", "r": 1.0, "comment": "NFPA 72 Annex A: fire alarm device — plain circle (detector type denoted by letter inside, not diagonals)" },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45, "comment": "wiring stub" }
       ],
       "BS": [
-        { "type": "circle", "r": 1.0, "comment": "BS 5839 / BS EN 54: fire detector" },
-        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 },
-        { "type": "line", "x1": -0.5, "y1": 0.5, "x2": 0.5, "y2": -0.5, "comment": "diagonal = smoke type" }
+        { "type": "circle", "r": 1.0, "comment": "BS 5839 / BS EN 54: fire detector — circle with wiring stub" },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 }
       ],
       "NFPA": [
-        { "type": "circle", "r": 1.0, "comment": "NFPA 170: fire alarm device — solid circle" },
-        { "type": "circle", "r": 0.5, "comment": "inner circle = smoke detector variant" }
+        { "type": "circle", "r": 1.0, "comment": "NFPA 72 Annex A: fire alarm device — single plain circle (not NFPA 170 which covers egress signs; concentric circles are not NFPA 72)" },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45, "comment": "wiring stub" }
       ],
       "CIBSE": [
-        { "type": "circle", "r": 1.0, "comment": "CIBSE Guide: fire detector" },
+        { "type": "circle", "r": 1.0, "comment": "CIBSE Guide E: fire detector" },
         { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 }
       ],
       "IEC_elev": [
-        { "type": "circle", "r": 0.8, "comment": "IEC EN 54: detector elevation — circle at mounting height" },
+        { "type": "circle", "r": 0.8, "comment": "EN 54: detector elevation — circle at mounting height" },
         { "type": "line", "x1": -0.8, "y1": 0.0, "x2": 0.8, "y2": 0.0, "comment": "horizontal centre line" }
       ],
       "ANSI_elev": [
-        { "type": "rect", "x": -0.8, "y": -0.8, "w": 1.6, "h": 1.6, "comment": "NFPA 72: detector elevation — square" }
+        { "type": "rect", "x": -0.8, "y": -0.8, "w": 1.6, "h": 1.6, "comment": "NFPA 72: detector elevation — square housing silhouette" }
       ],
       "BS_elev": [
         { "type": "circle", "r": 0.8, "comment": "BS 5839: detector elevation — circle" },
         { "type": "line", "x1": -0.8, "y1": 0.0, "x2": 0.8, "y2": 0.0 }
       ],
       "NFPA_elev": [
-        { "type": "rect", "x": -0.8, "y": -0.8, "w": 1.6, "h": 1.6, "comment": "NFPA 170: fire alarm device elevation" },
-        { "type": "circle", "r": 0.4, "comment": "inner circle = smoke detector" }
+        { "type": "rect", "x": -0.8, "y": -0.8, "w": 1.6, "h": 1.6, "comment": "NFPA 72: fire alarm device elevation — square (single; no inner circle per NFPA 72 Annex A)" }
       ],
       "CIBSE_elev": [
         { "type": "circle", "r": 0.8, "comment": "CIBSE Guide E: fire detector elevation — circle" },
@@ -207,9 +196,8 @@
         { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 }
       ],
       "BS": [
-        { "type": "circle", "r": 1.0, "comment": "BS 4737: intruder detector" },
-        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 },
-        { "type": "line", "x1": -0.5, "y1": -0.5, "x2": 0.5, "y2": 0.5, "comment": "diagonal = PIR" }
+        { "type": "circle", "r": 1.0, "comment": "BS EN 50131-1: intruder detector — circle with stub (BS EN 50131 defines performance grades, not drawing symbols; diagonal removed — UK practice uses circle + letter designation)" },
+        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": -1.45 }
       ],
       "NFPA": [
         { "type": "circle", "r": 1.0 },
@@ -342,9 +330,8 @@
         { "type": "line", "x1": 0.0, "y1":  0.8, "x2": 0.0, "y2":  1.0 }
       ],
       "NFPA": [
-        { "type": "circle", "r": 0.5, "comment": "NFPA 13: upright sprinkler — smaller centre circle" },
-        { "type": "line", "x1": -1.0, "y1": 0.0, "x2": 1.0, "y2": 0.0, "comment": "full width horizontal arm" },
-        { "type": "line", "x1": 0.0, "y1": -1.0, "x2": 0.0, "y2": 1.0, "comment": "full height vertical arm" }
+        { "type": "circle", "r": 0.5, "comment": "NFPA 13 Fig.A.21.4.1.1: pendant sprinkler plan — small deflector circle with single downward pipe stub (distinguishes pendant from upright which uses upward stub)" },
+        { "type": "line", "x1": 0.0, "y1": -0.5, "x2": 0.0, "y2": -1.0, "comment": "downward stub = pendant (pipe connection above ceiling, head hangs down)" }
       ],
       "CIBSE": [
         { "type": "circle", "r": 0.8, "comment": "CIBSE Guide: sprinkler head" },
@@ -359,7 +346,7 @@
         { "type": "line", "x1": 0.0, "y1": 0.6, "x2": 0.0, "y2": 1.0, "comment": "pipe stub above" }
       ],
       "ANSI_elev": [
-        { "type": "line", "x1": -0.8, "y1": -0.8, "x2": 0.0, "y2": 0.8, "comment": "NFPA 13: upward triangle (upright sprinkler)" },
+        { "type": "line", "x1": -0.8, "y1": -0.8, "x2": 0.0, "y2": 0.8, "comment": "NFPA 13: upward triangle (upright sprinkler elevation)" },
         { "type": "line", "x1":  0.0, "y1":  0.8, "x2": 0.8, "y2": -0.8 },
         { "type": "line", "x1": -0.8, "y1": -0.8, "x2": 0.8, "y2": -0.8 }
       ],
@@ -369,7 +356,7 @@
         { "type": "line", "x1": 0.0, "y1": 0.6, "x2": 0.0, "y2": 1.0 }
       ],
       "NFPA_elev": [
-        { "type": "line", "x1": -0.8, "y1": 0.8, "x2": 0.0, "y2": -0.8, "comment": "NFPA 13: inverted triangle (pendant sprinkler)" },
+        { "type": "line", "x1": -0.8, "y1": 0.8, "x2": 0.0, "y2": -0.8, "comment": "NFPA 13: inverted triangle (pendant sprinkler elevation)" },
         { "type": "line", "x1":  0.0, "y1": -0.8, "x2": 0.8, "y2": 0.8 },
         { "type": "line", "x1": -0.8, "y1":  0.8, "x2": 0.8, "y2": 0.8 }
       ],
@@ -439,7 +426,7 @@
         { "type": "line", "x1": -0.8, "y1": -0.5, "x2": 0.8, "y2": 0.5 }
       ],
       "ANSI": [
-        { "type": "rect", "x": -1.0, "y": -0.5, "w": 2.0, "h": 1.0, "comment": "SMACNA: damper — rectangle with double blade lines" },
+        { "type": "rect", "x": -1.0, "y": -0.5, "w": 2.0, "h": 1.0, "comment": "SMACNA: opposed-blade damper — rectangle with two crossing blades (X)" },
         { "type": "line", "x1": -0.8, "y1": -0.4, "x2": 0.8, "y2": 0.4 },
         { "type": "line", "x1": -0.8, "y1":  0.4, "x2": 0.8, "y2": -0.4 }
       ],
@@ -449,47 +436,42 @@
         { "type": "line", "x1": -0.2, "y1": -0.5, "x2":  1.2, "y2": 0.5 }
       ],
       "NFPA": [
-        { "type": "rect", "x": -1.0, "y": -0.5, "w": 2.0, "h": 1.0, "comment": "NFPA: duct accessory — rectangle with diagonal" },
+        { "type": "rect", "x": -1.0, "y": -0.5, "w": 2.0, "h": 1.0, "comment": "NFPA: duct accessory — rectangle with diagonal blade" },
         { "type": "line", "x1": -1.0, "y1": -0.5, "x2": 1.0, "y2": 0.5 }
       ],
       "CIBSE": [
-        { "type": "rect", "x": -1.0, "y": -0.5, "w": 2.0, "h": 1.0, "comment": "CIBSE Guide B: damper — rectangle with centre horizontal" },
-        { "type": "line", "x1": -0.9, "y1": 0.0, "x2": 0.9, "y2": 0.0 }
+        { "type": "rect", "x": -1.0, "y": -0.5, "w": 2.0, "h": 1.0, "comment": "CIBSE Guide B: motorised damper — rectangle with blade + actuator arc above" },
+        { "type": "line", "x1": -0.9, "y1": 0.0, "x2": 0.9, "y2": 0.0, "comment": "damper blade (centre horizontal)" },
+        { "type": "arc", "r": 0.3, "cx": 0, "cy": 0.5, "a1": 0.0, "a2": 3.14159, "comment": "actuator semi-circle above blade" }
       ]
     },
 
     "OST_PipeAccessory": {
       "IEC": [
-        { "type": "line", "x1": -1.0, "y1": -0.8, "x2":  0.0, "y2":  0.0, "comment": "IEC 60617-6: isolating valve — bowtie left triangle" },
+        { "type": "line", "x1": -1.0, "y1": -0.8, "x2":  0.0, "y2":  0.0, "comment": "IEC 60617-6 / ISO 14617-4: isolating valve — bowtie left triangle (open ends, no closing bars)" },
         { "type": "line", "x1": -1.0, "y1":  0.8, "x2":  0.0, "y2":  0.0 },
-        { "type": "line", "x1": -1.0, "y1": -0.8, "x2": -1.0, "y2":  0.8 },
         { "type": "line", "x1":  0.0, "y1":  0.0, "x2":  1.0, "y2": -0.8, "comment": "bowtie right triangle" },
-        { "type": "line", "x1":  0.0, "y1":  0.0, "x2":  1.0, "y2":  0.8 },
-        { "type": "line", "x1":  1.0, "y1": -0.8, "x2":  1.0, "y2":  0.8 }
+        { "type": "line", "x1":  0.0, "y1":  0.0, "x2":  1.0, "y2":  0.8 }
       ],
       "ANSI": [
-        { "type": "line", "x1": -1.0, "y1": -0.8, "x2":  0.0, "y2":  0.0, "comment": "ANSI/ASME: gate valve — bowtie" },
+        { "type": "line", "x1": -1.0, "y1": -0.8, "x2":  0.0, "y2":  0.0, "comment": "ANSI/ASME B31: gate/isolation valve — bowtie, open ends (no vertical end caps)" },
         { "type": "line", "x1": -1.0, "y1":  0.8, "x2":  0.0, "y2":  0.0 },
-        { "type": "line", "x1": -1.0, "y1": -0.8, "x2": -1.0, "y2":  0.8 },
         { "type": "line", "x1":  0.0, "y1":  0.0, "x2":  1.0, "y2": -0.8 },
-        { "type": "line", "x1":  0.0, "y1":  0.0, "x2":  1.0, "y2":  0.8 },
-        { "type": "line", "x1":  1.0, "y1": -0.8, "x2":  1.0, "y2":  0.8 }
+        { "type": "line", "x1":  0.0, "y1":  0.0, "x2":  1.0, "y2":  0.8 }
       ],
       "BS": [
-        { "type": "line", "x1": -1.0, "y1": -0.8, "x2":  0.0, "y2":  0.0, "comment": "BS 1553: isolating valve — bowtie" },
+        { "type": "line", "x1": -1.0, "y1": -0.8, "x2":  0.0, "y2":  0.0, "comment": "BS 1553 Pt1: isolating valve — bowtie, open ends (no closing bars per BS 1553)" },
         { "type": "line", "x1": -1.0, "y1":  0.8, "x2":  0.0, "y2":  0.0 },
-        { "type": "line", "x1": -1.0, "y1": -0.8, "x2": -1.0, "y2":  0.8 },
         { "type": "line", "x1":  0.0, "y1":  0.0, "x2":  1.0, "y2": -0.8 },
-        { "type": "line", "x1":  0.0, "y1":  0.0, "x2":  1.0, "y2":  0.8 },
-        { "type": "line", "x1":  1.0, "y1": -0.8, "x2":  1.0, "y2":  0.8 }
+        { "type": "line", "x1":  0.0, "y1":  0.0, "x2":  1.0, "y2":  0.8 }
       ],
       "NFPA": [
-        { "type": "circle", "r": 0.5, "comment": "NFPA 170: valve — circle at node with pipe stubs" },
+        { "type": "circle", "r": 0.5, "comment": "NFPA 13 / NFPA 170: valve — circle at node with pipe stubs" },
         { "type": "line", "x1": -1.0, "y1": 0.0, "x2": -0.5, "y2": 0.0 },
         { "type": "line", "x1":  0.5, "y1": 0.0, "x2":  1.0, "y2": 0.0 }
       ],
       "CIBSE": [
-        { "type": "line", "x1": -1.0, "y1":  0.0, "x2":  0.0, "y2":  1.0, "comment": "CIBSE Guide B: valve — diamond" },
+        { "type": "line", "x1": -1.0, "y1":  0.0, "x2":  0.0, "y2":  1.0, "comment": "CIBSE Guide C: isolation valve — diamond" },
         { "type": "line", "x1":  0.0, "y1":  1.0, "x2":  1.0, "y2":  0.0 },
         { "type": "line", "x1":  1.0, "y1":  0.0, "x2":  0.0, "y2": -1.0 },
         { "type": "line", "x1":  0.0, "y1": -1.0, "x2": -1.0, "y2":  0.0 }
@@ -497,7 +479,7 @@
     },
 
     "OST_DuctFitting": {
-      "IEC":   [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "IEC: duct fitting — inline rectangle" } ],
+      "IEC":   [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "IEC: duct fitting — inline rectangle (no independent plan symbol in any standard; route-based element)" } ],
       "ANSI":  [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "SMACNA: duct fitting — inline rectangle" } ],
       "BS":    [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "BS: duct fitting — inline rectangle" } ],
       "NFPA":  [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "NFPA: duct fitting — inline rectangle" } ],
@@ -505,7 +487,7 @@
     },
 
     "OST_PipeFitting": {
-      "IEC":   [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "IEC: pipe fitting — inline rectangle" } ],
+      "IEC":   [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "IEC: pipe fitting — inline rectangle (route-based; no independent plan symbol)" } ],
       "ANSI":  [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "ANSI: pipe fitting — inline rectangle" } ],
       "BS":    [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "BS: pipe fitting — inline rectangle" } ],
       "NFPA":  [ { "type": "rect", "x": -0.8, "y": -0.5, "w": 1.6, "h": 1.0, "comment": "NFPA: pipe fitting — inline rectangle" } ],
@@ -514,7 +496,7 @@
 
     "OST_LightingDevices": {
       "IEC": [
-        { "type": "circle", "r": 0.7, "comment": "IEC 60617-11: switch/sensor — circle with diagonal tail" },
+        { "type": "circle", "r": 0.7, "comment": "IEC 60617-11: single-pole switch — circle with 45° diagonal tail" },
         { "type": "line", "x1": 0.495, "y1": 0.495, "x2": 1.1, "y2": 1.1 }
       ],
       "ANSI": [
@@ -522,11 +504,11 @@
         { "type": "line", "x1": 0.495, "y1": 0.495, "x2": 1.1, "y2": 1.1 }
       ],
       "BS": [
-        { "type": "circle", "r": 0.7, "comment": "BS 3939: switch — circle with diagonal tick" },
+        { "type": "circle", "r": 0.7, "comment": "BS 3939 / BS EN 60617: switch — circle with diagonal tick" },
         { "type": "line", "x1": 0.495, "y1": 0.495, "x2": 1.1, "y2": 1.1 }
       ],
       "NFPA": [
-        { "type": "circle", "r": 0.7, "comment": "NFPA 170: lighting device — circle with top tick" },
+        { "type": "circle", "r": 0.7, "comment": "AHJ / ANSI Y32.9 practice: lighting device/sensor — circle with top stub (NFPA 170 covers egress signs, not switching devices; no single NFPA standard governs lighting controls)" },
         { "type": "line", "x1": 0.0, "y1": 0.7, "x2": 0.0, "y2": 1.2 }
       ],
       "CIBSE": [
