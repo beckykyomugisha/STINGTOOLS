@@ -1970,5 +1970,50 @@ namespace StingTools.UI
             if (FindName(controlName) is System.Windows.Controls.TextBlock tb)
                 tb.Text = text;
         }
+
+        /// <summary>
+        /// Returns the wire style name currently selected in the Electrical
+        /// sub-panel's wire-style ComboBox, or null/empty when no selection
+        /// has been made or the control is not present.
+        /// </summary>
+        public string GetSelectedWireStyle()
+        {
+            try
+            {
+                // Try the Electrical embedded panel first
+                if (FindName("cbWireStyle") is ComboBox cb)
+                    return (cb.SelectedItem as ComboBoxItem)?.Content?.ToString()
+                        ?? cb.SelectedItem?.ToString();
+                // Fallback: look inside StingElectricalPanel
+                var ep = FindName("ElectricalPanel") as System.Windows.FrameworkElement
+                    ?? FindVisualChild<StingTools.UI.StingElectricalPanel>(this);
+                if (ep != null)
+                {
+                    var inner = ep.FindName("cbWireStyle") as ComboBox
+                        ?? FindVisualChild<ComboBox>(ep, c => c.Name == "cbWireStyle");
+                    if (inner != null)
+                        return (inner.SelectedItem as ComboBoxItem)?.Content?.ToString()
+                            ?? inner.SelectedItem?.ToString();
+                }
+            }
+            catch (System.Exception ex)
+            { StingTools.Core.StingLog.Warn("GetSelectedWireStyle: " + ex.Message); }
+            return null;
+        }
+
+        private static T FindVisualChild<T>(System.Windows.DependencyObject parent,
+            System.Func<T, bool> predicate = null) where T : System.Windows.DependencyObject
+        {
+            if (parent == null) return null;
+            int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is T t && (predicate == null || predicate(t))) return t;
+                var found = FindVisualChild<T>(child, predicate);
+                if (found != null) return found;
+            }
+            return null;
+        }
     }
 }

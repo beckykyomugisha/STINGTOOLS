@@ -115,6 +115,56 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        // ── Selective apply methods used by ManagedTemplateSyncer ─────────────────
+
+        /// <summary>
+        /// Applies only the category VG overrides from <paramref name="pack"/>
+        /// to <paramref name="view"/>. Used by ManagedTemplateSyncer when the
+        /// managed-fields whitelist contains "vgOverrides".
+        /// </summary>
+        public static void ApplyCategoryOverridesOnly(Document doc, View view, ViewStylePack pack, PackApplyResult r)
+        {
+            if (doc == null || view == null || pack == null || r == null) return;
+            try { ApplyCategoryOverrides(doc, view, pack, r); }
+            catch (Exception ex) { r.Warnings.Add($"ApplyCategoryOverridesOnly: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Applies only the filter rules from <paramref name="pack"/> to
+        /// <paramref name="view"/>. Used by ManagedTemplateSyncer when the
+        /// managed-fields whitelist contains "filters".
+        /// </summary>
+        public static void ApplyFilterRulesOnly(Document doc, View view, ViewStylePack pack, PackApplyResult r)
+        {
+            if (doc == null || view == null || pack == null || r == null) return;
+            try { ApplyFilterRules(doc, view, pack, r); }
+            catch (Exception ex) { r.Warnings.Add($"ApplyFilterRulesOnly: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Applies workset visibility settings from <paramref name="pack"/> to
+        /// <paramref name="view"/>. Silently skips when the document is not workshared.
+        /// The pack's WorksetVisibility string is a mode keyword: "ShowAll" / "HideAll" / null (skip).
+        /// </summary>
+        public static void ApplyWorksetVisibility(Document doc, View view, ViewStylePack pack, PackApplyResult r)
+        {
+            if (doc == null || view == null || pack == null || r == null) return;
+            try
+            {
+                if (!doc.IsWorkshared)
+                { r.Warnings.Add("ApplyWorksetVisibility: document is not workshared — skipped."); return; }
+                var mode = (pack.WorksetVisibility ?? "").Trim();
+                if (string.IsNullOrEmpty(mode)) return;
+                var visibility = string.Equals(mode, "HideAll", StringComparison.OrdinalIgnoreCase)
+                    ? WorksetVisibility.Hidden
+                    : WorksetVisibility.Visible;
+                var wkCol = new FilteredElementCollector(doc).OfClass(typeof(Workset)).Cast<Workset>();
+                foreach (var wk in wkCol)
+                    view.SetWorksetVisibility(wk.Id, visibility);
+            }
+            catch (Exception ex) { r.Warnings.Add($"ApplyWorksetVisibility: {ex.Message}"); }
+        }
+
         private static ElementId ResolveCategoryId(Document doc, string key)
         {
             if (string.IsNullOrWhiteSpace(key)) return ElementId.InvalidElementId;

@@ -49,6 +49,22 @@ namespace StingTools.Commands.Fabrication
         /// SP-{disc}-{sys}-{lvl}-{seq} sheet numbering).
         /// </summary>
         public static StingTools.UI.ShopDrawingOptions ShopDrawing { get; set; }
+
+        /// <summary>Controls how ISO 6412 symbols are placed on shop drawings.</summary>
+        public static PlacementMode SymbolPlacementMode { get; set; } = PlacementMode.Replace;
+
+        /// <summary>ISO symbol placement strategy.</summary>
+        public enum PlacementMode
+        {
+            /// <summary>Skip all symbol placement.</summary>
+            Off,
+            /// <summary>Place symbols; delete any pre-existing symbols on the same member first.</summary>
+            Replace,
+            /// <summary>Only place symbols on members that have no existing annotation.</summary>
+            NewOnly,
+            /// <summary>Place symbols AND keep existing annotations.</summary>
+            Additive,
+        }
     }
 
     [Transaction(TransactionMode.Manual)]
