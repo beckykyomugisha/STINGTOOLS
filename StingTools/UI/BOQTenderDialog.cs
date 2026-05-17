@@ -662,7 +662,7 @@ namespace StingTools.BOQ
         private static string ReadBip(Document doc, BuiltInParameter bip)
         {
             try { return doc?.ProjectInformation?.get_Parameter(bip)?.AsString() ?? ""; }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         private static string Fallback(params string[] values)

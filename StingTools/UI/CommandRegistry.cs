@@ -94,7 +94,16 @@ namespace StingTools.UI
         private static IEnumerable<ICommandModule> EnumerateModules()
         {
             yield return new ElectricalCommandModule();
-            // Add new modules here as panels migrate off the giant switch.
+            // INT-02 Phase 2: remaining panel modules
+            yield return new Modules.SelectCommandModule();
+            yield return new Modules.OrganiseCommandModule();
+            yield return new Modules.DocsCommandModule();
+            yield return new Modules.TempCommandModule();
+            yield return new Modules.TagsCommandModule();
+            yield return new Modules.BimCommandModule();
+            yield return new Modules.ModelCommandModule();
+            yield return new Modules.ViewCommandModule();
+            yield return new Modules.HealthcareCommandModule();
         }
     }
 

@@ -4030,10 +4030,10 @@ namespace StingTools.Temp
                         "ASS_DEPARTMENT_ASSIGNMENT_TXT", "ASS_GRID_REF_TXT",
                         "ASS_CST_UNIT_PRICE_UGX_NR", "ASS_CST_QUANTITY_NR", "ASS_CST_TOTAL_UGX_NR",
                         "ASS_PMT_INV_UNIT_TXT", "ASS_SIZE_TXT",
-                        "BLE_WALL_HEIGHT_NR", "BLE_WALL_LENGTH_NR", "BLE_WALL_THICKNESS_NR",
-                        "BLE_DOOR_WIDTH_NR", "BLE_DOOR_HEIGHT_NR",
-                        "BLE_WINDOW_WIDTH_NR", "BLE_WINDOW_HEIGHT_NR",
-                        "BLE_ELEMENT_AREA_NR" })
+                        "BLE_WALL_HEIGHT_MM", "BLE_WALL_LENGTH_MM", "BLE_WALL_THICKNESS_MM",
+                        "BLE_DOOR_WIDTH_MM", "BLE_DOOR_HEIGHT_MM",
+                        "BLE_WINDOW_WIDTH_MM", "BLE_WINDOW_HEIGHT_MM",
+                        "BLE_ELE_AREA_SQ_M" })
                     {
                         if (allParams.Contains(p)) selectedParams.Add(p);
                     }
@@ -4633,12 +4633,12 @@ namespace StingTools.Temp
             Put("location", locDesc);
             Put("level", lvl);
 
-            // Dimensions (mm / m / m²) sourced from STING params with safe fallbacks
-            PutDim(el, v, "width",       "BLE_DOOR_WIDTH_NR", "BLE_WINDOW_WIDTH_NR", "BLE_CBL_TRAY_WIDTH_NR", "BLE_WALL_LENGTH_NR");
-            PutDim(el, v, "height",      "BLE_WALL_HEIGHT_NR", "BLE_DOOR_HEIGHT_NR", "BLE_WINDOW_HEIGHT_NR");
-            PutDim(el, v, "thickness",   "BLE_WALL_THICKNESS_NR", "BLE_FLOOR_THICKNESS_NR");
-            PutDim(el, v, "depth",       "BLE_CBL_TRAY_DEPTH_NR", "BLE_FLOOR_THICKNESS_NR");
-            PutDim(el, v, "sill_height", "BLE_WINDOW_SILL_HEIGHT_NR");
+            // Dimensions (mm / m / m²) sourced from STING params with safe fallbacks.
+            PutDim(el, v, "width",       "BLE_DOOR_WIDTH_MM", "BLE_WINDOW_WIDTH_MM", "BLE_CBL_TRAY_WIDTH_MM", "BLE_WALL_LENGTH_MM");
+            PutDim(el, v, "height",      "BLE_WALL_HEIGHT_MM", "BLE_DOOR_HEIGHT_MM", "BLE_WINDOW_HEIGHT_MM");
+            PutDim(el, v, "thickness",   "BLE_WALL_THICKNESS_MM", "BLE_FLR_THICKNESS_MM");
+            PutDim(el, v, "depth",       "BLE_CBL_TRAY_DEPTH_MM", "BLE_FLR_THICKNESS_MM");
+            PutDim(el, v, "sill_height", "BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM");
             PutDim(el, v, "size",        "ASS_SIZE_TXT");
             PutDim(el, v, "diameter",    "ASS_SIZE_TXT");
             PutDim(el, v, "airflow",     "HVC_AIRFLOW_LS_NR");
@@ -4945,16 +4945,18 @@ namespace StingTools.Temp
                 tag7Spatial = ParameterHelpers.GetString(el, "ASS_TAG_7C_TXT");
 
             // ── Read dimensions ──
+            // Registry params use _MM / _DEG suffixes. The previous _NR forms
+            // here always returned empty strings because the params don't exist.
             var dims = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            ReadDimension(el, dims, "HEIGHT", "BLE_WALL_HEIGHT_NR", "BLE_DOOR_HEIGHT_NR", "BLE_WINDOW_HEIGHT_NR");
-            ReadDimension(el, dims, "WIDTH", "BLE_DOOR_WIDTH_NR", "BLE_WINDOW_WIDTH_NR", "BLE_CBL_TRAY_WIDTH_NR");
-            ReadDimension(el, dims, "THICKNESS", "BLE_WALL_THICKNESS_NR", "BLE_FLOOR_THICKNESS_NR");
-            ReadDimension(el, dims, "LENGTH", "BLE_WALL_LENGTH_NR");
-            ReadDimension(el, dims, "SILL_HEIGHT", "BLE_WINDOW_SILL_HEIGHT_NR");
+            ReadDimension(el, dims, "HEIGHT", "BLE_WALL_HEIGHT_MM", "BLE_DOOR_HEIGHT_MM", "BLE_WINDOW_HEIGHT_MM");
+            ReadDimension(el, dims, "WIDTH", "BLE_DOOR_WIDTH_MM", "BLE_WINDOW_WIDTH_MM", "BLE_CBL_TRAY_WIDTH_MM");
+            ReadDimension(el, dims, "THICKNESS", "BLE_WALL_THICKNESS_MM", "BLE_FLR_THICKNESS_MM");
+            ReadDimension(el, dims, "LENGTH", "BLE_WALL_LENGTH_MM");
+            ReadDimension(el, dims, "SILL_HEIGHT", "BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM");
             ReadDimension(el, dims, "DIAMETER", "ASS_SIZE_TXT");
-            ReadDimension(el, dims, "TREAD", "BLE_STAIR_TREAD_DEPTH_NR");
-            ReadDimension(el, dims, "RISE", "BLE_STAIR_RISE_HEIGHT_NR");
-            ReadDimension(el, dims, "SLOPE", "BLE_ROOF_SLOPE_NR");
+            ReadDimension(el, dims, "TREAD", "BLE_STAIR_GOING_MM");
+            ReadDimension(el, dims, "RISE", "BLE_STAIR_RISE_MM");
+            ReadDimension(el, dims, "SLOPE", "BLE_ROOF_SLOPE_DEG");
             ReadDimension(el, dims, "AIRFLOW", "HVC_AIRFLOW_LS_NR");
 
             // Measured geometry

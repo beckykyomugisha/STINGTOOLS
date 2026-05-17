@@ -129,7 +129,7 @@ namespace StingTools.BOQ
                     {
                         Element el;
                         try { el = ctx.Doc.GetElement(new ElementId(it.RevitElementId)); }
-                        catch { continue; }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                         ParameterHelpers.SetString(el, "CST_BOQ_SNAPSHOT_REF", label, overwrite: true);
                     }
                     tx.Commit();
@@ -424,7 +424,7 @@ namespace StingTools.BOQ
                         if (m.ModeledRow.RevitElementId < 0) continue;
                         Element el;
                         try { el = ctx.Doc.GetElement(new ElementId(m.ModeledRow.RevitElementId)); }
-                        catch { continue; }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                         if (el == null) continue;
                         ParameterHelpers.SetInt(el, "CST_PROVISIONAL_SUM", 0, overwrite: true);
                         ParameterHelpers.SetString(el, "CST_RATE_SOURCE", "PromotedFromPS", overwrite: true);

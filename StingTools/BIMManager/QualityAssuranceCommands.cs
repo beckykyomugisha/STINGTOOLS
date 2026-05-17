@@ -286,8 +286,8 @@ namespace StingTools.BIMManager
                         "not_equals" => !val.Equals(rule.Value, StringComparison.OrdinalIgnoreCase),
                         "contains" => val.IndexOf(rule.Value, StringComparison.OrdinalIgnoreCase) >= 0,
                         "starts_with" => val.StartsWith(rule.Value, StringComparison.OrdinalIgnoreCase),
-                        "greater_than" => double.TryParse(val, out double d) && double.TryParse(rule.Value, out double t) && d > t,
-                        "less_than" => double.TryParse(val, out double d2) && double.TryParse(rule.Value, out double t2) && d2 < t2,
+                        "greater_than" => double.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double d) && double.TryParse(rule.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double t) && d > t,
+                        "less_than" => double.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double d2) && double.TryParse(rule.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double t2) && d2 < t2,
                         "matches" => System.Text.RegularExpressions.Regex.IsMatch(val, rule.Value),
                         _ => !string.IsNullOrWhiteSpace(val)
                     };

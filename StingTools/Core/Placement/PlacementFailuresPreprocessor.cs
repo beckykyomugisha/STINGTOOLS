@@ -54,7 +54,7 @@ namespace StingTools.Core.Placement
                     var id = f.GetValue(null) as FailureDefinitionId;
                     if (id != null) s.Add(id.Guid.ToString());
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             // Conservative seed list — each entry is a confirmed-stable
             // 2024+ GUID. The string match below covers the rest.
@@ -71,8 +71,8 @@ namespace StingTools.Core.Placement
             {
                 string desc = "";
                 string guid = "";
-                try { desc = f.GetDescriptionText() ?? ""; } catch { }
-                try { guid = f.GetFailureDefinitionId()?.Guid.ToString() ?? ""; } catch { }
+                try { desc = f.GetDescriptionText() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { guid = f.GetFailureDefinitionId()?.Guid.ToString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 bool suppressByGuid = !string.IsNullOrEmpty(guid) && SuppressGuids.Contains(guid);
                 bool suppress = suppressByGuid
                  || desc.IndexOf("Can't rotate element", System.StringComparison.OrdinalIgnoreCase) >= 0

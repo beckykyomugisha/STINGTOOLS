@@ -71,13 +71,6 @@ namespace StingTools.Core.Drawing
                     r.Add(ValidationSeverity.Error, "DT-010",
                         $"Title block family '{dt.TitleBlockFamily}' not loaded.",
                         "Load the family from Families/AssemblyTitleBlocks/ or point the profile at a different family.");
-
-                // DT-011 (Phase 168): titleBlockSymbolType references a symbol the family doesn't have.
-                if (!string.IsNullOrWhiteSpace(dt.TitleBlockSymbolType)
-                    && !HasTitleBlockSymbol(doc, dt.TitleBlockFamily, dt.TitleBlockSymbolType))
-                    r.Add(ValidationSeverity.Warning, "DT-011",
-                        $"Title block symbol type '{dt.TitleBlockSymbolType}' not found within family '{dt.TitleBlockFamily}'. Engine will fall back to first symbol.",
-                        "Open the family in Family Editor, confirm the type name, or clear titleBlockSymbolType to accept first-symbol fallback.");
             }
 
             // View template ----------------------------------------------
@@ -135,269 +128,11 @@ namespace StingTools.Core.Drawing
                 r.Add(ValidationSeverity.Info, "DT-061",
                     "sheetNamePattern is empty — sheets will be named by Revit's default.");
 
-            // DT-095: scale must be positive on every purpose except 3D /
-            // Perspective, where assigning view.Scale = 0 throws and the
-            // engine logs + skips the assignment by design.
             if (dt.Scale <= 0)
-            {
-                bool isThreeD = string.Equals(dt.Purpose, DrawingPurpose.ThreeD, StringComparison.OrdinalIgnoreCase)
-                             || string.Equals(dt.Purpose, "Perspective", StringComparison.OrdinalIgnoreCase);
-                if (!isThreeD)
-                    r.Add(ValidationSeverity.Warning, "DT-095",
-                        $"Scale is {dt.Scale} — must be a positive integer for non-3D drawing types. Set scale > 0 or use purpose '3D'/'Perspective' for views where scale is not applicable.");
-            }
-
-            // DT-096: ISO naming tokens in the sheet number pattern need an
-            // isoNaming block, otherwise they resolve to empty strings.
-            if (!string.IsNullOrEmpty(dt.SheetNumberPattern) && dt.IsoNaming == null)
-            {
-                bool referencesIso =
-                    dt.SheetNumberPattern.IndexOf("{project}",    StringComparison.OrdinalIgnoreCase) >= 0
-                 || dt.SheetNumberPattern.IndexOf("{originator}", StringComparison.OrdinalIgnoreCase) >= 0
-                 || dt.SheetNumberPattern.IndexOf("{vol}",        StringComparison.OrdinalIgnoreCase) >= 0;
-                if (referencesIso)
-                    r.Add(ValidationSeverity.Warning, "DT-096",
-                        "sheetNumberPattern references ISO naming tokens ({project}, {originator}, etc.) but isoNaming is null. These tokens will resolve to empty strings. Add an isoNaming block to this drawing type.");
-            }
-
-            // DT-097 (Phase 168): paperSize ↔ titleBlockFamily cross-check.
-            // Heuristic — if the family name embeds a paper-size code (A0/A1/
-            // A2/A3/A4) different from the profile's PaperSize, surface a
-            // mismatch. Avoids the "A1 profile points at an A3 family"
-            // silent-failure mode.
-            if (!string.IsNullOrWhiteSpace(dt.PaperSize)
-                && !string.IsNullOrWhiteSpace(dt.TitleBlockFamily))
-            {
-                var fam = dt.TitleBlockFamily.ToUpperInvariant();
-                var paper = dt.PaperSize.Trim().ToUpperInvariant();
-                string foundCode = null;
-                foreach (var code in new[] { "A0", "A1", "A2", "A3", "A4" })
-                {
-                    // Match boundary: surrounded by non-alphanumerics so "A10" wouldn't match "A1".
-                    var idx = fam.IndexOf(code, StringComparison.Ordinal);
-                    while (idx >= 0)
-                    {
-                        bool leftOk  = idx == 0 || !char.IsLetterOrDigit(fam[idx - 1]);
-                        bool rightOk = idx + code.Length == fam.Length
-                                    || !char.IsLetterOrDigit(fam[idx + code.Length]);
-                        if (leftOk && rightOk) { foundCode = code; break; }
-                        idx = fam.IndexOf(code, idx + 1, StringComparison.Ordinal);
-                    }
-                    if (foundCode != null) break;
-                }
-                if (foundCode != null && !string.Equals(foundCode, paper, StringComparison.Ordinal))
-                    r.Add(ValidationSeverity.Warning, "DT-097",
-                        $"PaperSize '{dt.PaperSize}' may not match titleBlockFamily '{dt.TitleBlockFamily}' (family name suggests {foundCode}).",
-                        "Confirm the family is sized correctly or update PaperSize to match.");
-            }
-
-            // DT-098 (Phase 168): every {token} referenced by sheet patterns or
-            // titleBlockParams should resolve to a known key. Unknown tokens
-            // pass through as literal text — usually a typo. Built-in token
-            // set mirrors DrawingTokenContext.Build(...).
-            ValidateUnknownTokens(dt, r);
-
-            // ── Phase 137 — annotation family + production rule + managed pack checks ──
-
-            ValidatePhase137Annotation(doc, dt, r);
-            ValidatePhase137ProductionRules(dt, r);
-            ValidatePhase137ManagedPack(doc, dt, r);
-
-            // ── ACC-03: crop strategy must be sensible for the view type ──
-            ValidateCropForPurpose(dt, r);
-
-            // ── ACC-04: every ${PRJ_ORG_xxx} referenced by TitleBlockParams
-            //   must already be bound on ProjectInformation; otherwise the
-            //   applier would silently substitute an empty string.
-            ValidateProjectInfoBindings(doc, dt, r);
-
-            // ── GAP-K: slot ViewType compatibility with profile.Purpose ──
-            ValidateSlotPurposeAlignment(dt, r);
+                r.Add(ValidationSeverity.Error, "DT-070",
+                    "scale must be positive (1:N denominator).");
 
             return r;
-        }
-
-        private static void ValidateCropForPurpose(DrawingType dt, ValidationReport r)
-        {
-            if (dt?.Crop == null) return;
-            var kind = (dt.Crop.Kind ?? string.Empty).Trim();
-            if (string.IsNullOrEmpty(kind)) return;
-            // RoomBoundary only makes sense on plan-style purposes — section,
-            // elevation, schedule, legend, and 3D have no rooms to bound.
-            if (string.Equals(kind, "RoomBoundary", StringComparison.OrdinalIgnoreCase))
-            {
-                bool isPlanLike =
-                    string.Equals(dt.Purpose, DrawingPurpose.Plan, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(dt.Purpose, DrawingPurpose.Rcp,  StringComparison.OrdinalIgnoreCase);
-                if (!isPlanLike)
-                    r.Add(ValidationSeverity.Warning, "DT-080",
-                        $"Crop kind 'RoomBoundary' on a {dt.Purpose} profile will silently fall back to TightBbox at runtime.",
-                        "Switch crop.kind to 'TightBbox' or 'ScopeBoxOrBbox' for non-plan profiles.");
-            }
-            // ScopeBox kind requires a name.
-            if (string.Equals(kind, "ScopeBox", StringComparison.OrdinalIgnoreCase)
-                && string.IsNullOrWhiteSpace(dt.Crop.ScopeBoxName))
-            {
-                r.Add(ValidationSeverity.Error, "DT-081",
-                    "Crop kind 'ScopeBox' requires crop.scopeBoxName; switch to 'ScopeBoxOrBbox' to allow fallback.");
-            }
-        }
-
-        private static void ValidateProjectInfoBindings(Document doc, DrawingType dt, ValidationReport r)
-        {
-            if (doc == null || dt?.TitleBlockParams == null) return;
-            try
-            {
-                var missing = TitleBlockParamApplier.FindMissingProjectInfoParams(doc, dt);
-                foreach (var name in missing)
-                    r.Add(ValidationSeverity.Warning, "DT-090",
-                        $"TitleBlockParams reference ${{ {name} }} but ProjectInformation has no parameter named '{name}'.",
-                        "Run Tags > Setup > Load Params, or update the project_info parameter name in the profile.");
-            }
-            catch { /* validator must never throw */ }
-        }
-
-        // DT-098 (Phase 168). Built-in token set mirrors DrawingTokenContext.Build —
-        // any {key} outside this set is most likely a typo and is reported.
-        private static readonly System.Collections.Generic.HashSet<string> _knownTokens =
-            new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "spool","disc","discipline","sys","lvl","mark","purpose","phase",
-                "project","originator","vol","type","role","suit","rev","seq",
-            };
-        private static readonly System.Text.RegularExpressions.Regex _tokenScan =
-            new System.Text.RegularExpressions.Regex(@"\{([A-Za-z0-9_]+)(?::D\d+)?(?:\|[^}]*)?\}",
-                System.Text.RegularExpressions.RegexOptions.Compiled);
-
-        private static void ValidateUnknownTokens(DrawingType dt, ValidationReport r)
-        {
-            if (dt == null) return;
-            try
-            {
-                void Scan(string template, string source)
-                {
-                    if (string.IsNullOrEmpty(template)) return;
-                    foreach (System.Text.RegularExpressions.Match m in _tokenScan.Matches(template))
-                    {
-                        var key = m.Groups[1].Value;
-                        if (!_knownTokens.Contains(key))
-                            r.Add(ValidationSeverity.Warning, "DT-098",
-                                $"{source} references unknown token '{{{key}}}' — it will pass through as literal text.",
-                                "Check spelling against {disc}/{lvl}/{seq:D4}/{spool}/{mark}/{vol}/{type}/{role}/{suit}/{rev}/{project}/{originator}, or remove if intentional.");
-                    }
-                }
-                Scan(dt.SheetNumberPattern, "sheetNumberPattern");
-                Scan(dt.SheetNamePattern,   "sheetNamePattern");
-                if (dt.TitleBlockParams != null)
-                    foreach (var kv in dt.TitleBlockParams)
-                        Scan(kv.Value, $"titleBlockParams['{kv.Key}']");
-            }
-            catch { /* validator must never throw */ }
-        }
-
-        private static void ValidatePhase137Annotation(Document doc, DrawingType dt, ValidationReport r)
-        {
-            if (doc == null || dt?.Annotation == null) return;
-
-            void CheckFamily(string family, string code, string label)
-            {
-                if (string.IsNullOrWhiteSpace(family)) return;
-                if (FindAnnotationFamily(doc, family) == null)
-                    r.Add(ValidationSeverity.Warning, code,
-                        $"{label} family '{family}' not found in project.",
-                        "Load the family or clear the field on the profile.");
-            }
-
-            CheckFamily(dt.Annotation.NorthArrowFamily, "DT-137-NA", "North arrow");
-            CheckFamily(dt.Annotation.ScaleBarFamily,   "DT-137-SB", "Scale bar");
-            CheckFamily(dt.Annotation.KeyPlanFamily,    "DT-137-KP", "Key plan");
-
-            if (dt.Annotation.SpotElevationRules != null)
-                foreach (var s in dt.Annotation.SpotElevationRules)
-                    CheckFamily(s?.SymbolFamily, "DT-137-SE", $"Spot-elevation symbol ({s?.Category})");
-            if (dt.Annotation.SpotCoordinateRules != null)
-                foreach (var s in dt.Annotation.SpotCoordinateRules)
-                    CheckFamily(s?.SymbolFamily, "DT-137-SC", $"Spot-coordinate symbol ({s?.Category})");
-        }
-
-        private static void ValidatePhase137ProductionRules(DrawingType dt, ValidationReport r)
-        {
-            if (dt?.ProductionRules == null) return;
-            var rules = dt.ProductionRules;
-            if (rules.Count > 0 && (dt.Slots?.Count ?? 0) > 0)
-            {
-                int maxSlot = rules.Max(p => p?.SlotIndex ?? -1);
-                if (maxSlot >= dt.Slots.Count)
-                    r.Add(ValidationSeverity.Warning, "DT-137-SLOT",
-                        $"ProductionRule references slotIndex {maxSlot} but profile only has {dt.Slots.Count} slot(s).",
-                        "Add slots or lower slotIndex.");
-            }
-            else if (rules.Count > 1 && (dt.Slots?.Count ?? 0) == 0)
-            {
-                r.Add(ValidationSeverity.Info, "DT-137-NOSLOTS",
-                    $"{rules.Count} production rules declared but profile has no slots — produced views will fall back to sheet-centre placement.");
-            }
-        }
-
-        private static void ValidatePhase137ManagedPack(Document doc, DrawingType dt, ValidationReport r)
-        {
-            if (doc == null || string.IsNullOrEmpty(dt?.ViewStylePackId)) return;
-            ViewStylePack pack;
-            try { pack = ViewStylePackRegistry.Get(doc, dt.ViewStylePackId); }
-            catch { return; }
-            if (pack == null || !pack.IsManaged) return;
-
-            // PERF-05: prefer the per-batch snapshot when ValidateAll is the
-            // caller; fall back to a fresh collector when Validate() is
-            // invoked individually.
-            try
-            {
-                bool? snap = _snapshot?.AnyStingSeedTemplate;
-                bool anyStingSeed = snap ?? new FilteredElementCollector(doc)
-                    .OfClass(typeof(View))
-                    .Cast<View>()
-                    .Any(v => v.IsTemplate && (v.Name ?? "").StartsWith("STING - ", StringComparison.Ordinal));
-                if (!anyStingSeed)
-                    r.Add(ValidationSeverity.Warning, "DT-137-MGD-SEED",
-                        $"Pack '{pack.Id}' is managed but no 'STING - ' seed templates exist; the syncer may fall back to a non-STING seed view.",
-                        "Create at least one STING- prefixed template to seed managed templates from.");
-            }
-            catch { }
-
-            if (!string.IsNullOrEmpty(pack.PhaseFilter))
-            {
-                try
-                {
-                    bool exists;
-                    if (_snapshot != null)
-                        exists = _snapshot.KnownPhaseFilters.Contains(pack.PhaseFilter);
-                    else
-                        exists = new FilteredElementCollector(doc)
-                            .OfClass(typeof(PhaseFilter))
-                            .Cast<PhaseFilter>()
-                            .Any(p => string.Equals(p.Name, pack.PhaseFilter, StringComparison.OrdinalIgnoreCase));
-                    if (!exists)
-                        r.Add(ValidationSeverity.Warning, "DT-137-MGD-PHASE",
-                            $"Pack '{pack.Id}' references PhaseFilter '{pack.PhaseFilter}' which does not exist.",
-                            "Create the phase filter or update the pack.");
-                }
-                catch { }
-            }
-        }
-
-        private static FamilySymbol FindAnnotationFamily(Document doc, string name)
-        {
-            if (string.IsNullOrEmpty(name)) return null;
-            try
-            {
-                return new FilteredElementCollector(doc)
-                    .OfClass(typeof(FamilySymbol))
-                    .Cast<FamilySymbol>()
-                    .FirstOrDefault(s =>
-                        string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(s.FamilyName, name, StringComparison.OrdinalIgnoreCase));
-            }
-            catch { return null; }
         }
 
         /// <summary>
@@ -405,40 +140,9 @@ namespace StingTools.Core.Drawing
         /// coverage. Useful for a one-click "does my project have the
         /// assets to honour every corporate drawing type" audit.
         /// </summary>
-        // PERF-05: a small shared snapshot built once per ValidateAll so the
-        // 40+ profiles don't each re-run "any STING- seed?" or "is phase
-        // filter X loaded?" via fresh FilteredElementCollectors.
-        [ThreadStatic] private static ValidationSnapshot _snapshot;
-
-        private sealed class ValidationSnapshot
-        {
-            public bool? AnyStingSeedTemplate;
-            public HashSet<string> KnownPhaseFilters
-                = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        }
-
         public static List<ValidationReport> ValidateAll(Document doc)
         {
-            // PERF-05: build the per-doc snapshot once.
-            _snapshot = new ValidationSnapshot();
-            try
-            {
-                _snapshot.AnyStingSeedTemplate = new FilteredElementCollector(doc)
-                    .OfClass(typeof(View))
-                    .Cast<View>()
-                    .Any(v => v.IsTemplate && (v.Name ?? "").StartsWith("STING - ", StringComparison.Ordinal));
-                foreach (var pf in new FilteredElementCollector(doc)
-                    .OfClass(typeof(PhaseFilter))
-                    .Cast<PhaseFilter>())
-                {
-                    if (!string.IsNullOrEmpty(pf.Name))
-                        _snapshot.KnownPhaseFilters.Add(pf.Name);
-                }
-            }
-            catch { /* validator never throws */ }
-
             var reports = DrawingTypeRegistry.ListAll(doc).Select(t => Validate(doc, t)).ToList();
-            _snapshot = null;
 
             // Routing coverage — flag routing rules pointing at
             // non-existent drawing types.
@@ -471,23 +175,6 @@ namespace StingTools.Core.Drawing
                 foreach (var el in col)
                     if (el is FamilySymbol fs
                         && string.Equals(fs.FamilyName, familyName, StringComparison.OrdinalIgnoreCase))
-                        return true;
-            }
-            catch { /* ignore */ }
-            return false;
-        }
-
-        private static bool HasTitleBlockSymbol(Document doc, string familyName, string symbolName)
-        {
-            try
-            {
-                var col = new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
-                    .OfClass(typeof(FamilySymbol));
-                foreach (var el in col)
-                    if (el is FamilySymbol fs
-                        && string.Equals(fs.FamilyName, familyName, StringComparison.OrdinalIgnoreCase)
-                        && string.Equals(fs.Name, symbolName, StringComparison.OrdinalIgnoreCase))
                         return true;
             }
             catch { /* ignore */ }
@@ -553,54 +240,6 @@ namespace StingTools.Core.Drawing
             if (s.NormX + s.NormW > 1.0001 || s.NormY + s.NormH > 1.0001)
                 r.Add(ValidationSeverity.Warning, "DT-056",
                     $"Slot '{s.Label}' extends beyond the drawable zone (normX+W={s.NormX + s.NormW:F2} normY+H={s.NormY + s.NormH:F2}).");
-        }
-
-        // GAP-K: profile.Purpose says "Plan" but a slot.ViewType is "Section",
-        // or vice versa, indicates a bookkeeping mistake in the JSON. The
-        // production engine would still produce the slotted view, but its
-        // purpose tag wouldn't match the slot type, so downstream filters
-        // (browser organizer, sheet packs) place it in surprising places.
-        private static void ValidateSlotPurposeAlignment(DrawingType dt, ValidationReport r)
-        {
-            if (dt?.Slots == null || dt.Slots.Count == 0) return;
-            var purpose = (dt.Purpose ?? string.Empty).Trim();
-            if (string.IsNullOrEmpty(purpose) ||
-                purpose.Equals(DrawingPurpose.Coordination, StringComparison.OrdinalIgnoreCase) ||
-                purpose.Equals(DrawingPurpose.Spool, StringComparison.OrdinalIgnoreCase))
-                return; // multi-view profiles inherently mix slot types
-            foreach (var s in dt.Slots)
-            {
-                if (s == null || string.IsNullOrEmpty(s.ViewType)) continue;
-                if (!s.ViewType.Equals(purpose, StringComparison.OrdinalIgnoreCase)
-                    && !IsCompatibleSlotViewType(purpose, s.ViewType))
-                {
-                    r.Add(ValidationSeverity.Info, "DT-057",
-                        $"Slot '{s.Label}' has ViewType '{s.ViewType}' on a {purpose} profile — confirm this is intentional.");
-                }
-            }
-        }
-
-        private static bool IsCompatibleSlotViewType(string purpose, string slotType)
-        {
-            // A small whitelist of "Plan profile may host an inset Schedule",
-            // "Section profile may host an inset Detail", etc. — common
-            // multi-view layouts that don't deserve a warning.
-            var p = purpose ?? string.Empty;
-            var s = slotType ?? string.Empty;
-            if (p.Equals(DrawingPurpose.Plan,      StringComparison.OrdinalIgnoreCase) &&
-                (s.Equals("Schedule", StringComparison.OrdinalIgnoreCase) ||
-                 s.Equals("Legend",   StringComparison.OrdinalIgnoreCase) ||
-                 s.Equals("RCP",      StringComparison.OrdinalIgnoreCase)))
-                return true;
-            if (p.Equals(DrawingPurpose.Section,   StringComparison.OrdinalIgnoreCase) &&
-                (s.Equals("Detail",   StringComparison.OrdinalIgnoreCase) ||
-                 s.Equals("Plan",     StringComparison.OrdinalIgnoreCase)))
-                return true;
-            if (p.Equals(DrawingPurpose.ThreeD,    StringComparison.OrdinalIgnoreCase) &&
-                (s.Equals("Plan",     StringComparison.OrdinalIgnoreCase) ||
-                 s.Equals("ISO",      StringComparison.OrdinalIgnoreCase)))
-                return true;
-            return false;
         }
     }
 }

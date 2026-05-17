@@ -263,7 +263,7 @@ namespace StingTools.Commands.Drawing
                         return et.Id;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return ElementId.InvalidElementId;
         }
     }
@@ -347,7 +347,7 @@ namespace StingTools.Commands.Drawing
                 var newBim = titleBlock.LookupParameter("STING_SHEET_BIM_MODE_TXT");
                 if (newBim != null && !newBim.IsReadOnly)
                 {
-                    try { newBim.Set(targetMode); } catch { }
+                    try { newBim.Set(targetMode); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -408,7 +408,7 @@ namespace StingTools.Commands.Drawing
                         candidates.Add(Path.Combine(prjDir, "Families", "TitleBlocks", name + ".rfa"));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             try
             {
                 var asm = StingToolsApp.AssemblyPath;
@@ -419,7 +419,7 @@ namespace StingTools.Commands.Drawing
                         candidates.Add(Path.Combine(asmDir, "Families", "TitleBlocks", name + ".rfa"));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             foreach (var c in candidates)
             {
@@ -529,7 +529,7 @@ namespace StingTools.Commands.Drawing
                     .WhereElementIsNotElementType()
                     .FirstOrDefault();
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         public static string GetFamilyName(Document doc, Element titleBlock)
@@ -539,7 +539,7 @@ namespace StingTools.Commands.Drawing
                 var sym = doc.GetElement(titleBlock.GetTypeId()) as FamilySymbol;
                 return sym?.Family?.Name ?? "(unknown)";
             }
-            catch { return "(unknown)"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "(unknown)"; }
         }
 
         /// <summary>Resolve slot bounds for the title block on the active
@@ -661,7 +661,7 @@ namespace StingTools.Commands.Drawing
                 }
                 finally
                 {
-                    try { famDoc.Close(false); } catch { }
+                    try { famDoc.Close(false); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
             }
             catch (Exception ex)

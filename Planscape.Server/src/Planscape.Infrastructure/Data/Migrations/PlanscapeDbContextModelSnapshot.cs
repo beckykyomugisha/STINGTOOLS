@@ -128,6 +128,13 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<DateTime>("CreatedAt")
                     .HasColumnType("timestamp with time zone");
 
+                // F2 — soft-delete columns
+                b.Property<DateTime?>("DeletedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<string>("DeletedByUserId")
+                    .HasColumnType("text");
+
                 b.Property<string>("DisplayName")
                     .IsRequired()
                     .HasColumnType("text");
@@ -137,6 +144,10 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .HasColumnType("text");
 
                 b.Property<bool>("IsActive")
+                    .HasColumnType("boolean");
+
+                // F2 — soft-delete flag; false by default
+                b.Property<bool>("IsDeleted")
                     .HasColumnType("boolean");
 
                 b.Property<string>("Iso19650Role")
@@ -164,7 +175,8 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                 b.HasKey("Id");
 
-                b.HasIndex("Email")
+                // F1 — per-tenant email uniqueness (was global single-column IX_Users_Email)
+                b.HasIndex("TenantId", "Email")
                     .IsUnique();
 
                 b.HasIndex("TenantId");
@@ -1013,6 +1025,96 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.ToTable("SeqCounters");
             });
 
+            // HC-06 — Healthcare Pack tables (migration 20260515000000_HealthcarePack).
+            modelBuilder.Entity("Planscape.Core.Entities.HealthcarePressureLog", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("TenantId").HasColumnType("uuid");
+                b.Property<Guid>("ProjectId").HasColumnType("uuid");
+                b.Property<string>("RoomBimId").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasDefaultValue("");
+                b.Property<string>("RoomName").IsRequired().HasMaxLength(400).HasColumnType("character varying(400)").HasDefaultValue("");
+                b.Property<string>("RoomClass").IsRequired().HasMaxLength(80).HasColumnType("character varying(80)").HasDefaultValue("");
+                b.Property<string>("DesignRegime").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)").HasDefaultValue("");
+                b.Property<double>("DesignDeltaPa").HasColumnType("double precision").HasDefaultValue(0.0);
+                b.Property<double>("LiveDeltaPa").HasColumnType("double precision").HasDefaultValue(0.0);
+                b.Property<bool>("InBand").HasColumnType("boolean").HasDefaultValue(false);
+                b.Property<DateTime>("CapturedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("CapturedBy").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasDefaultValue("");
+                b.Property<string>("Source").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)").HasDefaultValue("MANUAL");
+                b.HasKey("Id");
+                b.HasIndex("TenantId");
+                b.HasIndex("ProjectId");
+                b.HasIndex("ProjectId", "CapturedAt");
+                b.HasIndex("ProjectId", "RoomBimId");
+                b.ToTable("HealthcarePressureLogs");
+            });
+
+            modelBuilder.Entity("Planscape.Core.Entities.HealthcareMgasVerification", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("TenantId").HasColumnType("uuid");
+                b.Property<Guid>("ProjectId").HasColumnType("uuid");
+                b.Property<string>("Zone").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)").HasDefaultValue("");
+                b.Property<string>("GasCode").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)").HasDefaultValue("");
+                b.Property<string>("VerifierName").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasDefaultValue("");
+                b.Property<string>("VerifierAsse6030Id").IsRequired().HasMaxLength(50).HasColumnType("character varying(50)").HasDefaultValue("");
+                b.Property<string>("CertReference").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)").HasDefaultValue("");
+                b.Property<DateTime>("CapturedAt").HasColumnType("timestamp with time zone");
+                b.Property<bool>("OverallPass").HasColumnType("boolean").HasDefaultValue(false);
+                b.Property<int>("PassCount").HasColumnType("integer").HasDefaultValue(0);
+                b.Property<int>("FailCount").HasColumnType("integer").HasDefaultValue(0);
+                b.Property<string>("CheckResultsJson").IsRequired().HasColumnType("jsonb").HasDefaultValue("{}");
+                b.Property<string>("Notes").IsRequired().HasMaxLength(2000).HasColumnType("character varying(2000)").HasDefaultValue("");
+                b.HasKey("Id");
+                b.HasIndex("TenantId");
+                b.HasIndex("ProjectId");
+                b.HasIndex("ProjectId", "CapturedAt");
+                b.ToTable("HealthcareMgasVerifications");
+            });
+
+            modelBuilder.Entity("Planscape.Core.Entities.HealthcareAntiLigatureAudit", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("TenantId").HasColumnType("uuid");
+                b.Property<Guid>("ProjectId").HasColumnType("uuid");
+                b.Property<string>("RoomBimId").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasDefaultValue("");
+                b.Property<string>("RoomName").IsRequired().HasMaxLength(400).HasColumnType("character varying(400)").HasDefaultValue("");
+                b.Property<string>("FittingType").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)").HasDefaultValue("");
+                b.Property<bool>("Pass").HasColumnType("boolean").HasDefaultValue(false);
+                b.Property<string>("Notes").IsRequired().HasMaxLength(2000).HasColumnType("character varying(2000)").HasDefaultValue("");
+                b.Property<string>("PhotoBlobId").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasDefaultValue("");
+                b.Property<double?>("GpsLat").HasColumnType("double precision");
+                b.Property<double?>("GpsLon").HasColumnType("double precision");
+                b.Property<DateTime>("CapturedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("CapturedBy").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasDefaultValue("");
+                b.HasKey("Id");
+                b.HasIndex("TenantId");
+                b.HasIndex("ProjectId");
+                b.HasIndex("ProjectId", "CapturedAt");
+                b.ToTable("HealthcareAntiLigatureAudits");
+            });
+
+            modelBuilder.Entity("Planscape.Core.Entities.HealthcareRdsSnapshot", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("TenantId").HasColumnType("uuid");
+                b.Property<Guid>("ProjectId").HasColumnType("uuid");
+                b.Property<string>("RoomBimId").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasDefaultValue("");
+                b.Property<string>("RoomNumber").IsRequired().HasMaxLength(50).HasColumnType("character varying(50)").HasDefaultValue("");
+                b.Property<string>("RoomName").IsRequired().HasMaxLength(400).HasColumnType("character varying(400)").HasDefaultValue("");
+                b.Property<string>("RoomClass").IsRequired().HasMaxLength(80).HasColumnType("character varying(80)").HasDefaultValue("");
+                b.Property<string>("HbnRef").IsRequired().HasMaxLength(50).HasColumnType("character varying(50)").HasDefaultValue("");
+                b.Property<string>("AdbCode").IsRequired().HasMaxLength(50).HasColumnType("character varying(50)").HasDefaultValue("");
+                b.Property<DateTime>("CapturedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("ContextJson").IsRequired().HasColumnType("jsonb").HasDefaultValue("{}");
+                b.Property<string>("DocxRelPath").IsRequired().HasMaxLength(500).HasColumnType("character varying(500)").HasDefaultValue("");
+                b.HasKey("Id");
+                b.HasIndex("TenantId");
+                b.HasIndex("ProjectId");
+                b.HasIndex("ProjectId", "RoomBimId");
+                b.ToTable("HealthcareRdsSnapshots");
+            });
+
             modelBuilder.Entity("Planscape.Core.Entities.TaggedElement", b =>
             {
                 b.Property<Guid>("Id")
@@ -1086,6 +1188,10 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                 b.Property<string>("Status")
                     .HasColumnType("text");
+
+                b.Property<string>("Source")
+                    .HasMaxLength(40)
+                    .HasColumnType("character varying(40)");
 
                 b.Property<DateTime>("SyncedAt")
                     .HasColumnType("timestamp with time zone");
@@ -1162,6 +1268,8 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                 b.HasIndex("IsStale");
 
+                b.HasIndex("Source");
+
                 b.HasIndex("Tag1");
 
                 b.HasIndex("ProjectId", "RevitElementId")
@@ -1189,6 +1297,10 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                 b.Property<bool>("IsActive")
                     .HasColumnType("boolean");
+
+                // F3 — track last modification time; auto-stamped by SaveChangesAsync
+                b.Property<DateTime>("UpdatedAt")
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<int>("MaxProjects")
                     .HasColumnType("integer");
@@ -1647,10 +1759,13 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
 
+                // F5 — Restrict (not Cascade) paired with F2 soft-delete: a user's
+                // push tokens must be explicitly removed before the user row can be
+                // hard-deleted, preserving the cleanup-job audit trail.
                 b.HasOne("Planscape.Core.Entities.AppUser", "User")
                     .WithMany()
                     .HasForeignKey("UserId")
-                    .OnDelete(DeleteBehavior.Cascade)
+                    .OnDelete(DeleteBehavior.Restrict)
                     .IsRequired();
 
                 b.Navigation("Tenant");
@@ -1758,10 +1873,12 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
 
+                // F5 — Restrict (not Cascade) so a user with active memberships
+                // cannot be hard-deleted; the soft-delete workflow must run first.
                 b.HasOne("Planscape.Core.Entities.AppUser", "User")
                     .WithMany()
                     .HasForeignKey("UserId")
-                    .OnDelete(DeleteBehavior.Cascade)
+                    .OnDelete(DeleteBehavior.Restrict)
                     .IsRequired();
 
                 b.Navigation("Project");

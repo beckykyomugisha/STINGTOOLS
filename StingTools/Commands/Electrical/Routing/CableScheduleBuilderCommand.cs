@@ -18,8 +18,9 @@
 //   * StingResultPanel — interactive read-only view in Revit.
 //   * CSV file at <project>/_BIM_COORD/cable_schedule.csv — one row per
 //     BOM line, columns matching SAP / standard estimating tools.
-//   * Optional Revit schedule view (TODO Phase 183) once we map the
-//     three rollups onto a single MEP system schedule.
+//   * Revit conduit-schedule view: "STING Cable Schedule" ViewSchedule
+//     created / refreshed on the conduit category, showing the ELC_WIRE_*
+//     shared parameters stamped by WireParamStampCommand.
 //
 // Invocation: WorkflowEngine tag "Cable_BuildSchedule"; UI button on
 // the electrical command handler.
@@ -101,6 +102,10 @@ namespace StingTools.Commands.Electrical.Routing
             try { ActionAuditLog.Record("Cable_BuildSchedule",
                 $"cables={result.TotalCables} conduits={result.TotalConduits} boxes={result.TotalBoxes}"); }
             catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
+
+            // Gap 5 — create / refresh Revit conduit schedule view
+            try { CreateOrRefreshConduitSchedule(doc); }
+            catch (Exception ex) { StingLog.Warn($"CableSchedule view: {ex.Message}"); }
 
             ShowResult(result);
 
@@ -219,11 +224,12 @@ namespace StingTools.Commands.Electrical.Routing
             foreach (long id in allConduitIds)
             {
                 Element el = null;
-                try { el = doc.GetElement(new ElementId((long)id)); } catch { }
+                try { el = doc.GetElement(new ElementId((long)id)); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (el == null) continue;
                 var loc = el.Location as LocationCurve;
-                double mm = loc?.Curve?.Length * 304.8 ?? 0;
-                if (mm <= 0) continue;
+                // Revit curve length is in internal feet; ×0.3048 converts directly to metres.
+                double lenM = (loc?.Curve?.Length ?? 0) * 0.3048;
+                if (lenM <= 0) continue;
 
                 string typeName = "Conduit";
                 try
@@ -231,14 +237,14 @@ namespace StingTools.Commands.Electrical.Routing
                     var t = doc.GetElement(el.GetTypeId());
                     if (t != null) typeName = t.Name ?? typeName;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 string diam = ParameterHelpers.GetString(el, "Diameter")
                     ?? ParameterHelpers.GetString(el, "Outside Diameter")
                     ?? "?";
                 string key = $"{typeName}|{diam}";
                 if (!conduitsByKey.TryGetValue(key, out var entry))
                     entry = ($"{typeName} ⌀ {diam} mm", 0, 0);
-                entry = (entry.desc, entry.len + (mm / 1000.0), entry.qty + 1);
+                entry = (entry.desc, entry.len + lenM, entry.qty + 1);
                 conduitsByKey[key] = entry;
             }
             foreach (var kv in conduitsByKey.OrderBy(k => k.Key))
@@ -269,7 +275,7 @@ namespace StingTools.Commands.Electrical.Routing
             foreach (long id in allBoxIds)
             {
                 Element el = null;
-                try { el = doc.GetElement(new ElementId((long)id)); } catch { }
+                try { el = doc.GetElement(new ElementId((long)id)); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (el == null) continue;
 
                 string famName = "JB";
@@ -282,7 +288,7 @@ namespace StingTools.Commands.Electrical.Routing
                         typeName = fi.Symbol?.Name ?? typeName;
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 string jbType = ParameterHelpers.GetString(el, "ELC_JB_TYPE_TXT") ?? typeName;
                 string jbSize = ParameterHelpers.GetString(el, "ELC_JB_SIZE_MM") ?? "";
                 string jbIp   = ParameterHelpers.GetString(el, "ELC_JB_IP_RATING_TXT") ?? "";
@@ -333,10 +339,101 @@ namespace StingTools.Commands.Electrical.Routing
                         var loc = el?.Location as LocationCurve;
                         if (loc?.Curve != null) total += loc.Curve.Length * 0.3048; // ft → m
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
             }
             return total;
+        }
+
+        // Gap 5 — create or refresh a Revit ViewSchedule on conduits.
+        // When a schedule already exists we delete and recreate it — attempting to
+        // remove individual fields from an existing schedule is unreliable because
+        // Revit-managed fields throw on RemoveField and the API provides no bulk-clear.
+        private static void CreateOrRefreshConduitSchedule(Document doc)
+        {
+            const string scheduleName = "STING Cable Schedule";
+
+            // Fields to include (ELC_WIRE_* shared params + built-in conduit length)
+            var paramNames = new[]
+            {
+                "ELC_CIRCUIT_NR_TXT", "ELC_WIRE_PHASE_TXT", "ELC_WIRE_CORE_COUNT_INT",
+                "ELC_WIRE_CSA_MM2_NUM", "ELC_WIRE_COND_MAT_TXT", "ELC_WIRE_AMPACITY_A",
+                "ELC_WIRE_VD_PCT_NUM", "ELC_WIRE_INSTALL_METHOD_TXT", "ELC_WIRE_MAX_DEMAND_A",
+                "ELC_WIRE_CIRCUIT_BREAKER_A", "ELC_WIRE_EARTH_CSA_MM2", "ELC_WIRE_CIRCUIT_TYPE_TXT"
+            };
+
+            using var tx = new Transaction(doc, "STING Create Cable Schedule View");
+            tx.Start();
+
+            // Delete existing schedule so we always start with a clean field set.
+            // (RemoveField on Revit-managed fields throws; deletion+recreation is safe.)
+            var existing = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSchedule))
+                .Cast<ViewSchedule>()
+                .FirstOrDefault(vs => vs.Name == scheduleName);
+            if (existing != null)
+            {
+                try { doc.Delete(existing.Id); }
+                catch (Exception ex) { StingLog.Warn($"Could not delete old cable schedule: {ex.Message}"); }
+            }
+
+            var sched = ViewSchedule.CreateSchedule(doc,
+                new ElementId(BuiltInCategory.OST_Conduit));
+            sched.Name = scheduleName;
+
+            var schedDef       = sched.Definition;
+            var allSchedulable = schedDef.GetSchedulableFields();
+
+            // Add built-in length field first
+            try
+            {
+                var lenFt = allSchedulable.FirstOrDefault(f =>
+                    f.ParameterId == new ElementId(BuiltInParameter.CURVE_ELEM_LENGTH));
+                if (lenFt != null) schedDef.AddField(lenFt);
+            }
+            catch { }
+
+            // Add ELC_WIRE_* shared param fields — skip any already present
+            var alreadyAdded = new HashSet<ElementId>(schedDef.GetFieldOrder()
+                .Select(fid => schedDef.GetField(fid)?.ParameterId)
+                .Where(id => id != null));
+
+            foreach (var paramName in paramNames)
+            {
+                try
+                {
+                    var sf = allSchedulable.FirstOrDefault(f =>
+                        f.GetSchedulableFieldType() == SchedulableFieldType.Instance
+                        && doc.GetElement(f.ParameterId) is SharedParameterElement spe
+                        && spe.GetDefinition().Name == paramName
+                        && !alreadyAdded.Contains(f.ParameterId));
+                    if (sf != null)
+                    {
+                        schedDef.AddField(sf);
+                        alreadyAdded.Add(sf.ParameterId);
+                    }
+                }
+                catch { }
+            }
+
+            // Sort by circuit number (first field = length; second = ELC_CIRCUIT_NR_TXT if present)
+            try
+            {
+                var circNrFieldId = schedDef.GetFieldOrder()
+                    .Select(fid => schedDef.GetField(fid))
+                    .FirstOrDefault(f => f != null
+                        && doc.GetElement(f.ParameterId) is SharedParameterElement spe2
+                        && spe2.GetDefinition().Name == "ELC_CIRCUIT_NR_TXT");
+                if (circNrFieldId != null)
+                {
+                    schedDef.ClearSortGroupFields();
+                    schedDef.AddSortGroupField(new ScheduleSortGroupField(circNrFieldId.FieldId));
+                }
+            }
+            catch { }
+
+            tx.Commit();
+            StingLog.Info($"Cable schedule view '{scheduleName}' created/refreshed.");
         }
 
         private static void WriteCsv(string path, CableScheduleResult r)

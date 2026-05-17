@@ -92,7 +92,7 @@ namespace StingTools.Core.Placement
             {
                 // Project frameCentre onto the curve to find the t value of slot 0.
                 IntersectionResult proj = null;
-                try { proj = curve.Project(frameCentre); } catch { }
+                try { proj = curve.Project(frameCentre); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (proj == null) useCurveSampling = false;
                 else
                 {
@@ -122,10 +122,7 @@ namespace StingTools.Core.Placement
                                 }
                                 XYZ p;
                                 try { p = curve.Evaluate(t, false); }
-                                catch
-                                {
-                                    p = frameCentre + alongFallback.Multiply(centred * pitchFt);
-                                }
+                                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); p = frameCentre + alongFallback.Multiply(centred * pitchFt); }
                                 output.Add((r, p));
                             }
                             return output;
@@ -158,7 +155,7 @@ namespace StingTools.Core.Placement
                     return d.Normalize();
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
     }

@@ -113,7 +113,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 tx.Commit();
             }
             LastResults = results;
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             int dangerous = results.Count(r => r.PpeCategory < 0);
             int cat4 = results.Count(r => r.PpeCategory == 4);
@@ -142,7 +142,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 double native = panel.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE)?.AsDouble() ?? 0;
                 if (native > 0) return native;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 240.0;
         }
 

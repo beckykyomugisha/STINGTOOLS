@@ -68,7 +68,7 @@ namespace StingTools.Core.Routing
             foreach (var id in memberIds)
             {
                 MEPCurve curve = null;
-                try { curve = doc.GetElement(id) as MEPCurve; } catch { }
+                try { curve = doc.GetElement(id) as MEPCurve; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (curve == null) continue;
 
                 LocationCurve loc = curve.Location as LocationCurve;
@@ -235,7 +235,7 @@ namespace StingTools.Core.Routing
                 var bb = beam.get_BoundingBox(null);
                 if (bb != null) return (bb.Max.Z - bb.Min.Z) * 304.8;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 400.0; // 400 mm — typical reinforced concrete beam, conservative default
         }
 
@@ -264,7 +264,7 @@ namespace StingTools.Core.Routing
                     if (mat != null) return mat.Name ?? "";
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "Concrete"; // safer default — applies stricter ratio
         }
 
@@ -285,7 +285,7 @@ namespace StingTools.Core.Routing
                     if (!string.IsNullOrEmpty(r)) return r;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "";
         }
 
@@ -302,7 +302,7 @@ namespace StingTools.Core.Routing
                 var h = curve.LookupParameter("Height")?.AsDouble() ?? 0;
                 if (w > 0 || h > 0) return Math.Max(w, h) * 304.8;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
     }

@@ -145,7 +145,7 @@ namespace StingTools.Core.Symbols
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
                 return Path.Combine(Path.GetDirectoryName(doc.PathName), "project_config.json");
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static string ReadConfig(Document doc, string key)

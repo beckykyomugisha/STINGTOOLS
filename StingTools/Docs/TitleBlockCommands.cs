@@ -150,7 +150,7 @@ namespace StingTools.Docs
                 }
                 return widest > 1.4 ? "B" : "R";
             }
-            catch { return "R"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "R"; }
         }
 
         /// <summary>

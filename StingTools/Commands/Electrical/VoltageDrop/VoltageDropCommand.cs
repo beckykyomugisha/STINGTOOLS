@@ -66,7 +66,7 @@ namespace StingTools.Commands.Electrical.VoltageDrop
                     .Where(s =>
                     {
                         try { return s.SystemType == ElectricalSystemType.PowerCircuit; }
-                        catch { return true; }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return true; }
                     })
                     .ToList();
 
@@ -123,25 +123,25 @@ namespace StingTools.Commands.Electrical.VoltageDrop
         };
 
         private static double SafeApparentCurrent(ElectricalSystem s)
-        { try { return s.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_CURRENT_PARAM)?.AsDouble() ?? 0; } catch { return 0; } }
+        { try { return s.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_CURRENT_PARAM)?.AsDouble() ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; } }
         private static double SafeLength(ElectricalSystem s)
-        { try { return s.Length; } catch { return 0; } }
+        { try { return s.Length; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; } }
         private static int SafePoles(ElectricalSystem s)
-        { try { return s.PolesNumber; } catch { return 1; } }
+        { try { return s.PolesNumber; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 1; } }
         private static double SafeVoltage(ElectricalSystem s)
         {
             try { return s.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE)?.AsDouble() ?? 0; }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
         private static string SafeWireSize(ElectricalSystem s)
         {
             try { return s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM)?.AsString() ?? ""; }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
-        private static string SafePanel(ElectricalSystem s) { try { return s?.PanelName ?? ""; } catch { return ""; } }
+        private static string SafePanel(ElectricalSystem s) { try { return s?.PanelName ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; } }
         private static string SafeCircuitNumber(ElectricalSystem s)
         {
-            try { return s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER)?.AsString() ?? ""; } catch { return ""; }
+            try { return s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
         private static double ParseCsa(string wireSize)
         {
@@ -194,7 +194,7 @@ namespace StingTools.Commands.Electrical.VoltageDrop
                         if (sys == null) continue;
                         foreach (Element el in sys.Elements)
                         {
-                            try { view.SetElementOverrides(el.Id, ogs); flagged++; } catch { }
+                            try { view.SetElementOverrides(el.Id, ogs); flagged++; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                     }
                     catch (Exception ex) { StingLog.Warn($"Flag VD: {ex.Message}"); }

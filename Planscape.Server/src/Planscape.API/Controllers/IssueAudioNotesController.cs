@@ -95,6 +95,7 @@ public class IssueAudioNotesController : ControllerBase
     /// </summary>
     [HttpPost]
     [RequestSizeLimit(MaxAudioBytes)]
+    [Consumes("multipart/form-data")]
     public async Task<ActionResult> Upload(
         Guid projectId, Guid issueId,
         [FromForm] IFormFile file,

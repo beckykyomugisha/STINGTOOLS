@@ -67,7 +67,7 @@ namespace StingTools.Core.Validation.Healthcare
                         var p = r.LookupParameter("CLN_ROOM_CLASS_TXT");
                         if (p != null && p.HasValue && p.StorageType == StorageType.String)
                             cls = (p.AsString() ?? "").Trim();
-                    } catch { }
+                    } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     ctx.RoomById[r.Id.Value] = (r, cls);
                     if (!string.IsNullOrEmpty(cls))
                     {

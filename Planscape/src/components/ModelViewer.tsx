@@ -173,6 +173,13 @@ export interface PickEvent {
   name?: string;
   meta?: ElementMap[string] | null;
 }
+export interface BcfViewpoint {
+  camera: { eye: number[]; look: number[]; up: number[]; dir: number[]; fov: number };
+  selectedGuids?: string[];
+  timestamp?: string;
+  [key: string]: unknown;
+}
+
 export interface PlaceIssueEvent {
   guid: string;
   point: [number, number, number];

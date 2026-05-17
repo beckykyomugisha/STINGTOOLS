@@ -141,7 +141,7 @@ namespace StingTools.Core.Clash
             map[hostKey] = host;
 
             // G7: Throttled per-session warning counter for BuildLinkedDocumentMap
-            //     failures. Prior code had a bare catch { } that swallowed errors
+            //     failures. Prior code had a bare catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } that swallowed errors
             //     silently — made it impossible to diagnose "why are my linked-
             //     doc clashes missing?" without attaching a debugger.
             int perLinkFailures = 0;

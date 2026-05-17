@@ -59,16 +59,8 @@ namespace StingTools.Core
                 if (match != null) return EnsureActive(doc, match);
             }
 
-            // 4) First available — warn so the caller can surface that the
-            //    project's title-block routing policy is unconfigured for
-            //    this discipline.
-            if (all.Count > 0)
-            {
-                StingLog.Warn(
-                    $"TitleBlockRouter: no per-discipline / default / preferred match for '{disciplineCode}'; falling back to first available '{all[0].FamilyName}'.");
-                return EnsureActive(doc, all[0]);
-            }
-            return null;
+            // 4) First available
+            return all.Count > 0 ? EnsureActive(doc, all[0]) : null;
         }
 
         /// <summary>Activate a FamilySymbol inside its own transaction if not already active.</summary>

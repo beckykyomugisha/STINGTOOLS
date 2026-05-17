@@ -45,6 +45,13 @@ public class IssueAudioNote : ITenantScoped
     /// <summary>Display name of the uploading user (display_name claim).</summary>
     public string? CreatedBy { get; set; }
 
+    /// <summary>
+    /// Client-supplied idempotency key (e.g. UUID v4 from the mobile app).
+    /// Used to deduplicate retried uploads from unreliable connections.
+    /// Nullable — omitted when the client does not supply one.
+    /// </summary>
+    public string? IdempotencyKey { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation

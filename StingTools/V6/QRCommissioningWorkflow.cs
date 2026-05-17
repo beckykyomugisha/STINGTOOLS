@@ -127,7 +127,7 @@ namespace StingTools.V6
         {
             if (!File.Exists(path)) return new List<AuditEntry>();
             try { return JsonConvert.DeserializeObject<List<AuditEntry>>(File.ReadAllText(path)) ?? new List<AuditEntry>(); }
-            catch { return new List<AuditEntry>(); }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return new List<AuditEntry>(); }
         }
 
         public static string AuditLogPath(Document doc)

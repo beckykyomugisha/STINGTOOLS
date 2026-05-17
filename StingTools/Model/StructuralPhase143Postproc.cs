@@ -490,7 +490,7 @@ namespace StingTools.Model
                 p.Set(next);
                 return true;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
     }
 }

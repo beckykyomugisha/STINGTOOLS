@@ -52,12 +52,6 @@ namespace StingTools.UI
         private readonly Document _doc;
         private readonly List<DrawingType> _types;       // working copy
         private DrawingType _current;
-        // Phase 169 — Resolved-column preview state. _previewDisc drives the
-        // {disc}/{discipline}/{role} tokens; _previewSeq drives {seq:Dn}; both
-        // optional. Persisted across RenderForm() rebuilds for the same dialog
-        // session so the operator's pick survives a re-render.
-        private string _previewDisc = "";
-        private int    _previewSeq  = 1;
         private ListBox _lbTypes;
         private TextBox _tbSearch;
         private StackPanel _formHost;                    // right-hand form container
@@ -68,7 +62,7 @@ namespace StingTools.UI
         // so the column edges line up pixel-for-pixel regardless of the
         // dialog width.
         // [Label, ViewType, NormX, NormY, NormW, NormH, Scale, ×]
-        private static readonly int[] _slotColWidths = { 100, 110, 50, 50, 50, 50, 60, 75, 24 };
+        private static readonly int[] _slotColWidths = { 100, 110, 60, 60, 60, 60, 60, 24 };
 
         // ── Static vocabularies (Change 3 / 4 / 6) ────────────────────
         // Union with ProjectAssetPicker.* live readers at runtime so the
@@ -163,9 +157,6 @@ namespace StingTools.UI
             "AutoDimWallLength", "AutoDimColumnGrid", "AutoDimOpenings",
             "AutoDimElevation", "AutoAnnotateSlope", "AutoAnnotateFlowArrow",
             "AutoAnnotateSpaceNumber", "AutoAnnotateAreaBoundary",
-            // Phase 175 — strategy dispatcher rule types
-            "GridDim", "LevelAnnotation",
-            "AutoDimMEPRun", "AutoDimMEPToGrid", "AutoSpotInvert",
         };
 
         // Merge live + static into a deduplicated, sorted list. Used for
@@ -203,12 +194,6 @@ namespace StingTools.UI
             }
             catch { }
 
-            // Phase 137 — initialise _packs in the constructor (was inside
-            // BuildViewStylePacksTab) so Tab 0 controls that reference the
-            // pack list (e.g. ViewStylePackId combo on a DrawingType card)
-            // resolve cleanly on first render.
-            _packs = LoadViewStylePacks();
-
             Content = BuildLayout();
             if (_types.Count > 0) SelectType(_types[0]);
         }
@@ -234,7 +219,7 @@ namespace StingTools.UI
             _rootTabs.Items.Add(MakeTab("View Style Packs", BuildViewStylePacksTab()));
             _rootTabs.Items.Add(MakeTab("Viewport Tools",   BuildViewportToolsTab()));
             _rootTabs.Items.Add(MakeTab("Sheet Tools",      BuildSheetToolsTab()));
-            _rootTabs.Items.Add(MakeTab("Title Block Tools", BuildTitleBlockTab()));
+            _rootTabs.Items.Add(MakeTab("Title Block",      BuildTitleBlockTab()));
             _rootTabs.Items.Add(MakeTab("Sheet Manager",    BuildSheetManagerTab()));
             Grid.SetRow(_rootTabs, 0);
             root.Children.Add(_rootTabs);
@@ -312,7 +297,7 @@ namespace StingTools.UI
 
         private UIElement BuildViewStylePacksTab()
         {
-            if (_packs == null) _packs = LoadViewStylePacks();
+            _packs = LoadViewStylePacks();
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -337,7 +322,6 @@ namespace StingTools.UI
                 Foreground = new SolidColorBrush(FgColor),
                 BorderBrush = new SolidColorBrush(CardBorder),
                 BorderThickness = new Thickness(1),
-                ItemTemplate = BuildPackListItemTemplate(),
             };
             foreach (var p in _packs) _lbPacks.Items.Add(p);
             _lbPacks.SelectionChanged += (s, e) =>
@@ -365,111 +349,10 @@ namespace StingTools.UI
             RenderPackForm();
         }
 
-        // Phase 177 — Core.Drawing.ViewStylePack has no custom ToString, so
-        // the ListBox needs an explicit template that renders the pack's
-        // identity + extends-chain breadcrumb (e.g. "corp-standard-plan ← corp-base").
-        private static DataTemplate BuildPackListItemTemplate()
-        {
-            var dt = new DataTemplate();
-            var f = new FrameworkElementFactory(typeof(TextBlock));
-            f.SetBinding(TextBlock.TextProperty, new System.Windows.Data.MultiBinding
-            {
-                Converter = new PackListItemConverter(),
-                Bindings =
-                {
-                    new System.Windows.Data.Binding("Id"),
-                    new System.Windows.Data.Binding("Extends"),
-                    new System.Windows.Data.Binding("TemplateMode"),
-                }
-            });
-            f.SetValue(TextBlock.MarginProperty, new Thickness(4, 2, 4, 2));
-            dt.VisualTree = f;
-            return dt;
-        }
-
-        private sealed class PackListItemConverter : System.Windows.Data.IMultiValueConverter
-        {
-            public object Convert(object[] values, Type t, object p, System.Globalization.CultureInfo c)
-            {
-                var id = values != null && values.Length > 0 ? values[0] as string : "";
-                var ext = values != null && values.Length > 1 ? values[1] as string : null;
-                var mode = values != null && values.Length > 2 ? values[2] as string : null;
-                var s = string.IsNullOrEmpty(id) ? "(no id)" : id;
-                if (!string.IsNullOrEmpty(ext)) s += "  ←  " + ext;
-                if (string.Equals(mode, "managed", StringComparison.OrdinalIgnoreCase)) s += "   ⚙";
-                return s;
-            }
-            public object[] ConvertBack(object v, Type[] t, object p, System.Globalization.CultureInfo c)
-                => throw new NotSupportedException();
-        }
-
         private void RenderPackForm()
         {
             _packFormHost.Children.Clear();
             if (_currentPack == null) return;
-
-            // Phase 137 — Template Mode card (managed vs external + regenerate hook)
-            var tmBody = new StackPanel();
-            var modeRow = new StackPanel { Orientation = Orientation.Horizontal };
-            var rbExt = new RadioButton { Content = "External", GroupName = "tm" + _currentPack.Id, IsChecked = !_currentPack.IsManaged, Margin = new Thickness(0,0,12,0) };
-            var rbMan = new RadioButton { Content = "Managed",  GroupName = "tm" + _currentPack.Id, IsChecked =  _currentPack.IsManaged };
-            rbExt.Checked += (s,e) => { _currentPack.TemplateMode = "external"; RenderPackForm(); };
-            rbMan.Checked += (s,e) => { _currentPack.TemplateMode = "managed";  RenderPackForm(); };
-            modeRow.Children.Add(rbExt);
-            modeRow.Children.Add(rbMan);
-            tmBody.Children.Add(modeRow);
-
-            if (_currentPack.IsManaged)
-            {
-                var info = new TextBlock {
-                    Text = "STING will mint a Revit view template named 'STING:{pack-id}:{ViewType}' and bind the listed fields to its " +
-                           "controlled-parameter set. Edit the pack → Save → Regenerate so every view assigned to the template picks up the change.",
-                    TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(Colors.Goldenrod), Margin = new Thickness(0,4,0,4)
-                };
-                tmBody.Children.Add(info);
-                if (_currentPack.ManagedFields == null || _currentPack.ManagedFields.Count == 0)
-                    _currentPack.ManagedFields = new List<string> { "scale", "detailLevel", "discipline", "visualStyle", "phaseFilter" };
-                var grid = new WrapPanel { Margin = new Thickness(0,2,0,2) };
-                foreach (var f in new[] { "scale","detailLevel","discipline","visualStyle","phaseFilter","phase","annotationCrop","farClip","viewRange","underlay","vgOverrides","filters","worksetVisibility" })
-                {
-                    var cb = new CheckBox { Content = f, Margin = new Thickness(0,0,8,0), IsChecked = _currentPack.ManagedFields.Contains(f) };
-                    cb.Checked   += (s,e) => { if (!_currentPack.ManagedFields.Contains(f)) _currentPack.ManagedFields.Add(f); };
-                    cb.Unchecked += (s,e) => _currentPack.ManagedFields.Remove(f);
-                    grid.Children.Add(cb);
-                }
-                tmBody.Children.Add(grid);
-
-                // Phase 177 — typo-prevention dropdowns. Visual Style is a
-                // closed enum; Discipline is a closed enum; Phase Filter +
-                // Phase resolve against the live project. Free-typed fall
-                // through (the runtime PackPhaseFilterApplier matches by name).
-                tmBody.Children.Add(LabeledCombo("Discipline",
-                    new[] { "", "Architectural", "Structural", "Mechanical", "Electrical", "Plumbing", "Coordination" },
-                    _currentPack.Discipline, v => _currentPack.Discipline = string.IsNullOrEmpty(v) ? null : v));
-                tmBody.Children.Add(LabeledCombo("Visual style",
-                    new[] { "", "Wireframe", "HiddenLine", "Shaded", "ConsistentColors", "Realistic", "RayTrace" },
-                    _currentPack.VisualStyle, v => _currentPack.VisualStyle = string.IsNullOrEmpty(v) ? null : v));
-                tmBody.Children.Add(LabeledCombo("Phase filter name",
-                    new[] { "", "Show Complete", "Show Previous + New", "Show All", "Show New", "Show Demo + New", "None" },
-                    _currentPack.PhaseFilter,
-                    v => _currentPack.PhaseFilter = string.IsNullOrEmpty(v) ? null : v,
-                    "Standard PhaseFilter names. Free-text allowed for project-specific filters."));
-                tmBody.Children.Add(LabeledProjectAssetCombo("Phase",
-                    _currentPack.Phase, v => _currentPack.Phase = v,
-                    Merge(ProjectAssetPicker.PhaseNames(_doc), new[] { "Existing", "New Construction", "Demolition" }),
-                    "Project phases (Phase elements) in the active document."));
-
-                // Regenerate button — closes the gap noted in the review.
-                // Dispatches DrawingTypes_RegenerateTemplates which
-                // re-applies every managed pack to its STING:{pack}:{vt}
-                // template under a transaction.
-                var regenRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
-                regenRow.Children.Add(MakeActionBtn("⟳ Regenerate templates", "DrawingTypes_RegenerateTemplates"));
-                regenRow.Children.Add(MakeActionBtn("Convert to Managed",     "DrawingTypes_ConvertToManaged"));
-                regenRow.Children.Add(MakeActionBtn("Detach from Managed",    "DrawingTypes_DetachManaged"));
-                tmBody.Children.Add(regenRow);
-            }
-            _packFormHost.Children.Add(Card("Template Mode (Phase 137)", tmBody));
 
             // Identity
             var idBody = new StackPanel();
@@ -482,23 +365,22 @@ namespace StingTools.UI
             idBody.Children.Add(LabeledTextBlock("Origin", _currentPack.Origin ?? "project"));
             _packFormHost.Children.Add(Card("Identity", idBody));
 
-            // Appearance — Phase 177: flattened onto Core.Drawing.ViewStylePack
-            // (no nested PackAppearance any more). Each field round-trips
-            // straight to the canonical pack POCO.
+            // Appearance
+            var ap = _currentPack.Appearance = _currentPack.Appearance ?? new PackAppearance();
             var apBody = new StackPanel();
-            apBody.Children.Add(LabeledDouble("Line-weight scale", _currentPack.LineWeightScale,
-                v => _currentPack.LineWeightScale = v));
+            apBody.Children.Add(LabeledDouble("Line-weight scale", ap.LineWeightScale,
+                v => ap.LineWeightScale = v));
             apBody.Children.Add(LabeledProjectAssetCombo("Text style name",
-                _currentPack.TextStyle, v => _currentPack.TextStyle = v,
+                ap.TextStyleName, v => ap.TextStyleName = v,
                 Merge(ProjectAssetPicker.TextStyleNames(_doc), CommonStingTextStyles),
                 "TextNoteType elements in the active project, plus STING corporate text styles."));
             apBody.Children.Add(LabeledProjectAssetCombo("Dimension style name",
-                _currentPack.DimensionStyle, v => _currentPack.DimensionStyle = v,
+                ap.DimensionStyleName, v => ap.DimensionStyleName = v,
                 Merge(ProjectAssetPicker.DimensionStyleNames(_doc), CommonStingDimensionStyles),
                 "DimensionType elements in the active project, plus STING corporate dimension styles."));
             apBody.Children.Add(LabeledCombo("Hatch palette (informational)",
                 new[] { "ISO 13567 monochrome", "ISO 13567 colour", "AIA NCS", "BS 1192 mono", "Project custom" },
-                _currentPack.HatchPalette, v => _currentPack.HatchPalette = v,
+                ap.HatchPalette, v => ap.HatchPalette = v,
                 tooltip: "Informational tag for the hatch family used by this pack — does not bind to a Revit asset."));
             apBody.Children.Add(LabeledProjectAssetCombo("View template name",
                 _currentPack.ViewTemplate, v => _currentPack.ViewTemplate = v,
@@ -516,86 +398,41 @@ namespace StingTools.UI
                 _currentPack.ColorScheme, v => _currentPack.ColorScheme = v));
             _packFormHost.Children.Add(Card("Appearance", apBody));
 
-            // Bidirectional template copy — push the pack's view template
-            // name down to every DrawingType bound to this pack, or pull
-            // from the first such DrawingType up onto the pack.
-            _packFormHost.Children.Add(BuildPackTemplateCopyCard());
-
-            // Filter rules — Phase 177: bound directly to Core.Drawing.StyleFilterRule.
+            // Filter rules
             var frBody = new StackPanel();
-            _currentPack.Filters = _currentPack.Filters ?? new List<StyleFilterRule>();
+            _currentPack.FilterRules = _currentPack.FilterRules ?? new List<PackFilterRule>();
             frBody.Children.Add(new TextBlock {
-                Text = "Per-filter graphic overrides. Filter names resolve against ParameterFilterElement in the active project (corporate AEC filters lazy-create on apply). Colours in #RRGGBB. " +
-                       "Inherited rows (italic) come from parent packs in the extends chain — edits land on this pack only.",
+                Text = "Per-filter graphic overrides. Filters must already exist in the project (ParameterFilterElement). Colours in #RRGGBB.",
                 Foreground = new SolidColorBrush(SubtleColor), FontSize = 11, TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 4) });
             frBody.Children.Add(MakeFilterRuleHeader());
-
-            // Show inherited filters first (italicised, from parent packs in the
-            // extends chain), then this pack's own filters. The runtime
-            // applier appends both at apply time, so showing both here
-            // matches what the user will actually see on a view.
-            var ownFilters = _currentPack.Filters ?? new List<StyleFilterRule>();
-            var inherited  = ResolveInheritedFilters(_currentPack);
-            if (inherited.Count > 0)
-            {
-                foreach (var fr in inherited)
-                    frBody.Children.Add(MakeInheritedFilterRow(fr));
-                frBody.Children.Add(new TextBlock {
-                    Text = $"— ↑ {inherited.Count} inherited filter row(s) — ↓ this pack's own filters —",
-                    Foreground = new SolidColorBrush(SubtleColor),
-                    FontSize = 10, FontStyle = FontStyles.Italic,
-                    Margin = new Thickness(0, 4, 0, 4) });
-            }
-            foreach (var fr in ownFilters.ToList())
+            foreach (var fr in _currentPack.FilterRules.ToList())
                 frBody.Children.Add(MakeFilterRuleRow(fr));
             frBody.Children.Add(MakeSmallBtn("＋ Add filter rule", () =>
             {
-                _currentPack.Filters.Add(new StyleFilterRule { FilterName = "NewFilter", Visible = true,
-                    ProjectionLineColor = "#000000", ProjectionLineWeight = 1,
-                    CutLineColor = "#000000", CutLineWeight = 1 });
-                MarkPackEdited(_currentPack);
+                _currentPack.FilterRules.Add(new PackFilterRule { Name = "NewFilter", Visible = true,
+                    ProjColor = "#000000", ProjWeight = 1, CutColor = "#000000", CutWeight = 1 });
                 RenderPackForm();
             }));
             _packFormHost.Children.Add(Card("Filter rules", frBody));
 
-            // VG Overrides per category — Phase 137 + 177: full Revit VG dialog
-            // replica embedded inline (no popup). Backed by a bridge dict of
-            // PresetCategoryOverride that mirrors the pack's StyleVgOverride
-            // dict on every cell change. Pattern + detail-level fields
-            // round-trip too. The bridge walks the extends chain so child
-            // packs show inherited values from corp-base / mid-tier parents.
+            // VG Overrides per category
             var vgBody = new StackPanel();
-            _currentPack.VgOverrides = _currentPack.VgOverrides ?? new Dictionary<string, StyleVgOverride>();
-            int chainLen = CountExtendsChainLength(_currentPack);
-            if (chainLen > 1)
-            {
-                vgBody.Children.Add(new TextBlock {
-                    Text = $"Showing resolved overrides — values rolled up from {chainLen} pack(s) in the extends chain " +
-                           $"({ResolveExtendsChain(_currentPack)}). Edits land on this pack only.",
-                    Foreground = new SolidColorBrush(Colors.Goldenrod), FontSize = 11,
-                    FontStyle = FontStyles.Italic, TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 0, 0, 4) });
-            }
+            _currentPack.VgOverrides = _currentPack.VgOverrides ?? new Dictionary<string, PackCategoryOverride>();
             vgBody.Children.Add(new TextBlock {
-                Text = "Full Revit Visibility/Graphics Overrides — every model + annotation category from the active project pre-populated, " +
-                       "subcategories indented underneath. Cells round-trip live into the pack JSON; tab away from a cell to commit. " +
-                       "No popup, no Revit-VG-dialog round-trip.",
+                Text = "Per-category graphic overrides. Key = category name (Walls / Grids / Rooms), BuiltInCategory enum, or <Room Separation> for subcategories. Colours in #RRGGBB.",
                 Foreground = new SolidColorBrush(SubtleColor), FontSize = 11, TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 6) });
-
-            var bridge = BuildVgBridge(_currentPack);
-            var editor = new RevitVgEditor(_doc, bridge);
-            editor.RowChanged += r => SyncRowToPack(_currentPack, r);
-            // Constrain the editor to a sensible inline height; user can scroll
-            // through ~80+ categories + 300+ subcategories without the card
-            // ballooning the whole pack form.
-            var editorHost = new Border { Height = 520, Child = editor.Build() };
-            vgBody.Children.Add(editorHost);
-            _packFormHost.Children.Add(Card("VG overrides (full Revit replica, with subcategories)", vgBody));
-
-            // Phase 135 — Tag Appearance card
-            _packFormHost.Children.Add(BuildPackTagAppearanceCard());
+                Margin = new Thickness(0, 0, 0, 4) });
+            vgBody.Children.Add(MakeVgHeader());
+            foreach (var kv in _currentPack.VgOverrides.ToList())
+                vgBody.Children.Add(MakeVgRow(kv.Key, kv.Value));
+            vgBody.Children.Add(MakeSmallBtn("＋ Add VG override", () =>
+            {
+                var key = "NewCategory" + _currentPack.VgOverrides.Count;
+                _currentPack.VgOverrides[key] = new PackCategoryOverride { Visible = true, ProjWeight = 1 };
+                RenderPackForm();
+            }));
+            _packFormHost.Children.Add(Card("VG overrides (per category)", vgBody));
 
             // Validation strip
             _packFormHost.Children.Add(new TextBlock
@@ -607,216 +444,12 @@ namespace StingTools.UI
             });
         }
 
-        // Phase 135 — pack-level tag appearance defaults. Per-DrawingType
-        // AnnotationTokenProfile fields override these; the pack supplies
-        // a sensible default for every profile that bound to it but didn't
-        // set every tag knob explicitly.
-        private UIElement BuildPackTagAppearanceCard()
-        {
-            var p = _currentPack;
-            var body = new StackPanel();
-
-            string[] schemes = new[] { "", "Discipline", "System", "Status", "Zone", "Level", "Location", "Function",
-                                        "Warm", "Cool", "Red", "Yellow", "Blue", "Mono", "Dark" };
-            body.Children.Add(LabeledCombo("Default colour scheme",
-                schemes, p.TagColorScheme ?? "",
-                v => p.TagColorScheme = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
-                tooltip: "Variable-driven scheme written to STING_VIEW_TAG_STYLE on every view this pack applies to. Profile-level scheme wins."));
-
-            string[] commonStyles = new[] { "",
-                "2NOM_BLACK", "2BOLD_BLACK", "2.5NOM_BLACK", "2.5BOLD_BLACK",
-                "2NOM_BLUE", "2BOLD_BLUE", "2.5NOM_BLUE",
-                "2NOM_GREEN", "2BOLD_GREEN",
-                "2NOM_RED", "2BOLD_RED", "2.5BOLD_RED",
-                "2NOM_ORANGE", "2BOLD_ORANGE",
-                "2.5BOLDITALIC_PURPLE",
-                "3NOM_BLACK", "3BOLD_BLACK", "3.5BOLD_BLACK",
-            };
-            body.Children.Add(LabeledCombo("Default tag style preset",
-                commonStyles, p.DefaultTagStyle ?? "",
-                v => p.DefaultTagStyle = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
-                tooltip: "Canonical name '{size}{style}_{color}' (e.g. '2.5BOLD_RED'). Profile-level Size/Style/Color triple wins."));
-
-            body.Children.Add(BuildPackCategoryTagStylesGrid(p));
-            return Card("Tag appearance (Phase 135)", body);
-        }
-
-        // Phase 177 — extended per-category Tag Appearance grid columns:
-        // Category · Style preset · Token depth (1-10) · TAG7 narrative
-        // sections (A-F multi-pick) · × delete.
-        private static readonly GridLength[] _packCatStyleCols =
-        {
-            new GridLength(170),  // Category
-            new GridLength(150),  // Style preset (full 128-combo dropdown)
-            new GridLength(80),   // Token depth
-            new GridLength(1, GridUnitType.Star), // TAG7 sections
-            new GridLength(24),   // ×
-        };
-
-        // Full 128 style preset combinations: 4 sizes × 4 styles × 8 colors.
-        // Mirrors TagStyleEngine's parameter matrix so the dropdown reflects
-        // every TAG_{size}{style}_{color}_BOOL the family exposes.
-        private static readonly string[] _allStylePresets = BuildAllStylePresets();
-        private static string[] BuildAllStylePresets()
-        {
-            var sizes  = new[] { "2", "2.5", "3", "3.5" };
-            var styles = new[] { "NOM", "BOLD", "ITALIC", "BOLDITALIC" };
-            var colors = new[] { "BLACK", "BLUE", "GREEN", "RED", "ORANGE", "GREY", "PURPLE", "YELLOW" };
-            var list = new List<string> { "" };
-            foreach (var sz in sizes)
-                foreach (var st in styles)
-                    foreach (var co in colors)
-                        list.Add($"{sz}{st}_{co}");
-            return list.ToArray();
-        }
-
-        // TAG7 narrative section letters — "A" through "F". Stored as a
-        // single string per category (e.g. "ABCD" = sections A,B,C,D
-        // visible). Empty string = use pack default visibility map.
-        private static readonly string[] _tag7SectionPresets =
-        {
-            "", "A", "AB", "ABC", "ABCD", "ABCDE", "ABCDEF",
-            "AC", "AD", "AE", "AF",
-            "BC", "BD", "BE", "BF",
-            "ABDF", "ABCDF",
-        };
-
-        private UIElement BuildPackCategoryTagStylesGrid(ViewStylePack p)
-        {
-            p.CategoryTagStyles    = p.CategoryTagStyles    ?? new Dictionary<string, string>();
-            p.CategoryDepths       = p.CategoryDepths       ?? new Dictionary<string, int>();
-            p.CategoryTag7Sections = p.CategoryTag7Sections ?? new Dictionary<string, string>();
-
-            var host = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
-            host.Children.Add(new TextBlock {
-                Text = "Per-category tag appearance. Style overrides Default tag style above; depth sets TAG7 paragraph " +
-                       "depth (1-10); sections control which TAG7 narrative sub-sections (A-F) render. Empty cell = inherit pack default.",
-                Foreground = new SolidColorBrush(SubtleColor),
-                FontSize = 11, TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 2) });
-
-            // Header
-            var header = new Grid { Margin = new Thickness(0, 4, 0, 2) };
-            for (int i = 0; i < _packCatStyleCols.Length; i++)
-                header.ColumnDefinitions.Add(new ColumnDefinition { Width = _packCatStyleCols[i] });
-            string[] hd = { "Category", "Style preset (128)", "Depth (1-10)", "TAG7 sections (A-F)", "" };
-            for (int i = 0; i < hd.Length; i++)
-            {
-                var t = new TextBlock { Text = hd[i], FontSize = 10,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = new SolidColorBrush(SubtleColor),
-                    Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0) };
-                Grid.SetColumn(t, i); header.Children.Add(t);
-            }
-            host.Children.Add(header);
-
-            var cats = Merge(ProjectAssetPicker.TaggableCategoryNames(_doc),
-                             KnownTaggableCategories).ToArray();
-            string[] depths = new[] { "", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" };
-
-            // Union of every key referenced across the three per-category
-            // dicts so a row renders even if only depth or sections is set.
-            var allKeys = new SortedSet<string>(p.CategoryTagStyles.Keys, StringComparer.OrdinalIgnoreCase);
-            foreach (var k in p.CategoryDepths.Keys)       allKeys.Add(k);
-            foreach (var k in p.CategoryTag7Sections.Keys) allKeys.Add(k);
-
-            foreach (var catKey in allKeys.ToList())
-            {
-                var g = new Grid { Margin = new Thickness(0, 1, 0, 1) };
-                for (int i = 0; i < _packCatStyleCols.Length; i++)
-                    g.ColumnDefinitions.Add(new ColumnDefinition { Width = _packCatStyleCols[i] });
-
-                string keyCapture = catKey;
-                var keyBox = SmallCombo(catKey, newKey =>
-                {
-                    newKey = (newKey ?? "").Trim();
-                    if (string.IsNullOrEmpty(newKey) || newKey == keyCapture) return;
-                    RenameCategoryKey(p, keyCapture, newKey);
-                }, cats);
-
-                var currentStyle = p.CategoryTagStyles.TryGetValue(catKey, out var stv) ? stv : "";
-                var styleBox = SmallCombo(currentStyle ?? "", v =>
-                {
-                    var trimmed = (v ?? "").Trim();
-                    if (string.IsNullOrEmpty(trimmed)) p.CategoryTagStyles.Remove(keyCapture);
-                    else p.CategoryTagStyles[keyCapture] = trimmed;
-                }, _allStylePresets);
-
-                var currentDepth = p.CategoryDepths.TryGetValue(catKey, out var dv) ? dv.ToString() : "";
-                var depthBox = SmallCombo(currentDepth, v =>
-                {
-                    var trimmed = (v ?? "").Trim();
-                    if (string.IsNullOrEmpty(trimmed)) p.CategoryDepths.Remove(keyCapture);
-                    else if (int.TryParse(trimmed, out var n) && n >= 1 && n <= 10)
-                        p.CategoryDepths[keyCapture] = n;
-                }, depths);
-
-                var currentTag7 = p.CategoryTag7Sections.TryGetValue(catKey, out var sv) ? sv : "";
-                var tag7Box = SmallCombo(currentTag7 ?? "", v =>
-                {
-                    // Normalise to upper-case alpha A..F characters.
-                    var clean = new string((v ?? "").ToUpperInvariant().Where(c => c >= 'A' && c <= 'F').Distinct().ToArray());
-                    if (string.IsNullOrEmpty(clean)) p.CategoryTag7Sections.Remove(keyCapture);
-                    else p.CategoryTag7Sections[keyCapture] = clean;
-                }, _tag7SectionPresets);
-
-                var rm = MakeSmallBtn("×", () =>
-                {
-                    p.CategoryTagStyles.Remove(keyCapture);
-                    p.CategoryDepths.Remove(keyCapture);
-                    p.CategoryTag7Sections.Remove(keyCapture);
-                    RenderPackForm();
-                });
-                rm.Width = 22;
-
-                var ctrls = new UIElement[] { keyBox, styleBox, depthBox, tag7Box, rm };
-                for (int i = 0; i < ctrls.Length; i++)
-                {
-                    Grid.SetColumn(ctrls[i], i);
-                    if (ctrls[i] is FrameworkElement fe)
-                        fe.Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0);
-                    g.Children.Add(ctrls[i]);
-                }
-                host.Children.Add(g);
-            }
-
-            host.Children.Add(MakeSmallBtn("＋ Add category appearance", () =>
-            {
-                var key = "NewCategory" + (p.CategoryTagStyles.Count + p.CategoryDepths.Count + p.CategoryTag7Sections.Count);
-                p.CategoryTagStyles[key] = "2NOM_BLACK";
-                RenderPackForm();
-            }));
-            return host;
-        }
-
-        // Phase 177 — rename a category key across all three per-category
-        // dictionaries atomically. Drops empty entries so the rename
-        // doesn't leave orphan keys behind.
-        private static void RenameCategoryKey(ViewStylePack p, string oldKey, string newKey)
-        {
-            if (p.CategoryTagStyles.TryGetValue(oldKey, out var sv))
-            {
-                p.CategoryTagStyles.Remove(oldKey);
-                p.CategoryTagStyles[newKey] = sv;
-            }
-            if (p.CategoryDepths.TryGetValue(oldKey, out var dv))
-            {
-                p.CategoryDepths.Remove(oldKey);
-                p.CategoryDepths[newKey] = dv;
-            }
-            if (p.CategoryTag7Sections.TryGetValue(oldKey, out var tv))
-            {
-                p.CategoryTag7Sections.Remove(oldKey);
-                p.CategoryTag7Sections[newKey] = tv;
-            }
-        }
-
         // ── Filter rule row ──
         private UIElement MakeFilterRuleHeader()
         {
             var g = new Grid { Margin = new Thickness(0, 4, 0, 2) };
-            string[] headers = { "Filter name (AEC + project)", "Visible", "Halftone", "Proj-Col", "Proj-Wt", "Cut-Col", "Cut-Wt", "Trans%" };
-            double[] widths  = { 200, 56, 56, 70, 50, 70, 50, 56 };
+            string[] headers = { "Filter name", "Visible", "Halftone", "Proj-Col", "Proj-Wt", "Cut-Col", "Cut-Wt", "Trans%" };
+            double[] widths  = { 160, 56, 56, 70, 50, 70, 50, 56 };
             for (int i = 0; i < widths.Length; i++)
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(widths[i]) });
             for (int i = 0; i < headers.Length; i++)
@@ -828,36 +461,23 @@ namespace StingTools.UI
             return g;
         }
 
-        private UIElement MakeFilterRuleRow(StyleFilterRule fr)
+        private UIElement MakeFilterRuleRow(PackFilterRule fr)
         {
             var g = new Grid { Margin = new Thickness(0, 1, 0, 1) };
-            double[] widths = { 200, 56, 56, 70, 50, 70, 50, 56 };
+            double[] widths = { 160, 56, 56, 70, 50, 70, 50, 56 };
             for (int i = 0; i < widths.Length; i++)
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(widths[i]) });
 
-            // Phase 177 — filter-name source is the union of:
-            //   1. AecFilterRegistry corporate baseline (199 filters)
-            //   2. ParameterFilterElement in the active project
-            //   3. Common STING corporate filters
-            // Pre-sorted, deduplicated. Names that resolve against the AEC
-            // registry will lazy-create on apply if not yet in the project.
-            var filterNames = ResolveFilterNames();
-            var name = SmallCombo(fr.FilterName, v => fr.FilterName = v, filterNames);
+            var filterNames = Merge(ProjectAssetPicker.ParameterFilterNames(_doc),
+                                    CommonStingFilters).ToArray();
+            var name = SmallCombo(fr.Name, v => fr.Name = v, filterNames);
             var vis  = MakeChk(fr.Visible,  v => fr.Visible = v);
             var ht   = MakeChk(fr.Halftone, v => fr.Halftone = v);
-            // Phase 177 — swatch clicks no longer trigger RenderPackForm:
-            // a full re-render on every colour pick was eating UI focus and
-            // resetting the RevitVgEditor's expand / scroll state. The
-            // MakeColourSwatch helper repaints its own button content from
-            // the new hex value, so a re-render is unnecessary here.
-            var pc   = MakeColourSwatch(fr.ProjectionLineColor, v => { fr.ProjectionLineColor = v; MarkPackEdited(_currentPack); });
-            var pw   = SmallTb(fr.ProjectionLineWeight?.ToString() ?? "",
-                               v => { fr.ProjectionLineWeight = string.IsNullOrEmpty(v) ? (int?)null : TryNullableInt(v); MarkPackEdited(_currentPack); });
-            var cc   = MakeColourSwatch(fr.CutLineColor, v => { fr.CutLineColor = v; MarkPackEdited(_currentPack); });
-            var cw   = SmallTb(fr.CutLineWeight?.ToString() ?? "",
-                               v => { fr.CutLineWeight = string.IsNullOrEmpty(v) ? (int?)null : TryNullableInt(v); MarkPackEdited(_currentPack); });
-            var tr   = SmallTb(fr.Transparency?.ToString() ?? "",
-                               v => { fr.Transparency = string.IsNullOrEmpty(v) ? (int?)null : TryNullableInt(v); MarkPackEdited(_currentPack); });
+            var pc   = SmallTb(fr.ProjColor, v => fr.ProjColor = v);
+            var pw   = SmallTb(fr.ProjWeight.ToString(), v => fr.ProjWeight = TryInt(v));
+            var cc   = SmallTb(fr.CutColor, v => fr.CutColor = v);
+            var cw   = SmallTb(fr.CutWeight.ToString(), v => fr.CutWeight = TryInt(v));
+            var tr   = SmallTb(fr.Transparency.ToString(), v => fr.Transparency = TryInt(v));
 
             var ctrls = new UIElement[] { name, vis, ht, pc, pw, cc, cw, tr };
             for (int i = 0; i < ctrls.Length; i++)
@@ -869,314 +489,59 @@ namespace StingTools.UI
             return g;
         }
 
-        // Phase 177 — collect filters declared by every parent in the
-        // extends chain so the editor can render them as read-only
-        // inherited rows. Returns empty when the pack has no parent
-        // or no parents declare filters.
-        private List<StyleFilterRule> ResolveInheritedFilters(ViewStylePack pack)
+        // ── VG override row ──
+        private UIElement MakeVgHeader()
         {
-            var result = new List<StyleFilterRule>();
-            if (pack == null || string.IsNullOrEmpty(pack.Extends)) return result;
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { pack.Id ?? "" };
-            var cur = _packs?.FirstOrDefault(p => string.Equals(p.Id, pack.Extends, StringComparison.OrdinalIgnoreCase));
-            int guard = 16;
-            while (cur != null && guard-- > 0)
-            {
-                if (string.IsNullOrEmpty(cur.Id) || !seen.Add(cur.Id)) break;
-                if (cur.Filters != null) result.AddRange(cur.Filters);
-                if (string.IsNullOrEmpty(cur.Extends)) break;
-                cur = _packs?.FirstOrDefault(p => string.Equals(p.Id, cur.Extends, StringComparison.OrdinalIgnoreCase));
-            }
-            return result;
-        }
-
-        // Phase 177 — render an inherited filter row read-only with an
-        // italic style hint so the user knows it came from a parent pack
-        // and any edit needs to either override on this pack or be made
-        // on the parent.
-        private UIElement MakeInheritedFilterRow(StyleFilterRule fr)
-        {
-            var g = new Grid { Margin = new Thickness(0, 1, 0, 1), Opacity = 0.65 };
-            double[] widths = { 200, 56, 56, 70, 50, 70, 50, 56 };
+            var g = new Grid { Margin = new Thickness(0, 4, 0, 2) };
+            string[] headers = { "Category", "Visible", "Halftone", "Proj-Col", "Proj-Wt", "Cut-Col", "Cut-Wt", "Trans%" };
+            double[] widths  = { 160, 56, 56, 70, 50, 70, 50, 56 };
             for (int i = 0; i < widths.Length; i++)
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(widths[i]) });
-            string[] cells =
+            for (int i = 0; i < headers.Length; i++)
             {
-                fr.FilterName ?? "",
-                fr.Visible  ? "✓" : "",
-                fr.Halftone ? "✓" : "",
-                fr.ProjectionLineColor ?? "",
-                fr.ProjectionLineWeight?.ToString() ?? "",
-                fr.CutLineColor ?? "",
-                fr.CutLineWeight?.ToString() ?? "",
-                fr.Transparency?.ToString() ?? "",
-            };
-            for (int i = 0; i < cells.Length; i++)
-            {
-                var t = new TextBlock {
-                    Text = cells[i] ?? "",
-                    FontStyle = FontStyles.Italic,
-                    FontSize = 11,
-                    Foreground = new SolidColorBrush(SubtleColor),
-                    Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0),
-                    VerticalAlignment = VerticalAlignment.Center,
-                };
+                var t = new TextBlock { Text = headers[i], FontSize = 10,
+                    Foreground = new SolidColorBrush(SubtleColor) };
                 Grid.SetColumn(t, i); g.Children.Add(t);
             }
-            g.ToolTip = "Inherited from a parent pack. Edit the parent to change, or add an override row on this pack.";
             return g;
         }
 
-        // Phase 177 — filter-name dropdown source. Pulls from both the AEC
-        // corporate-baseline registry (so filters lazy-create on apply when
-        // they don't yet exist in the project) and the active project's
-        // ParameterFilterElement collector. Falls back to CommonStingFilters
-        // statics when neither source is available.
-        private string[] ResolveFilterNames()
+        private UIElement MakeVgRow(string key, PackCategoryOverride v)
         {
-            try
+            var g = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+            double[] widths = { 160, 56, 56, 70, 50, 70, 50, 56 };
+            for (int i = 0; i < widths.Length; i++)
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(widths[i]) });
+
+            // Category column: editable combo sourced from KnownRevitCategories
+            // ∪ live ProjectAssetPicker.CategoryNames so users pick from
+            // real categories but can still type "OST_Walls" or
+            // subcategory "<Room Separation>".
+            var categories = Merge(ProjectAssetPicker.CategoryNames(_doc),
+                                   KnownRevitCategories).ToArray();
+            var keyBox = SmallCombo(key, newKey =>
             {
-                var aec = AecFilterRegistry.ListAll(_doc) ?? Array.Empty<AecFilterDefinition>();
-                var aecNames = aec.Select(f => f.Name).Where(n => !string.IsNullOrWhiteSpace(n));
-                var live = ProjectAssetPicker.ParameterFilterNames(_doc) ?? Array.Empty<string>();
-                return Merge(aecNames.Concat(live), CommonStingFilters).ToArray();
-            }
-            catch
+                if (string.IsNullOrWhiteSpace(newKey) || newKey == key) return;
+                _currentPack.VgOverrides.Remove(key);
+                _currentPack.VgOverrides[newKey] = v;
+            }, categories);
+            var vis = MakeChk(v.Visible, b => v.Visible = b);
+            var ht  = MakeChk(v.Halftone,b => v.Halftone = b);
+            var pc  = SmallTb(v.ProjColor,  s => v.ProjColor = s);
+            var pw  = SmallTb(v.ProjWeight.ToString(), s => v.ProjWeight = TryInt(s));
+            var cc  = SmallTb(v.CutColor,   s => v.CutColor = s);
+            var cw  = SmallTb(v.CutWeight.ToString(), s => v.CutWeight = TryInt(s));
+            var tr  = SmallTb(v.Transparency.ToString(), s => v.Transparency = TryInt(s));
+
+            var ctrls = new UIElement[] { keyBox, vis, ht, pc, pw, cc, cw, tr };
+            for (int i = 0; i < ctrls.Length; i++)
             {
-                return Merge(ProjectAssetPicker.ParameterFilterNames(_doc), CommonStingFilters).ToArray();
+                Grid.SetColumn(ctrls[i], i);
+                if (ctrls[i] is FrameworkElement fe) fe.Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0);
+                g.Children.Add(ctrls[i]);
             }
+            return g;
         }
-
-        // ── Phase 137 — VG bridge between PackCategoryOverride (the editor's
-        //    on-disk JSON shape) and PresetCategoryOverride (the full-fidelity
-        //    in-memory model the inline RevitVgEditor binds to). The bridge
-        //    is built once when the pack form renders, lives in memory for
-        //    the editor, and is synced back to the pack on every RowChanged
-        //    event so the user's edits survive Save without an explicit
-        //    "apply" step. ──
-
-        // Phase 177 — bridge build now:
-        //   1. Walks the extends chain (root → … → current) so child packs
-        //      display the resolved/effective override set, not just their
-        //      own deltas. Child entries overwrite parent entries.
-        //   2. Normalises every JSON key to a BIC ("Walls" → "OST_Walls")
-        //      via RevitCategoryTree.FindByDisplayName, falling back to the
-        //      raw key when the lookup misses (subcategories, BIC strings
-        //      already in canonical form, or unknown categories).
-        // The result: opening any child pack in the editor now reveals the
-        // line colours, weights, halftone, pattern overrides, etc. it will
-        // actually apply at runtime — instead of a sea of empty rows.
-        private Dictionary<string, StingTools.Core.Drawing.PresetCategoryOverride>
-            BuildVgBridge(ViewStylePack pack)
-        {
-            var bridge = new Dictionary<string, StingTools.Core.Drawing.PresetCategoryOverride>(StringComparer.OrdinalIgnoreCase);
-            if (pack == null) return bridge;
-
-            // Resolve ancestors so corp-base ↑ corp-standard-plan ↑ corp-standard-rcp
-            // gets walked once, root-first, with the active pack last so its
-            // values win on conflicting keys.
-            var chain = new List<ViewStylePack>();
-            var seen  = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var cur = pack;
-            int guard = 16;
-            while (cur != null && guard-- > 0)
-            {
-                if (string.IsNullOrEmpty(cur.Id) || !seen.Add(cur.Id)) break;
-                chain.Add(cur);
-                if (string.IsNullOrEmpty(cur.Extends)) break;
-                cur = _packs?.FirstOrDefault(p =>
-                    string.Equals(p.Id, cur.Extends, StringComparison.OrdinalIgnoreCase));
-            }
-            chain.Reverse(); // root first; current pack overrides last
-
-            foreach (var p in chain)
-            {
-                if (p.VgOverrides == null) continue;
-                foreach (var kv in p.VgOverrides)
-                {
-                    var v = kv.Value;
-                    if (v == null) continue;
-                    var key = NormaliseCategoryKey(kv.Key);
-                    bridge[key] = new StingTools.Core.Drawing.PresetCategoryOverride
-                    {
-                        Category        = kv.Key,
-                        Visible         = v.Visible,
-                        Halftone        = v.Halftone,
-                        ProjLineColor   = v.ProjectionLineColor,
-                        ProjLineWeight  = v.ProjectionLineWeight,
-                        ProjLinePattern = v.ProjectionLinePattern,
-                        CutLineColor    = v.CutLineColor,
-                        CutLineWeight   = v.CutLineWeight,
-                        CutLinePattern  = v.CutLinePattern,
-                        SurfFgColor     = v.SurfaceFgColor,
-                        SurfFgPattern   = v.SurfaceFgPattern,
-                        SurfFgVisible   = v.SurfaceFgVisible,
-                        SurfBgColor     = v.SurfaceBgColor,
-                        SurfBgPattern   = v.SurfaceBgPattern,
-                        SurfBgVisible   = v.SurfaceBgVisible,
-                        CutFgColor      = v.CutFgColor,
-                        CutFgPattern    = v.CutFgPattern,
-                        CutFgVisible    = v.CutFgVisible,
-                        CutBgColor      = v.CutBgColor,
-                        CutBgPattern    = v.CutBgPattern,
-                        Transparency    = v.Transparency,
-                        DetailLevel     = v.DetailLevel,
-                    };
-                }
-            }
-            return bridge;
-        }
-
-        // Phase 177 — translate a pack JSON category key into the BIC the
-        // RevitVgEditor's row builder uses. Accepts:
-        //   * Already-canonical BIC strings  ("OST_Walls" → unchanged)
-        //   * Localised display names        ("Walls"     → "OST_Walls")
-        //   * Subcategory paths              ("Walls/Wall Surface" — first
-        //     segment translated, second left alone)
-        // Returns the input verbatim when no match is found so the user's
-        // hand-authored key is preserved on round-trip.
-        private static string NormaliseCategoryKey(string key)
-        {
-            if (string.IsNullOrEmpty(key)) return key;
-            // Subcategory path: "Parent/Sub"
-            int slash = key.IndexOf('/');
-            if (slash > 0)
-            {
-                var parent = key.Substring(0, slash);
-                var sub    = key.Substring(slash + 1);
-                var pBic = NormaliseSingle(parent);
-                return pBic + "/" + sub;
-            }
-            return NormaliseSingle(key);
-        }
-
-        private static string NormaliseSingle(string key)
-        {
-            if (string.IsNullOrEmpty(key)) return key;
-            // Already a BIC string?
-            if (key.StartsWith("OST_", StringComparison.OrdinalIgnoreCase)) return key;
-            // Try the catalogue
-            var cat = RevitCategoryTree.FindByDisplayName(key);
-            return !string.IsNullOrEmpty(cat?.Bic) ? cat.Bic : key;
-        }
-
-        /// <summary>
-        /// Phase 177 — push a single edited row from the inline VG editor
-        /// back into the pack's StyleVgOverride dict. Pattern + detail-level
-        /// fields round-trip too. The write-back key prefers the user-
-        /// friendly display name ("Walls") over the BIC ("OST_Walls") so
-        /// hand-authored JSON stays human-readable, and the editor's first
-        /// edit on a corporate pack flips Origin to "project" so Save
-        /// actually persists.
-        /// </summary>
-        private void SyncRowToPack(ViewStylePack pack, RevitVgEditor.VgRow r)
-        {
-            if (pack == null || r?.Data == null) return;
-            pack.VgOverrides = pack.VgOverrides ?? new Dictionary<string, StyleVgOverride>();
-            var v = r.Data;
-            bool any =
-                   v.Visible.HasValue || v.Halftone.HasValue
-                || !string.IsNullOrEmpty(v.ProjLineColor)   || v.ProjLineWeight.HasValue
-                || !string.IsNullOrEmpty(v.ProjLinePattern)
-                || !string.IsNullOrEmpty(v.CutLineColor)    || v.CutLineWeight.HasValue
-                || !string.IsNullOrEmpty(v.CutLinePattern)
-                || !string.IsNullOrEmpty(v.SurfFgColor)     || !string.IsNullOrEmpty(v.SurfFgPattern) || v.SurfFgVisible.HasValue
-                || !string.IsNullOrEmpty(v.SurfBgColor)     || !string.IsNullOrEmpty(v.SurfBgPattern) || v.SurfBgVisible.HasValue
-                || !string.IsNullOrEmpty(v.CutFgColor)      || !string.IsNullOrEmpty(v.CutFgPattern)  || v.CutFgVisible.HasValue
-                || !string.IsNullOrEmpty(v.CutBgColor)      || !string.IsNullOrEmpty(v.CutBgPattern)
-                || v.Transparency.HasValue
-                || !string.IsNullOrEmpty(v.DetailLevel);
-
-            // Resolve which key form the pack already uses for this row so
-            // we update the existing entry instead of creating a duplicate
-            // under a different key.
-            var packKey = ResolveExistingPackKey(pack, r) ?? PreferredPackKey(r);
-            if (!any)
-            {
-                pack.VgOverrides.Remove(packKey);
-                MarkPackEdited(pack);
-                return;
-            }
-            pack.VgOverrides[packKey] = new StyleVgOverride
-            {
-                Visible              = v.Visible,
-                Halftone             = v.Halftone,
-                ProjectionLineColor  = v.ProjLineColor,
-                ProjectionLineWeight = v.ProjLineWeight,
-                ProjectionLinePattern= v.ProjLinePattern,
-                CutLineColor         = v.CutLineColor,
-                CutLineWeight        = v.CutLineWeight,
-                CutLinePattern       = v.CutLinePattern,
-                SurfaceFgColor       = v.SurfFgColor,
-                SurfaceFgPattern     = v.SurfFgPattern,
-                SurfaceFgVisible     = v.SurfFgVisible,
-                SurfaceBgColor       = v.SurfBgColor,
-                SurfaceBgPattern     = v.SurfBgPattern,
-                SurfaceBgVisible     = v.SurfBgVisible,
-                CutFgColor           = v.CutFgColor,
-                CutFgPattern         = v.CutFgPattern,
-                CutFgVisible         = v.CutFgVisible,
-                CutBgColor           = v.CutBgColor,
-                CutBgPattern         = v.CutBgPattern,
-                Transparency         = v.Transparency,
-                DetailLevel          = v.DetailLevel,
-            };
-            MarkPackEdited(pack);
-        }
-
-        // Phase 177 — find whichever key form (BIC, display name, sub-path)
-        // the pack already uses for this row, so we update that entry instead
-        // of creating a parallel duplicate.
-        private static string ResolveExistingPackKey(ViewStylePack pack, RevitVgEditor.VgRow r)
-        {
-            if (pack?.VgOverrides == null || pack.VgOverrides.Count == 0) return null;
-            // Try BIC, BIC/sub, name, name/sub.
-            var candidates = new List<string>(4);
-            if (!string.IsNullOrEmpty(r.Bic))
-            {
-                candidates.Add(string.IsNullOrEmpty(r.SubCategoryName) ? r.Bic : $"{r.Bic}/{r.SubCategoryName}");
-            }
-            if (!string.IsNullOrEmpty(r.DisplayName))
-            {
-                candidates.Add(string.IsNullOrEmpty(r.SubCategoryName) ? r.DisplayName : $"{r.DisplayName}/{r.SubCategoryName}");
-            }
-            // Display name of the parent for subcategory rows
-            if (!string.IsNullOrEmpty(r.Bic) && !string.IsNullOrEmpty(r.SubCategoryName))
-            {
-                var parentDisplay = RevitCategoryTree.FindByBic(r.Bic)?.DisplayName;
-                if (!string.IsNullOrEmpty(parentDisplay))
-                    candidates.Add($"{parentDisplay}/{r.SubCategoryName}");
-            }
-            foreach (var c in candidates)
-                if (pack.VgOverrides.ContainsKey(c)) return c;
-            return null;
-        }
-
-        // Phase 177 — when the pack doesn't yet have an entry for this row,
-        // pick the friendlier display name ("Walls") over the BIC
-        // ("OST_Walls") so the resulting JSON stays human-readable. Falls
-        // back to BIC when no display name is available.
-        private static string PreferredPackKey(RevitVgEditor.VgRow r)
-        {
-            string head = !string.IsNullOrEmpty(r.DisplayName) ? r.DisplayName : r.Bic;
-            return string.IsNullOrEmpty(r.SubCategoryName) ? head : $"{head}/{r.SubCategoryName}";
-        }
-
-        // Phase 177 — first edit on a corporate-origin pack flips Origin to
-        // "project" so SavePacksToProjectOverride actually persists the edit.
-        // Without this, the editor would silently discard every change a
-        // user made to a corp-base pack on Save.
-        private static void MarkPackEdited(ViewStylePack pack)
-        {
-            if (pack == null) return;
-            if (string.Equals(pack.Origin, "corporate", StringComparison.OrdinalIgnoreCase))
-                pack.Origin = "project";
-        }
-
-        // ── Helpers for the filter-rule grid ──
-        // The legacy compact MakeVgHeader / MakeVgRow have been retired —
-        // the embedded RevitVgEditor (full Revit-VG-dialog replica) is now
-        // the only category-override surface in the pack form. See Phase 177.
 
         private CheckBox MakeChk(bool value, Action<bool> setter)
         {
@@ -1188,62 +553,6 @@ namespace StingTools.UI
         }
 
         private static int TryInt(string s) => int.TryParse(s, out var n) ? n : 0;
-
-        // Phase 177 — strict parser that returns null on un-parseable input
-        // so the user's "abc" doesn't silently become weight 0 (a meaningful
-        // override) when they meant "leave blank".
-        private static int? TryNullableInt(string s)
-            => int.TryParse(s, out var n) ? (int?)n : null;
-
-        /// <summary>
-        /// Phase 137 — clickable colour swatch button used for filter-rules
-        /// Proj-Col / Cut-Col cells. Opens VgColorPicker (Windows native
-        /// picker) and writes back the picked hex. Tooltip shows hex +
-        /// R/G/B in three formats so users can copy whichever they need.
-        /// </summary>
-        private System.Windows.Controls.Button MakeColourSwatch(string hex, Action<string> setter)
-        {
-            var btn = new System.Windows.Controls.Button { Padding = new Thickness(2), HorizontalAlignment = HorizontalAlignment.Stretch };
-            UpdateColourSwatch(btn, hex);
-            btn.Click += (s, e) =>
-            {
-                var picked = StingTools.UI.VgColorPicker.Pick(hex);
-                if (picked == null) return; // cancelled
-                hex = picked;
-                UpdateColourSwatch(btn, hex);
-                setter?.Invoke(hex);
-            };
-            return btn;
-        }
-
-        private static void UpdateColourSwatch(System.Windows.Controls.Button btn, string hex)
-        {
-            var sp = new StackPanel { Orientation = Orientation.Horizontal };
-            sp.Children.Add(new System.Windows.Controls.Border
-            {
-                Width = 16, Height = 14, Margin = new Thickness(0, 0, 4, 0),
-                Background = StingTools.UI.VgColorPicker.HexToBrush(hex),
-                BorderBrush = System.Windows.Media.Brushes.Gray,
-                BorderThickness = new Thickness(1)
-            });
-            sp.Children.Add(new TextBlock
-            {
-                Text = string.IsNullOrEmpty(hex) ? "—" : hex,
-                FontSize = 10, VerticalAlignment = VerticalAlignment.Center
-            });
-            btn.Content = sp;
-            // Multi-format tooltip — hex / R G B decimal / 0.x normalised /
-            // RGB() CSS string. One swatch click → user copies whichever
-            // format they need without leaving the dialog.
-            if (StingTools.UI.VgColorPicker.TryParseHex(hex, out byte r, out byte g, out byte b))
-            {
-                btn.ToolTip = $"Hex: {hex}\nR G B: {r} {g} {b}\nRGB(): rgb({r},{g},{b})\nNormalised: {(r/255.0):F3} {(g/255.0):F3} {(b/255.0):F3}";
-            }
-            else
-            {
-                btn.ToolTip = "Click to pick a colour. Currently no override.";
-            }
-        }
 
         private string ValidatePack(ViewStylePack p)
         {
@@ -1268,120 +577,6 @@ namespace StingTools.UI
             return string.Join(" → ", chain);
         }
 
-        // Phase 177 — count packs in the extends chain (current + ancestors).
-        // Used to decide whether to show the "rolled up from N packs" notice
-        // on the VG overrides card.
-        private int CountExtendsChainLength(ViewStylePack p)
-        {
-            if (p == null) return 0;
-            int n = 0;
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var cur = p;
-            while (cur != null && n < 16)
-            {
-                if (string.IsNullOrEmpty(cur.Id) || !seen.Add(cur.Id)) break;
-                n++;
-                if (string.IsNullOrEmpty(cur.Extends)) break;
-                cur = _packs?.FirstOrDefault(x => string.Equals(x.Id, cur.Extends, StringComparison.OrdinalIgnoreCase));
-            }
-            return n;
-        }
-
-        // Phase 177 — pack-side bidirectional template copy. "↓ Push to bound
-        // types" walks every DrawingType currently bound to this pack and
-        // overwrites their view-template / detail level / scale / colour
-        // scheme. "↑ Pull from a bound type" copies up from the first
-        // matching DrawingType so the pack mirrors a known-good profile.
-        private UIElement BuildPackTemplateCopyCard()
-        {
-            var body = new StackPanel();
-            var bound = ListBoundDrawingTypeIds(_currentPack);
-            body.Children.Add(new TextBlock {
-                Text = bound.Count == 0
-                    ? "No Drawing Types currently reference this pack id."
-                    : $"Bound Drawing Types ({bound.Count}): {string.Join(", ", bound)}",
-                FontSize = 11, TextWrapping = TextWrapping.Wrap,
-                Foreground = new SolidColorBrush(SubtleColor),
-                Margin = new Thickness(0, 0, 0, 4) });
-            var row = new StackPanel { Orientation = Orientation.Horizontal };
-            row.Children.Add(MakeSmallBtn("↓ Push to bound types", () => PushPackTemplateToBoundTypes()));
-            row.Children.Add(MakeSmallBtn("↑ Pull from bound type", () => PullPackTemplateFromBoundType()));
-            body.Children.Add(row);
-            return Card("Template copy (Drawing Type ↔ Pack)", body);
-        }
-
-        private List<string> ListBoundDrawingTypeIds(ViewStylePack pack)
-        {
-            if (pack == null || string.IsNullOrEmpty(pack.Id)) return new List<string>();
-            return (_types ?? Enumerable.Empty<DrawingType>())
-                .Where(t => string.Equals(t.ViewStylePackId, pack.Id, StringComparison.OrdinalIgnoreCase))
-                .Select(t => t.Id)
-                .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        }
-
-        private void PushPackTemplateToBoundTypes()
-        {
-            if (_currentPack == null || string.IsNullOrEmpty(_currentPack.Id))
-            {
-                System.Windows.MessageBox.Show("Pack has no id.", "STING", MessageBoxButton.OK);
-                return;
-            }
-            var bound = (_types ?? Enumerable.Empty<DrawingType>())
-                .Where(t => string.Equals(t.ViewStylePackId, _currentPack.Id, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            if (bound.Count == 0)
-            {
-                System.Windows.MessageBox.Show(
-                    "No Drawing Types reference this pack. Bind one first via the View Style Pack id combo on the Drawing Types tab.",
-                    "STING — Push to bound types", MessageBoxButton.OK);
-                return;
-            }
-            int touched = 0;
-            foreach (var t in bound)
-            {
-                if (!string.IsNullOrEmpty(_currentPack.ViewTemplate)) { t.ViewTemplateName = _currentPack.ViewTemplate; touched++; }
-                if (!string.IsNullOrEmpty(_currentPack.DetailLevel))  { t.DetailLevel       = _currentPack.DetailLevel;  touched++; }
-                if (!string.IsNullOrEmpty(_currentPack.ScaleHint) && TryParseScaleHint(_currentPack.ScaleHint, out var s))
-                                                                       { t.Scale             = s;                          touched++; }
-                if (!string.IsNullOrEmpty(_currentPack.ColorScheme))
-                {
-                    t.TokenProfile = t.TokenProfile ?? new AnnotationTokenProfile();
-                    t.TokenProfile.ColorScheme = _currentPack.ColorScheme;
-                    touched++;
-                }
-                if (string.Equals(t.Origin, "corporate", StringComparison.OrdinalIgnoreCase))
-                    t.Origin = "project";
-            }
-            System.Windows.MessageBox.Show(
-                $"Wrote {touched} field(s) across {bound.Count} bound Drawing Type(s). Save the Drawing Types tab to persist.",
-                "STING — Push to bound types", MessageBoxButton.OK);
-        }
-
-        private void PullPackTemplateFromBoundType()
-        {
-            if (_currentPack == null) return;
-            var first = (_types ?? Enumerable.Empty<DrawingType>())
-                .FirstOrDefault(t => string.Equals(t.ViewStylePackId, _currentPack.Id, StringComparison.OrdinalIgnoreCase));
-            if (first == null)
-            {
-                System.Windows.MessageBox.Show("No Drawing Type references this pack.", "STING", MessageBoxButton.OK);
-                return;
-            }
-            int n = 0;
-            if (!string.IsNullOrEmpty(first.ViewTemplateName)) { _currentPack.ViewTemplate = first.ViewTemplateName; n++; }
-            if (!string.IsNullOrEmpty(first.DetailLevel))      { _currentPack.DetailLevel  = first.DetailLevel;       n++; }
-            if (first.Scale > 0)                                { _currentPack.ScaleHint    = $"1:{first.Scale}";       n++; }
-            var cs = first.TokenProfile?.ColorScheme;
-            if (!string.IsNullOrEmpty(cs))                     { _currentPack.ColorScheme  = cs;                       n++; }
-            if (string.Equals(_currentPack.Origin, "corporate", StringComparison.OrdinalIgnoreCase))
-                _currentPack.Origin = "project";
-            RenderPackForm();
-            System.Windows.MessageBox.Show(
-                $"Copied {n} field(s) from Drawing Type '{first.Id}' onto pack '{_currentPack.Id}'.",
-                "STING — Pull from bound type", MessageBoxButton.OK);
-        }
-
         // ── Pack list actions ──
         private void ActionNewPack()
         {
@@ -1391,8 +586,9 @@ namespace StingTools.UI
                 Name = "New Style Pack",
                 Origin = "project",
                 Extends = "corp-base",
-                Filters = new List<StyleFilterRule>(),
-                VgOverrides = new Dictionary<string, StyleVgOverride>(),
+                Appearance = new PackAppearance(),
+                FilterRules = new List<PackFilterRule>(),
+                VgOverrides = new Dictionary<string, PackCategoryOverride>(),
             };
             _packs.Add(p);
             _lbPacks.Items.Add(p);
@@ -1426,75 +622,75 @@ namespace StingTools.UI
         }
 
         // ── JSON load ──
-        // Phase 177 — load via the canonical Core.Drawing.ViewStylePackLibrary
-        // so we round-trip the full schema (managed mode, filters, pattern
-        // overrides, all Phase 137+ fields) instead of the truncated nested
-        // POCOs that used to live here.
-        // Phase 177 — load corporate baseline AND layer the project override
-        // on top by id (project entries replace same-id corporate entries;
-        // ids only present in project get appended). Mirrors what
-        // ViewStylePackRegistry.GetLibrary does at runtime so the editor
-        // shows the same union the runtime sees. The earlier version
-        // returned ONLY the project override file when it existed, hiding
-        // every corporate pack from the editor — a critical regression.
         private List<ViewStylePack> LoadViewStylePacks()
         {
             var list = new List<ViewStylePack>();
             try
             {
-                // 1. Corporate baseline (read-only on disk, always loaded)
-                var byId = new Dictionary<string, ViewStylePack>(StringComparer.OrdinalIgnoreCase);
                 var path = Path.Combine(StingTools.Core.StingToolsApp.DataPath ?? "", "STING_VIEW_STYLE_PACKS.json");
-                if (File.Exists(path))
-                {
-                    var corpLib = JsonConvert.DeserializeObject<ViewStylePackLibrary>(File.ReadAllText(path));
-                    if (corpLib?.Packs != null)
-                    {
-                        foreach (var p in corpLib.Packs)
-                        {
-                            if (string.IsNullOrEmpty(p?.Id)) continue;
-                            if (string.IsNullOrEmpty(p.Origin)) p.Origin = "corporate";
-                            byId[p.Id] = p;
-                        }
-                    }
-                }
-
-                // 2. Project override layered on top (same-id entries
-                //    replace corporate; new ids get appended).
-                string proj = null;
-                try { proj = ResolveProjectPackOverridePath(); } catch { }
-                if (!string.IsNullOrEmpty(proj) && File.Exists(proj))
-                {
-                    var pLib = JsonConvert.DeserializeObject<ViewStylePackLibrary>(File.ReadAllText(proj));
-                    if (pLib?.Packs != null)
-                    {
-                        foreach (var p in pLib.Packs)
-                        {
-                            if (string.IsNullOrEmpty(p?.Id)) continue;
-                            if (string.IsNullOrEmpty(p.Origin)) p.Origin = "project";
-                            byId[p.Id] = p; // project wins
-                        }
-                    }
-                }
-
-                list.AddRange(byId.Values);
-                return list;
+                if (!File.Exists(path)) return list;
+                var doc = JsonConvert.DeserializeObject<ViewStylePackDoc>(File.ReadAllText(path));
+                return doc?.StylePacks ?? list;
             }
             catch (Exception ex) { StingLog.Warn("ViewStylePacks load: " + ex.Message); return list; }
         }
 
-        // Project-scoped override file. Mirrors DrawingTypeRegistry's project
-        // override path resolution so corporate baseline stays pristine.
-        private string ResolveProjectPackOverridePath()
+        // ── POCO models for view style packs ──
+        private class ViewStylePackDoc
         {
-            try
+            [JsonProperty("stylePacks")] public List<ViewStylePack> StylePacks { get; set; }
+        }
+
+        private class ViewStylePack
+        {
+            [JsonProperty("id")]          public string Id { get; set; }
+            [JsonProperty("name")]        public string Name { get; set; }
+            [JsonProperty("description")] public string Description { get; set; }
+            [JsonProperty("extends")]     public string Extends { get; set; }
+            [JsonProperty("origin")]      public string Origin { get; set; }
+            [JsonProperty("viewTemplate")] public string ViewTemplate { get; set; }
+            [JsonProperty("detailLevel")] public string DetailLevel { get; set; }
+            [JsonProperty("scaleHint")]   public string ScaleHint { get; set; }
+            [JsonProperty("colorScheme")] public string ColorScheme { get; set; }
+            [JsonProperty("appearance")]  public PackAppearance Appearance { get; set; }
+            [JsonProperty("filterRules")] public List<PackFilterRule> FilterRules { get; set; }
+            [JsonProperty("vgOverrides")] public Dictionary<string, PackCategoryOverride> VgOverrides { get; set; }
+            public override string ToString()
             {
-                if (_doc == null || string.IsNullOrEmpty(_doc.PathName)) return null;
-                var dir = Path.GetDirectoryName(_doc.PathName);
-                if (string.IsNullOrEmpty(dir)) return null;
-                return Path.Combine(dir, "_BIM_COORD", "view_style_packs.json");
+                var ext = string.IsNullOrEmpty(Extends) ? "" : $"  ←  {Extends}";
+                return $"{Id}{ext}";
             }
-            catch { return null; }
+        }
+
+        private class PackAppearance
+        {
+            [JsonProperty("lineWeightScale")] public double LineWeightScale { get; set; } = 1.0;
+            [JsonProperty("textStyleName")]   public string TextStyleName { get; set; }
+            [JsonProperty("dimensionStyleName")] public string DimensionStyleName { get; set; }
+            [JsonProperty("hatchPalette")]    public string HatchPalette { get; set; }
+        }
+
+        private class PackFilterRule
+        {
+            [JsonProperty("name")]         public string Name { get; set; }
+            [JsonProperty("visible")]      public bool Visible { get; set; } = true;
+            [JsonProperty("halftone")]     public bool Halftone { get; set; }
+            [JsonProperty("projColor")]    public string ProjColor { get; set; }
+            [JsonProperty("projWeight")]   public int ProjWeight { get; set; }
+            [JsonProperty("cutColor")]     public string CutColor { get; set; }
+            [JsonProperty("cutWeight")]    public int CutWeight { get; set; }
+            [JsonProperty("transparency")] public int Transparency { get; set; }
+        }
+
+        private class PackCategoryOverride
+        {
+            [JsonProperty("visible")]      public bool Visible { get; set; } = true;
+            [JsonProperty("halftone")]     public bool Halftone { get; set; }
+            [JsonProperty("projColor")]    public string ProjColor { get; set; }
+            [JsonProperty("projWeight")]   public int ProjWeight { get; set; }
+            [JsonProperty("cutColor")]     public string CutColor { get; set; }
+            [JsonProperty("cutWeight")]    public int CutWeight { get; set; }
+            [JsonProperty("transparency")] public int Transparency { get; set; }
         }
 
         private UIElement BuildViewportToolsTab()
@@ -1605,20 +801,11 @@ namespace StingTools.UI
             var host = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             var stack = new StackPanel { Margin = new Thickness(8) };
 
-            stack.Children.Add(TabIntro("Title Block Tools",
+            stack.Children.Add(TabIntro("Title Block",
                 "Single source of truth for every title-block action. " +
                 "Authoring writes to TITLE_BLOCK.csv and PRJ_TB_* shared parameters. " +
                 "Sheet identity / Revision / Transmittal stamp the live ViewSheet. " +
                 "Suitability codes follow BS EN ISO 19650-1 §A (S0–S4 / A1–A5 / B1–B6 / AR)."));
-
-            stack.Children.Add(InfoCard(
-                "Per-drawing-type title block parameter bindings (titleBlockParams) " +
-                "are configured on the Drawing Types tab → right-panel form → " +
-                "'Title block parameters' card. Select a drawing type in the list " +
-                "on the left, then scroll to the Title block parameters card to " +
-                "add or edit param → value template mappings. The Resolved preview " +
-                "column shows what each template will produce from the current " +
-                "project's ProjectInformation."));
 
             // ── Quick-pick reference for ISO 19650 codes ──
             var codeBody = new StackPanel();
@@ -1841,26 +1028,7 @@ namespace StingTools.UI
             };
             b.Click += (s, e) =>
             {
-                try
-                {
-                    // Phase 137 — surface dispatch failures so users aren't left
-                    // wondering why a button does nothing. The most common cause
-                    // (the editor was opened modally, blocking ExternalEvent) is
-                    // fixed by launching modeless in DrawingTypeEditorCommand,
-                    // but if the dock panel isn't initialised yet we still
-                    // explain it.
-                    bool ok = StingDockPanel.DispatchCommand(tag);
-                    if (!ok)
-                    {
-                        Autodesk.Revit.UI.TaskDialog.Show("STING — Drawing Type Editor",
-                            $"Could not dispatch command '{tag}'.\n\n" +
-                            "Open the STING dock panel once before launching the editor — " +
-                            "the dock panel registers the external event handler that runs " +
-                            "tagged commands. If the panel is already open, your Revit session " +
-                            "may have a pending modal dialog blocking the event queue; close " +
-                            "it and try again.");
-                    }
-                }
+                try { StingDockPanel.DispatchCommand(tag); }
                 catch (Exception ex) { StingLog.Error("Dispatch:" + tag, ex); }
             };
             return b;
@@ -1976,9 +1144,7 @@ namespace StingTools.UI
             _formHost.Children.Add(BuildCropCard());
             _formHost.Children.Add(BuildSectionMarkerCard());
             _formHost.Children.Add(BuildAnnotationCard());
-            _formHost.Children.Add(BuildTokenProfileCard());   // Phase 135
             _formHost.Children.Add(BuildSlotsCard());
-            _formHost.Children.Add(BuildTitleBlockParamsCard());
 
             // Validation strip
             var report = DrawingTypeValidator.Validate(_doc, _current);
@@ -2033,9 +1199,6 @@ namespace StingTools.UI
                 _current.TitleBlockFamily, v => _current.TitleBlockFamily = v,
                 ProjectAssetPicker.TitleBlockFamilyTypes(_doc),
                 "Family Symbols of category OST_TitleBlocks loaded in the active project."));
-            body.Children.Add(LabeledTextBox("Title block symbol type (optional)",
-                _current.TitleBlockSymbolType, v => _current.TitleBlockSymbolType = v,
-                "Specific FamilySymbol Name within the family (e.g. 'A1 - 594x841 Landscape'). Leave empty to use the first symbol of the family."));
             body.Children.Add(LabeledCombo("Orientation",
                 Iso19650Vocabulary.Orientations,
                 _current.Orientation, v => _current.Orientation = v));
@@ -2057,108 +1220,7 @@ namespace StingTools.UI
                 _current.ViewportTypeName, v => _current.ViewportTypeName = v,
                 ProjectAssetPicker.ViewportTypeNames(_doc),
                 "ElementType where Category = OST_Viewports in the active project."));
-
-            // Phase 177 — ViewStylePackId binding. Closes the gap noted in the
-            // Phase 136 docs: editor now offers a dropdown of every pack id
-            // loaded on the View Style Packs tab. Empty = no pack binding.
-            var packIds = new[] { "" }.Concat(_packs?.Select(p => p.Id) ?? Enumerable.Empty<string>())
-                .Where(s => s != null).ToArray();
-            body.Children.Add(LabeledCombo("View Style Pack id",
-                packIds,
-                _current.ViewStylePackId ?? "",
-                v => _current.ViewStylePackId = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
-                tooltip: "Pack the runtime resolves after the profile-level template/scale, supplying shared filters, " +
-                         "VG overrides, and tag appearance defaults. Empty = no pack binding."));
-
-            // Bidirectional template copy — DrawingType ↔ Pack
-            var copyRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
-            copyRow.Children.Add(MakeSmallBtn("← Use pack template", () => UsePackTemplateOnDrawingType()));
-            copyRow.Children.Add(MakeSmallBtn("↑ Push to pack",       () => PushDrawingTypeTemplateToPack()));
-            body.Children.Add(copyRow);
-            body.Children.Add(new TextBlock {
-                Text = "← copies the pack's view template / detail level / scale hint / colour scheme into this Drawing Type. " +
-                       "↑ does the reverse (this profile's values become the pack default).",
-                Foreground = new SolidColorBrush(SubtleColor),
-                FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0) });
-
             return Card("Views", body);
-        }
-
-        // Phase 177 — copy pack-level template fields onto the active
-        // DrawingType. Pack ViewTemplate / DetailLevel / ScaleHint /
-        // ColorScheme overwrite the profile's matching fields when set.
-        private void UsePackTemplateOnDrawingType()
-        {
-            if (_current == null) return;
-            var pack = ResolveBoundPack(_current);
-            if (pack == null)
-            {
-                System.Windows.MessageBox.Show(
-                    "This Drawing Type isn't bound to a pack. Pick a View Style Pack id first.",
-                    "STING — Use pack template", MessageBoxButton.OK);
-                return;
-            }
-            int n = 0;
-            if (!string.IsNullOrEmpty(pack.ViewTemplate)) { _current.ViewTemplateName = pack.ViewTemplate; n++; }
-            if (!string.IsNullOrEmpty(pack.DetailLevel))  { _current.DetailLevel       = pack.DetailLevel;  n++; }
-            if (!string.IsNullOrEmpty(pack.ScaleHint) && TryParseScaleHint(pack.ScaleHint, out var s))
-                                                          { _current.Scale             = s;                 n++; }
-            // ColorScheme lives on AnnotationTokenProfile; create if absent.
-            if (!string.IsNullOrEmpty(pack.ColorScheme))
-            {
-                _current.TokenProfile = _current.TokenProfile ?? new AnnotationTokenProfile();
-                _current.TokenProfile.ColorScheme = pack.ColorScheme;
-                n++;
-            }
-            RenderForm();
-            System.Windows.MessageBox.Show(
-                $"Copied {n} field(s) from pack '{pack.Id}' onto Drawing Type '{_current.Id}'.",
-                "STING — Use pack template", MessageBoxButton.OK);
-        }
-
-        // Phase 177 — reverse direction: profile values become the pack
-        // default. Only writes pack fields when the profile has a value;
-        // empty profile fields leave the pack alone.
-        private void PushDrawingTypeTemplateToPack()
-        {
-            if (_current == null) return;
-            var pack = ResolveBoundPack(_current);
-            if (pack == null)
-            {
-                System.Windows.MessageBox.Show(
-                    "This Drawing Type isn't bound to a pack. Pick a View Style Pack id first.",
-                    "STING — Push to pack", MessageBoxButton.OK);
-                return;
-            }
-            int n = 0;
-            if (!string.IsNullOrEmpty(_current.ViewTemplateName)) { pack.ViewTemplate = _current.ViewTemplateName; n++; }
-            if (!string.IsNullOrEmpty(_current.DetailLevel))      { pack.DetailLevel  = _current.DetailLevel;       n++; }
-            if (_current.Scale > 0)                                { pack.ScaleHint    = $"1:{_current.Scale}";       n++; }
-            var cs = _current.TokenProfile?.ColorScheme;
-            if (!string.IsNullOrEmpty(cs))                        { pack.ColorScheme  = cs;                          n++; }
-            // Pushing onto a corporate-baseline pack flips it to project origin.
-            if (string.Equals(pack.Origin, "corporate", StringComparison.OrdinalIgnoreCase))
-                pack.Origin = "project";
-            System.Windows.MessageBox.Show(
-                $"Wrote {n} field(s) from Drawing Type '{_current.Id}' onto pack '{pack.Id}'. " +
-                $"Save the View Style Packs tab to persist.",
-                "STING — Push to pack", MessageBoxButton.OK);
-        }
-
-        private ViewStylePack ResolveBoundPack(DrawingType dt)
-        {
-            if (dt == null || string.IsNullOrEmpty(dt.ViewStylePackId)) return null;
-            return _packs?.FirstOrDefault(p =>
-                string.Equals(p.Id, dt.ViewStylePackId, StringComparison.OrdinalIgnoreCase));
-        }
-
-        private static bool TryParseScaleHint(string hint, out int scale)
-        {
-            scale = 0;
-            if (string.IsNullOrEmpty(hint)) return false;
-            var s = hint.Trim();
-            if (s.StartsWith("1:")) s = s.Substring(2);
-            return int.TryParse(s, out scale) && scale > 0;
         }
 
         private UIElement BuildNumberingCard()
@@ -2238,334 +1300,6 @@ namespace StingTools.UI
             body.Children.Add(BuildTagFamiliesGrid(pack));
 
             return Card("Annotation rule pack", body);
-        }
-
-        // Phase 135 — Token Depth & Style card.
-        // Drives the AnnotationTokenProfile fields: presentation mode,
-        // global + per-category paragraph depth, TAG7 section visibility,
-        // tag size/style/colour preset, view-level colour scheme, segment
-        // mask, display mode. Empty ⇒ inherit from ViewStylePack pack-level
-        // defaults (defaultTagStyle / categoryTagStyles / tagColorScheme).
-        private UIElement BuildTokenProfileCard()
-        {
-            var tp = _current.TokenProfile = _current.TokenProfile ?? new AnnotationTokenProfile();
-            var body = new StackPanel();
-
-            string[] presetModes = new[] { "", "Compact", "Technical", "FullSpec", "Presentation", "BOQ" };
-            body.Children.Add(LabeledCombo("Presentation mode preset",
-                presetModes, tp.PresentationMode ?? "",
-                v => tp.PresentationMode = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
-                tooltip: "Sets PARA_STATE_1/2/3 + WARN_VISIBLE in one shot. Empty = use Para-depth slider below."));
-
-            // Phase 137 — typo-prevention: Global paragraph depth is now a
-            // closed dropdown 1..10 (was a free-form NullableNumber).
-            string[] depths = new[] { "", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" };
-            body.Children.Add(LabeledCombo("Global paragraph depth (1-10)",
-                depths, tp.ParaDepth?.ToString() ?? "",
-                v => tp.ParaDepth = int.TryParse(v, out var n) ? (int?)n : null,
-                tooltip: "Tier 1 = compact, 10 = full audit. Empty = inherit from preset / leave alone."));
-
-            string[] sizes  = new[] { "", "2", "2.5", "3", "3.5" };
-            string[] styles = new[] { "", "NOM", "BOLD", "ITALIC", "BOLDITALIC" };
-            string[] colors = new[] { "", "BLACK", "BLUE", "GREEN", "RED", "ORANGE", "GREY", "PURPLE", "YELLOW" };
-
-            body.Children.Add(LabeledCombo("Tag size",
-                sizes, tp.TagSize ?? "",
-                v => tp.TagSize = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
-                tooltip: "Empty = inherit from pack DefaultTagStyle. mm text height."));
-            body.Children.Add(LabeledCombo("Tag style",
-                styles, tp.TagStyle ?? "",
-                v => tp.TagStyle = string.IsNullOrWhiteSpace(v) ? null : v.Trim().ToUpperInvariant()));
-            body.Children.Add(LabeledCombo("Tag colour",
-                colors, tp.TagColor ?? "",
-                v => tp.TagColor = string.IsNullOrWhiteSpace(v) ? null : v.Trim().ToUpperInvariant()));
-
-            string[] schemes = new[] { "", "Discipline", "System", "Status", "Zone", "Level", "Location", "Function",
-                                        "Warm", "Cool", "Red", "Yellow", "Blue", "Mono", "Dark" };
-            body.Children.Add(LabeledCombo("View colour scheme (STING_VIEW_TAG_STYLE)",
-                schemes, tp.ColorScheme ?? "",
-                v => tp.ColorScheme = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
-                tooltip: "Variable-driven colour map written to STING_VIEW_TAG_STYLE on the view."));
-
-            // Phase 137 — Segment mask: 8 individual checkboxes (one per
-            // DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ token). Replaces the
-            // previous free-form TextBox so users can't type "0010000A"
-            // or transpose digits.
-            body.Children.Add(BuildSegmentMaskRow(tp));
-
-            // Phase 137 — Display mode: closed dropdown of the five named
-            // modes so users can't type "6" or non-numeric text.
-            string[] displayModes = new[]
-            {
-                "",                              // empty = no override
-                "1 — SEQ",
-                "2 — PROD-SEQ",
-                "3 — DISC-SYS-SEQ",
-                "4 — DISC-PROD-SEQ",
-                "5 — Full 8-segment",
-                "6 — TAG7 narrative (client prose)",
-            };
-            body.Children.Add(LabeledCombo("Display mode",
-                displayModes,
-                tp.DisplayMode.HasValue ? displayModes.FirstOrDefault(s => s.StartsWith(tp.DisplayMode.Value + " ")) ?? "" : "",
-                v => tp.DisplayMode = (!string.IsNullOrEmpty(v) && int.TryParse(v.Split(' ')[0], out var n)) ? (int?)n : null,
-                tooltip: "1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ,\n" +
-                         "5=Full 8-segment, 6=TAG7 plain-language narrative.\n\n" +
-                         "Mode 6 reads the rich TAG7 narrative composed by WriteTag7All —\n" +
-                         "ideal for client-facing presentation drawings where prose reads\n" +
-                         "better than the technical 8-segment tag."));
-
-            // Phase 165 — pattern mode (HANDOVER / DC / CUSTOM) for T4-T10 payload.
-            // Empty = inherit project / type defaults (which are DC unless overridden).
-            string[] patternModes = new[] { "", "DC", "HANDOVER", "CUSTOM" };
-            body.Children.Add(LabeledCombo("T4-T10 pattern mode",
-                patternModes,
-                tp.PatternMode ?? "",
-                v => tp.PatternMode = string.IsNullOrWhiteSpace(v) ? null : v.Trim().ToUpperInvariant(),
-                tooltip: "Selects which T4-T10 payload pack renders.\n" +
-                         "  DC       — design & construction payload (default project mode)\n" +
-                         "  HANDOVER — post-construction handover payload\n" +
-                         "  CUSTOM   — project-specific payload\n" +
-                         "Empty = leave whatever the type already has set."));
-
-            body.Children.Add(BuildSectionVisibilityGrid(tp));
-            body.Children.Add(BuildTierVisibilityGrid(tp));
-            body.Children.Add(BuildCategoryDepthsGrid(tp));
-
-            // Summary / collapse line
-            var summary = new TextBlock {
-                Text = SummariseTokenProfile(tp),
-                FontSize = 11, TextWrapping = TextWrapping.Wrap,
-                Foreground = new SolidColorBrush(SubtleColor),
-                Margin = new Thickness(0, 6, 0, 0),
-            };
-            body.Children.Add(summary);
-
-            return Card("Token Depth & Style (Phase 135)", body);
-        }
-
-        /// <summary>
-        /// Phase 137 — segment-mask author UX: eight checkboxes labelled
-        /// DISC / LOC / ZONE / LVL / SYS / FUNC / PROD / SEQ instead of a
-        /// free-form 8-char TextBox. Mask string is materialised on every
-        /// change so the on-disk JSON stays the same shape; no chance of
-        /// typos like "11I00001" or transposed digits.
-        /// </summary>
-        private UIElement BuildSegmentMaskRow(AnnotationTokenProfile tp)
-        {
-            var sp = new StackPanel();
-            sp.Children.Add(new TextBlock {
-                Text = "Segment mask (DISC LOC ZONE LVL SYS FUNC PROD SEQ)",
-                Foreground = new SolidColorBrush(SubtleColor), FontSize = 11,
-                Margin = new Thickness(0, 6, 0, 2) });
-            string mask = (tp.SegmentMask ?? "").PadRight(8, '1').Substring(0, 8);
-            string[] tokens = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
-            var row = new StackPanel { Orientation = Orientation.Horizontal };
-            var cbs = new System.Windows.Controls.CheckBox[8];
-            for (int i = 0; i < 8; i++)
-            {
-                int idx = i;
-                cbs[i] = new System.Windows.Controls.CheckBox
-                {
-                    Content = tokens[i],
-                    IsChecked = mask[i] == '1',
-                    Margin = new Thickness(0, 0, 8, 0),
-                    ToolTip = $"Token {idx + 1} ({tokens[idx]}) on/off in the displayed tag.",
-                };
-                cbs[idx].Checked   += (s, e) => UpdateMask(cbs, tp);
-                cbs[idx].Unchecked += (s, e) => UpdateMask(cbs, tp);
-                row.Children.Add(cbs[i]);
-            }
-            sp.Children.Add(row);
-            return sp;
-        }
-
-        private static void UpdateMask(System.Windows.Controls.CheckBox[] cbs, AnnotationTokenProfile tp)
-        {
-            var sb = new System.Text.StringBuilder(8);
-            foreach (var cb in cbs) sb.Append(cb.IsChecked == true ? '1' : '0');
-            var s = sb.ToString();
-            tp.SegmentMask = s == "11111111" ? null : s;   // null = no override
-        }
-
-        private UIElement BuildSectionVisibilityGrid(AnnotationTokenProfile tp)
-        {
-            tp.SectionVisibility = tp.SectionVisibility ?? new Dictionary<string, bool>();
-            var host = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
-            host.Children.Add(new TextBlock {
-                Text = "TAG7 section visibility — A: Identity · B: System · C: Spatial · D: Lifecycle · E: Technical · F: Classification",
-                Foreground = new SolidColorBrush(SubtleColor),
-                FontSize = 11, TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 4) });
-
-            var row = new StackPanel { Orientation = Orientation.Horizontal };
-            string[] keys = { "A", "B", "C", "D", "E", "F" };
-            foreach (var k in keys)
-            {
-                bool cur = tp.SectionVisibility.TryGetValue(k, out var b) && b;
-                var cb = new CheckBox {
-                    Content = k, IsChecked = cur, Margin = new Thickness(0, 0, 12, 0),
-                    Foreground = new SolidColorBrush(FgColor),
-                };
-                cb.Checked   += (s, e) => tp.SectionVisibility[k] = true;
-                cb.Unchecked += (s, e) => tp.SectionVisibility[k] = false;
-                row.Children.Add(cb);
-            }
-            host.Children.Add(row);
-            return host;
-        }
-
-        // Phase 165 — T4-T10 tier visibility checkboxes. Reuses the same
-        // SectionVisibility dictionary as A-F but with keys "T4".."T10".
-        // TokenProfileApplier writes these to TAG_PARA_STATE_4..10_BOOL on
-        // the element types referenced by the view, which gates the T4-T10
-        // payload appends in WriteTag7All. Pair this card with the
-        // "T4-T10 pattern mode" dropdown above to choose which payload set
-        // (HANDOVER / DC / CUSTOM) is active for the enabled tiers.
-        private UIElement BuildTierVisibilityGrid(AnnotationTokenProfile tp)
-        {
-            tp.SectionVisibility = tp.SectionVisibility ?? new Dictionary<string, bool>();
-            var host = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
-            host.Children.Add(new TextBlock {
-                Text = "TAG7 tier 4-10 visibility — T4: Commissioning · T5: Cost · T6: Carbon · " +
-                       "T7: Fabrication · T8: Clash · T9: As-built · T10: Compliance",
-                Foreground = new SolidColorBrush(SubtleColor),
-                FontSize = 11, TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 4) });
-
-            var row = new StackPanel { Orientation = Orientation.Horizontal };
-            string[] tierKeys = { "T4", "T5", "T6", "T7", "T8", "T9", "T10" };
-            foreach (var k in tierKeys)
-            {
-                bool cur = tp.SectionVisibility.TryGetValue(k, out var b) && b;
-                var cb = new CheckBox {
-                    Content = k, IsChecked = cur, Margin = new Thickness(0, 0, 10, 0),
-                    Foreground = new SolidColorBrush(FgColor),
-                    ToolTip = $"Enable {k} payload row. Requires PatternMode (above) to choose which T4-T10 pack populates the value."
-                };
-                cb.Checked   += (s, e) => tp.SectionVisibility[k] = true;
-                cb.Unchecked += (s, e) => tp.SectionVisibility[k] = false;
-                row.Children.Add(cb);
-            }
-            host.Children.Add(row);
-            return host;
-        }
-
-        private static readonly GridLength[] _catDepthCols =
-        {
-            new GridLength(220),
-            new GridLength(60),
-            new GridLength(24),
-        };
-
-        private UIElement BuildCategoryDepthsGrid(AnnotationTokenProfile tp)
-        {
-            tp.CategoryDepths = tp.CategoryDepths ?? new Dictionary<string, int>();
-            var host = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
-            host.Children.Add(new TextBlock {
-                Text = "Per-category paragraph depth (overrides global ParaDepth above for that category only).",
-                Foreground = new SolidColorBrush(SubtleColor),
-                FontSize = 11, TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 4) });
-
-            // Header
-            var header = new Grid { Margin = new Thickness(0, 4, 0, 2) };
-            for (int i = 0; i < _catDepthCols.Length; i++)
-                header.ColumnDefinitions.Add(new ColumnDefinition { Width = _catDepthCols[i] });
-            string[] hd = { "Category", "Depth", "" };
-            for (int i = 0; i < hd.Length; i++)
-            {
-                var t = new TextBlock { Text = hd[i], FontSize = 10,
-                    Foreground = new SolidColorBrush(SubtleColor),
-                    Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0) };
-                Grid.SetColumn(t, i); header.Children.Add(t);
-            }
-            host.Children.Add(header);
-
-            var cats = Merge(ProjectAssetPicker.TaggableCategoryNames(_doc),
-                             KnownTaggableCategories).ToArray();
-
-            foreach (var kv in tp.CategoryDepths.ToList())
-            {
-                var g = new Grid { Margin = new Thickness(0, 1, 0, 1) };
-                for (int i = 0; i < _catDepthCols.Length; i++)
-                    g.ColumnDefinitions.Add(new ColumnDefinition { Width = _catDepthCols[i] });
-
-                string catKey = kv.Key;
-                var keyBox = SmallCombo(catKey, newKey =>
-                {
-                    newKey = (newKey ?? "").Trim();
-                    if (string.IsNullOrEmpty(newKey) || newKey == catKey) return;
-                    if (!tp.CategoryDepths.ContainsKey(catKey)) return;
-                    var existing = tp.CategoryDepths[catKey];
-                    tp.CategoryDepths.Remove(catKey);
-                    tp.CategoryDepths[newKey] = existing;
-                }, cats);
-
-                int curDepth = kv.Value;
-                var depth = SmallCombo(curDepth.ToString(), v =>
-                {
-                    if (int.TryParse(v, out var n) && tp.CategoryDepths.ContainsKey(catKey))
-                        tp.CategoryDepths[catKey] = n;
-                }, new[] { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" });
-                depth.IsEditable = false;
-
-                var rm = MakeSmallBtn("×", () => { tp.CategoryDepths.Remove(catKey); RenderForm(); });
-                rm.Width = 22;
-
-                var ctrls = new UIElement[] { keyBox, depth, rm };
-                for (int i = 0; i < ctrls.Length; i++)
-                {
-                    Grid.SetColumn(ctrls[i], i);
-                    if (ctrls[i] is FrameworkElement fe)
-                        fe.Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0);
-                    g.Children.Add(ctrls[i]);
-                }
-                host.Children.Add(g);
-            }
-
-            host.Children.Add(MakeSmallBtn("＋ Add category depth", () =>
-            {
-                var key = "NewCategory" + tp.CategoryDepths.Count;
-                tp.CategoryDepths[key] = 5;
-                RenderForm();
-            }));
-            return host;
-        }
-
-        private static string SummariseTokenProfile(AnnotationTokenProfile tp)
-        {
-            var bits = new List<string>();
-            if (!string.IsNullOrWhiteSpace(tp.PresentationMode)) bits.Add($"mode:{tp.PresentationMode}");
-            if (tp.ParaDepth.HasValue) bits.Add($"depth:{tp.ParaDepth.Value}");
-            if (!string.IsNullOrWhiteSpace(tp.TagSize) || !string.IsNullOrWhiteSpace(tp.TagStyle) || !string.IsNullOrWhiteSpace(tp.TagColor))
-                bits.Add($"tag:{tp.TagSize ?? "·"}{tp.TagStyle ?? "·"}_{tp.TagColor ?? "·"}");
-            if (!string.IsNullOrWhiteSpace(tp.ColorScheme)) bits.Add($"scheme:{tp.ColorScheme}");
-            if (!string.IsNullOrWhiteSpace(tp.SegmentMask)) bits.Add($"mask:{tp.SegmentMask}");
-            if (tp.DisplayMode.HasValue) bits.Add($"disp:{tp.DisplayMode.Value}");
-            if (!string.IsNullOrWhiteSpace(tp.PatternMode)) bits.Add($"pattern:{tp.PatternMode}");
-            if (tp.SectionVisibility != null && tp.SectionVisibility.Count > 0)
-            {
-                // A-F (single-letter) and T4..T10 (two-three char) summarised separately.
-                var letters = tp.SectionVisibility.Where(k => k.Key.Length == 1).ToList();
-                var tiers   = tp.SectionVisibility
-                    .Where(k => k.Key.StartsWith("T", StringComparison.OrdinalIgnoreCase) && k.Key.Length > 1)
-                    .ToList();
-                if (letters.Count > 0)
-                    bits.Add("sect:" + string.Join("",
-                        letters.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase)
-                               .Select(k => k.Value ? k.Key.ToUpperInvariant() : k.Key.ToLowerInvariant())));
-                if (tiers.Count > 0)
-                    bits.Add("tiers:" + string.Join(",",
-                        tiers.Where(k => k.Value)
-                             .OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase)
-                             .Select(k => k.Key.ToUpperInvariant())));
-            }
-            if (tp.CategoryDepths != null && tp.CategoryDepths.Count > 0)
-                bits.Add($"cats:{tp.CategoryDepths.Count}");
-            return bits.Count == 0
-                ? "Inherits all values from ViewStylePack pack-level defaults."
-                : "Active: " + string.Join(" · ", bits);
         }
 
         // Compact grid editor for AnnotationRulePack.Rules (Change 6c).
@@ -2802,254 +1536,12 @@ namespace StingTools.UI
             return Card("Slots (0..1 normalised)", body);
         }
 
-        // Phase 167 — Title-block parameter binding card with resolved preview.
-        // Each row maps a TB FamilyInstance parameter name to a value template;
-        // the third column previews what the template resolves to against the
-        // active project's ProjectInformation.
-        private UIElement BuildTitleBlockParamsCard()
-        {
-            var body = new StackPanel();
-            _current.TitleBlockParams = _current.TitleBlockParams
-                ?? new System.Collections.Generic.Dictionary<string, string>();
-
-            var unbound = new System.Collections.Generic.HashSet<string>(
-                StingTools.Core.Drawing.TitleBlockParamApplier
-                    .FindMissingProjectInfoParams(_doc, _current),
-                StringComparer.OrdinalIgnoreCase);
-
-            // Phase 169 — preview controls row: discipline picker + seq spinner
-            // drive the live Resolved column, and an Insert-token affordance
-            // helps the operator discover available {tokens} + |filters.
-            var previewBar = new DockPanel { Margin = new Thickness(0, 0, 0, 6), LastChildFill = false };
-            previewBar.Children.Add(new TextBlock {
-                Text = "Preview as:", VerticalAlignment = VerticalAlignment.Center,
-                FontSize = 11, Foreground = new SolidColorBrush(SubtleColor),
-                Margin = new Thickness(0, 0, 6, 0) });
-            string[] discs = { "", "A", "S", "M", "E", "P", "FP", "L" };
-            if (string.IsNullOrEmpty(_previewDisc) && !string.IsNullOrEmpty(_current.Discipline))
-                _previewDisc = _current.Discipline;
-            var discCombo = SmallCombo(_previewDisc ?? "",
-                v => { _previewDisc = v ?? ""; RenderForm(); },
-                discs);
-            discCombo.Width = 90; discCombo.Margin = new Thickness(0, 0, 12, 0);
-            previewBar.Children.Add(discCombo);
-            previewBar.Children.Add(new TextBlock {
-                Text = "{seq}:", VerticalAlignment = VerticalAlignment.Center,
-                FontSize = 11, Foreground = new SolidColorBrush(SubtleColor),
-                Margin = new Thickness(0, 0, 6, 0) });
-            var seqTb = SmallTb(_previewSeq.ToString(), v =>
-            {
-                if (int.TryParse(v, out var n) && n != _previewSeq) { _previewSeq = n; RenderForm(); }
-            });
-            seqTb.Width = 60; seqTb.Margin = new Thickness(0, 0, 12, 0);
-            previewBar.Children.Add(seqTb);
-            body.Children.Add(previewBar);
-
-            // Build the token dict the Resolved column will use.
-            var previewTokens = StingTools.Core.Drawing.DrawingTokenContext.Build(
-                doc:        _doc,
-                dt:         _current,
-                discCode:   string.IsNullOrEmpty(_previewDisc) ? _current.Discipline : _previewDisc,
-                discipline: string.IsNullOrEmpty(_previewDisc) ? _current.Discipline : _previewDisc,
-                seq:        _previewSeq);
-
-            // Header row
-            var hdr = new Grid { Margin = new Thickness(0, 0, 0, 2) };
-            double[] cols = { 200, 220, 24, 160, 30 };
-            for (int c = 0; c < cols.Length; c++)
-                hdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(cols[c]) });
-            string[] headers = { "Param name", "Value template", "+", "Resolved", "" };
-            for (int i = 0; i < headers.Length; i++)
-            {
-                var t = new TextBlock {
-                    Text = headers[i], FontFamily = new FontFamily("Consolas"),
-                    FontSize = 10, Foreground = new SolidColorBrush(SubtleColor),
-                    Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0),
-                };
-                Grid.SetColumn(t, i);
-                hdr.Children.Add(t);
-            }
-            body.Children.Add(hdr);
-
-            foreach (var kv in _current.TitleBlockParams.ToList())
-            {
-                var key = kv.Key;
-                var row = new Grid { Margin = new Thickness(0, 2, 0, 0) };
-                for (int c = 0; c < cols.Length; c++)
-                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(cols[c]) });
-
-                var keyTb = SmallTb(key, newKey =>
-                {
-                    if (string.IsNullOrWhiteSpace(newKey) || newKey == key) return;
-                    var v = _current.TitleBlockParams[key];
-                    _current.TitleBlockParams.Remove(key);
-                    _current.TitleBlockParams[newKey] = v;
-                    RenderForm();
-                });
-                Grid.SetColumn(keyTb, 0);
-                row.Children.Add(keyTb);
-
-                // Value template TextBox — Phase 169 live preview.
-                var valTb = new TextBox {
-                    Text = kv.Value ?? "", Height = 20, FontSize = 10 };
-                DarkDialogTheme.StyleInput(valTb, CardBg, FgColor, CardBorder);
-                Grid.SetColumn(valTb, 1);
-                row.Children.Add(valTb);
-
-                // Token / filter insert button — opens an autocomplete-style
-                // ContextMenu listing canonical tokens + filters. Inserts at
-                // current caret position so chains like "{disc|upper}" can
-                // be assembled without typing the whole grammar.
-                var insertBtn = new Button
-                {
-                    Content = "+", Height = 20, Width = 20, FontSize = 10,
-                    Padding = new Thickness(0), Margin = new Thickness(2, 0, 2, 0),
-                    Background = new SolidColorBrush(CardBg),
-                    Foreground = new SolidColorBrush(FgColor),
-                    BorderBrush = new SolidColorBrush(CardBorder),
-                    BorderThickness = new Thickness(1),
-                    ToolTip = "Insert token or filter at the cursor position",
-                };
-                insertBtn.Click += (_, __) => ShowTokenInsertMenu(insertBtn, valTb);
-                Grid.SetColumn(insertBtn, 2);
-                row.Children.Add(insertBtn);
-
-                // Resolved preview — captured reference so live keystrokes
-                // re-resolve without rebuilding the whole form.
-                var preview = new TextBlock
-                {
-                    FontFamily = new FontFamily("Consolas"),
-                    FontSize = 10,
-                    Foreground = new SolidColorBrush(SubtleColor),
-                    Margin = new Thickness(4, 2, 0, 0),
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                };
-                Grid.SetColumn(preview, 3);
-                row.Children.Add(preview);
-
-                Action<string> updatePreview = (tpl) =>
-                {
-                    bool referencesProj = (tpl ?? "").IndexOf("${", StringComparison.Ordinal) >= 0;
-                    bool anyUnbound = referencesProj && unbound.Any(u =>
-                        (tpl ?? "").IndexOf("${" + u + "}", StringComparison.Ordinal) >= 0);
-                    string txt;
-                    if (anyUnbound) txt = "(param not bound)";
-                    else
-                    {
-                        try
-                        {
-                            var tinyDt = new StingTools.Core.Drawing.DrawingType
-                            {
-                                TitleBlockParams = new Dictionary<string, string> { { "_p", tpl ?? "" } }
-                            };
-                            var peek = StingTools.Core.Drawing.TitleBlockParamApplier
-                                .Peek(_doc, tinyDt, previewTokens);
-                            txt = peek.TryGetValue("_p", out var v) ? v : "";
-                        }
-                        catch { txt = "(error)"; }
-                    }
-                    preview.Text = txt;
-                    preview.ToolTip = txt;
-                    preview.FontStyle = anyUnbound ? FontStyles.Italic : FontStyles.Normal;
-                };
-                updatePreview(kv.Value);
-                valTb.TextChanged += (_, __) =>
-                {
-                    _current.TitleBlockParams[key] = valTb.Text ?? "";
-                    updatePreview(valTb.Text);
-                };
-
-                var rm = MakeSmallBtn("×", () =>
-                {
-                    _current.TitleBlockParams.Remove(key);
-                    RenderForm();
-                });
-                Grid.SetColumn(rm, 4);
-                row.Children.Add(rm);
-
-                body.Children.Add(row);
-            }
-
-            body.Children.Add(MakeSmallBtn("＋ Add parameter", () =>
-            {
-                int n = 1;
-                string newKey = "PARAM_" + n;
-                while (_current.TitleBlockParams.ContainsKey(newKey)) { n++; newKey = "PARAM_" + n; }
-                _current.TitleBlockParams[newKey] = "";
-                RenderForm();
-            }));
-
-            return Card("Title block parameters", body);
-        }
-
-        // Phase 169 — autocomplete-style insert menu listing every canonical
-        // token and filter the resolver knows about. Inserts at the caret
-        // (or replaces selection) so the operator never has to memorise the
-        // grammar. Items in 4 sections so the menu is scannable.
-        private void ShowTokenInsertMenu(System.Windows.Controls.Button anchor, TextBox target)
-        {
-            var menu = new System.Windows.Controls.ContextMenu();
-            void AddItem(string label, string snippet)
-            {
-                var mi = new System.Windows.Controls.MenuItem { Header = label };
-                mi.Click += (_, __) => InsertAtCaret(target, snippet);
-                menu.Items.Add(mi);
-            }
-            void AddHeader(string label)
-            {
-                var hdr = new System.Windows.Controls.MenuItem
-                {
-                    Header = label,
-                    IsEnabled = false,
-                    FontWeight = FontWeights.SemiBold,
-                };
-                menu.Items.Add(hdr);
-            }
-            AddHeader("Project info ${X}");
-            foreach (var k in new[] {
-                "PRJ_PROJECT_COD_TXT", "PRJ_ORG_PROJECT_NAME_TXT",
-                "PRJ_ORG_ORIGINATOR_CODE_TXT", "PRJ_ORG_COMPANY_NAME_TXT",
-                "PRJ_ORG_CLIENT_NAME_TXT", "PRJ_ORG_APPOINTING_PARTY_TXT",
-                "PRJ_ORG_LEAD_APPOINTED_PARTY_TXT",
-            }) AddItem("${ " + k + " }", "${" + k + "}");
-            menu.Items.Add(new System.Windows.Controls.Separator());
-            AddHeader("Tokens {x}");
-            foreach (var k in new[] {
-                "{disc}", "{discipline}", "{lvl}", "{sys}", "{purpose}", "{phase}",
-                "{spool}", "{mark}", "{vol}", "{type}", "{role}", "{suit}", "{rev}",
-                "{project}", "{originator}", "{seq:D4}",
-            }) AddItem(k, k);
-            menu.Items.Add(new System.Windows.Controls.Separator());
-            AddHeader("Filters | …");
-            foreach (var f in new[] {
-                "|upper", "|lower", "|title", "|trim",
-                "|trunc:N", "|pad:N", "|padl:N",
-                "|date:yyyy-MM-dd", "|default:VALUE", "|fallback:${OTHER}",
-            }) AddItem(f, f);
-            menu.PlacementTarget = anchor;
-            menu.IsOpen = true;
-        }
-
-        private static void InsertAtCaret(TextBox tb, string snippet)
-        {
-            try
-            {
-                int start = tb.SelectionStart;
-                int len   = tb.SelectionLength;
-                var txt   = tb.Text ?? "";
-                tb.Text   = txt.Substring(0, start) + snippet + txt.Substring(start + len);
-                tb.CaretIndex = start + snippet.Length;
-                tb.Focus();
-            }
-            catch { /* best-effort UX helper */ }
-        }
-
         private UIElement MakeSlotHeader()
         {
             var g = new Grid { Margin = new Thickness(0, 0, 0, 2) };
             for (int c = 0; c < _slotColWidths.Length; c++)
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_slotColWidths[c]) });
-            string[] headers = { "Label", "ViewType", "X", "Y", "W", "H", "Scale", "Detail", "" };
+            string[] headers = { "Label", "ViewType", "X", "Y", "W", "H", "Scale", "" };
             for (int i = 0; i < headers.Length; i++)
             {
                 var t = new TextBlock {
@@ -3071,28 +1563,7 @@ namespace StingTools.UI
             for (int c = 0; c < _slotColWidths.Length; c++)
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_slotColWidths[c]) });
 
-            // Phase 137 — slot label as a ComboBox sourced from any STING-aware
-            // title-block's TB_VIEWPORT_SLOTS_JSON_TXT parameter (so the user
-            // picks a real slot name authored on the title-block family),
-            // with the canonical default catalogue appended as a fallback.
-            // Selecting a label that maps to a known slot also auto-fills
-            // normX / normY / normW / normH from that slot's geometry.
-            var slotLabels = TitleBlockSlotLoader.GetLabels(_doc, _current.TitleBlockFamily);
-            var tbLbl = SmallCombo(slot.Label, v =>
-            {
-                slot.Label = v;
-                var match = TitleBlockSlotLoader.FindByLabel(_doc, v, _current.TitleBlockFamily);
-                if (match != null)
-                {
-                    slot.NormX = match.NormX;
-                    slot.NormY = match.NormY;
-                    slot.NormW = match.NormW;
-                    slot.NormH = match.NormH;
-                    if (!string.IsNullOrEmpty(match.ViewType)) slot.ViewType = match.ViewType;
-                    if (match.Scale.HasValue) slot.Scale = match.Scale;
-                    onChange?.Invoke();
-                }
-            }, slotLabels.ToArray());
+            var tbLbl = SmallTb(slot.Label, v => slot.Label = v);
             // Closed list of Revit ViewType enum values — eliminates typos.
             var tbVt  = SmallCombo(slot.ViewType, v => slot.ViewType = v,
                 new[] { "FloorPlan", "CeilingPlan", "Elevation", "Section", "ThreeD",
@@ -3105,19 +1576,10 @@ namespace StingTools.UI
             var tbH  = SmallTb(slot.NormH.ToString("F2"), v => slot.NormH = Parse(v));
             var tbSc = SmallTb(slot.Scale?.ToString() ?? "", v =>
                 slot.Scale = int.TryParse(v, out var n) ? (int?)n : null);
-            tbSc.ToolTip = "Per-slot 1:N override (blank = use DrawingType.Scale). " +
-                "Use a finer scale (e.g. 1:20) on detail slots so dimensions stay readable.";
-            // Per-slot detail level — empty defers to DrawingType.DetailLevel;
-            // letting authors set Fine on a 1:20 detail slot while leaving the
-            // overall spool layout at Medium.
-            var tbDl = SmallCombo(string.IsNullOrEmpty(slot.DetailLevel) ? "" : slot.DetailLevel,
-                v => slot.DetailLevel = string.IsNullOrEmpty(v) ? null : v,
-                new[] { "", "Coarse", "Medium", "Fine" });
-            tbDl.ToolTip = "Per-slot detail level (blank = use DrawingType.DetailLevel).";
             var rm   = MakeSmallBtn("×", () => { _current.Slots.Remove(slot); onChange?.Invoke(); });
             rm.Width = 22;
 
-            var ctrls = new UIElement[] { tbLbl, tbVt, tbX, tbY, tbW, tbH, tbSc, tbDl, rm };
+            var ctrls = new UIElement[] { tbLbl, tbVt, tbX, tbY, tbW, tbH, tbSc, rm };
             for (int i = 0; i < ctrls.Length; i++)
             {
                 Grid.SetColumn(ctrls[i], i);
@@ -3155,16 +1617,7 @@ namespace StingTools.UI
             var btnClose = MakeBigBtn("Close", CardBg, false);
             var btnSave  = MakeBigBtn("Save",  AccentColor, true);
             btnClose.Click += (s, e) => { DialogResult = false; };
-            btnSave.Click  += (s, e) =>
-            {
-                // Phase 177 — route Save by active tab. Drawing Types tab
-                // (index 0) writes drawing_types.json; View Style Packs tab
-                // (index 1) writes view_style_packs.json. Other action tabs
-                // dispatch their work directly so Save is a no-op there.
-                int idx = _rootTabs?.SelectedIndex ?? 0;
-                bool ok = idx == 1 ? SavePacksToProjectOverride() : SaveToProjectOverride();
-                if (ok) { DialogResult = true; }
-            };
+            btnSave.Click  += (s, e) => { if (SaveToProjectOverride()) { DialogResult = true; } };
             right.Children.Add(btnClose);
             right.Children.Add(btnSave);
             row.Children.Add(right);
@@ -3268,67 +1721,6 @@ namespace StingTools.UI
             catch (Exception ex)
             {
                 StingLog.Error("DrawingTypeEditorDialog.Save", ex);
-                System.Windows.MessageBox.Show("Save failed: " + ex.Message,
-                    "STING", MessageBoxButton.OK);
-                return false;
-            }
-        }
-
-        // Phase 177 — write the View Style Packs tab to its own project
-        // override. Anything whose Origin isn't strictly "corporate" goes
-        // out (project-origin + null/untracked + anything an edit flipped
-        // off corporate); corporate baseline on disk stays pristine.
-        // Reloads the runtime registry so subsequent Apply() runs see the
-        // edits, and surfaces a clear empty-set warning so the user knows
-        // their edits didn't reach disk.
-        private bool SavePacksToProjectOverride()
-        {
-            if (_doc == null || string.IsNullOrEmpty(_doc.PathName))
-            {
-                System.Windows.MessageBox.Show(
-                    "Save the Revit project first — project overrides live under the .rvt directory.",
-                    "STING — View Style Packs", MessageBoxButton.OK);
-                return false;
-            }
-            try
-            {
-                var dir = Path.Combine(Path.GetDirectoryName(_doc.PathName), "_BIM_COORD");
-                Directory.CreateDirectory(dir);
-                var path = Path.Combine(dir, "view_style_packs.json");
-
-                // Anything not strictly "corporate" wins a slot in the project
-                // override. Untracked / null origins go out too — Phase 177
-                // change closes the silent-discard hole where edits to a
-                // corp pack vanished because Origin was still "corporate".
-                var projectPacks = (_packs ?? new List<ViewStylePack>())
-                    .Where(p => !string.Equals(p.Origin, "corporate", StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                if (projectPacks.Count == 0)
-                {
-                    var resp = System.Windows.MessageBox.Show(
-                        "No project-origin packs to write.\n\n" +
-                        "Every pack still has Origin=\"corporate\" — usually that means no edits have been made, " +
-                        "OR the dialog hasn't picked them up yet. Click Yes to write an empty override file " +
-                        "(removes any existing project overrides), No to cancel.",
-                        "STING — View Style Packs", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                    if (resp != MessageBoxResult.Yes) return false;
-                }
-                var lib = new ViewStylePackLibrary
-                {
-                    Version = 1,
-                    ViewStylePacks = projectPacks,
-                };
-                File.WriteAllText(path, JsonConvert.SerializeObject(lib, Formatting.Indented));
-                try { ViewStylePackRegistry.Reload(_doc); } catch { /* registry may not expose Reload(doc) */ }
-                System.Windows.MessageBox.Show(
-                    $"Saved {projectPacks.Count} pack(s) to\n{path}\n\n" +
-                    "Corporate baseline on disk is unchanged. Reload the registry or restart Revit to reapply.",
-                    "STING — View Style Packs", MessageBoxButton.OK);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("DrawingTypeEditorDialog.SavePacks", ex);
                 System.Windows.MessageBox.Show("Save failed: " + ex.Message,
                     "STING", MessageBoxButton.OK);
                 return false;

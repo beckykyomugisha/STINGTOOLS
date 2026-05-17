@@ -44,11 +44,8 @@ namespace StingTools.Core.Fabrication
         public const string SHIP_DATE_TXT           = "ASS_SHIP_DATE_TXT";
         public const string SHIP_DATE_TXT_GUID      = "c2fc8e62-b793-517c-94c6-d2d7ae7584fe";
 
-        // Migrated to canonical ASS_INSTALLATION_DATE_TXT (GROUP 1, GUID cfc716aa).
-        // The v4 fabrication alias 953575a9 is retained in MR_PARAMETERS.txt for
-        // backwards compat but marked DEPRECATED.
-        public const string INSTALL_DATE_TXT        = "ASS_INSTALLATION_DATE_TXT";
-        public const string INSTALL_DATE_TXT_GUID   = "cfc716aa-126d-5e9e-a9e8-3c2a2b52d933";
+        public const string INSTALL_DATE_TXT        = "ASS_INSTALL_DATE_TXT";
+        public const string INSTALL_DATE_TXT_GUID   = "953575a9-1d0c-5bb5-a4d2-c52b4b4adf96";
 
         public const string BOM_REV_TXT             = "ASS_BOM_REV_TXT";
         public const string BOM_REV_TXT_GUID        = "0293f487-2ca9-5514-9b18-ac98b1a20b27";
@@ -146,29 +143,6 @@ namespace StingTools.Core.Fabrication
 
         public const string CERT_REF_TXT                = "ELC_LPS_CERT_REF_TXT";
         public const string CERT_REF_TXT_GUID           = "0a8dbcfb-6f73-5c8c-94eb-b72606feae87";
-
-        public const string COMPLIANCE_STATUS_TXT       = "ELC_LPS_COMPLIANCE_STATUS_TXT";
-        public const string COMPLIANCE_STATUS_TXT_GUID  = "b1c4e8d3-7f5a-5d2c-9e6b-3a4f5c8d2b1e";
-
-        public const string CONDUCTOR_MATERIAL_TXT      = "ELC_LPS_CONDUCTOR_MATERIAL_TXT";
-        public const string CONDUCTOR_MATERIAL_TXT_GUID = "c2d5f9e4-8a6b-5e3d-a07c-4b5d6e9c3f2a";
-
-        public const string PROJECT_NG_OVERRIDE_NR      = "ELC_LPS_PROJECT_NG_OVERRIDE_NR";
-        public const string PROJECT_NG_OVERRIDE_NR_GUID = "d3e6fa05-9b7c-5e4d-b18d-5c6e7fad4321";
-
-        // kc factor — partitioning of lightning current among parallel down
-        // conductors per BS EN 62305-3 §6.3. Stamped on ProjectInformation
-        // when the LPS class is applied or recalculated.
-        // GUID = uuid5(a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a, "ELC_LPS_KC_FACTOR_NR")
-        public const string KC_FACTOR_NR                = "ELC_LPS_KC_FACTOR_NR";
-        public const string KC_FACTOR_NR_GUID           = "b1332559-0830-5d8f-8ac7-5f77a963cd94";
-
-        // Element type marker used by CollectLpsFamily pass-1. Allowed
-        // values: AIR_TERMINAL / DOWN_CONDUCTOR / EARTH_ELECTRODE /
-        // BONDING_BAR / SPD.
-        // GUID = uuid5(a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a, "ELC_LPS_ELEMENT_TYPE_TXT")
-        public const string ELEMENT_TYPE_TXT            = "ELC_LPS_ELEMENT_TYPE_TXT";
-        public const string ELEMENT_TYPE_TXT_GUID       = "75cd5268-c764-551b-872d-00b0b31308a6";
     }
 
     /// <summary>

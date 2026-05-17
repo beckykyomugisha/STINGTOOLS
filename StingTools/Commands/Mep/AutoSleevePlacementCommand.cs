@@ -193,7 +193,7 @@ namespace StingTools.Commands.Mep
         {
             GeometryElement g = null;
             try { g = el.get_Geometry(new Options { ComputeReferences = false, IncludeNonVisibleObjects = false }); }
-            catch { yield break; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); yield break; }
             if (g == null) yield break;
             foreach (GeometryObject obj in g)
             {
@@ -255,7 +255,7 @@ namespace StingTools.Commands.Mep
                     fireRat = typeEl?.get_Parameter(BuiltInParameter.FIRE_RATING)?.AsString() ?? "";
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TrySetString(fi, SleeveParamRegistry.HostFireRating, fireRat);
 
             // Stable PFV UUID so re-runs and downstream exports stay linked.
@@ -272,7 +272,7 @@ namespace StingTools.Commands.Mep
                     return (d.Width > 0 && d.Height > 0) ? "rectangular" : "round";
                 if (mep is Autodesk.Revit.DB.Electrical.CableTray) return "rectangular";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "round";
         }
 
@@ -294,7 +294,7 @@ namespace StingTools.Commands.Mep
                 g[8] = (byte)((g[8] & 0x3F) | 0x80);
                 return new Guid(g).ToString();
             }
-            catch { return Guid.NewGuid().ToString(); }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return Guid.NewGuid().ToString(); }
         }
 
         private static double NominalSizeMm(Element mep)
@@ -310,7 +310,7 @@ namespace StingTools.Commands.Mep
                     return Math.Max(w, h) * 304.8;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 100.0;
         }
 
@@ -360,7 +360,7 @@ namespace StingTools.Commands.Mep
         {
             try { var p = el.LookupParameter(param);
                   if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String) p.Set(val ?? ""); }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
         private static void TrySetInt(Element el, string param, int val)
         {
@@ -368,7 +368,7 @@ namespace StingTools.Commands.Mep
                   if (p == null || p.IsReadOnly) return;
                   if (p.StorageType == StorageType.Integer) p.Set(val);
                   else if (p.StorageType == StorageType.String) p.Set(val.ToString()); }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
         private static void TrySetDouble(Element el, string param, double valMm)
         {
@@ -377,7 +377,7 @@ namespace StingTools.Commands.Mep
                   if (p.StorageType == StorageType.Double)  p.Set(valMm * MmToFt);
                   else if (p.StorageType == StorageType.String) p.Set(valMm.ToString("F0"));
                   else if (p.StorageType == StorageType.Integer) p.Set((int)Math.Round(valMm)); }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
     }
 }

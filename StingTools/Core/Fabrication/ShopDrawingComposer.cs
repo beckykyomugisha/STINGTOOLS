@@ -48,31 +48,8 @@ namespace StingTools.Core.Fabrication
         // unique SP-M-HVAC-L02-0003 even when the assembly has no spool
         // number yet (Phase A fallback; Phase B will hydrate from a
         // persistent doc_sequences.json keyed per project).
-        // GAP-B: per-document sequence bucket. Previously a single static
-        // dict was shared across every open document, so sheet numbers
-        // could collide / overshoot on the second project opened in the
-        // same session. Outer key is the document path; inner is the
-        // disc:sys:lvl bucket the original code already used.
-        private static readonly Dictionary<string, Dictionary<string, int>> _sequenceByBucket
-            = new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
-
-        private static string DocBucketKey(Document doc)
-        {
-            if (doc == null) return "__null__";
-            try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
-            catch { return "__unknown__"; }
-        }
-
-        private static Dictionary<string, int> GetDocBucket(Document doc)
-        {
-            string k = DocBucketKey(doc);
-            lock (_sequenceByBucket)
-            {
-                if (!_sequenceByBucket.TryGetValue(k, out var inner))
-                    _sequenceByBucket[k] = inner = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-                return inner;
-            }
-        }
+        private static readonly Dictionary<string, int> _sequenceByBucket
+            = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         // Slot positions on a 1:50 A1 sheet (Revit feet, sheet origin).
         // Plan TL, ISO TR, Elev0 BL, Elev90 ML, 3D BR, BOM RIGHT-PANEL.
@@ -114,22 +91,9 @@ namespace StingTools.Core.Fabrication
             }
             else
             {
-                // 1) DrawingType profile (corporate spool A1 etc.)
                 tbId = ResolveTitleBlockFromDrawingType(doc, drawingType);
-                // 2) Project Setup Wizard router — single source of truth
-                //    populated by ProjectSetupCommand. Honoured here so the
-                //    fabrication path obeys the same per-discipline policy
-                //    as DocAutomation / SheetManager / BatchCreateSheets.
                 if (tbId == ElementId.InvalidElementId)
-                {
-                    string discCode = DisciplineCode.TryGetValue(discipline ?? "", out var dc)
-                        ? dc : "G";
-                    var routed = StingTools.Core.TitleBlockRouter.Resolve(doc, discCode);
-                    if (routed != null) tbId = routed.Id;
-                }
-                // 3) Per-discipline STING_TB_ASSEMBLY_* hard-code as last resort
-                if (tbId == ElementId.InvalidElementId)
-                    tbId = ResolveTitleBlock(doc, discipline, result);
+                    tbId = ResolveTitleBlock(doc, discipline);
             }
 
             ViewSheet sheet = null;
@@ -147,90 +111,18 @@ namespace StingTools.Core.Fabrication
             try { ApplySheetMetadata(doc, sheet, assemblyId, discipline, drawingType, result); }
             catch (Exception ex) { result.Warnings.Add($"Sheet metadata: {ex.Message}"); }
 
-            // Apply the resolved DrawingType profile to every non-schedule
-            // view so spools render at the slot's intended scale. Without
-            // this, AssemblyViewUtils-created views keep the
-            // ViewFamilyType default (~1:100) and print half-size on a
-            // layout sized for 1:50. Schedules / material takeoffs have
-            // no Scale property and are intentionally excluded.
-            //
-            // runAnnotation: false — fabrication views handle their own
-            // annotation via IsoSymbolPlacer; we only want the
-            // presentation pass (scale, detail level, view template,
-            // crop, style pack).
-            // Map each fabrication view to the DrawingSlot that hosts it
-            // so per-slot Scale / DetailLevel / ViewTemplate overrides
-            // declared in the editor can land on the right view. Detail
-                // callout slots (e.g. 1:20) can sit on the same sheet as the
-                // 1:50 spool overview without the author having to clone the
-                // whole DrawingType.
-            var viewSlotMap = new (ElementId ViewId, string SlotLabel)[]
-            {
-                (views.ViewPlan,    "Plan"),
-                (views.View3D,      "3D"),
-                (views.ViewIso6412, "ISO"),
-                (views.Elevation0,  "Elev0"),
-                (views.Elevation90, "Elev90"),
-                (views.ElevationTop,"ElevTop"),
-            };
-            var viewIdsToPresent = viewSlotMap.Select(t => t.ViewId).ToArray();
-
-            if (drawingType != null)
-            {
-                foreach (var (viewId, slotLabel) in viewSlotMap)
-                {
-                    if (viewId == null || viewId == ElementId.InvalidElementId) continue;
-                    try
-                    {
-                        if (doc.GetElement(viewId) is View v && !v.IsTemplate)
-                        {
-                            var apply = StingTools.Core.Drawing.DrawingTypePresentation
-                                .Apply(doc, v, drawingType, runAnnotation: false);
-                            foreach (var w in apply.Warnings)
-                                result.Warnings.Add($"Apply view {viewId.Value}: {w}");
-
-                            // Layer per-slot overrides on top of DrawingType
-                            // defaults — finer scale on detail slots, fine
-                            // detail level on the ISO callout, etc.
-                            var slot = ResolveSlot(drawingType, slotLabel);
-                            if (slot != null)
-                            {
-                                StingTools.Core.Drawing.DrawingTypePresentation
-                                    .ApplySlotOverrides(doc, v, slot, apply);
-                            }
-
-                            // Phase 175 — auto-dim pass. Annotation was
-                            // skipped above so fabrication keeps its own
-                            // tag pipeline; here we explicitly run only
-                            // dim + spot rules so the profile's
-                            // dimensionStrategy (Ordinate on spools) lands
-                            // on every dimensionable view. 3D views are
-                            // skipped by every dimensioner.
-                            RunFabricationDimPass(doc, v, drawingType, result);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        result.Warnings.Add($"DrawingType view apply {viewId.Value}: {ex.Message}");
-                    }
-                }
-            }
-            else
-            {
-                // No profile resolved — still guarantee a readable scale
-                // so the slot layout (sized for 1:50 A1) isn't fed
-                // default-scaled views.
-                foreach (var viewId in viewIdsToPresent)
-                    TrySetViewScale(doc, viewId, 50, result);
-            }
-
-            // User-picked view template (if any) wins over the profile —
-            // applied last so corporate graphic standards override the
-            // DrawingType.viewTemplateName fallback.
+            // Apply user-selected view template to every non-schedule
+            // view the sheet will host, so the shop drawing inherits
+            // the company's graphic standards (line weights, filled
+            // regions, VG overrides, cropping rules).
             if (options != null && options.ViewTemplateId != ElementId.InvalidElementId)
             {
-                foreach (var viewId in viewIdsToPresent)
+                foreach (var viewId in new[] {
+                    views.View3D, views.ViewPlan, views.ViewIso6412,
+                    views.Elevation0, views.Elevation90, views.ElevationTop })
+                {
                     ApplyViewTemplate(doc, viewId, options.ViewTemplateId, result);
+                }
             }
 
             // Place views at fixed slots. Elev0/Elev90 receive the new
@@ -296,9 +188,12 @@ namespace StingTools.Core.Fabrication
                 {
                     if (el is FamilySymbol fs)
                     {
-                        string msg = $"Title block '{familyName}' not loaded; falling back to '{fs.FamilyName}'. Populated fab cells may be silently dropped.";
+                        string actualFamily = fs.FamilyName;
+                        string msg = $"Title block '{familyName}' not loaded; falling back to '{actualFamily}'. Populated fab cells may be silently dropped.";
                         StingLog.Warn("ShopDrawingComposer: " + msg);
                         result?.Warnings.Add(msg);
+                        // Gap-6: record the discipline-dict fallback (sheet not yet created).
+                        result?.TitleBlockFallbacks.Add((-1L, "(from discipline dict) " + familyName, actualFamily));
                         return fs.Id;
                     }
                 }
@@ -329,14 +224,11 @@ namespace StingTools.Core.Fabrication
             string sysCode  = string.IsNullOrEmpty(systemCode) ? "GEN" : Sanitise(systemCode);
             string bucket   = $"{discCode}:{sysCode}:{levelCode}";
             int seq;
-            // GAP-B: per-document bucket — the outer lock prevents two
-            // composer calls on the same doc from racing the increment.
-            var docBucket = GetDocBucket(doc);
-            lock (docBucket)
+            lock (_sequenceByBucket)
             {
-                docBucket.TryGetValue(bucket, out seq);
+                _sequenceByBucket.TryGetValue(bucket, out seq);
                 seq += 1;
-                docBucket[bucket] = seq;
+                _sequenceByBucket[bucket] = seq;
             }
 
             // Honour the user pattern when the ShopDrawingOptionsDialog
@@ -396,26 +288,31 @@ namespace StingTools.Core.Fabrication
             }
             catch (Exception ex) { result.Warnings.Add($"Title block populate: {ex.Message}"); }
 
-            // FIX-9: route through DrawingTypePresentation.ApplyToSheet so
-            // the canonical lock check + DrawingType stamp + Package stamp +
-            // TitleBlockParamApplier sequence applies — keeps fabrication in
-            // step with the SheetManager / scope-box paths.
+            // DrawingType.TitleBlockParams — declarative per-profile
+            // title-block binding. Pass the same token dict the sheet
+            // number / name pattern used so {disc}=discCode / {lvl}=
+            // levelCode / {sys}=sysCode / {spool}=spool / {seq:Dn}
+            // resolve consistently with the sheet number pattern.
             try
             {
-                if (drawingType != null)
+                if (drawingType?.TitleBlockParams != null && drawingType.TitleBlockParams.Count > 0)
                 {
-                    var apply = StingTools.Core.Drawing.DrawingTypePresentation
-                        .ApplyToSheet(doc, sheet, drawingType, extraTokens);
-                    foreach (var w in apply.Warnings)
-                        result.Warnings.Add("ApplyToSheet: " + w);
+                    // Same token set used to resolve the sheet number +
+                    // name patterns — ISO 19650 tokens included so
+                    // title-block cells read the same codes the sheet
+                    // number does.
+                    var tbApply = StingTools.Core.Drawing.TitleBlockParamApplier
+                        .Apply(doc, sheet, drawingType, extraTokens);
+                    foreach (var w in tbApply.Warnings)
+                        result.Warnings.Add("TitleBlockParams: " + w);
                 }
             }
-            catch (Exception ex) { result.Warnings.Add($"ApplyToSheet: {ex.Message}"); }
+            catch (Exception ex) { result.Warnings.Add($"TitleBlockParams: {ex.Message}"); }
         }
 
         private static string ReadString(Element el, string param)
         {
-            try { return el?.LookupParameter(param)?.AsString() ?? ""; } catch { return ""; }
+            try { return el?.LookupParameter(param)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         /// <summary>
@@ -496,7 +393,7 @@ namespace StingTools.Core.Fabrication
                 var p = pi?.LookupParameter(param);
                 return p?.StorageType == StorageType.String ? (p.AsString() ?? "") : "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         /// <summary>
@@ -514,7 +411,7 @@ namespace StingTools.Core.Fabrication
             try
             {
                 var pack = dt.Annotation;
-                try { pack.MigrateFromLegacy(); } catch { }
+                try { pack.MigrateFromLegacy(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 var opts = new StingTools.Core.Drawing.AnnotationRunOptions
                 {
                     ViewScale       = view.Scale,
@@ -632,6 +529,157 @@ namespace StingTools.Core.Fabrication
                         existing.Add(vs.SheetNumber);
                 }
             }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return baseNumber; }
+            if (!existing.Contains(baseNumber)) return baseNumber;
+            for (char c = 'A'; c <= 'Z'; c++)
+            {
+                var candidate = baseNumber + "-" + c;
+                if (!existing.Contains(candidate)) return candidate;
+            }
+            // Final fallback: long random suffix.
+            return baseNumber + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpperInvariant();
+        }
+
+        /// <summary>
+        /// Substitute tokens in a sheet-number or sheet-name pattern —
+        /// {spool}/{disc}/{discipline}/{sys}/{lvl}/{mark} literal, plus
+        /// {seq} (defaults to D4 padding) and {seq:D2}/{seq:D3}/{seq:D4}
+        /// with explicit width. ISO 19650 tokens {project}/{originator}/
+        /// {vol}/{type}/{role}/{suit}/{rev} resolve from the optional
+        /// <paramref name="extras"/> dict when supplied. Unrecognised
+        /// tokens are left as literal text.
+        /// </summary>
+        private static string SubstituteTokens(string pattern, string spool,
+            string disc, string sys, string lvl, int seq,
+            string disciplineFull = null, string mark = null,
+            System.Collections.Generic.IDictionary<string, string> extras = null)
+        {
+            if (string.IsNullOrEmpty(pattern)) return "";
+            var s = pattern
+                .Replace("{spool}",      spool ?? "")
+                .Replace("{disc}",       disc  ?? "")
+                .Replace("{discipline}", disciplineFull ?? disc ?? "")
+                .Replace("{sys}",        sys   ?? "")
+                .Replace("{lvl}",        lvl   ?? "")
+                .Replace("{mark}",       mark  ?? "");
+
+            // ISO 19650 tokens (and anything else the caller feeds).
+            if (extras != null)
+            {
+                foreach (var kv in extras)
+                {
+                    if (string.IsNullOrEmpty(kv.Key)) continue;
+                    s = s.Replace("{" + kv.Key + "}", kv.Value ?? "");
+                }
+            }
+
+            // {seq:Dn} with explicit padding width — honour whatever the
+            // pattern asks for so A-{seq:D3} yields A-001 and
+            // SP-{seq:D4} yields SP-0001.
+            s = System.Text.RegularExpressions.Regex.Replace(
+                s, @"\{seq:D(\d+)\}",
+                m => seq.ToString("D" + m.Groups[1].Value));
+            // Bare {seq} keeps the historical default of 4 digits.
+            s = s.Replace("{seq}", seq.ToString("D4"));
+            return s;
+        }
+
+        /// <summary>
+        /// Build the standard token dict for a resolved DrawingType —
+        /// ISO tokens sourced from dt.IsoNaming, project + originator
+        /// pulled from ProjectInformation so every sheet in a project
+        /// shares those two codes automatically.
+        /// </summary>
+        private static System.Collections.Generic.Dictionary<string, string>
+            BuildTokenDict(Document doc, StingTools.Core.Drawing.DrawingType dt,
+                string spool, string discCode, string discipline, string sysCode, string levelCode, int seq)
+        {
+            var d = new System.Collections.Generic.Dictionary<string, string>(
+                System.StringComparer.OrdinalIgnoreCase)
+            {
+                { "spool",      spool      ?? "" },
+                { "disc",       discCode   ?? "" },
+                { "discipline", discipline ?? "" },
+                { "sys",        sysCode    ?? "" },
+                { "lvl",        levelCode  ?? "" },
+                { "seq",        seq.ToString("D4") },
+                { "project",    ReadProjectInfo(doc, "PRJ_ORG_PROJECT_CODE") },
+                { "originator", ReadProjectInfo(doc, "PRJ_ORG_ORIGINATOR_CODE") },
+                { "vol",        dt?.IsoNaming?.Volume      ?? "" },
+                { "type",       dt?.IsoNaming?.Type        ?? "" },
+                { "role",       dt?.IsoNaming?.Role        ?? discCode ?? "" },
+                { "suit",       dt?.IsoNaming?.Suitability ?? "" },
+                { "rev",        dt?.IsoNaming?.Revision    ?? "" },
+            };
+            return d;
+        }
+
+        private static string ReadProjectInfo(Document doc, string param)
+        {
+            try
+            {
+                var pi = doc?.ProjectInformation;
+                var p = pi?.LookupParameter(param);
+                return p?.StorageType == StorageType.String ? (p.AsString() ?? "") : "";
+            }
+            catch { return ""; }
+        }
+
+        /// <summary>
+        /// Apply the user-picked view template to the view if the
+        /// template permits it for that view type. View3D / section /
+        /// plan all accept a template via View.ViewTemplateId.
+        /// </summary>
+        private static void ApplyViewTemplate(Document doc, ElementId viewId,
+            ElementId templateId, FabricationResult result)
+        {
+            if (viewId == null || viewId == ElementId.InvalidElementId) return;
+            if (templateId == null || templateId == ElementId.InvalidElementId) return;
+            try
+            {
+                var v = doc.GetElement(viewId) as View;
+                if (v == null || v.IsTemplate) return;
+                v.ViewTemplateId = templateId;
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"ApplyViewTemplate {viewId.Value}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Strip characters Revit refuses in sheet numbers (\ / : * ?
+        /// " &lt; &gt; | {} [] ;) and collapse whitespace to a single
+        /// underscore. Preserves A-Z / 0-9 / - / _.
+        /// </summary>
+        private static string Sanitise(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            var chars = new System.Text.StringBuilder(s.Length);
+            foreach (var ch in s.ToUpperInvariant())
+            {
+                if (char.IsLetterOrDigit(ch) || ch == '-' || ch == '_') chars.Append(ch);
+                else if (char.IsWhiteSpace(ch)) chars.Append('_');
+            }
+            return chars.ToString();
+        }
+
+        /// <summary>
+        /// Probe the document for an existing sheet with the proposed
+        /// number and, if found, append -A, -B, … until unique.
+        /// </summary>
+        private static string EnsureUniqueSheetNumber(Document doc, string baseNumber)
+        {
+            if (string.IsNullOrEmpty(baseNumber)) return baseNumber;
+            var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)))
+                {
+                    if (el is ViewSheet vs && !string.IsNullOrEmpty(vs.SheetNumber))
+                        existing.Add(vs.SheetNumber);
+                }
+            }
             catch { return baseNumber; }
             if (!existing.Contains(baseNumber)) return baseNumber;
             for (char c = 'A'; c <= 'Z'; c++)
@@ -687,24 +735,13 @@ namespace StingTools.Core.Fabrication
                 return ElementId.InvalidElementId;
             try
             {
-                // Mirror DrawingTypeSheetAdapter.ResolveTitleBlock so the
-                // optional TitleBlockSymbolType variant (Tender / Construction
-                // / As-Built etc.) is honoured on the fabrication path too.
-                var matches = new FilteredElementCollector(doc)
+                var col = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_TitleBlocks)
-                    .OfClass(typeof(FamilySymbol))
-                    .Cast<FamilySymbol>()
-                    .Where(fs => string.Equals(
-                        fs.FamilyName, dt.TitleBlockFamily, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                if (!string.IsNullOrWhiteSpace(dt.TitleBlockSymbolType))
-                {
-                    var picked = matches.FirstOrDefault(fs => string.Equals(
-                        fs.Name, dt.TitleBlockSymbolType, StringComparison.OrdinalIgnoreCase));
-                    if (picked != null) return picked.Id;
-                }
-                var fallback = matches.FirstOrDefault();
-                if (fallback != null) return fallback.Id;
+                    .OfClass(typeof(FamilySymbol));
+                foreach (var el in col)
+                    if (el is FamilySymbol fs && string.Equals(
+                            fs.FamilyName, dt.TitleBlockFamily, StringComparison.OrdinalIgnoreCase))
+                        return fs.Id;
             }
             catch (Exception ex)
             {

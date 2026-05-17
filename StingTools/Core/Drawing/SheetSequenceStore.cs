@@ -163,7 +163,7 @@ namespace StingTools.Core.Drawing
                 }
                 return max;
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
     }
 }

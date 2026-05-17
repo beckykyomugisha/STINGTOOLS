@@ -363,7 +363,7 @@ namespace StingTools.Commands.Lightning
                             if (n.Z < 0.5) continue;
 
                             double area;
-                            try { area = face.Area; } catch { area = 0; }
+                            try { area = face.Area; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); area = 0; }
                             double uvArea = (bb.Max.U - bb.Min.U) * (bb.Max.V - bb.Min.V);
                             if (area < 1e-6 || uvArea < 1e-9) continue;
                             double scale = Math.Sqrt(area / uvArea); // world-units per uv-unit
@@ -378,7 +378,7 @@ namespace StingTools.Commands.Lightning
                                     var uv = new UV(u, v);
                                     XYZ p;
                                     try { p = face.Evaluate(uv); }
-                                    catch { continue; }
+                                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                                     if (p == null) continue;
                                     yielded++;
                                     yield return p;

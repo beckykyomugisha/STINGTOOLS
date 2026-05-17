@@ -22,7 +22,7 @@ namespace StingTools.Commands.Healthcare.Specialist
                 try {
                     var p = doc.ProjectInformation.LookupParameter("PRJ_ORG_HEALTH_BEDS_INT");
                     if (p?.HasValue == true && p.StorageType==StorageType.Integer) beds = p.AsInteger();
-                } catch { }
+                } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 int requiredBays = (int)Math.Max(4, Math.Ceiling(beds * 0.005));
                 var clinicalCats = new ElementMulticategoryFilter(new[] {
                     BuiltInCategory.OST_MedicalEquipment,
@@ -47,7 +47,7 @@ namespace StingTools.Commands.Healthcare.Specialist
         private static string Get(Element el, string n) {
             try { var p = el.LookupParameter(n);
                   return p?.HasValue==true && p.StorageType==StorageType.String ? (p.AsString()??"") : ""; }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
     }
 }

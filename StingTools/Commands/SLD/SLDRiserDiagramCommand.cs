@@ -194,9 +194,9 @@ namespace StingTools.Commands.SLD
 
             if (view != null)
             {
-                try { ctx.UIDoc.ActiveView = view; } catch { }
+                try { ctx.UIDoc.ActiveView = view; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Riser", $"Riser diagram generated: '{view?.Name}'.");
             return Result.Succeeded;
         }
@@ -215,7 +215,7 @@ namespace StingTools.Commands.SLD
                     .FirstOrDefault(t => t.ViewFamily == ViewFamily.Drafting);
                 if (vft == null) return null;
                 var v = ViewDrafting.Create(doc, vft.Id);
-                try { v.Name = name; } catch { }
+                try { v.Name = name; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 return v;
             }
             catch (Exception ex) { StingLog.Warn($"CreateOrReplaceView: {ex.Message}"); return null; }

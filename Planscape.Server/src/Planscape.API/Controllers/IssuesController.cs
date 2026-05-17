@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -8,6 +9,7 @@ using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 using Planscape.Infrastructure.SignalR;
 using Planscape.API.Authorization;
 
@@ -30,6 +32,7 @@ public class IssuesController : ControllerBase
     private readonly IAuditService _audit;
     private readonly IHubContext<NotificationHub> _notifHub;
     private readonly Planscape.Infrastructure.Services.OutboundWebhookDispatcher? _webhooks;
+    private readonly IBackgroundJobClient _backgroundJobs;
 
     private static readonly Dictionary<string, int> SLAHours = new()
     {
@@ -50,6 +53,7 @@ public class IssuesController : ControllerBase
         ILogger<IssuesController> logger,
         IAuditService audit,
         IHubContext<NotificationHub> notifHub,
+        IBackgroundJobClient backgroundJobs,
         Planscape.Infrastructure.Services.OutboundWebhookDispatcher? webhooks = null)
     {
         _db = db;
@@ -61,6 +65,7 @@ public class IssuesController : ControllerBase
         _logger = logger;
         _audit = audit;
         _notifHub = notifHub;
+        _backgroundJobs = backgroundJobs;
         _webhooks = webhooks;
     }
 
@@ -130,6 +135,25 @@ public class IssuesController : ControllerBase
             return BadRequest(new { error = "Type must be 2-6 uppercase letters (e.g. RFI, NCR, SI, TQ, CLASH, DEFECT)" });
         }
 
+        // FIX 18 — Guard the LinkedElementIds array length. The field is stored
+        // as a JSON string; we check the deserialised element count so a client
+        // cannot embed 50 000 Revit ids, causing unbounded DB column writes and
+        // slow downstream Revit-sync queries. 500 elements per issue is already
+        // generous for any real clash / DEFECT scenario.
+        if (!string.IsNullOrWhiteSpace(req.LinkedElementIds))
+        {
+            try
+            {
+                var ids = System.Text.Json.JsonSerializer.Deserialize<string[]>(req.LinkedElementIds);
+                if (ids?.Length > 500)
+                    return BadRequest(new { error = "LinkedElementIds array cannot exceed 500 entries per request." });
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return BadRequest(new { error = "LinkedElementIds must be a valid JSON array of element ID strings." });
+            }
+        }
+
         // MODEL-VIEWER — validate ModelId belongs to this project. Stops a
         // malicious client linking an issue to a model in a different project
         // (which would still upload but later 404 on the viewer file fetch).
@@ -143,15 +167,36 @@ public class IssuesController : ControllerBase
                 return BadRequest(new { error = "ModelId does not belong to this project" });
         }
 
+        // FIX 14 — Geofence enforcement must not be bypassable by clients that
+        // omit the X-Latitude / X-Longitude headers. If the project has a
+        // BoundaryPolygon defined, coordinates are MANDATORY regardless of client
+        // type. Non-mobile callers (e.g. web dashboard) that have no GPS must
+        // receive a structured error so the integrator knows they need to supply
+        // coordinates or ask the project admin to remove the boundary.
+        // TODO: add GeofenceEnabled bool to Project entity so the project admin
+        //       can enable/disable enforcement independently of BoundaryPolygon.
+        var hasGpsBoundary = !string.IsNullOrWhiteSpace(project.BoundaryPolygon);
+        HttpContext.Items.TryGetValue("Latitude", out var latObj);
+        HttpContext.Items.TryGetValue("Longitude", out var lngObj);
+        var latParsed = latObj is double latVal;
+        var lngParsed = lngObj is double lngVal;
+
+        if (hasGpsBoundary && (!latParsed || !lngParsed))
+        {
+            _logger.LogWarning(
+                "Issue created without GPS coordinates on geofenced project {ProjectId}", projectId);
+            return BadRequest(new { error = "Geofence enforcement is active. Location coordinates are required." });
+        }
+
         // NEW-LOGIC-08 — Validate lat/lng ranges before geofence check.
         // MobileContextMiddleware parses headers but never range-checks them.
-        if (HttpContext.Items.TryGetValue("Latitude", out var latObj) &&
-            HttpContext.Items.TryGetValue("Longitude", out var lngObj) &&
-            latObj is double lat && lngObj is double lng)
+        if (latParsed && lngParsed)
         {
+            var lat = (double)latObj!;
+            var lng = (double)lngObj!;
             if (double.IsNaN(lat) || double.IsNaN(lng) || Math.Abs(lat) > 90 || Math.Abs(lng) > 180)
                 return BadRequest(new { error = "Invalid latitude/longitude range" });
-            if (!_geofence.IsInsideBoundary(project.BoundaryPolygon, lat, lng))
+            if (hasGpsBoundary && !_geofence.IsInsideBoundary(project.BoundaryPolygon, lat, lng))
                 return StatusCode(403, new { error = "Device location is outside the project geofence boundary" });
         }
 
@@ -527,7 +572,6 @@ public class IssuesController : ControllerBase
             }
         }
 
-        issue.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
         // Push to newly assigned user.
@@ -1142,6 +1186,110 @@ public class IssuesController : ControllerBase
         return DateTime.UtcNow.AddHours(hours);
     }
 
+    // ── Audio Notes (S6.1 / Gap 1) ──────────────────────────────────────────
+
+    /// <summary>
+    /// Upload a voice note for an issue. Accepts m4a/mp4/aac/wav/webm/ogg.
+    /// Enqueues a server-side transcription job after persisting the file.
+    /// </summary>
+    // POST /api/projects/{projectId}/issues/{issueId}/audio-notes
+    [HttpPost("{issueId:guid}/audio-notes")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(50 * 1024 * 1024)]
+    public async Task<IActionResult> CaptureAudioNote(
+        Guid projectId, Guid issueId,
+        IFormFile file,
+        [FromForm] int durationSec,
+        [FromForm] string? idempotencyKey)
+    {
+        var tenantId = GetTenantId();
+        var issue = await _db.Issues
+            .FirstOrDefaultAsync(i => i.Id == issueId && i.ProjectId == projectId && i.Project!.TenantId == tenantId);
+        if (issue == null) return NotFound();
+        if (file == null || file.Length == 0) return BadRequest(new { message = "Audio file required" });
+        if (file.Length > 50 * 1024 * 1024) return BadRequest(new { message = "Audio file must be ≤ 50 MB" });
+
+        // Idempotency: skip if already processed
+        if (!string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            var exists = await _db.IssueAudioNotes
+                .AnyAsync(a => a.IdempotencyKey == idempotencyKey && a.IssueId == issueId);
+            if (exists) return Ok(new { message = "already_processed" });
+        }
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (ext is not (".m4a" or ".mp4" or ".aac" or ".wav" or ".webm" or ".ogg"))
+            return BadRequest(new { message = "Unsupported audio format" });
+
+        var safeName = $"audio_{issueId:N}_{DateTime.UtcNow:yyyyMMddHHmmss}{ext}";
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        var tenantSlug = project!.Code; // used as the first path segment in SaveAsync
+
+        await using var stream = file.OpenReadStream();
+        var storagePath = await _storage.SaveAsync(tenantSlug, $"{project.Code}/audio-notes", safeName, stream);
+
+        var uploaderName = User.FindFirst("display_name")?.Value ?? "Unknown";
+        var note = new IssueAudioNote
+        {
+            TenantId = tenantId,
+            IssueId = issueId,
+            StoragePath = storagePath,
+            DurationSeconds = durationSec,
+            FileSizeBytes = file.Length,
+            MimeType = file.ContentType ?? "audio/mp4",
+            CreatedBy = uploaderName,
+            IdempotencyKey = idempotencyKey,
+            CreatedAt = DateTime.UtcNow,
+        };
+        _db.IssueAudioNotes.Add(note);
+        await _db.SaveChangesAsync();
+
+        // Enqueue transcription job (fire-and-forget)
+        _backgroundJobs.Enqueue<AudioTranscriptionJob>(j => j.TranscribeAsync(note.Id, CancellationToken.None));
+
+        return Ok(new { id = note.Id, status = "Pending", storagePath });
+    }
+
+    // ── Attachment Direct Download (Gap 2) ───────────────────────────────────
+
+    /// <summary>
+    /// Stream the raw file for an attachment directly (for download or inline
+    /// preview). Returns the stored file with its original Content-Type.
+    /// </summary>
+    // GET /api/projects/{projectId}/issues/{issueId}/attachments/{attachmentId}/file
+    [HttpGet("{issueId:guid}/attachments/{attachmentId:guid}/file")]
+    public async Task<IActionResult> DownloadAttachment(Guid projectId, Guid issueId, Guid attachmentId)
+    {
+        var tenantId = GetTenantId();
+        var att = await _db.IssueAttachments
+            .Include(a => a.Document)
+            .Include(a => a.Issue)
+            .FirstOrDefaultAsync(a => a.Id == attachmentId
+                && a.IssueId == issueId
+                && a.Issue!.ProjectId == projectId
+                && a.Issue.Project!.TenantId == tenantId);
+        if (att?.Document == null) return NotFound();
+
+        var filePath = att.Document.FilePath;
+        if (string.IsNullOrEmpty(filePath)) return NotFound(new { message = "File path not recorded" });
+
+        var stream = await _storage.GetAsync(filePath, ct: default);
+        if (stream == null) return NotFound(new { message = "File not found in storage" });
+
+        // DocumentRecord has no ContentType property — derive from extension
+        var ext = Path.GetExtension(att.Document.FileName).ToLowerInvariant();
+        var contentType = ext switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".pdf" => "application/pdf",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream",
+        };
+        Response.Headers["Content-Disposition"] = $"inline; filename=\"{att.Document.FileName}\"";
+        return File(stream, contentType);
+    }
+
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
 }
@@ -1194,9 +1342,6 @@ public record UpdateIssueRequest(
     // ── Additive fields below this line ───────────────────────────────────
     // Replace the watcher list (null = leave unchanged; empty array = clear).
     Guid[]? WatcherUserIds,
-    // Who resolved the issue (display name or system identifier).
-    // Null = leave unchanged.
-    string? ResolvedBy,
     // Assignee FK fields — preferred over the display-name string above.
     string? AssigneeEmail,
     Guid? AssigneeUserId,

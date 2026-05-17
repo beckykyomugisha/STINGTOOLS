@@ -1,61 +1,6 @@
 {
   "version": 1,
   "_comment": "STING corporate Drawing Types. Override per project by dropping a drawing_types.json under <project>/_BIM_COORD/. Project entries win by id; routing rules from the project file are PREPENDED (first-match-wins).",
-  "_tokenProfileDesign": {
-    "rationale": "Each drawingType.tokenProfile is precomputed for Phase 165 by the matrix in commit message 'Intelligent tag profile matrix'. Override any field per project by dropping a project-scoped drawing_types.json under <project>/_BIM_COORD/.",
-    "rules": [
-      "PRESENTATION (pres-*) — ITALIC GREY 2.5mm, Mono scheme, depth 2, PROD-SEQ display, identity+spatial sections only. Subdued for client-facing decks.",
-      "CLARIFICATION (clar-*) — BOLDITALIC RED 3mm, Discipline scheme, depth 3, full 8-segment, A+B+C+D+F sections. Markup style for RFIs / queries.",
-      "HANDOVER / FM (handover, fm-*) — NOM PURPLE 2.5mm, System scheme, depth 10, HANDOVER pattern, T4+T9+T10 tiers active. Lifecycle-ready audit trail.",
-      "SPOOL / FABRICATION (-spool, -fabrication) — BOLD BLACK 3mm, System scheme, depth 7, DISC-PROD-SEQ display, T7 fab+QC tier. Workshop-readable.",
-      "SCHEDULE (-schedule) — NOM 2mm, BOQ preset, depth 1, no graphic scheme, PROD-SEQ display. Schedules render as tables.",
-      "COORDINATION / CLASH (coord-, clash-) — BOLD RED 2.5mm, Discipline scheme, depth 8, T8 clash triage tier. Highlights ownership.",
-      "LEGEND — NOM GREY 2mm, Compact preset, depth 1, SEQ-only display. Legend tags read like keys.",
-      "FIRE STRATEGY / FIRE ALARM (-fire-) — BOLD RED 2.5mm, System scheme, depth 4, T4 commissioning tier. Witness/sign-off captured.",
-      "DEMOLITION — BOLD RED, Status scheme, depth 2. Status colours show NEW/EXISTING/DEMOLISHED.",
-      "FINISHES (-finishes, -screed, -raised-floor) — Status scheme, depth 3. Each finish package reads distinctly.",
-      "SETTING OUT — BOLD, depth 4, Discipline scheme. Survives crowded annotation.",
-      "SITE / ACCESSIBILITY — Zone scheme, depth 3. Reads compliance routes / building zones.",
-      "AREA PLAN — Function scheme, depth 2, DISC-PROD-SEQ display. Functional zoning emphasis.",
-      "RCP — System scheme, depth 3, A+B+C+E sections. Distinguishes ceiling-fixture systems.",
-      "FOUNDATION — BOLD BLACK, Material scheme, depth 4. Concrete/rebar/steel callouts.",
-      "PLUMBING DRAINAGE — GREEN, System scheme, depth 3. Discipline convention.",
-      "ELECTRICAL POWER / LIGHTING / FIRE ALARM — ORANGE (high contrast vs yellow on white), System scheme. Riser uses Level scheme to track floor distribution.",
-      "PARTITION / SANITARY LAYOUT — depth 3, DISC-PROD-SEQ display. 1:50 detail layouts.",
-      "DETAIL — NOM 3.5mm, FullSpec preset, depth 5, all 6 A-F sections visible. Most-data-per-element drawings.",
-      "SECTION / ELEVATION — NOM, depth 3, full 8-segment, A+B+C sections. Standard production read.",
-      "PLANTROOM (1:50 dense MEP) — BOLD BLUE 3mm, System scheme, depth 5. Survives plantroom density.",
-      "HVAC DUCT PLAN — System scheme, depth 3. Air-system colour coding.",
-      "STANDARD PLAN (arch / struct / mep / elec / plumbing fallthrough) — NOM, Discipline-coloured, Discipline scheme, depth 3, full 8-segment. The default production read."
-    ],
-    "disciplineColors": {
-      "A_arch": "BLACK — calm, professional",
-      "S_struct": "BLACK — engineering convention",
-      "M_mech": "BLUE  — UK convention",
-      "E_elec": "ORANGE — high contrast on white (yellow unreadable)",
-      "P_plumb": "GREEN",
-      "FP_fire": "RED",
-      "multi": "GREY"
-    },
-    "sizeBands": {
-      "scale_<=20": "3.5mm — large detail drawings",
-      "scale_<=50": "3.0mm — section / detail / spool",
-      "scale_<=200": "2.5mm — standard production plan",
-      "scale_>200": "2.0mm — site / area plan / schedule"
-    },
-    "stages": {
-      "RIBA_2_concept": "PRESENTATION profiles (pres-*) — depth 2, mono, ITALIC GREY",
-      "RIBA_3_4_design": "DC pattern, depth 3-5, discipline-coloured NOM",
-      "RIBA_5_construction": "DC pattern, depth 7+, BOLD spools, T7 fab tier active",
-      "RIBA_6_handover": "HANDOVER pattern, depth 10, T4+T9+T10 tiers, PURPLE"
-    },
-    "clientFacingProfiles": [
-      "pres-* — silk presentation grade",
-      "handover-A1 — Stage 6 client deliverable",
-      "fm-asset-location-A1-1to100 — FM client handover",
-      "clar-design-intent-A1 — design narrative for client review"
-    ]
-  },
   "drawingTypes": [
     {
       "id": "arch-plan-A1-1to100",
@@ -71,31 +16,11 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Architectural Plan",
       "viewportTypeName": "STING - Standard Viewport",
-      "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "ARCHITECTURAL PLAN — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
       },
       "slots": [
         {
@@ -213,8 +138,8 @@
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
-        "Project Code": "${PRJ_PROJECT_COD_TXT}",
-        "Originator": "${PRJ_ORG_ORIGINATOR_CODE_TXT}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
         "Company Name": "${PRJ_ORG_COMPANY_NAME}",
         "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
@@ -230,11 +155,6 @@
         "role": "A",
         "suitability": "S2",
         "revision": "P01"
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -248,38 +168,11 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Reflected Ceiling Plan",
-      "viewStylePackId": "corp-standard-rcp",
       "sheetNumberPattern": "A-RCP-{lvl}-{seq:D3}",
       "sheetNamePattern": "REFLECTED CEILING PLAN — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": false,
-          "E": true,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -384,11 +277,6 @@
             "enabled": true
           }
         ]
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -402,7 +290,6 @@
       "scale": 50,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Architectural Section",
-      "viewStylePackId": "corp-standard-section",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "SECTION {mark}",
       "crop": {
@@ -414,32 +301,6 @@
         "markPrefix": "S",
         "bubbleStyle": "Filled",
         "farClipMm": 5000
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": false,
-          "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -539,11 +400,6 @@
         "role": "A",
         "suitability": "S2",
         "revision": "P01"
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -557,7 +413,6 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Architectural Elevation",
-      "viewStylePackId": "corp-standard-elevation",
       "sheetNumberPattern": "A-EL-{seq:D3}",
       "sheetNamePattern": "ELEVATION {mark}",
       "crop": {
@@ -569,32 +424,6 @@
         "markPrefix": "E",
         "bubbleStyle": "Open",
         "farClipMm": 8000
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": false,
-          "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -709,11 +538,6 @@
             "enabled": true
           }
         ]
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -727,7 +551,6 @@
       "scale": 20,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Detail",
-      "viewStylePackId": "corp-standard-detail",
       "sheetNumberPattern": "A-DT-{seq:D3}",
       "sheetNamePattern": "DETAIL {mark}",
       "crop": {
@@ -739,32 +562,6 @@
         "markPrefix": "D",
         "bubbleStyle": "Filled",
         "farClipMm": 500
-      },
-      "tokenProfile": {
-        "presentationMode": "FullSpec",
-        "paraDepth": 5,
-        "tagSize": "3.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 4,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": true,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -880,11 +677,6 @@
             "enabled": true
           }
         ]
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -903,25 +695,6 @@
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
       },
       "slots": [
         {
@@ -985,13 +758,7 @@
         "role": "S",
         "suitability": "S2",
         "revision": "P01"
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
-      },
-      "viewStylePackId": "corp-structural-plan"
+      }
     },
     {
       "id": "struct-section-A1-1to50",
@@ -1015,32 +782,6 @@
         "markPrefix": "SS",
         "bubbleStyle": "Filled",
         "farClipMm": 5000
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": false,
-          "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -1092,13 +833,7 @@
             "enabled": true
           }
         ]
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
-      },
-      "viewStylePackId": "corp-structural-plan"
+      }
     },
     {
       "id": "mep-plan-A1-1to100",
@@ -1111,31 +846,11 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - MEP Plan",
-      "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "MEP PLAN — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLUE",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
       },
       "slots": [
         {
@@ -1233,11 +948,6 @@
         "role": "M",
         "suitability": "S2",
         "revision": "P01"
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -1251,61 +961,11 @@
       "scale": 50,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - MEP Coordination",
-      "viewStylePackId": "corp-coordination",
       "sheetNumberPattern": "M-CO-{lvl}-{seq:D3}",
       "sheetNamePattern": "MEP COORDINATION — {lvl}",
-      "productionRules": [
-        {
-          "idx": 0,
-          "viewType": "FloorPlan",
-          "slotIndex": 0,
-          "required": true,
-          "nameSuffix": " - PLAN"
-        },
-        {
-          "idx": 1,
-          "viewType": "ThreeD",
-          "slotIndex": 1,
-          "required": false,
-          "nameSuffix": " - ISO"
-        },
-        {
-          "idx": 2,
-          "viewType": "Section",
-          "slotIndex": 2,
-          "required": false,
-          "nameSuffix": " - SEC"
-        }
-      ],
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 100
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 8,
-        "tagSize": "2.5",
-        "tagStyle": "BOLD",
-        "tagColor": "RED",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": true,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": true,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -1380,18 +1040,6 @@
             "category": "Pipes",
             "ruleType": "AutoAnnotateSlope",
             "enabled": true
-          },
-          {
-            "category": "OST_DuctCurves",
-            "ruleType": "AutoDimMEPToGrid",
-            "enabled": true,
-            "minSizeMm": 200
-          },
-          {
-            "category": "OST_PipeCurves",
-            "ruleType": "AutoDimMEPToGrid",
-            "enabled": true,
-            "minSizeMm": 50
           }
         ]
       },
@@ -1410,54 +1058,11 @@
       "scale": 50,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Pipe Shop Drawing",
-      "viewStylePackId": "corp-fabrication-shop",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "{discipline} spool {spool}",
-      "productionRules": [
-        {
-          "idx": 0,
-          "viewType": "FloorPlan",
-          "slotIndex": 0,
-          "required": true,
-          "nameSuffix": " - PLAN"
-        },
-        {
-          "idx": 1,
-          "viewType": "ThreeD",
-          "slotIndex": 1,
-          "required": true,
-          "nameSuffix": " - ISO"
-        }
-      ],
       "crop": {
         "kind": "TightBbox",
         "marginMm": 300
-      },
-      "tokenProfile": {
-        "presentationMode": "FullSpec",
-        "paraDepth": 7,
-        "tagSize": "3",
-        "tagStyle": "BOLD",
-        "tagColor": "BLACK",
-        "colorScheme": "System",
-        "segmentMask": "10000101",
-        "displayMode": 4,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": false,
-          "D": false,
-          "E": true,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": true,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -1474,9 +1079,7 @@
           "normX": 0.55,
           "normY": 0.55,
           "normW": 0.4,
-          "normH": 0.4,
-          "scale": 25,
-          "detailLevel": "Fine"
+          "normH": 0.4
         },
         {
           "label": "Elev0",
@@ -1484,9 +1087,7 @@
           "normX": 0.05,
           "normY": 0.1,
           "normW": 0.28,
-          "normH": 0.4,
-          "scale": 20,
-          "detailLevel": "Fine"
+          "normH": 0.4
         },
         {
           "label": "Elev90",
@@ -1494,9 +1095,7 @@
           "normX": 0.36,
           "normY": 0.1,
           "normW": 0.28,
-          "normH": 0.4,
-          "scale": 20,
-          "detailLevel": "Fine"
+          "normH": 0.4
         },
         {
           "label": "3D",
@@ -1552,19 +1151,13 @@
             "category": "Duct Accessories",
             "ruleType": "AutoTag",
             "enabled": true
-          },
-          {
-            "category": "OST_PipeCurves",
-            "ruleType": "AutoDimMEPRun",
-            "enabled": true,
-            "minSizeMm": 25
           }
         ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
-        "Project Code": "${PRJ_PROJECT_COD_TXT}",
-        "Originator": "${PRJ_ORG_ORIGINATOR_CODE_TXT}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
         "Company Name": "${PRJ_ORG_COMPANY_NAME}",
         "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
@@ -1582,11 +1175,6 @@
         "role": "P",
         "suitability": "A",
         "revision": "C01"
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -1600,38 +1188,11 @@
       "scale": 50,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Duct Shop Drawing",
-      "viewStylePackId": "corp-fabrication-shop",
       "sheetNumberPattern": "SP-M-DCT-{lvl}-{seq:D4}",
       "sheetNamePattern": "Duct spool {spool}",
       "crop": {
         "kind": "TightBbox",
         "marginMm": 300
-      },
-      "tokenProfile": {
-        "presentationMode": "FullSpec",
-        "paraDepth": 7,
-        "tagSize": "3",
-        "tagStyle": "BOLD",
-        "tagColor": "BLACK",
-        "colorScheme": "System",
-        "segmentMask": "10000101",
-        "displayMode": 4,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": false,
-          "D": false,
-          "E": true,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": true,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -1648,9 +1209,7 @@
           "normX": 0.55,
           "normY": 0.55,
           "normW": 0.4,
-          "normH": 0.4,
-          "scale": 25,
-          "detailLevel": "Fine"
+          "normH": 0.4
         },
         {
           "label": "Elev0",
@@ -1658,9 +1217,7 @@
           "normX": 0.05,
           "normY": 0.1,
           "normW": 0.28,
-          "normH": 0.4,
-          "scale": 20,
-          "detailLevel": "Fine"
+          "normH": 0.4
         },
         {
           "label": "Elev90",
@@ -1668,9 +1225,7 @@
           "normX": 0.36,
           "normY": 0.1,
           "normW": 0.28,
-          "normH": 0.4,
-          "scale": 20,
-          "detailLevel": "Fine"
+          "normH": 0.4
         },
         {
           "label": "3D",
@@ -1725,86 +1280,8 @@
             "category": "Duct Accessories",
             "ruleType": "AutoTag",
             "enabled": true
-          },
-          {
-            "category": "OST_DuctCurves",
-            "ruleType": "AutoDimMEPRun",
-            "enabled": true,
-            "minSizeMm": 100
           }
         ]
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
-      }
-    },
-    {
-      "id": "elec-sld-A1-1to100",
-      "name": "Electrical Single Line Diagram — A1 @ 1:100",
-      "origin": "corporate",
-      "purpose": "Plan",
-      "discipline": "E",
-      "paperSize": "A1",
-      "titleBlockFamily": "STING_TB_SHEET_A1",
-      "scale": 100,
-      "detailLevel": "Medium",
-      "viewTemplateName": "STING - Electrical SLD",
-      "viewStylePackId": "corp-standard-plan",
-      "sheetNumberPattern": "E-SLD-{seq:D3}",
-      "sheetNamePattern": "ELECTRICAL SINGLE LINE DIAGRAM {mark}",
-      "crop": {
-        "kind": "TightBbox",
-        "marginMm": 150
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "ORANGE",
-        "colorScheme": "Level",
-        "segmentMask": "11111111",
-        "displayMode": 5
-      },
-      "slots": [
-        {
-          "label": "SLD",
-          "viewType": "Drafting",
-          "normX": 0.03,
-          "normY": 0.05,
-          "normW": 0.74,
-          "normH": 0.9,
-          "required": true
-        },
-        {
-          "label": "Legend",
-          "viewType": "Legend",
-          "normX": 0.8,
-          "normY": 0.05,
-          "normW": 0.18,
-          "normH": 0.9
-        }
-      ],
-      "annotation": {
-        "rules": [
-          {
-            "category": "Electrical Equipment",
-            "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
-            "category": "Electrical Fixtures",
-            "ruleType": "AutoTag",
-            "enabled": true
-          }
-        ]
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -1818,31 +1295,11 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Electrical Riser",
-      "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "E-RIS-{seq:D3}",
       "sheetNamePattern": "ELECTRICAL RISER {mark}",
       "crop": {
         "kind": "TightBbox",
         "marginMm": 200
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "ORANGE",
-        "colorScheme": "Level",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
       },
       "slots": [
         {
@@ -1906,78 +1363,7 @@
             "enabled": true
           }
         ]
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
-    },
-    {
-      "id": "elec-panel-schedule-A3",
-      "name": "Electrical Panel Schedule — A3",
-      "origin": "corporate",
-      "purpose": "Schedule",
-      "discipline": "E",
-      "paperSize": "A3",
-      "orientation": "Portrait",
-      "titleBlockFamily": "STING_TB_SHEET_A3",
-      "scale": 50,
-      "viewStylePackId": "corp-standard-detail",
-      "sheetNumberPattern": "E-SCH-PNL-{seq:D3}",
-      "sheetNamePattern": "PANEL SCHEDULE — {disc}",
-      "crop": {
-        "kind": "None"
-      },
-      "tokenProfile": {
-        "presentationMode": "BOQ",
-        "paraDepth": 1,
-        "tagSize": "2",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "",
-        "segmentMask": "10000101",
-        "displayMode": 2,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": false,
-          "C": false,
-          "D": false,
-          "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
-      },
-      "slots": [
-        {
-          "label": "Panel Schedule",
-          "viewType": "PanelSchedule",
-          "normX": 0.05,
-          "normY": 0.05,
-          "normW": 0.9,
-          "normH": 0.9,
-          "required": true
-        }
-      ],
-      "annotation": {
-        "rules": []
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
-      },
-      "_apiCaveats": [
-        "PanelScheduleSheetInstance.Create has been broken in Revit 2024-2026. STING creates the sheet + applies the title block + stamps the drawing-type id, but the user must drag the PanelScheduleView onto the sheet manually.",
-        "The 'PanelSchedule' viewType in the slot is informational; STING tooling does not auto-place panel schedule views into slots."
-      ]
     },
     {
       "id": "door-schedule-A2",
@@ -1988,37 +1374,10 @@
       "paperSize": "A2",
       "titleBlockFamily": "STING_TB_SHEET_A2",
       "scale": 100,
-      "viewStylePackId": "corp-standard-detail",
       "sheetNumberPattern": "A-SCH-DR-{seq:D2}",
       "sheetNamePattern": "DOOR SCHEDULE",
       "crop": {
         "kind": "None"
-      },
-      "tokenProfile": {
-        "presentationMode": "BOQ",
-        "paraDepth": 1,
-        "tagSize": "2",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "",
-        "segmentMask": "10000101",
-        "displayMode": 2,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": false,
-          "C": false,
-          "D": false,
-          "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -2033,11 +1392,6 @@
       ],
       "annotation": {
         "rules": []
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -2051,38 +1405,11 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Handover",
-      "viewStylePackId": "corp-standard-detail",
       "sheetNumberPattern": "HO-{seq:D3}",
       "sheetNamePattern": "HANDOVER — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 200
-      },
-      "tokenProfile": {
-        "presentationMode": "FullSpec",
-        "paraDepth": 10,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "PURPLE",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "HANDOVER",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": true,
-          "F": true,
-          "T4": true,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": true,
-          "T10": true
-        }
       },
       "slots": [
         {
@@ -2120,11 +1447,6 @@
       ],
       "annotation": {
         "rules": []
-      },
-      "print": {
-        "colourScheme": "PresentationRich",
-        "lineWeightScale": 0.9,
-        "halftoneLinks": false
       }
     },
     {
@@ -2136,37 +1458,10 @@
       "paperSize": "A2",
       "titleBlockFamily": "STING_TB_SHEET_A2",
       "scale": 100,
-      "viewStylePackId": "corp-standard-detail",
       "sheetNumberPattern": "LG-{seq:D2}",
       "sheetNamePattern": "LEGENDS & NOTES",
       "crop": {
         "kind": "None"
-      },
-      "tokenProfile": {
-        "presentationMode": "Compact",
-        "paraDepth": 1,
-        "tagSize": "2",
-        "tagStyle": "NOM",
-        "tagColor": "GREY",
-        "colorScheme": "",
-        "segmentMask": "00000001",
-        "displayMode": 1,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": false,
-          "C": false,
-          "D": false,
-          "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -2181,11 +1476,6 @@
       ],
       "annotation": {
         "rules": []
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -2199,38 +1489,11 @@
       "scale": 500,
       "detailLevel": "Coarse",
       "viewTemplateName": "STING - Site Plan",
-      "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "A-SIT-{seq:D3}",
       "sheetNamePattern": "SITE PLAN",
       "crop": {
         "kind": "TightBbox",
         "marginMm": 2000
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "2",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Zone",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": false,
-          "E": false,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -2270,11 +1533,6 @@
             "enabled": true
           }
         ]
-      },
-      "print": {
-        "colourScheme": "PresentationRich",
-        "lineWeightScale": 0.9,
-        "halftoneLinks": false
       }
     },
     {
@@ -2288,31 +1546,11 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Roof Plan",
-      "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "A-RF-{seq:D3}",
       "sheetNamePattern": "ROOF PLAN",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 200
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
       },
       "slots": [
         {
@@ -2361,11 +1599,6 @@
             "enabled": true
           }
         ]
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -2379,38 +1612,11 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Finishes Plan",
-      "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "A-FF-{lvl}-{seq:D3}",
       "sheetNamePattern": "FLOOR FINISHES — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Status",
-        "segmentMask": "11111111",
-        "displayMode": 4,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": true,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -2462,11 +1668,6 @@
             "enabled": true
           }
         ]
-      },
-      "print": {
-        "colourScheme": "PresentationRich",
-        "lineWeightScale": 0.9,
-        "halftoneLinks": false
       }
     },
     {
@@ -2480,38 +1681,11 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Fire Strategy",
-      "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "A-FS-{lvl}-{seq:D3}",
       "sheetNamePattern": "FIRE STRATEGY — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 4,
-        "tagSize": "2.5",
-        "tagStyle": "BOLD",
-        "tagColor": "RED",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": true,
-          "T4": true,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -2559,11 +1733,6 @@
             "enabled": true
           }
         ]
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -2577,38 +1746,11 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Accessibility",
-      "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "A-AC-{lvl}-{seq:D3}",
       "sheetNamePattern": "ACCESSIBILITY — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Zone",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": false,
-          "E": false,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -2666,11 +1808,6 @@
             "enabled": true
           }
         ]
-      },
-      "print": {
-        "colourScheme": "PresentationRich",
-        "lineWeightScale": 0.9,
-        "halftoneLinks": false
       }
     },
     {
@@ -2684,7 +1821,6 @@
       "scale": 50,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Interior Elevation",
-      "viewStylePackId": "corp-standard-elevation",
       "sheetNumberPattern": "A-IE-{seq:D3}",
       "sheetNamePattern": "INTERIOR ELEVATION {mark}",
       "crop": {
@@ -2696,32 +1832,6 @@
         "markPrefix": "IE",
         "bubbleStyle": "Open",
         "farClipMm": 6000
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": false,
-          "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -2836,11 +1946,6 @@
             "enabled": true
           }
         ]
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -2852,37 +1957,10 @@
       "paperSize": "A2",
       "titleBlockFamily": "STING_TB_SHEET_A2",
       "scale": 100,
-      "viewStylePackId": "corp-standard-detail",
       "sheetNumberPattern": "A-SCH-WN-{seq:D2}",
       "sheetNamePattern": "WINDOW SCHEDULE",
       "crop": {
         "kind": "None"
-      },
-      "tokenProfile": {
-        "presentationMode": "BOQ",
-        "paraDepth": 1,
-        "tagSize": "2",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "",
-        "segmentMask": "10000101",
-        "displayMode": 2,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": false,
-          "C": false,
-          "D": false,
-          "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -2897,11 +1975,6 @@
       ],
       "annotation": {
         "rules": []
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -2920,32 +1993,6 @@
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 300
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 4,
-        "tagSize": "2.5",
-        "tagStyle": "BOLD",
-        "tagColor": "BLACK",
-        "colorScheme": "Material",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": true,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -3001,13 +2048,7 @@
             "enabled": true
           }
         ]
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
-      },
-      "viewStylePackId": "corp-structural-plan"
+      }
     },
     {
       "id": "struct-rebar-detail-A3-1to20",
@@ -3031,32 +2072,6 @@
         "markPrefix": "RB",
         "bubbleStyle": "Filled",
         "farClipMm": 500
-      },
-      "tokenProfile": {
-        "presentationMode": "FullSpec",
-        "paraDepth": 5,
-        "tagSize": "3.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 4,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": true,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -3087,13 +2102,7 @@
             "enabled": true
           }
         ]
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
-      },
-      "viewStylePackId": "corp-structural-plan"
+      }
     },
     {
       "id": "mep-hvac-duct-A1-1to100",
@@ -3106,31 +2115,11 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - HVAC Duct",
-      "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "M-DC-{lvl}-{seq:D3}",
       "sheetNamePattern": "HVAC DUCT — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLUE",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
       },
       "slots": [
         {
@@ -3221,11 +2210,6 @@
             "enabled": true
           }
         ]
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -3239,38 +2223,11 @@
       "scale": 50,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Plant Room",
-      "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "M-PR-{seq:D3}",
       "sheetNamePattern": "PLANT ROOM — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 100
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 5,
-        "tagSize": "3",
-        "tagStyle": "BOLD",
-        "tagColor": "BLUE",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": true,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -3366,11 +2323,6 @@
             "enabled": true
           }
         ]
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -3384,31 +2336,11 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Power Layout",
-      "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "POWER LAYOUT — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "ORANGE",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
       },
       "slots": [
         {
@@ -3483,11 +2415,6 @@
         "role": "E",
         "suitability": "S2",
         "revision": "P01"
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -3501,31 +2428,11 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Lighting Layout",
-      "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "E-LT-{lvl}-{seq:D3}",
       "sheetNamePattern": "LIGHTING LAYOUT — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "ORANGE",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
       },
       "slots": [
         {
@@ -3593,11 +2500,6 @@
             "enabled": true
           }
         ]
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -3611,38 +2513,11 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Fire Alarm",
-      "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "E-FA-{lvl}-{seq:D3}",
       "sheetNamePattern": "FIRE ALARM — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 4,
-        "tagSize": "2.5",
-        "tagStyle": "BOLD",
-        "tagColor": "RED",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": true,
-          "T4": true,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -3709,11 +2584,6 @@
             "enabled": true
           }
         ]
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -3727,31 +2597,11 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Drainage",
-      "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-DR-{lvl}-{seq:D3}",
       "sheetNamePattern": "DRAINAGE — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "GREEN",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": false
-        }
       },
       "slots": [
         {
@@ -3782,12 +2632,12 @@
         "rules": [
           {
             "category": "Grids",
-            "ruleType": "GridDim",
+            "ruleType": "AutoDim",
             "enabled": true
           },
           {
             "category": "Levels",
-            "ruleType": "LevelAnnotation",
+            "ruleType": "AutoDim",
             "enabled": true
           },
           {
@@ -3801,17 +2651,6 @@
             "enabled": true
           },
           {
-            "category": "OST_PipeCurves",
-            "ruleType": "AutoSpotInvert",
-            "enabled": true
-          },
-          {
-            "category": "OST_PipeCurves",
-            "ruleType": "AutoDimMEPToGrid",
-            "enabled": true,
-            "minSizeMm": 50
-          },
-          {
             "category": "Pipe Fittings",
             "ruleType": "AutoTag",
             "enabled": true
@@ -3822,11 +2661,6 @@
             "enabled": true
           }
         ]
-      },
-      "print": {
-        "colourScheme": "Monochrome",
-        "lineWeightScale": 1.0,
-        "halftoneLinks": false
       }
     },
     {
@@ -3840,38 +2674,11 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - FM Asset",
-      "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "FM-AS-{lvl}-{seq:D3}",
       "sheetNamePattern": "ASSET LOCATION — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
-      },
-      "tokenProfile": {
-        "presentationMode": "FullSpec",
-        "paraDepth": 10,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "PURPLE",
-        "colorScheme": "System",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "HANDOVER",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": true,
-          "F": true,
-          "T4": true,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": true,
-          "T10": true
-        }
       },
       "slots": [
         {
@@ -3933,38 +2740,11 @@
       "scale": 50,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Clash Coordination",
-      "viewStylePackId": "corp-coordination",
       "sheetNumberPattern": "CO-CL-{lvl}-{seq:D3}",
       "sheetNamePattern": "CLASH COORDINATION — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 100
-      },
-      "tokenProfile": {
-        "presentationMode": "Technical",
-        "paraDepth": 8,
-        "tagSize": "2.5",
-        "tagStyle": "BOLD",
-        "tagColor": "RED",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": true,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": true,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -4074,54 +2854,11 @@
       "scale": 100,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Presentation 3D",
-      "viewStylePackId": "corp-presentation-rich",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "productionRules": [
-        {
-          "idx": 0,
-          "viewType": "ThreeD",
-          "slotIndex": 0,
-          "required": true,
-          "nameSuffix": ""
-        },
-        {
-          "idx": 1,
-          "viewType": "FloorPlan",
-          "slotIndex": 1,
-          "required": false,
-          "nameSuffix": " - KEY"
-        }
-      ],
       "sheetNamePattern": "3D AXONOMETRIC — {mark}",
       "crop": {
         "kind": "TightBbox",
         "marginMm": 500
-      },
-      "tokenProfile": {
-        "presentationMode": "Presentation",
-        "paraDepth": 2,
-        "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
-        "segmentMask": "00000101",
-        "displayMode": 6,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": false,
-          "C": true,
-          "D": false,
-          "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -4151,66 +2888,7 @@
         }
       ],
       "annotation": {
-        "rules": [
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_MechanicalEquipment",
-            "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_ElectricalEquipment",
-            "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_PlumbingFixtures",
-            "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_LightingFixtures",
-            "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Furniture",
-            "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Doors",
-            "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Windows",
-            "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Rooms",
-            "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
-          }
-        ],
-        "autoTag": true,
-        "denseUntilScale": 100
+        "rules": []
       },
       "print": {
         "colourScheme": "PresentationRich",
@@ -4219,8 +2897,8 @@
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
-        "Project Code": "${PRJ_PROJECT_COD_TXT}",
-        "Originator": "${PRJ_ORG_ORIGINATOR_CODE_TXT}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
         "Company Name": "${PRJ_ORG_COMPANY_NAME}",
         "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
@@ -4248,37 +2926,10 @@
       "scale": 100,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Presentation Perspective",
-      "viewStylePackId": "corp-presentation-rich",
       "sheetNumberPattern": "PR-PV-{seq:D2}",
       "sheetNamePattern": "PERSPECTIVE — {mark}",
       "crop": {
         "kind": "None"
-      },
-      "tokenProfile": {
-        "presentationMode": "Presentation",
-        "paraDepth": 2,
-        "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
-        "segmentMask": "00000101",
-        "displayMode": 6,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": false,
-          "C": true,
-          "D": false,
-          "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -4300,66 +2951,7 @@
         }
       ],
       "annotation": {
-        "rules": [
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_MechanicalEquipment",
-            "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_ElectricalEquipment",
-            "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_PlumbingFixtures",
-            "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_LightingFixtures",
-            "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Furniture",
-            "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Doors",
-            "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Windows",
-            "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Rooms",
-            "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
-          }
-        ],
-        "autoTag": true,
-        "denseUntilScale": 100
+        "rules": []
       },
       "print": {
         "colourScheme": "PresentationRich",
@@ -4378,7 +2970,6 @@
       "scale": 100,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Presentation Elevation",
-      "viewStylePackId": "corp-standard-elevation",
       "sheetNumberPattern": "PR-EL-{seq:D2}",
       "sheetNamePattern": "EXTERIOR ELEVATION — {mark}",
       "crop": {
@@ -4390,32 +2981,6 @@
         "markPrefix": "PE",
         "bubbleStyle": "Open",
         "farClipMm": 10000
-      },
-      "tokenProfile": {
-        "presentationMode": "Presentation",
-        "paraDepth": 2,
-        "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
-        "segmentMask": "00000101",
-        "displayMode": 2,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": false,
-          "C": true,
-          "D": false,
-          "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -4460,37 +3025,10 @@
       "scale": 100,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Presentation 3D",
-      "viewStylePackId": "corp-presentation-rich",
       "sheetNumberPattern": "PR-RB-{seq:D2}",
       "sheetNamePattern": "RENDER BOARD {mark}",
       "crop": {
         "kind": "None"
-      },
-      "tokenProfile": {
-        "presentationMode": "Presentation",
-        "paraDepth": 2,
-        "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
-        "segmentMask": "00000101",
-        "displayMode": 2,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": false,
-          "C": true,
-          "D": false,
-          "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -4546,38 +3084,11 @@
       "scale": 500,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Presentation Context",
-      "viewStylePackId": "corp-presentation-rich",
       "sheetNumberPattern": "PR-CX-{seq:D2}",
       "sheetNamePattern": "CONTEXT PLAN — {mark}",
       "crop": {
         "kind": "TightBbox",
         "marginMm": 3000
-      },
-      "tokenProfile": {
-        "presentationMode": "Presentation",
-        "paraDepth": 2,
-        "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
-        "segmentMask": "00000101",
-        "displayMode": 2,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": false,
-          "C": true,
-          "D": false,
-          "E": false,
-          "F": false,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -4637,38 +3148,11 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Clarification Markup",
-      "viewStylePackId": "corp-clarification",
       "sheetNumberPattern": "CL-MK-{lvl}-{seq:D3}",
       "sheetNamePattern": "CLARIFICATION — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
-      },
-      "tokenProfile": {
-        "presentationMode": "Compact",
-        "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "BOLDITALIC",
-        "tagColor": "RED",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -4725,7 +3209,6 @@
       "scale": 50,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - RFI Sketch",
-      "viewStylePackId": "corp-clarification",
       "sheetNumberPattern": "RFI-{seq:D4}",
       "sheetNamePattern": "RFI {mark}",
       "crop": {
@@ -4737,32 +3220,6 @@
         "markPrefix": "RFI",
         "bubbleStyle": "Filled",
         "farClipMm": 1000
-      },
-      "tokenProfile": {
-        "presentationMode": "Compact",
-        "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "BOLDITALIC",
-        "tagColor": "RED",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -4818,38 +3275,11 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Design Intent",
-      "viewStylePackId": "corp-clarification",
       "sheetNumberPattern": "DI-{seq:D3}",
       "sheetNamePattern": "DESIGN INTENT — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 200
-      },
-      "tokenProfile": {
-        "presentationMode": "Compact",
-        "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "BOLDITALIC",
-        "tagColor": "RED",
-        "colorScheme": "Discipline",
-        "segmentMask": "11111111",
-        "displayMode": 5,
-        "patternMode": "DC",
-        "sectionVisibility": {
-          "A": true,
-          "B": true,
-          "C": true,
-          "D": true,
-          "E": false,
-          "F": true,
-          "T4": false,
-          "T5": false,
-          "T6": false,
-          "T7": false,
-          "T8": false,
-          "T9": false,
-          "T10": false
-        }
       },
       "slots": [
         {
@@ -7668,84 +6098,6 @@
   ],
   "routing": [
     {
-      "disciplineMatches": ".*",
-      "phaseMatches": "PRESENTATION",
-      "docTypeMatches": "NARRATIVE",
-      "drawingTypeId": "pres-narrative-A1"
-    },
-    {
-      "discipline": "Electrical",
-      "phase": "*",
-      "docType": "PANEL_SCHEDULE",
-      "drawingTypeId": "elec-panel-schedule-A3"
-    },
-    {
-      "discipline": "Architecture",
-      "phase": "*",
-      "docType": "SETTING_OUT",
-      "drawingTypeId": "arch-setting-out-A1-1to50"
-    },
-    {
-      "discipline": "Architecture",
-      "phase": "*",
-      "docType": "PARTITION",
-      "drawingTypeId": "arch-partition-layout-A1-1to50"
-    },
-    {
-      "discipline": "Architecture",
-      "phase": "Demolition",
-      "docType": "*",
-      "drawingTypeId": "arch-demolition-A1-1to100"
-    },
-    {
-      "discipline": "Architecture",
-      "phase": "*",
-      "docType": "SANITARY",
-      "drawingTypeId": "arch-sanitary-layout-A1-1to50"
-    },
-    {
-      "discipline": "Architecture",
-      "phase": "*",
-      "docType": "RAISED_FLOOR",
-      "drawingTypeId": "arch-raised-floor-A1-1to50"
-    },
-    {
-      "discipline": "Architecture",
-      "phase": "*",
-      "docType": "FLOOR_DETAIL",
-      "drawingTypeId": "arch-screed-buildup-A3-1to10"
-    },
-    {
-      "discipline": "Architecture",
-      "phase": "*",
-      "docType": "AREA_PLAN",
-      "drawingTypeId": "arch-area-plan-A1-1to200"
-    },
-    {
-      "discipline": "Architecture",
-      "phase": "PRESENTATION",
-      "docType": "PLAN",
-      "drawingTypeId": "pres-floor-plan-A1"
-    },
-    {
-      "discipline": "M",
-      "phase": "PRESENTATION",
-      "docType": "PLAN",
-      "drawingTypeId": "mep-plan-presentation"
-    },
-    {
-      "discipline": "M",
-      "phase": "TECHNICAL",
-      "docType": "PLAN",
-      "drawingTypeId": "mep-plan-technical"
-    },
-    {
-      "discipline": "M",
-      "phase": "FABRICATION",
-      "docType": "PLAN",
-      "drawingTypeId": "mep-plan-fabrication"
-    },
-    {
       "discipline": "P",
       "phase": "*",
       "docType": "SPOOL",
@@ -7828,18 +6180,6 @@
       "phase": "*",
       "docType": "RISER",
       "drawingTypeId": "elec-riser-A2-1to100"
-    },
-    {
-      "discipline": "E",
-      "phase": "*",
-      "docType": "SLD",
-      "drawingTypeId": "elec-sld-A1-1to100"
-    },
-    {
-      "discipline": "E",
-      "phase": "*",
-      "docType": "SINGLE_LINE",
-      "drawingTypeId": "elec-sld-A1-1to100"
     },
     {
       "discipline": "*",
@@ -7942,30 +6282,6 @@
       "phase": "*",
       "docType": "FIRE_ALARM",
       "drawingTypeId": "elec-fire-alarm-A1-1to100"
-    },
-    {
-      "discipline": "E",
-      "phase": "*",
-      "docType": "SPOOL",
-      "drawingTypeId": "elec-spool-A1-1to50"
-    },
-    {
-      "discipline": "E",
-      "phase": "*",
-      "docType": "COORD",
-      "drawingTypeId": "elec-coord-A1-1to50"
-    },
-    {
-      "discipline": "Electrical",
-      "phase": "*",
-      "docType": "SPOOL",
-      "drawingTypeId": "elec-spool-A1-1to50"
-    },
-    {
-      "discipline": "Electrical",
-      "phase": "*",
-      "docType": "COORD",
-      "drawingTypeId": "elec-coord-A1-1to50"
     },
     {
       "discipline": "P",

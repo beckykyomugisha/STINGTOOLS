@@ -56,6 +56,35 @@ export function getProjectDashboard(projectId: string): Promise<DashboardData> {
   return apiFetch(`/api/projects/${projectId}/dashboard`);
 }
 
+// ── P6 / Schedule live link (feature gap GAP-C) ──
+
+export interface P6StatusResponse {
+  isConfigured: boolean;
+  lastSyncedAt: string | null;
+  activitiesPolled: number;
+  elementsUpdated: number;
+  errorMessage?: string | null;
+}
+
+export interface P6SyncLogEntry {
+  syncedAt: string;
+  activitiesPolled: number;
+  elementsUpdated: number;
+  error?: string | null;
+}
+
+export function getP6Status(projectId: string): Promise<P6StatusResponse> {
+  return apiFetch(`/api/projects/${projectId}/schedule/p6/status`);
+}
+
+export function getP6Logs(projectId: string): Promise<P6SyncLogEntry[]> {
+  return apiFetch(`/api/projects/${projectId}/schedule/p6/logs`);
+}
+
+export function triggerP6Sync(projectId: string): Promise<void> {
+  return apiFetch(`/api/projects/${projectId}/schedule/p6/sync`, { method: 'POST' });
+}
+
 // ── BOQ / Cost Dashboard (feature gap 2) ──
 
 export interface BoqDisciplineRow {
@@ -189,10 +218,24 @@ export function updateIssue(
   });
 }
 
+export function getIssue(projectId: string, issueId: string): Promise<BimIssue> {
+  return apiFetch(`/api/projects/${projectId}/issues/${issueId}`);
+}
+
 // ── Documents ──
 
-export function listDocuments(projectId: string): Promise<DocumentRecord[]> {
-  return apiFetch(`/api/projects/${projectId}/documents`);
+export interface ListDocumentsFilters {
+  search?: string;
+}
+
+export function listDocuments(
+  projectId: string,
+  filters?: ListDocumentsFilters,
+): Promise<DocumentRecord[]> {
+  const params = new URLSearchParams();
+  if (filters?.search) params.append('search', filters.search);
+  const qs = params.toString();
+  return apiFetch(`/api/projects/${projectId}/documents${qs ? `?${qs}` : ''}`);
 }
 
 export function transitionCDE(
@@ -215,6 +258,23 @@ export function lookupElement(
   return apiFetch(
     `/api/tagsync/elements/search?projectId=${projectId}&q=${encodeURIComponent(query)}`
   );
+}
+
+/**
+ * IFC / ArchiCAD source filtering — returns tagged elements for a project,
+ * optionally filtered by authoring source. The `source` param maps to the
+ * `X-Source` header written by the plugin sync layer:
+ *   "archicad" | "ifc" | "revit"
+ * Omit `source` (or pass undefined) to return all elements.
+ */
+export function listIfcElements(
+  projectId: string,
+  source?: string,
+): Promise<TaggedElement[]> {
+  const params = new URLSearchParams();
+  if (source) params.set('source', source);
+  const qs = params.toString();
+  return apiFetch(`/api/projects/${projectId}/tagged-elements${qs ? `?${qs}` : ''}`);
 }
 
 // ── Project Members (NEW-MOB-13) ──
@@ -384,14 +444,8 @@ export async function uploadIssueAttachment(
 // any STT model — transcription is a server concern (Whisper, Azure Speech,
 // or Google Cloud Speech-to-Text behind a feature flag).
 //
-// TODO-SERVER: endpoint /api/projects/{pid}/issues/{iid}/audio-notes does not
-//   exist yet. Server work needed:
-//     1. Multipart receiver matching this contract (file + durationSec + idempotencyKey).
-//     2. Background job that pulls bytes through the configured STT provider.
-//     3. SignalR notification ("audioNoteTranscribed") so the issue detail
-//        screen can refresh once the transcript lands.
-//   Until then, replays of `ATTACH_AUDIO` will 404 and move to the failed
-//   side-queue after MAX_RETRIES_PER_ACTION attempts (graceful degradation).
+// TODO-SERVER (resolved): IssueAudioNotesController exists at this route.
+//   Multipart POST, GET, DELETE, and /transcribe stub all implemented (Phase 178c).
 
 export interface UploadAudioNoteArgs {
   projectId: string;
@@ -454,10 +508,10 @@ export async function uploadAudioNote(args: UploadAudioNoteArgs): Promise<{ id: 
 
 // ── 3D model markup (S6.2 — referenced by ATTACH_MARKUP queue replay) ──
 //
-// TODO-SERVER: endpoint /api/projects/{pid}/models/{mid}/markups does not
-//   yet exist. Stub kept here so the ATTACH_MARKUP replay path doesn't
-//   throw `Cannot find module` at import time. When the server endpoint
-//   lands, swap the body for a real multipart/JSON POST.
+// Model markup — backed by ModelMarkupsController at
+//   POST /api/projects/{pid}/markups  (modelId + polylinesJson in body)
+// The controller accepts an optional ?modelId query param for scoped GETs;
+// for POSTs the modelId is carried in the body.
 
 export interface UploadModelMarkupArgs {
   projectId: string;
@@ -468,14 +522,19 @@ export interface UploadModelMarkupArgs {
 }
 
 export async function uploadModelMarkup(args: UploadModelMarkupArgs): Promise<{ id: string }> {
-  return apiFetch(`/api/projects/${args.projectId}/models/${args.modelId}/markups`, {
+  return apiFetch(`/api/projects/${args.projectId}/markups`, {
     method: 'POST',
     body: JSON.stringify({
-      polylines: args.polylines,
+      modelId: args.modelId,
       label: args.label,
+      polylinesJson: JSON.stringify(args.polylines),
       idempotencyKey: args.idempotencyKey,
     }),
   });
+}
+
+export function getModelMarkups(projectId: string, modelId: string): Promise<unknown[]> {
+  return apiFetch(`/api/projects/${projectId}/markups?modelId=${modelId}`);
 }
 
 // ── Push token registration (NEW-MOB-18) ──
@@ -1787,63 +1846,6 @@ export function getPenetrationDashboard(projectId: string): Promise<{
   return apiFetch(`/api/projects/${projectId}/penetrations/dashboard`);
 }
 
-// ── P6 Schedule / GAP-C ──────────────────────────────────────────────────────
-
-export interface P6StatusResponse {
-  lastSyncedAt:      string | null;
-  activitiesPolled:  number;
-  elementsUpdated:   number;
-  errorMessage:      string | null;
-  isConfigured:      boolean;
-}
-
-export interface P6SyncLogEntry {
-  syncedAt:         string;
-  activitiesPolled: number;
-  elementsUpdated:  number;
-  error:            string | null;
-}
-
-export async function getP6Status(projectId: string): Promise<P6StatusResponse> {
-  const raw = await apiFetch<{
-    isConfigured?:     boolean;
-    lastSyncAt?:       string | null;
-    activitiesPolled?: number;
-    elementsUpdated?:  number;
-    error?:            string | null;
-    history?:          P6SyncLogEntry[];
-  }>(`/api/projects/${projectId}/p6/status`);
-  return {
-    // Use the explicit server-computed field so a newly configured project
-    // that has never synced still shows as configured.
-    isConfigured:     raw.isConfigured ?? false,
-    lastSyncedAt:     raw.lastSyncAt ?? null,
-    activitiesPolled: raw.activitiesPolled ?? 0,
-    elementsUpdated:  raw.elementsUpdated  ?? 0,
-    errorMessage:     raw.error            ?? null,
-  };
-}
-
-export function getP6Logs(projectId: string): Promise<P6SyncLogEntry[]> {
-  return apiFetch(`/api/projects/${projectId}/p6/logs`);
-}
-
-export function triggerP6Sync(projectId: string): Promise<{ status: string }> {
-  return apiFetch(`/api/projects/${projectId}/p6/sync`, { method: 'POST' });
-}
-
-// ── P6 writeback element list (integration gap F4) ───────────────────────────
-
-export interface P6ElementActuals {
-  elementUniqueId: string;
-  p6ActivityId:    string;
-  percentComplete: number;
-  actualStart:     string | null;
-  actualFinish:    string | null;
-}
-
-export function getP6Elements(projectId: string): Promise<P6ElementActuals[]> {
-  return apiFetch(`/api/projects/${projectId}/p6/elements`);
 // ── Spatial structure (building levels + zones) for capture photo dropdowns ──
 // GET /api/projects/{projectId}/spatial
 // Returns ISO 19650-aligned level and zone codes for the project.

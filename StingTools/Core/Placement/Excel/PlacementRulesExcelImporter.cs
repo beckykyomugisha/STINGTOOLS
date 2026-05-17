@@ -40,7 +40,7 @@ namespace StingTools.Core.Placement.Excel
         {
             int firstRow = 1;
             int lastCol  = 0;
-            try { lastCol = ws.LastColumnUsed()?.ColumnNumber() ?? 0; } catch { }
+            try { lastCol = ws.LastColumnUsed()?.ColumnNumber() ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             if (lastCol == 0) return;
 
             // Read header row.

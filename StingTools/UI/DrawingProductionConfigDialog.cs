@@ -180,7 +180,7 @@ namespace StingTools.UI
                 foreach (var p in ProductionPresetRegistry.Load(_doc))
                     _presetCombo.Items.Add(p.Name ?? p.Id);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             _presetCombo.SelectedIndex = 0;
             presetRow.Children.Add(_presetCombo);
             stack.Children.Add(presetRow);
@@ -643,7 +643,7 @@ namespace StingTools.UI
                     foreach (var ch in sp.Children)
                         if (ch is CheckBox cb) return cb.IsChecked == true;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 

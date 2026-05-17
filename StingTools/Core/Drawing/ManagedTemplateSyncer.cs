@@ -55,7 +55,7 @@ namespace StingTools.Core.Drawing
         {
             if (doc == null) return "__null__";
             try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
-            catch { return "__unknown__"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "__unknown__"; }
         }
 
         /// <summary>
@@ -255,7 +255,7 @@ namespace StingTools.Core.Drawing
                 if (idx >= 0) return stamp.Substring(idx + 4);
                 return string.Empty;
             }
-            catch { return string.Empty; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return string.Empty; }
         }
 
         public static ElementId EnsureTemplate(Document doc, ViewStylePack pack, ViewType viewType, PackApplyResult result)
@@ -542,7 +542,7 @@ namespace StingTools.Core.Drawing
                     var p = template.get_Parameter(bip.Value);
                     if (p != null) paramIds.Add(p.Id);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
 
             // Revit's API exposes SetNonControlledTemplateParameterIds (inverse

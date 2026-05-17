@@ -190,84 +190,12 @@ namespace StingTools.UI
                     // ── v4 MVP: validators (Phase 4) ──
                     case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
 
-                    // ── Phase 175: Design Options ──
-                    case "DesignOptions_Inspect":             RunCommand<Commands.DesignOptions.DesignOptionsInspectCommand>(app); break;
-                    case "DesignOptions_MoveTo":              RunCommand<Commands.DesignOptions.MoveToOptionCommand>(app); break;
-                    case "DesignOptions_LockView":            RunCommand<Commands.DesignOptions.LockViewToOptionCommand>(app); break;
-                    case "DesignOptions_ResetView":           RunCommand<Commands.DesignOptions.ResetViewOptionVisibilityCommand>(app); break;
-                    case "DesignOptions_CloneSchedule":       RunCommand<Commands.DesignOptions.ClonePerOptionScheduleCommand>(app); break;
-                    case "DesignOptions_IsolationView":       RunCommand<Commands.DesignOptions.CreateIsolationViewCommand>(app); break;
-                    case "DesignOptions_PrimaryClashView":    RunCommand<Commands.DesignOptions.CreatePrimaryOnlyClashViewCommand>(app); break;
-                    case "DesignOptions_Audit":               RunCommand<Commands.DesignOptions.AuditOptionsCommand>(app); break;
-                    case "DesignOptions_BatchLinkVisibility": RunCommand<Commands.DesignOptions.BatchSetLinkOptionVisibilityCommand>(app); break;
-                    case "DesignOptions_Dashboard":           RunCommand<Commands.DesignOptions.OptionsDashboardCommand>(app); break;
-                    case "DesignOptions_ExportComparison":    RunCommand<Commands.DesignOptions.ExportOptionComparisonCommand>(app); break;
-
-                    // ── Healthcare Pack H-1..H-30 ──
-                    case "Healthcare_RunAllValidators":  RunCommand<Commands.Healthcare.HealthcareRunAllValidatorsCommand>(app); break;
-                    case "Healthcare_PressureAudit":     RunCommand<Commands.Healthcare.HealthcarePressureAuditCommand>(app); break;
-                    case "Healthcare_WaterSafety":       RunCommand<Commands.Healthcare.HealthcareWaterSafetyCommand>(app); break;
-                    case "Healthcare_EesBranch":         RunCommand<Commands.Healthcare.HealthcareEesBranchAuditCommand>(app); break;
-                    case "Healthcare_RadShield":         RunCommand<Commands.Healthcare.HealthcareRadShieldAuditCommand>(app); break;
-                    case "Healthcare_AdvancedRadShield": RunCommand<Commands.Healthcare.HealthcareAdvancedRadShieldCommand>(app); break;
-                    case "Healthcare_RdsCompleteness":   RunCommand<Commands.Healthcare.HealthcareRdsCompletenessCommand>(app); break;
-                    case "Healthcare_IoTStaleness":      RunCommand<Commands.Healthcare.HealthcareIoTStalenessCommand>(app); break;
-                    case "Healthcare_StructuralLoad":    RunCommand<Commands.Healthcare.HealthcareStructuralLoadCommand>(app); break;
-                    case "Healthcare_Acoustic":          RunCommand<Commands.Healthcare.HealthcareAcousticCommand>(app); break;
-                    case "Healthcare_EndoscopeTrace":    RunCommand<Commands.Healthcare.HealthcareEndoscopeTraceCommand>(app); break;
-                    case "Healthcare_EesResilience":     RunCommand<Commands.Healthcare.HealthcareEesResilienceCommand>(app); break;
-                    case "Healthcare_RtlsCoverage":      RunCommand<Commands.Healthcare.HealthcareRtlsCoverageCommand>(app); break;
-                    case "Healthcare_WasteFlow":         RunCommand<Commands.Healthcare.HealthcareWasteFlowCommand>(app); break;
-                    case "Healthcare_IssueRDS":          RunCommand<Commands.Healthcare.IssueRoomDataSheetCommand>(app); break;
-                    case "Healthcare_BatchRDS":          RunCommand<Commands.Healthcare.BatchIssueRoomDataSheetsCommand>(app); break;
-                    case "Healthcare_MgasAudit":         RunCommand<Commands.MedGas.MgasNetworkAuditCommand>(app); break;
-                    case "Healthcare_MgasVerify":        RunCommand<Commands.MedGas.MgasVerifyCommand>(app); break;
-                    case "Healthcare_AdjacencyAudit":    RunCommand<Commands.Adjacency.AdjacencyAuditCommand>(app); break;
-                    case "Healthcare_RadCalcChest":      RunCommand<Commands.Radiation.RadCalcChestRoomCommand>(app); break;
-                    case "Healthcare_RadCalcCt":         RunCommand<Commands.Radiation.RadCalcCtRoomCommand>(app); break;
-                    case "Healthcare_RadCalcLinac":      RunCommand<Commands.Radiation.RadCalcLinacVaultCommand>(app); break;
-                    case "Healthcare_MriZoneAudit":      RunCommand<Commands.Radiation.MriZoneAuditCommand>(app); break;
-                    case "Healthcare_IoTRegistry":       RunCommand<Commands.Twin.IoTRegistryCommand>(app); break;
-                    case "Healthcare_AntiLigature":      RunCommand<Commands.Healthcare.Specialist.AntiLigatureAuditCommand>(app); break;
-                    case "Healthcare_HybridOr":          RunCommand<Commands.Healthcare.Specialist.HybridOrCheckCommand>(app); break;
-                    case "Healthcare_PharmacyUsp":       RunCommand<Commands.Healthcare.Specialist.PharmacyUspAuditCommand>(app); break;
-                    case "Healthcare_BehaviouralHealth": RunCommand<Commands.Healthcare.Specialist.BehaviouralHealthAuditCommand>(app); break;
-                    case "Healthcare_Mortuary":          RunCommand<Commands.Healthcare.Specialist.MortuaryAuditCommand>(app); break;
-                    case "Healthcare_MaternityNicu":    RunCommand<Commands.Healthcare.Specialist.MaternityNicuAuditCommand>(app); break;
-                    case "Healthcare_Hsdu":              RunCommand<Commands.Healthcare.Specialist.HsduAuditCommand>(app); break;
-                    case "Healthcare_Dialysis":          RunCommand<Commands.Healthcare.Specialist.DialysisAuditCommand>(app); break;
-                    case "Healthcare_Hbo":               RunCommand<Commands.Healthcare.Specialist.HboAuditCommand>(app); break;
-
-                    // ── Lightning Protection System (BS EN 62305) ──
-                    case "LPS_ClassSetup":           RunCommand<Commands.Lightning.LpsClassSetupCommand>(app); break;
-                    case "LPS_ComplianceCheck":      RunCommand<Commands.Lightning.LpsComplianceCheckCommand>(app); break;
-                    case "LPS_DownConductorCheck":   RunCommand<Commands.Lightning.LpsDownConductorCheckerCommand>(app); break;
-                    case "LPS_EarthCheck":           RunCommand<Commands.Lightning.LpsEarthResistanceValidatorCommand>(app); break;
-                    case "LPS_BondingInventory":     RunCommand<Commands.Lightning.LpsBondingInventoryCommand>(app); break;
-                    case "LPS_ZoneTag":              RunCommand<Commands.Lightning.LpsRoomZoneTagCommand>(app); break;
-                    case "LPS_PlanVisualise":        RunCommand<Commands.Lightning.LpsPlanViewVisualizerCommand>(app); break;
-                    case "LPS_RollingSphere3D":      RunCommand<Commands.Lightning.LpsRollingSphere3DCommand>(app); break;
-                    case "LPS_SepDistCheck":         RunCommand<Commands.Lightning.LpsSeparationDistanceCheckerCommand>(app); break;
-                    case "LPS_InspectionSchedule":   RunCommand<Commands.Lightning.LpsInspectionSchedulerCommand>(app); break;
-                    case "LPS_FullReport":           RunCommand<Commands.Lightning.LpsFullReportCommand>(app); break;
-                    case "LPS_Dashboard":            RunCommand<Commands.Lightning.LpsDashboardCommand>(app); break;
-                    case "LPS_MarkElementTypes":     RunCommand<Commands.Lightning.LpsMarkElementTypesCommand>(app); break;
-                    case "LPS_RecalcKcFactor":       RunCommand<Commands.Lightning.LpsRecalcKcFactorCommand>(app); break;
-                    case "LPS_ColourZones":          RunCommand<Commands.Lightning.LpsColourZonesCommand>(app); break;
-                    case "LPS_ClearZoneColours":     RunCommand<Commands.Lightning.LpsClearZoneColoursCommand>(app); break;
-                    case "LPS_CreateSchedules":      RunCommand<Commands.Lightning.LpsCreateRevitScheduleCommand>(app); break;
-                    case "LPS_SyncToServer":         RunCommand<Commands.Lightning.LpsSyncToServerCommand>(app); break;
-
                     // ── Gap 2 / Phase 121 — Extensible Storage migration + diagnostic ──
                     case "ES_Migrate":               RunCommand<Commands.Storage.MigrateToExtensibleStorageCommand>(app); break;
                     case "ES_Diagnostic":            RunCommand<Commands.Storage.EsStorageDiagnosticCommand>(app); break;
 
                     // ── Phase 127 — Placement Centre (modeless WPF window) ──
                     case "Placement_OpenCentre":     RunCommand<Commands.Placement.OpenPlacementCenterCommand>(app); break;
-
-                    // ── Phase 139 — Placement Centre v2: Excel round-trip ──
-                    case "Placement_ExportExcel":    RunCommand<PlacementCenter.ExportRulesToExcelCommand>(app); break;
-                    case "Placement_ImportExcel":    RunCommand<PlacementCenter.ImportRulesFromExcelCommand>(app); break;
 
                     // ── Phase 116: Standards Extensions + Regional + Bulk API wrappers ──
                     case "StdExt_StageCompliance":  RunCommand<Commands.StandardsExt.StageComplianceAuditCommand>(app); break;
@@ -402,54 +330,6 @@ namespace StingTools.UI
                     case "Fabrication_BomRollup":         RunCommand<Commands.Fabrication.BomRollupCommand>(app); break;
                     case "Fabrication_LinkDocRegister":   RunCommand<Commands.Fabrication.LinkDocRegisterCommand>(app); break;
 
-                    // ── Phase 175: MEP/FP/SLD Symbol Library ──
-                    case "Symbols_CreateAll":      RunCommand<Commands.Symbols.CreateSymbolLibraryCommand>(app); break;
-                    case "Symbols_CreateSLD":      RunCommand<Commands.Symbols.CreateSLDSymbolsCommand>(app); break;
-                    case "Symbols_CreateSLD_IEEE":  RunCommand<Commands.Symbols.CreateSLDSymbolsIEEECommand>(app); break;
-                    case "Symbols_CreateSLD_BS":    RunCommand<Commands.Symbols.CreateSLDSymbolsBSCommand>(app); break;
-                    case "Symbols_CreateSLD_NFPA":  RunCommand<Commands.Symbols.CreateSLDSymbolsNFPACommand>(app); break;
-                    case "Symbols_CreateCIBSE":     RunCommand<Commands.Symbols.CreateCIBSESymbolsCommand>(app); break;
-                    case "Symbols_CreateLighting": RunCommand<Commands.Symbols.CreateLightingSymbolsCommand>(app); break;
-                    case "Symbols_CreateFP":       RunCommand<Commands.Symbols.CreateFPSymbolsCommand>(app); break;
-                    case "Symbols_Reload":         RunCommand<Commands.Symbols.ReloadSymbolLibraryCommand>(app); break;
-                    case "Symbols_Inspect":        RunCommand<Commands.Symbols.InspectSymbolLibraryCommand>(app); break;
-
-                    // ── Phase 175: Symbol Standards ──
-                    case "Symbols_SwitchProject":  RunCommand<Commands.Symbols.SwitchProjectStandardCommand>(app); break;
-                    case "Symbols_SwitchView":     RunCommand<Commands.Symbols.SwitchViewStandardCommand>(app); break;
-                    case "Symbols_SetProfile":     RunCommand<Commands.Symbols.SetMixedStandardProfileCommand>(app); break;
-                    case "Symbols_PlaceView":      RunCommand<Commands.Symbols.PlaceSymbolsInViewCommand>(app); break;
-                    case "Symbols_PlaceAll":       RunCommand<Commands.Symbols.PlaceSymbolsProjectWideCommand>(app); break;
-                    case "Symbols_Audit":          RunCommand<Commands.Symbols.SymbolStandardAuditCommand>(app); break;
-                    case "Symbols_SyncFilters":    RunCommand<Commands.Symbols.SyncViewFilterVisibilityCommand>(app); break;
-
-                    // ── Phase 175: Symbol Augmentation ──
-                    case "Symbols_AugmentAll":      RunCommand<Commands.Symbols.AugmentProjectFamiliesCommand>(app); break;
-                    case "Symbols_AugmentSelected": RunCommand<Commands.Symbols.AugmentSelectedFamilyCommand>(app); break;
-                    case "Symbols_RollbackAugment": RunCommand<Commands.Symbols.RollbackAugmentationCommand>(app); break;
-
-                    // ── Phase 175: Symbol Maintenance ──
-                    case "Symbols_HealOrphans":    RunCommand<Commands.Symbols.HealSymbolOrphansCommand>(app); break;
-                    case "Symbols_Coverage":       RunCommand<Commands.Symbols.SymbolCoverageAuditCommand>(app); break;
-                    case "Symbols_FixDrift":       RunCommand<Commands.Symbols.FixSymbolDriftCommand>(app); break;
-                    case "Symbols_BatchHeal":      RunCommand<Commands.Symbols.BatchHealAllSymbolsCommand>(app); break;
-
-                    // ── Phase 180: Compound symbol factory ──
-                    case "Symbols_CreateCompound": RunCommand<Commands.Symbols.CreateCompoundSymbolsCommand>(app); break;
-
-                    // ── StingBridge: ArchiCAD / IFC workflows ──
-                    case "IFC_ArchiCADSync":  RunCommand<Commands.IFC.ArchiCADSyncCommand>(app); break;
-                    case "IFC_DropImport":    RunCommand<Commands.IFC.IfcDropImportCommand>(app); break;
-                    case "IFC_PushModel":     RunCommand<Commands.IFC.IFC_PushModelCommand>(app); break;
-
-                    // ── Phase 175: SLD Generator ──
-                    case "SLD_Generate":           RunCommand<Commands.SLD.GenerateSLDCommand>(app); break;
-                    case "SLD_GenerateOptions":    RunCommand<Commands.SLD.GenerateSLDWithOptionsCommand>(app); break;
-                    case "SLD_Update":             RunCommand<Commands.SLD.UpdateSLDCommand>(app); break;
-                    case "SLD_SyncToggle":         RunCommand<Commands.SLD.SLDSyncToggleCommand>(app); break;
-                    case "SLD_Validate":           RunCommand<Commands.SLD.SLDValidateCommand>(app); break;
-                    case "SLD_MigrateLabels":      RunCommand<Commands.SLD.MigrateSLDLabelIdsCommand>(app); break;
-
                     // ── v4 Phase C: calc engines ──
                     case "Calc_ConduitFill":  RunCommand<Commands.Routing.CalcConduitFillCommand>(app); break;
                     case "Calc_DuctFriction": RunCommand<Commands.Routing.CalcDuctFrictionCommand>(app); break;
@@ -468,26 +348,9 @@ namespace StingTools.UI
                     case "Electrical_ExportCircuits": RunCommand<Commands.Electrical.ExportCircuitsCommand>(app); break;
                     case "Electrical_TrayFill":    RunCommand<Commands.Electrical.ShowTrayFillCommand>(app); break;
 
-                    // ── Wire annotation symbols ──
-                    case "Electrical_WireAnnotate":
-                        RunCommand<Commands.Electrical.WireAnnotateCommand>(app); break;
-                    case "Electrical_WireAnnotateBatch":
-                        RunCommand<Commands.Electrical.WireAnnotateBatchCommand>(app); break;
-                    case "Electrical_HomeRunArrow":
-                        RunCommand<Commands.Electrical.HomeRunArrowCommand>(app); break;
-                    case "Electrical_ClearWireAnnotations":
-                        RunCommand<Commands.Electrical.ClearWireAnnotationsCommand>(app); break;
-                    case "Electrical_RefreshWireAnnotations":
-                        RunCommand<StingTools.Commands.Electrical.RefreshWireAnnotationsCommand>(app); break;
-                    case "Electrical_HomeRunArrowBatch":
-                        RunCommand<StingTools.Commands.Electrical.HomeRunArrowBatchCommand>(app); break;
-                    case "Electrical_PanelWireReconcile":
-                        RunCommand<StingTools.Commands.Electrical.PanelWireReconcileCommand>(app); break;
-
                     // ── v4 Phase D: hanger placement ──
                     case "Routing_PlaceHangers": RunCommand<Commands.Routing.PlaceHangersCommand>(app); break;
-                    case "Fabrication_PlaceISOSymbols":
-                        RunCommand<Commands.Fabrication.PlaceIsoSymbolsCommand>(app); break;
+                    case "Fabrication_PlaceISOSymbols": TaskDialog.Show("STING v4 — ISO 6412 Symbols", "Place is wired through GenerateFabPackageCommand;\nrun Generate Fabrication Package against your selection."); break;
                     case "Fabrication_ConfigureShopDrawing":
                     {
                         var doc = app?.ActiveUIDocument?.Document;
@@ -511,47 +374,10 @@ namespace StingTools.UI
                     // ── Drawing Template Manager (Phase 113) ──
                     case "DrawingTypes_Inspect": RunCommand<Commands.Drawing.DrawingTypesInspectCommand>(app); break;
                     case "DrawingTypes_Reload":  RunCommand<Commands.Drawing.DrawingTypesReloadCommand>(app);  break;
-                    case "DrawingTypes_PresentationSetup": RunCommand<Commands.Drawing.PresentationStyleSetupCommand>(app); break;
                     case "DrawingTypes_Editor":  RunCommand<Commands.Drawing.DrawingTypeEditorCommand>(app);   break;
-                    case "DrawingTypes_ExportExcel": RunCommand<BIMManager.DrawingTypeExportExcelCommand>(app); break;
-                    case "DrawingTypes_ImportExcel": RunCommand<BIMManager.DrawingTypeImportExcelCommand>(app); break;
                     case "DrawingTypes_GroupBrowser":  DrawingTypesGroupBrowserInline(app); break;
                     case "DrawingTypes_SyncStyles":    DrawingTypesSyncStylesInline(app);   break;
                     case "DrawingTypes_FromScopeBoxes": DrawingTypesFromScopeBoxesInline(app); break;
-                    case "DrawingTypes_Renumber":      RunCommand<Commands.Drawing.DrawingRenumberCommand>(app); break;
-                    case "DrawingTypes_HealTitleBlocks": RunCommand<Commands.Drawing.DrawingHealTitleBlocksCommand>(app); break;
-                    case "DrawingTypes_Doctor":        RunCommand<Commands.Drawing.DrawingDoctorCommand>(app); break;
-                    case "DrawingTypes_MigrateCsv":    RunCommand<Commands.Drawing.TitleBlockMigrateCsvToRecipeCommand>(app); break;
-
-                    // ── Drawing Template Manager · Phase 137 — production engine ──
-                    case "DrawingTypes_ProducePerLevel":           RunCommand<Commands.Drawing.ProduceViewsPerLevelCommand>(app); break;
-                    case "DrawingTypes_ProduceFromScopeBoxes":     RunCommand<Commands.Drawing.ProduceViewsFromScopeBoxesCommand>(app); break;
-                    case "DrawingTypes_ProduceInteriorElevations": RunCommand<Commands.Drawing.ProduceInteriorElevationsCommand>(app); break;
-                    case "DrawingTypes_ProduceExteriorElevations": RunCommand<Commands.Drawing.ProduceExteriorElevationsCommand>(app); break;
-                    case "DrawingTypes_ProduceSections":           RunCommand<Commands.Drawing.ProduceSectionsCommand>(app); break;
-                    case "DrawingTypes_RegenerateTemplates":       RunCommand<Commands.Drawing.RegeneratePackTemplatesCommand>(app); break;
-                    case "DrawingTypes_ConvertToManaged":          RunCommand<Commands.Drawing.ConvertPackToManagedCommand>(app); break;
-                    case "DrawingTypes_DetachManaged":             RunCommand<Commands.Drawing.DetachFromManagedCommand>(app); break;
-                    case "DrawingTypes_ExportPackage":             RunCommand<Commands.Drawing.DrawingPackageExportCommand>(app); break;
-                    case "DrawingTypes_SequencePackage":           RunCommand<Commands.Drawing.DrawingPackageSequenceCommand>(app); break;
-                    case "DrawingTypes_AuditPackages":
-                    case "DrawingTypes_PackageAudit":              RunCommand<Commands.Drawing.DrawingPackageAuditCommand>(app); break;
-
-                    // ── Phase 168 / 169 — Match-line subsystem ──
-                    case "MatchLine_Generate":       RunCommand<Commands.Drawing.MatchLineGenerateCommand>(app); break;
-                    case "MatchLine_Sync":           RunCommand<Commands.Drawing.MatchLineSyncCommand>(app); break;
-                    case "MatchLine_Validate":       RunCommand<Commands.Drawing.MatchLineValidateCommand>(app); break;
-                    case "MatchLine_ValidateBundle": RunCommand<Commands.Drawing.MatchLineValidateBundleCommand>(app); break;
-                    case "MatchLine_Inspect":        RunCommand<Commands.Drawing.MatchLineInspectCommand>(app); break;
-
-                    // ── Phase 170 — Title-block factory ──
-                    case "TitleBlock_Create":             RunCommand<Commands.Drawing.TitleBlockCreateCommand>(app); break;
-                    case "TitleBlock_CreateAll":          RunCommand<Commands.Drawing.TitleBlockCreateAllCommand>(app); break;
-                    // ── Phase 170 revision — Two-family BIM architecture + slot automation ──
-                    case "TitleBlock_AutoPlaceViewports": RunCommand<Commands.Drawing.TitleBlockAutoPlaceViewportsCommand>(app); break;
-                    case "TitleBlock_ToggleBIMMode":      RunCommand<Commands.Drawing.TitleBlockToggleBIMModeCommand>(app); break;
-                    case "TitleBlock_AuditLegacy":        RunCommand<Commands.Drawing.TitleBlockAuditLegacyCommand>(app); break;
-                    case "TitleBlock_MigrateLegacy":      RunCommand<Commands.Drawing.TitleBlockMigrateLegacyCommand>(app); break;
 
                     // ── Selection scope ──
                     case "SetScopeView": Select.SelectionScopeHelper.SetScope(false); TaskDialog.Show("Scope", "Selection scope: ACTIVE VIEW"); break;
@@ -655,6 +481,7 @@ namespace StingTools.UI
                     case "SetTagCatLineWeight": RunCommand<Tags.SetTagCategoryLineWeightCommand>(app); break;
                     case "Tag3D": RunCommand<Tags.Tag3DCommand>(app); break;
                     case "RepairDuplicateSeq": RunCommand<Tags.RepairDuplicateSeqCommand>(app); break;
+                    case "Tags_MigrateStyleCode": RunCommand<Tags.MigrateTagStyleCodeCommand>(app); break;
 
                     // ── Rich TAG7 display ──
                     case "RichTagNote": RunCommand<Tags.RichTagNoteCommand>(app); break;
@@ -1610,6 +1437,20 @@ namespace StingTools.UI
                     case "ColorByVariable": RunCommand<Tags.ColorByVariableCommand>(app); break;
                     case "SetBoxColor": RunCommand<Tags.SetBoxColorCommand>(app); break;
 
+                    // ── AVF Heatmap visualisations ──
+                    case "Heatmap_Compliance": RunCommand<Commands.Visualization.VisualiseComplianceHeatmapCommand>(app); break;
+                    case "Heatmap_Fill":       RunCommand<Commands.Visualization.VisualiseFillHeatmapCommand>(app);       break;
+                    case "Heatmap_Carbon":     RunCommand<Commands.Visualization.VisualiseCarbonHeatmapCommand>(app);     break;
+                    case "Heatmap_Acoustic":   RunCommand<Commands.Visualization.VisualiseAcousticHeatmapCommand>(app);   break;
+                    case "Heatmap_Clear":      RunCommand<Commands.Visualization.ClearHeatmapCommand>(app);               break;
+
+                    // ── V6 feature commands ──
+                    case "V6_LabourHoursApply":  RunCommand<V6.ApplyLabourHoursCommand>(app); break;
+                    case "V6_LabourHoursExport": RunCommand<V6.ExportLabourHoursCommand>(app); break;
+                    case "V6_HealthDashboard":   RunCommand<V6.HealthDashboardExportHtmlCommand>(app); break;
+                    case "V6_QRAdvance":         RunCommand<V6.QRAdvanceCommissioningCommand>(app); break;
+                    case "V6_QRReport":          RunCommand<V6.QRCommissioningReportCommand>(app); break;
+
                     // ════════════════════════════════════════════════════════
                     // MODEL TAB — Auto-Modeling Engine
                     // ════════════════════════════════════════════════════════
@@ -1801,59 +1642,6 @@ namespace StingTools.UI
                     case "UpdateIssue": RunCommand<BIMManager.UpdateIssueCommand>(app); break;
                     case "SelectIssueElements": RunCommand<BIMManager.SelectIssueElementsCommand>(app); break;
                     case "IssuesBulkClose": RunCommand<BIMManager.BulkCloseIssuesCommand>(app); break;
-
-                    // Slice 4a — Site Photos cross-link: select a single element
-                    // by its UniqueId in the active Revit view + zoom to it.
-                    // Triggered from BIMCoordinationCenter.SelectElementInRevitPub
-                    // when the user clicks "📂 Element" on an As-built / Reference
-                    // photo row. Element UniqueId is passed via the
-                    // "ElementGuid" extra-param.
-                    case "SelectByElementGuid":
-                    {
-                        try
-                        {
-                            string uniqueId = GetExtraParam("ElementGuid");
-                            if (string.IsNullOrEmpty(uniqueId))
-                            {
-                                Autodesk.Revit.UI.TaskDialog.Show("Site Photos",
-                                    "No element id provided.");
-                                break;
-                            }
-                            var uidoc = app?.ActiveUIDocument;
-                            var doc   = uidoc?.Document;
-                            if (uidoc == null || doc == null)
-                            {
-                                Autodesk.Revit.UI.TaskDialog.Show("Site Photos",
-                                    "No active Revit document — open the model first.");
-                                break;
-                            }
-                            var el = doc.GetElement(uniqueId);
-                            if (el == null)
-                            {
-                                Autodesk.Revit.UI.TaskDialog.Show("Site Photos",
-                                    $"Element {uniqueId} not found in this model.\n\n" +
-                                    "The photo may have been anchored in a different model — switch the host doc and try again.");
-                                break;
-                            }
-                            uidoc.Selection.SetElementIds(new List<Autodesk.Revit.DB.ElementId> { el.Id });
-                            // Zoom to selection — UIView.ZoomToFit on the active view.
-                            try
-                            {
-                                var uiView = uidoc.GetOpenUIViews()
-                                    .FirstOrDefault(v => v.ViewId == uidoc.ActiveView.Id);
-                                uiView?.ZoomToFit();
-                            }
-                            catch (Exception ex) { StingLog.Warn($"SelectByElementGuid zoom: {ex.Message}"); }
-                            uidoc.ShowElements(el);
-                        }
-                        catch (Exception ex)
-                        {
-                            StingLog.Warn($"SelectByElementGuid: {ex.Message}");
-                            Autodesk.Revit.UI.TaskDialog.Show("Site Photos",
-                                $"Could not select element: {ex.Message}");
-                        }
-                        break;
-                    }
 
                     // Template engine v1.1 — deliverable lifecycle (S12) + orchestrator (S13)
                     case "IssueDeliverable":       RunCommand<Planscape.Docs.Templates.IssueDeliverableCommand>(app); break;
@@ -2495,6 +2283,66 @@ namespace StingTools.UI
                     // Platform Integration (12 commands)
                     case "ACCPublish": RunCommand<BIMManager.ACCPublishCommand>(app); break;
                     case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
+                    case "Folder_CloudSync": RunCommand<BIMManager.FolderCloudSyncSettingsCommand>(app); break;
+                    case "Folder_CloudMirrorNow": RunCommand<BIMManager.FolderCloudMirrorNowCommand>(app); break;
+                    case "Folder_ToggleWatcher":
+                    {
+                        // FOLDER-04: Toggle the FileSystemWatcher on/off.
+                        // When turned on, auto-classifies files dropped into 02_SHARED/
+                        // or 03_PUBLISHED/ by appending to document_register.json.
+                        var fwDoc = app.ActiveUIDocument?.Document;
+                        if (fwDoc == null) break;
+                        if (Core.ProjectFolderEngine.IsWatcherActive)
+                        {
+                            Core.ProjectFolderEngine.StopWatching();
+                            StingLog.Info("Folder watcher stopped by user.");
+                            Autodesk.Revit.UI.TaskDialog.Show("Folder Watcher", "Folder monitoring stopped.");
+                        }
+                        else
+                        {
+                            Core.ProjectFolderEngine.StartWatching(fwDoc, filePath =>
+                            {
+                                // Auto-classify new files in SHARED/PUBLISHED into document register
+                                try
+                                {
+                                    string normalised = filePath.Replace('\\', '/');
+                                    bool isShared    = normalised.Contains("/02_SHARED/")    || normalised.Contains("/SHARED/");
+                                    bool isPublished = normalised.Contains("/03_PUBLISHED/") || normalised.Contains("/PUBLISHED/");
+                                    if (!isShared && !isPublished) return;
+                                    if (!File.Exists(filePath)) return;
+                                    string cdeState = isPublished ? "PUBLISHED" : "SHARED";
+                                    string bimDir = Core.ProjectFolderEngine.GetDataPath(fwDoc);
+                                    string regPath = System.IO.Path.Combine(bimDir, "document_register.json");
+                                    var arr = File.Exists(regPath)
+                                        ? Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(regPath))
+                                        : new Newtonsoft.Json.Linq.JArray();
+                                    // Check not already in register
+                                    bool exists = arr.Any(d => string.Equals(d["file_path"]?.ToString(), filePath, StringComparison.OrdinalIgnoreCase));
+                                    if (!exists)
+                                    {
+                                        var entry = new Newtonsoft.Json.Linq.JObject
+                                        {
+                                            ["doc_id"]     = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
+                                            ["title"]      = System.IO.Path.GetFileNameWithoutExtension(filePath),
+                                            ["file_path"]  = filePath,
+                                            ["cde_status"] = cdeState,
+                                            ["date"]       = DateTime.Now.ToString("yyyy-MM-dd"),
+                                            ["source"]     = "FolderWatcher",
+                                        };
+                                        arr.Add(entry);
+                                        File.WriteAllText(regPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                                        StingLog.Info($"FolderWatcher: auto-registered '{System.IO.Path.GetFileName(filePath)}' as {cdeState}");
+                                    }
+                                    // FOLDER-01: Mirror to cloud if configured
+                                    Core.ProjectFolderEngine.TryMirrorToCloud(fwDoc, filePath, cdeState);
+                                }
+                                catch (Exception wex) { StingLog.Warn($"FolderWatcher auto-classify: {wex.Message}"); }
+                            });
+                            StingLog.Info("Folder watcher started by user.");
+                            Autodesk.Revit.UI.TaskDialog.Show("Folder Watcher", "Folder monitoring started.\nFiles dropped into SHARED or PUBLISHED will be auto-registered.");
+                        }
+                        break;
+                    }
                     case "ValidateCDEHandover":
                     {
                         var doc = app.ActiveUIDocument?.Document;
@@ -2512,6 +2360,7 @@ namespace StingTools.UI
                     }
                     case "BCFExport": RunCommand<BIMManager.BCFExportCommand>(app); break;
                     case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
+                    case "BCFSync":   RunCommand<BIMManager.BCFSyncCommand>(app);   break;
                     case "PlatformSync":
                         // Route to Planscape server sync if connected; otherwise local delta sync
                         if (BIMManager.PlanscapeServerClient.Instance.IsConnected)
@@ -2543,6 +2392,7 @@ namespace StingTools.UI
                     case "RevisionExport": RunCommand<BIMManager.RevisionExportCommand>(app); break;
                     case "BulkRevisionStamp": RunCommand<BIMManager.BulkRevisionStampCommand>(app); break;
                     case "AutoRevisionOnTagChange": RunCommand<BIMManager.AutoRevisionOnTagChangeCommand>(app); break;
+                    case "RevisionCloudAudit":      RunCommand<BIMManager.RevisionCloudAuditCommand>(app);      break;
 
                     // Revision Management — Enhanced
                     case "RevisionApprovalWorkflow": RunCommand<BIMManager.RevisionApprovalWorkflowCommand>(app); break;
@@ -3364,6 +3214,8 @@ namespace StingTools.UI
                     case "AutoBatchDWG": RunCommand<ExLink.BatchDWGExportCommand>(app); break;
                     case "AutoBatchNWC": RunCommand<ExLink.BatchNWCExportCommand>(app); break;
                     case "AutoBatchIFC": RunCommand<ExLink.BatchIFCExportCommand>(app); break;
+                    case "ArchiCadIfcImport": RunCommand<StingTools.Commands.Interop.ArchiCadIfcImportCommand>(app); break;
+
                     case "AutoModelAudit": RunCommand<ExLink.AutomationModelAuditCommand>(app); break;
                     case "AutoModelCompact": RunCommand<ExLink.AutomationModelCompactCommand>(app); break;
                     case "AutoBackupCleanup": RunCommand<ExLink.AutomationBackupCleanupCommand>(app); break;
@@ -3501,10 +3353,31 @@ namespace StingTools.UI
                     case "AttachIssueLocation":   AttachIssueLocationFromView(app); break;
                     case "CaptureIssueSnapshot":  CaptureViewSnapshot(app); break;
                     case "LinkIssueElements":     RunCommand<BIMManager.SelectIssueElementsCommand>(app); break;
+                    // ── BCC Model Health refresh ──
+                    case "RefreshHealth":
+                    {
+                        StingLog.Info("BCC: RefreshHealth triggered — reloading coordination data");
+                        RunCommand<BIMManager.CoordinationCenterCommand>(app);
+                        break;
+                    }
+                    // ── BCC Bulk Issue actions ──
+                    case "BulkIssueReassign":
+                        StingLog.Warn("BCC BulkIssueReassign: handler not yet implemented");
+                        TaskDialog.Show("STING BCC", "Bulk reassign is not yet available. Use Issues > Update Issue for individual items.");
+                        break;
+                    case "BulkIssueResolve":
+                        StingLog.Warn("BCC BulkIssueResolve: handler not yet implemented");
+                        TaskDialog.Show("STING BCC", "Bulk resolve is not yet available. Use Issues > Update Issue for individual items.");
+                        break;
+                    case "BulkIssueExport":
+                        RunCommand<BIMManager.BulkBIMExportCommand>(app);
+                        break;
                     // ── Warnings ──
                     case "AutoFixWarnings":
                     {
-                        TaskDialog.Show("STING — Auto-Fix Warnings", "Auto-fix scan queued.\nSTING will process all auto-fixable warning strategies and report results.");
+                        StingLog.Info("BCC: AutoFixWarnings — should route to WarningsManager.AutoFixAll, not BIMManager batch fixer");
+                        // TODO: wire to WarningsManager.AutoFixAll() once exposed as IExternalCommand
+                        TaskDialog.Show("STING BCC", "Auto-fix warnings is not yet available from this panel. Use BIM > Warnings > Auto-Fix instead.");
                         break;
                     }
                     case "SaveBaseline":
@@ -3554,6 +3427,7 @@ namespace StingTools.UI
                     case "PlanscapeHTML":           PlanscapeExportHtml(app); break;
                     case "PlanscapeHTMLDashboard":  PlanscapeExportHtml(app); break;              // Phase 78 alias
                     case "PlanscapeConnect":        RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
+                    case "PlanscapeOnboarding":     RunCommand<BIMManager.PluginOnboardingWizardCommand>(app); break;
                     case "PlanscapeDisconnect":     BIMManager.PlanscapeServerClient.Instance.Disconnect();
                                                    TaskDialog.Show("Planscape", "Disconnected from Planscape server."); break;
                     case "PlanscapeSyncNow":        BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app); break;
@@ -3851,7 +3725,7 @@ namespace StingTools.UI
                 var uidoc = app?.ActiveUIDocument;
                 if (uidoc?.Document == null) { TaskDialog.Show("STING v4", "Open a project first."); return; }
                 var dlg = new UI.FabricationWorkspaceDialog(uidoc.Document);
-                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 dlg.ShowDialog();
             }
             catch (Exception ex)
@@ -4291,10 +4165,10 @@ namespace StingTools.UI
                                 "not equals" => !string.Equals(actual, cond.Value ?? "", StringComparison.OrdinalIgnoreCase),
                                 "starts with" => actual.StartsWith(cond.Value ?? "", StringComparison.OrdinalIgnoreCase),
                                 "ends with" => actual.EndsWith(cond.Value ?? "", StringComparison.OrdinalIgnoreCase),
-                                ">" => double.TryParse(actual, out var av) && double.TryParse(cond.Value, out var cv) && av > cv,
-                                "<" => double.TryParse(actual, out var av2) && double.TryParse(cond.Value, out var cv2) && av2 < cv2,
-                                ">=" => double.TryParse(actual, out var av3) && double.TryParse(cond.Value, out var cv3) && av3 >= cv3,
-                                "<=" => double.TryParse(actual, out var av4) && double.TryParse(cond.Value, out var cv4) && av4 <= cv4,
+                                ">" => double.TryParse(actual, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var av) && double.TryParse(cond.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cv) && av > cv,
+                                "<" => double.TryParse(actual, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var av2) && double.TryParse(cond.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cv2) && av2 < cv2,
+                                ">=" => double.TryParse(actual, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var av3) && double.TryParse(cond.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cv3) && av3 >= cv3,
+                                "<=" => double.TryParse(actual, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var av4) && double.TryParse(cond.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cv4) && av4 <= cv4,
                                 "is empty" => string.IsNullOrEmpty(actual),
                                 "is not empty" => !string.IsNullOrEmpty(actual),
                                 _ => actual.IndexOf(cond.Value ?? "", StringComparison.OrdinalIgnoreCase) >= 0
@@ -8493,7 +8367,7 @@ namespace StingTools.UI
             var doc = uidoc.Document;
             var elems = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => { try { var p = e.LookupParameter("ASS_TAG_1_TXT"); return p != null && (p.AsString() ?? "").Contains(issueId); } catch { return false; } })
+                .Where(e => { try { var p = e.LookupParameter("ASS_TAG_1_TXT"); return p != null && (p.AsString() ?? "").Contains(issueId); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; } })
                 .Take(20).ToList();
             if (elems.Count > 0)
             {
@@ -8533,7 +8407,7 @@ namespace StingTools.UI
             var doc = uidoc.Document;
             var elems = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => { try { var p = e.LookupParameter("ASS_TAG_1_TXT"); return p != null && (p.AsString() ?? "").Contains(issueId); } catch { return false; } })
+                .Where(e => { try { var p = e.LookupParameter("ASS_TAG_1_TXT"); return p != null && (p.AsString() ?? "").Contains(issueId); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; } })
                 .Take(50).ToList();
             if (elems.Count > 0) uidoc.Selection.SetElementIds(elems.Select(e => e.Id).ToList());
         }
@@ -8563,7 +8437,7 @@ namespace StingTools.UI
             var paramName = Core.ParamRegistry.DISC ?? "ASS_MNG_DISC";
             var elems = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => { try { var p = e.LookupParameter(paramName); return p != null && (p.AsString() ?? "") == discCode; } catch { return false; } })
+                .Where(e => { try { var p = e.LookupParameter(paramName); return p != null && (p.AsString() ?? "") == discCode; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; } })
                 .Take(200).ToList();
             if (elems.Count > 0) uidoc.Selection.SetElementIds(elems.Select(e => e.Id).ToList());
         }
@@ -8742,6 +8616,76 @@ For live data, open BCC in Revit and re-export.</p></div>
         // Handover or Custom mode — emits a soft warning if the active mode is
         // DC (no error: the data is preserved, just not rendered until mode
         // is switched).
+        // HC-12 — Facility Type picker: opens a small WPF ComboBox dialog and writes
+        // PRJ_ORG_HEALTH_PACK_PROFILE_TXT to ProjectInformation.
+        private static void HandleHcFacilityConfig(UIApplication app)
+        {
+            try
+            {
+                var doc = app?.ActiveUIDocument?.Document;
+                if (doc == null) return;
+
+                var profiles = new[] { "FULL", "ACUTE", "COMMUNITY", "DENTAL", "IMAGING-ONLY", "MENTAL-HEALTH" };
+
+                // Read current value
+                var pi   = doc.ProjectInformation;
+                var pCur = pi?.LookupParameter("PRJ_ORG_HEALTH_PACK_PROFILE_TXT");
+                string current = pCur?.AsString() ?? "";
+
+                // Show picker
+                var dlg = new System.Windows.Window
+                {
+                    Title             = "Healthcare Facility Type",
+                    Width             = 340,
+                    Height            = 160,
+                    WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                    ResizeMode        = System.Windows.ResizeMode.NoResize,
+                    Background        = System.Windows.Media.Brushes.WhiteSmoke,
+                };
+                var sp = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(12) };
+                sp.Children.Add(new System.Windows.Controls.TextBlock
+                {
+                    Text = "Select healthcare facility type profile:",
+                    FontWeight = System.Windows.FontWeights.SemiBold,
+                    Margin = new System.Windows.Thickness(0, 0, 0, 8),
+                });
+                var combo = new System.Windows.Controls.ComboBox { Margin = new System.Windows.Thickness(0, 0, 0, 12) };
+                foreach (var p in profiles) combo.Items.Add(p);
+                combo.SelectedItem = current.Length > 0 && profiles.Contains(current) ? current : profiles[0];
+                sp.Children.Add(combo);
+                var btnOk = new System.Windows.Controls.Button
+                {
+                    Content = "Save",
+                    Width   = 80,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                };
+                bool confirmed = false;
+                btnOk.Click += (s, e) => { confirmed = true; dlg.Close(); };
+                sp.Children.Add(btnOk);
+                dlg.Content = sp;
+                dlg.ShowDialog();
+
+                if (!confirmed) return;
+                string chosen = combo.SelectedItem?.ToString() ?? "";
+                if (string.IsNullOrEmpty(chosen)) return;
+
+                using (var t = new Autodesk.Revit.DB.Transaction(doc, "STING Set Healthcare Facility Profile"))
+                {
+                    t.Start();
+                    Core.ParameterHelpers.SetString(pi, "PRJ_ORG_HEALTH_PACK_PROFILE_TXT", chosen, true);
+                    t.Commit();
+                }
+                Autodesk.Revit.UI.TaskDialog.Show("STING Healthcare",
+                    $"Healthcare facility type set to '{chosen}'.\n" +
+                    "Healthcare validators and workflows are now active for this project.");
+                Core.StingLog.Info($"HC_FacilityConfig: PRJ_ORG_HEALTH_PACK_PROFILE_TXT set to {chosen}");
+            }
+            catch (Exception ex)
+            {
+                Core.StingLog.Error("HandleHcFacilityConfig failed", ex);
+            }
+        }
+
         private static void WriteSystemBTier(UIApplication app, int tier)
         {
             UIDocument uidoc = app?.ActiveUIDocument;
@@ -8954,6 +8898,126 @@ For live data, open BCC in Revit and re-export.</p></div>
                 StingTools.Core.StingLog.Warn($"WriteModeBool {paramName} failed: {ex.Message}");
             }
             return false;
+        }
+
+        // Gap 7: save wire style from dock panel inline controls via the WireAnnotationStyleCommand.
+        // The inline TextBox/CheckBox controls in the dock panel are read at the time the user
+        // clicks "Save style to project JSON". We obtain the dock-panel Page via the active
+        // Revit window's child visual tree and read the named elements directly.
+        private void HandleWireSaveStyleFromPanel(UIApplication app)
+        {
+            var doc = app?.ActiveUIDocument?.Document;
+            if (doc == null) { TaskDialog.Show("Wire Style", "No document open."); return; }
+
+            try
+            {
+                // Walk the WPF visual tree to find the StingDockPanel Page
+                StingDockPanel panelPage = FindDockPanelPage(app);
+                if (panelPage == null)
+                {
+                    // Fallback: open the full style dialog
+                    RunCommand<Commands.Electrical.WireAnnotationStyleCommand>(app);
+                    return;
+                }
+
+                double slashLen    = ReadTextBox(panelPage, "tbWireSlashLen",    6.0);
+                double slashGap    = ReadTextBox(panelPage, "tbWireSlashGap",    3.0);
+                double slashAngle  = ReadTextBox(panelPage, "tbWireSlashAngle",  60.0);
+                double scaleFactor = ReadTextBox(panelPage, "tbWireScaleFactor", 1.0);
+                int    lineWeight  = (int)ReadTextBox(panelPage, "tbWireLineWeight", 3.0);
+                double labelOffset = ReadTextBox(panelPage, "tbWireLabelOffset", 600.0);
+                int    colorCode   = ReadCombo(panelPage,   "cbWireColorCode");
+                bool   showVD      = ReadCheck(panelPage,   "chkWireShowVD",   true);
+                bool   showFill    = ReadCheck(panelPage,   "chkWireShowFill",  true);
+                bool   compact     = ReadCheck(panelPage,   "chkWireCompact",   false);
+
+                var style = new Commands.Electrical.WireAnnotationStyle
+                {
+                    SlashLengthMm   = slashLen,
+                    SlashSpacingMm  = slashGap,
+                    SlashAngleDeg   = Math.Max(30, Math.Min(90, slashAngle)),
+                    ScaleFactor     = scaleFactor > 0 ? scaleFactor : 1.0,
+                    SlashLineWeight = Math.Max(1, Math.Min(16, lineWeight)),
+                    LabelOffsetMm   = labelOffset > 0 ? labelOffset : 600,
+                    ColorCode       = colorCode,
+                    AutoColor       = colorCode == 0,
+                    ShowVoltDrop    = showVD,
+                    ShowFill        = showFill,
+                    CompactLabel    = compact,
+                };
+
+                Commands.Electrical.WireAnnotationStyleStore.Save(doc, style);
+                TaskDialog.Show("Wire Style Saved",
+                    $"Project defaults saved to STING_WIRE_ANNOT_STYLE.json:\n"
+                    + $"  Slash {slashLen:0.#} mm  gap {slashGap:0.#} mm  angle {slashAngle:0}°\n"
+                    + $"  Weight {lineWeight}  offset {labelOffset:0} mm  colour code {colorCode}\n\n"
+                    + "Run 'W-Rfsh' to apply to existing annotations in the active view.");
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn("HandleWireSaveStyleFromPanel: " + ex.Message);
+                // Fallback gracefully to full editor dialog
+                RunCommand<Commands.Electrical.WireAnnotationStyleCommand>(app);
+            }
+        }
+
+        private static StingDockPanel FindDockPanelPage(UIApplication app)
+        {
+            // Use the static reference set by StingDockPanelProvider.SetupDockablePane —
+            // this is reliable in Revit where System.Windows.Application.Current may be
+            // null or its Windows collection may not contain Revit's HwndSource host.
+            return StingDockPanelProvider.Instance;
+        }
+
+        private static T FindVisualChild<T>(System.Windows.DependencyObject parent)
+            where T : System.Windows.DependencyObject
+        {
+            if (parent == null) return null;
+            int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is T t) return t;
+                var result = FindVisualChild<T>(child);
+                if (result != null) return result;
+            }
+            return null;
+        }
+
+        private static double ReadTextBox(System.Windows.FrameworkElement root, string name, double def)
+        {
+            try
+            {
+                if (root.FindName(name) is System.Windows.Controls.TextBox tb
+                    && double.TryParse(tb.Text,
+                        System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out double v))
+                    return v;
+            }
+            catch { }
+            return def;
+        }
+
+        private static int ReadCombo(System.Windows.FrameworkElement root, string name)
+        {
+            try
+            {
+                if (root.FindName(name) is System.Windows.Controls.ComboBox cb)
+                    return cb.SelectedIndex;
+            }
+            catch { }
+            return 0;
+        }
+
+        private static bool ReadCheck(System.Windows.FrameworkElement root, string name, bool def)
+        {
+            try
+            {
+                if (root.FindName(name) is System.Windows.Controls.CheckBox chk)
+                    return chk.IsChecked ?? def;
+            }
+            catch { }
+            return def;
         }
     }
 }

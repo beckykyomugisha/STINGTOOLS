@@ -120,6 +120,12 @@ namespace StingTools.UI
                 LevelRows[i].Index = i + 1;
         }
 
+        private void RenumberLevelRows()
+        {
+            for (int i = 0; i < LevelRows.Count; i++)
+                LevelRows[i].Index = i + 1;
+        }
+
         // ── Pre-populate from Revit data ─────────────────────────────
 
         /// <summary>
@@ -573,6 +579,15 @@ namespace StingTools.UI
             // Build review summary when entering last page
             if (_currentPage == TotalPages - 1)
                 BuildReviewSummary();
+        }
+
+        // HC-08 — Show/hide the Healthcare Facility Type panel when the checkbox changes.
+        private void ChkDiscHealthcare_Changed(object sender, RoutedEventArgs e)
+        {
+            if (pnlHealthcareFacility != null)
+                pnlHealthcareFacility.Visibility = chkDiscHealthcare.IsChecked == true
+                    ? System.Windows.Visibility.Visible
+                    : System.Windows.Visibility.Collapsed;
         }
 
         /// <summary>Show only discipline config sections for checked disciplines.</summary>
@@ -1056,6 +1071,24 @@ namespace StingTools.UI
             if (chkDiscFire.IsChecked == true) data.Disciplines.Add("FP");
             if (chkDiscLV.IsChecked == true) data.Disciplines.Add("LV");
             if (chkDiscGen.IsChecked == true) data.Disciplines.Add("G");
+            // HC-08: Healthcare discipline selection + facility type profile
+            if (chkDiscHealthcare.IsChecked == true)
+            {
+                data.Disciplines.Add("H");
+                data.HealthcareFacilityProfile = GetComboValue(cmbHealthcareFacilityType);
+                if (string.IsNullOrEmpty(data.HealthcareFacilityProfile))
+                    data.HealthcareFacilityProfile = "FULL";
+            }
+            // FOLDER-02: Free-text custom disciplines (comma-separated codes)
+            if (tbxCustomDisciplines != null && !string.IsNullOrWhiteSpace(tbxCustomDisciplines.Text))
+            {
+                foreach (string raw in tbxCustomDisciplines.Text.Split(','))
+                {
+                    string code = raw.Trim().ToUpperInvariant();
+                    if (!string.IsNullOrEmpty(code) && !data.Disciplines.Contains(code))
+                        data.Disciplines.Add(code);
+                }
+            }
 
             data.TitleBlockName = GetComboValue(cmbTitleBlock);
             if (data.TitleBlockName == "(Use first available)" || string.IsNullOrEmpty(data.TitleBlockName))
@@ -1648,6 +1681,9 @@ namespace StingTools.UI
 
         // Page 4: Disciplines
         public List<string> Disciplines { get; set; } = new List<string>();
+        /// <summary>HC-08 — Healthcare facility type profile (e.g. FULL / ACUTE / COMMUNITY).
+        /// Non-null when "H" is in Disciplines. Written to PRJ_ORG_HEALTH_PACK_PROFILE_TXT on finish.</summary>
+        public string HealthcareFacilityProfile { get; set; }
         public string TitleBlockName { get; set; }
 
         /// <summary>Per-discipline title block overrides ("A"/"S"/"M"/"E"/"P"/"FP"/"LV"/"G" → "Family : Type").

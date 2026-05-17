@@ -196,7 +196,7 @@ namespace StingTools.Commands.Plumbing
             {
                 var sel = TrapDesigner.SelectTrap(el);
                 string current = "";
-                try { current = el.LookupParameter(ParamRegistry.PLM_TRAP_TYPE)?.AsString() ?? ""; } catch { }
+                try { current = el.LookupParameter(ParamRegistry.PLM_TRAP_TYPE)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 bool match = string.Equals(current, sel.TrapType, StringComparison.OrdinalIgnoreCase);
                 if (string.IsNullOrEmpty(current)) { missing++; }
                 else if (match)                    { matches++; }

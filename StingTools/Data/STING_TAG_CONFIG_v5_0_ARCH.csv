@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.5,CREATED=2026-03-16,UPDATED=2026-05-06,FAMILIES=150,ADDS=phase_176_lps_natural_air_termination_arch_reuse(BS_EN_62305-3_§5.2.5),PREV=per_family_tier_variation+standards_cited+reuse_check,SYNC=LABEL_DEFINITIONS.json_v6.0(150_categories)+PARAMETER_REGISTRY.json_extended_params.tier_4_10(33_entries)+ELC_LPS_GROUP(7_containers)
+#SCHEMA_VERSION=5.4,CREATED=2026-03-16,UPDATED=2026-04-23,FAMILIES=142,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.9(138_categories)+PARAMETER_REGISTRY.json_extended_params.tier_4_10(33_entries)
 #
 # SCHEMA v5.2 (2026-04-16) — Added 3 trailing columns: Style,Color,Size
 #   Style  : NOM | BOLD | ITALIC | BOLDITALIC               (default per tier: T1=NOM, T2=NOM, T3=NOM)

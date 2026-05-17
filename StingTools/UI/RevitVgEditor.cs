@@ -687,8 +687,8 @@ namespace StingTools.UI
 
         private void RefreshFilters()
         {
-            try { _modelView?.Refresh(); } catch { }
-            try { _annoView?.Refresh(); }  catch { }
+            try { _modelView?.Refresh(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { _annoView?.Refresh(); }  catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private void SetAllVisible(bool v)
@@ -790,7 +790,7 @@ namespace StingTools.UI
                 }
                 n++;
             }
-            try { StingTools.Core.StingLog.Info($"RevitVgEditor.OpenCutLineStylesEditor: applied to {n} row(s) ({(cut ? "cut" : "projection")})."); } catch { }
+            try { StingTools.Core.StingLog.Info($"RevitVgEditor.OpenCutLineStylesEditor: applied to {n} row(s) ({(cut ? "cut" : "projection")})."); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private void ClearOverrides()
@@ -1216,7 +1216,7 @@ namespace StingTools.UI
                 var bic = (BuiltInCategory)(int)v;
                 return bic.ToString();
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private void LoadPatterns()
@@ -1234,14 +1234,14 @@ namespace StingTools.UI
                     if (!string.IsNullOrEmpty(lp.Name) && !_linePatterns.Contains(lp.Name))
                         _linePatterns.Add(lp.Name);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             try
             {
                 foreach (var fp in new FilteredElementCollector(_doc).OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>())
                     if (!string.IsNullOrEmpty(fp.Name) && !_fillPatterns.Contains(fp.Name))
                         _fillPatterns.Add(fp.Name);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             // Line Styles — every subcategory of OST_Lines is a line style;
             // its GraphicsStyle exposes Color + LineWeight + LinePatternId.
             try
@@ -1262,7 +1262,7 @@ namespace StingTools.UI
                             string patternName = null;
                             if (sub.LineColor != null && sub.LineColor.IsValid)
                                 colourHex = $"#{sub.LineColor.Red:X2}{sub.LineColor.Green:X2}{sub.LineColor.Blue:X2}";
-                            try { weight = sub.GetLineWeight(GraphicsStyleType.Projection) ?? 0; } catch { }
+                            try { weight = sub.GetLineWeight(GraphicsStyleType.Projection) ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                             try
                             {
                                 var pid = sub.GetLinePatternId(GraphicsStyleType.Projection);
@@ -1272,14 +1272,14 @@ namespace StingTools.UI
                                     else if (_doc.GetElement(pid) is LinePatternElement lp) patternName = lp.Name;
                                 }
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                             _lineStyleByName[sub.Name] = (colourHex, weight, patternName);
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             _linePatterns.Sort(StringComparer.OrdinalIgnoreCase);
             _fillPatterns.Sort(StringComparer.OrdinalIgnoreCase);
@@ -1290,7 +1290,7 @@ namespace StingTools.UI
                     $"RevitVgEditor.LoadPatterns: {_linePatterns.Count} line patterns, " +
                     $"{_fillPatterns.Count} fill patterns, {_lineStyles.Count} line styles harvested.");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private void OnRowChanged(VgRow r) => RowChanged?.Invoke(r);

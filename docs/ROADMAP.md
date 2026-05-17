@@ -6,7 +6,6 @@ Open automation gaps, future-enhancement tables, and deep-review findings for th
 
 - [`PLACEMENT_CENTRE_GUIDE.md`](PLACEMENT_CENTRE_GUIDE.md) — plain-English user guide to the Placement Centre: every button, every editor field, background concepts (anchors, regex, mounting reference, provenance, standards), worked walk-throughs, troubleshooting and a cheat-sheet (2026-04-25).
 - [`PLACEMENT_CENTRE_REVIEW.md`](PLACEMENT_CENTRE_REVIEW.md) — flexibility / functionality / automation gap audit of the Placement Centre with PC-01..PC-25 backlog and a recommended ≈ 25-category baseline catalogue (2026-04-25).
-- [`HEALTHCARE_PACK_DESIGN.md`](HEALTHCARE_PACK_DESIGN.md) — multi-phase design document for the Healthcare / Hospital Design pack covering HTM / HBN / FGI / NFPA 99 / NCRP 147 / ASHRAE 170 / ISO 14644 / USP 797-800 / SFG20-Healthcare integration. Defines ~140 new shared parameters, 60 filters, 16 drawing types, 4 ViewStylePacks, 8 validators, COBie-Healthcare overlay, RDS template engine, MGPS package, radiation calc, adjacency analyser, anti-ligature pack, behavioural-health pack, digital-twin / IoT bridge, mobile commissioning app and server APIs. Phased H-1..H-22 with file-by-file integration map (2026-05-08).
 
 ## How to use this file
 
@@ -183,7 +182,7 @@ Critical review of the tagging workflow identified the following logic, automati
 | BIM-4D-HANDOVER-01 | 4D schedule linked to document handover dates | Critical | **DONE** Phase 148: `DataDropTracker.GetDD4HandoverDate(doc)` exposes the DD4 actual / planned date so `Scheduling4DEngine` can extend the timeline beyond construction-finish into handover. |
 | BIM-SIDECAR-VER-01 | Sidecar file versioning for forward compatibility | Medium | **DONE** Phase 148: `SidecarVersioning.EnsureArrayMeta(arr, schema)` stamps a `_meta` sentinel record (`version=1.1`, `schema`, `written_at`, `written_by`); readers iterate via `Records()` to skip the sentinel and tolerate missing-meta legacy files. |
 | BIM-TRANSMIT-GATE-01 | Transmittal CDE state validation | Medium | **DONE** Phase 148: `TransmittalGate.Validate(doc, transmittal, requiredRank=1)` blocks transmittals whose referenced documents are below SHARED, returning a structured `(pass, blockers, summary)` result. |
-| BIM-TEAM-WORKLOAD-01 | Team workload visualization per assignee | Medium | No way to see per-member issue/task distribution for resource balancing |
+| BIM-TEAM-WORKLOAD-01 | Team workload visualization per assignee | Medium | **DONE** Phase 149: `TeamWorkloadEngine.Build()` + `TeamWorkloadReportCommand` + BCC Project Members "Issue Workload" sub-tab with sortable DataGrid (Critical×3+High×2+Open×1 score), KPI strip, and CSV export. |
 | TAG-CACHE-01 | Parameter cache key instability | Critical | Cache key using doc.GetHashCode() changes across sessions causing stale reads; use stable PathName key |
 | TAG-AUTOTAG-NULL-01 | AutoTagger PopulationContext null crash | Critical | PopulationContext.Build() returns null on corrupted docs; no null check before PopulateAll |
 | TAG-BATCH-FINAL-01 | Batch tag final chunk silent failure | Critical | 200-element chunked transactions silently fail on final incomplete batch (<100 elements) |
@@ -317,125 +316,6 @@ in `CHANGELOG.md`).
 |-----|----------|--------|
 | `TPL-FOLLOW-01` `.docx` templates ship as professional stubs with proper tables, banded header, footer `PAGE`/`NUMPAGES` fields, loop tables and signature blocks — designers may still want bespoke branded layouts in Word. | `StingTools/Docs/_template_sources/*.docx` | Open — non-blocking (stubs render cleanly). |
 | `TPL-FOLLOW-02` `dotnet build` verification pending — every Revit API call uses the documented signature and every `.cs` file was brace-balanced after stripping strings and comments. | All 22 new `.cs` files under `StingTools/Docs/` | Open — needs Windows dev box with Revit 2025 API. |
-| `TPL-FOLLOW-03` "My queue" sub-section in BCC Deliverables tab (S12 v1.1) — `WorkflowEngine.GetMyQueue(userEmail)` is implemented but no UI binding yet. | `StingTools/UI/BIMCoordinationCenter.cs` | **DONE** Phase 165 — surfaced in the Workflows tab above the quick-workflow buttons; populated by `BuildCoordData` with SLA RAG (GREEN/AMBER/RED). |
+| `TPL-FOLLOW-03` "My queue" sub-section in BCC Deliverables tab (S12 v1.1) — `WorkflowEngine.GetMyQueue(userEmail)` is implemented but no UI binding yet. | `StingTools/UI/BIMCoordinationCenter.cs` | Open — data layer ready. |
 | `TPL-FOLLOW-04` "Recipient matrix" view in BCC Deliverables tab (S18) — `DistributionGroups.SuggestFor(deliverable)` and group persistence are implemented; matrix view not yet drawn. | `StingTools/UI/BIMCoordinationCenter.cs` | Open — data layer ready. |
 | `TPL-FOLLOW-05` Faceted filter pills + saved-searches combo in Document Manager filter bar (S17). `DocumentIndex.Search` + `SavedSearchStore` implemented; dialog bar still uses the legacy free-text box. | `StingTools/UI/DocumentManagementDialog.cs` | Open — data layer ready. |
-
-### Future Enhancement Gaps — Structural DWG-to-BIM (Phase 140 Deferrals)
-
-Phase 140 landed grid snapping, span-proportional beam depth, multi-storey
-column heights, beam endpoint trimming, multi-category numbering, slab
-voids, grid-label marks, load-path warnings as TextNotes, duplicate
-detection, the Re-analyse dry-run button, and the misleading-label fix
-that triggered the branch (`Parallel max gap` → `Parallel pair max
-gap`). The items below were called out in the Phase 140 planning prompt
-but deferred so each could land cleanly in its own follow-up.
-
-| Gap | Description | Unblocker |
-|-----|-------------|-----------|
-| ~~`DWG-STRUCT-P2A` Strip foundation detection (under walls)~~ | **DONE** Phase 142. `StripFoundationDetector` builds rectangular loops along each wall centreline (oversized by `StripFndOversizeMm` per side) and feeds them through `CreateSlabsFromBoundaries`. Wizard exposes the toggle + oversize knob. |
-| ~~`DWG-STRUCT-P2F` Endpoint gap bridging at detection time~~ | **DONE** Phase 142. `DetectStructuralWalls` and `DetectBeamCenterlinesV2` synthesise overlap when two parallel lines fall within `EndpointGapToleranceMm` of each other longitudinally. |
-| ~~`DWG-STRUCT-P3B` Slab centroid → room seeding~~ | **DONE** Phase 143. `SlabRoomSeeder.Seed(doc, level, outerSlabs, voidLoops, cfg)` drops Revit Rooms at outer-loop centroids skipping points inside voids and existing rooms. Wizard exposes the toggle. |
-| ~~`DWG-STRUCT-P3C` Auto-create structural views after conversion~~ | **DONE** Phase 143. `StructuralViewCreator.CreateViews` creates a StructuralPlan ViewPlan per level that received elements and applies the corporate "S-PLAN" DrawingType via Phase-113 `DrawingTypePresentation.Apply()`. Default OFF (opt-in). |
-| ~~`DWG-STRUCT-DEEP-1` Steel I-section vs concrete rectangle inference~~ | **DONE** Phase 143. `BeamMaterialInferrer.AnnotateAll` heuristically classifies beams: parallel-pair (`WidthDetected==true`, width ≥ 200 mm) → concrete; single-line → steel I-section. Suffix appended to LayerName for downstream type matching. |
-| ~~`DWG-STRUCT-DEEP-2` Pile cap / raft / strip differentiation~~ | **DONE** Phase 143. `FoundationClassifier.Classify` splits detected rectangles into Pad / Raft / PileCap based on plan area + clustering. Rafts route to slab path; pads + pile caps stay on pad-foundation path. |
-| ~~`DWG-STRUCT-DEEP-3` Cantilever detection~~ | **DONE** Phase 142. `BeamSupportClassifier` flags free-end and cantilever beams; `MarkCantileverBeams` toggle stamps the Comments parameter so they're filterable in schedules. Junction warnings are also placed as TextNotes via Phase 141 `DetectJunctions` wiring. |
-| ~~`DWG-STRUCT-DEEP-4` Beam-overlap ratio configurability~~ | **DONE** Phase 142. `BeamOverlapMinRatio` config field threads through `DetectBeamCenterlinesV2` and `DetectStructuralWalls`. Wizard exposes the knob in ACCURACY (Phase-142). |
-| `DWG-STRUCT-DEEP-5` Foundation EC7 sizing  with soil class + load | Phase 140 surfaced the EC7 §6.5 disclaimer; the actual heuristic is still a flat 1.5× column-bbox oversize. A correct implementation needs soil bearing capacity, load combinations, and serviceability checks per EC2/EC7. | New `FoundationSizingEngine` that takes `(columnLoad, soilClass, loadCombination)` and returns a footing size from EC2/EC7. |
-| ~~`DWG-STRUCT-DEEP-6` Junction-type Mark stamping~~ | **DONE** Phase 143. `JunctionMarkStamper.Stamp` appends `J:T` / `J:L` / `J:X` / `J:S` to the Mark of every column / beam participating in a detected junction. (True connection-detail synthesis — bolt patterns, weld lines, Revit connection families — remains future work, tracked as DWG-STRUCT-DEEP-6b below.) |
-| `DWG-STRUCT-DEEP-6b` Connection-detail element synthesis | Phase 143 stamps junction-type Marks but does not create connection geometry. A future pass would create bolt patterns, weld lines, or Revit structural connection family instances at each L/T/Cross junction. | Connection-element synthesizer per junction type, consumed by Revit structural connection families. |
-| ~~`DWG-STRUCT-DEEP-7` Continuous columns via Top Constraint = top level~~ | **DONE** Phase 142. `CreateColumnsWithHeight` already sets `FAMILY_TOP_LEVEL_PARAM` to the top level when `topLevel != null` — Phase 142 verified the existing behaviour, added the explicit `UseTopConstraintForContinuousColumns` config flag for documentation, and clarified the wizard tooltip. |
-| ~~`DWG-STRUCT-DEEP-8` Beams-on-walls applied per-beam, not globally~~ | **DONE** Phase 142. `BeamSupportClassifier` reads each beam endpoint's actual support type; `ApplyBeamSupportPostCreation` only applies the wall-top offset to beams that rest on a wall and not on a column. (The `BeamsRestOnWalls` config field had been on the type since Phase 78 but was never read — Phase 142 closed the loop.) |
-
-### Cloud-Sync & Federation Feature Audit (2026-04-28)
-
-A consultancy estimate received in April 2026 priced seven phases of cloud-sync work
-(STC hook, conflict detection, auto-sync scheduler, Speckle, web 3D viewer, BCF
-endpoints, mobile 3D context) at £20–28k. An audit against the live tree shows
-six of the seven are already shipped — the estimate was working from out-of-date
-assumptions about what the codebase contains. **This table is the authoritative
-ground truth so future estimates do not re-bid these line items.**
-
-| Estimate phase | Real status | Evidence | Open scope |
-|---|---|---|---|
-| 3 — `OnDocumentSynchronizedWithCentral` deferred-tag drain | **DONE** | `StingTools/Core/StingToolsApp.cs:87` subscribes; drain logic at `:185–243`. CHANGELOG entry 371 (R-02). | None |
-| 4 — `LastModifiedUtc` last-write-wins conflict detection | **DONE** | Field on `TagElementPayload` (`StingTools/BIMManager/PlanscapeServerClient.cs:1042`); populated from `ASS_TAG_MODIFIED_DT` at `StingTools/BIMManager/PlatformLinkCommands.cs:2140`. Server side: migration `Planscape.Server/src/Planscape.Infrastructure/Data/Migrations/20250418000000_AddTagLastModified.cs` + conflict logic in `TagSyncController.cs:69–104` + `Planscape.Server/tests/Planscape.Tests/TagSyncConflictTests.cs` (184 lines). CHANGELOG Phase 91. | None |
-| 5 — `SyncScheduler.Start()` 5-min auto-sync | **DONE** | Wired at `StingTools/Core/StingToolsApp.cs:95–118` via `PluginSyncTickBridge`; `DocumentSaved` enqueue at `:542–635`. CHANGELOG Phase 92 ("Activate Planscape.PluginSync.SyncScheduler"). | None |
-| 6 — Speckle Send / Receive / Diff | **DONE** | Snapshot engine + three commands + `SpeckleSnapshot` workflow preset (Phase 92). HTTP transport `SpeckleHttpTransport` (~190 lines, raw GraphQL + multipart `/objects/{streamId}` upload, no Speckle SDK NuGet) added in Phase 161 — `Send` round-trips a single root `Base` with tag DTOs inline; `Receive` reads the latest commit on the target branch and overwrites the local snapshot. Stream URL parser supports both v2 `/streams/<id>[/branches/<name>]` and FE2/v3 `/projects/<id>[/models/<name>]` shapes. | None |
-| 7 — xeokit / web 3D viewer | **DONE** | `Planscape.Server/src/Planscape.API/wwwroot/{index.html,viewer/,viewer.html,css/,js/}`; `app.UseStaticFiles()` in `Program.cs`; `ViewerController.cs` (99 lines, "PHASE 93 — xeokit-based model viewer") at `/api/viewer/models[/{filename}]`. | None |
-| 8 — BCF 2.1 export/import endpoints | **DONE** | Shared engine: `StingTools/BIMManager/BcfEngine.cs` (~380 lines, `Planscape.Shared.BCF` namespace, no Revit / no Newtonsoft). Server controller: `Planscape.Server/src/Planscape.API/Controllers/BcfController.cs` (186 lines) — `GET /api/projects/{id}/bcf/export`, `POST /api/projects/{id}/bcf/import`, BcfGuid round-trip. CHANGELOG Phase 95. | None on the endpoint itself. (`BIM-BCF-SYNC-01` below tracks the separate ACC/Procore-pull half.) |
-| 9 — Mobile 3D context in issue detail | **DONE** | Three complementary paths shipped: (a) **Phase 94** — fullscreen WebBrowser xeokit viewer via `openViewer(projectCode, modelId?)` in `issues.tsx`/`issue-detail.tsx`. (b) **Phase 162** — inline `<ModelViewer>` embed in `issue-detail.tsx` gated on `issue.modelId`; "Linked model" chip-row picker in `issues.tsx` creation form driven by `listModels(projectId)`; server `CreateIssueRequest` accepts `ModelId` + anchor coords with project-ownership validation. (c) **Phase 163** — closes Phase 162's three caveats: viewer's `onPlaceIssue` gesture deep-links into the (tabs) creation modal via `?fromViewer=1&modelId=...&modelX/Y/Z=...&modelElementGuid=...` (replaces the broken `/issues/new` push at `models/[id].tsx:96`); the inline embed pins every other open issue on the same model with `onPinTap` navigation; fullscreen `openIn3D`/`openViewer` route through `<modelId>.xkt` when the issue is linked, falling back to the project default otherwise. | None |
-
-**Bonus already-shipped, missed by the consultancy estimate**: Sync-conflict triage UI
-(`Planscape.Server/src/Planscape.API/Controllers/SyncConflictsController.cs`, 427 lines
-+ mobile `Planscape/app/conflicts/` route, CHANGELOG Phase 143).
-
-**Net remaining work for this whole bundle**: nothing — the last partial item
-(Speckle HTTP transport) closed in Phase 161.
-
-### Phase 165 closures (Write enhanced analysis and placement centre overhaul)
-
-| ID | Status |
-|---|---|
-| ~~`NEW-02` Clash engine wiring audit~~ | **DONE** Phase 165: `ClashScheduler.Start` is now invoked from `StingToolsApp.OnDocumentOpened` for project documents (gated by the new `TagConfig.AutoStartClashScheduler` flag, default false because per-tick cost on large models is non-trivial). Idempotent across re-opens via `Stop()` before `Start()`. ClashSlaIntegration / ClashRunCommand / ClashHistory remain wired as they were. |
-| ~~`NEW-08` Outbound webhooks~~ | **DONE** Phase 165: Server-side `OutboundWebhook` entity + `OutboundWebhookDispatcher` (HMAC-SHA256, single retry, per-row outcome) + `WebhooksController` (CRUD + `/test` synthetic fire). Wired into `IssuesController.CreateIssue` and `DocumentsController.TransitionState` fanouts. EF migration to mint the table is the only follow-up — DbContext + entity changes are in place so `dotnet ef migrations add OutboundWebhooks` will pick them up. |
-| ~~`MOB-11` Dark mode~~ | **DONE** Phase 165: `src/theme/theme.ts` now persists user preference (light/dark/system) in AsyncStorage with listener-based notification. `_layout.tsx::checkAuth` calls `loadThemePref()` before first paint. `(tabs)/settings.tsx` Appearance card with three accessibility-labelled selectable buttons. Legacy `utils/theme.ts` corporate palette unchanged for gradual migration. |
-| `INT-02` Dispatch registry framework | **PARTIAL** Phase 165: `UI/CommandRegistry.cs` ships the framework (ICommandModule + Register + TryHandle + lazy singleton); `ElectricalCommandModule` is the first migrated panel (4 tags). The `CommandRegistry.TryHandle` short-circuit at the top of `StingCommandHandler.Execute` lets new modules win over the giant switch. Remaining ~25 panels migrate panel-by-panel in subsequent phases. |
-| `INT-01` HTTP client consolidation | Deferred (Phase 165 audit): `Planscape.PluginSync` is actively used by `PlatformLinkCommands.cs` (3 sites) + `StingDockPanel.xaml.cs` (3 sites). Deletion would require reworking ~600 lines without compile verification. The dual-layer state remains as documented in CLAUDE.md. |
-| Fabrication doc-register auto-link | **DONE** Phase 165: `GenerateFabPackageCommand` now calls `FabricationDocRegister.PushSheets` so generated SP-* sheets land in `_BIM_COORD/document_register.json` automatically with suitability `S0`, status `WIP`. |
-
-### Phase 168 closures (Unified project folder system)
-
-| ID | Status |
-|---|---|
-| Messy folder structure (4 competing roots) | **DONE** Phase 168: `_BIM_COORD\`, `STING_BIM_MANAGER\`, `STING_Exports\`, `STING_Project\` consolidated into one `{ProjectCode}\` root with `_data\` subfolder for sidecar JSON. New `ProjectSetup` POCO + `FolderTemplateLibrary` (4 built-ins) + `ProjectFolderSetupDialog` (3-section WPF dialog) + `FolderHealthPanel` (per-folder status pills). `ProjectFolderEngine.MigrateFromLegacy(doc)` moves legacy folders + `.sting_*.json` sidecars into the new structure routed by extension. 10 sidecar callers redirected to `ProjectFolderEngine.GetDataPath(doc, "*.json")` with try/catch fallback. |
-
-### Future Enhancement Gaps — Parameter System Architecture (Phase 168)
-
-| ID | Description | Priority |
-|---|---|---|
-| TAG-01 | **Replace 128 TAG style BOOL parameters with single TAG_STYLE_CODE_TXT.** Current state: 128 universal YESNO parameters (`TAG_2NOM_BLACK_BOOL` … `TAG_3.5BOLDITALIC_WHITE_BOOL`) bound to every element in the model. Mutual exclusion enforced by `TagStyleEngine` code, not by the data model. Target state: 1 TEXT param `TAG_STYLE_CODE_TXT` (value e.g. `"2BOLD_BLUE"`) + 128 calculated BOOL formulas inside each tag family reading it. Net saving: 127 universal shared params off every element. Migration: requires updating every `.rfa` tag family file + one migration command to write `TAG_STYLE_CODE_TXT` from the currently-true BOOL on existing elements. **Effort:** Large (tag family rework). **Benefit:** Significant Revit performance on large models. | Medium |
-
-### Future Enhancement Gaps — Project Folder System (Phase 168 follow-ups)
-
-| ID | Description | Priority |
-|---|---|---|
-| FOLDER-01 | Cloud sync mapping — extend `ProjectSetup` with `CloudRoot` + `CloudProvider` fields so the `{ProjectCode}\` tree can mirror to ACC / SharePoint / Dropbox / OneDrive automatically when files land in `02_SHARED` or `03_PUBLISHED`. | High |
-| FOLDER-02 | Free-text discipline entry — surface custom discipline names (beyond the fixed 8 A/E/M/P/S/FP/LV/Z list) in the setup dialog so projects can add bespoke discipline subfolders without hand-editing JSON. | Medium |
-| FOLDER-03 | Multi-model workspace — when two `.rvt` files (e.g. `TROKON FRIEND.rvt` + `TROKON FRIEND 2.rvt`) share one project code, both should resolve to the same `{ProjectCode}\` root deterministically; today's sibling-folder scan in `LoadOrDetectSetup` is best-effort. | Medium |
-| FOLDER-04 | Folder-watcher toggle — surface `ProjectFolderEngine.StartWatching` from the dockable panel so external Explorer drops auto-trigger CDE classification. | Low |
-| FOLDER-05 | Schema versioning — add `SchemaVersion` to `ProjectSetup` + migration step so future schema changes can read old `project_setup.json` and upgrade in place. | Low |
-
-### Future Enhancement Gaps — Healthcare Pack (H-1..H-30 follow-ups)
-
-Items left open after the H-1..H-30 implementation sweep on branch
-`claude/research-hospital-design-0Uxbi`. Each is additive — none
-blocks a healthcare project from using the pack today.
-
-| ID | Description | Priority |
-|---|---|---|
-| HC-01 | **WPF Healthcare tab** — the dock panel does not yet have a Healthcare ribbon / tab. Commands dispatch via `WorkflowEngine.ResolveCommand` + `StingCommandHandler` tags only; clinicians need a visible button surface. | High |
-| HC-02 | **BIM Coordination Centre 14th tab** — design doc §12 specifies 9 RAG cards (Pressure / MGPS / EES / Water / Radiation / Anti-Lig / RDS / Adjacency / Commissioning Gantt) gated on `PRJ_ORG_HEALTH_FACILITY_TYPE_TXT`. Not yet built. | High |
-| HC-03 | **`healthcare_rds.docx` template authoring** — the field-map is committed but the .docx itself is a README placeholder. RDS render currently logs a "resource missing" warning. | High |
-| HC-04 | **MGS family library** — 6 family stubs (Manifold / VIE / ZVB / AAP / MAP / TU) ship parameter specs only. Real `.rfa` from manufacturers. | High |
-| HC-05 | **`TwinReadback` BACnet + OPC-UA transports** — `BacnetReadback` and `OpcUaReadback` are abstract stubs; they wire `IoTDeviceRegistry` correctly but never poll. Plug in `yabe`/CAS-BACnet and `opcfoundation/UA-.NETStandard` behind the existing interface. | High |
-| HC-06 | **EF migration `HealthcarePack`** — 4 new entities + DbSets are registered but `dotnet ef migrations add HealthcarePack` not yet run against `Planscape.Server`. | High |
-| HC-07 | **DocumentOpened morning briefing** — `StingToolsApp.OnDocumentOpened` runs `ComplianceScan` on open; should detect healthcare facility-type and surface healthcare validator counts in the status bar / morning briefing. | Medium |
-| HC-08 | **`ProjectSetupWizard` healthcare branch** — wizard does not ask if the project is a healthcare facility; user must populate `PRJ_ORG_HEALTH_*` parameters by hand to unlock the validator chain. | Medium |
-| HC-09 | **`MasterSetupCommand` healthcare extension** — the 15-step master setup does not load healthcare params or apply COBie-Healthcare overlay; manual COBie preset selection required. | Medium |
-| HC-10 | **AutoTagger / StingStaleMarker healthcare categories** — `OST_SpecialityEquipment` is already in the IUpdater categories. Confirm `OST_MedicalEquipment` and `OST_NurseCallDevices` (Revit 2018+ healthcare-specific categories) are also in the IUpdater list so imaging modalities and nurse-call posts auto-tag and stale-mark. | Medium |
-| HC-11 | **Mobile offline-queue integration** — healthcare screens POST directly. Failures trigger `Alert.alert` only. Queue them via the existing `OfflineQueue` so MGPS verifications / pressure logs / anti-lig audits captured offline land on the server when connectivity returns. | Medium |
-| HC-12 | **HEALTHCARE_PACK_PROFILES.json UX** — gate works but no UI exposes `PRJ_ORG_HEALTH_PACK_PROFILE_TXT`. Add a project-info panel control so a coordinator can switch ACUTE → COMMUNITY → IMAGING-ONLY without text-editing. | Medium |
-| HC-13 | **Healthcare workflow auto-run on open** — `AUTO_RUN_WORKFLOW_ON_OPEN` config exists; healthcare projects should default to `HealthcareCommissioning` (or the workflow appropriate for the active pack profile). | Low |
-| HC-14 | **Issue tracker healthcare categories** — `BimIssue` accepts free-text categories; add a healthcare picklist (Infection-Control / MGPS-Defect / Anti-Lig-Failure / Calibration-Due / RDS-Drift). | Low |
-| HC-15 | **HBN room-type catalogue auto-populator** — given a `CLN_ROOM_CLASS_TXT`, auto-populate the design ACH / pressure / temp / RH / NR / lighting lux from the standards lookup tables. Saves manual transcription per room. | High |
-| HC-16 | **CommandRegistry framework migration** — `INT-02` introduced `ICommandModule`; healthcare commands could be a self-registering `HealthcareCommandModule` so the `StingCommandHandler` switch shrinks. | Low |
-| HC-17 | **PARAMETER_REGISTRY.json container_groups** — tag-container metadata for the 5 new groups (CLN/MGS/RAD/CEQ/LIG) lives only in `TAG_CONFIG_v5_0_CONTAINERS.csv`. Mirror into the registry JSON so `TagPipelineHelper.WriteContainers` writes healthcare tag containers automatically. | Medium |
-| HC-18 | **Briefcase / Sticky note hooks** — RDS / MGPS verification logs can be useful in the briefcase. Audit `BriefcaseAddFile` to ensure healthcare folders are scannable. | Low |
-| HC-19 | **iHFG (TAHPI) fully populated** — `Standards/iHFG/` not built; international healthcare projects fall back to FGI defaults. | Medium |
-| HC-20 | **WHTM / SHTM / NHS-NI variant tables** — `PRJ_ORG_HEALTH_HTM_REGION_TXT` accepts the variant codes but the standards modules carry only NHS England HTMs; regional variants need their own lookup tables. | Low |
-| HC-21 | **STING Healthcare Title Block family** — 22 healthcare drawing types reference `STING - Healthcare Title Block`. Family is not authored yet; existing default title block falls through. | Medium |
-| HC-22 | **SignalR HealthcareHub for live pressure cascade** — `pressure-live.tsx` mobile screen renders empty state until a SignalR hub is added server-side and the BACnet bridge pushes live Δp. | Medium |
-| HC-23 | **CCTV / observation LOS computational geometry** — `LIG_AREA_OBS_LOS_TXT` is a TEXT code today. A proper visibility-cone solver would let the validator compute LOS percentage automatically against `MinObservationLOSPercent` per behavioural-health room class. | Low |
-| HC-24 | **Pneumatic tube / AGV path optimiser** — design doc §11 H-10 mentions a path planner; current implementation only does adjacency BFS. AGV path optimisation against `Core/Routing/DropEngineBase` is a future enhancement. | Low |
-| HC-25 | **iHFG / FGI 2026 facility code adoption tracking** — FGI 2026 transitions from guidance to enforceable code. As clauses become mandatory in jurisdictions, validators should escalate from `Warning` to `Error` automatically. | Low |

@@ -4356,7 +4356,7 @@ namespace StingTools.Core
                 string p = StingTools.Core.ProjectFolderEngine.GetDataPath(doc, "seq_counters.json");
                 if (!string.IsNullOrEmpty(p)) return p;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string dir = System.IO.Path.GetDirectoryName(projectPath);
             string fileName = System.IO.Path.GetFileNameWithoutExtension(projectPath);
             if (string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(fileName)) return null;
@@ -6490,7 +6490,7 @@ namespace StingTools.Core
                 }
                 if (p.StorageType == StorageType.Integer) return p.AsInteger() != 0;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 

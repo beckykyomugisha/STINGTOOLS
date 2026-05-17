@@ -58,6 +58,21 @@ namespace StingTools.Core.Placement
                 //    RouteSegmentCategory and create straight segments
                 //    between consecutive offsetPoints.
                 ElementId levelId = room?.LevelId ?? ElementId.InvalidElementId;
+                // Phase 139.29 — fallback when the host room has no level (rare:
+                // detached / view-specific elements). Without a valid level every
+                // Conduit/Pipe/Duct.Create call below throws ArgumentException and
+                // the user just sees "segment N create failed" with no clue why.
+                if (levelId == ElementId.InvalidElementId)
+                {
+                    levelId = FallbackLevelId(_doc, endpoints);
+                    if (levelId == ElementId.InvalidElementId)
+                    {
+                        result.Warnings.Add(
+                            $"WallFollowerRouter: no resolvable level for rule '{rule.RuleId}' " +
+                            "(room has no level and no project levels found).");
+                        return result;
+                    }
+                }
                 ElementId typeId  = ResolveDefaultType(rule.RouteSegmentCategory);
                 ElementId systemTypeId = ResolveSystemType(rule.RouteSegmentCategory);
                 if (typeId == ElementId.InvalidElementId)
@@ -76,27 +91,38 @@ namespace StingTools.Core.Placement
                     ElementId newId = ElementId.InvalidElementId;
                     try
                     {
+                        // API-NOTE (Revit 2025+):
+                        //   Conduit.Create(Document, ElementId conduitTypeId, XYZ start, XYZ end, ElementId levelId)
+                        //   CableTray.Create(Document, ElementId trayTypeId, XYZ start, XYZ end, ElementId levelId)
+                        //   Pipe.Create(Document, ElementId systemTypeId, ElementId pipeTypeId, ElementId levelId, XYZ start, XYZ end)
+                        //   Duct.Create(Document, ElementId systemTypeId, ElementId ductTypeId, ElementId levelId, XYZ start, XYZ end)
+                        // Signatures verified against Revit 2025 API docs. Pipe/Duct require a valid
+                        // systemTypeId — early-warn here rather than failing inside the API.
                         switch ((rule.RouteSegmentCategory ?? "").ToUpperInvariant())
                         {
                             case "CONDUIT":
-                                // TODO-VERIFY-API: Conduit.Create signature
                                 newId = Conduit.Create(_doc, typeId, a, b, levelId)?.Id ?? ElementId.InvalidElementId;
                                 break;
                             case "CABLETRAY":
-                                // TODO-VERIFY-API: CableTray.Create signature
                                 newId = CableTray.Create(_doc, typeId, a, b, levelId)?.Id ?? ElementId.InvalidElementId;
                                 break;
                             case "PIPE":
-                                // TODO-VERIFY-API: Pipe.Create signature for systemTypeId variant
-                                newId = (systemTypeId != ElementId.InvalidElementId
-                                    ? Pipe.Create(_doc, systemTypeId, typeId, levelId, a, b)
-                                    : null)?.Id ?? ElementId.InvalidElementId;
+                                if (systemTypeId == ElementId.InvalidElementId)
+                                {
+                                    result.Warnings.Add(
+                                        $"WallFollowerRouter: PIPE segment {i} skipped — no PipingSystemType loaded for rule '{rule.RuleId}'");
+                                    continue;
+                                }
+                                newId = Pipe.Create(_doc, systemTypeId, typeId, levelId, a, b)?.Id ?? ElementId.InvalidElementId;
                                 break;
                             case "DUCT":
-                                // TODO-VERIFY-API: Duct.Create signature for systemTypeId variant
-                                newId = (systemTypeId != ElementId.InvalidElementId
-                                    ? Duct.Create(_doc, systemTypeId, typeId, levelId, a, b)
-                                    : null)?.Id ?? ElementId.InvalidElementId;
+                                if (systemTypeId == ElementId.InvalidElementId)
+                                {
+                                    result.Warnings.Add(
+                                        $"WallFollowerRouter: DUCT segment {i} skipped — no MechanicalSystemType loaded for rule '{rule.RuleId}'");
+                                    continue;
+                                }
+                                newId = Duct.Create(_doc, systemTypeId, typeId, levelId, a, b)?.Id ?? ElementId.InvalidElementId;
                                 break;
                             default:
                                 result.Warnings.Add(
@@ -106,7 +132,11 @@ namespace StingTools.Core.Placement
                     }
                     catch (Exception ex)
                     {
-                        result.Warnings.Add($"WallFollowerRouter: segment {i} create failed: {ex.Message}");
+                        // Include API call name in the warning so a signature mismatch in a future
+                        // Revit version is immediately diagnosable from the log.
+                        result.Warnings.Add(
+                            $"WallFollowerRouter: {rule.RouteSegmentCategory}.Create(seg={i}) failed: " +
+                            $"{ex.GetType().Name} — {ex.Message}");
                     }
 
                     if (newId != ElementId.InvalidElementId)
@@ -267,7 +297,7 @@ namespace StingTools.Core.Placement
                 var first = new FilteredElementCollector(_doc).OfClass(t).FirstElementId();
                 return first ?? ElementId.InvalidElementId;
             }
-            catch { return ElementId.InvalidElementId; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ElementId.InvalidElementId; }
         }
 
         private ElementId ResolveSystemType(string segmentCategory)
@@ -284,7 +314,7 @@ namespace StingTools.Core.Placement
                 var first = new FilteredElementCollector(_doc).OfClass(t).FirstElementId();
                 return first ?? ElementId.InvalidElementId;
             }
-            catch { return ElementId.InvalidElementId; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ElementId.InvalidElementId; }
         }
 
         private void TryStampRouteRuleId(ElementId id, string ruleId)
@@ -298,6 +328,43 @@ namespace StingTools.Core.Placement
                     p.Set(ruleId);
             }
             catch (Exception ex) { StingLog.Warn($"TryStampRouteRuleId {id?.Value}: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Pick a sensible level when the host room has none. Strategy:
+        ///   1. The level whose elevation is closest to the median Z of the endpoints.
+        ///   2. Falls back to the first level by elevation if endpoints are null.
+        /// Returns InvalidElementId if the project has no levels at all (unusual).
+        /// </summary>
+        private static ElementId FallbackLevelId(Document doc, IList<XYZ> endpoints)
+        {
+            if (doc == null) return ElementId.InvalidElementId;
+            try
+            {
+                var levels = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Level))
+                    .Cast<Level>()
+                    .OrderBy(l => l.Elevation)
+                    .ToList();
+                if (levels.Count == 0) return ElementId.InvalidElementId;
+                if (endpoints == null || endpoints.Count == 0) return levels[0].Id;
+
+                double medianZ = endpoints
+                    .Where(p => p != null)
+                    .Select(p => p.Z)
+                    .OrderBy(z => z)
+                    .Skip(endpoints.Count / 2)
+                    .FirstOrDefault();
+                return levels
+                    .OrderBy(l => Math.Abs(l.Elevation - medianZ))
+                    .First()
+                    .Id;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"WallFollowerRouter.FallbackLevelId: {ex.Message}");
+                return ElementId.InvalidElementId;
+            }
         }
     }
 }

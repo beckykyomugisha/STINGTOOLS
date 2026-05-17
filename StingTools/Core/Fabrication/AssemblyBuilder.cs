@@ -159,7 +159,7 @@ namespace StingTools.Core.Fabrication
 
         private static string ReadString(Element el, string param)
         {
-            try { return el?.LookupParameter(param)?.AsString() ?? ""; } catch { return ""; }
+            try { return el?.LookupParameter(param)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
         private static void TrySetString(Element el, string param, string val)
         {
