@@ -71,7 +71,7 @@ namespace StingTools.Commands.Symbols
 
         // ── Mode 1: selected family instances ────────────────────────────────
 
-        private static Result AuthorFromSelection(ParameterHelpers.StingCommandContext ctx)
+        private static Result AuthorFromSelection(StingCommandContext ctx)
         {
             // Collect unique Family objects from the selection
             var families = ctx.UIDoc.Selection
@@ -198,7 +198,7 @@ namespace StingTools.Commands.Symbols
         // ── Mode 2: file / folder picker ──────────────────────────────────────
 
         private static Result AuthorFromFiles(
-            ParameterHelpers.StingCommandContext ctx, bool isBatch)
+            StingCommandContext ctx, bool isBatch)
         {
             List<string> rfaFiles;
 
