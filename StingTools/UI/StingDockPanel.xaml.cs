@@ -2224,27 +2224,83 @@ namespace StingTools.UI
             if (popSuggestions != null) popSuggestions.IsOpen = false;
             txtCommandBar?.Clear();
 
-            // Check if this looks like a natural language query rather than a tag
+            // Natural-language phrase (spaces, no underscores) → run through NLP engine
             bool isNlQuery = tag.Contains(" ") && !tag.Contains("_");
             if (isNlQuery)
             {
-                // Process as NLP query → find best command
                 var results = Tags.NLPEngine.ProcessQuery(tag);
-                if (results.Count > 0)
-                    tag = results[0].CommandTag;
-                else
+                if (results.Count == 0)
                 {
-                    // Route to LLM if no rule match — AI button path
                     DispatchAIQuery(tag, isDesignBrief: false);
                     return;
                 }
+
+                // Auto-execute when one result dominates (≥0.80 confidence, 15+ pt gap to runner-up)
+                bool clearWinner = results[0].Confidence >= 0.80 &&
+                                   (results.Count == 1 || results[1].Confidence <= results[0].Confidence - 0.15);
+
+                if (clearWinner)
+                {
+                    tag = results[0].CommandTag;
+                }
+                else
+                {
+                    // Ambiguous — let the user pick from the top matches
+                    tag = ShowCommandPickerDialog(results);
+                    if (tag == null) return; // user cancelled
+                }
             }
 
-            // Dispatch via the standard command handler
             _handler?.SetCommand(tag);
-            var req = _externalEvent?.Raise();
-            StingTools.Core.StingLog.Info($"CommandBar dispatched: {tag} (request={req})");
+            _externalEvent?.Raise();
+            StingTools.Core.StingLog.Info($"CommandBar dispatched: {tag}");
             UpdateStatus($"Running: {tag}");
+        }
+
+        // Shows a compact chooser when multiple NLP results are close in confidence.
+        // Uses TaskDialog CommandLinks (≤3 options) or StingListPicker (4+ options).
+        private string ShowCommandPickerDialog(List<Tags.IntentResult> options)
+        {
+            if (options == null || options.Count == 0) return null;
+
+            const int MaxLinks = 3;
+            var top = options.Take(MaxLinks + 1).ToList();
+
+            if (top.Count <= MaxLinks)
+            {
+                // Compact TaskDialog with one CommandLink per option
+                var td = new TaskDialog("Choose a command");
+                td.MainInstruction = "Multiple commands match — which did you mean?";
+                td.MainContent     = "Select the action you want to run:";
+                var linkIds = new[]
+                {
+                    TaskDialogCommandLinkId.CommandLink1,
+                    TaskDialogCommandLinkId.CommandLink2,
+                    TaskDialogCommandLinkId.CommandLink3,
+                };
+                for (int i = 0; i < top.Count; i++)
+                    td.AddCommandLink(linkIds[i], top[i].CommandTag, top[i].Description);
+                td.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var result = td.Show();
+                if (result == TaskDialogResult.Cancel) return null;
+                int idx = Array.IndexOf(linkIds, result);
+                return (idx >= 0 && idx < top.Count) ? top[idx].CommandTag : null;
+            }
+            else
+            {
+                // More than 3 — use StingListPicker with search filter
+                var items = options
+                    .Select(r => new StingListPicker.ListItem
+                    {
+                        Label  = r.CommandTag,
+                        Detail = $"{r.Description}  ({r.Confidence:P0} match)",
+                    })
+                    .ToList();
+                var sel = StingListPicker.Show("Choose a command",
+                    "Multiple commands match — select the one you want:", items);
+                return sel?.FirstOrDefault()?.Label;
+            }
         }
 
         private void AskAI_Click(object sender, RoutedEventArgs e)
