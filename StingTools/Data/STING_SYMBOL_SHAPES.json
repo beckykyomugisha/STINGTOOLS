@@ -1,6 +1,7 @@
 {
   "version": "1.1",
   "description": "IEC 60617, ANSI/IEEE 315, BS 1553, NFPA 170, and CIBSE Guide normalised plan-symbol geometry for STING family authoring. Coordinates are normalised: 1.0 = halfWidth of the symbol bounding box. Scaled by FamilySymbolAuthorOptions.PlanHalfWidthFt at runtime. Standards: IEC (0), ANSI (1), BS (2), NFPA (3), CIBSE (4).",
+  "angles": "radians",
   "categories": {
 
     "OST_ElectricalFixtures": {
@@ -77,7 +78,7 @@
       ]
     },
 
-    "OST_LightingFixtures_Recessed": {
+    "_OST_LightingFixtures_Recessed_UNUSED": {
       "IEC": [
         { "type": "circle", "r": 1.0 },
         { "type": "circle", "r": 0.5, "comment": "inner circle = recessed" }

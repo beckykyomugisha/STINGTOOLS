@@ -444,7 +444,9 @@ namespace StingTools.Core
                 var existing = fm.GetParameters()
                     .ToDictionary(p => p.Definition.Name, StringComparer.OrdinalIgnoreCase);
 
-                // ── STING_SYMBOL_STD — Integer type param (controls which standard is shown) ──
+                // ── STING_SYMBOL_STD — Integer instance param so per-instance overrides work ──
+                // Instance param is required: SetElementSymbolStandardCommand writes it via
+                // FamilyInstance.LookupParameter, which cannot reach type params.
                 FamilyParameter stdParam = existing.ContainsKey(ParamRegistry.SYMBOL_STD_PARAM)
                     ? existing[ParamRegistry.SYMBOL_STD_PARAM]
                     : null;
@@ -456,8 +458,14 @@ namespace StingTools.Core
                             ParamRegistry.SYMBOL_STD_PARAM,
                             GroupTypeId.General,
                             SpecTypeId.Int.Integer,
-                            false);   // type param so a single change affects all instances
-                        if (fm.CurrentType != null) fm.Set(stdParam, ParamRegistry.STD_CODE_IEC);
+                            true);   // instance param — enables per-instance standard override
+                        // Seed IEC on every existing family type so the parameter has a defined value.
+                        foreach (FamilyType ft in fm.Types)
+                        {
+                            fm.CurrentType = ft;
+                            if (!stdParam.IsReadOnly)
+                                fm.Set(stdParam, ParamRegistry.STD_CODE_IEC);
+                        }
                         result.StandardParamsCreated++;
                     }
                     catch (Exception ex)
@@ -875,6 +883,7 @@ namespace StingTools.Core
 
         private static JObject _symbolShapesCache = null;
         private static bool    _symbolShapesCacheTried = false;
+        private static readonly object _cacheSync = new object();
 
         private static bool JsonSymbolShapesExist()
         {
@@ -885,16 +894,25 @@ namespace StingTools.Core
         private static void LoadSymbolShapesJson()
         {
             if (_symbolShapesCacheTried) return;
-            _symbolShapesCacheTried = true;
-            try
+            lock (_cacheSync)
             {
-                string path = StingToolsApp.FindDataFile("STING_SYMBOL_SHAPES.json");
-                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
-                _symbolShapesCache = JObject.Parse(File.ReadAllText(path));
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"FamilySymbolAuthor: could not load STING_SYMBOL_SHAPES.json: {ex.Message}");
+                if (_symbolShapesCacheTried) return;
+                _symbolShapesCacheTried = true;
+                try
+                {
+                    string path = StingToolsApp.FindDataFile("STING_SYMBOL_SHAPES.json");
+                    if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
+                    var parsed = JObject.Parse(File.ReadAllText(path));
+                    // Version guard — warn if the JSON is from an unexpected schema revision.
+                    string ver = parsed["version"]?.Value<string>() ?? "unknown";
+                    if (ver != "1.1")
+                        StingLog.Warn($"STING_SYMBOL_SHAPES.json version '{ver}' differs from expected '1.1'.");
+                    _symbolShapesCache = parsed;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"FamilySymbolAuthor: could not load STING_SYMBOL_SHAPES.json: {ex.Message}");
+                }
             }
         }
 
@@ -909,7 +927,14 @@ namespace StingTools.Core
                 if (_symbolShapesCache == null) return false;
 
                 string catKey = bic.ToString(); // e.g. "OST_ElectricalFixtures"
-                string stdKey = standard == SymbolStandard.ANSI ? "ANSI" : "IEC";
+                string stdKey = standard switch
+                {
+                    SymbolStandard.ANSI  => "ANSI",
+                    SymbolStandard.BS    => "BS",
+                    SymbolStandard.NFPA  => "NFPA",
+                    SymbolStandard.CIBSE => "CIBSE",
+                    _                   => "IEC",
+                };
 
                 var catNode = _symbolShapesCache["categories"]?[catKey];
                 if (catNode == null) return false;
@@ -986,7 +1011,7 @@ namespace StingTools.Core
 
                 if (count > 0)
                 {
-                    result.AnnotationSymbolCurvesCreated = count;
+                    result.AnnotationSymbolCurvesCreated += count;
                     if (lodParam != null) result.CurvesWiredToLodParam += count;
                     return true;
                 }
@@ -1122,7 +1147,7 @@ namespace StingTools.Core
                     }
                 }
 
-                result.AnnotationSymbolCurvesCreated = curves;
+                result.AnnotationSymbolCurvesCreated += curves;
                 if (lodParam != null) result.CurvesWiredToLodParam += curves;
             }
             catch (Exception ex)
@@ -1437,11 +1462,17 @@ namespace StingTools.Core
         {
             try
             {
-                // Common names for width/depth dimension parameters in families
+                // Common names for width/depth dimension parameters in families.
+                // "Length"/"Length_MM" are excluded from depth candidates for MEP pipe/duct/conduit
+                // families where "Length" means run length (axial), not cross-section depth.
+                bool isMepLinear = IsMepLinearCategory(famDoc);
                 string[] widthCandidates = { "Width", "W", "Overall Width", "Nominal Width",
                     "STING_WIDTH_MM", "Width_MM", "b", "dim_width" };
-                string[] depthCandidates = { "Depth", "D", "Overall Depth", "Nominal Depth",
-                    "STING_DEPTH_MM", "Depth_MM", "d", "dim_depth", "Length", "Length_MM" };
+                string[] depthCandidates = isMepLinear
+                    ? new[] { "Depth", "D", "Overall Depth", "Nominal Depth",
+                              "STING_DEPTH_MM", "Depth_MM", "d", "dim_depth" }
+                    : new[] { "Depth", "D", "Overall Depth", "Nominal Depth",
+                              "STING_DEPTH_MM", "Depth_MM", "d", "dim_depth", "Length", "Length_MM" };
 
                 FamilyParameter widthParam = FindAnyFamilyParam(fm, widthCandidates);
                 FamilyParameter depthParam = FindAnyFamilyParam(fm, depthCandidates);
@@ -1453,6 +1484,23 @@ namespace StingTools.Core
             {
                 result.Warnings.Add($"TryLinkBoundingBoxToFamilyDimensions: {ex.Message}");
             }
+        }
+
+        private static bool IsMepLinearCategory(Document famDoc)
+        {
+            try
+            {
+                var cat = famDoc.OwnerFamily?.FamilyCategory;
+                if (cat == null) return false;
+                var bic = (BuiltInCategory)cat.Id.IntegerValue;
+                return bic == BuiltInCategory.OST_DuctCurves
+                    || bic == BuiltInCategory.OST_PipeCurves
+                    || bic == BuiltInCategory.OST_Conduit
+                    || bic == BuiltInCategory.OST_CableTray
+                    || bic == BuiltInCategory.OST_FlexDuctCurves
+                    || bic == BuiltInCategory.OST_FlexPipeCurves;
+            }
+            catch { return false; }
         }
 
         private static void CreateHalfDimParam(

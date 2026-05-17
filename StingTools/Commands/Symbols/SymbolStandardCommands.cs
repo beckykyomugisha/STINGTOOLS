@@ -149,8 +149,34 @@ namespace StingTools.Commands.Symbols
             if (string.IsNullOrEmpty(pick)) return Result.Cancelled;
 
             SymbolStandardResolver.SetViewStandard(ctx.Doc, ctx.ActiveView, pick);
-            int n = SymbolAnnotationEngine.UpdateAnnotations(ctx.Doc, ctx.ActiveView, pick);
-            TaskDialog.Show("STING", $"View standard set to {pick}. {n} annotation(s) refreshed.");
+
+            int n = 0;
+            int modelUpdated = 0;
+            int stdCode = SwitchProjectStandardCommand.StandardNameToCode(pick);
+            using (var tx = new Transaction(ctx.Doc, "STING Switch View Symbol Standard"))
+            {
+                tx.Start();
+                // Update annotation tags in this view.
+                n = SymbolAnnotationEngine.UpdateAnnotations(ctx.Doc, ctx.ActiveView, pick);
+
+                // Also set STING_SYMBOL_STD on model family instances visible in this view
+                // so the embedded multi-standard curve set reflects the chosen standard.
+                var visibleInstances = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
+                    .OfClass(typeof(FamilyInstance))
+                    .Cast<FamilyInstance>()
+                    .Where(fi => fi.LookupParameter(ParamRegistry.SYMBOL_STD_PARAM) != null);
+                foreach (var fi in visibleInstances)
+                {
+                    try
+                    {
+                        var p = fi.LookupParameter(ParamRegistry.SYMBOL_STD_PARAM);
+                        if (p != null && !p.IsReadOnly) { p.Set(stdCode); modelUpdated++; }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"SwitchViewStandard model fi: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("STING", $"View standard set to {pick}. {n} annotation(s) refreshed, {modelUpdated} model instance(s) updated.");
             return Result.Succeeded;
         }
     }
@@ -252,7 +278,8 @@ namespace StingTools.Commands.Symbols
 
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class SyncViewFilterVisibilityCommand : IExternalCommand    {
+    public class SyncViewFilterVisibilityCommand : IExternalCommand
+    {
         public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
         {
             var ctx = ParameterHelpers.GetContext(data);
