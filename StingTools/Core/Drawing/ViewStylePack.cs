@@ -93,4 +93,17 @@ namespace StingTools.Core.Drawing
         [JsonProperty("levelName")]   public string LevelName   { get; set; }
         [JsonProperty("orientation")] public string Orientation { get; set; } = "LookingDown";
     }
+
+    /// <summary>
+    /// View-range offsets (in mm) carried by a <see cref="ViewStylePack"/>.
+    /// All values are optional; only the supplied offsets are written to the
+    /// view template's PlanViewRange.
+    /// </summary>
+    public sealed class PackViewRange
+    {
+        [JsonProperty("topOffsetMm",    NullValueHandling = NullValueHandling.Ignore)] public double? TopOffsetMm    { get; set; }
+        [JsonProperty("cutOffsetMm",    NullValueHandling = NullValueHandling.Ignore)] public double? CutOffsetMm    { get; set; }
+        [JsonProperty("bottomOffsetMm", NullValueHandling = NullValueHandling.Ignore)] public double? BottomOffsetMm { get; set; }
+        [JsonProperty("viewDepthMm",    NullValueHandling = NullValueHandling.Ignore)] public double? ViewDepthMm    { get; set; }
+    }
 }
