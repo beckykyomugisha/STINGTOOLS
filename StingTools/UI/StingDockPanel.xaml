@@ -2813,6 +2813,18 @@
                                             ToolTip="Generate cost report by discipline, level, system"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Cash Flow" Tag="CashFlow5D" Click="Cmd_Click"
                                             ToolTip="Generate S-curve cash flow from 4D schedule + 5D cost"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Cost File" Tag="Cost_FileBrowser" Click="Cmd_Click"
+                                            ToolTip="Browse to your own cost-rate CSV file (override the built-in rates)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Push BOQ →Cloud" Tag="BOQ_PushSnapshot" Click="Cmd_Click"
+                                            ToolTip="Push a BOQ cost snapshot to Planscape so the mobile cost dashboard shows current totals"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export 4D Viewer" Tag="Schedule_ExportFor4DViewer" Click="Cmd_Click"
+                                            ToolTip="Export element phase data to JSON for the docs-site/4d-viewer/index.html browser viewer"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="P6 Configure" Tag="Schedule_P6Configure" Click="Cmd_Click"
+                                            ToolTip="Configure Primavera P6 live link — enter P6 URL, credentials, and project ID"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="P6 Sync Now" Tag="Schedule_P6SyncNow" Click="Cmd_Click"
+                                            ToolTip="Trigger an immediate P6 activity sync — updates element % complete from Primavera P6"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="P6 Writeback" Tag="Schedule_P6Writeback" Click="Cmd_Click"
+                                            ToolTip="Write P6 actuals (% complete, actual start/finish) back to Revit element parameters for 4D viewer"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

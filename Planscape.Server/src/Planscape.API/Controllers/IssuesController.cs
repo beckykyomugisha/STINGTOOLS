@@ -73,6 +73,7 @@ public class IssuesController : ControllerBase
     public async Task<ActionResult> GetIssues(Guid projectId,
         [FromQuery] string? status = null, [FromQuery] string? type = null,
         [FromQuery] Guid? modelId = null,
+        [FromQuery] DateTime? since = null,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
         // Phase 175 audit P1-14 — clamp pageSize so a client can't ask
@@ -89,6 +90,8 @@ public class IssuesController : ControllerBase
         // request only issues anchored to the active model. Backed by the
         // existing single-column index on BimIssue.ModelId (PlanscapeDbContext.cs:136).
         if (modelId.HasValue) query = query.Where(i => i.ModelId == modelId);
+        // INT-10 — incremental pull: only return issues modified after the client's watermark.
+        if (since.HasValue) query = query.Where(i => i.UpdatedAt > since.Value);
 
         var total = await query.CountAsync();
         var issues = await query
@@ -418,6 +421,11 @@ public class IssuesController : ControllerBase
             issue.Status = req.Status;
             if (req.Status is "RESOLVED" or "CLOSED")
                 issue.ResolvedAt = DateTime.UtcNow;
+        }
+        if (req.ResolvedBy != null && req.ResolvedBy != issue.ResolvedBy)
+        {
+            diff["ResolvedBy"] = new { from = issue.ResolvedBy, to = req.ResolvedBy };
+            issue.ResolvedBy = req.ResolvedBy;
         }
         if (req.Priority != null && req.Priority != issue.Priority)
         {

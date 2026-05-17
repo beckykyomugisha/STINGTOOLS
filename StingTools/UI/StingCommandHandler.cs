@@ -3659,6 +3659,17 @@ namespace StingTools.UI
                     case "MeetingTemplates":       RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
                     // Phase 78 Section 6.1: ConfigureCostFile
                     case "ConfigureCostFile":      RunCommand<BIMManager.ConfigureCostFileCommand>(app); break;
+                    // Feature gap 1 — Cost File Browser
+                    case "Cost_FileBrowser":        RunCommand<BIMManager.CostFileBrowserCommand>(app); break;
+                    // Feature gap 3 — BOQ → Planscape Sync
+                    case "BOQ_PushSnapshot":        RunCommand<BIMManager.PushBoqSnapshotCommand>(app); break;
+                    // Feature gap 4 — 4D Viewer Export
+                    case "Schedule_ExportFor4DViewer": RunCommand<BIMManager.ExportFor4DViewerCommand>(app); break;
+                    // Feature gap 6 — P6 Live Link
+                    case "Schedule_P6Configure":    RunCommand<BIMManager.P6LiveLinkConfigCommand>(app); break;
+                    case "Schedule_P6SyncNow":      RunCommand<BIMManager.P6SyncNowCommand>(app); break;
+                    // Integration gap F4 — P6 actuals writeback to Revit element parameters
+                    case "Schedule_P6Writeback":    RunCommand<BIMManager.P6WritebackCommand>(app); break;
                     case "SendMeetingInvites":     TaskDialog.Show("STING — Meeting Invites", "Invite generation requires email integration.\nConfigure SMTP settings in Settings > Notifications to enable automatic email invites.\n\nFor now, use the 'Copy List' button to get email addresses."); break;
                     case "ExportMeetingAnalytics":
                     {
