@@ -12,6 +12,10 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Shapes;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using MenuItem    = System.Windows.Controls.MenuItem;
+using ContextMenu = System.Windows.Controls.ContextMenu;
+using ComboBox    = System.Windows.Controls.ComboBox;
+using TextBox     = System.Windows.Controls.TextBox;
 
 namespace StingTools.UI
 {
