@@ -204,6 +204,11 @@ namespace StingTools.Core.Symbols
                 return null;
             }
 
+            // Warn when generating from draft geometry — a hand-drafted seed .rfa is preferred.
+            if (string.Equals(def.Status, "draft", StringComparison.OrdinalIgnoreCase))
+                result.Warnings.Add($"[DRAFT] {def.Id}: using approximate JSON geometry. " +
+                    $"For accurate proportions place a hand-drafted '{def.Id}.rfa' in Families/ISO6412/");
+
             try
             {
                 using (var tx = new Transaction(fdoc, "STING Create Symbol"))

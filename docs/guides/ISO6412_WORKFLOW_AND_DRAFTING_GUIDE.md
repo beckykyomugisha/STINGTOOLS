@@ -766,3 +766,159 @@ the spool package is issued.
 *This guide covers 164 symbols across 15 categories. For the SLD symbol workflow
 see `SLD_SYMBOLS_LAYMANS_GUIDE.md`. For MEP plan view symbols see
 `MEP_SYMBOL_COLOUR_SCALE_GUIDE.md`.*
+
+---
+
+## §10 — Authoring Seed Families from Drafts
+
+### 10.1 Why bother?
+
+The JSON generator gives you working symbols in about 10 seconds but they are geometric
+**approximations** — the proportions were estimated, not measured from the standard plates.
+For a spool drawing that will be used in a contract or fabrication package, a draftsperson
+should replace each "draft" family with a standard-accurate seed `.rfa`.
+
+Once a seed is in `Families/ISO6412/`, STING uses it automatically at the highest search
+priority. You never touch the JSON again for that symbol.
+
+---
+
+### 10.2 Colour and Line Weight Control (plain English)
+
+You do **not** need to edit individual families to change colour or line weight in a project.
+Revit's Object Styles and Visibility/Graphics do this at the category level:
+
+| What you want | Where to go | Time |
+|---|---|---|
+| Change ALL symbols thicker/thinner project-wide | Manage tab → Object Styles → Annotation Objects → `ISO6412` row → edit line weight | 10 s |
+| Change colour of all symbols in one view | View tab → Visibility/Graphics → Annotation Categories → `ISO6412` row → override colour | 10 s |
+| Change one specific symbol on screen | Right-click it → Override Graphics in View → By Element | 5 s |
+
+Because all 164 families share the `ISO6412` subcategory, one Object Styles change hits
+every symbol on every sheet simultaneously.
+
+**Scale** is different. The symbols are drawn at a fixed paper size (6 mm, 8 mm etc.).
+The only way to make them globally bigger or smaller today is to re-run "Create All Symbols"
+after changing the `symbolSize` value in the JSON. Proper seed families should wire
+`Symbol Scale` to the geometry so you can adjust size by changing one instance parameter.
+
+---
+
+### 10.3 The Per-Symbol Correction Workflow
+
+**Step 1 — Pick a symbol to graduate**
+
+Start with the most-used symbols: gate valve, globe valve, 90° elbow, butt-weld tee.
+Find its id in the Quick Reference table (§11) and open the corresponding generated `.rfa`
+from `_BIM_COORD/Families/Symbols/ISO6412/` in the Family Editor.
+
+**Step 2 — Open the standard plate**
+
+Open ISO 6412:1999 or BS 308 Part 3 alongside the family editor. Find the correct plate for
+the symbol. Note the key proportions relative to the "nominal size" dimension (usually labelled
+`d` or `DN`).
+
+**Step 3 — Correct the geometry**
+
+In the Family Editor:
+- Delete the generated lines/arcs/filled-regions
+- Redraw using the standard proportions, keeping the coordinate convention:
+  - Pipe centreline on `Y = 0`
+  - Inlet at left (`x = −half symbol size`)
+  - Outlet at right (`x = +half symbol size`)
+  - Branches go up (`+Y`)
+
+Use reference planes to lock key geometry ratios so the family scales cleanly.
+
+**Step 4 — Set subcategory and line weights**
+
+- All lines → subcategory `ISO6412` (create it if absent)
+- In Manage → Object Styles inside the family, set line weights:
+  - Main outline: weight 3 (≈ 0.35 mm)
+  - Pipe run: weight 2 (≈ 0.25 mm)
+  - Weld symbols: weight 4 (≈ 0.50 mm)
+
+**Step 5 — Wire Symbol Scale (optional but recommended)**
+
+Add a reference parameter `SymbolScaleRatio` with the formula `Symbol Scale / 100`.
+Multiply every reference-plane offset by `SymbolScaleRatio`. Default `Symbol Scale = 100`.
+This lets anyone resize the symbol by changing one instance parameter.
+
+**Step 6 — Bind shared parameters**
+
+Load `Families/ISO6412/STING_ISO_SYMBOL_TEMPLATE.params.txt` via Insert → Load from File →
+Shared Parameters. Bind all 7 parameters listed in the README to the family.
+
+**Step 7 — Run the drafting quality checklist**
+
+Work through §5 of this guide for the symbol's category. Every item must pass before the
+family is submitted.
+
+**Step 8 — Save to the seed folder**
+
+Save As → `Families/ISO6412/<id>.rfa` (name must match JSON id exactly, e.g.
+`ISO6412_GATE_VALVE_FS.rfa`).
+
+**Step 9 — Update the JSON status**
+
+In `StingTools/Data/Symbols/STING_ISO6412_SYMBOLS.json` find the symbol by id and change:
+```json
+"status": "draft"   →   "status": "reviewed"
+```
+
+Change to `"final"` only after the PR is reviewed and the `.rfa` is committed to `main`.
+
+**Step 10 — Commit**
+
+```bash
+git add Families/ISO6412/ISO6412_GATE_VALVE_FS.rfa
+git add StingTools/Data/Symbols/STING_ISO6412_SYMBOLS.json
+git commit -m "Graduate ISO6412_GATE_VALVE_FS to reviewed seed family
+
+Geometry verified against ISO 6412:1999 plate 3-04.
+Line weights set by subcategory. Symbol Scale wired to geometry."
+```
+
+---
+
+### 10.4 Batch Graduation Strategy
+
+164 symbols is a lot. A pragmatic order:
+
+**Batch A — High frequency (do first, biggest return)**
+Gate valve, globe valve, ball valve, butterfly valve, check valve (swing),
+90° elbow (BW), 45° elbow (BW), equal tee (BW), concentric reducer,
+socket weld coupling, slip-on flange, blind flange, butt weld mark.
+≈ 13 symbols, covers ≈ 80% of a typical isometric.
+
+**Batch B — Valve variants**
+Relief/safety valve, control valve (FC/FO), solenoid valve, motor valve.
+≈ 4 symbols.
+
+**Batch C — Fittings**
+All remaining pipe fittings, flanges, strainers.
+≈ 20 symbols.
+
+**Batch D — Duct, conduit, cable tray**
+Once pipe symbols are done, repeat the process for duct fittings and conduit.
+≈ 45 symbols.
+
+**Batch E — Notation, hangers, insulation, welds**
+These change rarely; graduate last.
+≈ 45 symbols remaining.
+
+---
+
+### 10.5 Verifying the Generator Still Covers the Gap
+
+Run the following in any project to see which symbols still use draft geometry
+(i.e. no seed `.rfa` in `Families/ISO6412/`):
+
+1. Open STING Tools panel → TAGS tab → Tag Studio
+2. Tag → "Create ISO 6412 Symbols" with Overwrite unchecked
+3. Check `StingTools.log` for lines starting with `[DRAFT]`
+
+Each `[DRAFT]` line is a symbol that still needs a seed family. The count will
+drop to zero as Batch A–E are completed.
+
+---

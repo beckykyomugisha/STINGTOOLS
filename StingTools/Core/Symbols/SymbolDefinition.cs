@@ -113,6 +113,18 @@ namespace StingTools.Core.Symbols
         public bool ProtectExisting { get; set; } = false;
 
         /// <summary>
+        /// Geometry authoring status.
+        ///   "draft"    — geometry is approximate; a hand-drafted seed family in
+        ///                Families/ISO6412/ should replace this when available.
+        ///   "reviewed" — geometry has been checked against the cited standard.
+        ///   "final"    — seed .rfa committed to Families/ISO6412/; JSON is
+        ///                reference-only.
+        /// Omitting this field is treated the same as "draft".
+        /// </summary>
+        [JsonProperty("status", NullValueHandling = NullValueHandling.Ignore)]
+        public string Status { get; set; } = "draft";
+
+        /// <summary>
         /// Optional path to a pre-built .rfa the builder augments rather
         /// than generating geometry from scratch. Supports absolute paths
         /// and paths relative to Data/Seeds/. When the file is found the
