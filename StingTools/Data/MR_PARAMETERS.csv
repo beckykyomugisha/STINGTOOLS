@@ -88,7 +88,6 @@ Generic Models,BLE_ROOF_TYPE_TXT,85a719ec-5f20-5541-994f-b588c8491fbe,TEXT,CST_P
 Generic Models,BLE_ROOF_WATERPROOFING_SYSTEM_TXT,ff29c3dc-01cd-5c14-b41e-c1d8fca3cfc9,TEXT,CST_PROC,Type,Ble Roof Waterproofing System Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR,df9197f1-d5c9-4ef0-bec7-052656671371,TEXT,CST_PROC,Type,Room fire escape capacity in persons [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_ROOM_NAME_TXT,0bf56335-3e98-58cb-81eb-a998c017d657,TEXT,CST_PROC,Type,Ble Room Name Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_ROOM_NUM_TXT,08c45bc2-6903-5a41-b295-9c3111de6882,TEXT,CST_PROC,Type,Ble Room Num Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_ROOM_VENTILATION_RATE_LPS,aaa7d06b-881d-447c-b28d-ec2764597319,TEXT,CST_PROC,Type,Room design ventilation rate in l/s [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_SIGN_ILLUMINATED_BOOL,908be268-188c-405a-9d0b-d8717999da94,YESNO,CST_PROC,Type,Signage is internally illuminated [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_SIGN_TYPE_TXT,c1e98355-30ee-4f2c-ba3d-861bcb840d82,TEXT,CST_PROC,Type,Signage type classification [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -655,7 +654,6 @@ Generic Models,COM_DAT_SPARE_01_TXT,9895108f-0ec1-4841-98f3-24b1476dd208,TEXT,CO
 Generic Models,ELC_EQUIPMENT_TYPE_TXT,00fa6c8f-1349-52af-a61b-29153dbf2cb2,TEXT,ELC_PWR,Type,Elc Equipment Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MAT_TAG_3_TXT,04883c90-411f-4ab5-b937-2909c54fdf65,TEXT,MAT_INFO,Type,"Material procurement tag: name, manufacturer, spec clause [ISO 19650-1:2018]",False,,,MULTI,1,0
 Generic Models,CST_TOTAL_BLOCKS_COST,08cf6090-f96e-4de2-9110-39e9c5895b55,TEXT,COM_DAT,Type,Total blocks cost in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_RM_COD_TXT,8d968690-c7fe-5d71-a6af-ebd19c60793e,TEXT,ASS_MNG,Type,Ass Rm Cod Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,WS_DISCIPLINE_TXT,5e0aa190-15fc-4826-b789-74c582fb755e,TEXT,TPL_TRACKING,Type,Workset discipline [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,MAT_LAYER_5_MATERIAL,2f0dac90-cbfa-5c9f-a41c-2e9959c7c97a,TEXT,MAT_INFO,Type,Mat Layer 5 Material [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PRJ_TB_DISCIPLINE_TXT,edbf1392-5aea-505b-8b05-7a6432b0c3e1,TEXT,PRJ_INFORMATION,Type,"Discipline code or label for this drawing sheet (e.g. M, E, Mechanical) [ISO 19650-1:2018]",False,,,MULTI,1,0
@@ -916,7 +914,6 @@ Generic Models,PER_ACOUSTICS_ISOLATION_REQ_BOOL,78db01ed-d62d-5edf-8473-bae359db
 Generic Models,MAT_MANUFACTURER,66307eed-372a-5804-9c95-6866cceb503a,TEXT,MAT_INFO,Type,Mat Manufacturer [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_INS_SPECIFICATION_TXT,f8ead8ed-d82e-5161-a351-c6aed04cf91b,TEXT,PLM_DRN,Type,Plm Ins Specification Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MAT_INFO_SPARE_01_TXT,383204ee-214f-4ada-b487-5e396fc73fc6,TEXT,MAT_INFO,Type,Spare parameter 1 for MAT_INFO group,False,,,MULTI,1,0
-Generic Models,PRJ_NR_TXT,90850aee-4dd7-5846-a2da-49e945fef572,TEXT,PRJ_INFORMATION,Type,Prj Nr Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_FIX_CAT_NR,0687a7ee-ab2a-5d4b-afd4-f0e2291d4e68,TEXT,COM_DAT,Type,Cst Fix Cat Nr [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,BLE_FLR_IMPACT_SOUND_INS_DB,ba022bef-4122-5b20-b6c3-56a639a9a5ec,TEXT,CST_PROC,Type,Ble Flr Impact Sound Ins Db [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_CALC_PAINT_LITERS,6e6995ef-b24f-4922-bce5-87598141e3ab,TEXT,COM_DAT,Type,Calculated paint in liters [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -2518,9 +2515,6 @@ Generic Models,PRJ_TB_NOTES_LEGEND_REF_TXT,a083c0ca-5782-59a2-a459-85107690aa6d,
 Generic Models,PRJ_TB_SCALE_OVERRIDE_TXT,624563ac-3067-5990-ba13-a4d750e9ffc2,TEXT,PRJ_INFORMATION,Type,"Override scale label shown on title block (e.g. ""NTS"", ""1:100""). Empty = use view scale. [ISO 19650-1:2018]",False,,,MULTI,1,0
 Generic Models,PRJ_TB_SCHEMA_VERSION_TXT,9832b76e-07df-509e-b139-d402bc50ba68,TEXT,PRJ_INFORMATION,Type,STING title block data schema version this sheet was stamped with [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PRJ_TB_SHOW_DISCBAND_BOOL,483f47d7-a6cd-5fa7-bfde-ff2ab6e43178,YESNO,PRJ_INFORMATION,Type,Show discipline colour band on title block [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PRJ_TB_SHOW_KEYPLAN_BOOL,8dd6b517-7173-5a8d-b951-a08807fed830,YESNO,PRJ_INFORMATION,Type,LEGACY -- prefer TB_SHOW_KEY_PLAN_BOOL (GROUP 26). Show key plan element on title block [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PRJ_TB_SHOW_NORTHARROW_BOOL,58c6e51f-6f22-546b-ac02-086ab6f6fbbf,YESNO,PRJ_INFORMATION,Type,LEGACY -- prefer TB_SHOW_NORTH_ARROW_BOOL (GROUP 26). Show north arrow on title block [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PRJ_TB_SHOW_SCALEBAR_BOOL,fa841ad5-15e1-5ec2-91bc-a69d70cf9c42,YESNO,PRJ_INFORMATION,Type,LEGACY -- prefer TB_SHOW_SCALEBAR_BOOL (GROUP 26). Show scale bar on title block [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PRJ_TB_VARIANT_TXT,e4c060c3-1c31-5860-b0d0-ef9472016895,TEXT,PRJ_INFORMATION,Type,"Drawing variant or option code (e.g. OPT-A, BASE) [ISO 19650-1:2018]",False,,,MULTI,1,0
 Generic Models,PRJ_VOLUME_CODE,1a77c2d8-5e9e-4b21-9ec3-90be2f108cd1,TEXT,PRJ_INFORMATION,Type,ISO 19650 Volume code parsed from file name (BLD1/BLD2/SITE/etc.) [Phase 108m],False,,,MULTI,1,0
 Generic Models,PROJECT_BUDGET_UGX,c126b293-0f21-45f6-8433-f0907cd716ef,NUMBER,PRJ_INFORMATION,Type,Project budget set by cost consultant in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -2790,7 +2784,6 @@ Generic Models,STING_SHEET_BIM_MODE_TXT,c6796da5-3755-5074-b19f-493318188ac8,TEX
 Generic Models,STING_SHEET_FULL_REF_TXT,fdb62488-a957-546e-9c2c-95eb4c605559,TEXT,PRJ_INFORMATION,Type,ISO 19650 full 7-segment sheet ID -- concatenation of PROJECT-ORIG-VOLUME-LEVEL-TYPE-ROLE-SEQ (e.g. 'STG-PLNS-ZZ-01-DR-A-0001'). Populated by SetString when any segment changes -- Revit family-formula parser doesn't reliably support text concat in this context [BS EN ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,STING_SHEET_LEVEL_TXT,43a870ab-1356-5f0e-977e-d9df46688a3b,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID -- segment 4 (level / location, e.g. '01' / 'GF' / 'ZZ'). Sheet-instance scope [BS EN ISO 19650-2:2018 S.5.1.6]",False,,,MULTI,1,0
 Generic Models,STING_SHEET_OF_TOTAL_TXT,da8b102d-0dcc-5dce-83d1-82abc3bdbab5,TEXT,PRJ_INFORMATION,Type,'Sheet n of total' string for the title block (e.g. '03 / 12'). Auto-updated by SheetCountAutoUpdate command from PRJ_TB_TOTAL_NO_SHEETS_TXT and Revit's built-in Sheet Number [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,STING_SHEET_ORIG_TXT,94cb197e-5358-5bdb-9759-7aca37d9c15c,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID -- segment 2 (originator code, e.g. 'PLNS'). Sheet-instance scope [BS EN ISO 19650-2:2018 S.5.1.6]",False,,,MULTI,1,0
 Generic Models,STING_SHEET_PROJECT_TXT,d6b56315-8f12-5bc5-b984-039d2b46bb77,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID -- segment 1 (project code, e.g. 'STG'). Sheet-instance scope, populated per sheet [BS EN ISO 19650-2:2018 S.5.1.6]",False,,,MULTI,1,0
 Generic Models,STING_SHEET_ROLE_TXT,75667436-72f2-5b47-af1a-2d861e754989,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID -- segment 6 (role, e.g. 'A' architect / 'S' structural / 'M' mechanical / 'E' electrical / 'P' plumbing / 'FP' fire / 'LV' landscape / 'G' general). Sheet-instance scope [BS EN ISO 19650-2:2018 S.5.1.6]",False,,,MULTI,1,0
 Generic Models,STING_SHEET_SEQ_TXT,b11bf925-8cf7-5941-b8aa-9ccea031253d,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID -- segment 7 (4-digit zero-padded sequence number, e.g. '0001'). Sheet-instance scope [BS EN ISO 19650-2:2018 S.5.1.6]",False,,,MULTI,1,0
@@ -2917,8 +2910,6 @@ Generic Models,STR_SECTION_SIZE_TXT,625140e9-d5ea-50b2-ab2a-b6533690184a,TEXT,BL
 Generic Models,TAG_CLUSTER_KEY_TXT,c191f27f-4dc7-52ce-9692-105641f4ad80,TEXT,STINGTags_ISO19650,Instance,Cluster group key used by SmartTagPlacementCommand to group adjacent tags into coordinated clusters [STING Tags],False,,,MULTI,1,0
 Generic Models,TAG_FAMILY_HINT_TXT,08b9059a-a587-5317-861a-e31ba66f1b1c,TEXT,STINGTags_ISO19650,Instance,Tag family name hint written on element type by SmartTagPlacementCommand to guide family selection [STING Tags],False,,,MULTI,1,0
 Generic Models,TAG_PRIORITY_INT,5c93b60b-e787-553b-8e38-457a0d16fe98,INTEGER,STINGTags_ISO19650,Instance,Tag placement priority 1-10 used by SmartTagPlacementCommand -- higher values placed first to claim best positions [STING Tags],False,,,MULTI,1,0
-Generic Models,STING_CDE_STATE_TXT,9b443a6e-6798-5f08-bcd0-bba95a266791,TEXT,STING_DRAWING,Instance,CDE lifecycle state (WIP / SHARED / PUBLISHED / ARCHIVED) written on sheets by StingExportCenterDialog [STING CDE],False,,,MULTI,1,0
-Generic Models,STING_CDE_STATUS,dfe71f11-02b2-541d-9218-3fa1cd7307d5,TEXT,STING_DRAWING,Instance,CDE status label (WIP / IN_REVIEW / APPROVED / REJECTED) used by ExLink sheet export [STING CDE],False,,,MULTI,1,0
 Generic Models,STING_ISO_SYMBOL_SCALE_IN,2a948624-dd92-583c-8757-0b4f9d056322,NUMBER,STING_DRAWING,Instance,ISO symbol detail-item scale in Revit internal units (feet) written by IsoSymbolPlacer [STING v4 Fabrication],False,,,MULTI,1,0
 Generic Models,STING_SCOPE_BOX_TAG_TXT,f838097f-5723-50ae-9101-702bc5cc9237,TEXT,STING_DRAWING,Instance,STING scope-box tag string written by GenerateFromScopeBoxesCommand for scope-box-to-view binding [STING DT],False,,,MULTI,1,0
 Generic Models,STING_ROUTE_RULE_ID_TXT,8fa28413-7cd8-51c4-9172-399489efd5cd,TEXT,Routing,Instance,In-wall chase routing rule id applied by InWallChaseRouter [STING v4 Routing],False,,,MULTI,1,0

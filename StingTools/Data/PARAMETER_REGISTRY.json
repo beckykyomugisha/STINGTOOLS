@@ -3045,8 +3045,8 @@
       },
       {
         "key": "BLE_ROOM_NUM",
-        "param_name": "BLE_ROOM_NUM_TXT",
-        "description": "BLE room number (fallback)"
+        "param_name": "ASS_ROOM_NUM_TXT",
+        "description": "Room number (canonical)"
       }
     ],
     "extended_tokens": [

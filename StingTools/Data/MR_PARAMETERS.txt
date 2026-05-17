@@ -128,7 +128,6 @@ PARAM	85a719ec-5f20-5541-994f-b588c8491fbe	BLE_ROOF_TYPE_TXT	TEXT		2	1	Ble Roof 
 PARAM	ff29c3dc-01cd-5c14-b41e-c1d8fca3cfc9	BLE_ROOF_WATERPROOFING_SYSTEM_TXT	TEXT		2	1	Ble Roof Waterproofing System Txt [ISO 19650-1:2018]	1
 PARAM	df9197f1-d5c9-4ef0-bec7-052656671371	BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR	TEXT		2	1	Room fire escape capacity in persons [ISO 19650-1:2018]	1
 PARAM	0bf56335-3e98-58cb-81eb-a998c017d657	BLE_ROOM_NAME_TXT	TEXT		2	1	Ble Room Name Txt [ISO 19650-1:2018]	1
-PARAM	08c45bc2-6903-5a41-b295-9c3111de6882	BLE_ROOM_NUM_TXT	TEXT		2	1	Ble Room Num Txt [ISO 19650-1:2018]	1
 PARAM	aaa7d06b-881d-447c-b28d-ec2764597319	BLE_ROOM_VENTILATION_RATE_LPS	TEXT		2	1	Room design ventilation rate in l/s [ISO 19650-1:2018]	1
 PARAM	908be268-188c-405a-9d0b-d8717999da94	BLE_SIGN_ILLUMINATED_BOOL	TEXT		2	1	Signage is internally illuminated [ISO 19650-1:2018]	1
 PARAM	c1e98355-30ee-4f2c-ba3d-861bcb840d82	BLE_SIGN_TYPE_TXT	TEXT		2	1	Signage type classification [ISO 19650-1:2018]	1
@@ -688,7 +687,6 @@ PARAM	9895108f-0ec1-4841-98f3-24b1476dd208	COM_DAT_SPARE_01_TXT	TEXT		3	1	Spare 
 PARAM	00fa6c8f-1349-52af-a61b-29153dbf2cb2	ELC_EQUIPMENT_TYPE_TXT	TEXT		4	1	Elc Equipment Type Txt [ISO 19650-1:2018]	1
 PARAM	04883c90-411f-4ab5-b937-2909c54fdf65	MAT_TAG_3_TXT	TEXT		12	1	Material procurement tag: name, manufacturer, spec clause [ISO 19650-1:2018]	1
 PARAM	08cf6090-f96e-4de2-9110-39e9c5895b55	CST_TOTAL_BLOCKS_COST	TEXT		3	1	Total blocks cost in UGX [ISO 19650-3:2020]	0
-PARAM	8d968690-c7fe-5d71-a6af-ebd19c60793e	ASS_RM_COD_TXT	TEXT		1	1	Ass Rm Cod Txt [ISO 19650-1:2018]	1
 PARAM	5e0aa190-15fc-4826-b789-74c582fb755e	WS_DISCIPLINE_TXT	TEXT		11	1	Workset discipline [ISO 19650-2:2018]	1
 PARAM	2f0dac90-cbfa-5c9f-a41c-2e9959c7c97a	MAT_LAYER_5_MATERIAL	TEXT		12	1	Mat Layer 5 Material [ISO 19650-1:2018]	1
 PARAM	edbf1392-5aea-505b-8b05-7a6432b0c3e1	PRJ_TB_DISCIPLINE_TXT	TEXT		13	1	Discipline code or label for this drawing sheet (e.g. M, E, Mechanical) [ISO 19650-1:2018]	1
@@ -958,7 +956,6 @@ PARAM	78db01ed-d62d-5edf-8473-bae359db0c10	PER_ACOUSTICS_ISOLATION_REQ_BOOL	YESN
 PARAM	66307eed-372a-5804-9c95-6866cceb503a	MAT_MANUFACTURER	TEXT		12	1	Mat Manufacturer [ISO 19650-1:2018]	1
 PARAM	f8ead8ed-d82e-5161-a351-c6aed04cf91b	PLM_INS_SPECIFICATION_TXT	TEXT		6	1	Plm Ins Specification Txt [ISO 19650-1:2018]	1
 PARAM	383204ee-214f-4ada-b487-5e396fc73fc6	MAT_INFO_SPARE_01_TXT	TEXT		12	1	Spare parameter 1 for MAT_INFO group	1
-PARAM	90850aee-4dd7-5846-a2da-49e945fef572	PRJ_NR_TXT	TEXT		13	1	Prj Nr Txt [ISO 19650-1:2018]	1
 PARAM	0687a7ee-ab2a-5d4b-afd4-f0e2291d4e68	CST_FIX_CAT_NR	TEXT		3	1	Cst Fix Cat Nr [ISO 19650-2:2018]	1
 PARAM	ba022bef-4122-5b20-b6c3-56a639a9a5ec	BLE_FLR_IMPACT_SOUND_INS_DB	TEXT		2	1	Ble Flr Impact Sound Ins Db [ISO 19650-1:2018]	1
 PARAM	6e6995ef-b24f-4922-bce5-87598141e3ab	CST_CALC_PAINT_LITERS	TEXT		3	1	Calculated paint in liters [ISO 19650-3:2020]	0
@@ -2447,9 +2444,6 @@ PARAM	3bb5edc1-54f9-56ff-92c9-405a8dde646c	PRJ_TB_LOGO_PATH_TXT	TEXT		13	1	File 
 PARAM	1817eeb3-4c56-50c2-b386-6b3be3d98fc4	PRJ_TB_LAST_SYNC_TXT	TEXT		13	1	ISO 8601 datetime of last sync to Planscape Server for this sheet [ISO 19650-2:2018]	0
 PARAM	eb514ec7-6636-5987-9667-8e85c31a8f85	PRJ_TB_LAST_SYNC_BY_TXT	TEXT		13	1	Username who triggered the last Planscape Server sync [ISO 19650-2:2018]	0
 PARAM	74c9d75f-840c-5263-9acf-8fecf80ec6aa	PRJ_TB_LOCK_BOOL	YESNO		13	1	When true, prevents TitleBlockParamApplier from overwriting manually set values on this sheet [ISO 19650-1:2018]	1
-PARAM	8dd6b517-7173-5a8d-b951-a08807fed830	PRJ_TB_SHOW_KEYPLAN_BOOL	YESNO		13	1	LEGACY -- prefer TB_SHOW_KEY_PLAN_BOOL (GROUP 26). Show key plan element on title block [ISO 19650-1:2018]	1
-PARAM	fa841ad5-15e1-5ec2-91bc-a69d70cf9c42	PRJ_TB_SHOW_SCALEBAR_BOOL	YESNO		13	1	LEGACY -- prefer TB_SHOW_SCALEBAR_BOOL (GROUP 26). Show scale bar on title block [ISO 19650-1:2018]	1
-PARAM	58c6e51f-6f22-546b-ac02-086ab6f6fbbf	PRJ_TB_SHOW_NORTHARROW_BOOL	YESNO		13	1	LEGACY -- prefer TB_SHOW_NORTH_ARROW_BOOL (GROUP 26). Show north arrow on title block [ISO 19650-1:2018]	1
 PARAM	483f47d7-a6cd-5fa7-bfde-ff2ab6e43178	PRJ_TB_SHOW_DISCBAND_BOOL	YESNO		13	1	Show discipline colour band on title block [ISO 19650-1:2018]	1
 PARAM	624563ac-3067-5990-ba13-a4d750e9ffc2	PRJ_TB_SCALE_OVERRIDE_TXT	TEXT		13	1	Override scale label shown on title block (e.g. "NTS", "1:100"). Empty = use view scale. [ISO 19650-1:2018]	1
 PARAM	a3408dee-9ced-5ccd-970c-0958bcc713a9	PRJ_TB_ISSUE_SUMMARY_TXT	TEXT		13	1	Short free-text summary of the issue purpose (e.g. "For Construction") [ISO 19650-1:2018]	1
@@ -2594,7 +2588,6 @@ PARAM	c6796da5-3755-5074-b19f-493318188ac8	STING_SHEET_BIM_MODE_TXT	TEXT		13	1	P
 PARAM	87cdf4f5-91e9-562d-9deb-0532fc642705	PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT	TEXT		13	1	Structural consultant office address shown on title block -- paired with PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT [ISO 19650-1:2018]	1
 PARAM	72432a96-c7b4-5459-8579-18d5f095edd8	PRJ_TB_MEP_CONSULTANTS_ADDRESS_TXT	TEXT		13	1	MEP consultant office address shown on title block -- paired with PRJ_TB_MEP_CONSULTANTS_NAME_TXT [ISO 19650-1:2018]	1
 PARAM	d6b56315-8f12-5bc5-b984-039d2b46bb77	STING_SHEET_PROJECT_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 1 (project code, e.g. "STG"). Sheet-instance scope, populated per sheet [BS EN ISO 19650-2:2018 S.5.1.6]	1
-PARAM	94cb197e-5358-5bdb-9759-7aca37d9c15c	STING_SHEET_ORIG_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 2 (originator code, e.g. "PLNS"). Sheet-instance scope [BS EN ISO 19650-2:2018 S.5.1.6]	1
 PARAM	498273b7-a814-57e4-8316-8359609a8bdd	STING_SHEET_VOLUME_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 3 (volume / system, e.g. "ZZ" / "01" / "M01"). Sheet-instance scope [BS EN ISO 19650-2:2018 S.5.1.6]	1
 PARAM	43a870ab-1356-5f0e-977e-d9df46688a3b	STING_SHEET_LEVEL_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 4 (level / location, e.g. "01" / "GF" / "ZZ"). Sheet-instance scope [BS EN ISO 19650-2:2018 S.5.1.6]	1
 PARAM	c5c9de9a-9ad8-5de7-8ee6-0149cd674a6a	STING_SHEET_TYPE_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 5 (type, e.g. "DR" drawing / "M3" model / "SH" schedule). Sheet-instance scope [BS EN ISO 19650-2:2018 S.5.1.6]	1
@@ -2709,8 +2702,6 @@ PARAM	1b2c3d4e-5f6a-4b7c-8d9e-0f1a2b3c4d5e	STING_SYMBOL_LIBRARY_VERSION	TEXT		27
 PARAM	a6b7c8d9-eafb-4acc-5d6e-7f8a9bacdbec	STING_MATCH_REF_TXT	TEXT		27	1	Paired sheet reference written on match-line + caption tags [STING Phase 168]	1
 PARAM	a7b8c9da-fbac-4bcd-6e7f-8a9bacdbecfd	STING_MATCH_LINE_GUID_TXT	TEXT		27	1	Stable match-line pair identifier -- pairs DetailCurve + caption tag for in-place updates [STING Phase 168]	1
 PARAM	a8b9cadb-acbd-4cde-7f8a-9bacdbecfdae	STING_MATCH_DIR_TXT	TEXT		27	1	Match-line direction encoding -- VERTICAL / HORIZONTAL / DOGLEG [STING Phase 168]	1
-PARAM	9b443a6e-6798-5f08-bcd0-bba95a266791	STING_CDE_STATE_TXT	TEXT		27	1	CDE lifecycle state (WIP / SHARED / PUBLISHED / ARCHIVED) written on sheets by StingExportCenterDialog [STING CDE]	1
-PARAM	dfe71f11-02b2-541d-9218-3fa1cd7307d5	STING_CDE_STATUS	TEXT		27	1	CDE status label (WIP / IN_REVIEW / APPROVED / REJECTED) used by ExLink sheet export [STING CDE]	1
 PARAM	2a948624-dd92-583c-8757-0b4f9d056322	STING_ISO_SYMBOL_SCALE_IN	NUMBER		27	1	ISO symbol detail-item scale in Revit internal units (feet) written by IsoSymbolPlacer [STING v4 Fabrication]	1
 PARAM	f838097f-5723-50ae-9101-702bc5cc9237	STING_SCOPE_BOX_TAG_TXT	TEXT		27	1	STING scope-box tag string written by GenerateFromScopeBoxesCommand for scope-box-to-view binding [STING DT]	1
 # -- Lightning Protection System tag containers (BS EN 62305) ---------------
