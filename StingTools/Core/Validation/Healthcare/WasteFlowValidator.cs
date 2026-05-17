@@ -1,3 +1,4 @@
+using System;
 // Healthcare Pack H-30 — clinical-waste flow validator (HTM 07-01).
 using Autodesk.Revit.DB;
 using System.Collections.Generic;

@@ -193,7 +193,7 @@ namespace StingTools.Core.Drawing
             {
                 r.Errors.Add(ex.Message);
                 StingLog.Error($"TitleBlockFactory.Build({spec.Id})", ex);
-                try { famDoc?.Close(false); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { famDoc?.Close(false); } catch (Exception exClose) { StingLog.Warn($"Suppressed: {exClose.Message}"); }
             }
             finally
             {

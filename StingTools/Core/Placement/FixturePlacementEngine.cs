@@ -298,6 +298,7 @@ namespace StingTools.Core.Placement
                 bool cancelled = false;
                 foreach (var room in rooms)
                 {
+                    string roomName = SafeRoomName(room);
                     // PC-13 — per-room state so dependent rules see predecessors.
                     var roomState = new RoomState();
                     foreach (var rule in ordered)

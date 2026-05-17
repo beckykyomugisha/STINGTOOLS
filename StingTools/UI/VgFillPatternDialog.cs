@@ -13,7 +13,11 @@
 // Reads project FillPatternElement names live from the document (the
 // caller passes the list). Colour cells route through VgColorPicker.
 
-using SwBrush = System.Windows.Media.Brushes;
+using System;
+using System.Collections.Generic;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 using SwBrush = System.Windows.Media.Brushes;
 using StingTools.Core;
 namespace StingTools.UI

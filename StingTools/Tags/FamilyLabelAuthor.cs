@@ -72,6 +72,8 @@ namespace StingTools.Tags
             public int FormulasSkipped { get; set; }
             public int TiersPreserved { get; set; }
             public bool LabelRebound { get; set; }
+            public int WarningsApplied { get; set; }
+            public int WarningsSkipped { get; set; }
             public List<string> Warnings { get; } = new List<string>();
         }
 

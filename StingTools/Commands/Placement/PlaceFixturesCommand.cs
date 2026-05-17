@@ -54,6 +54,10 @@ namespace StingTools.Commands.Placement
         public static bool MinDoorClearance300    { get; set; } = true;
         public static bool MinWindowClearance100  { get; set; } = true;
 
+        // Scope mode — which rooms to consider for placement.
+        public enum FixtureScopeMode { SelectedRooms, ActiveView, AllRooms }
+        public static FixtureScopeMode ScopeMode  { get; set; } = FixtureScopeMode.SelectedRooms;
+
         // Run-options surfaced by the Placement Centre. Read by
         // FixturePlacementEngine; defaults preserve historic behaviour
         // (provenance always stamped, learned offsets always honoured).

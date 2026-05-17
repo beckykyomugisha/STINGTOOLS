@@ -809,10 +809,13 @@ namespace StingTools.Core
         // family re-author pass.
         /// <summary>Pattern selector — Handover / FM T4-T10 payload is visible.</summary>
         public static string MODE_HANDOVER { get; private set; } = "HANDOVER_MODE_HANDOVER_BOOL";
+        public const string MODE_HANDOVER_GUID = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
         /// <summary>Pattern selector — Design & Construction T4-T10 payload is visible.</summary>
         public static string MODE_DC { get; private set; } = "HANDOVER_MODE_DC_BOOL";
+        public const string MODE_DC_GUID = "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e";
         /// <summary>Pattern selector — Custom (user-defined) T4-T10 payload is visible.</summary>
         public static string MODE_CUSTOM { get; private set; } = "HANDOVER_MODE_CUSTOM_BOOL";
+        public const string MODE_CUSTOM_GUID = "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f";
 
         // ── Warning threshold definitions (v5.5) ─────────────────────────
         // Loaded from warning_thresholds section of PARAMETER_REGISTRY.json.

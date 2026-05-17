@@ -143,6 +143,21 @@ namespace StingTools.Core.Fabrication
 
         public const string CERT_REF_TXT                = "ELC_LPS_CERT_REF_TXT";
         public const string CERT_REF_TXT_GUID           = "0a8dbcfb-6f73-5c8c-94eb-b72606feae87";
+
+        public const string KC_FACTOR_NR                 = "ELC_LPS_KC_FACTOR_NR";
+        public const string KC_FACTOR_NR_GUID            = "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e";
+
+        public const string CONDUCTOR_MATERIAL_TXT       = "ELC_LPS_CONDUCTOR_MATERIAL_TXT";
+        public const string CONDUCTOR_MATERIAL_TXT_GUID  = "c2d3e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6f";
+
+        public const string ELEMENT_TYPE_TXT             = "ELC_LPS_ELEMENT_TYPE_TXT";
+        public const string ELEMENT_TYPE_TXT_GUID        = "d3e4f5a6-b7c8-4d9e-0f1a-2b3c4d5e6f7a";
+
+        public const string COMPLIANCE_STATUS_TXT        = "ELC_LPS_COMPLIANCE_STATUS_TXT";
+        public const string COMPLIANCE_STATUS_TXT_GUID   = "e4f5a6b7-c8d9-4e0f-1a2b-3c4d5e6f7a8b";
+
+        public const string PROJECT_NG_OVERRIDE_NR       = "ELC_LPS_PROJECT_NG_OVERRIDE_NR";
+        public const string PROJECT_NG_OVERRIDE_NR_GUID  = "f5a6b7c8-d9e0-4f1a-2b3c-4d5e6f7a8b9c";
     }
 
     /// <summary>

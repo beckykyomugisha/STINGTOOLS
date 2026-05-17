@@ -2254,7 +2254,7 @@ namespace StingTools.Docs
 
                 // Originator / appointing-party / project code from PRJ_ORG_* parameters.
                 var pi = doc.ProjectInformation;
-                string originator = pi?.LookupParameter("PRJ_ORG_ORIGINATOR_CODE_TXT")?.AsString() ?? "PLNS";
+                originator = pi?.LookupParameter("PRJ_ORG_ORIGINATOR_CODE_TXT")?.AsString() ?? "PLNS";
                 string appointing = pi?.LookupParameter("PRJ_ORG_APPOINTING_PARTY_TXT")?.AsString() ?? "";
                 string prjCode    = pi?.LookupParameter("PRJ_ORG_PROJECT_CODE_TXT")?.AsString() ?? projectNumber;
                 string uniclass   = sheet.LookupParameter("ASS_UNICLASS_TXT")?.AsString() ?? "";

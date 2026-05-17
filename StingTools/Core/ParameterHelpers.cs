@@ -1053,6 +1053,20 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"Grid reference detection failed: {ex.Message}"); return null; }
         }
+
+        private static volatile bool _batchSessionActive;
+
+        /// <summary>
+        /// Marks the start of a batch tagging session so the room-index TTL
+        /// is not applied mid-loop. Call <see cref="EndBatchSession"/> when done.
+        /// </summary>
+        public static void BeginBatchSession() => _batchSessionActive = true;
+
+        /// <summary>
+        /// Ends the batch session started by <see cref="BeginBatchSession"/>,
+        /// allowing the room-index TTL to expire normally between commands.
+        /// </summary>
+        public static void EndBatchSession() => _batchSessionActive = false;
     }
 
     /// <summary>

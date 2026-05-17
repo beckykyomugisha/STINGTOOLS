@@ -64,6 +64,9 @@ namespace StingTools.Core.Calc
         private const double MinSlopeRainwaterPct = 1.0;
         private const double SelfCleansingVelocityMs = 0.7;
 
+        public static SlopeAutoCorrectionResult Preview(Document doc)
+            => RunFix(doc, dryRun: true);
+
         public static SlopeAutoCorrectionResult RunFix(Document doc, bool dryRun)
         {
             var result = new SlopeAutoCorrectionResult();

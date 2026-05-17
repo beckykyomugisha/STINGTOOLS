@@ -146,6 +146,8 @@ namespace StingTools.Core.Drawing
         /// <paramref name="view"/>. Silently skips when the document is not workshared.
         /// The pack's WorksetVisibility string is a mode keyword: "ShowAll" / "HideAll" / null (skip).
         /// </summary>
+        public static void InvalidateCache(Document doc) { }
+
         public static void ApplyWorksetVisibility(Document doc, View view, ViewStylePack pack, PackApplyResult r)
         {
             if (doc == null || view == null || pack == null || r == null) return;
