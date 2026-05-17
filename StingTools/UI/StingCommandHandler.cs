@@ -9108,5 +9108,125 @@ For live data, open BCC in Revit and re-export.</p></div>
             }
             return false;
         }
+
+        // Gap 7: save wire style from dock panel inline controls via the WireAnnotationStyleCommand.
+        // The inline TextBox/CheckBox controls in the dock panel are read at the time the user
+        // clicks "Save style to project JSON". We obtain the dock-panel Page via the active
+        // Revit window's child visual tree and read the named elements directly.
+        private void HandleWireSaveStyleFromPanel(UIApplication app)
+        {
+            var doc = app?.ActiveUIDocument?.Document;
+            if (doc == null) { TaskDialog.Show("Wire Style", "No document open."); return; }
+
+            try
+            {
+                // Walk the WPF visual tree to find the StingDockPanel Page
+                StingDockPanel panelPage = FindDockPanelPage(app);
+                if (panelPage == null)
+                {
+                    // Fallback: open the full style dialog
+                    RunCommand<Commands.Electrical.WireAnnotationStyleCommand>(app);
+                    return;
+                }
+
+                double slashLen    = ReadTextBox(panelPage, "tbWireSlashLen",    6.0);
+                double slashGap    = ReadTextBox(panelPage, "tbWireSlashGap",    3.0);
+                double slashAngle  = ReadTextBox(panelPage, "tbWireSlashAngle",  60.0);
+                double scaleFactor = ReadTextBox(panelPage, "tbWireScaleFactor", 1.0);
+                int    lineWeight  = (int)ReadTextBox(panelPage, "tbWireLineWeight", 3.0);
+                double labelOffset = ReadTextBox(panelPage, "tbWireLabelOffset", 600.0);
+                int    colorCode   = ReadCombo(panelPage,   "cbWireColorCode");
+                bool   showVD      = ReadCheck(panelPage,   "chkWireShowVD",   true);
+                bool   showFill    = ReadCheck(panelPage,   "chkWireShowFill",  true);
+                bool   compact     = ReadCheck(panelPage,   "chkWireCompact",   false);
+
+                var style = new Commands.Electrical.WireAnnotationStyle
+                {
+                    SlashLengthMm   = slashLen,
+                    SlashSpacingMm  = slashGap,
+                    SlashAngleDeg   = Math.Max(30, Math.Min(90, slashAngle)),
+                    ScaleFactor     = scaleFactor > 0 ? scaleFactor : 1.0,
+                    SlashLineWeight = Math.Max(1, Math.Min(16, lineWeight)),
+                    LabelOffsetMm   = labelOffset > 0 ? labelOffset : 600,
+                    ColorCode       = colorCode,
+                    AutoColor       = colorCode == 0,
+                    ShowVoltDrop    = showVD,
+                    ShowFill        = showFill,
+                    CompactLabel    = compact,
+                };
+
+                Commands.Electrical.WireAnnotationStyleStore.Save(doc, style);
+                TaskDialog.Show("Wire Style Saved",
+                    $"Project defaults saved to STING_WIRE_ANNOT_STYLE.json:\n"
+                    + $"  Slash {slashLen:0.#} mm  gap {slashGap:0.#} mm  angle {slashAngle:0}°\n"
+                    + $"  Weight {lineWeight}  offset {labelOffset:0} mm  colour code {colorCode}\n\n"
+                    + "Run 'W-Rfsh' to apply to existing annotations in the active view.");
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn("HandleWireSaveStyleFromPanel: " + ex.Message);
+                // Fallback gracefully to full editor dialog
+                RunCommand<Commands.Electrical.WireAnnotationStyleCommand>(app);
+            }
+        }
+
+        private static StingDockPanel FindDockPanelPage(UIApplication app)
+        {
+            // Use the static reference set by StingDockPanelProvider.SetupDockablePane —
+            // this is reliable in Revit where System.Windows.Application.Current may be
+            // null or its Windows collection may not contain Revit's HwndSource host.
+            return StingDockPanelProvider.Instance;
+        }
+
+        private static T FindVisualChild<T>(System.Windows.DependencyObject parent)
+            where T : System.Windows.DependencyObject
+        {
+            if (parent == null) return null;
+            int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is T t) return t;
+                var result = FindVisualChild<T>(child);
+                if (result != null) return result;
+            }
+            return null;
+        }
+
+        private static double ReadTextBox(System.Windows.FrameworkElement root, string name, double def)
+        {
+            try
+            {
+                if (root.FindName(name) is System.Windows.Controls.TextBox tb
+                    && double.TryParse(tb.Text,
+                        System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out double v))
+                    return v;
+            }
+            catch { }
+            return def;
+        }
+
+        private static int ReadCombo(System.Windows.FrameworkElement root, string name)
+        {
+            try
+            {
+                if (root.FindName(name) is System.Windows.Controls.ComboBox cb)
+                    return cb.SelectedIndex;
+            }
+            catch { }
+            return 0;
+        }
+
+        private static bool ReadCheck(System.Windows.FrameworkElement root, string name, bool def)
+        {
+            try
+            {
+                if (root.FindName(name) is System.Windows.Controls.CheckBox chk)
+                    return chk.IsChecked ?? def;
+            }
+            catch { }
+            return def;
+        }
     }
 }
