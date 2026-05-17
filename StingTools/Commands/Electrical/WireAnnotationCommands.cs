@@ -1069,51 +1069,6 @@ namespace StingTools.Commands.Electrical
         }
 
 
-        public static FamilySymbol ResolveOptInWireTagSymbol(Document doc)
-        {
-            try
-            {
-                var symbols = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FamilySymbol))
-                    .OfCategory(BuiltInCategory.OST_ConduitTags)
-                    .Cast<FamilySymbol>()
-                    .ToList();
-                if (symbols.Count == 0) return null;
-                return symbols.FirstOrDefault(s =>
-                    (s.FamilyName ?? "").IndexOf("Wire Annotation", StringComparison.OrdinalIgnoreCase) >= 0
-                 || (s.FamilyName ?? "").IndexOf("STING Wire",      StringComparison.OrdinalIgnoreCase) >= 0
-                 || (s.Name       ?? "").IndexOf("Wire Annotation", StringComparison.OrdinalIgnoreCase) >= 0);
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn("ResolveOptInWireTagSymbol: " + ex.Message);
-                return null;
-            }
-        }
-
-        public static ElementId TryPlaceIndependentTag(Document doc, View view,
-            Element conduit, XYZ headPt, string conduitUniqueId)
-        {
-            var sym = ResolveOptInWireTagSymbol(doc);
-            if (sym == null) return ElementId.InvalidElementId;
-            try
-            {
-                if (!sym.IsActive) { sym.Activate(); doc.Regenerate(); }
-                var tag = IndependentTag.Create(doc, sym.Id, view.Id,
-                    new Reference(conduit), addLeader: true,
-                    TagOrientation.Horizontal, headPt);
-                if (tag == null) return ElementId.InvalidElementId;
-                var p = tag.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
-                if (p != null && !p.IsReadOnly) p.Set(MarkerFor(conduitUniqueId));
-                return tag.Id;
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn("IndependentTag.Create: " + ex.Message);
-                return ElementId.InvalidElementId;
-            }
-        }
-
         /// <summary>
         /// Places a home-run arrow on <paramref name="conduit"/> in
         /// <paramref name="view"/>.  Stamps the created elements with a

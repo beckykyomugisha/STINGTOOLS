@@ -20,6 +20,24 @@ using Autodesk.Revit.DB;
 
 namespace StingTools.Core.Drawing
 {
+    public sealed class AnnotationRunOptions
+    {
+        public int  ViewScale      { get; set; } = 100;
+        public bool SkipAutoTag    { get; set; }
+        public bool SkipAutoDim    { get; set; }
+        public bool SkipDecorative { get; set; }
+        public bool SkipSpots      { get; set; }
+    }
+
+    public sealed class AnnotationResult
+    {
+        public int TagsPlaced      { get; set; }
+        public int DimsPlaced      { get; set; }
+        public int DecorativePlaced { get; set; }
+        public int SpotsPlaced     { get; set; }
+        public List<string> Warnings { get; } = new List<string>();
+    }
+
     public sealed class AnnotationRunStats
     {
         public int DimsCreated { get; set; }
@@ -33,6 +51,36 @@ namespace StingTools.Core.Drawing
 
     public static class AnnotationRunner
     {
+        /// <summary>
+        /// Run the annotation pass for a given rule pack with explicit options.
+        /// Returns an <see cref="AnnotationResult"/> that the caller can inspect.
+        /// The caller is responsible for an active Transaction.
+        /// </summary>
+        public static AnnotationResult Run(Document doc, View view, AnnotationRulePack pack, AnnotationRunOptions opts)
+        {
+            var result = new AnnotationResult();
+            if (doc == null || view == null || pack == null) return result;
+            opts ??= new AnnotationRunOptions();
+
+            bool dense = !pack.DenseUntilScale.HasValue || view.Scale <= pack.DenseUntilScale.Value;
+
+            try { if (!opts.SkipAutoDim && pack.AutoDimGrids)  DimGrids(doc, view, pack, new AnnotationRunStats()); } catch (Exception ex) { result.Warnings.Add("AutoDimGrids: " + ex.Message); }
+            try { if (!opts.SkipAutoDim && pack.AutoDimLevels) DimLevels(doc, view, pack, new AnnotationRunStats()); } catch (Exception ex) { result.Warnings.Add("AutoDimLevels: " + ex.Message); }
+
+            if (dense && !opts.SkipAutoTag)
+            {
+                var s = new AnnotationRunStats();
+                try { if (pack.AutoTagRooms)     TagCategory(doc, view, pack, BuiltInCategory.OST_Rooms,             "Rooms",    s); } catch (Exception ex) { result.Warnings.Add("AutoTagRooms: " + ex.Message); }
+                try { if (pack.AutoTagDoors)     TagCategory(doc, view, pack, BuiltInCategory.OST_Doors,             "Doors",    s); } catch (Exception ex) { result.Warnings.Add("AutoTagDoors: " + ex.Message); }
+                try { if (pack.AutoTagWindows)   TagCategory(doc, view, pack, BuiltInCategory.OST_Windows,           "Windows",  s); } catch (Exception ex) { result.Warnings.Add("AutoTagWindows: " + ex.Message); }
+                try { if (pack.AutoTagEquipment) TagEquipment(doc, view, pack, s); }                                               catch (Exception ex) { result.Warnings.Add("AutoTagEquipment: " + ex.Message); }
+                result.TagsPlaced = s.TagsPlaced;
+                result.DimsPlaced = s.DimsCreated;
+            }
+
+            return result;
+        }
+
         /// <summary>
         /// Run the annotation pass defined by drawingType.Annotation
         /// against the given view. The caller is responsible for an

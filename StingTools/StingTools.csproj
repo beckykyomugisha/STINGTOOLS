@@ -58,6 +58,8 @@
     <PackageReference Include="Lucene.Net" Version="4.8.0-beta00016" />
     <PackageReference Include="Lucene.Net.Analysis.Common" Version="4.8.0-beta00016" />
     <PackageReference Include="Lucene.Net.QueryParser" Version="4.8.0-beta00016" />
+    <!-- ExportCenterPdfPostProcess: PDF stamp / merge for export-centre deliverables. -->
+    <PackageReference Include="PdfSharp" Version="6.1.1" />
   </ItemGroup>
 
   <!-- Template engine v1.1 (S11/S14/S15): embedded default templates + workflow JSON.

@@ -83,4 +83,14 @@ namespace StingTools.Core.Drawing
         [JsonProperty("version")] public int Version { get; set; } = 1;
         [JsonProperty("viewStylePacks")] public List<ViewStylePack> Packs { get; set; } = new List<ViewStylePack>();
     }
+
+    /// <summary>
+    /// Underlay settings carried by a <see cref="ViewStylePack"/>: which level
+    /// and whether to show it above or below.
+    /// </summary>
+    public sealed class PackUnderlay
+    {
+        [JsonProperty("levelName")]   public string LevelName   { get; set; }
+        [JsonProperty("orientation")] public string Orientation { get; set; } = "LookingDown";
+    }
 }
