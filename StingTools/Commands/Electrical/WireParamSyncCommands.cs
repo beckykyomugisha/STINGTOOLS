@@ -175,28 +175,29 @@ namespace StingTools.Commands.Electrical
                         d.CircuitNumber = sys.CircuitNumber ?? "";
                         d.MaxDemandA   = sys.ApparentCurrent;
 
-                        // Phase + core count derived from SystemType.
-                        // Revit ElectricalSystem does not expose a PolesNumber property;
-                        // phase count is encoded in ElectricalSystemType (Three-phase variants
-                        // include ThreePhase, ThreePhaseDelta, ThreePhaseWye, etc.).
-                        bool isThreePhase = sys.SystemType == ElectricalSystemType.ThreePhase
-                            || sys.SystemType == ElectricalSystemType.ThreePhaseDelta
-                            || sys.SystemType == ElectricalSystemType.ThreePhaseWye;
+                        // Phase + core count derived from SystemType and number of poles.
+                        // Revit ElectricalSystemType has: PowerCircuit, LightingCircuit,
+                        // Data, Telephone, FireAlarm, Security, NurseCall, Communication,
+                        // UndefinedSystemType.  Three-phase is detected via NumberOfPhases.
+                        int numPhases = 1;
+                        try { numPhases = sys.NumberOfPhases; } catch { }
+                        bool isThreePhase = numPhases >= 3;
 
                         switch (sys.SystemType)
                         {
                             case ElectricalSystemType.PowerCircuit:
-                            case ElectricalSystemType.UPS:
-                                d.Phase = "1Ø";
-                                d.CoreCount = 2; // live + neutral + (CPC separate)
-                                d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Power" : d.CircuitType;
-                                break;
-                            case ElectricalSystemType.ThreePhase:
-                            case ElectricalSystemType.ThreePhaseDelta:
-                            case ElectricalSystemType.ThreePhaseWye:
-                                d.Phase = "3Ø";
-                                d.CoreCount = 4; // 3 phase + neutral (CPC separate)
-                                d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Power" : d.CircuitType;
+                                if (isThreePhase)
+                                {
+                                    d.Phase = "3Ø";
+                                    d.CoreCount = 4; // 3 phase + neutral (CPC separate)
+                                    d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Power" : d.CircuitType;
+                                }
+                                else
+                                {
+                                    d.Phase = "1Ø";
+                                    d.CoreCount = 2; // live + neutral + (CPC separate)
+                                    d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Power" : d.CircuitType;
+                                }
                                 break;
                             case ElectricalSystemType.LightingCircuit:
                                 d.Phase = "1Ø";

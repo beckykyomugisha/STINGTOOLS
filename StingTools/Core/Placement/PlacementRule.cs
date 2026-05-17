@@ -156,6 +156,246 @@ namespace StingTools.Core.Placement
         /// <summary>PC-13 — RuleIds whose placement in the same room suppresses this rule.</summary>
         public List<string> ConflictsWith { get; set; } = new List<string>();
 
+        // ── Coverage / routing ──────────────────────────────────────
+
+        /// <summary>Detection / coverage radius in millimetres (smoke detectors, beams, etc.).</summary>
+        public double CoverageRadiusMm { get; set; } = 0.0;
+
+        /// <summary>Maximum centre-to-centre spacing allowed by the applicable standard (mm).</summary>
+        public double MaxSpacingMm { get; set; } = 0.0;
+
+        /// <summary>Minimum clearance from wall face in millimetres.</summary>
+        public double WallClearanceMm { get; set; } = 0.0;
+
+        /// <summary>Minimum clearance from any obstruction in millimetres.</summary>
+        public double ObstructionClearanceMm { get; set; } = 0.0;
+
+        /// <summary>When true the engine guarantees coverage of every point in the room polygon.</summary>
+        public bool GuaranteeCoverage { get; set; } = false;
+
+        /// <summary>Routing mode — CHASE / SURFACE / CONDUIT / TRUNKING / NONE.</summary>
+        public string RoutingMode { get; set; } = "";
+
+        /// <summary>Lateral inset from the anchor face along the route normal (mm).</summary>
+        public double RouteOffsetMm { get; set; } = 0.0;
+
+        /// <summary>Wall face to route on — INTERIOR / EXTERIOR / THROUGH / AUTO.</summary>
+        public string RouteFace { get; set; } = "";
+
+        /// <summary>Minimum bend radius for conduit / cable routing (mm).</summary>
+        public double RouteMinBendRadiusMm { get; set; } = 0.0;
+
+        /// <summary>Revit category string for created route segments — PIPE / CONDUIT / DUCT / CABLE_TRAY.</summary>
+        public string RouteSegmentCategory { get; set; } = "";
+
+        // ── Glazing / fenestration ───────────────────────────────────
+
+        /// <summary>Sill height above floor finish level in millimetres.</summary>
+        public double SillHeightMm { get; set; } = 0.0;
+
+        /// <summary>Head height above floor finish level in millimetres.</summary>
+        public double HeadHeightMm { get; set; } = 0.0;
+
+        /// <summary>Cill / sill-to-floor dimension used by some standards (mm).</summary>
+        public double CillToFloorMm { get; set; } = 0.0;
+
+        /// <summary>Require toughened glazing flag (BS EN 12150).</summary>
+        public bool ToughenedGlazingRequired { get; set; } = false;
+
+        /// <summary>Glazing specification reference (e.g. "BS EN 12150 Class A").</summary>
+        public string GlazingSpec { get; set; } = "";
+
+        // ── Compliance / audit ───────────────────────────────────────
+
+        /// <summary>Audit tag written to element on last compliance run.</summary>
+        public string PostAuditTag { get; set; } = "";
+
+        /// <summary>When true the engine checks and populates mandatory COBie fields.</summary>
+        public bool RequiresCOBieFields { get; set; } = false;
+
+        /// <summary>When true the engine validates mandatory IFC property mappings.</summary>
+        public bool RequiresIfcMapping { get; set; } = false;
+
+        /// <summary>Minimum maintenance access clearance in millimetres.</summary>
+        public double MaintenanceClearance { get; set; } = 0.0;
+
+        // ── Manufacturer / catalogue ─────────────────────────────────
+
+        /// <summary>Manufacturer code cross-referenced against ManufacturerCatalogueRegistry.</summary>
+        public string ManufacturerCode { get; set; } = "";
+
+        /// <summary>Manufacturer catalogue reference / part number.</summary>
+        public string CatalogueRef { get; set; } = "";
+
+        /// <summary>Nominal back-box or enclosure depth in millimetres.</summary>
+        public double BoxDepthMm { get; set; } = 0.0;
+
+        /// <summary>Number of gangs (for socket / switch outlets).</summary>
+        public int GangCount { get; set; } = 0;
+
+        /// <summary>Module pitch for multi-module socket / switch ranges (mm).</summary>
+        public double ModulePitchMm { get; set; } = 0.0;
+
+        /// <summary>Mounting type string — FLUSH / SURFACE / PENDANT / TRACK / etc.</summary>
+        public string MountType { get; set; } = "";
+
+        /// <summary>Family insertion origin identifier — CENTRE / TOP_LEFT / BOTTOM_CENTRE / etc.</summary>
+        public string InsertionOrigin { get; set; } = "";
+
+        /// <summary>Plaster offset mode — NONE / FIXED / LAYER.</summary>
+        public string PlasterOffsetMode { get; set; } = "";
+
+        /// <summary>Fixed plaster offset dimension (mm) when PlasterOffsetMode = FIXED.</summary>
+        public double PlasterOffsetFixedMm { get; set; } = 0.0;
+
+        // ── Two-phase / construction sequence ────────────────────────
+
+        /// <summary>When true the fixture requires a two-phase placement (first fix + second fix).</summary>
+        public bool TwoPhaseEnabled { get; set; } = false;
+
+        /// <summary>Phase name for first-fix / construction-phase placement.</summary>
+        public string ConstructionPhase { get; set; } = "";
+
+        /// <summary>Phase name for second-fix / completion-phase placement.</summary>
+        public string CompletionPhase { get; set; } = "";
+
+        /// <summary>FamilySymbol name regex for the first-fix box / back-box.</summary>
+        public string BoxFamilyTypeRegex { get; set; } = "";
+
+        /// <summary>Parameter name on the first-fix box that receives the final-fix element's Id.</summary>
+        public string BoxLocationIdParam { get; set; } = "";
+
+        // ── Cluster / gang ───────────────────────────────────────────
+
+        /// <summary>When true this rule is a member of a modular cluster (ganged sockets, multi-socket strips).</summary>
+        public bool IsClusterMember { get; set; } = false;
+
+        /// <summary>Cluster group identifier — all rules sharing this id form one gang.</summary>
+        public string ClusterGroupId { get; set; } = "";
+
+        /// <summary>Slot index within the cluster gang (0-based).</summary>
+        public int ClusterSlotIndex { get; set; } = 0;
+
+        /// <summary>Total number of slots in the cluster frame.</summary>
+        public int ClusterTotalSlots { get; set; } = 0;
+
+        /// <summary>Overall width of the cluster frame in millimetres.</summary>
+        public double ClusterFrameWidthMm { get; set; } = 0.0;
+
+        // ── Ceiling tile snap / structural fixing ─────────────────────
+
+        /// <summary>When true snap placed points to the ceiling tile grid (CeilingGridSnap).</summary>
+        public bool CeilingTileSnap { get; set; } = false;
+
+        /// <summary>Tile grid X dimension override for ceiling snap (mm). 0 = use 1200mm default.</summary>
+        public double TileGridSpacingXMm { get; set; } = 0.0;
+
+        /// <summary>Tile grid Y dimension override for ceiling snap (mm). 0 = use 600mm default.</summary>
+        public double TileGridSpacingYMm { get; set; } = 0.0;
+
+        /// <summary>When true the engine checks for structural fixing points (joists / noggins).</summary>
+        public bool StructuralFixingCheck { get; set; } = false;
+
+        /// <summary>Minimum clearance from a joist centreline to allow direct fixing (mm).</summary>
+        public double JoistClearanceMm { get; set; } = 0.0;
+
+        /// <summary>When true the engine emits noggin-required markers at points without structural support.</summary>
+        public bool EmitNogginRequirement { get; set; } = false;
+
+        // ── Wet zone / accessibility / height ─────────────────────────
+
+        /// <summary>When true exclude this fixture from wet zone areas.</summary>
+        public bool WetZoneExclude { get; set; } = false;
+
+        /// <summary>Wet zone class this fixture is rated for (BS EN 60529 / IEC 60364-7-701).</summary>
+        public string WetZoneClass { get; set; } = "";
+
+        /// <summary>Height standard reference applied by AccessibilityAuditor (e.g. "BS 8300:2018 §9.5").</summary>
+        public string HeightStandardRef { get; set; } = "";
+
+        // ── Density extensions ───────────────────────────────────────
+
+        /// <summary>Density rule: 1 fixture per N pupils (education / BB101).</summary>
+        public double PerPupil { get; set; } = 0.0;
+
+        /// <summary>Density rule: 1 fixture per N toilet cubicles (BS 6465-1).</summary>
+        public double PerToiletCubicle { get; set; } = 0.0;
+
+        /// <summary>Density rule: 1 fixture per N beds (healthcare / HTM).</summary>
+        public double PerBed { get; set; } = 0.0;
+
+        /// <summary>Density rule: 1 fixture per N workstations (offices / BCO Guide).</summary>
+        public double PerWorkstation { get; set; } = 0.0;
+
+        /// <summary>Parameter name on the Room element that holds the occupancy count override.</summary>
+        public string OccupancyParamName { get; set; } = "";
+
+        /// <summary>Name of the building-type lookup table for occupancy-based density rules.</summary>
+        public string BuildingTypeTable { get; set; } = "";
+
+        // ── Building type / standards ─────────────────────────────────
+
+        /// <summary>Building occupancy / use class this rule targets (e.g. "EDUCATION", "HEALTHCARE", "OFFICE").</summary>
+        public string BuildingType { get; set; } = "";
+
+        /// <summary>Semicolon-separated list of standards this rule enforces (e.g. "BS 8300;BB101;HTM 08-03").</summary>
+        public string ApplicableStandards { get; set; } = "";
+
+        /// <summary>Minimum IP rating required (numeric, e.g. 44 for IP44).</summary>
+        public int IpRatingMin { get; set; } = 0;
+
+        /// <summary>Wet zone exclusion zone class string (e.g. "ZONE_1", "ZONE_2").</summary>
+        public string WetZoneExclusion { get; set; } = "";
+
+        /// <summary>When true the AccessibilityAuditor checks this placement against accessibility standards.</summary>
+        public bool AccessibilityCheck { get; set; } = false;
+
+        /// <summary>Height standard code used by the accessibility checker (e.g. "BS_8300_TABLE_6").</summary>
+        public string HeightStandard { get; set; } = "";
+
+        /// <summary>Maximum number of slots / circuits this rule allocates in a distribution board.</summary>
+        public int MaxSlotsMm { get; set; } = 0;
+
+        /// <summary>When true a two-part audit (install + commissioning) is required.</summary>
+        public bool TwoPartAudit { get; set; } = false;
+
+        // ── Slope / insulation ────────────────────────────────────────
+
+        /// <summary>Minimum slope percentage for gravity drainage segments (BS EN 12056-2).</summary>
+        public double MinSlopePercent { get; set; } = 0.0;
+
+        /// <summary>Insulation thickness added around the pipe / conduit (mm).</summary>
+        public double InsulationThicknessMm { get; set; } = 0.0;
+
+        // ── Lighting ─────────────────────────────────────────────────
+
+        /// <summary>Minimum acceptable BS EN 12464-1 uniformity ratio (Uo = Emin / Eavg). 0 = use calculator default.</summary>
+        public double MinUniformityRatio { get; set; } = 0.0;
+
+        // ── Electrical ───────────────────────────────────────────────
+
+        /// <summary>Advisory maximum number of cables / conductors bundled in this trunking / conduit run.</summary>
+        public int CableBundleAdvisoryCount { get; set; } = 0;
+
+        // ── Context ───────────────────────────────────────────────────
+
+        /// <summary>Nominal pipe / conduit outer diameter in millimetres for chase-depth calculations.</summary>
+        public double NominalDiameterMm { get; set; } = 0.0;
+
+        /// <summary>Mounting context identifier — SURFACE / FLUSH / CHASED / PENDANT / TRACK.</summary>
+        public string MountingContext { get; set; } = "";
+
+        /// <summary>Eurocode 2 / BS EN 1992-1-1 exposure class for concrete cover calculations (XC1 / XC2 / XS1 etc.).</summary>
+        public string ExposureClass { get; set; } = "";
+
+        /// <summary>When true the engine emits support-bracket requirements alongside the placed fixture.</summary>
+        public bool EmitSupports { get; set; } = false;
+
+        // ── Source / metadata ────────────────────────────────────────
+
+        /// <summary>Source discipline / standards pack that contributed this rule (e.g. "ELECTRICAL_BS7671").</summary>
+        public string SourcePack { get; set; } = "";
+
         // ── Reporting ───────────────────────────────────────────────
 
         /// <summary>Rule priority (0..100); higher wins. Ties broken by candidate score.</summary>
@@ -212,6 +452,77 @@ namespace StingTools.Core.Placement
                 StandardRef          = this.StandardRef,
                 UniclassPr           = this.UniclassPr,
                 Notes                = this.Notes,
+                // Extended properties
+                CoverageRadiusMm     = this.CoverageRadiusMm,
+                MaxSpacingMm         = this.MaxSpacingMm,
+                WallClearanceMm      = this.WallClearanceMm,
+                ObstructionClearanceMm = this.ObstructionClearanceMm,
+                GuaranteeCoverage    = this.GuaranteeCoverage,
+                RoutingMode          = this.RoutingMode,
+                RouteOffsetMm        = this.RouteOffsetMm,
+                RouteFace            = this.RouteFace,
+                RouteMinBendRadiusMm = this.RouteMinBendRadiusMm,
+                RouteSegmentCategory = this.RouteSegmentCategory,
+                SillHeightMm         = this.SillHeightMm,
+                HeadHeightMm         = this.HeadHeightMm,
+                CillToFloorMm        = this.CillToFloorMm,
+                ToughenedGlazingRequired = this.ToughenedGlazingRequired,
+                GlazingSpec          = this.GlazingSpec,
+                PostAuditTag         = this.PostAuditTag,
+                RequiresCOBieFields  = this.RequiresCOBieFields,
+                RequiresIfcMapping   = this.RequiresIfcMapping,
+                MaintenanceClearance = this.MaintenanceClearance,
+                ManufacturerCode     = this.ManufacturerCode,
+                CatalogueRef         = this.CatalogueRef,
+                BoxDepthMm           = this.BoxDepthMm,
+                GangCount            = this.GangCount,
+                ModulePitchMm        = this.ModulePitchMm,
+                MountType            = this.MountType,
+                InsertionOrigin      = this.InsertionOrigin,
+                PlasterOffsetMode    = this.PlasterOffsetMode,
+                PlasterOffsetFixedMm = this.PlasterOffsetFixedMm,
+                TwoPhaseEnabled      = this.TwoPhaseEnabled,
+                ConstructionPhase    = this.ConstructionPhase,
+                CompletionPhase      = this.CompletionPhase,
+                BoxFamilyTypeRegex   = this.BoxFamilyTypeRegex,
+                BoxLocationIdParam   = this.BoxLocationIdParam,
+                IsClusterMember      = this.IsClusterMember,
+                ClusterGroupId       = this.ClusterGroupId,
+                ClusterSlotIndex     = this.ClusterSlotIndex,
+                ClusterTotalSlots    = this.ClusterTotalSlots,
+                ClusterFrameWidthMm  = this.ClusterFrameWidthMm,
+                CeilingTileSnap      = this.CeilingTileSnap,
+                TileGridSpacingXMm   = this.TileGridSpacingXMm,
+                TileGridSpacingYMm   = this.TileGridSpacingYMm,
+                StructuralFixingCheck = this.StructuralFixingCheck,
+                JoistClearanceMm     = this.JoistClearanceMm,
+                EmitNogginRequirement = this.EmitNogginRequirement,
+                WetZoneExclude       = this.WetZoneExclude,
+                WetZoneClass         = this.WetZoneClass,
+                HeightStandardRef    = this.HeightStandardRef,
+                PerPupil             = this.PerPupil,
+                PerToiletCubicle     = this.PerToiletCubicle,
+                PerBed               = this.PerBed,
+                PerWorkstation       = this.PerWorkstation,
+                OccupancyParamName   = this.OccupancyParamName,
+                BuildingTypeTable    = this.BuildingTypeTable,
+                BuildingType         = this.BuildingType,
+                ApplicableStandards  = this.ApplicableStandards,
+                IpRatingMin          = this.IpRatingMin,
+                WetZoneExclusion     = this.WetZoneExclusion,
+                AccessibilityCheck   = this.AccessibilityCheck,
+                HeightStandard       = this.HeightStandard,
+                MaxSlotsMm           = this.MaxSlotsMm,
+                TwoPartAudit         = this.TwoPartAudit,
+                MinSlopePercent      = this.MinSlopePercent,
+                InsulationThicknessMm = this.InsulationThicknessMm,
+                MinUniformityRatio   = this.MinUniformityRatio,
+                CableBundleAdvisoryCount = this.CableBundleAdvisoryCount,
+                NominalDiameterMm    = this.NominalDiameterMm,
+                MountingContext      = this.MountingContext,
+                ExposureClass        = this.ExposureClass,
+                EmitSupports         = this.EmitSupports,
+                SourcePack           = this.SourcePack,
             };
         }
 

@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using TextBox = System.Windows.Controls.TextBox;
 using ComboBox = System.Windows.Controls.ComboBox;
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
+using StingTools.Core;
 
 namespace StingTools.UI
 {

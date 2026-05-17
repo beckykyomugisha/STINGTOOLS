@@ -29,6 +29,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
+using StingTools.Core;
 using StingTools.Core.Drawing;
 // Resolve type collisions between WPF and Revit API:
 //   System.Windows.Controls.Grid vs Autodesk.Revit.DB.Grid

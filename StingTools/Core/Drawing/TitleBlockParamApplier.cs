@@ -119,6 +119,58 @@ namespace StingTools.Core.Drawing
             return r;
         }
 
+        /// <summary>
+        /// Apply dt.TitleBlockParams to a batch of sheets. Returns a flat list of
+        /// warnings from all sheets. Never throws.
+        /// </summary>
+        public static List<string> Batch(
+            Document doc, IEnumerable<ElementId> sheetIds, DrawingType dt,
+            Dictionary<string, string> tokens)
+        {
+            var warnings = new List<string>();
+            if (sheetIds == null) return warnings;
+            foreach (var id in sheetIds)
+            {
+                try
+                {
+                    var sheet = doc?.GetElement(id) as ViewSheet;
+                    if (sheet == null) continue;
+                    var r = Apply(doc, sheet, dt, tokens);
+                    warnings.AddRange(r.Warnings);
+                }
+                catch (Exception ex) { warnings.Add($"Batch sheet {id}: {ex.Message}"); }
+            }
+            return warnings;
+        }
+
+        /// <summary>
+        /// Returns a list of ProjectInformation parameter names referenced by
+        /// dt.TitleBlockParams that do not exist in the project. Used by
+        /// pre-flight validators to surface missing parameters before a run.
+        /// </summary>
+        public static List<string> FindMissingProjectInfoParams(Document doc, DrawingType dt)
+        {
+            var missing = new List<string>();
+            if (doc == null || dt?.TitleBlockParams == null) return missing;
+            try
+            {
+                var pi = doc.ProjectInformation;
+                if (pi == null) return missing;
+                foreach (var kv in dt.TitleBlockParams)
+                {
+                    var ms = _projInfo.Matches(kv.Value ?? "");
+                    foreach (System.Text.RegularExpressions.Match m in ms)
+                    {
+                        var name = m.Groups[1].Value;
+                        if (pi.LookupParameter(name) == null && !missing.Contains(name))
+                            missing.Add(name);
+                    }
+                }
+            }
+            catch { /* defensive */ }
+            return missing;
+        }
+
         // ── Internals ──
 
         private static string ResolveTemplate(

@@ -1,5 +1,6 @@
 // StingTools — view-scale → symbol-tier mapping (Phase 175)
 
+using System;
 using Autodesk.Revit.DB;
 
 namespace StingTools.Core.Symbols

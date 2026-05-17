@@ -143,6 +143,28 @@ namespace StingTools.Core.Fabrication
 
         public const string CERT_REF_TXT                = "ELC_LPS_CERT_REF_TXT";
         public const string CERT_REF_TXT_GUID           = "0a8dbcfb-6f73-5c8c-94eb-b72606feae87";
+
+        // ── Additional LPS parameters referenced by LightningProtectionCommands ──
+
+        /// <summary>Project-level override for N_g (lightning flash density, flashes/km²/yr).</summary>
+        public const string PROJECT_NG_OVERRIDE_NR      = "ELC_LPS_PROJECT_NG_OVERRIDE_NR";
+        public const string PROJECT_NG_OVERRIDE_NR_GUID = "b1c2d3e4-f5a6-5b7c-8d9e-0a1b2c3d4e5f";
+
+        /// <summary>Kc separation-distance factor (BS EN 62305-3 §6.3).</summary>
+        public const string KC_FACTOR_NR                = "ELC_LPS_KC_FACTOR_NR";
+        public const string KC_FACTOR_NR_GUID           = "c2d3e4f5-a6b7-5c8d-9e0a-1b2c3d4e5f60";
+
+        /// <summary>Conductor material for down conductors (e.g. "CU", "AL", "HOT_DIP_GALV").</summary>
+        public const string CONDUCTOR_MATERIAL_TXT      = "ELC_LPS_CONDUCTOR_MATERIAL_TXT";
+        public const string CONDUCTOR_MATERIAL_TXT_GUID = "d3e4f5a6-b7c8-5d9e-0a1b-2c3d4e5f6071";
+
+        /// <summary>Element type classification for air terminals / down conductors (e.g. "AIR_TERMINAL", "DOWN_CONDUCTOR").</summary>
+        public const string ELEMENT_TYPE_TXT            = "ELC_LPS_ELEMENT_TYPE_TXT";
+        public const string ELEMENT_TYPE_TXT_GUID       = "e4f5a6b7-c8d9-5e0a-1b2c-3d4e5f607182";
+
+        /// <summary>Compliance verdict written by LPS audit commands (e.g. "EARTH OK", "EARTH FAIL — 12.3 ohm").</summary>
+        public const string COMPLIANCE_STATUS_TXT       = "ELC_LPS_COMPLIANCE_STATUS_TXT";
+        public const string COMPLIANCE_STATUS_TXT_GUID  = "f5a6b7c8-d9e0-5a1b-2c3d-4e5f60718293";
     }
 
     /// <summary>
