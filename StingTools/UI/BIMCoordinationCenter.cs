@@ -31,8 +31,6 @@ using Visibility  = System.Windows.Visibility;
 using Newtonsoft.Json.Linq;
 using StingTools.Core.Validation.Healthcare;
 using Autodesk.Revit.DB.Architecture;
-using Color = System.Windows.Media.Color;
-using Grid = System.Windows.Controls.Grid;
 
 namespace StingTools.UI
 {

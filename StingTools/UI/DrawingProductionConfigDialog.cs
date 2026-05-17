@@ -37,7 +37,6 @@ using Grid       = System.Windows.Controls.Grid;
 using TextBox    = System.Windows.Controls.TextBox;
 using Visibility = System.Windows.Visibility;
 using StingTools.Core;
-using Grid = System.Windows.Controls.Grid;
 namespace StingTools.UI
 {
     public sealed class DrawingProductionConfigDialog : Window
