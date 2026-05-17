@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 
 [ApiController]
 [Route("api/projects/{projectId:guid}/alignment")]
@@ -46,5 +47,29 @@ public class AlignmentController : ControllerBase
             .OrderByDescending(r => r.ValidatedAt)
             .FirstOrDefaultAsync(ct);
         return report == null ? NotFound() : Ok(report);
+    }
+
+    // POST /api/projects/{id}/alignment/coherence — run full federated coherence scan
+    [HttpPost("coherence")]
+    public async Task<ActionResult> RunCoherence(
+        Guid projectId,
+        [FromServices] IFederatedCoherenceJob coherenceJob,
+        CancellationToken ct)
+    {
+        var report = await coherenceJob.RunAsync(projectId, _tenant.TenantId, ct);
+        return Ok(report);
+    }
+
+    // POST /api/projects/{projectId}/models/{modelId}/alignment/auto-align
+    // — suggest or apply an auto-computed coordinate transform
+    [HttpPost("~/api/projects/{projectId:guid}/models/{modelId:guid}/alignment/auto-align")]
+    public async Task<ActionResult> AutoAlign(
+        Guid projectId,
+        Guid modelId,
+        [FromServices] IAutoAlignService autoAlign,
+        CancellationToken ct)
+    {
+        var result = await autoAlign.ComputeAsync(projectId, _tenant.TenantId, modelId, ct);
+        return result.Success ? Ok(result) : BadRequest(new { result.Message });
     }
 }

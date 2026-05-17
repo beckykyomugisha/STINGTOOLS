@@ -493,6 +493,12 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.IIfcTessellationJob
 // Gap 5 — Per-element IFC delta tracking (Added / Modified / Deleted across uploads).
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IIfcDeltaService,
     Planscape.Infrastructure.Services.IfcDeltaService>();
+// Gap F — Auto-compute coordinate transform from IfcMapConversion data.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IAutoAlignService,
+    Planscape.Infrastructure.Services.AutoAlignService>();
+// Gap G — Full project-wide federated coordinate coherence scan.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IFederatedCoherenceJob,
+    Planscape.Infrastructure.Services.FederatedCoherenceJob>();
 
 if (isWorker)
 {

@@ -194,6 +194,10 @@ public class PlanscapeDbContext : DbContext
     public DbSet<ElementGlobalIdRegistry> GlobalIdRegistry => Set<ElementGlobalIdRegistry>();
     // Gap 7 — Level harmonisation (normalised storey dictionary + per-tool alias map).
     public DbSet<ProjectLevel> ProjectLevels => Set<ProjectLevel>();
+    // Gap A — Project canonical coordinate system (CRS, origin, true north, unit).
+    public DbSet<ProjectCoordinateSystem> ProjectCoordinateSystems => Set<ProjectCoordinateSystem>();
+    // Gap B — Per-model coordinate transform (manual correction or auto-computed from IfcMapConversion).
+    public DbSet<ProjectModelTransform> ProjectModelTransforms => Set<ProjectModelTransform>();
 
     // Phase 178c (T3-12) — Multi-step / parallel approval chains for CDE transitions.
     public DbSet<ApprovalChain> ApprovalChains => Set<ApprovalChain>();
@@ -1065,10 +1069,13 @@ public class PlanscapeDbContext : DbContext
         });
 
         // ── IfcAlignmentReport — per-model IFC alignment validation results ──
+        // New double fields (MapConversionScale, MapConversionRotationDeg, GeometryCentroid*)
+        // are nullable doubles — no max-length constraints needed.
         modelBuilder.Entity<IfcAlignmentReport>(e =>
         {
             e.HasIndex(r => new { r.ProjectId, r.ProjectModelId });
             e.HasIndex(r => r.TenantId);
+            e.HasIndex(r => new { r.ProjectId, r.ValidatedAt });
         });
 
         // ── Gap 5 — IfcElementSnapshot (per-element IFC change delta) ──────────
@@ -1118,6 +1125,32 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(x => x.TenantId);
             e.Property(x => x.NormalizedName).HasMaxLength(80).IsRequired();
             e.Property(x => x.DisplayName).HasMaxLength(200);
+        });
+
+        // ── Gap A — ProjectCoordinateSystem ──────────────────────────────────
+        modelBuilder.Entity<ProjectCoordinateSystem>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId).IsUnique(); // one CRS per project
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.CrsEpsgCode).HasMaxLength(20);
+            e.Property(x => x.CrsName).HasMaxLength(200);
+            e.Property(x => x.LengthUnit).HasMaxLength(8).IsRequired();
+            e.Property(x => x.DefinedBy).HasMaxLength(200);
+            e.Property(x => x.Notes).HasMaxLength(2000);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Gap B — ProjectModelTransform ─────────────────────────────────────
+        modelBuilder.Entity<ProjectModelTransform>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectModelId).IsUnique(); // one active transform per model
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.AppliedBy).HasMaxLength(200);
+            e.Property(x => x.Notes).HasMaxLength(2000);
+            e.HasOne(x => x.Model).WithMany().HasForeignKey(x => x.ProjectModelId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // ── ClashAutomationRule — per-project automation rules for new clashes ──
