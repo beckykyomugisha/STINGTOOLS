@@ -120,6 +120,19 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
+        /// Returns a no-op IDisposable scope that callers can wrap in a
+        /// <c>using</c> statement for symmetry with other batch-mode
+        /// helpers. No actual batching is performed — Apply() is
+        /// lightweight enough to call per-sheet.
+        /// </summary>
+        public static System.IDisposable Batch() => new BatchScope();
+
+        private sealed class BatchScope : System.IDisposable
+        {
+            public void Dispose() { /* intentional no-op */ }
+        }
+
+        /// <summary>
         /// Apply dt.TitleBlockParams to a batch of sheets. Returns a flat list of
         /// warnings from all sheets. Never throws.
         /// </summary>

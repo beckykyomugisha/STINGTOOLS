@@ -225,24 +225,26 @@ namespace StingTools.Commands.Drawing
 
                 if (sheets.Count == 0) return;
 
-                var dryRun = new StingTools.Core.Drawing.ApplyOptions { DryRun = true };
                 var allMissing = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
                 int totalDeclared = 0;
 
+                // Collect unique DrawingType ids so we only call FindMissingProjectInfoParams once per type.
+                var seenDtIds = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
                 foreach (var sheet in sheets)
                 {
                     var dtId = StingTools.Core.Drawing.DrawingTypeStamper.Read(sheet);
                     var dt = DrawingTypeRegistry.Get(doc, dtId);
-                    if (dt == null) continue;
+                    if (dt?.TitleBlockParams == null) continue;
+                    totalDeclared += dt.TitleBlockParams.Count;
+                    if (!seenDtIds.Add(dtId)) continue;
                     try
                     {
-                        var result = StingTools.Core.Drawing.TitleBlockParamApplier.Apply(
-                            doc, sheet, dt, tokens: null, options: dryRun);
-                        totalDeclared += result.ParametersDeclared;
-                        foreach (var m in result.ParametersMissing)
+                        var missing = StingTools.Core.Drawing.TitleBlockParamApplier
+                            .FindMissingProjectInfoParams(doc, dt);
+                        foreach (var m in missing)
                             allMissing.Add(m);
                     }
-                    catch { /* per-sheet failure — continue */ }
+                    catch { /* per-type failure — continue */ }
                 }
 
                 if (allMissing.Count > 0)
