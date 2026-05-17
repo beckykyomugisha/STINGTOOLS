@@ -6,5 +6,7 @@
   "claude_model": "claude-haiku-4-5-20251001",
   "timeout_seconds": 10,
   "enabled": false,
-  "notes": "Set enabled=true and supply credentials to activate LLM features (design brief parsing, BIM Q&A, document drafting). Rule-based NLP is always active and offline. Sensitive project data is never sent to LLM APIs."
+  "mcp_enabled": false,
+  "mcp_port": 5199,
+  "notes": "Set enabled=true and supply credentials to activate LLM features (design brief parsing, BIM Q&A, document drafting). Rule-based NLP is always active and offline. Set mcp_enabled=true to expose STING commands to Claude Code and other MCP-compatible AI assistants over HTTP on mcp_port. Sensitive project data is never sent to LLM APIs."
 }
