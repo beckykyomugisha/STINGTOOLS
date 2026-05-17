@@ -30,6 +30,9 @@ using System.Windows.Media;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core.Drawing;
+using ComboBox   = System.Windows.Controls.ComboBox;
+using Grid       = System.Windows.Controls.Grid;
+using TextBox    = System.Windows.Controls.TextBox;
 using Visibility = System.Windows.Visibility;
 using StingTools.Core;
 namespace StingTools.UI
