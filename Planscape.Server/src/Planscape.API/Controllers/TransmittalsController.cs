@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Planscape.API.Services;
 using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.Services;
 using Planscape.Infrastructure.SignalR;
@@ -28,17 +29,20 @@ public class TransmittalsController : ControllerBase
     // server-side broadcasts had been missed in the original wiring.
     private readonly IHubContext<NotificationHub> _notifHub;
     private readonly ISequenceCounterService _seq;
+    // Gap 6/7 — push notifications to named recipient on send / acknowledge / respond.
+    private readonly IPushNotificationService _push;
 
     // Phase 175 audit P1-15-tx — single counter key per project. Bump
     // the suffix when a different code series is introduced (e.g.
     // "tx:rev2") so the SeqCounter row stays unique-per-format.
     private const string TransmittalCounterKey = "transmittal:tx";
 
-    public TransmittalsController(PlanscapeDbContext db, IHubContext<NotificationHub> notifHub, ISequenceCounterService seq)
+    public TransmittalsController(PlanscapeDbContext db, IHubContext<NotificationHub> notifHub, ISequenceCounterService seq, IPushNotificationService push)
     {
         _db = db;
         _notifHub = notifHub;
         _seq = seq;
+        _push = push;
     }
 
     /// <summary>
@@ -116,7 +120,9 @@ public class TransmittalsController : ControllerBase
             Recipient       = req.Recipient,
             Notes           = req.Notes,
             DocumentIdsJson = req.DocumentIdsJson, // kept for backward compat
-            CreatedBy       = User.FindFirst("display_name")?.Value ?? "Unknown"
+            CreatedBy       = User.FindFirst("display_name")?.Value ?? "Unknown",
+            // Gap 6 — store named recipient for targeted push on send.
+            RecipientUserId = req.RecipientUserId,
         };
 
         _db.Transmittals.Add(transmittal);
@@ -268,6 +274,10 @@ public class TransmittalsController : ControllerBase
         if (tx == null) return NotFound();
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
+        // Gap 11 — state machine guard: only DRAFT transmittals can be sent.
+        if (tx.Status != "DRAFT")
+            return BadRequest(new { message = $"Transmittal is already {tx.Status} and cannot be sent again." });
+
         tx.Status = "SENT";
         tx.SentAt = DateTime.UtcNow;
 
@@ -321,7 +331,150 @@ public class TransmittalsController : ControllerBase
             projectId, kind = "sent"
         });
 
+        // Gap 6 — targeted push to the named recipient when a transmittal is sent.
+        if (tx.RecipientUserId.HasValue)
+        {
+            _ = _push.SendToUserAsync(tx.RecipientUserId.Value, new PushPayload
+            {
+                Title = "New Transmittal Received",
+                Body = $"{tx.TransmittalCode} from {tx.CreatedBy}" +
+                       (tx.SlaDeadline.HasValue ? $" · respond by {tx.SlaDeadline.Value:d MMM}" : ""),
+                Channel = "transmittals",
+                Data = new Dictionary<string, string>
+                {
+                    ["type"] = "transmittal_sent",
+                    ["transmittalId"] = tx.Id.ToString(),
+                    ["projectId"] = projectId.ToString()
+                }
+            });
+        }
+
         return Ok(tx);
+    }
+
+    /// <summary>
+    /// Gap 7 — recipient acknowledges receipt of a SENT transmittal.
+    /// Transitions SENT → ACKNOWLEDGED and pushes back to the sender.
+    /// </summary>
+    [HttpPut("{txId}/acknowledge")]
+    public async Task<ActionResult> Acknowledge(Guid projectId, Guid txId)
+    {
+        var tenantId = GetTenantId();
+        var tx = await _db.Transmittals
+            .FirstOrDefaultAsync(t => t.Id == txId && t.ProjectId == projectId && t.Project!.TenantId == tenantId);
+        if (tx == null) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+
+        if (tx.Status != "SENT")
+            return BadRequest(new { message = $"Only SENT transmittals can be acknowledged (current: {tx.Status})." });
+
+        var actorName = User.FindFirst("display_name")?.Value ?? "Unknown";
+        tx.Status = "ACKNOWLEDGED";
+        tx.AcknowledgedAt = DateTime.UtcNow;
+        tx.AcknowledgedBy = actorName;
+
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId, ProjectId = projectId, UserId = userId,
+            Action = "transmittal_acknowledged", EntityType = "Transmittal",
+            EntityId = txId.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { tx.TransmittalCode, acknowledgedBy = actorName }),
+            Timestamp = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("TransmittalUpdated", new
+        {
+            tx.Id, tx.TransmittalCode, tx.Status, tx.AcknowledgedAt, projectId, kind = "acknowledged"
+        });
+
+        // Push back to the sender so they know the transmittal was received.
+        if (tx.RecipientUserId.HasValue)
+        {
+            // Resolve sender from CreatedBy string — best effort via display_name lookup.
+            var senderUser = await _db.Users.FirstOrDefaultAsync(u => u.DisplayName == tx.CreatedBy && u.TenantId == tenantId);
+            if (senderUser != null)
+            {
+                _ = _push.SendToUserAsync(senderUser.Id, new PushPayload
+                {
+                    Title = "Transmittal Acknowledged",
+                    Body = $"{tx.TransmittalCode} acknowledged by {actorName}",
+                    Channel = "transmittals",
+                    Data = new Dictionary<string, string>
+                    {
+                        ["type"] = "transmittal_acknowledged",
+                        ["transmittalId"] = tx.Id.ToString(),
+                        ["projectId"] = projectId.ToString()
+                    }
+                });
+            }
+        }
+
+        return Ok(new { tx.Id, tx.TransmittalCode, tx.Status, tx.AcknowledgedAt, tx.AcknowledgedBy });
+    }
+
+    /// <summary>
+    /// Gap 7 — recipient formally responds to an ACKNOWLEDGED transmittal.
+    /// Transitions ACKNOWLEDGED → RESPONDED and pushes back to the sender.
+    /// </summary>
+    [HttpPut("{txId}/respond")]
+    public async Task<ActionResult> Respond(Guid projectId, Guid txId, [FromBody] TransmittalRespondRequest req)
+    {
+        var tenantId = GetTenantId();
+        var tx = await _db.Transmittals
+            .FirstOrDefaultAsync(t => t.Id == txId && t.ProjectId == projectId && t.Project!.TenantId == tenantId);
+        if (tx == null) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+
+        if (tx.Status != "ACKNOWLEDGED")
+            return BadRequest(new { message = $"Only ACKNOWLEDGED transmittals can be responded to (current: {tx.Status})." });
+
+        var actorName = User.FindFirst("display_name")?.Value ?? "Unknown";
+        tx.Status = "RESPONDED";
+        tx.RespondedAt = DateTime.UtcNow;
+        tx.RespondedBy = actorName;
+        tx.ResponseNotes = req.ResponseNotes;
+
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId, ProjectId = projectId, UserId = userId,
+            Action = "transmittal_responded", EntityType = "Transmittal",
+            EntityId = txId.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { tx.TransmittalCode, respondedBy = actorName }),
+            Timestamp = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("TransmittalUpdated", new
+        {
+            tx.Id, tx.TransmittalCode, tx.Status, tx.RespondedAt, tx.ResponseNotes,
+            projectId, kind = "responded"
+        });
+
+        // Push back to sender so they can act on the response.
+        var senderUser2 = await _db.Users.FirstOrDefaultAsync(u => u.DisplayName == tx.CreatedBy && u.TenantId == tenantId);
+        if (senderUser2 != null)
+        {
+            _ = _push.SendToUserAsync(senderUser2.Id, new PushPayload
+            {
+                Title = "Transmittal Response Received",
+                Body = $"{tx.TransmittalCode} responded by {actorName}" +
+                       (string.IsNullOrWhiteSpace(tx.ResponseNotes) ? "" : $": {tx.ResponseNotes[..Math.Min(60, tx.ResponseNotes.Length)]}"),
+                Channel = "transmittals",
+                Data = new Dictionary<string, string>
+                {
+                    ["type"] = "transmittal_responded",
+                    ["transmittalId"] = tx.Id.ToString(),
+                    ["projectId"] = projectId.ToString()
+                }
+            });
+        }
+
+        return Ok(new { tx.Id, tx.TransmittalCode, tx.Status, tx.RespondedAt, tx.RespondedBy, tx.ResponseNotes });
     }
 
     /// <summary>
@@ -458,4 +611,9 @@ public record CreateTransmittalRequest(
     string Recipient,
     string? Notes,
     string? DocumentIdsJson,
-    Guid[]? DocumentIds = null);
+    Guid[]? DocumentIds = null,
+    // Gap 6 — named recipient for targeted push notification on send.
+    Guid? RecipientUserId = null);
+
+// Gap 7 — response body for the Respond endpoint.
+public record TransmittalRespondRequest(string? ResponseNotes);

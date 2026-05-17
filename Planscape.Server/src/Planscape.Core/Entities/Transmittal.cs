@@ -22,6 +22,19 @@ public class Transmittal : ITenantScoped
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? SentAt { get; set; }
 
+    /// <summary>Named recipient user ID — used for targeted push notification on send.</summary>
+    public Guid? RecipientUserId { get; set; }
+    /// <summary>Optional SLA deadline by which the recipient must acknowledge.</summary>
+    public DateTime? SlaDeadline { get; set; }
+    /// <summary>When the recipient acknowledged this transmittal (ACKNOWLEDGED state).</summary>
+    public DateTime? AcknowledgedAt { get; set; }
+    public string? AcknowledgedBy { get; set; }
+    /// <summary>When the recipient formally responded (RESPONDED state).</summary>
+    public DateTime? RespondedAt { get; set; }
+    public string? RespondedBy { get; set; }
+    /// <summary>Recipient response notes/comments written during the Respond action.</summary>
+    public string? ResponseNotes { get; set; }
+
     // Navigation
     public Project? Project { get; set; }
 

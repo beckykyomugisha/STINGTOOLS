@@ -32,8 +32,8 @@ public class DocumentsController : ControllerBase
     private static readonly Dictionary<string, string[]> ValidTransitions = new()
     {
         ["WIP"] = new[] { "SHARED" },
-        ["SHARED"] = new[] { "PUBLISHED", "WIP" }, // WIP = rework
-        ["PUBLISHED"] = new[] { "ARCHIVE", "SUPERSEDED" },
+        ["SHARED"] = new[] { "PUBLISHED", "WIP", "WITHDRAWN" }, // WIP = rework; WITHDRAWN = formal withdrawal
+        ["PUBLISHED"] = new[] { "ARCHIVE", "SUPERSEDED", "WITHDRAWN" },
         ["ARCHIVE"] = Array.Empty<string>(),
         ["SUPERSEDED"] = Array.Empty<string>(),
         ["WITHDRAWN"] = Array.Empty<string>(),
@@ -61,12 +61,15 @@ public class DocumentsController : ControllerBase
         ["SHARED->WIP"] = UserRole.Coordinator,        // Coordinator returns for rework
         ["PUBLISHED->ARCHIVE"] = UserRole.Manager,     // Manager archives
         ["PUBLISHED->SUPERSEDED"] = UserRole.Manager,  // Manager supersedes
+        ["SHARED->WITHDRAWN"] = UserRole.Manager,      // Manager formally withdraws from shared
+        ["PUBLISHED->WITHDRAWN"] = UserRole.Manager,   // Manager formally withdraws from published
     };
 
-    // Transitions that require an explicit approval record before completing
+    // Transitions that require an explicit approval record before completing (ISO 19650-2 §5.6)
     private static readonly HashSet<string> ApprovalRequiredTransitions = new()
     {
-        "SHARED->PUBLISHED"  // Publishing requires prior approval per ISO 19650-2 §5.6
+        "SHARED->PUBLISHED",   // Publishing requires prior approval
+        "PUBLISHED->SUPERSEDED" // Superseding a published document also requires approval
     };
 
     private readonly IFileStorageService _storage;
@@ -75,6 +78,7 @@ public class DocumentsController : ControllerBase
     private readonly ILogger<DocumentsController> _logger;
     private readonly IAuditService _audit;
     private readonly IHubContext<NotificationHub> _hub;
+    private readonly IPushNotificationService _push;
     private readonly Planscape.Infrastructure.Services.OutboundWebhookDispatcher? _webhooks;
 
     // Max file size: 100 MB
@@ -89,6 +93,7 @@ public class DocumentsController : ControllerBase
         ILogger<DocumentsController> logger,
         IAuditService audit,
         IHubContext<NotificationHub> hub,
+        IPushNotificationService push,
         Planscape.Infrastructure.Services.OutboundWebhookDispatcher? webhooks = null)
     {
         _db = db;
@@ -98,6 +103,7 @@ public class DocumentsController : ControllerBase
         _logger = logger;
         _audit = audit;
         _hub = hub;
+        _push = push;
         _webhooks = webhooks;
     }
 
@@ -748,138 +754,25 @@ public class DocumentsController : ControllerBase
         if (await RequireAclTargetAsync(projectId, doc, req.NewState, req.SuitabilityCode) is { } aclDenied)
             return aclDenied;
 
-        // Gap 3 — suitability code whitelist
-        if (!string.IsNullOrEmpty(req.SuitabilityCode) && !ValidSuitabilityCodes.Contains(req.SuitabilityCode))
-            return BadRequest(new { message = $"Invalid suitability code '{req.SuitabilityCode}'. Valid: {string.Join(", ", ValidSuitabilityCodes.OrderBy(s => s))}" });
-
-        // GAP-11 — enforce suitability↔state pairing. Each CDE state has a
-        // canonical suitability; if the caller supplies an explicit code it must
-        // be consistent with the target state's minimum level.
-        if (!string.IsNullOrEmpty(req.SuitabilityCode))
-        {
-            var suitCheck = ValidateSuitabilityForState(req.NewState, req.SuitabilityCode);
-            if (suitCheck != null) return suitCheck;
-        }
-
-        // Validate transition
         if (!ValidTransitions.TryGetValue(doc.CdeStatus, out var validTargets))
             return BadRequest($"Unknown current state: {doc.CdeStatus}");
-
         if (!validTargets.Contains(req.NewState))
             return BadRequest($"Invalid CDE transition: {doc.CdeStatus} → {req.NewState}. Valid: {string.Join(", ", validTargets)}");
 
-        // RBAC: check minimum role for this transition
         var roleCheck = CheckTransitionRole(doc.CdeStatus, req.NewState);
         if (roleCheck != null) return roleCheck;
 
-        // Approval gate: check if transition requires prior approval
-        var approvalCheck = await CheckApprovalGate(doc.CdeStatus, req.NewState, docId);
+        var approvalCheck = await CheckApprovalGate(doc.CdeStatus, req.NewState, docId, doc.Revision);
         if (approvalCheck != null) return approvalCheck;
 
         var oldState = doc.CdeStatus;
-        doc.CdeStatus = req.NewState;
-        doc.SuitabilityCode = req.SuitabilityCode ?? DefaultSuitability.GetValueOrDefault(req.NewState, doc.SuitabilityCode);
-        if (req.Revision != null) doc.Revision = req.Revision;
-        doc.UpdatedAt = DateTime.UtcNow;
-
-        // Gap 4 — e-signature on S4 publication.
-        // Capture who published and when; queue the PDF watermark background job.
-        DocumentSignature? signature = null;
-        if (oldState == "SHARED" && req.NewState == "PUBLISHED")
-        {
-            var publisherName = User.FindFirst("display_name")?.Value ?? "Unknown";
-            var publisherId   = User.FindFirst("sub")?.Value ?? "";
-
-            doc.PublishedByUserId = publisherId;
-            doc.PublishedByName   = publisherName;
-            doc.PublishedAt       = DateTime.UtcNow;
-
-            signature = new DocumentSignature
-            {
-                TenantId       = tenantId,
-                ProjectId      = projectId,
-                DocumentId     = doc.Id,
-                SignedByUserId = publisherId,
-                SignedByName   = publisherName,
-                SignedAt       = DateTime.UtcNow,
-                SignatureNote  = req.SuitabilityCode != null
-                    ? $"Published as {req.SuitabilityCode} — {doc.Revision}"
-                    : $"Published — {doc.Revision}",
-                WatermarkStatus = string.IsNullOrEmpty(doc.FilePath) ? "SKIPPED" : "PENDING",
-            };
-            _db.DocumentSignatures.Add(signature);
-        }
-
-        // Append to status history (GAP-15/GAP-22 — validated, capped at 100 entries).
-        var history = LoadAndCapHistory(doc.StatusHistoryJson);
-        history.Add(new
-        {
-            timestamp = DateTime.UtcNow, oldState, newState = req.NewState,
-            suitability = doc.SuitabilityCode,
-            user = User.FindFirst("display_name")?.Value ?? "Unknown"
-        });
-        doc.StatusHistoryJson = JsonConvert.SerializeObject(history);
-
-        // Phase 178c (T3-24) — auto-mint a DocumentRevision snapshot at every CDE transition.
-        _db.DocumentRevisions.Add(new DocumentRevision
-        {
-            TenantId              = tenantId,
-            DocumentId            = doc.Id,
-            Revision              = doc.Revision ?? "P01",
-            CdeStateAtRevision    = doc.CdeStatus,
-            SuitabilityAtRevision = doc.SuitabilityCode,
-            FilePath              = doc.FilePath,
-            FileSizeBytes         = doc.FileSizeBytes,
-            ContentHash           = doc.ContentHash,
-            CreatedBy             = User.FindFirst("display_name")?.Value ?? "Unknown",
-            CommentSummary        = $"CDE transition {oldState} → {req.NewState}",
-            Source                = "auto_cde_transition",
-        });
-
-        await _db.SaveChangesAsync();
-
-        // Gap 4 — queue the PDF watermark stamp job now that the signature row has a PK.
-        if (signature != null && signature.WatermarkStatus == "PENDING")
-        {
-            BackgroundJob.Enqueue<Planscape.API.BackgroundJobs.DocumentPublicationStampJob>(
-                j => j.ExecuteAsync(signature.Id));
-        }
-
-        await _audit.LogAsync("TRANSITION", "Document", doc.Id.ToString(),
-            $"{{\"oldState\":\"{oldState}\",\"newState\":\"{req.NewState}\"}}");
-
-        // C2 — real-time push so coordinators in Revit + mobile viewers refresh.
-        // Phase 177 — broadcast to BOTH the source and target CDE subgroups so
-        // a member who could see the doc at oldState (and is therefore tracking
-        // it on their UI) gets the "it just left WIP" event, AND a member who
-        // can only see it now-that-it's-SHARED still receives the arrival.
-        await _hub.Clients.Groups(
-                $"project-{projectId}-cde-{oldState}",
-                $"project-{projectId}-cde-{doc.CdeStatus}")
-            .SendAsync("DocumentUpdated", new
-        {
-            projectId, documentId = docId,
-            fileName = doc.FileName, cdeStatus = doc.CdeStatus,
-            oldState, suitability = doc.SuitabilityCode,
-            revision = doc.Revision,
-            updatedAt = doc.UpdatedAt,
-            kind = "cde_transition"
-        });
-
-        // Phase 165 (NEW-08) — outbound webhook fanout.
-        _webhooks?.FireAndForget(tenantId, projectId, WebhookEventType.DocumentTransitioned, new
-        {
-            documentId = doc.Id, doc.FileName, oldState, newState = doc.CdeStatus,
-            suitability = doc.SuitabilityCode, revision = doc.Revision,
-            transitionedAt = doc.UpdatedAt
-        });
-
-        return Ok(doc);
+        return await PerformCdeTransitionAsync(doc, oldState, req.NewState, req.SuitabilityCode, req.Revision, tenantId, projectId, "web");
     }
 
     /// <summary>
     /// CDE state transition via POST (mobile-compatible endpoint).
-    /// Accepts { "newStatus": "SHARED" } body format.
+    /// Accepts { "newStatus": "SHARED", "suitabilityCode": "S3", "revision": "P02" } body format.
+    /// Gap 1 — now shares all logic with TransitionState: signature, stamp job, SignalR, webhooks.
     /// </summary>
     [HttpPost("{docId}/transition")]
     public async Task<ActionResult> TransitionStateMobile(Guid projectId, Guid docId, [FromBody] MobileTransitionRequest req)
@@ -891,34 +784,88 @@ public class DocumentsController : ControllerBase
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
 
         // Phase 177 — per-folder ACL.
-        if (await RequireAclTargetAsync(projectId, doc, req.NewStatus, null) is { } aclDenied)
+        if (await RequireAclTargetAsync(projectId, doc, req.NewStatus, req.SuitabilityCode) is { } aclDenied)
             return aclDenied;
 
         if (!ValidTransitions.TryGetValue(doc.CdeStatus, out var validTargets))
             return BadRequest($"Unknown current state: {doc.CdeStatus}");
-
         if (!validTargets.Contains(req.NewStatus))
             return BadRequest($"Invalid CDE transition: {doc.CdeStatus} → {req.NewStatus}. Valid: {string.Join(", ", validTargets)}");
 
-        // RBAC: check minimum role for this transition
         var roleCheck = CheckTransitionRole(doc.CdeStatus, req.NewStatus);
         if (roleCheck != null) return roleCheck;
 
-        // Approval gate: check if transition requires prior approval
-        var approvalCheck = await CheckApprovalGate(doc.CdeStatus, req.NewStatus, docId);
+        var approvalCheck = await CheckApprovalGate(doc.CdeStatus, req.NewStatus, docId, doc.Revision);
         if (approvalCheck != null) return approvalCheck;
 
         var oldState = doc.CdeStatus;
-        doc.CdeStatus = req.NewStatus;
-        doc.SuitabilityCode = DefaultSuitability.GetValueOrDefault(req.NewStatus, doc.SuitabilityCode);
+        return await PerformCdeTransitionAsync(doc, oldState, req.NewStatus, req.SuitabilityCode, req.Revision, tenantId, projectId, "mobile");
+    }
+
+    /// <summary>
+    /// Shared core for all CDE transition paths (web PUT, mobile POST, plugin sync).
+    /// Performs suitability validation, updates the document, creates the e-signature on
+    /// SHARED→PUBLISHED, appends history, mints a DocumentRevision snapshot, persists,
+    /// enqueues the stamp job, emits SignalR + webhook events.
+    /// </summary>
+    private async Task<ActionResult> PerformCdeTransitionAsync(
+        DocumentRecord doc,
+        string oldState,
+        string newState,
+        string? suitabilityCode,
+        string? revision,
+        Guid tenantId,
+        Guid projectId,
+        string source)
+    {
+        // Gap 1 (Gap 3) — suitability code whitelist + state/suitability pairing (shared for all callers).
+        if (!string.IsNullOrEmpty(suitabilityCode) && !ValidSuitabilityCodes.Contains(suitabilityCode))
+            return BadRequest(new { message = $"Invalid suitability code '{suitabilityCode}'. Valid: {string.Join(", ", ValidSuitabilityCodes.OrderBy(s => s))}" });
+        if (!string.IsNullOrEmpty(suitabilityCode))
+        {
+            var suitCheck = ValidateSuitabilityForState(newState, suitabilityCode);
+            if (suitCheck != null) return suitCheck;
+        }
+
+        var effectiveSuitability = suitabilityCode ?? DefaultSuitability.GetValueOrDefault(newState, doc.SuitabilityCode);
+        doc.CdeStatus = newState;
+        doc.SuitabilityCode = effectiveSuitability;
+        if (revision != null) doc.Revision = revision;
         doc.UpdatedAt = DateTime.UtcNow;
 
+        // Gap 1 — e-signature on S4 publication (was only in TransitionState, now shared).
+        DocumentSignature? signature = null;
+        if (oldState == "SHARED" && newState == "PUBLISHED")
+        {
+            var publisherName = User.FindFirst("display_name")?.Value ?? "Unknown";
+            var publisherId   = User.FindFirst("sub")?.Value ?? "";
+            doc.PublishedByUserId = publisherId;
+            doc.PublishedByName   = publisherName;
+            doc.PublishedAt       = DateTime.UtcNow;
+            signature = new DocumentSignature
+            {
+                TenantId        = tenantId,
+                ProjectId       = projectId,
+                DocumentId      = doc.Id,
+                SignedByUserId  = publisherId,
+                SignedByName    = publisherName,
+                SignedAt        = DateTime.UtcNow,
+                SignatureNote   = effectiveSuitability != null
+                    ? $"Published as {effectiveSuitability} — {doc.Revision}"
+                    : $"Published — {doc.Revision}",
+                WatermarkStatus = string.IsNullOrEmpty(doc.FilePath) ? "SKIPPED" : "PENDING",
+            };
+            _db.DocumentSignatures.Add(signature);
+        }
+
+        // History (GAP-15/GAP-22 — validated, capped at 100 entries).
         var history = LoadAndCapHistory(doc.StatusHistoryJson);
         history.Add(new
         {
-            timestamp = DateTime.UtcNow, oldState, newState = req.NewStatus,
+            timestamp = DateTime.UtcNow, oldState, newState,
             suitability = doc.SuitabilityCode,
-            user = User.FindFirst("display_name")?.Value ?? "Unknown"
+            user = User.FindFirst("display_name")?.Value ?? "Unknown",
+            source
         });
         doc.StatusHistoryJson = JsonConvert.SerializeObject(history);
 
@@ -934,13 +881,41 @@ public class DocumentsController : ControllerBase
             FileSizeBytes         = doc.FileSizeBytes,
             ContentHash           = doc.ContentHash,
             CreatedBy             = User.FindFirst("display_name")?.Value ?? "Unknown",
-            CommentSummary        = $"CDE transition {oldState} → {req.NewStatus} (mobile)",
+            CommentSummary        = $"CDE transition {oldState} → {newState}" + (source != "web" ? $" ({source})" : ""),
             Source                = "auto_cde_transition",
         });
 
         await _db.SaveChangesAsync();
+
+        // Gap 1 — stamp job now shared across all callers.
+        if (signature != null && signature.WatermarkStatus == "PENDING")
+            BackgroundJob.Enqueue<Planscape.API.BackgroundJobs.DocumentPublicationStampJob>(
+                j => j.ExecuteAsync(signature.Id));
+
         await _audit.LogAsync("TRANSITION", "Document", doc.Id.ToString(),
-            $"{{\"oldState\":\"{oldState}\",\"newState\":\"{req.NewStatus}\"}}");
+            $"{{\"oldState\":\"{oldState}\",\"newState\":\"{newState}\",\"source\":\"{source}\"}}");
+
+        // Gap 1 — SignalR broadcast now shared (was missing from mobile path).
+        await _hub.Clients.Groups(
+                $"project-{projectId}-cde-{oldState}",
+                $"project-{projectId}-cde-{doc.CdeStatus}")
+            .SendAsync("DocumentUpdated", new
+            {
+                projectId, documentId = doc.Id,
+                fileName = doc.FileName, cdeStatus = doc.CdeStatus,
+                oldState, suitability = doc.SuitabilityCode,
+                revision = doc.Revision, updatedAt = doc.UpdatedAt,
+                kind = "cde_transition", source
+            });
+
+        // Gap 1 — webhook dispatch now shared (was missing from mobile path).
+        _webhooks?.FireAndForget(tenantId, projectId, WebhookEventType.DocumentTransitioned, new
+        {
+            documentId = doc.Id, doc.FileName, oldState, newState = doc.CdeStatus,
+            suitability = doc.SuitabilityCode, revision = doc.Revision,
+            transitionedAt = doc.UpdatedAt
+        });
+
         return Ok(doc);
     }
 
@@ -992,6 +967,10 @@ public class DocumentsController : ControllerBase
         if (existing != null)
             return Conflict(new { message = "A pending approval already exists for this transition", approvalId = existing.Id });
 
+        // Gap 2 — capture the requestor's user ID for decision notifications,
+        // and snapshot the current revision so the approval is scoped to it.
+        var requestorUserId = Guid.TryParse(User.FindFirst("sub")?.Value, out var reqUid) ? reqUid : (Guid?)null;
+
         var approval = new DocumentApproval
         {
             DocumentId = docId,
@@ -999,6 +978,8 @@ public class DocumentsController : ControllerBase
             Transition = transition,
             Status = "PENDING",
             RequestedBy = User.FindFirst("display_name")?.Value ?? "Unknown",
+            RequestedByUserId = requestorUserId,
+            RevisionSnapshot = doc.Revision,
             Comments = req.Comments
         };
 
@@ -1037,6 +1018,10 @@ public class DocumentsController : ControllerBase
         if (req.Decision != "APPROVED" && req.Decision != "REJECTED")
             return BadRequest("Decision must be APPROVED or REJECTED");
 
+        // Gap 12 — comments are mandatory when rejecting so the requestor knows why.
+        if (req.Decision == "REJECTED" && string.IsNullOrWhiteSpace(req.Comments))
+            return BadRequest(new { message = "Comments are required when rejecting an approval." });
+
         approval.Status = req.Decision;
         approval.DecidedBy = User.FindFirst("display_name")?.Value ?? "Unknown";
         approval.DecidedAt = DateTime.UtcNow;
@@ -1045,6 +1030,37 @@ public class DocumentsController : ControllerBase
         await _db.SaveChangesAsync();
         await _audit.LogAsync("UPDATE", "DocumentApproval", approval.Id.ToString(),
             $"{{\"decision\":\"{req.Decision}\"}}");
+
+        // Gap 4 — push the decision back to whoever requested the approval.
+        if (approval.RequestedByUserId.HasValue)
+        {
+            _ = _push.SendToUserAsync(approval.RequestedByUserId.Value, new PushPayload
+            {
+                Title = req.Decision == "APPROVED" ? "Approval Granted" : "Approval Rejected",
+                Body = $"Your request for {approval.Transition} was {req.Decision.ToLowerInvariant()}"
+                       + (string.IsNullOrWhiteSpace(approval.Comments) ? "." : $": {approval.Comments}"),
+                Channel = "documents",
+                Data = new Dictionary<string, string>
+                {
+                    ["type"] = "approval_decided",
+                    ["documentId"] = docId.ToString(),
+                    ["approvalId"] = approvalId.ToString(),
+                    ["decision"] = req.Decision,
+                    ["projectId"] = projectId.ToString()
+                }
+            });
+        }
+
+        // Gap 5 — broadcast ApprovalDecided so the web UI can prompt "Publish now?" on APPROVED.
+        await _hub.Clients.Group($"project-{projectId}").SendAsync("ApprovalDecided", new
+        {
+            projectId, documentId = docId, approvalId,
+            transition = approval.Transition, decision = req.Decision,
+            decidedBy = approval.DecidedBy, decidedAt = approval.DecidedAt,
+            comments = approval.Comments,
+            kind = "approval_decided"
+        });
+
         return Ok(approval);
     }
 
@@ -1169,7 +1185,7 @@ public class DocumentsController : ControllerBase
             var roleCheck = CheckTransitionRole(doc!.CdeStatus, req.NewCdeStatus);
             if (roleCheck != null) return roleCheck;
 
-            var approvalCheck = await CheckApprovalGate(doc!.CdeStatus, req.NewCdeStatus, doc!.Id);
+            var approvalCheck = await CheckApprovalGate(doc!.CdeStatus, req.NewCdeStatus, doc!.Id, doc!.Revision);
             if (approvalCheck != null) return approvalCheck;
 
             var oldState = doc!.CdeStatus;
@@ -1385,14 +1401,21 @@ public class DocumentsController : ControllerBase
     /// Phase 178c (T3-12) — also satisfied by a COMPLETED <see cref="ApprovalChain"/>
     /// for the same transition. Documents may use the legacy single-approver path
     /// or the new multi-step chain interchangeably.
+    ///
+    /// Gap 2 — currentRevision scopes the gate: an approval whose RevisionSnapshot
+    /// does not match the document's current revision is treated as stale and
+    /// ignored, so a rework bump always forces a fresh approval round.
     /// </summary>
-    private async Task<ActionResult?> CheckApprovalGate(string oldState, string newState, Guid docId)
+    private async Task<ActionResult?> CheckApprovalGate(string oldState, string newState, Guid docId, string? currentRevision = null)
     {
         var transitionKey = $"{oldState}->{newState}";
         if (ApprovalRequiredTransitions.Contains(transitionKey))
         {
+            // Gap 2 — only count approvals whose RevisionSnapshot matches the current
+            // revision (or that pre-date the snapshot feature and carry null).
             var hasLegacyApproval = await _db.DocumentApprovals
-                .AnyAsync(a => a.DocumentId == docId && a.Transition == transitionKey && a.Status == "APPROVED");
+                .AnyAsync(a => a.DocumentId == docId && a.Transition == transitionKey && a.Status == "APPROVED"
+                    && (a.RevisionSnapshot == null || a.RevisionSnapshot == currentRevision));
             var hasCompletedChain = await _db.ApprovalChains
                 .AnyAsync(c => c.DocumentId == docId && c.Transition == transitionKey && c.Status == "COMPLETED");
             if (!hasLegacyApproval && !hasCompletedChain)
@@ -1427,7 +1450,8 @@ public record FinalizeUploadRequest(
     string? DocumentType, string? Discipline, string? Revision,
     string? Description, string? Originator);
 public record CdeTransitionRequest(string NewState, string? SuitabilityCode, string? Revision);
-public record MobileTransitionRequest(string NewStatus);
+// Gap 1 — mobile request parity with CdeTransitionRequest: suitability + revision pass-through.
+public record MobileTransitionRequest(string NewStatus, string? SuitabilityCode = null, string? Revision = null);
 public record ApprovalRequestBody(string TargetState, string? Comments = null);
 
 // Phase 177 — DeliverableLifecycle → server mirror.
