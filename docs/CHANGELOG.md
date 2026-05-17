@@ -2,6 +2,32 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 175 — review fixes: symbol workflow correctness)
+
+Branch: `claude/review-symbol-workflow-CJFil` (same branch). Post-review hardening pass across all Phase 175 files.
+
+**Critical fixes**
+- `NLPCommandProcessor.cs`: 5 of 6 Phase 175 `CommandTag` strings were wrong, meaning NLP dispatch via `WorkflowEngine.ResolveCommandPublic` silently fell through to "not executable". Fixed to match `StingCommandHandler` case literals: `AuthorSymbols`, `SwitchProject`, `SwitchView`, `Audit`, `PlaceView`.
+- `FamilySymbolAuthor.cs`: `STING_SYMBOL_STD` was created as a **type** param (`isInstance=false`), making `SetElementSymbolStandardCommand.LookupParameter` always return `null`. Changed to **instance** param (`isInstance=true`). All existing family types are now seeded with `STD_CODE_IEC` in a foreach loop over `fm.Types`.
+- `FamilySymbolAuthor.cs`: `AnnotationSymbolCurvesCreated` used `=` (assign) instead of `+=` (accumulate) in `TryCreateJsonDrivenPlanSymbol` and `EmbedAnnotationPlanSymbolGeometry`, causing multi-standard authoring loops to lose curve counts from earlier iterations.
+
+**High-priority fixes**
+- `SwitchViewStandardCommand`: added `FilteredElementCollector(doc, view.Id)` loop to write `STING_SYMBOL_STD` on model family instances visible in the active view, so embedded curves switch standard immediately alongside annotation tags.
+- `STING_SYMBOL_SHAPES.json`: `OST_LightingFixtures_Recessed` is not a valid `BuiltInCategory.ToString()` value — `catKey` lookup can never match it. Renamed to `_OST_LightingFixtures_Recessed_UNUSED`.
+- `WorkflowEngine.ResolveCommand`: added 9 missing Phase 175 symbol resolver entries (`Symbols_AuthorSymbols`, `Symbols_SwitchProject`, `Symbols_SwitchView`, `Symbols_Audit`, `Symbols_PlaceView`, `Symbols_PlaceAll`, `Symbols_SetElementStandard`, `Symbols_SyncFilters`, `Symbols_SetProfile`), enabling NLP → workflow dispatch for all symbol commands.
+
+**Medium fixes**
+- `TryCreateJsonDrivenPlanSymbol`: `stdKey` was `ANSI/IEC` only — BS/NFPA/CIBSE silently collapsed to IEC. Replaced with a full 5-arm `switch` expression.
+- `LoadSymbolShapesJson`: added double-checked lock (`_cacheSync`) for thread safety; added version-mismatch warning when JSON schema revision differs from expected `"1.1"`.
+- `TryLinkBoundingBoxToFamilyDimensions`: `"Length"` and `"Length_MM"` removed from depth candidates for MEP linear categories (pipe, duct, conduit, cable tray, flex variants) where those names denote axial run length, not cross-section depth. New `IsMepLinearCategory` helper detects affected `BuiltInCategory` values.
+- `SyncViewFilterVisibilityCommand`: stray spaces in class declaration brace removed.
+
+**Low fixes**
+- `STING_SYMBOL_SHAPES.json`: added `"angles": "radians"` metadata field; arc segments in the file use raw radian values (`a1`, `a2`).
+- `MR_PARAMETERS.txt`: added comment block documenting 8 Phase 175 family-local (non-shared) params: `STING_SYMBOL_STD`, `STING_SHOW_{IEC,ANSI,BS,NFPA,CIBSE}_BOOL`, `STING_PLAN_HALF_W_FT`, `STING_PLAN_HALF_D_FT`.
+
+---
+
 #### Completed (Phase 175 — Multi-standard model family symbol switching)
 
 Branch: `claude/review-symbol-workflow-CJFil`. Implements embedded multi-standard
