@@ -17,6 +17,9 @@ export class RealtimeClient {
   private handlers: Handler[] = [];
   private namedHandlers: Map<string, Set<NamedHandler>> = new Map();
   private currentProjectId: string | null = null;
+  // Throttle gate for camera-state broadcasts — coordinators move the camera
+  // continuously; sending 60 Hz updates kills bandwidth + drains battery.
+  private lastPresenceTs = 0;
 
   async connect(projectId: string): Promise<void> {
     const token = await secureStorage.getToken();
@@ -55,6 +58,11 @@ export class RealtimeClient {
       // the per-CDE-state subgroup memberships against the new slice.
       'AclChanged',
       'MemberRevoked',
+      // 3D presence — co-viewers' camera positions stream in here. Server
+      // is expected to fan out `BroadcastCameraState` calls as `CameraState`
+      // events to every other member of the project group.
+      'CameraState',
+      'CameraDisconnect',
     ]) {
       this.connection.on(evName, (p: unknown) => this.fire(evName, p));
     }
@@ -96,6 +104,38 @@ export class RealtimeClient {
     if (!set) { set = new Set(); this.namedHandlers.set(eventName, set); }
     set.add(handler);
     return () => { set!.delete(handler); };
+  }
+
+  /**
+   * Broadcast our 3D camera state to other coordinators on the same project.
+   * Throttled to ≤6 Hz so a moving camera doesn't flood the hub. The server
+   * fans these out as `CameraState` events to every other group member; if
+   * the server hasn't implemented the hub method yet the call fails silently
+   * (the catch keeps the connection healthy).
+   */
+  async broadcastCameraState(state: {
+    userId: string;
+    name?: string;
+    pos: [number, number, number];
+    target: [number, number, number];
+  }): Promise<void> {
+    if (!this.connection || !this.currentProjectId) return;
+    const now = Date.now();
+    if (now - this.lastPresenceTs < 160) return;  // ≈6 Hz
+    this.lastPresenceTs = now;
+    try {
+      await this.connection.invoke('BroadcastCameraState', this.currentProjectId, state);
+    } catch {
+      // Hub method may not be deployed yet — swallow rather than retry.
+    }
+  }
+
+  /** Tell the server we've left the 3D scene so others can drop our cursor. */
+  async leaveCameraPresence(userId: string): Promise<void> {
+    if (!this.connection || !this.currentProjectId) return;
+    try {
+      await this.connection.invoke('LeaveCameraPresence', this.currentProjectId, userId);
+    } catch {}
   }
 
   private emit(ev: RealtimeEvent): void {

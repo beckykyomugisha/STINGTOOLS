@@ -1,3 +1,7 @@
+> **This document has been consolidated.** See `docs/guides/MEP_FOUNDATION_GUIDE.md` for the complete, up-to-date guide. The content below is kept for historical reference only.
+
+---
+
 # MEP symbol library — companion guide
 
 Companion to `CompiledPlugin/Data/mep_symbols.csv`.

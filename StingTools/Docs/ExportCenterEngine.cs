@@ -248,8 +248,8 @@ namespace StingTools.Docs
 
             t["ProjectName"]   = pi?.Name ?? "";
             t["ProjectNumber"] = pi?.Number ?? "";
-            t["ProjectCode"]   = ReadProjectInfo(pi, "PRJ_ORG_PROJECT_COD_TXT") ?? pi?.Number ?? "";
-            t["Originator"]    = ReadProjectInfo(pi, "PRJ_ORG_ORIGINATOR_COD_TXT") ?? "";
+            t["ProjectCode"]   = ReadProjectInfo(pi, "PRJ_PROJECT_COD_TXT") ?? pi?.Number ?? "";
+            t["Originator"]    = ReadProjectInfo(pi, "PRJ_ORG_ORIGINATOR_CODE_TXT") ?? "";
             t["OriginatorCode"]= t["Originator"];
             t["CompanyName"]   = ReadProjectInfo(pi, "PRJ_ORG_COMPANY_NAME_TXT") ?? "";
             t["ClientName"]    = ReadProjectInfo(pi, "PRJ_ORG_CLIENT_NAME_TXT") ?? pi?.ClientName ?? "";

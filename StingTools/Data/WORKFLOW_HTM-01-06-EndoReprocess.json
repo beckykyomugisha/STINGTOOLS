@@ -2,6 +2,7 @@
   "id": "HTM-01-06-EndoReprocess",
   "name": "Endoscope reprocess RFID chain audit",
   "steps": [
-    { "tag": "Healthcare_EndoscopeTrace", "description": "EndoscopeTraceValidator: ≥ 4 RFID readers per decon room" }
+    { "tag": "Healthcare_EndoscopeTrace", "description": "EndoscopeTraceValidator: ≥ 4 RFID readers per decon room (soak / AER / drying / storage)" },
+    { "tag": "Healthcare_BatchRDS", "description": "Refresh Room Data Sheets for decon rooms so RFID reader locations are captured in issued RDS" }
   ]
 }
