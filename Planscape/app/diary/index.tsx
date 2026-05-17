@@ -2,6 +2,10 @@
 //
 // Reverse-chronological feed of every diary entry on the active project,
 // grouped by status. Tap to view detail; FAB opens the new-entry form.
+//
+// Phase 178 — left navigation rail added. A 60px vertical strip on the left
+// gives one-tap access to the main coordination sections without going back
+// to the dashboard. Active item gets an orange accent background.
 
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -13,14 +17,85 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 import { theme } from '@/utils/theme';
 import { listSiteDiaries, type SiteDiarySummary } from '@/api/endpoints';
 import { useProjectStore } from '@/stores/projectStore';
 import { SitePhotoFab } from '@/components/SitePhotoFab';
 
+// ── Left navigation rail ───────────────────────────────────────────────
+// Coordination sections reachable from the diary without going back to tabs.
+const navItems = [
+  { label: 'Diary',   icon: '📒', route: '/diary' },
+  { label: 'Issues',  icon: '⚠',  route: '/(tabs)/issues' },
+  { label: 'Meetings',icon: '📅', route: '/meetings' },
+  { label: 'Transmit',icon: '📤', route: '/transmittals' },
+  { label: 'Warnings',icon: '⚠️', route: '/warnings' },
+  { label: 'Docs',    icon: '📄', route: '/(tabs)/documents' },
+  { label: 'Models',  icon: '🧊', route: '/(tabs)/models' },
+] as const;
+
+function LeftNavRail({ currentPath }: { currentPath: string }) {
+  const router = useRouter();
+  return (
+    <View style={railStyles.rail}>
+      {navItems.map((item) => {
+        const isActive = currentPath === item.route || currentPath.startsWith(item.route.replace('/(tabs)/', '/'));
+        return (
+          <TouchableOpacity
+            key={item.route}
+            style={[railStyles.item, isActive && railStyles.itemActive]}
+            onPress={() => router.push(item.route as any)}
+            accessibilityLabel={`Go to ${item.label}`}
+          >
+            <Text style={railStyles.icon}>{item.icon}</Text>
+            <Text style={[railStyles.label, isActive && railStyles.labelActive]}>
+              {item.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+const railStyles = StyleSheet.create({
+  rail: {
+    width: 60,
+    backgroundColor: theme.colors.primary,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.lg,
+    alignItems: 'center',
+  },
+  item: {
+    width: 56,
+    paddingVertical: theme.spacing.sm,
+    alignItems: 'center',
+    borderRadius: theme.borderRadius.sm,
+    marginBottom: 2,
+  },
+  itemActive: {
+    backgroundColor: theme.colors.accent,
+  },
+  icon: {
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  label: {
+    fontSize: 8,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  labelActive: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+});
+
 export default function DiaryListScreen() {
   const router = useRouter();
+  const pathname = usePathname();
   const projectId = useProjectStore((s) => s.active?.id);
   const [rows, setRows] = useState<SiteDiarySummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,21 +120,29 @@ export default function DiaryListScreen() {
 
   if (!projectId) {
     return (
-      <View style={styles.empty}>
-        <Text style={styles.emptyText}>Select a project on the dashboard first.</Text>
+      <View style={styles.rowLayout}>
+        <LeftNavRail currentPath={pathname} />
+        <View style={styles.empty}>
+          <Text style={styles.emptyText}>Select a project on the dashboard first.</Text>
+        </View>
       </View>
     );
   }
   if (loading) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color={theme.colors.accent} />
+      <View style={styles.rowLayout}>
+        <LeftNavRail currentPath={pathname} />
+        <View style={styles.loading}>
+          <ActivityIndicator size="large" color={theme.colors.accent} />
+        </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.root}>
+    <View style={styles.rowLayout}>
+      <LeftNavRail currentPath={pathname} />
+      <View style={styles.root}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={
@@ -112,6 +195,7 @@ export default function DiaryListScreen() {
       {/* Phase 178 — site-photo FAB stacked above the diary FAB so site
           supervisors can capture progress shots straight from the diary list. */}
       <SitePhotoFab bottom={theme.spacing.lg + 72} />
+      </View>
     </View>
   );
 }
@@ -131,10 +215,11 @@ function formatDate(iso: string): string {
 }
 
 const styles = StyleSheet.create({
+  rowLayout: { flex: 1, flexDirection: 'row', backgroundColor: theme.colors.primary },
   root: { flex: 1, backgroundColor: theme.colors.background },
   scroll: { padding: theme.spacing.md, paddingBottom: 96 },
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: theme.spacing.lg },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background },
+  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: theme.spacing.lg, backgroundColor: theme.colors.background },
   emptyText: { color: theme.colors.textSecondary, fontSize: theme.fontSize.md },
   emptyCard: {
     backgroundColor: theme.colors.surface,

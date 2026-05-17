@@ -405,6 +405,10 @@ namespace StingTools.UI
                     // ── Phase 175: MEP/FP/SLD Symbol Library ──
                     case "Symbols_CreateAll":      RunCommand<Commands.Symbols.CreateSymbolLibraryCommand>(app); break;
                     case "Symbols_CreateSLD":      RunCommand<Commands.Symbols.CreateSLDSymbolsCommand>(app); break;
+                    case "Symbols_CreateSLD_IEEE":  RunCommand<Commands.Symbols.CreateSLDSymbolsIEEECommand>(app); break;
+                    case "Symbols_CreateSLD_BS":    RunCommand<Commands.Symbols.CreateSLDSymbolsBSCommand>(app); break;
+                    case "Symbols_CreateSLD_NFPA":  RunCommand<Commands.Symbols.CreateSLDSymbolsNFPACommand>(app); break;
+                    case "Symbols_CreateCIBSE":     RunCommand<Commands.Symbols.CreateCIBSESymbolsCommand>(app); break;
                     case "Symbols_CreateLighting": RunCommand<Commands.Symbols.CreateLightingSymbolsCommand>(app); break;
                     case "Symbols_CreateFP":       RunCommand<Commands.Symbols.CreateFPSymbolsCommand>(app); break;
                     case "Symbols_Reload":         RunCommand<Commands.Symbols.ReloadSymbolLibraryCommand>(app); break;
@@ -429,6 +433,14 @@ namespace StingTools.UI
                     case "Symbols_Coverage":       RunCommand<Commands.Symbols.SymbolCoverageAuditCommand>(app); break;
                     case "Symbols_FixDrift":       RunCommand<Commands.Symbols.FixSymbolDriftCommand>(app); break;
                     case "Symbols_BatchHeal":      RunCommand<Commands.Symbols.BatchHealAllSymbolsCommand>(app); break;
+
+                    // ── Phase 180: Compound symbol factory ──
+                    case "Symbols_CreateCompound": RunCommand<Commands.Symbols.CreateCompoundSymbolsCommand>(app); break;
+
+                    // ── StingBridge: ArchiCAD / IFC workflows ──
+                    case "IFC_ArchiCADSync":  RunCommand<Commands.IFC.ArchiCADSyncCommand>(app); break;
+                    case "IFC_DropImport":    RunCommand<Commands.IFC.IfcDropImportCommand>(app); break;
+                    case "IFC_PushModel":     RunCommand<Commands.IFC.IFC_PushModelCommand>(app); break;
 
                     // ── Phase 175: SLD Generator ──
                     case "SLD_Generate":           RunCommand<Commands.SLD.GenerateSLDCommand>(app); break;
@@ -465,6 +477,12 @@ namespace StingTools.UI
                         RunCommand<Commands.Electrical.HomeRunArrowCommand>(app); break;
                     case "Electrical_ClearWireAnnotations":
                         RunCommand<Commands.Electrical.ClearWireAnnotationsCommand>(app); break;
+                    case "Electrical_RefreshWireAnnotations":
+                        RunCommand<StingTools.Commands.Electrical.RefreshWireAnnotationsCommand>(app); break;
+                    case "Electrical_HomeRunArrowBatch":
+                        RunCommand<StingTools.Commands.Electrical.HomeRunArrowBatchCommand>(app); break;
+                    case "Electrical_PanelWireReconcile":
+                        RunCommand<StingTools.Commands.Electrical.PanelWireReconcileCommand>(app); break;
 
                     // ── v4 Phase D: hanger placement ──
                     case "Routing_PlaceHangers": RunCommand<Commands.Routing.PlaceHangersCommand>(app); break;

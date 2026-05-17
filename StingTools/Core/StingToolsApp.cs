@@ -109,6 +109,17 @@ namespace StingTools.Core
                     StingLog.Warn($"SLDSyncUpdater register failed: {sldEx.Message}");
                 }
 
+                // Register CableManifestUpdater (conduit/tray change → manifest sync)
+                try
+                {
+                    StingTools.Core.Routing.CableManifestUpdater.Register(application);
+                    StingLog.Info("CableManifestUpdater registered.");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"CableManifestUpdater.Register failed: {ex.Message}");
+                }
+
                 // Register the real Core.Clash live updater (9-category geometry/
                 // addition/deletion triggers). Replaces the prior Phase-106 stub
                 // call which resolved via `using StingTools.Clash;` to a no-op
@@ -126,6 +137,12 @@ namespace StingTools.Core
                 // ClashSession.LastDirtyAtUtc, which is only advanced inside
                 // RefreshElement/RemoveElement on the live path).
                 LiveClashWireup.Subscribe(application);
+
+                // Eager-init the GeometrySyncHandler ExternalEvent so it is
+                // created on the Revit API thread at startup, not lazily inside
+                // the DocumentSaved event handler where it would be too late.
+                try { var _ = StingTools.Commands.IFC.GeometrySyncHandler.Instance; }
+                catch (Exception geoEx) { StingLog.Warn($"GeometrySyncHandler init: {geoEx.Message}"); }
 
                 // CRASH FIX: Eagerly load ParamRegistry at startup instead of lazy-loading
                 // on first command. This ensures:
@@ -398,6 +415,13 @@ namespace StingTools.Core
                 }
 
                 StingLog.Info("Planscape: auto-sync triggered by STC");
+
+                // Enqueue a full geometry sync job so dirty element geometry accumulated
+                // since the last save is pushed to the federated-model endpoint.
+                // The IdlingScheduler defers it to the next quiet Revit moment so the
+                // STC callback returns immediately (never blocks the worksharing path).
+                try { StingIdlingScheduler.Enqueue(new FullGeometrySyncJob()); }
+                catch (Exception geoEx) { StingLog.Warn($"STC geometry sync enqueue: {geoEx.Message}"); }
 
                 // UIApplication fallback chain:
                 //   1. StingCommandHandler.CurrentApp (set during any prior command)
@@ -1122,6 +1146,19 @@ namespace StingTools.Core
                     StingLog.Warn($"DocumentSaved enqueue: {qEx.Message}");
                 }
             }
+                // Geometry delta sync — raise GeometrySyncHandler if any elements changed.
+                // Must happen AFTER the compliance/tag enqueue so the ExternalEvent fires
+                // on the next available Revit API idle slot (never inside this handler).
+                try
+                {
+                    if (!StingTools.Core.Clash.LiveClashUpdater.GeometrySyncQueue.IsEmpty)
+                        StingTools.Commands.IFC.GeometrySyncHandler.RaiseIfConnected();
+                }
+                catch (Exception geoEx)
+                {
+                    StingLog.Warn($"DocumentSaved geometry sync trigger: {geoEx.Message}");
+                }
+            }
             catch (Exception ex)
             {
                 StingLog.Error($"DocumentSaved handler error: {ex.Message}");
@@ -1202,6 +1239,7 @@ namespace StingTools.Core
             StingAutoTagger.Unregister();
             StingTag7NarrativeUpdater.Unregister();
             StingTools.Core.Plumbing.RealTimePipeSizer.Unregister();
+            try { StingTools.Core.Routing.CableManifestUpdater.Unregister(); } catch { }
 
             // Phase 175 — unregister the SLD sync updater.
             try

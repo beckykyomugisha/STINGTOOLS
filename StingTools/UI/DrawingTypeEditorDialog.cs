@@ -3007,10 +3007,10 @@ namespace StingTools.UI
             }
             AddHeader("Project info ${X}");
             foreach (var k in new[] {
-                "PRJ_ORG_PROJECT_CODE", "PRJ_ORG_PROJECT_NAME",
-                "PRJ_ORG_ORIGINATOR_CODE", "PRJ_ORG_COMPANY_NAME",
-                "PRJ_ORG_CLIENT_NAME", "PRJ_ORG_APPOINTING_PARTY",
-                "PRJ_ORG_LEAD_APPOINTED_PARTY",
+                "PRJ_PROJECT_COD_TXT", "PRJ_ORG_PROJECT_NAME_TXT",
+                "PRJ_ORG_ORIGINATOR_CODE_TXT", "PRJ_ORG_COMPANY_NAME_TXT",
+                "PRJ_ORG_CLIENT_NAME_TXT", "PRJ_ORG_APPOINTING_PARTY_TXT",
+                "PRJ_ORG_LEAD_APPOINTED_PARTY_TXT",
             }) AddItem("${ " + k + " }", "${" + k + "}");
             menu.Items.Add(new System.Windows.Controls.Separator());
             AddHeader("Tokens {x}");
