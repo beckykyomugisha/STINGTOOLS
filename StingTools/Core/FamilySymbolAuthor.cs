@@ -196,8 +196,15 @@ namespace StingTools.Core
             FamilyParameter lodMedium = FindFamilyParam(fm, "STING_LOD_MEDIUM_VISIBLE");
             FamilyParameter lodFine   = FindFamilyParam(fm, "STING_LOD_FINE_VISIBLE");
 
+            // For annotation categories, steps 2/3/3b are skipped: the multi-standard
+            // curve sets authored in steps 5/5b ARE the plan/elevation symbols.  Placing
+            // generic bounding boxes here would fill scPlan/scElev first and cause the
+            // HasSymbolicCurvesInSubcat guards in steps 5/5b to bail early, preventing
+            // the per-standard geometry from ever being created.
+            bool skipGenericShapes = opts.EmbedAnnotationPlanSymbol && IsAnnotationCategory(bic);
+
             // ── Step 2: Plan symbol ──────────────────────────────────────────
-            if (opts.CreatePlanSymbol && !HasSymbolicCurvesInSubcat(famDoc, scPlan))
+            if (opts.CreatePlanSymbol && !skipGenericShapes && !HasSymbolicCurvesInSubcat(famDoc, scPlan))
             {
                 int n = CreatePlanRectangle(famDoc, scPlan, lodCoarse,
                     opts.PlanHalfWidthFt, opts.PlanHalfDepthFt,
@@ -207,7 +214,7 @@ namespace StingTools.Core
             }
 
             // ── Step 3: Front elevation symbol ───────────────────────────────
-            if (opts.CreateElevationSymbol && !HasSymbolicCurvesInSubcat(famDoc, scElev))
+            if (opts.CreateElevationSymbol && !skipGenericShapes && !HasSymbolicCurvesInSubcat(famDoc, scElev))
             {
                 int n = CreateElevationRectangle(famDoc, scElev, lodMedium,
                     opts.PlanHalfWidthFt, opts.ElevHeightFt,
@@ -217,7 +224,7 @@ namespace StingTools.Core
             }
 
             // ── Step 3b: Side elevation symbol ───────────────────────────────
-            if (opts.CreateSideElevSymbol && opts.CreateElevationSymbol)
+            if (opts.CreateSideElevSymbol && opts.CreateElevationSymbol && !skipGenericShapes)
             {
                 int n = CreateSideElevationRectangle(famDoc, scElev, lodMedium,
                     opts.PlanHalfDepthFt, opts.ElevHeightFt,
@@ -253,9 +260,9 @@ namespace StingTools.Core
                         opts.SetCurveViewTypeVisibility, result);
 
                     // Step 5b: Per-standard elevation symbols. Only authored when
-                    // the JSON carries {STANDARD}_elev arrays for this category;
-                    // for categories without elevation data the generic bounding
-                    // box from Step 3 remains the only elevation representation.
+                    // the JSON carries {STANDARD}_elev arrays for this category.
+                    // If no elevation JSON data exists for any standard, a generic
+                    // bounding box is created as fallback inside CreateAllStandardElevationSets.
                     if (opts.CreateElevationSymbol && scElev != null)
                         CreateAllStandardElevationSets(famDoc, bic, scElev,
                             switchParams, opts.PlanHalfWidthFt, opts.ElevHeightFt,
@@ -731,14 +738,30 @@ namespace StingTools.Core
             string catKey  = bic.ToString();
             double centerZ = heightFt / 2.0;
 
+            bool anyCurves = false;
             foreach (var (std, _, stdKey, _) in _standardDefs)
             {
                 FamilyParameter visParam = sp.GetBool(std);
                 if (visParam == null) continue;
-                TryCreateStandardElevationCurvesFromJson(
-                    famDoc, catKey, stdKey,
-                    spFront, elevSubcat, visParam,
-                    halfW, centerZ, vtVis, result);
+                if (TryCreateStandardElevationCurvesFromJson(
+                        famDoc, catKey, stdKey,
+                        spFront, elevSubcat, visParam,
+                        halfW, centerZ, vtVis, result))
+                    anyCurves = true;
+            }
+
+            // Fallback: if no standard has elevation JSON data, create a generic
+            // front-elevation bounding box (no vis param = always visible) so the
+            // family always has at least some elevation representation.
+            if (!anyCurves)
+            {
+                int n = CreateRectangleCurves(famDoc, spFront,
+                    new XYZ(-halfW, 0, 0),
+                    new XYZ( halfW, 0, 0),
+                    new XYZ( halfW, 0, heightFt),
+                    new XYZ(-halfW, 0, heightFt),
+                    elevSubcat, null, vtVis, result);
+                result.ElevCurvesCreated += n;
             }
         }
 
@@ -1760,6 +1783,23 @@ namespace StingTools.Core
         {
             try
             {
+                // Reuse an existing sketch plane with the same orientation to avoid
+                // creating duplicate reference planes on repeated AuthorSymbols calls.
+                var existing = new FilteredElementCollector(famDoc)
+                    .OfClass(typeof(SketchPlane))
+                    .Cast<SketchPlane>()
+                    .FirstOrDefault(s =>
+                    {
+                        try
+                        {
+                            Plane p = s.GetPlane();
+                            return p.Normal.IsAlmostEqualTo(normal)
+                                && p.Origin.IsAlmostEqualTo(origin);
+                        }
+                        catch { return false; }
+                    });
+                if (existing != null) return existing;
+
                 Plane plane = Plane.CreateByNormalAndOrigin(normal, origin);
                 // TODO-VERIFY-API: SketchPlane.Create(Document, Plane) confirmed in Revit 2014+.
                 return SketchPlane.Create(famDoc, plane);
