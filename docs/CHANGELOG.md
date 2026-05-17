@@ -2,6 +2,51 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 179 — Placement Center canonical integration + DrawingType/Pack wiring)
+
+Branch: `claude/toilet-fixture-placement-research-aZtgU`. Six commits. Makes the Placement Center and dock-panel sub-tabs the single canonical surface for all placement / annotation / symbol results, fully integrated with the DrawingType / ViewStylePack system.
+
+##### PlacementResultBus (new)
+
+`Core/Placement/PlacementResultBus.cs` — static event bus with `PlacementRunSummary` (Source / DrawingTypeId / PackId / Headline / Metrics / Warnings / AffectedIds / RunUtc). Any placement/annotation/symbol command calls `PlacementResultBus.Publish(summary)` after its run; all subscribers update automatically with zero coupling. `LastResult` allows late-subscribers to replay the most recent run.
+
+##### Placement Center context strip
+
+`UI/PlacementCenter/StingPlacementCenter.xaml` + `.xaml.cs` — new `Grid.Row="0"` context strip above the TabControl showing the active view's DrawingType id, ViewStylePack id, and discipline code. Subscribes to `PlacementResultBus.ResultPublished`; on each result the strip headline updates instantly and the Run tab result panel (`grpRunResult`) populates with headline, metric badges, and the AffectedIds list backing the "Select" button. `RefreshDrawingTypeContext()` reads `DrawingTypeStamper.Read(activeView)` and resolves DT + pack via `DrawingTypeRegistry`. Re-opening the window replays the last result.
+
+##### ISO symbol placement wired through DrawingType
+
+`Commands/Fabrication/PlaceIsoSymbolsCommand.cs` — resolves discipline from the active view's stamped DrawingType, passes it as a filter to `IsoSymbolPlacer.PlaceSymbolsForAssembly`, then publishes a `PlacementRunSummary` and shows `FabricationResultDialog`. `IsoSymbolPlacer` gained `CategoryMatchesDiscipline` helper mapping DT discipline strings to CSV category column prefix patterns (Pipe/Duct/Electrical).
+
+##### AnnotationRunner fixes + CategoryTagStyles/CategoryDepths
+
+`Core/Drawing/AnnotationRunner.cs` — `Run` overloads added to fix the `DrawingTypePresentation.Apply` call-site mismatch. `ResolveTagTypeId` tier-3 fallback reads `ViewStylePack.CategoryTagStyles` to find a tag family whose name contains the style preset. `TagCategory` applies `ViewStylePack.CategoryDepths` paragraph depth via `ParameterHelpers.SetInt(el, "TAG_PARA_DEPTH_INT", depth)` after `IndependentTag.Create`.
+
+##### BuildAndWriteTag: TAG7 sections, DefaultTagStyle, CategoryTagStyles
+
+`Core/TagConfig.cs` — single pack-resolution pass in the display BOOL init block:
+- **CategoryTag7Sections**: per-category bool controls `TAG_7_SECTION_VISIBLE_A/B/C/D/E/F_BOOL` (false = hide all TAG7 sub-sections for this category in the active drawing type).
+- **CategoryTagStyles + DefaultTagStyle**: per-category or pack-level tag style code applied via inline BOOL-matrix logic (mirrors `TagStyleEngine.ApplyStyleCode` without crossing the `internal` class boundary). Replaces the hard-coded `TAG_2.5NOM_BLACK_BOOL = true` with pack-configured defaults.
+
+##### GenerateFabPackageCommand fabrication routing
+
+`Commands/Fabrication/GenerateFabPackageCommand.cs` — now publishes `PlacementRunSummary` to `PlacementResultBus` after every run so the Placement Center and dock panel strips update without the user switching windows. `FabricationResultDialog` wired as the result display (TaskDialog fallback if the WPF dialog fails).
+
+##### Inline result strips in dock panel
+
+`UI/StingDockPanel.xaml` + `.xaml.cs` — `PlacementResultBus` subscription added to the code-behind; `OnPlacementResultBus` routes "Tags"/"Fixtures" results to `bdrFixturesResult`/`txtFixturesResultHeadline` and "Routing"/"Symbols" results to `bdrRoutingResult`/`txtRoutingResultHeadline`. Strips are collapsed until a result arrives, then auto-show with the run headline.
+
+##### SmartTagPlacementCommand DrawingType wiring
+
+`Tags/SmartTagPlacementCommand.cs` — `ResolvePackForView` helper resolves the active DrawingType pack. During placement: tag family type resolution consults `CategoryTagStyles`; after `IndependentTag.Create`, `CategoryDepths` depth is applied; placed tag ElementIds collected into `AffectedIds`. After the transaction: publishes `PlacementRunSummary(Source="Tags")` so the context strip and dock panel strip update immediately.
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `CategoryTag7Sections` currently controls visibility of ALL TAG7 sub-sections for the category uniformly (one bool per category). Per-section granularity can be added later by extending the dict key to `"Category:SectionLetter"`.
+3. `DefaultTagStyle` / `CategoryTagStyles` values must match a valid `TagStyleParamName` code (e.g. `"2.5NOM_BLACK"`) — mismatches fall back to the hard-coded default silently.
+4. `PlacementResultBus` is purely in-process; no persistence. The Placement Center replays `LastResult` on re-open but not across Revit sessions.
+
 #### Completed (Phase 177 — Code-quality sweep: locale safety, null-guard fixes, parameter registry alignment)
 
 Branch: `claude/review-codebase-FlVmh`. Twelve commits. Touched 20+ source files
