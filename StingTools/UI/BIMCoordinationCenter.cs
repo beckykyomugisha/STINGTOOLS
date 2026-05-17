@@ -8098,8 +8098,8 @@ namespace StingTools.UI
                 }
 
                 var groups = Newtonsoft.Json.JsonConvert.DeserializeObject<
-                    List<Docs.Workflow.DistributionGroup>>(System.IO.File.ReadAllText(groupsPath))
-                    ?? new List<Docs.Workflow.DistributionGroup>();
+                    List<Planscape.Docs.Workflow.DistributionGroup>>(System.IO.File.ReadAllText(groupsPath))
+                    ?? new List<Planscape.Docs.Workflow.DistributionGroup>();
 
                 if (groups.Count == 0)
                 {
@@ -8686,8 +8686,9 @@ namespace StingTools.UI
             var tabDStack = new StackPanel { Margin = new Thickness(8) };
 
             // Build workload rows from TeamWorkloadEngine
-            var workloadRows = new List<TeamWorkloadEngine.WorkloadRow>();
-            try { workloadRows = TeamWorkloadEngine.Build(_doc); }
+            var workloadRows = new List<StingTools.BIMManager.TeamWorkloadEngine.WorkloadRow>();
+            var _workloadDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+            try { workloadRows = StingTools.BIMManager.TeamWorkloadEngine.Build(_workloadDoc); }
             catch (Exception ex) { StingLog.Warn($"BCC workload tab: {ex.Message}"); }
 
             if (workloadRows.Count == 0)

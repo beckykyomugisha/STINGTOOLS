@@ -42,6 +42,9 @@ namespace StingTools.Core.Calc
         public int PipesDepressed   { get; set; }
         public int PipesUnchanged   { get; set; }
         public int PipesFailed      { get; set; }
+        /// <summary>Pipes skipped because both ends are connected to other elements,
+        /// making endpoint moves unsafe without disconnecting the network.</summary>
+        public int PipesSkippedConnectedBothEnds { get; set; }
         public List<SlopeFix> Fixes { get; } = new List<SlopeFix>();
         public List<string> Warnings { get; } = new List<string>();
     }
@@ -51,6 +54,13 @@ namespace StingTools.Core.Calc
         private const double MinSlopeSanitaryPct = 1.0;
         private const double MinSlopeRainwaterPct = 1.0;
         private const double SelfCleansingVelocityMs = 0.7;
+
+        /// <summary>
+        /// Dry-run preview — scans all drainage pipes and computes what fixes
+        /// would be applied without modifying the model.
+        /// </summary>
+        public static SlopeAutoCorrectionResult Preview(Document doc)
+            => RunFix(doc, dryRun: true);
 
         public static SlopeAutoCorrectionResult RunFix(Document doc, bool dryRun)
         {

@@ -25,8 +25,10 @@ namespace StingTools.Core.Drawing
 {
     public static class DrawingTypeStamper
     {
-        public const string PARAM_DRAWING_TYPE_ID = "STING_DRAWING_TYPE_ID_TXT";
-        public const string PARAM_STYLE_LOCKED    = "STING_STYLE_LOCKED_BOOL";
+        public const string PARAM_DRAWING_TYPE_ID   = "STING_DRAWING_TYPE_ID_TXT";
+        public const string PARAM_STYLE_LOCKED      = "STING_STYLE_LOCKED_BOOL";
+        public const string PARAM_DRAWING_PACKAGE_ID = "STING_DRAWING_PACKAGE_ID_TXT";
+        public const string PARAM_SHEET_SEQUENCE    = "STING_SHEET_SEQUENCE_INT";
 
         /// <summary>
         /// Stamp the DrawingType id onto the given element (view or
@@ -93,6 +95,79 @@ namespace StingTools.Core.Drawing
             {
                 StingTools.Core.StingLog.Warn(
                     $"DrawingTypeStamper.SetLocked({el.Id}, {locked}): {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Read the raw string value of PARAM_DRAWING_TYPE_ID without
+        /// any parsing. Used by ManagedTemplateSyncer to detect managed
+        /// template stamps that contain "pack=…|cs=…" prefixes.
+        /// </summary>
+        public static string ReadRaw(Element el)
+        {
+            if (el == null) return null;
+            try
+            {
+                var p = el.LookupParameter(PARAM_DRAWING_TYPE_ID);
+                return p?.StorageType == StorageType.String ? p.AsString() : null;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Stamp the drawing package id onto a sheet element.
+        /// Idempotent. Requires an active transaction from the caller.
+        /// </summary>
+        public static bool StampPackage(Element el, string packageId)
+        {
+            if (el == null || string.IsNullOrWhiteSpace(packageId)) return false;
+            if (!IsEditable(el)) return false;
+            try
+            {
+                var p = el.LookupParameter(PARAM_DRAWING_PACKAGE_ID);
+                if (p == null || p.IsReadOnly || p.StorageType != StorageType.String) return false;
+                if (string.Equals(p.AsString(), packageId, StringComparison.Ordinal)) return true;
+                p.Set(packageId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn(
+                    $"DrawingTypeStamper.StampPackage({el.Id}, '{packageId}'): {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Stamp the sheet sequence number (1-based) onto a sheet element.
+        /// Requires an active transaction from the caller.
+        /// </summary>
+        public static bool StampSheetSequence(Element el, int sequence)
+        {
+            if (el == null) return false;
+            if (!IsEditable(el)) return false;
+            try
+            {
+                var p = el.LookupParameter(PARAM_SHEET_SEQUENCE);
+                if (p == null || p.IsReadOnly) return false;
+                if (p.StorageType == StorageType.Integer)
+                {
+                    if (p.AsInteger() == sequence) return true;
+                    p.Set(sequence);
+                    return true;
+                }
+                if (p.StorageType == StorageType.Double)
+                {
+                    p.Set((double)sequence);
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn(
+                    $"DrawingTypeStamper.StampSheetSequence({el.Id}, {sequence}): {ex.Message}");
+                return false;
             }
         }
 

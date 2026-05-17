@@ -991,7 +991,8 @@ namespace StingTools.Tags
                 "loaded with STING shared parameters, and — when a plan is\n" +
                 "available — have T4..T10 visibility formulas re-authored.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
-            if (confirm.Show() == TaskDialogResult.Cancel)
+            var choice = confirm.Show();
+            if (choice == TaskDialogResult.Cancel)
                 return Result.Cancelled;
             bool skipExistingOnDisk = (choice == TaskDialogResult.CommandLink1);
 

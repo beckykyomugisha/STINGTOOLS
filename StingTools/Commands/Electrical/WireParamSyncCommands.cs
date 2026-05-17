@@ -24,6 +24,7 @@ using Autodesk.Revit.UI.Selection;
 using StingTools.Commands.Electrical.CableSizer;
 using StingTools.Commands.Electrical.VoltageDrop;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Commands.Electrical
 {

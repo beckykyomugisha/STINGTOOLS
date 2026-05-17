@@ -229,6 +229,64 @@ namespace StingTools.Core.Drawing
             catch { return null; }
         }
 
+        /// <summary>
+        /// Clear any title-block parameter values that were stamped by a
+        /// prior DrawingType profile but are not present in the new profile.
+        /// Prevents stale corporate metadata from a previous profile bleeding
+        /// through when the sheet is re-assigned to a different drawing type.
+        ///
+        /// Only parameters whose keys are NOT in the new profile's
+        /// TitleBlockParams are cleared; the new Apply() call will re-write
+        /// the ones that remain. String parameters are set to empty string;
+        /// Integer / Double parameters are set to 0.
+        ///
+        /// Requires an active transaction from the caller. Never throws.
+        /// </summary>
+        public static void ClearStaleKeysFromPriorProfile(
+            Document doc, ViewSheet sheet, string priorDrawingTypeId)
+        {
+            if (doc == null || sheet == null
+                || string.IsNullOrWhiteSpace(priorDrawingTypeId)) return;
+            try
+            {
+                // Resolve the prior drawing type to get its TitleBlockParams keys.
+                DrawingType priorDt = null;
+                try { priorDt = DrawingTypeRegistry.Get(doc, priorDrawingTypeId); }
+                catch (Exception ex) { StingTools.Core.StingLog.Warn($"Suppressed: {ex.Message}"); }
+
+                if (priorDt?.TitleBlockParams == null || priorDt.TitleBlockParams.Count == 0) return;
+
+                var tb = FindTitleBlockInstance(doc, sheet);
+                if (tb == null) return;
+
+                foreach (var key in priorDt.TitleBlockParams.Keys)
+                {
+                    if (string.IsNullOrWhiteSpace(key)) continue;
+                    try
+                    {
+                        var p = tb.LookupParameter(key);
+                        if (p == null || p.IsReadOnly) continue;
+                        switch (p.StorageType)
+                        {
+                            case StorageType.String:  p.Set(""); break;
+                            case StorageType.Integer: p.Set(0);  break;
+                            case StorageType.Double:  p.Set(0.0); break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingTools.Core.StingLog.Warn(
+                            $"ClearStaleKeysFromPriorProfile: '{key}': {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn(
+                    $"TitleBlockParamApplier.ClearStaleKeysFromPriorProfile: {ex.Message}");
+            }
+        }
+
         private static FamilyInstance FindTitleBlockInstance(Document doc, ViewSheet sheet)
         {
             try
