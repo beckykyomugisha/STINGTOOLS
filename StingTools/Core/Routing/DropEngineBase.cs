@@ -81,6 +81,29 @@ namespace StingTools.Core.Routing
         /// </summary>
         public bool EnforceSeparation { get; set; } = true;
 
+        /// <summary>
+        /// When true, FindNearestContainment biases toward containment elements
+        /// that are already part of a connected MEP network rather than isolated
+        /// stubs. Default true — helps route to the main system rather than a
+        /// dead-end test section.
+        /// </summary>
+        public bool PreferConnectedTrays { get; set; } = true;
+
+        /// <summary>
+        /// When true, AutoPipeDrop / AutoDuctDrop iterate every free connector
+        /// on the fixture and attempt an independent drop from each, rather than
+        /// using only the best single connector. Useful for multi-service
+        /// fixtures (e.g. a WHB with separate CW and HW connectors).
+        /// </summary>
+        public bool MultiServiceMode { get; set; } = false;
+
+        /// <summary>
+        /// When true, the routing engine uses an A* pathfinder to route around
+        /// structural obstructions instead of a straight plumb-line drop. Opt-in
+        /// only — the straight-line path is safe for all existing workflows.
+        /// </summary>
+        public bool UsePathfinder { get; set; } = false;
+
         protected DropEngineBase(Document doc)
         {
             Doc = doc;
@@ -450,6 +473,48 @@ namespace StingTools.Core.Routing
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Multi-service variant of TryDropFromFixture. Iterates every
+        /// free connector on the fixture and calls TryDropFromFixture once
+        /// per connector, so a dual-service fixture (e.g. CW + HW) gets
+        /// a separate drop for each connector.  Returns true when at least
+        /// one drop succeeds.
+        /// </summary>
+        protected bool TryDropFromFixtureAllConnectors(
+            Element fixtureEl,
+            BuiltInCategory containmentCat,
+            double maxSearchMm,
+            DropResult result)
+        {
+            bool anyOk = false;
+            if (fixtureEl == null) { result.SkippedCount++; return false; }
+            foreach (var conn in GetAllConnectors(fixtureEl))
+            {
+                bool isConnected;
+                try { isConnected = conn.IsConnected; } catch { continue; }
+                if (isConnected) continue;
+                XYZ origin = null;
+                try { origin = conn.Origin; } catch { continue; }
+                if (origin == null) continue;
+
+                var host = FindNearestContainment(origin, containmentCat, maxSearchMm);
+                if (host == null) { result.SkippedCount++; continue; }
+                var to = ComputeInterceptPoint(origin, host);
+                to = MaybeSnapToCorridorBand(origin, to, result);
+                var id = CreateRunBetween(origin, to, host, result);
+                if (id != null && id != ElementId.InvalidElementId)
+                {
+                    result.CreatedIds.Add(id);
+                    anyOk = true;
+                }
+                else
+                {
+                    result.FailedCount++;
+                }
+            }
+            return anyOk;
         }
 
         /// <summary>

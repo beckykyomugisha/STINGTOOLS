@@ -60,6 +60,7 @@ public class IfcIngestController : ControllerBase
     private readonly IIfcIngester _ingester;
     private readonly IFileStorageService _storage;
     private readonly IAuditService _audit;
+    private readonly Planscape.Core.Interfaces.IIfcAlignmentValidator _alignmentValidator;
     private readonly ILogger<IfcIngestController> _logger;
 
     public IfcIngestController(
@@ -67,12 +68,14 @@ public class IfcIngestController : ControllerBase
         IIfcIngester ingester,
         IFileStorageService storage,
         IAuditService audit,
+        Planscape.Core.Interfaces.IIfcAlignmentValidator alignmentValidator,
         ILogger<IfcIngestController> logger)
     {
         _db = db;
         _ingester = ingester;
         _storage = storage;
         _audit = audit;
+        _alignmentValidator = alignmentValidator;
         _logger = logger;
     }
 
@@ -82,7 +85,11 @@ public class IfcIngestController : ControllerBase
     public async Task<ActionResult> Ingest(
         Guid projectId,
         IFormFile file,
-        CancellationToken ct)
+        CancellationToken ct,
+        // Optional: if the caller has already created a ProjectModel row (e.g. via
+        // POST /api/projects/{id}/models), pass its id here and the alignment validator
+        // will run immediately and attach the report to that model.
+        [FromForm] Guid? modelId = null)
     {
         var tenantId = GetTenantId();
         var project = await _db.Projects.Include(p => p.Tenant)
@@ -119,6 +126,35 @@ public class IfcIngestController : ControllerBase
             if (!result.HasQuantitySets)
                 responseWarnings.Add("No quantity sets found. Re-export from ArchiCAD with 'Export Quantity Sets (Qto)' enabled for cost extraction.");
 
+            // Gap A–D alignment validation — run while the temp file is still on disk.
+            // Only possible when the caller supplies a modelId for the ProjectModel row.
+            object? alignmentReport = null;
+            if (modelId.HasValue)
+            {
+                try
+                {
+                    var ar = await _alignmentValidator.ValidateAsync(
+                        tmp, projectId, modelId.Value, tenantId, ct);
+                    alignmentReport = new
+                    {
+                        verdict         = ar.Verdict,
+                        trueNorthDeg    = ar.TrueNorthDegrees,
+                        lengthUnit      = ar.LengthUnit,
+                        hasMapConversion = ar.HasMapConversion,
+                        hasProjectedCrs  = ar.HasProjectedCrs,
+                        crsName         = ar.CrsName,
+                        findingCount    = System.Text.Json.JsonSerializer
+                            .Deserialize<System.Text.Json.JsonElement>(ar.FindingsJson)
+                            .GetArrayLength(),
+                    };
+                }
+                catch (Exception aex)
+                {
+                    _logger.LogWarning(aex,
+                        "Alignment validation failed for model {ModelId} (non-fatal).", modelId.Value);
+                }
+            }
+
             await _audit.LogAsync("INGEST", "Ifc", projectId.ToString(),
                 JsonSerializer.Serialize(new {
                     fileName     = fname,
@@ -139,6 +175,7 @@ public class IfcIngestController : ControllerBase
                 source          = result.Source,
                 hasQuantitySets = result.HasQuantitySets,
                 warnings        = responseWarnings.Where(w => w != null).ToList(),
+                alignment       = alignmentReport,
             });
         }
         catch (Exception ex)

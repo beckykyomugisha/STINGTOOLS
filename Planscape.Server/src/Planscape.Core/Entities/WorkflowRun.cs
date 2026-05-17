@@ -19,6 +19,13 @@ public class WorkflowRun : ITenantScoped
     public string? StepResultsJson { get; set; } // per-step detail
     public DateTime ExecutedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>
+    /// JSON blob linking this run to affected entities so the audit trail
+    /// can correlate workflow runs with the documents/issues/transmittals they touched.
+    /// Shape: { "documentIds": [...], "issueIds": [...], "transmittalIds": [...] }
+    /// </summary>
+    public string? LinkedEntityJson { get; set; }
+
     // Navigation
     public Project? Project { get; set; }
 }

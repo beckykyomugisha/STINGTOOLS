@@ -237,6 +237,91 @@
         { "conditions": { "ASS_ZONE_TXT": "ZZ" },  "tag_type": "2NOM_GREY" },
         { "conditions": { "ASS_ZONE_TXT": "XX" },  "tag_type": "2ITALIC_GREY" }
       ]
+    },
+
+    "Stale": {
+      "description": "GAP-STYLE-01: Highlight stale elements — stale=italic grey, non-stale=normal black. Pair with SelectStale to quickly locate geometry-changed assets.",
+      "default_type": "2NOM_BLACK",
+      "rules": [
+        { "conditions": { "STING_STALE_BOOL": "1" }, "tag_type": "2ITALIC_GREY" }
+      ]
+    },
+
+    "Revision": {
+      "description": "Color by revision code — useful on issue sheets to show what changed this revision. P01=blue, P02=green, C01=orange, S-series=purple.",
+      "default_type": "2NOM_BLACK",
+      "rules": [
+        { "conditions": { "ASS_REVISION_TXT": "P01" }, "tag_type": "2NOM_BLUE" },
+        { "conditions": { "ASS_REVISION_TXT": "P02" }, "tag_type": "2BOLD_BLUE" },
+        { "conditions": { "ASS_REVISION_TXT": "P03" }, "tag_type": "2BOLD_GREEN" },
+        { "conditions": { "ASS_REVISION_TXT": "C01" }, "tag_type": "2BOLD_ORANGE" },
+        { "conditions": { "ASS_REVISION_TXT": "C02" }, "tag_type": "2BOLDITALIC_ORANGE" },
+        { "conditions": { "ASS_REVISION_TXT": "S01" }, "tag_type": "2ITALIC_PURPLE" },
+        { "conditions": { "ASS_REVISION_TXT": "S02" }, "tag_type": "2BOLD_PURPLE" }
+      ]
+    },
+
+    "Level": {
+      "description": "Color by level code — useful for multi-storey coordination where elements on different floors share a plan view.",
+      "default_type": "2NOM_BLACK",
+      "rules": [
+        { "conditions": { "ASS_LVL_COD_TXT": "B2" },  "tag_type": "2BOLD_PURPLE" },
+        { "conditions": { "ASS_LVL_COD_TXT": "B1" },  "tag_type": "2BOLD_BLUE" },
+        { "conditions": { "ASS_LVL_COD_TXT": "GF" },  "tag_type": "2NOM_BLACK" },
+        { "conditions": { "ASS_LVL_COD_TXT": "L01" }, "tag_type": "2NOM_GREEN" },
+        { "conditions": { "ASS_LVL_COD_TXT": "L02" }, "tag_type": "2NOM_BLUE" },
+        { "conditions": { "ASS_LVL_COD_TXT": "L03" }, "tag_type": "2NOM_ORANGE" },
+        { "conditions": { "ASS_LVL_COD_TXT": "L04" }, "tag_type": "2NOM_RED" },
+        { "conditions": { "ASS_LVL_COD_TXT": "L05" }, "tag_type": "2NOM_PURPLE" },
+        { "conditions": { "ASS_LVL_COD_TXT": "RF" },  "tag_type": "2ITALIC_GREY" }
+      ]
+    },
+
+    "Location": {
+      "description": "Color by building / location code — BLD1=blue, BLD2=green, BLD3=orange, EXT=red. Helps multi-block site coordination.",
+      "default_type": "2NOM_BLACK",
+      "rules": [
+        { "conditions": { "ASS_LOC_TXT": "BLD1" }, "tag_type": "2BOLD_BLUE" },
+        { "conditions": { "ASS_LOC_TXT": "BLD2" }, "tag_type": "2BOLD_GREEN" },
+        { "conditions": { "ASS_LOC_TXT": "BLD3" }, "tag_type": "2BOLD_ORANGE" },
+        { "conditions": { "ASS_LOC_TXT": "EXT" },  "tag_type": "2BOLD_RED" },
+        { "conditions": { "ASS_LOC_TXT": "XX" },   "tag_type": "2ITALIC_GREY" }
+      ]
+    },
+
+    "Completeness QA": {
+      "description": "GAP-STYLE-01: Three-tier completeness — fully tagged=small green, partially tagged=medium bold orange, untagged=large bold red. Use as permanent QA overlay.",
+      "default_type": "3.5BOLD_RED",
+      "rules": [
+        { "conditions": { "_tag_complete": "true" },    "tag_type": "1.5NOM_GREEN" },
+        { "conditions": { "_tag_complete": "partial" }, "tag_type": "2BOLD_ORANGE" }
+      ]
+    },
+
+    "Discipline + System": {
+      "description": "Multi-condition: combine discipline and system for fine-grained differentiation. HVAC supply=bold blue, HVAC return=italic blue, DCW=green, DHW=orange, LV power=yellow-bold, LV lighting=italic orange.",
+      "default_type": "2NOM_BLACK",
+      "rules": [
+        { "conditions": { "ASS_DISCIPLINE_COD_TXT": "M", "ASS_SYSTEM_TYPE_TXT": "HVAC", "ASS_FUNC_TXT": "SUP" }, "tag_type": "2BOLD_BLUE" },
+        { "conditions": { "ASS_DISCIPLINE_COD_TXT": "M", "ASS_SYSTEM_TYPE_TXT": "HVAC", "ASS_FUNC_TXT": "RTN" }, "tag_type": "2ITALIC_BLUE" },
+        { "conditions": { "ASS_DISCIPLINE_COD_TXT": "M", "ASS_SYSTEM_TYPE_TXT": "HVAC", "ASS_FUNC_TXT": "EXH" }, "tag_type": "2BOLDITALIC_BLUE" },
+        { "conditions": { "ASS_DISCIPLINE_COD_TXT": "M", "ASS_SYSTEM_TYPE_TXT": "HWS" },  "tag_type": "2BOLD_ORANGE" },
+        { "conditions": { "ASS_DISCIPLINE_COD_TXT": "P", "ASS_SYSTEM_TYPE_TXT": "DCW" },  "tag_type": "2BOLD_GREEN" },
+        { "conditions": { "ASS_DISCIPLINE_COD_TXT": "P", "ASS_SYSTEM_TYPE_TXT": "DHW" },  "tag_type": "2BOLD_RED" },
+        { "conditions": { "ASS_DISCIPLINE_COD_TXT": "P", "ASS_SYSTEM_TYPE_TXT": "SAN" },  "tag_type": "2ITALIC_GREEN" },
+        { "conditions": { "ASS_DISCIPLINE_COD_TXT": "E", "ASS_FUNC_TXT": "PWR" },         "tag_type": "2BOLD_ORANGE" },
+        { "conditions": { "ASS_DISCIPLINE_COD_TXT": "E", "ASS_FUNC_TXT": "LTG" },         "tag_type": "2ITALIC_ORANGE" },
+        { "conditions": { "ASS_DISCIPLINE_COD_TXT": "FP" },                                "tag_type": "2BOLDITALIC_RED" }
+      ]
+    },
+
+    "Auto-Tagger Audit": {
+      "description": "GAP-AT-02: Distinguish auto-tagged elements from manually tagged — [AUTO_TAGGER] modifier=italic grey, normal user=bold black, no modifier=normal black.",
+      "default_type": "2NOM_BLACK",
+      "rules": [
+        { "conditions": { "ASS_TAG_MODIFIED_BY_TXT": "[AUTO_TAGGER]*" }, "tag_type": "2ITALIC_GREY" },
+        { "conditions": { "_tag_complete": "true" }, "tag_type": "2BOLD_BLACK" }
+      ]
     }
   }
 }

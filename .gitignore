@@ -62,6 +62,13 @@ STING_WORKFLOW_LOG.json
 *.env
 !*.env.template
 
+# Node / JS dependencies — never commit installed packages
+node_modules/
+dist/
+.next/
+out/
+build/
+
 # Python
 __pycache__/
 *.pyc
@@ -70,3 +77,6 @@ __pycache__/
 
 # IFC drop folder — runtime files, not source
 IFC_DROP/
+
+# Docker runtime logs — generated at runtime, not source controlled
+Planscape.Server/docker/api-errors.txt

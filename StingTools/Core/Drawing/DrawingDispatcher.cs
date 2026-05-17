@@ -101,5 +101,18 @@ namespace StingTools.Core.Drawing
             if (string.IsNullOrEmpty(actual)) return false;
             return string.Equals(ruleValue, actual, StringComparison.OrdinalIgnoreCase);
         }
+
+        /// <summary>
+        /// Resolve the title-block family name and symbol name declared in the
+        /// given DrawingType. Returns a tuple of (familyName, symbolName); either
+        /// may be null when the DrawingType does not specify a title block.
+        /// Stub — full implementation in a future phase when the title-block
+        /// variant registry is wired in.
+        /// </summary>
+        public static (string familyName, string symbolName) ResolveTitleBlockVariant(DrawingType dt)
+        {
+            if (dt == null) return (null, null);
+            return (dt.TitleBlockFamily, null);
+        }
     }
 }
