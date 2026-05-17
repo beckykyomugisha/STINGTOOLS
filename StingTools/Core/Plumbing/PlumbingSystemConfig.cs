@@ -91,7 +91,7 @@ namespace StingTools.Core.Plumbing
                 var coord = Path.Combine(dir, "_BIM_COORD");
                 return Path.Combine(coord, "plumbing_system_config.json");
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         public static PlumbingSystemConfig Load(Document doc)
@@ -184,7 +184,7 @@ namespace StingTools.Core.Plumbing
                 m     = ReadString(pi, ParamRegistry.PLM_MAT_VNT); if (!string.IsNullOrEmpty(m)) c.Materials["Vent"]     = m;
                 return c;
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static void TrySetParam(Element el, string name, string value)
@@ -197,7 +197,7 @@ namespace StingTools.Core.Plumbing
                 else if (p.StorageType == StorageType.Double && double.TryParse(value, out var dv)) p.Set(dv);
                 else if (p.StorageType == StorageType.Integer && int.TryParse(value, out var iv)) p.Set(iv);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private static string ReadString(Element el, string name)
@@ -210,7 +210,7 @@ namespace StingTools.Core.Plumbing
                 if (p.StorageType == StorageType.Double)  return p.AsDouble().ToString("F2");
                 if (p.StorageType == StorageType.Integer) return p.AsInteger().ToString();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "";
         }
 

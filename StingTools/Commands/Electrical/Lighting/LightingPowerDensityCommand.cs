@@ -106,7 +106,7 @@ namespace StingTools.Commands.Electrical.Lighting
                             else if (status == "WARNING") view.SetElementOverrides(r.Id, ogsAmber);
                             else if (status == "FAIL")    view.SetElementOverrides(r.Id, ogsRed);
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     }
                     rows.Add(new LpdRow
                     {
@@ -122,7 +122,7 @@ namespace StingTools.Commands.Electrical.Lighting
             }
             LastRows = rows;
             StingElectricalCommandHandler.LastLpdRows = rows;
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             int pass = rows.Count(r => r.Status == "PASS");
             int fail = rows.Count(r => r.Status == "FAIL");
             TaskDialog.Show("STING LPD",
@@ -138,7 +138,7 @@ namespace StingTools.Commands.Electrical.Lighting
                 var pt = (fi.Location as LocationPoint)?.Point;
                 return pt != null && r.IsPointInRoom(pt);
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         public static double ReadWattage(FamilyInstance fi)
@@ -148,13 +148,13 @@ namespace StingTools.Commands.Electrical.Lighting
                 double w = fi.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0;
                 if (w > 0) return w;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             try
             {
                 double w = ParseDouble(ParameterHelpers.GetString(fi, ParamRegistry.LTG_WATTAGE));
                 if (w > 0) return w;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
         private static double ParseDouble(string s) => double.TryParse(s, out double v) ? v : 0;
@@ -223,7 +223,7 @@ namespace StingTools.Commands.Electrical.Lighting
                     else if (status == "FAIL")    ogs.SetProjectionLineColor(new Color(244, 67, 54));
                     else continue;
                     ogs.SetProjectionLineWeight(5);
-                    try { view.SetElementOverrides(r.Id, ogs); colored++; } catch { }
+                    try { view.SetElementOverrides(r.Id, ogs); colored++; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
                 tx.Commit();
             }

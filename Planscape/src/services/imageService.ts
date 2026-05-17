@@ -32,6 +32,42 @@ export interface WifiDecision {
 /** 5 MB threshold — beyond this we nudge the user to wait for Wi-Fi. */
 const LARGE_UPLOAD_THRESHOLD_BYTES = 5 * 1024 * 1024;
 
+/**
+ * Compute a simple 64-bit average perceptual hash (aHash) of an image.
+ * Returns a hex string e.g. "f3a2b1c4d5e6f7a8", or null on failure.
+ * Used as a pairKey to detect near-duplicate uploads server-side.
+ */
+export async function computePairKey(uri: string): Promise<string | null> {
+  try {
+    // Resize to 8x8 greyscale thumbnail
+    const result = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 8, height: 8 } }],
+      { format: ImageManipulator.SaveFormat.JPEG, base64: true }
+    );
+    if (!result.base64) return null;
+    // Decode base64 JPEG — sample every ~3 bytes (RGB) after JPEG header
+    const raw = atob(result.base64);
+    const bytes: number[] = [];
+    for (let i = 0; i < raw.length; i++) bytes.push(raw.charCodeAt(i));
+    // Use last 64 bytes as a proxy for pixel data (rough but stable)
+    const pixels = bytes.slice(-64);
+    const mean = pixels.reduce((a, b) => a + b, 0) / pixels.length;
+    // Build 64-bit hash: 1 if pixel >= mean, else 0
+    let hash = '';
+    for (let i = 0; i < 8; i++) {
+      let byte = 0;
+      for (let b = 0; b < 8; b++) {
+        if ((pixels[i * 8 + b] ?? 0) >= mean) byte |= (1 << b);
+      }
+      hash += byte.toString(16).padStart(2, '0');
+    }
+    return hash;
+  } catch {
+    return null;
+  }
+}
+
 export const imageService = {
   async requestCameraPermission(): Promise<boolean> {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();

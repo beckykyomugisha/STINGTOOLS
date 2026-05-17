@@ -23,14 +23,7 @@ namespace StingTools.Commands.Drawing
             {
                 var doc = data?.Application?.ActiveUIDocument?.Document;
                 var dlg = new DrawingTypeEditorDialog(doc);
-                // Phase 137 — Show() (modeless) instead of ShowDialog() (modal).
-                // A modal WPF window blocks Revit's ExternalEvent queue, so action
-                // buttons inside the editor (Edit CSV…, Populate, Validate,
-                // section/elevation runners, etc.) never fired their dispatched
-                // commands. Modeless lets ExternalEvent.Raise complete.
-                var helper = new System.Windows.Interop.WindowInteropHelper(dlg);
-                try { helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle; } catch { }
-                dlg.Show();
+                dlg.ShowDialog();
                 return Result.Succeeded;
             }
             catch (Exception ex)

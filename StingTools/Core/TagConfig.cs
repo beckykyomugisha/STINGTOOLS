@@ -986,6 +986,14 @@ namespace StingTools.Core
         /// <summary>HC-001: Configurable proximity radius in feet for CopyTokensFromNearest. Default 10 ft.</summary>
         public static double ProximityRadiusFt { get; internal set; } = 10.0;
 
+        /// <summary>
+        /// Default collision mode for bulk commands that don't show an explicit user dialog
+        /// (TagAndCombine, StingAutoTagger). Loaded from project_config.json
+        /// <c>DEFAULT_COLLISION_MODE</c>: "skip" | "overwrite" | "increment" (default).
+        /// AutoTagCommand always shows its own dialog and ignores this setting.
+        /// </summary>
+        public static TagCollisionMode DefaultCollisionMode { get; internal set; } = TagCollisionMode.AutoIncrement;
+
         /// <summary>HC-003: Configurable batch size for ResolveAllIssues. Default 500.</summary>
         public static int ResolveBatchSize { get; internal set; } = 500;
 
@@ -1581,15 +1589,44 @@ namespace StingTools.Core
                         StingLog.Info($"TagConfig: loaded {DisciplineProfiles.Count} discipline profile(s): {string.Join(", ", DisciplineProfiles.Keys)}");
                 }
 
-                // HC-001: Configurable proximity radius for CopyTokensFromNearest
-                ProximityRadiusFt = 10.0; // default 10 ft
-                if (data.TryGetValue("PROXIMITY_RADIUS_FT", out object proxObj))
+                // HC-001: Configurable proximity radius for CopyTokensFromNearest.
+                // Revit internal coordinates are always in feet, so ProximityRadiusFt
+                // is the canonical internal unit.  Three config keys are accepted so
+                // metric-project teams can author the value in their natural units:
+                //   PROXIMITY_RADIUS_FT  — value is already in feet (legacy/default)
+                //   PROXIMITY_RADIUS_M   — value in metres  → converted to feet
+                //   PROXIMITY_RADIUS_MM  — value in millimetres → converted to feet
+                // All keys share the same 1–200 ft clamp after conversion.
+                ProximityRadiusFt = 10.0; // default 10 ft ≈ 3 m
+                double rawRadius = double.NaN;
+                double unitToFt = 1.0; // default: value already in feet
+                if (data.TryGetValue("PROXIMITY_RADIUS_FT", out object proxFt))
                 {
-                    if (proxObj is double pd) ProximityRadiusFt = pd;
-                    else if (proxObj is long pl) ProximityRadiusFt = pl;
-                    else if (double.TryParse(proxObj?.ToString(), out double pv)) ProximityRadiusFt = pv;
+                    if (proxFt is double pd) rawRadius = pd;
+                    else if (proxFt is long pl) rawRadius = pl;
+                    else double.TryParse(proxFt?.ToString(), out rawRadius);
+                    unitToFt = 1.0;
+                }
+                else if (data.TryGetValue("PROXIMITY_RADIUS_M", out object proxM))
+                {
+                    if (proxM is double pd) rawRadius = pd;
+                    else if (proxM is long pl) rawRadius = pl;
+                    else double.TryParse(proxM?.ToString(), out rawRadius);
+                    unitToFt = 3.28084; // 1 m = 3.28084 ft
+                }
+                else if (data.TryGetValue("PROXIMITY_RADIUS_MM", out object proxMm))
+                {
+                    if (proxMm is double pd) rawRadius = pd;
+                    else if (proxMm is long pl) rawRadius = pl;
+                    else double.TryParse(proxMm?.ToString(), out rawRadius);
+                    unitToFt = 0.00328084; // 1 mm = 0.00328084 ft
+                }
+                if (!double.IsNaN(rawRadius))
+                {
+                    ProximityRadiusFt = rawRadius * unitToFt;
                     if (ProximityRadiusFt < 1.0) ProximityRadiusFt = 1.0;
                     if (ProximityRadiusFt > 200.0) ProximityRadiusFt = 200.0;
+                    StingLog.Info($"TagConfig: ProximityRadiusFt = {ProximityRadiusFt:F2} ft (raw={rawRadius}, unitToFt={unitToFt})");
                 }
 
                 // HC-003: Configurable batch size for ResolveAllIssues
@@ -1600,6 +1637,21 @@ namespace StingTools.Core
                     else if (int.TryParse(bsObj?.ToString(), out int bi)) ResolveBatchSize = bi;
                     if (ResolveBatchSize < 50) ResolveBatchSize = 50;
                     if (ResolveBatchSize > 5000) ResolveBatchSize = 5000;
+                }
+
+                // DEFAULT_COLLISION_MODE: controls TagAndCombineCommand and StingAutoTagger bulk path.
+                // AutoTagCommand always shows its own dialog and ignores this setting.
+                DefaultCollisionMode = TagCollisionMode.AutoIncrement;
+                if (data.TryGetValue("DEFAULT_COLLISION_MODE", out object dcmObj))
+                {
+                    string dcmStr = dcmObj?.ToString()?.ToLowerInvariant() ?? "";
+                    DefaultCollisionMode = dcmStr switch
+                    {
+                        "skip"      => TagCollisionMode.Skip,
+                        "overwrite" => TagCollisionMode.Overwrite,
+                        _           => TagCollisionMode.AutoIncrement,
+                    };
+                    StingLog.Info($"TagConfig: DefaultCollisionMode = {DefaultCollisionMode}");
                 }
 
                 // TAG-STALE-WARN-01: Configurable threshold for auto-creating stale-element issues.
@@ -4037,6 +4089,14 @@ namespace StingTools.Core
         /// for each (DISC, SYS, LVL) group. Returns a dictionary that can be passed
         /// to BuildAndWriteTag so new tags continue from existing numbering.
         /// </summary>
+        /// <remarks>
+        /// <b>Obsolete</b>: Use <see cref="BuildTagIndexAndCounters"/> instead.
+        /// That method merges the sidecar <c>.sting_seq.json</c> counter store with
+        /// the live project scan so SEQ numbering survives Revit session boundaries.
+        /// Calling this method directly skips the sidecar, which can produce SEQ
+        /// collisions after the project has been reopened.
+        /// </remarks>
+        [Obsolete("Use BuildTagIndexAndCounters(doc) — it merges sidecar counters with the live scan, preventing SEQ collisions across sessions.")]
         public static Dictionary<string, int> GetExistingSequenceCounters(Document doc)
         {
             var maxSeq = new Dictionary<string, int>();
@@ -4296,7 +4356,7 @@ namespace StingTools.Core
                 string p = StingTools.Core.ProjectFolderEngine.GetDataPath(doc, "seq_counters.json");
                 if (!string.IsNullOrEmpty(p)) return p;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string dir = System.IO.Path.GetDirectoryName(projectPath);
             string fileName = System.IO.Path.GetFileNameWithoutExtension(projectPath);
             if (string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(fileName)) return null;
@@ -5279,6 +5339,7 @@ namespace StingTools.Core
             { "M", "Mechanical" }, { "E", "Electrical" }, { "P", "Plumbing" },
             { "A", "Architectural" }, { "S", "Structural" }, { "FP", "Fire Protection" },
             { "LV", "Low Voltage" }, { "G", "Gas" }, { "GEN", "General" },
+            { "H", "Healthcare" }, { "MG", "Medical Gas" }, { "RP", "Radiation Protection" },
         };
 
         /// <summary>Full system name for human-readable narrative.</summary>
@@ -5294,6 +5355,16 @@ namespace StingTools.Core
             { "COM", "Communications" }, { "NCL", "Nurse Call Systems" },
             { "ARC", "Architectural Fabric" }, { "STR", "Structural Elements" },
             { "GEN", "General Services" },
+            // Healthcare Pack (Phase H-1)
+            { "MGS-O2", "Medical Oxygen Supply" }, { "MGS-AIR", "Medical Compressed Air" },
+            { "MGS-VAC", "Medical Vacuum" }, { "MGS-N2O", "Nitrous Oxide Supply" },
+            { "MGS-CO2", "Carbon Dioxide Supply" }, { "MGS-N2", "Nitrogen Supply" },
+            { "MGS-AGS", "Anaesthetic Gas Scavenging" },
+            { "EES-LS", "Essential Electrical Services (Life Safety)" },
+            { "EES-CR", "Essential Electrical Services (Critical)" },
+            { "EES-EB", "Essential Electrical Services (Enhanced)" },
+            { "LPS", "Lightning Protection System" },
+            { "CLN", "Clinical Environment" }, { "RAD", "Radiation Shielding" },
         };
 
         /// <summary>Full function description for human-readable narrative.</summary>
@@ -5312,6 +5383,12 @@ namespace StingTools.Core
             { "NCL", "Patient Nurse Call" }, { "SEC", "Security and Access Control" },
             { "FIT", "Finishes and Fitout" }, { "STR", "Primary Structure" },
             { "GEN", "General Purpose" },
+            // Healthcare Pack (Phase H-1)
+            { "AT", "Air Termination" }, { "DC", "Down Conductor" }, { "EB", "Equipotential Bond" },
+            { "EP", "Earth Pit" }, { "SPD", "Surge Protection Device" },
+            { "DIST", "Distribution" }, { "ISO", "Isolation" }, { "ALM", "Area Alarm" },
+            { "TU", "Terminal Unit" }, { "ZVB", "Zone Valve Box" },
+            { "AAP", "Area Alarm Panel" }, { "SHLD", "Shielding" }, { "ZONE", "Safety Zone" },
         };
 
         /// <summary>Full product type description for human-readable narrative.</summary>
@@ -6370,11 +6447,16 @@ namespace StingTools.Core
 
             if (!string.IsNullOrEmpty(paraContainer) && !string.IsNullOrEmpty(tag7.PlainNarrative))
             {
-                string paraText = tag7.PlainNarrative;
-                // If warnings exist and are visible, append them to the paragraph
+                // Use a local StringBuilder to avoid intermediate string allocations when
+                // warnings are appended — one paraText per element across 1000-element batches
+                // was generating 1000 throwaway string objects.
+                var paraBuilder = new System.Text.StringBuilder(tag7.PlainNarrative);
                 if (!string.IsNullOrEmpty(warningText))
-                    paraText += " | WARNINGS: " + warningText;
-                if (ParameterHelpers.SetString(el, paraContainer, paraText, overwrite))
+                {
+                    paraBuilder.Append(" | WARNINGS: ");
+                    paraBuilder.Append(warningText);
+                }
+                if (ParameterHelpers.SetString(el, paraContainer, paraBuilder.ToString(), overwrite))
                     written++;
             }
 
@@ -6408,7 +6490,7 @@ namespace StingTools.Core
                 }
                 if (p.StorageType == StorageType.Integer) return p.AsInteger() != 0;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 
@@ -6967,6 +7049,32 @@ namespace StingTools.Core
             else if (disc == "FP" || categoryName == "Sprinklers" || categoryName == "Fire Alarm Devices")
             {
                 AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "providing {0} minutes of fire resistance");
+            }
+            else if (disc == "H" || categoryName == "Rooms" && !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "CLN_ROOM_CLASS_TXT")))
+            {
+                // Healthcare: Clinical Room
+                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_ROOM_CLASS_TXT"), "classified as a {0} clinical space");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_PRESS_REGIME_TXT"), "operating under {0} pressure regime");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_INFECT_CLASS_TXT"), "with infection control class {0}");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_HTM_REF_TXT"), "per {0}");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_ADB_CODE_TXT"), "ADB room code {0}");
+            }
+            else if (disc == "MG" || categoryName == "Pipes" && !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "MGS_GAS_TYPE_TXT")))
+            {
+                // Healthcare: Medical Gas
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_GAS_TYPE_TXT"), "carrying {0} medical gas");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_DESIGN_FLOW_LS_NR"), "at a design flow of {0} L/s");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_DESIGN_PRESS_KPA_NR"), "at {0} kPa design pressure");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_OUTLET_COUNT_INT"), "serving {0} outlets");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_NFPA99_ZONE_TXT"), "in NFPA 99 zone {0}");
+            }
+            else if (disc == "RP" || !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "RAD_LEAD_MM_NR")))
+            {
+                // Healthcare: Radiation Protection
+                AppendNatural(tech, ParameterHelpers.GetString(el, "RAD_LEAD_MM_NR"), "with {0} mm Pb shielding");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "RAD_MODALITY_TXT"), "protecting against {0}");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "RAD_WORKLOAD_WK_NR"), "workload {0} mA·min/wk");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "RAD_QE_NAME_TXT"), "certified by {0}");
             }
 
             return tech.Length > 0 ? tech.ToString() : "";

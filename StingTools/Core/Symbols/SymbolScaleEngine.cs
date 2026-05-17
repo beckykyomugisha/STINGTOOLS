@@ -24,7 +24,7 @@ namespace StingTools.Core.Symbols
         {
             if (view == null) return false;
             try { return view.Scale > 200 && elementCount > 50; }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
     }
 }

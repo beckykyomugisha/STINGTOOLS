@@ -39,20 +39,6 @@ namespace StingTools.Commands.Fabrication
         public static bool PlaceISO6412Symbols { get; set; } = true;
         public static bool EmitPerDisciplineCsv{ get; set; } = true;
 
-        // Per-discipline ISO 6412 symbol toggles (only honoured when the
-        // master PlaceISO6412Symbols flag above is on). Lets a user
-        // generate symbol-stamped pipe drawings while leaving duct /
-        // electrical assemblies bare.
-        public static bool PlaceISOPipe       { get; set; } = true;
-        public static bool PlaceISODuct       { get; set; } = true;
-        public static bool PlaceISOElectrical { get; set; } = true;
-
-        /// <summary>Symbol placement run-mode. Off = skip; NewOnly =
-        /// idempotent (skip members already symbolised); Replace = purge
-        /// previously placed symbols on the view first, then re-place.</summary>
-        public enum PlacementMode { Off, NewOnly, Replace }
-        public static PlacementMode SymbolPlacementMode { get; set; } = PlacementMode.NewOnly;
-
         // Content mode — ISO 6412 (workshop) vs Generic (geometry only)
         public static bool ContentModeIso6412  { get; set; } = true;
 
@@ -134,21 +120,6 @@ namespace StingTools.Commands.Fabrication
             }
 
             FabricationUndoManager.Record(res);
-
-            // Phase 165: auto-link the generated SP- sheets into the
-            // ISO 19650 document register so they appear in the Document
-            // Management Center and any subsequent transmittal bundles
-            // without a separate user step.
-            if (res.SheetIds.Count > 0)
-            {
-                try
-                {
-                    int added = FabricationDocRegister.PushSheets(doc, res.SheetIds);
-                    if (added > 0) StingLog.Info($"FabricationDocRegister: {added} sheet(s) added to document register.");
-                }
-                catch (Exception ex) { StingLog.Warn($"FabricationDocRegister.PushSheets failed: {ex.Message}"); }
-            }
-
             ShowResult(res);
 
             // Open first generated sheet for instant feedback

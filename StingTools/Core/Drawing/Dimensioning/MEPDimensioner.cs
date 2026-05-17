@@ -175,7 +175,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                     {
                         if (c == null) continue;
                         ConnectorSet refs = null;
-                        try { refs = c.AllRefs; } catch { }
+                        try { refs = c.AllRefs; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         if (refs == null) continue;
                         foreach (Connector r in refs)
                         {
@@ -303,7 +303,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                 var foot = origin + dir * t;
                 return (p - foot).GetLength();
             }
-            catch { return double.MaxValue; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return double.MaxValue; }
         }
 
         private static XYZ ResolveRunAxis(List<MEPCurve> run)
@@ -319,7 +319,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                 if (longest != null && longest.Curve is Line ln)
                     return ln.Direction;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return XYZ.BasisX;
         }
 
@@ -334,7 +334,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                 var wP = e.LookupParameter("Width");
                 if (wP != null && wP.StorageType == StorageType.Double) return wP.AsDouble();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0.0;
         }
     }

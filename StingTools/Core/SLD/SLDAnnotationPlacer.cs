@@ -76,8 +76,9 @@ namespace StingTools.Core.SLD
                 string label = BuildCircuitLabel(node, rules, annotOpts);
                 if (string.IsNullOrWhiteSpace(label)) return ElementId.InvalidElementId;
 
+                // symSizeMm/2 clears the symbol body; + TextHeightMm adds one line of breathing room.
                 XYZ textPos = OffsetForRule(position, rules.LabelPosition,
-                    Mm(rules.TextHeightMm * 1.5));
+                    Mm(symSizeMm / 2.0 + rules.TextHeightMm));
                 var tnt = new FilteredElementCollector(doc)
                     .OfClass(typeof(TextNoteType))
                     .FirstElementId();

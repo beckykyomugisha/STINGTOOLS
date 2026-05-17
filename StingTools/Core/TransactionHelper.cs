@@ -53,19 +53,13 @@ namespace StingTools.Core
                             action(t);
                             t.Commit();
                         }
-                        catch
-                        {
-                            if (t.HasStarted() && !t.HasEnded()) t.RollBack();
-                            throw;
-                        }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); if (t.HasStarted() && !t.HasEnded()) t.RollBack();
+                            throw; }
                     }
                     tg.Assimilate();
                 }
-                catch
-                {
-                    if (tg.HasStarted() && !tg.HasEnded()) tg.RollBack();
-                    throw;
-                }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); if (tg.HasStarted() && !tg.HasEnded()) tg.RollBack();
+                    throw; }
             }
         }
 
@@ -110,11 +104,8 @@ namespace StingTools.Core
                     action(t);
                     t.Commit();
                 }
-                catch
-                {
-                    if (t.HasStarted() && !t.HasEnded()) t.RollBack();
-                    throw;
-                }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); if (t.HasStarted() && !t.HasEnded()) t.RollBack();
+                    throw; }
             }
         }
 

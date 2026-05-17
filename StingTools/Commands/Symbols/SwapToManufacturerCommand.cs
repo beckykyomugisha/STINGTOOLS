@@ -244,7 +244,7 @@ namespace StingTools.Commands.Symbols
             try { ActionAuditLog.Record("Family_Swap",
                 $"swapped={swapped} skipped={skipped} errors={errors} rejoined={rejoined}"); }
             catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // Wave H3 — opt-in post-swap re-validation. Manufacturer
             // families may have different conduit sizes / cable capacity /
@@ -321,11 +321,11 @@ namespace StingTools.Commands.Symbols
                 if (!string.IsNullOrEmpty(s) &&
                     s.StartsWith("STING_SEED_", StringComparison.OrdinalIgnoreCase)) return true;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             // Fallback: family name itself starts with STING_SEED_ — useful
             // when the parameter binding hasn't been refreshed yet.
             try { return SafeFamilyName(el).StartsWith("STING_SEED_", StringComparison.OrdinalIgnoreCase); }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         // ── Registry ────────────────────────────────────────────────────
@@ -344,7 +344,7 @@ namespace StingTools.Commands.Symbols
                     string projDir = Path.GetDirectoryName(Path.GetDirectoryName(corp) ?? "") ?? "";
                     // best-effort — try the typical _BIM_COORD location next to the active doc
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 return root;
             }
             catch (Exception ex) { StingLog.Warn($"LoadRegistry: {ex.Message}"); return null; }
@@ -389,7 +389,7 @@ namespace StingTools.Commands.Symbols
             if (c == null) return false;
             if (string.IsNullOrEmpty(c.SeedVariantPattern)) return true;
             try { return Regex.IsMatch(sourceTypeName ?? "", c.SeedVariantPattern); }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         private static string SafeTypeName(Element el)
@@ -400,7 +400,7 @@ namespace StingTools.Commands.Symbols
                 var t = el?.Document?.GetElement(el.GetTypeId()) as FamilySymbol;
                 return t?.Name ?? "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         private static List<SwapCandidate> ResolveCandidates(Document doc, JObject registry, string seedId)
@@ -440,13 +440,13 @@ namespace StingTools.Commands.Symbols
                     if (string.IsNullOrEmpty(cand.FamilyNamePattern)) continue;
                     Regex rxFamily;
                     try { rxFamily = new Regex(cand.FamilyNamePattern); }
-                    catch { continue; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
 
                     Regex rxType = null;
                     if (!string.IsNullOrEmpty(cand.TypeNamePattern))
                     {
                         try { rxType = new Regex(cand.TypeNamePattern); }
-                        catch { continue; }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                     }
 
                     // Wave J1 — match against (familyName, typeName)
@@ -478,12 +478,12 @@ namespace StingTools.Commands.Symbols
                 var t = el?.Document?.GetElement(el.GetTypeId()) as FamilySymbol;
                 return t?.FamilyName ?? "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         private static string SafeUserName()
         {
-            try { return Environment.UserName ?? "?"; } catch { return "?"; }
+            try { return Environment.UserName ?? "?"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "?"; }
         }
 
         /// <summary>
@@ -558,7 +558,7 @@ namespace StingTools.Commands.Symbols
             foreach (var id in swappedIds)
             {
                 FamilyInstance fi = null;
-                try { fi = doc.GetElement(id) as FamilyInstance; } catch { }
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (fi == null) continue;
                 var mgr = fi.MEPModel?.ConnectorManager;
                 if (mgr == null) continue;
@@ -612,11 +612,11 @@ namespace StingTools.Commands.Symbols
                         // try elbow first since it's the most-tolerant.
                         FamilyInstance fitting = null;
                         try { fitting = doc.Create.NewElbowFitting(a, b); }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         if (fitting == null)
                         {
                             try { fitting = doc.Create.NewUnionFitting(a, b); }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                         if (fitting != null) rejoined++;
                     }

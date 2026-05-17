@@ -48,4 +48,6 @@ public sealed record IfcIngestResult(
     Dictionary<string, int> CountsByType,
     IReadOnlyList<IfcElementProperties> Elements,
     TimeSpan Duration,
-    string? Warnings);
+    string? Warnings,
+    string  Source = "ifc",             // "archicad" | "ifc" — set from AC_Pset detection
+    bool    HasQuantitySets = false);   // true if at least one IIfcElementQuantity found

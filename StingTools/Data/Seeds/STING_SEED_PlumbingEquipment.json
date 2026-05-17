@@ -2,11 +2,10 @@
   "version": "1.0",
   "standard": "STING SEED FAMILY — Plumbing Equipment (BS 8558, BS 6700, HSG 274)",
   "_notes": [
-    "Plumbing-equipment seed for water-handling plant: calorifiers / DHW",
-    "cylinders, booster sets, manifolds, expansion vessels, water heaters,",
-    "pumps. Sits between plumbing fixtures (terminal) and the central",
-    "plant. Connectors authored in pairs (cold-in / hot-out) so",
-    "AutoPipeDrop wires both services in one pass."
+    "14 type variants: calorifiers (indirect/direct), DHW cylinders",
+    "(unvented/vented), water heaters, booster sets, manifolds,",
+    "expansion vessels, inline/twin pumps, water softener, grease trap,",
+    "RO filter, pressurisation set."
   ],
   "symbols": [
     {
@@ -17,6 +16,7 @@
       "discipline": "Plumbing",
       "subcategory": "STING_SEED",
       "isSeed": true,
+      "protectExisting": true,
       "hosting": "Standalone",
       "symbolSize": 8.0,
       "parameters": [
@@ -65,7 +65,26 @@
           "offsetX": 0.0, "offsetY": -0.5, "offsetZ": -0.3, "facing": "-Y"
         }
       ],
+      "swapCandidates": [
+        {
+          "label": "Gledhill / Heatrae Calorifier",
+          "familyPath": "",
+          "variantPattern": "CALORIFIER*",
+          "priority": 1,
+          "autoLoad": false
+        },
+        {
+          "label": "Grundfos / Armstrong Pump Set",
+          "familyPath": "",
+          "variantPattern": "PUMP_*",
+          "priority": 2,
+          "autoLoad": false
+        }
+      ],
       "typeVariants": [
+        {
+          "_group": "--- CALORIFIERS ---"
+        },
         {
           "name": "CALORIFIER",
           "params": {
@@ -76,11 +95,32 @@
           }
         },
         {
+          "name": "CALORIFIER_DIRECT",
+          "params": {
+            "PLM_EQP_TYPE_TXT": "CALORIFIER_DIRECT",
+            "ASS_PRODCT_COD_TXT": "CAL-D",
+            "PLM_EQP_CAPACITY_LITRES": "200",
+            "PLM_EQP_HEAT_OUTPUT_KW": "9"
+          }
+        },
+        {
+          "_group": "--- DHW CYLINDERS ---"
+        },
+        {
           "name": "DHW_CYLINDER_UNVENTED",
           "params": {
             "PLM_EQP_TYPE_TXT": "DHW_CYLINDER_UNVENTED",
             "ASS_PRODCT_COD_TXT": "CYL",
             "PLM_EQP_CAPACITY_LITRES": "200",
+            "PLM_EQP_HEAT_OUTPUT_KW": "3"
+          }
+        },
+        {
+          "name": "DHW_CYLINDER_VENTED",
+          "params": {
+            "PLM_EQP_TYPE_TXT": "DHW_CYLINDER_VENTED",
+            "ASS_PRODCT_COD_TXT": "CYL-V",
+            "PLM_EQP_CAPACITY_LITRES": "140",
             "PLM_EQP_HEAT_OUTPUT_KW": "3"
           }
         },
@@ -94,11 +134,48 @@
           }
         },
         {
+          "_group": "--- PUMPS ---"
+        },
+        {
+          "name": "PUMP_INLINE",
+          "params": {
+            "PLM_EQP_TYPE_TXT": "PUMP_INLINE",
+            "ASS_PRODCT_COD_TXT": "PMP"
+          }
+        },
+        {
+          "name": "PUMP_TWIN_SET",
+          "params": {
+            "PLM_EQP_TYPE_TXT": "PUMP_TWIN_SET",
+            "ASS_PRODCT_COD_TXT": "PMP-T"
+          }
+        },
+        {
           "name": "BOOSTER_SET",
           "params": {
             "PLM_EQP_TYPE_TXT": "BOOSTER_SET",
             "ASS_PRODCT_COD_TXT": "BST",
             "PLM_EQP_PRESSURE_BAR": "8"
+          }
+        },
+        {
+          "name": "PRESSURISATION_SET",
+          "params": {
+            "PLM_EQP_TYPE_TXT": "PRESSURISATION_SET",
+            "ASS_PRODCT_COD_TXT": "PST",
+            "PLM_EQP_PRESSURE_BAR": "3"
+          }
+        },
+        {
+          "_group": "--- VESSELS / MANIFOLDS ---"
+        },
+        {
+          "name": "EXPANSION_VESSEL",
+          "params": {
+            "PLM_EQP_TYPE_TXT": "EXPANSION_VESSEL",
+            "ASS_PRODCT_COD_TXT": "EXV",
+            "PLM_EQP_CAPACITY_LITRES": "24",
+            "PLM_EQP_PRESSURE_BAR": "3"
           }
         },
         {
@@ -111,19 +188,28 @@
           }
         },
         {
-          "name": "EXPANSION_VESSEL",
+          "_group": "--- TREATMENT / FILTRATION ---"
+        },
+        {
+          "name": "WATER_SOFTENER",
           "params": {
-            "PLM_EQP_TYPE_TXT": "EXPANSION_VESSEL",
-            "ASS_PRODCT_COD_TXT": "EXV",
-            "PLM_EQP_CAPACITY_LITRES": "24",
-            "PLM_EQP_PRESSURE_BAR": "3"
+            "PLM_EQP_TYPE_TXT": "WATER_SOFTENER",
+            "ASS_PRODCT_COD_TXT": "WSO"
           }
         },
         {
-          "name": "PUMP_INLINE",
+          "name": "RO_FILTER_UNIT",
           "params": {
-            "PLM_EQP_TYPE_TXT": "PUMP_INLINE",
-            "ASS_PRODCT_COD_TXT": "PMP"
+            "PLM_EQP_TYPE_TXT": "RO_FILTER",
+            "ASS_PRODCT_COD_TXT": "ROF"
+          }
+        },
+        {
+          "name": "GREASE_TRAP",
+          "params": {
+            "PLM_EQP_TYPE_TXT": "GREASE_TRAP",
+            "ASS_PRODCT_COD_TXT": "GRT",
+            "PLM_EQP_CAPACITY_LITRES": "100"
           }
         }
       ]

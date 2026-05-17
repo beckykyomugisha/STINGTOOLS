@@ -11,11 +11,3 @@ GROUP	1	ASS_MNG
 PARAM	cfe809e7-77c4-5f44-a43c-1d770d97abea	STING_SLEEVE_PFV_UUID	TEXT		1	1	buildingSMART Pset_ProvisionForVoid UUID for IFC4 round-trip with Tekla Hole Reservation Manager	1
 PARAM	a2a00ce9-5812-5db6-bde0-cefb05775691	STING_SLEEVE_HOST_FIRE_RATING	TEXT		1	1	Fire-rating inherited from host element (BuiltInParameter.FIRE_RATING on wall/floor type)	1
 PARAM	3ec85c17-a7f3-5b2f-879b-14bbb6b05e2c	STING_SLEEVE_UL_SYS	TEXT		1	1	UL 1479 / FM 4991 firestop system ID (e.g. UL W-L-1001)	1
-PARAM	5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c13	STING_SLEEVE_BORE_MM	TEXT		1	1	Round sleeve bore in mm (element OD + 2x insulation + 2x clearance, clamped to rule min)	1
-PARAM	5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c14	STING_SLEEVE_WIDTH_MM	TEXT		1	1	Rectangular sleeve clear-opening width in mm	1
-PARAM	5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c15	STING_SLEEVE_HEIGHT_MM	TEXT		1	1	Rectangular sleeve clear-opening height in mm	1
-PARAM	5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c16	STING_SLEEVE_DEPTH_MM	TEXT		1	1	Sleeve depth in mm (host thickness + 2x protrusion)	1
-PARAM	5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c18	STING_SLEEVE_RULE_ID	TEXT		1	1	Identifier of the sizing rule (STING_SLEEVE_RULES.json) that produced this sleeve	1
-PARAM	5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c1a	STING_SLEEVE_HOST_ID	TEXT		1	1	ElementId.IntegerValue of the host wall/floor/roof	1
-PARAM	5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c1b	STING_SLEEVE_PENETRATED_ID	TEXT		1	1	ElementId.IntegerValue of the penetrating MEP element	1
-PARAM	5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c1c	STING_SLEEVE_CREATED_BY	TEXT		1	1	STING command that placed the sleeve (audit trail)	1

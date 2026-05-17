@@ -73,7 +73,7 @@ namespace StingTools.Core.Calc
             foreach (var id in createdSegmentIds)
             {
                 Element el = null;
-                try { el = doc.GetElement(id); } catch { }
+                try { el = doc.GetElement(id); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (el == null) continue;
                 runs.Add(el);
             }
@@ -193,7 +193,7 @@ namespace StingTools.Core.Calc
                 var p = el.LookupParameter(param);
                 if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String) p.Set(val ?? "");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private static void TrySetDoubleRaw(Element el, string param, double val)
@@ -206,7 +206,7 @@ namespace StingTools.Core.Calc
                 else if (p.StorageType == StorageType.String)
                     p.Set(val.ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         // Length-as-mm setter — converts to internal feet for Length params.
@@ -220,7 +220,7 @@ namespace StingTools.Core.Calc
                 else if (p.StorageType == StorageType.String)
                     p.Set(valMm.ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private static void TrySetInt(Element el, string param, int val)
@@ -232,7 +232,7 @@ namespace StingTools.Core.Calc
                 if (p.StorageType == StorageType.Integer) p.Set(val);
                 else if (p.StorageType == StorageType.String) p.Set(val.ToString());
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
     }
 }

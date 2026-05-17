@@ -34,13 +34,6 @@ namespace StingTools.Commands.Routing
         public static string ConduitInstallMethod { get; set; } = "CLIPPED";
         public static string DuctSeamType       { get; set; } = "A";
         public static string PipeHangerType     { get; set; } = "CLEVIS_ROD";
-
-        // Phase 139.28 — auto-emit physical hangers / clips on the
-        // dropped runs per BS 5572 / MSS SP-58 / SMACNA spacing tables.
-        // Defaults to true so the user gets standards-compliant supports
-        // out of the box; flip to false in the Routing tab when you want
-        // bare drops only and will run Place_Hangers manually later.
-        public static bool   EmitSupports       { get; set; } = true;
     }
 
     [Transaction(TransactionMode.Manual)]

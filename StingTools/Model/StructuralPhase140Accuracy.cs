@@ -705,7 +705,7 @@ namespace StingTools.Model
 
             // Stagger notes vertically so they don't overlap.
             BoundingBoxXYZ bb = null;
-            try { bb = view.get_BoundingBox(null); } catch { }
+            try { bb = view.get_BoundingBox(null); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             XYZ origin = bb != null
                 ? new XYZ(bb.Min.X + (bb.Max.X - bb.Min.X) * 0.05,
                          bb.Max.Y - (bb.Max.Y - bb.Min.Y) * 0.05, 0)

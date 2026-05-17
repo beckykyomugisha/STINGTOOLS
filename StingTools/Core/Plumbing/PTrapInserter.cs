@@ -114,7 +114,7 @@ namespace StingTools.Core.Plumbing
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 
@@ -129,7 +129,7 @@ namespace StingTools.Core.Plumbing
                     if (c.Domain == Domain.DomainPiping) return c;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 
@@ -155,7 +155,7 @@ namespace StingTools.Core.Plumbing
                     if (fn.Contains("TRAP")) return s;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 
@@ -168,7 +168,7 @@ namespace StingTools.Core.Plumbing
                 if (p.StorageType == StorageType.Integer) p.Set(v ? 1 : 0);
                 else if (p.StorageType == StorageType.String) p.Set(v ? "true" : "false");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
     }
 }

@@ -3,6 +3,9 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AppState } from 'react-native';
 import { getToken, onSessionExpired } from '@/api/client';
+import { useAuthStore } from '@/stores/authStore';
+import { useProjectStore } from '@/stores/projectStore';
+import { realtime } from '@/services/realtimeClient';
 import { crashReporter } from '@/services/crashReporter';
 import { notificationTapRouter } from '@/services/notificationTapRouter';
 import { notificationService } from '@/services/notificationService';
@@ -10,6 +13,7 @@ import { initI18n } from '@/i18n';
 import { markBackgrounded, challengeIfDue } from '@/services/biometricLock';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { loadThemePref } from '@/theme/theme';
+import { reapOrphanQueuedPhotos } from '../src/utils/offlineQueue';
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
@@ -20,6 +24,7 @@ export default function RootLayout() {
   useEffect(() => {
     crashReporter.init();
     crashReporter.flushPending().catch(() => {});
+    reapOrphanQueuedPhotos().catch(console.error);
     const unsubNotif = notificationTapRouter.attach(router);
     // NEW-INT-04 — on refresh-token failure, apiFetch emits this event and we
     // force-navigate to the login screen so the user isn't stuck with silent 401s.
@@ -31,6 +36,10 @@ export default function RootLayout() {
       // attempts. Returning early when we're already unauthenticated
       // makes the handler idempotent.
       if (segments[0] === 'login') return;
+      // A6 — clear auth state before disconnecting SignalR on session expiry.
+      useAuthStore.getState().clear();
+      useProjectStore.getState().clear();
+      realtime.disconnect().catch(() => {});
       // Phase 96 — drop any cached server data so the next user on the same
       // device sees fresh tenant-scoped content after re-login.
       import('@/api/endpoints').then(({ clearProjectsCache }) => clearProjectsCache());
@@ -81,6 +90,10 @@ export default function RootLayout() {
     setIsAuthenticated(!!token);
     setIsReady(true);
     if (token) {
+      // A7 — restore the last active project from AsyncStorage so the dashboard
+      // renders the correct project immediately on cold start without waiting for
+      // listProjects to resolve.
+      useProjectStore.getState().hydrate().catch(() => {});
       // B4 — cold-start push registration when a JWT is already cached.
       notificationService.register().catch((err) => {
         crashReporter.warn('_layout.checkAuth: push register failed', { err: String(err) });

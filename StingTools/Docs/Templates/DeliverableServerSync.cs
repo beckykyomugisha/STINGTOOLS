@@ -276,7 +276,7 @@ namespace Planscape.Docs.Templates
                 string cfgPath = Path.Combine(bimDir, "planscape_connection.json");
                 return PlatformSyncCommand.LoadPlanscapeProjectId(cfgPath);
             }
-            catch { return Guid.Empty; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return Guid.Empty; }
         }
 
         private static string SafeProp(dynamic obj, string name)
@@ -288,7 +288,7 @@ namespace Planscape.Docs.Templates
                 var p = t.GetProperty(name);
                 return p?.GetValue(obj) as string;
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
     }
 }

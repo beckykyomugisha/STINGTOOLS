@@ -116,7 +116,7 @@ namespace StingTools.Temp
             }
             finally
             {
-                try { if (File.Exists(tmpZip)) File.Delete(tmpZip); } catch { }
+                try { if (File.Exists(tmpZip)) File.Delete(tmpZip); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
         }
 

@@ -45,7 +45,7 @@ namespace StingTools.Core.Plumbing
             {
                 if (!dfuMap.PipeIsStack.TryGetValue(kv.Key, out var isStack) || !isStack) continue;
                 Pipe p = null;
-                try { p = doc.GetElement(kv.Key) as Pipe; } catch { }
+                try { p = doc.GetElement(kv.Key) as Pipe; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (p == null) continue;
 
                 int dn = (int)Math.Round(p.Diameter * 0.3048 * 1000.0);

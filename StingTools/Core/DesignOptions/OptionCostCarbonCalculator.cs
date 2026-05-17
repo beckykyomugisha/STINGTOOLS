@@ -196,7 +196,7 @@ namespace StingTools.Core.DesignOptions
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
                 return 0;
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         // ── CSV export ───────────────────────────────────────────────────

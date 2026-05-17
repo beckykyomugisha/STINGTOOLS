@@ -105,7 +105,7 @@ namespace StingTools.Core.Plumbing
                 if (!string.IsNullOrEmpty(filter)) return sys.Contains(filter.ToUpperInvariant());
                 return sys.Contains("HWS") || sys.Contains("RETURN") || sys.Contains("RECIRC");
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
     }
 }

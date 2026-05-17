@@ -54,7 +54,7 @@ namespace StingTools.Commands.Electrical.Photometric
                 System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
                 {
                     var dlg = new StingTools.UI.PhotometricLibraryDialog(lib, doc);
-                    try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                    try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     dlg.ShowDialog();
                 });
             }

@@ -32,7 +32,7 @@ namespace StingTools.Core.Validation.Healthcare
             {
                 var rc = GetRoomClassCached(r);
                 if (!NrTarget.ContainsKey(rc)) continue;
-                var nrAct = GetParamDouble(r, "CLN_ROOM_NOISE_NR_NR")
+                var nrAct = GetParamDouble(r, "CLN_NOISE_NR_NR")
                             ?? GetParamDouble(r, "PER_ACOUSTICS_BACKGROUND_NOISE_DB");
                 var nrTgt = NrTarget[rc];
                 if (nrAct.HasValue && nrAct.Value > nrTgt)

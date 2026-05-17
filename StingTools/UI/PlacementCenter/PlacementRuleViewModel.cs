@@ -238,127 +238,12 @@ namespace StingTools.UI.PlacementCenter
             set { if (_rule.Notes != value) { _rule.Notes = value ?? ""; MarkDirty(); } }
         }
 
-        // ── Phase 139 — Source pack + bindable accessors for new fields ──
-
-        public string SourcePack
-        {
-            get => _rule.SourcePack;
-            set { if (_rule.SourcePack != value) { _rule.SourcePack = value ?? ""; MarkDirty(); } }
-        }
-
-        public string BuildingType
-        {
-            get => _rule.BuildingType;
-            set { if (_rule.BuildingType != value) { _rule.BuildingType = value ?? ""; MarkDirty(); } }
-        }
-
-        public string ApplicableStandardsCsv
-        {
-            get => _rule.ApplicableStandards == null ? "" : string.Join(",", _rule.ApplicableStandards);
-            set
-            {
-                var arr = string.IsNullOrEmpty(value)
-                    ? new string[0]
-                    : value.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries);
-                _rule.ApplicableStandards = arr;
-                MarkDirty();
-            }
-        }
-
-        public string IpRatingMin       { get => _rule.IpRatingMin;       set { if (_rule.IpRatingMin       != value) { _rule.IpRatingMin       = value ?? ""; MarkDirty(); } } }
-        public string WetZoneExclusion  { get => _rule.WetZoneExclusion;  set { if (_rule.WetZoneExclusion  != value) { _rule.WetZoneExclusion  = value ?? "NONE"; MarkDirty(); } } }
-        public bool   AccessibilityCheck { get => _rule.AccessibilityCheck; set { if (_rule.AccessibilityCheck != value) { _rule.AccessibilityCheck = value; MarkDirty(); } } }
-        public string HeightStandard    { get => _rule.HeightStandard;    set { if (_rule.HeightStandard    != value) { _rule.HeightStandard    = value ?? ""; MarkDirty(); } } }
-
-        public double CoverageRadiusMm        { get => _rule.CoverageRadiusMm;       set { if (Math.Abs(_rule.CoverageRadiusMm       - value) > 1e-6) { _rule.CoverageRadiusMm       = value; MarkDirty(); } } }
-        public double MaxSpacingMm            { get => _rule.MaxSpacingMm;           set { if (Math.Abs(_rule.MaxSpacingMm           - value) > 1e-6) { _rule.MaxSpacingMm           = value; MarkDirty(); } } }
-        public double WallClearanceMm         { get => _rule.WallClearanceMm;        set { if (Math.Abs(_rule.WallClearanceMm        - value) > 1e-6) { _rule.WallClearanceMm        = value; MarkDirty(); } } }
-        public double ObstructionClearanceMm  { get => _rule.ObstructionClearanceMm; set { if (Math.Abs(_rule.ObstructionClearanceMm - value) > 1e-6) { _rule.ObstructionClearanceMm = value; MarkDirty(); } } }
-        public bool   GuaranteeCoverage       { get => _rule.GuaranteeCoverage;      set { if (_rule.GuaranteeCoverage != value) { _rule.GuaranteeCoverage = value; MarkDirty(); } } }
-
-        public string RoutingMode             { get => _rule.RoutingMode;            set { if (_rule.RoutingMode != value) { _rule.RoutingMode = value ?? "NONE"; MarkDirty(); OnPropertyChanged(nameof(IsRoutingRule)); } } }
-        public double RouteOffsetMm           { get => _rule.RouteOffsetMm;          set { if (Math.Abs(_rule.RouteOffsetMm - value) > 1e-6) { _rule.RouteOffsetMm = value; MarkDirty(); } } }
-        public string RouteFace               { get => _rule.RouteFace;              set { if (_rule.RouteFace != value) { _rule.RouteFace = value ?? "INTERIOR"; MarkDirty(); } } }
-        public double RouteMinBendRadiusMm    { get => _rule.RouteMinBendRadiusMm;   set { if (Math.Abs(_rule.RouteMinBendRadiusMm - value) > 1e-6) { _rule.RouteMinBendRadiusMm = value; MarkDirty(); } } }
-        public string RouteSegmentCategory    { get => _rule.RouteSegmentCategory;   set { if (_rule.RouteSegmentCategory != value) { _rule.RouteSegmentCategory = value ?? ""; MarkDirty(); } } }
-
-        public double SillHeightMm                    { get => _rule.SillHeightMm;                  set { if (Math.Abs(_rule.SillHeightMm - value) > 1e-6) { _rule.SillHeightMm = value; MarkDirty(); } } }
-        public double HeadHeightMm                    { get => _rule.HeadHeightMm;                  set { if (Math.Abs(_rule.HeadHeightMm - value) > 1e-6) { _rule.HeadHeightMm = value; MarkDirty(); } } }
-        public double CillToFloorMm                   { get => _rule.CillToFloorMm;                 set { if (Math.Abs(_rule.CillToFloorMm - value) > 1e-6) { _rule.CillToFloorMm = value; MarkDirty(); } } }
-        public bool   ToughenedGlazingRequired        { get => _rule.ToughenedGlazingRequired;      set { if (_rule.ToughenedGlazingRequired != value) { _rule.ToughenedGlazingRequired = value; MarkDirty(); } } }
-        public string GlazingSpec                     { get => _rule.GlazingSpec;                   set { if (_rule.GlazingSpec != value) { _rule.GlazingSpec = value ?? ""; MarkDirty(); } } }
-
-        public double PerBed              { get => _rule.PerBed;              set { if (Math.Abs(_rule.PerBed              - value) > 1e-6) { _rule.PerBed              = value; MarkDirty(); } } }
-        public double PerWorkstation      { get => _rule.PerWorkstation;      set { if (Math.Abs(_rule.PerWorkstation      - value) > 1e-6) { _rule.PerWorkstation      = value; MarkDirty(); } } }
-        public double PerPupil            { get => _rule.PerPupil;            set { if (Math.Abs(_rule.PerPupil            - value) > 1e-6) { _rule.PerPupil            = value; MarkDirty(); } } }
-        public double PerToiletCubicle    { get => _rule.PerToiletCubicle;    set { if (Math.Abs(_rule.PerToiletCubicle    - value) > 1e-6) { _rule.PerToiletCubicle    = value; MarkDirty(); } } }
-        public string OccupancyParamName  { get => _rule.OccupancyParamName;  set { if (_rule.OccupancyParamName  != value) { _rule.OccupancyParamName  = value ?? ""; MarkDirty(); } } }
-        public string BuildingTypeTable   { get => _rule.BuildingTypeTable;   set { if (_rule.BuildingTypeTable   != value) { _rule.BuildingTypeTable   = value ?? ""; MarkDirty(); } } }
-
-        public string PostAuditTag         { get => _rule.PostAuditTag;         set { if (_rule.PostAuditTag         != value) { _rule.PostAuditTag         = value ?? ""; MarkDirty(); } } }
-        public bool   RequiresCOBieFields  { get => _rule.RequiresCOBieFields;  set { if (_rule.RequiresCOBieFields  != value) { _rule.RequiresCOBieFields  = value; MarkDirty(); } } }
-        public bool   RequiresIfcMapping   { get => _rule.RequiresIfcMapping;   set { if (_rule.RequiresIfcMapping   != value) { _rule.RequiresIfcMapping   = value; MarkDirty(); } } }
-        public string MaintenanceClearance { get => _rule.MaintenanceClearance; set { if (_rule.MaintenanceClearance != value) { _rule.MaintenanceClearance = value ?? ""; MarkDirty(); } } }
-
-        // ── Computed UI helpers ─────────────────────────────────────
-
-        /// <summary>True when this rule drives the WallFollowerRouter.</summary>
-        public bool IsRoutingRule
-            => !string.IsNullOrEmpty(RoutingMode) && !RoutingMode.Equals("NONE", StringComparison.OrdinalIgnoreCase);
-
-        /// <summary>True when this rule covers a window category.</summary>
-        public bool IsWindowRule
-            => !string.IsNullOrEmpty(CategoryFilter) &&
-               CategoryFilter.IndexOf("window", StringComparison.OrdinalIgnoreCase) >= 0;
-
-        /// <summary>Phase 139 I1 — RAG status colour for the rule list.</summary>
-        public string StatusColorHex
-        {
-            get
-            {
-                if (!IsValid)        return "#FFEBEE"; // red — invalid
-                if (IsDirty)         return "#E3F2FD"; // blue — unsaved
-                if (Priority < 50)   return "#FFF8E1"; // amber — low priority informational
-                return "#E8F5E9";                       // green — valid
-            }
-        }
-
-        /// <summary>Last-run coverage % (set by run results bridge); -1 = unknown.</summary>
-        private double _lastCoveragePercent = -1;
-        public double LastCoveragePercent
-        {
-            get => _lastCoveragePercent;
-            set { if (Math.Abs(_lastCoveragePercent - value) > 1e-6) { _lastCoveragePercent = value; OnPropertyChanged(); OnPropertyChanged(nameof(LastCoverageDisplay)); } }
-        }
-
-        public string LastCoverageDisplay => _lastCoveragePercent < 0 ? "—" : $"{_lastCoveragePercent:F1}%";
-
-        /// <summary>Last-run placement count + computed target.</summary>
-        private int _lastPlacedCount = -1;
-        private int _lastTargetCount = -1;
-        public int LastPlacedCount { get => _lastPlacedCount; set { if (_lastPlacedCount != value) { _lastPlacedCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(PlacedTargetDisplay)); } } }
-        public int LastTargetCount { get => _lastTargetCount; set { if (_lastTargetCount != value) { _lastTargetCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(PlacedTargetDisplay)); } } }
-        public string PlacedTargetDisplay
-            => (_lastPlacedCount < 0 && _lastTargetCount < 0) ? "—" : $"{_lastPlacedCount} / {_lastTargetCount}";
-
-        /// <summary>First-listed standard for the Standard column.</summary>
-        public string PrimaryStandard
-            => (_rule.ApplicableStandards != null && _rule.ApplicableStandards.Length > 0)
-                ? _rule.ApplicableStandards[0]
-                : "—";
-
         // ── State ────────────────────────────────────────────────────
 
         public bool IsDirty
         {
             get => _isDirty;
-            set
-            {
-                if (_isDirty == value) return;
-                _isDirty = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(StatusColorHex));
-            }
+            set { if (_isDirty != value) { _isDirty = value; OnPropertyChanged(); } }
         }
 
         public bool IsSelected
@@ -370,14 +255,7 @@ namespace StingTools.UI.PlacementCenter
         public string ErrorMessage
         {
             get => _errorMessage;
-            private set
-            {
-                if (_errorMessage == value) return;
-                _errorMessage = value ?? "";
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(IsValid));
-                OnPropertyChanged(nameof(StatusColorHex));
-            }
+            private set { if (_errorMessage != value) { _errorMessage = value ?? ""; OnPropertyChanged(); OnPropertyChanged(nameof(IsValid)); } }
         }
 
         public bool IsValid => string.IsNullOrEmpty(_errorMessage);

@@ -40,11 +40,11 @@ namespace StingTools.Core.Plumbing
             foreach (var kv in dfuMap)
             {
                 Pipe pipe = null;
-                try { pipe = doc.GetElement(kv.Key) as Pipe; } catch { }
+                try { pipe = doc.GetElement(kv.Key) as Pipe; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (pipe == null) continue;
 
                 int drainDn = 0;
-                try { drainDn = (int)Math.Round(pipe.Diameter * 0.3048 * 1000.0); } catch { }
+                try { drainDn = (int)Math.Round(pipe.Diameter * 0.3048 * 1000.0); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 double du = kv.Value;
                 if (drainDn <= 0 || du <= 0.001) continue;
 
@@ -64,7 +64,7 @@ namespace StingTools.Core.Plumbing
                     if (p != null && p.HasValue && p.StorageType == StorageType.Integer)
                         aavReq = p.AsInteger() == 1;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 bool reliefReq = du > 50.0; // proxy for >10-storey stack
 
@@ -114,7 +114,7 @@ namespace StingTools.Core.Plumbing
                     if (!string.IsNullOrWhiteSpace(s)) return s.Trim().ToUpperInvariant();
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "BS-UK";
         }
     }

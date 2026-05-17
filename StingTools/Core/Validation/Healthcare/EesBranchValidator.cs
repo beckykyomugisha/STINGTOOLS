@@ -94,7 +94,7 @@ namespace StingTools.Core.Validation.Healthcare
                         if (room != null) return room;
                     }
                 }
-            } catch { }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
     }

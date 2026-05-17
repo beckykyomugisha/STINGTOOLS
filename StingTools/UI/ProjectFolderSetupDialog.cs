@@ -555,7 +555,7 @@ namespace StingTools.UI
             if (_doc != null)
             {
                 code = ProjectFolderEngine.DetectProjectCode(_doc);
-                try { name = _doc.ProjectInformation?.Name ?? ""; } catch { }
+                try { name = _doc.ProjectInformation?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             _projCodeBox.Text = code;
             _projNameBox.Text = name;
@@ -583,7 +583,7 @@ namespace StingTools.UI
                 if (!string.IsNullOrEmpty(dataDir))
                     templateDir = Path.Combine(dataDir, "folder_templates");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return FolderTemplateLibrary.GetAll(templateDir);
         }
 
@@ -630,7 +630,7 @@ namespace StingTools.UI
             string code = (_projCodeBox?.Text ?? "PRJ").Trim();
             string root = (_rootBox?.Text ?? "").Trim();
             string projDir = "";
-            try { projDir = Path.GetDirectoryName(_docPath) ?? ""; } catch { }
+            try { projDir = Path.GetDirectoryName(_docPath) ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             string resolved;
             if (_radioRelative?.IsChecked == true)
@@ -729,7 +729,7 @@ namespace StingTools.UI
                 string dataDir = ProjectFolderEngine.GetDataPath(_doc);
                 if (!string.IsNullOrEmpty(dataDir)) templateDir = Path.Combine(dataDir, "folder_templates");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             FolderTemplateLibrary.SaveUserTemplate(template, templateDir);
             // Reload combo
             _templates = LoadTemplates();
@@ -754,7 +754,7 @@ namespace StingTools.UI
                 string dataDir = ProjectFolderEngine.GetDataPath(_doc);
                 if (!string.IsNullOrEmpty(dataDir)) templateDir = Path.Combine(dataDir, "folder_templates");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             FolderTemplateLibrary.DeleteUserTemplate(t.Name, templateDir);
             _templates = LoadTemplates();
             _templateCombo.Items.Clear();

@@ -77,17 +77,6 @@ namespace StingTools.Core.Drawing
         // Sheet
         [JsonProperty("paperSize")]        public string PaperSize { get; set; } = "A1";
         [JsonProperty("titleBlockFamily")] public string TitleBlockFamily { get; set; }
-
-        /// <summary>
-        /// Optional family-type variant within <see cref="TitleBlockFamily"/>.
-        /// When set, the resolver picks the FamilySymbol whose Family.Name
-        /// matches <see cref="TitleBlockFamily"/> AND Name matches this
-        /// value. When null/empty (the default), the first symbol of the
-        /// declared family wins — preserving historic behaviour.
-        /// </summary>
-        [JsonProperty("titleBlockSymbolType", NullValueHandling = NullValueHandling.Ignore)]
-        public string TitleBlockSymbolType { get; set; }
-
         [JsonProperty("orientation")]      public string Orientation { get; set; } = "Landscape";
 
         // Views
@@ -121,40 +110,8 @@ namespace StingTools.Core.Drawing
         /// standard <c>{disc}/{lvl}/{seq:Dn}/{mark}</c> token set from
         /// the caller's pattern context.
         /// </summary>
-        /// <remarks>
-        /// Value templates support two substitution patterns:
-        /// <list type="bullet">
-        /// <item><description>
-        /// <c>${ParameterName}</c> reads from <c>doc.ProjectInformation</c>
-        /// by the exact shared-parameter name. STING uses the
-        /// <c>PRJ_ORG_*</c> namespace (e.g. <c>${PRJ_ORG_CLIENT_NAME}</c>).
-        /// These are distinct from the legacy <c>PRJ_TB_*</c> parameters
-        /// populated by the Title Block Populate command — do not mix
-        /// the two namespaces in the same project.
-        /// </description></item>
-        /// <item><description>
-        /// <c>{token}</c> reads from the caller's token dictionary at
-        /// sheet-creation time (e.g. <c>{disc}</c>, <c>{lvl}</c>,
-        /// <c>{seq:D4}</c>, <c>{spool}</c>).
-        /// </description></item>
-        /// </list>
-        /// </remarks>
         [JsonProperty("titleBlockParams", NullValueHandling = NullValueHandling.Ignore)]
         public Dictionary<string, string> TitleBlockParams { get; set; }
-
-        /// <summary>
-        /// Phase 168 — per-symbol overrides. Sheets that host more than one
-        /// title-block instance (landscape + portrait, front + back, full +
-        /// reduced) can receive different value payloads per
-        /// <c>FamilySymbol.Name</c>. Keys are matched case-insensitively
-        /// against the live <c>tb.Symbol.Name</c>; the special key
-        /// <c>"*"</c> applies to TBs that don't match any explicit key.
-        /// Per-symbol entries merge on top of <see cref="TitleBlockParams"/>
-        /// (which acts as the global baseline) — same key in both wins for
-        /// the per-symbol map.
-        /// </summary>
-        [JsonProperty("titleBlockParamsBySymbol", NullValueHandling = NullValueHandling.Ignore)]
-        public Dictionary<string, Dictionary<string, string>> TitleBlockParamsBySymbol { get; set; }
 
         /// <summary>
         /// ISO 19650 naming — optional per-profile convention payload.
@@ -185,80 +142,14 @@ namespace StingTools.Core.Drawing
         // Annotation rule pack
         [JsonProperty("annotation")] public AnnotationRulePack Annotation { get; set; } = new AnnotationRulePack();
 
-        /// <summary>
-        /// Phase 135 — token-level annotation profile. Controls TAG7
-        /// presentation mode, paragraph depth (global + per-category),
-        /// TAG7 section A–F visibility, tag size/style/colour preset,
-        /// per-view variable colour scheme, and 8-segment tag mask.
-        /// Null = inherit from <see cref="ViewStylePack"/> defaults
-        /// (tagColorScheme / defaultTagStyle / categoryTagStyles).
-        /// Applied between style-pack (step 7) and annotation (step 8)
-        /// via <c>TokenProfileApplier</c>.
-        /// </summary>
-        [JsonProperty("tokenProfile", NullValueHandling = NullValueHandling.Ignore)]
-        public AnnotationTokenProfile TokenProfile { get; set; }
-
         // Print / appearance overrides
         [JsonProperty("print")]      public PrintOverride Print { get; set; } = new PrintOverride();
-
-        /// <summary>
-        /// Phase 175 — design-option scope for views and sheets minted
-        /// under this profile. When set, DrawingTypePresentation.Apply
-        /// writes BuiltInParameter.VIEWER_OPTION_VISIBILITY on the view
-        /// so it shows only the chosen option (or main-model primary).
-        ///
-        /// Schema:
-        ///   { "mode": "Automatic" | "Primary" | "Specific",
-        ///     "optionName": "Façade-A",
-        ///     "setName":    "Façade Study"     // disambiguates duplicates
-        ///   }
-        /// </summary>
-        [JsonProperty("optionScope", NullValueHandling = NullValueHandling.Ignore)]
-        public DrawingOptionScope OptionScope { get; set; }
-
-        /// <summary>
-        /// Phase 137 — production rules. One DrawingType can produce
-        /// multiple companion views (e.g. one plan + one RCP + one
-        /// section). Each rule yields one view with optional per-rule
-        /// overrides, slotting into the parent profile's slot[idx]
-        /// when SlotIndex is non-negative.
-        /// </summary>
-        [JsonProperty("productionRules", NullValueHandling = NullValueHandling.Ignore)]
-        public List<ProductionRule> ProductionRules { get; set; }
-
-        /// <summary>
-        /// Phase 137 — drawing package this profile belongs to. The
-        /// production engine groups views/sheets onto a sheet by
-        /// package id (e.g. "Issue-A-Architectural").
-        /// </summary>
-        [JsonProperty("packageId", NullValueHandling = NullValueHandling.Ignore)]
-        public string PackageId { get; set; }
 
         // Integrity hash used by the corporate-lock mechanism —
         // DrawingTypeRegistry writes it on load for corporate types and
         // compares on save to detect out-of-band edits.
         [JsonProperty("checksum", NullValueHandling = NullValueHandling.Ignore)]
         public string Checksum { get; set; }
-    }
-
-    /// <summary>Phase 175 — option binding for a DrawingType.</summary>
-    public sealed class DrawingOptionScope
-    {
-        /// <summary>Automatic | Primary | Specific.</summary>
-        [JsonProperty("mode")] public string Mode { get; set; } = "Automatic";
-
-        /// <summary>Option name to bind when Mode = Specific.</summary>
-        [JsonProperty("optionName", NullValueHandling = NullValueHandling.Ignore)]
-        public string OptionName { get; set; }
-
-        /// <summary>Owning option-set name (disambiguates duplicates).</summary>
-        [JsonProperty("setName", NullValueHandling = NullValueHandling.Ignore)]
-        public string SetName { get; set; }
-
-        /// <summary>Optional suffix appended to auto-generated tags in
-        /// views minted under this profile, e.g. "(Opt: Façade-A)".</summary>
-        [JsonProperty("tagSuffix", NullValueHandling = NullValueHandling.Ignore)]
-        public string TagSuffix { get; set; }
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -333,162 +224,133 @@ namespace StingTools.Core.Drawing
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    //  ANNOTATION RULE PACK + AUTO-ANNOTATION RULE — moved to
-    //  Core/Drawing/AnnotationRulePack.cs in Phase 137.
+    //  ANNOTATION RULE PACK — the "what to tag and how" payload
     // ─────────────────────────────────────────────────────────────────────
 
-    // ─────────────────────────────────────────────────────────────────────
-    //  ANNOTATION TOKEN PROFILE — Phase 135
-    //
-    //  Per-DrawingType token-level presentation knobs. Distinct from the
-    //  rule-pack (which decides WHAT to tag) — this one decides HOW the
-    //  resulting tags read on the sheet: how many paragraph tiers are
-    //  visible, which TAG7 sub-sections show, what size/style/colour the
-    //  tag text is, and which 8-segment tokens the displayed tag carries.
-    //
-    //  Every field is optional. Null means "inherit / don't override":
-    //    * Pack-level defaults on the resolved ViewStylePack apply when
-    //      this profile leaves a slot empty.
-    //    * Where neither profile nor pack sets a value, the engine
-    //      leaves the underlying parameter alone.
-    //
-    //  Applied by <c>TokenProfileApplier</c> in step 7.5 of the pipeline,
-    //  between ViewStylePack (step 7) and Annotation (step 8).
-    // ─────────────────────────────────────────────────────────────────────
-
-    public sealed class AnnotationTokenProfile
+    public sealed class AnnotationRulePack
     {
-        /// <summary>
-        /// Presentation mode preset — Compact / Technical / FullSpec /
-        /// Presentation / BOQ. Drives the global TAG_PARA_STATE_*
-        /// pattern and TAG_WARN_VISIBLE flag through the same engine
-        /// the existing SetPresentationModeCommand uses. Null = leave
-        /// preset alone, write the explicit fields below instead.
-        /// </summary>
-        [JsonProperty("presentationMode", NullValueHandling = NullValueHandling.Ignore)]
-        public string PresentationMode { get; set; }
+        // Legacy boolean fields — retained for backwards compatibility
+        // with older JSON. Loader calls MigrateFromLegacy() which folds
+        // any true value into the Rules collection so downstream code
+        // only ever needs to inspect Rules.
+        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoDimGrids", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoDimGrids { get; set; }
+        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoDimLevels", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoDimLevels { get; set; }
+        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagRooms", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagRooms { get; set; }
+        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagDoors", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagDoors { get; set; }
+        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagWindows", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagWindows { get; set; }
+        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagEquipment", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagEquipment { get; set; }
+        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagWelds", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagWelds { get; set; }
+        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagSupports", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagSupports { get; set; }
+        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagBends", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagBends { get; set; }
 
         /// <summary>
-        /// Global TAG7 paragraph depth (1..10). Sets PARA_STATE_1..N to
-        /// Yes and the rest to No. Null = leave as-is. Per-category
-        /// overrides (<see cref="CategoryDepths"/>) win over this when
-        /// present.
+        /// Per-category, per-rule auto-annotation entries. Replaces the
+        /// 9 individual boolean flags above. <see cref="MigrateFromLegacy"/>
+        /// converts legacy true values into Rules entries the first time
+        /// a profile is loaded.
         /// </summary>
-        [JsonProperty("paraDepth", NullValueHandling = NullValueHandling.Ignore)]
-        public int? ParaDepth { get; set; }
+        [JsonProperty("rules", NullValueHandling = NullValueHandling.Ignore)]
+        public List<AutoAnnotationRule> Rules { get; set; }
+            = new List<AutoAnnotationRule>();
 
         /// <summary>
-        /// Per-category TAG7 paragraph depth override (1..10). Lookup
-        /// by category display name. Empty / missing key falls back to
-        /// <see cref="ParaDepth"/>.
+        /// Linear | Ordinate | Chain — sets the dimensioning strategy
+        /// the annotation pass uses when running auto-dim on grids.
         /// </summary>
-        [JsonProperty("categoryDepths", NullValueHandling = NullValueHandling.Ignore)]
-        public Dictionary<string, int> CategoryDepths { get; set; }
+        [JsonProperty("dimensionStrategy")] public string DimensionStrategy { get; set; } = "Linear";
+        [JsonProperty("dimensionStyle")]    public string DimensionStyle { get; set; }
 
         /// <summary>
-        /// TAG7 sub-section visibility map. Keys: "A".."F" (case-
-        /// insensitive). Values: true = visible, false = hidden. Writes
-        /// TAG_7_SECTION_VISIBLE_{A..F}_BOOL on every element in scope.
-        /// Missing key = leave as-is.
+        /// Category-name (STING code) to tag family name. Empty map means
+        /// "use whatever tag family is currently active in the project",
+        /// which is what Revit does by default.
         /// </summary>
-        [JsonProperty("sectionVisibility", NullValueHandling = NullValueHandling.Ignore)]
-        public Dictionary<string, bool> SectionVisibility { get; set; }
+        [JsonProperty("tagFamilies")] public Dictionary<string, string> TagFamilies { get; set; }
+            = new Dictionary<string, string>();
 
         /// <summary>
-        /// Tag size preset — "2", "2.5", "3", "3.5". Combined with
-        /// <see cref="TagStyle"/> + <see cref="TagColor"/> to pick the
-        /// active TAG_{size}{style}_{color}_BOOL. Null = leave as-is.
+        /// Per-category TAG7 paragraph-depth override (1=compact … 10=full
+        /// audit). Empty = use the drawing-type default. Lookup by
+        /// category display name (same key set as TagFamilies).
         /// </summary>
-        [JsonProperty("tagSize", NullValueHandling = NullValueHandling.Ignore)]
-        public string TagSize { get; set; }
+        [JsonProperty("tagDepths", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, int> TagDepths { get; set; }
+            = new Dictionary<string, int>();
 
         /// <summary>
-        /// Tag style preset — "NOM" / "BOLD" / "ITALIC" / "BOLDITALIC".
-        /// Null = leave as-is.
+        /// Scale modifier — at scales coarser than this value, annotation
+        /// density is automatically reduced (grid dims only, no per-
+        /// element tags). At scales finer than this, full annotation
+        /// runs. Null = always full.
         /// </summary>
-        [JsonProperty("tagStyle", NullValueHandling = NullValueHandling.Ignore)]
-        public string TagStyle { get; set; }
+        [JsonProperty("denseUntilScale", NullValueHandling = NullValueHandling.Ignore)]
+        public int? DenseUntilScale { get; set; }
 
         /// <summary>
-        /// Tag colour preset — "BLACK" / "BLUE" / "GREEN" / "RED" /
-        /// "ORANGE" / "GREY" / "PURPLE" / "YELLOW". Null = leave as-is.
+        /// Folds legacy <c>autoDim*</c> / <c>autoTag*</c> booleans into
+        /// the <see cref="Rules"/> collection. Idempotent: a second call
+        /// with the same input is a no-op.
         /// </summary>
-        [JsonProperty("tagColor", NullValueHandling = NullValueHandling.Ignore)]
-        public string TagColor { get; set; }
-
-        /// <summary>
-        /// Per-view variable colour scheme to write into
-        /// STING_VIEW_TAG_STYLE — picks up TagStyleEngine's
-        /// VariableSchemes (System / Status / Zone / Level / Location
-        /// / Function) or BuiltInSchemes (Discipline / Warm / Cool /
-        /// Red / Yellow / Blue / Mono / Dark). Null = leave the view
-        /// param alone.
-        /// </summary>
-        [JsonProperty("colorScheme", NullValueHandling = NullValueHandling.Ignore)]
-        public string ColorScheme { get; set; }
-
-        /// <summary>
-        /// 8-segment tag mask string of 1/0 chars selecting which
-        /// DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ tokens render in the
-        /// displayed tag. Example "10000001" = DISC + SEQ only. Writes
-        /// <c>TAG_SEG_MASK_TXT</c>. Null = leave as-is. Length must be
-        /// 8; shorter / longer values are ignored with a warning.
-        /// </summary>
-        [JsonProperty("segmentMask", NullValueHandling = NullValueHandling.Ignore)]
-        public string SegmentMask { get; set; }
-
-        /// <summary>
-        /// Display mode integer (1..5) written to
-        /// <c>STING_DISPLAY_MODE</c>. 1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ,
-        /// 4=DISC-PROD-SEQ, 5=Full 8-segment. Null = leave as-is.
-        /// </summary>
-        [JsonProperty("displayMode", NullValueHandling = NullValueHandling.Ignore)]
-        public int? DisplayMode { get; set; }
-
-        /// <summary>
-        /// Phase 165 — T4-T10 payload pattern mode. One of "HANDOVER" /
-        /// "DC" / "CUSTOM" (case-insensitive). Drives which payload set
-        /// renders for tier 4-10 by writing the
-        /// <c>HANDOVER_MODE_HANDOVER_BOOL</c> /
-        /// <c>HANDOVER_MODE_DC_BOOL</c> /
-        /// <c>HANDOVER_MODE_CUSTOM_BOOL</c> trio mutually exclusively on
-        /// every element type used in the view. DC is the default at the
-        /// pipeline level (TagConfig.ResolveActivePatternMode), so leaving
-        /// this null means "use whatever the project / type already says",
-        /// which is DC unless explicitly overridden elsewhere. Most
-        /// production drawings will pin "DC" here so the live design &amp;
-        /// construction T4-T10 payload is forced regardless of any leftover
-        /// HANDOVER toggles from prior workflows. Set to "HANDOVER" for
-        /// post-construction handover packages, "CUSTOM" for project-
-        /// specific tier content.
-        /// </summary>
-        [JsonProperty("patternMode", NullValueHandling = NullValueHandling.Ignore)]
-        public string PatternMode { get; set; }
+        public void MigrateFromLegacy()
+        {
+            if (Rules == null) Rules = new List<AutoAnnotationRule>();
+#pragma warning disable CS0618
+            void Add(string cat, string rt)
+            {
+                foreach (var r in Rules)
+                    if (string.Equals(r.Category, cat, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(r.RuleType, rt, StringComparison.OrdinalIgnoreCase))
+                        return;
+                Rules.Add(new AutoAnnotationRule { Category = cat, RuleType = rt, Enabled = true });
+            }
+            if (AutoDimGrids)     Add("Grids", "AutoDim");
+            if (AutoDimLevels)    Add("Levels", "AutoDim");
+            if (AutoTagRooms)     Add("Rooms", "AutoTag");
+            if (AutoTagDoors)     Add("Doors", "AutoTag");
+            if (AutoTagWindows)   Add("Windows", "AutoTag");
+            if (AutoTagEquipment) Add("Mechanical Equipment", "AutoTag");
+            if (AutoTagWelds)     Add("Pipe Fittings", "AutoTag");
+            if (AutoTagSupports)  Add("Structural Framing", "AutoTag");
+            if (AutoTagBends)     Add("Duct Fittings", "AutoTag");
+            // Reset legacy fields once migrated so the project override
+            // JSON only persists the new Rules collection.
+            AutoDimGrids = AutoDimLevels = false;
+            AutoTagRooms = AutoTagDoors = AutoTagWindows = false;
+            AutoTagEquipment = AutoTagWelds = AutoTagSupports = AutoTagBends = false;
+#pragma warning restore CS0618
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    //  PRODUCTION RULE — Phase 137
-    //
-    //  One rule per companion view a single DrawingType produces. The
-    //  parent profile defines slot geometry, scale, etc; each rule may
-    //  optionally override scale / detail level / view template / pack
-    //  / annotation / phase per produced view, and pin itself to a
-    //  specific slot index.
+    //  AUTO-ANNOTATION RULE — one entry per (category, rule type) pair
+    //  that the annotation pass should fire. Replaces the 9 flat bool
+    //  flags on the legacy AnnotationRulePack.
     // ─────────────────────────────────────────────────────────────────────
 
-    public sealed class ProductionRule
+    public sealed class AutoAnnotationRule
     {
-        [JsonProperty("idx")]       public int    Idx { get; set; }
-        [JsonProperty("viewType")]  public string ViewType { get; set; }
-        [JsonProperty("nameSuffix",            NullValueHandling = NullValueHandling.Ignore)] public string NameSuffix { get; set; }
-        [JsonProperty("scaleOverride",         NullValueHandling = NullValueHandling.Ignore)] public int?   ScaleOverride { get; set; }
-        [JsonProperty("detailLevelOverride",   NullValueHandling = NullValueHandling.Ignore)] public string DetailLevelOverride { get; set; }
-        [JsonProperty("viewTemplateOverride",  NullValueHandling = NullValueHandling.Ignore)] public string ViewTemplateOverride { get; set; }
-        [JsonProperty("viewStylePackOverride", NullValueHandling = NullValueHandling.Ignore)] public string ViewStylePackOverride { get; set; }
-        [JsonProperty("annotationOverride",    NullValueHandling = NullValueHandling.Ignore)] public AnnotationRulePack AnnotationOverride { get; set; }
-        [JsonProperty("phaseOverride",         NullValueHandling = NullValueHandling.Ignore)] public string PhaseOverride { get; set; }
-        [JsonProperty("required")]  public bool Required { get; set; } = true;
-        [JsonProperty("slotIndex")] public int  SlotIndex { get; set; } = -1;
+        /// <summary>
+        /// Category display name — e.g. "Rooms", "Mechanical Equipment",
+        /// "Grids", "Structural Framing".
+        /// </summary>
+        [JsonProperty("category")]   public string Category  { get; set; }
+
+        /// <summary>
+        /// Rule type — AutoTag / AutoDim / AutoDimOrdinate /
+        /// AutoTagRoomName / AutoAnnotateSlope / etc. See
+        /// DrawingTypeEditorDialog.KnownRuleTypes for the full list.
+        /// </summary>
+        [JsonProperty("ruleType")]   public string RuleType  { get; set; }
+
+        [JsonProperty("enabled")]    public bool   Enabled   { get; set; } = true;
+
+        /// <summary>Optional per-rule tag-family override.</summary>
+        [JsonProperty("tagFamily", NullValueHandling = NullValueHandling.Ignore)]
+        public string TagFamily { get; set; }
+
+        /// <summary>Optional per-rule TAG7 paragraph depth (1..10).</summary>
+        [JsonProperty("depth", NullValueHandling = NullValueHandling.Ignore)]
+        public int? Depth { get; set; }
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -525,7 +387,7 @@ namespace StingTools.Core.Drawing
         //       regex evaluated against the caller's level code, e.g.
         //       "^B\d+" to match any basement level
         //   projectCodeMatches
-        //       regex evaluated against doc's PRJ_PROJECT_COD_TXT
+        //       regex evaluated against doc's PRJ_ORG_PROJECT_CODE
         //   hasScopeBox
         //       true = only fires when the caller passes a scope box
         //       with a matching discipline / doc type
@@ -534,13 +396,5 @@ namespace StingTools.Core.Drawing
         [JsonProperty("docTypeMatches",    NullValueHandling = NullValueHandling.Ignore)] public string DocTypeMatches { get; set; }
         [JsonProperty("levelMatches",      NullValueHandling = NullValueHandling.Ignore)] public string LevelMatches { get; set; }
         [JsonProperty("projectCodeMatches",NullValueHandling = NullValueHandling.Ignore)] public string ProjectCodeMatches { get; set; }
-
-        // Phase 175: design-option-aware routing. Regex evaluated against
-        // the caller-supplied option name, or "Main Model" when the caller
-        // is not in any option. Lets a profile catalogue express e.g.
-        // "VE option uses presentation pack, baseline option uses
-        //  production pack" via two routing rules differing only in
-        // optionMatches.
-        [JsonProperty("optionMatches",     NullValueHandling = NullValueHandling.Ignore)] public string OptionMatches { get; set; }
     }
 }

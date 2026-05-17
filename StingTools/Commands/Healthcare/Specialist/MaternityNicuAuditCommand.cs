@@ -57,14 +57,14 @@ namespace StingTools.Commands.Healthcare.Specialist
             try { var p = el.LookupParameter(n);
                   if (p == null || !p.HasValue) return "";
                   if (p.StorageType==StorageType.String) return p.AsString() ?? "";
-                  return p.AsValueString() ?? ""; } catch { return ""; }
+                  return p.AsValueString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
         private static double AreaSqM(Element room) {
             try {
                 var p = room.LookupParameter("Area");
                 if (p?.HasValue == true && p.StorageType==StorageType.Double)
                     return p.AsDouble() * 0.092903;
-            } catch { }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
     }

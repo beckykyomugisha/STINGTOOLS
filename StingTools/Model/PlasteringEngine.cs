@@ -1424,12 +1424,9 @@ namespace StingTools.Model
                     new Autodesk.Revit.DB.Color(240, 240, 235);
                 return id;
             }
-            catch
-            {
-                return new FilteredElementCollector(doc)
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return new FilteredElementCollector(doc)
                     .OfClass(typeof(Material)).Cast<Material>()
-                    .FirstOrDefault()?.Id ?? ElementId.InvalidElementId;
-            }
+                    .FirstOrDefault()?.Id ?? ElementId.InvalidElementId; }
         }
     }
 }

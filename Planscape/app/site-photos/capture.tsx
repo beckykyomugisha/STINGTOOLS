@@ -39,6 +39,7 @@ import {
 } from '@/components/site-photos/classifier';
 import { captureSitePhoto, getSpatialStructure, type SpatialStructure } from '@/api/endpoints';
 import { enqueue, persistPhotoForQueue, queuedPhotoStats } from '@/utils/offlineQueue';
+import { computePairKey } from '@/services/imageService';
 import { AudioRecorder } from '@/components/AudioRecorder';
 import type { SitePhotoCaptureMeta, SitePhotoReason } from '@/types/api';
 
@@ -183,6 +184,10 @@ export default function CaptureSitePhotoScreen() {
       };
       setShot(taken);
 
+      // Compute perceptual hash for duplicate-detection (pairKey) — fire and
+      // forget on the capture path; failure is non-fatal.
+      computePairKey(pic.uri).then(setPairKey).catch(() => setPairKey(null));
+
       // Run classifier and pre-select the reason chip.
       const ctx = paramsContext(params.context);
       const classifier = classifyCapture({
@@ -243,6 +248,7 @@ export default function CaptureSitePhotoScreen() {
           fileName: `site-photo-${Date.now()}.jpg`,
           contentType: 'image/jpeg',
           meta: { ...meta, queuedClient: false },
+          pairKey: pairKey ?? undefined,
         });
         Alert.alert(
           'Photo saved',
@@ -262,6 +268,7 @@ export default function CaptureSitePhotoScreen() {
           fileName: `site-photo-${Date.now()}.jpg`,
           mimeType: 'image/jpeg',
           meta: { ...meta, queuedClient: true },
+          pairKey: pairKey ?? undefined,
         });
         Alert.alert(
           'Saved offline',
@@ -279,6 +286,7 @@ export default function CaptureSitePhotoScreen() {
           fileName: `site-photo-${Date.now()}.jpg`,
           mimeType: 'image/jpeg',
           meta: { ...meta, queuedClient: true },
+          pairKey: pairKey ?? undefined,
         });
         Alert.alert(
           'Upload failed — queued for retry',
@@ -544,9 +552,9 @@ export default function CaptureSitePhotoScreen() {
         {/* T3-7 — Voice-to-text dictation alongside the caption. The
             recording is queued as ATTACH_AUDIO; if this capture has an
             anchor issue id we link it directly, otherwise it queues under
-            "__pending__" and surfaces in conflict triage if the receiver
-            endpoint isn't there yet.
-            TODO-SERVER: receiver endpoint stubbed in endpoints.ts. */}
+            "__pending__" and surfaces in conflict triage.
+            The /audio-notes server endpoint is live; ATTACH_AUDIO actions
+            replay cleanly via replayAction in offlineQueue.ts. */}
         <AudioRecorder
           projectId={projectId}
           issueId={params.anchorIssueId}

@@ -269,6 +269,42 @@ namespace StingTools.Temp
             passed += DoStep("Generate BEP + Export XLSX",
                 () => RunCommand(new BIMManager.CreateBEPCommand(), commandData, elements));
 
+            // Step 20: Healthcare Pack setup (HC-09) — only runs if facility type profile is set.
+            try
+            {
+                var doc = commandData?.Application?.ActiveUIDocument?.Document;
+                var pi = doc?.ProjectInformation;
+                var healthProfile = pi?.LookupParameter("PRJ_ORG_HEALTH_PACK_PROFILE_TXT")?.AsString();
+                if (!string.IsNullOrEmpty(healthProfile))
+                {
+                    StingLog.Info($"MasterSetup Step 20: Healthcare Pack detected (profile={healthProfile}); loading shared params + COBie healthcare overlay.");
+                    passed += DoStep($"Load Healthcare Shared Params (profile: {healthProfile})",
+                        () => RunCommand(new Tags.LoadSharedParamsCommand(), commandData, elements));
+
+                    // Apply COBie healthcare overlay using the HEALTHCARE_NHS or HEALTHCARE_PRIVATE preset
+                    string cobiePreset = healthProfile.StartsWith("PRIVATE", StringComparison.OrdinalIgnoreCase)
+                        ? "HEALTHCARE_PRIVATE"
+                        : "HEALTHCARE_NHS";
+                    StingLog.Info($"MasterSetup Step 20: applying COBie preset '{cobiePreset}'");
+                    passed += DoStep($"COBie Healthcare Overlay ({cobiePreset})",
+                        () =>
+                        {
+                            var cmd = new BIMManager.COBieExportCommand();
+                            StingCommandHandler.SetExtraParam("COBiePresetKey", cobiePreset);
+                            return RunCommand(cmd, commandData, elements);
+                        });
+                }
+                else
+                {
+                    StingLog.Info("MasterSetup Step 20: PRJ_ORG_HEALTH_PACK_PROFILE_TXT not set — skipping Healthcare Pack steps.");
+                    skipped++;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("MasterSetup Step 20 (Healthcare Pack) failed", ex);
+            }
+
             // Handle user cancellation
             if (userCancelled)
             {

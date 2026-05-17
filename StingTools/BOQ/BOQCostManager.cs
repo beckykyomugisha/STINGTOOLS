@@ -442,7 +442,7 @@ namespace StingTools.BOQ
                 if (item.RevitElementId < 0) continue;
                 Element el;
                 try { el = doc.GetElement(new ElementId(item.RevitElementId)); }
-                catch { continue; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                 if (el == null) continue;
 
                 // Rate fields — always write both currencies so the element stays

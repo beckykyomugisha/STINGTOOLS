@@ -33,24 +33,6 @@ namespace StingTools.Core
         public double Size { get; set; }
     }
 
-    /// <summary>
-    /// One warning row inside a tag family's "⚠ WARNING PARAMETERS" block.
-    /// Distinct from <see cref="TierRow"/> because warnings are gated by
-    /// <c>TAG_WARN_VISIBLE_BOOL</c> (not a tier state) and carry severity +
-    /// standards-citation metadata that tier rows do not.
-    /// </summary>
-    public sealed class WarningRow
-    {
-        public string Severity { get; set; }    // CRITICAL / HIGH / MEDIUM / LOW
-        public string Parameter { get; set; }   // WARN_xxx shared parameter name
-        public string Threshold { get; set; }   // Human description of trigger
-        public string Standard { get; set; }    // BS / EN / ISO citation
-        public string Discipline { get; set; }  // CSV "Dis." column (Common / disc-specific)
-        public string Type { get; set; }        // Storage type (Text)
-        public string Name { get; set; }        // Display label ("⚠ Warning: …")
-        public string Formula { get; set; }     // Optional override; default is built in author
-    }
-
     /// <summary>State + row list for every tier T4..T10 in a tag family.</summary>
     public sealed class TierPlan
     {
@@ -68,13 +50,6 @@ namespace StingTools.Core
         public List<TierRow> T8Rows { get; set; } = new List<TierRow>();
         public List<TierRow> T9Rows { get; set; } = new List<TierRow>();
         public List<TierRow> T10Rows { get; set; } = new List<TierRow>();
-
-        /// <summary>
-        /// Per-family warning rows captured from the "⚠ WARNING PARAMETERS"
-        /// block of the discipline CSV. Empty when the family has no
-        /// warnings or when the CSV omits the warning section.
-        /// </summary>
-        public List<WarningRow> WarningRows { get; set; } = new List<WarningRow>();
 
         /// <summary>True if the specified tier (4..10) is OMITted for this family.</summary>
         public bool IsOmitted(int tier)

@@ -302,7 +302,7 @@ namespace StingTools.Core.Validation
                 var p = el.LookupParameter(param);
                 return p?.AsString() ?? "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
         private static double ReadDouble(Element el, string param)
         {
@@ -318,7 +318,7 @@ namespace StingTools.Core.Validation
                                     System.Globalization.CultureInfo.InvariantCulture,
                                     out double v)) return v;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
     }

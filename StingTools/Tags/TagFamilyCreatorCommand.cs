@@ -531,11 +531,6 @@ namespace StingTools.Tags
             foreach (string sp in StyleParams)
                 if (!result.Contains(sp)) result.Add(sp);
 
-            // Always add style/appearance params (128 TAG_{size}{style}_{colour}_BOOL +
-            // box colour/visible/style + leader colour + scale-tier-auto + depth-tier cache)
-            foreach (string sp in StyleParams)
-                if (!result.Contains(sp)) result.Add(sp);
-
             // Add description param
             result.Add("ASS_DESCRIPTION_TXT");
 
@@ -991,21 +986,12 @@ namespace StingTools.Tags
                 $"Families with a CSV plan: {familiesWithPlan} (of {categories.Count} primary categories)\n\n" +
                 $"Templates: {templateDir}\n" +
                 $"Tag .rft files found: {tagRftCount} of {availableRft.Length} total\n" +
-                $"Output: {outputDirEarly}\n\n" +
+                $"Output: {TagFamilyConfig.GetOutputDirectory()}\n\n" +
                 "Each family will be created from a Revit annotation template,\n" +
                 "loaded with STING shared parameters, and — when a plan is\n" +
                 "available — have T4..T10 visibility formulas re-authored.";
-            confirm.CommonButtons = TaskDialogCommonButtons.Cancel;
-            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Build only new families",
-                "Skip families that already exist on disk or are loaded in the project. " +
-                "Use this when adding the new LPS families without rebuilding the 142 existing ones.");
-            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Build / refresh all missing families",
-                "Skip only families already loaded in the project; (re)build any whose .rfa is " +
-                "missing on disk. This is the original behaviour.");
-            TaskDialogResult choice = confirm.Show();
-            if (choice == TaskDialogResult.Cancel)
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
             bool skipExistingOnDisk = (choice == TaskDialogResult.CommandLink1);
 

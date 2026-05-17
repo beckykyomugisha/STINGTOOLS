@@ -78,7 +78,7 @@ namespace StingTools.Commands.Mep
                 ordered.Add(id);
 
                 Element el = null;
-                try { el = doc.GetElement(id); } catch { }
+                try { el = doc.GetElement(id); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (el == null) continue;
 
                 ConnectorSet set = ResolveConnectors(el);
@@ -88,7 +88,7 @@ namespace StingTools.Commands.Mep
                 {
                     if (c == null) continue;
                     ConnectorSet others = null;
-                    try { others = c.AllRefs; } catch { }
+                    try { others = c.AllRefs; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     if (others == null) continue;
                     foreach (Connector other in others)
                     {
@@ -116,7 +116,7 @@ namespace StingTools.Commands.Mep
             using (var tx = new Transaction(doc, "STING MEP trace SEQ"))
             {
                 try { tx.Start(); }
-                catch { return; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return; }
                 try
                 {
                     int seq = 1;
@@ -131,7 +131,7 @@ namespace StingTools.Commands.Mep
                             if (p.StorageType == StorageType.Integer) p.Set(seq);
                             else if (p.StorageType == StorageType.String) p.Set(seq.ToString("D4"));
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         seq++;
                     }
                     tx.Commit();
@@ -160,7 +160,7 @@ namespace StingTools.Commands.Mep
                     string cat = el?.Category?.Name ?? "(unknown)";
                     byCat[cat] = byCat.TryGetValue(cat, out var n) ? n + 1 : 1;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             panel.AddSection("BY CATEGORY");
             foreach (var kv in byCat.OrderByDescending(k => k.Value))

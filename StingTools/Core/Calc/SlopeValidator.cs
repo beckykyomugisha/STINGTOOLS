@@ -61,7 +61,7 @@ namespace StingTools.Core.Calc
             foreach (var id in segmentIds)
             {
                 Element el = null;
-                try { el = doc.GetElement(id); } catch { }
+                try { el = doc.GetElement(id); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (el == null) continue;
                 var curve = (el.Location as LocationCurve)?.Curve;
                 if (curve == null) continue;
@@ -71,7 +71,7 @@ namespace StingTools.Core.Calc
                     a = curve.GetEndPoint(0);
                     b = curve.GetEndPoint(1);
                 }
-                catch { continue; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                 if (a == null || b == null) continue;
                 double dxFt = b.X - a.X;
                 double dyFt = b.Y - a.Y;

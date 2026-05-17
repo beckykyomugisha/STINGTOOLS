@@ -124,7 +124,7 @@ namespace StingTools.Commands.Electrical.Routing
             // Stage 3 — Apply.
             var applyR = ApplyConsolidation(doc, groups, manifest);
             try { manifest.Save(doc); } catch (Exception ex) { StingLog.Warn($"Manifest save: {ex.Message}"); }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             try { ActionAuditLog.Record("Consolidate_Apply",
                 $"groups={groups.Count} consolidated={applyR.ConsolidatedCount} " +
                 $"deletedConduits={applyR.DeletedConduits} errors={applyR.Errors}"); }
@@ -270,7 +270,7 @@ namespace StingTools.Commands.Electrical.Routing
                             ParameterHelpers.SetString(conduit, "ELC_CDT_CABLE_COUNT_NR",
                                 group.Members.Count.ToString(), overwrite: true);
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         newIds.Add(conduit.Id.Value);
                     }
                 }

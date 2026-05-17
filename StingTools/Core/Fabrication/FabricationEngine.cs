@@ -29,6 +29,12 @@ namespace StingTools.Core.Fabrication
         public List<string> Warnings { get; } = new List<string>();
         public int FailedCount { get; set; }
 
+        /// <summary>Gap-6: Records every title-block resolution that fell back to a
+        /// non-profile family so operators can audit which spools lacked the
+        /// expected family. Tuple is (SheetId long, ExpectedFamily, UsedFamily).</summary>
+        public List<(long SheetId, string ExpectedFamily, string UsedFamily)> TitleBlockFallbacks { get; }
+            = new List<(long, string, string)>();
+
         // ISO 6412 symbol placement results — populated by IsoSymbolPlacer
         // after each discipline's transaction commits. Surfaced in the
         // FabricationResultDialog so users see whether the option had effect.
@@ -45,7 +51,10 @@ namespace StingTools.Core.Fabrication
         public string FormatSummary()
         {
             int total = AssembliesByDiscipline.Values.Sum();
-            return $"Assemblies: {total}, Sheets: {SheetIds.Count}, Failed: {FailedCount}, Symbols: {SymbolsPlaced}";
+            string s = $"Assemblies: {total}, Sheets: {SheetIds.Count}, Failed: {FailedCount}, Symbols: {SymbolsPlaced}";
+            if (TitleBlockFallbacks.Count > 0)
+                s += $", TBFallbacks: {TitleBlockFallbacks.Count}";
+            return s;
         }
     }
 

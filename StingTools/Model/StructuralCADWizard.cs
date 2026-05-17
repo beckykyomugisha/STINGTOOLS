@@ -600,6 +600,13 @@ namespace StingTools.Model
         private TextBox _txtRaftMinArea, _txtRoomLabelRadius;
         private CheckBox _chkSeedRoomsFromSlabs, _chkCreateStructuralViews, _chkInferBeamMaterial,
             _chkClassifyFoundations, _chkStampJunctionMarks;
+        // DWG-STRUCT-DEEP-5: EC7 foundation sizing controls
+        private CheckBox _chkRunFoundationSizing;
+        private ComboBox _cboSoilClass;
+        private TextBox _txtColumnLoad_Gk, _txtColumnLoad_Qk;
+        // DWG-STRUCT-DEEP-6b: Connection synthesis controls
+        private CheckBox _chkSynthesizeConnections;
+        private TextBox _txtConnectionShear_kN, _txtConnectionMoment_kNm;
         private CheckBox _chkPerCategoryNumbering;
         // Per-category numbering state — keyed by NumberingCategories[] index. Snapshot of
         // the visible UI state for the previously-selected category, captured on category
@@ -1757,6 +1764,122 @@ namespace StingTools.Model
                 "and still be used as the seeded room's Name.");
             stack.Children.Add(p143Grid);
 
+            // DWG-STRUCT-DEEP-5: EC7 foundation sizing section
+            var ec7Section = new Border
+            {
+                BorderBrush = System.Windows.Media.Brushes.DimGray,
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Padding = new Thickness(0, 8, 0, 0),
+                Margin = new Thickness(0, 8, 0, 0),
+            };
+            var ec7Stack = new StackPanel();
+            ec7Stack.Children.Add(new TextBlock
+            {
+                Text = "EC7 FOUNDATION SIZING (DWG-STRUCT-DEEP-5)",
+                FontSize = 11, FontWeight = FontWeights.Bold,
+                Foreground = System.Windows.Media.Brushes.SteelBlue,
+                Margin = new Thickness(0, 0, 0, 4),
+            });
+            _chkRunFoundationSizing = new CheckBox
+            {
+                Content = "Auto-size pad foundations to EC7 DA1 from soil class + column load",
+                IsChecked = false,
+                Margin = new Thickness(0, 2, 0, 4),
+                ToolTip = "When checked, FoundationSizingEngine.ComputePadFoundation() runs for every detected pad and writes results to STING shared parameters.",
+            };
+            ec7Stack.Children.Add(_chkRunFoundationSizing);
+
+            var ec7Grid = new Grid();
+            ec7Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            ec7Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(160) });
+            ec7Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            ec7Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            ec7Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            ec7Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            ec7Grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            void AddEc7Label(string text, int col)
+            {
+                var lbl = new TextBlock { Text = text, FontSize = 11, Margin = new Thickness(4, 3, 6, 2), VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetRow(lbl, 0); Grid.SetColumn(lbl, col);
+                ec7Grid.Children.Add(lbl);
+            }
+
+            AddEc7Label("Soil class:", 0);
+            _cboSoilClass = new ComboBox { Width = 160, Margin = new Thickness(0, 2, 8, 2) };
+            foreach (SoilClass sc in Enum.GetValues(typeof(SoilClass)))
+                _cboSoilClass.Items.Add(FoundationSizingEngine.SoilClassName(sc));
+            _cboSoilClass.SelectedIndex = (int)SoilClass.StiffClay;
+            Grid.SetRow(_cboSoilClass, 0); Grid.SetColumn(_cboSoilClass, 1);
+            ec7Grid.Children.Add(_cboSoilClass);
+
+            AddEc7Label("Gk (kN):", 2);
+            _txtColumnLoad_Gk = new TextBox { Text = "800", Width = 80, Margin = new Thickness(0, 2, 8, 2), ToolTip = "Characteristic permanent column load (kN) — used when load cannot be derived from analysis." };
+            Grid.SetRow(_txtColumnLoad_Gk, 0); Grid.SetColumn(_txtColumnLoad_Gk, 3);
+            ec7Grid.Children.Add(_txtColumnLoad_Gk);
+
+            AddEc7Label("Qk (kN):", 4);
+            _txtColumnLoad_Qk = new TextBox { Text = "300", Width = 80, Margin = new Thickness(0, 2, 0, 2), ToolTip = "Characteristic variable column load (kN) — used when load cannot be derived from analysis." };
+            Grid.SetRow(_txtColumnLoad_Qk, 0); Grid.SetColumn(_txtColumnLoad_Qk, 5);
+            ec7Grid.Children.Add(_txtColumnLoad_Qk);
+
+            ec7Stack.Children.Add(ec7Grid);
+            ec7Section.Child = ec7Stack;
+            stack.Children.Add(ec7Section);
+
+            // DWG-STRUCT-DEEP-6b: Connection detail synthesis section
+            var connSection = new Border
+            {
+                BorderBrush = System.Windows.Media.Brushes.DimGray,
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Padding = new Thickness(0, 8, 0, 0),
+                Margin = new Thickness(0, 8, 0, 0),
+            };
+            var connStack = new StackPanel();
+            connStack.Children.Add(new TextBlock
+            {
+                Text = "CONNECTION DETAIL SYNTHESIS (DWG-STRUCT-DEEP-6b)",
+                FontSize = 11, FontWeight = FontWeights.Bold,
+                Foreground = System.Windows.Media.Brushes.Goldenrod,
+                Margin = new Thickness(0, 0, 0, 4),
+            });
+            _chkSynthesizeConnections = new CheckBox
+            {
+                Content = "Synthesize connection detail elements at detected beam/column junctions",
+                IsChecked = false,
+                Margin = new Thickness(0, 2, 0, 4),
+                ToolTip = "Places plate outlines, bolt-grid crosses, weld lines and text callouts in the active view for every detected junction.",
+            };
+            connStack.Children.Add(_chkSynthesizeConnections);
+
+            var connGrid = new Grid();
+            connGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            connGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            connGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            connGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            connGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            void AddConnLabel(string text, int col)
+            {
+                var lbl = new TextBlock { Text = text, FontSize = 11, Margin = new Thickness(4, 3, 6, 2), VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetRow(lbl, 0); Grid.SetColumn(lbl, col);
+                connGrid.Children.Add(lbl);
+            }
+
+            AddConnLabel("Shear demand Vd (kN):", 0);
+            _txtConnectionShear_kN = new TextBox { Text = "200", Width = 80, Margin = new Thickness(0, 2, 8, 2), ToolTip = "Characteristic shear demand per connection (kN). Used to size bolt groups." };
+            Grid.SetRow(_txtConnectionShear_kN, 0); Grid.SetColumn(_txtConnectionShear_kN, 1);
+            connGrid.Children.Add(_txtConnectionShear_kN);
+
+            AddConnLabel("Moment demand Md (kNm):", 2);
+            _txtConnectionMoment_kNm = new TextBox { Text = "50", Width = 80, Margin = new Thickness(0, 2, 0, 2), ToolTip = "Characteristic moment demand for end-plate connections (kNm, 0 for simple shear)." };
+            Grid.SetRow(_txtConnectionMoment_kNm, 0); Grid.SetColumn(_txtConnectionMoment_kNm, 3);
+            connGrid.Children.Add(_txtConnectionMoment_kNm);
+
+            connStack.Children.Add(connGrid);
+            connSection.Child = connStack;
+            stack.Children.Add(connSection);
+
             return section;
         }
 
@@ -2611,6 +2734,22 @@ namespace StingTools.Model
                 }
             }
 
+            // DWG-STRUCT-DEEP-6b: Connection detail synthesis knobs
+            config.SynthesizeConnectionDetails = _chkSynthesizeConnections?.IsChecked == true;
+            if (double.TryParse(_txtConnectionShear_kN?.Text, out double connShear) && connShear > 0)
+                config.ConnectionShearDemand_kN = connShear;
+            if (double.TryParse(_txtConnectionMoment_kNm?.Text, out double connMom) && connMom >= 0)
+                config.ConnectionMomentDemand_kNm = connMom;
+
+            // DWG-STRUCT-DEEP-5: EC7 foundation sizing knobs
+            config.RunFoundationSizing = _chkRunFoundationSizing?.IsChecked == true;
+            if (_cboSoilClass != null && _cboSoilClass.SelectedIndex >= 0)
+                config.SoilClass = (SoilClass)_cboSoilClass.SelectedIndex;
+            if (double.TryParse(_txtColumnLoad_Gk?.Text, out double fdnGk) && fdnGk > 0)
+                config.DefaultColumnLoad_Gk_kN = fdnGk;
+            if (double.TryParse(_txtColumnLoad_Qk?.Text, out double fdnQk) && fdnQk > 0)
+                config.DefaultColumnLoad_Qk_kN = fdnQk;
+
             return config;
         }
 
@@ -2946,6 +3085,27 @@ namespace StingTools.Model
         public bool CreateNewTypes_Beam { get; set; } = true;
         public bool CreateNewTypes_Foundation { get; set; } = true;
         public bool CreateNewTypes_Slab { get; set; } = true;
+
+        // DWG-STRUCT-DEEP-6b: Connection detail synthesis
+        /// <summary>When true, ConnectionDetailSynthesizer.SynthesizeAll() is called after junction
+        /// detection and detail-line elements are created in the active view.</summary>
+        public bool SynthesizeConnectionDetails { get; set; } = false;
+        /// <summary>Characteristic shear demand per connection (kN) used for connection sizing.</summary>
+        public double ConnectionShearDemand_kN { get; set; } = 200;
+        /// <summary>Characteristic moment demand per moment connection (kNm).</summary>
+        public double ConnectionMomentDemand_kNm { get; set; } = 50;
+
+        // DWG-STRUCT-DEEP-5: EC7 foundation sizing
+        /// <summary>Soil class used for EC7 bearing capacity lookup when sizing pad foundations.</summary>
+        public SoilClass SoilClass { get; set; } = SoilClass.StiffClay;
+        /// <summary>When true, run FoundationSizingEngine on every detected pad and write results
+        /// to STING shared parameters (FOUND_WIDTH_MM_TXT etc.).</summary>
+        public bool RunFoundationSizing { get; set; } = true;
+        /// <summary>Characteristic permanent axial load per column (kN) — used when load cannot
+        /// be derived from analysis (fallback for DWG-only workflows).</summary>
+        public double DefaultColumnLoad_Gk_kN { get; set; } = 800;
+        /// <summary>Characteristic variable axial load per column (kN) — fallback.</summary>
+        public double DefaultColumnLoad_Qk_kN { get; set; } = 300;
 
         // Construction logic
         public bool BeamsRestOnWalls { get; set; } = true;

@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
@@ -474,6 +475,12 @@ namespace StingTools.Core
             ("has duplicate Number value", WarningCategory.Data, WarningSeverity.Medium, "Auto-increment sheet/level number", true),
         };
 
+        // PERF-WARN-01: Pre-compiled Regex array — compiled once at class load,
+        // available for callers that need full regex semantics (e.g. boundary matching).
+        // The primary classification path uses _loweredPatterns + Contains for speed;
+        // _compiledPatterns is provided as an additive layer for exact-word matching.
+        private static readonly Regex[] _compiledPatterns;
+
         // PERF: Pre-build lookup dictionary for first-word matching to speed up classification.
         // Instead of O(n) linear scan through 120+ rules, first check if the warning's first
         // significant word matches any rule pattern prefix for O(1) average case.
@@ -484,10 +491,23 @@ namespace StingTools.Core
         static WarningsEngine()
         {
             _loweredPatterns = new string[ClassificationRules.Length];
+            _compiledPatterns = new Regex[ClassificationRules.Length];
             _ruleFirstWordIndex = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < ClassificationRules.Length; i++)
             {
                 _loweredPatterns[i] = ClassificationRules[i].pattern.ToLowerInvariant();
+                // PERF-WARN-01: compile each pattern as a regex for callers that need word-boundary matching
+                try
+                {
+                    _compiledPatterns[i] = new Regex(
+                        Regex.Escape(ClassificationRules[i].pattern),
+                        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+                }
+                catch
+                {
+                    // If pattern isn't valid regex (shouldn't happen with Escape, but be safe)
+                    _compiledPatterns[i] = new Regex("(?!)", RegexOptions.Compiled);
+                }
                 string firstWord = _loweredPatterns[i].Split(' ')[0];
                 if (!_ruleFirstWordIndex.TryGetValue(firstWord, out var list))
                 {
@@ -496,6 +516,14 @@ namespace StingTools.Core
                 }
                 list.Add(i);
             }
+        }
+
+        /// <summary>PERF-WARN-01: Check whether a description matches rule[i] using the pre-compiled Regex.
+        /// Use for callers needing full regex semantics; the primary classification path uses Contains.</summary>
+        internal static bool MatchesCompiledPattern(string description, int ruleIndex)
+        {
+            if (ruleIndex < 0 || ruleIndex >= _compiledPatterns.Length) return false;
+            return _compiledPatterns[ruleIndex].IsMatch(description);
         }
 
         // ── Suppression list (loaded from project_config.json) ──
@@ -1555,7 +1583,7 @@ namespace StingTools.Core
                 string p = ProjectFolderEngine.GetDataPath(doc, "warnings_baseline.json");
                 if (!string.IsNullOrEmpty(p)) return p;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return Path.ChangeExtension(docPath, ".sting_warnings_baseline.json");
         }
 
@@ -2258,7 +2286,7 @@ namespace StingTools.Core
                 string tempPath = path + ".tmp";
                 File.WriteAllText(tempPath, sb.ToString(), Encoding.UTF8);
                 try { File.Replace(tempPath, path, path + ".bak"); }
-                catch { if (File.Exists(tempPath)) { File.Copy(tempPath, path, true); try { File.Delete(tempPath); } catch { } } }
+                catch { if (File.Exists(tempPath)) { File.Copy(tempPath, path, true); try { File.Delete(tempPath); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } } }
 
                 StingLog.Info($"Extended warning baseline saved: {count} warnings, {typeEntries.Count} types with first-seen timestamps");
             }
@@ -3975,7 +4003,9 @@ namespace StingTools.Core
                             {
                                 string st = item.Value<string>("status") ?? "";
                                 bool overdue = false;
-                                string created = item.Value<string>("created_date") ?? "";
+                                string created = item.Value<string>("created_date")
+                                    ?? item.Value<string>("createdAt")
+                                    ?? item.Value<string>("date_raised") ?? "";
                                 string daysOpen = "";
                                 if (DateTime.TryParse(created, out DateTime cDate))
                                 {
@@ -3996,7 +4026,9 @@ namespace StingTools.Core
                                         if (!string.IsNullOrWhiteSpace(av)) assigneeList.Add(av.Trim());
                                     }
                                 }
-                                string singleAssignee = item.Value<string>("assignee") ?? item.Value<string>("created_by") ?? "";
+                                string singleAssignee = item.Value<string>("assignee")
+                                    ?? item.Value<string>("assigned_to")
+                                    ?? item.Value<string>("created_by") ?? "";
                                 if (assigneeList.Count == 0 && !string.IsNullOrWhiteSpace(singleAssignee))
                                     assigneeList.Add(singleAssignee.Trim());
 
@@ -4005,9 +4037,19 @@ namespace StingTools.Core
                                 var elemArr = item["element_ids"] as Newtonsoft.Json.Linq.JArray;
                                 if (elemArr != null) elemCount = elemArr.Count;
 
+                                // Location: prefer explicit field, fall back to lat/lng when available.
+                                string location = item.Value<string>("location") ?? "";
+                                if (string.IsNullOrEmpty(location))
+                                {
+                                    double? lat = item.Value<double?>("latitude");
+                                    double? lng = item.Value<double?>("longitude");
+                                    if (lat.HasValue && lng.HasValue)
+                                        location = $"{lat:F5},{lng:F5}";
+                                }
+
                                 issueRows.Add(new UI.BIMCoordinationCenter.IssueRow
                                 {
-                                    Id = item.Value<string>("id") ?? "",
+                                    Id = item.Value<string>("id") ?? item.Value<string>("issue_id") ?? "",
                                     Title = item.Value<string>("title") ?? "",
                                     Type = item.Value<string>("type") ?? "",
                                     Priority = item.Value<string>("priority") ?? "",
@@ -4020,7 +4062,11 @@ namespace StingTools.Core
                                     ElementCount = elemCount,
                                     Created = created.Length > 10 ? created.Substring(0, 10) : created,
                                     IsOverdue = overdue,
-                                    DaysOpen = daysOpen
+                                    DaysOpen = daysOpen,
+                                    RaisedBy = item.Value<string>("raised_by")
+                                               ?? item.Value<string>("created_by")
+                                               ?? item.Value<string>("createdBy") ?? "",
+                                    Location = location
                                 });
                             }
                         }
@@ -4612,7 +4658,7 @@ namespace StingTools.Core
                         string projectName = doc?.Title ?? "BIMProject";
                         string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmm");
                         string link = $"planscape://dashboard/{projectName}/{timestamp}";
-                        try { System.Windows.Clipboard.SetText(link); } catch { }
+                        try { System.Windows.Clipboard.SetText(link); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         TaskDialog.Show("STING — Planscape",
                             $"Dashboard link copied to clipboard:\n{link}\n\nShare with your team or embed in a QR code.");
                         return;
@@ -4629,7 +4675,7 @@ namespace StingTools.Core
                             "  - Deliverables and revisions\n\n" +
                             "Generated by BIM Coordination Center (STINGTOOLS BCC).\n" +
                             "For the full dashboard, request the HTML export from your BIM Manager.";
-                        try { System.Windows.Clipboard.SetText(body); } catch { }
+                        try { System.Windows.Clipboard.SetText(body); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         TaskDialog.Show("STING — Email Report",
                             "Email draft copied to clipboard.\n\n" +
                             "Paste into your email client (Outlook, Gmail, etc.). Attach the HTML " +
@@ -4648,7 +4694,7 @@ namespace StingTools.Core
                             "\u2022 Open issues and action items\n" +
                             "\u2022 Deliverables tracking\n\n" +
                             "[View Dashboard] \u2014 Use STING > BCC > Platform > Planscape to export HTML dashboard";
-                        try { System.Windows.Clipboard.SetText(msg); } catch { }
+                        try { System.Windows.Clipboard.SetText(msg); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         TaskDialog.Show("STING — Teams Message",
                             "Teams message copied to clipboard.\nPaste into your Microsoft Teams or Slack channel.");
                         return;
@@ -4661,7 +4707,7 @@ namespace StingTools.Core
                             $"{DateTime.Today:dd/MM/yyyy}\n\n" +
                             "Coordination status updated. Open issues and action items require attention.\n\n" +
                             "For full dashboard: Request HTML report from BIM Manager.";
-                        try { System.Windows.Clipboard.SetText(msg); } catch { }
+                        try { System.Windows.Clipboard.SetText(msg); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         TaskDialog.Show("STING — WhatsApp",
                             "WhatsApp message copied to clipboard.\nPaste into WhatsApp chat.");
                         return;
@@ -4739,7 +4785,7 @@ namespace StingTools.Core
                         {
                             var ids = rawIds.Select(v => new ElementId(v)).ToList();
                             uiDoc.Selection.SetElementIds(ids);
-                            try { uiDoc.ShowElements(ids); } catch { }
+                            try { uiDoc.ShowElements(ids); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                         else
                         {
