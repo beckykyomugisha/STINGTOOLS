@@ -245,6 +245,10 @@ namespace StingTools.Commands.Symbols
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { TaskDialog.Show("STING - Symbols", "No document open."); return Result.Failed; }
 
+            // Also flush the JSON shapes cache so any disk edits to
+            // STING_SYMBOL_SHAPES.json are picked up on the next AuthorSymbols call.
+            FamilySymbolAuthor.ReloadSymbolShapes();
+
             string outRoot = SymbolBatchHelper.ResolveOutputRoot(ctx.Doc);
             int loaded = 0, failed = 0;
             var warnings = new List<string>();

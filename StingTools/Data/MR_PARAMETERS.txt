@@ -2684,6 +2684,18 @@ PARAM	e8f9a0b1-c2d3-4e4f-5a6b-7c8d9e0f1a2b	STING_SYMBOL_OVERRIDE	TEXT		27	1	Proj
 PARAM	f9a0b1c2-d3e4-4f5a-6b7c-8d9e0f1a2b3c	STING_VIEW_SYMBOL_STANDARD	TEXT		27	1	Per-view symbol standard override -- IEC / IEEE / ISO [STING Phase 175]	1
 PARAM	0a1b2c3d-4e5f-4a6b-7c8d-9e0f1a2b3c4d	STING_SLD_ELEMENT_ID	TEXT		27	1	Source modelled element id paired with this Single Line Diagram symbol [STING Phase 175 / SLD Generator]	1
 PARAM	1b2c3d4e-5f6a-4b7c-8d9e-0f1a2b3c4d5e	STING_SYMBOL_LIBRARY_VERSION	TEXT		27	1	Symbol library version stamp (e.g. 2026.04 IEC) for change tracking [STING Phase 175]	1
+# ── Phase 175 family-local (non-shared) parameters — created by FamilySymbolAuthor ──────────
+# These are created directly via FamilyManager.AddParameter inside the family document and
+# are NOT shared parameters (no GUID). They are documented here for visibility only.
+# STING_SYMBOL_STD          INTEGER  instance  Code of the active standard: IEC=0, ANSI=1, BS=2, NFPA=3, CIBSE=4
+# STING_SHOW_IEC_BOOL       YES/NO   type      Formula: if(STING_LOD_COARSE_VISIBLE, STING_SYMBOL_STD = 0, false)
+# STING_SHOW_ANSI_BOOL      YES/NO   type      Formula: if(STING_LOD_COARSE_VISIBLE, STING_SYMBOL_STD = 1, false)
+# STING_SHOW_BS_BOOL        YES/NO   type      Formula: if(STING_LOD_COARSE_VISIBLE, STING_SYMBOL_STD = 2, false)
+# STING_SHOW_NFPA_BOOL      YES/NO   type      Formula: if(STING_LOD_COARSE_VISIBLE, STING_SYMBOL_STD = 3, false)
+# STING_SHOW_CIBSE_BOOL     YES/NO   type      Formula: if(STING_LOD_COARSE_VISIBLE, STING_SYMBOL_STD = 4, false)
+# STING_PLAN_HALF_W_FT      LENGTH   type      = Width / 2 — drives symbolic curve X extent
+# STING_PLAN_HALF_D_FT      LENGTH   type      = Depth / 2 — drives symbolic curve Y extent
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 PARAM	a6b7c8d9-eafb-4acc-5d6e-7f8a9bacdbec	STING_MATCH_REF_TXT	TEXT		27	1	Paired sheet reference written on match-line + caption tags [STING Phase 168]	1
 PARAM	a7b8c9da-fbac-4bcd-6e7f-8a9bacdbecfd	STING_MATCH_LINE_GUID_TXT	TEXT		27	1	Stable match-line pair identifier -- pairs DetailCurve + caption tag for in-place updates [STING Phase 168]	1
 PARAM	a8b9cadb-acbd-4cde-7f8a-9bacdbecfdae	STING_MATCH_DIR_TXT	TEXT		27	1	Match-line direction encoding -- VERTICAL / HORIZONTAL / DOGLEG [STING Phase 168]	1
