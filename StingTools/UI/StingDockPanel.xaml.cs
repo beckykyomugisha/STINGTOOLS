@@ -2110,8 +2110,8 @@ namespace StingTools.UI
                     break;
 
                 case System.Windows.Input.Key.Enter:
-                    if (lstSuggestions?.SelectedItem is string selected)
-                        ExecuteFromCommandBar(selected);
+                    if (lstSuggestions?.SelectedItem is SuggestionItem selected)
+                        ExecuteFromCommandBar(selected.CommandName);
                     else if (!string.IsNullOrWhiteSpace(txtCommandBar?.Text))
                         ExecuteFromCommandBar(txtCommandBar.Text);
                     e.Handled = true;
@@ -2127,9 +2127,9 @@ namespace StingTools.UI
 
         private void Suggestions_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
-            if (e.Key == System.Windows.Input.Key.Enter && lstSuggestions?.SelectedItem is string sel)
+            if (e.Key == System.Windows.Input.Key.Enter && lstSuggestions?.SelectedItem is SuggestionItem sel)
             {
-                ExecuteFromCommandBar(sel);
+                ExecuteFromCommandBar(sel.CommandName);
                 e.Handled = true;
             }
             else if (e.Key == System.Windows.Input.Key.Escape)
@@ -2142,9 +2142,32 @@ namespace StingTools.UI
 
         private void Suggestion_MouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            if (lstSuggestions?.SelectedItem is string sel)
-                ExecuteFromCommandBar(sel);
+            if (lstSuggestions?.SelectedItem is SuggestionItem sel)
+                ExecuteFromCommandBar(sel.CommandName);
         }
+
+        // ── SuggestionItem ───────────────────────────────────────────────────────
+        // Simple view-model for the two-line command suggestion card
+        private sealed class SuggestionItem
+        {
+            public string CommandName { get; set; }
+            public string Description { get; set; }
+            public override string ToString() => CommandName;
+        }
+
+        private static readonly SuggestionItem[] _commandBarHints = new[]
+        {
+            new SuggestionItem { CommandName = "TagAndCombine",        Description = "One-click tag and combine all" },
+            new SuggestionItem { CommandName = "AutoTag",              Description = "Tag elements in active view" },
+            new SuggestionItem { CommandName = "BatchTag",             Description = "Tag all elements in project" },
+            new SuggestionItem { CommandName = "Validate",             Description = "Validate tag compliance" },
+            new SuggestionItem { CommandName = "PreTagAudit",          Description = "Dry-run tag prediction before committing" },
+            new SuggestionItem { CommandName = "ResolveAllIssues",     Description = "Fix all ISO 19650 compliance issues" },
+            new SuggestionItem { CommandName = "CompletenessDashboard",Description = "Tag completeness report by discipline" },
+            new SuggestionItem { CommandName = "SmartPlaceTags",       Description = "Place visual annotation tags" },
+            new SuggestionItem { CommandName = "COBieExport",          Description = "Export COBie handover data" },
+            new SuggestionItem { CommandName = "MorningHealthCheck",   Description = "Run morning health-check workflow" },
+        };
 
         private void UpdateCommandBarSuggestions()
         {
@@ -2155,57 +2178,48 @@ namespace StingTools.UI
 
             if (string.IsNullOrWhiteSpace(text))
             {
-                // Show top-10 most common commands as hints when bar is focused
                 if (_cmdBarHasFocus)
                 {
                     foreach (var hint in _commandBarHints)
                         lstSuggestions.Items.Add(hint);
-                    popSuggestions.IsOpen = lstSuggestions.Items.Count > 0;
+                    popSuggestions.IsOpen = true;
                 }
                 else popSuggestions.IsOpen = false;
                 return;
             }
 
-            // Rule-based suggestions first (instant, offline)
+            // Rule-based suggestions — ranked: tag prefix > tag contains > intent > description
             var suggestions = Tags.NLPEngine.GetSuggestions(text);
+            var seenTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var (tag, desc) in suggestions)
-                lstSuggestions.Items.Add($"{tag}  —  {desc}");
+            {
+                if (seenTags.Add(tag))
+                    lstSuggestions.Items.Add(new SuggestionItem { CommandName = tag, Description = desc });
+            }
 
-            // If few results, also search by partial command tag
+            // Supplement with ProcessQuery when few tag-prefix hits
             if (suggestions.Count < 4)
             {
                 var results = Tags.NLPEngine.ProcessQuery(text);
                 foreach (var r in results.Take(6))
                 {
-                    string item = $"{r.CommandTag}  —  {r.Description}";
-                    if (!lstSuggestions.Items.Contains(item))
-                        lstSuggestions.Items.Add(item);
+                    if (seenTags.Add(r.CommandTag))
+                        lstSuggestions.Items.Add(new SuggestionItem { CommandName = r.CommandTag, Description = r.Description });
                 }
             }
 
             popSuggestions.IsOpen = lstSuggestions.Items.Count > 0;
         }
 
-        private static readonly string[] _commandBarHints = new[]
-        {
-            "TagAndCombine  —  One-click tag and combine all",
-            "AutoTag  —  Tag elements in active view",
-            "BatchTag  —  Tag all elements in project",
-            "Validate  —  Validate tag compliance",
-            "PreTagAudit  —  Dry-run tag prediction",
-            "ResolveAllIssues  —  Fix all ISO 19650 issues",
-            "CompletenessDashboard  —  Tag completeness report",
-            "SmartPlaceTags  —  Place visual annotations",
-            "COBieExport  —  Export COBie data",
-            "MorningHealthCheck  —  Run morning workflow",
-        };
-
         private void ExecuteFromCommandBar(string input)
         {
             if (string.IsNullOrWhiteSpace(input)) return;
 
-            // Extract command tag from "Tag  —  Description" format
-            string tag = input.Contains("  —  ") ? input.Split(new[] { "  —  " }, StringSplitOptions.None)[0].Trim() : input.Trim();
+            // input is always a clean tag when dispatched from a SuggestionItem;
+            // keep the split as a safety net for any manually typed "Tag  —  Desc" text
+            string tag = input.Contains("  —  ")
+                ? input.Split(new[] { "  —  " }, StringSplitOptions.None)[0].Trim()
+                : input.Trim();
 
             if (popSuggestions != null) popSuggestions.IsOpen = false;
             txtCommandBar?.Clear();

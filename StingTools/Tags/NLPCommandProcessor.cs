@@ -1051,13 +1051,28 @@ namespace StingTools.Tags
             if (string.IsNullOrWhiteSpace(partial)) return new List<(string, string)>();
 
             string lower = partial.ToLower();
+
+            // Rank: exact tag > tag starts-with > tag contains > intent > description
+            // Group by CommandTag so each command appears once with its highest score
             return IntentPatterns
-                .Where(p => p.Intent.ToLower().Contains(lower) ||
-                           p.Description.ToLower().Contains(lower) ||
-                           p.CommandTag.ToLower().Contains(lower))
-                .Select(p => (p.CommandTag, p.Description))
-                .Distinct()
+                .GroupBy(p => p.CommandTag, StringComparer.OrdinalIgnoreCase)
+                .Select(g =>
+                {
+                    var p = g.First();
+                    string tagL = p.CommandTag.ToLower();
+                    int score = tagL == lower                      ? 100
+                              : tagL.StartsWith(lower)            ? 80
+                              : tagL.Contains(lower)              ? 60
+                              : p.Intent.ToLower().Contains(lower)       ? 40
+                              : p.Description.ToLower().Contains(lower)  ? 20
+                              : 0;
+                    return (p.CommandTag, p.Description, Score: score);
+                })
+                .Where(x => x.Score > 0)
+                .OrderByDescending(x => x.Score)
+                .ThenBy(x => x.CommandTag, StringComparer.OrdinalIgnoreCase)
                 .Take(10)
+                .Select(x => (x.CommandTag, x.Description))
                 .ToList();
         }
 

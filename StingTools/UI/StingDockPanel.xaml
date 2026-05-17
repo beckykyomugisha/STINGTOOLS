@@ -183,14 +183,15 @@
                                      MaxHeight="230"
                                      Background="Transparent"
                                      Foreground="#E0E0E0"
-                                     BorderThickness="0" FontSize="10"
+                                     BorderThickness="0"
                                      SelectionMode="Single"
                                      MouseLeftButtonUp="Suggestion_MouseUp"
                                      KeyDown="Suggestions_KeyDown">
                                 <ListBox.ItemContainerStyle>
                                     <Style TargetType="ListBoxItem">
-                                        <Setter Property="Padding" Value="7,5"/>
+                                        <Setter Property="Padding" Value="8,5"/>
                                         <Setter Property="Cursor" Value="Hand"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                                         <Style.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
                                                 <Setter Property="Background" Value="#33AB47BC"/>
@@ -201,6 +202,19 @@
                                         </Style.Triggers>
                                     </Style>
                                 </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,1">
+                                            <TextBlock Text="{Binding CommandName}"
+                                                       FontWeight="SemiBold" FontSize="11"
+                                                       Foreground="#E8E8FF"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Description}"
+                                                       FontSize="9" Foreground="#9090B8"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
                             </ListBox>
                         </Border>
                     </Popup>
