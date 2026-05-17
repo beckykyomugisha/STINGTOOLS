@@ -10,6 +10,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Color = System.Windows.Media.Color;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 

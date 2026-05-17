@@ -140,8 +140,134 @@ namespace StingTools.Core.Placement
                 case "FLOOR_SLAB_PENETRATION":
                     EmitFloorSlabPenetration(room, rule, anchorZ, offsetXFt, offsetYFt, points);
                     return true;
+
+                // ── Phase 177 — Toilet / WC room anchor types ──────────
+                // WINDOW_SIDE_WALL_RIGHT: emits a point on the right-hand side wall
+                // (right when seated at the WC facing the door) relative to the window
+                // wall. Used for toilet paper holder, side grab bar, sanitary bin, etc.
+                case "WINDOW_SIDE_WALL_RIGHT":
+                    EmitWindowSideWall(room, rule, anchorZ, offsetXFt, offsetYFt, points, isRight: true);
+                    return true;
+
+                // WINDOW_SIDE_WALL_LEFT: left-hand side wall equivalent.
+                // Used for left grab bar (fold-down ADA), left-side accessories.
+                case "WINDOW_SIDE_WALL_LEFT":
+                    EmitWindowSideWall(room, rule, anchorZ, offsetXFt, offsetYFt, points, isRight: false);
+                    return true;
             }
             return false;
+        }
+
+        // ── Phase 177 — Toilet room anchor implementations ────────────
+
+        /// <summary>
+        /// Emits a placement point on the right or left side wall relative to the
+        /// window wall (which is treated as the "back wall" behind the WC).
+        ///
+        /// Algorithm:
+        ///  1. Find the window in the room (uses existing boundary cache).
+        ///  2. Compute the inward normal of the window's host wall (pointing into room).
+        ///  3. Rotate 90° CW (right) or CCW (left) in the XY plane.
+        ///  4. Estimate the WC position at windowOrigin + inward × 305mm rough-in.
+        ///  5. Emit: WC_pos + sideDir × OffsetXMm + inward × OffsetYMm at anchorZ.
+        ///
+        /// OffsetXMm = distance from WC centreline toward the side wall (e.g. 200mm).
+        /// OffsetYMm = forward shift from WC centreline toward door (e.g. 150mm).
+        /// MountingHeightMm = vertical position from FFL (e.g. 600mm for TP holder).
+        ///
+        /// Falls back to ROOM_CENTRE when no window is found (e.g. internal rooms
+        /// without windows, where the WC is placed by the fallback no-window rule).
+        /// </summary>
+        private void EmitWindowSideWall(
+            Room room,
+            PlacementRule rule,
+            double anchorZ,
+            double offsetXFt,
+            double offsetYFt,
+            List<XYZ> points,
+            bool isRight)
+        {
+            try
+            {
+                var b = GetBoundary(room);
+                if (b?.Windows == null || b.Windows.Count == 0)
+                {
+                    // No window — fall back to room centre so the rule still fires
+                    // (the WC itself used a wall-corner fallback in this case).
+                    Fallback(room, anchorZ, offsetXFt, offsetYFt, points);
+                    return;
+                }
+
+                // Take the first window (toilet rooms typically have one).
+                FamilyInstance win = b.Windows[0];
+                XYZ winOrigin = (win.Location as LocationPoint)?.Point;
+                if (winOrigin == null)
+                {
+                    Fallback(room, anchorZ, offsetXFt, offsetYFt, points);
+                    return;
+                }
+
+                // ── resolve the window wall's inward normal ──
+                XYZ inward = null;
+                try
+                {
+                    // ElementId hostId exists on FamilyInstance via Host property (Revit 2025+).
+                    // GetElement may return null if the host is a curtain panel — guard accordingly.
+                    var hostEl = _doc.GetElement(win.Host?.Id);
+                    if (hostEl is Wall hostWall)
+                        inward = ComputeInwardFromWall(hostWall, room);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"EmitWindowSideWall: host-wall resolve failed for win {win.Id}: {ex.Message}");
+                }
+
+                if (inward == null)
+                {
+                    // Fall back: direction from window toward room centroid.
+                    XYZ roomPt = (room.Location as LocationPoint)?.Point;
+                    if (roomPt != null)
+                    {
+                        XYZ delta = new XYZ(roomPt.X - winOrigin.X, roomPt.Y - winOrigin.Y, 0);
+                        double len = delta.GetLength();
+                        inward = len > 1e-6 ? delta.Divide(len) : XYZ.BasisY;
+                    }
+                    else
+                    {
+                        Fallback(room, anchorZ, offsetXFt, offsetYFt, points);
+                        return;
+                    }
+                }
+
+                // ── 90° CW rotation = (x,y) → (y,−x) = RIGHT when inward faces north ──
+                // ── 90° CCW rotation = (x,y) → (−y, x) = LEFT                          ──
+                XYZ sideDir = isRight
+                    ? new XYZ( inward.Y, -inward.X, 0)
+                    : new XYZ(-inward.Y,  inward.X, 0);
+
+                // WC centreline estimate: 305mm (12 in, standard US rough-in) from back wall.
+                // This matches the OffsetYMm=305 used by toilet-wc-at-window-standard rule.
+                const double RoughInFt = 305.0 / 304.8;
+                XYZ wcPos = new XYZ(
+                    winOrigin.X + inward.X * RoughInFt,
+                    winOrigin.Y + inward.Y * RoughInFt,
+                    anchorZ);
+
+                // ── final point: WC pos shifted sideways by OffsetX and forward by OffsetY ──
+                // offsetXFt already encodes rule.OffsetXMm (side distance from WC CL).
+                // offsetYFt encodes rule.OffsetYMm (forward shift toward door).
+                XYZ pos = new XYZ(
+                    wcPos.X + sideDir.X * offsetXFt + inward.X * offsetYFt,
+                    wcPos.Y + sideDir.Y * offsetXFt + inward.Y * offsetYFt,
+                    anchorZ);
+
+                points.Add(pos);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementScorer.EmitWindowSideWall room={room.Id} right={isRight}: {ex.Message}");
+                Fallback(room, anchorZ, offsetXFt, offsetYFt, points);
+            }
         }
 
         // ── Phase 139.2 Q — new anchor implementations ────────────────
