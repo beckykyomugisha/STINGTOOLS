@@ -70,3 +70,6 @@ __pycache__/
 
 # IFC drop folder — runtime files, not source
 IFC_DROP/
+
+# Docker runtime logs — generated at runtime, not source controlled
+Planscape.Server/docker/api-errors.txt
