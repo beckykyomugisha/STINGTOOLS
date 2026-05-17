@@ -1193,6 +1193,7 @@ PARAM	977e1d40-6a25-df1e-9a57-4acf4fcd2802	VGPS_SURFACE_COLOR_R_INT	INTEGER		11	
 PARAM	3d74d8f7-7beb-ce7c-1d5a-5c6ac65a519d	VGPS_SURFACE_PATTERN_TXT	TEXT		11	1	VG Projection/Surface Surface Pattern Txt [TPL_TRACKING]	1
 PARAM	9b8c629b-7e0b-c512-bdc3-41465cd73d96	VGPS_TRANSPARENCY_NR	NUMBER		11	1	VG Projection/Surface Transparency Nr [TPL_TRACKING]	1
 PARAM	4942d19f-ff13-19c6-8c38-70fada9adbaa	VGPS_VISIBLE_BOOL	YESNO		11	1	VG Projection/Surface Visible Bool [TPL_TRACKING]	1
+PARAM	a38af81b-c60b-5157-9db0-7d24eb03a55c	STING_MASTER_SETUP_TS	TEXT		11	1	ISO 8601 timestamp written by MasterSetupCommand to record when last full setup was run [STING Setup]	1
 PARAM	430f9d2c-08e4-4785-9757-6b0f83a1f24f	BLE_DOOR_FRAME_MAT_TXT	TEXT		10	1	Door frame material [ISO 19650-1:2018]	1
 PARAM	966dd692-1728-4a8a-a041-5d55162df180	BLE_DOOR_GLAZING_TYPE_TXT	TEXT		10	1	Door glazing type specification [ISO 19650-1:2018]	1
 PARAM	7ea9bbf5-3afe-4dec-8390-93b8e6f577d0	ELC_CBL_FEEDER_SZ_MM2	TEXT		4	1	Feeder cable cross-section area in mm2 [ISO 19650-1:2018]	1
@@ -2435,6 +2436,9 @@ PARAM	fbbff16e-ad11-554f-a2a3-1ba91250ddfd	WARN_SLV_NO_FIRESTOP	TEXT		17	1	Tag w
 PARAM	3c5e1027-76c0-54f9-a6dd-0f7fcf654ba7	WARN_SLV_NO_INSPECTION	TEXT		17	1	Tag warning: sleeve missing inspection record [ISO 19650-3:2020]	1
 PARAM	3dcb019c-4d45-50d4-976a-f7e434824ccd	WARN_SLV_NO_SERVICE	TEXT		17	1	Tag warning: sleeve missing service identification [ISO 19650-3:2020]	1
 PARAM	5c78cafc-d62b-5d50-99de-19cb2dea49de	WARN_SLV_NO_SIZE	TEXT		17	1	Tag warning: sleeve missing size specification [ISO 19650-3:2020]	1
+PARAM	c191f27f-4dc7-52ce-9692-105641f4ad80	TAG_CLUSTER_KEY_TXT	TEXT		17	1	Cluster group key used by SmartTagPlacementCommand to group adjacent tags into coordinated clusters [STING Tags]	1
+PARAM	08b9059a-a587-5317-861a-e31ba66f1b1c	TAG_FAMILY_HINT_TXT	TEXT		17	1	Tag family name hint written on element type by SmartTagPlacementCommand to guide family selection [STING Tags]	1
+PARAM	5c93b60b-e787-553b-8e38-457a0d16fe98	TAG_PRIORITY_INT	INTEGER		17	1	Tag placement priority 1-10 used by SmartTagPlacementCommand -- higher values placed first to claim best positions [STING Tags]	1
 PARAM	b8d5f342-0a93-5e2b-c5b1-4f7029e3ad16	ASS_INHERIT_STATUS_TXT	TEXT		1	1	Token inheritance status (PROXIMITY_OK/PROXIMITY_FAIL/TYPE_INHERIT/MANUAL)	1
 PARAM	a7c4e231-9f82-5d1a-b4a0-3e6f18d29c05	ASS_STALE_TOKENS_TXT	TEXT		18	1	Comma-separated list of stale token names for targeted re-derivation	1
 PARAM	c9e60453-1ba4-5f3c-d6c2-508a3af4be27	STING_DATA_HASH	TEXT		1	1	Hash of data directory for workflow skip-if-unchanged detection	1
@@ -2613,12 +2617,27 @@ PARAM	9411ed93-d511-5a71-adbf-24a75f958e73	PRJ_ORG_GROUND_LEVEL_TXT	TEXT		13	1	P
 PARAM	6df039a3-d57c-53c5-be3b-e5a69cae709f	PRJ_ORG_SECURITY_CLASS_TXT	TEXT		13	1	Information security classification, e.g. "OFFICIAL" / "OFFICIAL-SENSITIVE" / "SECRET" / "PUBLIC" -- drives PDF watermarks + CDE access controls [ISO 27001:2022, NPSA / CPNI guidance]	1
 PARAM	cbd94272-6db5-557c-8e6d-2f254888afc6	STR_BAR_MARK_TXT	TEXT		16	1	Rebar bar mark from bending schedule [BS 8666:2020]	1
 PARAM	6dfe3811-0d82-500a-a10a-ac51225576c6	STR_BEND_SCHEDULE_REF_TXT	TEXT		16	1	Rebar bending schedule document reference [BS 8666:2020]	1
+PARAM	db5887e7-5d28-57fa-ac8a-1d971d8c14d9	STR_CONCRETE_GRADE_TXT	TEXT		16	1	Concrete specification grade (e.g. C25/30 / C32/40) per BS EN 206 [STING Structural]	1
+PARAM	a9edae40-3936-5a17-87f9-86d16b90c64b	STR_REBAR_SPEC_TXT	TEXT		16	1	Reinforcement bar specification (e.g. B500B / Grade 60) per BS 4449 [STING Structural]	1
+PARAM	625140e9-d5ea-50b2-ab2a-b6533690184a	STR_SECTION_SIZE_TXT	TEXT		16	1	Structural section size designation (e.g. 254x146x43 UB) [STING Structural]	1
 PARAM	dbc0b581-2741-5a76-82bc-7956cef3af86	STR_CUTTING_LIST_REF_TXT	TEXT		16	1	Rebar cutting list drawing reference [BS 8666:2020]	1
 PARAM	e182a84b-a159-567f-a62d-fd0c3765f618	STR_WELD_PROCEDURE_REF_TXT	TEXT		16	1	Welding procedure specification reference [BS EN ISO 15609-1:2019]	1
 PARAM	87cca4d2-1a8c-57a0-a31b-ab78a308fbe5	STR_BOLT_TORQUE_NM_NR	NUMBER		16	1	Bolt installation tightening torque in Nm [BS EN 1090-2:2018]	1
 PARAM	aff8756c-b7b5-5c7a-aaab-65efe622a7d4	HVC_REFRIGERANT_CHARGE_KG_NR	NUMBER		5	1	Equipment refrigerant charge mass in kg [BS EN 378-2:2016]	1
 PARAM	74d83fbc-1edc-5aa9-8edd-de412bfdf921	HVC_FACTORY_FLASH_TEST_DATE_TXT	TEXT		5	1	Factory flash test date for refrigerant equipment [BS EN 378-2:2016]	1
 PARAM	5ebe500d-983b-5a41-97ba-312b62882f28	HVC_FACTORY_QR_TXT	TEXT		5	1	Mechanical factory QR code label reference [ISO 19650-3:2020]	1
+PARAM	052d58a3-699e-57c1-a206-9657dad25ce9	BLE_EDGE_TRIM_TXT	TEXT		10	1	Edge trim or nosing specification for floors / stairs [STING Data Pipeline]	1
+PARAM	bc9eb327-4858-50db-b852-9af4921bc993	BLE_FIRE_RATING_TXT	TEXT		10	1	Fire resistance rating text (e.g. EI 60 / REI 90) per BS EN 13501-2 [STING Data Pipeline]	1
+PARAM	d2e2c278-8b1a-53dc-9cb7-ae89dece74b2	STING_ACOUSTIC_RW_DB	NUMBER		9	1	Acoustic Rw weighted sound reduction index in dB used by AvfMetricAdapters acoustic visualisation [STING Acoustic]	1
+PARAM	fc83c1da-b807-594a-b795-ab048e743716	STING_CO2_KG	NUMBER		9	1	Calculated whole-life CO2 equivalent in kg used by AvfMetricAdapters carbon visualisation [STING Sustainability]	1
+PARAM	1c036101-84e0-5461-8aeb-157df334c2e4	BLE_FRAME_MATERIAL_TXT	TEXT		10	1	Frame material description for doors and windows [STING Data Pipeline]	1
+PARAM	edccbce5-27f9-593b-aabe-2a8762519451	BLE_GLASS_SPEC_TXT	TEXT		10	1	Glazing specification (e.g. 6.4mm SGP laminate / 28mm Argon-filled DGU) [STING Data Pipeline]	1
+PARAM	cbf73540-5219-5e36-8e15-c08ccea50e7c	BLE_HARDWARE_TXT	TEXT		10	1	Door or window ironmongery / hardware specification [STING Data Pipeline]	1
+PARAM	a3f36e81-2488-5639-9002-d62f7dad6587	BLE_INSULATION_TXT	TEXT		10	1	Insulation specification (type / thickness / lambda value) [STING Data Pipeline]	1
+PARAM	e9105a43-bdc7-53cb-bcbe-46a31fe65c4c	BLE_SUBSTRATE_TXT	TEXT		10	1	Substrate material type for plastering / tiling / cladding [STING Data Pipeline]	1
+PARAM	152ae98d-78e0-55e6-a5a6-2c4105ae393c	BLE_WINDOW_SILL_HEIGHT_NR	NUMBER		10	1	Window sill finished floor level height in millimetres [STING Data Pipeline]	1
+PARAM	cb55e9f0-af7a-56bc-a6be-31e2c73bd451	BLE_WORKTOP_MATERIAL_TXT	TEXT		10	1	Worktop or counter material specification [STING Data Pipeline]	1
+PARAM	9bf50564-234a-5b9b-a4f4-178587e2b16e	DOOR_SEC_LEVEL_INT	INTEGER		10	1	Door security level rating 1-6 per STS 202 / LPS 1175 used by PlacementExtCommands [STING Security]	1
 PARAM	b04373ec-3a97-5c0e-a13b-b72450d52eff	ELC_PANEL_SCHEDULE_REF_TXT	TEXT		4	1	Electrical panel schedule document reference [BS 7671:2018+A2:2022]	1
 PARAM	37ac83fc-80c9-5a43-a03b-6365d5424731	ELC_FAT_CERT_REF_TXT	TEXT		4	1	Factory Acceptance Test certificate reference [IEC 61439-1:2020]	1
 PARAM	a4257dba-e2fb-5890-96f8-80a14ad0d8c2	ELC_FACTORY_QR_TXT	TEXT		4	1	Electrical factory QR code label reference [ISO 19650-3:2020]	1
@@ -2693,6 +2712,10 @@ PARAM	1b2c3d4e-5f6a-4b7c-8d9e-0f1a2b3c4d5e	STING_SYMBOL_LIBRARY_VERSION	TEXT		27
 PARAM	a6b7c8d9-eafb-4acc-5d6e-7f8a9bacdbec	STING_MATCH_REF_TXT	TEXT		27	1	Paired sheet reference written on match-line + caption tags [STING Phase 168]	1
 PARAM	a7b8c9da-fbac-4bcd-6e7f-8a9bacdbecfd	STING_MATCH_LINE_GUID_TXT	TEXT		27	1	Stable match-line pair identifier -- pairs DetailCurve + caption tag for in-place updates [STING Phase 168]	1
 PARAM	a8b9cadb-acbd-4cde-7f8a-9bacdbecfdae	STING_MATCH_DIR_TXT	TEXT		27	1	Match-line direction encoding -- VERTICAL / HORIZONTAL / DOGLEG [STING Phase 168]	1
+PARAM	9b443a6e-6798-5f08-bcd0-bba95a266791	STING_CDE_STATE_TXT	TEXT		27	1	CDE lifecycle state (WIP / SHARED / PUBLISHED / ARCHIVED) written on sheets by StingExportCenterDialog [STING CDE]	1
+PARAM	dfe71f11-02b2-541d-9218-3fa1cd7307d5	STING_CDE_STATUS	TEXT		27	1	CDE status label (WIP / IN_REVIEW / APPROVED / REJECTED) used by ExLink sheet export [STING CDE]	1
+PARAM	2a948624-dd92-583c-8757-0b4f9d056322	STING_ISO_SYMBOL_SCALE_IN	NUMBER		27	1	ISO symbol detail-item scale in Revit internal units (feet) written by IsoSymbolPlacer [STING v4 Fabrication]	1
+PARAM	f838097f-5723-50ae-9101-702bc5cc9237	STING_SCOPE_BOX_TAG_TXT	TEXT		27	1	STING scope-box tag string written by GenerateFromScopeBoxesCommand for scope-box-to-view binding [STING DT]	1
 # -- Lightning Protection System tag containers (BS EN 62305) ---------------
 PARAM	e1c5f9d4-1001-5111-9111-100000000001	ELC_LPS_AIRTERM_TAG_TXT	TEXT		4	1	LPS air-terminal / finial tag -- full ISO 19650 tag for rod, mesh node, or strike termination [BS EN 62305-3 S.5.2]	1
 PARAM	e1c5f9d4-1002-5111-9111-100000000002	ELC_LPS_DOWNCOND_TAG_TXT	TEXT		4	1	LPS down-conductor tag -- full tag for descent conductors connecting air terminals to earth [BS EN 62305-3 S.5.3]	1
@@ -2825,6 +2848,10 @@ PARAM	c8d4f6e2-1301-4d27-8c61-0e7a3f9b8001	FLS_COMPARTMENT_ID_TXT	TEXT		8	1	Fire
 PARAM	c8d4f6e2-1401-4d27-8c61-0e7a3f9b9001	MNT_CAL_LAST_DT	TEXT		25	1	Last calibration date (ISO 8601) -- distinct from service date	1
 PARAM	c8d4f6e2-1402-4d27-8c61-0e7a3f9b9002	MNT_CAL_NEXT_DT	TEXT		25	1	Next calibration due (ISO 8601)	1
 PARAM	c8d4f6e2-1501-4d27-8c61-0e7a3f9ba001	PRJ_ORG_HEALTH_FACILITY_TYPE_TXT	TEXT		13	1	Healthcare facility type: Acute / Mental / Community / Rehab / Day / FM	1
+PARAM	c7531f1f-b220-5dfc-8794-e0b321e45e90	HVC_AIRFLOW_LS_NR	NUMBER		5	1	HVAC terminal airflow in litres per second (numeric) -- distinct from text HVC_AIRFLOW_LPS [STING MEP]	1
+PARAM	5ee52052-a6e8-5c8a-8654-ff1041fb1e99	HVC_DCT_VELOCITY_MS	NUMBER		5	1	Duct air velocity in metres per second used by AvfMetricAdapters visualisation [STING MEP]	1
+PARAM	6fbd14b0-80e1-5210-a76d-32e852940d15	HVC_SYS_TXT	TEXT		5	1	HVAC system text description used by FabricationWorkspaceDialog and FabricationGrouper [STING Fabrication]	1
+PARAM	f9f08d72-2364-5609-ac27-e0e7af714399	MEC_SYS_TXT	TEXT		5	1	Mechanical system text description used by FabricationGrouper / FabricationScope / FabricationActionRunner [STING Fabrication]	1
 PARAM	c8d4f6e2-1502-4d27-8c61-0e7a3f9ba002	PRJ_ORG_HEALTH_BEDS_INT	INTEGER		13	1	Bed count	1
 PARAM	c8d4f6e2-1503-4d27-8c61-0e7a3f9ba003	PRJ_ORG_HEALTH_OR_INT	INTEGER		13	1	Operating room count	1
 PARAM	c8d4f6e2-1504-4d27-8c61-0e7a3f9ba004	PRJ_ORG_HEALTH_ICU_INT	INTEGER		13	1	ICU bed count	1
@@ -2878,6 +2905,7 @@ PARAM	e5f60718-3091-b03f-f2b1-e131a1a01067	STING_SLAB_ROUTING_FLAG	TEXT		34	1	Sl
 PARAM	f6071829-41a2-c150-038c-f242b2b12178	STING_PENETRATION_REF_TXT	TEXT		34	1	Identifier stamped on a conduit / pipe / duct that crosses a fire-rated floor or wall. Format: FLR:<id>@<rating>. Drives FRP_PENETRATION family placement + register schedule.	1
 PARAM	07182a3a-52b3-d261-149d-035303c23289	STING_PENETRATION_FIRE_RATING_TXT	TEXT		34	1	Required fire rating at the penetration point -- copied from the host floor / wall (BS 9999 / BS 476). Empty defaults to FR60 typical floor rating.	1
 PARAM	18293b4b-63c4-e372-25ae-146414d34390	STING_FIRE_RATING_TXT	TEXT		34	1	Fire rating of the host wall / floor -- FR30 / FR60 / FR90 / FR120. Read by SlabPenetrationDetector to stamp the required rating on every penetration.	1
+PARAM	8fa28413-7cd8-51c4-9172-399489efd5cd	STING_ROUTE_RULE_ID_TXT	TEXT		34	1	In-wall chase routing rule id applied by InWallChaseRouter [STING v4 Routing]	1
 PARAM	abc4d5e6-7f8a-9b0c-1d2e-3f4a5b6c7d8e	STING_SEED_FAMILY_TXT	TEXT		33	1	Seed family identifier (e.g. STING_SEED_LightingFixture). Stamped by SymbolLibraryCreator on every seed; SwapToManufacturerCommand reads it to find replacement candidates in STING_FAMILY_SWAP_REGISTRY.json.	1
 PARAM	bcd5e6f7-8a9b-0c1d-2e3f-4a5b6c7d8e9f	STING_DESIGN_REF_TXT	TEXT		33	1	Original seed identity preserved when an instance is swapped to a manufacturer family. Lets schedules + audits trace which design intent every real fixture replaces.	1
 PARAM	cde6f708-9b0c-1d2e-3f4a-5b6c7d8e9fa0	STING_SWAP_HISTORY_TXT	TEXT		33	1	Swap audit trail: pipe-delimited entries timestamp|operator|sourceFamily|destFamily. Append-only; SwapToManufacturerCommand prepends one entry per swap.	1
@@ -2895,9 +2923,41 @@ PARAM	6ff40ae1-9a6a-59d7-93aa-1b3ea27b3f28	PLM_CALC_DN_MM	INTEGER		6	1	Auto-calc
 PARAM	5a6613d4-2b44-5f13-b023-74ad817ca427	PLM_CALC_SLOPE_PCT	TEXT		6	1	Auto-calculated minimum slope percent DrainageSizer output [Phase 178b]	1
 PARAM	4d30cc88-36ca-56bc-b070-9eda111b4ca4	PLM_DEMAND_FLOW_LPS	TEXT		6	1	Design flow rate l/s for pipe or branch [Phase 178b]	1
 PARAM	12bdb567-8260-51e3-9048-c853ad1536e1	PLM_VELOCITY_MPS	TEXT		6	1	Design flow velocity m/s [Phase 178b]	1
+PARAM	f9fa4ecc-b168-5fbf-8c0c-6fb9edafd8e3	ASS_FIXINGS_TXT	TEXT		1	1	Fixings and fastener specification for element installation [STING Data Pipeline]	1
+PARAM	ca833316-09fd-5164-a389-766b2ffc391a	ASS_ITEM_CODE_TXT	TEXT		1	1	Fabrication item code used in PCF export and cut-list generation [STING v4 Fabrication]	1
+PARAM	15fc2ad5-cd46-5224-83a4-b5161a590c47	ASS_SERIAL_TXT	TEXT		1	1	Asset serial number for FM and commissioning traceability [STING Asset Mgmt]	1
+PARAM	67851773-5566-5e76-a934-30f9a29b232b	ASS_SYSTEMS_TXT	TEXT		1	1	Comma-separated list of systems this element serves [STING Setup]	1
+PARAM	41224d05-5800-5510-bf83-7a6b787bce56	ASS_SPACING_MM_NR	NUMBER		1	1	Element centre-to-centre spacing in millimetres [STING Data Pipeline]	1
+PARAM	7a018e49-ec16-5c81-8224-dca5966e0e6c	ASS_TERM_CAPPED_BOOL	YESNO		1	1	True when open end of element is capped -- set by TerminationValidator [STING v4 Validation]	1
+PARAM	97deb754-aca8-5a59-b4ab-b49a36a78cc6	ASS_TERM_REASON_TXT	TEXT		1	1	Reason code for termination state (CAPPED / CONNECTED / OPEN) [STING v4 Validation]	1
+PARAM	35f84460-99f5-53a3-96e2-89260644de03	ASS_TRACE_SEQ_NR	INTEGER		1	1	MEP system tracer sequence number assigned during MepSystemTracerCommand traversal [STING MEP]	1
+PARAM	7ac7a3a3-aa4c-5d7f-a2f5-4c86f8644fdd	ASS_PLACEMENT_RULE_TXT	TEXT		1	1	Fixture placement rule id applied by FixturePlacementEngine from STING_PLACEMENT_RULES.json [STING v4 Placement]	1
+PARAM	d592e5ac-c945-5ca8-8f96-22b212853959	STING_FIXTURE_VARIANT_TXT	TEXT		1	1	Fixture variant identifier used by FamilyHintsBridge for v4 smart placement variant selection [STING v4]	1
+PARAM	cefa7f40-43f6-5fd2-b48e-4e27825630da	STING_HEIGHT_STANDARD_TXT	TEXT		1	1	Accessibility height standard reference (e.g. BS 8300 Table 2) checked by AccessibilityAuditor [STING Accessibility]	1
+PARAM	e22de72f-9303-5c9f-9e38-8dc0d5dcdac9	STING_OMNICLASS_23	TEXT		1	1	OmniClass Table 23 Products classification code stamped by ClassificationReader [STING Classification]	1
+PARAM	e12f15bc-ca43-5b5e-a1d6-09f52f72de01	STING_SERVICE_TOKEN	TEXT		1	1	Service token key used by SeparationValidator to detect inter-service conflicts [STING v4 Validation]	1
+PARAM	db5a6c26-2e4d-596c-9842-7fcce4c0af3d	STING_WET_FIXTURE_KIND	TEXT		1	1	Wet-zone fixture kind override (BATH / SHOWER / WC / SINK) for WetZoneExclusionChecker [STING v4]	1
 PARAM	2dd14866-68c7-5f8b-8541-2760a011e644	PLM_FRICTION_LOSS_PA_M	TEXT		6	1	Friction head loss Pa per metre [Phase 178b]	1
+PARAM	80ef2c3c-fc37-5fa8-97b1-7098ad70607d	ELC_CABLE_SEG_CLASS_TXT	TEXT		4	1	Cable segregation class (LSF / LSHF / MICC / ARMOURED) per BS EN 50174 [STING Electrical]	1
+PARAM	9bc08e34-2822-5bbc-8c12-d46e89f277dc	ELC_CBL_SIZE_TXT	TEXT		4	1	Cable size / cross-section text descriptor used by MepDesignCommands [STING MEP Design]	1
+PARAM	fd6672f7-86e9-55f8-a982-cb3f1118f151	ELC_CDT_CABLE_MANIFEST_TXT	TEXT		4	1	JSON manifest of cables routed through this conduit -- written by CalcCommands routing engine [STING Routing]	1
+PARAM	d5553d0a-c956-583d-8d92-5e92cc82e799	ELC_CIRCUIT_NR_TXT	TEXT		4	1	Circuit number as text label on annotation -- distinct from integer ELC_CKT_NR [STING Wire Annotation]	1
+PARAM	09813269-4d17-5e24-ab10-35b2da5a4574	ELC_EMERG_TYPE	TEXT		4	1	Emergency lighting category (M0 / M1 / M2 / M3) per BS EN 50172 [STING Emergency Lighting]	1
+PARAM	c81f77b2-622d-5d49-ba1e-3ec1adfea0e7	ELC_EQP_PHASE_NR	INTEGER		4	1	Equipment phase count (1 or 3) for single-phase vs three-phase discrimination [STING Data Pipeline]	1
+PARAM	15fdbc66-96ba-5f21-a6aa-b6cf7ff765cd	ELC_EQP_VOLTS_NR	NUMBER		4	1	Equipment rated voltage in volts [STING Data Pipeline]	1
+PARAM	1706578b-1bc4-5f1e-8cea-86724468c850	ELC_JB_IP_RATING_TXT	TEXT		4	1	Junction box ingress protection rating (e.g. IP54 / IP65) per IEC 60529 [STING Cable Schedule]	1
+PARAM	00fddd67-e284-5c4c-bf27-9db4d5901850	ELC_PNL_LOAD_SUMMARY_COMPLETE_BOOL	YESNO		4	1	True when panel load summary parameters are fully populated -- workflow gate flag [STING Panels]	1
+PARAM	dbfecaf2-e217-5732-85e6-3f990e9c146a	ELC_PNL_NAME_TXT	TEXT		4	1	Panel short name as displayed on wire annotation tags (cf. ELC_PNL_DESIGNATION_NAME_TXT) [STING Wire Annotation]	1
+PARAM	057c4f4e-d2aa-5945-91eb-3cb5d16fb288	ELC_SYS_TXT	TEXT		4	1	Electrical system text description used by FabricationWorkspaceDialog and FabricationGrouper [STING Fabrication]	1
+PARAM	05fa90ef-bd3d-574c-aa38-8106f0501ede	ELC_WIRE_COND_MAT_TXT	TEXT		4	1	Wire conductor material (Cu / Al) per BS 7671 Table 4A1 [STING Wire Annotation]	1
+PARAM	b1fee4cf-701b-56d3-8edb-56161acabfbc	ELC_WIRE_CSA_MM2_NUM	NUMBER		4	1	Wire cross-sectional area in mm2 [STING Wire Annotation]	1
+PARAM	5d6abeef-51d1-5671-9f27-0792dbf0c438	ELC_WIRE_PHASE_TXT	TEXT		4	1	Wire phase designation (L1 / L2 / L3 / N / CPC) [STING Wire Annotation]	1
+PARAM	b1d76b4a-0fc9-5463-b7ea-ec76c41612a9	ELC_WIRE_VD_PCT_NUM	NUMBER		4	1	Wire voltage drop as percentage of nominal voltage [STING Wire Annotation]	1
 PARAM	bc0dcd88-a1a4-58c3-aa26-900b3a1658c2	PLM_PRESSURE_TEST_KPA	INTEGER		6	1	Test pressure kPa default 100 [BS EN 12056-5 Phase 178b]	1
 PARAM	453c0b62-3bc7-57f4-b099-277e022d40e0	PLM_FLUID_CATEGORY_TXT	TEXT		6	1	BS EN 1717 fluid category 1-5 [Phase 178b]	1
+PARAM	825bb253-9c4b-5051-bd48-8b50ebdbd40b	PLM_FIX_TYPE_TXT	TEXT		6	1	Plumbing fixture type code (WC / BASIN / SHOWER / BATH / URINAL) per BS EN 997 [STING Plumbing]	1
+PARAM	5528c145-4f5f-5bad-abcc-adf4aa0ae716	PLM_PPE_VELOCITY_MS	NUMBER		6	1	Pipe flow velocity in metres per second used by AvfMetricAdapters visualisation [STING MEP]	1
+PARAM	88a3a3b1-6f6c-500f-82a0-df159214cac6	PLM_SYS_TXT	TEXT		6	1	Plumbing system text description used by FabricationWorkspaceDialog and FabricationGrouper [STING Fabrication]	1
 PARAM	7e293a2c-4851-5677-bbb2-99be80e47d54	PLM_VLV_BACKFLOW_TYPE_TXT	TEXT		6	1	Backflow prevention device CHK-SC/CHK-DC/VLV-RPZ/GAP-AA [BS EN 1717 Phase 178b]	1
 PARAM	39ef8603-2ac1-5bba-9de1-b770f304098b	PLM_PPE_STANDARD_TXT	TEXT		6	1	Pipe material standard EN 1057/EN 10255/EN 1452/EN 877/EN 12201 [Phase 178b]	1
 PARAM	66c4b030-073b-5ae3-a0d9-2c15f6b88b8a	PLM_PPE_SCHEDULE_TXT	TEXT		6	1	Pipe schedule SCH 10/40/80 SDR 11/17 [Phase 178b]	1
@@ -2923,6 +2983,7 @@ PARAM	83e44d79-e601-5250-bcbc-d63193ac441f	PLM_VLV_FAIL_POSITION_TXT	TEXT		6	1	V
 PARAM	ab46d616-d864-572c-8d9d-5bb51ccaab79	PLM_VLV_WRAS_APPROVED_BOOL	YESNO		6	1	Valve WRAS-approved [Phase 178b]	1
 PARAM	af8461f1-b314-5f60-8e8d-e38963de14f8	PLM_DEAD_LEG_LENGTH_M	TEXT		6	1	Dead-leg length m flagged by DeadLegDetector [HSG 274 Phase 178b]	1
 PARAM	98ab6e19-8d12-53c0-b388-8705f9413373	PLM_PRJ_PLUMBING_CODE_TXT	TEXT		1	1	Project plumbing-code toggle BS-UK / IPC-US / UPC-US [Phase 178b]	1
+PARAM	6ba96198-36e0-5a2a-a236-f42ad2ce68c7	ASS_TAG_MULTILINE_TXT	TEXT		1	1	Single-parameter multi-line tag (DISC\nLOC\nZONE\n...\nSEQ) for tag families binding one Label to one parameter with auto line-breaking [STING Tags]	1
 PARAM	c3d5b6ee-0f2e-7283-9405-162718304a5b	ELC_CDT_PENETRATION_COUNT_NR	TEXT		4	1	Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).	1
 # -- Group 35: PEN_PENETRATION -- detailed firestop / penetration sleeve parameters --------------
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1001	PEN_FIRE_RATING_TXT	TEXT		35	1	Required fire rating of the penetration: FR30/FR60/FR90/FR120/blank for non-rated [BS 9999, BS 476-20, EN 1366-3]	1
