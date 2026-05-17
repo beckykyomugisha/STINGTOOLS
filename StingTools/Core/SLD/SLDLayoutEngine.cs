@@ -51,6 +51,9 @@ namespace StingTools.Core.SLD
             = new List<(XYZ, XYZ)>();
         public List<(XYZ from, XYZ to)> BranchLines { get; set; }
             = new List<(XYZ, XYZ)>();
+        // Carries pole count per branch so SLDAnnotationPlacer can draw tick marks.
+        public List<(XYZ from, XYZ to, int poles)> BranchLinesWithPoles { get; set; }
+            = new List<(XYZ, XYZ, int)>();
         public XYZ ViewOrigin { get; set; } = XYZ.Zero;
         public double TotalWidth  { get; set; }
         public double TotalHeight { get; set; }
@@ -93,7 +96,7 @@ namespace StingTools.Core.SLD
             if (root == null) return layout;
 
             double dy      = Mm(opts.SymbolHeightMm + opts.SymbolSpacingMm);
-            double busOff  = Mm(opts.BusbarOffsetMm);
+            double symHalf = Mm(opts.SymbolHeightMm / 2.0); // half-height for connector alignment
             double levelDx = Mm(opts.LevelOffsetMm);
 
             var yByLevel = new Dictionary<int, double>();
@@ -108,7 +111,8 @@ namespace StingTools.Core.SLD
 
                 if (node.IsPanel && node.Children.Count > 0)
                 {
-                    double busY = pos.Y - busOff;
+                    // Busbar at the parent's bottom edge (output connector).
+                    double busY = pos.Y - symHalf;
                     var busFrom = new XYZ(pos.X - Mm(10), busY, 0);
                     var busTo   = new XYZ(pos.X + Mm(10) + node.Children.Count * Mm(opts.SymbolSpacingMm), busY, 0);
                     layout.BusbarSegments.Add((busFrom, busTo));
@@ -117,7 +121,13 @@ namespace StingTools.Core.SLD
                     {
                         Place(child);
                         if (layout.SymbolPositions.TryGetValue(child.ElementId, out var childPos))
-                            layout.BranchLines.Add((new XYZ(childPos.X, busY, 0), childPos));
+                        {
+                            // Terminate at top of child symbol (input connector), not centre.
+                            var childTop = new XYZ(childPos.X, childPos.Y + symHalf, 0);
+                            layout.BranchLines.Add((new XYZ(childPos.X, busY, 0), childTop));
+                            layout.BranchLinesWithPoles.Add(
+                                (new XYZ(childPos.X, busY, 0), childTop, child.Poles));
+                        }
                     }
                 }
             }

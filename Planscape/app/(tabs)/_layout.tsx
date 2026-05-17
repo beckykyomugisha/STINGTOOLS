@@ -99,14 +99,24 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => <TabIcon label="📷" focused={focused} />,
         }}
       />
+      {/* Feature gap 2 — Cost Dashboard */}
+      <Tabs.Screen
+        name="cost-dashboard"
+        options={{
+          title: 'Costs',
+          tabBarIcon: ({ focused }) => <TabIcon label="📈" focused={focused} />,
+        }}
+      />
+      {/* GAP-C — Schedule / P6 Live Link */}
+      <Tabs.Screen
+        name="schedule"
+        options={{
+          title: 'Schedule',
+          tabBarIcon: ({ focused }) => <TabIcon label="📅" focused={focused} />,
+        }}
+      />
 
-      {/*
-        Tab 4 — My Actions inbox. Aggregates issues assigned to me, meeting
-        action items, and pending document approvals so a BIM/Construction
-        Manager lands here at morning stand-up without hunting through tabs.
-        The content lives in app/inbox/ (its own Stack navigator) outside of
-        (tabs)/; we point href to that route rather than creating a duplicate.
-      */}
+      {/* My Actions inbox */}
       <Tabs.Screen
         name="myactions"
         options={{
@@ -116,11 +126,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/*
-        Hidden screens — still routable via router.push() but absent from the
-        tab bar. Documents, Models, and Settings are accessible from inside the
-        project dashboard (app/projects/[id].tsx navigation grid).
-      */}
+      {/* Hidden screens — routable but absent from tab bar */}
       <Tabs.Screen
         name="documents"
         options={{

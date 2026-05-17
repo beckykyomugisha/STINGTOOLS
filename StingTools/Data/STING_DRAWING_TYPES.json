@@ -7641,6 +7641,29 @@
       "slots": [
         { "x": 0.05, "y": 0.05, "w": 0.90, "h": 0.85 }
       ]
+    },
+    {
+      "id": "penetration-register-A1",
+      "name": "Penetration Register — A1",
+      "origin": "corporate",
+      "purpose": "Schedule",
+      "discipline": "*",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 1,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Penetration Register",
+      "viewStylePackId": "corp-standard-plan",
+      "sheetNumberPattern": "FP-PEN-{seq:D3}",
+      "sheetNamePattern": "PENETRATION REGISTER",
+      "crop": { "kind": "None" },
+      "slots": [
+        { "label": "Main", "viewType": "Schedule", "normX": 0.02, "normY": 0.05, "normW": 0.96, "normH": 0.90, "required": true }
+      ],
+      "annotation": { "rules": [] },
+      "print": { "colourScheme": "BlackAndWhite", "lineWeightScale": 1.0 }
     }
   ],
   "routing": [
@@ -8285,6 +8308,7 @@
     { "discipline": "Plumbing", "phase": "*", "docType": "VENT_RISER",        "drawingTypeId": "plumb-vent-riser-A2-NTS" },
     { "discipline": "Plumbing", "phase": "*", "docType": "PRESSURE_SCHEDULE", "drawingTypeId": "plumb-pressure-schedule-A2" },
     { "discipline": "Plumbing", "phase": "*", "docType": "WATER_TREATMENT",   "drawingTypeId": "plumb-water-treatment-A1-1to50" },
-    { "discipline": "Public Health", "phase": "*", "docType": "DRAINAGE_SCHEMATIC", "drawingTypeId": "plumb-drainage-schematic-A1" }
+    { "discipline": "Public Health", "phase": "*", "docType": "DRAINAGE_SCHEMATIC", "drawingTypeId": "plumb-drainage-schematic-A1" },
+    { "discipline": "*",       "phase": "*", "docType": "PENETRATION_REGISTER", "drawingTypeId": "penetration-register-A1" }
   ]
 }

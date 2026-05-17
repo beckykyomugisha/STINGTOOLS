@@ -2,14 +2,12 @@
   "version": "1.0",
   "standard": "STING SEED FAMILY — Junction / Pull / Draw-in Box (BS 7671 §522.8.5, BS EN 60670)",
   "_notes": [
-    "Auto-placed at every conduit-run break-point that exceeds the",
-    "BS 7671 §522.8.5 limit of 3 bends per draw-in segment. Carries",
-    "real MEP connectors so conduit endpoints terminate cleanly into",
-    "the box instead of orphaning in mid-air.",
+    "10 type variants covering: pull box, draw-in box, adaptable box,",
+    "tee box, fire-rated JB, weatherproof IP65, hazardous area Ex de,",
+    "busbar chamber, earth-bonding box, cable gland plate.",
     "",
-    "Type variants ship in three trade sizes (small / medium / large)",
-    "matching the typical site pull-box stock list. Dimensions follow",
-    "BS EN 60670-1 IK07 enclosure standards."
+    "Auto-placed at every conduit-run break-point exceeding the BS 7671",
+    "§522.8.5 limit of 3 bends per draw-in segment."
   ],
   "symbols": [
     {
@@ -20,6 +18,7 @@
       "discipline": "Electrical",
       "subcategory": "STING_SEED",
       "isSeed": true,
+      "protectExisting": true,
       "hosting": "Standalone",
       "symbolSize": 4.0,
       "parameters": [
@@ -90,6 +89,13 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ELC_JB_ATEX_ZONE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
           "default": ""
         },
         {
@@ -164,42 +170,12 @@
       ],
       "geometry": {
         "lines": [
-          {
-            "x1": -0.5,
-            "y1": -0.5,
-            "x2": 0.5,
-            "y2": -0.5
-          },
-          {
-            "x1": 0.5,
-            "y1": -0.5,
-            "x2": 0.5,
-            "y2": 0.5
-          },
-          {
-            "x1": 0.5,
-            "y1": 0.5,
-            "x2": -0.5,
-            "y2": 0.5
-          },
-          {
-            "x1": -0.5,
-            "y1": 0.5,
-            "x2": -0.5,
-            "y2": -0.5
-          },
-          {
-            "x1": -0.3,
-            "y1": 0.0,
-            "x2": 0.3,
-            "y2": 0.0
-          },
-          {
-            "x1": 0.0,
-            "y1": -0.3,
-            "x2": 0.0,
-            "y2": 0.3
-          }
+          { "x1": -0.5, "y1": -0.5, "x2": 0.5, "y2": -0.5 },
+          { "x1": 0.5, "y1": -0.5, "x2": 0.5, "y2": 0.5 },
+          { "x1": 0.5, "y1": 0.5, "x2": -0.5, "y2": 0.5 },
+          { "x1": -0.5, "y1": 0.5, "x2": -0.5, "y2": -0.5 },
+          { "x1": -0.3, "y1": 0.0, "x2": 0.3, "y2": 0.0 },
+          { "x1": 0.0, "y1": -0.3, "x2": 0.0, "y2": 0.3 }
         ]
       },
       "solid3D": {
@@ -208,7 +184,26 @@
         "depthMm": 100,
         "heightMm": 60
       },
+      "swapCandidates": [
+        {
+          "label": "Legrand / Marshall Tufflex Pull Box",
+          "familyPath": "",
+          "variantPattern": "PULL_BOX|DRAW_IN_BOX|ADAPTABLE_BOX",
+          "priority": 1,
+          "autoLoad": false
+        },
+        {
+          "label": "Wiska / Peppers Weatherproof JB",
+          "familyPath": "",
+          "variantPattern": "WEATHERPROOF*",
+          "priority": 2,
+          "autoLoad": false
+        }
+      ],
       "typeVariants": [
+        {
+          "_group": "--- STANDARD ENCLOSURES ---"
+        },
         {
           "name": "PULL_BOX",
           "params": {
@@ -238,6 +233,69 @@
           "params": {
             "ELC_JB_TYPE_TXT": "TEE_BOX",
             "ELC_JB_SIZE_MM": "150x150x80",
+            "ELC_JB_IP_RATING_TXT": "IP54"
+          }
+        },
+        {
+          "_group": "--- WEATHERPROOF / OUTDOOR ---"
+        },
+        {
+          "name": "WEATHERPROOF_JB_IP65",
+          "params": {
+            "ELC_JB_TYPE_TXT": "WEATHERPROOF_JB",
+            "ELC_JB_SIZE_MM": "160x135x70",
+            "ELC_JB_IP_RATING_TXT": "IP65"
+          }
+        },
+        {
+          "_group": "--- FIRE-RATED ---"
+        },
+        {
+          "name": "FIRE_RATED_JB_30MIN",
+          "params": {
+            "ELC_JB_TYPE_TXT": "FIRE_RATED_JB",
+            "ELC_JB_SIZE_MM": "150x150x60",
+            "ELC_JB_IP_RATING_TXT": "IP54",
+            "ELC_JB_FIRE_RATING_TXT": "FR30"
+          }
+        },
+        {
+          "name": "FIRE_RATED_JB_60MIN",
+          "params": {
+            "ELC_JB_TYPE_TXT": "FIRE_RATED_JB",
+            "ELC_JB_SIZE_MM": "200x200x80",
+            "ELC_JB_IP_RATING_TXT": "IP54",
+            "ELC_JB_FIRE_RATING_TXT": "FR60"
+          }
+        },
+        {
+          "_group": "--- HAZARDOUS AREA ---"
+        },
+        {
+          "name": "HAZARDOUS_AREA_JB_EXDE",
+          "params": {
+            "ELC_JB_TYPE_TXT": "HAZARDOUS_JB_ExDE",
+            "ELC_JB_SIZE_MM": "200x200x100",
+            "ELC_JB_IP_RATING_TXT": "IP66",
+            "ELC_JB_ATEX_ZONE_TXT": "Zone 1 / Zone 21"
+          }
+        },
+        {
+          "_group": "--- SPECIALIST ---"
+        },
+        {
+          "name": "EARTH_BONDING_BOX",
+          "params": {
+            "ELC_JB_TYPE_TXT": "EARTH_BONDING_BOX",
+            "ELC_JB_SIZE_MM": "100x100x50",
+            "ELC_JB_IP_RATING_TXT": "IP31"
+          }
+        },
+        {
+          "name": "CABLE_GLAND_PLATE",
+          "params": {
+            "ELC_JB_TYPE_TXT": "CABLE_GLAND_PLATE",
+            "ELC_JB_SIZE_MM": "200x100x10",
             "ELC_JB_IP_RATING_TXT": "IP54"
           }
         }

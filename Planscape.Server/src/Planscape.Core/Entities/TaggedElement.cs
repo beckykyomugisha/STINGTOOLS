@@ -54,6 +54,15 @@ public class TaggedElement : ITenantScoped
     public DateTime SyncedAt { get; set; } = DateTime.UtcNow;
     public string SyncedBy { get; set; } = "";
 
+    // P6 live-link — written back from Primavera P6 polling.
+    public double?   PercentComplete { get; set; }
+    /// <summary>Primavera P6 activity ID linked to this element (ASS_P6_ACTIVITY_ID_TXT).</summary>
+    public string?   P6ActivityId    { get; set; }
+    /// <summary>Actual start date from P6 (ISO 8601 string, matches STING_4D_START_DATE_TXT format).</summary>
+    public string?   ActualStart     { get; set; }
+    /// <summary>Actual finish date from P6 (ISO 8601 string, matches STING_4D_END_DATE_TXT format).</summary>
+    public string?   ActualFinish    { get; set; }
+
     // Optimistic-concurrency / last-write-wins support for bidirectional sync.
     // LastModifiedUtc is the client-supplied wall-clock modification time; the
     // server uses it to detect stale updates from out-of-date clients.

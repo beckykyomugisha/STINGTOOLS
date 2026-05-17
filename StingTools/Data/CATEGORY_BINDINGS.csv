@@ -6234,15 +6234,11 @@ PRJ_PHASE_TXT,Generic Models,Type,True
 PRJ_TB_APVD_BY_TXT,Generic Models,Type,True
 PRJ_TB_CHECKED_BY_TXT,Generic Models,Type,True
 PRJ_TB_CLIENT_ADDRESS_TXT,Generic Models,Type,True
-PRJ_TB_CLIENT_NAME_TXT,Generic Models,Type,True
-PRJ_TB_COMPANY_ADDRESS_TXT,Generic Models,Type,True
-PRJ_TB_COMPANY_NAME_TXT,Generic Models,Type,True
 PRJ_TB_CONTRACTOR_ADDRESS_TXT,Generic Models,Type,True
 PRJ_TB_CONTRACTOR_NAME_TXT,Generic Models,Type,True
 PRJ_TB_DATE_APVD_TXT,Generic Models,Type,True
 PRJ_TB_DATE_CHECKED_TXT,Generic Models,Type,True
 PRJ_TB_DATE_DRAWN_TXT,Generic Models,Type,True
-PRJ_TB_DESIGN_STAGE_TXT,Generic Models,Type,True
 PRJ_TB_DISCIPLINE_TXT,Generic Models,Type,True
 PRJ_TB_DRAWN_BY_TXT,Generic Models,Type,True
 PRJ_TB_MEP_CONSULTANTS_NAME_TXT,Generic Models,Type,True
@@ -9726,7 +9722,6 @@ HVC_EQP_TAG_03_TXT,Duct Fittings,Type,True
 ASS_SYSTEM_TYPE_TXT,Duct Fittings,Type,True
 PRJ_NAME_TXT,Project Information,Type,True
 PRJ_TB_DATE_APVD_TXT,Project Information,Type,True
-PRJ_TB_DESIGN_STAGE_TXT,Project Information,Type,True
 PRJ_ISO_STD_TXT,Project Information,Type,True
 PRJ_ADDRESS_TXT,Project Information,Type,True
 PRJ_TB_CHECKED_BY_TXT,Project Information,Type,True
@@ -9735,7 +9730,6 @@ PRJ_TB_DATE_CHECKED_TXT,Project Information,Type,True
 PRJ_DRAWING_TITLE_TXT,Project Information,Type,True
 PRJ_DRAWING_SCALE_TXT,Project Information,Type,True
 PRJ_TB_REVISION_DATE_TXT,Project Information,Type,True
-PRJ_TB_COMPANY_ADDRESS_TXT,Project Information,Type,True
 PRJ_DWG_ISSUE_PURPOSE_TXT,Project Information,Type,True
 PRJ_TB_DISCIPLINE_TXT,Project Information,Type,True
 PRJ_GRID_REF_TXT,Project Information,Type,True
@@ -9744,7 +9738,6 @@ PRJ_TB_CONTRACTOR_NAME_TXT,Project Information,Type,True
 PRJ_COMMENTS_TXT,Project Information,Type,True
 PRJ_TB_REVISION_DESCRIPTION_TXT,Project Information,Type,True
 PRJ_TB_DRAWN_BY_TXT,Project Information,Type,True
-PRJ_TB_CLIENT_NAME_TXT,Project Information,Type,True
 PRJ_DRAWING_NR_TXT,Project Information,Type,True
 PRJ_TB_CONTRACTOR_ADDRESS_TXT,Project Information,Type,True
 PRJ_DWG_SUITABILITY_COD_TXT,Project Information,Type,True
@@ -9753,7 +9746,6 @@ PRJ_DWG_SUPERSEDES_TXT,Project Information,Type,True
 PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT,Project Information,Type,True
 PRJ_TB_DATE_DRAWN_TXT,Project Information,Type,True
 PRJ_ADDRESS_2_TXT,Project Information,Type,True
-PRJ_TB_COMPANY_NAME_TXT,Project Information,Type,True
 PRJ_TB_CLIENT_ADDRESS_TXT,Project Information,Type,True
 PRJ_TB_TOTAL_NO_SHEETS_TXT,Project Information,Type,True
 PRJ_PHASE_TXT,Project Information,Type,True
@@ -16066,6 +16058,9 @@ PLM_SENTINEL_BOOL,Plumbing Fixtures,Instance,True
 PLM_SENTINEL_BOOL,Pipes,Type,True
 PLM_TMV_TYPE_TXT,Plumbing Fixtures,Instance,True
 PLM_TMV_TYPE_TXT,Pipes,Type,True
+PRJ_ORG_CLIENT_NAME_TXT,Project Information,Instance,True
+PRJ_ORG_COMPANY_ADDRESS_TXT,Project Information,Instance,True
+PRJ_ORG_COMPANY_NAME_TXT,Project Information,Instance,True
 PRJ_ORG_COORD_SYSTEM_TXT,Project Information,Instance,True
 PRJ_ORG_GROUND_LEVEL_TXT,Project Information,Instance,True
 PRJ_ORG_HEALTH_AE_ELEC_TXT,Project Information,Instance,True
@@ -16083,8 +16078,9 @@ PRJ_ORG_HEALTH_IHFG_BOOL,Project Information,Instance,True
 PRJ_ORG_HEALTH_OR_INT,Project Information,Instance,True
 PRJ_ORG_HEALTH_PACK_PROFILE_TXT,Project Information,Instance,True
 PRJ_ORG_HEALTH_QE_TXT,Project Information,Instance,True
+PRJ_ORG_PHASE_TXT,Project Information,Instance,True
 PRJ_ORG_PROJECT_ADDRESS_TXT,Project Information,Instance,True
-PRJ_PROJECT_COD_TXT,Project Information,Instance,True
+PRJ_ORG_PROJECT_CODE_TXT,Project Information,Instance,True
 PRJ_ORG_PROJECT_NAME_TXT,Project Information,Instance,True
 PRJ_ORG_PROJECT_NORTH_TXT,Project Information,Instance,True
 PRJ_ORG_PROJECT_NUMBER_TXT,Project Information,Instance,True
@@ -16121,6 +16117,7 @@ STING_SHEET_BIM_MODE_TXT,Sheets,Instance,True
 STING_SHEET_FULL_REF_TXT,Sheets,Instance,True
 STING_SHEET_LEVEL_TXT,Sheets,Instance,True
 STING_SHEET_OF_TOTAL_TXT,Sheets,Instance,True
+STING_SHEET_ORIG_TXT,Sheets,Instance,True
 STING_SHEET_PROJECT_TXT,Sheets,Instance,True
 STING_SHEET_ROLE_TXT,Sheets,Instance,True
 STING_SHEET_SEQUENCE_INT,Sheets,Instance,True
@@ -16128,6 +16125,7 @@ STING_SHEET_SEQ_TXT,Sheets,Instance,True
 STING_SHEET_TYPE_TXT,Sheets,Instance,True
 STING_SHEET_VOLUME_TXT,Sheets,Instance,True
 STING_SUITABILITY_DESC_TXT,Project Information,Instance,True
+PRJ_PROJECT_COD_TXT,Project Information,Instance,True
 ELC_CDT_PENETRATION_COUNT_NR,Conduits,Instance,True
 ELC_CDT_PENETRATION_COUNT_NR,Pipes,Instance,True
 ELC_CDT_PENETRATION_COUNT_NR,Ducts,Instance,True

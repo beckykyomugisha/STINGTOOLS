@@ -2,12 +2,10 @@
   "version": "1.0",
   "standard": "STING SEED FAMILY — Lab Fixtures (BS EN 14056, BS 7258, ANSI Z358.1, BS EN 1717)",
   "_notes": [
-    "Lab + emergency-fixture seed: fume hoods, eye-wash stations, emergency",
-    "showers, deluge stations, lab gas taps, lab water taps. The full",
-    "connector union is large (cold + hot + waste + lab-DI + lab-gas +",
-    "vacuum + duct exhaust) so AutoPipeDrop and AutoDuctDrop together",
-    "can wire any variant in one pass. Variants disable services they",
-    "don't need via SwapToManufacturer with the real product family."
+    "14 type variants: fume hoods (standard / low-flow), biosafety",
+    "cabinets (Class II / Class III), laminar flow hood, autoclave,",
+    "radioisotope fume cupboard, eyewash, emergency shower, combo",
+    "shower+eyewash, face shower, elbow tap, lab gas tap, DI water tap."
   ],
   "symbols": [
     {
@@ -18,6 +16,7 @@
       "discipline": "Plumbing",
       "subcategory": "STING_SEED",
       "isSeed": true,
+      "protectExisting": true,
       "hosting": "FaceBased",
       "symbolSize": 7.0,
       "parameters": [
@@ -77,7 +76,33 @@
           "offsetX": 0.0, "offsetY": 0.0, "offsetZ": 0.5, "facing": "+Z"
         }
       ],
+      "swapCandidates": [
+        {
+          "label": "Waldner / Kewlab Fume Hood",
+          "familyPath": "",
+          "variantPattern": "FUME_HOOD*",
+          "priority": 1,
+          "autoLoad": false
+        },
+        {
+          "label": "Esco / Holten BSC Class II",
+          "familyPath": "",
+          "variantPattern": "BIOSAFETY_CABINET*",
+          "priority": 2,
+          "autoLoad": false
+        },
+        {
+          "label": "Bradley / Guardian Emergency Shower",
+          "familyPath": "",
+          "variantPattern": "EMERGENCY_SHOWER|COMBO_SHOWER*",
+          "priority": 3,
+          "autoLoad": false
+        }
+      ],
       "typeVariants": [
+        {
+          "_group": "--- FUME HOODS ---"
+        },
         {
           "name": "FUME_HOOD",
           "params": {
@@ -98,12 +123,56 @@
           }
         },
         {
+          "name": "FUME_CUPBOARD_RADIOISOTOPE",
+          "params": {
+            "LAB_FIX_TYPE_TXT": "FUME_CUPBOARD_RADIOISOTOPE",
+            "ASS_PRODCT_COD_TXT": "FH-RI",
+            "LAB_FIX_FACE_VEL_MS": "0.7",
+            "LAB_FIX_AIR_FLOW_LS": "600",
+            "LAB_FIX_HAZARD_CLASS_TXT": "BSL3"
+          }
+        },
+        {
+          "_group": "--- BIOSAFETY CABINETS ---"
+        },
+        {
           "name": "BIOSAFETY_CABINET_II",
           "params": {
             "LAB_FIX_TYPE_TXT": "BIOSAFETY_CABINET_II",
             "ASS_PRODCT_COD_TXT": "BSC-II",
             "LAB_FIX_HAZARD_CLASS_TXT": "BSL3"
           }
+        },
+        {
+          "name": "BIOSAFETY_CABINET_III",
+          "params": {
+            "LAB_FIX_TYPE_TXT": "BIOSAFETY_CABINET_III",
+            "ASS_PRODCT_COD_TXT": "BSC-III",
+            "LAB_FIX_HAZARD_CLASS_TXT": "BSL4"
+          }
+        },
+        {
+          "name": "LAMINAR_FLOW_HOOD",
+          "params": {
+            "LAB_FIX_TYPE_TXT": "LAMINAR_FLOW_HOOD",
+            "ASS_PRODCT_COD_TXT": "LFH",
+            "LAB_FIX_FACE_VEL_MS": "0.45",
+            "LAB_FIX_AIR_FLOW_LS": "400"
+          }
+        },
+        {
+          "_group": "--- AUTOCLAVE ---"
+        },
+        {
+          "name": "AUTOCLAVE",
+          "params": {
+            "LAB_FIX_TYPE_TXT": "AUTOCLAVE",
+            "ASS_PRODCT_COD_TXT": "ATC",
+            "LAB_FIX_HAZARD_CLASS_TXT": "BSL2"
+          }
+        },
+        {
+          "_group": "--- EMERGENCY FIXTURES (ANSI Z358.1) ---"
         },
         {
           "name": "EYEWASH_STATION",
@@ -130,6 +199,26 @@
             "ASS_PRODCT_COD_TXT": "ES-EW",
             "LAB_FIX_DELUGE_LMIN": "82",
             "LAB_FIX_BACKFLOW_CAT_TXT": "5"
+          }
+        },
+        {
+          "name": "FACE_SHOWER",
+          "params": {
+            "LAB_FIX_TYPE_TXT": "FACE_SHOWER",
+            "ASS_PRODCT_COD_TXT": "FS",
+            "LAB_FIX_DELUGE_LMIN": "11",
+            "LAB_FIX_BACKFLOW_CAT_TXT": "5"
+          }
+        },
+        {
+          "_group": "--- LAB TAPS ---"
+        },
+        {
+          "name": "ELBOW_TAP",
+          "params": {
+            "LAB_FIX_TYPE_TXT": "ELBOW_TAP",
+            "ASS_PRODCT_COD_TXT": "ELT",
+            "LAB_FIX_BACKFLOW_CAT_TXT": "3"
           }
         },
         {

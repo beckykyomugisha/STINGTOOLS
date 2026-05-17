@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -481,6 +482,17 @@ public class DocumentsController : ControllerBase
         _db.Documents.Add(doc);
         await _db.SaveChangesAsync();
         await _audit.LogAsync("CREATE", "Document", doc.Id.ToString(), "{\"versionNumber\":1}");
+
+        // GAP-F — Auto BOQ on IFC upload.
+        // Replace fire-and-forget Task.Run with a Hangfire job so failures are
+        // retried automatically (up to 3 attempts) and appear in the Hangfire
+        // dashboard rather than being silently lost.
+        if (Path.GetExtension(file.FileName).Equals(".ifc", StringComparison.OrdinalIgnoreCase))
+        {
+            var currentUserId = User.FindFirst("sub")?.Value ?? "system-ifc-import";
+            BackgroundJob.Enqueue<Planscape.API.BackgroundJobs.IfcBoqSeedJob>(
+                j => j.ExecuteAsync(doc.ProjectId, relativePath, currentUserId));
+        }
 
         // Create version 1 row
         _db.DocumentVersions.Add(new DocumentVersion
@@ -1046,6 +1058,8 @@ public class DocumentsController : ControllerBase
 
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
+
+    // MapIfcTypeToDiscipline removed — use IfcDisciplineMapper.ToStingCode directly.
 
     /// <summary>
     /// Phase 177 — return null when the document is within the caller's

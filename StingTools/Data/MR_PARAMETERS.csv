@@ -1,4 +1,4 @@
-# v6.0 | 20260517 | BIM Template mr_parameters -- 2920 params (+60 new: fabrication / v4 routing / panel / structural / drawing types -- Phase 176 comprehensive alignment)
+# v6.1 | 20260517 | BIM Template mr_parameters — merged Phase 176 + mirror-param removal
 Revit_Category,Parameter_Name,Parameter_GUID,Data_Type,Group_Name,Binding_Type,Description,Has_Formula,Formula,Input_Parameters,Discipline,User_Modifiable,Hide_When_No_Value
 Generic Models,ASS_CAT_TXT,f8fe813a-44e9-5e47-9109-921171dc53b6,TEXT,ASS_MNG,Type,Ass Cat Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_CST_QUANTITY_NR,3c189e63-383c-5011-b7d9-873faed4e6c6,TEXT,ASS_MNG,Type,Ass Cst Quantity Nr [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -471,7 +471,6 @@ Generic Models,MAT_PERF_TAG_2_TXT,28487745-251e-4555-bf56-b1d06c933cc5,TEXT,MAT_
 Generic Models,BLE_FLR_LVL_NR,d794c645-b8c7-5465-82d3-2cd1a64a061c,TEXT,CST_PROC,Type,Ble Flr Lvl Nr [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_APP-CUT-BG-COLOR,27a62c46-4ab1-56d4-8474-b090cf7406df,TEXT,CST_PROC,Type,Ble App-cut-bg-color [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,RGL_ACCESS_CLEAR_WIDTH_MM,0a5c2f46-8c87-53dc-88b4-9a886e0d908e,TEXT,RGL_CMPL,Type,Rgl Access Clear Width Mm [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PRJ_TB_DESIGN_STAGE_TXT,da480448-0e4c-53bf-9e45-5f8641a5d82c,TEXT,PRJ_INFORMATION,Type,Human-readable design stage label on title block. Populated from PRJ_ORG_PHASE_TXT. [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_CBL_SOURCE_FROM_TXT,f4e05f48-bd68-53d7-bbcf-01555243629b,TEXT,ELC_PWR,Type,Elc Cbl Source From Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MAT_LAYER_4_MATERIAL,646ebf48-0f81-5596-bc9e-e404360ba703,TEXT,MAT_INFO,Type,Mat Layer 4 Material [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_ACC_SZ_DIMENSION_NR,0692f248-1d25-55f2-a381-d4ef73a78047,TEXT,PLM_DRN,Type,Plm Acc Sz Dimension Nr [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -599,7 +598,6 @@ Generic Models,PLM_DRN_VNT_CONNECTION_TYPE_TXT,ad089475-b735-5fdc-8c26-d1fa104b5
 Generic Models,BLE_ROOF_GUTTER_SZ_MM,90f79b75-88c0-5c4b-8c88-0e6c9e20d07f,TEXT,CST_PROC,Type,Ble Roof Gutter Sz Mm [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_APP-SURFACE-FG-PATTERN,a389b775-f56d-5c0f-8863-c1acca491c62,TEXT,CST_PROC,Type,Ble App-surface-fg-pattern [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,SYS_INSULATION_TYPE_TXT,14246a76-589b-4b6c-ab1b-cb1ff88daae3,TEXT,TPL_TRACKING,Type,Insulation type [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PRJ_TB_COMPANY_ADDRESS_TXT,8e83ae76-71fe-55a8-8af1-0408c799f801,TEXT,PRJ_INFORMATION,Type,Producing company address on title block. Populated from PRJ_ORG_COMPANY_ADDRESS_TXT. [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_FRM_PLYWOOD_SHEETS_NR,f6a72f77-4d2c-50c5-bab6-1ea5ac723b52,TEXT,COM_DAT,Type,Cst S Frm Plywood Sheets Nr [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,PLM_HOTWTR_FUEL_TYPE_TXT,00d19977-f0af-53c0-beab-60d396a2ba05,TEXT,PLM_DRN,Type,Plm Hotwtr Fuel Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_MAT_L1_MAT_TXT,466e2578-05f3-5352-9e27-a95a37760ec5,TEXT,CST_PROC,Type,Ble Mat L1 Mat Txt [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -728,7 +726,6 @@ Generic Models,ASS_LVL_COD_TXT,b1e51fab-fa88-50df-8b2f-bcdbe48e7c78,TEXT,ASS_MNG
 Generic Models,PLM_SPT_LD_CAP_KG,3b0d81ab-15d5-55ec-a7ed-8e00a15f8642,TEXT,PLM_DRN,Type,Plm Spt Ld Cap Kg [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ASS_SKIRTING_TYPE_TXT,e15fa9ab-ec13-5055-a863-e50364ebb142,TEXT,ASS_MNG,Type,Ass Skirting Type Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,HVC_DCT_PROPERTY_TXT,ff2cf4ab-256d-5c2b-b593-cb658cc581f7,TEXT,HVC_SYSTEMS,Type,Hvc Dct Property Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PRJ_TB_CLIENT_NAME_TXT,720b78ac-264c-5e0d-8d59-81f51714b167,TEXT,PRJ_INFORMATION,Type,Client / appointing party name. Populated from PRJ_ORG_CLIENT_NAME_TXT. [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_STAIR_HANDRAIL_MAT_TXT,acfcc9ad-ceb4-597e-866e-355b024dc498,TEXT,BLE_STRUCTURE,Type,Hvc Stair Handrail Mat Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,FAB_CONTAINMENT_D_MM,8d26bec0-d074-4fc4-8ea7-61e3d9f10eaa,TEXT,BLE_STRUCTURE,Type,MEP fabrication containment depth in mm [SMACNA],False,,,MULTI,1,0
 Generic Models,FAB_CONTAINMENT_W_MM,e5c2dc93-3bf6-4772-b17d-96ef3512a3dc,TEXT,BLE_STRUCTURE,Type,MEP fabrication containment width in mm [SMACNA],False,,,MULTI,1,0
@@ -837,7 +834,6 @@ Generic Models,PLM_FACADE_WTR_PENETRATION_RESIST_NR,26b078cf-6442-5497-84d5-9277
 Generic Models,RGL_QA_COMMISSIONING_REQ_TXT,b11282cf-ecc6-5a20-983b-712138b4139b,TEXT,RGL_CMPL,Type,Rgl Qa Commissioning Req Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,VT_SHADOWS_BOOL,bd39c2cf-1ba3-42ad-87f5-39bf25ec91fb,YESNO,TPL_TRACKING,Type,Shadows enabled [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_APP-SHADING_RGB,abead5cf-a33a-583e-9cc9-a7cbc321149a,TEXT,CST_PROC,Type,Ble App-shading Rgb [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PRJ_TB_COMPANY_NAME_TXT,3d16e4cf-32c6-5761-ae73-8f264cbab54c,TEXT,PRJ_INFORMATION,Type,Producing company / consultant firm name on title block. Populated from PRJ_ORG_COMPANY_NAME_TXT. [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PH_STATUS_TXT,652b46d0-949e-4a6f-b6e3-6ec1fafac962,TEXT,TPL_TRACKING,Type,Phase status [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,MAT_CODE,758ba3d0-ea41-51fc-8dbf-3bb444174385,TEXT,MAT_INFO,Type,Mat Code [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_TOTAL_EQUIPMENT_COST,a7b8c9d0-e1f2-3456-abcd-7890123456a7,TEXT,CST_PROC,Type,Total equipment cost in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -2914,3 +2910,126 @@ Generic Models,STING_ISO_SYMBOL_SCALE_IN,2a948624-dd92-583c-8757-0b4f9d056322,NU
 Generic Models,STING_SCOPE_BOX_TAG_TXT,f838097f-5723-50ae-9101-702bc5cc9237,TEXT,STING_DRAWING,Instance,STING scope-box tag string written by GenerateFromScopeBoxesCommand for scope-box-to-view binding [STING DT],False,,,MULTI,1,0
 Generic Models,STING_ROUTE_RULE_ID_TXT,8fa28413-7cd8-51c4-9172-399489efd5cd,TEXT,Routing,Instance,In-wall chase routing rule id applied by InWallChaseRouter [STING v4 Routing],False,,,MULTI,1,0
 Generic Models,ASS_TAG_MULTILINE_TXT,6ba96198-36e0-5a2a-a236-f42ad2ce68c7,TEXT,ASS_MNG,Instance,Single-parameter multi-line tag (DISC\nLOC\nZONE\n...\nSEQ) for tag families binding one Label to one parameter with auto line-breaking [STING Tags],False,,,MULTI,1,0
+Generic Models,BLE_ROOM_NUM_TXT,08c45bc2-6903-5a41-b295-9c3111de6882,TEXT,CST_PROC,Type,Ble Room Num Txt [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ASS_RM_COD_TXT,8d968690-c7fe-5d71-a6af-ebd19c60793e,TEXT,ASS_MNG,Type,Ass Rm Cod Txt [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PRJ_NR_TXT,90850aee-4dd7-5846-a2da-49e945fef572,TEXT,PRJ_INFORMATION,Type,Prj Nr Txt [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ASS_MATERIAL_TXT,a1b2c3d4-5001-4a01-b001-000000000101,TEXT,ASS_MNG,Type,Asset material description [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_SUPPLIER_TXT,a1b2c3d4-5002-4a01-b001-000000000102,TEXT,ASS_MNG,Type,Asset supplier name [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_BARCODE_TXT,a1b2c3d4-5003-4a01-b001-000000000103,TEXT,ASS_MNG,Type,Asset barcode identifier [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_ASSET_ID_TXT,a1b2c3d4-5004-4a01-b001-000000000104,TEXT,ASS_MNG,Type,Unique asset identifier [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_CONDITION_TXT,a1b2c3d4-5005-4a01-b001-000000000105,TEXT,ASS_MNG,Type,Asset condition assessment [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_WARR_GUAR_PARTS_TXT,a1b2c3d4-5007-4a01-b001-000000000107,TEXT,ASS_MNG,Type,Warranty guarantor for parts [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_WARR_DUR_PARTS_TXT,a1b2c3d4-5008-4a01-b001-000000000108,TEXT,ASS_MNG,Type,Warranty duration for parts [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_WARR_GUAR_LABOR_TXT,a1b2c3d4-5009-4a01-b001-000000000109,TEXT,ASS_MNG,Type,Warranty guarantor for labor [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_WARR_DUR_LABOR_TXT,a1b2c3d4-500a-4a01-b001-000000000110,TEXT,ASS_MNG,Type,Warranty duration for labor [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_WARR_DUR_UNIT_TXT,a1b2c3d4-500b-4a01-b001-000000000111,TEXT,ASS_MNG,Type,Warranty duration unit (year/month) [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_DUR_UNIT_TXT,a1b2c3d4-500c-4a01-b001-000000000112,TEXT,ASS_MNG,Type,Expected life duration unit [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_NOM_LENGTH_TXT,a1b2c3d4-500e-4a01-b001-000000000114,TEXT,ASS_MNG,Type,Nominal length [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_NOM_WIDTH_TXT,a1b2c3d4-500f-4a01-b001-000000000115,TEXT,ASS_MNG,Type,Nominal width [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_NOM_HEIGHT_TXT,a1b2c3d4-5010-4a01-b001-000000000116,TEXT,ASS_MNG,Type,Nominal height [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_MODEL_REF_TXT,a1b2c3d4-5011-4a01-b001-000000000117,TEXT,ASS_MNG,Type,Model reference identifier [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_SHAPE_TXT,a1b2c3d4-5012-4a01-b001-000000000118,TEXT,ASS_MNG,Type,Asset shape description [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_COLOR_TXT,a1b2c3d4-5013-4a01-b001-000000000119,TEXT,ASS_MNG,Type,Asset color description [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_FINISH_TXT,a1b2c3d4-5014-4a01-b001-000000000120,TEXT,ASS_MNG,Type,Asset surface finish [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_GRADE_TXT,a1b2c3d4-5015-4a01-b001-000000000121,TEXT,ASS_MNG,Type,Asset material grade [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_CONSTITUENTS_TXT,a1b2c3d4-5016-4a01-b001-000000000122,TEXT,ASS_MNG,Type,Material constituents [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_FEATURES_TXT,a1b2c3d4-5017-4a01-b001-000000000123,TEXT,ASS_MNG,Type,Notable features description [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_ACCESS_PERF_TXT,a1b2c3d4-5018-4a01-b001-000000000124,TEXT,ASS_MNG,Type,Accessibility performance rating [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_CODE_PERF_TXT,a1b2c3d4-5019-4a01-b001-000000000125,TEXT,ASS_MNG,Type,Code compliance performance [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_SUSTAIN_PERF_TXT,a1b2c3d4-501a-4a01-b001-000000000126,TEXT,ASS_MNG,Type,Sustainability performance rating [COBie V2.4],False,,,MULTI,1,0
+Generic Models,ASS_FAMILY_NAME_TXT,a1b2c3d4-501b-4a01-b001-000000000127,TEXT,ASS_MNG,Type,Revit family name,False,,,MULTI,1,0
+Generic Models,ASS_TYPE_NAME_TXT,a1b2c3d4-501c-4a01-b001-000000000128,TEXT,ASS_MNG,Type,Revit type name,False,,,MULTI,1,0
+Generic Models,ASS_TYPE_MARK_TXT,a1b2c3d4-501d-4a01-b001-000000000129,TEXT,ASS_MNG,Type,Type mark identifier,False,,,MULTI,1,0
+Generic Models,ASS_TYPE_COMMENTS_TXT,a1b2c3d4-501e-4a01-b001-000000000130,TEXT,ASS_MNG,Type,Type comments,False,,,MULTI,1,0
+Generic Models,ASS_KEYNOTE_TXT,a1b2c3d4-501f-4a01-b001-000000000131,TEXT,ASS_MNG,Type,Keynote reference,False,,,MULTI,1,0
+Generic Models,ASS_UNIFORMAT_TXT,a1b2c3d4-5020-4a01-b001-000000000132,TEXT,ASS_MNG,Type,UniFormat classification code,False,,,MULTI,1,0
+Generic Models,ASS_UNIFORMAT_DESC_TXT,a1b2c3d4-5021-4a01-b001-000000000133,TEXT,ASS_MNG,Type,UniFormat classification description,False,,,MULTI,1,0
+Generic Models,ASS_OMNICLASS_TXT,a1b2c3d4-5022-4a01-b001-000000000134,TEXT,ASS_MNG,Type,OmniClass classification code,False,,,MULTI,1,0
+Generic Models,ASS_SIZE_TXT,a1b2c3d4-5023-4a01-b001-000000000135,TEXT,ASS_MNG,Type,Element size description,False,,,MULTI,1,0
+Generic Models,ASS_ORIGIN_TXT,a1b2c3d4-5024-4a01-b001-000000000136,TEXT,ASS_MNG,Type,Asset origin (Manufactured/Imported/Local),False,,,MULTI,1,0
+Generic Models,ASS_PROJECT_TXT,a1b2c3d4-5025-4a01-b001-000000000137,TEXT,ASS_MNG,Type,Project name,False,,,MULTI,1,0
+Generic Models,ASS_REV_TXT,a1b2c3d4-5026-4a01-b001-000000000138,TEXT,ASS_MNG,Type,Current revision code (display label, GROUP 1). See also ASS_REV_COD_TXT (GROUP 17) for the ISO 19650 tag container token.,False,,,MULTI,1,0
+Generic Models,ASS_VOL_TXT,a1b2c3d4-5027-4a01-b001-000000000139,TEXT,ASS_MNG,Type,Volume/zone code for ISO 19650 naming,False,,,MULTI,1,0
+Generic Models,ASS_ROOM_NAME_TXT,a1b2c3d4-5028-4a01-b001-000000000140,TEXT,ASS_MNG,Type,Room name from spatial lookup,False,,,MULTI,1,0
+Generic Models,ASS_ROOM_NUM_TXT,a1b2c3d4-5029-4a01-b001-000000000141,TEXT,ASS_MNG,Type,Room number from spatial lookup,False,,,MULTI,1,0
+Generic Models,ASS_TAG_7_TXT,a1b2c3d4-502a-4a01-b001-000000000142,TEXT,ASS_MNG,Type,TAG7 comprehensive descriptive narrative,False,,,MULTI,1,0
+Generic Models,ASS_TAG_7A_TXT,a1b2c3d4-502b-4a01-b001-000000000143,TEXT,ASS_MNG,Type,TAG7 Section A: Identity Header,False,,,MULTI,1,0
+Generic Models,ASS_TAG_7B_TXT,a1b2c3d4-502c-4a01-b001-000000000144,TEXT,ASS_MNG,Type,TAG7 Section B: System and Function,False,,,MULTI,1,0
+Generic Models,ASS_TAG_7C_TXT,a1b2c3d4-502d-4a01-b001-000000000145,TEXT,ASS_MNG,Type,TAG7 Section C: Spatial Context,False,,,MULTI,1,0
+Generic Models,ASS_TAG_7D_TXT,a1b2c3d4-502e-4a01-b001-000000000146,TEXT,ASS_MNG,Type,TAG7 Section D: Lifecycle and Status,False,,,MULTI,1,0
+Generic Models,ASS_TAG_7E_TXT,a1b2c3d4-502f-4a01-b001-000000000147,TEXT,ASS_MNG,Type,TAG7 Section E: Technical Specifications,False,,,MULTI,1,0
+Generic Models,ASS_TAG_7F_TXT,a1b2c3d4-5030-4a01-b001-000000000148,TEXT,ASS_MNG,Type,TAG7 Section F: Classification and Reference,False,,,MULTI,1,0
+Generic Models,ASS_TAG_7_PARA_EQUIP_TXT,a1b2c3d4-5031-4a01-b001-000000000149,TEXT,ASS_MNG,Type,TAG7 paragraph container for general equipment,False,,,MULTI,1,0
+Generic Models,STING_CLUSTER_MEMBER_POS_TXT,a1b2c3d4-5032-4a01-b001-000000000150,TEXT,STINGTags_ISO19650,Type,Cluster member bounding box centers (pipe-delimited),False,,,MULTI,1,0
+Generic Models,TAG_STYLE_SIZE_INT,a1b2c3d4-5033-4a01-b001-000000000151,INTEGER,STINGTags_ISO19650,Type,Tag text size index (2/2.5/3/3.5),False,,,MULTI,1,0
+Generic Models,TAG_STYLE_WEIGHT_INT,a1b2c3d4-5034-4a01-b001-000000000152,INTEGER,STINGTags_ISO19650,Type,Tag text weight index,False,,,MULTI,1,0
+Generic Models,TAG_BOX_COLOR_R_INT,a1b2c3d4-5035-4a01-b001-000000000153,INTEGER,STINGTags_ISO19650,Type,Tag box fill color red channel (0-255),False,,,MULTI,1,0
+Generic Models,TAG_BOX_COLOR_G_INT,a1b2c3d4-5036-4a01-b001-000000000154,INTEGER,STINGTags_ISO19650,Type,Tag box fill color green channel (0-255),False,,,MULTI,1,0
+Generic Models,TAG_BOX_COLOR_B_INT,a1b2c3d4-5037-4a01-b001-000000000155,INTEGER,STINGTags_ISO19650,Type,Tag box fill color blue channel (0-255),False,,,MULTI,1,0
+Generic Models,TAG_BOX_STYLE_TXT,a1b2c3d4-5038-4a01-b001-000000000156,TEXT,STINGTags_ISO19650,Type,Tag box style (SOLID/DASHED/NONE/ROUND),False,,,MULTI,1,0
+Generic Models,TAG_LEADER_COLOR_R_INT,a1b2c3d4-5039-4a01-b001-000000000157,INTEGER,STINGTags_ISO19650,Type,Tag leader line color red channel (0-255),False,,,MULTI,1,0
+Generic Models,TAG_LEADER_COLOR_G_INT,a1b2c3d4-503a-4a01-b001-000000000158,INTEGER,STINGTags_ISO19650,Type,Tag leader line color green channel (0-255),False,,,MULTI,1,0
+Generic Models,TAG_LEADER_COLOR_B_INT,a1b2c3d4-503b-4a01-b001-000000000159,INTEGER,STINGTags_ISO19650,Type,Tag leader line color blue channel (0-255),False,,,MULTI,1,0
+Generic Models,BLE_DOOR_FUNCTION_TXT,a1b2c3d4-503c-4a01-b001-000000000160,TEXT,CST_PROC,Type,Door functional type (Entry/Exit/Fire/Service),False,,,MULTI,1,0
+Generic Models,BLE_DOOR_HEAD_HEIGHT_MM,a1b2c3d4-503d-4a01-b001-000000000161,TEXT,CST_PROC,Type,Door head height from floor in mm,False,,,MULTI,1,0
+Generic Models,BLE_ROOM_FINISH_BASE_TXT,a1b2c3d4-503e-4a01-b001-000000000162,TEXT,CST_PROC,Type,Room base finish material,False,,,MULTI,1,0
+Generic Models,BLE_ROOM_FINISH_CEILING_TXT,a1b2c3d4-503f-4a01-b001-000000000163,TEXT,CST_PROC,Type,Room ceiling finish material,False,,,MULTI,1,0
+Generic Models,BLE_ROOM_FINISH_FLOOR_TXT,a1b2c3d4-5040-4a01-b001-000000000164,TEXT,CST_PROC,Type,Room floor finish material,False,,,MULTI,1,0
+Generic Models,BLE_ROOM_FINISH_WALL_TXT,a1b2c3d4-5041-4a01-b001-000000000165,TEXT,CST_PROC,Type,Room wall finish material,False,,,MULTI,1,0
+Generic Models,BLE_WINDOW_HEAD_HEIGHT_MM,a1b2c3d4-5042-4a01-b001-000000000166,TEXT,CST_PROC,Type,Window head height from floor in mm,False,,,MULTI,1,0
+Generic Models,BLE_ELE_LENGTH_M,a1b2c3d4-5043-4a01-b001-000000000167,TEXT,CST_PROC,Type,Element length in metres,False,,,MULTI,1,0
+Generic Models,BLE_ELE_VOLUME_CU_M,a1b2c3d4-5044-4a01-b001-000000000168,TEXT,CST_PROC,Type,Element volume in cubic metres,False,,,MULTI,1,0
+Generic Models,HVC_DCT_HEIGHT_MM,a1b2c3d4-5046-4a01-b001-000000000170,TEXT,HVC_SYSTEMS,Type,Duct height in mm,False,,,MULTI,1,0
+Generic Models,HVC_DCT_WIDTH_MM,a1b2c3d4-5047-4a01-b001-000000000171,TEXT,HVC_SYSTEMS,Type,Duct width in mm,False,,,MULTI,1,0
+Generic Models,HVC_INS_THICKNESS_MM,a1b2c3d4-5048-4a01-b001-000000000172,TEXT,HVC_SYSTEMS,Type,HVAC insulation thickness in mm,False,,,MULTI,1,0
+Generic Models,HVC_DCT_LENGTH_M,a1b2c3d4-5049-4a01-b001-000000000173,TEXT,HVC_SYSTEMS,Type,Duct length in metres,False,,,MULTI,1,0
+Generic Models,HVC_PRESSURE_DROP_PA,a1b2c3d4-504a-4a01-b001-000000000174,TEXT,HVC_SYSTEMS,Type,HVAC pressure drop in Pascals,False,,,MULTI,1,0
+Generic Models,HVC_AIRFLOW_LPS,a1b2c3d4-504b-4a01-b001-000000000175,TEXT,HVC_SYSTEMS,Type,HVAC airflow in litres per second,False,,,MULTI,1,0
+Generic Models,ELC_CIRCUIT_NR,a1b2c3d4-504c-4a01-b001-000000000176,TEXT,ELC_PWR,Type,Electrical circuit number,False,,,MULTI,1,0
+Generic Models,ELC_PNL_FED_FROM,a1b2c3d4-504d-4a01-b001-000000000177,TEXT,ELC_PWR,Type,Panel fed from source,False,,,MULTI,1,0
+Generic Models,LTG_FIX_LAMP_TYPE_TXT,a1b2c3d4-504f-4a01-b001-000000000179,TEXT,LTG_CONTROLS,Type,Lamp type (LED/Fluorescent/HID/Incandescent),False,,,MULTI,1,0
+Generic Models,LTG_FIX_EFFICACY_LM_W,a1b2c3d4-5050-4a01-b001-000000000180,TEXT,LTG_CONTROLS,Type,Luminaire efficacy in lumens per watt,False,,,MULTI,1,0
+Generic Models,PLM_FLOW_RATE_LPS,a1b2c3d4-5054-4a01-b001-000000000184,TEXT,PLM_DRN,Type,Plumbing flow rate in litres per second,False,,,MULTI,1,0
+Generic Models,NCL_TAG_7_PARA_TXT,a1b2c3d4-5055-4a01-b001-000000000185,TEXT,COM_DAT,Type,TAG7 paragraph container for nurse call,False,,,MULTI,1,0
+Generic Models,SEC_TAG_7_PARA_TXT,a1b2c3d4-5056-4a01-b001-000000000186,TEXT,COM_DAT,Type,TAG7 paragraph container for security,False,,,MULTI,1,0
+Generic Models,PER_TAG_7_PARA_ENV_TXT,a1b2c3d4-5057-4a01-b001-000000000187,TEXT,PER_SUST,Type,TAG7 paragraph container for environment,False,,,MULTI,1,0
+Generic Models,RGL_TAG_7_PARA_CMPL_TXT,a1b2c3d4-5058-4a01-b001-000000000188,TEXT,RGL_CMPL,Type,TAG7 paragraph container for regulatory compliance,False,,,MULTI,1,0
+Generic Models,CST_TAG_7_PARA_CONC_TXT,a1b2c3d4-5059-4a01-b001-000000000189,TEXT,CST_PROC,Type,TAG7 paragraph container for concrete,False,,,MULTI,1,0
+Generic Models,PLM_TAG_7_PARA_EQUIP_TXT,a1b2c3d4-505a-4a01-b001-000000000190,TEXT,PLM_DRN,Type,TAG7 paragraph container for plumbing equipment,False,,,MULTI,1,0
+Generic Models,PRJ_PROJECT_COD_TXT,a1b2c3d4-505b-4a01-b001-000000000191,TEXT,PRJ_INFORMATION,Type,ISO 19650 project code,False,,,MULTI,1,0
+Generic Models,PRJ_ORIGINATOR_COD_TXT,a1b2c3d4-505c-4a01-b001-000000000192,TEXT,PRJ_INFORMATION,Type,ISO 19650 originator code,False,,,MULTI,1,0
+Generic Models,PRJ_VOLUME_COD_TXT,a1b2c3d4-505d-4a01-b001-000000000193,TEXT,PRJ_INFORMATION,Type,ISO 19650 volume code,False,,,MULTI,1,0
+Generic Models,PRJ_STATUS_COD_TXT,a1b2c3d4-505e-4a01-b001-000000000194,TEXT,PRJ_INFORMATION,Type,ISO 19650 document status code,False,,,MULTI,1,0
+Generic Models,PRJ_REV_COD_TXT,a1b2c3d4-505f-4a01-b001-000000000195,TEXT,PRJ_INFORMATION,Type,ISO 19650 revision code,False,,,MULTI,1,0
+Generic Models,ACC_ISSUE_ID_TXT,5753b5aa-000a-4000-8000-000000000002,TEXT,ACC_SYNC,Type,Autodesk Construction Cloud Issue GUID for bidirectional sync,False,,,MULTI,1,0
+Generic Models,ACC_SYNC_STATUS_TXT,5753b5aa-000a-4000-8000-000000000003,TEXT,ACC_SYNC,Type,ACC sync status (SYNCED / PENDING / ERROR),False,,,MULTI,1,0
+Generic Models,ASBUILT_CAPTURE_DATE_TXT,5753b5aa-0009-4000-8000-000000000002,TEXT,ASBUILT,Type,ISO 8601 date when as-built data captured from Planscape mobile,False,,,MULTI,1,0
+Generic Models,ASBUILT_DEVIATION_MM,5753b5aa-0009-4000-8000-000000000001,NUMBER,ASBUILT,Type,As-built vs as-designed deviation in millimetres,False,,,MULTI,1,0
+Generic Models,CBN_A1_A3_KG_CO2E,5753b5aa-0006-4000-8000-000000000001,NUMBER,PER_SUST,Type,Embodied carbon A1-A3 product stage (manufacturing) kgCO2e,False,,,MULTI,1,0
+Generic Models,CBN_A4_KG_CO2E,5753b5aa-0006-4000-8000-000000000002,NUMBER,PER_SUST,Type,Embodied carbon A4 transport to site kgCO2e,False,,,MULTI,1,0
+Generic Models,CBN_A5_KG_CO2E,5753b5aa-0006-4000-8000-000000000010,NUMBER,PER_SUST,Type,Embodied carbon A5 construction-install kgCO2e,False,,,MULTI,1,0
+Generic Models,CBN_B6_KG_CO2E_YR,5753b5aa-0006-4000-8000-000000000003,NUMBER,PER_SUST,Type,Operational carbon B6 energy annual kgCO2e/yr,False,,,MULTI,1,0
+Generic Models,CBN_C1_KG_CO2E,5753b5aa-0006-4000-8000-000000000011,NUMBER,PER_SUST,Type,End-of-life C1 deconstruction kgCO2e,False,,,MULTI,1,0
+Generic Models,CBN_C2_KG_CO2E,5753b5aa-0006-4000-8000-000000000012,NUMBER,PER_SUST,Type,End-of-life C2 transport to disposal kgCO2e,False,,,MULTI,1,0
+Generic Models,CBN_C3_C4_KG_CO2E,5753b5aa-0006-4000-8000-000000000013,NUMBER,PER_SUST,Type,End-of-life C3-C4 waste processing and disposal kgCO2e,False,,,MULTI,1,0
+Generic Models,CLASH_RESOLUTION_ACTION_TXT,5753b5aa-0008-4000-8000-000000000011,TEXT,CLASH_COORDINATION,Type,Chosen resolution action (MOVE / REROUTE / ACCEPT),False,,,MULTI,1,0
+Generic Models,CLASH_RESOLUTION_STATUS_TXT,5753b5aa-0008-4000-8000-000000000003,TEXT,CLASH_COORDINATION,Type,Clash resolution status (PENDING / APPLIED / ACCEPTED),False,,,MULTI,1,0
+Generic Models,CLASH_TRIAGE_CATEGORY_TXT,5753b5aa-0008-4000-8000-000000000002,TEXT,CLASH_COORDINATION,Type,Clash triage category (STRUCTURAL / SERVICES / NON_CRITICAL),False,,,MULTI,1,0
+Generic Models,CLASH_TRIAGE_SCORE,5753b5aa-0008-4000-8000-000000000010,NUMBER,CLASH_COORDINATION,Type,Clash triage weighted score 0 to 100,False,,,MULTI,1,0
+Generic Models,CLASH_TRIAGE_SEVERITY_NR,5753b5aa-0008-4000-8000-000000000001,INTEGER,CLASH_COORDINATION,Type,Clash triage severity 1 (lowest) to 5 (highest),False,,,MULTI,1,0
+Generic Models,COMM_DATE_TXT,5753b5aa-0004-4000-8000-000000000002,TEXT,COMMISSIONING,Type,ISO 8601 date of commissioning state change,False,,,MULTI,1,0
+Generic Models,COMM_NOTES_TXT,5753b5aa-0004-4000-8000-000000000011,TEXT,COMMISSIONING,Type,Free-text commissioning notes captured from the QR workflow,False,,,MULTI,1,0
+Generic Models,COMM_OPERATIVE_TXT,5753b5aa-0004-4000-8000-000000000003,TEXT,COMMISSIONING,Type,Commissioning operative name or ID who performed the test,False,,,MULTI,1,0
+Generic Models,COMM_STATE_TXT,5753b5aa-0004-4000-8000-000000000001,TEXT,COMMISSIONING,Type,Commissioning state (NOT_STARTED / PRE_COMM / FUNCTIONAL_TEST / WITNESSED / ACCEPTED / HANDED_OVER),False,,,MULTI,1,0
+Generic Models,COMM_WITNESS_TXT,5753b5aa-0004-4000-8000-000000000010,TEXT,COMMISSIONING,Type,Commissioning witness name or ID (client / CA representative),False,,,MULTI,1,0
+Generic Models,CST_INSTALL_HRS,5753b5aa-0005-4000-8000-000000000010,NUMBER,CST_PROC,Type,Install time in hours per element for labour takeoff,False,,,MULTI,1,0
+Generic Models,CST_LABOUR_CREW_TXT,5753b5aa-0005-4000-8000-000000000011,TEXT,CST_PROC,Type,"Labour crew name or role (e.g. PIPEFITTER_2P, ELECTRICIAN_LEAD) used by crew-aware labour takeoff",False,,,MULTI,1,0
+Generic Models,CST_LABOUR_RATE_GBP,5753b5aa-0005-4000-8000-000000000012,NUMBER,CST_PROC,Type,Labour rate in GBP per hour (override for UK projects),False,,,MULTI,1,0
+Generic Models,HEALTH_SCORE_DATE_TXT,5753b5aa-0009-4000-8000-000000000010,TEXT,HEALTH_METRICS,Type,ISO 8601 timestamp of last health score evaluation,False,,,MULTI,1,0
+Generic Models,HEALTH_SCORE_LAST_NR,5753b5aa-0009-4000-8000-000000000003,NUMBER,HEALTH_METRICS,Type,Last model health score 0 to 100,False,,,MULTI,1,0
+Generic Models,IFC_PSET_OVERRIDE_TXT,5753b5aa-000a-4000-8000-000000000001,TEXT,IFC_EXCH,Type,Manual IFC property set override pipe-delimited (Pset_Name=Value),False,,,MULTI,1,0
+Generic Models,PRJ_ORG_PROJECT_CODE_TXT,d72513d3-2aed-5048-a949-b262fcd51a39,TEXT,PRJ_INFORMATION,Type,Project identifier code (alphanumeric) [template engine v1.1],False,,,MULTI,1,0
+Generic Models,PRJ_TB_SHOW_KEYPLAN_BOOL,8dd6b517-7173-5a8d-b951-a08807fed830,YESNO,PRJ_INFORMATION,Type,LEGACY — prefer TB_SHOW_KEY_PLAN_BOOL (GROUP 26). Show key plan element on title block [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PRJ_TB_SHOW_NORTHARROW_BOOL,58c6e51f-6f22-546b-ac02-086ab6f6fbbf,YESNO,PRJ_INFORMATION,Type,LEGACY — prefer TB_SHOW_NORTH_ARROW_BOOL (GROUP 26). Show north arrow on title block [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PRJ_TB_SHOW_SCALEBAR_BOOL,fa841ad5-15e1-5ec2-91bc-a69d70cf9c42,YESNO,PRJ_INFORMATION,Type,LEGACY — prefer TB_SHOW_SCALEBAR_BOOL (GROUP 26). Show scale bar on title block [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,STING_SHEET_ORIG_TXT,94cb197e-5358-5bdb-9759-7aca37d9c15c,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID — segment 2 (originator code, e.g. 'PLNS'). Sheet-instance scope [BS EN ISO 19650-2:2018 §5.1.6]",False,,,MULTI,1,0

@@ -186,11 +186,14 @@ public class PlanscapeDbContext : DbContext
     // Phase 178c (T3-24) — Document revision history (per-CDE-transition snapshots).
     public DbSet<DocumentRevision> DocumentRevisions => Set<DocumentRevision>();
 
+    // Feature gap 2/3 — BOQ snapshots (cloud cost dashboard)
+    public DbSet<BoqSnapshot> BoqSnapshots => Set<BoqSnapshot>();
+    // Feature gap 6 — Primavera P6 live-link sync log
+    public DbSet<P6SyncLog> P6SyncLogs => Set<P6SyncLog>();
+
     // ── NRM2 BOQ engine — classification, take-off, quantity lines,
     //    baselines, variations, work packages, preambles, and the
-    //    BoqDocument header that frames them all. Built to support the
-    //    full RICS NRM2 narrative output (preliminaries, preambles,
-    //    measured items, prov sums, PC sums, dayworks).
+    //    BoqDocument header that frames them all.
     public DbSet<ClassificationSystem>   ClassificationSystems   => Set<ClassificationSystem>();
     public DbSet<ClassificationCode>     ClassificationCodes     => Set<ClassificationCode>();
     public DbSet<TakeoffRule>            TakeoffRules            => Set<TakeoffRule>();
@@ -203,35 +206,27 @@ public class PlanscapeDbContext : DbContext
     public DbSet<BoqDocument>            BoqDocuments            => Set<BoqDocument>();
     public DbSet<Nrm2PreliminariesItem>  Nrm2PreliminariesItems  => Set<Nrm2PreliminariesItem>();
 
-    // ── Suitability code state machine (ISO 19650-2). Holds the
-    //    transition rule set + per-document transition history.
+    // ── Suitability code state machine (ISO 19650-2).
     public DbSet<SuitabilityTransitionRule> SuitabilityTransitionRules => Set<SuitabilityTransitionRule>();
     public DbSet<SuitabilityTransition>     SuitabilityTransitions     => Set<SuitabilityTransition>();
 
-    // ── Solibri-grade rule-based model checker — authorable rules,
-    //    scheduled runs, per-element results, rule sets for batch
-    //    execution. Geometry checks lean on the same SceneNode +
-    //    spatial-index plumbing as the clash engine.
+    // ── Solibri-grade rule-based model checker.
     public DbSet<ModelCheckRuleSet> ModelCheckRuleSets => Set<ModelCheckRuleSet>();
     public DbSet<ModelCheckRule>    ModelCheckRules    => Set<ModelCheckRule>();
     public DbSet<ModelCheckRun>     ModelCheckRuns     => Set<ModelCheckRun>();
     public DbSet<ModelCheckResult>  ModelCheckResults  => Set<ModelCheckResult>();
 
-    // ── SSO + MFA. SsoConfig holds per-tenant identity provider
-    //    configuration (OIDC/SAML); MfaEnrollment is per-user TOTP
-    //    secret + recovery codes; MfaChallenge logs each verification.
+    // ── SSO + MFA.
     public DbSet<SsoConfig>      SsoConfigs      => Set<SsoConfig>();
     public DbSet<MfaEnrollment>  MfaEnrollments  => Set<MfaEnrollment>();
     public DbSet<MfaChallenge>   MfaChallenges   => Set<MfaChallenge>();
 
-    // ── Executive dashboard. KpiSnapshot is a daily Hangfire rollup;
-    //    CoordinatorWorkload is per-user assigned-issue load over time.
+    // ── Executive dashboard.
     public DbSet<KpiSnapshot>         KpiSnapshots         => Set<KpiSnapshot>();
     public DbSet<CoordinatorWorkload> CoordinatorWorkloads => Set<CoordinatorWorkload>();
     public DbSet<DashboardWidget>     DashboardWidgets     => Set<DashboardWidget>();
 
-    // ── Mobile offline 3D cache manifest. One row per cached chunk;
-    //    the mobile app reads this to know what's local vs needs sync.
+    // ── Mobile offline 3D cache manifest.
     public DbSet<MobileOfflineModelManifest> MobileOfflineModelManifests => Set<MobileOfflineModelManifest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
