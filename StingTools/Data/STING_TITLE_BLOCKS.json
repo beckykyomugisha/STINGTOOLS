@@ -133,6 +133,12 @@
           "group": "IdentityData"
         },
         {
+          "name": "PRJ_ORG_PHASE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
           "name": "PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT",
           "kind": "shared",
           "instance": true,
@@ -1125,12 +1131,6 @@
           "instance": true,
           "group": "IdentityData",
           "default": "Shared"
-        },
-        {
-          "name": "PRJ_ORG_PHASE_TXT",
-          "kind": "shared",
-          "instance": true,
-          "group": "IdentityData"
         },
         {
           "name": "PRJ_TB_REVISION_NR_TXT",
