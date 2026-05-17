@@ -41,6 +41,16 @@ public class BimIssue : ITenantScoped
     // the production database forward (dotnet ef migrations add AddBimIssueWatchers).
     public string? WatcherUserIds { get; set; }
 
+    // CO-ASSIGNEES — JSON array of additional AppUser ids who share
+    // responsibility for resolving this issue alongside the primary assignee.
+    // Common in BIM: an RFI may involve the architect, structural engineer,
+    // and MEP coordinator simultaneously. Each co-assignee gets the same push
+    // notifications as the primary assignee (assignment + status changes +
+    // attachments). Stored identically to WatcherUserIds; use
+    // <see cref="ParseWatcherIds"/> for deserialisation (same schema).
+    // Migration: dotnet ef migrations add AddBimIssueCoAssignees
+    public string? CoAssigneeUserIds { get; set; }
+
     public static IReadOnlyList<Guid> ParseWatcherIds(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return Array.Empty<Guid>();

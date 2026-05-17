@@ -19,42 +19,65 @@ type Plan = {
 
 const plans: Plan[] = [
   {
-    name: 'Starter',
-    price: '$0',
-    priceUnit: '/month',
-    subtext: 'For individual BIM coordinators exploring the platform.',
+    name: 'Small',
+    price: '$35',
+    priceUnit: '/firm/month',
+    subtext: 'For small practices just getting started with BIM coordination.',
     features: [
-      { text: '1 user, 1 project', included: true },
-      { text: 'Revit plugin — full tagging suite', included: true },
-      { text: 'Local file storage only', included: true },
+      { text: 'Up to 6 users (1 author + 5 coordinators)', included: true },
+      { text: 'Up to 5 active projects', included: true },
+      { text: 'Full Revit plugin suite', included: true },
+      { text: 'Cloud sync & real-time dashboard', included: true },
+      { text: 'Issue tracker (BCF 2.1)', included: true },
       { text: 'ISO 19650 compliance dashboard', included: true },
-      { text: 'Cloud sync', included: false },
-      { text: 'Multi-user collaboration', included: false },
-      { text: 'API access', included: false },
+      { text: 'Mobile app (iOS & Android)', included: true },
+      { text: 'SSO / SAML', included: false },
+      { text: 'On-premise deployment', included: false },
     ],
-    cta: 'Get Started Free',
+    cta: 'Start 30-Day Trial',
+    ctaSub: 'No credit card required',
     ctaStyle: 'outline',
   },
   {
-    name: 'Professional',
-    price: '$15',
-    priceUnit: '/user/month',
-    subtext: 'For AEC practices running active BIM projects.',
+    name: 'Medium',
+    price: '$55',
+    priceUnit: '/firm/month',
+    subtext: 'For growing practices managing multiple live projects.',
     features: [
-      { text: 'Up to 5 users', included: true },
-      { text: 'Up to 5 projects', included: true },
+      { text: 'Up to 12 users (1 author + 11 coordinators)', included: true },
+      { text: 'Up to 10 active projects', included: true },
       { text: 'Full Revit plugin suite', included: true },
       { text: 'Cloud sync & real-time dashboard', included: true },
       { text: 'Issue tracker (BCF 2.1)', included: true },
       { text: 'Document control (CDE)', included: true },
-      { text: 'Email & Slack notifications', included: true },
+      { text: 'Email & in-app notifications', included: true },
       { text: 'SSO / SAML', included: false },
       { text: 'On-premise deployment', included: false },
     ],
-    cta: 'Start 14-Day Trial',
+    cta: 'Start 30-Day Trial',
     ctaSub: 'No credit card required',
     highlighted: true,
     ctaStyle: 'primary',
+  },
+  {
+    name: 'Large',
+    price: '$90',
+    priceUnit: '/firm/month',
+    subtext: 'For established firms coordinating across multiple disciplines.',
+    features: [
+      { text: 'Up to 20 users (1 author + 19 coordinators)', included: true },
+      { text: 'Unlimited active projects', included: true },
+      { text: 'Full Revit plugin suite', included: true },
+      { text: 'Cloud sync & real-time dashboard', included: true },
+      { text: 'Issue tracker + Document control (CDE)', included: true },
+      { text: 'Email & in-app notifications', included: true },
+      { text: 'Priority support', included: true },
+      { text: 'SSO / SAML', included: false },
+      { text: 'On-premise deployment', included: false },
+    ],
+    cta: 'Start 30-Day Trial',
+    ctaSub: 'No credit card required',
+    ctaStyle: 'outline',
   },
   {
     name: 'Enterprise',
@@ -67,13 +90,34 @@ const plans: Plan[] = [
       { text: 'Dedicated implementation support', included: true },
       { text: 'SLA guarantees', included: true },
       { text: 'Custom integrations (ACC, Procore, Aconex)', included: true },
-      { text: 'Africa regional pricing available', included: true },
+      { text: 'NGO / Government 15% discount', included: true },
       { text: 'World Bank / AfDB BIM compliance package', included: true },
     ],
     cta: 'Talk to Sales',
     ctaStyle: 'outline',
   },
 ];
+
+const pluginPlan: Plan = {
+  name: 'StingTools Plugin',
+  price: '$15',
+  priceUnit: '/firm/month',
+  subtext: 'The full Revit plugin, locally. No cloud, no subscription platform needed.',
+  features: [
+    { text: 'Full Revit 2025/2026/2027 plugin', included: true },
+    { text: 'ISO 19650 tagging suite', included: true },
+    { text: 'IFC 4 export + property sets', included: true },
+    { text: 'Drawing automation & sheet manager', included: true },
+    { text: 'Unlimited Revit users (local)', included: true },
+    { text: 'No internet required', included: true },
+    { text: 'Cloud sync', included: false },
+    { text: 'Mobile app', included: false },
+    { text: 'Multi-user collaboration', included: false },
+  ],
+  cta: 'Start 30-Day Trial',
+  ctaSub: 'No credit card required',
+  ctaStyle: 'outline',
+};
 
 export default function PricingCards() {
   return (
@@ -93,11 +137,67 @@ export default function PricingCards() {
             Simple, transparent pricing
           </h2>
           <p className="mt-2 text-lg text-muted">
-            Start free. Scale as your team grows.
+            Plugin only, or plugin + cloud. You choose.
           </p>
         </motion.div>
 
-        <div className="mt-16 grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
+        {/* StingTools Plugin — standalone option */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-60px' }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="mt-14"
+        >
+          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted">
+            Plugin only — no cloud required
+          </p>
+          <div className="relative flex flex-col rounded-2xl border border-slate-200 bg-slate-50 p-8 lg:flex-row lg:items-center lg:gap-12">
+            <div className="lg:w-64">
+              <h3 className="text-xl font-bold text-navy">{pluginPlan.name}</h3>
+              <div className="mt-3 flex items-baseline gap-1">
+                <span className="text-5xl font-extrabold text-navy">{pluginPlan.price}</span>
+                <span className="text-base text-muted">{pluginPlan.priceUnit}</span>
+              </div>
+              <p className="mt-2 text-sm text-slate-600">{pluginPlan.subtext}</p>
+              <a
+                href="#"
+                className="mt-6 block rounded-lg border border-navy px-5 py-3 text-center text-sm font-semibold text-navy transition-colors hover:bg-navy hover:text-white"
+              >
+                {pluginPlan.cta}
+              </a>
+              {pluginPlan.ctaSub && (
+                <p className="mt-2 text-center text-xs text-muted">{pluginPlan.ctaSub}</p>
+              )}
+            </div>
+            <div className="mt-6 border-t border-slate-200 pt-6 lg:mt-0 lg:flex-1 lg:border-l lg:border-t-0 lg:pl-12 lg:pt-0">
+              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {pluginPlan.features.map((f) => (
+                  <li
+                    key={f.text}
+                    className={`flex items-center gap-2 text-sm ${
+                      f.included ? 'text-slate-700' : 'text-slate-400 line-through'
+                    }`}
+                  >
+                    {f.included ? (
+                      <Check size={15} className="shrink-0 text-success" />
+                    ) : (
+                      <X size={15} className="shrink-0 text-slate-300" />
+                    )}
+                    {f.text}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Planscape Cloud plans */}
+        <div className="mt-10">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted">
+            Plugin + cloud — team collaboration
+          </p>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 lg:gap-8">
           {plans.map((p, i) => {
             const isPro = p.highlighted;
             return (
@@ -179,11 +279,13 @@ export default function PricingCards() {
               </motion.div>
             );
           })}
+          </div>
         </div>
 
         <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-muted">
-          All plans include the full Revit 2025/2026/2027 plugin. Billing in
-          USD. Africa regional pricing available on request.
+          All plans include the full Revit 2025/2026/2027 plugin and offline-first mobile app.
+          Pay annually — get 1 month free. Invoiced in USD, UGX, KES, TZS, NGN, RWF, or ZAR.
+          NGO &amp; government: 15% discount.
         </p>
       </div>
     </section>

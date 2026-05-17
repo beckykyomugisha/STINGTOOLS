@@ -48,6 +48,39 @@ namespace StingTools.Commands.Electrical.CircuitWizard
     }
 
     /// <summary>
+    /// User-configurable sizing defaults for the Circuit Wizard.
+    /// All fields have sensible defaults matching previous hardcoded values.
+    /// </summary>
+    public class CircuitWizardOptions
+    {
+        /// <summary>Default power factor for kVAR calculation. Range 0.7–1.0. Default 0.85.</summary>
+        public double PowerFactor       { get; set; } = 0.85;
+
+        /// <summary>Default cable run length in metres when real routing isn't known. Default 25 m.</summary>
+        public double DefaultRunLengthM { get; set; } = 25.0;
+
+        /// <summary>Maximum load utilisation percentage (0–1). Default 0.8 = 80 %.</summary>
+        public double MaxLoadPct        { get; set; } = 0.80;
+
+        /// <summary>Wiring standard: "BS" or "NEC". Default "BS".</summary>
+        public string Standard          { get; set; } = "BS";
+
+        /// <summary>Installation method for cable sizer: A1/A2/B1/B2/C/E/F. Default "C".</summary>
+        public string InstallMethod     { get; set; } = "C";
+
+        /// <summary>Conductor material: "Cu" or "Al". Default "Cu".</summary>
+        public string Material          { get; set; } = "Cu";
+
+        /// <summary>Insulation type: "PVC70", "XLPE90". Default "XLPE90".</summary>
+        public string Insulation        { get; set; } = "XLPE90";
+
+        /// <summary>Voltage drop limit %. Default 3.0.</summary>
+        public double VDLimitPct        { get; set; } = 3.0;
+
+        public static CircuitWizardOptions Default => new CircuitWizardOptions();
+    }
+
+    /// <summary>
     /// Pure circuit-grouping engine. Loads classification patterns from
     /// STING_DEMAND_FACTORS.json. Bin-packs by load class within compatible
     /// voltage / pole groups; assigns proposed phase via greedy least-loaded.
@@ -128,11 +161,12 @@ namespace StingTools.Commands.Electrical.CircuitWizard
         ///   5. Cable-size each circuit via Phase 177 CableSizerEngine
         /// </summary>
         public static List<ProposedCircuit> ProposeCircuits(IEnumerable<UnconnectedElement> elements,
-            string targetPanelName, double maxLoadPct, string standard, WireTableSet wireTables)
+            string targetPanelName, CircuitWizardOptions options = null, WireTableSet wireTables = null)
         {
             var proposals = new List<ProposedCircuit>();
             if (elements == null) return proposals;
-            double cap = maxLoadPct <= 0 ? 0.8 : Math.Min(1.0, maxLoadPct);
+            var opts = options ?? CircuitWizardOptions.Default;
+            double cap = Math.Min(1.0, opts.MaxLoadPct);
 
             var byCompat = elements
                 .Where(e => e != null)
@@ -148,7 +182,7 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                     int seq = 1;
                     foreach (var el in ordered)
                     {
-                        if (cur == null || WouldExceed(cur, el, cap, standard))
+                        if (cur == null || WouldExceed(cur, el, cap, opts))
                         {
                             cur = NewCircuit(targetPanelName, classGrp.Key,
                                 compatGrp.First().VoltageV, compatGrp.First().RequiredPoles, seq++);
@@ -156,7 +190,7 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                         }
                         cur.Elements.Add(el);
                         cur.TotalLoadVA += el.LoadVA;
-                        RecalculateCircuit(cur, standard, wireTables);
+                        RecalculateCircuit(cur, opts, wireTables);
                     }
                 }
             }
@@ -166,12 +200,18 @@ namespace StingTools.Commands.Electrical.CircuitWizard
             return proposals;
         }
 
+        /// <summary>Backwards-compatibility shim — delegates to the options overload.</summary>
+        public static List<ProposedCircuit> ProposeCircuits(IEnumerable<UnconnectedElement> elements,
+            string targetPanelName, double maxLoadPct, string standard, WireTableSet wireTables)
+            => ProposeCircuits(elements, targetPanelName,
+                new CircuitWizardOptions { MaxLoadPct = maxLoadPct, Standard = standard }, wireTables);
+
         private static bool WouldExceed(ProposedCircuit cur, UnconnectedElement el,
-            double maxLoadPct, string standard)
+            double maxLoadPct, CircuitWizardOptions opts)
         {
             double prospectiveVA = cur.TotalLoadVA + el.LoadVA;
             double iA = prospectiveVA / Math.Max(1.0, cur.VoltageV);
-            int trial = string.Equals(standard, "NEC", StringComparison.OrdinalIgnoreCase)
+            int trial = string.Equals(opts.Standard, "NEC", StringComparison.OrdinalIgnoreCase)
                 ? VoltageDropEngine.NextStandardBreakerSizeNEC(iA)
                 : VoltageDropEngine.NextStandardBreakerSizeBS(iA);
             double allowed = trial * maxLoadPct * cur.VoltageV;
@@ -192,33 +232,39 @@ namespace StingTools.Commands.Electrical.CircuitWizard
             };
         }
 
-        public static void RecalculateCircuit(ProposedCircuit circuit, string standard, WireTableSet wireTables)
+        public static void RecalculateCircuit(ProposedCircuit circuit,
+            CircuitWizardOptions options = null, WireTableSet wireTables = null)
         {
             if (circuit == null) return;
+            var opts = options ?? CircuitWizardOptions.Default;
             circuit.TotalLoadVA = circuit.Elements.Sum(e => e.LoadVA);
             double iA = circuit.TotalLoadVA / Math.Max(1.0, circuit.VoltageV);
-            circuit.ProposedRatingA = string.Equals(standard, "NEC", StringComparison.OrdinalIgnoreCase)
+            circuit.ProposedRatingA = string.Equals(opts.Standard, "NEC", StringComparison.OrdinalIgnoreCase)
                 ? VoltageDropEngine.NextStandardBreakerSizeNEC(iA)
                 : VoltageDropEngine.NextStandardBreakerSizeBS(iA);
             circuit.UtilisationPct = circuit.ProposedRatingA > 0
                 ? (iA / circuit.ProposedRatingA) * 100.0
                 : 0;
-            // Use a 25 m default run for sizing — real runs aren't known until placed.
+            // Use configurable default run length — real runs aren't known until placed.
             var sized = CableSizerEngine.Calculate(new CableSizeInput
             {
-                LoadKW = circuit.TotalLoadVA / 1000.0,
-                VoltageV = circuit.VoltageV,
-                Phases = circuit.Poles >= 3 ? 3 : 1,
-                PowerFactor = 0.85,
-                LengthM = 25.0,
-                InstallMethod = "C",
-                Material = "Cu",
-                Insulation = "XLPE90",
-                VDLimitPct = 3.0,
-                Standard = standard
+                LoadKW       = circuit.TotalLoadVA / 1000.0,
+                VoltageV     = circuit.VoltageV,
+                Phases       = circuit.Poles >= 3 ? 3 : 1,
+                PowerFactor  = opts.PowerFactor,
+                LengthM      = opts.DefaultRunLengthM,
+                InstallMethod = opts.InstallMethod,
+                Material     = opts.Material,
+                Insulation   = opts.Insulation,
+                VDLimitPct   = opts.VDLimitPct,
+                Standard     = opts.Standard
             });
             circuit.ProposedCsaMm2 = sized.RecommendedCsaMm2;
         }
+
+        /// <summary>Backwards-compatibility shim — delegates to the options overload.</summary>
+        public static void RecalculateCircuit(ProposedCircuit circuit, string standard, WireTableSet wireTables)
+            => RecalculateCircuit(circuit, new CircuitWizardOptions { Standard = standard }, wireTables);
 
         private static void BalancePhases(List<ProposedCircuit> proposals)
         {

@@ -66,7 +66,7 @@ Bind these instance parameters (via SharedParameter GUIDs) so
 `TitleBlockParamApplier` from the Drawing Template Manager (Phase 113) can
 populate them declaratively:
 
-- `PRJ_ORG_PROJECT_CODE`
+- `PRJ_PROJECT_COD_TXT`
 - `PRJ_ORG_CLIENT_NAME`
 - `PRJ_ORG_LEAD_APPOINTED_PARTY`
 - `STING_DRAWING_TYPE_ID_TXT` (for browser-organiser routing)
