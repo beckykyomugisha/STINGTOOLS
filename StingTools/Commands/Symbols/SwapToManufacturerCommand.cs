@@ -81,6 +81,9 @@ namespace StingTools.Commands.Symbols
         public string Category { get; set; }
         public List<ElementId> InstanceIds { get; } = new List<ElementId>();
         public List<SwapCandidate> Candidates { get; } = new List<SwapCandidate>();
+        /// <summary>True when at least one instance in this plan was successfully
+        /// swapped via <c>Element.ChangeTypeId</c> during the swap transaction.</summary>
+        public bool WasSwapped { get; set; }
     }
 
     [Transaction(TransactionMode.Manual)]
@@ -200,6 +203,7 @@ namespace StingTools.Commands.Symbols
                                 }
                                 swapped++;
                                 swappedIds.Add(id);
+                                p.WasSwapped = true;
                             }
                             catch (Exception ex)
                             {
@@ -657,10 +661,13 @@ namespace StingTools.Commands.Symbols
         {
             if (doc == null || plans == null) return 0;
 
-            // Collect unique Family objects across all winning candidates.
+            // Collect unique Family objects, but only from plans that were
+            // actually swapped — skip plans whose instances were all pinned,
+            // errored, or skipped so we don't author (and waste time on)
+            // families that were never activated in this session.
             var seen     = new HashSet<ElementId>();
             var families = new List<Family>();
-            foreach (var p in plans)
+            foreach (var p in plans.Where(p => p.WasSwapped))
             {
                 var winner = p.Candidates.FirstOrDefault();
                 if (winner?.ResolvedTypeId == null ||
@@ -690,6 +697,7 @@ namespace StingTools.Commands.Symbols
                         continue;
                     }
 
+                    bool txOk = false;
                     using (var tx = new Transaction(famDoc, "STING Author Symbols"))
                     {
                         tx.Start();
@@ -700,7 +708,7 @@ namespace StingTools.Commands.Symbols
                             FamilyParamEngine.InjectAutomationPresentationPack(famDoc);
                             FamilySymbolAuthor.AuthorSymbols(famDoc);
                             tx.Commit();
-                            authored++;
+                            txOk = true;
                         }
                         catch (Exception ex)
                         {
@@ -709,10 +717,18 @@ namespace StingTools.Commands.Symbols
                         }
                     }
 
-                    // Reload the freshly-authored family back into the
-                    // project so instances pick up the new parameters and
-                    // visibility formulas immediately.
-                    famDoc.LoadFamily(doc, new StingFamilyReloadOptions());
+                    // Reload the freshly-authored family back into the project so
+                    // instances pick up the new parameters and visibility formulas.
+                    // Only count a family as authored when both the tx committed AND
+                    // the reload back into the project document succeeded.
+                    if (txOk)
+                    {
+                        bool loaded = famDoc.LoadFamily(doc, new StingFamilyReloadOptions());
+                        if (loaded)
+                            authored++;
+                        else
+                            StingLog.Warn($"AutoAuthor: LoadFamily returned false for '{fam.Name}' — symbols authored in famDoc but not reloaded into project.");
+                    }
                 }
                 catch (Exception ex)
                 {

@@ -310,7 +310,7 @@ namespace StingTools.Commands.Symbols
             ("IEC — IEC 60617 / EN 60617",        "IEC",   ParamRegistry.STD_CODE_IEC),
             ("ANSI — ANSI/IEEE 315",               "ANSI",  ParamRegistry.STD_CODE_ANSI),
             ("BS — BS 1553 / BS 8888",             "BS",    ParamRegistry.STD_CODE_BS),
-            ("NFPA — NFPA 170",                    "NFPA",  ParamRegistry.STD_CODE_NFPA),
+            ("NFPA — NFPA 72 / NFPA 13",           "NFPA",  ParamRegistry.STD_CODE_NFPA),
             ("CIBSE — CIBSE Guide symbols",        "CIBSE", ParamRegistry.STD_CODE_CIBSE),
         };
 

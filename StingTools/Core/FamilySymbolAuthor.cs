@@ -802,6 +802,26 @@ namespace StingTools.Core
                             elevSubcat, visParam, vtVis, result);
                         break;
                     }
+                    case "arc":
+                    {
+                        // XZ-plane arc: cx/cy in JSON → X/Z in Revit (Y=0)
+                        double r    = (seg["r"]?.Value<double>()  ?? 1.0) * halfW;
+                        double cx   = (seg["cx"]?.Value<double>() ?? 0)   * halfW;
+                        double cz   = (seg["cy"]?.Value<double>() ?? 0)   * halfW + centerZ;
+                        double a1   =  seg["a1"]?.Value<double>() ?? 0;
+                        double a2   =  seg["a2"]?.Value<double>() ?? Math.PI;
+                        double aMid = (a1 + a2) / 2;
+                        XYZ start = new XYZ(cx + r * Math.Cos(a1),   0, cz + r * Math.Sin(a1));
+                        XYZ mid   = new XYZ(cx + r * Math.Cos(aMid), 0, cz + r * Math.Sin(aMid));
+                        XYZ end   = new XYZ(cx + r * Math.Cos(a2),   0, cz + r * Math.Sin(a2));
+                        try
+                        {
+                            Arc arc = Arc.Create(start, end, mid);
+                            count += PlaceSymbolicCurve(famDoc, sp, arc, elevSubcat, visParam, vtVis, result);
+                        }
+                        catch (Exception ex) { result.Warnings.Add($"JSON elev arc [{stdKey}]: {ex.Message}"); }
+                        break;
+                    }
                 }
             }
 
@@ -1045,6 +1065,20 @@ namespace StingTools.Core
         private static bool    _symbolShapesCacheTried = false;
         private static readonly object _cacheSync = new object();
 
+        /// <summary>
+        /// Forces the next <see cref="AuthorSymbols"/> call to re-read
+        /// <c>STING_SYMBOL_SHAPES.json</c> from disk.  Call after editing the
+        /// file on disk so the new geometry takes effect without restarting Revit.
+        /// </summary>
+        public static void ReloadSymbolShapes()
+        {
+            lock (_cacheSync)
+            {
+                _symbolShapesCacheTried = false;
+                _symbolShapesCache      = null;
+            }
+        }
+
         private static bool JsonSymbolShapesExist()
         {
             LoadSymbolShapesJson();
@@ -1063,10 +1097,10 @@ namespace StingTools.Core
                     string path = StingToolsApp.FindDataFile("STING_SYMBOL_SHAPES.json");
                     if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
                     var parsed = JObject.Parse(File.ReadAllText(path));
-                    // Version guard — warn if the JSON is from an unexpected schema revision.
+                    // Version guard — warn only on major-schema breaks (1.x is compatible).
                     string ver = parsed["version"]?.Value<string>() ?? "unknown";
-                    if (ver != "1.1")
-                        StingLog.Warn($"STING_SYMBOL_SHAPES.json version '{ver}' differs from expected '1.1'.");
+                    if (!ver.StartsWith("1."))
+                        StingLog.Warn($"STING_SYMBOL_SHAPES.json version '{ver}' — expected 1.x; symbol geometry may not load correctly.");
                     _symbolShapesCache = parsed;
                 }
                 catch (Exception ex)
