@@ -48,6 +48,8 @@ namespace StingBridge.ArchiCAD
 
         private readonly ConcurrentQueue<ArchiCADChangeEvent> _queue = new();
         private readonly Timer _flushTimer;
+        // Prevents concurrent FlushAsync invocations if a flush takes longer than the period.
+        private readonly SemaphoreSlim _flushGate = new(1, 1);
         private bool _disposed;
 
         public PlanscapeCloudPush(string serverBase, string projectId, string bridgeKey)
@@ -62,6 +64,8 @@ namespace StingBridge.ArchiCAD
 
             // Flush queued events every 500 ms — gives a smooth live feel
             // without hammering the server on rapid successive changes.
+            // The SemaphoreSlim gate ensures only one flush runs at a time even
+            // if a slow network response causes the period to be exceeded.
             _flushTimer = new Timer(_ => _ = FlushAsync(), null,
                 TimeSpan.FromMilliseconds(500),
                 TimeSpan.FromMilliseconds(500));
@@ -90,26 +94,35 @@ namespace StingBridge.ArchiCAD
         {
             if (_queue.IsEmpty) return;
 
-            var batch = new System.Collections.Generic.List<ArchiCADChangeEvent>();
-            while (_queue.TryDequeue(out var ev)) batch.Add(ev);
-            if (batch.Count == 0) return;
-
+            // Skip this tick if a previous flush is still in flight.
+            if (!await _flushGate.WaitAsync(0)) return;
             try
             {
-                var payload = new { events = batch, authorInfo = (object?)null };
-                var response = await _http.PostAsJsonAsync(
-                    $"{_serverBase}/api/archicad/{_projectId}/push", payload);
+                var batch = new System.Collections.Generic.List<ArchiCADChangeEvent>();
+                while (_queue.TryDequeue(out var ev)) batch.Add(ev);
+                if (batch.Count == 0) return;
 
-                if (!response.IsSuccessStatusCode)
-                    StingLog.Warn($"PlanscapeCloudPush: server returned {(int)response.StatusCode}");
-                else
-                    StingLog.Info($"PlanscapeCloudPush: pushed {batch.Count} event(s) → {_projectId}");
+                try
+                {
+                    var payload = new { events = batch, authorInfo = (object?)null };
+                    var response = await _http.PostAsJsonAsync(
+                        $"{_serverBase}/api/archicad/{_projectId}/push", payload);
+
+                    if (!response.IsSuccessStatusCode)
+                        StingLog.Warn($"PlanscapeCloudPush: server returned {(int)response.StatusCode}");
+                    else
+                        StingLog.Info($"PlanscapeCloudPush: pushed {batch.Count} event(s) → {_projectId}");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"PlanscapeCloudPush.Flush: {ex.Message}");
+                    // Re-queue on failure so events are not lost.
+                    foreach (var ev in batch) _queue.Enqueue(ev);
+                }
             }
-            catch (Exception ex)
+            finally
             {
-                StingLog.Warn($"PlanscapeCloudPush.Flush: {ex.Message}");
-                // Re-queue on failure so events are not lost.
-                foreach (var ev in batch) _queue.Enqueue(ev);
+                _flushGate.Release();
             }
         }
 
@@ -118,6 +131,7 @@ namespace StingBridge.ArchiCAD
             if (_disposed) return;
             _disposed = true;
             _flushTimer.Dispose();
+            _flushGate.Dispose();
             _http.Dispose();
         }
     }

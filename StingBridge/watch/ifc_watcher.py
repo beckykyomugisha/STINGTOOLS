@@ -335,9 +335,13 @@ def _extract_elements(model) -> list[dict]:
             try:
                 for pset_name, pset in ifc_util.get_psets(el).items():
                     for k, v in pset.items():
-                        props[f"{pset_name}.{k}"] = str(v) if v is not None else ""
-                        # Also expose without pset prefix for simpler lookup
-                        props[k] = str(v) if v is not None else ""
+                        str_v = str(v) if v is not None else ""
+                        # Qualified key always wins; bare key only if not already set
+                        # (first pset that defines a bare key keeps it — avoids collision)
+                        qualified = f"{pset_name}.{k}"
+                        props[qualified] = str_v
+                        if k not in props:
+                            props[k] = str_v
             except Exception:
                 pass
 
@@ -486,16 +490,18 @@ class _IFCEventHandler:
         self._handler = handler
         self._debounce = debounce_s
         self._pending: dict[str, float] = {}
+        self._lock = __import__("threading").Lock()
         self._thread: Thread | None = None
         self._running = False
 
-    # Called by watchdog
+    # Called by watchdog (may be on a different thread from _drain_loop)
     def dispatch(self, event) -> None:
         if getattr(event, "is_directory", False):
             return
         src = getattr(event, "src_path", "")
         if src.lower().endswith(".ifc") and "_sting" not in Path(src).stem:
-            self._pending[src] = time.monotonic()
+            with self._lock:
+                self._pending[src] = time.monotonic()
 
     def start_drainer(self) -> None:
         self._running = True
@@ -508,9 +514,11 @@ class _IFCEventHandler:
     def _drain_loop(self) -> None:
         while self._running:
             now = time.monotonic()
-            ready = [p for p, t in list(self._pending.items()) if now - t >= self._debounce]
+            with self._lock:
+                ready = [p for p, t in self._pending.items() if now - t >= self._debounce]
+                for path in ready:
+                    del self._pending[path]
             for path in ready:
-                del self._pending[path]
                 try:
                     result = self._handler.process(path)
                     _save_result(path, result)
