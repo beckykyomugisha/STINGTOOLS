@@ -21,6 +21,7 @@ using System.Windows.Input;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Drawing;
 using StingTools.Core.Placement;
 using StingTools.Core.Routing;
 using StingTools.Core.Validation;
@@ -216,6 +217,13 @@ namespace StingTools.UI.PlacementCenter
             CommandBindings.Add(new CommandBinding(PlacementCentreCommands.ClearPreview,   (s,a) => OnClearPreview_Shortcut(s, a)));
             CommandBindings.Add(new CommandBinding(PlacementCentreCommands.DeleteSelected, (s,a) => OnDeleteSelected_Click(s, a)));
 
+            // Subscribe to the result bus so any placement/tag/symbol command updates this panel.
+            PlacementResultBus.ResultPublished += OnBusResult;
+            // Show whatever the last result was (e.g., if centre re-opened mid-session).
+            if (PlacementResultBus.LastResult != null) OnBusResult(PlacementResultBus.LastResult);
+
+            RefreshDrawingTypeContext();
+
             HookDocumentLifecycle();
         }
 
@@ -250,6 +258,7 @@ namespace StingTools.UI.PlacementCenter
                 else
                 {
                     _instance.Activate();
+                    _instance.RefreshDrawingTypeContext();
                     return;
                 }
             }
@@ -300,6 +309,12 @@ namespace StingTools.UI.PlacementCenter
         }
 
         private bool _closed;
+
+        protected override void OnClosed(EventArgs e)
+        {
+            PlacementResultBus.ResultPublished -= OnBusResult;
+            base.OnClosed(e);
+        }
 
         // ── Toolbar handlers ─────────────────────────────────────────
 
@@ -1162,6 +1177,7 @@ namespace StingTools.UI.PlacementCenter
                     _runResultIds.Count > 0 ? $"✓ {_runResultIds.Count} fixtures placed" : "Nothing placed",
                     new[] { $"Rooms: {roomIds.Count}", $"Fixtures: {_runResultIds.Count}", dry ? "Dry-run" : "Live" },
                     PlacementRuleLoader.LastValidationWarnings.Take(10).ToArray());
+                RefreshDrawingTypeContext();
             }
             catch (Exception ex)
             {
@@ -1356,6 +1372,105 @@ namespace StingTools.UI.PlacementCenter
 
             if (grpRunResult != null)
                 grpRunResult.Visibility = Visibility.Visible;
+        }
+
+        // ── DrawingType context strip ────────────────────────────────
+
+        private void RefreshDrawingTypeContext()
+        {
+            try
+            {
+                var view = _uiDoc?.ActiveView;
+                if (view == null)
+                {
+                    SetDtContextLabels("—", "—", "—");
+                    return;
+                }
+                var dtId = DrawingTypeStamper.Read(view);
+                if (string.IsNullOrEmpty(dtId))
+                {
+                    SetDtContextLabels("(not stamped)", "—", "—");
+                    return;
+                }
+                var dt = _doc != null ? DrawingTypeRegistry.Get(_doc, dtId) : null;
+                string packId = "—";
+                if (_doc != null && DrawingTypeRegistry.TryGetPack(_doc, dtId, out var pack) && pack != null)
+                    packId = pack.Id ?? "—";
+                SetDtContextLabels(
+                    dt?.Id ?? dtId,
+                    packId,
+                    string.IsNullOrEmpty(dt?.Discipline) ? "—" : dt.Discipline);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementCenter.RefreshDrawingTypeContext: {ex.Message}");
+                SetDtContextLabels("error", "—", "—");
+            }
+        }
+
+        private void SetDtContextLabels(string dtId, string packId, string disc)
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                try
+                {
+                    if (txtDtContextId   != null) txtDtContextId.Text   = dtId;
+                    if (txtDtContextPack != null) txtDtContextPack.Text = packId;
+                    if (txtDtContextDisc != null) txtDtContextDisc.Text = disc;
+                }
+                catch { }
+            });
+        }
+
+        private void BtnRefreshDtContext_Click(object sender, RoutedEventArgs e)
+            => RefreshDrawingTypeContext();
+
+        private void OnBusResult(PlacementRunSummary summary)
+        {
+            if (summary == null) return;
+            Dispatcher.InvokeAsync(() =>
+            {
+                try
+                {
+                    // Update context strip headline.
+                    if (txtLastResultSource != null)
+                        txtLastResultSource.Text = $"[{summary.Source}]";
+                    if (txtLastResultHeadlineStrip != null)
+                        txtLastResultHeadlineStrip.Text = summary.Headline;
+
+                    // Also update the Run tab's result panel if those controls exist.
+                    var headline = FindName("txtRunResultHeadline") as System.Windows.Controls.TextBlock;
+                    if (headline != null) headline.Text = summary.Headline;
+
+                    var metricsList = FindName("lstRunMetrics") as System.Windows.Controls.ItemsControl;
+                    if (metricsList != null) metricsList.ItemsSource = summary.Metrics;
+
+                    var findingsList = FindName("lstRunFindings") as System.Windows.Controls.ItemsControl;
+                    if (findingsList != null) findingsList.ItemsSource = summary.Warnings;
+
+                    // Update the result ids for selection.
+                    _runResultIds = summary.AffectedIds ?? new List<Autodesk.Revit.DB.ElementId>();
+                    _runReportText = summary.Headline;
+
+                    // Show the result panel if it's collapsed.
+                    var resultPanel = FindName("grpRunResult") as System.Windows.Controls.GroupBox;
+                    if (resultPanel != null) resultPanel.Visibility = System.Windows.Visibility.Visible;
+
+                    // Refresh context strip DT info if the summary carries a new DT id.
+                    if (!string.IsNullOrEmpty(summary.DrawingTypeId) && _doc != null)
+                    {
+                        var dt = DrawingTypeRegistry.Get(_doc, summary.DrawingTypeId);
+                        string packId = "—";
+                        if (DrawingTypeRegistry.TryGetPack(_doc, summary.DrawingTypeId, out var pk) && pk != null)
+                            packId = pk.Id ?? "—";
+                        SetDtContextLabels(
+                            dt?.Id ?? summary.DrawingTypeId,
+                            summary.PackId ?? packId,
+                            dt?.Discipline ?? "—");
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"PlacementCenter.OnBusResult: {ex.Message}"); }
+            });
         }
 
         // ── Resources ────────────────────────────────────────────────
