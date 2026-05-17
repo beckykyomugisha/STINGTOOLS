@@ -105,7 +105,7 @@ public class SsoController : ControllerBase
         {
             TenantId                       = tenantId,
             Name                           = req.Name,
-            Protocol                       = req.Protocol ?? "OIDC",
+            Protocol                       = protocol,
             Enabled                        = req.Enabled ?? true,
             EmailDomains                   = req.EmailDomains,
             RequireSso                     = req.RequireSso ?? false,
