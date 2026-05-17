@@ -666,7 +666,7 @@ namespace StingTools.Commands.Drawing
             }
             catch (Exception ex2)
             {
-                StingLog.Warn($"ReadSlotBoundsFromTitleBlock (ref planes): {ex.Message}");
+                StingLog.Warn($"ReadSlotBoundsFromTitleBlock (ref planes): {ex2.Message}");
             }
             return result;
         }

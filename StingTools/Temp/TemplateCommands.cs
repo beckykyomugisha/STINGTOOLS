@@ -877,7 +877,7 @@ namespace StingTools.Temp
                     }
                     catch (Exception ex2)
                     {
-                        StingLog.Warn($"CSV template '{fullName}': {ex.Message}");
+                        StingLog.Warn($"CSV template '{fullName}': {ex2.Message}");
                         csvSkipped++;
                     }
                 }

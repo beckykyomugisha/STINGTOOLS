@@ -1748,7 +1748,7 @@ namespace StingTools.Tags
             }
             catch (Exception ex2)
             {
-                StingLog.Warn($"AdjustLeaderElbow: {ex.Message}");
+                StingLog.Warn($"AdjustLeaderElbow: {ex2.Message}");
             }
         }
 

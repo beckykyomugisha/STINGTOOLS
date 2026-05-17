@@ -139,7 +139,7 @@ namespace StingTools.Commands.Mep
                 catch (Exception ex2)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
-                    StingLog.Warn($"MepSystemTracer: stamp failed: {ex.Message}");
+                    StingLog.Warn($"MepSystemTracer: stamp failed: {ex2.Message}");
                 }
             }
         }

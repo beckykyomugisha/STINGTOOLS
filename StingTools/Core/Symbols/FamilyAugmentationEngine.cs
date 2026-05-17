@@ -177,8 +177,8 @@ namespace StingTools.Core.Symbols
             }
             catch (Exception ex2)
             {
-                r.Warning = ex.Message;
-                StingTools.Core.StingLog.Warn($"AugmentFamily {fam.Name}: {ex.Message}");
+                r.Warning = ex2.Message;
+                StingTools.Core.StingLog.Warn($"AugmentFamily {fam.Name}: {ex2.Message}");
             }
             finally
             {

@@ -165,8 +165,8 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                         }
                         catch (Exception ex2)
                         {
-                            StingLog.Error($"Create circuit {proposal.ProposedLabel}: {ex.Message}", ex);
-                            failed.Add($"{proposal.ProposedLabel}: {ex.Message}");
+                            StingLog.Error($"Create circuit {proposal.ProposedLabel}: {ex2.Message}", ex);
+                            failed.Add($"{proposal.ProposedLabel}: {ex2.Message}");
                             try { if (tx.HasStarted()) tx.RollBack(); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                         }
                     }

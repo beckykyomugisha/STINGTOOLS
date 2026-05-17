@@ -265,7 +265,7 @@ namespace StingTools.Commands.Electrical
                     catch (Exception ex2)
                     {
                         failed++;
-                        StingLog.Warn($"BatchAssignCircuits '{a.SystemName}' → '{a.PanelName}': {ex.Message}");
+                        StingLog.Warn($"BatchAssignCircuits '{a.SystemName}' → '{a.PanelName}': {ex2.Message}");
                     }
                 }
                 tx.Commit();

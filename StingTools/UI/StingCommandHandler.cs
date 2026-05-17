@@ -1894,9 +1894,9 @@ namespace StingTools.UI
                         }
                         catch (Exception ex2)
                         {
-                            StingLog.Warn($"SelectByElementGuid: {ex.Message}");
+                            StingLog.Warn($"SelectByElementGuid: {ex2.Message}");
                             Autodesk.Revit.UI.TaskDialog.Show("Site Photos",
-                                $"Could not select element: {ex.Message}");
+                                $"Could not select element: {ex2.Message}");
                         }
                         break;
                     }

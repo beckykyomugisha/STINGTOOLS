@@ -2584,7 +2584,7 @@ namespace StingTools.Temp
                         }
                         catch (Exception ex3)
                         {
-                            StingLog.Warn($"VG scheme on '{target.Name}': {ex.Message}");
+                            StingLog.Warn($"VG scheme on '{target.Name}': {ex3.Message}");
                         }
 
                         viewsConfigured++;
