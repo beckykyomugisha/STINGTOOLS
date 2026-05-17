@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Xbim.Common;
 using Xbim.Ifc;
 using Xbim.Ifc4.Interfaces;
+using Xbim.Ifc4.MeasureResource;
 
 namespace Planscape.Infrastructure.Services;
 
@@ -310,38 +311,34 @@ public sealed class XbimIfcGeometryExtractor : IIfcGeometryExtractor
     private static ElementBounds? TryExtractFromBoundingBoxRep(
         IIfcElement element, double scaleMm, string? storey, string discipline)
     {
-        try
+        if (element.Representation?.Representations == null) return null;
+
+        foreach (var rep in element.Representation.Representations
+                     .OfType<IIfcShapeRepresentation>())
         {
-            if (element.Representation?.Representations == null) return null;
+            // RepresentationType is a nullable IfcLabel; compare string value
+            if (!string.Equals(
+                    rep.RepresentationType?.Value as string,
+                    "BoundingBox",
+                    StringComparison.OrdinalIgnoreCase))
+                continue;
 
-            foreach (var rep in element.Representation.Representations
-                         .OfType<IIfcShapeRepresentation>())
-            {
-                // RepresentationType is a nullable IfcLabel; compare string value
-                if (!string.Equals(
-                        rep.RepresentationType?.Value as string,
-                        "BoundingBox",
-                        StringComparison.OrdinalIgnoreCase))
-                    continue;
+            var bb = rep.Items.OfType<IIfcBoundingBox>().FirstOrDefault();
+            if (bb == null) continue;
 
-                var bb = rep.Items.OfType<IIfcBoundingBox>().FirstOrDefault();
-                if (bb == null) continue;
+            double ox = (double)bb.Corner.X * scaleMm;
+            double oy = (double)bb.Corner.Y * scaleMm;
+            double oz = (double)bb.Corner.Z * scaleMm;
+            double dx = (double)bb.XDim * scaleMm;
+            double dy = (double)bb.YDim * scaleMm;
+            double dz = (double)bb.ZDim * scaleMm;
 
-                double ox = (double)(bb.Corner.X ?? 0) * scaleMm;
-                double oy = (double)(bb.Corner.Y ?? 0) * scaleMm;
-                double oz = (double)(bb.Corner.Z ?? 0) * scaleMm;
-                double dx = (double)bb.XDim * scaleMm;
-                double dy = (double)bb.YDim * scaleMm;
-                double dz = (double)bb.ZDim * scaleMm;
-
-                return new ElementBounds(
-                    MinX: ox,       MinY: oy,       MinZ: oz,
-                    MaxX: ox + dx,  MaxY: oy + dy,  MaxZ: oz + dz,
-                    Storey: storey,
-                    Discipline: discipline);
-            }
+            return new ElementBounds(
+                MinX: ox,       MinY: oy,       MinZ: oz,
+                MaxX: ox + dx,  MaxY: oy + dy,  MaxZ: oz + dz,
+                Storey: storey,
+                Discipline: discipline);
         }
-        catch { /* non-fatal: caller logs */ throw; }
 
         return null;
     }
@@ -361,30 +358,24 @@ public sealed class XbimIfcGeometryExtractor : IIfcGeometryExtractor
     private static ElementBounds? TryExtractFromObjectPlacement(
         IIfcElement element, double scaleMm, string? storey, string discipline)
     {
-        try
-        {
-            if (element.ObjectPlacement is not IIfcLocalPlacement lp) return null;
+        if (element.ObjectPlacement is not IIfcLocalPlacement lp) return null;
 
-            // RelativePlacement can be IIfcAxis2Placement3D or IIfcAxis2Placement2D.
-            if (lp.RelativePlacement is not IIfcAxis2Placement3D ax3d) return null;
+        // RelativePlacement can be IIfcAxis2Placement3D or IIfcAxis2Placement2D.
+        if (lp.RelativePlacement is not IIfcAxis2Placement3D ax3d) return null;
 
-            var loc = ax3d.Location;
-            if (loc == null) return null;
+        var loc = ax3d.Location;
+        if (loc == null) return null;
 
-            double x = (double)(loc.X ?? 0) * scaleMm;
-            double y = (double)(loc.Y ?? 0) * scaleMm;
-            double z = (double)(loc.Z ?? 0) * scaleMm;
+        double x = (double)loc.X * scaleMm;
+        double y = (double)loc.Y * scaleMm;
+        double z = (double)loc.Z * scaleMm;
 
-            const double radius = 100.0; // mm
+        const double radius = 100.0; // mm
 
-            return new ElementBounds(
-                MinX: x - radius, MinY: y - radius, MinZ: z - radius,
-                MaxX: x + radius, MaxY: y + radius, MaxZ: z + radius,
-                Storey: storey,
-                Discipline: discipline);
-        }
-        catch { /* non-fatal: caller logs */ throw; }
-
-        return null;
+        return new ElementBounds(
+            MinX: x - radius, MinY: y - radius, MinZ: z - radius,
+            MaxX: x + radius, MaxY: y + radius, MaxZ: z + radius,
+            Storey: storey,
+            Discipline: discipline);
     }
 }
