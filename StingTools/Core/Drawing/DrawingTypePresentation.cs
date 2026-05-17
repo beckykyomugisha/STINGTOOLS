@@ -563,7 +563,7 @@ namespace StingTools.Core.Drawing
                     {
                         ViewScale = dt.Scale > 0 ? dt.Scale : view.Scale
                     };
-                    var annResult = AnnotationRunner.Run(doc, view, dt.Annotation, annOpts);
+                    var annResult = AnnotationRunner.Run(doc, view, dt, annOpts);
                     r.AnnotationTagsPlaced = annResult.TagsPlaced;
                     r.AnnotationDimsPlaced = annResult.DimsPlaced;
                     r.AnnotationDecPlaced  = annResult.DecorativePlaced;
