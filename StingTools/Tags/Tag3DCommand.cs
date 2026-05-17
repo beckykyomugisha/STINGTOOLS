@@ -7,6 +7,9 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.UI;
+using StingTools.Core.Drawing;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 
 namespace StingTools.Tags
 {
@@ -883,7 +886,7 @@ namespace StingTools.Tags
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     StingLog.Warn($"Tag3D link '{link?.Name}': {ex.Message}");
                     result.Warnings.Add($"Linked file '{link?.Name}' skipped: {ex.Message}");

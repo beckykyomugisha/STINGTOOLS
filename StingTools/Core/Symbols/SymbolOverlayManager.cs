@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — symbol overlay manager (Phase 175)
 //
 // Places symbol overlays on existing model elements via IndependentTag.

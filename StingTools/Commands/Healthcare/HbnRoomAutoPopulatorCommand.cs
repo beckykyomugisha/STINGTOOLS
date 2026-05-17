@@ -106,8 +106,8 @@ namespace StingTools.Commands.Healthcare
             try
             {
                 var ctx  = ParameterHelpers.GetContext(commandData);
-                var doc  = ctx.Document;
-                var uidoc = ctx.UIDocument;
+                var doc  = ctx.Doc;
+                var uidoc = ctx.UIDoc;
 
                 // Get selected rooms
                 var selIds = uidoc.Selection.GetElementIds();

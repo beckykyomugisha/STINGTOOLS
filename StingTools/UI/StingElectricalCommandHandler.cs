@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Electrical;
 using Autodesk.Revit.UI;
@@ -102,7 +103,7 @@ namespace StingTools.UI
             catch (Exception ex)
             {
                 StingLog.Error($"ElectricalCommandHandler [{tag}]", ex);
-                try { TaskDialog.Show("STING Electrical", $"Command failed: {ex.Message}"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { TaskDialog.Show("STING Electrical", $"Command failed: {ex2.Message}"); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
             }
 
             // After every command, push a fresh snapshot so the panel grids stay in sync.

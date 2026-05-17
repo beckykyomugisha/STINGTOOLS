@@ -21,6 +21,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Symbols;
+using Newtonsoft.Json;
 
 namespace StingTools.Commands.Symbols
 {

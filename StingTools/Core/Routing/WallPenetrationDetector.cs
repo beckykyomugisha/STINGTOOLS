@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — WallPenetrationDetector.
 //
 // Companion to SlabPenetrationDetector. Walks every supplied MEPCurve
@@ -21,6 +22,7 @@
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
+using System.Linq;
 
 namespace StingTools.Core.Routing
 {
@@ -56,7 +58,7 @@ namespace StingTools.Core.Routing
             foreach (var id in memberIds)
             {
                 MEPCurve curve = null;
-                try { curve = doc.GetElement(id) as MEPCurve; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { curve = doc.GetElement(id) as MEPCurve; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                 if (curve == null) continue;
 
                 LocationCurve loc = curve.Location as LocationCurve;
@@ -101,7 +103,7 @@ namespace StingTools.Core.Routing
 
                     var crossing = new XYZ(crossXy.X, crossXy.Y, z);
                     double thicknessFt = 0;
-                    try { thicknessFt = wall.Width; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); thicknessFt = 0; }
+                    try { thicknessFt = wall.Width; } catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); thicknessFt = 0; }
 
                     var rec = new PenetrationRecord
                     {
@@ -123,7 +125,7 @@ namespace StingTools.Core.Routing
                         ParameterHelpers.SetString(curve, "STING_PENETRATION_FIRE_RATING_TXT",
                             rec.FireRating, overwrite: false);
                     }
-                    catch (Exception ex) { StingLog.Warn($"WallPenetrationDetector stamp: {ex.Message}"); }
+                    catch (Exception ex4) { StingLog.Warn($"WallPenetrationDetector stamp: {ex4.Message}"); }
 
                     // A run can cross multiple walls in the same pass;
                     // unlike the floor case, we keep iterating so every

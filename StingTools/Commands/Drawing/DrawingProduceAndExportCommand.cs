@@ -305,7 +305,7 @@ namespace StingTools.Commands.Drawing
                     doc.Export(outDir, new List<ElementId> { sheet.Id }, exportOpts);
                     stats.PdfsExported++;
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     stats.Warnings.Add($"PDF [{sheet.SheetNumber}]: {ex.Message}");
                 }

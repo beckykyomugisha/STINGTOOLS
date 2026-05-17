@@ -146,7 +146,7 @@ namespace StingTools.Commands.Mep
                     var t = FittingLossCalculator.DetectFittingType(el);
                     counts[t] = counts.TryGetValue(t, out var n) ? n + 1 : 1;
                 }
-                catch (Exception ex) { StingLog.Warn($"MepFittingLoss: detect on {el?.Id}: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"MepFittingLoss: detect on {el?.Id}: {ex2.Message}"); }
             }
 
             panel.AddSection("SUMMARY")

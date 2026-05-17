@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -16,6 +17,8 @@ using TextBox    = System.Windows.Controls.TextBox;
 using Visibility = System.Windows.Visibility;
 using SelectionChangedEventArgs = System.Windows.Controls.SelectionChangedEventArgs;
 using StingTools.Core;
+using Autodesk.Revit.DB.Architecture;
+using Grid = System.Windows.Controls.Grid;
 namespace StingTools.UI
 {
     /// <summary>

@@ -1,3 +1,4 @@
+using StingTools.Core;
 // ClashExclusions.cs — persistent list of user-approved clashes that should not re-surface.
 using System;
 using System.Collections.Generic;
@@ -45,7 +46,7 @@ namespace StingTools.Core.Clash
                 }
                 catch (Exception ex)
                 {
-                    // H9: Previously a bare catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } — corrupt exclusions.json
+                    // H9: Previously a bare catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); } — corrupt exclusions.json
                     // silently fell back to empty, then the next Save() would
                     // overwrite the user's approved-clash list with a blank file.
                     // Log loudly so the corruption is visible + user-diagnosable.

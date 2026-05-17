@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
+using System.Threading.Tasks;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Placement;
@@ -16,6 +17,7 @@ using StingTools.Core.Placement;
 using TextBox = System.Windows.Controls.TextBox;
 using ComboBox = System.Windows.Controls.ComboBox;
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
+using System.Text.RegularExpressions;
 
 namespace StingTools.UI
 {

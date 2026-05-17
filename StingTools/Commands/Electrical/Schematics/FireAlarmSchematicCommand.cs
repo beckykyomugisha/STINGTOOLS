@@ -126,7 +126,7 @@ namespace StingTools.Commands.Electrical.Schematics
                                     new XYZ(dropX, dropTopY,    0),
                                     new XYZ(dropX, dropBottomY, 0)));
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             StingLog.Warn($"FireAlarmSchematic: drop line dev {devIdx}: {ex.Message}");
                         }

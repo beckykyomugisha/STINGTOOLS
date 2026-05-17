@@ -80,7 +80,7 @@ namespace StingTools.Commands.Electrical.Lighting
                             if (status == "NONE") view.SetElementOverrides(r.Id, ogsRed);
                             else if (status == "SAME_CIRCUIT") view.SetElementOverrides(r.Id, ogsAmber);
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                     }
 
                     rows.Add(new EmergAuditRow

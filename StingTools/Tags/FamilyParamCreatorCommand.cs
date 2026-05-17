@@ -9,6 +9,7 @@ using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Select;
 using StingTools.UI;
+using StingTools.Core.Placement;
 
 namespace StingTools.Tags
 {
@@ -1169,7 +1170,7 @@ namespace StingTools.Tags
             finally
             {
                 try { famDoc?.Close(false); }
-                catch (Exception ex) { StingLog.Warn($"Close family document: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Close family document: {ex2.Message}"); }
             }
 
             return result;

@@ -7,6 +7,7 @@ using StingTools.Core;
 using System;
 using System.Linq;
 using System.Text;
+using System.IO;
 
 namespace StingTools.Commands.Healthcare
 {

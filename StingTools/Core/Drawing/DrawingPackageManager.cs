@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager · Phase 137
 //
 // DrawingPackageManager groups STING-produced views and sheets by
@@ -122,7 +123,7 @@ namespace StingTools.Core.Drawing
                     doc.Export(outputDir, new List<ElementId> { s.Id }, opts);
                     result.SheetCount++;
                 }
-                catch (Exception ex) { result.Warnings.Add($"Export '{s.SheetNumber}': {ex.Message}"); }
+                catch (Exception ex2) { result.Warnings.Add($"Export '{s.SheetNumber}': {ex2.Message}"); }
             }
             return result;
         }

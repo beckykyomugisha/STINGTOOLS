@@ -20,6 +20,7 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using MiniSoftware;
 using StingTools.Core;
+using Autodesk.Revit.DB;
 
 namespace Planscape.Docs.Templates
 {

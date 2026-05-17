@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — compound symbol placer (Phase 175)
 //
 // Lays out a compound symbol (e.g. SLD_RCBO = MCB + RCD; or a complete

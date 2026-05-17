@@ -10,15 +10,29 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Controls.Primitives;
 using System.Windows.Shapes;
+using System.Threading.Tasks;
 using StingTools.Core;
 using StingTools.BIMManager;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using Path     = System.IO.Path;
-using TaskDialog = Autodesk.Revit.UI.TaskDialog;
-using Button     = System.Windows.Controls.Button;
-using Color      = System.Windows.Media.Color;
-using Grid       = System.Windows.Controls.Grid;
+using Path        = System.IO.Path;
+using TaskDialog  = Autodesk.Revit.UI.TaskDialog;
+using Button      = System.Windows.Controls.Button;
+using Binding     = System.Windows.Data.Binding;
+using Color       = System.Windows.Media.Color;
+using ComboBox    = System.Windows.Controls.ComboBox;
+using ContextMenu = System.Windows.Controls.ContextMenu;
+using Ellipse     = System.Windows.Shapes.Ellipse;
+using Grid        = System.Windows.Controls.Grid;
+using Line        = System.Windows.Shapes.Line;
+using MenuItem    = System.Windows.Controls.MenuItem;
+using TextBox     = System.Windows.Controls.TextBox;
+using Visibility  = System.Windows.Visibility;
+using Newtonsoft.Json.Linq;
+using StingTools.Core.Validation.Healthcare;
+using Autodesk.Revit.DB.Architecture;
+using Color = System.Windows.Media.Color;
+using Grid = System.Windows.Controls.Grid;
 
 namespace StingTools.UI
 {
@@ -3107,7 +3121,7 @@ namespace StingTools.UI
                 copyLinkMi.Click += (s2, e2) =>
                 {
                     var r = CtxRow();
-                    if (r != null) { try { Clipboard.SetText($"planscape://issue/{r.Id}"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } }
+                    if (r != null) { try { Clipboard.SetText($"planscape://issue/{r.Id}"); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); } }
                 };
                 var selectMi = new MenuItem { Header = "Select Linked Elements" };
                 selectMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) DispatchAction($"SelectIssue_{r.Id}"); };
@@ -7877,10 +7891,10 @@ namespace StingTools.UI
                 ctxResolve.Click += (s, e) => { var r = CtxDelRow(); if (r != null) DispatchAction("ApproveDeliverable_" + r.Code); };
                 dgCtx.Items.Add(ctxResolve);
                 var ctxCopyId = new MenuItem { Header = "📋 Copy ID" };
-                ctxCopyId.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText(r.Code ?? string.Empty); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } } };
+                ctxCopyId.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText(r.Code ?? string.Empty); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); } } };
                 dgCtx.Items.Add(ctxCopyId);
                 var ctxCopyLink = new MenuItem { Header = "🔗 Copy permalink" };
-                ctxCopyLink.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText($"planscape://deliverable/{r.Code}"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } } };
+                ctxCopyLink.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText($"planscape://deliverable/{r.Code}"); } catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); } } };
                 dgCtx.Items.Add(ctxCopyLink);
                 dgCtx.Items.Add(new Separator());
                 var ctxCDE = new MenuItem { Header = "Update CDE Status" };
@@ -8778,7 +8792,7 @@ namespace StingTools.UI
                     File.WriteAllText(path, rows2);
                     TaskDialog.Show("STING — Team Workload", $"Exported to:\n{path}");
                 }
-                catch (Exception ex) { StingLog.Warn($"Workload export: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Workload export: {ex2.Message}"); }
             };
             tabDStack.Children.Add(wExportBtn);
 

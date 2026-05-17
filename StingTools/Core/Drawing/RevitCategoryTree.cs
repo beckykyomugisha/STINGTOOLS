@@ -1,3 +1,4 @@
+using System;
 // StingTools — Drawing Template Manager · Phase 137
 //
 // RevitCategoryTree is the single source of truth for the Revit

@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — SLD sync updater (Phase 175)
 //
 // IUpdater that syncs every "STING - SLD" drafting view with electrical

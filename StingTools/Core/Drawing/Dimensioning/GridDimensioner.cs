@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.Core.Drawing;
+using StingTools.Core;
 
 namespace StingTools.Core.Drawing.Dimensioning
 {

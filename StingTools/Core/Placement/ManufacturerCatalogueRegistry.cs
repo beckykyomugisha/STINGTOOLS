@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139.2 — Manufacturer catalogue registry.
 //
 // Loads STING_MANUFACTURER_CATALOGUE.json (one ship-with-plug-in default

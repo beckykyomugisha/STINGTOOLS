@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — orientation engine (Phase 175)
 //
 // Maps an element's primary axis vs the view's normal vector to one of

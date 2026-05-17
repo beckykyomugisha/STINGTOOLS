@@ -76,7 +76,7 @@ namespace StingTools.Commands.Electrical.Photometric
             if (!string.IsNullOrEmpty(ifcPath) && File.Exists(ifcPath))
             {
                 try { Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{ifcPath}\"") { UseShellExecute = true }); }
-                catch (Exception ex) { StingLog.Info($"Open Explorer: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Info($"Open Explorer: {ex2.Message}"); }
             }
 
             // 4. Walk-through: tell the user what to do in DIALux evo, then

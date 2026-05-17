@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Mechanical;
@@ -11,6 +12,8 @@ using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.DB.Electrical;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using System.Text.RegularExpressions;
+using Autodesk.Revit.DB.Architecture;
 
 namespace StingTools.Temp
 {

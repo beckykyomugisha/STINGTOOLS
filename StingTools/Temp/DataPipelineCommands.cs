@@ -10,6 +10,9 @@ using ClosedXML.Excel;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.Core.Validation;
+using System.Text.RegularExpressions;
+using Autodesk.Revit.DB.Architecture;
 
 namespace StingTools.Temp
 {
@@ -795,7 +798,7 @@ namespace StingTools.Temp
                                 failed++;
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         failed++;
                         StingLog.Warn($"Bind '{paramName}': {ex.Message}");
@@ -1362,7 +1365,7 @@ namespace StingTools.Temp
                                     }
                                 }
                             }
-                            catch (Exception ex) { StingLog.Warn($"Build BOQ description for '{sample.FamilyName}': {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"Build BOQ description for '{sample.FamilyName}': {ex2.Message}"); }
                             if (string.IsNullOrEmpty(desc))
                             {
                                 desc = !string.IsNullOrEmpty(sample.Description)

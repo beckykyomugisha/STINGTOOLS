@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager · Week 5
 //
 // ScopeBoxBinder parses a "magic name" convention on scope boxes

@@ -1,3 +1,4 @@
+using System;
 // Pack 9 — preview source for Smart Tag Placement.
 //
 // Reads the same scoring loop Smart Place uses, but instead of calling
@@ -12,6 +13,7 @@
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using StingTools.Tags;
+using StingTools.Core;
 
 namespace StingTools.Core.Visualization
 {

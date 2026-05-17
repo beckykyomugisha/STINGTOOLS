@@ -5,10 +5,13 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Text;
 using Autodesk.Revit.DB;
 using StingTools.Core;
 using Grid = System.Windows.Controls.Grid;
 using Visibility = System.Windows.Visibility;
+using Newtonsoft.Json;
+using Autodesk.Revit.UI;
 
 namespace StingTools.UI
 {
@@ -1026,7 +1029,7 @@ namespace StingTools.UI
                     if (!string.IsNullOrEmpty(current))
                         txtPath.Text = Path.ChangeExtension(current, ext);
                 }
-                catch (Exception ex) { StingLog.Warn($"path parse failure is non-fatal: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"path parse failure is non-fatal: {ex2.Message}"); }
             }
             rbCSV.Checked += (s, e) => UpdateExtension();
             rbExcel.Checked += (s, e) => UpdateExtension();
