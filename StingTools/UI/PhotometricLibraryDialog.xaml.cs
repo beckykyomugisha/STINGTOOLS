@@ -31,7 +31,7 @@ namespace StingTools.UI
         public PhotometricLibraryDialog(PhotometricLibrary library, Document doc)
         {
             InitializeComponent();
-            try { ThemeManager.RegisterTarget(this); } catch { }
+            try { ThemeManager.RegisterTarget(this); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             _library = library;
             _doc = doc;
             LibraryGrid.ItemsSource = Rows;
@@ -48,7 +48,7 @@ namespace StingTools.UI
                     : n == 1 ? $"1 root: {_library.RootPaths[0]}"
                     : $"{n} roots configured";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private void RescanInBackground()
@@ -156,7 +156,7 @@ namespace StingTools.UI
                     ? "(no fixtures selected — pick one or more lighting fixtures in the model and click Assign)"
                     : $"{ids.Count} luminaire type(s) will receive the photometric data";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private List<ElementId> CollectSelectedFixtureTypeIds()

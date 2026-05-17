@@ -81,83 +81,12 @@ namespace StingTools.Core.Routing
         /// </summary>
         public bool EnforceSeparation { get; set; } = true;
 
-        /// <summary>
-        /// Phase 139.29 — when true, every drop's segment is checked
-        /// against StructuralAwareness for beam-junction / column
-        /// proximity (100 mm clearance). Default true; set false to skip
-        /// when the structural model isn't loaded into the host project.
-        /// </summary>
-        public bool CheckSoffitClash { get; set; } = true;
-
-        /// <summary>
-        /// When true, the engine routes the drop via the 3D voxel A*
-        /// pathfinder (RoutingPathfinder.FindPath) instead of a single
-        /// plumb-line intercept. Yields a 6-connected polyline that
-        /// dodges walls / floors / structural members. Slightly slower
-        /// (~50–200 ms per drop on typical office floor plates) but
-        /// produces buildable geometry instead of straight-line clashes.
-        /// Off by default — opt in per discipline / per engine to keep
-        /// behaviour stable for projects already happy with L/Z drops.
-        /// </summary>
-        public bool UsePathfinder { get; set; } = false;
-
-        /// <summary>
-        /// Hard cap on A* node expansions per drop. Prevents the
-        /// solver from spinning when start and goal are separated by a
-        /// huge obstacle field. Defaults to 200,000 (≈250 ms on typical
-        /// hardware). Drops exceeding the cap fall back to plumb-line.
-        /// </summary>
-        public int MaxAStarExpansions { get; set; } = 200_000;
-
-        /// <summary>
-        /// Optional deterministic seed for the ACO refiner / 3-opt
-        /// smoothers when they ride on top of A*. Default 1234 (the
-        /// same constant the v4 MVP used). Set to a per-project value
-        /// to get repeatable routes across re-runs.
-        /// </summary>
-        public int RoutingSeed { get; set; } = 1234;
-
-        /// <summary>
-        /// When true, the intercept Z is snapped to the soffit of any
-        /// false ceiling sitting between origin and intercept (using
-        /// CeilingAwareSnapper). Drops then land in the service void
-        /// rather than spearing through the ceiling. Default true —
-        /// architecturally-correct routing with negligible cost.
-        /// Set false when the host project doesn't model false
-        /// ceilings (saves a per-drop FilteredElementCollector pass).
-        /// </summary>
-        public bool SnapToCeilingSoffit { get; set; } = true;
-
-        /// <summary>
-        /// Buffer (mm) above the ceiling soffit when SnapToCeilingSoffit
-        /// is enabled. Defaults to CIBSE Guide B4's 50 mm — enough for
-        /// access-tile clearance.
-        /// </summary>
-        public double CeilingSoffitBufferMm { get; set; } = 50.0;
-
-        // Lazy-built StructuralAwareness for soffit clash. Per-engine
-        // instance — DropEngineBase isn't shared across runs.
-        private StingTools.Core.Placement.StructuralAwareness _soffitAwareness;
-
         protected DropEngineBase(Document doc)
         {
             Doc = doc;
         }
 
         // ---- containment search -------------------------------------------------
-
-        /// <summary>
-        /// When true, FindNearestContainment scores tray-network
-        /// connectivity in addition to raw XY distance. A tray that is
-        /// part of an existing connected run scores better than an
-        /// equally-close isolated stub, because dropping onto the
-        /// connected run actually puts cables on infrastructure that
-        /// goes somewhere — the stub leaves them stranded. The score
-        /// halves the effective distance per connected neighbour
-        /// (capped at 4 neighbours) so a connected tray always beats
-        /// an isolated one within the same search radius.
-        /// </summary>
-        public bool PreferConnectedTrays { get; set; } = true;
 
         /// <summary>
         /// Find the MEPCurve of the given category whose centreline
@@ -250,7 +179,7 @@ namespace StingTools.Core.Routing
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return n;
         }
 
@@ -424,177 +353,6 @@ namespace StingTools.Core.Routing
         protected virtual bool SupportsTakeoff => true;
 
         /// <summary>
-        /// Phase 178e — when true, the engine drops one MEPCurve per
-        /// free connector on the fixture, not just the first one.
-        /// Required for plumbing (a basin needs cold + hot + waste) and
-        /// for medical-gas terminal units (O2 + N2O + Air + Vac on a
-        /// single back-plate). Off by default to keep existing
-        /// behaviour stable — opt in per discipline by setting
-        /// <c>MultiServiceMode = true</c> in the engine constructor.
-        /// </summary>
-        public bool MultiServiceMode { get; set; } = false;
-
-        /// <summary>
-        /// Subclass hook: derive a per-connector ServiceId so the
-        /// corridor-band snap + separation checker get the right
-        /// service-corridor key for each drop in multi-service mode.
-        /// Default returns the engine-wide ServiceId — engines that
-        /// want per-system corridor lookup (AutoPipeDrop) override it.
-        /// </summary>
-        protected virtual string ServiceIdForConnector(Connector c) => ServiceId;
-
-        /// <summary>
-        /// Multi-service variant of TryDropFromFixture. Loops every
-        /// free connector on the fixture matching the engine's domain
-        /// and creates one drop per connector. Each drop uses the
-        /// ServiceId returned by <see cref="ServiceIdForConnector"/> so
-        /// hot / cold / soil pipes claim distinct corridor bands.
-        /// </summary>
-        protected int TryDropFromFixtureAllConnectors(Element fixtureEl, BuiltInCategory containmentCat,
-            double maxSearchMm, DropResult result)
-        {
-            if (fixtureEl == null) { result.SkippedCount++; return 0; }
-            int dropped = 0;
-            foreach (var fxConn in EnumerateFreeConnectorsForDomain(fixtureEl))
-            {
-                string savedServiceId = ServiceId;
-                try
-                {
-                    ServiceId = ServiceIdForConnector(fxConn) ?? savedServiceId;
-                    if (TryDropFromFixtureUsingConnector(fixtureEl, fxConn, containmentCat, maxSearchMm, result))
-                        dropped++;
-                }
-                catch (Exception ex)
-                {
-                    result.Warnings.Add($"Multi-service drop {fixtureEl.Id} (conn {fxConn?.Id}): {ex.Message}");
-                }
-                finally { ServiceId = savedServiceId; }
-            }
-            if (dropped == 0) result.SkippedCount++;
-            return dropped;
-        }
-
-        private IEnumerable<Connector> EnumerateFreeConnectorsForDomain(Element el)
-        {
-            var list = new List<Connector>();
-            foreach (var c in GetAllConnectors(el))
-            {
-                bool connected;
-                try { connected = c.IsConnected; } catch { continue; }
-                if (connected) continue;
-                if (ConnectorDomain == Domain.DomainUndefined) { list.Add(c); continue; }
-                Domain d;
-                try { d = c.Domain; } catch { d = Domain.DomainUndefined; }
-                if (d == ConnectorDomain) list.Add(c);
-            }
-            // Stable order: by connector id so re-runs produce the same
-            // sequence of drops (matters for SEQ-based naming downstream).
-            list.Sort((a, b) =>
-            {
-                try { return a.Id.CompareTo(b.Id); } catch { return 0; }
-            });
-            return list;
-        }
-
-        /// <summary>
-        /// Single-connector variant of the drop pipeline used by
-        /// multi-service mode. Behaves identically to <see cref="TryDropFromFixture"/>
-        /// from Stage 2 onward; only Stage 1 differs (caller supplies
-        /// the connector instead of letting the engine pick).
-        /// </summary>
-        protected bool TryDropFromFixtureUsingConnector(Element fixtureEl, Connector fxConn,
-            BuiltInCategory containmentCat, double maxSearchMm, DropResult result)
-        {
-            if (fixtureEl == null || fxConn == null) return false;
-            XYZ origin;
-            try { origin = fxConn.Origin; } catch { origin = null; }
-            if (origin == null && fixtureEl.Location is LocationPoint lp && lp.Point != null)
-                origin = lp.Point;
-            if (origin == null) { result.SkippedCount++; return false; }
-
-            Element host = FindNearestContainment(origin, containmentCat, maxSearchMm);
-            if (host == null)
-            {
-                result.Warnings.Add($"No {containmentCat} found within {maxSearchMm}mm of fixture {fixtureEl.Id} (connector {fxConn.Id}, service {ServiceId})");
-                result.SkippedCount++;
-                return false;
-            }
-            XYZ to = ComputeInterceptPoint(origin, host);
-            to = MaybeSnapToCorridorBand(origin, to, result);
-            if (SnapToCeilingSoffit)
-            {
-                try { to = CeilingAwareSnapper.Snap(Doc, origin, to, CeilingSoffitBufferMm); }
-                catch (Exception ex) { result.Warnings.Add($"CeilingAwareSnapper: {ex.Message}"); }
-            }
-            if (EnforceSeparation && !string.IsNullOrEmpty(ServiceId))
-            {
-                try
-                {
-                    var violations = SeparationChecker.Check(Doc, origin, to, ServiceId);
-                    foreach (var v in violations) result.Warnings.Add($"Separation: {v}");
-                }
-                catch (Exception ex) { result.Warnings.Add($"SeparationChecker: {ex.Message}"); }
-            }
-
-            var pathPoints = ResolveRouteToHost(origin, to, host, result);
-            var createdIds = new List<ElementId>();
-            for (int i = 0; i < pathPoints.Count - 1; i++)
-            {
-                XYZ a = pathPoints[i];
-                XYZ b = pathPoints[i + 1];
-                Element segHost = (i == pathPoints.Count - 2) ? host : null;
-                ElementId segId = CreateRunBetween(a, b, segHost, result);
-                if (segId == null || segId == ElementId.InvalidElementId)
-                {
-                    foreach (var bad in createdIds)
-                    { try { Doc.Delete(bad); } catch (Exception ex) { StingLog.Warn($"Roll back {bad}: {ex.Message}"); } }
-                    createdIds.Clear();
-                    if (pathPoints.Count > 2)
-                    {
-                        result.Warnings.Add($"Pathfinder segment {i + 1}/{pathPoints.Count - 1} failed; falling back to plumb-line drop.");
-                        var fallback = CreateRunBetween(origin, to, host, result);
-                        if (fallback != null && fallback != ElementId.InvalidElementId) createdIds.Add(fallback);
-                    }
-                    break;
-                }
-                createdIds.Add(segId);
-            }
-            if (createdIds.Count == 0) { result.FailedCount++; return false; }
-            result.CreatedIds.AddRange(createdIds);
-
-            var firstCurve = Doc.GetElement(createdIds[0]) as MEPCurve;
-            var lastCurve  = Doc.GetElement(createdIds[createdIds.Count - 1]) as MEPCurve;
-            if (firstCurve != null)
-            {
-                var nearConn = GetConnectorNearestTo(firstCurve, origin);
-                if (nearConn != null) TryConnect(fxConn, nearConn, result);
-            }
-            for (int i = 0; i + 1 < createdIds.Count; i++)
-            {
-                var c1 = Doc.GetElement(createdIds[i])     as MEPCurve;
-                var c2 = Doc.GetElement(createdIds[i + 1]) as MEPCurve;
-                if (c1 == null || c2 == null) continue;
-                XYZ joint = pathPoints[i + 1];
-                var f1 = GetConnectorNearestTo(c1, joint);
-                var n2 = GetConnectorNearestTo(c2, joint);
-                if (f1 != null && n2 != null) TryConnect(f1, n2, result);
-            }
-            if (lastCurve != null)
-            {
-                var farConn = GetConnectorNearestTo(lastCurve, to);
-                if (SupportsTakeoff && host is MEPCurve hostCurve && farConn != null)
-                    TryCreateTakeoff(farConn, hostCurve, result);
-                else if (host is MEPCurve hostCurveAlt && farConn != null)
-                {
-                    var hostConn = GetConnectorNearestTo(hostCurveAlt, to);
-                    if (hostConn != null && farConn.Origin.DistanceTo(hostConn.Origin) < 2.0)
-                        TryConnect(farConn, hostConn, result);
-                }
-            }
-            return true;
-        }
-
-        /// <summary>
         /// Shared per-element driver. Four stages:
         ///   1. Locate fixture connector (domain-filtered, free).
         ///   2. Find host containment; compute plumb-line intercept.
@@ -642,18 +400,6 @@ namespace StingTools.Core.Routing
 
             // Stage 2.5: corridor-band snap + separation check.
             to = MaybeSnapToCorridorBand(origin, to, result);
-
-            // Stage 2.6: false-ceiling soffit snap. Without this the
-            // drop's intercept can sit BELOW a suspended ceiling — the
-            // conduit then visibly speers through the ceiling tile in
-            // the model. CeilingAwareSnapper finds any ceiling between
-            // origin and intercept and lifts the intercept to ceiling
-            // top + buffer (default 50 mm CIBSE clearance).
-            if (SnapToCeilingSoffit)
-            {
-                try { to = CeilingAwareSnapper.Snap(Doc, origin, to, CeilingSoffitBufferMm); }
-                catch (Exception ex) { result.Warnings.Add($"CeilingAwareSnapper: {ex.Message}"); }
-            }
             if (EnforceSeparation && !string.IsNullOrEmpty(ServiceId))
             {
                 try
@@ -666,118 +412,37 @@ namespace StingTools.Core.Routing
                 { result.Warnings.Add($"SeparationChecker failed: {ex.Message}"); }
             }
 
-            // Phase 139.29 — soffit beam / joist clash check.
-            // Suspended drops sit under structural soffits; if a beam
-            // sits between origin and to, the drop must dodge it.
-            // StructuralAwareness was wired for chase routing; here we
-            // hand it the drop segment and warn when it passes within
-            // 100 mm of a beam-junction or column.
-            if (CheckSoffitClash)
-            {
-                try
-                {
-                    if (_soffitAwareness == null) _soffitAwareness = new StingTools.Core.Placement.StructuralAwareness(Doc);
-                    const double clearFt = 100.0 / 304.8;
-                    if (!_soffitAwareness.SegmentIsRoutable(null, origin, to, clearFt))
-                    {
-                        result.Warnings.Add(
-                            $"Drop {fixtureEl.Id} → host {host?.Id?.Value}: passes within 100 mm of " +
-                            "structural beam/junction. Dropped anyway — verify offset or tighten the " +
-                            "drop path before issue (BIM coordinator review).");
-                    }
-                }
-                catch (Exception sex) { result.Warnings.Add($"Soffit clash check: {sex.Message}"); }
-            }
-
-            // Stage 3: build the geometry.
-            //
-            // Default behaviour (UsePathfinder=false) — straight plumb-
-            // line drop: one CreateRunBetween call from origin to the
-            // host intercept. Identical to the v4 MVP behaviour.
-            //
-            // Opt-in behaviour (UsePathfinder=true) — query the voxel
-            // A* pathfinder and create one MEPCurve per polyline edge.
-            // Pathfinder failures fall back gracefully to the straight
-            // path so a degenerate obstacle field never blocks the drop.
-            var pathPoints = ResolveRouteToHost(origin, to, host, result);
-            var createdIds = new List<ElementId>();
-            for (int i = 0; i < pathPoints.Count - 1; i++)
-            {
-                XYZ a = pathPoints[i];
-                XYZ b = pathPoints[i + 1];
-                // Final segment carries the real host so subclasses can
-                // resolve the level / takeoff. Intermediate segments
-                // pass null host — geometry is independent of host
-                // semantics, the segment just bridges between A* nodes.
-                Element segHost = (i == pathPoints.Count - 2) ? host : null;
-                ElementId segId = CreateRunBetween(a, b, segHost, result);
-                if (segId == null || segId == ElementId.InvalidElementId)
-                {
-                    // Mid-path failure on a multi-segment route is fatal —
-                    // an unconnected segment is worse than a single
-                    // straight drop. Roll back the segments we just
-                    // created and fall through to the plumb-line path.
-                    foreach (var bad in createdIds)
-                    {
-                        try { Doc.Delete(bad); }
-                        catch (Exception ex) { StingLog.Warn($"Roll back {bad}: {ex.Message}"); }
-                    }
-                    createdIds.Clear();
-                    if (pathPoints.Count > 2)
-                    {
-                        result.Warnings.Add($"Pathfinder segment {i + 1}/{pathPoints.Count - 1} failed; falling back to plumb-line drop.");
-                        var fallback = CreateRunBetween(origin, to, host, result);
-                        if (fallback != null && fallback != ElementId.InvalidElementId)
-                            createdIds.Add(fallback);
-                    }
-                    break;
-                }
-                createdIds.Add(segId);
-            }
-
-            if (createdIds.Count == 0)
+            // Stage 3: subclass creates the run geometry.
+            var id = CreateRunBetween(origin, to, host, result);
+            if (id == null || id == ElementId.InvalidElementId)
             {
                 result.FailedCount++;
                 return false;
             }
-            result.CreatedIds.AddRange(createdIds);
+            result.CreatedIds.Add(id);
 
-            // Stage 4: wire up the run to both ends. With multi-segment
-            // routes, also stitch internal joins so each polyline corner
-            // becomes a fitting (the type's RoutingPreferenceManager
-            // picks the elbow / tee). Best-effort — connector mismatches
-            // or geometry precision issues never destroy the run.
-            var firstCurve = Doc.GetElement(createdIds[0])             as MEPCurve;
-            var lastCurve  = Doc.GetElement(createdIds[createdIds.Count - 1]) as MEPCurve;
-            if (firstCurve != null)
+            // Stage 4: wire up the new run to both ends. Both steps are
+            // best-effort — connector mismatches or geometry precision
+            // issues must not destroy the drop we just created.
+            var createdCurve = Doc.GetElement(id) as MEPCurve;
+            if (createdCurve != null)
             {
-                var nearConn = GetConnectorNearestTo(firstCurve, origin);
+                var nearConn = GetConnectorNearestTo(createdCurve, origin);
+                var farConn  = GetConnectorNearestTo(createdCurve, to);
+
                 if (fxConn != null && nearConn != null)
                     TryConnect(fxConn, nearConn, result);
-            }
 
-            // Internal joins: connect the far connector of segment i to
-            // the near connector of segment i+1 at the shared waypoint.
-            for (int i = 0; i + 1 < createdIds.Count; i++)
-            {
-                var c1 = Doc.GetElement(createdIds[i])     as MEPCurve;
-                var c2 = Doc.GetElement(createdIds[i + 1]) as MEPCurve;
-                if (c1 == null || c2 == null) continue;
-                XYZ joint = pathPoints[i + 1];
-                var f1 = GetConnectorNearestTo(c1, joint);
-                var n2 = GetConnectorNearestTo(c2, joint);
-                if (f1 != null && n2 != null) TryConnect(f1, n2, result);
-            }
-
-            if (lastCurve != null)
-            {
-                var farConn = GetConnectorNearestTo(lastCurve, to);
                 if (SupportsTakeoff && host is MEPCurve hostCurve && farConn != null)
                 {
                     TryCreateTakeoff(farConn, hostCurve, result);
                 }
                 else if (host is MEPCurve hostCurveAlt && farConn != null)
                 {
+                    // Electrical / cable-tray: try direct ConnectTo.
+                    // Find the closest host connector and attempt a
+                    // fitting-mediated join. Will no-op when the host
+                    // has no adjacent connector in range.
                     var hostConn = GetConnectorNearestTo(hostCurveAlt, to);
                     if (hostConn != null && farConn.Origin.DistanceTo(hostConn.Origin) < 2.0)
                         TryConnect(farConn, hostConn, result);
@@ -785,38 +450,6 @@ namespace StingTools.Core.Routing
             }
 
             return true;
-        }
-
-        /// <summary>
-        /// Resolve the polyline that the run should follow. When
-        /// UsePathfinder is false (default) returns [origin, to] — a
-        /// straight line, identical to the v4 MVP behaviour. When
-        /// pathfinder mode is enabled, runs A* against an obstacle list
-        /// collected from the active document and returns the resulting
-        /// polyline. On any pathfinder failure the method falls back
-        /// to the straight line and surfaces the failure reason as a
-        /// warning so the caller can investigate.
-        /// </summary>
-        protected virtual List<XYZ> ResolveRouteToHost(XYZ origin, XYZ to, Element host, DropResult result)
-        {
-            var fallback = new List<XYZ> { origin, to };
-            if (!UsePathfinder) return fallback;
-            try
-            {
-                var obstacles = RoutingPathfinder.CollectObstaclesInAABB(Doc, origin, to);
-                var path = RoutingPathfinder.FindPath(origin, to, obstacles, MaxAStarExpansions);
-                if (!path.Success || path.Points == null || path.Points.Count < 2)
-                {
-                    result.Warnings.Add($"Pathfinder failed ({path.FailureReason}); using straight drop.");
-                    return fallback;
-                }
-                return path.Points;
-            }
-            catch (Exception ex)
-            {
-                result.Warnings.Add($"Pathfinder threw: {ex.Message}; using straight drop.");
-                return fallback;
-            }
         }
 
         /// <summary>

@@ -125,7 +125,7 @@ namespace StingTools.Commands.Drawing
                 var dataPath = StingToolsApp.FindDataFile(fileName);
                 if (!string.IsNullOrEmpty(dataPath) && File.Exists(dataPath)) return dataPath;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             try
             {
                 if (!string.IsNullOrEmpty(doc?.PathName))
@@ -135,7 +135,7 @@ namespace StingTools.Commands.Drawing
                     if (File.Exists(alongside)) return alongside;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 
@@ -146,7 +146,7 @@ namespace StingTools.Commands.Drawing
                 if (!string.IsNullOrEmpty(doc?.PathName))
                     return Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "_BIM_COORD");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return Path.Combine(Path.GetTempPath(), "STING");
         }
 

@@ -1765,7 +1765,12 @@
       pane.innerHTML = '';
       pane.appendChild(el('div', { class: 'prop-section-label' }, guid ? `Clashes (${subset.length})` : 'Recent clashes'));
       subset.forEach(c => {
-        const card = el('div', { class: `coord-card ${c.type.toLowerCase()}` });
+        const card = el('div', {
+          class: `coord-card ${c.type.toLowerCase()}`,
+          'data-kind': 'clash',
+          title: 'Click to zoom · Double-click to isolate · Right-click for options',
+        });
+        card._clash = c;   // delegated context menu in setupRowContextMenu reads this
         card.innerHTML = `
           <div class="head"><span class="tag ${c.type === 'HARD' ? 'hard' : 'soft'}">${c.type}</span>
             <span style="color:var(--text-muted);font-size:11px">${c.overlap_mm}mm ${c.type === 'HARD' ? 'overlap' : 'clearance'}</span></div>
@@ -1782,6 +1787,12 @@
         card.addEventListener('click', (e) => {
           if (e.target.closest('button')) return;
           focusClash(c);
+        });
+        // Double-click → zoom + isolate the clashing pair (mirrors bottom-panel dblclick).
+        card.addEventListener('dblclick', (e) => {
+          if (e.target.closest('button')) return;
+          focusClash(c);
+          isolateClashPair(c);
         });
         $('button[data-act=view]', card).addEventListener('click', (e) => { e.stopPropagation(); focusClash(c); });
         $('button[data-act=issue]', card).addEventListener('click', (e) => { e.stopPropagation(); openIssueModal({ clash: c }); });
@@ -1935,6 +1946,20 @@
         if (!card || !card._photo) return;
         e.preventDefault();
         openPhotoRowMenu(menu, card._photo, e.clientX, e.clientY);
+      });
+      // Right-panel issue cards — same menu as bottom-panel rows.
+      $('#pane-issues')?.addEventListener('contextmenu', (e) => {
+        const card = e.target.closest('.coord-card[data-kind="issue"]');
+        if (!card || !card._issue) return;
+        e.preventDefault();
+        openIssueRowMenu(menu, card._issue, e.clientX, e.clientY);
+      });
+      // Right-panel clash cards — same menu as bottom-panel rows.
+      $('#pane-clashes')?.addEventListener('contextmenu', (e) => {
+        const card = e.target.closest('.coord-card[data-kind="clash"]');
+        if (!card || !card._clash) return;
+        e.preventDefault();
+        openClashRowMenu(menu, card._clash, e.clientX, e.clientY);
       });
       // Click anywhere else to dismiss.
       document.addEventListener('click', (e) => {
@@ -2440,7 +2465,12 @@
       pane.appendChild(el('div', { class: 'prop-section-label' }, guid ? `Linked issues (${subset.length})` : 'Recent issues'));
       subset.forEach(i => {
         const overdue = i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED');
-        const card = el('div', { class: `coord-card priority-${i.priority || 'MEDIUM'} ${i.status === 'RESOLVED' ? 'resolved' : ''}` });
+        const card = el('div', {
+          class: `coord-card priority-${i.priority || 'MEDIUM'} ${i.status === 'RESOLVED' ? 'resolved' : ''}`,
+          'data-kind': 'issue',
+          title: 'Click to zoom · Double-click to open comments · Right-click for options',
+        });
+        card._issue = i;   // delegated context menu in setupRowContextMenu reads this
         card.innerHTML = `
           <div class="head">
             <span class="tag ${(i.status || 'NEW').toLowerCase()}">${i.status || 'NEW'}</span>
@@ -2460,6 +2490,13 @@
         card.addEventListener('click', (e) => {
           if (e.target.closest('button')) return;
           focusIssue(i);
+        });
+        // Double-click → zoom + open comments (mirrors bottom-panel dblclick).
+        card.addEventListener('dblclick', (e) => {
+          if (e.target.closest('button')) return;
+          focusIssue(i);
+          const tab = $$('.tab-bar .tab').find(t => t.dataset.tab === 'comments');
+          if (tab) tab.click();
         });
         $('button[data-act=view]', card)?.addEventListener('click', (e) => { e.stopPropagation(); focusIssue(i); });
         $('button[data-act=resolve]', card)?.addEventListener('click', (e) => { e.stopPropagation(); updateIssue(i.id, { status: 'RESOLVED' }); });
@@ -3921,16 +3958,33 @@
       const defaultButtons = V.controls.mouseButtons
         ? Object.assign({}, V.controls.mouseButtons)
         : null;
+      // Brief visual flash for one-shot nav buttons (home / level / fit).
+      function flashNavBtn(btn) {
+        btn.classList.add('flash');
+        setTimeout(() => btn.classList.remove('flash'), 300);
+      }
       const navEl = $('#navControls');
       $$('.nav-btn').forEach(b => b.addEventListener('click', () => {
         const m = b.dataset.mode;
-        // "fit" is a one-shot action (fly the camera) rather than a
-        // persistent mode — flash the button but don't keep it active.
+        // One-shot actions: fire and return without changing active mode.
         if (m === 'fit') {
           if (state.selectedElementGuids.size) fitToSelection();
           else if (V.modelBounds && !V.modelBounds.isEmpty()) {
             flyTo(V.modelBounds.getCenter(new THREE_.Vector3()));
           }
+          flashNavBtn(b);
+          return;
+        }
+        if (m === 'home') {
+          // Reset to the default opening camera position (fitCamera).
+          if (V.fitCamera) V.fitCamera();
+          flashNavBtn(b);
+          return;
+        }
+        if (m === 'level') {
+          // Make the current view horizontal — zero pitch, keep heading.
+          if (V.levelCamera) V.levelCamera();
+          flashNavBtn(b);
           return;
         }
         $$('.nav-btn').forEach(x => x.classList.remove('active'));
@@ -3970,39 +4024,71 @@
         const persisted = parseFloat(localStorage.getItem('planscape_walk_speed'));
         if (!isNaN(persisted) && persisted > 0) window.__walkSpeedMul = persisted;
       } catch (_) {}
-      function paintSpeed() {
+      function paintSpeed(animate) {
         const v = $('#walkSpeedVal');
-        if (v) v.textContent = window.__walkSpeedMul.toFixed(2).replace(/\.?0+$/, '') + '×';
+        if (!v) return;
+        v.textContent = window.__walkSpeedMul.toFixed(2).replace(/\.?0+$/, '') + '×';
+        if (animate) {
+          v.classList.remove('bumped');
+          // Force reflow so the animation restarts even on rapid bumps.
+          void v.offsetWidth;
+          v.classList.add('bumped');
+          v.addEventListener('animationend', () => v.classList.remove('bumped'), { once: true });
+        }
       }
       function bumpSpeed(delta) {
+        const prev = window.__walkSpeedMul;
         const next = Math.min(8, Math.max(0.1, window.__walkSpeedMul + delta));
         window.__walkSpeedMul = Math.round(next * 100) / 100;
+        if (window.__walkSpeedMul === prev) return; // already at limit, no paint
         try { localStorage.setItem('planscape_walk_speed', String(window.__walkSpeedMul)); } catch (_) {}
-        paintSpeed();
+        paintSpeed(true);
       }
       $('#walkSpeedDown')?.addEventListener('click', (e) => { e.stopPropagation(); bumpSpeed(-0.25); });
       $('#walkSpeedUp')?.addEventListener('click',   (e) => { e.stopPropagation(); bumpSpeed(+0.25); });
       paintSpeed();
 
-      // Scroll wheel during walk mode adjusts speed instead of zoom.
-      // We listen at window level (capture) and only act when the
-      // walk button is .active so Orbit / Pan zoom keep their normal
-      // wheel-zoom behaviour. Form fields keep native scroll.
+      // Scroll wheel during walk mode:
+      //   • Plain scroll  → move the camera forward/backward along the
+      //     current look direction (one-step nudge sized to model scale).
+      //   • Shift+scroll  → adjust walk speed (the previous behaviour,
+      //     now behind a modifier so plain scroll can navigate freely).
+      // Side-panel content keeps native scroll in both cases.
       window.addEventListener('wheel', (ev) => {
         if (state.activeNav !== 'walk') return;
         const tgt = ev.target;
         if (tgt && /INPUT|TEXTAREA|SELECT/.test(tgt.tagName)) return;
-        // Skip when the scroll happens inside a scrollable side pane so
-        // coordinators can still scroll the issues table or model tree
-        // while walk mode is technically active.
+        // Scrollable side panes keep native behaviour.
         if (tgt && tgt.closest && (
             tgt.closest('.left-panel') ||
             tgt.closest('.right-panel') ||
             tgt.closest('.bottom-panel'))) return;
-        // Modifier-aware: plain scroll = 5% per notch (fine); shift = 25%.
-        const fine = ev.shiftKey ? 0.25 : 0.05;
-        const sign = ev.deltaY < 0 ? +1 : -1;
-        bumpSpeed(sign * fine);
+
+        if (ev.shiftKey) {
+          // Shift+scroll → adjust speed (fine: 10% per notch).
+          const sign = ev.deltaY < 0 ? +1 : -1;
+          bumpSpeed(sign * 0.1);
+        } else {
+          // Plain scroll → step the camera forward/backward, projected
+          // onto the floor plane so movement stays horizontal even when
+          // the camera is pitched up or down (matches WASD behaviour).
+          const V = window.STING_VIEWER;
+          if (V && V.camera && V.modelBounds) {
+            const sign = ev.deltaY < 0 ? 1 : -1;
+            const step = V.modelBounds.getSize(new THREE_.Vector3()).length() * 0.02
+                         * (window.__walkSpeedMul || 1.0);
+            const dir = new THREE_.Vector3();
+            V.camera.getWorldDirection(dir);
+            // Project onto floor plane using the active walk-up axis.
+            const upArr = window.__walkUp;
+            if (upArr) {
+              const up = new THREE_.Vector3(upArr[0], upArr[1], upArr[2]);
+              dir.addScaledVector(up, -dir.dot(up));
+              if (dir.lengthSq() > 1e-6) dir.normalize();
+            }
+            V.camera.position.addScaledVector(dir, sign * step);
+          }
+        }
         ev.preventDefault();
       }, { passive: false });
     }

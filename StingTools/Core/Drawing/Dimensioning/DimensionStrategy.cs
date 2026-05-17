@@ -92,7 +92,7 @@ namespace StingTools.Core.Drawing.Dimensioning
 
         private static DimensionStyleType SafeStyleType(DimensionType t)
         {
-            try { return t.StyleType; } catch { return DimensionStyleType.Linear; }
+            try { return t.StyleType; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return DimensionStyleType.Linear; }
         }
 
         /// <summary>

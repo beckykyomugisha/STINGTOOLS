@@ -66,7 +66,7 @@ namespace StingTools.Core.Drawing
         {
             if (doc == null) return "__null__";
             try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
-            catch { return "__unknown__"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "__unknown__"; }
         }
 
         private sealed class BatchCacheScope : IDisposable
@@ -251,8 +251,8 @@ namespace StingTools.Core.Drawing
                 var view = doc.GetElement(viewId) as View;
                 if (view == null) return ElementId.InvalidElementId;
 
-                try { view.Name = MakeUniqueViewName(doc, BuildViewName(dt, rule, ctx)); } catch { }
-                if (rule.ScaleOverride.HasValue) try { view.Scale = rule.ScaleOverride.Value; } catch { }
+                try { view.Name = MakeUniqueViewName(doc, BuildViewName(dt, rule, ctx)); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                if (rule.ScaleOverride.HasValue) try { view.Scale = rule.ScaleOverride.Value; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 var applyOpts = new DrawingTypePresentation.ApplyOptions
                 {
@@ -354,8 +354,81 @@ namespace StingTools.Core.Drawing
                         return ViewDrafting.Create(doc, vft.Id).Id;
 
                     case "Schedule":
-                        result.Warnings.Add("Schedule production rule requires scheduleCategory field — not yet implemented.");
-                        return ElementId.InvalidElementId;
+                    {
+                        var cat = rule.ScheduleCategory;
+                        if (string.IsNullOrWhiteSpace(cat))
+                        {
+                            StingTools.Core.StingLog.Warn($"DrawingProducer: Schedule rule on '{dt.Id}' has no scheduleCategory — skipping.");
+                            result.Warnings.Add($"Schedule rule on '{dt.Id}' has no scheduleCategory — skipping.");
+                            return ElementId.InvalidElementId;
+                        }
+
+                        // Resolve BuiltInCategory from the string name
+                        BuiltInCategory bic = BuiltInCategory.INVALID;
+                        foreach (BuiltInCategory b in Enum.GetValues(typeof(BuiltInCategory)))
+                        {
+                            try
+                            {
+                                var catEl = Category.GetCategory(doc, b);
+                                if (catEl != null && string.Equals(catEl.Name, cat, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    bic = b;
+                                    break;
+                                }
+                            }
+                            catch { }
+                        }
+
+                        if (bic == BuiltInCategory.INVALID)
+                        {
+                            StingTools.Core.StingLog.Warn($"DrawingProducer: scheduleCategory '{cat}' not recognised as a Revit category — skipping schedule creation.");
+                            result.Warnings.Add($"scheduleCategory '{cat}' not recognised — skipping.");
+                            return ElementId.InvalidElementId;
+                        }
+
+                        // Idempotent: find existing schedule with same category and STING stamp
+                        var bicCatId = Category.GetCategory(doc, bic)?.Id;
+                        if (bicCatId == null || bicCatId == ElementId.InvalidElementId)
+                        {
+                            StingTools.Core.StingLog.Warn($"DrawingProducer: could not resolve CategoryId for '{cat}'.");
+                            result.Warnings.Add($"Could not resolve CategoryId for '{cat}'.");
+                            return ElementId.InvalidElementId;
+                        }
+
+                        var existingSched = new FilteredElementCollector(doc)
+                            .OfClass(typeof(ViewSchedule))
+                            .Cast<ViewSchedule>()
+                            .FirstOrDefault(vs =>
+                                vs.Definition?.CategoryId?.Value == bicCatId.Value &&
+                                string.Equals(
+                                    StingTools.Core.ParameterHelpers.GetString(vs, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID),
+                                    dt.Id,
+                                    StringComparison.OrdinalIgnoreCase));
+                        if (existingSched != null)
+                            return existingSched.Id;
+
+                        // Create fresh schedule
+                        var schedule = ViewSchedule.CreateSchedule(doc, bicCatId);
+                        schedule.Name = $"STING - {dt.Name ?? dt.Id}";
+
+                        // Add declared fields if specified
+                        if (rule.ScheduleFields?.Count > 0)
+                        {
+                            var schedDef = schedule.Definition;
+                            var availableFields = schedDef.GetSchedulableFields();
+                            foreach (var fieldName in rule.ScheduleFields)
+                            {
+                                var sf = availableFields.FirstOrDefault(f =>
+                                    string.Equals(f.GetName(doc), fieldName, StringComparison.OrdinalIgnoreCase));
+                                if (sf != null)
+                                    schedDef.AddField(sf);
+                                else
+                                    result.Warnings.Add($"Schedule field '{fieldName}' not found for category '{cat}' — skipped.");
+                            }
+                        }
+
+                        return schedule.Id;
+                    }
 
                     default:
                         result.Warnings.Add($"CreateViewByType: unsupported '{rule.ViewType}'.");
@@ -405,7 +478,7 @@ namespace StingTools.Core.Drawing
                 if (ctx.Room?.Location is LocationPoint lpr) return lpr.Point;
                 if (ctx.Level != null) return new XYZ(0, 0, ctx.Level.Elevation);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return XYZ.Zero;
         }
 
@@ -431,22 +504,23 @@ namespace StingTools.Core.Drawing
                         string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "", effectivePackage, StringComparison.Ordinal));
                 if (existing != null) return existing.Id;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             ElementId titleBlockId = ElementId.InvalidElementId;
             try
             {
+                var (tbFamily, tbSymbol) = DrawingDispatcher.ResolveTitleBlockVariant(dt);
                 var familyMatches = new FilteredElementCollector(doc)
                     .OfClass(typeof(FamilySymbol))
                     .OfCategory(BuiltInCategory.OST_TitleBlocks)
                     .Cast<FamilySymbol>()
-                    .Where(s => string.IsNullOrEmpty(dt.TitleBlockFamily) ||
-                                string.Equals(s.FamilyName, dt.TitleBlockFamily, StringComparison.OrdinalIgnoreCase))
+                    .Where(s => string.IsNullOrEmpty(tbFamily) ||
+                                string.Equals(s.FamilyName, tbFamily, StringComparison.OrdinalIgnoreCase))
                     .ToList();
                 FamilySymbol picked = null;
-                if (!string.IsNullOrWhiteSpace(dt.TitleBlockSymbolType))
+                if (!string.IsNullOrWhiteSpace(tbSymbol))
                     picked = familyMatches.FirstOrDefault(s =>
-                        string.Equals(s.Name, dt.TitleBlockSymbolType, StringComparison.OrdinalIgnoreCase));
+                        string.Equals(s.Name, tbSymbol, StringComparison.OrdinalIgnoreCase));
                 if (picked == null) picked = familyMatches.FirstOrDefault();
                 titleBlockId = picked?.Id ?? ElementId.InvalidElementId;
                 if (titleBlockId == ElementId.InvalidElementId)
@@ -456,7 +530,7 @@ namespace StingTools.Core.Drawing
                         .Cast<FamilySymbol>()
                         .FirstOrDefault()?.Id ?? ElementId.InvalidElementId;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             ViewSheet sheet;
             try { sheet = ViewSheet.Create(doc, titleBlockId); }
@@ -528,7 +602,7 @@ namespace StingTools.Core.Drawing
                 if (_existingSheetCache != null)
                     _existingSheetCache[SheetKey(dt.Id, effectivePackage)] = sheet.Id;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             if (dt.TitleBlockParams != null && dt.TitleBlockParams.Count > 0)
             {
@@ -571,23 +645,23 @@ namespace StingTools.Core.Drawing
         {
             var view = doc.GetElement(viewId);
             if (view == null) return;
-            try { StingTools.Core.ParameterHelpers.SetString(view, ParamRegistry.STING_VIEW_CONTEXT_TAG, BuildContextTag(ctx), overwrite: true); } catch { }
-            try { StingTools.Core.ParameterHelpers.SetString(view, ParamRegistry.STING_DRAWING_PACKAGE_ID, ctx.PackageId ?? dt.PackageId ?? "", overwrite: true); } catch { }
-            try { StingTools.Core.ParameterHelpers.SetInt(view, ParamRegistry.STING_PRODUCTION_RULE_IDX, rule.Idx, overwrite: true); } catch { }
+            try { StingTools.Core.ParameterHelpers.SetString(view, ParamRegistry.STING_VIEW_CONTEXT_TAG, BuildContextTag(ctx), overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { StingTools.Core.ParameterHelpers.SetString(view, ParamRegistry.STING_DRAWING_PACKAGE_ID, ctx.PackageId ?? dt.PackageId ?? "", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { StingTools.Core.ParameterHelpers.SetInt(view, ParamRegistry.STING_PRODUCTION_RULE_IDX, rule.Idx, overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private static void StampAutoPlaced(Document doc, ElementId vpId)
         {
             var el = doc.GetElement(vpId);
             if (el == null) return;
-            try { StingTools.Core.ParameterHelpers.SetInt(el, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true); } catch { }
+            try { StingTools.Core.ParameterHelpers.SetInt(el, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private static string BuildContextTag(DrawingContext ctx)
         {
             string lvl = ctx?.Level?.Name ?? "";
             string room = "";
-            try { room = ctx?.Room?.Id?.ToString() ?? ""; } catch { }
+            try { room = ctx?.Room?.Id?.ToString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return $"{lvl}::{room}::{ctx?.Tag ?? ""}";
         }
 
@@ -615,7 +689,7 @@ namespace StingTools.Core.Drawing
                         StingTools.Core.ParameterHelpers.GetInt(v, ParamRegistry.STING_PRODUCTION_RULE_IDX, -1) == ruleIdx &&
                         string.Equals(StingTools.Core.ParameterHelpers.GetString(v, ParamRegistry.STING_VIEW_CONTEXT_TAG), ctxTag, StringComparison.Ordinal));
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static string BuildViewName(DrawingType dt, ProductionRule rule, DrawingContext ctx)
@@ -653,7 +727,7 @@ namespace StingTools.Core.Drawing
                     .Cast<View>()
                     .Any(v => !v.IsTemplate && string.Equals(v.Name, name, StringComparison.Ordinal));
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         private static string SubstituteTokens(string pattern, DrawingType dt, DrawingContext ctx, Document doc)

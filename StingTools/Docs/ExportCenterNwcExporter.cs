@@ -127,7 +127,7 @@ namespace StingTools.Docs
         {
             try { return a.GetTypes(); }
             catch (ReflectionTypeLoadException ex) { return ex.Types.Where(t => t != null); }
-            catch { return Array.Empty<Type>(); }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return Array.Empty<Type>(); }
         }
     }
 }

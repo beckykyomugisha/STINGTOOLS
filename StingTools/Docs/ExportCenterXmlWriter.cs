@@ -83,6 +83,10 @@ namespace StingTools.Docs
                 W(w, "address", pi.Address);
                 W(w, "status",  pi.Status);
                 w.WriteStartElement("orgParams");
+                // Use ParamRegistry constants so a registry rename can never drift
+                // the export schema. Pre-existing strings here had the typos
+                // "PRJ_ORG_PROJECT_COD_TXT" / "_ORIGINATOR_COD_TXT" (missing the E),
+                // which meant LookupParameter silently returned null on every export.
                 foreach (string p in new[]
                 {
                     "PRJ_PROJECT_COD_TXT", "PRJ_ORG_ORIGINATOR_CODE_TXT",
@@ -134,7 +138,7 @@ namespace StingTools.Docs
                     w.WriteEndElement();
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // Parameters by group
             var groups = settings.ParameterGroups ?? new List<string>();
@@ -173,7 +177,7 @@ namespace StingTools.Docs
                     w.WriteEndElement();
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             w.WriteEndElement(); // sheet
         }
@@ -229,7 +233,7 @@ namespace StingTools.Docs
                     _ => p.AsValueString() ?? "",
                 };
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         private static void W(XmlWriter w, string name, string value)

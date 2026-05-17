@@ -85,10 +85,15 @@ namespace StingTools.V6
                 {
                     string hrsStr = ParameterHelpers.GetString(el, ParamRegistry.CST_INSTALL_HRS);
                     if (string.IsNullOrEmpty(hrsStr)) continue;
-                    if (!double.TryParse(hrsStr, out var hrs)) continue;
+                    // InvariantCulture: STING param values are written by the plugin in
+                    // invariant format and must be read back the same way regardless of
+                    // the Revit user's regional settings.
+                    var inv = System.Globalization.CultureInfo.InvariantCulture;
+                    if (!double.TryParse(hrsStr, System.Globalization.NumberStyles.Float, inv, out var hrs)) continue;
                     string crew = ParameterHelpers.GetString(el, ParamRegistry.CST_LABOUR_CREW_TXT) ?? "";
                     double rate = 0; double.TryParse(
-                        ParameterHelpers.GetString(el, ParamRegistry.CST_LABOUR_RATE_GBP) ?? "0", out rate);
+                        ParameterHelpers.GetString(el, ParamRegistry.CST_LABOUR_RATE_GBP) ?? "0",
+                        System.Globalization.NumberStyles.Float, inv, out rate);
                     double cost = hrs * rate;
                     if (!perCrew.TryGetValue(crew, out var c)) c = (0, 0, 0);
                     perCrew[crew] = (c.count + 1, c.hrs + hrs, c.cost + cost);

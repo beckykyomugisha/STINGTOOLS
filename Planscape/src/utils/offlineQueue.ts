@@ -111,6 +111,10 @@ export async function enqueue(
   };
 
   const queue = await loadQueue();
+  if (queue.length >= MAX_QUEUE_SIZE) {
+    console.warn(`[OfflineQueue] Queue full (${MAX_QUEUE_SIZE}), dropping oldest action: ${queue[0].type}`);
+    queue.shift();
+  }
   queue.push(action);
   await saveQueue(queue);
   return action;
@@ -321,6 +325,32 @@ async function replayAction(action: OfflineAction): Promise<void> {
       );
       break;
     }
+
+    // HC-11 — Healthcare Pack offline replay handlers.
+    case 'HC_MGAS_VERIFICATION': {
+      const { postMgasVerification } = await import('@/api/endpoints');
+      await postMgasVerification(
+        p.projectId as string,
+        p.payload as Parameters<typeof postMgasVerification>[1],
+      );
+      break;
+    }
+    case 'HC_PRESSURE_LOG': {
+      const { postPressureLog } = await import('@/api/endpoints');
+      await postPressureLog(
+        p.projectId as string,
+        p.payload as Parameters<typeof postPressureLog>[1],
+      );
+      break;
+    }
+    case 'HC_ANTI_LIGATURE_AUDIT': {
+      const { postAntiLigatureAudit } = await import('@/api/endpoints');
+      await postAntiLigatureAudit(
+        p.projectId as string,
+        p.payload as Parameters<typeof postAntiLigatureAudit>[1],
+      );
+      break;
+    }
   }
 }
 
@@ -426,6 +456,7 @@ export interface SyncResult {
 }
 
 const MAX_RETRIES_PER_ACTION = 3;
+const MAX_QUEUE_SIZE = 200;
 
 /**
  * N-G17 — compute exponential-backoff delay in milliseconds.

@@ -51,5 +51,12 @@ public class BoqBaseline : ITenantScoped
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string? CreatedBy { get; set; }
 
+    /// <summary>
+    /// When set, the baseline is locked and no further QuantityLine additions
+    /// or modifications are allowed. Null = unlocked (draft / in-progress).
+    /// Typically set when the baseline is issued (PUBLISHED CDE state).
+    /// </summary>
+    public DateTime? LockedAt { get; set; }
+
     public Project? Project { get; set; }
 }

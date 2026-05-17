@@ -108,12 +108,12 @@ namespace StingTools.Commands.Electrical.Photometric
                             else if (verdict == "OVER") view.SetElementOverrides(room.Id, ogsAmber);
                             else                        view.SetElementOverrides(room.Id, ogsGreen);
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     }
                 }
                 tx.Commit();
             }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // Excel report.
             string excelPath = WriteExcelReport(doc, reviews);
@@ -188,12 +188,12 @@ namespace StingTools.Commands.Electrical.Photometric
                     .OfCategory(BuiltInCategory.OST_LightingFixtures)
                     .WhereElementIsNotElementType().OfType<FamilyInstance>())
                 {
-                    try { if (fi.Room?.Id == room.Id) { n++; continue; } } catch { }
+                    try { if (fi.Room?.Id == room.Id) { n++; continue; } } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     var pt = (fi.Location as LocationPoint)?.Point;
                     if (pt != null && room.IsPointInRoom(pt)) n++;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return n;
         }
 

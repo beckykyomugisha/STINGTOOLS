@@ -64,6 +64,12 @@ public class TaggedElement : ITenantScoped
     public DateTime? LastModifiedUtc { get; set; }
     public int Version { get; set; } = 1;
 
+    // P6 live-link fields — populated by P6LiveLinkService when a matching activity is found.
+    public string?  P6ActivityId    { get; set; }
+    public double?  PercentComplete { get; set; }
+    public string?  ActualStart     { get; set; }
+    public string?  ActualFinish    { get; set; }
+
     // Navigation
     public Project? Project { get; set; }
 }

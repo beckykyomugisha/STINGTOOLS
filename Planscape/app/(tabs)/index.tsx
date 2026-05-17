@@ -8,16 +8,18 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { theme, getRAGColor, getPriorityColor } from '@/utils/theme';
 import {
+  listProjects,
   getProjectDashboard,
   getMyActions,
   getFederationStatus,
   listSyncConflicts,
   type FederationStatus,
 } from '@/api/endpoints';
-import type { DashboardData, BimIssue } from '@/types/api';
+import type { DashboardData, Project, BimIssue } from '@/types/api';
 import { useProjectStore } from '@/stores/projectStore';
 import { useInboxStore } from '@/stores/inboxStore';
 import { SitePhotoFab } from '@/components/SitePhotoFab';
@@ -25,12 +27,13 @@ import { SitePhotoFab } from '@/components/SitePhotoFab';
 export default function DashboardScreen() {
   const router = useRouter();
 
-  // Dashboard reads the active project from the shared store. The Projects tab
-  // (app/projects/index.tsx) sets it when the user taps a row; this screen
-  // fetches that project's dashboard data. If no project is active yet we
-  // prompt the user to go pick one from the Projects tab.
-  const activeProject = useProjectStore((s) => s.active);
+  // P9 — promote activeProject out of local state into the shared Zustand store so
+  // /models, /issues, and any future screen pick up the same selection without
+  // prop-drilling. `setActive(null)` clears it cleanly on logout.
+  const activeProject = useProjectStore((s) => s.active) as Project | null;
+  const setActiveInStore = useProjectStore((s) => s.setActive);
 
+  const [projects, setProjects] = useState<Project[]>([]);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -42,12 +45,11 @@ export default function DashboardScreen() {
   // Phase 143 — BIM Coordinator surfaces. Both fetched best-effort.
   const [federation, setFederation] = useState<FederationStatus | null>(null);
   const [pendingConflicts, setPendingConflicts] = useState<number>(0);
+  // Project selector view mode — 'chip' (horizontal bar) or 'list' (card grid).
+  // Persisted so the user's preference survives cold-starts.
+  const [projectViewMode, setProjectViewMode] = useState<'chip' | 'list'>('chip');
 
-  const loadData = useCallback(async () => {
-    if (!activeProject) {
-      setLoading(false);
-      return;
-    }
+  const loadData = useCallback(async (projectId?: string) => {
     try {
       setError(null);
       const data = await getProjectDashboard(activeProject.id);
@@ -83,11 +85,27 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeProject]);
+  }, [activeProject?.id, setActiveInStore]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Restore persisted project view mode on first render.
+  useEffect(() => {
+    AsyncStorage.getItem('project_view_mode').then((v) => {
+      if (v === 'list' || v === 'chip') setProjectViewMode(v);
+    }).catch(() => {});
+  }, []);
+
+  // D2 — refresh dashboard data whenever this tab is re-focused (e.g. returning
+  // from Issues, Documents, or any other screen). The existing useEffect handles
+  // the initial load; useFocusEffect covers every subsequent re-focus.
+  useFocusEffect(
+    useCallback(() => {
+      if (activeProject) loadData(activeProject.id);
+    }, [activeProject?.id, loadData]),
+  );
 
   // Phase 177-C — refresh the My Actions tile after the user approves /
   // rejects something elsewhere in the app. The store is bumped by the
@@ -105,28 +123,13 @@ export default function DashboardScreen() {
 
   function onRefresh() {
     setRefreshing(true);
-    loadData();
+    loadData(activeProject?.id);
   }
 
-  // No active project yet — the user has not tapped a project from the
-  // Projects tab. Show a clear prompt rather than a confusing empty state.
-  if (!activeProject) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.noProjectIcon}>🏗</Text>
-        <Text style={styles.noProjectTitle}>No project selected</Text>
-        <Text style={styles.noProjectSub}>
-          Go to the Projects tab and tap a project to load its dashboard here.
-        </Text>
-        <TouchableOpacity
-          style={styles.goToProjectsBtn}
-          onPress={() => router.push('/projects' as any)}
-          accessibilityLabel="Go to Projects"
-        >
-          <Text style={styles.goToProjectsBtnText}>Browse Projects</Text>
-        </TouchableOpacity>
-      </View>
-    );
+  function toggleProjectViewMode() {
+    const next = projectViewMode === 'chip' ? 'list' : 'chip';
+    setProjectViewMode(next);
+    AsyncStorage.setItem('project_view_mode', next).catch(() => {});
   }
 
   if (loading) {
@@ -150,11 +153,11 @@ export default function DashboardScreen() {
     );
   }
 
-  if (!dashboard) {
+  if (!dashboard || !activeProject) {
     return (
       <View style={styles.center}>
-        <Text style={styles.emptyText}>No data for this project.</Text>
-        <Text style={styles.emptySubtext}>Pull to refresh or check your connection.</Text>
+        <Text style={styles.emptyText}>No projects found.</Text>
+        <Text style={styles.emptySubtext}>Create a project in the Planscape web portal to get started.</Text>
       </View>
     );
   }
@@ -202,13 +205,13 @@ export default function DashboardScreen() {
           title="Open Issues"
           value={String(dashboard.openIssueCount)}
           color={dashboard.openIssueCount > 5 ? theme.colors.danger : theme.colors.accent}
-          onPress={() => router.push('/(tabs)/issues')}
+          onPress={() => router.replace('/(tabs)/issues')}
         />
         <KPICard
           title="Documents"
           value={String(dashboard.documentCount)}
           color={theme.colors.primary}
-          onPress={() => router.push('/(tabs)/documents')}
+          onPress={() => router.replace('/(tabs)/documents')}
         />
       </View>
 
@@ -248,7 +251,7 @@ export default function DashboardScreen() {
           {federation && (
             <TouchableOpacity
               style={styles.bimRow}
-              onPress={() => router.push('/(tabs)/models')}
+              onPress={() => router.replace('/(tabs)/models')}
               accessibilityLabel={`Federation status — ${federation.rag}`}
             >
               <View style={[styles.ragDot, { backgroundColor: ragToColor(federation.rag) }]} />
@@ -323,14 +326,10 @@ export default function DashboardScreen() {
         <QuickAction label="Meetings" emoji="📅" onPress={() => router.push('/meetings' as any)} />
         <QuickAction label="Transmittals" emoji="📤" onPress={() => router.push('/transmittals' as any)} />
         <QuickAction label="Warnings" emoji="⚠️" onPress={() => router.push('/warnings' as any)} />
-        <QuickAction label="Clashes" emoji="💥" onPress={() => router.push('/clashes' as any)} />
         <QuickAction label="Healthcare" emoji="🏥" onPress={() => router.push('/healthcare' as any)} />
         {/* T3-6 — Punchlist mode entry point. Lives next to Diary/Meetings
             so on-site supervisors find it on the same row of muscle memory. */}
         <QuickAction label="Punchlist" emoji="🎯" onPress={() => router.push('/punchlist' as any)} />
-        {/* BCC parity — Team roster and QA dashboard shortcut buttons. */}
-        <QuickAction label="Team" emoji="👥" onPress={() => router.push('/members' as any)} />
-        <QuickAction label="QA" emoji="✅" onPress={() => router.push('/qa' as any)} />
       </View>
 
       {/* Discipline breakdown */}
@@ -354,7 +353,7 @@ export default function DashboardScreen() {
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Issues</Text>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/issues')}>
+            <TouchableOpacity onPress={() => router.replace('/(tabs)/issues')}>
               <Text style={styles.seeAll}>See all</Text>
             </TouchableOpacity>
           </View>
@@ -491,48 +490,15 @@ const styles = StyleSheet.create({
     fontSize: 48,
     marginBottom: theme.spacing.md,
   },
-  noProjectTitle: {
-    fontSize: theme.fontSize.xl,
+  projectName: {
+    fontSize: theme.fontSize.xxl,
     fontWeight: '700',
     color: theme.colors.text,
-    marginBottom: theme.spacing.sm,
   },
-  noProjectSub: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: theme.spacing.lg,
-    maxWidth: 280,
-  },
-  goToProjectsBtn: {
-    backgroundColor: theme.colors.accent,
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.sm,
-  },
-  goToProjectsBtnText: {
-    color: theme.colors.surface,
-    fontSize: theme.fontSize.md,
-    fontWeight: '600',
-  },
-
-  // Breadcrumb — active project name + tap to go back to list
-  breadcrumb: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
-  },
-  breadcrumbChevron: {
-    fontSize: theme.fontSize.xl,
-    color: theme.colors.accent,
-    marginRight: theme.spacing.xs,
-    lineHeight: 22,
-  },
-  breadcrumbProject: {
-    flex: 1,
+  projectCode: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.accent,
-    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    marginTop: 2,
   },
 
   // Compliance gauge

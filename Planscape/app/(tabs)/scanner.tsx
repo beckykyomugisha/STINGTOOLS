@@ -404,7 +404,7 @@ function ElementDetail({
         return;
       }
       // Push the first hit for quick triage; the list remains searchable by tag.
-      router.push(`/issue-detail?id=${linked[0].id}`);
+      router.push(`/issue-detail?id=${linked[0].id}&projectId=${project.id}`);
     } catch (err) {
       Alert.alert('Lookup failed', err instanceof Error ? err.message : String(err));
     }

@@ -355,7 +355,7 @@ namespace StingTools.Core.Drawing
                     if (sp != null) return sp.Id;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             warnings?.Add($"BuiltInParameter '{paramName}' not recognised.");
             return ElementId.InvalidElementId;
@@ -469,7 +469,7 @@ namespace StingTools.Core.Drawing
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "string";
         }
     }

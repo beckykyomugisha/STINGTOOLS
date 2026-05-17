@@ -59,79 +59,6 @@ namespace StingTools.UI.PlacementCenter
                 "ESCAPE_ROUTE_CENTRELINE", // PC-09
                 "RELATIVE_TO",       // PC-13 — relative to a predecessor rule
                 "EQUIPMENT_PAIR",    // PC-13 — co-located with another rule's last point
-                // Phase 139 — 22 new anchor types
-                "WINDOW_SILL_KITCHEN",     "WINDOW_SILL_WET_ROOM",
-                "WINDOW_SILL_RESIDENTIAL", "WINDOW_SILL_COMMERCIAL",
-                "WINDOW_SILL_HOSPITAL",    "WINDOW_HEAD",
-                "DOOR_STRIKE_SIDE",        "DOOR_CLOSER_ZONE",
-                "BEAM_SOFFIT",             "COLUMN_FACE_NEAREST",
-                "CEILING_TILE_CORNER",     "CURTAIN_PANEL_CENTRE",
-                "SLAB_PERIMETER_EDGE",     "ESCAPE_DOOR_BOTH_SIDES",
-                "STAIR_LANDING_EDGE",      "STAIR_FLIGHT_MID",
-                "CORRIDOR_JUNCTION",       "FIRE_EXTINGUISHER_TRAVEL",
-                "CALL_POINT_TRAVEL",       "RAISED_FLOOR_TILE_EDGE",
-                "NEAREST_MEP_SYSTEM_NODE", "ZONE_BOUNDARY",
-            };
-
-        // Phase 139 — building-profile dropdowns
-        public ObservableCollection<string> BuildingTypes { get; }
-            = new ObservableCollection<string>
-            {
-                "", "Office", "Residential", "Healthcare", "Education",
-                "Hospitality", "Industrial", "Retail", "Mixed",
-            };
-
-        public ObservableCollection<string> WetZoneOptions { get; }
-            = new ObservableCollection<string>
-            {
-                "NONE", "BS7671_Z1", "BS7671_Z2", "IEC60364_Z0", "IEC60364_Z1",
-            };
-
-        public ObservableCollection<string> RoutingModes { get; }
-            = new ObservableCollection<string>
-            {
-                "NONE", "WALL_FOLLOW", "CEILING_FOLLOW", "FLOOR_FOLLOW",
-                "CONDUIT_RUN", "TRAY_RUN",
-            };
-
-        public ObservableCollection<string> RouteFaces { get; }
-            = new ObservableCollection<string> { "INTERIOR", "EXTERIOR", "TOP", "BOTTOM" };
-
-        public ObservableCollection<string> RouteSegmentCategories { get; }
-            = new ObservableCollection<string> { "", "Conduit", "CableTray", "Pipe", "Duct", "GenericModel" };
-
-        public ObservableCollection<string> GlazingSpecs { get; }
-            = new ObservableCollection<string>
-            {
-                "", "CLEAR", "OBSCURED", "TOUGHENED", "LAMINATED",
-                "ACOUSTIC", "FIRE_RATED", "UV_FILTER", "SEALED",
-            };
-
-        public ObservableCollection<string> MaintenanceClearances { get; }
-            = new ObservableCollection<string>
-            {
-                "", "FRONT_600", "FRONT_1000", "SIDES_300", "TOP_900",
-            };
-
-        public ObservableCollection<string> HeightStandardKeys { get; }
-            = new ObservableCollection<string>
-            {
-                "", "BS8300_SWITCH_1200_1400", "BS8300_SOCKET_LOW",
-                "BS8300_SOCKET_HIGH", "BS8300_DOOR_HANDLE",
-                "BS8300_GRAB_RAIL_WC", "BS8300_BASIN_RIM",
-                "BS8300_PULL_CORD", "PARTM_SWITCH",
-                "BS7671_SOCKET_FLOOR", "BS5839_MCP",
-                "BS5266_EXIT_SIGN", "HTM0201_OUTLET",
-                "BB103_SWITCH_PRIMARY", "BB103_SWITCH_SECONDARY",
-                "PARTM_RECEPTION_DESK", "BS6465_BASIN", "BS6465_URINAL",
-            };
-
-        public ObservableCollection<string> SourcePackChips { get; }
-            = new ObservableCollection<string>
-            {
-                "All", "Baseline", "Architecture", "Mechanical", "Electrical",
-                "HealthcareEdu", "Windows", "Routing", "MedicalGases",
-                "Accessibility", "Commissioning",
             };
 
         public ObservableCollection<string> SideConstraints { get; }
@@ -250,32 +177,6 @@ namespace StingTools.UI.PlacementCenter
         {
             get => _showInvalidOnly;
             set { if (_showInvalidOnly != value) { _showInvalidOnly = value; OnPropertyChanged(); ApplyFilter(); } }
-        }
-
-        // Phase 139 I1 — SourcePack chip filter (All / Baseline / Electrical / ...)
-        private string _selectedSourcePack = "All";
-        public string SelectedSourcePack
-        {
-            get => _selectedSourcePack;
-            set { if (_selectedSourcePack != value) { _selectedSourcePack = value ?? "All"; OnPropertyChanged(); ApplyFilter(); } }
-        }
-
-        // Phase 139 I3 — current building profile bound to header card.
-        private ProjectBuildingProfile _profile = new ProjectBuildingProfile();
-        public ProjectBuildingProfile Profile
-        {
-            get => _profile;
-            set { _profile = value ?? new ProjectBuildingProfile(); OnPropertyChanged(); OnPropertyChanged(nameof(ProfileSummary)); ApplyFilter(); }
-        }
-
-        public string ProfileSummary
-        {
-            get
-            {
-                if (_profile == null || string.IsNullOrEmpty(_profile.BuildingType)) return "No profile loaded — all rules active.";
-                int n = _profile.ActiveStandards?.Length ?? 0;
-                return $"{_profile.BuildingType} · {n} standard(s) active";
-            }
         }
 
         public ICollectionView FilteredRules { get; private set; }
@@ -593,50 +494,13 @@ namespace StingTools.UI.PlacementCenter
                 if (_showDirtyOnly   && !vm.IsDirty) return false;
                 if (_showInvalidOnly &&  vm.IsValid) return false;
 
-                // Phase 139 I1 — SourcePack chip
-                if (!string.IsNullOrEmpty(_selectedSourcePack)
-                    && !_selectedSourcePack.Equals("All", StringComparison.OrdinalIgnoreCase))
-                {
-                    string pack = string.IsNullOrEmpty(vm.SourcePack) ? "Baseline" : vm.SourcePack;
-                    if (!pack.Equals(_selectedSourcePack, StringComparison.OrdinalIgnoreCase))
-                        return false;
-                }
-
-                // Phase 139 F2 — building profile gate (mirrors PlacementRuleLoader.FilterByProfile)
-                if (_profile != null && !string.IsNullOrEmpty(_profile.BuildingType))
-                {
-                    if (!string.IsNullOrEmpty(vm.BuildingType)
-                        && !vm.BuildingType.Equals(_profile.BuildingType, StringComparison.OrdinalIgnoreCase)
-                        && !vm.BuildingType.Equals("Mixed",                StringComparison.OrdinalIgnoreCase))
-                        return false;
-                }
-
                 if (string.IsNullOrEmpty(_searchText)) return true;
                 string q = _searchText.Trim();
-                return (vm.RuleId?.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0)
-                    || (vm.CategoryFilter?.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0)
+                return (vm.CategoryFilter?.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0)
                     || (vm.VariantHint?.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0)
                     || (vm.RoomFilter?.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0)
-                    || (vm.Notes?.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0)
-                    || (vm.StandardRef?.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0)
-                    || (vm.SourcePack?.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0);
+                    || (vm.Notes?.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0);
             };
-        }
-
-        // Phase 139 I3 — Load/Save profile from disk.
-        public void LoadProfile(string projectPath)
-        {
-            Profile = ProjectBuildingProfileIO.Load(projectPath);
-            Status  = $"Loaded building profile: {ProfileSummary}";
-        }
-
-        public bool SaveProfile(string projectPath)
-        {
-            bool ok = ProjectBuildingProfileIO.Save(projectPath, _profile);
-            Status = ok
-                ? $"Saved building profile to _BIM_COORD/placement_profile.json"
-                : $"Failed to save building profile (project not saved?).";
-            return ok;
         }
 
         public void ApplyFilter() => FilteredRules?.Refresh();

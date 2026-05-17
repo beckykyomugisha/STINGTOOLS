@@ -85,7 +85,7 @@
     {
       "RuleId": "elec-comms-pa-wc",
       "CategoryFilter": "Communication Devices",
-      "RoomFilter": "(?i)\\b(wc|toilet|bathroom|en\\s*-?suite|cloakroom|lavatory|shower)\\b",
+      "RoomFilter": "(?i)wc|toilet|bathroom",
       "AnchorType": "CEILING_CENTRE", "MountingHeightMm": 0.0,
       "MaxPerRoom": 1, "Priority": 60, "StandardRef": "BS 5839-8",
       "Notes": "1 PA speaker per WC compartment."

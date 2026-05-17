@@ -53,7 +53,7 @@ namespace StingTools.Commands.Electrical.Photometric
                     : "";
                 if (string.IsNullOrEmpty(photoPath)) fixturesNoFile++;
                 Room hostRoom = null;
-                try { hostRoom = fi.Room; } catch { }
+                try { hostRoom = fi.Room; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (hostRoom == null) fixturesOutsideRoom++;
             }
 
@@ -106,7 +106,7 @@ namespace StingTools.Commands.Electrical.Photometric
                     if (p.StorageType == StorageType.Double && p.AsDouble() > 0) return n;
                     if (p.StorageType == StorageType.String && !string.IsNullOrEmpty(p.AsString())) return n;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             return "";
         }

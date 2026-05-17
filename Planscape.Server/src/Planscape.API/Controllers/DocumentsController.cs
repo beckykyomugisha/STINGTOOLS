@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -84,7 +85,7 @@ public class DocumentsController : ControllerBase
         Planscape.Infrastructure.Services.OutboundWebhookDispatcher? webhooks = null)
     {
         _db = db;
-        _storage = storage;
+        _storage = storage!;
         _geofence = geofence;
         _thumbnails = thumbnails;
         _logger = logger;
@@ -152,11 +153,21 @@ public class DocumentsController : ControllerBase
     [HttpPost("finalize")]
     public async Task<ActionResult> FinalizeUpload(Guid projectId, [FromBody] FinalizeUploadRequest req)
     {
+        // FIX 20 — Scope mismatch between presign and finalise. The objectKey
+        // MUST begin with the path segment that was minted during PresignUpload:
+        //   uploads/raw/t_{tenantId}/{projectId}/...
+        // Both tenantId and projectId come from the AUTHENTICATED JWT claims
+        // (via GetTenantId() and the route parameter) — NOT from the request
+        // body — so a client cannot finalise a document scoped to a different
+        // tenant or project by forging the objectKey. Return Forbid (not
+        // BadRequest) so the caller knows this is an authorisation failure.
+        var tenantIdForCheck = GetTenantId();
+        var expectedPrefix = $"uploads/raw/t_{tenantIdForCheck:N}/{projectId:N}/";
         if (string.IsNullOrWhiteSpace(req.ObjectKey)
-            || !req.ObjectKey.StartsWith($"uploads/raw/t_{GetTenantId():N}/{projectId:N}/", StringComparison.Ordinal))
-            return BadRequest(new { message = "objectKey did not match the presign tenant/project scope." });
+            || !req.ObjectKey.StartsWith(expectedPrefix, StringComparison.Ordinal))
+            return Forbid(); // scope mismatch — do not reveal expected prefix in response
 
-        var tenantId = GetTenantId();
+        var tenantId = tenantIdForCheck; // already resolved above for the scope check
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound();
         // Phase 177 — match Upload/CreateDocument: ACL on bootstrap state + discipline.
@@ -199,6 +210,7 @@ public class DocumentsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult> GetDocuments(Guid projectId,
         [FromQuery] string? cdeStatus = null, [FromQuery] string? discipline = null,
+        [FromQuery] string? search = null,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
         var tenantId = GetTenantId();
@@ -206,6 +218,14 @@ public class DocumentsController : ControllerBase
 
         if (!string.IsNullOrEmpty(cdeStatus)) query = query.Where(d => d.CdeStatus == cdeStatus);
         if (!string.IsNullOrEmpty(discipline)) query = query.Where(d => d.Discipline == discipline);
+        // FIX 20 (mobile Fix 15) — full-text search across FileName, DocumentType, and Description.
+        // Uses Contains which maps to LIKE '%...%' on Postgres — index-assisted when a pg_trgm
+        // GIN index exists on these columns. Safe for small corpora; add the index before
+        // enabling this on large document registers.
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(d => d.FileName.Contains(search) ||
+                                     d.DocumentType.Contains(search) ||
+                                     (d.Description != null && d.Description.Contains(search)));
 
         // Phase 177 — narrow by per-folder/per-discipline/per-suitability ACL.
         var acl = await Planscape.API.Authorization.ProjectMemberAcl.ResolveAsync(_db, projectId, User);
@@ -481,6 +501,17 @@ public class DocumentsController : ControllerBase
         _db.Documents.Add(doc);
         await _db.SaveChangesAsync();
         await _audit.LogAsync("CREATE", "Document", doc.Id.ToString(), "{\"versionNumber\":1}");
+
+        // GAP-F — Auto BOQ on IFC upload.
+        // Replace fire-and-forget Task.Run with a Hangfire job so failures are
+        // retried automatically (up to 3 attempts) and appear in the Hangfire
+        // dashboard rather than being silently lost.
+        if (Path.GetExtension(file.FileName).Equals(".ifc", StringComparison.OrdinalIgnoreCase))
+        {
+            var currentUserId = User.FindFirst("sub")?.Value ?? "system-ifc-import";
+            BackgroundJob.Enqueue<Planscape.API.BackgroundJobs.IfcBoqSeedJob>(
+                j => j.ExecuteAsync(doc.ProjectId, relativePath, currentUserId));
+        }
 
         // Create version 1 row
         _db.DocumentVersions.Add(new DocumentVersion
@@ -964,50 +995,50 @@ public class DocumentsController : ControllerBase
         // Apply transition if requested. We bypass the strict ValidTransitions
         // table here because the plugin owns the source-of-truth lifecycle —
         // however role + approval gates still run.
-        if (!string.IsNullOrEmpty(req.NewCdeStatus) && req.NewCdeStatus != doc.CdeStatus)
+        if (!string.IsNullOrEmpty(req.NewCdeStatus) && req.NewCdeStatus != doc!.CdeStatus)
         {
-            var roleCheck = CheckTransitionRole(doc.CdeStatus, req.NewCdeStatus);
+            var roleCheck = CheckTransitionRole(doc!.CdeStatus, req.NewCdeStatus);
             if (roleCheck != null) return roleCheck;
 
-            var approvalCheck = await CheckApprovalGate(doc.CdeStatus, req.NewCdeStatus, doc.Id);
+            var approvalCheck = await CheckApprovalGate(doc!.CdeStatus, req.NewCdeStatus, doc!.Id);
             if (approvalCheck != null) return approvalCheck;
 
-            var oldState = doc.CdeStatus;
-            doc.CdeStatus = req.NewCdeStatus;
-            doc.SuitabilityCode = req.SuitabilityCode
-                ?? DefaultSuitability.GetValueOrDefault(req.NewCdeStatus, doc.SuitabilityCode);
-            if (!string.IsNullOrEmpty(req.Revision)) doc.Revision = req.Revision;
-            doc.UpdatedAt = DateTime.UtcNow;
+            var oldState = doc!.CdeStatus;
+            doc!.CdeStatus = req.NewCdeStatus;
+            doc!.SuitabilityCode = req.SuitabilityCode
+                ?? DefaultSuitability.GetValueOrDefault(req.NewCdeStatus, doc!.SuitabilityCode);
+            if (!string.IsNullOrEmpty(req.Revision)) doc!.Revision = req.Revision;
+            doc!.UpdatedAt = DateTime.UtcNow;
 
-            var history = !string.IsNullOrEmpty(doc.StatusHistoryJson)
-                ? JsonConvert.DeserializeObject<List<object>>(doc.StatusHistoryJson) ?? new()
+            var history = !string.IsNullOrEmpty(doc!.StatusHistoryJson)
+                ? JsonConvert.DeserializeObject<List<object>>(doc!.StatusHistoryJson) ?? new()
                 : new List<object>();
             history.Add(new
             {
                 timestamp = DateTime.UtcNow, oldState, newState = req.NewCdeStatus,
-                suitability = doc.SuitabilityCode,
+                suitability = doc!.SuitabilityCode,
                 user = userName, source = "plugin",
                 pluginAction = req.Action,
                 reason = req.Reason
             });
-            doc.StatusHistoryJson = JsonConvert.SerializeObject(history);
+            doc!.StatusHistoryJson = JsonConvert.SerializeObject(history);
         }
-        else if (!string.IsNullOrEmpty(req.Revision) && req.Revision != doc.Revision)
+        else if (!string.IsNullOrEmpty(req.Revision) && req.Revision != doc!.Revision)
         {
             // Pure revision bump (no state change) — common for ReIssue.
-            doc.Revision = req.Revision;
-            doc.UpdatedAt = DateTime.UtcNow;
+            doc!.Revision = req.Revision;
+            doc!.UpdatedAt = DateTime.UtcNow;
         }
 
         await _db.SaveChangesAsync();
         await _audit.LogAsync(isCreate ? "PLUGIN_CREATE" : "PLUGIN_TRANSITION",
-            "Document", doc.Id.ToString(),
+            "Document", doc!.Id.ToString(),
             JsonConvert.SerializeObject(new
             {
                 docNumber = req.DocNumber,
                 action    = req.Action,
-                state     = doc.CdeStatus,
-                revision  = doc.Revision
+                state     = doc!.CdeStatus,
+                revision  = doc!.Revision
             }));
 
         // Phase 177 — broadcast only to members whose ACL covers the new state.
@@ -1046,6 +1077,8 @@ public class DocumentsController : ControllerBase
 
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
+
+    // MapIfcTypeToDiscipline removed — use IfcDisciplineMapper.ToStingCode directly.
 
     /// <summary>
     /// Phase 177 — return null when the document is within the caller's

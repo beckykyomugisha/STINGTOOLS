@@ -279,6 +279,30 @@
       "required": false
     },
     {
+      "param_name": "HANDOVER_MODE_HANDOVER_BOOL",
+      "guid": "a1b2c3d4-0002-5a01-b001-000000001001",
+      "description": "Pattern selector — Handover / FM T4-T10 payload is live. Paired with HANDOVER_MODE_DC_BOOL; exactly one is true per project.",
+      "binding": "universal",
+      "param_type": "YESNO",
+      "required": false
+    },
+    {
+      "param_name": "HANDOVER_MODE_DC_BOOL",
+      "guid": "a1b2c3d4-0002-5a01-b001-000000001002",
+      "description": "Pattern selector — Design & Construction T4-T10 payload is live. Paired with HANDOVER_MODE_HANDOVER_BOOL; exactly one is true per project.",
+      "binding": "universal",
+      "param_type": "YESNO",
+      "required": false
+    },
+    {
+      "param_name": "HANDOVER_MODE_CUSTOM_BOOL",
+      "guid": "a1b2c3d4-0002-5a01-b001-000000001003",
+      "description": "Pattern selector — Custom (user-defined) T4-T10 payload is live. Exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL / HANDOVER_MODE_CUSTOM_BOOL is true per project.",
+      "binding": "universal",
+      "param_type": "YESNO",
+      "required": false
+    },
+    {
       "param_name": "TAG_TEXT_COLOUR_TEXT",
       "guid": "867fb0db-88ea-4a3d-9c01-000000000001",
       "description": "Tag text colour (Integer code)",
@@ -2177,15 +2201,6 @@
           "prefix": "",
           "suffix": "",
           "description": "TAG7 Section F: Classification & Reference — Uniformat, OmniClass, keynote, cost, ISO tag"
-        },
-        {
-          "param_name": "ASS_TAG_MULTILINE_TXT",
-          "guid": "6ba96198-36e0-5a2a-a236-f42ad2ce68c7",
-          "tokens": "all",
-          "separator": "\\n",
-          "prefix": "",
-          "suffix": "",
-          "description": "Single-parameter multi-line tag (DISC\\nLOC\\nZONE\\n…\\nSEQ) for tag families that bind ONE Label to ONE parameter and want auto line-breaking. Separator is the literal two-char string \"\\n\"; AssembleContainer.ResolveSeparator turns it into an actual LF at write time so Revit Label engines render it as a line break."
         }
       ]
     },
@@ -2922,6 +2937,116 @@
           "description": "MEP Sleeve TAG7 paragraph container"
         }
       ]
+    },
+    {
+      "group": "Healthcare Clinical",
+      "group_code": "CLN",
+      "categories": [
+        "Rooms",
+        "Spaces",
+        "MEP Spaces"
+      ],
+      "params": [
+        {
+          "param_name": "CLN_EQP_TAG",
+          "guid": "c1a00001-0000-4c1a-0000-000000000001",
+          "description": "Clinical equipment ISO 19650 tag container"
+        },
+        {
+          "param_name": "CLN_ROOM_TAG",
+          "guid": "c1a00001-0000-4c1a-0000-000000000002",
+          "description": "Clinical room ISO 19650 tag container"
+        },
+        {
+          "param_name": "CLN_TAG_7_PARA_TXT",
+          "guid": "c1a00001-0000-4c1a-0000-000000000003",
+          "description": "Clinical TAG7 paragraph container"
+        }
+      ]
+    },
+    {
+      "group": "Medical Gas Systems",
+      "group_code": "MGS",
+      "categories": [
+        "Pipe Fittings",
+        "Pipes",
+        "Mechanical Equipment"
+      ],
+      "params": [
+        {
+          "param_name": "MGS_EQP_TAG",
+          "guid": "4d677001-0000-4d67-0000-000000000001",
+          "description": "Medical gas system ISO 19650 tag container"
+        },
+        {
+          "param_name": "MGS_TAG_7_PARA_TXT",
+          "guid": "4d677001-0000-4d67-0000-000000000002",
+          "description": "Medical gas TAG7 paragraph container"
+        }
+      ]
+    },
+    {
+      "group": "Radiation Protection",
+      "group_code": "RAD",
+      "categories": [
+        "Walls",
+        "Floors",
+        "Ceilings",
+        "Rooms"
+      ],
+      "params": [
+        {
+          "param_name": "RAD_EQP_TAG",
+          "guid": "12ad0001-0000-12ad-0000-000000000001",
+          "description": "Radiation protection ISO 19650 tag container"
+        },
+        {
+          "param_name": "RAD_TAG_7_PARA_TXT",
+          "guid": "12ad0001-0000-12ad-0000-000000000002",
+          "description": "Radiation protection TAG7 paragraph container"
+        }
+      ]
+    },
+    {
+      "group": "Clinical Equipment",
+      "group_code": "CEQ",
+      "categories": [
+        "Medical Equipment",
+        "Specialty Equipment"
+      ],
+      "params": [
+        {
+          "param_name": "CEQ_EQP_TAG",
+          "guid": "ceq00001-0000-4ceq-0000-000000000001",
+          "description": "Clinical equipment (CEQ) ISO 19650 tag container"
+        },
+        {
+          "param_name": "CEQ_TAG_7_PARA_TXT",
+          "guid": "ceq00001-0000-4ceq-0000-000000000002",
+          "description": "Clinical equipment TAG7 paragraph container"
+        }
+      ]
+    },
+    {
+      "group": "Anti-ligature / Behavioural",
+      "group_code": "LIG",
+      "categories": [
+        "Casework",
+        "Specialty Equipment",
+        "Generic Models"
+      ],
+      "params": [
+        {
+          "param_name": "LIG_FIT_TAG",
+          "guid": "11900001-0000-1190-0000-000000000001",
+          "description": "Anti-ligature fitting ISO 19650 tag container"
+        },
+        {
+          "param_name": "LIG_TAG_7_PARA_TXT",
+          "guid": "11900001-0000-1190-0000-000000000002",
+          "description": "Anti-ligature TAG7 paragraph container"
+        }
+      ]
     }
   ],
   "extended_params": {
@@ -3005,6 +3130,61 @@
         "key": "PRJ_COMMENTS",
         "param_name": "PRJ_COMMENTS_TXT",
         "description": "Project/instance comments"
+      },
+      {
+        "key": "ITEM_CODE",
+        "param_name": "ASS_ITEM_CODE_TXT",
+        "guid": "d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a",
+        "description": "Asset item code / stock reference for procurement and spares",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "SYSTEMS",
+        "param_name": "ASS_SYSTEMS_TXT",
+        "guid": "e3f4a5b6-c7d8-4e9f-a0b1-2c3d4e5f6a7b",
+        "description": "Pipe/duct/circuit system memberships (pipe system names, semicolon-separated)",
+        "categories": [
+          "Pipes",
+          "Ducts",
+          "Conduits",
+          "Cable Trays"
+        ]
+      },
+      {
+        "key": "TERM_CAPPED",
+        "param_name": "ASS_TERM_CAPPED_BOOL",
+        "guid": "f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c",
+        "description": "Termination capped/blanked flag (connectivity validator — open end with intentional cap)",
+        "categories": [
+          "Pipes",
+          "Ducts",
+          "Conduits"
+        ]
+      },
+      {
+        "key": "TERM_REASON",
+        "param_name": "ASS_TERM_REASON_TXT",
+        "guid": "a5b6c7d8-e9f0-4a1b-c2d3-4e5f6a7b8c9d",
+        "description": "Reason an open termination is intentional (e.g. future-connection, cap, valve)",
+        "categories": [
+          "Pipes",
+          "Ducts",
+          "Conduits"
+        ]
+      },
+      {
+        "key": "TRACE_SEQ",
+        "param_name": "ASS_TRACE_SEQ_NR",
+        "guid": "b6c7d8e9-f0a1-4b2c-d3e4-5f6a7b8c9d0e",
+        "description": "Routing trace sequence index within a network path (AutoDrop engine output)",
+        "categories": [
+          "Pipes",
+          "Ducts",
+          "Conduits",
+          "Cable Trays"
+        ]
       }
     ],
     "spatial": [
@@ -3297,6 +3477,24 @@
         "description": "Stair headroom clearance in mm",
         "categories": [
           "Stairs"
+        ]
+      },
+      {
+        "key": "CBL_TRAY_WIDTH",
+        "param_name": "BLE_CBL_TRAY_WIDTH_MM",
+        "guid": "a3c1d2e4-5f67-4b89-9a0b-1c2d3e4f5a6b",
+        "description": "Cable tray internal width in mm [ISO 19650-1:2018]",
+        "categories": [
+          "Cable Trays"
+        ]
+      },
+      {
+        "key": "CBL_TRAY_DEPTH",
+        "param_name": "BLE_CBL_TRAY_DEPTH_MM",
+        "guid": "b4d2e3f5-6a78-5c9a-ab1c-2d3e4f5a6b7c",
+        "description": "Cable tray internal depth / height in mm [ISO 19650-1:2018]",
+        "categories": [
+          "Cable Trays"
         ]
       }
     ],
@@ -3815,6 +4013,28 @@
           "Duct Insulations",
           "Pipe Insulations"
         ]
+      },
+      {
+        "key": "MEC_SYS",
+        "param_name": "MEC_SYS_TXT",
+        "guid": "b8c9d0e1-f2a3-4b4c-d5e6-f7a8b9c0d1e2",
+        "description": "Mechanical system code (HVAC/VRF/CRAC/CW/CHW/DX)",
+        "categories": [
+          "Mechanical Equipment",
+          "Air Terminals",
+          "Ducts"
+        ]
+      },
+      {
+        "key": "HVC_DCT_INSULATION_THK",
+        "param_name": "HVC_DCT_INSULATION_THK_MM",
+        "guid": "c9e0f1a2-b3c4-4d5e-f6a7-b8c9d0e1f2a3",
+        "description": "Duct insulation thickness in mm (CIBSE Guide B3 / BS EN 13180)",
+        "categories": [
+          "Duct Insulations",
+          "Ducts",
+          "Flex Ducts"
+        ]
       }
     ],
     "plumbing": [
@@ -3859,6 +4079,83 @@
         "description": "Plumbing equipment design pressure in kPa",
         "categories": [
           "Plumbing Equipment"
+        ]
+      },
+      {
+        "key": "PLM_SYS",
+        "param_name": "PLM_SYS_TXT",
+        "guid": "c9d0e1f2-a3b4-4c5d-e6f7-a8b9c0d1e2f3",
+        "description": "Plumbing system code (DCW/DHW/HWS/SAN/RWD/GAS)",
+        "categories": [
+          "Pipe Fittings",
+          "Pipes",
+          "Plumbing Equipment",
+          "Plumbing Fixtures"
+        ]
+      }
+    ],
+    "system_params": [
+      {
+        "key": "DRAWING_TYPE_ID",
+        "param_name": "STING_DRAWING_TYPE_ID_TXT",
+        "guid": "c1d2e3f4-a5b6-4c7d-8e9f-a0b1c2d3e4f5",
+        "description": "Drawing Type profile ID stamped on views and sheets by DrawingTypePresentation.Apply [Phase 113]",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "STYLE_LOCKED",
+        "param_name": "STING_STYLE_LOCKED_BOOL",
+        "guid": "d2e3f4a5-b6c7-4d8e-9f0a-b1c2d3e4f5a6",
+        "description": "Lock flag preventing DrawingSyncStyles from re-applying a profile to this view/sheet",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "PACK_ID",
+        "param_name": "STING_PACK_ID_TXT",
+        "guid": "e3f4a5b6-c7d8-4e9f-a0b1-c2d3e4f5a6b7",
+        "description": "ViewStylePack ID stamped on managed Revit view templates by ManagedTemplateSyncer [Phase 137]",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "PACK_CHECKSUM",
+        "param_name": "STING_PACK_CHECKSUM_TXT",
+        "guid": "f4a5b6c7-d8e9-4f0a-b1c2-d3e4f5a6b7c8",
+        "description": "SHA-256 checksum of the ViewStylePack JSON used to detect template drift [Phase 137]",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "CDE_STATE",
+        "param_name": "STING_CDE_STATE_TXT",
+        "guid": "a5b6c7d8-e9f0-4a1b-c2d3-e4f5a6b7c8d9",
+        "description": "ISO 19650-2 CDE state code (WIP/SHARED/PUBLISHED/ARCHIVED) for views and sheets",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "CLUSTER_KEY",
+        "param_name": "TAG_CLUSTER_KEY_TXT",
+        "guid": "b6c7d8e9-f0a1-4b2c-d3e4-f5a6b7c8d9e0",
+        "description": "Cluster grouping key for SmartTagPlacement band alignment (auto-assigned)",
+        "categories": [
+          "*"
+        ]
+      },
+      {
+        "key": "FAMILY_HINT",
+        "param_name": "TAG_FAMILY_HINT_TXT",
+        "guid": "c7d8e9f0-a1b2-4c3d-e4f5-a6b7c8d9e0f1",
+        "description": "Tag family override hint written by TagStyleEngineCommands to force a specific annotation family",
+        "categories": [
+          "*"
         ]
       }
     ],
@@ -7077,6 +7374,338 @@
           "OST_ProjectInformation"
         ],
         "tier": "T11"
+      }
+    ],
+    "tier_4_10": [
+      {
+        "key": "COMM_STATE",
+        "param_name": "COMM_STATE_TXT",
+        "guid": "5753b5aa-0004-4000-8000-000000000001",
+        "description": "Commissioning state (Draft / Pre-C / Witness / Final)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T4"
+      },
+      {
+        "key": "COMM_DATE",
+        "param_name": "COMM_DATE_TXT",
+        "guid": "5753b5aa-0004-4000-8000-000000000002",
+        "description": "Commissioning date (ISO 8601) — when state was last stamped",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T4"
+      },
+      {
+        "key": "COMM_OPERATIVE",
+        "param_name": "COMM_OPERATIVE_TXT",
+        "guid": "5753b5aa-0004-4000-8000-000000000003",
+        "description": "Commissioning operative — name / ID of engineer who stamped the asset",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T4"
+      },
+      {
+        "key": "CST_UG_PRICE",
+        "param_name": "CST_UG_PRICE_UGX",
+        "guid": "5753b5aa-0005-4000-8000-000000000001",
+        "description": "Uganda local price (UGX) — quoted supplier price ex-works",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T5"
+      },
+      {
+        "key": "CST_INTL_PRICE",
+        "param_name": "CST_INTL_PRICE_USD",
+        "guid": "5753b5aa-0005-4000-8000-000000000002",
+        "description": "International price (USD) — CIF/DAP quote for imported goods",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T5"
+      },
+      {
+        "key": "CST_QUOTE_REF",
+        "param_name": "CST_QUOTE_REF_TXT",
+        "guid": "5753b5aa-0005-4000-8000-000000000003",
+        "description": "Quote reference — supplier quote/PO number",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T5"
+      },
+      {
+        "key": "CBN_A1_A3",
+        "param_name": "CBN_A1_A3_KG_CO2E",
+        "guid": "5753b5aa-0006-4000-8000-000000000001",
+        "description": "Product stage carbon A1-A3 (kgCO2e) — cradle-to-gate embodied",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T6"
+      },
+      {
+        "key": "CBN_A4",
+        "param_name": "CBN_A4_KG_CO2E",
+        "guid": "5753b5aa-0006-4000-8000-000000000002",
+        "description": "Transport stage carbon A4 (kgCO2e) — factory-to-site haulage",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T6"
+      },
+      {
+        "key": "CBN_B6",
+        "param_name": "CBN_B6_KG_CO2E_YR",
+        "guid": "5753b5aa-0006-4000-8000-000000000003",
+        "description": "Operational energy carbon B6 (kgCO2e/yr) — annual in-use emissions",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T6"
+      },
+      {
+        "key": "ASS_SPOOL_NR",
+        "param_name": "ASS_SPOOL_NR_TXT",
+        "guid": "5753b5aa-0007-4000-8000-000000000001",
+        "description": "Fabrication spool number — BS EN ISO 6412 isometric reference",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_FAB_STATUS",
+        "param_name": "ASS_FAB_STATUS_TXT",
+        "guid": "5753b5aa-0007-4000-8000-000000000002",
+        "description": "Fabrication status (Designed / Spool released / Fabricated / Delivered / Installed)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_QC_INSPECTOR",
+        "param_name": "ASS_QC_INSPECTOR_TXT",
+        "guid": "5753b5aa-0007-4000-8000-000000000003",
+        "description": "QC inspector — name / ID of signing engineer",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "CLASH_TRIAGE_SEV",
+        "param_name": "CLASH_TRIAGE_SEVERITY_NR",
+        "guid": "5753b5aa-0008-4000-8000-000000000001",
+        "description": "Clash triage severity (0-5) — higher = more blocking",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T8"
+      },
+      {
+        "key": "CLASH_TRIAGE_CAT",
+        "param_name": "CLASH_TRIAGE_CATEGORY_TXT",
+        "guid": "5753b5aa-0008-4000-8000-000000000002",
+        "description": "Clash triage category (Hard / Soft / Tolerance / Workflow)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T8"
+      },
+      {
+        "key": "CLASH_RES_STATUS",
+        "param_name": "CLASH_RESOLUTION_STATUS_TXT",
+        "guid": "5753b5aa-0008-4000-8000-000000000003",
+        "description": "Clash resolution status (Open / Under Review / Resolved / Accepted)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T8"
+      },
+      {
+        "key": "ASBUILT_DEV",
+        "param_name": "ASBUILT_DEVIATION_MM",
+        "guid": "5753b5aa-0009-4000-8000-000000000001",
+        "description": "As-built deviation (mm) — delta vs design position from reality capture",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T9"
+      },
+      {
+        "key": "ASBUILT_DATE",
+        "param_name": "ASBUILT_CAPTURE_DATE_TXT",
+        "guid": "5753b5aa-0009-4000-8000-000000000002",
+        "description": "As-built capture date (ISO 8601) — when reality-capture snapshot was taken",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T9"
+      },
+      {
+        "key": "HEALTH_SCORE",
+        "param_name": "HEALTH_SCORE_LAST_NR",
+        "guid": "5753b5aa-0009-4000-8000-000000000003",
+        "description": "Model health score (0-100) — last computed compliance / data quality rating",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T9"
+      },
+      {
+        "key": "IFC_PSET_OVERRIDE",
+        "param_name": "IFC_PSET_OVERRIDE_TXT",
+        "guid": "5753b5aa-000a-4000-8000-000000000001",
+        "description": "IFC PSet override — custom IFC property set / value mapping for export",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T10"
+      },
+      {
+        "key": "ACC_ISSUE_ID",
+        "param_name": "ACC_ISSUE_ID_TXT",
+        "guid": "5753b5aa-000a-4000-8000-000000000002",
+        "description": "ACC Issue ID — Autodesk Construction Cloud Issue round-trip reference",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T10"
+      },
+      {
+        "key": "ACC_SYNC_STATUS",
+        "param_name": "ACC_SYNC_STATUS_TXT",
+        "guid": "5753b5aa-000a-4000-8000-000000000003",
+        "description": "ACC sync status (Pending / Synced / Conflict / Failed)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T10"
+      },
+      {
+        "key": "COMM_WITNESS",
+        "param_name": "COMM_WITNESS_TXT",
+        "guid": "5753b5aa-0004-4000-8000-000000000010",
+        "description": "Commissioning witness — name / ID of client/third-party observer",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T4"
+      },
+      {
+        "key": "COMM_NOTES",
+        "param_name": "COMM_NOTES_TXT",
+        "guid": "5753b5aa-0004-4000-8000-000000000011",
+        "description": "Commissioning free-text notes (defects, overrides, escalations)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T4"
+      },
+      {
+        "key": "CST_INSTALL_HRS",
+        "param_name": "CST_INSTALL_HRS",
+        "guid": "5753b5aa-0005-4000-8000-000000000010",
+        "description": "Installation labour hours (N-G12) — estimated man-hours for install",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T5"
+      },
+      {
+        "key": "CST_LABOUR_CREW",
+        "param_name": "CST_LABOUR_CREW_TXT",
+        "guid": "5753b5aa-0005-4000-8000-000000000011",
+        "description": "Labour crew identifier — crew code assigned to install",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T5"
+      },
+      {
+        "key": "CST_LABOUR_RATE_GBP",
+        "param_name": "CST_LABOUR_RATE_GBP",
+        "guid": "5753b5aa-0005-4000-8000-000000000012",
+        "description": "Labour rate (GBP/hr) — override for cost roll-up",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T5"
+      },
+      {
+        "key": "CBN_A5",
+        "param_name": "CBN_A5_KG_CO2E",
+        "guid": "5753b5aa-0006-4000-8000-000000000010",
+        "description": "Construction stage carbon A5 (kgCO2e) — site installation emissions",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T6"
+      },
+      {
+        "key": "CBN_C1",
+        "param_name": "CBN_C1_KG_CO2E",
+        "guid": "5753b5aa-0006-4000-8000-000000000011",
+        "description": "End-of-life carbon C1 (kgCO2e) — demolition energy",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T6"
+      },
+      {
+        "key": "CBN_C2",
+        "param_name": "CBN_C2_KG_CO2E",
+        "guid": "5753b5aa-0006-4000-8000-000000000012",
+        "description": "End-of-life carbon C2 (kgCO2e) — transport to waste processing",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T6"
+      },
+      {
+        "key": "CBN_C3_C4",
+        "param_name": "CBN_C3_C4_KG_CO2E",
+        "guid": "5753b5aa-0006-4000-8000-000000000013",
+        "description": "End-of-life carbon C3-C4 (kgCO2e) — waste processing + disposal",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T6"
+      },
+      {
+        "key": "CLASH_TRIAGE_SCORE",
+        "param_name": "CLASH_TRIAGE_SCORE",
+        "guid": "5753b5aa-0008-4000-8000-000000000010",
+        "description": "Clash triage composite score (0-100) — weighted severity x business impact",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T8"
+      },
+      {
+        "key": "CLASH_RES_ACTION",
+        "param_name": "CLASH_RESOLUTION_ACTION_TXT",
+        "guid": "5753b5aa-0008-4000-8000-000000000011",
+        "description": "Clash resolution action — remediation action taken or planned",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T8"
+      },
+      {
+        "key": "HEALTH_SCORE_DATE",
+        "param_name": "HEALTH_SCORE_DATE_TXT",
+        "guid": "5753b5aa-0009-4000-8000-000000000010",
+        "description": "Model health score capture date (ISO 8601)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T9"
       }
     ]
   },

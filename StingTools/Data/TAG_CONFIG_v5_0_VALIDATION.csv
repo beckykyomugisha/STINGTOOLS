@@ -17,6 +17,10 @@ VALID_DISC,S,Structural,Structural elements
 VALID_DISC,FP,Fire Protection,Sprinklers and fire systems
 VALID_DISC,LV,Low Voltage,Communications/ICT/security
 VALID_DISC,G,Generic,Unclassified elements
+# Phase 179 — Healthcare Pack disciplines (H/MG/RP)
+VALID_DISC,H,Healthcare,Clinical rooms and clinical equipment
+VALID_DISC,MG,Medical Gas,Medical gas pipeline systems (HTM 02-01 / NFPA 99)
+VALID_DISC,RP,Radiation Protection,Radiation shielding and controlled-area elements (NCRP 147 / IRR17)
 #
 # SECTION 2: VALID SYSTEM CODES (CIBSE / Uniclass 2015)
 # Format: VALID_SYS,Code,FullName,DisciplineAssociation
@@ -57,6 +61,35 @@ VALID_SYS,CCTV,CCTV / Surveillance,LV
 VALID_SYS,PA,Public Address,LV
 VALID_SYS,LTG,Lighting Control,E
 VALID_SYS,ELV,Elevators / Lifts,M
+# Phase 178b — Extended plumbing systems
+VALID_SYS,SWD,Surface Water Drainage,P
+VALID_SYS,GWR,Grey Water Recycling,P
+VALID_SYS,RWH,Rainwater Harvesting,P
+VALID_SYS,SDS,Sustainable Drainage System,P
+VALID_SYS,SEP,Septic / Sewage Treatment,P
+VALID_SYS,STW,Sewage Treatment Works,P
+VALID_SYS,BGD,Below-Ground Drainage,P
+VALID_SYS,SPH,Specialist Plumbing (Healthcare),P
+VALID_SYS,INT,Interceptor / Oil Separator,P
+VALID_SYS,POL,Polluted Water,P
+VALID_SYS,LBW,Laboratory Wastewater,P
+VALID_SYS,IRR,Irrigation,P
+VALID_SYS,FOL,Foul Drainage (legacy alias for SAN),P
+VALID_SYS,CHE,Chemical Waste,P
+# Phase 179 — Healthcare Pack system codes (H/MG/RP disciplines)
+VALID_SYS,MGS-O2,Medical Oxygen Pipeline,MG
+VALID_SYS,MGS-AIR,Medical Air Pipeline,MG
+VALID_SYS,MGS-VAC,Medical Vacuum Pipeline,MG
+VALID_SYS,MGS-N2O,Nitrous Oxide Pipeline,MG
+VALID_SYS,MGS-CO2,Carbon Dioxide Pipeline,MG
+VALID_SYS,MGS-N2,Nitrogen Pipeline,MG
+VALID_SYS,MGS-AGS,Anaesthetic Gas Scavenging,MG
+VALID_SYS,EES-LS,Essential Electrical System — Life Safety Branch,E
+VALID_SYS,EES-CR,Essential Electrical System — Critical Branch,E
+VALID_SYS,EES-EB,Essential Electrical System — Equipment Branch,E
+VALID_SYS,LPS,Lightning Protection System,E
+VALID_SYS,CLN,Clinical Environment Systems,H
+VALID_SYS,RAD,Radiation Protection Barriers,RP
 #
 # SECTION 3: VALID FUNCTION CODES (CIBSE / Uniclass sub-functions)
 # Format: VALID_FUNC,Code,FullName,SystemAssociation
@@ -128,6 +161,12 @@ XVAL,SEQ_FORMAT,SEQ,,SEQ length != NumPad OR SEQ contains non-digit,SEQ must be 
 XVAL,TAG_FORMAT,TAG1,,TAG1 segment count != 8,Full tag must have exactly 8 segments
 XVAL,LOC_PLACEHOLDER,LOC,,LOC=XX,Location code is unresolved placeholder
 XVAL,ZONE_PLACEHOLDER,ZONE,,ZONE=XX,Zone code is unresolved placeholder
+# Phase 178b / 179 — extended discipline cross-validation
+XVAL,DISC_SYS_MATCH,DISC,SYS,DISC=P AND SYS NOT IN (DCW;DHW;SAN;RWD;GAS;MED;BWD;TRD;SWD;GWR;RWH;SDS;SEP;STW;BGD;SPH;INT;POL;LBW;IRR;FOL;CHE),Plumbing DISC should have a plumbing SYS code
+XVAL,DISC_SYS_MATCH,DISC,SYS,DISC=H AND SYS NOT IN (CLN;MGS-O2;MGS-AIR;MGS-VAC;MGS-N2O;MGS-CO2;MGS-N2;MGS-AGS),Healthcare DISC should have a clinical or medical-gas SYS code
+XVAL,DISC_SYS_MATCH,DISC,SYS,DISC=MG AND SYS NOT IN (MGS-O2;MGS-AIR;MGS-VAC;MGS-N2O;MGS-CO2;MGS-N2;MGS-AGS),Medical Gas DISC should have an MGS-* SYS code
+XVAL,DISC_SYS_MATCH,DISC,SYS,DISC=RP AND SYS NOT IN (RAD),Radiation Protection DISC should have RAD SYS code
+XVAL,DISC_SYS_MATCH,DISC,SYS,DISC=E AND SYS NOT IN (LV;LTG;EES-LS;EES-CR;EES-EB;LPS),Electrical DISC should have an electrical SYS code (LV/LTG/EES/LPS)
 #
 # SECTION 8: WARNING SEVERITY LEVELS
 # Used by FormulaEvaluatorCommand and TAG_WARN_SEVERITY_FILTER_TXT parameter
@@ -156,6 +195,15 @@ WARN_RULE,WARN_PLM_PIPE_VELOCITY_M_S_NR,Velocity > 3.0,MEDIUM,Pipe velocity exce
 WARN_RULE,WARN_ELC_CIRCUIT_LOADING_PCT,Loading > 80%,HIGH,Circuit loading exceeds 80% capacity
 WARN_RULE,WARN_PER_CONDENSATION_RISK_BOOL,Risk=TRUE,HIGH,Condensation risk detected (dew point analysis)
 WARN_RULE,WARN_PER_EMBODIED_CARBON_KG_CO2_M2,Carbon > 500,MEDIUM,Embodied carbon exceeds target (500 kgCO2/m2)
+# Phase 179 — structural beam penetration rules (PenetrationsDetectAndPlaceCommand)
+WARN_RULE,WARN_STR_BEAM_WEB_OPENING,STR_BEAM_WEB_OPENING_TXT contains FAIL,CRITICAL,Beam web opening violates AISC DG2 §3.2 or BS EN 1992-1-1 Cl 6.2.5
+WARN_RULE,WARN_STR_BEAM_PENETRATION_REVIEW,STR_BEAM_WEB_OPENING_TXT contains REVIEW,HIGH,Beam penetration flagged for structural review before fabrication
+# Phase 179 — v4 MVP fabrication completeness rules
+WARN_RULE,WARN_FAB_SPOOL_NR_MISSING,ASS_SPOOL_NR_TXT empty AND ASS_FAB_STATUS_TXT != PENDING,HIGH,Fabricated element missing spool number
+WARN_RULE,WARN_FAB_LOC_MISSING,ASS_FAB_STATUS_TXT empty AND ASS_SPOOL_NR_TXT not empty,HIGH,Fabrication status/location not set despite spool number being assigned
+# Phase 176 — panel schedule completeness
+WARN_RULE,WARN_ELC_PNL_SCHEDULE_MISSING,ELC_PANEL_SCHEDULE_REF_TXT empty AND ELC_PNL_DESIGNATION_NAME_TXT not empty,HIGH,Electrical panel has no panel schedule view reference
+WARN_RULE,WARN_ELC_PNL_LOAD_BALANCE,ELC_PNL_LOAD_BALANCE_PCT > 10,HIGH,3-phase panel load imbalance exceeds 10% threshold
 #
 # SECTION 10: COMPLETENESS THRESHOLDS (for ComplianceScan RAG status)
 # Format: RAG,Threshold,Status,Color,Description

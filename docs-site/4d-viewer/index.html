@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>STING 4D Viewer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Toolbar ── */
+    #toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 14px;
+      background: #16213e;
+      border-bottom: 1px solid #2d3748;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    #toolbar h1 { font-size: 15px; font-weight: 700; color: #90cdf4; white-space: nowrap; }
+    #toolbar label { font-size: 12px; color: #a0aec0; }
+    #loadBtn, #playBtn {
+      padding: 5px 14px;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    #loadBtn  { background: #3182ce; color: #fff; }
+    #loadBtn:hover  { background: #2b6cb0; }
+    #playBtn  { background: #38a169; color: #fff; min-width: 72px; }
+    #playBtn.paused { background: #d69e2e; }
+    #playBtn:hover  { opacity: .88; }
+    #fileInput { display: none; }
+    #weekDisplay { font-size: 13px; font-weight: 700; color: #f6e05e; min-width: 80px; text-align: center; }
+    #slider { flex: 1; min-width: 120px; max-width: 280px; accent-color: #63b3ed; }
+    #stats { font-size: 11px; color: #718096; white-space: nowrap; }
+
+    /* ── Discipline filters ── */
+    #filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 6px 14px;
+      background: #16213e;
+      border-bottom: 1px solid #2d3748;
+      flex-shrink: 0;
+    }
+    .disc-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 3px;
+      border: 1px solid #2d3748;
+      background: #1a1a2e;
+      user-select: none;
+    }
+    .disc-toggle input { cursor: pointer; accent-color: #63b3ed; }
+    .disc-toggle:hover { background: #2d3748; }
+
+    /* ── Main area ── */
+    #main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── SVG plan view ── */
+    #svgWrap {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+    #planSvg {
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+    #planSvg:active { cursor: grabbing; }
+    #planSvg rect.element {
+      stroke: rgba(0,0,0,0.25);
+      stroke-width: 0.5;
+      transition: fill 0.25s;
+    }
+    #planSvg rect.element:hover { stroke: #fff; stroke-width: 1.5; }
+
+    /* ── Legend panel ── */
+    #legend {
+      width: 160px;
+      background: #16213e;
+      border-left: 1px solid #2d3748;
+      padding: 14px 12px;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+    #legend h3 { font-size: 12px; font-weight: 700; color: #90cdf4; margin-bottom: 10px; }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 7px;
+      font-size: 11px;
+      color: #a0aec0;
+    }
+    .legend-swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    #legend .disc-legend-section { margin-top: 14px; }
+    #legend .disc-legend-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #718096;
+      margin-bottom: 6px;
+    }
+
+    /* ── Drop overlay ── */
+    #dropOverlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(26,26,46,0.93);
+      pointer-events: none;
+      z-index: 10;
+    }
+    #dropOverlay.active { pointer-events: all; }
+    #dropOverlay h2 { font-size: 22px; color: #90cdf4; margin-bottom: 8px; }
+    #dropOverlay p  { font-size: 13px; color: #a0aec0; }
+    #dropOverlay.dragging { background: rgba(49,130,206,0.18); border: 2px dashed #63b3ed; }
+  </style>
+</head>
+<body>
+
+<!-- ── Toolbar ── -->
+<div id="toolbar">
+  <h1>📅 STING 4D Viewer</h1>
+  <button id="loadBtn" onclick="document.getElementById('fileInput').click()">📂 Load JSON</button>
+  <input type="file" id="fileInput" accept=".json"/>
+  <label for="slider">Week:</label>
+  <input type="range" id="slider" min="0" max="0" value="0" oninput="onSlider(this.value)"/>
+  <span id="weekDisplay">–</span>
+  <button id="playBtn" onclick="togglePlay()">▶ Play</button>
+  <span id="stats"></span>
+</div>
+
+<!-- ── Discipline filters ── -->
+<div id="filters">
+  <span style="font-size:11px;color:#718096;align-self:center">Disciplines:</span>
+  <!-- Populated dynamically -->
+</div>
+
+<!-- ── Main area ── -->
+<div id="main">
+  <div id="svgWrap">
+    <!-- Drop overlay shown until a file is loaded -->
+    <div id="dropOverlay" class="active">
+      <h2>📅 4D Construction Viewer</h2>
+      <p>Load a JSON file exported from Revit (BIM → Export 4D Viewer)</p>
+      <p style="margin-top:8px;font-size:12px;color:#718096">or drag &amp; drop the file here</p>
+    </div>
+    <svg id="planSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+  <div id="legend">
+    <h3>Legend</h3>
+    <!-- Phase state colours -->
+    <div class="legend-item"><div class="legend-swatch" style="background:#4a5568"></div>Not started</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#f6ad55"></div>In progress</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#48bb78"></div>Complete</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#fc8181"></div>Overdue</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#e2e8f0;opacity:.25"></div>No schedule</div>
+    <div id="discLegend" class="disc-legend-section">
+      <div class="disc-legend-title">Disciplines</div>
+      <!-- Populated dynamically -->
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+//  STING 4D Viewer — self-contained vanilla JS, no build step required.
+//  Accepts the JSON exported by ExportFor4DViewerCommand.
+//  JSON format: { phases:[{id,name}], elements:[{id, phase, category,
+//                discipline, weekStart, weekEnd, x, y, z, width, height, depth}] }
+// ═══════════════════════════════════════════════════════════════════════════
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const PLAY_INTERVAL_MS = 800;
+
+// Discipline colour palette
+const DISC_COLORS = {
+  'A':   '#a0aec0', // Architectural
+  'S':   '#fc8181', // Structural
+  'M':   '#63b3ed', // Mechanical
+  'E':   '#f6e05e', // Electrical
+  'P':   '#68d391', // Plumbing
+  'FP':  '#f6ad55', // Fire Protection
+  'LV':  '#d6bcfa', // Low Voltage
+  'GEN': '#718096', // General
+};
+function discColor(disc) {
+  return DISC_COLORS[disc] || DISC_COLORS['GEN'];
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+
+let state = {
+  elements:       [],      // raw element objects from JSON
+  phases:         [],
+  weeks:          [],      // sorted unique week numbers (0-indexed from project start)
+  currentWeekIdx: 0,
+  playing:        false,
+  playTimer:      null,
+  enabledDiscs:   new Set(),
+  viewBox:        { x: 0, y: 0, w: 1, h: 1, scale: 1 },
+  panning:        null,     // { startX, startY, origVB }
+};
+
+// ── File loading ─────────────────────────────────────────────────────────────
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) loadFile(file);
+});
+
+const svgWrap = document.getElementById('svgWrap');
+svgWrap.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  document.getElementById('dropOverlay').classList.add('dragging');
+});
+svgWrap.addEventListener('dragleave', () => {
+  document.getElementById('dropOverlay').classList.remove('dragging');
+});
+svgWrap.addEventListener('drop', (e) => {
+  e.preventDefault();
+  document.getElementById('dropOverlay').classList.remove('dragging');
+  const file = e.dataTransfer.files[0];
+  if (file) loadFile(file);
+});
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      initViewer(data);
+    } catch(err) {
+      alert('Could not parse JSON: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+function initViewer(data) {
+  state.phases   = data.phases  || [];
+  state.elements = data.elements || [];
+
+  // Parse week dates — if weekStart/End are date strings, convert to week numbers.
+  // If they are null/undefined, the element has no schedule (drawn grey).
+  let minDate = Infinity, maxDate = -Infinity;
+  state.elements.forEach(el => {
+    el._wStart = el.weekStart ? dateToEpochWeek(el.weekStart) : null;
+    el._wEnd   = el.weekEnd   ? dateToEpochWeek(el.weekEnd)   : null;
+    if (el._wStart !== null) { minDate = Math.min(minDate, el._wStart); maxDate = Math.max(maxDate, el._wEnd ?? el._wStart); }
+  });
+
+  if (minDate === Infinity) { minDate = 0; maxDate = 12; }
+
+  // Build week list
+  state.weeks = [];
+  for (let w = minDate; w <= maxDate + 1; w++) state.weeks.push(w);
+  state.currentWeekIdx = 0;
+
+  // Slider
+  const slider = document.getElementById('slider');
+  slider.min   = 0;
+  slider.max   = String(Math.max(0, state.weeks.length - 1));
+  slider.value = '0';
+
+  // Disciplines
+  const discs = [...new Set(state.elements.map(e => e.discipline || 'GEN'))];
+  state.enabledDiscs = new Set(discs);
+  buildDiscFilters(discs);
+
+  // SVG viewbox — project onto XY plan
+  const coords = state.elements.map(e => ({ x: e.x, y: e.y, w: e.width, h: e.height }));
+  if (coords.length > 0) {
+    const minX = Math.min(...coords.map(c => c.x - c.w / 2)) - 200;
+    const minY = Math.min(...coords.map(c => c.y - c.h / 2)) - 200;
+    const maxX = Math.max(...coords.map(c => c.x + c.w / 2)) + 200;
+    const maxY = Math.max(...coords.map(c => c.y + c.h / 2)) + 200;
+    state.viewBox = { x: minX, y: minY, w: maxX - minX, h: maxY - minY, scale: 1 };
+  }
+
+  renderPlan();
+  updateWeekDisplay();
+  document.getElementById('stats').textContent =
+    `${state.elements.length} elements · ${state.weeks.length} weeks`;
+  document.getElementById('dropOverlay').classList.remove('active');
+}
+
+// ── Week-to-epoch helpers ─────────────────────────────────────────────────────
+
+function dateToEpochWeek(dateStr) {
+  // Accept ISO date strings or week numbers
+  if (typeof dateStr === 'number') return dateStr;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  // Weeks since 2020-01-01 (arbitrary origin)
+  const origin = new Date('2020-01-01').getTime();
+  return Math.floor((d.getTime() - origin) / (7 * 24 * 60 * 60 * 1000));
+}
+
+function weekLabel(w) {
+  if (w === null || w === undefined) return '–';
+  const origin = new Date('2020-01-01');
+  origin.setDate(origin.getDate() + w * 7);
+  return origin.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' });
+}
+
+// ── Rendering ─────────────────────────────────────────────────────────────────
+
+function elementColor(el, currentWeek) {
+  if (el._wStart === null || el._wEnd === null) return 'rgba(226,232,240,0.18)'; // no schedule
+  if (currentWeek < el._wStart)  return '#4a5568';  // not started — dark grey
+  if (currentWeek <= el._wEnd)   return '#f6ad55';  // in progress — orange
+  // currentWeek > el._wEnd
+  // "overdue" = in-progress element whose end week has passed without completion.
+  // We treat any element that was still in-progress on its end week as complete
+  // (no separate "overdue" signal without actual-vs-planned data). Use green for
+  // completed and red only when percent-complete data is present but < 100.
+  if (typeof el.percentComplete === 'number' && el.percentComplete < 100)
+                                 return '#fc8181';  // overdue (P6 data says incomplete)
+  return '#48bb78';                                 // complete — green
+}
+
+function renderPlan() {
+  const svg    = document.getElementById('planSvg');
+  const vb     = state.viewBox;
+  const currentWeek = state.weeks[state.currentWeekIdx];
+
+  // Update viewBox
+  svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+  // Remove old elements (keep any <defs>)
+  Array.from(svg.children).forEach(c => { if (c.tagName !== 'defs') c.remove(); });
+
+  const g = document.createElementNS(SVG_NS, 'g');
+
+  state.elements.forEach(el => {
+    if (!state.enabledDiscs.has(el.discipline || 'GEN')) return;
+
+    const rect = document.createElementNS(SVG_NS, 'rect');
+    const hw   = (el.width  || 200) / 2;
+    const hh   = (el.height || 200) / 2;
+
+    rect.setAttribute('x',      String(el.x - hw));
+    rect.setAttribute('y',      String(el.y - hh));
+    rect.setAttribute('width',  String(el.width  || 200));
+    rect.setAttribute('height', String(el.height || 200));
+    rect.setAttribute('fill',   elementColor(el, currentWeek));
+    rect.setAttribute('class',  'element');
+
+    // Tooltip
+    const title = document.createElementNS(SVG_NS, 'title');
+    title.textContent =
+      `[${el.id}] ${el.category} (${el.discipline})\n` +
+      `Start: ${weekLabel(el._wStart)} | End: ${weekLabel(el._wEnd)}`;
+    rect.appendChild(title);
+
+    g.appendChild(rect);
+  });
+
+  svg.appendChild(g);
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+
+function onSlider(val) {
+  state.currentWeekIdx = parseInt(val, 10);
+  updateWeekDisplay();
+  renderPlan();
+}
+
+function updateWeekDisplay() {
+  const w   = state.weeks[state.currentWeekIdx];
+  const lbl = weekLabel(w);
+  document.getElementById('weekDisplay').textContent = `Wk ${lbl}`;
+}
+
+function togglePlay() {
+  state.playing = !state.playing;
+  const btn = document.getElementById('playBtn');
+  if (state.playing) {
+    btn.textContent = '⏸ Pause';
+    btn.classList.add('paused');
+    state.playTimer = setInterval(() => {
+      if (state.currentWeekIdx >= state.weeks.length - 1) {
+        state.currentWeekIdx = 0;
+      } else {
+        state.currentWeekIdx++;
+      }
+      document.getElementById('slider').value = String(state.currentWeekIdx);
+      updateWeekDisplay();
+      renderPlan();
+    }, PLAY_INTERVAL_MS);
+  } else {
+    btn.textContent = '▶ Play';
+    btn.classList.remove('paused');
+    clearInterval(state.playTimer);
+  }
+}
+
+// ── Discipline toggles ────────────────────────────────────────────────────────
+
+function buildDiscFilters(discs) {
+  const container   = document.getElementById('filters');
+  const discLegend  = document.getElementById('discLegend');
+  // Clear old
+  Array.from(container.children).forEach(c => { if (!c.id) return; });
+  const oldToggles = container.querySelectorAll('.disc-toggle');
+  oldToggles.forEach(t => t.remove());
+  discLegend.innerHTML = '<div class="disc-legend-title">Disciplines</div>';
+
+  discs.sort().forEach(disc => {
+    // Checkbox in toolbar
+    const label = document.createElement('label');
+    label.className = 'disc-toggle';
+    const cb = document.createElement('input');
+    cb.type    = 'checkbox';
+    cb.checked = true;
+    cb.addEventListener('change', () => {
+      if (cb.checked) state.enabledDiscs.add(disc);
+      else            state.enabledDiscs.delete(disc);
+      renderPlan();
+    });
+    const dot = document.createElement('span');
+    dot.style.cssText = `width:10px;height:10px;border-radius:50%;background:${discColor(disc)};display:inline-block`;
+    const txt = document.createTextNode(disc);
+    label.appendChild(cb);
+    label.appendChild(dot);
+    label.appendChild(txt);
+    container.appendChild(label);
+
+    // Legend row
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `<div class="legend-swatch" style="background:${discColor(disc)}"></div>${disc}`;
+    discLegend.appendChild(item);
+  });
+}
+
+// ── Pan / zoom on SVG ─────────────────────────────────────────────────────────
+
+const svg = document.getElementById('planSvg');
+
+svg.addEventListener('mousedown', (e) => {
+  state.panning = { startX: e.clientX, startY: e.clientY, origVB: { ...state.viewBox } };
+});
+svg.addEventListener('mousemove', (e) => {
+  if (!state.panning) return;
+  const rect   = svg.getBoundingClientRect();
+  const scaleX = state.viewBox.w / rect.width;
+  const scaleY = state.viewBox.h / rect.height;
+  const dx     = (e.clientX - state.panning.startX) * scaleX;
+  const dy     = (e.clientY - state.panning.startY) * scaleY;
+  state.viewBox.x = state.panning.origVB.x - dx;
+  state.viewBox.y = state.panning.origVB.y - dy;
+  svg.setAttribute('viewBox', `${state.viewBox.x} ${state.viewBox.y} ${state.viewBox.w} ${state.viewBox.h}`);
+});
+svg.addEventListener('mouseup',   () => { state.panning = null; });
+svg.addEventListener('mouseleave', () => { state.panning = null; });
+
+svg.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const factor = e.deltaY > 0 ? 1.12 : 0.88;
+  const rect   = svg.getBoundingClientRect();
+  const mx     = (e.clientX - rect.left) / rect.width;
+  const my     = (e.clientY - rect.top)  / rect.height;
+  const nx     = state.viewBox.x + state.viewBox.w * mx;
+  const ny     = state.viewBox.y + state.viewBox.h * my;
+  state.viewBox.w *= factor;
+  state.viewBox.h *= factor;
+  state.viewBox.x  = nx - state.viewBox.w * mx;
+  state.viewBox.y  = ny - state.viewBox.h * my;
+  svg.setAttribute('viewBox', `${state.viewBox.x} ${state.viewBox.y} ${state.viewBox.w} ${state.viewBox.h}`);
+}, { passive: false });
+</script>
+</body>
+</html>

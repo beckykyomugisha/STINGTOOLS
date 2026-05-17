@@ -172,11 +172,13 @@ namespace StingTools.Tags
                     {
                         totalProcessed++;
 
-                        // Full pipeline: populate → map → formulas → tag → containers → TAG7 → grid
+                        // Full pipeline: populate → map → formulas → tag → containers → TAG7 → grid.
+                        // Collision mode defaults to AutoIncrement but respects the project-level
+                        // DEFAULT_COLLISION_MODE key in project_config.json.
                         bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
                             tagIndex, seqCounters, formulas, gridLines,
                             overwrite: true, skipComplete: false,
-                            collisionMode: TagCollisionMode.AutoIncrement, stats: stats);
+                            collisionMode: TagConfig.DefaultCollisionMode, stats: stats);
                         if (!pipelineOk) errors++;
                     }
                     catch (Exception ex)

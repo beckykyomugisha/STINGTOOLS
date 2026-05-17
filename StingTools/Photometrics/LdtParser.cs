@@ -174,7 +174,7 @@ namespace StingTools.Photometrics
                 p.BeamAngleDeg  = SpanWhereCandelaExceeds(col, p.VerticalAngles, peakI, half);
                 p.FieldAngleDeg = SpanWhereCandelaExceeds(col, p.VerticalAngles, peakI, tenth);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
         private static double SpanWhereCandelaExceeds(List<double> col,
             List<double> angles, int peakI, double threshold)

@@ -63,7 +63,7 @@ namespace StingTools.Core.Plumbing
             foreach (var kv in dfuMap)
             {
                 Pipe pipe = null;
-                try { pipe = doc.GetElement(kv.Key) as Pipe; } catch { }
+                try { pipe = doc.GetElement(kv.Key) as Pipe; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (pipe == null) continue;
                 var res = SizePipe(pipe, kv.Value, r.CodeUsed);
                 r.Results.Add(res);
@@ -179,7 +179,7 @@ namespace StingTools.Core.Plumbing
                 if (p != null && p.StorageType == StorageType.String) mat = p.AsString() ?? "";
                 if (string.IsNullOrEmpty(mat)) mat = pipe.PipeType?.Name ?? "";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             mat = (mat ?? "").ToUpperInvariant();
             if (mat.Contains("CLAY") || mat.Contains("CONCRETE")) return 0.013;
             if (mat.Contains("CAST") || mat.Contains("CI"))       return 0.011;
@@ -201,7 +201,7 @@ namespace StingTools.Core.Plumbing
                     if (!string.IsNullOrWhiteSpace(s)) return s.Trim().ToUpperInvariant();
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "BS-UK";
         }
 
@@ -215,7 +215,7 @@ namespace StingTools.Core.Plumbing
                 if (p.StorageType == StorageType.Double)  { p.Set((double)value); return true; }
                 if (p.StorageType == StorageType.String)  { p.Set(value.ToString()); return true; }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 
@@ -227,7 +227,7 @@ namespace StingTools.Core.Plumbing
                 if (p == null || p.IsReadOnly) return false;
                 if (p.StorageType == StorageType.String) { p.Set(value); return true; }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
     }

@@ -43,7 +43,7 @@ namespace StingTools.UI
         private static readonly Color CardBorder = Color.FromRgb(0xCF, 0xD8, 0xDC);
         private static readonly Color FgColor = Color.FromRgb(0x22, 0x22, 0x22);
         private static readonly Color SubtleColor = Color.FromRgb(0x66, 0x66, 0x66);
-        private static readonly Color PreviewBg = Color.FromRgb(0x1A, 0x23, 0x7E);
+        private static readonly Color PreviewBg = Color.FromRgb(0x1E, 0x1E, 0x1E);
 
         private HeadingStyleDialog(string currentTier2Style, string currentTier3Style)
         {

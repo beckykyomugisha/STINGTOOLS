@@ -90,25 +90,7 @@ namespace StingTools.Core.Placement
             {
                 var p = el?.LookupParameter(name);
                 if (p == null || !p.HasValue) return 0;
-                if (p.StorageType == StorageType.Double)
-                {
-                    // Revit's internal length unit is feet, but a non-EN /
-                    // metric-template build may report a different display
-                    // unit. UnitUtils honours the document's actual unit
-                    // system; the * 304.8 hard-coded path could be wrong
-                    // when the family parameter is a non-length Number
-                    // double. Fall back to * 304.8 only if the conversion
-                    // throws (e.g. the parameter is not a length).
-                    try
-                    {
-                        return UnitUtils.ConvertFromInternalUnits(
-                            p.AsDouble(), UnitTypeId.Millimeters);
-                    }
-                    catch
-                    {
-                        return p.AsDouble() * 304.8;
-                    }
-                }
+                if (p.StorageType == StorageType.Double) return p.AsDouble() * 304.8;
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
             }
             catch { }

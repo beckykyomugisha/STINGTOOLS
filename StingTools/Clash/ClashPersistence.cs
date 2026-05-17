@@ -18,7 +18,7 @@ namespace StingTools.Core.Clash
         {
             if (!File.Exists(path)) return null;
             try { return JsonConvert.DeserializeObject<ClashRunRecord>(File.ReadAllText(path)); }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         public static void Save(ClashRunRecord run, string path)
@@ -90,7 +90,7 @@ namespace StingTools.Core.Clash
                     .Select(f =>
                     {
                         try { return JsonConvert.DeserializeObject<ClashRunRecord>(File.ReadAllText(f.FullName)); }
-                        catch { return null; }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
                     })
                     .Where(r => r != null)
                     .ToArray();

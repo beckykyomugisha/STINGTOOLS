@@ -19,6 +19,8 @@ using Prometheus;
 using StackExchange.Redis;
 using RedisRateLimiting;
 using RedisRateLimiting.AspNetCore;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -164,8 +166,15 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             RequireSignedTokens = true,
             ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 },
-            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "Planscape",
-            ValidAudience = builder.Configuration["Jwt:Audience"] ?? "Planscape.Client",
+            // A3 — require explicit Jwt:Issuer and Jwt:Audience in all environments.
+            // A silent "Planscape" / "Planscape.Client" fallback lets a
+            // misconfigured deployment accept tokens minted by any other
+            // instance using the same fallback string (e.g. staging → prod
+            // token replay). Throw at startup instead.
+            ValidIssuer = builder.Configuration["Jwt:Issuer"]
+                ?? throw new InvalidOperationException("Jwt:Issuer is required in configuration."),
+            ValidAudience = builder.Configuration["Jwt:Audience"]
+                ?? throw new InvalidOperationException("Jwt:Audience is required in configuration."),
             // IssuerSigningKeys (plural) lets us validate tokens signed with
             // either the current or the previous key during rotation.
             IssuerSigningKeys = signingKeys,
@@ -393,6 +402,18 @@ if (!string.IsNullOrEmpty(builder.Configuration["Smtp:Host"])
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.SmtpEmailService>();
 else
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.NullEmailService>();
+
+// Feature gap 6 — P6 live link service + Hangfire scheduler
+builder.Services.AddScoped<Planscape.Infrastructure.Services.P6LiveLinkService>();
+// NOTE: P6LiveLinkJob is superseded by P6SchedulerJob (GAP-D). It is NOT
+// registered here to avoid an unused scoped registration. The recurring job
+// is removed in the app-startup section below via RecurringJob.RemoveIfExists.
+// GAP-A — BOQ compliance re-check (fire-once, triggered from BoqController)
+builder.Services.AddScoped<Planscape.Infrastructure.Services.BoqComplianceReCheckJob>();
+// GAP-D — per-project P6 dynamic scheduler (meta-scheduler, runs every 5 min)
+builder.Services.AddScoped<Planscape.Infrastructure.Services.P6SchedulerJob>();
+// GAP-F — IFC BOQ seed job with Hangfire retry
+builder.Services.AddScoped<Planscape.API.BackgroundJobs.IfcBoqSeedJob>();
 
 // ── Push Notifications ──
 // Supports both raw FCM tokens (via Firebase Project) and ExponentPushToken[…]
@@ -1264,6 +1285,14 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ClamAvScannerJob>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PlatformSyncJob>(
     "platform-sync", j => j.ExecuteAsync(CancellationToken.None),
     "*/30 * * * *", new RecurringJobOptions { QueueName = "platform-sync" });
+// Feature gap 6 — Primavera P6 live link.
+// GAP-D: replaced the single global */30 recurring job with a dynamic per-project
+// P6SchedulerJob that reads each project's PollIntervalMinutes from its ConfigJson.
+// The old P6LiveLinkJob ("p6-live-link") is removed so we don't double-fire.
+RecurringJob.RemoveIfExists("p6-live-link");
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.P6SchedulerJob>(
+    "p6-scheduler", j => j.ExecuteAsync(CancellationToken.None),
+    "*/5 * * * *", new RecurringJobOptions { QueueName = "default" });
 // BACKUP-01 — nightly 02:15 UTC Postgres dump. Runs only when Backup:Enabled=true.
 // Phase 178b — moved to "heavy" queue (worker-only). pg_dump on a
 // 50 GB tenant database is many minutes of disk + CPU; running it on

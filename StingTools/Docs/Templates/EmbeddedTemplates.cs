@@ -48,9 +48,6 @@ namespace Planscape.Docs.Templates
             ("D14", "meeting_minutes.docx",         "D", "meeting_minutes",    null, "Meeting Minutes"),
             ("D15", "progress_report.docx",         "D", "progress_report",    null, "Progress Report"),
             ("D16", "handover_certificate.docx",    "D", "handover",           null, "Handover Certificate"),
-
-            // Healthcare Pack H-8 — Room Data Sheet (NHS ADB / HBN-driven)
-            ("E17", "healthcare_rds.docx",          "E", "rds",                null, "Room Data Sheet"),
         };
 
         /// <summary>Streams embedded files + writes defaults on first run (idempotent).</summary>
@@ -156,14 +153,6 @@ namespace Planscape.Docs.Templates
 
         private static string ResolveProjectRoot(Document doc)
         {
-            // Folder consolidation: nest "_BIM_COORD" inside the unified
-            // project root's _data folder rather than as a sibling of the .rvt.
-            try
-            {
-                string consolidated = StingTools.Core.ProjectFolderEngine.GetDataPath(doc);
-                if (!string.IsNullOrEmpty(consolidated)) return consolidated;
-            }
-            catch { /* fall through to legacy lookup */ }
             try
             {
                 string p = doc?.PathName;

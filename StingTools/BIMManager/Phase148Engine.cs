@@ -373,7 +373,7 @@ namespace StingTools.BIMManager
                 {
                     int ageDays = (int)(now - cdt).TotalDays;
                     if (string.IsNullOrEmpty(row.OldestDays)
-                        || int.Parse(row.OldestDays) < ageDays)
+                        || (!int.TryParse(row.OldestDays, out int prevDays) || prevDays < ageDays))
                         row.OldestDays = ageDays.ToString();
                 }
 
@@ -431,7 +431,7 @@ namespace StingTools.BIMManager
                 foreach (var rec in SidecarMetaStamper.Records(arr))
                 {
                     if (DateTime.TryParse(rec["date"]?.ToString(), out DateTime dt) &&
-                        double.TryParse(rec["compliance_pct"]?.ToString(), out double pct))
+                        double.TryParse(rec["compliance_pct"]?.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double pct))
                         trend.Add((dt, pct));
                 }
             }
@@ -899,7 +899,7 @@ namespace StingTools.BIMManager
                 var p = el.get_Parameter(bip);
                 return p?.HasValue == true ? p.AsDouble() : 0.0;
             }
-            catch { return 0.0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0.0; }
         }
     }
 }
@@ -1259,7 +1259,7 @@ namespace StingTools.BIMManager
                 var p = el.get_Parameter(bip);
                 return p?.HasValue == true ? p.AsElementId() : ElementId.InvalidElementId;
             }
-            catch { return ElementId.InvalidElementId; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ElementId.InvalidElementId; }
         }
     }
 }

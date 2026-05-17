@@ -51,6 +51,9 @@ namespace StingTools.Core.SLD
             = new List<(XYZ, XYZ)>();
         public List<(XYZ from, XYZ to)> BranchLines { get; set; }
             = new List<(XYZ, XYZ)>();
+        // Carries pole count per branch so SLDAnnotationPlacer can draw tick marks.
+        public List<(XYZ from, XYZ to, int poles)> BranchLinesWithPoles { get; set; }
+            = new List<(XYZ, XYZ, int)>();
         public XYZ ViewOrigin { get; set; } = XYZ.Zero;
         public double TotalWidth  { get; set; }
         public double TotalHeight { get; set; }
@@ -93,7 +96,7 @@ namespace StingTools.Core.SLD
             if (root == null) return layout;
 
             double dy      = Mm(opts.SymbolHeightMm + opts.SymbolSpacingMm);
-            double busOff  = Mm(opts.BusbarOffsetMm);
+            double symHalf = Mm(opts.SymbolHeightMm / 2.0); // half-height for connector alignment
             double levelDx = Mm(opts.LevelOffsetMm);
 
             var yByLevel = new Dictionary<int, double>();

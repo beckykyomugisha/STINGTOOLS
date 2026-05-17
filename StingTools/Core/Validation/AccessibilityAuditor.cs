@@ -50,7 +50,7 @@ namespace StingTools.Core.Validation
                                 if (lvl != null) levelZ = lvl.Elevation;
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         double heightMm = (pt.Z - levelZ) * FtToMm;
 
                         if (heightMm + 5 < entry.MinMm || heightMm - 5 > entry.MaxMm)

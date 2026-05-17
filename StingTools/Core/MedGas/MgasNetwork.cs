@@ -107,7 +107,7 @@ namespace StingTools.Core.MedGas
                 if (p.StorageType == StorageType.String) return p.AsString();
                 return p.AsValueString();
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static XYZ TryGetCentre(Element el)
@@ -117,7 +117,7 @@ namespace StingTools.Core.MedGas
                 if (el.Location is LocationPoint lp) return lp.Point;
                 var bb = el.get_BoundingBox(null);
                 if (bb != null) return (bb.Min + bb.Max) * 0.5;
-            } catch { }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return XYZ.Zero;
         }
 

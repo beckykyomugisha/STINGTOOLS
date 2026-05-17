@@ -95,7 +95,7 @@ namespace StingTools.Commands.Electrical
                         {
                             failed++;
                             if (activeView != null)
-                                try { activeView.SetElementOverrides(el.Id, ogsRed); } catch { }
+                                try { activeView.SetElementOverrides(el.Id, ogsRed); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                             if (pct > worstFill) { worstFill = pct; worstName = el.Name ?? ""; }
                         }
                     }
@@ -104,7 +104,7 @@ namespace StingTools.Commands.Electrical
                 tx.Commit();
             }
             StingElectricalCommandHandler.LastConduitFills = results;
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string worstStr = string.IsNullOrEmpty(worstName) ? "—" : $"{worstName} ({worstFill:0.0}%)";
             TaskDialog.Show("STING Conduit Fill",
                 $"Checked {results.Count} containment element(s). Passing: {passed}. Failing: {failed}.\nWorst: {worstStr}.");

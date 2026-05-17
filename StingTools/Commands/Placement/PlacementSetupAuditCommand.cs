@@ -138,7 +138,7 @@ namespace StingTools.Commands.Placement
                     if (el is SharedParameterElement spe && !string.IsNullOrEmpty(spe.Name))
                         bound.Add(spe.Name);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             foreach (var p in RequiredSharedParams)
             {
@@ -157,7 +157,7 @@ namespace StingTools.Commands.Placement
                 foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(Family)))
                     if (el is Family fam && !string.IsNullOrEmpty(fam.Name)) loaded.Add(fam.Name);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             foreach (var pat in RequiredFamilyNamePatterns)
             {
                 if (!loaded.Contains(pat))
@@ -255,7 +255,7 @@ namespace StingTools.Commands.Placement
                     findings.Add(new AuditFinding(AuditSeverity.Info, "ViewStyle", "(present)",
                         $"View-style pack found at {p}.", ""));
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private static string Quote(string s)

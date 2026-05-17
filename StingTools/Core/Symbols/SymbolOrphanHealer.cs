@@ -107,7 +107,7 @@ namespace StingTools.Core.Symbols
                 var p = tag.LookupParameter("STING_SYMBOL_ID");
                 return !string.IsNullOrEmpty(p?.AsString());
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
     }
 }

@@ -95,5 +95,54 @@
     "highway":       1200,
     "softLandscape": 600,
     "underBuilding": 150
+  },
+  "as3500": {
+    "description": "AS 3500.2-2021 Australian Standard — Sanitary Plumbing and Drainage",
+    "fixtureUnits": [
+      { "key": "WC_6L_AU",       "displayName": "WC (6L cistern) — AS3500",      "du": 6.0,  "hfuCw": 2.5, "hfuHw": 0.0 },
+      { "key": "BASIN_AU",       "displayName": "Wash basin — AS3500",             "du": 1.0,  "hfuCw": 1.0, "hfuHw": 1.0 },
+      { "key": "BATH_AU",        "displayName": "Bath — AS3500",                   "du": 3.0,  "hfuCw": 4.0, "hfuHw": 3.0 },
+      { "key": "SHOWER_AU",      "displayName": "Shower — AS3500",                 "du": 2.0,  "hfuCw": 2.0, "hfuHw": 1.5 },
+      { "key": "KITCHEN_AU",     "displayName": "Kitchen sink — AS3500",           "du": 2.0,  "hfuCw": 2.0, "hfuHw": 2.0 },
+      { "key": "LAUNDRY_AU",     "displayName": "Laundry trough — AS3500",         "du": 3.0,  "hfuCw": 2.0, "hfuHw": 1.5 },
+      { "key": "URINAL_AU",      "displayName": "Urinal — AS3500",                 "du": 1.0,  "hfuCw": 1.0, "hfuHw": 0.0 },
+      { "key": "FLOOR_WASTE_AU", "displayName": "Floor waste — AS3500",            "du": 1.0,  "hfuCw": 0.0, "hfuHw": 0.0 }
+    ],
+    "minSlopePct": [
+      { "dnMm": 40,  "pct": 2.0,  "note": "AS3500 Table 3.3" },
+      { "dnMm": 50,  "pct": 1.65, "note": "AS3500 Table 3.3" },
+      { "dnMm": 65,  "pct": 1.65, "note": "AS3500 Table 3.3" },
+      { "dnMm": 80,  "pct": 1.25, "note": "AS3500 Table 3.3" },
+      { "dnMm": 100, "pct": 1.25, "note": "AS3500 Table 3.3" },
+      { "dnMm": 150, "pct": 0.6,  "note": "AS3500 Table 3.3" }
+    ],
+    "stackCapacity": [
+      { "dnMm": 65,  "duMax": 2.0  },
+      { "dnMm": 80,  "duMax": 4.0  },
+      { "dnMm": 100, "duMax": 8.0  },
+      { "dnMm": 150, "duMax": 24.0 },
+      { "dnMm": 225, "duMax": 70.0 }
+    ]
+  },
+  "sans10252": {
+    "description": "SANS 10252-1:2012 South African National Standard — Water Supply Installations",
+    "fixtureUnits": [
+      { "key": "WC_SANS",    "displayName": "WC (cistern) — SANS 10252",       "lu": 4, "dfuDrainagePe": 4 },
+      { "key": "BASIN_SANS", "displayName": "Wash basin — SANS 10252",          "lu": 1, "dfuDrainagePe": 1 },
+      { "key": "BATH_SANS",  "displayName": "Bath — SANS 10252",                "lu": 4, "dfuDrainagePe": 3 },
+      { "key": "SHOWER_SANS","displayName": "Shower — SANS 10252",              "lu": 2, "dfuDrainagePe": 2 },
+      { "key": "SINK_SANS",  "displayName": "Kitchen sink — SANS 10252",        "lu": 2, "dfuDrainagePe": 2 },
+      { "key": "URINAL_SANS","displayName": "Urinal — SANS 10252",              "lu": 2, "dfuDrainagePe": 2 }
+    ],
+    "designFlowMethods": {
+      "description": "SANS 10252-1 §4.4 design flow calculation",
+      "formula": "Qd = 0.682 × (ΣLU)^0.45 - 0.14 for LU >= 4",
+      "altFormula": "Qd = ΣLU × 0.1 for LU < 4"
+    },
+    "velocityLimits": {
+      "supplyMaxMps": 2.0,
+      "drainMinMps":  0.6,
+      "drainMaxMps":  3.0
+    }
   }
 }

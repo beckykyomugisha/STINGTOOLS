@@ -164,9 +164,9 @@ public class XbimIfcIngester : IIfcIngester
             string? predefined = TryReadPredefinedType(element);
 
             elements.Add(new IfcElementProperties(
-                GlobalId: element.GlobalId.Value as string ?? "",
+                GlobalId: element.GlobalId.ToString() ?? "",
                 IfcType: ifcType,
-                Name: element.Name?.Value as string,
+                Name: element.Name?.ToString(),
                 PredefinedType: predefined,
                 Properties: bag));
         }

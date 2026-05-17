@@ -149,7 +149,7 @@ namespace StingTools.Core.Plumbing
                 var k = _drainage?["kFactors"]?[buildingType ?? ""];
                 if (k != null) return k.Value<double>();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0.7;
         }
 
@@ -175,7 +175,7 @@ namespace StingTools.Core.Plumbing
                 }
                 return prevQ;
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         public static double WsfuToGpm(double wsfu, bool flushValveMajority)
@@ -201,7 +201,7 @@ namespace StingTools.Core.Plumbing
                 }
                 return prevG;
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         public static int DrainageBranchSizeMm(double duCumulative)
@@ -216,7 +216,7 @@ namespace StingTools.Core.Plumbing
                         return row.Value<int>("dnMm");
                 return 125;
             }
-            catch { return 100; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 100; }
         }
 
         public static double StackCapacityDu(int dnMm)
@@ -234,7 +234,7 @@ namespace StingTools.Core.Plumbing
                 }
                 return last;
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         public static int VentSizeBsEnMm(int drainDnMm)
@@ -247,7 +247,7 @@ namespace StingTools.Core.Plumbing
                 foreach (var row in arr)
                     if (row.Value<int>("drainDnMm") == drainDnMm) return row.Value<int>("ventDnMm");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return drainDnMm / 2;
         }
 
@@ -266,7 +266,7 @@ namespace StingTools.Core.Plumbing
                 }
                 return last;
             }
-            catch { return 5.0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 5.0; }
         }
 
         public static string FluidCategoryForFixture(string fixtureKey)
@@ -277,7 +277,7 @@ namespace StingTools.Core.Plumbing
                 var t = _supply?["fluidCategoryByFixture"]?[fixtureKey ?? ""];
                 if (t != null) return t.Value<string>();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "Cat2";
         }
 
@@ -289,7 +289,7 @@ namespace StingTools.Core.Plumbing
                 var t = _supply?["minPressureBar"]?[fixtureKey ?? ""];
                 if (t != null) return t.Value<double>();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0.5;
         }
     }

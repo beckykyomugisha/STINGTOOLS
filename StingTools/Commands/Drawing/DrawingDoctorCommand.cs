@@ -126,7 +126,7 @@ namespace StingTools.Commands.Drawing
         private static string SafeRead(Element el, string paramName)
         {
             try { return el?.LookupParameter(paramName)?.AsString(); }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static string SafeReadFromTb(Document doc, ViewSheet sheet, string paramName)
@@ -140,7 +140,7 @@ namespace StingTools.Commands.Drawing
                     .FirstOrDefault();
                 return tb?.LookupParameter(paramName)?.AsString();
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static List<FamilyInstance> TbsOnSheet(Document doc, ViewSheet sheet)
@@ -153,7 +153,7 @@ namespace StingTools.Commands.Drawing
                     .Cast<FamilyInstance>()
                     .ToList();
             }
-            catch { return new List<FamilyInstance>(); }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return new List<FamilyInstance>(); }
         }
 
         private static void AppendList(StringBuilder sb, string label, List<string> items)

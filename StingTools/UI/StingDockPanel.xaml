@@ -111,7 +111,6 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
                     <TextBlock Text="STINGTOOLS V2.1" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource HeaderFg}"/>
@@ -133,18 +132,10 @@
                         MouseLeftButtonUp="SyncIndicator_Click" Cursor="Hand">
                     <TextBlock x:Name="txtSync" Text="Sync: off" FontSize="9" Foreground="{DynamicResource HeaderFg}" Opacity="0.85"/>
                 </Border>
-                <!-- Standards regional preset indicator. Click opens the region picker (StdExt_SetRegion). -->
-                <Border Grid.Column="4" x:Name="bdrRegion" Background="#33000000" CornerRadius="3" Padding="4,1"
-                        VerticalAlignment="Center" Margin="0,0,6,0"
-                        Cursor="Hand"
-                        MouseLeftButtonUp="RegionIndicator_Click"
-                        ToolTip="Active Standards region — click to switch (BS 7671 / NEC / IEC 60364, ASHRAE / CIBSE, NFPA / BS 9999, Eurocode / AISC, KEBS / UNBS / SANS, …). Persisted to PROJECT_REGION on the document.">
-                    <TextBlock x:Name="txtRegion" Text="Region: —" FontSize="9" Foreground="{DynamicResource HeaderFg}" Opacity="0.85"/>
-                </Border>
-                <Button x:Name="btnPin" Grid.Column="5" Content="Pin" Width="30" Height="20"
+                <Button x:Name="btnPin" Grid.Column="4" Content="Pin" Width="30" Height="20"
                         FontSize="9" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"
                         ToolTip="Pin panel" Click="BtnPin_Click" Margin="0,0,2,0"/>
-                <Button Grid.Column="6" Content="&#x2600;" Width="26" Height="20"
+                <Button Grid.Column="5" Content="&#x2600;" Width="26" Height="20"
                         FontSize="13" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"
                         ToolTip="Cycle theme: Light / Warm / Cool / Corporate" Tag="CycleTheme" Click="Cmd_Click"/>
             </Grid>
@@ -1020,36 +1011,9 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Edit Types" Tag="DrawingTypes_Editor" Click="Cmd_Click" ToolTip="Open the Drawing Type editor — corporate baseline + project overrides, 15 built-in types, 6 tabs (Drawing Types / View Style Packs / Viewport Tools / Sheet Tools / Title Block / Sheet Manager)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Inspect" Tag="DrawingTypes_Inspect" Click="Cmd_Click" ToolTip="Read-only catalogue + routing table + validator report"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Reload JSON" Tag="DrawingTypes_Reload" Click="Cmd_Click" ToolTip="Clear registry cache so on-disk edits to STING_DRAWING_TYPES.json or _BIM_COORD/drawing_types.json take effect"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Pres Setup" Tag="DrawingTypes_PresentationSetup" Click="Cmd_Click" ToolTip="Create the custom fill patterns (STING-Pres-Herringbone / HorizontalCladding / RoofHatch) and entourage / Generic Models subcategories (STING-LargeTree / STING-SmallShrub / STING-PresGround) required by the pres-* presentation style packs. Idempotent — safe to re-run."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Group Browser" Tag="DrawingTypes_GroupBrowser" Click="Cmd_Click" ToolTip="Pivot the registry by discipline — quick overview of every drawing type that exists per discipline"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Sync Styles" Tag="DrawingTypes_SyncStyles" Click="Cmd_Click" ToolTip="Reload registry then report which view templates and viewport types referenced by drawing types are missing in the active project"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="From Scope Boxes" Tag="DrawingTypes_FromScopeBoxes" Click="Cmd_Click" ToolTip="Scan scope boxes in the active project and suggest drawing-type stub ids (with auto-discipline detection from the scope box name)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="↓ Export to Excel" Tag="DrawingTypes_ExportExcel" Click="Cmd_Click" ToolTip="Export all Drawing Types and Style Packs to an editable Excel workbook (8 sheets, colour swatches, validation dropdowns)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="↑ Import from Excel" Tag="DrawingTypes_ImportExcel" Click="Cmd_Click" ToolTip="Import Drawing Types and Style Packs from an edited Excel workbook (validation pre-flight, change preview, applies to project _BIM_COORD/ overrides)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Heal TBs" Tag="DrawingTypes_HealTitleBlocks" Click="Cmd_Click" ToolTip="Phase 168 — Re-apply title-block parameter bindings on every stamped sheet WITHOUT touching scale / detail / templates / annotation. Writes an audit row per sheet to _BIM_COORD/titleblock_heal_audit.jsonl."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Renumber" Tag="DrawingTypes_Renumber" Click="Cmd_Click" ToolTip="Phase 168 — Compact sheet-number gaps within each (DrawingType, package) bucket. Two-pass rename avoids collisions; locked sheets are skipped."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Doctor" Tag="DrawingTypes_Doctor" Click="Cmd_Click" ToolTip="Phase 168 — Audit the title-block layer: cross-stamps (CSV vs recipe), family swaps, missing TBs, stale syncs."/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Migrate CSV" Tag="DrawingTypes_MigrateCsv" Click="Cmd_Click" ToolTip="Phase 168 — Export TITLE_BLOCK.csv as a recipe-ready JSON snippet (baseline + per-discipline deltas) ready to paste into the Drawing Types editor."/>
-                                </WrapPanel>
-                                <!-- Phase 137 — Production -->
-                                <Separator/>
-                                <TextBlock Text="Production" FontWeight="SemiBold" Margin="2,4,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Produce Per Level" Tag="DrawingTypes_ProducePerLevel" Click="Cmd_Click" ToolTip="Phase 137 — open production-config dialog and produce per-level views/sheets for the selected drawing types"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Produce Sections" Tag="DrawingTypes_ProduceSections" Click="Cmd_Click" ToolTip="Phase 137 — produce section views via grid alignment / room walls / manual selection per the chosen preset"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Exterior Elevations" Tag="DrawingTypes_ProduceExteriorElevations" Click="Cmd_Click" ToolTip="Phase 137 — auto-place 4 exterior elevations using detected building footprint, with optional 1+4-view sheet"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Interior Elevations" Tag="DrawingTypes_ProduceInteriorElevations" Click="Cmd_Click" ToolTip="Phase 137 — produce interior elevations for selected rooms"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="From Scope Boxes (Produce)" Tag="DrawingTypes_ProduceFromScopeBoxes" Click="Cmd_Click" ToolTip="Phase 137 — produce views/sheets driven by STING::… scope boxes"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Regenerate Templates" Tag="DrawingTypes_RegenerateTemplates" Click="Cmd_Click" ToolTip="Phase 137 — re-mint managed view templates for selected packs"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="→ Managed Mode" Tag="DrawingTypes_ConvertToManaged" Click="Cmd_Click" ToolTip="Phase 137 — convert an external pack to managed mode by importing settings from a chosen view template"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Detach Managed" Tag="DrawingTypes_DetachManaged" Click="Cmd_Click" ToolTip="Phase 137 — flip a managed pack to external and rename its STING:* templates"/>
-                                </WrapPanel>
-                                <Separator/>
-                                <TextBlock Text="Packages" FontWeight="SemiBold" Margin="2,4,0,2"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Export Package" Tag="DrawingTypes_ExportPackage" Click="Cmd_Click" ToolTip="Phase 137 — export every sheet in a selected drawing package as PDFs in sequence order"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Sequence Package" Tag="DrawingTypes_SequencePackage" Click="Cmd_Click" ToolTip="Phase 137 — re-stamp STING_SHEET_SEQUENCE for a selected package, ordered by current sheet number"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Audit Packages" Tag="DrawingTypes_AuditPackages" Click="Cmd_Click" ToolTip="Phase 137 — list all drawing packages with sheet count, view count, and sequence-gap count"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -2808,6 +2772,18 @@
                                             ToolTip="Generate cost report by discipline, level, system"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Cash Flow" Tag="CashFlow5D" Click="Cmd_Click"
                                             ToolTip="Generate S-curve cash flow from 4D schedule + 5D cost"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Cost File" Tag="Cost_FileBrowser" Click="Cmd_Click"
+                                            ToolTip="Browse to your own cost-rate CSV file (override the built-in rates)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Push BOQ →Cloud" Tag="BOQ_PushSnapshot" Click="Cmd_Click"
+                                            ToolTip="Push a BOQ cost snapshot to Planscape so the mobile cost dashboard shows current totals"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export 4D Viewer" Tag="Schedule_ExportFor4DViewer" Click="Cmd_Click"
+                                            ToolTip="Export element phase data to JSON for the docs-site/4d-viewer/index.html browser viewer"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="P6 Configure" Tag="Schedule_P6Configure" Click="Cmd_Click"
+                                            ToolTip="Configure Primavera P6 live link — enter P6 URL, credentials, and project ID"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="P6 Sync Now" Tag="Schedule_P6SyncNow" Click="Cmd_Click"
+                                            ToolTip="Trigger an immediate P6 activity sync — updates element % complete from Primavera P6"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="P6 Writeback" Tag="Schedule_P6Writeback" Click="Cmd_Click"
+                                            ToolTip="Write P6 actuals (% complete, actual start/finish) back to Revit element parameters for 4D viewer"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -3232,6 +3208,8 @@
                                             ToolTip="Export issues as BCF 2.1 with viewpoints and element refs"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="BCF Import" Tag="BCFImport" Click="Cmd_Click"
                                             ToolTip="Import BCF issues with dedup detection"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="BCF Sync" Tag="BCFSync" Click="Cmd_Click"
+                                            ToolTip="Scan project and BIM manager directory for .bcf/.bcfzip files and import any not yet tracked in the issue register"/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource ActionBtn}" Content="Procore" Tag="ProcorePackage" Click="Cmd_Click"
@@ -3330,6 +3308,8 @@
                                             ToolTip="Create/update Revision Register schedule"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Auto Rev" Tag="AutoRevisionOnTagChange" Click="Cmd_Click"
                                             ToolTip="Auto-detect tag changes and create revision when threshold exceeded"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Cloud Audit" Tag="RevisionCloudAudit" Click="Cmd_Click"
+                                            ToolTip="Audit all revision clouds: count per revision, unassigned clouds, sheets without clouds, missing cloud descriptions"/>
                                 </WrapPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="ADVANCED"/>
                                 <WrapPanel>
@@ -4062,6 +4042,39 @@
                                             </StackPanel>
                                         </Border>
 
+                                        <!-- HANDOVER MODE TOGGLE + PARAGRAPH BUILDER -->
+                                        <TextBlock Text="HANDOVER MODE (T4–T10 DEFAULT CONTENT)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="80"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Mode" FontSize="9" VerticalAlignment="Center"/>
+                                                    <WrapPanel Grid.Column="1">
+                                                        <RadioButton x:Name="rbModeHandover"  Content="Handover / FM"         GroupName="HandoverMode" IsChecked="True" Margin="2" FontSize="9"
+                                                                     ToolTip="Commissioning · Cost · Carbon · Fab · Clash · As-built · Compliance"/>
+                                                        <RadioButton x:Name="rbModeDesign"    Content="Design &amp; Construction" GroupName="HandoverMode" Margin="2" FontSize="9"
+                                                                     ToolTip="Design intent · Performance · Material · Installation · Coordination · Warranty · Classification"/>
+                                                        <RadioButton x:Name="rbModeCustom"    Content="Custom"                 GroupName="HandoverMode" Margin="2" FontSize="9"
+                                                                     ToolTip="User-edited preset from PARAGRAPH_PRESETS.json"/>
+                                                    </WrapPanel>
+                                                </Grid>
+                                                <WrapPanel Margin="0,6,0,0">
+                                                    <Button Style="{StaticResource BlueBtn}"   Content="Paragraph Builder…"  Tag="ParagraphBuilder"        Click="Cmd_Click" Width="132" Height="26"
+                                                            ToolTip="Edit T4–T10 rows (parameter + prefix + suffix), save as preset"/>
+                                                    <Button Style="{StaticResource GreenBtn}"  Content="Apply preset"        Tag="ApplyParagraphPreset"    Click="Cmd_Click" Width="90"  Height="26"
+                                                            ToolTip="Write composed paragraphs into ASS_TAG_7_TXT on elements in scope"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Run full workflow"   Tag="RunWorkflow_TierConversionHandover" Click="Cmd_Click" Width="110" Height="26"
+                                                            ToolTip="Apply preset → Set depth → Validate → COBie/Handover export"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Live refresh"        Tag="Tag7NarrativeUpdaterToggle" Click="Cmd_Click" Width="90"  Height="26"
+                                                            ToolTip="Toggle IUpdater that keeps ASS_TAG_7_TXT in sync with parameter changes"/>
+                                                </WrapPanel>
+                                                <TextBlock Text="Switches T4–T10 default content between Handover (FM) and Design &amp; Construction. Custom lets you save your own." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
                                         <!-- COBIE FIELD PRE-SEEDING -->
                                         <TextBlock Text="COBie FIELD PRE-SEEDING" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">
@@ -4652,6 +4665,137 @@
                                                 </StackPanel>
                                             </Border>
 
+                                            <TextBlock Text="WIRE ANNOTATION" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <!-- Gap 7: wire annotation buttons + inline style controls -->
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <!-- Annotation placement -->
+                                                    <WrapPanel Margin="0,2,0,2">
+                                                        <Button Style="{StaticResource CatBtn}" Content="W-Ann"
+                                                                Tag="Electrical_WireAnnotate" Click="Cmd_Click"
+                                                                ToolTip="Place wire annotation on a picked conduit (BS 7671 format)"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="W-Batch"
+                                                                Tag="Electrical_WireAnnotateBatch" Click="Cmd_Click"
+                                                                ToolTip="Annotate all conduits in active view with wire specifications"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="H-Run"
+                                                                Tag="Electrical_HomeRunArrow" Click="Cmd_Click"
+                                                                ToolTip="Place home-run arrow on picked conduit pointing toward panel"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="HR-Full"
+                                                                Tag="Electrical_HomeRunFull" Click="Cmd_Click"
+                                                                ToolTip="BFS full-run home-run arrow — traverses all connected conduit segments to find the correct panel-side end"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="W-Clr"
+                                                                Tag="Electrical_ClearWireAnnotations" Click="Cmd_Click"
+                                                                ToolTip="Remove all STING wire annotations from active view"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="W-Styl"
+                                                                Tag="Electrical_WireAnnotationStyle" Click="Cmd_Click"
+                                                                ToolTip="Open project-level wire annotation style editor (JSON)"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="W-Rfsh"
+                                                                Tag="Electrical_WireAnnotationRefreshStyle" Click="Cmd_Click"
+                                                                ToolTip="Re-apply current project style to all wire annotations in active view"/>
+                                                    </WrapPanel>
+                                                    <!-- Wire data sync (Gap 1-4) -->
+                                                    <TextBlock Text="Wire data sync" FontSize="9" FontWeight="SemiBold" Margin="0,4,0,2"/>
+                                                    <WrapPanel Margin="0,0,0,2">
+                                                        <Button Style="{StaticResource CatBtn}" Content="W-Stamp"
+                                                                Tag="Electrical_WireParamStamp" Click="Cmd_Click"
+                                                                ToolTip="Stamp ELC_WIRE_* params on picked conduit from connected ElectricalSystem (Gap 1)"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="W-Batch♻"
+                                                                Tag="Electrical_BatchWireParamPopulate" Click="Cmd_Click"
+                                                                ToolTip="Batch stamp all conduits in view/selection from their circuits (Gap 2)"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="VD-Sync"
+                                                                Tag="Electrical_WireVDSync" Click="Cmd_Click"
+                                                                ToolTip="Run VoltageDropEngine and write VD% to conduits (Gap 3)"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="Csz-Sync"
+                                                                Tag="Electrical_WireCableSizerSync" Click="Cmd_Click"
+                                                                ToolTip="Run CableSizerEngine and write CSA / Iz / method to conduits (Gap 4)"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="CPC-Sz"
+                                                                Tag="Electrical_WireCpcSizer" Click="Cmd_Click"
+                                                                ToolTip="Size CPC/Earth per BS 7671 Table 54.7 and write ELC_WIRE_EARTH_CSA_MM2 (Gap 11)"/>
+                                                    </WrapPanel>
+                                                    <!-- Routing validation (Gap 12) + coordination (Gap 13) -->
+                                                    <WrapPanel Margin="0,0,0,2">
+                                                        <Button Style="{StaticResource CatBtn}" Content="Rt-Val"
+                                                                Tag="Electrical_WireRoutingValidation" Click="Cmd_Click"
+                                                                ToolTip="Validate fire-rated / SWA routing rules (BS 9999 / BS 7671 §422/543) — read-only audit (Gap 12)"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="Crd-Stmp"
+                                                                Tag="Electrical_WireCoordStamp" Click="Cmd_Click"
+                                                                ToolTip="Write ELC_SEL_COORD_OK on panels from selective coordination check (Gap 13)"/>
+                                                        <Button Style="{StaticResource CatBtn}" Content="Cbl-Sched"
+                                                                Tag="Electrical_CableScheduleBuild" Click="Cmd_Click"
+                                                                ToolTip="Build cable BOM CSV + create STING Cable Schedule view on conduit category (Gap 5)"/>
+                                                    </WrapPanel>
+                                                    <!-- Inline style controls (Gap 7) -->
+                                                    <TextBlock Text="Slash style (project defaults)" FontSize="9" FontWeight="SemiBold" Margin="0,6,0,2"/>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                        </Grid.RowDefinitions>
+                                                        <!-- Row 0: length + spacing -->
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,1">
+                                                            <TextBlock Text="Len mm:" VerticalAlignment="Center" FontSize="9" Width="42"/>
+                                                            <TextBox x:Name="tbWireSlashLen" Width="36" Height="18" FontSize="9" Text="6"
+                                                                     ToolTip="Slash mark length in mm (default 6). Applied to project defaults on save."/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,1">
+                                                            <TextBlock Text="Gap mm:" VerticalAlignment="Center" FontSize="9" Width="42"/>
+                                                            <TextBox x:Name="tbWireSlashGap" Width="36" Height="18" FontSize="9" Text="3"
+                                                                     ToolTip="Gap between slashes in mm (default 3)."/>
+                                                        </StackPanel>
+                                                        <!-- Row 1: angle + scale -->
+                                                        <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Horizontal" Margin="0,1">
+                                                            <TextBlock Text="Angle°:" VerticalAlignment="Center" FontSize="9" Width="42"/>
+                                                            <TextBox x:Name="tbWireSlashAngle" Width="36" Height="18" FontSize="9" Text="60"
+                                                                     ToolTip="Slash angle off conduit axis in degrees (30–90). 60° = BS 7671 convention."/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="0,1">
+                                                            <TextBlock Text="Scale×:" VerticalAlignment="Center" FontSize="9" Width="42"/>
+                                                            <TextBox x:Name="tbWireScaleFactor" Width="36" Height="18" FontSize="9" Text="1.0"
+                                                                     ToolTip="Scale multiplier (1.0 = nominal; auto from view scale when 1.0)."/>
+                                                        </StackPanel>
+                                                        <!-- Row 2: weight + offset -->
+                                                        <StackPanel Grid.Column="0" Grid.Row="2" Orientation="Horizontal" Margin="0,1">
+                                                            <TextBlock Text="Wt:" VerticalAlignment="Center" FontSize="9" Width="42"/>
+                                                            <TextBox x:Name="tbWireLineWeight" Width="36" Height="18" FontSize="9" Text="3"
+                                                                     ToolTip="Line weight 1–16 (default 3 ≈ 0.25 mm at 1:100)."/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" Margin="0,1">
+                                                            <TextBlock Text="Offset mm:" VerticalAlignment="Center" FontSize="9" Width="42"/>
+                                                            <TextBox x:Name="tbWireLabelOffset" Width="36" Height="18" FontSize="9" Text="600"
+                                                                     ToolTip="Label perpendicular offset from conduit in mm (default 600)."/>
+                                                        </StackPanel>
+                                                        <!-- Row 3: colour code + label flags -->
+                                                        <StackPanel Grid.Column="0" Grid.Row="3" Orientation="Horizontal" Margin="0,1">
+                                                            <TextBlock Text="Colour:" VerticalAlignment="Center" FontSize="9" Width="42"/>
+                                                            <ComboBox x:Name="cbWireColorCode" Width="72" Height="18" FontSize="9"
+                                                                      ToolTip="0=auto, 1=red, 2=blue, 3=orange, 4=green">
+                                                                <ComboBoxItem Content="0 auto" IsSelected="True"/>
+                                                                <ComboBoxItem Content="1 red"/>
+                                                                <ComboBoxItem Content="2 blue"/>
+                                                                <ComboBoxItem Content="3 orange"/>
+                                                                <ComboBoxItem Content="4 green"/>
+                                                            </ComboBox>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1" Grid.Row="3" Orientation="Vertical" Margin="0,1">
+                                                            <CheckBox x:Name="chkWireShowVD"   Content="VD%"      IsChecked="True"  FontSize="8" Margin="0,1" ToolTip="Show voltage drop in label"/>
+                                                            <CheckBox x:Name="chkWireShowFill" Content="Fill%"    IsChecked="True"  FontSize="8" Margin="0,1" ToolTip="Show conduit fill in label"/>
+                                                            <CheckBox x:Name="chkWireCompact"  Content="Compact"  IsChecked="False" FontSize="8" Margin="0,1" ToolTip="Compact label (omit panel and install method)"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                    <!-- Save style button -->
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Save style to project JSON"
+                                                            Tag="Electrical_WireSaveStyle" Click="Cmd_Click"
+                                                            HorizontalAlignment="Stretch" Height="24" Margin="0,4,0,1"
+                                                            ToolTip="Save the above style values to STING_WIRE_ANNOT_STYLE.json (project _BIM_COORD folder). They become the new project-level defaults for all wire annotations."/>
+                                                </StackPanel>
+                                            </Border>
+
                                             <TextBlock Text="QA" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
                                             <Border Style="{StaticResource GroupBorder}">
                                                 <StackPanel>
@@ -5086,8 +5230,21 @@
                         <!-- WORKFLOWS (8 healthcare workflow JSONs) -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="WORKFLOW PRESETS"/>
                         <WrapPanel Style="{StaticResource ButtonWrap}">
-                            <Button Style="{StaticResource ActionBtn}" Content="List Workflows" Tag="ListWorkflowPresets" Click="Cmd_Click" ToolTip="Show every workflow preset; healthcare ones include HealthcareCommissioning, MgasVerification, PressureRegimeAudit, RdsIssue, HTM-04-01-Annual, AntiLigatureAudit, NFPA110-GeneratorTest, HTM-01-06-EndoReprocess."/>
-                            <Button Style="{StaticResource ActionBtn}" Content="Workflow Trend" Tag="WorkflowTrend"       Click="Cmd_Click" ToolTip="View healthcare workflow run-history trend (last 100 runs)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="List Workflows"     Tag="ListWorkflowPresets" Click="Cmd_Click" ToolTip="Show every workflow preset; healthcare ones include HealthcareCommissioning, MgasVerification, PressureRegimeAudit, RdsIssue, HTM-04-01-Annual, AntiLigatureAudit, NFPA110-GeneratorTest, HTM-01-06-EndoReprocess."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Workflow Trend"     Tag="WorkflowTrend"       Click="Cmd_Click" ToolTip="View healthcare workflow run-history trend (last 100 runs)."/>
+                            <Button Style="{StaticResource TealBtn}"   Content="HC: Run All"        Tag="HC_RunAll"           Click="Cmd_Click" ToolTip="Run all 16 healthcare validators (alias for Healthcare_RunAllValidators)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: Pressure"       Tag="HC_PressureAudit"    Click="Cmd_Click" ToolTip="HTM 03-01 / ASHRAE 170 — pressure regime audit (alias)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: MGPS Verify"    Tag="HC_MgpsVerify"       Click="Cmd_Click" ToolTip="NFPA 99 §5.1.12 — 12-step MGPS verification (alias)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: Water Flush"    Tag="HC_WaterFlush"       Click="Cmd_Click" ToolTip="HTM 04-01 — water safety audit (alias)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: Anti-Lig"       Tag="HC_AntiLigatureAudit" Click="Cmd_Click" ToolTip="Anti-ligature audit (alias)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: RDS Complete"   Tag="HC_RdsCompleteness"  Click="Cmd_Click" ToolTip="RDS completeness audit (alias)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: Radiation"      Tag="HC_RadiationAudit"   Click="Cmd_Click" ToolTip="NCRP 147 radiation shielding audit (alias)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: Adjacency"      Tag="HC_AdjacencyAudit"   Click="Cmd_Click" ToolTip="HBN adjacency / flow audit (alias)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: EES Resilience" Tag="HC_EesResilience"    Click="Cmd_Click" ToolTip="NFPA 110 EES resilience audit (alias)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: Commissioning"  Tag="HC_CommissioningChecklist" Click="Cmd_Click" ToolTip="Healthcare commissioning checklist — runs all validators as a commissioning sweep."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: Workflow"       Tag="HC_Workflow"         Click="Cmd_Click" ToolTip="Run HealthcareCommissioning workflow preset."/>
+                            <Button Style="{StaticResource BlueBtn}"   Content="HC: Facility Type"  Tag="HC_FacilityConfig"   Click="Cmd_Click" ToolTip="Pick and save healthcare facility type (FULL / ACUTE / COMMUNITY / DENTAL / IMAGING-ONLY / MENTAL-HEALTH)."/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HC: HBN Auto-Pop"   Tag="HC_HbnAutoPopulate"  Click="Cmd_Click" ToolTip="Auto-populate HBN/HTM design parameters from room class for selected element."/>
                         </WrapPanel>
 
                     </StackPanel>

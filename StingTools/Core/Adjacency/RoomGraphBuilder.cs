@@ -42,7 +42,7 @@ namespace StingTools.Core.Adjacency
             foreach (var d in doors)
             {
                 Element fromRoom = null, toRoom = null;
-                try { fromRoom = d.FromRoom; toRoom = d.ToRoom; } catch { }
+                try { fromRoom = d.FromRoom; toRoom = d.ToRoom; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (fromRoom == null || toRoom == null) continue;
                 long a = fromRoom.Id.Value;
                 long b = toRoom.Id.Value;
