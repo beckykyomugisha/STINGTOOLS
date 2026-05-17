@@ -234,7 +234,11 @@ public sealed class IfcDeltaService : IIfcDeltaService
     /// </summary>
     private static string ComputeHash(Dictionary<string, string> props)
     {
-        var json  = JsonSerializer.Serialize(props, new JsonSerializerOptions { WriteIndented = false });
+        // Sort keys so the hash is stable regardless of property insertion order.
+        // Without this, the same element with properties in different order would
+        // produce a different hash on each upload and be classified as "Modified".
+        var sorted = new SortedDictionary<string, string>(props, StringComparer.Ordinal);
+        var json  = JsonSerializer.Serialize(sorted, new JsonSerializerOptions { WriteIndented = false });
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(json));
         return Convert.ToHexString(bytes).ToLowerInvariant();
     }

@@ -14,6 +14,7 @@
 import * as signalR from '@microsoft/signalr';
 import { getBaseUrl } from '../api/client';
 import { secureStorage } from './secureStorage';
+import { apiClient } from './apiClient';
 
 export interface ArchiCADElement {
   kind:         'Added' | 'Changed' | 'Deleted';
@@ -73,10 +74,35 @@ export class ArchiCADLiveClient {
 
     this.connection.onreconnected(async () => {
       await this.connection?.invoke('JoinProject', projectId);
+      // Re-fetch recent events after reconnect so we don't miss changes
+      // that arrived while the connection was down.
+      await this._fetchRecentEvents(projectId);
     });
 
     await this.connection.start();
     await this.connection.invoke('JoinProject', projectId);
+
+    // Gap L — late-join catch-up: replay the server-side ring buffer (up to 200 events)
+    // so the client is immediately up to date without waiting for the next push.
+    await this._fetchRecentEvents(projectId);
+  }
+
+  /** Fetch and replay the server-side ArchiCAD event ring buffer. */
+  private async _fetchRecentEvents(projectId: string): Promise<void> {
+    try {
+      const data = await apiClient.get<{ events: ArchiCADElement[] }>(
+        `/api/archicad/${projectId}/events/recent?count=200`
+      );
+      if (data?.events?.length) {
+        // Replay in chronological order (oldest first so handlers see the right sequence).
+        const sorted = [...data.events].sort(
+          (a, b) => new Date(a.timestampUtc).getTime() - new Date(b.timestampUtc).getTime()
+        );
+        sorted.forEach(ev => this._emit(ev));
+      }
+    } catch {
+      // Non-fatal — live events will fill the gap as they arrive.
+    }
   }
 
   async disconnect(): Promise<void> {

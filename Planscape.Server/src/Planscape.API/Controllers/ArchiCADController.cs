@@ -24,6 +24,7 @@ using Microsoft.EntityFrameworkCore;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
 using BCrypt.Net;
+using System.Security.Cryptography;
 
 namespace Planscape.API.Controllers
 {
@@ -64,13 +65,21 @@ namespace Planscape.API.Controllers
     [Route("api/archicad")]
     public class ArchiCADController : ControllerBase
     {
-        private readonly IHubContext<ArchiCADHub> _hub;
-        private readonly PlanscapeDbContext       _db;
+        private readonly IHubContext<ArchiCADHub>          _hub;
+        private readonly IHubContext<NotificationHub>      _notificationHub;
+        private readonly PresenceTracker                   _presence;
+        private readonly PlanscapeDbContext                _db;
 
-        public ArchiCADController(IHubContext<ArchiCADHub> hub, PlanscapeDbContext db)
+        public ArchiCADController(
+            IHubContext<ArchiCADHub> hub,
+            IHubContext<NotificationHub> notificationHub,
+            PresenceTracker presence,
+            PlanscapeDbContext db)
         {
-            _hub = hub;
-            _db  = db;
+            _hub             = hub;
+            _notificationHub = notificationHub;
+            _presence        = presence;
+            _db              = db;
         }
 
         // ── POST /api/archicad/{projectId}/push ──────────────────────────────
@@ -92,6 +101,31 @@ namespace Planscape.API.Controllers
 
             // Persist events in ring buffer for late-join clients.
             ArchiCADEventBuffer.Add(projectId, payload.Events);
+
+            // Gap M — register the ArchiCAD author in the presence tracker so the
+            // BCC "N people viewing" chip includes ArchiCAD authors alongside web/mobile
+            // users. We use a synthetic stable connection-id and a deterministic userId
+            // derived from the author's email so the presence entry survives multiple
+            // pushes from the same author without creating duplicate entries.
+            if (payload.AuthorInfo != null && !string.IsNullOrWhiteSpace(payload.AuthorInfo.Name))
+            {
+                var connId = $"archicad:{projectId}:{payload.AuthorInfo.Email}";
+                var emailBytes = System.Text.Encoding.UTF8.GetBytes(
+                    payload.AuthorInfo.Email?.ToLowerInvariant() ?? payload.AuthorInfo.Name);
+                var userId = new Guid(MD5.HashData(emailBytes).Take(16).ToArray());
+                _presence.Join(projectId, connId, new PresentUser(userId, payload.AuthorInfo.Name, "archicad"));
+
+                await _notificationHub.Clients.Group($"project-{projectId}").SendAsync("PresenceChanged", new
+                {
+                    projectId,
+                    users = _presence.ProjectUsers(projectId).Select(u => new
+                    {
+                        u.UserId,
+                        u.DisplayName,
+                        u.Source
+                    })
+                });
+            }
 
             // Fan-out each event to connected web/mobile/desktop clients.
             foreach (var ev in payload.Events)

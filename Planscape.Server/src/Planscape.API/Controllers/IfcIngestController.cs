@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Planscape.API.Authorization;
 using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.SignalR;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -61,6 +63,7 @@ public class IfcIngestController : ControllerBase
     private readonly IFileStorageService _storage;
     private readonly IAuditService _audit;
     private readonly Planscape.Core.Interfaces.IIfcAlignmentValidator _alignmentValidator;
+    private readonly IHubContext<FederatedModelHub> _modelHub;
     private readonly ILogger<IfcIngestController> _logger;
 
     public IfcIngestController(
@@ -69,6 +72,7 @@ public class IfcIngestController : ControllerBase
         IFileStorageService storage,
         IAuditService audit,
         Planscape.Core.Interfaces.IIfcAlignmentValidator alignmentValidator,
+        IHubContext<FederatedModelHub> modelHub,
         ILogger<IfcIngestController> logger)
     {
         _db = db;
@@ -76,6 +80,7 @@ public class IfcIngestController : ControllerBase
         _storage = storage;
         _audit = audit;
         _alignmentValidator = alignmentValidator;
+        _modelHub = modelHub;
         _logger = logger;
     }
 
@@ -206,6 +211,25 @@ public class IfcIngestController : ControllerBase
                     hasQuantitySets = result.HasQuantitySets,
                     warnings     = responseWarnings,
                 }));
+
+            // Gap J — notify the federated model viewer hub so connected 3D viewer
+            // clients reload the model without polling. Source label distinguishes
+            // ArchiCAD IFC exports ("archicad") from Revit exports ("revit").
+            try
+            {
+                var hubSource = string.Equals(result.Source, "archicad",
+                    StringComparison.OrdinalIgnoreCase) ? "archicad" : "ifc-ingest";
+                await FederatedModelHub.NotifyUpdate(
+                    _modelHub,
+                    projectId.ToString(),
+                    new[] { effectiveModelId.ToString() },
+                    Array.Empty<long>(),
+                    hubSource);
+            }
+            catch (Exception hubEx)
+            {
+                _logger.LogWarning(hubEx, "FederatedModelHub notify failed (non-fatal) for project {ProjectId}", projectId);
+            }
 
             return Ok(new {
                 schema          = result.SchemaVersion,
