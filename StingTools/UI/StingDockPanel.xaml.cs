@@ -2259,7 +2259,7 @@ namespace StingTools.UI
 
         // Shows a compact chooser when multiple NLP results are close in confidence.
         // Uses TaskDialog CommandLinks (≤3 options) or StingListPicker (4+ options).
-        private string ShowCommandPickerDialog(List<Tags.IntentResult> options)
+        private string ShowCommandPickerDialog(List<Tags.NLPEngine.IntentResult> options)
         {
             if (options == null || options.Count == 0) return null;
 
