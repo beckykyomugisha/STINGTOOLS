@@ -18,8 +18,8 @@ import {
   type BcfViewpoint,
 } from "@/components/ModelViewer";
 import { useProjectStore } from "@/stores/projectStore";
-import { getModel, modelFileUrl, fetchElementMap } from "@/api/models";
-import { listIssues, getAlignmentForModel, type IfcAlignmentReport, type IfcAlignmentFinding } from "@/api/endpoints";
+import { getModel, modelFileUrl, fetchElementMap, fetchHeatmap } from "@/api/models";
+import { listIssues } from "@/api/endpoints";
 import { getToken } from "@/api/client";
 import type { ModelMeta, ElementMap, ModelPin } from "@/types/models";
 
@@ -40,9 +40,7 @@ export default function ModelViewerScreen() {
   const [error, setError] = useState<string | null>(null);
   const [walkActive, setWalkActive] = useState(false);
   const [sectionEnabled, setSectionEnabled] = useState(false);
-  const [viewerReady, setViewerReady] = useState(false);
-  const [alignment, setAlignment] = useState<IfcAlignmentReport | null>(null);
-  const [alignmentExpanded, setAlignmentExpanded] = useState(false);
+  const [heatmapActive, setHeatmapActive] = useState(false);
 
   useEffect(() => {
     if (!projectId || !id) return;
@@ -90,24 +88,21 @@ export default function ModelViewerScreen() {
     })();
   }, [projectId, id]);
 
-  // Fetch IFC alignment report for this model (if available).
-  useEffect(() => {
-    if (!projectId || !id) return;
-    getAlignmentForModel(projectId, id).then(setAlignment).catch(() => setAlignment(null));
-  }, [projectId, id]);
-
-  // Zoom-to-element — when the screen is launched from an issue detail via
-  // /models/[id]?highlightElement=<guid>&issueId=<id>, wait for the viewer to
-  // report ready then fit the whole model for context and select+zoom to the
-  // target via the viewer handle's `selectAndZoom` command.
-  useEffect(() => {
-    if (!viewerReady || !highlightElement || !viewerRef.current) return;
-    viewerRef.current.fit();
-    const t = setTimeout(() => {
-      viewerRef.current?.selectAndZoom(highlightElement);
-    }, 120);
-    return () => clearTimeout(t);
-  }, [viewerReady, highlightElement]);
+  async function toggleHeatmap() {
+    if (!projectId) return;
+    if (heatmapActive) {
+      viewerRef.current?.clearHeatmap();
+      setHeatmapActive(false);
+      return;
+    }
+    try {
+      const data = await fetchHeatmap(projectId);
+      viewerRef.current?.setHeatmap(data.elements, "rag");
+      setHeatmapActive(true);
+    } catch (err) {
+      Alert.alert("Heatmap", "Could not load compliance data.");
+    }
+  }
 
   function onPick(e: PickEvent) {
     const tag = e.meta?.tag ?? e.name ?? e.guid.slice(0, 8);
@@ -180,46 +175,9 @@ export default function ModelViewerScreen() {
           onWalkthrough={(e) => setWalkActive(e.active)}
           onError={setError}
         />
-        <ExtraToolbar viewerRef={viewerRef} walkActive={walkActive} sectionEnabled={sectionEnabled}
-          setSectionEnabled={setSectionEnabled} />
-        {alignment && (
-          <TouchableOpacity
-            style={{
-              position: 'absolute', top: 60, right: 12,
-              backgroundColor: alignment.verdict === 'PASS' ? '#4CAF50' : alignment.verdict === 'WARN' ? '#FF9800' : '#F44336',
-              paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14,
-            }}
-            onPress={() => setAlignmentExpanded(!alignmentExpanded)}
-          >
-            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>IFC: {alignment.verdict}</Text>
-          </TouchableOpacity>
-        )}
-        {alignmentExpanded && alignment && (() => {
-          let findings: IfcAlignmentFinding[] = [];
-          try { findings = JSON.parse(alignment.findingsJson); } catch { findings = []; }
-          return (
-            <View style={{ position: 'absolute', top: 100, right: 12, left: 12, backgroundColor: 'rgba(0,0,0,0.85)', padding: 12, borderRadius: 8 }}>
-              <Text style={{ color: '#fff', fontWeight: '700', marginBottom: 6 }}>IFC Alignment: {alignment.verdict}</Text>
-              <Text style={{ color: '#ccc', fontSize: 12 }}>Schema: {alignment.schemaVersion ?? '?'} · Unit: {alignment.lengthUnit ?? '?'}</Text>
-              {alignment.trueNorthDegrees != null && (
-                <Text style={{ color: '#ccc', fontSize: 12 }}>True north: {alignment.trueNorthDegrees.toFixed(2)}°</Text>
-              )}
-              {(alignment.surveyEasting != null || alignment.surveyNorthing != null || alignment.surveyElevation != null) && (
-                <Text style={{ color: '#ccc', fontSize: 12 }}>
-                  Survey: E {alignment.surveyEasting ?? '?'} · N {alignment.surveyNorthing ?? '?'} · El {alignment.surveyElevation ?? '?'}
-                </Text>
-              )}
-              {alignment.crsName && <Text style={{ color: '#ccc', fontSize: 12 }}>CRS: {alignment.crsName}</Text>}
-              {findings.map((f, i) => (
-                <View key={i} style={{ marginTop: 8, borderLeftWidth: 3, borderLeftColor: f.severity === 'FAIL' ? '#F44336' : f.severity === 'WARN' ? '#FF9800' : '#2196F3', paddingLeft: 8 }}>
-                  <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>{f.severity} · {f.code}</Text>
-                  <Text style={{ color: '#ddd', fontSize: 11, marginTop: 2 }}>{f.message}</Text>
-                  {f.fixHint && <Text style={{ color: '#aaa', fontSize: 10, marginTop: 2, fontStyle: 'italic' }}>Fix: {f.fixHint}</Text>}
-                </View>
-              ))}
-            </View>
-          );
-        })()}
+        <ExtraToolbar viewerRef={viewerRef} walkActive={walkActive}
+          sectionEnabled={sectionEnabled} setSectionEnabled={setSectionEnabled}
+          heatmapActive={heatmapActive} onToggleHeatmap={toggleHeatmap} />
       </View>
     </>
   );

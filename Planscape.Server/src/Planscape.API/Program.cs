@@ -1261,6 +1261,14 @@ RecurringJob.AddOrUpdate<Planscape.API.BackgroundJobs.MaintenanceTaskSchedulerJo
     "maintenance-task-scheduler", j => j.ExecuteAsync(),
     "0 6 * * *", new RecurringJobOptions { QueueName = "default" });
 
+// Gap 3 — retry site-photo redactions that failed due to transient errors.
+// Runs every 4 hours; capped at 50 photos per run to avoid queue floods.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.RetryFailedRedactionJob>(
+    "retry-failed-redactions",
+    j => j.RunAsync(CancellationToken.None),
+    "0 */4 * * *",
+    new RecurringJobOptions { QueueName = "photo-redaction" });
+
 // Seed the well-known 'planscape' platform tenant idempotently on startup
 // so /api/platform/revenue + SlaBurnRateJob alerts find their target.
 using (var scope = app.Services.CreateScope())

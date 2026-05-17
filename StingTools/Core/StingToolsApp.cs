@@ -1148,6 +1148,16 @@ namespace StingTools.Core
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
             StingTag7NarrativeUpdater.Unregister();
+            StingTools.Core.Plumbing.RealTimePipeSizer.Unregister();
+            try { StingTools.Core.Routing.CableManifestUpdater.Unregister(); } catch { }
+
+            // Phase 175 — unregister the SLD sync updater.
+            try
+            {
+                if (_sldUpdaterId != null)
+                    Autodesk.Revit.DB.UpdaterRegistry.UnregisterUpdater(_sldUpdaterId);
+            }
+            catch (Exception ex) { StingLog.Warn($"SLDSyncUpdater unregister: {ex.Message}"); }
 
             // Clash rec-2: Unregister the live clash IUpdater. Safe against re-entry
             // and no-op if never registered.
