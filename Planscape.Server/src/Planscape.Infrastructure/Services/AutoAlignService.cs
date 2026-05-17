@@ -1,9 +1,11 @@
 namespace Planscape.Infrastructure.Services;
 
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.SignalR;
 
 // ── Public interface ──────────────────────────────────────────────────────────
 
@@ -20,7 +22,9 @@ public interface IAutoAlignService
     /// Caller decides whether to persist and apply it.
     /// </summary>
     Task<AutoAlignResult> ComputeAsync(
-        Guid projectId, Guid tenantId, Guid targetModelId, CancellationToken ct);
+        Guid projectId, Guid tenantId, Guid targetModelId,
+        IHubContext<FederatedModelHub>? modelHub = null,
+        CancellationToken ct = default);
 }
 
 public sealed record AutoAlignResult(
@@ -47,7 +51,9 @@ public sealed class AutoAlignService : IAutoAlignService
     }
 
     public async Task<AutoAlignResult> ComputeAsync(
-        Guid projectId, Guid tenantId, Guid targetModelId, CancellationToken ct)
+        Guid projectId, Guid tenantId, Guid targetModelId,
+        IHubContext<FederatedModelHub>? modelHub = null,
+        CancellationToken ct = default)
     {
         // ── 1. Load the target model's latest IfcAlignmentReport ──────────────
         var targetReport = await _db.IfcAlignmentReports.AsNoTracking()
@@ -205,6 +211,26 @@ public sealed class AutoAlignService : IAutoAlignService
         _logger.LogInformation(
             "AutoAlign computed for model {ModelId}: TX={TX:F3} TY={TY:F3} TZ={TZ:F3} Rot={Rot:F4}° Scale={Scale:F6} ref={Ref}",
             targetModelId, tx, ty, tz, rotDeg, scaleFactor, referenceModelId ?? "PCS");
+
+        // Gap K — broadcast the new transform so viewer clients refresh their
+        // coordinate frame without polling.
+        if (modelHub != null)
+        {
+            try
+            {
+                await FederatedModelHub.NotifyUpdate(
+                    modelHub,
+                    projectId.ToString(),
+                    new[] { targetModelId.ToString() },
+                    Array.Empty<long>(),
+                    "auto-align");
+            }
+            catch (Exception hubEx)
+            {
+                _logger.LogWarning(hubEx,
+                    "FederatedModelHub notify failed for auto-align on model {ModelId}", targetModelId);
+            }
+        }
 
         return new AutoAlignResult(
             Success         : true,

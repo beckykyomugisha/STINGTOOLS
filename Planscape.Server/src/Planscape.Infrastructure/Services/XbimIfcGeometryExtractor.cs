@@ -84,6 +84,16 @@ public sealed class XbimIfcGeometryExtractor : IIfcGeometryExtractor
         double scaleMm = ResolveScaleToMm(model);
         _logger.LogDebug("XbimIfcGeometryExtractor: {Path} — length scale factor = {Scale} (→ mm)", ifcPath, scaleMm);
 
+        // Gap 10: Also apply IfcMapConversion.Scale on top of the unit scale.
+        // Some exporters set this to ~0.001 when the file is in mm but the CRS
+        // expects metres, creating a 1000× coordinate error if not corrected.
+        double mapScale = ResolveMapConversionScale(model);
+        if (Math.Abs(mapScale - 1.0) > 0.0001)
+        {
+            scaleMm *= mapScale;
+            _logger.LogDebug("XbimIfcGeometryExtractor: IfcMapConversion.Scale={Scale} — combined scale factor = {Combined}", mapScale, scaleMm);
+        }
+
         // 2. Build storey ancestor index (elementLabel → storey name).
         var storeyByElement = BuildStoreyIndex(model);
 
@@ -341,6 +351,35 @@ public sealed class XbimIfcGeometryExtractor : IIfcGeometryExtractor
         }
 
         return null;
+    }
+
+    // ── Gap 10: IfcMapConversion scale ──────────────────────────────────────
+
+    /// <summary>
+    /// Reads IfcMapConversion.Scale from the model.
+    /// Returns 1.0 when no map conversion entity is present (the safe default).
+    /// A scale ≠ 1.0 indicates a unit mismatch between the model's internal
+    /// coordinates and the coordinate reference system — common when ArchiCAD
+    /// or Revit is set to mm internally but the CRS expects metres.
+    /// </summary>
+    private static double ResolveMapConversionScale(IModel model)
+    {
+        try
+        {
+            // IfcMapConversion is IFC4+; in IFC2X3 there's no map conversion.
+            // Use dynamic interface dispatch via IIfcCoordinateOperation (IFC4 interface).
+            // Xbim exposes IfcMapConversion via IIfcMapConversion (IFC4 namespace).
+            foreach (var mc in model.Instances.OfType<Xbim.Ifc4.Interfaces.IIfcMapConversion>())
+            {
+                if (mc.Scale.HasValue)
+                {
+                    double s = (double)mc.Scale.Value;
+                    if (s > 0 && Math.Abs(s - 1.0) > 0.0001) return s;
+                }
+            }
+        }
+        catch { }
+        return 1.0;
     }
 
     // ── 4b. Fallback: ObjectPlacement origin ───────────────────────────────
