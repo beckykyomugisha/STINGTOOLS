@@ -71,7 +71,7 @@ public class TagSyncController : ControllerBase
                     // - If the server has no stored timestamp, accept and adopt the client's.
                     // - If client timestamp > server timestamp, accept and bump Version.
                     // - Otherwise treat as a stale update — keep the server copy and record a conflict.
-                    var clientTs = dto.LastModifiedUtc;
+                    var clientTs = ToUtc(dto.LastModifiedUtc);
                     var serverTs = existing.LastModifiedUtc;
 
                     if (clientTs.HasValue && serverTs.HasValue && clientTs.Value <= serverTs.Value)
@@ -101,16 +101,16 @@ public class TagSyncController : ControllerBase
                     {
                         MapDtoToEntity(dto, existing, request.UserName);
                         existing.Version += 1;
-                        existing.LastModifiedUtc = clientTs ?? DateTime.UtcNow;
+                        existing.LastModifiedUtc = ToUtc(clientTs) ?? DateTime.UtcNow;
                         updated++;
                     }
                 }
                 else
                 {
-                    var entity = new TaggedElement { ProjectId = project.Id };
+                    var entity = new TaggedElement { ProjectId = project.Id, TenantId = tenantId };
                     MapDtoToEntity(dto, entity, request.UserName);
                     entity.Version = 1;
-                    entity.LastModifiedUtc = dto.LastModifiedUtc ?? DateTime.UtcNow;
+                    entity.LastModifiedUtc = ToUtc(dto.LastModifiedUtc) ?? DateTime.UtcNow;
                     _db.TaggedElements.Add(entity);
                     existingElements[dto.RevitElementId] = entity; // prevent duplicate adds
                     created++;
@@ -379,6 +379,16 @@ public class TagSyncController : ControllerBase
         entity.IsComplete = dto.IsComplete; entity.IsFullyResolved = dto.IsFullyResolved;
         entity.SyncedAt = DateTime.UtcNow; entity.SyncedBy = userName;
     }
+
+    /// <summary>Normalise a DateTime to UTC Kind — rejects Local, passes UTC and Unspecified through as UTC.</summary>
+    private static DateTime? ToUtc(DateTime? dt) =>
+        dt switch
+        {
+            null => null,
+            { Kind: DateTimeKind.Utc } v => v,
+            { Kind: DateTimeKind.Local } v => v.ToUniversalTime(),
+            var v => DateTime.SpecifyKind(v.Value, DateTimeKind.Utc),
+        };
 
     // ── S01 — explicit sync watermark + conflict log REST endpoints ──────
     // The bulk-sync POST /sync path already upserts watermarks and logs

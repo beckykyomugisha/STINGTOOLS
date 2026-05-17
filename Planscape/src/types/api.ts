@@ -6,19 +6,26 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  token: string;
+  // Server returns camelCase via ASP.NET Core JSON serialiser
+  accessToken: string;
   refreshToken: string;
   expiresAt: string;
-  user: UserProfile;
+  userName: string;
+  role: string;
+  tier: string;
+  mimEnabled: boolean;
 }
 
 export interface UserProfile {
   id: string;
+  tenantId: string;
   email: string;
   displayName: string;
   role: string;
-  tenantId: string;
-  tenantName: string;
+  iso19650Role: string;
+  tier: string;
+  mimEnabled?: boolean;
+  lastLoginAt?: string;
 }
 
 export interface Project {

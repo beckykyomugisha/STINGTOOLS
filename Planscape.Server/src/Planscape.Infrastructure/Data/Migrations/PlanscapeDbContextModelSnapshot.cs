@@ -1011,6 +1011,10 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<string>("Status")
                     .HasColumnType("text");
 
+                b.Property<string>("Source")
+                    .HasMaxLength(40)
+                    .HasColumnType("character varying(40)");
+
                 b.Property<DateTime>("SyncedAt")
                     .HasColumnType("timestamp with time zone");
 
@@ -1073,6 +1077,8 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.HasIndex("Disc");
 
                 b.HasIndex("IsStale");
+
+                b.HasIndex("Source");
 
                 b.HasIndex("Tag1");
 

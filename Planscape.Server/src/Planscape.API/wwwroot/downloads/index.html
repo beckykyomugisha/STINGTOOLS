@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Planscape Desktop — Downloads</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f0f1a;
+      --card:      #1a1a2e;
+      --card2:     #16213e;
+      --accent:    #E8912D;
+      --accent2:   #f0a84a;
+      --text:      #e8e8f0;
+      --muted:     #9090a8;
+      --border:    #2a2a44;
+      --success:   #3ecf8e;
+      --warn:      #e8912d;
+      --radius:    10px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Header ── */
+    header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 24px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo-mark {
+      width: 44px;
+      height: 44px;
+      background: var(--accent);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 900;
+      color: #fff;
+      flex-shrink: 0;
+      letter-spacing: -1px;
+    }
+
+    .logo-text { display: flex; flex-direction: column; }
+    .logo-text .name { font-size: 20px; font-weight: 700; color: var(--text); }
+    .logo-text .tagline { font-size: 12px; color: var(--muted); }
+
+    .header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .version-badge {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .version-badge .ver { color: var(--accent); font-weight: 600; }
+
+    /* ── Main ── */
+    main { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
+
+    .hero {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .hero h1 {
+      font-size: clamp(28px, 5vw, 44px);
+      font-weight: 800;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, var(--text) 0%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: 16px;
+      color: var(--muted);
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    /* ── Download cards ── */
+    .download-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-bottom: 56px;
+    }
+
+    .download-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .download-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 4px 24px rgba(232, 145, 45, 0.1);
+    }
+
+    .platform-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .platform-icon {
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    .platform-info .platform-name {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .platform-info .platform-req {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .download-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 11px 20px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.1s;
+      margin-top: 4px;
+    }
+
+    .download-btn:hover { background: var(--accent2); text-decoration: none; }
+    .download-btn:active { transform: scale(0.98); }
+
+    .download-btn.unavailable {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: default;
+    }
+
+    .download-btn.unavailable:hover { background: var(--card2); }
+
+    .file-info {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .coming-soon-pill {
+      display: inline-block;
+      background: rgba(232,145,45,0.1);
+      border: 1px solid rgba(232,145,45,0.3);
+      color: var(--accent);
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    /* ── Sections ── */
+    .section { margin-bottom: 48px; }
+
+    .section h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    /* Features */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .feature-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .feature-item .feature-icon {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+
+    .feature-item .feature-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .feature-item .feature-desc {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* Requirements */
+    .req-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .req-table tr:not(:last-child) td { border-bottom: 1px solid var(--border); }
+
+    .req-table td {
+      padding: 12px 16px;
+      font-size: 14px;
+    }
+
+    .req-table td:first-child {
+      color: var(--muted);
+      width: 140px;
+      font-weight: 500;
+    }
+
+    .req-table tr { background: var(--card); }
+    .req-table tr:nth-child(even) { background: var(--card2); }
+
+    .req-table { border-radius: var(--radius); overflow: hidden; }
+
+    /* Install steps */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 20px 24px;
+      background: var(--card);
+    }
+
+    .step:not(:last-child) { border-bottom: 1px solid var(--border); }
+    .step:nth-child(even) { background: var(--card2); }
+
+    .step-num {
+      width: 32px;
+      height: 32px;
+      background: var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .step-body .step-title { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+    .step-body .step-desc { font-size: 13px; color: var(--muted); }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 32px 24px;
+      border-top: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    footer .footer-links { display: flex; justify-content: center; gap: 20px; margin-bottom: 12px; flex-wrap: wrap; }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      header { padding: 16px; }
+      main { padding: 32px 16px 60px; }
+      .download-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">P</div>
+  <div class="logo-text">
+    <span class="name">Planscape Desktop</span>
+    <span class="tagline">ISO 19650 BIM Coordination</span>
+  </div>
+  <div class="header-right">
+    <div class="version-badge">v<span class="ver" id="version-num">—</span></div>
+  </div>
+</header>
+
+<main>
+
+  <div class="hero">
+    <h1>Download Planscape Desktop</h1>
+    <p>The local sync agent that connects your Revit models to the Planscape platform — folder watching, ISO 19650 structure, and StingBridge IFC processing, all running in the background.</p>
+  </div>
+
+  <!-- Download cards -->
+  <div class="download-grid" id="download-grid">
+    <!-- Populated by JS -->
+    <div class="download-card">
+      <div class="platform-header">
+        <div class="platform-icon">🪟</div>
+        <div class="platform-info">
+          <div class="platform-name">Windows</div>
+          <div class="platform-req">Windows 10 or later</div>
+        </div>
+      </div>
+      <a href="#" class="download-btn unavailable" id="btn-windows">
+        ⏳ Loading…
+      </a>
+      <div class="file-info" id="info-windows">&nbsp;</div>
+    </div>
+
+    <div class="download-card">
+      <div class="platform-header">
+        <div class="platform-icon">🍎</div>
+        <div class="platform-info">
+          <div class="platform-name">macOS</div>
+          <div class="platform-req">macOS 12 Monterey or later</div>
+        </div>
+      </div>
+      <a href="#" class="download-btn unavailable" id="btn-mac">
+        ⏳ Loading…
+      </a>
+      <div class="file-info" id="info-mac">&nbsp;</div>
+    </div>
+
+    <div class="download-card">
+      <div class="platform-header">
+        <div class="platform-icon">🐧</div>
+        <div class="platform-info">
+          <div class="platform-name">Linux</div>
+          <div class="platform-req">Ubuntu 20.04+ · AppImage</div>
+        </div>
+      </div>
+      <a href="#" class="download-btn unavailable" id="btn-linux">
+        ⏳ Loading…
+      </a>
+      <div class="file-info" id="info-linux">&nbsp;</div>
+    </div>
+  </div>
+
+  <!-- Release notes strip -->
+  <div id="release-strip" style="display:none; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px 20px; margin-bottom:48px; font-size:13px; color:var(--muted);">
+    <strong style="color:var(--text);">Release notes:</strong> <span id="release-notes-text"></span>
+    <span style="float:right;" id="release-date-text"></span>
+  </div>
+
+  <!-- What's included -->
+  <div class="section">
+    <h2>What's Included</h2>
+    <div class="features-grid">
+      <div class="feature-item">
+        <div class="feature-icon">👁️</div>
+        <div class="feature-title">Automatic Folder Watching</div>
+        <div class="feature-desc">Monitors your project directories for new and changed files, syncing metadata to Planscape in the background without interrupting your workflow.</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">📁</div>
+        <div class="feature-title">ISO 19650 Folder Structure</div>
+        <div class="feature-desc">Generates and enforces the ISO 19650-compliant CDE folder hierarchy for any project, keeping your naming conventions consistent across teams.</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🔗</div>
+        <div class="feature-title">StingBridge IFC Processing</div>
+        <div class="feature-desc">Reads IFC files exported from Revit or ArchiCAD, extracts asset metadata, and pushes structured BIM data directly to the Planscape API.</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🔄</div>
+        <div class="feature-title">Works with Revit &amp; ArchiCAD</div>
+        <div class="feature-desc">No plugin install required inside the host application — Desktop runs independently and processes IFC exports from any authoring tool.</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">📶</div>
+        <div class="feature-title">Offline Queue</div>
+        <div class="feature-desc">Changes made while offline are queued locally and flushed automatically when connectivity is restored — no lost data on unreliable site networks.</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🔒</div>
+        <div class="feature-title">Secure by Default</div>
+        <div class="feature-desc">All traffic uses TLS. Credentials are stored in the OS keychain (Windows Credential Manager / macOS Keychain / libsecret). No plain-text secrets on disk.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- System requirements -->
+  <div class="section">
+    <h2>System Requirements</h2>
+    <table class="req-table">
+      <tbody>
+        <tr>
+          <td>Windows</td>
+          <td>Windows 10 (build 19041) or later — 64-bit</td>
+        </tr>
+        <tr>
+          <td>macOS</td>
+          <td>macOS 12 Monterey or later — Apple Silicon &amp; Intel</td>
+        </tr>
+        <tr>
+          <td>Linux</td>
+          <td>Ubuntu 20.04+ · Fedora 36+ · AppImage (no install needed)</td>
+        </tr>
+        <tr>
+          <td>RAM</td>
+          <td>4 GB minimum · 8 GB recommended for large IFC files</td>
+        </tr>
+        <tr>
+          <td>Disk</td>
+          <td>200 MB for the app · additional space for local sync cache</td>
+        </tr>
+        <tr>
+          <td>Network</td>
+          <td>Internet connection to your Planscape server URL</td>
+        </tr>
+        <tr>
+          <td>Runtime</td>
+          <td>No Node.js or .NET runtime required — fully self-contained</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Installation steps -->
+  <div class="section">
+    <h2>Getting Started</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Download the installer for your platform</div>
+          <div class="step-desc">Choose Windows, macOS, or Linux above. The download starts immediately — no account required to download.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Run the installer</div>
+          <div class="step-desc">On Windows, run the <code>.exe</code> and follow the setup wizard. On macOS, open the <code>.dmg</code> and drag to Applications. On Linux, make the <code>.AppImage</code> executable and launch it.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Enter your Planscape server URL</div>
+          <div class="step-desc">On first launch you will be prompted for the URL of your Planscape server (e.g. <code>https://planscape.yourcompany.com</code>). Contact your BIM manager if you do not have this.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Sign in with your Planscape account</div>
+          <div class="step-desc">Use the same credentials you use on the Planscape web dashboard or mobile app. Your sync will begin automatically once authenticated.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title">Add a project folder to watch</div>
+          <div class="step-desc">Select the root folder of your project in the Desktop app. Planscape will begin watching for new files and syncing changes to the platform.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="/">Planscape Dashboard</a>
+    <a href="/swagger">API Docs</a>
+    <a href="mailto:support@planscape.io">Support</a>
+  </div>
+  <div>&copy; 2026 Planscape. ISO 19650-compliant BIM coordination platform.</div>
+</footer>
+
+<script>
+  (function () {
+    var platforms = {
+      windows: { btn: document.getElementById('btn-windows'), info: document.getElementById('info-windows') },
+      mac:     { btn: document.getElementById('btn-mac'),     info: document.getElementById('info-mac')     },
+      linux:   { btn: document.getElementById('btn-linux'),   info: document.getElementById('info-linux')   }
+    };
+
+    function formatBytes(bytes) {
+      var b = parseInt(bytes, 10);
+      if (!b || b <= 0) return '';
+      if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+      return (b / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function applyPlatform(key, data) {
+      var el = platforms[key];
+      if (!el) return;
+      var btn = el.btn;
+      var info = el.info;
+
+      if (data && data.available) {
+        btn.href = '/api/downloads/file/' + key;
+        btn.classList.remove('unavailable');
+        btn.textContent = '⬇  Download';
+        var sizeStr = formatBytes(data.size);
+        info.textContent = data.filename + (sizeStr ? ' · ' + sizeStr : '');
+      } else {
+        btn.removeAttribute('href');
+        btn.setAttribute('href', '#');
+        btn.classList.add('unavailable');
+        btn.innerHTML = 'Coming Soon <span class="coming-soon-pill">soon</span>';
+        info.textContent = data && data.filename ? data.filename : '';
+      }
+    }
+
+    fetch('/api/downloads/latest')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var vn = document.getElementById('version-num');
+        if (vn && d.version) vn.textContent = d.version;
+
+        applyPlatform('windows', d.windows);
+        applyPlatform('mac', d.mac);
+        applyPlatform('linux', d.linux);
+
+        if (d.releaseNotes) {
+          var strip = document.getElementById('release-strip');
+          var notes = document.getElementById('release-notes-text');
+          var dateEl = document.getElementById('release-date-text');
+          if (strip) strip.style.display = 'block';
+          if (notes) notes.textContent = d.releaseNotes;
+          if (dateEl && d.releaseDate) dateEl.textContent = 'Released ' + d.releaseDate;
+        }
+      })
+      .catch(function () {
+        // If API is unreachable, show unavailable state on all buttons.
+        ['windows', 'mac', 'linux'].forEach(function (k) {
+          var el = platforms[k];
+          if (el && el.btn) {
+            el.btn.classList.add('unavailable');
+            el.btn.innerHTML = 'Not Available';
+          }
+        });
+      });
+  })();
+</script>
+
+</body>
+</html>

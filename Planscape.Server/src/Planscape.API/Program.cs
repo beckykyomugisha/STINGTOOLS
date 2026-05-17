@@ -1,3 +1,5 @@
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
 using Planscape.API.Middleware;
@@ -487,6 +489,10 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>
 // ONNX models without dragging the dependency into the API process.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.RedactPublishedPhotoJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DailyPhotoDigestJob>();
+// Gap 1 — server-side audio transcription stub (STT provider wired later).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.AudioTranscriptionJob>();
+// Gap 3 — periodic retry for SitePhotos whose redaction failed.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.RetryFailedRedactionJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPipeline.IPhotoRedactionPipeline,
     Planscape.Infrastructure.Services.PhotoPipeline.SkiaPhotoRedactionPipeline>();
 
@@ -802,6 +808,11 @@ builder.Services.AddRateLimiter(options =>
 var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? new[]
 {
     "http://localhost:3000",
+    "http://localhost:8081",
+    "http://localhost:8082",
+    "http://localhost:8083",
+    "http://localhost:8084",
+    "http://localhost:8085",
     "http://localhost:19000",
     "http://localhost:19001",
     "http://localhost:19002",
@@ -936,7 +947,6 @@ app.UseSerilogRequestLogging();
 // Exposed at /metrics in Prometheus exposition format. Scrape once per 15-30s.
 app.UseHttpMetrics();
 app.UseRateLimiter();
-app.UseCors("Dashboard");
 app.UseCors("Mobile");
 // S3.8 — rewrite /api/v1/* → /api/* before routing so existing
 // controllers serve both. Older /api/* paths get a Deprecation
@@ -995,6 +1005,11 @@ if (exposeMetrics)
 // ── Health check ── (NEW-SRV-22)
 // Returns sub-check results so mobile can detect partial degradation.
 // Status codes: 200 healthy, 503 degraded (any sub-check failed).
+// DOWNLOADS — redirect /downloads → /downloads/ so the static
+// index.html is served by UseDefaultFiles without a trailing slash.
+app.MapGet("/downloads", () => Results.Redirect("/downloads/"))
+    .AllowAnonymous();
+
 // HEALTH-01 — Separate probes for orchestrator/mobile consumption.
 // /health/live  → process is running (K8s liveness, mobile ping)
 // /health/ready → process is accepting traffic (K8s readiness, probes)
@@ -1165,6 +1180,52 @@ app.MapHub<Planscape.Infrastructure.SignalR.FederatedModelHub>("/hubs/federated-
             var creator = (Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator)
                 db.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
             creator.CreateTables();
+        }
+
+        // Idempotent schema patches — adds columns that were introduced after the initial
+        // EnsureCreated run. Safe to run every startup (IF NOT EXISTS is a no-op on existing columns).
+        var patches = new[]
+        {
+            // TaggedElements additive columns (post-initial-schema)
+            "ALTER TABLE \"TaggedElements\" ADD COLUMN IF NOT EXISTS \"TenantId\" uuid;",
+            "ALTER TABLE \"TaggedElements\" ADD COLUMN IF NOT EXISTS \"LastModifiedUtc\" timestamp with time zone;",
+            "ALTER TABLE \"TaggedElements\" ADD COLUMN IF NOT EXISTS \"Version\" integer NOT NULL DEFAULT 1;",
+            "ALTER TABLE \"TaggedElements\" ADD COLUMN IF NOT EXISTS \"Source\" character varying(40);",
+            // SyncConflicts table (never in initial schema)
+            @"CREATE TABLE IF NOT EXISTS ""SyncConflicts"" (
+                ""Id"" uuid NOT NULL DEFAULT gen_random_uuid(),
+                ""TenantId"" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
+                ""ProjectId"" uuid NOT NULL,
+                ""TaggedElementId"" uuid,
+                ""ElementId"" text NOT NULL DEFAULT '',
+                ""ConflictType"" text NOT NULL DEFAULT 'STALE_UPDATE',
+                ""Resolution"" text NOT NULL DEFAULT 'SERVER_WINS',
+                ""ServerTimestamp"" timestamp with time zone,
+                ""ClientTimestamp"" timestamp with time zone,
+                ""ClientUserName"" text,
+                ""DetectedAt"" timestamp with time zone NOT NULL DEFAULT now(),
+                CONSTRAINT ""PK_SyncConflicts"" PRIMARY KEY (""Id"")
+            );",
+            // SyncWatermarks table (never in initial schema)
+            @"CREATE TABLE IF NOT EXISTS ""SyncWatermarks"" (
+                ""Id"" uuid NOT NULL DEFAULT gen_random_uuid(),
+                ""TenantId"" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
+                ""ProjectId"" uuid NOT NULL,
+                ""DeviceId"" text NOT NULL DEFAULT '',
+                ""LastSyncUtc"" timestamp with time zone NOT NULL DEFAULT now(),
+                ""ElementCount"" integer NOT NULL DEFAULT 0,
+                ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT now(),
+                ""UpdatedAt"" timestamp with time zone NOT NULL DEFAULT now(),
+                CONSTRAINT ""PK_SyncWatermarks"" PRIMARY KEY (""Id"")
+            );",
+        };
+        await using (var cmd = conn.CreateCommand())
+        {
+            foreach (var patch in patches)
+            {
+                cmd.CommandText = patch;
+                await cmd.ExecuteNonQueryAsync();
+            }
         }
     }
     else

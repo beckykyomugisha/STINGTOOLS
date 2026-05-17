@@ -55,3 +55,12 @@ STING_WORKFLOW_LOG.json
 .env
 *.env
 !*.env.template
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IFC drop folder — runtime files, not source
+IFC_DROP/

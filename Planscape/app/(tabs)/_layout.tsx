@@ -156,6 +156,17 @@ export default function TabLayout() {
           title: 'Issue',
         }}
       />
+      {/* Phase 178 — Photos tab links to the site-photos gallery stack.
+          The tab navigates via href so the gallery lives outside (tabs)/
+          but is still reachable from the bottom bar. */}
+      <Tabs.Screen
+        name="site-photos"
+        options={{
+          title: 'Photos',
+          href: '/site-photos/gallery' as any,
+          tabBarIcon: ({ focused }) => <TabIcon label="📸" focused={focused} />,
+        }}
+      />
     </Tabs>
   );
 }

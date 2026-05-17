@@ -491,7 +491,7 @@ public class AuthController : ControllerBase
 
         return Ok(new
         {
-            user.Id, user.Email, user.DisplayName, user.Role, user.Iso19650Role,
+            user.Id, user.TenantId, user.Email, user.DisplayName, user.Role, user.Iso19650Role,
             Tier = user.Tenant?.Tier.ToString() ?? "Starter",
             user.Tenant?.MimEnabled,
             user.LastLoginAt
