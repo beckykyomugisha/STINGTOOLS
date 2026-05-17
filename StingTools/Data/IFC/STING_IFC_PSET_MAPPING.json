@@ -33,7 +33,6 @@
   { "sting_param": "ACC_ISSUE_ID_TXT",           "ifc_pset": "Pset_ConstructionOperation",      "ifc_property": "ACCIssueId",                    "ifc_data_type": "IfcIdentifier" },
   { "sting_param": "HEALTH_SCORE_LAST_NR",       "ifc_pset": "Pset_ConstructionOperation",      "ifc_property": "ModelHealthScore",              "ifc_data_type": "IfcInteger" },
 
-  // ── Quantity sets (IFC IfcElementQuantity, not IfcPropertySet) ──────────────
   { "pset_name": "Qto_WallBaseQuantities",  "property_name": "GrossSideArea", "sting_param": "QTO_GROSS_AREA_M2",         "quantity_type": true },
   { "pset_name": "Qto_WallBaseQuantities",  "property_name": "NetSideArea",   "sting_param": "QTO_NET_AREA_M2",           "quantity_type": true },
   { "pset_name": "Qto_WallBaseQuantities",  "property_name": "GrossVolume",   "sting_param": "QTO_GROSS_VOLUME_M3",       "quantity_type": true },
@@ -54,7 +53,6 @@
   { "pset_name": "BaseQuantities",          "property_name": "NetVolume",     "sting_param": "QTO_NET_VOLUME_M3",         "quantity_type": true },
   { "pset_name": "BaseQuantities",          "property_name": "Length",        "sting_param": "QTO_LENGTH_M",             "quantity_type": true },
 
-  // ── Cost properties (scan all psets for property name) ──────────────────────
   { "pset_name": "", "property_name": "CostCode",             "sting_param": "CST_COST_CODE_TXT",      "scan_all_psets": true },
   { "pset_name": "", "property_name": "UnitCost",             "sting_param": "CST_UNIT_COST_NR",       "scan_all_psets": true },
   { "pset_name": "", "property_name": "ElementCost",          "sting_param": "CST_ELEMENT_COST_NR",    "scan_all_psets": true },
@@ -65,19 +63,16 @@
   { "pset_name": "", "property_name": "BillOfQuantitiesItem", "sting_param": "CST_BOQ_ITEM_TXT",       "scan_all_psets": true },
   { "pset_name": "", "property_name": "Cost",                 "sting_param": "CST_UNIT_COST_NR",       "scan_all_psets": true },
 
-  // ── ArchiCAD renovation (authoritative status source) ────────────────────────
   { "pset_name": "AC_Pset_RenovationInfo", "property_name": "RenovationStatus",           "sting_param": "RNV_STATUS_TXT" },
   { "pset_name": "AC_Pset_RenovationInfo", "property_name": "IsExistingToRemain",         "sting_param": "RNV_IS_EXISTING_BOOL" },
   { "pset_name": "AC_Pset_RenovationInfo", "property_name": "DemolitionSequenceCode",     "sting_param": "RNV_DEMOLITION_SEQ_TXT" },
   { "pset_name": "AC_Pset_RenovationInfo", "property_name": "NewConstructionSequenceCode","sting_param": "RNV_NEW_CONST_SEQ_TXT" },
 
-  // ── ArchiCAD element identity ─────────────────────────────────────────────────
   { "pset_name": "AC_Pset_ElementID", "property_name": "ID",                "sting_param": "AC_ELEMENT_ID_TXT" },
   { "pset_name": "AC_Pset_ElementID", "property_name": "Hotlink_ID",        "sting_param": "AC_HOTLINK_ID_TXT" },
   { "pset_name": "AC_Pset_ElementID", "property_name": "Hotlink_SourceFile","sting_param": "AC_HOTLINK_FILE_TXT" },
   { "pset_name": "AC_Pset_ElementID", "property_name": "Revision",          "sting_param": "AC_REVISION_TXT" },
 
-  // ── ArchiCAD zone category ────────────────────────────────────────────────────
   { "pset_name": "AC_Pset_ZoneCategory", "property_name": "ZoneCategoryName",       "sting_param": "ZON_CATEGORY_NAME_TXT" },
   { "pset_name": "AC_Pset_ZoneCategory", "property_name": "ZoneCategoryCode",       "sting_param": "ZON_CATEGORY_CODE_TXT" },
   { "pset_name": "AC_Pset_ZoneCategory", "property_name": "ZoneNetArea",            "sting_param": "ZON_NET_AREA_M2" },
@@ -85,7 +80,6 @@
   { "pset_name": "AC_Pset_ZoneCategory", "property_name": "ZoneVolume",             "sting_param": "ZON_VOLUME_M3" },
   { "pset_name": "AC_Pset_ZoneCategory", "property_name": "ZoneNumberOfOccupants",  "sting_param": "ZON_OCCUPANTS_NR" },
 
-  // ── Classification expansion ──────────────────────────────────────────────────
   { "pset_name": "ArchiCAD_PropertyGroup_Classification", "property_name": "OmniClass Number",    "sting_param": "CLS_OMNICLASS_NR_TXT" },
   { "pset_name": "ArchiCAD_PropertyGroup_Classification", "property_name": "OmniClass Title",     "sting_param": "CLS_OMNICLASS_TITLE_TXT" },
   { "pset_name": "ArchiCAD_PropertyGroup_Classification", "property_name": "Uniclass 2015 EF",    "sting_param": "CLS_UNICLASS_EF_TXT" },
@@ -93,7 +87,6 @@
   { "pset_name": "ArchiCAD_PropertyGroup_Classification", "property_name": "CSI MasterFormat",    "sting_param": "CLS_CSI_MASTERFORMAT_TXT" },
   { "pset_name": "ArchiCAD_PropertyGroup_Classification", "property_name": "NBS Description",     "sting_param": "CLS_NBS_DESCRIPTION_TXT" },
 
-  // ── Performance properties ────────────────────────────────────────────────────
   { "pset_name": "Pset_WallCommon",   "property_name": "AcousticRating",                  "sting_param": "PER_ACOUSTIC_RATING_TXT" },
   { "pset_name": "Pset_WallCommon",   "property_name": "LoadBearing",                     "sting_param": "PER_LOAD_BEARING_BOOL" },
   { "pset_name": "Pset_WallCommon",   "property_name": "IsExternal",                      "sting_param": "PER_IS_EXTERNAL_BOOL" },
@@ -108,7 +101,6 @@
   { "pset_name": "Pset_SpaceCommon",  "property_name": "FinishCeiling",                   "sting_param": "SPC_FINISH_CEILING_TXT" },
   { "pset_name": "Pset_SpaceCommon",  "property_name": "FinishWalls",                     "sting_param": "SPC_FINISH_WALLS_TXT" },
 
-  // ── Structural profile data ───────────────────────────────────────────────────
   { "pset_name": "AC_Pset_ProfileData", "property_name": "ProfileType",           "sting_param": "STR_PROFILE_TYPE_TXT" },
   { "pset_name": "AC_Pset_ProfileData", "property_name": "ProfileName",           "sting_param": "STR_PROFILE_NAME_TXT" },
   { "pset_name": "AC_Pset_ProfileData", "property_name": "Depth",                 "sting_param": "STR_PROFILE_DEPTH_MM" },
@@ -117,7 +109,6 @@
   { "pset_name": "AC_Pset_ProfileData", "property_name": "MomentOfInertiaY",      "sting_param": "STR_MOMENT_INERTIA_Y_CM4" },
   { "pset_name": "AC_Pset_ProfileData", "property_name": "ElasticSectionModulusY","sting_param": "STR_SECTION_MOD_Y_CM3" },
 
-  // ── Energy and lifecycle cost ─────────────────────────────────────────────────
   { "pset_name": "ArchiCAD_PropertyGroup_Energy", "property_name": "HeatingLoad",             "sting_param": "NRG_HEATING_LOAD_W" },
   { "pset_name": "ArchiCAD_PropertyGroup_Energy", "property_name": "CoolingLoad",             "sting_param": "NRG_COOLING_LOAD_W" },
   { "pset_name": "ArchiCAD_PropertyGroup_Energy", "property_name": "AnnualHeatingEnergy",     "sting_param": "NRG_ANNUAL_HEAT_KWH" },

@@ -56,6 +56,35 @@ export function getProjectDashboard(projectId: string): Promise<DashboardData> {
   return apiFetch(`/api/projects/${projectId}/dashboard`);
 }
 
+// ── P6 / Schedule live link (feature gap GAP-C) ──
+
+export interface P6StatusResponse {
+  isConfigured: boolean;
+  lastSyncedAt: string | null;
+  activitiesPolled: number;
+  elementsUpdated: number;
+  errorMessage?: string | null;
+}
+
+export interface P6SyncLogEntry {
+  syncedAt: string;
+  activitiesPolled: number;
+  elementsUpdated: number;
+  error?: string | null;
+}
+
+export function getP6Status(projectId: string): Promise<P6StatusResponse> {
+  return apiFetch(`/api/projects/${projectId}/schedule/p6/status`);
+}
+
+export function getP6Logs(projectId: string): Promise<P6SyncLogEntry[]> {
+  return apiFetch(`/api/projects/${projectId}/schedule/p6/logs`);
+}
+
+export function triggerP6Sync(projectId: string): Promise<void> {
+  return apiFetch(`/api/projects/${projectId}/schedule/p6/sync`, { method: 'POST' });
+}
+
 // ── BOQ / Cost Dashboard (feature gap 2) ──
 
 export interface BoqDisciplineRow {
@@ -2055,4 +2084,33 @@ export function listModelCheckRuns(projectId: string): Promise<ModelCheckRun[]> 
 
 export function getModelCheckRun(projectId: string, runId: string): Promise<ModelCheckRun> {
   return apiFetch(`/api/projects/${projectId}/model-checks/runs/${runId}`);
+}
+
+// ── P6 Live-link ──────────────────────────────────────────────────────────────
+export interface P6StatusResponse {
+  isConfigured: boolean;
+  lastSyncedAt: string | null;
+  activitiesPolled: number;
+  elementsUpdated: number;
+  errorMessage: string | null;
+}
+
+export interface P6SyncLogEntry {
+  id: string;
+  syncedAt: string;
+  activitiesPolled: number;
+  elementsUpdated: number;
+  error: string | null;
+}
+
+export function getP6Status(projectId: string): Promise<P6StatusResponse> {
+  return apiFetch<P6StatusResponse>(`/api/projects/${projectId}/p6/status`);
+}
+
+export function getP6Logs(projectId: string): Promise<P6SyncLogEntry[]> {
+  return apiFetch<P6SyncLogEntry[]>(`/api/projects/${projectId}/p6/logs`);
+}
+
+export function triggerP6Sync(projectId: string): Promise<{ status: string }> {
+  return apiFetch<{ status: string }>(`/api/projects/${projectId}/p6/sync`, { method: 'POST' });
 }

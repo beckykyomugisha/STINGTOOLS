@@ -242,6 +242,10 @@ public class PlanscapeDbContext : DbContext
     //    the mobile app reads this to know what's local vs needs sync.
     public DbSet<MobileOfflineModelManifest> MobileOfflineModelManifests => Set<MobileOfflineModelManifest>();
 
+    // ── P6 / BOQ snapshot ──
+    public DbSet<P6SyncLog>   P6SyncLogs   => Set<P6SyncLog>();
+    public DbSet<BoqSnapshot> BoqSnapshots => Set<BoqSnapshot>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

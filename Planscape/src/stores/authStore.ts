@@ -9,6 +9,8 @@ interface AuthState {
   // extra round-trip to /me.
   email: string | null;
   displayName: string | null;
+  /** Active project selected by the user (used by screens that need a project scope). */
+  currentProjectId: string | null;
   setAuth: (
     token: string,
     userId: string,
@@ -16,6 +18,7 @@ interface AuthState {
     email?: string | null,
     displayName?: string | null,
   ) => void;
+  setCurrentProjectId: (projectId: string | null) => void;
   clear: () => void;
 }
 
@@ -25,8 +28,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   tenantId: null,
   email: null,
   displayName: null,
+  currentProjectId: null,
   setAuth: (token, userId, tenantId, email = null, displayName = null) =>
     set({ token, userId, tenantId, email, displayName }),
+  setCurrentProjectId: (projectId) => set({ currentProjectId: projectId }),
   clear: () =>
-    set({ token: null, userId: null, tenantId: null, email: null, displayName: null }),
+    set({ token: null, userId: null, tenantId: null, email: null, displayName: null, currentProjectId: null }),
 }));

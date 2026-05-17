@@ -9,8 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { listIfcElements } from '@/api/endpoints';
-import { useAuthStore } from '@/stores/authStore';
+import { listIfcElements, listProjects } from '@/api/endpoints';
 import { theme } from '@/utils/theme';
 import type { TaggedElement } from '@/types/api';
 
@@ -120,7 +119,13 @@ function ElementRow({ item }: ElementRowProps) {
 // ── Main screen ────────────────────────────────────────────────────────────
 
 export default function IfcElementsScreen() {
-  const projectId = useAuthStore((s) => s.currentProjectId);
+  const [projectId, setProjectId] = useState<string | null>(null);
+
+  useEffect(() => {
+    listProjects()
+      .then((projects: Array<{ id: string }>) => setProjectId(projects[0]?.id ?? null))
+      .catch(() => {/* no-op — fetchElements will handle the null projectId */});
+  }, []);
 
   const [activeFilter, setActiveFilter] = useState<SourceFilter>('all');
   const [elements, setElements]         = useState<TaggedElement[]>([]);
