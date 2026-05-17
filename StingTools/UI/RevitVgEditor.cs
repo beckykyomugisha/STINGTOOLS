@@ -24,28 +24,19 @@
 //
 // Performance: DataGrid virtualization on (ScrollUnit=Item, recycling).
 
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Linq;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Data;
-using System.Windows.Media;
-using Autodesk.Revit.DB;
 using StingTools.Core.Drawing;
 // Resolve type collisions between WPF and Revit API:
+using StingTools.Core.Drawing;
 //   System.Windows.Controls.Grid vs Autodesk.Revit.DB.Grid
+using StingTools.Core.Drawing;
 //   System.Windows.Visibility    vs Autodesk.Revit.DB.Visibility (Workset enum)
+using StingTools.Core.Drawing;
 //   System.Windows.Data.Binding  vs Autodesk.Revit.DB.Binding   (parameter binding)
+using StingTools.Core.Drawing;
 //   System.Windows.Media.Color   vs Autodesk.Revit.DB.Color     (Revit colour)
-using Grid       = System.Windows.Controls.Grid;
-using Visibility = System.Windows.Visibility;
-using Binding    = System.Windows.Data.Binding;
 using Color      = System.Windows.Media.Color;
-
+using Color      = System.Windows.Media.Color;
+using StingTools.Core;
 namespace StingTools.UI
 {
     public sealed class RevitVgEditor

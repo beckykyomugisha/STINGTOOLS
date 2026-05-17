@@ -24,26 +24,38 @@ using Autodesk.Revit.DB.Plumbing;
 
 namespace StingTools.Core.Calc
 {
+    public enum ConnectorImpact
+    {
+        NoConnections,
+        FlipDirection,
+        MovedAttachedFitting,
+        SkippedConnected,
+    }
+
     public class SlopeFix
     {
-        public ElementId PipeId     { get; set; } = ElementId.InvalidElementId;
-        public double OriginalPct   { get; set; }
-        public double TargetPct     { get; set; }
-        public double AppliedPct    { get; set; }
-        public string Action        { get; set; } = "";
-        public bool   Success       { get; set; }
-        public string FailureReason { get; set; } = "";
+        public ElementId PipeId         { get; set; } = ElementId.InvalidElementId;
+        public double OriginalPct       { get; set; }
+        public double TargetPct         { get; set; }
+        public double AppliedPct        { get; set; }
+        public double DeltaZFt          { get; set; }
+        public string Action            { get; set; } = "";
+        public bool   Success           { get; set; }
+        public string FailureReason     { get; set; } = "";
+        public ConnectorImpact ConnectorImpact { get; set; } = ConnectorImpact.NoConnections;
+        public ElementId MovedFittingId { get; set; } = ElementId.InvalidElementId;
     }
 
     public class SlopeAutoCorrectionResult
     {
-        public int PipesScanned     { get; set; }
-        public int PipesFlipped     { get; set; }
-        public int PipesDepressed   { get; set; }
-        public int PipesUnchanged   { get; set; }
-        public int PipesFailed      { get; set; }
-        public List<SlopeFix> Fixes { get; } = new List<SlopeFix>();
-        public List<string> Warnings { get; } = new List<string>();
+        public int PipesScanned                 { get; set; }
+        public int PipesFlipped                 { get; set; }
+        public int PipesDepressed               { get; set; }
+        public int PipesUnchanged               { get; set; }
+        public int PipesFailed                  { get; set; }
+        public int PipesSkippedConnectedBothEnds { get; set; }
+        public List<SlopeFix> Fixes             { get; } = new List<SlopeFix>();
+        public List<string> Warnings            { get; } = new List<string>();
     }
 
     public static class SlopeAutoCorrector

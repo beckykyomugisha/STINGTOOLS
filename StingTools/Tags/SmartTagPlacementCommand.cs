@@ -441,6 +441,22 @@ namespace StingTools.Tags
             return Math.Min(offsetFt, Core.ScaleTiers.OffsetCapFt);
         }
 
+        /// <summary>
+        /// Scale-aware placement offset in feet for the given view.
+        /// Used as the base radial distance when positioning tag heads.
+        /// </summary>
+        public static double GetModelOffset(View view)
+        {
+            try
+            {
+                int scale = (view != null && view.Scale > 0) ? view.Scale : 100;
+                var tier = Core.ScaleTiers.ForView(view);
+                double offsetFt = (tier.OffsetMm / 304.8) * scale;
+                return Math.Min(offsetFt, Core.ScaleTiers.OffsetCapFt);
+            }
+            catch { return 1.0; }
+        }
+
         /// <summary>Get element center point in view coordinates.</summary>
         public static XYZ GetElementCenter(Element elem, View view)
         {

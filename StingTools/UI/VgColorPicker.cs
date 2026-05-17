@@ -9,12 +9,9 @@
 //
 // Lives in StingTools.UI alongside the other editor-only helpers.
 
-using System;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
 using SwfColorDialog = System.Windows.Forms.ColorDialog;
-
+using SwfColorDialog = System.Windows.Forms.ColorDialog;
+using StingTools.Core;
 namespace StingTools.UI
 {
     public static class VgColorPicker
