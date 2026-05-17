@@ -500,51 +500,187 @@ export function sendTransmittal(projectId: string, id: string): Promise<Transmit
   return apiFetch(`/api/projects/${projectId}/transmittals/${id}/send`, { method: 'POST' });
 }
 
-// Meetings
-export function listMeetings(projectId: string): Promise<Meeting[]> {
-  return apiFetch(`/api/projects/${projectId}/meetings`);
+// ── Meetings ────────────────────────────────────────────────────────────────
+
+export interface MeetingAttendee {
+  id: string;
+  meetingId: string;
+  userId?: string | null;
+  name: string;
+  email?: string | null;
+  company?: string | null;
+  discipline?: string | null;
+  /** CHAIR | SECRETARY | ATTENDEE | NOTIFIED */
+  role: string;
+  /** INVITED | CONFIRMED | ATTENDED | ABSENT | APOLOGY */
+  attendanceStatus: string;
+  createdAt: string;
 }
-// Phase 96 — create meeting, log minutes, action items
+
+export interface MeetingAgendaItem {
+  id: string;
+  meetingId: string;
+  orderIndex: number;
+  title: string;
+  description?: string | null;
+  durationMinutes?: number | null;
+  presenter?: string | null;
+  outcome?: string | null;
+  decision?: string | null;
+  /** PENDING | DISCUSSED | DEFERRED | RESOLVED */
+  status: string;
+  createdAt: string;
+}
+
+export interface MeetingActionItem {
+  id: string;
+  meetingId?: string;
+  meetingTitle?: string;
+  description: string;
+  notes?: string | null;
+  assignee?: string | null;
+  assigneeUserId?: string | null;
+  dueDate?: string | null;
+  /** CRITICAL | HIGH | MEDIUM | LOW */
+  priority?: string;
+  /** OPEN | IN_PROGRESS | COMPLETE | ESCALATED | CLOSED */
+  status?: string;
+  linkedIssueId?: string | null;
+  isOverdue?: boolean;
+}
+
+export function listMeetings(projectId: string, params?: { status?: string }): Promise<Meeting[]> {
+  const qs = params?.status ? `?status=${params.status}` : '';
+  return apiFetch(`/api/projects/${projectId}/meetings${qs}`);
+}
+
+export function getMeeting(projectId: string, meetingId: string): Promise<Meeting> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}`);
+}
+
 export function createMeeting(projectId: string, body: {
-  title: string; meetingType?: string; scheduledAt: string;
-  agendaJson?: string; attendeesJson?: string;
+  title: string;
+  meetingType?: string;
+  scheduledAt: string;
+  durationMinutes?: number;
+  location?: string;
+  meetingUrl?: string;
+  recurrenceRule?: string;
+  notifiedUserIds?: string[];
+  attendees?: Array<{ name: string; email?: string; role?: string }>;
+  agendaItems?: Array<{ title: string; durationMinutes?: number; presenter?: string }>;
 }): Promise<Meeting> {
   return apiFetch(`/api/projects/${projectId}/meetings`, { method: 'POST', body: JSON.stringify(body) });
 }
-export function logMeetingMinutes(projectId: string, meetingId: string, minutes: string): Promise<Meeting> {
-  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/minutes`, {
-    method: 'PUT', body: JSON.stringify({ minutes }),
+
+export function updateMeeting(projectId: string, meetingId: string, body: {
+  title?: string;
+  meetingType?: string;
+  scheduledAt?: string;
+  durationMinutes?: number;
+  location?: string;
+  meetingUrl?: string;
+  status?: string;
+  recurrenceRule?: string;
+  notifiedUserIds?: string[];
+}): Promise<Meeting> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}`, {
+    method: 'PUT', body: JSON.stringify(body),
   });
 }
-export interface MeetingActionItem {
-  id: string;
-  description: string;
-  assignee?: string | null;
-  dueDate?: string | null;
-  status?: string;
-  linkedIssueId?: string | null;
-  /** Phase 96 — server projection now includes this so mobile can tick
-   *  actions off without a parent-meeting lookup. */
-  meetingId?: string;
-  meetingTitle?: string;
-  isOverdue?: boolean;
+
+export function logMeetingMinutes(projectId: string, meetingId: string, minutes: string, status?: string): Promise<Meeting> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/minutes`, {
+    method: 'PUT', body: JSON.stringify({ minutes, status }),
+  });
 }
+
+// ── Attendees ───────────────────────────────────────────────────────────────
+
+export function listMeetingAttendees(projectId: string, meetingId: string): Promise<MeetingAttendee[]> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/attendees`);
+}
+
+export function addMeetingAttendee(projectId: string, meetingId: string, body: {
+  name?: string; email?: string; userId?: string; company?: string;
+  discipline?: string; role?: string;
+}): Promise<MeetingAttendee> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/attendees`, {
+    method: 'POST', body: JSON.stringify(body),
+  });
+}
+
+export function updateMeetingAttendee(projectId: string, meetingId: string, attendeeId: string, body: {
+  attendanceStatus?: string; role?: string;
+}): Promise<MeetingAttendee> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/attendees/${attendeeId}`, {
+    method: 'PUT', body: JSON.stringify(body),
+  });
+}
+
+export function deleteMeetingAttendee(projectId: string, meetingId: string, attendeeId: string): Promise<void> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/attendees/${attendeeId}`, {
+    method: 'DELETE',
+  });
+}
+
+// ── Agenda ──────────────────────────────────────────────────────────────────
+
+export function addMeetingAgendaItem(projectId: string, meetingId: string, body: {
+  title: string; description?: string; durationMinutes?: number; presenter?: string;
+}): Promise<MeetingAgendaItem> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/agenda`, {
+    method: 'POST', body: JSON.stringify(body),
+  });
+}
+
+export function updateMeetingAgendaItem(projectId: string, meetingId: string, itemId: string, body: {
+  title?: string; outcome?: string; decision?: string; status?: string;
+  durationMinutes?: number; presenter?: string;
+}): Promise<MeetingAgendaItem> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/agenda/${itemId}`, {
+    method: 'PUT', body: JSON.stringify(body),
+  });
+}
+
+export function deleteMeetingAgendaItem(projectId: string, meetingId: string, itemId: string): Promise<void> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/agenda/${itemId}`, {
+    method: 'DELETE',
+  });
+}
+
+// ── Action Items ─────────────────────────────────────────────────────────────
+
 export function addMeetingAction(projectId: string, meetingId: string, body: {
-  description: string; assignee?: string; dueDate?: string;
+  description: string; assignee?: string; assigneeEmail?: string;
+  assigneeUserId?: string; dueDate?: string; priority?: string; notes?: string;
 }): Promise<MeetingActionItem> {
   return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/actions`, {
     method: 'POST', body: JSON.stringify(body),
   });
 }
+
 export function updateMeetingAction(projectId: string, meetingId: string, actionId: string, body: {
-  status?: string; assignee?: string; linkedIssueId?: string;
+  status?: string; assignee?: string; assigneeEmail?: string; assigneeUserId?: string;
+  linkedIssueId?: string; dueDate?: string; priority?: string; notes?: string;
 }): Promise<MeetingActionItem> {
   return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/actions/${actionId}`, {
     method: 'PUT', body: JSON.stringify(body),
   });
 }
+
 export function listOpenMeetingActions(projectId: string): Promise<MeetingActionItem[]> {
   return apiFetch(`/api/projects/${projectId}/meetings/actions/open`);
+}
+
+// ── Export ───────────────────────────────────────────────────────────────────
+
+export function getMeetingIcsUrl(projectId: string, meetingId: string): string {
+  return `/api/projects/${projectId}/meetings/${meetingId}/export/ics`;
+}
+
+export function exportMeetingMinutesDoc(projectId: string, meetingId: string): Promise<{ documentId: string }> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/export/minutes`, { method: 'POST' });
 }
 
 // Workflow runs
@@ -1631,4 +1767,244 @@ export function getPenetrationDashboard(projectId: string): Promise<{
   byHost:   { hostType: string; count: number }[];
 }> {
   return apiFetch(`/api/projects/${projectId}/penetrations/dashboard`);
+}
+
+// ── Spatial structure (building levels + zones) for capture photo dropdowns ──
+// GET /api/projects/{projectId}/spatial
+// Returns ISO 19650-aligned level and zone codes for the project.
+// Later phase: populated from IfcBuildingStorey elements in uploaded IFC models.
+
+export interface SpatialLevel { code: string; label: string; }
+export interface SpatialZone  { code: string; label: string; }
+export interface SpatialStructure { levels: SpatialLevel[]; zones: SpatialZone[]; }
+
+export function getSpatialStructure(projectId: string): Promise<SpatialStructure> {
+  return apiFetch<SpatialStructure>(`/api/projects/${projectId}/spatial`);
+}
+
+// ───── Clash detection (Planscape.Server ClashesController) ─────
+
+export type ClashStatus = 'NEW' | 'ACKNOWLEDGED' | 'RESOLVED' | 'CLOSED' | 'DISMISSED';
+export type ClashSeverity = 'INFO' | 'MINOR' | 'MAJOR' | 'CRITICAL';
+export type ClashKind = 'HARD' | 'SOFT' | 'CLEARANCE';
+
+export interface ClashRecord {
+  id: string;
+  projectId: string;
+  clashHash: string;
+  kind: ClashKind;
+  severity: ClashSeverity;
+  status: ClashStatus;
+  modelAId: string;
+  elementAGuid: string;
+  elementAName?: string;
+  elementAType?: string;
+  disciplineA?: string;
+  modelBId: string;
+  elementBGuid: string;
+  elementBName?: string;
+  elementBType?: string;
+  disciplineB?: string;
+  distanceMm: number;
+  centreX: number;
+  centreY: number;
+  centreZ: number;
+  overlapVolumeMm3: number;
+  levelCode?: string;
+  zoneCode?: string;
+  assignedTo?: string;
+  resolutionNote?: string;
+  issueId?: string;
+  bcfTopicGuid?: string;
+  detectedAt: string;
+  acknowledgedAt?: string;
+  resolvedAt?: string;
+  closedAt?: string;
+}
+
+export interface ClashListResponse {
+  summary: {
+    total: number;
+    byStatus: Array<{ status: string; count: number }>;
+    bySeverity: Array<{ severity: string; count: number }>;
+  };
+  page: number;
+  pageSize: number;
+  items: ClashRecord[];
+}
+
+export interface ClashDetectionResult {
+  scannedPairs: number;
+  clashesFound: number;
+  clashesNew: number;
+  clashesUpdated: number;
+  criticalClashes: number;
+  duration: string;
+}
+
+export async function listClashes(
+  projectId: string,
+  opts: { status?: ClashStatus; severity?: ClashSeverity; discipline?: string; page?: number; pageSize?: number } = {},
+): Promise<ClashListResponse> {
+  const params = new URLSearchParams();
+  if (opts.status) params.append('status', opts.status);
+  if (opts.severity) params.append('severity', opts.severity);
+  if (opts.discipline) params.append('discipline', opts.discipline);
+  params.append('page', String(opts.page ?? 1));
+  params.append('pageSize', String(opts.pageSize ?? 50));
+  return apiFetch<ClashListResponse>(`/api/projects/${projectId}/clashes?${params}`);
+}
+
+export async function getClash(projectId: string, clashId: string): Promise<ClashRecord> {
+  return apiFetch<ClashRecord>(`/api/projects/${projectId}/clashes/${clashId}`);
+}
+
+export async function runClashDetection(projectId: string): Promise<ClashDetectionResult> {
+  return apiFetch<ClashDetectionResult>(`/api/projects/${projectId}/clashes/run`, { method: 'POST' });
+}
+
+export async function updateClash(
+  projectId: string,
+  clashId: string,
+  body: { status?: ClashStatus; assignedTo?: string; resolutionNote?: string },
+): Promise<ClashRecord> {
+  return apiFetch<ClashRecord>(`/api/projects/${projectId}/clashes/${clashId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function promoteClashToIssue(projectId: string, clashId: string): Promise<any> {
+  return apiFetch<any>(`/api/projects/${projectId}/clashes/${clashId}/promote-to-issue`, {
+    method: 'POST',
+  });
+}
+
+// ───── IFC alignment reports ─────
+
+export interface IfcAlignmentFinding {
+  severity: 'INFO' | 'WARN' | 'FAIL';
+  code: string;
+  message: string;
+  fixHint?: string;
+}
+
+export interface IfcAlignmentReport {
+  id: string;
+  projectModelId: string;
+  schemaVersion?: string;
+  ifcSiteGuid?: string;
+  lengthUnit?: string;
+  trueNorthDegrees?: number;
+  surveyEasting?: number;
+  surveyNorthing?: number;
+  surveyElevation?: number;
+  hasMapConversion: boolean;
+  hasProjectedCrs: boolean;
+  crsName?: string;
+  verdict: 'PASS' | 'WARN' | 'FAIL';
+  findingsJson: string;
+  validatedAt: string;
+}
+
+export async function listAlignmentReports(projectId: string): Promise<{
+  count: number;
+  passed: number;
+  warned: number;
+  failed: number;
+  reports: IfcAlignmentReport[];
+}> {
+  return apiFetch(`/api/projects/${projectId}/alignment`);
+}
+
+export async function getAlignmentForModel(projectId: string, modelId: string): Promise<IfcAlignmentReport> {
+  return apiFetch<IfcAlignmentReport>(`/api/projects/${projectId}/alignment/model/${modelId}`);
+}
+
+// ───── Federation manifest ─────
+
+export interface FederationManifest {
+  projectId: string;
+  generatedAt: string;
+  models: Array<{
+    id: string;
+    name: string;
+    discipline: string;
+    format: string;
+    uploadedAt: string;
+    elementCount?: number;
+    bounds?: { min: number[]; max: number[] };
+    units: string;
+    revision?: string;
+  }>;
+  chunks: Array<{
+    id: string;
+    sourceModelId: string;
+    discipline: string;
+    level?: string;
+    system?: string;
+    storagePath: string;
+    contentHash: string;
+    sizeBytes: number;
+    vertexCount: number;
+    aabb: { min: number[]; max: number[] };
+    compression: string;
+  }>;
+  disciplines: Array<{ code: string; modelCount: number; chunkCount: number }>;
+  bounds: { min: (number | null)[]; max: (number | null)[] };
+  alignment: { reported: number; passed: number; warned: number; failed: number };
+}
+
+export async function getFederationManifest(projectId: string): Promise<FederationManifest> {
+  return apiFetch<FederationManifest>(`/api/projects/${projectId}/federation/manifest`);
+}
+
+// ───── BOQ ─────
+
+export interface BoqDocument {
+  id: string;
+  name: string;
+  clientName?: string;
+  status: string;
+  currency: string;
+  totalNet?: number;
+  totalGross?: number;
+  lockedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function listBoqDocuments(projectId: string): Promise<BoqDocument[]> {
+  return apiFetch(`/api/projects/${projectId}/boq`);
+}
+
+export function getBoqDocument(projectId: string, boqId: string): Promise<BoqDocument> {
+  return apiFetch(`/api/projects/${projectId}/boq/${boqId}`);
+}
+
+// ───── Model Checks ─────
+
+export interface ModelCheckRun {
+  id: string;
+  ruleSetId: string;
+  ruleSetName?: string;
+  status: string;
+  startedAt: string;
+  completedAt?: string;
+  totalElementsChecked: number;
+  totalRulesEvaluated: number;
+  findingsCount: number;
+  criticalCount: number;
+  majorCount: number;
+  minorCount: number;
+  infoCount: number;
+  triggeredBy?: string;
+}
+
+export function listModelCheckRuns(projectId: string): Promise<ModelCheckRun[]> {
+  return apiFetch(`/api/projects/${projectId}/model-checks/runs`);
+}
+
+export function getModelCheckRun(projectId: string, runId: string): Promise<ModelCheckRun> {
+  return apiFetch(`/api/projects/${projectId}/model-checks/runs/${runId}`);
 }

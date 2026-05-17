@@ -266,6 +266,21 @@ public class IssuesController : ControllerBase
             }
         }
 
+        // CO-ASSIGNEES — validate against project membership same as watchers.
+        Guid[] validCoAssignees = Array.Empty<Guid>();
+        if (req.CoAssigneeUserIds != null && req.CoAssigneeUserIds.Length > 0)
+        {
+            var requested = new HashSet<Guid>(req.CoAssigneeUserIds.Where(g => g != Guid.Empty));
+            if (assigneeUser != null) requested.Remove(assigneeUser.Id); // primary assignee is not a co-assignee
+            if (requested.Count > 0)
+            {
+                validCoAssignees = await _db.ProjectMembers
+                    .Where(m => m.ProjectId == projectId && m.IsActive && requested.Contains(m.UserId))
+                    .Select(m => m.UserId)
+                    .ToArrayAsync();
+            }
+        }
+
         var issue = new BimIssue
         {
             ProjectId = projectId,
@@ -295,6 +310,7 @@ public class IssuesController : ControllerBase
             ModelY = req.ModelY,
             ModelZ = req.ModelZ,
             WatcherUserIds = BimIssue.SerializeWatcherIds(validWatchers),
+            CoAssigneeUserIds = BimIssue.SerializeWatcherIds(validCoAssignees),
         };
 
         // NEW-LOGIC-01/02 — Save with retry on UNIQUE(ProjectId, IssueCode) collision.
@@ -390,6 +406,32 @@ public class IssuesController : ControllerBase
             });
         }
 
+        // CO-ASSIGNEES — push "co-assigned" to each (skip primary assignee and creator).
+        if (validCoAssignees.Length > 0)
+        {
+            var skipCoIds = new HashSet<Guid>();
+            if (assigneeUser != null) skipCoIds.Add(assigneeUser.Id);
+            if (creatorId.HasValue) skipCoIds.Add(creatorId.Value);
+            foreach (var coId in validCoAssignees)
+            {
+                if (skipCoIds.Contains(coId)) continue;
+                _ = _push.SendToUserAsync(coId, new Planscape.Core.Interfaces.PushPayload
+                {
+                    Title = $"Co-Assigned: {issue.IssueCode} [{issue.Priority}]",
+                    Body = issue.Title,
+                    Channel = "issues",
+                    Data = new Dictionary<string, string>
+                    {
+                        ["type"] = "issue_co_assigned",
+                        ["issueId"] = issue.Id.ToString(),
+                        ["issueCode"] = issue.IssueCode,
+                        ["priority"] = issue.Priority,
+                        ["projectId"] = projectId.ToString()
+                    }
+                });
+            }
+        }
+
         return CreatedAtAction(nameof(GetIssues), new { projectId }, issue);
     }
 
@@ -417,16 +459,56 @@ public class IssuesController : ControllerBase
             diff["Priority"] = new { from = issue.Priority, to = req.Priority };
             issue.Priority = req.Priority;
         }
-        if (req.Assignee != null && req.Assignee != issue.Assignee)
-        {
-            diff["Assignee"] = new { from = issue.Assignee, to = req.Assignee };
-            issue.Assignee = req.Assignee;
-        }
         if (req.Description != null && req.Description != issue.Description)
         {
             diff["Description"] = new { changed = true };
             issue.Description = req.Description;
         }
+
+        // Assignee — resolve FK fields when AssigneeUserId or AssigneeEmail supplied.
+        // Falls back to display-name-only update when neither FK field is present.
+        AppUser? newAssignee = null;
+        if (req.AssigneeUserId.HasValue)
+        {
+            newAssignee = await _db.Users.FirstOrDefaultAsync(u =>
+                u.Id == req.AssigneeUserId.Value && u.TenantId == tenantId);
+        }
+        if (newAssignee == null && !string.IsNullOrWhiteSpace(req.AssigneeEmail))
+        {
+            newAssignee = await _db.Users.FirstOrDefaultAsync(u =>
+                u.Email == req.AssigneeEmail && u.TenantId == tenantId);
+        }
+        if (newAssignee == null && !string.IsNullOrWhiteSpace(req.Assignee))
+        {
+            newAssignee = await _db.Users.FirstOrDefaultAsync(u =>
+                u.DisplayName == req.Assignee && u.TenantId == tenantId);
+        }
+        if (newAssignee != null)
+        {
+            var isMember = await _db.ProjectMembers.AnyAsync(m =>
+                m.ProjectId == projectId && m.UserId == newAssignee.Id && m.IsActive);
+            if (!isMember)
+                return BadRequest(new { error = "Assignee is not an active member of this project" });
+        }
+        // Apply assignee change only when something actually changed.
+        bool assigneeChanged = false;
+        if (newAssignee != null && newAssignee.Id != issue.AssigneeUserId)
+        {
+            diff["Assignee"] = new { from = issue.Assignee, to = newAssignee.DisplayName };
+            issue.Assignee = newAssignee.DisplayName;
+            issue.AssigneeEmail = newAssignee.Email;
+            issue.AssigneeUserId = newAssignee.Id;
+            assigneeChanged = true;
+        }
+        else if (req.Assignee != null && newAssignee == null && req.Assignee != issue.Assignee)
+        {
+            // Display-name-only fallback (legacy clients / external integrations).
+            diff["Assignee"] = new { from = issue.Assignee, to = req.Assignee };
+            issue.Assignee = req.Assignee;
+            // Intentionally do NOT clear AssigneeUserId — if a FK was set before,
+            // keep it to preserve relationship integrity.
+        }
+
         if (req.WatcherUserIds != null)
         {
             // null = leave alone; empty array = clear; non-empty = replace
@@ -453,7 +535,50 @@ public class IssuesController : ControllerBase
             }
         }
 
+        // CO-ASSIGNEES — null = leave alone; empty = clear; non-empty = replace.
+        if (req.CoAssigneeUserIds != null)
+        {
+            Guid[] validCoNew = Array.Empty<Guid>();
+            if (req.CoAssigneeUserIds.Length > 0)
+            {
+                var requested = new HashSet<Guid>(req.CoAssigneeUserIds.Where(g => g != Guid.Empty));
+                if (issue.AssigneeUserId.HasValue) requested.Remove(issue.AssigneeUserId.Value);
+                if (requested.Count > 0)
+                {
+                    validCoNew = await _db.ProjectMembers
+                        .Where(m => m.ProjectId == projectId && m.IsActive && requested.Contains(m.UserId))
+                        .Select(m => m.UserId)
+                        .ToArrayAsync();
+                }
+            }
+            var serializedCo = BimIssue.SerializeWatcherIds(validCoNew);
+            if (serializedCo != issue.CoAssigneeUserIds)
+            {
+                diff["CoAssigneeUserIds"] = new { from = issue.CoAssigneeUserIds, to = serializedCo };
+                issue.CoAssigneeUserIds = serializedCo;
+            }
+        }
+
         await _db.SaveChangesAsync();
+
+        // Push to newly assigned user.
+        if (assigneeChanged && newAssignee != null)
+        {
+            _ = _push.SendToUserAsync(newAssignee.Id, new Planscape.Core.Interfaces.PushPayload
+            {
+                Title = $"Re-Assigned: {issue.IssueCode} [{issue.Priority}]",
+                Body = issue.Title,
+                Channel = "issues",
+                Data = new Dictionary<string, string>
+                {
+                    ["type"] = "issue_assigned",
+                    ["issueId"] = issue.Id.ToString(),
+                    ["issueCode"] = issue.IssueCode,
+                    ["priority"] = issue.Priority,
+                    ["projectId"] = projectId.ToString()
+                }
+            });
+        }
 
         // WATCHERS — notify every current watcher of the update so they
         // don't have to poll. Skip the user who made the change.
@@ -1088,7 +1213,10 @@ public record CreateIssueRequest(
     Guid[]? WatcherUserIds,
     // Explicit lifecycle status from the viewer / mobile create form
     // (defaults to OPEN server-side when null/empty).
-    string? Status);
+    string? Status,
+    // CO-ASSIGNEES — additional AppUser ids who share responsibility.
+    // Validated against project membership; stored as JSON array.
+    Guid[]? CoAssigneeUserIds);
 public record UpdateIssueRequest(
     string? Status,
     string? Priority,
@@ -1096,5 +1224,13 @@ public record UpdateIssueRequest(
     string? Description,
     // ── Additive fields below this line ───────────────────────────────────
     // Replace the watcher list (null = leave unchanged; empty array = clear).
-    Guid[]? WatcherUserIds);
+    Guid[]? WatcherUserIds,
+    // Assignee FK fields — preferred over the display-name string above.
+    // When supplied the server resolves the user, validates project membership,
+    // and writes all three fields (Assignee, AssigneeEmail, AssigneeUserId).
+    string? AssigneeEmail,
+    Guid? AssigneeUserId,
+    // CO-ASSIGNEES — additional users who share responsibility.
+    // null = leave unchanged; empty array = clear.
+    Guid[]? CoAssigneeUserIds);
 public record LinkAttachmentRequest(Guid DocumentId);

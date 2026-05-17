@@ -172,6 +172,12 @@ export default function IssuesScreen() {
   const [newModelXyz, setNewModelXyz] = useState<{ x: number; y: number; z: number } | null>(null);
   const modelsLoadedForProject = useRef<string | null>(null);
   const [showMemberPicker, setShowMemberPicker] = useState(false);
+  // Watchers — multi-select; each MemberPicker selection appends to the list.
+  const [newWatchers, setNewWatchers] = useState<ProjectMember[]>([]);
+  const [showWatcherPicker, setShowWatcherPicker] = useState(false);
+  // Co-assignees — same pattern as watchers.
+  const [newCoAssignees, setNewCoAssignees] = useState<ProjectMember[]>([]);
+  const [showCoAssigneePicker, setShowCoAssigneePicker] = useState(false);
   const [creationStatus, setCreationStatus] = useState<string | null>(null);
 
   // Phase 96 — bulk action state. `bulkMode` toggles the list into multi-
@@ -363,6 +369,8 @@ export default function IssuesScreen() {
     setNewType('RFI');
     setNewPriority('MEDIUM');
     setNewAssignee(null);
+    setNewWatchers([]);
+    setNewCoAssignees([]);
     setNewPhotos([]);
     setNewElementIds('');
     setNewModelId(null);
@@ -508,6 +516,8 @@ export default function IssuesScreen() {
         assignee: newAssignee?.displayName ?? '',
         assigneeEmail: newAssignee?.email,
         assigneeUserId: newAssignee?.userId,
+        watcherUserIds: newWatchers.length > 0 ? newWatchers.map(m => m.userId) : undefined,
+        coAssigneeUserIds: newCoAssignees.length > 0 ? newCoAssignees.map(m => m.userId) : undefined,
         // Phase 96 — scanner-initiated issues carry elementIds through so the
         // server can later lookup "which elements does this issue touch".
         elementIds: newElementIds || undefined,
@@ -876,6 +886,60 @@ export default function IssuesScreen() {
               </Text>
             </TouchableOpacity>
 
+            {/* Watchers — multi-select, add one at a time */}
+            <Text style={styles.inputLabel}>Watchers ({newWatchers.length})</Text>
+            <TouchableOpacity
+              style={[styles.modalInput, { paddingVertical: 10, minHeight: 40 }]}
+              onPress={() => setShowWatcherPicker(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Add a watcher"
+            >
+              <Text style={{ fontSize: theme.fontSize.sm, color: theme.colors.disabled }}>
+                + Add watcher…
+              </Text>
+            </TouchableOpacity>
+            {newWatchers.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
+                {newWatchers.map((m) => (
+                  <TouchableOpacity
+                    key={m.userId}
+                    onPress={() => setNewWatchers(prev => prev.filter(w => w.userId !== m.userId))}
+                    style={styles.assigneeChip}
+                    accessibilityLabel={`Remove watcher ${m.displayName}`}
+                  >
+                    <Text style={styles.assigneeChipText}>{m.displayName} ✕</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
+            {/* Co-assignees — multi-select */}
+            <Text style={styles.inputLabel}>Co-Assignees ({newCoAssignees.length})</Text>
+            <TouchableOpacity
+              style={[styles.modalInput, { paddingVertical: 10, minHeight: 40 }]}
+              onPress={() => setShowCoAssigneePicker(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Add a co-assignee"
+            >
+              <Text style={{ fontSize: theme.fontSize.sm, color: theme.colors.disabled }}>
+                + Add co-assignee…
+              </Text>
+            </TouchableOpacity>
+            {newCoAssignees.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
+                {newCoAssignees.map((m) => (
+                  <TouchableOpacity
+                    key={m.userId}
+                    onPress={() => setNewCoAssignees(prev => prev.filter(c => c.userId !== m.userId))}
+                    style={[styles.assigneeChip, { backgroundColor: theme.colors.warning + '20', borderColor: theme.colors.warning }]}
+                    accessibilityLabel={`Remove co-assignee ${m.displayName}`}
+                  >
+                    <Text style={[styles.assigneeChipText, { color: theme.colors.warning }]}>{m.displayName} ✕</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
             <Text style={styles.inputLabel}>Photos ({newPhotos.length})</Text>
             <View style={{ flexDirection: 'row', gap: theme.spacing.sm, marginTop: 4 }}>
               <TouchableOpacity
@@ -983,6 +1047,36 @@ export default function IssuesScreen() {
         />
       )}
 
+      {/* Watcher multi-picker — each selection appends to the list */}
+      {activeProject && (
+        <MemberPicker
+          visible={showWatcherPicker}
+          projectId={activeProject.id}
+          onSelect={(member) => {
+            setNewWatchers(prev =>
+              prev.some(w => w.userId === member.userId) ? prev : [...prev, member]
+            );
+            setShowWatcherPicker(false);
+          }}
+          onClose={() => setShowWatcherPicker(false)}
+        />
+      )}
+
+      {/* Co-assignee multi-picker */}
+      {activeProject && (
+        <MemberPicker
+          visible={showCoAssigneePicker}
+          projectId={activeProject.id}
+          onSelect={(member) => {
+            setNewCoAssignees(prev =>
+              prev.some(c => c.userId === member.userId) ? prev : [...prev, member]
+            );
+            setShowCoAssigneePicker(false);
+          }}
+          onClose={() => setShowCoAssigneePicker(false)}
+        />
+      )}
+
       {/* Phase 94 — Legacy detail modal replaced by router.push('/issue-detail?id=...'). */}
     </View>
   );
@@ -1025,6 +1119,14 @@ function IssueCard({
     issue.status === 'OPEN' && !!issue.dueDate && new Date(issue.dueDate) < new Date()
   ) ?? (issue.status === 'OPEN' && daysSince(issue.createdAt) > 7);
   const hasPhotos = (issue.attachmentCount ?? 0) > 0;
+  // Parse watcher count from either a pre-parsed array or a JSON-encoded string.
+  const watcherCount = (() => {
+    const raw = issue.watcherUserIds;
+    if (!raw) return 0;
+    if (Array.isArray(raw)) return raw.filter(Boolean).length;
+    try { const arr = JSON.parse(raw as string); return Array.isArray(arr) ? arr.filter(Boolean).length : 0; }
+    catch { return 0; }
+  })();
 
   return (
     <TouchableOpacity
@@ -1050,6 +1152,11 @@ function IssueCard({
             {hasPhotos ? (
               <View style={[styles.typeBadge, { backgroundColor: '#fff3e0' }]}>
                 <Text style={[styles.typeBadgeText, { color: '#E8912D' }]}>📷 {issue.attachmentCount}</Text>
+              </View>
+            ) : null}
+            {watcherCount > 0 ? (
+              <View style={[styles.typeBadge, { backgroundColor: '#e8f5e9' }]}>
+                <Text style={[styles.typeBadgeText, { color: '#2E7D32' }]}>👁 {watcherCount}</Text>
               </View>
             ) : null}
             <StatusBadge status={issue.status} small />
@@ -1644,6 +1751,24 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     color: theme.colors.text,
     marginTop: 2,
+  },
+
+  // Watcher / co-assignee chip
+  assigneeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary + '15',
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.lg,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 4,
+    marginRight: 6,
+  },
+  assigneeChipText: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: '600',
+    color: theme.colors.primary,
   },
 
   // Phase 94 — legacy "detail modal" styles removed. Issue detail now lives

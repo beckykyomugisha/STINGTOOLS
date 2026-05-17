@@ -535,3 +535,75 @@ public class PlatformSyncJob
     }
 }
 
+/// <summary>
+/// Daily job that runs pairwise AABB clash detection across SceneNodes for
+/// every active project that has at least two discipline chunks. Scheduled at
+/// 01:00 UTC so it completes before the morning stand-up dashboards load.
+/// Results are persisted as ClashRecord rows; the ClashAutomationService
+/// fires auto-issue / push / webhook rules for newly-found clashes.
+/// </summary>
+public class DailyClashScanJob
+{
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<DailyClashScanJob> _logger;
+
+    public DailyClashScanJob(IServiceScopeFactory scopeFactory, ILogger<DailyClashScanJob> logger)
+    {
+        _scopeFactory = scopeFactory;
+        _logger = logger;
+    }
+
+    [Hangfire.AutomaticRetry(Attempts = 2, OnAttemptsExceeded = Hangfire.AttemptsExceededAction.Delete)]
+    [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 7200)]
+    public async Task ExecuteAsync(CancellationToken ct)
+    {
+        _logger.LogInformation("DailyClashScanJob started");
+
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
+        db.BypassTenantFilter = true;
+
+        // Projects that have SceneNodes in at least two distinct disciplines
+        // are the only ones worth scanning — single-discipline models can't clash.
+        var projectIds = await db.SceneNodes
+            .Where(n => n.DeletedAt == null)
+            .GroupBy(n => new { n.ProjectId, n.TenantId })
+            .Where(g => g.Select(n => n.Discipline).Distinct().Count() >= 2)
+            .Select(g => new { g.Key.ProjectId, g.Key.TenantId })
+            .ToListAsync(ct);
+
+        if (projectIds.Count == 0)
+        {
+            _logger.LogInformation("DailyClashScanJob — no projects with multi-discipline models, skipping");
+            return;
+        }
+
+        int totalScanned = 0, totalFound = 0, totalNew = 0, totalCritical = 0;
+        int failed = 0;
+
+        foreach (var proj in projectIds)
+        {
+            if (ct.IsCancellationRequested) break;
+            try
+            {
+                using var innerScope = _scopeFactory.CreateScope();
+                var job = innerScope.ServiceProvider.GetRequiredService<IClashDetectionJob>();
+                var result = await job.RunAsync(proj.ProjectId, proj.TenantId, ct);
+                totalScanned   += result.ScannedPairs;
+                totalFound     += result.ClashesFound;
+                totalNew       += result.ClashesNew;
+                totalCritical  += result.CriticalClashes;
+            }
+            catch (Exception ex)
+            {
+                failed++;
+                _logger.LogError(ex, "DailyClashScanJob failed for project {ProjectId}", proj.ProjectId);
+            }
+        }
+
+        _logger.LogInformation(
+            "DailyClashScanJob completed — {Projects} projects, {Scanned} pairs, {Found} clashes, {New} new, {Critical} critical, {Failed} failed",
+            projectIds.Count, totalScanned, totalFound, totalNew, totalCritical, failed);
+    }
+}
+

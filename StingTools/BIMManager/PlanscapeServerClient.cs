@@ -988,6 +988,52 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return null; }
     }
 
+    // ── Federated model delta (geometry sync) ────────────────────────────────
+
+    /// <summary>
+    /// POST a GLB delta and a list of deleted element IDs to the server's
+    /// federated-model endpoint. The GLB contains changed/added elements;
+    /// deletedElementIds are tombstoned on the server.
+    /// Uses <see cref="CurrentProjectId"/> — silently no-ops if not set.
+    /// </summary>
+    public async Task<bool> PostGeometryDeltaAsync(byte[] glbBytes, IList<int> deletedElementIds)
+    {
+        if (CurrentProjectId == Guid.Empty) return false;
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var http = SnapshotHttpClient();
+            if (http == null) return false;
+
+            using var content = new System.Net.Http.MultipartFormDataContent();
+
+            if (glbBytes != null && glbBytes.Length > 0)
+            {
+                var glbContent = new System.Net.Http.ByteArrayContent(glbBytes);
+                glbContent.Headers.ContentType =
+                    new System.Net.Http.Headers.MediaTypeHeaderValue("model/gltf-binary");
+                content.Add(glbContent, "glb", "delta.glb");
+            }
+
+            if (deletedElementIds != null && deletedElementIds.Count > 0)
+            {
+                var jsonContent = new System.Net.Http.StringContent(
+                    Newtonsoft.Json.JsonConvert.SerializeObject(deletedElementIds),
+                    System.Text.Encoding.UTF8, "application/json");
+                content.Add(jsonContent, "deletedIds");
+            }
+
+            var resp = await http.PostAsync(
+                $"/api/projects/{CurrentProjectId}/federated-model/delta",
+                content).ConfigureAwait(false);
+            bool ok = (int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300;
+            if (ok) TouchActivity();
+            else LastError = $"geometry delta HTTP {(int)resp.StatusCode}";
+            return ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
     // ── Models (listing — UploadModelAsync already exists below) ──────────────
 
     public async Task<JArray?> GetModelsAsync(Guid projectId)

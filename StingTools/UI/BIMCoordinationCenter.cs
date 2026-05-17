@@ -44,10 +44,13 @@ namespace StingTools.UI
         // user cycles themes. The `darken` helper produces a navy nav
         // panel that's visibly subordinate to the brand-navy header.
         private static Color CHeaderBg    => BrushColor("HeaderBg");
+        private static Color CHeaderFg    => BrushColor("HeaderFg");
         private static Color CAccent      => BrushColor("AccentBrush");
         private static Color CCardBg      => BrushColor("CardBg");
         private static Color CPageBg      => BrushColor("PrimaryBg");
+        private static Color CSecondaryBg => BrushColor("SecondaryBg");
         private static Color CBorder      => BrushColor("BorderColor");
+        private static Color CSubtleFg    => BrushColor("SubtleFg");
         private static Color CNavBg       => Darken(BrushColor("HeaderBg"), 0.85);
         private static Color CNavHover    => Darken(BrushColor("HeaderBg"), 0.92);
         private static Color CNavSelected => BrushColor("AccentBrush");
@@ -89,9 +92,9 @@ namespace StingTools.UI
 
         // ── Data ──
         internal CoordData _data;
-        private readonly ContentControl _contentArea;
-        private readonly TextBlock _statusBar;
-        private readonly StackPanel _navPanel;
+        private ContentControl _contentArea;
+        private TextBlock _statusBar;
+        private StackPanel _navPanel;
         private Button _activeNav;
 
         // Phase 75: Persist last-viewed tab across dialog reopens
@@ -1032,52 +1035,7 @@ namespace StingTools.UI
                 catch { /* best effort */ }
             };
 
-            var root = new Grid();
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(56) });   // Header
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(34) });   // Share toolbar
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Body
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(28) });   // Status
-
-            // ── HEADER ──
-            root.Children.Add(BuildHeader());
-
-            // ── SHARE TOOLBAR ──
-            var shareToolbar = BuildShareToolbar();
-            Grid.SetRow(shareToolbar, 1);
-            root.Children.Add(shareToolbar);
-
-            // ── BODY (Nav + Content) ──
-            var body = new Grid();
-            body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(190) }); // Nav
-            body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Content
-            Grid.SetRow(body, 2);
-
-            _navPanel = BuildNavPanel();
-            body.Children.Add(_navPanel);
-
-            _contentArea = new ContentControl { Margin = new Thickness(0) };
-            Grid.SetColumn(_contentArea, 1);
-            body.Children.Add(_contentArea);
-
-            root.Children.Add(body);
-
-            // ── STATUS BAR ──
-            var statusBorder = new Border
-            {
-                Background = Br(Color.FromRgb(0x37, 0x47, 0x4F)),
-                Padding = new Thickness(12, 4, 12, 4)
-            };
-            _statusBar = new TextBlock
-            {
-                Foreground = Brushes.White, FontSize = 11,
-                VerticalAlignment = VerticalAlignment.Center,
-                Text = BuildStatusText()
-            };
-            statusBorder.Child = _statusBar;
-            Grid.SetRow(statusBorder, 3);
-            root.Children.Add(statusBorder);
-
-            Content = root;
+            BuildLayout();
 
             // Keyboard shortcuts (Phase 77 Item 11A)
             KeyDown += (s, e) =>
@@ -1153,6 +1111,77 @@ namespace StingTools.UI
             // Phase 76: Register singleton instance
             CurrentInstance = this;
             Closed += OnClosed;
+
+            // Refresh code-behind brushes when the user cycles the theme
+            // from the dock panel (DynamicResource bindings would handle
+            // themselves, but BCC builds its tree imperatively).
+            ThemeManager.ThemeChanged += OnThemeChanged;
+        }
+
+        private void BuildLayout()
+        {
+            // Window chrome tracks the active palette
+            Background = Br(CPageBg);
+
+            var root = new Grid();
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(56) });   // Header
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(34) });   // Share toolbar
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Body
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(28) });   // Status
+
+            // ── HEADER ──
+            root.Children.Add(BuildHeader());
+
+            // ── SHARE TOOLBAR ──
+            var shareToolbar = BuildShareToolbar();
+            Grid.SetRow(shareToolbar, 1);
+            root.Children.Add(shareToolbar);
+
+            // ── BODY (Nav + Content) ──
+            var body = new Grid();
+            body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(190) }); // Nav
+            body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Content
+            Grid.SetRow(body, 2);
+
+            _navPanel = BuildNavPanel();
+            body.Children.Add(_navPanel);
+
+            _contentArea = new ContentControl { Margin = new Thickness(0) };
+            Grid.SetColumn(_contentArea, 1);
+            body.Children.Add(_contentArea);
+
+            root.Children.Add(body);
+
+            // ── STATUS BAR — derives from header palette so it tracks the theme ──
+            var statusBorder = new Border
+            {
+                Background = Br(Darken(CHeaderBg, 0.55)),
+                Padding = new Thickness(12, 4, 12, 4)
+            };
+            _statusBar = new TextBlock
+            {
+                Foreground = Brushes.White, FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center,
+                Text = BuildStatusText()
+            };
+            statusBorder.Child = _statusBar;
+            Grid.SetRow(statusBorder, 3);
+            root.Children.Add(statusBorder);
+
+            Content = root;
+        }
+
+        private void OnThemeChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                // Stale tab content carries old brushes — drop the cache so
+                // every tab re-renders with the new palette on next visit.
+                _tabCache.Clear();
+                BuildLayout();
+                NavigateTo(_currentTab ?? _lastViewedTab ?? TabOverview);
+            }
+            catch (Exception ex) { StingLog.Warn($"BCC.OnThemeChanged: {ex.Message}"); }
         }
 
         private string BuildStatusText()
@@ -1180,13 +1209,13 @@ namespace StingTools.UI
             leftStack.Children.Add(new TextBlock
             {
                 Text = "BIM COORDINATION CENTER",
-                Foreground = Brushes.White, FontSize = 16, FontWeight = FontWeights.Bold,
+                Foreground = Br(CHeaderFg), FontSize = 16, FontWeight = FontWeights.Bold,
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 20, 0)
             });
             leftStack.Children.Add(new TextBlock
             {
                 Text = _data.ProjectName,
-                Foreground = Br(Color.FromRgb(0xBB, 0xDE, 0xFB)), FontSize = 12,
+                Foreground = Br(CHeaderFg), Opacity = 0.7, FontSize = 12,
                 VerticalAlignment = VerticalAlignment.Center
             });
             hGrid.Children.Add(leftStack);
@@ -1206,7 +1235,7 @@ namespace StingTools.UI
                 Content = "\u21BB  Refresh",
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
-                Background = Br(Color.FromRgb(0x1E, 0x88, 0xE5)),
+                Background = Br(CAccent),
                 Foreground = Brushes.White,
                 BorderThickness = new Thickness(0),
                 Padding = new Thickness(10, 3, 10, 3),
@@ -1224,14 +1253,14 @@ namespace StingTools.UI
             rightStack.Children.Add(ragCircle);
             rightStack.Children.Add(new TextBlock
             {
-                Text = $"{_data.TagPct:F0}%", Foreground = Brushes.White, FontSize = 18,
+                Text = $"{_data.TagPct:F0}%", Foreground = Br(CHeaderFg), FontSize = 18,
                 FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 8, 0)
             });
             rightStack.Children.Add(new TextBlock
             {
                 Text = $"compliant  |  {DateTime.Now:dd MMM yyyy HH:mm}",
-                Foreground = Br(Color.FromRgb(0x90, 0xCA, 0xF9)), FontSize = 11,
+                Foreground = Br(CHeaderFg), Opacity = 0.7, FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center
             });
 
@@ -1250,8 +1279,8 @@ namespace StingTools.UI
         {
             var toolbar = new Border
             {
-                Background = Br(Color.FromRgb(0xF8, 0xF9, 0xFB)),
-                BorderBrush = Br(Color.FromRgb(0xD0, 0xD5, 0xE0)),
+                Background = Br(CSecondaryBg),
+                BorderBrush = Br(CBorder),
                 BorderThickness = new Thickness(0, 0, 0, 1),
                 Padding = new Thickness(8, 0, 8, 0)
             };
@@ -1265,7 +1294,7 @@ namespace StingTools.UI
             {
                 Text = "Share:",
                 FontSize = 10,
-                Foreground = Br(Color.FromRgb(0x88, 0x88, 0x99)),
+                Foreground = Br(CSubtleFg),
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 8, 0)
             };
@@ -1387,7 +1416,7 @@ namespace StingTools.UI
                 HorizontalContentAlignment = HorizontalAlignment.Left,
                 Height = 36, Padding = new Thickness(16, 0, 8, 0),
                 Margin = new Thickness(0, 1, 0, 1),
-                Background = Brushes.Transparent, Foreground = Brushes.White,
+                Background = Brushes.Transparent, Foreground = Br(CHeaderFg),
                 BorderThickness = new Thickness(0), FontSize = 12,
                 Cursor = Cursors.Hand
             };
@@ -1410,12 +1439,14 @@ namespace StingTools.UI
             // Phase 77 Item 11A: Track current tab for F5 refresh
             _currentTab = tabName;
 
-            // Reset all nav buttons
+            // Reset all nav buttons (reset Foreground too so previously-active
+            // buttons return to the theme's HeaderFg instead of staying white)
             foreach (var child in _navPanel.Children)
             {
                 if (child is Button nb)
                 {
                     nb.Background = Brushes.Transparent;
+                    nb.Foreground = Br(CHeaderFg);
                     nb.FontWeight = FontWeights.Normal;
                 }
             }
@@ -7182,6 +7213,7 @@ namespace StingTools.UI
             // FIX-6: Clear static SelectedWarningIds so IDs do not leak into
             // subsequent BCC window opens or new Revit sessions.
             SelectedWarningIds = new List<long>();
+            ThemeManager.ThemeChanged -= OnThemeChanged;
             StingLog.Info("BIMCoordinationCenter closed and resources released.");
         }
 

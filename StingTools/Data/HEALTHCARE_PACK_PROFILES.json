@@ -7,7 +7,7 @@
       "drawingTypes": ["all"]
     },
     "ACUTE": {
-      "validators": ["PressureRegimeValidator","MgasFlowValidator","EesBranchValidator","WaterSafetyValidator","RadShieldValidator","AdjacencyValidator","AntiLigatureValidator","RdsCompletenessValidator","IoTStalenessValidator","StructuralLoadValidator","AcousticValidator","EesResilienceValidator","WasteFlowValidator","RtlsCoverageValidator"],
+      "validators": ["PressureRegimeValidator","MgasFlowValidator","EesBranchValidator","WaterSafetyValidator","RadShieldValidator","AdvancedRadShieldValidator","AdjacencyValidator","AntiLigatureValidator","RdsCompletenessValidator","IoTStalenessValidator","StructuralLoadValidator","AcousticValidator","EesResilienceValidator","EndoscopeTraceValidator","WasteFlowValidator","RtlsCoverageValidator"],
       "drawingTypes": ["all"]
     },
     "COMMUNITY": {
@@ -19,7 +19,7 @@
       "drawingTypes": ["health-rds-A2","health-eqp-pln-A1-1to50"]
     },
     "IMAGING-ONLY": {
-      "validators": ["RadShieldValidator","StructuralLoadValidator","RtlsCoverageValidator","AcousticValidator"],
+      "validators": ["RadShieldValidator","AdvancedRadShieldValidator","StructuralLoadValidator","RtlsCoverageValidator","AcousticValidator"],
       "drawingTypes": ["health-rad-shield-A1-1to50","health-mri-zoning-A1-1to50","health-struct-loads-A1-1to100"]
     },
     "MENTAL-HEALTH": {

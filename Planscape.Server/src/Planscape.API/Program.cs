@@ -281,6 +281,11 @@ builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationH
     Planscape.Infrastructure.Authorization.SecurityOfficerOrAdminHandler>();
 
 // ── Services ──
+// DataProtection is used by SsoController and MfaController to encrypt
+// secrets at rest. Keys are persisted to the configured key ring
+// (configure builder.Services.AddDataProtection().PersistKeysTo*() for
+// production multi-pod deployments; default stores keys in-process).
+builder.Services.AddDataProtection();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<Planscape.Core.Interfaces.ITenantContext, Planscape.Infrastructure.Services.TenantContext>();
 // STORAGE-01 — Storage:Provider = "S3" | "Local" (default). S3 covers AWS, MinIO, R2, Spaces.
@@ -346,6 +351,15 @@ builder.Services.AddScoped<Planscape.API.Services.IAuditService, Planscape.API.S
 // Phase 178c (T3-22) — Maintenance task scheduler (registered as Scoped
 // so Hangfire activates a fresh DbContext per job invocation).
 builder.Services.AddScoped<Planscape.API.BackgroundJobs.MaintenanceTaskSchedulerJob>();
+
+// Clash detection — AABB overlap between SceneNodes of different disciplines.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IClashDetectionJob,
+                           Planscape.Infrastructure.Services.ClashDetectionJob>();
+// Clash automation — auto-issue / push / webhook triggers for new clashes.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IClashAutomationService,
+                           Planscape.Infrastructure.Services.ClashAutomationService>();
+// Daily clash scan job — Hangfire activates a fresh scope per invocation.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.DailyClashScanJob>();
 
 // ── Platform Connectors ──
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.AccConnector>();
@@ -494,6 +508,14 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPipeline.IPhot
 builder.Services.AddScoped<Planscape.Core.Interfaces.IIfcIngester,
     Planscape.Infrastructure.Services.XbimIfcIngester>();
 
+// IFC alignment / georeferencing validator — inspects the IFC header
+// for project units, IfcMapConversion, IfcProjectedCRS, and IfcSite
+// GUIDs at upload time. Surfaces cross-software coordination drift
+// (ArchiCAD vs Revit) before models federate. Scoped because it
+// writes to the same PlanscapeDbContext as the upload controller.
+builder.Services.AddScoped<Planscape.Core.Interfaces.IIfcAlignmentValidator,
+    Planscape.Infrastructure.Services.IfcAlignmentValidator>();
+
 if (isWorker)
 {
     // Phase 178b — Worker container loads YuNet (ONNX, ~225 KB) for
@@ -551,6 +573,12 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.SlaBurnRateJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DataErasureJob>();
 // Idempotent platform-tenant seeder ('planscape' slug). Runs once on boot.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformTenantSeeder>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.Nrm2DescriptionBuilder>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IIfcQuantityIngestor, Planscape.Infrastructure.Services.IfcQuantityIngestor>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.ISuitabilityStateMachine, Planscape.Infrastructure.Services.SuitabilityStateMachine>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IModelCheckerService, Planscape.Infrastructure.Services.ModelCheckerService>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.KpiSnapshotJob>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.CoordinatorWorkloadJob>();
 
 // P7 + P8 — IFC→glTF converter + thumbnail generator. Null defaults keep the
 // system running without a converter installed; swap the registration to
@@ -1103,6 +1131,10 @@ app.MapHub<TagSyncHub>("/hubs/tagsync");
 app.MapHub<NotificationHub>("/hubs/notifications");
 // S6.3 — CRDT relay for collaborative pin / issue editing.
 app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
+// ArchiCAD live model stream — clients join project group to receive real-time element events.
+app.MapHub<Planscape.Infrastructure.SignalR.ArchiCADHub>("/hubs/archicad");
+// Federated model viewer — notifies connected clients when geometry delta is uploaded.
+app.MapHub<Planscape.Infrastructure.SignalR.FederatedModelHub>("/hubs/federated-model");
 
 // ── Database schema + seed ──
 {
@@ -1267,6 +1299,13 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.FlutterwaveRenewalJob
     "fw-renewals", j => j.ExecuteAsync(CancellationToken.None),
     "30 5 * * *", new RecurringJobOptions { QueueName = "default" });
 
+// Daily clash detection — 01:00 UTC. Runs on the "default" queue; clash
+// detection is CPU-bound (AABB pairwise) but short-lived. Route to "heavy"
+// if large projects routinely exceed the concurrency window.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DailyClashScanJob>(
+    "daily-clash-scan", j => j.ExecuteAsync(CancellationToken.None),
+    "0 1 * * *", new RecurringJobOptions { QueueName = "default" });
+
 // S3.2 — outbox dispatcher (every minute). Drains OutboxMessages with
 // at-least-once + exponential-backoff retry; dead-letters after 6 attempts.
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.OutboxDispatcher>(
@@ -1302,6 +1341,14 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DataErasureJob>(
 RecurringJob.AddOrUpdate<Planscape.API.BackgroundJobs.MaintenanceTaskSchedulerJob>(
     "maintenance-task-scheduler", j => j.ExecuteAsync(),
     "0 6 * * *", new RecurringJobOptions { QueueName = "default" });
+
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.KpiSnapshotJob>(
+    "kpi-snapshot", j => j.RunAsync(CancellationToken.None),
+    "0 2 * * *", new RecurringJobOptions { QueueName = "default" });
+
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.CoordinatorWorkloadJob>(
+    "coordinator-workload", j => j.RunAsync(CancellationToken.None),
+    "0 3 * * 1", new RecurringJobOptions { QueueName = "default" });
 
 // Seed the well-known 'planscape' platform tenant idempotently on startup
 // so /api/platform/revenue + SlaBurnRateJob alerts find their target.
