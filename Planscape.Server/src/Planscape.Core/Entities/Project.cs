@@ -70,6 +70,13 @@ public class Project : ITenantScoped
     public int WarningCount { get; set; }
     public string RagStatus { get; set; } = "RED";
 
+    /// <summary>
+    /// BCrypt hash of the StingBridge key for this project.
+    /// Set by POST /api/archicad/{id}/keygen; validated on every push/status call.
+    /// Null means no bridge has been registered yet — all bridge calls are rejected.
+    /// </summary>
+    public string? BridgeKeyHash { get; set; }
+
     // Navigation
     public Tenant? Tenant { get; set; }
     public ICollection<TaggedElement> Elements { get; set; } = new List<TaggedElement>();
