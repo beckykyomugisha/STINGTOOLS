@@ -146,15 +146,6 @@ namespace StingTools.Core.Drawing
         public System.Collections.Generic.Dictionary<string, bool> CategoryTag7Sections { get; set; }
     }
 
-    /// <summary>Serialisable view range specification for managed templates.</summary>
-    public sealed class PackViewRange
-    {
-        [JsonProperty("topOffset")]    public double TopOffset { get; set; }
-        [JsonProperty("cutOffset")]    public double CutOffset { get; set; }
-        [JsonProperty("bottomOffset")] public double BottomOffset { get; set; }
-        [JsonProperty("viewDepth")]    public double ViewDepth { get; set; }
-    }
-
     public sealed class StyleFilterRule
     {
         [JsonProperty("filterName")]          public string FilterName { get; set; }
