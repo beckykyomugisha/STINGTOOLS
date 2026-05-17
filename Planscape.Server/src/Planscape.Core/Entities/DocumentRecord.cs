@@ -42,6 +42,10 @@ public class DocumentRecord : ITenantScoped
     public string? PublishedByName { get; set; }
     public DateTime? PublishedAt { get; set; }
 
+    // GAP-18 — retention policy. When set, DocumentRetentionArchiveJob will
+    // auto-transition the document from PUBLISHED to ARCHIVE on this date.
+    public DateTime? RetentionExpiresAt { get; set; }
+
     // Navigation
     public Project? Project { get; set; }
     public CdeContainer? Container { get; set; }

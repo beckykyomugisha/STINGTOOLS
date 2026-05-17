@@ -340,6 +340,8 @@ builder.Services.AddScoped<Planscape.API.BackgroundJobs.MaintenanceTaskScheduler
 // Gap 4 — PDF watermark/e-signature stamp on S4 publication. Scoped so
 // Hangfire creates a fresh DbContext + storage service per invocation.
 builder.Services.AddScoped<Planscape.API.BackgroundJobs.DocumentPublicationStampJob>();
+// GAP-18 — daily retention-archive job.
+builder.Services.AddScoped<Planscape.API.BackgroundJobs.DocumentRetentionArchiveJob>();
 
 // ── Platform Connectors ──
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.AccConnector>();
@@ -1258,6 +1260,13 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.OutboxDispatcher>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DemoSandboxJob>(
     "demo-reset", j => j.ExecuteAsync(CancellationToken.None),
     "0 2 * * *", new RecurringJobOptions { QueueName = "default" });
+
+// GAP-18 — daily retention archive: auto-transition PUBLISHED docs past their
+// RetentionExpiresAt date to ARCHIVE. Runs at 03:30 UTC (06:30 EAT) so it
+// completes before office hours in East Africa.
+RecurringJob.AddOrUpdate<Planscape.API.BackgroundJobs.DocumentRetentionArchiveJob>(
+    "document-retention-archive", j => j.ExecuteAsync(CancellationToken.None),
+    "30 3 * * *", new RecurringJobOptions { QueueName = "maintenance" });
 
 // S7.2 — SLA burn-rate alerts every 5 minutes. Reads rolling-window
 // 5xx counts from Redis (populated by the request middleware in S7.2.1)

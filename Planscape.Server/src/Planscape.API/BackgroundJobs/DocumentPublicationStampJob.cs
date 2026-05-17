@@ -1,5 +1,6 @@
 namespace Planscape.API.BackgroundJobs;
 
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Infrastructure.Data;
 
@@ -17,6 +18,8 @@ using Planscape.Infrastructure.Data;
 /// CDE transition still commits and the failure is surfaced in the admin UI
 /// without rolling back the publish action).
 /// </summary>
+// GAP-07 — retry up to 3 times with Hangfire exponential back-off.
+[AutomaticRetry(Attempts = 3)]
 public class DocumentPublicationStampJob
 {
     private readonly PlanscapeDbContext _db;
@@ -48,8 +51,19 @@ public class DocumentPublicationStampJob
         if (sig.WatermarkStatus != "PENDING")
             return; // already processed or skipped
 
+        // GAP-03 — tenant ownership: a compromised job argument must not
+        // let the job read a different tenant's document.
         var doc = sig.Document;
-        if (doc == null || string.IsNullOrEmpty(doc.FilePath))
+        if (doc == null || doc.TenantId != sig.TenantId)
+        {
+            _logger.LogWarning(
+                "DocumentPublicationStampJob: signature {SigId} tenant mismatch — skipping", signatureId);
+            sig.WatermarkStatus = "SKIPPED";
+            await _db.SaveChangesAsync();
+            return;
+        }
+
+        if (string.IsNullOrEmpty(doc.FilePath))
         {
             sig.WatermarkStatus = "SKIPPED";
             await _db.SaveChangesAsync();
@@ -57,7 +71,8 @@ public class DocumentPublicationStampJob
         }
 
         // Only PDF files support watermarking in this implementation.
-        // Other formats (IFC, DWG, XLSX …) are skipped cleanly.
+        // GAP-17 — verify PDF magic bytes (25 50 44 46 = %PDF) in addition
+        // to the file extension so a renamed non-PDF cannot slip through.
         var ext = Path.GetExtension(doc.FilePath).TrimStart('.').ToLowerInvariant();
         if (ext != "pdf")
         {
@@ -77,6 +92,20 @@ public class DocumentPublicationStampJob
                 await _db.SaveChangesAsync();
                 _logger.LogWarning(
                     "DocumentPublicationStampJob: source file not found at {Path}", doc.FilePath);
+                return;
+            }
+
+            // GAP-17 — magic-bytes check: PDF starts with 25 50 44 46 (%PDF).
+            // Extension alone is not trustworthy.
+            var magic = new byte[4];
+            var read = await sourceStream.ReadAsync(magic.AsMemory(0, 4));
+            sourceStream.Position = 0;
+            if (read < 4 || magic[0] != 0x25 || magic[1] != 0x50 || magic[2] != 0x44 || magic[3] != 0x46)
+            {
+                sig.WatermarkStatus = "SKIPPED";
+                await _db.SaveChangesAsync();
+                _logger.LogWarning(
+                    "DocumentPublicationStampJob: file at {Path} failed PDF magic-bytes check", doc.FilePath);
                 return;
             }
 

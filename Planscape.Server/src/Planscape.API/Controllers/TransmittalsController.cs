@@ -261,6 +261,31 @@ public class TransmittalsController : ControllerBase
         tx.Status = "SENT";
         tx.SentAt = DateTime.UtcNow;
 
+        // GAP-14 — re-snapshot FilePathAtTransmittal for any rows that still hold
+        // the path from creation time, so the final send captures the current HEAD
+        // file of each linked document (could differ if a version was uploaded after
+        // the document was first added to the transmittal).
+        var tdRows = await _db.TransmittalDocuments
+            .Where(td => td.TransmittalId == txId)
+            .ToListAsync();
+        if (tdRows.Count > 0)
+        {
+            var docIds = tdRows.Select(td => td.DocumentId).Distinct().ToArray();
+            var docPaths = await _db.Documents
+                .Where(d => docIds.Contains(d.Id))
+                .Select(d => new { d.Id, d.FilePath })
+                .ToDictionaryAsync(x => x.Id, x => x.FilePath);
+
+            foreach (var td in tdRows)
+            {
+                if (docPaths.TryGetValue(td.DocumentId, out var latestPath)
+                    && !string.IsNullOrEmpty(latestPath))
+                {
+                    td.FilePathAtTransmittal = latestPath;
+                }
+            }
+        }
+
         // Audit trail for transmittal sent
         var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
         _db.AuditLogs.Add(new AuditLog
@@ -313,9 +338,53 @@ public class TransmittalsController : ControllerBase
         var added = await SnapshotTransmittalDocumentsAsync(
             tx, projectId, tenantId, documentIds, HttpContext.RequestAborted);
 
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+            when (ex.InnerException?.Message.Contains("IX_TransmittalDocuments_TransmittalId_DocumentId",
+                      StringComparison.OrdinalIgnoreCase) == true
+                  || ex.InnerException?.Message.Contains("unique", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            // GAP-04 — unique constraint on (TransmittalId, DocumentId): return 409 rather than 500.
+            return Conflict(new { message = "One or more documents are already linked to this transmittal." });
+        }
 
         return Ok(new { added });
+    }
+
+    /// <summary>GET /{txId}/documents — list the version-snapshot rows for a transmittal (GAP-12).</summary>
+    [HttpGet("{txId}/documents")]
+    public async Task<ActionResult> GetDocuments(Guid projectId, Guid txId, CancellationToken ct)
+    {
+        var tenantId = GetTenantId();
+        var tx = await _db.Transmittals
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == txId && t.ProjectId == projectId && t.Project!.TenantId == tenantId, ct);
+        if (tx == null) return NotFound();
+
+        var docs = await _db.TransmittalDocuments
+            .AsNoTracking()
+            .Where(td => td.TransmittalId == txId)
+            .Select(td => new
+            {
+                td.Id,
+                td.DocumentId,
+                td.DocumentVersionId,
+                td.CdeStateAtTransmittal,
+                td.SuitabilityAtTransmittal,
+                td.FilePathAtTransmittal,
+                td.AddedAt,
+                FileName = _db.Documents
+                    .Where(d => d.Id == td.DocumentId)
+                    .Select(d => d.FileName)
+                    .FirstOrDefault()
+            })
+            .OrderBy(td => td.AddedAt)
+            .ToListAsync(ct);
+
+        return Ok(new { transmittalId = txId, count = docs.Count, items = docs });
     }
 
     /// <summary>
@@ -331,9 +400,12 @@ public class TransmittalsController : ControllerBase
         Guid[] documentIds,
         CancellationToken ct)
     {
-        // Load documents + their latest version in one query.
+        // GAP-10 — only PUBLISHED (S4) documents should be attached to a transmittal.
+        // Non-PUBLISHED docs are silently skipped so the caller can still create the
+        // transmittal and attach whichever docs are ready, without a hard failure.
         var docs = await _db.Documents
-            .Where(d => documentIds.Contains(d.Id) && d.ProjectId == projectId && d.TenantId == tenantId)
+            .Where(d => documentIds.Contains(d.Id) && d.ProjectId == projectId && d.TenantId == tenantId
+                     && d.CdeStatus == "PUBLISHED")
             .Include(d => d.Versions.OrderByDescending(v => v.VersionNumber).Take(1))
             .AsNoTracking()
             .ToListAsync(ct);

@@ -214,6 +214,10 @@ public class CdeContainersController : ControllerBase
         [FromBody] Guid[] documentIds,
         CancellationToken ct)
     {
+        // GAP-02 — only managers/admins may bulk-link documents to a container.
+        if (!await IsManagerOrAboveAsync(projectId))
+            return Forbid();
+
         var tenantId = GetTenantId();
         var container = await _db.CdeContainers.AnyAsync(
             c => c.Id == containerId && c.ProjectId == projectId && c.TenantId == tenantId, ct);

@@ -179,10 +179,23 @@ public class DocumentsController : ControllerBase
         if (project == null) return NotFound();
         // Phase 177 — match Upload/CreateDocument: ACL on bootstrap state + discipline.
         if (await RequireAclCreateAsync(projectId, req.Discipline) is { } aclDenied) return aclDenied;
+        // GAP-16 — validate originator code format.
+        if (ValidateOriginator(req.Originator) is { } origErr) return origErr;
 
         // Verify the upload actually landed in storage.
         if (!await _storage.ExistsAsync(req.ObjectKey))
             return BadRequest(new { message = "Upload not found at the given objectKey. PUT to the presigned URL first." });
+
+        // GAP-06 — idempotency: if the client retries the finalize call for the
+        // same objectKey, return the existing record rather than creating a duplicate.
+        var existingByKey = await _db.Documents
+            .FirstOrDefaultAsync(d => d.FilePath == req.ObjectKey && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
+        if (existingByKey != null)
+            return Ok(new
+            {
+                existingByKey.Id, existingByKey.FileName, existingByKey.FilePath, existingByKey.ScanStatus,
+                note = "Document already finalized for this objectKey.",
+            });
 
         var safeName = Path.GetFileName(req.FileName ?? "");
         if (string.IsNullOrEmpty(safeName)) safeName = Path.GetFileName(req.ObjectKey);
@@ -256,6 +269,8 @@ public class DocumentsController : ControllerBase
         // Gap 3 — suitability code whitelist (if caller specifies one explicitly).
         if (req.SuitabilityCode != null && !ValidSuitabilityCodes.Contains(req.SuitabilityCode))
             return BadRequest(new { message = $"Invalid suitability code '{req.SuitabilityCode}'. Valid: {string.Join(", ", ValidSuitabilityCodes.OrderBy(s => s))}" });
+        // GAP-16 — validate originator code format.
+        if (ValidateOriginator(req.Originator) is { } origErr) return origErr;
 
         var doc = new DocumentRecord
         {
@@ -648,6 +663,64 @@ public class DocumentsController : ControllerBase
     }
 
     /// <summary>
+    /// GAP-13 — bulk-download: POST a list of document IDs and receive a ZIP
+    /// archive containing the current HEAD file for each. Skips docs that the
+    /// caller cannot see (per ACL) or whose file is missing / not yet scanned.
+    /// Capped at 50 documents per call to keep memory usage bounded.
+    /// </summary>
+    [HttpPost("bulk-download")]
+    public async Task<ActionResult> BulkDownload(Guid projectId, [FromBody] Guid[] documentIds)
+    {
+        if (documentIds == null || documentIds.Length == 0)
+            return BadRequest(new { message = "documentIds must be a non-empty array" });
+        if (documentIds.Length > 50)
+            return BadRequest(new { message = "Maximum 50 documents per bulk-download" });
+
+        var tenantId = GetTenantId();
+        var acl = await Planscape.API.Authorization.ProjectMemberAcl.ResolveAsync(_db, projectId, User);
+
+        var docs = await _db.Documents
+            .Where(d => documentIds.Contains(d.Id)
+                     && d.ProjectId == projectId
+                     && d.Project!.TenantId == tenantId
+                     && d.ScanStatus == "CLEAN"
+                     && !string.IsNullOrEmpty(d.FilePath))
+            .ToListAsync();
+
+        // Filter by per-member ACL
+        docs = docs.Where(d => acl.AllowsDocument(d)).ToList();
+
+        if (docs.Count == 0)
+            return NotFound(new { message = "No accessible documents found for the provided IDs." });
+
+        var ms = new MemoryStream();
+        using (var archive = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var doc in docs)
+            {
+                try
+                {
+                    using var fileStream = await _storage.GetAsync(doc.FilePath!);
+                    if (fileStream == null) continue;
+
+                    var entry = archive.CreateEntry(doc.FileName, System.IO.Compression.CompressionLevel.Fastest);
+                    await using var entryStream = entry.Open();
+                    await fileStream.CopyToAsync(entryStream);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "BulkDownload: skipping document {DocId} due to storage error", doc.Id);
+                }
+            }
+        }
+
+        ms.Position = 0;
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+        var projPrefix = projectId.ToString("N")[..8];
+        return File(ms, "application/zip", $"documents-{projPrefix}-{timestamp}.zip");
+    }
+
+    /// <summary>
     /// CDE state transition with ISO 19650 validation.
     /// </summary>
     [HttpPut("{docId}/state")]
@@ -666,6 +739,15 @@ public class DocumentsController : ControllerBase
         // Gap 3 — suitability code whitelist
         if (!string.IsNullOrEmpty(req.SuitabilityCode) && !ValidSuitabilityCodes.Contains(req.SuitabilityCode))
             return BadRequest(new { message = $"Invalid suitability code '{req.SuitabilityCode}'. Valid: {string.Join(", ", ValidSuitabilityCodes.OrderBy(s => s))}" });
+
+        // GAP-11 — enforce suitability↔state pairing. Each CDE state has a
+        // canonical suitability; if the caller supplies an explicit code it must
+        // be consistent with the target state's minimum level.
+        if (!string.IsNullOrEmpty(req.SuitabilityCode))
+        {
+            var suitCheck = ValidateSuitabilityForState(req.NewState, req.SuitabilityCode);
+            if (suitCheck != null) return suitCheck;
+        }
 
         // Validate transition
         if (!ValidTransitions.TryGetValue(doc.CdeStatus, out var validTargets))
@@ -716,10 +798,8 @@ public class DocumentsController : ControllerBase
             _db.DocumentSignatures.Add(signature);
         }
 
-        // Append to status history
-        var history = !string.IsNullOrEmpty(doc.StatusHistoryJson)
-            ? JsonConvert.DeserializeObject<List<object>>(doc.StatusHistoryJson) ?? new()
-            : new List<object>();
+        // Append to status history (GAP-15/GAP-22 — validated, capped at 100 entries).
+        var history = LoadAndCapHistory(doc.StatusHistoryJson);
         history.Add(new
         {
             timestamp = DateTime.UtcNow, oldState, newState = req.NewState,
@@ -821,9 +901,7 @@ public class DocumentsController : ControllerBase
         doc.SuitabilityCode = DefaultSuitability.GetValueOrDefault(req.NewStatus, doc.SuitabilityCode);
         doc.UpdatedAt = DateTime.UtcNow;
 
-        var history = !string.IsNullOrEmpty(doc.StatusHistoryJson)
-            ? JsonConvert.DeserializeObject<List<object>>(doc.StatusHistoryJson) ?? new()
-            : new List<object>();
+        var history = LoadAndCapHistory(doc.StatusHistoryJson);
         history.Add(new
         {
             timestamp = DateTime.UtcNow, oldState, newState = req.NewStatus,
@@ -960,23 +1038,40 @@ public class DocumentsController : ControllerBase
 
     /// <summary>
     /// Get current approval status for a document's pending transitions.
+    /// GAP-19 — supports pagination via ?page and ?pageSize query params.
     /// </summary>
     [HttpGet("{docId}/approval-status")]
-    public async Task<ActionResult> GetApprovalStatus(Guid projectId, Guid docId)
+    public async Task<ActionResult> GetApprovalStatus(Guid projectId, Guid docId,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 200) pageSize = 50;
+
         var tenantId = GetTenantId();
         var doc = await _db.Documents
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
         if (await RequireAclAsync(projectId, doc) is { } aclDenied) return aclDenied;
 
-        var approvals = await _db.DocumentApprovals
+        var query = _db.DocumentApprovals
             .Where(a => a.DocumentId == docId)
-            .OrderByDescending(a => a.RequestedAt)
-            .Take(200) // Phase 175 audit P1-11 — bound approval history
+            .OrderByDescending(a => a.RequestedAt);
+
+        var total = await query.CountAsync();
+        var approvals = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
-        return Ok(new { doc.Id, doc.FileName, doc.CdeStatus, approvals });
+        return Ok(new
+        {
+            doc.Id, doc.FileName, doc.CdeStatus,
+            approvals,
+            total,
+            page,
+            pageSize,
+            hasMore = (page * pageSize) < total
+        });
     }
 
     /// <summary>
@@ -1044,11 +1139,21 @@ public class DocumentsController : ControllerBase
                 is { } aclDenied)
             return aclDenied;
 
-        // Apply transition if requested. We bypass the strict ValidTransitions
-        // table here because the plugin owns the source-of-truth lifecycle —
-        // however role + approval gates still run.
+        // GAP-05 — enforce ValidTransitions in SyncFromPlugin the same way the
+        // regular transition endpoint does. The plugin owns lifecycle locally, but
+        // the server should not accept arbitrary state jumps (e.g. WIP → PUBLISHED).
         if (!string.IsNullOrEmpty(req.NewCdeStatus) && req.NewCdeStatus != doc!.CdeStatus)
         {
+            if (!ValidTransitions.TryGetValue(doc!.CdeStatus, out var validPluginTargets)
+                || !validPluginTargets.Contains(req.NewCdeStatus))
+            {
+                return BadRequest(new
+                {
+                    message = $"Invalid CDE transition: {doc!.CdeStatus} → {req.NewCdeStatus}. " +
+                              $"Valid: {string.Join(", ", ValidTransitions.GetValueOrDefault(doc!.CdeStatus, Array.Empty<string>()))}"
+                });
+            }
+
             var roleCheck = CheckTransitionRole(doc!.CdeStatus, req.NewCdeStatus);
             if (roleCheck != null) return roleCheck;
 
@@ -1062,9 +1167,7 @@ public class DocumentsController : ControllerBase
             if (!string.IsNullOrEmpty(req.Revision)) doc!.Revision = req.Revision;
             doc!.UpdatedAt = DateTime.UtcNow;
 
-            var history = !string.IsNullOrEmpty(doc!.StatusHistoryJson)
-                ? JsonConvert.DeserializeObject<List<object>>(doc!.StatusHistoryJson) ?? new()
-                : new List<object>();
+            var history = LoadAndCapHistory(doc!.StatusHistoryJson);
             history.Add(new
             {
                 timestamp = DateTime.UtcNow, oldState, newState = req.NewCdeStatus,
@@ -1129,6 +1232,67 @@ public class DocumentsController : ControllerBase
 
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
+
+    // ISO 19650 originator code: 2–8 uppercase alphanumeric characters.
+    private static readonly System.Text.RegularExpressions.Regex OriginatorCodeRegex =
+        new(@"^[A-Z0-9]{2,8}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    // GAP-16 — validate originator against the ISO 19650 code pattern.
+    private static ActionResult? ValidateOriginator(string? originator)
+    {
+        if (string.IsNullOrEmpty(originator)) return null; // optional field
+        if (!OriginatorCodeRegex.IsMatch(originator))
+            return new BadRequestObjectResult(new
+            {
+                message = $"Invalid originator code '{originator}'. Must be 2–8 uppercase alphanumeric characters per ISO 19650-1 §8."
+            });
+        return null;
+    }
+
+    // GAP-11 — suitability↔state pairing.
+    // PUBLISHED requires S4+; SHARED requires at least S1 (not S0/WIP codes).
+    private static readonly Dictionary<string, string[]> StateAllowedSuitabilities = new()
+    {
+        ["WIP"]       = new[] { "S0" },
+        ["SHARED"]    = new[] { "S1", "S2", "S3", "CR" },
+        ["PUBLISHED"] = new[] { "S4", "S5", "S6", "AB" },
+        ["ARCHIVE"]   = new[] { "S7" },
+        ["SUPERSEDED"]= new[] { "S4", "S5", "S6", "S7", "AB" },
+    };
+
+    private static ActionResult? ValidateSuitabilityForState(string state, string suitabilityCode)
+    {
+        if (!StateAllowedSuitabilities.TryGetValue(state, out var allowed)) return null;
+        if (!allowed.Contains(suitabilityCode, StringComparer.OrdinalIgnoreCase))
+            return new BadRequestObjectResult(new
+            {
+                message = $"Suitability code '{suitabilityCode}' is not valid for CDE state '{state}'. " +
+                          $"Allowed: {string.Join(", ", allowed)}"
+            });
+        return null;
+    }
+
+    // GAP-15 / GAP-22 — deserialise, validate and cap the status-history JSON.
+    private const int MaxHistoryEntries = 100;
+
+    private static List<object> LoadAndCapHistory(string? json)
+    {
+        if (string.IsNullOrEmpty(json)) return new List<object>();
+        try
+        {
+            var list = JsonConvert.DeserializeObject<List<object>>(json) ?? new List<object>();
+            // Cap to the most recent MaxHistoryEntries entries.
+            if (list.Count > MaxHistoryEntries)
+                list = list.Skip(list.Count - MaxHistoryEntries).ToList();
+            return list;
+        }
+        catch
+        {
+            // GAP-15 — if the stored JSON is malformed, start a fresh history
+            // rather than propagating the corruption.
+            return new List<object>();
+        }
+    }
 
     // MapIfcTypeToDiscipline removed — use IfcDisciplineMapper.ToStingCode directly.
 
