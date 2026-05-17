@@ -5,6 +5,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using Autodesk.Revit.UI;
+using Button = System.Windows.Controls.Button;
 using StingTools.Core;
 namespace StingTools.UI.Plumbing
 {

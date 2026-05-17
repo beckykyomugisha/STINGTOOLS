@@ -8,6 +8,7 @@ using System.Windows.Data;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Button     = System.Windows.Controls.Button;
 using ComboBox   = System.Windows.Controls.ComboBox;
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
 using Grid       = System.Windows.Controls.Grid;

@@ -35,6 +35,7 @@ using System.Windows.Media;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core.Drawing;
+using Button     = System.Windows.Controls.Button;
 using Color      = System.Windows.Media.Color;
 using ComboBox   = System.Windows.Controls.ComboBox;
 using Grid       = System.Windows.Controls.Grid;

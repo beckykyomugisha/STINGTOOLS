@@ -16,8 +16,9 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Path     = System.IO.Path;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
-using Color    = System.Windows.Media.Color;
-using Grid     = System.Windows.Controls.Grid;
+using Button     = System.Windows.Controls.Button;
+using Color      = System.Windows.Media.Color;
+using Grid       = System.Windows.Controls.Grid;
 
 namespace StingTools.UI
 {
