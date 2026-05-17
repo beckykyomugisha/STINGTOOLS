@@ -161,6 +161,8 @@ namespace StingTools.UI
                     case "Placement_PlaceFixtures": RunCommand<Commands.Placement.PlaceFixturesCommand>(app); break;
                     case "Placement_LightingGrid":  RunCommand<Commands.Placement.LightingGridCommand>(app); break;
                     case "Placement_Learn":         RunCommand<Commands.Placement.LearnPlacementV4Command>(app); break;
+                    // Phase 177 — toilet-room specific placement + BS 6465 provision check.
+                    case "Placement_ToiletRoom":    RunCommand<Commands.Placement.PlaceToiletRoomCommand>(app); break;
 
                     // ── Phase 139.2 — placement centre additions ──
                     case "Placement_AutoPopulateCatalogue":
