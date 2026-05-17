@@ -1037,33 +1037,12 @@
       case 'clearPins':        clearPins(); break;
       case 'setDiscipline':    setDisciplineVisible(cmd.payload.discipline, cmd.payload.visible); break;
       case 'setBackground':    scene.background = new THREE.Color(cmd.payload.color || 0x111318); break;
-      case 'setPickSnap':       pickSnap = (cmd.payload && cmd.payload.mode) || 'none'; break;
-      case 'getPickSnap':       bridge.send('pickSnap', { mode: pickSnap }); break;
-      case 'cancelClearance':   clearancePicks = []; bridge.send('measureClearancePending', { count: 0 }); break;
-      case 'selectAndZoom': {
-        const guid = cmd.payload && cmd.payload.guid;
-        if (!guid || !modelRoot) break;
-        let target = null;
-        modelRoot.traverse(function (obj) {
-          if (target) return;
-          if (obj.userData && obj.userData.elementGuid === guid) target = obj;
-        });
-        if (target) {
-          const box = new THREE.Box3().setFromObject(target);
-          if (!box.isEmpty()) {
-            const size = box.getSize(new THREE.Vector3());
-            const centre = box.getCenter(new THREE.Vector3());
-            const maxDim = Math.max(size.x, size.y, size.z);
-            // Guard tiny elements (mm units) so the camera doesn't end up
-            // inside the mesh.
-            const dist = Math.max(maxDim * 2.5, 1000);
-            camera.position.copy(centre).add(new THREE.Vector3(dist, dist * 0.8, dist));
-            if (controls) { controls.target.copy(centre); controls.update(); }
-            if (typeof highlight === 'function' && target.isMesh) highlight(target);
-          }
-        }
-        break;
-      }
+      // ── Compliance heatmap ──────────────────────────────────────────────
+      case 'setHeatmap':       setComplianceHeatmap(cmd.payload); break;
+      case 'clearHeatmap':     clearComplianceHeatmap(); break;
+      // ── BCF viewpoints ──────────────────────────────────────────────────
+      case 'saveViewpoint':    bridge.send('viewpoint', captureViewpoint(cmd.payload)); break;
+      case 'loadViewpoint':    restoreViewpoint(cmd.payload); break;
     }
   }
 

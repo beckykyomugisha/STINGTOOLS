@@ -1564,7 +1564,6 @@ PARAM	d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6b	STING_CLUSTER_LABEL	TEXT		17	1	Cluste
 PARAM	a1b2c3d4-5032-4a01-b001-000000000150	STING_CLUSTER_MEMBER_POS_TXT	TEXT		17	1	Cluster member bounding box centers (pipe-delimited)	1
 PARAM	d0e1f2a3-b4c5-4d6e-8f7a-8b9c0d1e2f3a	STING_DISPLAY_MODE	INTEGER		17	1	Display mode (1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full)	1
 PARAM	e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b	STING_TAG_POS	INTEGER		17	1	Tag position (1-16 compass positions)	1
-PARAM	d4e5f6a7-b8c9-4d0e-af12-345678901bcd	TAG_STYLE_CODE_TXT	TEXT		17	1	TAG-01: Single tag style code replaces 128 BOOL params (e.g. 2BOLD_BLUE). Backwards-compatible with BOOL matrix.	1
 PARAM	e2f3a4b5-c6d7-4e8f-9a0b-1c2d3e4f5a6c	STING_VIEW_TAG_STYLE	TEXT		17	1	View-level tag style routing (Discipline/Monochrome/Warm/Cool)	1
 PARAM	f3a4b5c6-d7e8-4f9a-0b1c-2d3e4f5a6b7d	TAG_SEG_MASK_TXT	TEXT		17	1	Token segment visibility mask (8-char format e.g. 10110101)	1
 PARAM	a1b2c3d4-5033-4a01-b001-000000000151	TAG_STYLE_SIZE_INT	INTEGER		17	1	Tag text size index (2/2.5/3/3.5)	1
@@ -2945,3 +2944,104 @@ PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1011	PEN_STRUCTURAL_FLAG_TXT	TEXT		33	1	Be
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1012	STING_PENETRATION_REF_TXT	TEXT		33	1	Stamped on each MEPCurve that crosses a fire-rated barrier. Format: HOST:<id>@<rating>#<control>	1
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1013	STING_PENETRATION_FIRE_RATING_TXT	TEXT		33	1	Mirror of host fire rating on the penetrating member - drives validator gates	1
 >>>>>>> origin/claude/review-sting-equipment-aV6qM
+PARAM	ac000000-0000-0000-0000-000000000001	QTO_GROSS_AREA_M2	NUMBER		26	1	ArchiCAD IFC: element gross side/face area m² (Qto BaseQuantities)	1
+PARAM	ac000000-0000-0000-0000-000000000002	QTO_NET_AREA_M2	NUMBER		26	1	ArchiCAD IFC: element net side/face area m² deducting openings (Qto BaseQuantities)	1
+PARAM	ac000000-0000-0000-0000-000000000003	QTO_GROSS_VOLUME_M3	NUMBER		26	1	ArchiCAD IFC: element gross volume m³ (Qto BaseQuantities)	1
+PARAM	ac000000-0000-0000-0000-000000000004	QTO_NET_VOLUME_M3	NUMBER		26	1	ArchiCAD IFC: element net volume m³ deducting openings and recesses (Qto BaseQuantities)	1
+PARAM	ac000000-0000-0000-0000-000000000005	QTO_LENGTH_M	NUMBER		26	1	ArchiCAD IFC: element length or span m (Qto BaseQuantities)	1
+PARAM	ac000000-0000-0000-0000-000000000006	QTO_WIDTH_M	NUMBER		26	1	ArchiCAD IFC: element width or thickness m (Qto BaseQuantities)	1
+PARAM	ac000000-0000-0000-0000-000000000007	QTO_HEIGHT_M	NUMBER		26	1	ArchiCAD IFC: element height or depth m (Qto BaseQuantities)	1
+PARAM	ac000000-0000-0000-0000-000000000008	QTO_WEIGHT_KG	NUMBER		26	1	ArchiCAD IFC: element weight kg (Qto beam/column quantities)	1
+PARAM	ac000000-0000-0000-0000-000000000009	QTO_NET_FLOOR_AREA_M2	NUMBER		26	1	ArchiCAD IFC: room net floor area m² (Qto_SpaceBaseQuantities)	1
+PARAM	ac000000-0000-0000-0000-00000000000a	QTO_GROSS_WALL_AREA_M2	NUMBER		26	1	ArchiCAD IFC: room gross wall surface area m² (Qto_SpaceBaseQuantities)	1
+PARAM	ac000000-0000-0000-0000-00000000000b	QTO_NET_CEILING_AREA_M2	NUMBER		26	1	ArchiCAD IFC: room net ceiling area m² (Qto_SpaceBaseQuantities)	1
+PARAM	ac000000-0000-0000-0000-00000000000c	QTO_PERIMETER_M	NUMBER		26	1	ArchiCAD IFC: element perimeter m (door/window frame perimeter)	1
+PARAM	ac000000-0000-0000-0000-00000000000d	QTO_GLAZING_AREA_M2	NUMBER		26	1	ArchiCAD IFC: window glazing (transparent) area m² (Qto_WindowBaseQuantities)	1
+PARAM	ac000000-0000-0000-0000-000000000010	CST_COST_CODE_TXT	TEXT		13	1	ArchiCAD IFC: cost/trade code NRM1 / specification clause reference	1
+PARAM	ac000000-0000-0000-0000-000000000011	CST_UNIT_COST_NR	NUMBER		13	1	ArchiCAD IFC: unit cost in project currency per unit of measure	1
+PARAM	ac000000-0000-0000-0000-000000000012	CST_ELEMENT_COST_NR	NUMBER		13	1	ArchiCAD IFC: element cost = unit cost x quantity (computed by ArchiCAD)	1
+PARAM	ac000000-0000-0000-0000-000000000013	CST_TOTAL_COST_NR	NUMBER		13	1	ArchiCAD IFC: total cost for composite elements (sum of component costs)	1
+PARAM	ac000000-0000-0000-0000-000000000014	CST_UNIT_TXT	TEXT		13	1	ArchiCAD IFC: unit of measure for cost: m2 / m3 / m / EA / kg / tonne	1
+PARAM	ac000000-0000-0000-0000-000000000015	CST_COST_CATEGORY_TXT	TEXT		13	1	ArchiCAD IFC: cost trade grouping category	1
+PARAM	ac000000-0000-0000-0000-000000000016	CST_TRADE_NAME_TXT	TEXT		13	1	ArchiCAD IFC: subcontractor trade name	1
+PARAM	ac000000-0000-0000-0000-000000000017	CST_BOQ_ITEM_TXT	TEXT		13	1	ArchiCAD IFC: bill of quantities item / section reference	1
+PARAM	ac000000-0000-0000-0000-000000000020	RNV_STATUS_TXT	TEXT		26	1	ArchiCAD IFC: authoritative renovation status from AC_Pset_RenovationInfo (EXISTING/NEW/DEMOLISHED/TEMPORARY/RELOCATED/UNDEFINED)	1
+PARAM	ac000000-0000-0000-0000-000000000021	RNV_IS_EXISTING_BOOL	YESNO		26	1	ArchiCAD IFC: element is existing to remain (AC_Pset_RenovationInfo.IsExistingToRemain)	1
+PARAM	ac000000-0000-0000-0000-000000000022	RNV_DEMOLITION_SEQ_TXT	TEXT		26	1	ArchiCAD IFC: demolition sequence code for phasing programme	1
+PARAM	ac000000-0000-0000-0000-000000000023	RNV_NEW_CONST_SEQ_TXT	TEXT		26	1	ArchiCAD IFC: new construction sequence identifier	1
+PARAM	ac000000-0000-0000-0000-000000000024	RNV_CONTRACTOR_TXT	TEXT		26	1	ArchiCAD IFC: demolition contractor name	1
+PARAM	ac000000-0000-0000-0000-000000000030	AC_ELEMENT_ID_TXT	TEXT		26	1	ArchiCAD IFC: ArchiCAD internal element GUID (AC_Pset_ElementID.ID) - distinct from IFC GlobalId	1
+PARAM	ac000000-0000-0000-0000-000000000031	AC_HOTLINK_ID_TXT	TEXT		26	1	ArchiCAD IFC: GUID of the originating hotlink module (AC_Pset_ElementID.Hotlink_ID)	1
+PARAM	ac000000-0000-0000-0000-000000000032	AC_HOTLINK_FILE_TXT	TEXT		26	1	ArchiCAD IFC: relative path of the source hotlink .mod file	1
+PARAM	ac000000-0000-0000-0000-000000000033	AC_REVISION_TXT	TEXT		26	1	ArchiCAD IFC: element-level revision mark (AC_Pset_ElementID.Revision)	1
+PARAM	ac000000-0000-0000-0000-000000000040	PER_ACOUSTIC_RATING_TXT	TEXT		8	1	ArchiCAD IFC: acoustic rating Rw dB (from Pset_WallCommon / DoorCommon / WindowCommon)	1
+PARAM	ac000000-0000-0000-0000-000000000041	PER_SOLAR_GAIN_NR	NUMBER		8	1	ArchiCAD IFC: solar heat gain coefficient / g-value for glazing (Pset_WindowCommon)	1
+PARAM	ac000000-0000-0000-0000-000000000042	PER_FRAME_MATERIAL_TXT	TEXT		8	1	ArchiCAD IFC: window frame material: PVC / Timber / Aluminium / Steel	1
+PARAM	ac000000-0000-0000-0000-000000000043	PER_SURFACE_SPREAD_TXT	TEXT		9	1	ArchiCAD IFC: surface spread of flame class A/B/C/D/E/F (reaction to fire)	1
+PARAM	ac000000-0000-0000-0000-000000000044	PER_COMBUSTIBLE_BOOL	YESNO		9	1	ArchiCAD IFC: element is combustible (Pset_WallCommon.Combustible)	1
+PARAM	ac000000-0000-0000-0000-000000000045	PER_COMPARTMENT_BOOL	YESNO		9	1	ArchiCAD IFC: element is a fire compartment boundary (Pset_WallCommon.Compartmentation)	1
+PARAM	ac000000-0000-0000-0000-000000000046	PER_LOAD_BEARING_BOOL	YESNO		7	1	ArchiCAD IFC: element is load-bearing structural (Pset_WallCommon / ColumnCommon.LoadBearing)	1
+PARAM	ac000000-0000-0000-0000-000000000047	PER_IS_EXTERNAL_BOOL	YESNO		8	1	ArchiCAD IFC: element is external / envelope (Pset_WallCommon / SlabCommon.IsExternal)	1
+PARAM	ac000000-0000-0000-0000-000000000048	PER_SELF_CLOSING_BOOL	YESNO		8	1	ArchiCAD IFC: door has self-closing device (Pset_DoorCommon.SelfClosing)	1
+PARAM	ac000000-0000-0000-0000-000000000049	PER_SMOKE_STOP_BOOL	YESNO		9	1	ArchiCAD IFC: door/window is smoke-sealed (Pset_DoorCommon.SmokeStop)	1
+PARAM	ac000000-0000-0000-0000-00000000004a	PER_HANDICAP_ACCESS_BOOL	YESNO		8	1	ArchiCAD IFC: element is Part M / ADA accessible (Pset_DoorCommon / SpaceCommon.HandicapAccessible)	1
+PARAM	ac000000-0000-0000-0000-00000000004b	PER_SECURITY_RATING_TXT	TEXT		8	1	ArchiCAD IFC: security rating RC class / PAS 24 / BS EN 1627 (Pset_DoorCommon / WindowCommon)	1
+PARAM	ac000000-0000-0000-0000-00000000004c	PER_PITCH_ANGLE_DEG	NUMBER		8	1	ArchiCAD IFC: roof / slab pitch angle degrees (Pset_SlabCommon / RoofCommon.PitchAngle)	1
+PARAM	ac000000-0000-0000-0000-00000000004d	PER_AIR_EXCHANGE_RATE_NR	NUMBER		5	1	ArchiCAD IFC: room air change rate ACH (Pset_SpaceCommon.AirExchangeRate)	1
+PARAM	ac000000-0000-0000-0000-000000000050	SPC_GROSS_AREA_M2	NUMBER		3	1	ArchiCAD IFC: room gross planned floor area m² including half-wall thickness	1
+PARAM	ac000000-0000-0000-0000-000000000051	SPC_CEILING_HEIGHT_M	NUMBER		3	1	ArchiCAD IFC: room clear ceiling height m (Pset_SpaceCommon.CeilingHeight)	1
+PARAM	ac000000-0000-0000-0000-000000000052	SPC_FINISH_FLOOR_TXT	TEXT		3	1	ArchiCAD IFC: room floor finish material (Pset_SpaceCommon.FinishFloor)	1
+PARAM	ac000000-0000-0000-0000-000000000053	SPC_FINISH_CEILING_TXT	TEXT		3	1	ArchiCAD IFC: room ceiling finish material (Pset_SpaceCommon.FinishCeiling)	1
+PARAM	ac000000-0000-0000-0000-000000000054	SPC_FINISH_WALLS_TXT	TEXT		3	1	ArchiCAD IFC: room wall finish material (Pset_SpaceCommon.FinishWalls)	1
+PARAM	ac000000-0000-0000-0000-000000000055	SPC_MIN_HEADROOM_M	NUMBER		3	1	ArchiCAD IFC: minimum headroom clearance m (Pset_StairCommon.HeadRoom)	1
+PARAM	ac000000-0000-0000-0000-000000000056	SPC_PUBLIC_ACCESSIBLE_BOOL	YESNO		3	1	ArchiCAD IFC: space is publicly accessible (Pset_SpaceCommon.PubliclyAccessible)	1
+PARAM	ac000000-0000-0000-0000-000000000060	ZON_CATEGORY_NAME_TXT	TEXT		3	1	ArchiCAD IFC: zone functional category name (AC_Pset_ZoneCategory.ZoneCategoryName)	1
+PARAM	ac000000-0000-0000-0000-000000000061	ZON_CATEGORY_CODE_TXT	TEXT		3	1	ArchiCAD IFC: zone category short code (AC_Pset_ZoneCategory.ZoneCategoryCode)	1
+PARAM	ac000000-0000-0000-0000-000000000062	ZON_NET_AREA_M2	NUMBER		3	1	ArchiCAD IFC: zone net area m² (AC_Pset_ZoneCategory.ZoneNetArea)	1
+PARAM	ac000000-0000-0000-0000-000000000063	ZON_GROSS_AREA_M2	NUMBER		3	1	ArchiCAD IFC: zone gross area m² (AC_Pset_ZoneCategory.ZoneGrossArea)	1
+PARAM	ac000000-0000-0000-0000-000000000064	ZON_VOLUME_M3	NUMBER		3	1	ArchiCAD IFC: zone volume m³ (AC_Pset_ZoneCategory.ZoneVolume)	1
+PARAM	ac000000-0000-0000-0000-000000000065	ZON_OCCUPANTS_NR	NUMBER		3	1	ArchiCAD IFC: zone design occupant count (AC_Pset_ZoneCategory.ZoneNumberOfOccupants)	1
+PARAM	ac000000-0000-0000-0000-000000000070	CLS_OMNICLASS_NR_TXT	TEXT		10	1	ArchiCAD IFC: OmniClass number (ArchiCAD_PropertyGroup_Classification.OmniClass Number)	1
+PARAM	ac000000-0000-0000-0000-000000000071	CLS_OMNICLASS_TITLE_TXT	TEXT		10	1	ArchiCAD IFC: OmniClass title description	1
+PARAM	ac000000-0000-0000-0000-000000000072	CLS_UNICLASS_EF_TXT	TEXT		10	1	ArchiCAD IFC: Uniclass 2015 EF (Entity Form) code	1
+PARAM	ac000000-0000-0000-0000-000000000073	CLS_ETIM_CLASS_TXT	TEXT		10	1	ArchiCAD IFC: ETIM classification code (MEP equipment)	1
+PARAM	ac000000-0000-0000-0000-000000000074	CLS_CSI_MASTERFORMAT_TXT	TEXT		10	1	ArchiCAD IFC: CSI MasterFormat classification (US projects)	1
+PARAM	ac000000-0000-0000-0000-000000000075	CLS_NBS_DESCRIPTION_TXT	TEXT		10	1	ArchiCAD IFC: NBS code description	1
+PARAM	ac000000-0000-0000-0000-000000000076	CLS_SYSTEM_NAME_TXT	TEXT		10	1	ArchiCAD IFC: classification system name (Uniclass / OmniClass / ETIM / NBS)	1
+PARAM	ac000000-0000-0000-0000-000000000077	CLS_EDITION_TXT	TEXT		10	1	ArchiCAD IFC: classification edition / version year	1
+PARAM	ac000000-0000-0000-0000-000000000080	STR_PROFILE_TYPE_TXT	TEXT		7	1	ArchiCAD IFC: structural section profile type I/H/L/T/C/SHS/RHS/CHS (AC_Pset_ProfileData)	1
+PARAM	ac000000-0000-0000-0000-000000000081	STR_PROFILE_NAME_TXT	TEXT		7	1	ArchiCAD IFC: section designation e.g. UB 254x102x22 (AC_Pset_ProfileData.ProfileName)	1
+PARAM	ac000000-0000-0000-0000-000000000082	STR_PROFILE_DEPTH_MM	NUMBER		7	1	ArchiCAD IFC: section overall depth mm (AC_Pset_ProfileData.Depth)	1
+PARAM	ac000000-0000-0000-0000-000000000083	STR_PROFILE_WIDTH_MM	NUMBER		7	1	ArchiCAD IFC: section flange width mm (AC_Pset_ProfileData.Width)	1
+PARAM	ac000000-0000-0000-0000-000000000084	STR_CROSS_SECTION_AREA_MM2	NUMBER		7	1	ArchiCAD IFC: cross-section area mm² (AC_Pset_ProfileData.CrossSectionArea)	1
+PARAM	ac000000-0000-0000-0000-000000000085	STR_MOMENT_INERTIA_Y_CM4	NUMBER		7	1	ArchiCAD IFC: second moment of area Iy cm4 (AC_Pset_ProfileData.MomentOfInertiaY)	1
+PARAM	ac000000-0000-0000-0000-000000000086	STR_SECTION_MOD_Y_CM3	NUMBER		7	1	ArchiCAD IFC: elastic section modulus Wy cm3 (AC_Pset_ProfileData.ElasticSectionModulusY)	1
+PARAM	ac000000-0000-0000-0000-000000000087	STR_SURFACE_AREA_M2_M	NUMBER		7	1	ArchiCAD IFC: surface area per unit length m2/m for fire casing (AC_Pset_ProfileData.SurfaceAreaPerLength)	1
+PARAM	ac000000-0000-0000-0000-000000000088	STR_RISER_COUNT_NR	NUMBER		7	1	ArchiCAD IFC: stair number of risers (Pset_StairCommon.NumberOfRiser)	1
+PARAM	ac000000-0000-0000-0000-000000000089	STR_TREAD_COUNT_NR	NUMBER		7	1	ArchiCAD IFC: stair number of treads (Pset_StairCommon.NumberOfTreads)	1
+PARAM	ac000000-0000-0000-0000-00000000008a	STR_RISER_HEIGHT_MM	NUMBER		7	1	ArchiCAD IFC: individual riser height mm	1
+PARAM	ac000000-0000-0000-0000-00000000008b	STR_TREAD_DEPTH_MM	NUMBER		7	1	ArchiCAD IFC: tread going depth mm	1
+PARAM	ac000000-0000-0000-0000-00000000008c	STR_NOSING_MM	NUMBER		7	1	ArchiCAD IFC: nosing projection mm	1
+PARAM	ac000000-0000-0000-0000-00000000008d	RMP_SLOPE_DEG	NUMBER		7	1	ArchiCAD IFC: ramp slope gradient degrees (Pset_RampCommon.Slope)	1
+PARAM	ac000000-0000-0000-0000-00000000008e	RMP_WIDTH_M	NUMBER		7	1	ArchiCAD IFC: ramp clear width m (Pset_RampCommon.Width)	1
+PARAM	ac000000-0000-0000-0000-000000000090	MEP_WORKING_PRESSURE_PA	NUMBER		5	1	ArchiCAD IFC: MEP system working pressure Pa (Pset_DistributionFlowElementCommon)	1
+PARAM	ac000000-0000-0000-0000-000000000091	MEP_NOMINAL_DIAMETER_MM	NUMBER		5	1	ArchiCAD IFC: MEP nominal diameter DN mm (Pset_DistributionFlowElementCommon)	1
+PARAM	ac000000-0000-0000-0000-000000000092	MEP_DESIGN_FLOW_M3S	NUMBER		5	1	ArchiCAD IFC: MEP design flow rate m3/s (Pset_DistributionFlowElementCommon)	1
+PARAM	ac000000-0000-0000-0000-000000000093	MEP_DESIGN_VEL_MS	NUMBER		5	1	ArchiCAD IFC: MEP design velocity m/s	1
+PARAM	ac000000-0000-0000-0000-000000000094	MEP_INSULATED_BOOL	YESNO		5	1	ArchiCAD IFC: MEP element is insulated	1
+PARAM	ac000000-0000-0000-0000-000000000095	MEP_MATERIAL_TXT	TEXT		5	1	ArchiCAD IFC: MEP element material Steel/uPVC/Copper/Galvanised	1
+PARAM	ac000000-0000-0000-0000-0000000000a0	BLD_FIRE_CLASS_TXT	TEXT		1	1	ArchiCAD IFC: building fire occupancy classification	1
+PARAM	ac000000-0000-0000-0000-0000000000a1	BLD_EPC_CERT_TXT	TEXT		1	1	ArchiCAD IFC: EPC / SAP certificate number	1
+PARAM	ac000000-0000-0000-0000-0000000000a2	BLD_EPC_CLASS_TXT	TEXT		1	1	ArchiCAD IFC: energy rating class A++ through G	1
+PARAM	ac000000-0000-0000-0000-0000000000a3	BLD_PLANNING_REF_TXT	TEXT		1	1	ArchiCAD IFC: planning permission reference number	1
+PARAM	ac000000-0000-0000-0000-0000000000a4	BLD_YEAR_BUILT_TXT	TEXT		1	1	ArchiCAD IFC: year of construction	1
+PARAM	ac000000-0000-0000-0000-0000000000a5	BLD_SPRINKLERS_BOOL	YESNO		1	1	ArchiCAD IFC: building has sprinkler protection	1
+PARAM	ac000000-0000-0000-0000-0000000000a6	BLD_STOREY_ABOVE_GROUND_BOOL	YESNO		1	1	ArchiCAD IFC: storey is above ground level	1
+PARAM	ac000000-0000-0000-0000-0000000000a7	BLD_STOREY_IMPOSED_LOAD_NR	NUMBER		1	1	ArchiCAD IFC: storey design imposed load kN/m2 (Pset_BuildingStoreyCommon.LoadBearingCapacity)	1
+PARAM	ac000000-0000-0000-0000-0000000000b0	NRG_HEATING_LOAD_W	NUMBER		11	1	ArchiCAD IFC: design heating load W (ArchiCAD_PropertyGroup_Energy.HeatingLoad)	1
+PARAM	ac000000-0000-0000-0000-0000000000b1	NRG_COOLING_LOAD_W	NUMBER		11	1	ArchiCAD IFC: design cooling load W (ArchiCAD_PropertyGroup_Energy.CoolingLoad)	1
+PARAM	ac000000-0000-0000-0000-0000000000b2	NRG_ANNUAL_HEAT_KWH	NUMBER		11	1	ArchiCAD IFC: annual heating energy kWh/yr (ArchiCAD_PropertyGroup_Energy.AnnualHeatingEnergy)	1
+PARAM	ac000000-0000-0000-0000-0000000000b3	NRG_ANNUAL_COOL_KWH	NUMBER		11	1	ArchiCAD IFC: annual cooling energy kWh/yr (ArchiCAD_PropertyGroup_Energy.AnnualCoolingEnergy)	1
+PARAM	ac000000-0000-0000-0000-0000000000b4	NRG_OPERATING_COST_YR	NUMBER		11	1	ArchiCAD IFC: annual operating energy cost in project currency (EcoDesigner Star)	1
+PARAM	ac000000-0000-0000-0000-0000000000b5	NRG_LIFECYCLE_COST_NR	NUMBER		11	1	ArchiCAD IFC: lifecycle cost estimate NPV 25/60 year (EcoDesigner Star)	1
+PARAM	ac000000-0000-0000-0000-0000000000b6	CBN_GWP_KG_CO2E	NUMBER		11	1	ArchiCAD IFC: global warming potential kg CO2e (Pset_EnvironmentalImpactValues.GlobalWarmingPotential)	1
