@@ -2501,8 +2501,8 @@ namespace StingTools.Core
             _extendedParams["WARN_HW_FLOW"] = "WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE";
             _extendedParams["WARN_ACCESS_WIDTH"] = "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C";
             // ISO 19650 project-level naming (PRJ_ prefix variants)
-            _extendedParams["PRJ_PROJECT_COD"] = "PRJ_PROJECT_COD_TXT"; _extendedParams["PRJ_ORIGINATOR_COD"] = "PRJ_ORIGINATOR_COD_TXT";
-            _extendedParams["PRJ_VOLUME_COD"] = "PRJ_VOLUME_COD_TXT"; _extendedParams["PRJ_STATUS_COD"] = "PRJ_STATUS_COD_TXT";
+            _extendedParams["PRJ_PROJECT_COD"] = "PRJ_PROJECT_COD_TXT"; _extendedParams["PRJ_ORIGINATOR_COD"] = "PRJ_ORG_ORIGINATOR_CODE_TXT";
+            _extendedParams["PRJ_VOLUME_COD"] = "PRJ_VOLUME_CODE"; _extendedParams["PRJ_STATUS_COD"] = "PRJ_STATUS_COD_TXT";
             _extendedParams["PRJ_REV_COD"] = "PRJ_REV_COD_TXT";
             // COBie / warranty / commissioning / asset management
             _extendedParams["BARCODE"] = "ASS_BARCODE_TXT"; _extendedParams["ASSET_ID"] = "ASS_ASSET_ID_TXT";

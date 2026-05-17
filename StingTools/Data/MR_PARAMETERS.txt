@@ -1602,8 +1602,6 @@ PARAM	4b6a528d-0607-53c9-b8a4-7fcd9a3d70ff	RGL_TAG_7_PARA_CMPL_TXT	TEXT		15	1	TA
 PARAM	5e9ef654-06a6-5a2c-9be7-0a6f187cb213	CST_TAG_7_PARA_CONC_TXT	TEXT		2	1	TAG7 paragraph container for concrete	1
 PARAM	b8cbf43a-baa1-5ec8-9511-0365691e9721	PLM_TAG_7_PARA_EQUIP_TXT	TEXT		6	1	TAG7 paragraph container for plumbing equipment	1
 PARAM	b4e90d6e-0f81-57bf-a954-aa06b3134dd0	PRJ_PROJECT_COD_TXT	TEXT		13	1	ISO 19650 project code	1
-PARAM	db8a4bea-257e-5199-8ca4-a30e4f575c11	PRJ_ORIGINATOR_COD_TXT	TEXT		13	1	ISO 19650 originator code	1
-PARAM	a21d4dd4-57c5-5295-b665-f72e702c8274	PRJ_VOLUME_COD_TXT	TEXT		13	1	ISO 19650 volume code	1
 PARAM	e9da4f5e-5702-5f25-bf6e-4a42e78d6cad	PRJ_STATUS_COD_TXT	TEXT		13	1	ISO 19650 document status code	1
 PARAM	c016975a-5438-5a13-9b4b-0b642370e4d2	PRJ_REV_COD_TXT	TEXT		13	1	ISO 19650 revision code	1
 # ==========================================================================

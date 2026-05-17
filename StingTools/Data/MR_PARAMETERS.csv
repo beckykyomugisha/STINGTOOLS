@@ -1557,8 +1557,6 @@ Generic Models,RGL_TAG_7_PARA_CMPL_TXT,4b6a528d-0607-53c9-b8a4-7fcd9a3d70ff,TEXT
 Generic Models,CST_TAG_7_PARA_CONC_TXT,5e9ef654-06a6-5a2c-9be7-0a6f187cb213,TEXT,CST_PROC,Type,TAG7 paragraph container for concrete,False,,,MULTI,1,0
 Generic Models,PLM_TAG_7_PARA_EQUIP_TXT,b8cbf43a-baa1-5ec8-9511-0365691e9721,TEXT,PLM_DRN,Type,TAG7 paragraph container for plumbing equipment,False,,,MULTI,1,0
 Generic Models,PRJ_PROJECT_COD_TXT,b4e90d6e-0f81-57bf-a954-aa06b3134dd0,TEXT,PRJ_INFORMATION,Type,ISO 19650 project code,False,,,MULTI,1,0
-Generic Models,PRJ_ORIGINATOR_COD_TXT,db8a4bea-257e-5199-8ca4-a30e4f575c11,TEXT,PRJ_INFORMATION,Type,ISO 19650 originator code,False,,,MULTI,1,0
-Generic Models,PRJ_VOLUME_COD_TXT,a21d4dd4-57c5-5295-b665-f72e702c8274,TEXT,PRJ_INFORMATION,Type,ISO 19650 volume code,False,,,MULTI,1,0
 Generic Models,PRJ_STATUS_COD_TXT,e9da4f5e-5702-5f25-bf6e-4a42e78d6cad,TEXT,PRJ_INFORMATION,Type,ISO 19650 document status code,False,,,MULTI,1,0
 Generic Models,PRJ_REV_COD_TXT,c016975a-5438-5a13-9b4b-0b642370e4d2,TEXT,PRJ_INFORMATION,Type,ISO 19650 revision code,False,,,MULTI,1,0
 Generic Models,ASS_GRID_REF_TXT,e74bcb65-d0f2-5ced-9576-184678b62c0b,TEXT,ASS_MNG,Type,Ass Grid Ref [ISO 19650],False,,,MULTI,1,0

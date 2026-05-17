@@ -214,7 +214,7 @@
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_PROJECT_COD_TXT}",
-        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE_TXT}",
         "Company Name": "${PRJ_ORG_COMPANY_NAME}",
         "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
@@ -1564,7 +1564,7 @@
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_PROJECT_COD_TXT}",
-        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE_TXT}",
         "Company Name": "${PRJ_ORG_COMPANY_NAME}",
         "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
@@ -4153,7 +4153,7 @@
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_PROJECT_COD_TXT}",
-        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE_TXT}",
         "Company Name": "${PRJ_ORG_COMPANY_NAME}",
         "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
