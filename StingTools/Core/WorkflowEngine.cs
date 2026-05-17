@@ -1503,6 +1503,11 @@ namespace StingTools.Core
                 case "Cable_BuildSchedule":      return new Commands.Electrical.Routing.CableScheduleBuilderCommand();
                 case "Seeds_Build":              return new Commands.Symbols.BuildSeedFamiliesCommand();
                 case "Seeds_SwapToManufacturer": return new Commands.Symbols.SwapToManufacturerCommand();
+                case "Symbols_CreateCompound":   return new Commands.Symbols.CreateCompoundSymbolsCommand();
+                case "Symbols_CreateSLD_IEEE":   return new Commands.Symbols.CreateSLDSymbolsIEEECommand();
+                case "Symbols_CreateSLD_BS":     return new Commands.Symbols.CreateSLDSymbolsBSCommand();
+                case "Symbols_CreateSLD_NFPA":   return new Commands.Symbols.CreateSLDSymbolsNFPACommand();
+                case "Symbols_CreateCIBSE":      return new Commands.Symbols.CreateCIBSESymbolsCommand();
                 case "Validation_BS7671":       return new Commands.Electrical.ElectricalStandardsValidatorCommand();
                 case "Circuit_AssignAuto":      return new Commands.Electrical.BatchAssignCircuitsCommand();
                 case "Lite_CreateSchedule":     return new Commands.Electrical.ElecLightingScheduleCommand();
@@ -1906,6 +1911,49 @@ namespace StingTools.Core
                 case "Healthcare_Dialysis":          return new Commands.Healthcare.Specialist.DialysisAuditCommand();
                 case "Healthcare_Hbo":               return new Commands.Healthcare.Specialist.HboAuditCommand();
 
+                // ── SLD (Phase 179) — used by WORKFLOW_ElectricalQA and WORKFLOW_SLDProduction ──
+                case "SLD_Generate":         return new Commands.SLD.GenerateSLDCommand();
+                case "SLD_GenerateOptions":  return new Commands.SLD.GenerateSLDWithOptionsCommand();
+                case "SLD_Update":           return new Commands.SLD.UpdateSLDCommand();
+                case "SLD_Validate":         return new Commands.SLD.SLDValidateCommand();
+                case "SLD_SyncToggle":       return new Commands.SLD.SLDSyncToggleCommand();
+                case "SLD_MigrateLabels":    return new Commands.SLD.MigrateSLDLabelIdsCommand();
+                case "SLD_RiserDiagram":     return new Commands.SLD.SLDRiserDiagramCommand();
+                case "SLD_UpdateRiser":      return new Commands.SLD.SLDUpdateRiserCommand();
+                case "SLD_SwitchStandard":   return new Commands.SLD.SLDSwitchStandardCommand();
+
+                // Drawing Types commands (used by WORKFLOW_SLDProduction step 4)
+                case "DrawingTypes_Reload":  return new Commands.Drawing.DrawingTypesReloadCommand();
+                case "DrawingTypes_Inspect": return new Commands.Drawing.DrawingTypesInspectCommand();
+
+                // Phase 179 — schematic generators (D1-D5)
+                case "FireAlarm_Schematic":  return new Commands.Electrical.Schematics.FireAlarmSchematicCommand();
+                case "Earthing_Diagram":     return new Commands.Electrical.Schematics.EarthingDiagramCommand();
+                case "Panel_DoorDiagram":    return new Commands.Electrical.Schematics.PanelDoorDiagramCommand();
+                case "LPS_Schematic":        return new Commands.Electrical.Schematics.LPSSchematicCommand();
+                case "MGPS_Schematic":       return new Commands.Electrical.Schematics.MGPSSchematicCommand();
+
+                // Phase 179 — electrical validation (V1-V3)
+                case "Elec_IPSValidate":      return new Commands.Electrical.Validation.IPSValidationCommand();
+                case "Elec_ATEXCheck":        return new Commands.Electrical.Validation.ATEXClassificationCommand();
+                case "Elec_DualSourceValidate": return new Commands.Electrical.Validation.DualSourceValidationCommand();
+
+                // Phase 179 — circuit interactivity (I1-I3)
+                case "Elec_CircuitFilter":    return new Commands.Electrical.CircuitViewFilterCommand();
+                case "Elec_CircuitTrace":     return new Commands.Electrical.CircuitTracingCommand();
+                case "Elec_HomeRunAnnotate":  return new Commands.Electrical.HomeRunPlanAnnotationCommand();
+
+                // Phase 179 — calculation imports (E1-E4)
+                case "Elec_AmtechImport":     return new Commands.Electrical.Import.AmtechImportCommand();
+                case "Elec_EasyPowerImport":  return new Commands.Electrical.Import.EasyPowerImportCommand();
+                case "Elec_TrimbleImport":    return new Commands.Electrical.Import.TrimbleImportCommand();
+                case "Elec_CalcSeed":         return new Commands.Electrical.Import.ElecCalcSeedCommand();
+
+                // Phase 179 — specialist placement (F4-F6)
+                case "Placement_PVArray":      return new Commands.Placement.PVArrayPlacementCommand();
+                case "Placement_EVCharger":    return new Commands.Placement.EVChargerLayoutCommand();
+                case "Placement_MedGasOutlets": return new Commands.Placement.MedGasOutletPlacementCommand();
+
                 default: return null;
             }
         }
@@ -2062,6 +2110,34 @@ namespace StingTools.Core
                             }
                         }
                         catch (Exception ex) { StingLog.Warn($"load_summary_complete: {ex.Message}"); }
+                        return false;
+                    case "sld_view_exists":
+                        // True when at least one STING SLD drafting view is present.
+                        // Used to gate SLD_Update in WORKFLOW_ElectricalQA and
+                        // WORKFLOW_SLDProduction — avoids updating a view that doesn't
+                        // exist yet.
+                        try
+                        {
+                            return new FilteredElementCollector(doc)
+                                .OfClass(typeof(Autodesk.Revit.DB.ViewDrafting))
+                                .Cast<Autodesk.Revit.DB.ViewDrafting>()
+                                .Any(v => v.Name != null && v.Name.StartsWith(
+                                    "STING - SLD", StringComparison.OrdinalIgnoreCase));
+                        }
+                        catch (Exception ex) { StingLog.Warn($"sld_view_exists: {ex.Message}"); }
+                        return false;
+                    case "no_sld_view_exists":
+                        // Inverse of sld_view_exists — gates SLD_Generate in
+                        // WORKFLOW_SLDProduction so it only runs on first generation.
+                        try
+                        {
+                            return !new FilteredElementCollector(doc)
+                                .OfClass(typeof(Autodesk.Revit.DB.ViewDrafting))
+                                .Cast<Autodesk.Revit.DB.ViewDrafting>()
+                                .Any(v => v.Name != null && v.Name.StartsWith(
+                                    "STING - SLD", StringComparison.OrdinalIgnoreCase));
+                        }
+                        catch (Exception ex) { StingLog.Warn($"no_sld_view_exists: {ex.Message}"); }
                         return false;
                     default:
                         // WF-001 FIX: Unknown conditions now return false (fail-safe).
