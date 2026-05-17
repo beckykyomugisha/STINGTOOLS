@@ -3388,6 +3388,8 @@
                                             ToolTip="Manually import an IFC file via file picker — Link or Import mode"/>
                                     <Button Style="{StaticResource TealBtn}" Content="AC IFC Import" Tag="ArchiCadIfcImport" Click="Cmd_Click"
                                             ToolTip="ArchiCAD IFC import with full coordinate alignment (4×4 matrix, IfcUnitAssignment, storey elevation correction) and ARCHICAD_IFC_MAPPING.json property enrichment"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Stabilize IFC GUIDs" Tag="IFC_StabilizeGuids" Click="Cmd_Click"
+                                            ToolTip="Gap 3 — Persist each element's IfcGloballyUniqueId into IFC_GLOBAL_ID_TXT before IFC export. Planscape uses this to detect GlobalId drift across uploads (GLOBALID_DRIFT warning)."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

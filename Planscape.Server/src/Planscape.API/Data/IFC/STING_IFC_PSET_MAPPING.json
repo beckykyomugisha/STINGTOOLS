@@ -1,0 +1,143 @@
+[
+  // ── Standard IFC property sets (all authoring tools) ─────────────────────
+
+  // ASS_TAG_1: tag from standard Pset_Common.Tag or IfcTag attribute
+  { "pset_name": "Pset_Common",              "property_name": "Tag",               "sting_param": "ASS_TAG_1" },
+
+  // Identity
+  { "pset_name": "Pset_WallCommon",          "property_name": "Reference",         "sting_param": "ASS_PRODCT_COD_TXT",      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"] },
+  { "pset_name": "Pset_SlabCommon",          "property_name": "Reference",         "sting_param": "ASS_PRODCT_COD_TXT",      "element_types": ["IFCSLAB"] },
+  { "pset_name": "Pset_DoorCommon",          "property_name": "Reference",         "sting_param": "ASS_PRODCT_COD_TXT",      "element_types": ["IFCDOOR"] },
+  { "pset_name": "Pset_WindowCommon",        "property_name": "Reference",         "sting_param": "ASS_PRODCT_COD_TXT",      "element_types": ["IFCWINDOW"] },
+  { "pset_name": "Pset_ColumnCommon",        "property_name": "Reference",         "sting_param": "ASS_PRODCT_COD_TXT",      "element_types": ["IFCCOLUMN"] },
+  { "pset_name": "Pset_BeamCommon",          "property_name": "Reference",         "sting_param": "ASS_PRODCT_COD_TXT",      "element_types": ["IFCBEAM"] },
+  { "pset_name": "Pset_MemberCommon",        "property_name": "Reference",         "sting_param": "ASS_PRODCT_COD_TXT",      "element_types": ["IFCMEMBER"] },
+  { "pset_name": "Pset_CoveringCommon",      "property_name": "Reference",         "sting_param": "ASS_PRODCT_COD_TXT",      "element_types": ["IFCCOVERING"] },
+  { "pset_name": "Pset_RoofCommon",          "property_name": "Reference",         "sting_param": "ASS_PRODCT_COD_TXT",      "element_types": ["IFCROOF"] },
+  { "pset_name": "Pset_StairCommon",         "property_name": "Reference",         "sting_param": "ASS_PRODCT_COD_TXT",      "element_types": ["IFCSTAIR"] },
+  { "pset_name": "Pset_RampCommon",          "property_name": "Reference",         "sting_param": "ASS_PRODCT_COD_TXT",      "element_types": ["IFCRAMP"] },
+
+  // Fire rating
+  { "pset_name": "Pset_WallCommon",          "property_name": "FireRating",        "sting_param": "STING_FIRE_RATING_TXT",   "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"] },
+  { "pset_name": "Pset_SlabCommon",          "property_name": "FireRating",        "sting_param": "STING_FIRE_RATING_TXT",   "element_types": ["IFCSLAB"] },
+  { "pset_name": "Pset_DoorCommon",          "property_name": "FireRating",        "sting_param": "STING_FIRE_RATING_TXT",   "element_types": ["IFCDOOR"] },
+  { "pset_name": "Pset_WindowCommon",        "property_name": "FireRating",        "sting_param": "STING_FIRE_RATING_TXT",   "element_types": ["IFCWINDOW"] },
+  { "pset_name": "Pset_ColumnCommon",        "property_name": "FireRating",        "sting_param": "STING_FIRE_RATING_TXT",   "element_types": ["IFCCOLUMN"] },
+  { "pset_name": "Pset_BeamCommon",          "property_name": "FireRating",        "sting_param": "STING_FIRE_RATING_TXT",   "element_types": ["IFCBEAM"] },
+  { "pset_name": "Pset_CoveringCommon",      "property_name": "FireRating",        "sting_param": "STING_FIRE_RATING_TXT",   "element_types": ["IFCCOVERING"] },
+  { "pset_name": "Pset_RoofCommon",          "property_name": "FireRating",        "sting_param": "STING_FIRE_RATING_TXT",   "element_types": ["IFCROOF"] },
+  { "pset_name": "Pset_StairCommon",         "property_name": "FireRating",        "sting_param": "STING_FIRE_RATING_TXT",   "element_types": ["IFCSTAIR"] },
+  { "pset_name": "Pset_MemberCommon",        "property_name": "FireRating",        "sting_param": "STING_FIRE_RATING_TXT",   "element_types": ["IFCMEMBER"] },
+
+  // Thermal (U-value)
+  { "pset_name": "Pset_WallCommon",          "property_name": "ThermalTransmittance", "sting_param": "PER_U_VALUE_W_M",     "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"] },
+  { "pset_name": "Pset_SlabCommon",          "property_name": "ThermalTransmittance", "sting_param": "PER_U_VALUE_W_M",     "element_types": ["IFCSLAB"] },
+  { "pset_name": "Pset_WindowCommon",        "property_name": "ThermalTransmittance", "sting_param": "PER_U_VALUE_W_M",     "element_types": ["IFCWINDOW"] },
+  { "pset_name": "Pset_DoorCommon",          "property_name": "ThermalTransmittance", "sting_param": "PER_U_VALUE_W_M",     "element_types": ["IFCDOOR"] },
+  { "pset_name": "Pset_RoofCommon",          "property_name": "ThermalTransmittance", "sting_param": "PER_U_VALUE_W_M",     "element_types": ["IFCROOF"] },
+
+  // IsExternal (shared boolean)
+  { "pset_name": "Pset_WallCommon",          "property_name": "IsExternal",        "sting_param": "PER_IS_EXTERNAL_BOOL",    "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"] },
+  { "pset_name": "Pset_SlabCommon",          "property_name": "IsExternal",        "sting_param": "PER_IS_EXTERNAL_BOOL",    "element_types": ["IFCSLAB"] },
+  { "pset_name": "Pset_DoorCommon",          "property_name": "IsExternal",        "sting_param": "PER_IS_EXTERNAL_BOOL",    "element_types": ["IFCDOOR"] },
+  { "pset_name": "Pset_WindowCommon",        "property_name": "IsExternal",        "sting_param": "PER_IS_EXTERNAL_BOOL",    "element_types": ["IFCWINDOW"] },
+  { "pset_name": "Pset_RoofCommon",          "property_name": "IsExternal",        "sting_param": "PER_IS_EXTERNAL_BOOL",    "element_types": ["IFCROOF"] },
+
+  // Load bearing
+  { "pset_name": "Pset_WallCommon",          "property_name": "LoadBearing",       "sting_param": "PER_LOAD_BEARING_BOOL",   "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"] },
+  { "pset_name": "Pset_ColumnCommon",        "property_name": "LoadBearing",       "sting_param": "PER_LOAD_BEARING_BOOL",   "element_types": ["IFCCOLUMN"] },
+  { "pset_name": "Pset_BeamCommon",          "property_name": "LoadBearing",       "sting_param": "PER_LOAD_BEARING_BOOL",   "element_types": ["IFCBEAM"] },
+
+  // Door/window safety
+  { "pset_name": "Pset_DoorCommon",          "property_name": "SelfClosing",       "sting_param": "PER_SELF_CLOSING_BOOL",   "element_types": ["IFCDOOR"] },
+  { "pset_name": "Pset_DoorCommon",          "property_name": "SmokeStop",         "sting_param": "PER_SMOKE_STOP_BOOL",     "element_types": ["IFCDOOR"] },
+  { "pset_name": "Pset_DoorCommon",          "property_name": "HandicapAccessible","sting_param": "PER_HANDICAP_ACCESS_BOOL","element_types": ["IFCDOOR"] },
+
+  // Space / room
+  { "pset_name": "Pset_SpaceCommon",         "property_name": "Reference",         "sting_param": "ASS_ZONE_TXT",            "element_types": ["IFCSPACE"] },
+  { "pset_name": "Pset_SpaceCommon",         "property_name": "Category",          "sting_param": "ASS_FUNC_TXT",            "element_types": ["IFCSPACE"] },
+  { "pset_name": "Pset_SpaceCommon",         "property_name": "NetPlannedArea",    "sting_param": "QTO_NET_FLOOR_AREA_M2",   "element_types": ["IFCSPACE"] },
+  { "pset_name": "Pset_SpaceCommon",         "property_name": "GrossPlannedArea",  "sting_param": "SPC_GROSS_AREA_M2",       "element_types": ["IFCSPACE"] },
+  { "pset_name": "Pset_SpaceCommon",         "property_name": "CeilingHeight",     "sting_param": "SPC_CEILING_HEIGHT_M",    "element_types": ["IFCSPACE"] },
+  { "pset_name": "Pset_SpaceCommon",         "property_name": "FinishFloor",       "sting_param": "SPC_FINISH_FLOOR_TXT",    "element_types": ["IFCSPACE"] },
+  { "pset_name": "Pset_SpaceCommon",         "property_name": "FinishCeiling",     "sting_param": "SPC_FINISH_CEILING_TXT",  "element_types": ["IFCSPACE"] },
+  { "pset_name": "Pset_SpaceCommon",         "property_name": "FinishWalls",       "sting_param": "SPC_FINISH_WALLS_TXT",    "element_types": ["IFCSPACE"] },
+
+  // Cost quantities (scan_all_psets: search any pset for the property name suffix)
+  { "pset_name": "",                         "property_name": "CST_UNIT_RATE",     "sting_param": "CST_UNIT_RATE_TXT",       "scan_all_psets": true },
+  { "pset_name": "",                         "property_name": "COST_ITEM",         "sting_param": "CST_COST_ITEM_TXT",       "scan_all_psets": true },
+
+  // Quantity sets (quantity_type: read from IIfcElementQuantity bag via same key convention)
+  { "pset_name": "Qto_WallBaseQuantities",   "property_name": "GrossSideArea",    "sting_param": "QTO_GROSS_SIDE_AREA_M2",  "quantity_type": true, "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"] },
+  { "pset_name": "Qto_WallBaseQuantities",   "property_name": "GrossVolume",      "sting_param": "QTO_GROSS_VOLUME_M3",     "quantity_type": true, "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"] },
+  { "pset_name": "Qto_WallBaseQuantities",   "property_name": "NetSideArea",      "sting_param": "QTO_NET_SIDE_AREA_M2",    "quantity_type": true, "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"] },
+  { "pset_name": "Qto_WallBaseQuantities",   "property_name": "Length",           "sting_param": "QTO_LENGTH_M",            "quantity_type": true, "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"] },
+  { "pset_name": "Qto_WallBaseQuantities",   "property_name": "Height",           "sting_param": "QTO_HEIGHT_M",            "quantity_type": true, "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"] },
+  { "pset_name": "Qto_WallBaseQuantities",   "property_name": "Width",            "sting_param": "QTO_WIDTH_M",             "quantity_type": true, "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"] },
+  { "pset_name": "Qto_SlabBaseQuantities",   "property_name": "GrossArea",        "sting_param": "QTO_GROSS_FLOOR_AREA_M2", "quantity_type": true, "element_types": ["IFCSLAB"] },
+  { "pset_name": "Qto_SlabBaseQuantities",   "property_name": "GrossVolume",      "sting_param": "QTO_GROSS_VOLUME_M3",     "quantity_type": true, "element_types": ["IFCSLAB"] },
+  { "pset_name": "Qto_SlabBaseQuantities",   "property_name": "Perimeter",        "sting_param": "QTO_PERIMETER_M",         "quantity_type": true, "element_types": ["IFCSLAB"] },
+  { "pset_name": "Qto_SpaceBaseQuantities",  "property_name": "GrossFloorArea",   "sting_param": "QTO_GROSS_FLOOR_AREA_M2", "quantity_type": true, "element_types": ["IFCSPACE"] },
+  { "pset_name": "Qto_SpaceBaseQuantities",  "property_name": "NetFloorArea",     "sting_param": "QTO_NET_FLOOR_AREA_M2",   "quantity_type": true, "element_types": ["IFCSPACE"] },
+  { "pset_name": "Qto_SpaceBaseQuantities",  "property_name": "GrossVolume",      "sting_param": "QTO_GROSS_VOLUME_M3",     "quantity_type": true, "element_types": ["IFCSPACE"] },
+  { "pset_name": "Qto_BeamBaseQuantities",   "property_name": "Length",           "sting_param": "QTO_LENGTH_M",            "quantity_type": true, "element_types": ["IFCBEAM"] },
+  { "pset_name": "Qto_ColumnBaseQuantities", "property_name": "Length",           "sting_param": "QTO_LENGTH_M",            "quantity_type": true, "element_types": ["IFCCOLUMN"] },
+  { "pset_name": "BaseQuantities",           "property_name": "GrossArea",        "sting_param": "QTO_GROSS_FLOOR_AREA_M2", "quantity_type": true },
+  { "pset_name": "BaseQuantities",           "property_name": "GrossVolume",      "sting_param": "QTO_GROSS_VOLUME_M3",     "quantity_type": true },
+  { "pset_name": "BaseQuantities",           "property_name": "Length",           "sting_param": "QTO_LENGTH_M",            "quantity_type": true },
+
+  // ── ArchiCAD-specific property sets (Gap 12) ──────────────────────────────
+  // These must match the entries in StingTools/Data/IFC/ARCHICAD_IFC_MAPPING.json.
+
+  // Gap 12: AC_Pset_ElementID.elementGUID → cross-tool identity registry key.
+  // WriteGlobalIdRegistryAsync in IfcIngestController looks up
+  // "AC_Pset_ElementID.elementGUID" from the property bag to populate
+  // ElementGlobalIdRegistry.ArchiCadGuid. This mapping ensures it lands in
+  // TaggedElement as well for direct query access.
+  { "pset_name": "AC_Pset_ElementID",        "property_name": "elementGUID",      "sting_param": "AC_ELEMENT_GUID_TXT" },
+  { "pset_name": "AC_Pset_ElementID",        "property_name": "ID",               "sting_param": "AC_ELEMENT_ID_TXT" },
+  { "pset_name": "AC_Pset_ElementID",        "property_name": "Hotlink_ID",       "sting_param": "AC_HOTLINK_ID_TXT" },
+  { "pset_name": "AC_Pset_ElementID",        "property_name": "Hotlink_SourceFile","sting_param": "AC_HOTLINK_FILE_TXT" },
+  { "pset_name": "AC_Pset_ElementID",        "property_name": "Revision",         "sting_param": "AC_REVISION_TXT" },
+
+  // Gap 12: AC_Pset_RenovationInfo.RenovationStatus → ASS_STATUS_TXT.
+  // Both RNV_STATUS_TXT (authoritative renovation field) and ASS_STATUS_TXT
+  // (standard STING phase/status field) must be populated from ArchiCAD's
+  // renovation state so STING phase filters and ISO 19650 status checks work.
+  { "pset_name": "AC_Pset_RenovationInfo",   "property_name": "RenovationStatus", "sting_param": "RNV_STATUS_TXT" },
+  { "pset_name": "AC_Pset_RenovationInfo",   "property_name": "RenovationStatus", "sting_param": "ASS_STATUS_TXT" },
+  { "pset_name": "AC_Pset_RenovationInfo",   "property_name": "IsExistingToRemain","sting_param": "RNV_IS_EXISTING_BOOL" },
+  { "pset_name": "AC_Pset_RenovationInfo",   "property_name": "DemolitionSequenceCode","sting_param": "RNV_DEMOLITION_SEQ_TXT" },
+  { "pset_name": "AC_Pset_RenovationInfo",   "property_name": "NewConstructionSequenceCode","sting_param": "RNV_NEW_CONST_SEQ_TXT" },
+  { "pset_name": "AC_Pset_RenovationInfo",   "property_name": "DemolitionContractor","sting_param": "RNV_CONTRACTOR_TXT" },
+
+  // ArchiCAD general property group fallbacks
+  { "pset_name": "ArchiCAD_PropertyGroup_General","property_name": "Renovation Status","sting_param": "ASS_STATUS_TXT" },
+  { "pset_name": "ArchiCAD_PropertyGroup_General","property_name": "ID",           "sting_param": "ASS_SEQ_NUM_TXT" },
+  { "pset_name": "ArchiCAD_PropertyGroup_General","property_name": "Layer",        "sting_param": "ASS_LOC_TXT" },
+
+  // ArchiCAD classification
+  { "pset_name": "ArchiCAD_PropertyGroup_Classification","property_name": "Uniclass 2015 Ss","sting_param": "ASS_UNICLASS_2015_TXT" },
+  { "pset_name": "ArchiCAD_PropertyGroup_Classification","property_name": "Uniclass 2015 Pr","sting_param": "ASS_UNICLASS_2015_PR_TXT" },
+  { "pset_name": "ArchiCAD_PropertyGroup_Classification","property_name": "Uniclass 2015 EF","sting_param": "CLS_UNICLASS_EF_TXT" },
+  { "pset_name": "ArchiCAD_PropertyGroup_Classification","property_name": "OmniClass Number","sting_param": "CLS_OMNICLASS_NR_TXT" },
+  { "pset_name": "ArchiCAD_PropertyGroup_Classification","property_name": "OmniClass Title","sting_param": "CLS_OMNICLASS_TITLE_TXT" },
+  { "pset_name": "ArchiCAD_PropertyGroup_Classification","property_name": "NBS Code","sting_param": "RGL_UNBS_STD_TXT" },
+  { "pset_name": "ArchiCAD_PropertyGroup_Classification","property_name": "NBS Description","sting_param": "CLS_NBS_DESCRIPTION_TXT" },
+  { "pset_name": "ArchiCAD_PropertyGroup_Classification","property_name": "CSI MasterFormat","sting_param": "CLS_CSI_MASTERFORMAT_TXT" },
+
+  // ArchiCAD zone category
+  { "pset_name": "AC_Pset_ZoneCategory",     "property_name": "ZoneCategoryName", "sting_param": "ZON_CATEGORY_NAME_TXT",   "element_types": ["IFCZONE", "IFCSPACE"] },
+  { "pset_name": "AC_Pset_ZoneCategory",     "property_name": "ZoneCategoryCode", "sting_param": "ZON_CATEGORY_CODE_TXT",   "element_types": ["IFCZONE", "IFCSPACE"] },
+  { "pset_name": "AC_Pset_ZoneCategory",     "property_name": "ZoneNetArea",      "sting_param": "ZON_NET_AREA_M2",         "element_types": ["IFCZONE", "IFCSPACE"] },
+  { "pset_name": "AC_Pset_ZoneCategory",     "property_name": "ZoneGrossArea",    "sting_param": "ZON_GROSS_AREA_M2",       "element_types": ["IFCZONE", "IFCSPACE"] },
+  { "pset_name": "AC_Pset_ZoneCategory",     "property_name": "ZoneVolume",       "sting_param": "ZON_VOLUME_M3",           "element_types": ["IFCZONE", "IFCSPACE"] },
+
+  // Manufacturer info (all tools)
+  { "pset_name": "Pset_ManufacturerTypeInformation","property_name": "Manufacturer","sting_param": "MNFR_NAME_TXT" },
+  { "pset_name": "Pset_ManufacturerTypeInformation","property_name": "ModelReference","sting_param": "MNFR_MODEL_TXT" },
+  { "pset_name": "Pset_ManufacturerTypeInformation","property_name": "ArticleNumber","sting_param": "MNFR_ARTICLE_NR_TXT" },
+
+  // Environmental / carbon
+  { "pset_name": "Pset_EnvironmentalImpactValues","property_name": "GlobalWarmingPotential","sting_param": "CBN_GWP_KG_CO2E" }
+]

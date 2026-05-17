@@ -693,6 +693,13 @@
     },
     {
       "pset_name": "AC_Pset_RenovationInfo",
+      "property_name": "RenovationStatus",
+      "sting_param": "ASS_STATUS_TXT",
+      "element_types": [],
+      "notes": "Gap 12: Dual-map RenovationStatus to ASS_STATUS_TXT so STING phase/status field is populated from ArchiCAD renovation state (NEW/EXISTING/DEMOLISHED/TEMPORARY)"
+    },
+    {
+      "pset_name": "AC_Pset_RenovationInfo",
       "property_name": "IsExistingToRemain",
       "sting_param": "RNV_IS_EXISTING_BOOL",
       "element_types": [],
@@ -725,6 +732,13 @@
       "sting_param": "ASS_STATUS_TXT",
       "element_types": [],
       "notes": "Fallback renovation status (kept for backward compat); prefer AC_Pset_RenovationInfo"
+    },
+    {
+      "pset_name": "AC_Pset_ElementID",
+      "property_name": "elementGUID",
+      "sting_param": "AC_ELEMENT_GUID_TXT",
+      "element_types": [],
+      "notes": "Gap 12: ArchiCAD element GUID (AC_Pset_ElementID.elementGUID) — used by WriteGlobalIdRegistryAsync for cross-tool identity mapping; distinct from IFC GlobalId"
     },
     {
       "pset_name": "AC_Pset_ElementID",
