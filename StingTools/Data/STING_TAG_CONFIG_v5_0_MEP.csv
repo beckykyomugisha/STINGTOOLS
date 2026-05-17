@@ -1082,6 +1082,10 @@ TAG7: ELC_TAG_7_PARA_PANEL_TXT  •  Category: Electrical Equipment
 5,HIGH,WARN_ELC_DISCRIMINATION_ELECTRICAL_EQUI,Protective device discrimination not verified with upstream,BS 7671 Regulation 536 / BS EN 60947,Common,Text,⚠ Warning: Circuit Discrimination,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_DISCRIMINATION_ELECTRICAL_EQUI, """")"
 6,MEDIUM,WARN_ELC_EARTH_FAULT_ELECTRICAL_EQUI,Earth fault loop impedance exceeds maximum for device type,BS 7671 Table 41.3 / IEC 60364,Common,Text,⚠ Warning: Earth Fault Loop Impedance,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_EARTH_FAULT_ELECTRICAL_EQUI, """")"
 7,LOW,WARN_ELC_LABELLING_ELECTRICAL_EQUI,Panel schedule / circuit labelling incomplete,BS 7671 Regulation 514 / IEC 60364,Common,Text,⚠ Warning: Panel Labelling Incomplete,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LABELLING_ELECTRICAL_EQUI, """")"
+# Phase 176 — BatchPanelSchedulesCommand panel schedule / load balance warnings
+8,HIGH,WARN_ELC_PNL_SCHEDULE_MISSING,Electrical panel exists but no PanelScheduleView has been created,BS 7671 Regulation 514 / IEC 60364-5-51,Common,Text,⚠ Warning: Panel Schedule Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_SCHEDULE_MISSING, """")"
+9,HIGH,WARN_ELC_PNL_LOAD_BALANCE,3-phase panel phase imbalance > 10% of connected load,BS 7671 / CIBSE Guide K,Common,Text,⚠ Warning: Phase Load Imbalance >10%,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_LOAD_BALANCE, """")"
+10,HIGH,WARN_ELC_PNL_FEEDER_UNDERSIZED,Feeder cable cross-section insufficient for connected load and diversity,BS 7671 Appendix 4 / IEC 60364-5-52,Common,Text,⚠ Warning: Feeder Cable Undersized,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_FEEDER_UNDERSIZED, """")"
 Tag Family #19: STING - Electrical Fixture Tag
 TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Electrical Fixtures
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -2531,6 +2535,14 @@ Tag Family #53: STING - MEP Sleeve Tag
 1,CRITICAL,WARN_SLV_NO_FIRE_RATING,SLV_FIRE_RATING_TXT empty — penetration seal cannot be validated,BS EN 1366-3:2009,Common,Text,⚠ Warning: No Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_FIRE_RATING, """")"
 2,HIGH,WARN_SLV_NO_REF,SLV_REF_TXT empty — asset cannot be tracked,ISO 19650-2:2018,Common,Text,⚠ Warning: No Sleeve Ref,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_REF, """")"
 3,HIGH,WARN_SLV_NO_SEAL,SLV_SEAL_TYPE_TXT empty — fire compartmentation incomplete,BS EN 1366-3:2009,Common,Text,⚠ Warning: No Seal Type,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_SEAL, """")"
+4,MEDIUM,WARN_SLV_NO_SERVICE,SLV_SERVICE_TXT empty — service through sleeve not identified,ISO 19650-2:2018,Common,Text,⚠ Warning: No Service Identified,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_SERVICE, """")"
+5,MEDIUM,WARN_SLV_NO_FIRESTOP,SLV_FIRESTOP_PRODUCT_TXT empty — fire test compliance unverifiable,BS EN 1366-3:2009,Common,Text,⚠ Warning: Firestop Product Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_FIRESTOP, """")"
+6,HIGH,WARN_SLV_NO_SIZE,SLV_SZ_MM empty or 0 — annular gap compliance cannot be verified,BS EN 1366-3:2009,Common,Text,⚠ Warning: Sleeve Size Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_SIZE, """")"
+7,LOW,WARN_SLV_NO_INSPECTION,SLV_INSPECTION_DATE_TXT empty — no inspection date recorded,BS 9999:2017,Common,Text,⚠ Warning: No Inspection Date,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_INSPECTION, """")"
+# v4 MVP fabrication/spool warnings — applies to all elements with T7 spool tier
+8,HIGH,WARN_FAB_SPOOL_NR_MISSING,ASS_SPOOL_NR_TXT empty — fabricated element has no spool number assigned,ISO 19650-2 / v4 MVP,Common,Text,⚠ Warning: Spool Number Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_SPOOL_NR_MISSING, """")"
+9,HIGH,WARN_FAB_LOC_MISSING,ASS_FAB_STATUS_TXT empty — fabrication location not assigned (GenerateFabPackageCommand),ISO 19650-2 / v4 MVP,Common,Text,⚠ Warning: Fabrication Location Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_LOC_MISSING, """")"
+10,MEDIUM,WARN_FAB_QC_INSPECTOR_MISSING,ASS_QC_INSPECTOR_TXT empty — QC inspector not assigned before fabrication release,ISO 9001 / v4 MVP,Common,Text,⚠ Warning: QC Inspector Not Assigned,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_QC_INSPECTOR_MISSING, """")"
 
 Tag Family #54: STING - LPS Air Terminal Tag
 # Category: Electrical Equipment, Generic Models, Specialty Equipment | PROD: ATR (Air Terminal Rod) / AMS (Air Mesh Section) / ACT (Air Catenary) | SYS: LPS | FUNC: AT | DISC: E
