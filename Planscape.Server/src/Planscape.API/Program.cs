@@ -1094,6 +1094,8 @@ app.MapHub<TagSyncHub>("/hubs/tagsync");
 app.MapHub<NotificationHub>("/hubs/notifications");
 // S6.3 — CRDT relay for collaborative pin / issue editing.
 app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
+// ArchiCAD live model stream — clients join project group to receive real-time element events.
+app.MapHub<Planscape.Infrastructure.SignalR.ArchiCADHub>("/hubs/archicad");
 
 // ── Database schema + seed ──
 {
