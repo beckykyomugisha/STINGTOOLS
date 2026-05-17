@@ -437,6 +437,10 @@ namespace StingTools.UI
                     // ── Phase 180: Compound symbol factory ──
                     case "Symbols_CreateCompound": RunCommand<Commands.Symbols.CreateCompoundSymbolsCommand>(app); break;
 
+                    // ── StingBridge: ArchiCAD / IFC workflows ──
+                    case "IFC_ArchiCADSync":  RunCommand<Commands.IFC.ArchiCADSyncCommand>(app); break;
+                    case "IFC_DropImport":    RunCommand<Commands.IFC.IfcDropImportCommand>(app); break;
+
                     // ── Phase 175: SLD Generator ──
                     case "SLD_Generate":           RunCommand<Commands.SLD.GenerateSLDCommand>(app); break;
                     case "SLD_GenerateOptions":    RunCommand<Commands.SLD.GenerateSLDWithOptionsCommand>(app); break;
