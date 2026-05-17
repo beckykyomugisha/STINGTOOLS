@@ -6,7 +6,8 @@
 // receives them in real time — no polling needed.
 //
 // Authentication: X-StingBridge-Key header validated against the project's
-// stored bridge key (set when the project is first connected from StingBridge).
+// stored BCrypt bridge key hash (set when the project is first connected
+// from StingBridge via GET /api/archicad/{id}/keygen by an authorised user).
 //
 // Payload (array of ArchiCADEvent):
 //   { "kind": "Changed"|"Added"|"Deleted",
@@ -16,9 +17,13 @@
 //     "boundingBox": { "min": [x,y,z], "max": [x,y,z] },   // optional
 //     "timestampUtc": "2026-05-17T10:30:00Z" }
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
+using BCrypt.Net;
 
 namespace Planscape.API.Controllers
 {
@@ -27,26 +32,28 @@ namespace Planscape.API.Controllers
     public class ArchiCADController : ControllerBase
     {
         private readonly IHubContext<ArchiCADHub> _hub;
-        private readonly IConfiguration           _config;
+        private readonly PlanscapeDbContext       _db;
 
-        public ArchiCADController(IHubContext<ArchiCADHub> hub, IConfiguration config)
+        public ArchiCADController(IHubContext<ArchiCADHub> hub, PlanscapeDbContext db)
         {
-            _hub    = hub;
-            _config = config;
+            _hub = hub;
+            _db  = db;
         }
 
         // ── POST /api/archicad/{projectId}/push ──────────────────────────────
 
-        [HttpPost("{projectId}/push")]
-        public async Task<IActionResult> Push(string projectId, [FromBody] ArchiCADPushPayload payload)
+        [HttpPost("{projectId:guid}/push")]
+        public async Task<IActionResult> Push(Guid projectId, [FromBody] ArchiCADPushPayload payload)
         {
-            // Validate bridge key.
-            string? key = Request.Headers["X-StingBridge-Key"].FirstOrDefault();
-            if (string.IsNullOrWhiteSpace(key) || !ValidateKey(projectId, key))
+            var project = await AuthenticateBridge(projectId);
+            if (project == null)
                 return Unauthorized(new { error = "Invalid or missing X-StingBridge-Key" });
 
             if (payload?.Events == null || payload.Events.Count == 0)
                 return BadRequest(new { error = "No events in payload" });
+
+            if (payload.Events.Count > 5_000)
+                return BadRequest(new { error = "Maximum 5,000 events per push" });
 
             string group = $"archicad:{projectId}";
 
@@ -62,13 +69,14 @@ namespace Planscape.API.Controllers
                 await _hub.Clients.Group(group).SendAsync(method, ev);
             }
 
-            // Also push a status heartbeat so clients know the author is live.
+            // Push a status heartbeat so clients know the author is live.
             await _hub.Clients.Group(group).SendAsync("ModelStatus", new
             {
                 projectId,
                 eventCount   = payload.Events.Count,
                 lastPushUtc  = DateTime.UtcNow,
-                authorInfo   = payload.AuthorInfo
+                authorInfo   = payload.AuthorInfo,
+                isLive       = true
             });
 
             return Ok(new { received = payload.Events.Count });
@@ -77,13 +85,12 @@ namespace Planscape.API.Controllers
         // ── POST /api/archicad/{projectId}/status ────────────────────────────
         // Heartbeat — StingBridge calls this every 30 s to signal ArchiCAD is live.
 
-        [HttpPost("{projectId}/status")]
-        public async Task<IActionResult> Status(string projectId,
+        [HttpPost("{projectId:guid}/status")]
+        public async Task<IActionResult> Status(Guid projectId,
             [FromBody] ArchiCADStatusPayload payload)
         {
-            string? key = Request.Headers["X-StingBridge-Key"].FirstOrDefault();
-            if (string.IsNullOrWhiteSpace(key) || !ValidateKey(projectId, key))
-                return Unauthorized();
+            var project = await AuthenticateBridge(projectId);
+            if (project == null) return Unauthorized();
 
             await _hub.Clients.Group($"archicad:{projectId}").SendAsync("ModelStatus", new
             {
@@ -98,29 +105,70 @@ namespace Planscape.API.Controllers
         }
 
         // ── GET /api/archicad/{projectId}/keygen ─────────────────────────────
-        // One-time setup: generate + store the bridge key for a project.
-        // Protected by normal JWT auth (project admin only in production).
+        // One-time setup: generate + store a BCrypt-hashed bridge key.
+        // Returns the plaintext key once — it cannot be recovered later.
+        // Restricted to authenticated users who are members of the project.
 
-        [HttpGet("{projectId}/keygen")]
-        [Microsoft.AspNetCore.Authorization.Authorize]
-        public IActionResult GenerateKey(string projectId)
+        [HttpGet("{projectId:guid}/keygen")]
+        [Authorize]
+        public async Task<IActionResult> GenerateKey(Guid projectId)
         {
-            string newKey = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator
-                .GetBytes(32));
-            // In production: persist to db against the project. Here we return it
-            // for the user to paste into StingBridge settings.
-            return Ok(new { projectId, bridgeKey = newKey,
-                note = "Store this in StingBridge settings. It will not be shown again." });
+            // Only a project member may generate a bridge key.
+            var tenantClaim = User.FindFirst("tenant_id")?.Value;
+            if (!Guid.TryParse(tenantClaim, out var tenantId))
+                return Unauthorized(new { error = "Missing tenant claim" });
+
+            var project = await _db.Projects
+                .FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
+            if (project == null) return NotFound();
+
+            var isMember = await _db.ProjectMembers
+                .AnyAsync(m => m.ProjectId == projectId && m.UserId == GetUserId());
+            if (!isMember) return Forbid();
+
+            // Generate 32 random bytes → base64 plaintext key.
+            string newKey  = Convert.ToBase64String(
+                System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+
+            // Store only the BCrypt hash — plaintext is never persisted.
+            project.BridgeKeyHash = BCrypt.Net.BCrypt.HashPassword(newKey, workFactor: 11);
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                projectId,
+                bridgeKey = newKey,
+                note = "Store this in StingBridge settings. It will not be shown again."
+            });
         }
 
         // ── helpers ──────────────────────────────────────────────────────────
 
-        private bool ValidateKey(string projectId, string key)
+        /// <summary>
+        /// Validates X-StingBridge-Key against the project's stored BCrypt hash.
+        /// Returns the project on success, null on auth failure.
+        /// </summary>
+        private async Task<Planscape.Core.Entities.Project?> AuthenticateBridge(Guid projectId)
         {
-            // TODO: load from db (Projects.BridgeKeyHash) and compare bcrypt hash.
-            // For now accept any non-empty key in dev; enforce in production via
-            // the Projects table BridgeKeyHash column (migration pending).
-            return !string.IsNullOrWhiteSpace(key);
+            string? key = Request.Headers["X-StingBridge-Key"].FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(key)) return null;
+
+            var project = await _db.Projects.FindAsync(projectId);
+            if (project == null) return null;
+
+            // No bridge key registered yet — reject all bridge calls.
+            if (string.IsNullOrWhiteSpace(project.BridgeKeyHash)) return null;
+
+            // BCrypt verify — constant-time, safe against timing attacks.
+            if (!BCrypt.Net.BCrypt.Verify(key, project.BridgeKeyHash)) return null;
+
+            return project;
+        }
+
+        private Guid GetUserId()
+        {
+            var claim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            return Guid.TryParse(claim, out var id) ? id : Guid.Empty;
         }
     }
 

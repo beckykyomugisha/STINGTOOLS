@@ -86,21 +86,35 @@ def cmd_watch(cfg: BridgeConfig) -> int:
         "Watch mode — syncing every %d seconds. Ctrl+C to stop.",
         cfg.watch_interval_s,
     )
+    _BACKOFF_MAX = 300  # cap at 5 minutes
+    consecutive_failures = 0
     while True:
         try:
             rc = cmd_sync(cfg)
             if rc != 0:
                 log.warning("Sync had errors — will retry next interval")
+                consecutive_failures += 1
+            else:
+                consecutive_failures = 0  # reset on success
         except ArchiCadError as e:
             log.error("ArchiCAD unreachable: %s — will retry", e)
+            consecutive_failures += 1
         except PlanscapeAuthError as e:
             log.error("Planscape auth error: %s — will retry", e)
+            consecutive_failures += 1
         except KeyboardInterrupt:
             log.info("Watch stopped.")
             return 0
 
+        # Exponential backoff on repeated failures (2^n * base, capped at _BACKOFF_MAX)
+        if consecutive_failures > 1:
+            delay = min(cfg.watch_interval_s * (2 ** (consecutive_failures - 1)), _BACKOFF_MAX)
+            log.info("Back-off delay: %ds (failure streak: %d)", delay, consecutive_failures)
+        else:
+            delay = cfg.watch_interval_s
+
         try:
-            time.sleep(cfg.watch_interval_s)
+            time.sleep(delay)
         except KeyboardInterrupt:
             log.info("Watch stopped.")
             return 0
