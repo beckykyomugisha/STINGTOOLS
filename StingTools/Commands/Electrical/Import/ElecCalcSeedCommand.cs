@@ -13,6 +13,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Electrical;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
+using StingTools.Core;
 
 namespace StingTools.Commands.Electrical.Import
 {
@@ -38,16 +39,16 @@ namespace StingTools.Commands.Electrical.Import
                 }
 
                 // 2. Ask user: CSV or JSON?
-                var fmt = TaskDialog.Show("Calc Seed Export",
-                    $"Found {panels.Count} panels and {circuits.Count} circuits.\n\nExport format:",
-                    TaskDialogCommonButtons.None,
-                    TaskDialogResult.None,
-                    new TaskDialogCommandLink[]
-                    {
-                        new TaskDialogCommandLink(TaskDialogResult.CommandLink1, "CSV (Amtech / Trimble)"),
-                        new TaskDialogCommandLink(TaskDialogResult.CommandLink2, "JSON (EasyPower / generic)"),
-                        new TaskDialogCommandLink(TaskDialogResult.CommandLink3, "Both")
-                    });
+                var fmtDlg = new TaskDialog("Calc Seed Export")
+                {
+                    MainInstruction = "Export format",
+                    MainContent = $"Found {panels.Count} panels and {circuits.Count} circuits.\n\nSelect export format:",
+                    CommonButtons = TaskDialogCommonButtons.Cancel
+                };
+                fmtDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "CSV (Amtech / Trimble)");
+                fmtDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "JSON (EasyPower / generic)");
+                fmtDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Both");
+                var fmt = fmtDlg.Show();
 
                 bool doCsv  = fmt == TaskDialogResult.CommandLink1 || fmt == TaskDialogResult.CommandLink3;
                 bool doJson = fmt == TaskDialogResult.CommandLink2 || fmt == TaskDialogResult.CommandLink3;

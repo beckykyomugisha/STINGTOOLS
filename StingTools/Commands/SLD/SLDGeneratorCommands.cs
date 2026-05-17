@@ -321,7 +321,7 @@ namespace StingTools.Commands.SLD
             }
 
             // Show standard picker.
-            string current = SymbolStandardResolver.ResolveForDocument(doc);
+            string current = SymbolStandardResolver.ResolveStandard(doc, null, null);
             var td = new TaskDialog("STING - Switch Symbol Standard")
             {
                 MainInstruction = $"Current project standard: {current}",
@@ -362,7 +362,7 @@ namespace StingTools.Commands.SLD
                 SymbolStandardResolver.SetProjectStandard(doc, newStandard);
                 foreach (var view in sldViews)
                 {
-                    SymbolStandardResolver.SetViewStandard(view, newStandard);
+                    SymbolStandardResolver.SetViewStandard(doc, view, newStandard);
                     rebuilt++;
                 }
                 tx.Commit();

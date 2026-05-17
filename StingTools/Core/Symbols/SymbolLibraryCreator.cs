@@ -27,6 +27,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Electrical;
 using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.DB.Plumbing;
+using Autodesk.Revit.DB.Structure;
 using Newtonsoft.Json;
 using StingTools.Core;
 
@@ -250,7 +251,7 @@ namespace StingTools.Core.Symbols
                     // Fix 6 — Scale-tier type variants from the standard definition.
                     if (std != null && std.SymbolScaleTiers != null && std.SymbolScaleTiers.Count > 0)
                     {
-                        AddScaleTierTypes(fdoc, def, std, result);
+                        AddScaleTierTypes(fdoc, def, std, result.Warnings);
                     }
 
                     // Phase 178f — bind family-formula expressions
@@ -300,7 +301,7 @@ namespace StingTools.Core.Symbols
                 if (fdoc.IsFamilyDocument)
                 {
                     var cat = fdoc.OwnerFamily?.FamilyCategory;
-                    if (cat != null && cat.Id.IntegerValue == (int)BuiltInCategory.OST_GenericAnnotation)
+                    if (cat != null && cat.Id.Value == (long)BuiltInCategory.OST_GenericAnnotation)
                         return true;
                 }
             }
@@ -1090,17 +1091,14 @@ namespace StingTools.Core.Symbols
                     switch (domain)
                     {
                         case Domain.DomainHvac:
-                            // Fix 1d — ConnectorElement.CreateDuctConnector in Revit 2025:
-                            //   CreateDuctConnector(doc, profileType, reference)
-                            // Note: overload with system type was removed in 2025; system type
-                            // is set post-creation via the connector's parameters.
+                            // Revit 2025 API: CreateDuctConnector(Document, ConnectorProfileType, Line)
+                            // The Reference overload was removed; pass the Line directly.
                             try
                             {
                                 ce = ConnectorElement.CreateDuctConnector(
                                     fdoc,
                                     ResolveProfileType(c.Shape),
-                                    refLine.GeometryCurve.GetEndPointReference(0));
-                                // Set system type parameter post-creation if needed.
+                                    refLine.GeometryCurve as Line);
                                 SetConnectorSystemTypeParam(ce, c.SystemType, domain, def.Id, sourceLabel, result);
                             }
                             catch (Exception ex)
@@ -1111,14 +1109,14 @@ namespace StingTools.Core.Symbols
                             break;
 
                         case Domain.DomainPiping:
-                            // Fix 1d — ConnectorElement.CreatePipeConnector in Revit 2025:
-                            //   CreatePipeConnector(doc, profileType, reference)
+                            // Revit 2025 API: CreatePipeConnector(Document, PipeSystemType, Line)
+                            // ConnectorProfileType arg replaced by PipeSystemType.
                             try
                             {
                                 ce = ConnectorElement.CreatePipeConnector(
                                     fdoc,
-                                    ConnectorProfileType.Round,
-                                    refLine.GeometryCurve.GetEndPointReference(0));
+                                    Autodesk.Revit.DB.Plumbing.PipeSystemType.SupplyHydronic,
+                                    refLine.GeometryCurve as Line);
                                 SetConnectorSystemTypeParam(ce, c.SystemType, domain, def.Id, sourceLabel, result);
                             }
                             catch (Exception ex)
@@ -1137,11 +1135,11 @@ namespace StingTools.Core.Symbols
                                 if (p2elec.DistanceTo(origin) < 1e-6)
                                     p2elec = origin.Add(XYZ.BasisZ.Multiply(MmToFt(10)));
 
+                                // Revit 2025 API: CreateElectricalConnector(Document, ElectricalSystemType, Line)
                                 ce = ConnectorElement.CreateElectricalConnector(
                                     fdoc,
                                     ResolveElectricalSystemType(c.SystemType),
-                                    refLine.GeometryCurve.GetEndPointReference(0),
-                                    refLine.GeometryCurve.GetEndPointReference(1));
+                                    refLine.GeometryCurve as Line);
                             }
                             catch (Exception ex)
                             {
@@ -1155,9 +1153,10 @@ namespace StingTools.Core.Symbols
                             //   CreateConduitConnector(doc, reference)
                             try
                             {
+                                // Revit 2025 API: CreateConduitConnector(Document, Line)
                                 ce = ConnectorElement.CreateConduitConnector(
                                     fdoc,
-                                    refLine.GeometryCurve.GetEndPointReference(0));
+                                    refLine.GeometryCurve as Line);
                             }
                             catch (Exception ex)
                             {
@@ -1200,9 +1199,12 @@ namespace StingTools.Core.Symbols
             {
                 // CONNECTOR_DIRECTION_TYPE or CONNECTOR_SYSTEM_TYPE (family doc) may differ
                 // by Revit version; try both BIPs and fall through gracefully.
-                Parameter p = ce.get_Parameter(BuiltInParameter.CONNECTOR_FLOW_DIRECTION)
-                    ?? ce.get_Parameter(BuiltInParameter.RBS_DUCT_SYSTEM_TYPE_PARAM)
-                    ?? ce.get_Parameter(BuiltInParameter.RBS_PIPE_SYSTEM_TYPE_PARAM);
+                // Try duct system type param (covers HVAC); pipe connectors use a different param.
+                // CONNECTOR_FLOW_DIRECTION and RBS_PIPE_SYSTEM_TYPE_PARAM do not exist as
+                // BuiltInParameter constants in Revit 2025 — use LookupParameter by name instead.
+                Parameter p = ce.get_Parameter(BuiltInParameter.RBS_DUCT_SYSTEM_TYPE_PARAM)
+                    ?? ce.LookupParameter("Flow Direction")
+                    ?? ce.LookupParameter("System Type");
                 if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Integer)
                 {
                     int sysTypeInt = ResolveSystemTypeInt(systemType, domain);
