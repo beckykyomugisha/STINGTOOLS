@@ -2060,5 +2060,269 @@ namespace StingTools.UI
                 }
             });
         }
+
+        // ════════════════════════════════════════════════════════════════════════
+        // COMMAND BAR — NLP / AI entry point
+        // ════════════════════════════════════════════════════════════════════════
+
+        private bool _cmdBarHasFocus;
+        private System.Threading.CancellationTokenSource _suggestionCts;
+
+        private void CommandBar_GotFocus(object sender, RoutedEventArgs e)
+        {
+            _cmdBarHasFocus = true;
+            if (txtCmdPlaceholder != null)
+                txtCmdPlaceholder.Visibility = string.IsNullOrEmpty(txtCommandBar?.Text)
+                    ? Visibility.Visible : Visibility.Collapsed;
+            UpdateCommandBarSuggestions();
+        }
+
+        private void CommandBar_LostFocus(object sender, RoutedEventArgs e)
+        {
+            _cmdBarHasFocus = false;
+            // Delay collapse so a click on a suggestion registers first
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (!_cmdBarHasFocus && popSuggestions != null)
+                    popSuggestions.IsOpen = false;
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        private void CommandBar_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (txtCmdPlaceholder != null)
+                txtCmdPlaceholder.Visibility = string.IsNullOrEmpty(txtCommandBar?.Text)
+                    ? Visibility.Visible : Visibility.Collapsed;
+            UpdateCommandBarSuggestions();
+        }
+
+        private void CommandBar_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            switch (e.Key)
+            {
+                case System.Windows.Input.Key.Down:
+                    if (popSuggestions?.IsOpen == true && lstSuggestions?.Items.Count > 0)
+                    {
+                        lstSuggestions.Focus();
+                        lstSuggestions.SelectedIndex = 0;
+                    }
+                    e.Handled = true;
+                    break;
+
+                case System.Windows.Input.Key.Enter:
+                    if (lstSuggestions?.SelectedItem is string selected)
+                        ExecuteFromCommandBar(selected);
+                    else if (!string.IsNullOrWhiteSpace(txtCommandBar?.Text))
+                        ExecuteFromCommandBar(txtCommandBar.Text);
+                    e.Handled = true;
+                    break;
+
+                case System.Windows.Input.Key.Escape:
+                    if (popSuggestions != null) popSuggestions.IsOpen = false;
+                    txtCommandBar?.Clear();
+                    e.Handled = true;
+                    break;
+            }
+        }
+
+        private void Suggestions_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter && lstSuggestions?.SelectedItem is string sel)
+            {
+                ExecuteFromCommandBar(sel);
+                e.Handled = true;
+            }
+            else if (e.Key == System.Windows.Input.Key.Escape)
+            {
+                if (popSuggestions != null) popSuggestions.IsOpen = false;
+                txtCommandBar?.Focus();
+                e.Handled = true;
+            }
+        }
+
+        private void Suggestion_MouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (lstSuggestions?.SelectedItem is string sel)
+                ExecuteFromCommandBar(sel);
+        }
+
+        private void UpdateCommandBarSuggestions()
+        {
+            var text = txtCommandBar?.Text ?? "";
+            if (lstSuggestions == null || popSuggestions == null) return;
+
+            lstSuggestions.Items.Clear();
+
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                // Show top-10 most common commands as hints when bar is focused
+                if (_cmdBarHasFocus)
+                {
+                    foreach (var hint in _commandBarHints)
+                        lstSuggestions.Items.Add(hint);
+                    popSuggestions.IsOpen = lstSuggestions.Items.Count > 0;
+                }
+                else popSuggestions.IsOpen = false;
+                return;
+            }
+
+            // Rule-based suggestions first (instant, offline)
+            var suggestions = Tags.NLPEngine.GetSuggestions(text);
+            foreach (var (tag, desc) in suggestions)
+                lstSuggestions.Items.Add($"{tag}  —  {desc}");
+
+            // If few results, also search by partial command tag
+            if (suggestions.Count < 4)
+            {
+                var results = Tags.NLPEngine.ProcessQuery(text);
+                foreach (var r in results.Take(6))
+                {
+                    string item = $"{r.CommandTag}  —  {r.Description}";
+                    if (!lstSuggestions.Items.Contains(item))
+                        lstSuggestions.Items.Add(item);
+                }
+            }
+
+            popSuggestions.IsOpen = lstSuggestions.Items.Count > 0;
+        }
+
+        private static readonly string[] _commandBarHints = new[]
+        {
+            "TagAndCombine  —  One-click tag and combine all",
+            "AutoTag  —  Tag elements in active view",
+            "BatchTag  —  Tag all elements in project",
+            "Validate  —  Validate tag compliance",
+            "PreTagAudit  —  Dry-run tag prediction",
+            "ResolveAllIssues  —  Fix all ISO 19650 issues",
+            "CompletenessDashboard  —  Tag completeness report",
+            "SmartPlaceTags  —  Place visual annotations",
+            "COBieExport  —  Export COBie data",
+            "MorningHealthCheck  —  Run morning workflow",
+        };
+
+        private void ExecuteFromCommandBar(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return;
+
+            // Extract command tag from "Tag  —  Description" format
+            string tag = input.Contains("  —  ") ? input.Split(new[] { "  —  " }, StringSplitOptions.None)[0].Trim() : input.Trim();
+
+            if (popSuggestions != null) popSuggestions.IsOpen = false;
+            txtCommandBar?.Clear();
+
+            // Check if this looks like a natural language query rather than a tag
+            bool isNlQuery = tag.Contains(" ") && !tag.Contains("_");
+            if (isNlQuery)
+            {
+                // Process as NLP query → find best command
+                var results = Tags.NLPEngine.ProcessQuery(tag);
+                if (results.Count > 0)
+                    tag = results[0].CommandTag;
+                else
+                {
+                    // Route to LLM if no rule match — AI button path
+                    DispatchAIQuery(tag, isDesignBrief: false);
+                    return;
+                }
+            }
+
+            // Dispatch via the standard command handler
+            _handler?.SetCommand(tag);
+            var req = _externalEvent?.Raise();
+            StingTools.Core.StingLog.Info($"CommandBar dispatched: {tag} (request={req})");
+            UpdateStatus($"Running: {tag}");
+        }
+
+        private void AskAI_Click(object sender, RoutedEventArgs e)
+        {
+            string query = txtCommandBar?.Text?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                // Show AI capabilities menu
+                var dlg = new TaskDialog("STING AI Assistant");
+                dlg.MainInstruction = "What would you like AI help with?";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Design brief",
+                    "e.g. "I have 230M UGX, design a 3 bedroom modern house"");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "BIM knowledge Q&A",
+                    "e.g. "What does ISO 19650 say about suitability codes?"");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Draft document",
+                    "e.g. "Draft a transmittal for the drawings I just issued"");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var result = dlg.Show();
+                if (result == TaskDialogResult.Cancel) return;
+                if (result == TaskDialogResult.CommandLink1)
+                    query = "Design brief: ";
+                else if (result == TaskDialogResult.CommandLink2)
+                    query = "What is ";
+                else if (result == TaskDialogResult.CommandLink3)
+                    query = "Draft a transmittal: ";
+                if (txtCommandBar != null) { txtCommandBar.Text = query; txtCommandBar.Focus(); txtCommandBar.CaretIndex = query.Length; }
+                return;
+            }
+            DispatchAIQuery(query, isDesignBrief: query.Contains("UGX") || query.Contains("shilling") || query.Contains("bedroom") || query.Contains("design") && query.Contains("house"));
+        }
+
+        private void DispatchAIQuery(string query, bool isDesignBrief)
+        {
+            // Route to LLM service — runs async, result shown in TaskDialog
+            // The LLM picks a command tag; validated through whitelist before execution
+            UpdateStatus("AI thinking…");
+            StingTools.Core.StingLog.Info($"AI query: {query}");
+
+            System.Threading.Tasks.Task.Run(async () =>
+            {
+                try
+                {
+                    var llm = StingTools.Core.StingLlmService.Instance;
+                    string response;
+                    string commandTag = null;
+
+                    if (isDesignBrief)
+                    {
+                        var brief = await llm.ParseDesignBriefAsync(query);
+                        response = brief.Summary;
+                        commandTag = brief.SuggestedCommandTag;
+                    }
+                    else if (query.StartsWith("Draft", StringComparison.OrdinalIgnoreCase) ||
+                             query.StartsWith("Write", StringComparison.OrdinalIgnoreCase))
+                    {
+                        response = await llm.DraftDocumentAsync(query);
+                        commandTag = null;
+                    }
+                    else
+                    {
+                        response = await llm.AskBimQuestionAsync(query);
+                        commandTag = null;
+                    }
+
+                    Dispatcher.Invoke(() =>
+                    {
+                        UpdateStatus("Ready");
+                        if (commandTag != null && StingTools.Core.StingLlmService.IsValidCommandTag(commandTag))
+                        {
+                            var td = new TaskDialog("AI Suggestion");
+                            td.MainInstruction = response;
+                            td.MainContent = $"Suggested action: {commandTag}";
+                            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, $"Run: {commandTag}", "Execute the suggested command");
+                            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+                            if (td.Show() == TaskDialogResult.CommandLink1)
+                                ExecuteFromCommandBar(commandTag);
+                        }
+                        else
+                        {
+                            TaskDialog.Show("AI Response", response);
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        UpdateStatus("Ready");
+                        TaskDialog.Show("AI Unavailable", $"AI service unreachable — using rule-based NLP only.\n\n{ex.Message}");
+                    });
+                }
+            });
+        }
     }
 }
