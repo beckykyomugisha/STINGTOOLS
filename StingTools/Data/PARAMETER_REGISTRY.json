@@ -1,6 +1,6 @@
 {
-  "version": "5.10",
-  "description": "STING Tools master parameter registry v5.10 — Option-3-B synced + stub curation pass 1: every auto-synced stub now carries a discipline field and refined binding; 384 WARN_* stubs promoted to warning_thresholds with extracted units (threshold values marked threshold_pending: true awaiting domain expert review).",
+  "version": "5.11",
+  "description": "STING Tools master parameter registry v5.11 — Option-3-B + curation passes 1+2 (full sync to MR_PARAMETERS.txt + tag-container moves + warning threshold values + category_enum_map gap-fill). Moved 96 tag-display stubs from support_params into container_groups (1 new ARCH_TAG group + STR_TAG categories extended); set 8 real warning threshold values with UK AEC source citations (BS 8004 / EC7, BS EN 1992-1-1, BS 7671, CIBSE Guide B3 + G, LETI / RIBA 2030 Challenge, BS EN 806-3); marked 376 non-numeric warnings as check_type=presence; added 3 missing Revit categories to category_enum_map (Toposolid, Hardscape, structural sub-categories, etc.).",
   "tag_format": {
     "separator": "-",
     "num_pad": 4,
@@ -12939,306 +12939,6 @@
       "curated": true
     },
     {
-      "param_name": "ARCH_TAG_7_PARA_AREAS_TXT",
-      "guid": "8a5b31e1-940b-5082-9e2c-d9b2f5be03aa",
-      "description": "Areas paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_ASSEMBLIES_TXT",
-      "guid": "e6400856-24c8-5afc-b735-0011a61dfeee",
-      "description": "Assemblies paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_COLUMNS_TXT",
-      "guid": "1c36baa6-8984-5d7a-9c1f-38499f5245f9",
-      "description": "Columns paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_DETAIL_ITEMS_TXT",
-      "guid": "8779ce89-5460-58e7-b110-88a5d3006486",
-      "description": "Detail Items paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_ENTOURAGE_TXT",
-      "guid": "16ad237a-09d4-5452-a76a-2f12082f84f5",
-      "description": "Entourage paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_FOOD_EQUIP_TXT",
-      "guid": "a7e552b0-3d8c-56bf-9f0a-b51f540a7bf3",
-      "description": "Food Equip paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_HARDSCAPE_TXT",
-      "guid": "ea957763-3fcd-506d-b4cf-28f9d66a43b1",
-      "description": "Hardscape paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_MASS_TXT",
-      "guid": "7191599b-a252-5119-9728-5b535bebee24",
-      "description": "Mass paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_MODEL_GROUPS_TXT",
-      "guid": "913fa8bf-86d8-502c-b416-36860d9eef7d",
-      "description": "Model Groups paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_PADS_TXT",
-      "guid": "83056f0d-c97a-5236-b090-d5671203ddf8",
-      "description": "Pads paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_PARTS_TXT",
-      "guid": "2e25c70c-bd0d-5f92-8faf-fe16e9ab3261",
-      "description": "Parts paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_PLANTING_TXT",
-      "guid": "408c1e22-dc39-543d-b2d2-f4220fa0d133",
-      "description": "Planting paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_PROFILES_TXT",
-      "guid": "ba6ac8f4-8290-5168-a787-5443ad26cb50",
-      "description": "Profiles paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_PROPERTY_LINES_TXT",
-      "guid": "f9f03fcc-b30a-51b1-aa95-50931de261f0",
-      "description": "Property Lines paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_PROPERTY_LINE_SEGMENTS_TXT",
-      "guid": "2b05bd61-96fc-5095-a206-68983e25e57d",
-      "description": "Property Line Segments paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_ROADS_TXT",
-      "guid": "4e59c69f-6a7c-561d-a20c-38cadab237fd",
-      "description": "Roads paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_RVT_LINKS_TXT",
-      "guid": "9f9428fe-16d9-583b-a196-95b124340d8b",
-      "description": "Rvt Links paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_SIGNAGE_TXT",
-      "guid": "225fce7a-38ef-5b24-943d-7f952bf03a7b",
-      "description": "Signage paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_SPACES_TXT",
-      "guid": "14222509-31e2-5c33-bbfa-5dcff2d9c5c9",
-      "description": "Spaces paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_TEMP_STRUCT_TXT",
-      "guid": "72f32382-5143-5b68-a118-0d73de853be9",
-      "description": "Temp Struct paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_TOPOSOLID_LINKS_TXT",
-      "guid": "c2997238-45fa-567c-b49b-23578a8ab2c4",
-      "description": "Toposolid Links paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_TOPOSOLID_TXT",
-      "guid": "f5cded24-5b6f-5b60-a284-25a49e7505d6",
-      "description": "Toposolid paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_VERT_CIRC_TXT",
-      "guid": "2c2418c3-dbb1-5d82-b9e6-e7f4bef31164",
-      "description": "Vert Circ paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_WASH_TXT",
-      "guid": "d478b018-e34b-5e07-9e77-6a9199c29a2c",
-      "description": "Wash paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_ZONES_TXT",
-      "guid": "fdad7fc4-e306-5a23-bf70-b3779b7bbaf4",
-      "description": "Zones paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 10,
-      "group_name": "BLE_ELES",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
       "param_name": "AREA_SQ_M",
       "guid": "b1756866-da1c-59cf-8f93-e5f99f3f036b",
       "description": "Area [ISO 19650-1:2018]",
@@ -13383,18 +13083,6 @@
       "curated": true
     },
     {
-      "param_name": "HVC_TAG_7_PARA_ANAL_DUCTS_TXT",
-      "guid": "db9572ae-e4ee-58dd-8a77-66d045ca57a5",
-      "description": "Anal Ducts paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 5,
-      "group_name": "HVC_SYSTEMS",
-      "binding": "universal",
-      "required": false,
-      "discipline": "HVAC",
-      "curated": true
-    },
-    {
       "param_name": "PLM_INSULATION_TXT",
       "guid": "c8d5b053-79ff-5b7e-9870-7b877b3b4069",
       "description": "Plm Insulation [ISO 19650-1:2018]",
@@ -13404,270 +13092,6 @@
       "binding": "universal",
       "required": false,
       "discipline": "Plumbing",
-      "curated": true
-    },
-    {
-      "param_name": "PLM_TAG_7_PARA_ANAL_PIPES_TXT",
-      "guid": "52e0804c-453d-5001-ba9b-6a45be3659fc",
-      "description": "Anal Pipes paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 6,
-      "group_name": "PLM_DRN",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Plumbing",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_ANAL_LINKS_TXT",
-      "guid": "03104508-f49b-5d14-869a-a99844e734e3",
-      "description": "Anal Links paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_ANAL_MEMBERS_TXT",
-      "guid": "f9e543cf-9fa9-5353-9ee2-93ab8e0368be",
-      "description": "Anal Members paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_ANAL_NODES_TXT",
-      "guid": "50977839-1677-51de-9499-080859e6d8a6",
-      "description": "Anal Nodes paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_ANAL_OPENINGS_TXT",
-      "guid": "bab30603-3a26-50f9-9bdf-2f2cbadfda2c",
-      "description": "Anal Openings paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_ANAL_PANELS_TXT",
-      "guid": "d7e5915c-d1da-5c9a-8d85-a9393378e598",
-      "description": "Anal Panels paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_AREA_BASED_LOADS_TXT",
-      "guid": "55771bdc-f8ba-5aef-8f88-1e010bb9dcdf",
-      "description": "Area Based Loads paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_AREA_LOADS_TXT",
-      "guid": "898517f4-a3cd-5aee-a352-a3a9ca302ea4",
-      "description": "Area Loads paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_INT_AREA_LOADS_TXT",
-      "guid": "995ea95d-a820-5388-aeef-fe106eba2c27",
-      "description": "Int Area Loads paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_INT_LINE_LOADS_TXT",
-      "guid": "9e26f728-f92a-53ef-89f2-ec035af7871c",
-      "description": "Int Line Loads paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_INT_POINT_LOADS_TXT",
-      "guid": "23a35117-dcc6-5903-91fe-4a0dea36dcec",
-      "description": "Int Point Loads paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_LINE_LOADS_TXT",
-      "guid": "618bc4cb-6bfa-5470-930e-638fb210a82f",
-      "description": "Line Loads paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_POINT_LOADS_TXT",
-      "guid": "6112e44d-2429-5211-a0cf-43f3ef083da4",
-      "description": "Point Loads paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_STR_AREA_REINF_TXT",
-      "guid": "144e26c9-c03c-5d4c-b33b-b284609b6479",
-      "description": "Str Area Reinf paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_STR_BEAM_SYSTEMS_TXT",
-      "guid": "a0645e2c-9c55-598b-82cd-40c98f73c43c",
-      "description": "Str Beam Systems paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_STR_CONNECTIONS_TXT",
-      "guid": "a132d0e7-f955-5eec-9e02-d7d6a226f042",
-      "description": "Str Connections paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_STR_FABRIC_REINF_TXT",
-      "guid": "015d77da-0148-5192-adb6-91786c0e2da3",
-      "description": "Str Fabric Reinf paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_STR_PATH_REINF_TXT",
-      "guid": "85220f29-9434-5dc6-91f7-a2f260df8115",
-      "description": "Str Path Reinf paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_STR_REBAR_COUPLERS_TXT",
-      "guid": "70f0f990-cab2-55d2-9956-800e11d04415",
-      "description": "Str Rebar Couplers paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_STR_REBAR_TXT",
-      "guid": "dc1b44a7-9073-50ea-b01d-2a664db4b7f3",
-      "description": "Str Rebar paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_STR_STIFFENERS_TXT",
-      "guid": "35d4baf6-5faa-521e-b9bf-54b7a84e6b81",
-      "description": "Str Stiffeners paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_STR_TRUSSES_TXT",
-      "guid": "b31d7a3d-2bbc-5bc5-8f98-d7bc8e250634",
-      "description": "Str Trusses paragraph [ISO 19650-3:2020]",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
       "curated": true
     },
     {
@@ -14835,18 +14259,6 @@
       "curated": true
     },
     {
-      "param_name": "ASS_TAG_7_PARA_EQUIP_TXT",
-      "guid": "a1b2c3d4-5031-4a01-b001-000000000149",
-      "description": "TAG7 paragraph container for general equipment",
-      "datatype": "TEXT",
-      "group_id": 1,
-      "group_name": "ASS_MNG",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Asset",
-      "curated": true
-    },
-    {
       "param_name": "STING_STALE_BOOL",
       "guid": "c9d0e1f2-a3b4-4c5d-8e6f-7a8b9c0d1e2f",
       "description": "Element stale flag (geometry/level changed since last tag)",
@@ -15159,66 +14571,6 @@
       "curated": true
     },
     {
-      "param_name": "NCL_TAG_7_PARA_TXT",
-      "guid": "a1b2c3d4-5055-4a01-b001-000000000185",
-      "description": "TAG7 paragraph container for nurse call",
-      "datatype": "TEXT",
-      "group_id": 3,
-      "group_name": "COM_DAT",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Nurse Call",
-      "curated": true
-    },
-    {
-      "param_name": "SEC_TAG_7_PARA_TXT",
-      "guid": "a1b2c3d4-5056-4a01-b001-000000000186",
-      "description": "TAG7 paragraph container for security",
-      "datatype": "TEXT",
-      "group_id": 3,
-      "group_name": "COM_DAT",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Security",
-      "curated": true
-    },
-    {
-      "param_name": "PER_TAG_7_PARA_ENV_TXT",
-      "guid": "a1b2c3d4-5057-4a01-b001-000000000187",
-      "description": "TAG7 paragraph container for environment",
-      "datatype": "TEXT",
-      "group_id": 9,
-      "group_name": "PER_SUST",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Performance",
-      "curated": true
-    },
-    {
-      "param_name": "RGL_TAG_7_PARA_CMPL_TXT",
-      "guid": "a1b2c3d4-5058-4a01-b001-000000000188",
-      "description": "TAG7 paragraph container for regulatory compliance",
-      "datatype": "TEXT",
-      "group_id": 15,
-      "group_name": "RGL_CMPL",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Regulatory",
-      "curated": true
-    },
-    {
-      "param_name": "PLM_TAG_7_PARA_EQUIP_TXT",
-      "guid": "a1b2c3d4-505a-4a01-b001-000000000190",
-      "description": "TAG7 paragraph container for plumbing equipment",
-      "datatype": "TEXT",
-      "group_id": 6,
-      "group_name": "PLM_DRN",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Plumbing",
-      "curated": true
-    },
-    {
       "param_name": "PRJ_PROJECT_COD_TXT",
       "guid": "a1b2c3d4-505b-4a01-b001-000000000191",
       "description": "ISO 19650 project code",
@@ -15438,18 +14790,6 @@
       "param_name": "ELC_CTR_HEIGHT_MM",
       "guid": "412b505d-c485-5a40-9700-ee737279cc69",
       "description": "Elc Ctr Height Mm [ISO 19650]",
-      "datatype": "TEXT",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_TAG_7_PARA_CIRC_TXT",
-      "guid": "d44883db-4f85-5f9b-a5ca-0611014e55e6",
-      "description": "Electrical TAG7 paragraph container for circ",
       "datatype": "TEXT",
       "group_id": 4,
       "group_name": "ELC_PWR",
@@ -16647,126 +15987,6 @@
       "curated": true
     },
     {
-      "param_name": "STR_TAG_7_PARA_ANLYT_TXT",
-      "guid": "3cbb945a-6689-5c12-9dd4-f615bcd1e992",
-      "description": "Structural TAG7 paragraph container for anlyt",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_BRACE_TXT",
-      "guid": "953a1b8c-c997-550d-b855-c0bab6af0976",
-      "description": "Structural TAG7 paragraph container for brace",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_CONN_TXT",
-      "guid": "009e8fcf-4981-524b-8124-169d4a7301dd",
-      "description": "Structural TAG7 paragraph container for conn",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_LOAD_TXT",
-      "guid": "3eb369b8-8e69-5ddf-9d08-6d955d75288e",
-      "description": "Structural TAG7 paragraph container for load",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_REBAR_TXT",
-      "guid": "ddc05a50-d8a7-5ca5-8576-f80029fc03aa",
-      "description": "Structural TAG7 paragraph container for rebar",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_SLAB_TXT",
-      "guid": "09353894-8a07-50cd-b794-4443ffbac271",
-      "description": "Structural TAG7 paragraph container for slab",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_WALL_TXT",
-      "guid": "63ff5128-2b34-57f2-bf52-80fd3437943a",
-      "description": "Structural TAG7 paragraph container for wall",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_BOLT_TXT",
-      "guid": "f57982c9-adf3-5c7c-b701-8770313f0cb5",
-      "description": "Structural TAG7 paragraph container for bolt connections",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_WELD_TXT",
-      "guid": "f066ecf4-0c8a-59da-860e-2f00f5873e3d",
-      "description": "Structural TAG7 paragraph container for weld connections",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_7_PARA_WIRE_TXT",
-      "guid": "8f96bff4-2a76-5aa5-bf5e-c03c837a817f",
-      "description": "Structural TAG7 paragraph container for wire/prestress",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
       "param_name": "STR_WALL_COVER_MM",
       "guid": "cb2018be-ff44-5095-9326-89b5c1759bda",
       "description": "Str Wall Cover Mm [ISO 19650]",
@@ -16824,54 +16044,6 @@
       "binding": "universal",
       "required": false,
       "discipline": "Structural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_CURTAIN_TXT",
-      "guid": "c15b96fe-3e6b-53b2-b7fc-35f4add8827a",
-      "description": "Architectural TAG7 paragraph container for curtain",
-      "datatype": "TEXT",
-      "group_id": 17,
-      "group_name": "STINGTags_ISO19650",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_MULLION_TXT",
-      "guid": "cb0f6308-f648-5977-b5db-fd1b73368e58",
-      "description": "Architectural TAG7 paragraph container for mullion",
-      "datatype": "TEXT",
-      "group_id": 17,
-      "group_name": "STINGTags_ISO19650",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "ARCH_TAG_7_PARA_RAILING_TXT",
-      "guid": "6a8fc59d-fca3-50ea-a1e5-0f1bfdbd6721",
-      "description": "Architectural TAG7 paragraph container for railing",
-      "datatype": "TEXT",
-      "group_id": 17,
-      "group_name": "STINGTags_ISO19650",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Architectural",
-      "curated": true
-    },
-    {
-      "param_name": "GEN_TAG_7_PARA_EQUIP_TXT",
-      "guid": "16514650-c33b-5970-90e4-8340bd528d0a",
-      "description": "General TAG7 paragraph container for equip",
-      "datatype": "TEXT",
-      "group_id": 17,
-      "group_name": "STINGTags_ISO19650",
-      "binding": "universal",
-      "required": false,
-      "discipline": "General",
       "curated": true
     },
     {
@@ -17226,18 +16398,6 @@
       "param_name": "HVC_DCT_TERMINAL_SOUND_DB_NR",
       "guid": "b4ccaf83-24b0-5f98-a987-bb1102aa07ab",
       "description": "Duct terminal sound level dB [ISO 19650-2:2018]",
-      "datatype": "TEXT",
-      "group_id": 5,
-      "group_name": "HVC_SYSTEMS",
-      "binding": "universal",
-      "required": false,
-      "discipline": "HVAC",
-      "curated": true
-    },
-    {
-      "param_name": "HVC_EQP_TAG",
-      "guid": "6123865a-d82e-5c99-b5cd-bffa452f29b6",
-      "description": "HVAC equipment tag container [ISO 19650-2:2018]",
       "datatype": "TEXT",
       "group_id": 5,
       "group_name": "HVC_SYSTEMS",
@@ -17991,150 +17151,6 @@
       "curated": true
     },
     {
-      "param_name": "EQP_TAG_1_TXT",
-      "guid": "bc22c478-10bb-5ef8-8884-6cf7f6d74111",
-      "description": "Equipment tag container",
-      "datatype": "TEXT",
-      "group_id": 1,
-      "group_name": "ASS_MNG",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Equipment",
-      "curated": true
-    },
-    {
-      "param_name": "FIN_TAG_1_TXT",
-      "guid": "81a1ab91-031c-54c0-8e29-8b4d192f9df6",
-      "description": "Finish tag container",
-      "datatype": "TEXT",
-      "group_id": 1,
-      "group_name": "ASS_MNG",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Finish",
-      "curated": true
-    },
-    {
-      "param_name": "COMP_TAG_1_TXT",
-      "guid": "c291d97e-8b21-54eb-b2b8-3240ed41c112",
-      "description": "Compliance tag container",
-      "datatype": "TEXT",
-      "group_id": 3,
-      "group_name": "COM_DAT",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Composite Material",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_TAG_7_PARA_FIXTURE_TXT",
-      "guid": "26e933e4-83fd-52bc-b28d-d7b21a97c816",
-      "description": "Electrical fixture TAG7 paragraph narrative",
-      "datatype": "TEXT",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "PIP_TAG_7_PARA_PIPE_TXT",
-      "guid": "0a5e974a-3a5d-5847-bbf8-2470f5b70c84",
-      "description": "Pipe system TAG7 paragraph narrative",
-      "datatype": "TEXT",
-      "group_id": 6,
-      "group_name": "PLM_DRN",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Pipe",
-      "curated": true
-    },
-    {
-      "param_name": "LTG_TAG_7_PARA_FIXTURE_TXT",
-      "guid": "1ef1b8bd-0455-5420-aa3c-b2f101c761ba",
-      "description": "Lighting fixture TAG7 paragraph narrative",
-      "datatype": "TEXT",
-      "group_id": 7,
-      "group_name": "LTG_CONTROLS",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Lighting",
-      "curated": true
-    },
-    {
-      "param_name": "FLS_TAG_7_PARA_DEVICE_TXT",
-      "guid": "c48c8fcc-f3f6-5b91-9f13-3a4ceeb161d2",
-      "description": "Fire safety device TAG7 paragraph narrative",
-      "datatype": "TEXT",
-      "group_id": 8,
-      "group_name": "FLS_LIFE_SFTY",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Fire & Life Safety",
-      "curated": true
-    },
-    {
-      "param_name": "SPK_TAG_7_PARA_HEAD_TXT",
-      "guid": "64ad7b98-b473-5cad-af29-71fccfc886d4",
-      "description": "Sprinkler head TAG7 paragraph narrative",
-      "datatype": "TEXT",
-      "group_id": 8,
-      "group_name": "FLS_LIFE_SFTY",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Sprinkler",
-      "curated": true
-    },
-    {
-      "param_name": "ENV_TAG_1_TXT",
-      "guid": "4d354f06-1612-534a-ac8c-73d7a340c6e8",
-      "description": "Environmental tag container",
-      "datatype": "TEXT",
-      "group_id": 9,
-      "group_name": "PER_SUST",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Environmental",
-      "curated": true
-    },
-    {
-      "param_name": "PERF_TAG_1_TXT",
-      "guid": "6ef7ae26-af91-5a43-9ea7-3a05d5cc2bf0",
-      "description": "Performance tag container",
-      "datatype": "TEXT",
-      "group_id": 9,
-      "group_name": "PER_SUST",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Performance",
-      "curated": true
-    },
-    {
-      "param_name": "SUST_TAG_1_TXT",
-      "guid": "0dda60a9-c4b0-54dd-bca0-9f5a6076d49c",
-      "description": "Sustainability tag container",
-      "datatype": "TEXT",
-      "group_id": 9,
-      "group_name": "PER_SUST",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Sustainability",
-      "curated": true
-    },
-    {
-      "param_name": "STR_TAG_1_TXT",
-      "guid": "e51303da-3780-5409-9c41-2b3287b3042f",
-      "description": "Structural tag container",
-      "datatype": "TEXT",
-      "group_id": 16,
-      "group_name": "BLE_STRUCTURE",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Structural",
-      "curated": true
-    },
-    {
       "param_name": "MEP_TIE_POINT_ID_TXT",
       "guid": "30ba8ffb-0e94-5bad-bc92-d1d25c7e69be",
       "description": "MEP tie-in point identifier",
@@ -18144,162 +17160,6 @@
       "binding": "universal",
       "required": false,
       "discipline": "MEP",
-      "curated": true
-    },
-    {
-      "param_name": "COM_DEV_TAG",
-      "guid": "61d0d77d-c061-5d3b-9f64-5f0f8b279eef",
-      "description": "Communications device tag container [ISO 19650-2:2018]",
-      "datatype": "TEXT",
-      "group_id": 3,
-      "group_name": "COM_DAT",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Communications",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_CDT_TAG",
-      "guid": "29253d2b-7320-5139-a738-9e6b44b9fd46",
-      "description": "Electrical conduit tag container [ISO 19650-2:2018]",
-      "datatype": "TEXT",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_CTR_TAG",
-      "guid": "983fe026-ff4f-50a6-9486-f08a54b87f70",
-      "description": "Electrical cable tray tag container [ISO 19650-2:2018]",
-      "datatype": "TEXT",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_EQP_TAG",
-      "guid": "caaefdb2-cf82-56a1-8167-246ee3982b24",
-      "description": "Electrical equipment tag container [ISO 19650-2:2018]",
-      "datatype": "TEXT",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "ELE_FIX_TAG",
-      "guid": "874f037a-66e2-58f3-9d66-b137b4b184cf",
-      "description": "Electrical fixture tag container [ISO 19650-2:2018]",
-      "datatype": "TEXT",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical Fixture",
-      "curated": true
-    },
-    {
-      "param_name": "FLS_DEV_TAG",
-      "guid": "7ec98623-d3f0-583b-9552-b09b12736551",
-      "description": "Fire/life safety device tag container [ISO 19650-2:2018]",
-      "datatype": "TEXT",
-      "group_id": 8,
-      "group_name": "FLS_LIFE_SFTY",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Fire & Life Safety",
-      "curated": true
-    },
-    {
-      "param_name": "HVC_DCT_TAG",
-      "guid": "c198faa1-c0c6-5aca-b92c-5e9b021affe7",
-      "description": "HVAC duct tag container [ISO 19650-2:2018]",
-      "datatype": "TEXT",
-      "group_id": 5,
-      "group_name": "HVC_SYSTEMS",
-      "binding": "universal",
-      "required": false,
-      "discipline": "HVAC",
-      "curated": true
-    },
-    {
-      "param_name": "HVC_FLX_TAG",
-      "guid": "8ae538e1-f6cb-5271-a357-c390ac7605eb",
-      "description": "HVAC flex duct tag container [ISO 19650-2:2018]",
-      "datatype": "TEXT",
-      "group_id": 5,
-      "group_name": "HVC_SYSTEMS",
-      "binding": "universal",
-      "required": false,
-      "discipline": "HVAC",
-      "curated": true
-    },
-    {
-      "param_name": "ICT_DEV_TAG",
-      "guid": "63eea465-921a-5218-b38e-c15f5793549f",
-      "description": "ICT device tag container [ISO 19650-2:2018]",
-      "datatype": "TEXT",
-      "group_id": 3,
-      "group_name": "COM_DAT",
-      "binding": "universal",
-      "required": false,
-      "discipline": "ICT/Data",
-      "curated": true
-    },
-    {
-      "param_name": "LTG_FIX_TAG",
-      "guid": "449aa2da-345f-5d91-8f4b-037cc0fd9db3",
-      "description": "Lighting fixture tag container [ISO 19650-2:2018]",
-      "datatype": "TEXT",
-      "group_id": 7,
-      "group_name": "LTG_CONTROLS",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Lighting",
-      "curated": true
-    },
-    {
-      "param_name": "NCL_DEV_TAG",
-      "guid": "1c1a61fc-29d0-57c8-8e74-e8b9b4502126",
-      "description": "Nurse call / low-voltage device tag container [ISO 19650-2:2018]",
-      "datatype": "TEXT",
-      "group_id": 3,
-      "group_name": "COM_DAT",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Nurse Call",
-      "curated": true
-    },
-    {
-      "param_name": "PLM_EQP_TAG",
-      "guid": "37d954b4-c5a7-50c5-8629-2b2957ad440e",
-      "description": "Plumbing equipment tag container [ISO 19650-2:2018]",
-      "datatype": "TEXT",
-      "group_id": 6,
-      "group_name": "PLM_DRN",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Plumbing",
-      "curated": true
-    },
-    {
-      "param_name": "SEC_DEV_TAG",
-      "guid": "de2cd955-4727-5488-a783-5d9be9942169",
-      "description": "Security device tag container [ISO 19650-2:2018]",
-      "datatype": "TEXT",
-      "group_id": 3,
-      "group_name": "COM_DAT",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Security",
       "curated": true
     },
     {
@@ -20856,18 +19716,6 @@
       "binding": "project",
       "required": false,
       "discipline": "STING",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_TAG_7_PARA_LPS_TXT",
-      "guid": "e1c5f9d4-1007-5111-9111-100000000007",
-      "description": "Electrical TAG7 paragraph container for LPS (class, LPZ, down conductors, earth resistance, last test) [STING Phase 176]",
-      "datatype": "TEXT",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
       "curated": true
     },
     {
@@ -24984,6 +23832,15 @@
           "prefix": "",
           "suffix": "",
           "description": "TAG7 Section F: Classification & Reference — Uniformat, OmniClass, keynote, cost, ISO tag"
+        },
+        {
+          "param_name": "RGL_TAG_7_PARA_CMPL_TXT",
+          "guid": "a1b2c3d4-5058-4a01-b001-000000000188",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "TAG7 paragraph container for regulatory compliance"
         }
       ]
     },
@@ -25020,6 +23877,15 @@
           "prefix": "",
           "suffix": "",
           "description": "System ref"
+        },
+        {
+          "param_name": "HVC_EQP_TAG",
+          "guid": "6123865a-d82e-5c99-b5cd-bffa452f29b6",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "HVAC equipment tag container [ISO 19650-2:2018]"
         }
       ]
     },
@@ -25060,6 +23926,24 @@
           "prefix": "",
           "suffix": "",
           "description": "System"
+        },
+        {
+          "param_name": "HVC_TAG_7_PARA_ANAL_DUCTS_TXT",
+          "guid": "db9572ae-e4ee-58dd-8a77-66d045ca57a5",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Anal Ducts paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "HVC_DCT_TAG",
+          "guid": "c198faa1-c0c6-5aca-b92c-5e9b021affe7",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "HVAC duct tag container [ISO 19650-2:2018]"
         }
       ]
     },
@@ -25078,6 +23962,15 @@
           "prefix": "",
           "suffix": "",
           "description": "Full tag"
+        },
+        {
+          "param_name": "HVC_FLX_TAG",
+          "guid": "8ae538e1-f6cb-5271-a357-c390ac7605eb",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "HVAC flex duct tag container [ISO 19650-2:2018]"
         }
       ]
     },
@@ -25105,6 +23998,15 @@
           "prefix": "",
           "suffix": "",
           "description": "Short ID"
+        },
+        {
+          "param_name": "ELC_EQP_TAG",
+          "guid": "caaefdb2-cf82-56a1-8167-246ee3982b24",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Electrical equipment tag container [ISO 19650-2:2018]"
         }
       ]
     },
@@ -25132,6 +24034,24 @@
           "prefix": "",
           "suffix": "",
           "description": "Short ID"
+        },
+        {
+          "param_name": "ELC_TAG_7_PARA_FIXTURE_TXT",
+          "guid": "26e933e4-83fd-52bc-b28d-d7b21a97c816",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Electrical fixture TAG7 paragraph narrative"
+        },
+        {
+          "param_name": "ELE_FIX_TAG",
+          "guid": "874f037a-66e2-58f3-9d66-b137b4b184cf",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Electrical fixture tag container [ISO 19650-2:2018]"
         }
       ]
     },
@@ -25160,6 +24080,24 @@
           "prefix": "",
           "suffix": "",
           "description": "Short ID"
+        },
+        {
+          "param_name": "LTG_TAG_7_PARA_FIXTURE_TXT",
+          "guid": "1ef1b8bd-0455-5420-aa3c-b2f101c761ba",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Lighting fixture TAG7 paragraph narrative"
+        },
+        {
+          "param_name": "LTG_FIX_TAG",
+          "guid": "449aa2da-345f-5d91-8f4b-037cc0fd9db3",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Lighting fixture tag container [ISO 19650-2:2018]"
         }
       ]
     },
@@ -25191,6 +24129,42 @@
           "prefix": "",
           "suffix": "",
           "description": "Short ID"
+        },
+        {
+          "param_name": "PLM_TAG_7_PARA_ANAL_PIPES_TXT",
+          "guid": "52e0804c-453d-5001-ba9b-6a45be3659fc",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Anal Pipes paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "PLM_TAG_7_PARA_EQUIP_TXT",
+          "guid": "a1b2c3d4-505a-4a01-b001-000000000190",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "TAG7 paragraph container for plumbing equipment"
+        },
+        {
+          "param_name": "PIP_TAG_7_PARA_PIPE_TXT",
+          "guid": "0a5e974a-3a5d-5847-bbf8-2470f5b70c84",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Pipe system TAG7 paragraph narrative"
+        },
+        {
+          "param_name": "PLM_EQP_TAG",
+          "guid": "37d954b4-c5a7-50c5-8629-2b2957ad440e",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Plumbing equipment tag container [ISO 19650-2:2018]"
         }
       ]
     },
@@ -25219,6 +24193,33 @@
           "prefix": "",
           "suffix": "",
           "description": "Short ID"
+        },
+        {
+          "param_name": "FLS_TAG_7_PARA_DEVICE_TXT",
+          "guid": "c48c8fcc-f3f6-5b91-9f13-3a4ceeb161d2",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Fire safety device TAG7 paragraph narrative"
+        },
+        {
+          "param_name": "SPK_TAG_7_PARA_HEAD_TXT",
+          "guid": "64ad7b98-b473-5cad-af29-71fccfc886d4",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Sprinkler head TAG7 paragraph narrative"
+        },
+        {
+          "param_name": "FLS_DEV_TAG",
+          "guid": "7ec98623-d3f0-583b-9552-b09b12736551",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Fire/life safety device tag container [ISO 19650-2:2018]"
         }
       ]
     },
@@ -25247,6 +24248,24 @@
           "prefix": "",
           "suffix": "",
           "description": "Short ID"
+        },
+        {
+          "param_name": "ELC_TAG_7_PARA_CIRC_TXT",
+          "guid": "d44883db-4f85-5f9b-a5ca-0611014e55e6",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Electrical TAG7 paragraph container for circ"
+        },
+        {
+          "param_name": "ELC_CDT_TAG",
+          "guid": "29253d2b-7320-5139-a738-9e6b44b9fd46",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Electrical conduit tag container [ISO 19650-2:2018]"
         }
       ]
     },
@@ -25266,6 +24285,15 @@
           "prefix": "",
           "suffix": "",
           "description": "Full tag"
+        },
+        {
+          "param_name": "ELC_CTR_TAG",
+          "guid": "983fe026-ff4f-50a6-9486-f08a54b87f70",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Electrical cable tray tag container [ISO 19650-2:2018]"
         }
       ]
     },
@@ -25332,6 +24360,15 @@
           "prefix": "",
           "suffix": "",
           "description": "Test clamp / inspection point full tag (BS EN 62305-3)"
+        },
+        {
+          "param_name": "ELC_TAG_7_PARA_LPS_TXT",
+          "guid": "e1c5f9d4-1007-5111-9111-100000000007",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Electrical TAG7 paragraph container for LPS (class, LPZ, down conductors, earth resistance, last test) [STING Phase 176]"
         }
       ]
     },
@@ -25351,6 +24388,15 @@
           "prefix": "",
           "suffix": "",
           "description": "Full tag"
+        },
+        {
+          "param_name": "COM_DEV_TAG",
+          "guid": "61d0d77d-c061-5d3b-9f64-5f0f8b279eef",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Communications device tag container [ISO 19650-2:2018]"
         }
       ]
     },
@@ -25369,6 +24415,24 @@
           "prefix": "",
           "suffix": "",
           "description": "Full tag"
+        },
+        {
+          "param_name": "SEC_TAG_7_PARA_TXT",
+          "guid": "a1b2c3d4-5056-4a01-b001-000000000186",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "TAG7 paragraph container for security"
+        },
+        {
+          "param_name": "SEC_DEV_TAG",
+          "guid": "de2cd955-4727-5488-a783-5d9be9942169",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Security device tag container [ISO 19650-2:2018]"
         }
       ]
     },
@@ -25387,6 +24451,24 @@
           "prefix": "",
           "suffix": "",
           "description": "Full tag"
+        },
+        {
+          "param_name": "NCL_TAG_7_PARA_TXT",
+          "guid": "a1b2c3d4-5055-4a01-b001-000000000185",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "TAG7 paragraph container for nurse call"
+        },
+        {
+          "param_name": "NCL_DEV_TAG",
+          "guid": "1c1a61fc-29d0-57c8-8e74-e8b9b4502126",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Nurse call / low-voltage device tag container [ISO 19650-2:2018]"
         }
       ]
     },
@@ -25405,6 +24487,15 @@
           "prefix": "",
           "suffix": "",
           "description": "Full tag"
+        },
+        {
+          "param_name": "ICT_DEV_TAG",
+          "guid": "63eea465-921a-5218-b38e-c15f5793549f",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "ICT device tag container [ISO 19650-2:2018]"
         }
       ]
     },
@@ -25511,6 +24602,15 @@
           "prefix": "",
           "suffix": "",
           "description": "Ceiling finish tag"
+        },
+        {
+          "param_name": "FIN_TAG_1_TXT",
+          "guid": "81a1ab91-031c-54c0-8e29-8b4d192f9df6",
+          "tokens": "all",
+          "separator": "-",
+          "prefix": "",
+          "suffix": "",
+          "description": "Finish tag container"
         }
       ]
     },
@@ -25549,6 +24649,24 @@
           "prefix": "",
           "suffix": "",
           "description": "Roof tag"
+        },
+        {
+          "param_name": "PER_TAG_7_PARA_ENV_TXT",
+          "guid": "a1b2c3d4-5057-4a01-b001-000000000187",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "TAG7 paragraph container for environment"
+        },
+        {
+          "param_name": "ENV_TAG_1_TXT",
+          "guid": "4d354f06-1612-534a-ac8c-73d7a340c6e8",
+          "tokens": "all",
+          "separator": "-",
+          "prefix": "",
+          "suffix": "",
+          "description": "Environmental tag container"
         }
       ]
     },
@@ -25559,7 +24677,32 @@
         "Structural Columns",
         "Structural Framing",
         "Structural Foundations",
-        "Floors"
+        "Floors",
+        "Structural Beam Systems",
+        "Structural Connections",
+        "Structural Stiffeners",
+        "Structural Trusses",
+        "Structural Rebar",
+        "Rebar",
+        "Area Based Loads",
+        "Area Loads",
+        "Internal Area Loads",
+        "Internal Line Loads",
+        "Internal Point Loads",
+        "Line Loads",
+        "Point Loads",
+        "Structural Loads",
+        "Structural Area Reinforcement",
+        "Structural Path Reinforcement",
+        "Structural Fabric Reinforcement",
+        "Structural Rebar Couplers",
+        "Analytical Members",
+        "Analytical Links",
+        "Analytical Nodes",
+        "Analytical Openings",
+        "Analytical Panels",
+        "Walls",
+        "Structural Connections"
       ],
       "params": [
         {
@@ -25579,6 +24722,294 @@
           "prefix": "",
           "suffix": "",
           "description": "Steel tag"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_ANAL_LINKS_TXT",
+          "guid": "03104508-f49b-5d14-869a-a99844e734e3",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Anal Links paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_ANAL_MEMBERS_TXT",
+          "guid": "f9e543cf-9fa9-5353-9ee2-93ab8e0368be",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Anal Members paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_ANAL_NODES_TXT",
+          "guid": "50977839-1677-51de-9499-080859e6d8a6",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Anal Nodes paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_ANAL_OPENINGS_TXT",
+          "guid": "bab30603-3a26-50f9-9bdf-2f2cbadfda2c",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Anal Openings paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_ANAL_PANELS_TXT",
+          "guid": "d7e5915c-d1da-5c9a-8d85-a9393378e598",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Anal Panels paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_AREA_BASED_LOADS_TXT",
+          "guid": "55771bdc-f8ba-5aef-8f88-1e010bb9dcdf",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Area Based Loads paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_AREA_LOADS_TXT",
+          "guid": "898517f4-a3cd-5aee-a352-a3a9ca302ea4",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Area Loads paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_INT_AREA_LOADS_TXT",
+          "guid": "995ea95d-a820-5388-aeef-fe106eba2c27",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Int Area Loads paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_INT_LINE_LOADS_TXT",
+          "guid": "9e26f728-f92a-53ef-89f2-ec035af7871c",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Int Line Loads paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_INT_POINT_LOADS_TXT",
+          "guid": "23a35117-dcc6-5903-91fe-4a0dea36dcec",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Int Point Loads paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_LINE_LOADS_TXT",
+          "guid": "618bc4cb-6bfa-5470-930e-638fb210a82f",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Line Loads paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_POINT_LOADS_TXT",
+          "guid": "6112e44d-2429-5211-a0cf-43f3ef083da4",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Point Loads paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_STR_AREA_REINF_TXT",
+          "guid": "144e26c9-c03c-5d4c-b33b-b284609b6479",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Str Area Reinf paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_STR_BEAM_SYSTEMS_TXT",
+          "guid": "a0645e2c-9c55-598b-82cd-40c98f73c43c",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Str Beam Systems paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_STR_CONNECTIONS_TXT",
+          "guid": "a132d0e7-f955-5eec-9e02-d7d6a226f042",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Str Connections paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_STR_FABRIC_REINF_TXT",
+          "guid": "015d77da-0148-5192-adb6-91786c0e2da3",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Str Fabric Reinf paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_STR_PATH_REINF_TXT",
+          "guid": "85220f29-9434-5dc6-91f7-a2f260df8115",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Str Path Reinf paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_STR_REBAR_COUPLERS_TXT",
+          "guid": "70f0f990-cab2-55d2-9956-800e11d04415",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Str Rebar Couplers paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_STR_REBAR_TXT",
+          "guid": "dc1b44a7-9073-50ea-b01d-2a664db4b7f3",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Str Rebar paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_STR_STIFFENERS_TXT",
+          "guid": "35d4baf6-5faa-521e-b9bf-54b7a84e6b81",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Str Stiffeners paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_STR_TRUSSES_TXT",
+          "guid": "b31d7a3d-2bbc-5bc5-8f98-d7bc8e250634",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Str Trusses paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_ANLYT_TXT",
+          "guid": "3cbb945a-6689-5c12-9dd4-f615bcd1e992",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Structural TAG7 paragraph container for anlyt"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_BRACE_TXT",
+          "guid": "953a1b8c-c997-550d-b855-c0bab6af0976",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Structural TAG7 paragraph container for brace"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_CONN_TXT",
+          "guid": "009e8fcf-4981-524b-8124-169d4a7301dd",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Structural TAG7 paragraph container for conn"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_LOAD_TXT",
+          "guid": "3eb369b8-8e69-5ddf-9d08-6d955d75288e",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Structural TAG7 paragraph container for load"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_REBAR_TXT",
+          "guid": "ddc05a50-d8a7-5ca5-8576-f80029fc03aa",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Structural TAG7 paragraph container for rebar"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_SLAB_TXT",
+          "guid": "09353894-8a07-50cd-b794-4443ffbac271",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Structural TAG7 paragraph container for slab"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_WALL_TXT",
+          "guid": "63ff5128-2b34-57f2-bf52-80fd3437943a",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Structural TAG7 paragraph container for wall"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_BOLT_TXT",
+          "guid": "f57982c9-adf3-5c7c-b701-8770313f0cb5",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Structural TAG7 paragraph container for bolt connections"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_WELD_TXT",
+          "guid": "f066ecf4-0c8a-59da-860e-2f00f5873e3d",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Structural TAG7 paragraph container for weld connections"
+        },
+        {
+          "param_name": "STR_TAG_7_PARA_WIRE_TXT",
+          "guid": "8f96bff4-2a76-5aa5-bf5e-c03c837a817f",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Structural TAG7 paragraph container for wire/prestress"
+        },
+        {
+          "param_name": "STR_TAG_1_TXT",
+          "guid": "e51303da-3780-5409-9c41-2b3287b3042f",
+          "tokens": "all",
+          "separator": "-",
+          "prefix": "",
+          "suffix": "",
+          "description": "Structural tag container"
         }
       ]
     },
@@ -25609,6 +25040,15 @@
           "prefix": "",
           "suffix": "",
           "description": "Short ID"
+        },
+        {
+          "param_name": "COMP_TAG_1_TXT",
+          "guid": "c291d97e-8b21-54eb-b2b8-3240ed41c112",
+          "tokens": "all",
+          "separator": "-",
+          "prefix": "",
+          "suffix": "",
+          "description": "Compliance tag container"
         }
       ]
     },
@@ -25648,6 +25088,15 @@
           "prefix": "",
           "suffix": "",
           "description": "Location"
+        },
+        {
+          "param_name": "PERF_TAG_1_TXT",
+          "guid": "6ef7ae26-af91-5a43-9ea7-3a05d5cc2bf0",
+          "tokens": "all",
+          "separator": "-",
+          "prefix": "",
+          "suffix": "",
+          "description": "Performance tag container"
         }
       ]
     },
@@ -25678,6 +25127,15 @@
           "prefix": "",
           "suffix": "",
           "description": "Short ID"
+        },
+        {
+          "param_name": "SUST_TAG_1_TXT",
+          "guid": "0dda60a9-c4b0-54dd-bca0-9f5a6076d49c",
+          "tokens": "all",
+          "separator": "-",
+          "prefix": "",
+          "suffix": "",
+          "description": "Sustainability tag container"
         }
       ]
     },
@@ -25699,6 +25157,33 @@
           "prefix": "",
           "suffix": "",
           "description": "Equipment tag"
+        },
+        {
+          "param_name": "ASS_TAG_7_PARA_EQUIP_TXT",
+          "guid": "a1b2c3d4-5031-4a01-b001-000000000149",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "TAG7 paragraph container for general equipment"
+        },
+        {
+          "param_name": "GEN_TAG_7_PARA_EQUIP_TXT",
+          "guid": "16514650-c33b-5970-90e4-8340bd528d0a",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "General TAG7 paragraph container for equip"
+        },
+        {
+          "param_name": "EQP_TAG_1_TXT",
+          "guid": "bc22c478-10bb-5ef8-8884-6cf7f6d74111",
+          "tokens": "all",
+          "separator": "-",
+          "prefix": "",
+          "suffix": "",
+          "description": "Equipment tag container"
         }
       ]
     },
@@ -25828,6 +25313,295 @@
           "param_name": "LIG_TAG_7_PARA_TXT",
           "guid": "11900001-0000-1190-0000-000000000002",
           "description": "Anti-ligature TAG7 paragraph container"
+        }
+      ]
+    },
+    {
+      "group": "Architectural Tags",
+      "group_code": "ARCH_TAG",
+      "categories": [
+        "Walls",
+        "Floors",
+        "Ceilings",
+        "Roofs",
+        "Doors",
+        "Windows",
+        "Furniture",
+        "Casework",
+        "Stairs",
+        "Railings",
+        "Curtain Panels",
+        "Curtain Wall Mullions",
+        "Areas",
+        "Spaces",
+        "Rooms",
+        "Generic Models",
+        "Specialty Equipment",
+        "Planting",
+        "Hardscape",
+        "Property Lines",
+        "Roads",
+        "Detail Items",
+        "Parts",
+        "Assemblies",
+        "Mass",
+        "Entourage",
+        "RVT Links",
+        "Toposolid",
+        "Building Pad"
+      ],
+      "params": [
+        {
+          "param_name": "ARCH_TAG_7_PARA_AREAS_TXT",
+          "guid": "8a5b31e1-940b-5082-9e2c-d9b2f5be03aa",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Areas paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_ASSEMBLIES_TXT",
+          "guid": "e6400856-24c8-5afc-b735-0011a61dfeee",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Assemblies paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_COLUMNS_TXT",
+          "guid": "1c36baa6-8984-5d7a-9c1f-38499f5245f9",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Columns paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_DETAIL_ITEMS_TXT",
+          "guid": "8779ce89-5460-58e7-b110-88a5d3006486",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Detail Items paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_ENTOURAGE_TXT",
+          "guid": "16ad237a-09d4-5452-a76a-2f12082f84f5",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Entourage paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_FOOD_EQUIP_TXT",
+          "guid": "a7e552b0-3d8c-56bf-9f0a-b51f540a7bf3",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Food Equip paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_HARDSCAPE_TXT",
+          "guid": "ea957763-3fcd-506d-b4cf-28f9d66a43b1",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Hardscape paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_MASS_TXT",
+          "guid": "7191599b-a252-5119-9728-5b535bebee24",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Mass paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_MODEL_GROUPS_TXT",
+          "guid": "913fa8bf-86d8-502c-b416-36860d9eef7d",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Model Groups paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_PADS_TXT",
+          "guid": "83056f0d-c97a-5236-b090-d5671203ddf8",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Pads paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_PARTS_TXT",
+          "guid": "2e25c70c-bd0d-5f92-8faf-fe16e9ab3261",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Parts paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_PLANTING_TXT",
+          "guid": "408c1e22-dc39-543d-b2d2-f4220fa0d133",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Planting paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_PROFILES_TXT",
+          "guid": "ba6ac8f4-8290-5168-a787-5443ad26cb50",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Profiles paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_PROPERTY_LINES_TXT",
+          "guid": "f9f03fcc-b30a-51b1-aa95-50931de261f0",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Property Lines paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_PROPERTY_LINE_SEGMENTS_TXT",
+          "guid": "2b05bd61-96fc-5095-a206-68983e25e57d",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Property Line Segments paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_ROADS_TXT",
+          "guid": "4e59c69f-6a7c-561d-a20c-38cadab237fd",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Roads paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_RVT_LINKS_TXT",
+          "guid": "9f9428fe-16d9-583b-a196-95b124340d8b",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Rvt Links paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_SIGNAGE_TXT",
+          "guid": "225fce7a-38ef-5b24-943d-7f952bf03a7b",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Signage paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_SPACES_TXT",
+          "guid": "14222509-31e2-5c33-bbfa-5dcff2d9c5c9",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Spaces paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_TEMP_STRUCT_TXT",
+          "guid": "72f32382-5143-5b68-a118-0d73de853be9",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Temp Struct paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_TOPOSOLID_LINKS_TXT",
+          "guid": "c2997238-45fa-567c-b49b-23578a8ab2c4",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Toposolid Links paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_TOPOSOLID_TXT",
+          "guid": "f5cded24-5b6f-5b60-a284-25a49e7505d6",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Toposolid paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_VERT_CIRC_TXT",
+          "guid": "2c2418c3-dbb1-5d82-b9e6-e7f4bef31164",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Vert Circ paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_WASH_TXT",
+          "guid": "d478b018-e34b-5e07-9e77-6a9199c29a2c",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Wash paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_ZONES_TXT",
+          "guid": "fdad7fc4-e306-5a23-bf70-b3779b7bbaf4",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Zones paragraph [ISO 19650-3:2020]"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_CURTAIN_TXT",
+          "guid": "c15b96fe-3e6b-53b2-b7fc-35f4add8827a",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Architectural TAG7 paragraph container for curtain"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_MULLION_TXT",
+          "guid": "cb0f6308-f648-5977-b5db-fd1b73368e58",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Architectural TAG7 paragraph container for mullion"
+        },
+        {
+          "param_name": "ARCH_TAG_7_PARA_RAILING_TXT",
+          "guid": "6a8fc59d-fca3-50ea-a1e5-0f1bfdbd6721",
+          "tokens": "all",
+          "separator": " | ",
+          "prefix": "",
+          "suffix": "",
+          "description": "Architectural TAG7 paragraph container for railing"
         }
       ]
     }
@@ -29866,7 +29640,10 @@
     "Wash": "OST_Planting",
     "Windows": "OST_Windows",
     "Wire": "OST_Wire",
-    "Zones": "OST_Zones"
+    "Zones": "OST_Zones",
+    "Building Pad": "OST_BuildingPad",
+    "Rebar": "OST_Rebar",
+    "Structural Loads": "OST_LoadCases"
   },
   "universal_categories": [
     "Air Terminals",
@@ -29883,6 +29660,7 @@
     "Assemblies",
     "Audio Visual Devices",
     "Boundary Conditions",
+    "Building Pad",
     "Cable Tray Fittings",
     "Cable Tray Runs",
     "Cable Trays",
@@ -29895,8 +29673,8 @@
     "Conduits",
     "Coordination Model",
     "Curtain Panels",
-    "Curtain Wall Mullions",
     "Curtain Systems",
+    "Curtain Wall Mullions",
     "Data Devices",
     "Detail Items",
     "Doors",
@@ -29964,6 +29742,7 @@
     "RVT Links",
     "Railings",
     "Ramps",
+    "Rebar",
     "Revision Clouds",
     "Roads",
     "Roof Soffits",
@@ -29989,6 +29768,7 @@
     "Structural Foundations",
     "Structural Framing",
     "Structural Load Cases",
+    "Structural Loads",
     "Structural Path Reinforcement",
     "Structural Rebar",
     "Structural Rebar Couplers",
@@ -31082,7 +30862,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_COMMISSIONING_SPECIALTY_EQUIP",
@@ -31095,7 +30875,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_CRITICALITY_SPECIALTY_EQUIP",
@@ -31108,7 +30888,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_DESCRIPTION_ENTOURAGE",
@@ -31121,7 +30901,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_DESCRIPTION_GENERIC_MODEL",
@@ -31134,7 +30914,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_EXPECTED_LIFE_GENERIC_MODEL",
@@ -31147,7 +30927,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_LEAD_TIME_SPECIALTY_EQUIP",
@@ -31160,7 +30940,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_MANUFACTURER_GENERIC_MODEL",
@@ -31173,7 +30953,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_TIEIN_DEFERRED_DUCT",
@@ -31186,7 +30966,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_TIEIN_DEFERRED_FIREPIPE",
@@ -31199,7 +30979,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_TIEIN_DEFERRED_GAS",
@@ -31212,7 +30992,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_TIEIN_DEFERRED_PIPE",
@@ -31225,7 +31005,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_TIEIN_OPEN_CABLETRAY",
@@ -31238,7 +31018,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_TIEIN_OPEN_CONDUIT",
@@ -31251,7 +31031,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_TIEIN_OPEN_DUCT",
@@ -31264,7 +31044,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_TIEIN_OPEN_FIREPIPE",
@@ -31277,7 +31057,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_TIEIN_OPEN_GAS",
@@ -31290,7 +31070,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_TIEIN_OPEN_PIPE",
@@ -31303,7 +31083,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_AV_COVERAGE_AV_DEVICES",
@@ -31316,7 +31096,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_AV_POWER_SUPPLY_AV_DEVICES",
@@ -31329,7 +31109,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_AREA_EFFICIENCY_AREAS",
@@ -31342,7 +31122,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_CASEWORK_ACCESSIBLE_CASEWORK",
@@ -31355,7 +31135,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_CASEWORK_DEPTH_MM_CASEWORK",
@@ -31368,7 +31148,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_CASEWORK_FIRE_CASEWORK",
@@ -31381,7 +31161,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_CEILING_HEIGHT_MM_CEILINGS",
@@ -31394,7 +31174,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_CEILING_MATERIAL_ROOF_SOFFITS",
@@ -31407,7 +31187,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_DOOR_HEIGHT_MM_DOORS",
@@ -31420,7 +31200,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_DOOR_THRESHOLD_DOORS",
@@ -31433,7 +31213,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_DOOR_WIDTH_MM_ACCESSIBILITY",
@@ -31446,7 +31226,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_ENTOURAGE_LOD_ENTOURAGE",
@@ -31459,7 +31239,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_FASCIA_FIRE_FASCIA",
@@ -31472,7 +31252,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_FLOOR_LOAD_KN_M2_FLOORS",
@@ -31485,7 +31265,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_FLOOR_LOAD_KN_M2_SLAB_EDGES",
@@ -31498,7 +31278,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_FLOOR_SLIP_RESISTANCE_FLOORS",
@@ -31511,7 +31291,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_FOOD_DRAINAGE_FOOD_SERVICE",
@@ -31524,7 +31304,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_FOOD_VENTILATION_FOOD_SERVICE",
@@ -31537,7 +31317,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_FURNITURE_CLEARANCE_MM_FURNITURE",
@@ -31550,7 +31330,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_FURNITURE_FIRE_FURNITURE",
@@ -31563,7 +31343,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_FURNITURE_FIRE_FURNITURE_SYS",
@@ -31576,7 +31356,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_FURNITURE_STABILITY_FURNITURE",
@@ -31589,7 +31369,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_FURNITURE_SYS_CABLE_FURNITURE_SYS",
@@ -31602,7 +31382,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_FURNITURE_SYS_CLEARANCE_FURNITURE_SYS",
@@ -31615,7 +31395,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_GUTTER_FALL_GUTTERS",
@@ -31628,7 +31408,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_GUTTER_OVERFLOW_GUTTERS",
@@ -31641,7 +31421,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_HEADROOM_MM_NR_ROOMS",
@@ -31654,7 +31434,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_HEADROOM_MM_NR_VERT_CIRC",
@@ -31667,7 +31447,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_MASS_VOLUME_MASS",
@@ -31680,7 +31460,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_MEDICAL_CLEARANCE_MEDICAL_EQUIP",
@@ -31693,7 +31473,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_MEDICAL_POWER_MEDICAL_EQUIP",
@@ -31706,7 +31486,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_MULLION_DEFLECTION_MULLION",
@@ -31719,7 +31499,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_MULLION_THERMAL_BREAK_MULLION",
@@ -31732,7 +31512,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_PANEL_SIZE_STRUCTURAL_CURTAIN",
@@ -31745,7 +31525,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_PARK_BAY_LENGTH_PARKING",
@@ -31758,7 +31538,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_PARK_BAY_WIDTH_PARKING",
@@ -31771,7 +31551,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_PARK_BAY_WIDTH_STD_PARKING",
@@ -31784,7 +31564,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_PARK_EV_CHARGING_PARKING",
@@ -31797,7 +31577,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_RAILING_BALUSTER_RAILINGS",
@@ -31810,7 +31590,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_RAILING_GRIP_TOP_RAILS",
@@ -31823,7 +31603,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_RAILING_HEIGHT_MM_HANDRAILS",
@@ -31836,7 +31616,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_RAILING_HEIGHT_MM_RAILINGS",
@@ -31849,7 +31629,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_RAILING_HEIGHT_MM_TOP_RAILS",
@@ -31862,7 +31642,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_RAILING_INFILL_HANDRAILS",
@@ -31875,7 +31655,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_RAILING_LOAD_KN_M_RAILINGS",
@@ -31888,7 +31668,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_RAILING_LOAD_KN_M_TOP_RAILS",
@@ -31901,7 +31681,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_RAMP_HANDRAIL_RAMPS",
@@ -31914,7 +31694,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_RAMP_LENGTH_MM_RAMPS",
@@ -31927,7 +31707,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_RAMP_WIDTH_MM_RAMPS",
@@ -31940,7 +31720,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_ROOF_DRAINAGE_GUTTERS",
@@ -31953,7 +31733,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_ROOF_DRAINAGE_ROOFS",
@@ -31966,7 +31746,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_ROOF_MATERIAL_FASCIA",
@@ -31979,7 +31759,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_ROOF_SLOPE_DEG_ROOFS",
@@ -31992,7 +31772,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_ROOM_AREA_SQ_M_AREAS",
@@ -32005,7 +31785,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_ROOM_AREA_SQ_M_MASS",
@@ -32018,7 +31798,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_ROOM_AREA_SQ_M_ROOMS",
@@ -32031,7 +31811,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_ROOM_FIRE_ESCAPE_ROOMS",
@@ -32044,7 +31824,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_ROOM_HEIGHT_MM_ROOMS",
@@ -32057,7 +31837,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_ROOM_OCCUPANCY_SPACES",
@@ -32070,7 +31850,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_ROOM_VENTILATION_ROOMS",
@@ -32083,7 +31863,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_ROOM_VENTILATION_SPACES",
@@ -32096,7 +31876,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_SIGN_ACCESSIBILITY_SIGNAGE",
@@ -32109,7 +31889,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_SIGN_FIRE_EXIT_SIGNAGE",
@@ -32122,7 +31902,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_SIGN_HEIGHT_MM_SIGNAGE",
@@ -32135,7 +31915,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_SLAB_EDGE_THERMAL_BRIDGE_SLAB_EDGES",
@@ -32148,7 +31928,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_SOFFIT_VENTILATION_ROOF_SOFFITS",
@@ -32161,7 +31941,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_STAIR_GOING_MM_STAIRS",
@@ -32174,7 +31954,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_STAIR_GOING_MM_STAIR_RUNS",
@@ -32187,7 +31967,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_STAIR_HEADROOM_MM_STAIRS",
@@ -32200,7 +31980,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_STAIR_LANDING_LENGTH_LANDINGS",
@@ -32213,7 +31993,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_STAIR_LANDING_SLIP_LANDINGS",
@@ -32226,7 +32006,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_STAIR_NOSING_STAIR_RUNS",
@@ -32239,7 +32019,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_STAIR_PITCH_DEG_STAIRS",
@@ -32252,7 +32032,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_STAIR_RISER_MM_STAIRS",
@@ -32265,7 +32045,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_STAIR_RISER_MM_STAIR_RUNS",
@@ -32278,7 +32058,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_STAIR_SUPPORT_LOAD_STAIR_SUPPORTS",
@@ -32291,7 +32071,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_STAIR_WIDTH_MM_LANDINGS",
@@ -32304,7 +32084,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_STAIR_WIDTH_MM_STAIRS",
@@ -32317,7 +32097,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_STAIR_WIDTH_MM_STAIR_RUNS",
@@ -32330,7 +32110,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_VERT_CIRC_ACCESSIBILITY_VERT_CIRC",
@@ -32343,7 +32123,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_VERT_CIRC_FIRE_VERT_CIRC",
@@ -32356,7 +32136,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_WALL_FIRE_WALL_SWEEPS",
@@ -32369,7 +32149,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_WALL_SLENDERNESS_RATIO_WALLS",
@@ -32382,7 +32162,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_WALL_TYPE_WALL_SWEEPS",
@@ -32395,7 +32175,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_WINDOW_SAFETY_GLASS_WINDOWS",
@@ -32408,7 +32188,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_BLE_WIN_VENT_AREA_WINDOWS",
@@ -32421,7 +32201,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_COM_C_COVERAGE_COMM_DEVICES",
@@ -32434,7 +32214,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_COM_C_DATA_RATE_COMM_DEVICES",
@@ -32447,7 +32227,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_COM_C_POWER_SUPPLY_COMM_DEVICES",
@@ -32460,7 +32240,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_COM_C_PROTOCOL_COMM_DEVICES",
@@ -32473,7 +32253,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_CDT_BEND_RADIUS_CONDUITS",
@@ -32486,7 +32266,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_CDT_BEND_RADIUS_CONDUIT_FITTINGS",
@@ -32499,7 +32279,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_CDT_CBL_FILL_PCT_CONDUITS",
@@ -32512,7 +32292,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_CDT_EARTHING_CONDUITS",
@@ -32525,7 +32305,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_CDT_FIRE_BARRIER_CONDUITS",
@@ -32538,7 +32318,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_CDT_RUN_LENGTH_CONDUITS",
@@ -32551,7 +32331,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_CDT_SZ_CONDUIT_FITTINGS",
@@ -32564,7 +32344,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_CIRCUIT_LOAD_ELECTRICAL_FIX",
@@ -32577,7 +32357,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_CONN_IP_CONNECTORS",
@@ -32590,7 +32370,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_CONN_RATING_CONNECTORS",
@@ -32603,7 +32383,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_CTR_BEND_RADIUS_CABLE_TRAY_FTGS",
@@ -32616,7 +32396,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_CTR_EARTHING_CABLE_TRAYS",
@@ -32629,7 +32409,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_CTR_FILL_PCT_CABLE_TRAYS",
@@ -32642,7 +32422,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_CTR_FIRE_RATING_CABLE_TRAYS",
@@ -32655,7 +32435,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_CTR_LOAD_CABLE_TRAYS",
@@ -32668,7 +32448,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_CTR_MAT_CABLE_TRAY_FTGS",
@@ -32681,7 +32461,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_CTR_SEGREGATION_CABLE_TRAYS",
@@ -32694,7 +32474,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_DISCRIMINATION_ELECTRICAL_EQUI",
@@ -32707,7 +32487,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_EARTH_FAULT_ELECTRICAL_EQUI",
@@ -32720,7 +32500,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_EMERGENCY_BATTERY_ELECTRICAL_FIX",
@@ -32733,7 +32513,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_IP_RATING_ELECTRICAL_EQUI",
@@ -32746,7 +32526,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_IP_RATING_ELECTRICAL_FIX",
@@ -32759,7 +32539,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_LABELLING_ELECTRICAL_EQUI",
@@ -32772,7 +32552,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_SHORT_CIRCUIT_ELECTRICAL_EQUI",
@@ -32785,7 +32565,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_SPARE_CAPACITY_ELECTRICAL_EQUI",
@@ -32798,7 +32578,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_FIX",
@@ -32811,7 +32591,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_WIRE_AMPACITY_MISSING",
@@ -32824,7 +32604,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FAB_CONTAINMENT_DIMENSIONS",
@@ -32837,7 +32617,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FAB_CONTAINMENT_FILL_RATIO",
@@ -32850,7 +32630,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FAB_CONTAINMENT_FIRE_RATING",
@@ -32863,7 +32643,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FAB_DCT_DIMENSIONS_DUCTWORK",
@@ -32876,7 +32656,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FAB_DCT_LEAKAGE_DUCTWORK",
@@ -32889,7 +32669,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FAB_DCT_MATERIAL_DUCTWORK",
@@ -32902,7 +32682,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FAB_HANGER_SEISMIC",
@@ -32915,7 +32695,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FAB_HANGER_SPACING",
@@ -32928,7 +32708,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FAB_PIPE_DN_PIPEWORK",
@@ -32941,7 +32721,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FAB_PIPE_WALL_PIPEWORK",
@@ -32954,7 +32734,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FAB_PIPE_WELD_PIPEWORK",
@@ -32967,7 +32747,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FAB_STIFF_SPACING_STIFFENERS",
@@ -32980,7 +32760,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FAB_STIFF_TYPE_STIFFENERS",
@@ -32993,7 +32773,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FLS_BATTERY_BACKUP_FIRE_ALARM",
@@ -33006,7 +32786,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FLS_COVERAGE_FIRE_ALARM",
@@ -33019,7 +32799,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FLS_DETECTOR_SENSITIVITY_FIRE_ALARM",
@@ -33032,7 +32812,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FLS_FLOW_RATE_SPRINKLERS",
@@ -33045,7 +32825,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FLS_HEAD_TYPE_SPRINKLERS",
@@ -33058,7 +32838,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FLS_LOOP_CAPACITY_FIRE_ALARM",
@@ -33071,7 +32851,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FLS_OBSTRUCTION_SPRINKLERS",
@@ -33084,7 +32864,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FLS_PROT_EVACUATION_TIME",
@@ -33097,7 +32877,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FLS_PROT_FIRE_RESISTANCE",
@@ -33110,7 +32890,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FLS_PROT_TRAVEL_DISTANCE",
@@ -33123,7 +32903,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FLS_SOUND_LEVEL_FIRE_ALARM",
@@ -33136,7 +32916,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FLS_SPACING_SPRINKLERS",
@@ -33149,7 +32929,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_FLS_TEMP_RATING_SPRINKLERS",
@@ -33162,7 +32942,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_GEN_ASSEMBLY_CODE_MISSING",
@@ -33175,7 +32955,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_GEN_GROUP_EXCLUDED_MEMBERS",
@@ -33188,7 +32968,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_GEN_LINK_NOT_LOADED",
@@ -33201,7 +32981,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_GEN_MATERIAL_SPEC_MISSING",
@@ -33214,7 +32994,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_GEN_NO_EXPECTED_LIFE",
@@ -33227,7 +33007,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_GEN_NO_MANUFACTURER",
@@ -33240,7 +33020,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_GEN_PARTS_HOST_MISSING",
@@ -33253,7 +33033,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_GEN_PROFILE_DIM_MISSING",
@@ -33266,7 +33046,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_GEN_SPEC_EQUIP_LEAD_TIME",
@@ -33279,7 +33059,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_GEN_SPEC_EQUIP_NO_COMMISSION",
@@ -33292,7 +33072,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_GEN_SPEC_EQUIP_NO_SYS",
@@ -33305,7 +33085,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_GEN_TAG_INCOMPLETE_TXT",
@@ -33318,7 +33098,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_AIRFLOW_CAPACITY_AIR_TERMINALS",
@@ -33331,7 +33111,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_AIR_CHANGES_PER_HR_SPACES",
@@ -33344,7 +33124,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_BMS_MECHANICAL_EQUIP",
@@ -33357,7 +33137,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_CAPACITY_MECHANICAL_EQUIP",
@@ -33370,7 +33150,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_CONTROL_TYPE_ZONES",
@@ -33383,7 +33163,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_DCT_PROPERTY_DUCT_ACC",
@@ -33396,7 +33176,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_DUCT_AREA_DUCTS",
@@ -33409,7 +33189,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_DUCT_CLASS_DUCT_FITTINGS",
@@ -33422,7 +33202,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_DUCT_CLASS_MISMATCH_FITTINGS",
@@ -33435,7 +33215,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_FIRE_DAMPER_RATING_DUCT_ACC",
@@ -33448,7 +33228,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_FIRE_RATING_DUCTS",
@@ -33461,7 +33241,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_INSULATION_FLEX_DUCTS",
@@ -33474,7 +33254,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_INSULATION_THK_DUCTS",
@@ -33487,7 +33267,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_LEAKAGE_CLASS_DUCTS",
@@ -33500,7 +33280,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_LEAKAGE_CLASS_DUCT_ACC",
@@ -33513,7 +33293,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_LENGTH_FLEX_DUCTS",
@@ -33526,7 +33306,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_LOSS_COEFF_DUCT_FITTINGS",
@@ -33539,7 +33319,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_MAINTENANCE_ACCESS_MECH_EQUIP",
@@ -33552,7 +33332,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_MOUNTING_HEIGHT_AIR_TERMINALS",
@@ -33565,7 +33345,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_NOISE_MECHANICAL_EQUIP",
@@ -33578,7 +33358,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_NOISE_NC_AIR_TERMINALS",
@@ -33591,7 +33371,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_PIPE_PRESSURE_KPA_DUCTS",
@@ -33604,7 +33384,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_PRESSURE_DROP_AIR_TERMINALS",
@@ -33617,7 +33397,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_PRESSURE_DROP_DUCT_ACC",
@@ -33630,7 +33410,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_PRESSURE_DROP_FLEX_DUCTS",
@@ -33643,7 +33423,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_REFRIGERANT_MECHANICAL_EQUIP",
@@ -33656,7 +33436,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_SOUND_LEVEL_DUCTS",
@@ -33669,7 +33449,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_THROW_DISTANCE_AIR_TERMINALS",
@@ -33682,7 +33462,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_VIBRATION_MECHANICAL_EQUIP",
@@ -33695,7 +33475,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_ZONE_AREA_ZONES",
@@ -33708,7 +33488,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_HVC_ZONE_SENSOR_ZONES",
@@ -33721,7 +33501,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ICT_CABLE_CATEGORY_DATA_DEVICES",
@@ -33734,7 +33514,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ICT_CABLE_CATEGORY_TELEPHONE",
@@ -33747,7 +33527,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ICT_COVERAGE_DATA_DEVICES",
@@ -33760,7 +33540,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ICT_COVERAGE_TELEPHONE",
@@ -33773,7 +33553,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ICT_DATA_RATE_DATA_DEVICES",
@@ -33786,7 +33566,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ICT_OUTLET_TYPE_DATA_DEVICES",
@@ -33799,7 +33579,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ICT_OUTLET_TYPE_TELEPHONE",
@@ -33812,7 +33592,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_INS_ACOUSTIC_DUCT_LINING",
@@ -33825,7 +33605,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_INS_EROSION_DUCT_LINING",
@@ -33838,7 +33618,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_INS_FIRE_CLASS_DUCT_INS",
@@ -33851,7 +33631,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_INS_FIRE_CLASS_PIPE_INSULATION",
@@ -33864,7 +33644,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_INS_THICKNESS_DUCT_LINING",
@@ -33877,7 +33657,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_INS_THICKNESS_PIPE_INSULATION",
@@ -33890,7 +33670,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_INS_VAPOUR_BARRIER_DUCT_INS",
@@ -33903,7 +33683,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_INS_VAPOUR_BARRIER_PIPE_INSULATION",
@@ -33916,7 +33696,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_LTG_COLOUR_RENDERING_LIGHTING",
@@ -33929,7 +33709,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_LTG_COLOUR_TEMP_LIGHTING",
@@ -33942,7 +33722,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_LTG_CTRL_TYPE_LIGHTING_DEVICES",
@@ -33955,7 +33735,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_LTG_EFFICACY_LIGHTING_DEVICES",
@@ -33968,7 +33748,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_LTG_EFFICACY_LM_W_LIGHTING",
@@ -33981,7 +33761,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_LTG_EMERGENCY_LIGHTING",
@@ -33994,7 +33774,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_LTG_EMERGENCY_LIGHTING_DEVICES",
@@ -34007,7 +33787,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_LTG_GLARE_RATING_LIGHTING",
@@ -34020,7 +33800,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_LTG_ILLUMINANCE_LIGHTING_DEVICES",
@@ -34033,7 +33813,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_LTG_POWER_DENSITY_LIGHTING",
@@ -34046,7 +33826,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_MEC_CTRL_CALIBRATION_CTRL_DEV",
@@ -34059,7 +33839,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_MEC_CTRL_FUNCTION_CTRL_DEV",
@@ -34072,7 +33852,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_MEC_CTRL_SIGNAL_CTRL_DEV",
@@ -34085,7 +33865,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_MEC_SET_CAPACITY_EQUIP_SETS",
@@ -34098,7 +33878,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_MEC_SET_REDUNDANCY_EQUIP_SETS",
@@ -34111,7 +33891,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_NCL_BATTERY_NURSE_CALL",
@@ -34124,7 +33904,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_NCL_RESPONSE_TIME_NURSE_CALL",
@@ -34137,7 +33917,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_NCL_ZONE_NURSE_CALL",
@@ -34150,7 +33930,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_ACOUSTIC_IIC_RATING_FLOORS",
@@ -34163,7 +33943,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_ACOUSTIC_NRC_RATING_CEILINGS",
@@ -34176,7 +33956,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_ACOUSTIC_STC_RATING_NR_DOORS",
@@ -34189,7 +33969,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_ACOUSTIC_STC_RATING_NR_WALLS",
@@ -34202,7 +33982,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_ACOUSTIC_STC_RATING_NR_WINDOWS",
@@ -34215,7 +33995,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_CONDENSATION_RISK_BOOL_ROOFS",
@@ -34228,7 +34008,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_CONDENSATION_RISK_BOOL_WALLS",
@@ -34241,7 +34021,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_EMBODIED_CARBON_KG_CO2_M2_FLOORS",
@@ -34254,7 +34034,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ROOFS",
@@ -34267,7 +34047,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_EMBODIED_CARBON_KG_CO2_M2_STR",
@@ -34280,7 +34060,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_EMBODIED_CARBON_KG_CO2_M2_WALLS",
@@ -34293,7 +34073,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_EMBODIED_CARBON_KG_STR_BEAMS",
@@ -34306,7 +34086,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_FIRE_RATING_HR_ARCH_COLUMNS",
@@ -34319,7 +34099,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_FIRE_RATING_HR_NR_CEILINGS",
@@ -34332,7 +34112,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_FIRE_RATING_HR_NR_DOORS",
@@ -34345,7 +34125,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_FIRE_RATING_HR_NR_FLOORS",
@@ -34358,7 +34138,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_FIRE_RATING_HR_NR_ROOFS",
@@ -34371,7 +34151,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_FIRE_RATING_HR_NR_STAIRS",
@@ -34384,7 +34164,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_FIRE_RATING_HR_NR_STR_BEAMS",
@@ -34397,7 +34177,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_FIRE_RATING_HR_NR_STR_BRACES",
@@ -34410,7 +34190,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_FIRE_RATING_HR_NR_STR_COLUMNS",
@@ -34423,7 +34203,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_FIRE_RATING_HR_NR_STR_SLABS",
@@ -34436,7 +34216,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_FIRE_RATING_HR_NR_STR_WALLS",
@@ -34449,7 +34229,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_FIRE_RATING_HR_NR_WALLS",
@@ -34462,7 +34242,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_FIRE_RATING_HR_STAIR_SUPPORTS",
@@ -34475,7 +34255,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_FIRE_RATING_HR_STR_TRUSSES",
@@ -34488,7 +34268,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_SOLAR_G_VALUE_NR_CURTAIN",
@@ -34501,7 +34281,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_SOLAR_G_VALUE_NR_WINDOWS",
@@ -34514,7 +34294,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_SUST_EPD_MATERIALS",
@@ -34527,7 +34307,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_SUST_RECYCLABILITY_MATERIALS",
@@ -34540,7 +34320,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_THERM_U_VALUE_W_M2K_NR_CURTAIN",
@@ -34553,7 +34333,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_THERM_U_VALUE_W_M2K_NR_MULLION",
@@ -34566,7 +34346,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_THERM_U_VALUE_W_M2K_NR_WINDOWS",
@@ -34579,7 +34359,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_CAPACITY_PLM_EQUIP",
@@ -34592,7 +34372,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_CONNECTION_TYPE_PIPE_FITTINGS",
@@ -34605,7 +34385,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_FIRE_RATING_PIPE_ACC",
@@ -34618,7 +34398,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_FIXTURE_ACCESSIBILITY",
@@ -34631,7 +34411,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_FIXTURE_BACKFLOW",
@@ -34644,7 +34424,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_FIXTURE_FLOW_RATE",
@@ -34657,7 +34437,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_FIXTURE_WASTE_SIZE",
@@ -34670,7 +34450,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_FIXTURE_WATER_EFFICIENCY",
@@ -34683,7 +34463,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_GRADIENT_PIPES",
@@ -34696,7 +34476,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_HOT_WATER_TEMP_PLM_EQUIP",
@@ -34709,7 +34489,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_INSULATION_THK_PIPES",
@@ -34722,7 +34502,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_MAINTENANCE_ACCESS_PLM_EQUIP",
@@ -34735,7 +34515,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_MATERIAL_MISMATCH_PIPE_FITTINGS",
@@ -34748,7 +34528,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_NOISE_PIPES",
@@ -34761,7 +34541,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_PPE_LENGTH_FLEX_PIPE",
@@ -34774,7 +34554,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_PPE_PSR_RATING_PIPE_FITTINGS",
@@ -34787,7 +34567,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_PPE_SZ_PIPE_ACC",
@@ -34800,7 +34580,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_PSR_RATING_PIPES",
@@ -34813,7 +34593,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_PSR_RATING_PIPE_ACC",
@@ -34826,7 +34606,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_TRAP_SEAL_PIPES",
@@ -34839,7 +34619,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PLM_VEL_MPS_FLEX_PIPE",
@@ -34852,7 +34632,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PROP_FIRE_RATING_MATERIALS",
@@ -34865,7 +34645,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PROP_THERMAL_COND_MATERIALS",
@@ -34878,7 +34658,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PROP_CARBON_MATERIALS",
@@ -34891,7 +34671,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_RGL_STD_AV_DEVICES",
@@ -34904,7 +34684,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_RGL_STD_FOOD_SERVICE",
@@ -34917,7 +34697,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_RGL_STD_MEDICAL_EQUIP",
@@ -34930,7 +34710,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SEC_BATTERY_BACKUP_SECURITY",
@@ -34943,7 +34723,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SEC_COVERAGE_SECURITY",
@@ -34956,7 +34736,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SEC_DEV_ZONE_SECURITY",
@@ -34969,7 +34749,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SEC_TAMPER_SECURITY",
@@ -34982,7 +34762,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SITE_HARDSCAPE_SPEC_MISSING",
@@ -34995,7 +34775,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SITE_LOC_MISSING",
@@ -35008,7 +34788,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SITE_PAD_BEARING_MISSING",
@@ -35021,7 +34801,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SITE_PARKING_WIDTH",
@@ -35034,7 +34814,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SITE_PLANTING_SPEC_MISSING",
@@ -35047,7 +34827,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SITE_PROPERTY_AREA_MISSING",
@@ -35060,7 +34840,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SITE_PROPERTY_BEARING_MISSING",
@@ -35073,7 +34853,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SITE_ROAD_GRADIENT",
@@ -35086,7 +34866,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SITE_ROAD_SPEC_MISSING",
@@ -35099,7 +34879,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SITE_TOPOSOLID_LINK_MISSING",
@@ -35112,7 +34892,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SITE_TOPOSOLID_MATERIAL_MISSING",
@@ -35125,7 +34905,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SLV_NO_FIRE_RATING",
@@ -35138,7 +34918,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SLV_NO_REF",
@@ -35151,7 +34931,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SLV_NO_SEAL",
@@ -35164,7 +34944,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_ANLYT_LINK_RIGIDITY",
@@ -35177,7 +34957,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_ANLYT_NODE_UNCONNECTED",
@@ -35190,7 +34970,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_ANLYT_NO_HOST",
@@ -35203,7 +34983,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_ANLYT_OPENING_OVERSIZED",
@@ -35216,7 +34996,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_ANLYT_PANEL_MATERIAL",
@@ -35229,7 +35009,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_BEAM_DEFLECTION_TRUSSES",
@@ -35242,7 +35022,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_BEAM_LATERAL_BRACING",
@@ -35255,7 +35035,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_BOLT_GRADE_MISSING",
@@ -35268,7 +35048,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_BRACE_SLENDERNESS",
@@ -35281,7 +35061,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_COL_BASE_PLATE",
@@ -35294,7 +35074,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_COL_SLENDERNESS",
@@ -35307,7 +35087,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_CONN_WELD_SIZE",
@@ -35320,33 +35100,31 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_FDN_BEARING_KN_M2",
       "guid": "f8f7f079-15c9-5799-b518-3abe89470613",
-      "description": "Tag warning: str fdn bearing kn m2",
-      "threshold": "",
-      "unit": "m²",
-      "severity": "MEDIUM",
+      "description": "Foundation bearing capacity minimum (warn if allowable bearing falls below this) [BS 8004 / BS EN 1997-1 Eurocode 7]",
+      "threshold": "100",
+      "unit": "kN/m²",
+      "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "project",
       "discipline": "Warning",
-      "curated": true,
-      "threshold_pending": true
+      "curated": true
     },
     {
       "param_name": "WARN_STR_FDN_COVER_MM",
       "guid": "b492c1cf-08e5-5cb9-8d0d-85b9ff20a115",
-      "description": "Tag warning: str fdn cover mm",
-      "threshold": "",
+      "description": "Concrete cover to foundation rebar minimum (XC2 exposure, S4 structural class) [BS EN 1992-1-1 Table 4.4N]",
+      "threshold": "75",
       "unit": "mm",
-      "severity": "MEDIUM",
+      "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "project",
       "discipline": "Warning",
-      "curated": true,
-      "threshold_pending": true
+      "curated": true
     },
     {
       "param_name": "WARN_STR_FDN_DEPTH_MM_FROST",
@@ -35359,20 +35137,19 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_FDN_SETTLEMENT_MM",
       "guid": "abfa62af-38df-5f2b-af12-74bf2b1468d2",
-      "description": "Tag warning: str fdn settlement mm",
-      "threshold": "",
+      "description": "Foundation total settlement limit (isolated footings) [BS 8004 / EC7]",
+      "threshold": "25",
       "unit": "mm",
-      "severity": "MEDIUM",
+      "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "project",
       "discipline": "Warning",
-      "curated": true,
-      "threshold_pending": true
+      "curated": true
     },
     {
       "param_name": "WARN_STR_GRADE_STIFFENERS",
@@ -35385,7 +35162,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_LOAD_AXIAL_KN_COLUMNS",
@@ -35398,7 +35175,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_LOAD_CASE_MISSING_AR",
@@ -35411,7 +35188,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_LOAD_CASE_MISSING_INT_AR",
@@ -35424,7 +35201,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_LOAD_CASE_MISSING_INT_LN",
@@ -35437,7 +35214,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_LOAD_CASE_MISSING_INT_PT",
@@ -35450,7 +35227,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_LOAD_CASE_MISSING_LN",
@@ -35463,7 +35240,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_LOAD_CASE_MISSING_PT",
@@ -35476,7 +35253,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_LOAD_UDL_KN_M_BEAM_SYS",
@@ -35489,7 +35266,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_REBAR_COVER_MM_AREA",
@@ -35502,7 +35279,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_REBAR_COVER_MM_FABRIC",
@@ -35515,7 +35292,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_REBAR_COVER_MM_PATH",
@@ -35528,7 +35305,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_REBAR_GRADE_COUPLERS",
@@ -35541,7 +35318,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_REBAR_SPACING_MM_AREA",
@@ -35554,20 +35331,19 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_SLAB_COVER_MM",
       "guid": "8ba3c51b-278b-5cb0-b6a4-ff77b1409c3d",
-      "description": "Tag warning: str slab cover mm",
-      "threshold": "",
+      "description": "Concrete cover to slab rebar minimum (XC1 indoor dry exposure) [BS EN 1992-1-1 Table 4.4N]",
+      "threshold": "25",
       "unit": "mm",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "project",
       "discipline": "Warning",
-      "curated": true,
-      "threshold_pending": true
+      "curated": true
     },
     {
       "param_name": "WARN_STR_WALL_SLENDERNESS",
@@ -35580,7 +35356,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_STR_WELD_SPEC_MISSING",
@@ -35593,7 +35369,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_TIEIN_NO_IFC_REF",
@@ -35606,7 +35382,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_TIEIN_NO_PHASE",
@@ -35619,7 +35395,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ASS_TIEIN_NO_RESPONSIBLE",
@@ -35632,33 +35408,31 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_CIRCUIT_LOADING_PCT",
       "guid": "004a7bed-4c98-57b2-b600-610a507943c8",
-      "description": "Tag warning: electrical circuit loading percentage exceeded",
-      "threshold": "",
+      "description": "Circuit loading limit (% of current carrying capacity) [BS 7671 Appendix 4]",
+      "threshold": "80",
       "unit": "%",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "project",
       "discipline": "Warning",
-      "curated": true,
-      "threshold_pending": true
+      "curated": true
     },
     {
       "param_name": "WARN_HVC_DUCT_VELOCITY_M_S_NR",
       "guid": "c92d990c-8439-5756-b7aa-9815b3264840",
-      "description": "Tag warning: HVAC duct velocity exceeds CIBSE limit",
-      "threshold": "",
+      "description": "HVAC supply duct velocity limit, low-velocity main [CIBSE Guide B3]",
+      "threshold": "5",
       "unit": "m/s",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "project",
       "discipline": "Warning",
-      "curated": true,
-      "threshold_pending": true
+      "curated": true
     },
     {
       "param_name": "WARN_PER_CONDENSATION_RISK_BOOL",
@@ -35671,33 +35445,31 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_EMBODIED_CARBON_KG_CO2_M2",
       "guid": "8f1233a3-a77a-583b-8e95-0afd66d0a766",
-      "description": "Tag warning: embodied carbon exceeds threshold (generic)",
-      "threshold": "",
+      "description": "Embodied carbon limit A1-A5, offices (2025 target; 2030 target 350) [LETI Climate Emergency Design Guide / RIBA 2030 Challenge]",
+      "threshold": "600",
       "unit": "kgCO₂/m²",
-      "severity": "MEDIUM",
+      "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "project",
       "discipline": "Warning",
-      "curated": true,
-      "threshold_pending": true
+      "curated": true
     },
     {
       "param_name": "WARN_PLM_PIPE_VELOCITY_M_S_NR",
       "guid": "8cc36388-1f54-5501-ab42-8ca5005fb09f",
-      "description": "Tag warning: plumbing pipe velocity exceeds limit",
-      "threshold": "",
+      "description": "Pipe velocity limit, cold water (hot water max 1.5 m/s) [BS EN 806-3 / CIBSE Guide G]",
+      "threshold": "2.0",
       "unit": "m/s",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "project",
       "discipline": "Warning",
-      "curated": true,
-      "threshold_pending": true
+      "curated": true
     },
     {
       "param_name": "WARN_STR_WIR_TENSILE_MPA",
@@ -35710,7 +35482,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SHT_DISC_MISSING",
@@ -35723,7 +35495,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SHT_MULTI_DISC_MEP",
@@ -35736,7 +35508,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SHT_NAMING_ARCH",
@@ -35749,7 +35521,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SHT_NAMING_STR",
@@ -35762,7 +35534,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SHT_REV_MISSING",
@@ -35775,7 +35547,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SHT_TAG1_EMPTY",
@@ -35788,7 +35560,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ARCH",
@@ -35801,7 +35573,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SHT_DISC_MISMATCH",
@@ -35814,7 +35586,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SHT_NO_DISC",
@@ -35827,7 +35599,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SHT_NO_LEVEL",
@@ -35840,7 +35612,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SHT_NO_ORIGINATOR",
@@ -35853,7 +35625,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SHT_NO_TAG1",
@@ -35866,7 +35638,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SHT_NO_TAG7",
@@ -35879,7 +35651,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SLV_NO_FIRESTOP",
@@ -35892,7 +35664,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SLV_NO_INSPECTION",
@@ -35905,7 +35677,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SLV_NO_SERVICE",
@@ -35918,7 +35690,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_SLV_NO_SIZE",
@@ -35931,7 +35703,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_LPS_NO_CLASS",
@@ -35944,7 +35716,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_LPS_DOWN_COND_INSUFFICIENT",
@@ -35957,7 +35729,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_LPS_EARTH_RESISTANCE_HIGH",
@@ -35970,7 +35742,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_LPS_NO_RISK_ASSESSMENT",
@@ -35983,7 +35755,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_LPS_SEPARATION_FAIL",
@@ -35996,7 +35768,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_LPS_INSPECTION_OVERDUE",
@@ -36009,7 +35781,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW",
@@ -36022,7 +35794,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_LPS_NO_BONDING",
@@ -36035,7 +35807,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_LPS_MESH_SIZE_EXCEEDED",
@@ -36048,7 +35820,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     },
     {
       "param_name": "WARN_ELC_LPS_NO_ZONE",
@@ -36061,7 +35833,7 @@
       "binding": "project",
       "discipline": "Warning",
       "curated": true,
-      "threshold_pending": true
+      "check_type": "presence"
     }
   ],
   "sheet_tokens": [
