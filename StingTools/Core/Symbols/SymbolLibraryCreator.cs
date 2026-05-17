@@ -1097,9 +1097,9 @@ namespace StingTools.Core.Symbols
                             {
                                 ce = ConnectorElement.CreateDuctConnector(
                                     fdoc,
+                                    DuctSystemType.SupplyAir,
                                     ResolveProfileType(c.Shape),
-                                    refLine.GeometryCurve.GetEndPointReference(0),
-                                    DuctSystemType.SupplyAir);
+                                    refLine.GeometryCurve.GetEndPointReference(0));
                                 SetConnectorSystemTypeParam(ce, c.SystemType, domain, def.Id, sourceLabel, result);
                             }
                             catch (Exception ex)
