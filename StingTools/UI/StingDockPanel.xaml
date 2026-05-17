@@ -1415,6 +1415,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Augment Families" Tag="Symbols_AugmentAll" Click="Cmd_Click" ToolTip="Inject STING symbol parameters into all loaded families"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Augment Selected" Tag="Symbols_AugmentSelected" Click="Cmd_Click" ToolTip="Augment selected families only"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Rollback Augment" Tag="Symbols_RollbackAugment" Click="Cmd_Click" ToolTip="Remove STING parameters from a previously augmented family"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Author Symbols" Tag="Symbols_AuthorSymbols" Click="Cmd_Click" ToolTip="Wire plan/elevation symbolic curves, STING subcategories, annotation plan symbol, and MEP connector size params into .rfa files"/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource ActionBtn}" Content="Heal Orphans" Tag="Symbols_HealOrphans" Click="Cmd_Click" ToolTip="Delete symbol tags whose host has been deleted"/>

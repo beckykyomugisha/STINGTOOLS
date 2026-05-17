@@ -427,6 +427,7 @@ namespace StingTools.UI
                     case "Symbols_AugmentAll":      RunCommand<Commands.Symbols.AugmentProjectFamiliesCommand>(app); break;
                     case "Symbols_AugmentSelected": RunCommand<Commands.Symbols.AugmentSelectedFamilyCommand>(app); break;
                     case "Symbols_RollbackAugment": RunCommand<Commands.Symbols.RollbackAugmentationCommand>(app); break;
+                    case "Symbols_AuthorSymbols":   RunCommand<Commands.Symbols.AuthorFamilySymbolsCommand>(app); break;
 
                     // ── Phase 175: Symbol Maintenance ──
                     case "Symbols_HealOrphans":    RunCommand<Commands.Symbols.HealSymbolOrphansCommand>(app); break;
