@@ -3253,6 +3253,8 @@
                                             ToolTip="Generate webhook payload for Power Automate/Zapier"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Publish 3D Model" Tag="PublishModelToPlanscape" Click="Cmd_Click"
                                             ToolTip="Export the active 3D view to GLB (or pick a file) and publish it + the element-map sidecar to Planscape Models"/>
+                                    <Button Style="{StaticResource TealBtn}" Content="Push Geometry" Tag="IFC_PushModel" Click="Cmd_Click"
+                                            ToolTip="Extract tessellated geometry from the active 3D view and push a delta GLB to the Planscape federated-model viewer. Auto-runs on save; use this button to force a full push after link file changes."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

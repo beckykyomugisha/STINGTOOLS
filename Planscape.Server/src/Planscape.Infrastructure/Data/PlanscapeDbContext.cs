@@ -167,6 +167,9 @@ public class PlanscapeDbContext : DbContext
     // S6.3 — CRDT update log for collaborative pin / issue editing.
     public DbSet<PinCrdtUpdate> PinCrdtUpdates => Set<PinCrdtUpdate>();
 
+    // FEDERATED-MODEL: per-element tessellated geometry (Revit plugin delta, IFC hot-folder, Speckle).
+    public DbSet<FederatedElement> FederatedElements => Set<FederatedElement>();
+
     // Phase 178c (T3-12) — Multi-step / parallel approval chains for CDE transitions.
     public DbSet<ApprovalChain> ApprovalChains => Set<ApprovalChain>();
     public DbSet<ApprovalStage> ApprovalStages => Set<ApprovalStage>();
@@ -226,6 +229,23 @@ public class PlanscapeDbContext : DbContext
         {
             e.HasIndex(x => x.ModelId);
             e.Property(x => x.ModelElementGuid).HasMaxLength(80);
+        });
+
+        // ── FederatedElement (geometry delta store) ──────────────────────────
+        modelBuilder.Entity<FederatedElement>(e =>
+        {
+            e.HasKey(x => x.Id);
+            // Unique element per project+doc+elementId combination
+            e.HasIndex(x => new { x.ProjectId, x.SourceDocGuid, x.ElementId }).IsUnique();
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => x.UniqueId);
+            e.Property(x => x.SourceDocGuid).HasMaxLength(100);
+            e.Property(x => x.UniqueId).HasMaxLength(50);
+            e.Property(x => x.IfcGuid).HasMaxLength(36);
+            e.Property(x => x.Category).HasMaxLength(100);
+            e.Property(x => x.GlbStoragePath).HasMaxLength(600);
+            e.Property(x => x.Source).HasMaxLength(30);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // ── IssueComment (P2) ──

@@ -1096,6 +1096,8 @@ app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
 // ArchiCAD live model stream — clients join project group to receive real-time element events.
 app.MapHub<Planscape.Infrastructure.SignalR.ArchiCADHub>("/hubs/archicad");
+// Federated model viewer — notifies connected clients when geometry delta is uploaded.
+app.MapHub<Planscape.Infrastructure.SignalR.FederatedModelHub>("/hubs/federated-model");
 
 // ── Database schema + seed ──
 {
