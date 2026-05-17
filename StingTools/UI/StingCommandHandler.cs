@@ -445,6 +445,7 @@ namespace StingTools.UI
                     case "IFC_ArchiCADSync":  RunCommand<Commands.IFC.ArchiCADSyncCommand>(app); break;
                     case "IFC_DropImport":    RunCommand<Commands.IFC.IfcDropImportCommand>(app); break;
                     case "IFC_PushModel":     RunCommand<Commands.IFC.IFC_PushModelCommand>(app); break;
+                    case "ArchiCadIfcImport": RunCommand<Commands.Interop.ArchiCadIfcImportCommand>(app); break;
 
                     // ── Phase 175: SLD Generator ──
                     case "SLD_Generate":           RunCommand<Commands.SLD.GenerateSLDCommand>(app); break;

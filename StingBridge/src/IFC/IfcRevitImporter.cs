@@ -60,20 +60,18 @@ namespace StingBridge.IFC
 
                 if (mode == IfcImportMode.Link)
                 {
-                    // Link keeps the IFC as a live reference — preferred for coordination.
-                    RevitLinkOptions linkOpts = new RevitLinkOptions(false);
-                    LinkLoadResult   linkRes  = RevitFileLink.Load(ifcPath, linkOpts);
-                    if (linkRes.LoadResult == LinkLoadResultType.LinkLoaded ||
-                        linkRes.LoadResult == LinkLoadResultType.LinkAlreadyLoaded)
-                    {
-                        StingLog.Info($"IfcRevitImporter: linked {Path.GetFileName(ifcPath)}");
-                    }
+                    // The Revit core API (RevitAPI.dll) does not expose a programmatic
+                    // "Link IFC" method — that functionality lives in the IFC for Revit
+                    // add-in, not in the core assembly. Fall back to Import so callers
+                    // always get usable native elements regardless of the requested mode.
+                    StingLog.Warn($"IfcRevitImporter: IFC link mode is not available via the " +
+                                  $"Revit API; falling back to Import for {Path.GetFileName(ifcPath)}");
                 }
-                else
-                {
-                    // Direct import — geometry becomes native Revit elements.
-                    doc.Import(ifcPath, opts, doc.ActiveView);
-                }
+
+                // Import converts IFC geometry into native Revit elements.
+                // The fourth (out) parameter receives the ElementId of the created
+                // import symbol — required by the Revit 2025+ API signature.
+                doc.Import(ifcPath, opts, doc.ActiveView, out ElementId _);
 
                 if (applyTags)
                     result.ElementsTagged = StampImportedElements(doc, ifcPath);
@@ -101,6 +99,10 @@ namespace StingBridge.IFC
             string shortName = Path.GetFileNameWithoutExtension(sourceFile);
             string importDt  = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
 
+            // Build the spatial population context once for the whole batch so room
+            // lookups and level detection are amortised across all elements.
+            var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
+
             foreach (var el in new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
                 .ToElements()
@@ -110,6 +112,18 @@ namespace StingBridge.IFC
                 {
                     ParameterHelpers.SetIfEmpty(el, "IFC_SOURCE_FILE_TXT", shortName);
                     ParameterHelpers.SetIfEmpty(el, "IFC_IMPORT_DT_TXT",   importDt);
+
+                    // Copy IfcGlobalId into the STING audit parameter so issues raised
+                    // in Planscape can be traced back to the originating IFC element.
+                    string? guid = el.LookupParameter("IfcGUID")?.AsString();
+                    if (!string.IsNullOrWhiteSpace(guid))
+                        ParameterHelpers.SetIfEmpty(el, "IFC_GLOBAL_ID_TXT", guid);
+
+                    // Derive DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS from element
+                    // context. overwrite:false preserves values already written by the
+                    // ArchiCAD property-set mapper (via ArchiCadIfcImportCommand).
+                    TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: false);
+
                     count++;
                 }
                 catch (Exception ex) { StingLog.Warn($"StampImportedElements {el.Id}: {ex.Message}"); }

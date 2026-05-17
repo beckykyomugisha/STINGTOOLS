@@ -3376,6 +3376,22 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- ARCHICAD COORDINATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="ARCHICAD COORDINATION"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#2E7D32">
+                            <StackPanel>
+                                <TextBlock Text="ArchiCAD ↔ Revit sync via IFC drop-folder or Live Link (AC 26+)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="AC Sync" Tag="IFC_ArchiCADSync" Click="Cmd_Click"
+                                            ToolTip="Sync ArchiCAD model into Revit: tries Live Link (named pipe) first, falls back to IFC drop folder" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="IFC Drop Import" Tag="IFC_DropImport" Click="Cmd_Click"
+                                            ToolTip="Manually import an IFC file via file picker — Link or Import mode"/>
+                                    <Button Style="{StaticResource TealBtn}" Content="AC IFC Import" Tag="ArchiCadIfcImport" Click="Cmd_Click"
+                                            ToolTip="ArchiCAD IFC import with full coordinate alignment (4×4 matrix, IfcUnitAssignment, storey elevation correction) and ARCHICAD_IFC_MAPPING.json property enrichment"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- QUALITY ASSURANCE -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="QUALITY ASSURANCE"/>
                         <Border Style="{StaticResource GroupBorder}">

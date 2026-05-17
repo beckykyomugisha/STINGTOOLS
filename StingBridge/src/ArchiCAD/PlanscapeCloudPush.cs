@@ -45,6 +45,8 @@ namespace StingBridge.ArchiCAD
         private readonly string      _serverBase;
         private readonly string      _projectId;
         private readonly string      _bridgeKey;
+        private readonly string      _authorName;
+        private readonly string      _authorEmail;
 
         private readonly ConcurrentQueue<ArchiCADChangeEvent> _queue = new();
         private readonly Timer _flushTimer;
@@ -52,11 +54,14 @@ namespace StingBridge.ArchiCAD
         private readonly SemaphoreSlim _flushGate = new(1, 1);
         private bool _disposed;
 
-        public PlanscapeCloudPush(string serverBase, string projectId, string bridgeKey)
+        public PlanscapeCloudPush(string serverBase, string projectId, string bridgeKey,
+            string authorName = "", string authorEmail = "")
         {
-            _serverBase = serverBase.TrimEnd('/');
-            _projectId  = projectId;
-            _bridgeKey  = bridgeKey;
+            _serverBase  = serverBase.TrimEnd('/');
+            _projectId   = projectId;
+            _bridgeKey   = bridgeKey;
+            _authorName  = authorName;
+            _authorEmail = authorEmail;
 
             _http = new HttpClient();
             _http.DefaultRequestHeaders.Add("X-StingBridge-Key", bridgeKey);
@@ -75,8 +80,11 @@ namespace StingBridge.ArchiCAD
         public void Enqueue(ArchiCADChangeEvent ev) => _queue.Enqueue(ev);
 
         // Send a heartbeat so Planscape Web can show the "LIVE" indicator.
-        public async Task SendStatusAsync(string authorName, string authorEmail)
+        // authorName/authorEmail default to the values set in the constructor.
+        public async Task SendStatusAsync(string? authorName = null, string? authorEmail = null)
         {
+            authorName  ??= _authorName;
+            authorEmail ??= _authorEmail;
             try
             {
                 var payload = new
@@ -104,7 +112,11 @@ namespace StingBridge.ArchiCAD
 
                 try
                 {
-                    var payload = new { events = batch, authorInfo = (object?)null };
+                    // Include author info when available so the Planscape Web "LIVE"
+                    // indicator can show which ArchiCAD user is actively editing.
+                    object? authorInfo = string.IsNullOrWhiteSpace(_authorName) ? null
+                        : new { name = _authorName, email = _authorEmail, version = "ArchiCAD" };
+                    var payload = new { events = batch, authorInfo };
                     var response = await _http.PostAsJsonAsync(
                         $"{_serverBase}/api/archicad/{_projectId}/push", payload);
 
