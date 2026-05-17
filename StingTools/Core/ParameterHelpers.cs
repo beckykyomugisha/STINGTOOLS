@@ -4082,11 +4082,11 @@ namespace StingTools.Core
                 try
                 {
                     if (!string.IsNullOrEmpty(_prevTag))
-                        ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", _prevTag, overwrite: true);
+                        ParameterHelpers.SetString(el, ParamRegistry.TAG_PREV, _prevTag, overwrite: true);
                     // F-09: Use cached timestamp (refreshed once per second) to avoid per-element allocation
-                    ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
+                    ParameterHelpers.SetString(el, ParamRegistry.TAG_MODIFIED_DT,
                         GetCachedTimestamp(), overwrite: true);
-                    ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_BY_TXT", Environment.UserName, overwrite: true);
+                    ParameterHelpers.SetString(el, ParamRegistry.TAG_MODIFIED_BY, Environment.UserName, overwrite: true);
 
                     // Pack 122 / Gap A — dual-write to Extensible Storage. Schema
                     // landed in Phase 121; this is the deferred hot-path wire-up.

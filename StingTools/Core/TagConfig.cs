@@ -777,13 +777,76 @@ namespace StingTools.Core
         /// </summary>
         internal static HashSet<string> GetValidFuncsForSys(string sys)
         {
+            EnsureValidFuncsLoaded();
             if (_validFuncsForSys.TryGetValue(sys, out var funcs)) return funcs;
             return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
-        /// <summary>Phase 39: Comprehensive SYS→FUNC mapping for cross-validation.
-        /// Covers all 17 system codes with primary + variant functions per CIBSE/Uniclass.</summary>
-        private static readonly Dictionary<string, HashSet<string>> _validFuncsForSys =
+        private static bool _validFuncsCsvLoaded = false;
+        private static void EnsureValidFuncsLoaded()
+        {
+            if (_validFuncsCsvLoaded) return;
+            _validFuncsCsvLoaded = true;
+            TryLoadValidFuncsFromCsv();
+        }
+
+        /// <summary>
+        /// Attempts to rebuild _validFuncsForSys from STING_FUNC_SYS_MATRIX.csv.
+        /// Falls back to the hardcoded defaults if the file is absent or malformed.
+        /// Called from LoadFromFile, LoadDefaults, and lazily from GetValidFuncsForSys.
+        /// </summary>
+        private static void TryLoadValidFuncsFromCsv()
+        {
+            try
+            {
+                string csvPath = StingToolsApp.FindDataFile("STING_FUNC_SYS_MATRIX.csv");
+                if (string.IsNullOrEmpty(csvPath) || !System.IO.File.Exists(csvPath)) return;
+
+                var loaded = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+                bool first = true;
+                foreach (string raw in System.IO.File.ReadLines(csvPath))
+                {
+                    if (first) { first = false; continue; } // skip header
+                    string line = raw.Trim();
+                    if (string.IsNullOrEmpty(line) || line.StartsWith("#")) continue;
+
+                    // CSV: SYS_CODE,SYS_DESCRIPTION,FUNC_CODE,FUNC_DESCRIPTION,...
+                    var cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols == null || cols.Length < 3) continue;
+                    string sysCode  = cols[0].Trim();
+                    string funcCode = cols[2].Trim();
+                    if (string.IsNullOrEmpty(sysCode) || string.IsNullOrEmpty(funcCode)) continue;
+
+                    if (!loaded.TryGetValue(sysCode, out var set))
+                    {
+                        set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        loaded[sysCode] = set;
+                    }
+                    set.Add(funcCode);
+                }
+
+                if (loaded.Count > 0)
+                {
+                    // Merge into existing dict: CSV wins; hardcoded entries not in CSV are retained
+                    foreach (var kvp in loaded)
+                    {
+                        if (_validFuncsForSys.TryGetValue(kvp.Key, out var existing))
+                            foreach (string fc in kvp.Value) existing.Add(fc);
+                        else
+                            _validFuncsForSys[kvp.Key] = kvp.Value;
+                    }
+                    StingLog.Info($"TagConfig: merged STING_FUNC_SYS_MATRIX.csv → {loaded.Count} SYS entries into _validFuncsForSys");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TagConfig: TryLoadValidFuncsFromCsv failed — using hardcoded defaults: {ex.Message}");
+            }
+        }
+
+        /// <summary>Phase 39: Comprehensive SYS→FUNC mapping — hardcoded baseline.
+        /// Extended at runtime by TryLoadValidFuncsFromCsv() from STING_FUNC_SYS_MATRIX.csv.</summary>
+        private static Dictionary<string, HashSet<string>> _validFuncsForSys =
             new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
             {
                 // Mechanical systems — aligned with STING_FUNC_SYS_MATRIX.csv
@@ -1870,6 +1933,10 @@ namespace StingTools.Core
                 }
 
                 ConfigSource = path;
+                // Reload CSV-derived lookup tables so project-specific additions survive config reload
+                _validFuncsCsvLoaded = false;
+                EnsureValidFuncsLoaded();
+                _csvProdRulesLoaded = false;
                 ISO19650Validator.InvalidateValidatorCaches(); // PERF-01: clear cached code sets after config reload
                 try { BIMManager.ExcelLinkEngine.InvalidateValidationCache(); } // DI-02: clear Excel validation caches on config reload
                 catch (Exception) { /* ExcelLinkEngine may not be loaded yet */ }
@@ -1956,6 +2023,11 @@ namespace StingTools.Core
             AutoTaggerVisual = null;
             AutoTaggerStaleMarker = null;
             AutoCorrectStatusFromPhase = false;
+            // Reload FUNC/SYS matrix from CSV so custom project additions aren't lost on reset
+            _validFuncsCsvLoaded = false;
+            EnsureValidFuncsLoaded();
+            // Load PROD code rules from CSV (lazy — invalidate so next GetFamilyAwareProdCode call reloads)
+            _csvProdRulesLoaded = false;
             // Load category warnings and paragraph containers from LABEL_DEFINITIONS
             LoadCategoryWarningsFromLabels();
         }
@@ -2530,12 +2602,61 @@ namespace StingTools.Core
         /// This gives more specific PROD codes: e.g., "FCU-01" → FCU, "VAV Box" → VAV,
         /// instead of the generic category code like "AHU" for all Mechanical Equipment.
         /// </summary>
+        // ── CSV-driven PROD code rule table ─────────────────────────────
+        // Loaded lazily from STING_PROD_CODES.csv on first call.
+        // Key = category name (case-insensitive); value = ordered list of (pattern, prodCode) pairs.
+        private static Dictionary<string, List<(string Pattern, string ProdCode)>> _csvProdRules;
+        private static bool _csvProdRulesLoaded = false;
+
+        private static void EnsureProdRulesLoaded()
+        {
+            if (_csvProdRulesLoaded) return;
+            _csvProdRulesLoaded = true;
+            _csvProdRules = new Dictionary<string, List<(string, string)>>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string csvPath = StingToolsApp.FindDataFile("STING_PROD_CODES.csv");
+                if (string.IsNullOrEmpty(csvPath) || !System.IO.File.Exists(csvPath)) return;
+
+                bool first = true;
+                foreach (string raw in System.IO.File.ReadLines(csvPath))
+                {
+                    if (first) { first = false; continue; }
+                    string line = raw.Trim();
+                    if (string.IsNullOrEmpty(line) || line.StartsWith("#")) continue;
+
+                    // CSV: PROD_CODE,CATEGORY,FAMILY_PATTERN,DESCRIPTION,...
+                    var cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols == null || cols.Length < 3) continue;
+                    string prodCode = cols[0].Trim();
+                    string category = cols[1].Trim();
+                    string pattern  = cols[2].Trim().ToUpperInvariant();
+                    if (string.IsNullOrEmpty(prodCode) || string.IsNullOrEmpty(category) || string.IsNullOrEmpty(pattern)) continue;
+
+                    if (!_csvProdRules.TryGetValue(category, out var list))
+                    { list = new List<(string, string)>(); _csvProdRules[category] = list; }
+                    list.Add((pattern, prodCode));
+                }
+                StingLog.Info($"TagConfig: loaded {_csvProdRules.Count} category rule sets from STING_PROD_CODES.csv");
+            }
+            catch (Exception ex) { StingLog.Warn($"TagConfig: EnsureProdRulesLoaded failed: {ex.Message}"); }
+        }
+
         public static string GetFamilyAwareProdCode(Element el, string categoryName)
         {
             string familyName = ParameterHelpers.GetFamilyName(el);
             string symbolName = ParameterHelpers.GetFamilySymbolName(el);
             // Combined name checks both family AND type name for broader pattern matching
             string combinedName = $"{familyName} {symbolName}".ToUpperInvariant();
+
+            // CSV pre-lookup: try data-driven rules before falling through to hardcoded branches
+            EnsureProdRulesLoaded();
+            if (!string.IsNullOrEmpty(familyName) && _csvProdRules != null
+                && _csvProdRules.TryGetValue(categoryName, out var csvRules))
+            {
+                foreach (var (pattern, prodCode) in csvRules)
+                    if (combinedName.Contains(pattern)) return prodCode;
+            }
 
             // Only apply family-level overrides for categories with diverse equipment
             if (!string.IsNullOrEmpty(familyName))
@@ -2849,7 +2970,7 @@ namespace StingTools.Core
             // collision loop entirely (only honoured when not overwriting).
             if (collisionMode != TagCollisionMode.Overwrite && hasCompleteTag)
             {
-                string prev = ParameterHelpers.GetString(el, "ASS_TAG_PREV_TXT");
+                string prev = ParameterHelpers.GetString(el, ParamRegistry.TAG_PREV);
                 if (!string.IsNullOrEmpty(prev)
                     && string.Equals(prev, existingTag, StringComparison.Ordinal))
                 {

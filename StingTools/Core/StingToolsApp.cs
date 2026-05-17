@@ -115,6 +115,10 @@ namespace StingTools.Core
                     StingLog.Error("ParamRegistry pre-load failed (commands will use defaults)", ex);
                 }
 
+                // Validate NLP intent patterns — logs any commandTag that can't be resolved
+                try { Tags.NLPEngine.ValidateIntentPatterns(); }
+                catch (Exception ex) { StingLog.Warn($"NLP pattern validation: {ex.Message}"); }
+
                 // Load user-preferred output directory from project_config.json
                 try { OutputLocationHelper.LoadFromConfig(); }
                 catch (Exception ex) { StingLog.Warn($"OutputLocationHelper config load: {ex.Message}"); }

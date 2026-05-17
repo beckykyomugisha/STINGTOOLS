@@ -746,9 +746,9 @@ namespace StingTools.Core
                                 // from manually tagged elements in the MODIFIED_BY audit trail.
                                 try
                                 {
-                                    string existingBy = ParameterHelpers.GetString(el, "ASS_TAG_MODIFIED_BY_TXT");
+                                    string existingBy = ParameterHelpers.GetString(el, ParamRegistry.TAG_MODIFIED_BY);
                                     if (!existingBy.StartsWith("[AUTO_TAGGER]", StringComparison.Ordinal))
-                                        ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_BY_TXT",
+                                        ParameterHelpers.SetString(el, ParamRegistry.TAG_MODIFIED_BY,
                                             $"[AUTO_TAGGER] {existingBy}".TrimEnd(), overwrite: true);
                                 }
                                 catch (Exception atEx) { StingLog.Warn($"AutoTagger MODIFIED_BY stamp: {atEx.Message}"); }

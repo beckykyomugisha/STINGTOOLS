@@ -427,6 +427,75 @@ namespace StingTools.Tags
                 .Take(10)
                 .ToList();
         }
+
+        // Tags that StingCommandHandler dispatches directly (not via WorkflowEngine.ResolveCommand).
+        // These bypass WorkflowEngine so ResolveCommandPublic returns null for them — that's correct.
+        // Keep this list in sync with the direct-dispatch cases in StingCommandHandler.Execute().
+        private static readonly HashSet<string> _directDispatchTags = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase)
+        {
+            // Smart placement
+            "SmartPlaceTags", "ArrangeTags", "RemoveAnnotationTags", "BatchPlaceTags",
+            "LearnTagPlacement", "ApplyTagTemplate", "TagOverlapAnalysis", "BatchTagTextSize",
+            "SetTagCategoryLineWeight", "AlignTagBands", "SwitchTagPosition", "ExportTagPositions",
+            "BatchPlaceLinkedTags", "ExportLinkedManifest", "AdjustElbows", "SetArrowheadStyle",
+            // Leader / organise
+            "AlignTagsH", "AlignTagsV", "StackTags", "PinTags",
+            "ToggleLeaders","AddLeaders","RemoveLeaders","AlignTags","ResetTagPositions",
+            "ToggleOrientation","SnapLeaderElbows","AutoAlignLeaderText",
+            "FlipTags","AlignTagText","PinUnpin","NudgeTags","AttachLeader","SelectLeaderTags",
+            // Tag style
+            "ApplyTagStyle","ApplyColorScheme","ClearColorScheme","SetParagraphDepthExt",
+            "TagStyleReport","SwitchTagStyleByDisc","BatchApplyColorScheme","ColorByVariable",
+            "SetBoxColor","SetViewTagStyle",
+            // Mode / tier switch patterns (dispatched inline by StingCommandHandler)
+            "SetPatternMode_Handover","SetPatternMode_DC","SetPatternMode_Custom",
+            "WriteSystemBTier_4","WriteSystemBTier_5","WriteSystemBTier_6",
+            "WriteSystemBTier_7","WriteSystemBTier_8","WriteSystemBTier_9","WriteSystemBTier_10",
+            // Misc direct-dispatch
+            "Validate","FixDuplicates","CompletenessDashboard",
+            "ColorByParameter","ClearColorOverrides","SaveColorPreset","LoadColorPreset","CreateFilters",
+        };
+
+        /// <summary>
+        /// Validates all IntentPatterns at startup — logs any commandTag that resolves via
+        /// neither WorkflowEngine nor the known direct-dispatch set.  Call once from OnStartup.
+        /// </summary>
+        internal static void ValidateIntentPatterns()
+        {
+            var unresolved = new System.Text.StringBuilder();
+            int unresolvedCount = 0;
+
+            var distinctTags = IntentPatterns
+                .Select(p => p.CommandTag)
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(t => t)
+                .ToList();
+
+            foreach (string tag in distinctTags)
+            {
+                // Direct-dispatch tags are known-valid — skip
+                if (_directDispatchTags.Contains(tag)) continue;
+
+                // WorkflowEngine-routed tags — attempt resolution
+                try
+                {
+                    var cmd = WorkflowEngine.ResolveCommandPublic(tag);
+                    if (cmd != null) continue; // resolved OK
+                }
+                catch { /* ignore instantiation errors */ }
+
+                // Tag not resolved by either path
+                unresolved.Append("  ").AppendLine(tag);
+                unresolvedCount++;
+            }
+
+            if (unresolvedCount == 0)
+                StingLog.Info($"NLPEngine: all {distinctTags.Count} distinct commandTags validated OK");
+            else
+                StingLog.Warn($"NLPEngine: {unresolvedCount} commandTag(s) not resolvable:\n{unresolved}");
+        }
     }
 
     // ════════════════════════════════════════════════════════════════
