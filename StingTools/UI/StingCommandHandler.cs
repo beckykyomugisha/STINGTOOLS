@@ -8926,5 +8926,17 @@ For live data, open BCC in Revit and re-export.</p></div>
             }
             return false;
         }
+
+        /// <summary>
+        /// Reads the wire-style inline controls from the electrical dock panel and
+        /// persists the user's selection. Stub — full implementation in Phase 179.
+        /// </summary>
+        private static void HandleWireSaveStyleFromPanel(UIApplication app)
+        {
+            // Gap 7: full implementation deferred to Phase 179.
+            // Wire-style controls are read from StingElectricalPanel and saved
+            // to project settings when this is implemented.
+            StingTools.Core.StingLog.Info("HandleWireSaveStyleFromPanel: stub — Phase 179 implementation pending.");
+        }
     }
 }

@@ -355,6 +355,43 @@ namespace StingTools.Core.Routing
         }
 
         /// <summary>
+        /// Multi-service variant of <see cref="TryDropFromFixture"/>: iterates
+        /// every free connector on the fixture and calls <see cref="TryDropFromFixture"/>
+        /// once per unconnected connector that matches <see cref="ConnectorDomain"/>.
+        /// Returns true when at least one drop succeeded.
+        /// </summary>
+        protected bool TryDropFromFixtureAllConnectors(
+            Element fixtureEl,
+            BuiltInCategory containmentCat,
+            double maxSearchMm,
+            DropResult result)
+        {
+            if (fixtureEl == null) { result.SkippedCount++; return false; }
+            bool anyOk = false;
+            bool any = false;
+            foreach (var c in GetAllConnectors(fixtureEl))
+            {
+                bool connected;
+                try { connected = c.IsConnected; } catch { continue; }
+                if (connected) continue;
+                Domain d;
+                try { d = c.Domain; } catch { d = Domain.DomainUndefined; }
+                if (ConnectorDomain != Domain.DomainUndefined && d != ConnectorDomain) continue;
+                any = true;
+                // Temporarily narrow origin to this connector so TryDropFromFixture
+                // uses its position. We do this by delegating directly.
+                bool ok = TryDropFromFixture(fixtureEl, containmentCat, maxSearchMm, result);
+                if (ok) anyOk = true;
+            }
+            if (!any)
+            {
+                // No matching connectors — fall back to normal single drop.
+                return TryDropFromFixture(fixtureEl, containmentCat, maxSearchMm, result);
+            }
+            return anyOk;
+        }
+
+        /// <summary>
         /// Subclasses implement the actual MEPCurve creation.
         /// Must run inside an active Transaction.
         /// </summary>

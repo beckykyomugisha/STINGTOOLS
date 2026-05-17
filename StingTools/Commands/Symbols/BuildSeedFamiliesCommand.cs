@@ -106,7 +106,7 @@ namespace StingTools.Commands.Symbols
                 try
                 {
                     var r = SymbolLibraryCreator.CreateAllFromFile(doc, spec, outRoot,
-                        loadIntoProject: true, rebuildMode: rebuildMode);
+                        loadIntoProject: true);
                     aggregate.Created   += r.Created;
                     aggregate.Existed   += r.Existed;
                     aggregate.Failed    += r.Failed;

@@ -97,6 +97,7 @@ namespace StingTools.Core.SLD
 
             double dy      = Mm(opts.SymbolHeightMm + opts.SymbolSpacingMm);
             double symHalf = Mm(opts.SymbolHeightMm / 2.0); // half-height for connector alignment
+            double busOff  = Mm(opts.BusbarOffsetMm);       // vertical offset from panel symbol to busbar
             double levelDx = Mm(opts.LevelOffsetMm);
 
             var yByLevel = new Dictionary<int, double>();

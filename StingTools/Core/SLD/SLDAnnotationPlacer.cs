@@ -77,6 +77,8 @@ namespace StingTools.Core.SLD
                 if (string.IsNullOrWhiteSpace(label)) return ElementId.InvalidElementId;
 
                 // symSizeMm/2 clears the symbol body; + TextHeightMm adds one line of breathing room.
+                // Use SLDLayoutOptions default symbol height (8 mm) as the sizing reference.
+                const double symSizeMm = 8.0;
                 XYZ textPos = OffsetForRule(position, rules.LabelPosition,
                     Mm(symSizeMm / 2.0 + rules.TextHeightMm));
                 var tnt = new FilteredElementCollector(doc)
