@@ -46,6 +46,13 @@ public class DocumentsController : ControllerBase
         ["WIP"] = "S0", ["SHARED"] = "S3", ["PUBLISHED"] = "S4", ["ARCHIVE"] = "S7"
     };
 
+    // Gap 3 — ISO 19650-2 suitability code whitelist.
+    // S0–S7: work-in-progress through handover; CR: coordination review; AB: as-built.
+    private static readonly HashSet<string> ValidSuitabilityCodes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "CR", "AB"
+    };
+
     // Minimum role required for each CDE transition (ISO 19650-2 §5.6)
     private static readonly Dictionary<string, UserRole> TransitionRoleRequirements = new()
     {
@@ -246,23 +253,28 @@ public class DocumentsController : ControllerBase
         if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
         // Phase 177 — caller must hold WIP + the requested discipline.
         if (await RequireAclCreateAsync(projectId, req.Discipline) is { } aclDenied) return aclDenied;
+        // Gap 3 — suitability code whitelist (if caller specifies one explicitly).
+        if (req.SuitabilityCode != null && !ValidSuitabilityCodes.Contains(req.SuitabilityCode))
+            return BadRequest(new { message = $"Invalid suitability code '{req.SuitabilityCode}'. Valid: {string.Join(", ", ValidSuitabilityCodes.OrderBy(s => s))}" });
 
         var doc = new DocumentRecord
         {
-            ProjectId = projectId,
-            FileName = req.FileName,
-            Description = req.Description,
-            DocumentType = req.DocumentType ?? "",
-            CdeStatus = "WIP",
-            SuitabilityCode = "S0",
-            Discipline = req.Discipline,
-            Originator = req.Originator,
-            Revision = req.Revision,
-            UploadedBy = User.FindFirst("display_name")?.Value ?? "Unknown",
+            ProjectId       = projectId,
+            FileName        = req.FileName,
+            Description     = req.Description,
+            DocumentType    = req.DocumentType ?? "",
+            CdeStatus       = "WIP",
+            SuitabilityCode = req.SuitabilityCode ?? "S0",
+            Discipline      = req.Discipline,
+            Originator      = req.Originator,
+            Revision        = req.Revision,
+            ContainerId     = req.ContainerId,
+            UploadedBy      = User.FindFirst("display_name")?.Value ?? "Unknown",
             StatusHistoryJson = JsonConvert.SerializeObject(new[]
             {
-                new { timestamp = DateTime.UtcNow, oldState = "", newState = "WIP", suitability = "S0",
-                    user = User.FindFirst("display_name")?.Value ?? "Unknown" }
+                new { timestamp = DateTime.UtcNow, oldState = "", newState = "WIP",
+                      suitability = req.SuitabilityCode ?? "S0",
+                      user = User.FindFirst("display_name")?.Value ?? "Unknown" }
             })
         };
 
@@ -651,6 +663,10 @@ public class DocumentsController : ControllerBase
         if (await RequireAclTargetAsync(projectId, doc, req.NewState, req.SuitabilityCode) is { } aclDenied)
             return aclDenied;
 
+        // Gap 3 — suitability code whitelist
+        if (!string.IsNullOrEmpty(req.SuitabilityCode) && !ValidSuitabilityCodes.Contains(req.SuitabilityCode))
+            return BadRequest(new { message = $"Invalid suitability code '{req.SuitabilityCode}'. Valid: {string.Join(", ", ValidSuitabilityCodes.OrderBy(s => s))}" });
+
         // Validate transition
         if (!ValidTransitions.TryGetValue(doc.CdeStatus, out var validTargets))
             return BadRequest($"Unknown current state: {doc.CdeStatus}");
@@ -671,6 +687,34 @@ public class DocumentsController : ControllerBase
         doc.SuitabilityCode = req.SuitabilityCode ?? DefaultSuitability.GetValueOrDefault(req.NewState, doc.SuitabilityCode);
         if (req.Revision != null) doc.Revision = req.Revision;
         doc.UpdatedAt = DateTime.UtcNow;
+
+        // Gap 4 — e-signature on S4 publication.
+        // Capture who published and when; queue the PDF watermark background job.
+        DocumentSignature? signature = null;
+        if (oldState == "SHARED" && req.NewState == "PUBLISHED")
+        {
+            var publisherName = User.FindFirst("display_name")?.Value ?? "Unknown";
+            var publisherId   = User.FindFirst("sub")?.Value ?? "";
+
+            doc.PublishedByUserId = publisherId;
+            doc.PublishedByName   = publisherName;
+            doc.PublishedAt       = DateTime.UtcNow;
+
+            signature = new DocumentSignature
+            {
+                TenantId       = tenantId,
+                ProjectId      = projectId,
+                DocumentId     = doc.Id,
+                SignedByUserId = publisherId,
+                SignedByName   = publisherName,
+                SignedAt       = DateTime.UtcNow,
+                SignatureNote  = req.SuitabilityCode != null
+                    ? $"Published as {req.SuitabilityCode} — {doc.Revision}"
+                    : $"Published — {doc.Revision}",
+                WatermarkStatus = string.IsNullOrEmpty(doc.FilePath) ? "SKIPPED" : "PENDING",
+            };
+            _db.DocumentSignatures.Add(signature);
+        }
 
         // Append to status history
         var history = !string.IsNullOrEmpty(doc.StatusHistoryJson)
@@ -701,6 +745,14 @@ public class DocumentsController : ControllerBase
         });
 
         await _db.SaveChangesAsync();
+
+        // Gap 4 — queue the PDF watermark stamp job now that the signature row has a PK.
+        if (signature != null && signature.WatermarkStatus == "PENDING")
+        {
+            BackgroundJob.Enqueue<Planscape.API.BackgroundJobs.DocumentPublicationStampJob>(
+                j => j.ExecuteAsync(signature.Id));
+        }
+
         await _audit.LogAsync("TRANSITION", "Document", doc.Id.ToString(),
             $"{{\"oldState\":\"{oldState}\",\"newState\":\"{req.NewState}\"}}");
 
@@ -1180,7 +1232,17 @@ public class DocumentsController : ControllerBase
     }
 }
 
-public record CreateDocumentRequest(string FileName, string? DocumentType, string? Discipline, string? Revision, string? Description = null, string? Originator = null);
+public record CreateDocumentRequest(
+    string  FileName,
+    string? DocumentType,
+    string? Discipline,
+    string? Revision,
+    string? Description     = null,
+    string? Originator      = null,
+    // Gap 1 — assign to a CDE container folder at creation time
+    Guid?   ContainerId     = null,
+    // Gap 3 — optional explicit suitability code (validated against whitelist)
+    string? SuitabilityCode = null);
 
 // Phase 175 audit P1-14 — presigned-upload DTOs.
 public record PresignUploadRequest(string FileName, string ContentType, long SizeBytes);

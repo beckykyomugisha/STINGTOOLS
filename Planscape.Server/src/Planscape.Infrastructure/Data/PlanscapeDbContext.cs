@@ -199,6 +199,13 @@ public class PlanscapeDbContext : DbContext
     // Gap B — Per-model coordinate transform (manual correction or auto-computed from IfcMapConversion).
     public DbSet<ProjectModelTransform> ProjectModelTransforms => Set<ProjectModelTransform>();
 
+    // Gap 1 — CDE folder hierarchy (explicit information container tree).
+    public DbSet<CdeContainer> CdeContainers => Set<CdeContainer>();
+    // Gap 4 — E-signature / watermark records for S4 publications.
+    public DbSet<DocumentSignature> DocumentSignatures => Set<DocumentSignature>();
+    // Gap 5 — Version-snapshotting join table for transmittals.
+    public DbSet<TransmittalDocument> TransmittalDocuments => Set<TransmittalDocument>();
+
     // Phase 178c (T3-12) — Multi-step / parallel approval chains for CDE transitions.
     public DbSet<ApprovalChain> ApprovalChains => Set<ApprovalChain>();
     public DbSet<ApprovalStage> ApprovalStages => Set<ApprovalStage>();
@@ -1151,6 +1158,78 @@ public class PlanscapeDbContext : DbContext
             e.Property(x => x.AppliedBy).HasMaxLength(200);
             e.Property(x => x.Notes).HasMaxLength(2000);
             e.HasOne(x => x.Model).WithMany().HasForeignKey(x => x.ProjectModelId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Gap 1 — CdeContainer (CDE folder hierarchy) ──────────────────────
+        modelBuilder.Entity<CdeContainer>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => x.TenantId);
+            e.HasIndex(x => new { x.ProjectId, x.ParentContainerId });
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.ContainerType).HasMaxLength(40);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.CreatedBy).HasMaxLength(200);
+            // Self-referencing parent: restrict delete so deleting a folder
+            // with children requires explicit child removal first.
+            e.HasOne(x => x.Parent)
+             .WithMany(x => x.Children)
+             .HasForeignKey(x => x.ParentContainerId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Gap 1 — DocumentRecord.ContainerId FK
+        modelBuilder.Entity<DocumentRecord>(e =>
+        {
+            e.HasOne(x => x.Container)
+             .WithMany(c => c.Documents)
+             .HasForeignKey(x => x.ContainerId)
+             .OnDelete(DeleteBehavior.SetNull);
+            e.Property(x => x.PublishedByUserId).HasMaxLength(200);
+            e.Property(x => x.PublishedByName).HasMaxLength(200);
+        });
+
+        // ── Gap 4 — DocumentSignature (e-signature + watermark on S4) ─────────
+        modelBuilder.Entity<DocumentSignature>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.DocumentId);
+            e.HasIndex(x => x.TenantId);
+            e.Property(x => x.SignedByUserId).HasMaxLength(200);
+            e.Property(x => x.SignedByName).HasMaxLength(200);
+            e.Property(x => x.SignatureNote).HasMaxLength(2000);
+            e.Property(x => x.WatermarkedFilePath).HasMaxLength(600);
+            e.Property(x => x.WatermarkStatus).HasMaxLength(20);
+            e.HasOne(x => x.Document)
+             .WithMany()
+             .HasForeignKey(x => x.DocumentId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Gap 5 — TransmittalDocument (version snapshot join table) ─────────
+        modelBuilder.Entity<TransmittalDocument>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.TransmittalId);
+            e.HasIndex(x => x.DocumentId);
+            e.Property(x => x.CdeStateAtTransmittal).HasMaxLength(20);
+            e.Property(x => x.SuitabilityAtTransmittal).HasMaxLength(10);
+            e.Property(x => x.FilePathAtTransmittal).HasMaxLength(600);
+            e.HasOne(x => x.Transmittal)
+             .WithMany(t => t.Documents)
+             .HasForeignKey(x => x.TransmittalId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Document)
+             .WithMany()
+             .HasForeignKey(x => x.DocumentId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.DocumentVersion)
+             .WithMany()
+             .HasForeignKey(x => x.DocumentVersionId)
+             .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── ClashAutomationRule — per-project automation rules for new clashes ──

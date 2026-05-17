@@ -337,6 +337,9 @@ builder.Services.AddScoped<Planscape.API.Services.IAuditService, Planscape.API.S
 // Phase 178c (T3-22) — Maintenance task scheduler (registered as Scoped
 // so Hangfire activates a fresh DbContext per job invocation).
 builder.Services.AddScoped<Planscape.API.BackgroundJobs.MaintenanceTaskSchedulerJob>();
+// Gap 4 — PDF watermark/e-signature stamp on S4 publication. Scoped so
+// Hangfire creates a fresh DbContext + storage service per invocation.
+builder.Services.AddScoped<Planscape.API.BackgroundJobs.DocumentPublicationStampJob>();
 
 // ── Platform Connectors ──
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.AccConnector>();

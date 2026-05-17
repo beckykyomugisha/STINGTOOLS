@@ -33,7 +33,17 @@ public class DocumentRecord : ITenantScoped
     public DateTime? ScanScannedAt { get; set; }
     public string? ScanThreatName { get; set; }
 
+    // Gap 1 — CDE folder hierarchy. Null = root / unclassified.
+    public Guid? ContainerId { get; set; }
+
+    // Gap 4 — E-signature on S4 publication. Populated when the document
+    // transitions SHARED→PUBLISHED; stamped by DocumentPublicationStampJob.
+    public string? PublishedByUserId { get; set; }
+    public string? PublishedByName { get; set; }
+    public DateTime? PublishedAt { get; set; }
+
     // Navigation
     public Project? Project { get; set; }
+    public CdeContainer? Container { get; set; }
     public List<DocumentVersion> Versions { get; set; } = new();
 }

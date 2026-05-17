@@ -111,15 +111,24 @@ public class TransmittalsController : ControllerBase
 
         var transmittal = new Transmittal
         {
-            ProjectId = projectId,
+            ProjectId       = projectId,
             TransmittalCode = $"TX-{nextNum:D4}",
-            Recipient = req.Recipient,
-            Notes = req.Notes,
-            DocumentIdsJson = req.DocumentIdsJson,
-            CreatedBy = User.FindFirst("display_name")?.Value ?? "Unknown"
+            Recipient       = req.Recipient,
+            Notes           = req.Notes,
+            DocumentIdsJson = req.DocumentIdsJson, // kept for backward compat
+            CreatedBy       = User.FindFirst("display_name")?.Value ?? "Unknown"
         };
 
         _db.Transmittals.Add(transmittal);
+
+        // Gap 5 — snapshot document versions at transmittal creation so the
+        // record remains accurate even after subsequent uploads / revisions.
+        if (req.DocumentIds != null && req.DocumentIds.Length > 0)
+        {
+            await SnapshotTransmittalDocumentsAsync(
+                transmittal, projectId, tenantId, req.DocumentIds,
+                HttpContext.RequestAborted);
+        }
 
         // Audit trail for transmittal creation
         var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
@@ -197,6 +206,15 @@ public class TransmittalsController : ControllerBase
             nextNum++;
             rows.Add(t);
             _db.Transmittals.Add(t);
+
+            // Gap 5 — version snapshot per transmittal in the bulk batch.
+            if (req.DocumentIds != null && req.DocumentIds.Length > 0)
+            {
+                await SnapshotTransmittalDocumentsAsync(
+                    t, projectId, tenantId, req.DocumentIds,
+                    HttpContext.RequestAborted);
+            }
+
             _db.AuditLogs.Add(new AuditLog
             {
                 TenantId = tenantId,
@@ -271,8 +289,87 @@ public class TransmittalsController : ControllerBase
         return Ok(tx);
     }
 
+    /// <summary>
+    /// POST /{txId}/documents — add documents (with version snapshot) to an existing
+    /// DRAFT transmittal. Once the transmittal is SENT the document list is frozen.
+    /// </summary>
+    [HttpPost("{txId}/documents")]
+    public async Task<ActionResult> AddDocuments(Guid projectId, Guid txId, [FromBody] Guid[] documentIds)
+    {
+        if (documentIds == null || documentIds.Length == 0)
+            return BadRequest("documentIds must be a non-empty array");
+        if (documentIds.Length > 200)
+            return BadRequest("Maximum 200 documents per request");
+
+        var tenantId = GetTenantId();
+        var tx = await _db.Transmittals
+            .FirstOrDefaultAsync(t => t.Id == txId && t.ProjectId == projectId && t.Project!.TenantId == tenantId);
+        if (tx == null) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+
+        if (tx.Status == "SENT")
+            return Conflict("Documents cannot be added to a SENT transmittal");
+
+        var added = await SnapshotTransmittalDocumentsAsync(
+            tx, projectId, tenantId, documentIds, HttpContext.RequestAborted);
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new { added });
+    }
+
+    /// <summary>
+    /// Snapshots each document's current version into TransmittalDocument rows so
+    /// the transmittal record remains accurate even after subsequent uploads.
+    /// Returns the number of rows created (skips IDs that are already linked or
+    /// that don't belong to the project).
+    /// </summary>
+    private async Task<int> SnapshotTransmittalDocumentsAsync(
+        Transmittal transmittal,
+        Guid projectId,
+        Guid tenantId,
+        Guid[] documentIds,
+        CancellationToken ct)
+    {
+        // Load documents + their latest version in one query.
+        var docs = await _db.Documents
+            .Where(d => documentIds.Contains(d.Id) && d.ProjectId == projectId && d.TenantId == tenantId)
+            .Include(d => d.Versions.OrderByDescending(v => v.VersionNumber).Take(1))
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        // Existing snapshot IDs to avoid duplicates on the AddDocuments re-call path.
+        var alreadyLinked = await _db.TransmittalDocuments
+            .Where(td => td.TransmittalId == transmittal.Id)
+            .Select(td => td.DocumentId)
+            .ToHashSetAsync(ct);
+
+        int created = 0;
+        foreach (var doc in docs)
+        {
+            if (alreadyLinked.Contains(doc.Id)) continue;
+
+            var latestVersion = doc.Versions.FirstOrDefault();
+            _db.TransmittalDocuments.Add(new TransmittalDocument
+            {
+                TransmittalId            = transmittal.Id,
+                DocumentId               = doc.Id,
+                DocumentVersionId        = latestVersion?.Id,
+                CdeStateAtTransmittal    = doc.CdeStatus,
+                SuitabilityAtTransmittal = doc.SuitabilityCode,
+                FilePathAtTransmittal    = latestVersion?.FilePath ?? doc.FilePath,
+            });
+            created++;
+        }
+        return created;
+    }
+
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
 }
 
-public record CreateTransmittalRequest(string Recipient, string? Notes, string? DocumentIdsJson);
+public record CreateTransmittalRequest(
+    string Recipient,
+    string? Notes,
+    string? DocumentIdsJson,
+    Guid[]? DocumentIds = null);
