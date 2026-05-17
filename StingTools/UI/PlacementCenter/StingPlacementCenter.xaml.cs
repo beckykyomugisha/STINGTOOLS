@@ -22,6 +22,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Placement;
+using StingTools.Core.Routing;
 using StingTools.Core.Validation;
 using StingTools.Core.Visualization;
 
@@ -47,6 +48,10 @@ namespace StingTools.UI.PlacementCenter
         // re-scanning the whole project.
         private DateTime? _lastRunUtc;
         private List<ElementId> _lastPlacedIds = new List<ElementId>();
+
+        // Phase 177 (Option A) — Run & Routing tab result state.
+        private List<ElementId> _runResultIds  = new List<ElementId>();
+        private string          _runReportText = string.Empty;
 
         public StingPlacementCenter(UIApplication uiApp)
         {
@@ -1051,6 +1056,220 @@ namespace StingTools.UI.PlacementCenter
         {
             if (string.IsNullOrWhiteSpace(s)) return null;
             return double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out double v) ? v : (double?)null;
+        }
+
+        // ── Run & Routing tab ────────────────────────────────────────
+
+        private void OnRunScope_Changed(object sender, RoutedEventArgs e)
+        {
+            if (rbRunScopeView?.IsChecked == true) VM.RunOpts.Scope = "ActiveView";
+            else if (rbRunScopeSel?.IsChecked  == true) VM.RunOpts.Scope = "Selection";
+            else if (rbRunScopeProj?.IsChecked == true) VM.RunOpts.Scope = "Project";
+        }
+
+        private void OnRunAllRules_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { TaskDialog.Show("STING", "No active document."); return; }
+            bool dry = chkRunDryRun?.IsChecked == true;
+            try
+            {
+                var rules   = PlacementRuleLoader.Load(_doc.PathName);
+                var roomIds = PlacementCenterBridge.ResolveScope(_uiDoc, VM.RunOpts.Scope);
+                var progress = new StingProgressDialog("Placing fixtures…", roomIds.Count);
+                List<ElementId> placed;
+                using (var tg = new TransactionGroup(_doc, "STING Place Fixtures (Run & Routing)"))
+                {
+                    tg.Start();
+                    placed = FixturePlacementEngine.PlaceFixturesInScope(
+                        _doc, roomIds, rules, dry, progress);
+                    tg.Assimilate();
+                }
+                progress.Close();
+                _runResultIds  = placed ?? new List<ElementId>();
+                _runReportText = $"Placed {_runResultIds.Count} fixture(s) in {roomIds.Count} room(s) [{(dry ? "DRY-RUN" : "live")}]";
+                _lastPlacedIds = _runResultIds;
+                _lastRunUtc    = DateTime.UtcNow;
+                ShowInlineResult(
+                    _runResultIds.Count > 0 ? $"✓ {_runResultIds.Count} fixtures placed" : "Nothing placed",
+                    new[] { $"Rooms: {roomIds.Count}", $"Fixtures: {_runResultIds.Count}", dry ? "Dry-run" : "Live" },
+                    PlacementRuleLoader.LastValidationWarnings.Take(10).ToArray());
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OnRunAllRules_Click", ex);
+                TaskDialog.Show("STING Error", ex.Message);
+            }
+        }
+
+        private void OnRunToiletRooms_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { TaskDialog.Show("STING", "No active document."); return; }
+            bool dry = chkRunDryRun?.IsChecked == true;
+            try
+            {
+                var provision = ToiletRoomPlacerService.ComputeProvision(100, BuildingUse.Office, OccupantSplit.Equal5050);
+                var svc = new ToiletRoomPlacerService
+                {
+                    OccupantCount     = 100,
+                    Use               = BuildingUse.Office,
+                    Split             = OccupantSplit.Equal5050,
+                    DryRun            = dry,
+                    AutoRoutePlumbing = false,
+                };
+                ToiletRoomPlacementResult result;
+                using (var txn = new Transaction(_doc, "STING Toilet Room Fixtures"))
+                {
+                    txn.Start();
+                    result = svc.PlaceAll(_doc, txn);
+                    txn.Commit();
+                }
+                _runResultIds  = result.PlacementResult?.PlacedIds ?? new List<ElementId>();
+                _runReportText = result.ReportText();
+                _lastPlacedIds = _runResultIds;
+                _lastRunUtc    = DateTime.UtcNow;
+                var gaps = result.ComplianceGaps.Count > 0
+                    ? result.ComplianceGaps.Take(6).ToArray()
+                    : new[] { "All BS 6465-1 provisions met." };
+                ShowInlineResult(
+                    result.IsCompliant ? $"✓ Compliant — {result.FixturesPlaced} fixtures" : $"⚠ {result.ComplianceGaps.Count} gap(s)",
+                    new[] { $"Rooms: {result.RoomsProcessed}", $"Fixtures: {result.FixturesPlaced}", dry ? "Dry-run" : "Live" },
+                    gaps);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OnRunToiletRooms_Click", ex);
+                TaskDialog.Show("STING Error", ex.Message);
+            }
+        }
+
+        private void OnRunLightingGrid_Click(object sender, RoutedEventArgs e)
+            => StingDockPanel.DispatchCommand("Placement_LightingGrid");
+
+        private void OnLearnPlacement_Click(object sender, RoutedEventArgs e)
+            => StingDockPanel.DispatchCommand("Placement_Learn");
+
+        private void OnRunPreview_Click(object sender, RoutedEventArgs e)
+            => OnPreview_Click(sender, e);
+
+        private void OnAutoDropRouting_Click(object sender, RoutedEventArgs e)
+            => StingDockPanel.DispatchCommand("Routing_AutoDrop");
+
+        private void OnGenerateLayout_Click(object sender, RoutedEventArgs e)
+            => StingDockPanel.DispatchCommand("Routing_GenerateLayout");
+
+        private void OnPlumbingRouter_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { TaskDialog.Show("STING", "No active document."); return; }
+            try
+            {
+                var fixtures = new FilteredElementCollector(_doc)
+                    .OfCategory(BuiltInCategory.OST_PlumbingFixtures)
+                    .WhereElementIsNotElementType()
+                    .OfType<FamilyInstance>()
+                    .ToList();
+                if (fixtures.Count == 0)
+                {
+                    ShowInlineResult("No plumbing fixtures found", new[] { "Fixtures: 0" }, new[] { "Place fixtures first, then route." });
+                    return;
+                }
+                using (var txn = new Transaction(_doc, "STING Auto-Route Plumbing"))
+                {
+                    txn.Start();
+                    var router = new PlumbingFixtureRouter();
+                    router.RouteAll(_doc, fixtures, txn);
+                    txn.Commit();
+                }
+                _runReportText = $"Routed drainage for {fixtures.Count} plumbing fixture(s).";
+                ShowInlineResult($"✓ Routing complete — {fixtures.Count} fixture(s)", new[] { $"Fixtures: {fixtures.Count}" },
+                    new[] { "Gravity slope 2.5%", "AAV placed at runs >3000 mm" });
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OnPlumbingRouter_Click", ex);
+                TaskDialog.Show("STING Error", ex.Message);
+            }
+        }
+
+        private void OnValidateFills_Click(object sender, RoutedEventArgs e)
+            => StingDockPanel.DispatchCommand("Routing_ValidateFills");
+
+        private void OnPlaceHangers_Click(object sender, RoutedEventArgs e)
+            => StingDockPanel.DispatchCommand("Routing_PlaceHangers");
+
+        private void OnRunAllValidators_Click(object sender, RoutedEventArgs e)
+            => StingDockPanel.DispatchCommand("Validation_RunAll");
+
+        private void OnBS6465Audit_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { TaskDialog.Show("STING", "No active document."); return; }
+            try
+            {
+                var provision = ToiletRoomPlacerService.ComputeProvision(100, BuildingUse.Office, OccupantSplit.Equal5050);
+                ShowInlineResult("BS 6465-1 Provision Preview (100 occ, Office, 50/50)",
+                    new[]
+                    {
+                        $"WCs (M): {provision.MinWcsMale}",
+                        $"WCs (F): {provision.MinWcsFemale}",
+                        $"Urinals: {provision.MinUrinalsMale}",
+                        $"Basins: {provision.MinBasins}",
+                        $"Accessible: {provision.MinAccessibleWcs}",
+                        $"Baby change: {(provision.BabyChangeRequired ? "Yes" : "No")}",
+                    },
+                    new[] { provision.Summary() });
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OnBS6465Audit_Click", ex);
+                TaskDialog.Show("STING Error", ex.Message);
+            }
+        }
+
+        private void OnClearanceScan_Click(object sender, RoutedEventArgs e)
+            => ShowFindings(false, "Clearance scan");
+
+        private void OnSelectLastPlaced_Click(object sender, RoutedEventArgs e)
+        {
+            if (_uiDoc == null || _runResultIds == null || _runResultIds.Count == 0)
+            {
+                TaskDialog.Show("STING", "No placed elements to select from the last run.");
+                return;
+            }
+            try { _uiDoc.Selection.SetElementIds(_runResultIds); }
+            catch (Exception ex) { StingLog.Warn($"OnSelectLastPlaced_Click: {ex.Message}"); }
+        }
+
+        private void OnCopyRunReport_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_runReportText)) return;
+            try { System.Windows.Clipboard.SetText(_runReportText); }
+            catch (Exception ex) { StingLog.Warn($"OnCopyRunReport_Click: {ex.Message}"); }
+        }
+
+        // ── Tools tab ────────────────────────────────────────────────
+
+        private void OnToolButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string tag && !string.IsNullOrEmpty(tag))
+                StingDockPanel.DispatchCommand(tag);
+        }
+
+        // ── Inline result panel ──────────────────────────────────────
+
+        private void ShowInlineResult(string headline,
+                                      IEnumerable<string> metrics,
+                                      IEnumerable<string> findings)
+        {
+            if (txtRunResultHeadline != null)
+                txtRunResultHeadline.Text = headline ?? "";
+
+            if (lstRunMetrics != null)
+                lstRunMetrics.ItemsSource = metrics?.ToList() ?? new List<string>();
+
+            if (lstRunFindings != null)
+                lstRunFindings.ItemsSource = findings?.ToList() ?? new List<string>();
+
+            if (grpRunResult != null)
+                grpRunResult.Visibility = Visibility.Visible;
         }
 
         // ── Resources ────────────────────────────────────────────────

@@ -91,8 +91,12 @@
             </DockPanel>
         </Border>
 
-        <!-- Body: master-detail -->
-        <Grid Grid.Row="1">
+        <!-- Body: Rules / Run & Routing / Tools (Option A consolidation) -->
+        <TabControl Grid.Row="1" x:Name="tabCentre">
+
+        <!-- ═══════════════════════════ TAB 1 — RULES ═══════════════════════════ -->
+        <TabItem Header="Rules">
+        <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="380" MinWidth="280"/>
                 <ColumnDefinition Width="Auto"/>
@@ -548,6 +552,217 @@
                 </StackPanel>
             </ScrollViewer>
         </Grid>
+        </TabItem>
+
+        <!-- ════════════════════════ TAB 2 — RUN &amp; ROUTING ════════════════════════ -->
+        <TabItem Header="Run &amp; Routing">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="230" MinWidth="180"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- LEFT: scope + options -->
+            <Border Grid.Column="0" Background="{DynamicResource SecondaryBg}" Padding="8">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <GroupBox Header="Scope" Style="{StaticResource GroupBoxStyle}">
+                        <StackPanel>
+                            <RadioButton x:Name="rbRunScopeView"  GroupName="RunScope" Content="Active view"
+                                         IsChecked="True" Margin="0,3" Checked="OnRunScope_Changed"/>
+                            <RadioButton x:Name="rbRunScopeSel"   GroupName="RunScope" Content="Selection"
+                                         Margin="0,3" Checked="OnRunScope_Changed"/>
+                            <RadioButton x:Name="rbRunScopeProj"  GroupName="RunScope" Content="Project"
+                                         Margin="0,3" Checked="OnRunScope_Changed"/>
+                            <CheckBox x:Name="chkRunDryRun" Content="Dry run only" Margin="0,8,0,3"
+                                      ToolTip="Count and report what would be placed; no FamilyInstances created."/>
+                            <CheckBox x:Name="chkRunValidate2" Content="Validate after run" IsChecked="True" Margin="0,3"/>
+                            <CheckBox x:Name="chkRunHeatmap2"  Content="Paint heat-map"     Margin="0,3"/>
+                        </StackPanel>
+                    </GroupBox>
+                    <GroupBox Header="Routing Disciplines" Style="{StaticResource GroupBoxStyle}">
+                        <StackPanel>
+                            <CheckBox x:Name="chkRoutElec"  Content="Electrical"      IsChecked="True" Margin="0,3"/>
+                            <CheckBox x:Name="chkRoutMech"  Content="Mechanical"      IsChecked="True" Margin="0,3"/>
+                            <CheckBox x:Name="chkRoutPlumb" Content="Plumbing"        IsChecked="True" Margin="0,3"/>
+                            <CheckBox x:Name="chkRoutFP"    Content="Fire protection" IsChecked="True" Margin="0,3"/>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <!-- RIGHT: action sections + inline result -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="10">
+                <StackPanel>
+
+                    <GroupBox Header="Fixture Placement" Style="{StaticResource GroupBoxStyle}">
+                        <WrapPanel>
+                            <Button Style="{StaticResource ToolBtn}" Width="118" Height="30" Margin="4,3"
+                                    Content="Run All Rules" Click="OnRunAllRules_Click"
+                                    ToolTip="Place fixtures using all loaded rules. Respects scope and dry-run settings."/>
+                            <Button Style="{StaticResource ToolBtn}" Width="118" Height="30" Margin="4,3"
+                                    Content="Toilet Rooms" Click="OnRunToiletRooms_Click"
+                                    ToolTip="BS 6465-1: occupant-based provision + WC at window + all toilet accessories (Phase 177)."/>
+                            <Button Style="{StaticResource ToolBtn}" Width="118" Height="30" Margin="4,3"
+                                    Content="Lighting Grid" Click="OnRunLightingGrid_Click"
+                                    ToolTip="IES RP-1 luminaire grid layout (LightingGridCommand)."/>
+                            <Button Style="{StaticResource ToolBtnSecondary}" Width="118" Height="30" Margin="4,3"
+                                    Content="Learn from Model" Click="OnLearnPlacement_Click"
+                                    ToolTip="Scan existing placements; write learned offsets to STING_PLACEMENT_RULES.learned.json."/>
+                            <Button Style="{StaticResource ToolBtnSecondary}" Width="118" Height="30" Margin="4,3"
+                                    Content="Preview" Click="OnRunPreview_Click"
+                                    ToolTip="DirectContext3D ghost preview without creating elements. ESC to clear."/>
+                        </WrapPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="Auto Routing" Style="{StaticResource GroupBoxStyle}">
+                        <WrapPanel>
+                            <Button Style="{StaticResource ToolBtn}" Width="118" Height="30" Margin="4,3"
+                                    Content="Auto Drop" Click="OnAutoDropRouting_Click"
+                                    ToolTip="Drop conduit / pipe / duct from panels and fixtures to the distribution grid."/>
+                            <Button Style="{StaticResource ToolBtn}" Width="118" Height="30" Margin="4,3"
+                                    Content="Generate Layout" Click="OnGenerateLayout_Click"
+                                    ToolTip="Plan-level branch, panel, and riser layout (GenerateLayoutCommand)."/>
+                            <Button Style="{StaticResource ToolBtn}" Width="118" Height="30" Margin="4,3"
+                                    Content="Plumbing Router" Click="OnPlumbingRouter_Click"
+                                    ToolTip="Phase 177: auto-route soil/waste + CWS/HWS for toilet-room fixtures (BS EN 12056-2)."/>
+                            <Button Style="{StaticResource ToolBtnSecondary}" Width="118" Height="30" Margin="4,3"
+                                    Content="Validate Fills" Click="OnValidateFills_Click"
+                                    ToolTip="Fill-rate compliance check: panel capacity, duct velocity, pipe velocity."/>
+                            <Button Style="{StaticResource ToolBtnSecondary}" Width="118" Height="30" Margin="4,3"
+                                    Content="Place Hangers" Click="OnPlaceHangers_Click"
+                                    ToolTip="Pipe and duct support hanger placement at code-compliant intervals."/>
+                        </WrapPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="Validation" Style="{StaticResource GroupBoxStyle}">
+                        <WrapPanel>
+                            <Button Style="{StaticResource ToolBtn}" Width="118" Height="30" Margin="4,3"
+                                    Content="All Validators" Click="OnRunAllValidators_Click"
+                                    ToolTip="Run all v4 validators: connectivity, fill, spec, termination, slope."/>
+                            <Button Style="{StaticResource ToolBtnSecondary}" Width="118" Height="30" Margin="4,3"
+                                    Content="BS 6465 Audit" Click="OnBS6465Audit_Click"
+                                    ToolTip="Check toilet-room provision against BS 6465-1 occupant ratios (read-only report)."/>
+                            <Button Style="{StaticResource ToolBtnSecondary}" Width="118" Height="30" Margin="4,3"
+                                    Content="Clearance Scan" Click="OnClearanceScan_Click"
+                                    ToolTip="Scan placed fixtures for clearance-zone violations (scoped to last run if available)."/>
+                        </WrapPanel>
+                    </GroupBox>
+
+                    <!-- Inline result — hidden until a run action completes -->
+                    <GroupBox x:Name="grpRunResult" Header="Last Action Result"
+                              Style="{StaticResource GroupBoxStyle}"
+                              Visibility="Collapsed">
+                        <StackPanel>
+                            <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                                <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
+                                        Content="Copy report" Width="88" Click="OnCopyRunReport_Click" Margin="4,0,0,0"/>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
+                                        Content="Select" Width="64" Click="OnSelectLastPlaced_Click"
+                                        ToolTip="Select all placed elements in the active view." Margin="4,0,0,0"/>
+                                <TextBlock x:Name="txtRunResultHeadline"
+                                           FontWeight="SemiBold" FontSize="13"
+                                           VerticalAlignment="Center" TextWrapping="Wrap" Text="—"/>
+                            </DockPanel>
+                            <!-- Metric badge strip -->
+                            <ItemsControl x:Name="lstRunMetrics" Margin="0,0,0,8">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="3" Padding="7,3" Margin="2,2"
+                                                Background="{DynamicResource AccentBrush}">
+                                            <TextBlock Text="{Binding}" Foreground="White"
+                                                       FontWeight="SemiBold" FontSize="11"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <!-- Compliance gaps / warnings list -->
+                            <ItemsControl x:Name="lstRunFindings" MaxHeight="200">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource PrimaryFg}"
+                                                   FontSize="11" Margin="0,2"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </GroupBox>
+
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+        </TabItem>
+
+        <!-- ═══════════════════════════════ TAB 3 — TOOLS ════════════════════════════ -->
+        <TabItem Header="Tools">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12">
+            <StackPanel>
+
+                <TextBlock Margin="0,4,0,10" TextWrapping="Wrap"
+                           Foreground="#888" FontStyle="Italic" FontSize="11"
+                           Text="Commands previously only accessible via the dock-panel Fixtures / Routing sub-tabs — now surfaced here for convenience."/>
+
+                <GroupBox Header="Rule File Management" Style="{StaticResource GroupBoxStyle}">
+                    <WrapPanel>
+                        <Button Style="{StaticResource ToolBtn}" Width="148" Height="30" Margin="4,3"
+                                Tag="Placement_ExportRulesExcel" Click="OnToolButton_Click"
+                                Content="Export Rules (Excel)"
+                                ToolTip="Export all loaded placement rules to an .xlsx workbook for bulk review / editing."/>
+                        <Button Style="{StaticResource ToolBtn}" Width="148" Height="30" Margin="4,3"
+                                Tag="Placement_ImportRulesExcel" Click="OnToolButton_Click"
+                                Content="Import Rules (Excel)"
+                                ToolTip="Merge rules from an .xlsx workbook into the current set (override on MergeKey match)."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="168" Height="30" Margin="4,3"
+                                Tag="Placement_AutoPopulateCatalogue" Click="OnToolButton_Click"
+                                Content="Auto-populate Catalogue"
+                                ToolTip="Scan loaded families and auto-populate the placement catalogue with detected fixture types."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="100" Height="30" Margin="4,3"
+                                Tag="Placement_AuditSetup" Click="OnToolButton_Click"
+                                Content="Audit Setup"
+                                ToolTip="Detect missing DependsOn targets, invalid MergeKeys, and orphaned rules."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="100" Height="30" Margin="4,3"
+                                Tag="Placement_Diagnose" Click="OnToolButton_Click"
+                                Content="Diagnose"
+                                ToolTip="Engine trace: anchor resolution stats, room filter match report, placement decision log."/>
+                    </WrapPanel>
+                </GroupBox>
+
+                <GroupBox Header="Construction Coordination" Style="{StaticResource GroupBoxStyle}">
+                    <WrapPanel>
+                        <Button Style="{StaticResource ToolBtn}" Width="148" Height="30" Margin="4,3"
+                                Tag="Placement_RunWallChase" Click="OnToolButton_Click"
+                                Content="Wall Chase Routing"
+                                ToolTip="Plan wall-chase routing for conduit and pipe in masonry walls."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="168" Height="30" Margin="4,3"
+                                Tag="Placement_ExportNogginRequirements" Click="OnToolButton_Click"
+                                Content="Noggin Requirements"
+                                ToolTip="Export noggin / blocking requirements for bracket-mounted fixtures to CSV."/>
+                    </WrapPanel>
+                </GroupBox>
+
+                <GroupBox Header="Batch Data Exchange" Style="{StaticResource GroupBoxStyle}">
+                    <WrapPanel>
+                        <Button Style="{StaticResource ToolBtn}" Width="168" Height="30" Margin="4,3"
+                                Tag="Placement_ExportExcel" Click="OnToolButton_Click"
+                                Content="Export Results (Excel)"
+                                ToolTip="Export last placement result to .xlsx: element IDs, room, rule, world position."/>
+                        <Button Style="{StaticResource ToolBtn}" Width="168" Height="30" Margin="4,3"
+                                Tag="Placement_ImportExcel" Click="OnToolButton_Click"
+                                Content="Import Overrides (Excel)"
+                                ToolTip="Apply position and mounting-height overrides from .xlsx to placed fixtures."/>
+                    </WrapPanel>
+                </GroupBox>
+
+            </StackPanel>
+        </ScrollViewer>
+        </TabItem>
+
+        </TabControl>
 
         <!-- Status bar -->
         <Border Grid.Row="2" Background="{DynamicResource HeaderBg}" Padding="8,4">
