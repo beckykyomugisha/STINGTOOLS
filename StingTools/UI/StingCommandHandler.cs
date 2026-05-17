@@ -3587,6 +3587,63 @@ namespace StingTools.UI
                     }
                     case "MeetingRSVP":            TaskDialog.Show("STING — RSVP", "RSVP tracking requires CDE integration.\nConnect Planscape or configure email in Settings > Notifications."); break;
 
+                    // ── Phase 179 — Plumbing workflow commands ──
+                    // Sizing + scanning
+                    case "Plumb_ScanFixtures":     RunCommand<Commands.Plumbing.PlumbScanFixturesCommand>(app); break;
+                    case "Plumb_SizeSupply":       RunCommand<Commands.Plumbing.PlumbSizeSupplyCommand>(app); break;
+                    case "Plumb_SizeDrainage":     RunCommand<Commands.Plumbing.PlumbSizeDrainageCommand>(app); break;
+                    case "Plumb_PressureCheck":    RunCommand<Commands.Plumbing.PlumbPressureCheckCommand>(app); break;
+                    case "Plumb_ExpVessel":        RunCommand<Commands.Plumbing.PlumbExpVesselCommand>(app); break;
+                    case "Plumb_TMVRegister":      RunCommand<Commands.Plumbing.PlumbTMVRegisterCommand>(app); break;
+                    case "Plumb_StackCapacity":    RunCommand<Commands.Plumbing.StackCapacityCommand>(app); break;
+                    // Routing
+                    case "Plumb_AutoRoute":        RunCommand<Commands.Plumbing.PlumbAutoRouteCommand>(app); break;
+                    case "Plumb_FixSlopes":        RunCommand<Commands.Plumbing.PlumbFixSlopesCommand>(app); break;
+                    case "Plumb_InsertPTraps":     RunCommand<Commands.Plumbing.PlumbInsertPTrapsCommand>(app); break;
+                    case "Plumb_PlaceSleeves":     RunCommand<Commands.Plumbing.PlumbPlaceSleevesCommand>(app); break;
+                    case "Plumb_PlaceHangers":     RunCommand<Commands.Plumbing.PlumbPlaceHangersCommand>(app); break;
+                    // Network analysis (Phase 179d)
+                    case "Plumb_BuildNetwork":     RunCommand<Commands.Plumbing.PlumbBuildNetworkCommand>(app); break;
+                    case "Plumb_SlopeAutomation":  RunCommand<Commands.Plumbing.PlumbSlopeAutomationCommand>(app); break;
+                    case "Plumb_CreateVents":      RunCommand<Commands.Plumbing.PlumbCreateVentsCommand>(app); break;
+                    case "Plumb_NetworkPressure":  RunCommand<Commands.Plumbing.PlumbNetworkPressureCommand>(app); break;
+                    // Water safety (Phase 179d)
+                    case "Plumb_TMVEngine":        RunCommand<Commands.Plumbing.PlumbTMVEngineCommand>(app); break;
+                    case "Plumb_LegionellaReport": RunCommand<Commands.Plumbing.PlumbLegionellaReportCommand>(app); break;
+                    case "Plumb_WaterSafetyPlan":  RunCommand<Commands.Plumbing.PlumbWaterSafetyPlanCommand>(app); break;
+                    // Pump selection (Phase 179d)
+                    case "Plumb_PumpSelect":       RunCommand<Commands.Plumbing.PlumbPumpSelectCommand>(app); break;
+                    case "Plumb_BoosterSet":       RunCommand<Commands.Plumbing.PlumbBoosterSetCommand>(app); break;
+                    // Fabrication spools (Phase 179d)
+                    case "Plumb_GenerateSpools":   RunCommand<Commands.Plumbing.PlumbGenerateSpoolsCommand>(app); break;
+                    case "Plumb_SpoolSchedule":    RunCommand<Commands.Plumbing.PlumbSpoolScheduleCommand>(app); break;
+                    // Visualisation (Phase 179d)
+                    case "Plumb_DrainageSchematic": RunCommand<Commands.Plumbing.PlumbDrainageSchematicCommand>(app); break;
+                    case "Plumb_PressureZones":    RunCommand<Commands.Plumbing.PlumbPressureZoneCommand>(app); break;
+                    case "Plumb_NetworkStats":     RunCommand<Commands.Plumbing.PlumbNetworkStatsCommand>(app); break;
+                    // Real-time pipe sizer toggle
+                    case "Plumb_RealTimeSizerToggle":
+                    {
+                        var rtEnabled = StingTools.Core.Plumbing.RealTimePipeSizer.IsRegistered();
+                        if (rtEnabled) StingTools.Core.Plumbing.RealTimePipeSizer.Unregister();
+                        else          StingTools.Core.Plumbing.RealTimePipeSizer.Register(app);
+                        TaskDialog.Show("STING — Real-Time Pipe Sizer",
+                            rtEnabled ? "Real-time pipe sizer DISABLED." : "Real-time pipe sizer ENABLED.\nNewly placed pipes will be auto-sized as you draw.");
+                        break;
+                    }
+                    // Legacy tag aliases (backward-compat from PlumbingCommands.cs)
+                    case "Plumbing_AutoSizeDrainage": RunCommand<Commands.Plumbing.AutoSizeDrainageCommand>(app); break;
+                    case "Plumbing_BackflowAudit":    RunCommand<Commands.Plumbing.BackflowAuditCommand>(app); break;
+                    case "Plumbing_DeadLegScan":      RunCommand<Commands.Plumbing.DeadLegScanCommand>(app); break;
+                    case "Plumbing_CrossConnectionScan": RunCommand<Commands.Plumbing.CrossConnectionScanCommand>(app); break;
+                    case "Plumbing_RecircBalance":    RunCommand<Commands.Plumbing.RecircBalanceCommand>(app); break;
+                    case "Plumbing_PRVSchedule":      RunCommand<Commands.Plumbing.PRVScheduleCommand>(app); break;
+                    case "Plumbing_RainwaterCalc":    RunCommand<Commands.Plumbing.RainwaterCalcCommand>(app); break;
+                    case "Plumbing_TrapAndVentAudit": RunCommand<Commands.Plumbing.TrapAndVentAuditCommand>(app); break;
+                    case "Plumbing_MaterialAudit":    RunCommand<Commands.Plumbing.MaterialAuditCommand>(app); break;
+                    case "Plumbing_GenerateBOQ":      RunCommand<Commands.Plumbing.AutoSizeDrainageCommand>(app); break;
+                    case "Plumbing_FullAudit":        RunCommand<Commands.Plumbing.AutoSizeDrainageCommand>(app); break;
+
                     // ── Phase 177 — STING Electrical Center toggle from main hub ──
                     case "ElectricalHub":
                         StingElectricalCommandHandler.Instance?.SetCommand("ElectricalHub");
