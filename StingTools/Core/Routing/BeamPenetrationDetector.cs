@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — BeamPenetrationDetector.
 //
 // Detects MEP runs that cross structural framing (beams) and stamps

@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager · Phase 137
 //
 // ManagedTemplateSyncer mints (or updates) a per-pack-per-viewtype

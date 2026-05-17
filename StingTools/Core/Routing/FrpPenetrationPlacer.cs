@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — FrpPenetrationPlacer.
 //
 // Closes the loop from the penetration detectors. For each

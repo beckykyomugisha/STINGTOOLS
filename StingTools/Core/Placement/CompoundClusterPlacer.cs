@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139.2 — Compound cluster placer.
 //
 // MK Grid Plus assemblies are mounted in a single faceplate frame but

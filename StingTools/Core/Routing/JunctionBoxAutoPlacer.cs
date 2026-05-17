@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — JunctionBoxAutoPlacer.
 //
 // Closes the BS 7671 §522.8.5 compliance gap: every conduit run that

@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139 D2 — Coverage grid generator.
 //
 // For rules with GuaranteeCoverage=true and CoverageRadiusMm>0.

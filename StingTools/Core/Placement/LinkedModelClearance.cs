@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139 G — Linked-model clearance check.
 //
 // Inspects RevitLinkInstances in the host document and reports whether

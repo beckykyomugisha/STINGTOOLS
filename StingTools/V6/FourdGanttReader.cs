@@ -16,6 +16,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
+using System.Threading.Tasks;
 using StingTools.Core;
 
 namespace StingTools.V6

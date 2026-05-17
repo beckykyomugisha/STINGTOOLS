@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager · Phase 168 — Match-line subsystem
 //
 // Configuration POCO for the Match-Line engine. Loaded from

@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — PCF (Pipe Component File) exporter.
 //
 // Writes an Alias PCF that external ISO-6412 axonometric generators

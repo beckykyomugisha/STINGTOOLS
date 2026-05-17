@@ -1,3 +1,4 @@
+using System;
 // StingTools — Drawing Template Manager · AEC/FM Filter Library
 //
 // AecFilterDefinition is the JSON-backed POCO for STING_AEC_FILTERS.json.

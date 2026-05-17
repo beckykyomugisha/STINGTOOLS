@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — lighting grid calculator.
 //
 // Given a room, classifies it via ROOM_TYPE_CLASSIFIER.csv, looks up

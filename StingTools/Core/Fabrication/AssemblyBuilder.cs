@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — AssemblyBuilder.
 //
 // Wraps Autodesk.Revit.DB.AssemblyInstance.Create with the v4 naming

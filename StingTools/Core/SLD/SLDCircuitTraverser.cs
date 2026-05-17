@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — SLD circuit traverser (Phase 175 + Phase 179 enhancements)
 //
 // Walks the project's electrical hierarchy starting from root panels.

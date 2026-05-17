@@ -1,3 +1,4 @@
+using System;
 // StingTools v4 MVP — fixture placement rule.
 //
 // PC-01 + PC-06..08 + PC-12..16 expand the rule POCO from the original 11

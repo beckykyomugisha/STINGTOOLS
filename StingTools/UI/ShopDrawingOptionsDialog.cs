@@ -22,6 +22,7 @@
 // passes into the engine.
 
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;

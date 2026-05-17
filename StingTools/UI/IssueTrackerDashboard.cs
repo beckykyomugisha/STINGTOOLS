@@ -12,6 +12,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.IO;
 using Color = System.Windows.Media.Color;
 using StingTools.Core;
 

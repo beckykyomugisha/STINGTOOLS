@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager · Week 2
 //
 // ViewStylePackRegistry — mirrors DrawingTypeRegistry for style

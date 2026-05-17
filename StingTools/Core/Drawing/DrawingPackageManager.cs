@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager · Phase 137
 //
 // DrawingPackageManager groups STING-produced views and sheets by

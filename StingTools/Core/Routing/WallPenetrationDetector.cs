@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — WallPenetrationDetector.
 //
 // Companion to SlabPenetrationDetector. Walks every supplied MEPCurve

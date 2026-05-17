@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139 D5 — Wet zone exclusion checker.
 //
 // Implements BS 7671 / IEC 60364-7-701 bath/shower zone geometry to

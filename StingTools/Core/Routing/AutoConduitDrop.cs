@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — AutoConduitDrop.
 //
 // For each selected fixture with an electrical connector, finds the

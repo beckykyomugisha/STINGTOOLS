@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139 B — Additional anchor types for the placement scorer.
 //
 // This partial class extends PlacementScorer with the 22 new anchor

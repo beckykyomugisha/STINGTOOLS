@@ -1,3 +1,4 @@
+using System;
 // StingTools — Drawing Template Manager · Phase 137
 //
 // DrawingProductionPreset is a reusable bundle of options for the

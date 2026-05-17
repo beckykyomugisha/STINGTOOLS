@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Symbol Standards registry (Phase 175)
 //
 // Per-process cache over STING_SYMBOL_STANDARDS.json + STING_MIXED_STANDARD_PROFILES.json.

@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — SLD generator façade (Phase 175 + Phase 179 enhancements)
 //
 // Coordinates traverser → layout → annotation to produce a drafting view
@@ -23,6 +24,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using Autodesk.Revit.DB;
 using StingTools.Core.Symbols;
 using StingTools.Commands.Electrical.Coordination;

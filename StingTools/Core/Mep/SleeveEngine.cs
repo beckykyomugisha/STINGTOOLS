@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — Phase I sleeve engine.
 //
 // Detects MEP-vs-structure penetrations, sizes a sleeve per
@@ -39,6 +40,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 

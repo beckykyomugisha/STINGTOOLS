@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — placement scorer.
 //
 // Given a room, a placement rule and optional host element, produces

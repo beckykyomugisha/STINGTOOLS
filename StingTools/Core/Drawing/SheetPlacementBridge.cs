@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager · Phase 137
 //
 // SheetPlacementBridge converts a DrawingType.Slot's normalised

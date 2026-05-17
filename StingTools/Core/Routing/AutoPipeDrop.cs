@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — AutoPipeDrop.
 //
 // For each plumbing fixture, finds the nearest pipe of a matching

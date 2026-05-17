@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139.2 — Two-phase conduiting box placer.
 //
 // First-fix conduit boxes are placed in the Construction phase and

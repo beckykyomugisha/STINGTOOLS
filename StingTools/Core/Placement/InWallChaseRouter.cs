@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139.3 — In-wall chase pipe router.
 //
 // Routes Pipe / Conduit segments parallel to a host wall's location

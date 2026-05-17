@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — family augmentation engine (Phase 175)
 //
 // Injects STING_SYMBOL_ID / STING_SYMBOL_STANDARD / STING_HOST_ELEMENT_ID

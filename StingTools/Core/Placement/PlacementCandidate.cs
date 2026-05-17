@@ -1,3 +1,4 @@
+using System;
 // StingTools v4 MVP — placement candidate scoring record.
 //
 // PlacementScorer produces a ranked List<PlacementCandidate> for every

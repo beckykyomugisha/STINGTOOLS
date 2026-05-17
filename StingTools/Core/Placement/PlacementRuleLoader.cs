@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — placement rule loader.
 //
 // Loads STING_PLACEMENT_RULES.json (plugin default) and optionally

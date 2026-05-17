@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager · Week 3
 //
 // DrawingTypeStamper writes two shared parameters onto any view or

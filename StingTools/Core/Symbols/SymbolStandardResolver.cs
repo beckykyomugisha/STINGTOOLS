@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Symbol-standard resolver (Phase 175)
 //
 // Six-level inheritance chain:

@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager · Phase 137
 //
 // DrawingProducer is the engine that turns a (DrawingType, Context)

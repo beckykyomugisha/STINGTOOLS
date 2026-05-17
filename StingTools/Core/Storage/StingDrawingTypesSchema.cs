@@ -15,6 +15,7 @@
 // once when present.
 
 using System;
+using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.ExtensibleStorage;
 

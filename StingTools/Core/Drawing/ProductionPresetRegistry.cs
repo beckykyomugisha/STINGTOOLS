@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager · Phase 137
 //
 // ProductionPresetRegistry persists DrawingProductionPreset rows to

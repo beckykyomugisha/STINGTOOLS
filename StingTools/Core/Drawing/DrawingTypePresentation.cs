@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager
 //
 // DrawingTypePresentation is the shared application step for batch

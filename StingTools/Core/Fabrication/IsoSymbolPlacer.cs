@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — IsoSymbolPlacer.
 //
 // Walks an assembly's elements, looks up a matching detail symbol
@@ -43,6 +44,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.DB;
 
 namespace StingTools.Core.Fabrication

@@ -1,3 +1,4 @@
+using System;
 // Pack 9 — preview source for Smart Tag Placement.
 //
 // Reads the same scoring loop Smart Place uses, but instead of calling

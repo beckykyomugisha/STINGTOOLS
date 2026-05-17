@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139.2 — Plaster / finish-face offset resolver.
 //
 // At placement time we want sockets and switches to sit on the room-side

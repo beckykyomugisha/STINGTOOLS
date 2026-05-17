@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — SlabPenetrationDetector.
 //
 // After a routing pass, walks every newly-created MEPCurve and

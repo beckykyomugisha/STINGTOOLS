@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager option-scope step.
 //
 // Phase 175 — runs as a late step inside DrawingTypePresentation.Apply.
