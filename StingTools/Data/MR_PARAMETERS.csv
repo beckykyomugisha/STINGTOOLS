@@ -1,4 +1,4 @@
-# v5.9 | 20260506 | BIM Template mr_parameters — 2587 params (+4 ELC_CIRCUIT_*: REF / RATING / POLES / LABEL — Phase 175 SLD symbol-annotation engine inputs)
+# v6.1 | 20260517 | BIM Template mr_parameters — 2587 params (+4 ELC_CIRCUIT_*: REF / RATING / POLES / LABEL — Phase 175 SLD symbol-annotation engine inputs)
 Revit_Category,Parameter_Name,Parameter_GUID,Data_Type,Group_Name,Binding_Type,Description,Has_Formula,Formula,Input_Parameters,Discipline,User_Modifiable,Hide_When_No_Value
 Generic Models,ASS_CAT_TXT,f8fe813a-44e9-5e47-9109-921171dc53b6,TEXT,ASS_MNG,Type,Ass Cat Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_CST_QUANTITY_NR,3c189e63-383c-5011-b7d9-873faed4e6c6,TEXT,ASS_MNG,Type,Ass Cst Quantity Nr [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -472,7 +472,6 @@ Generic Models,MAT_PERF_TAG_2_TXT,28487745-251e-4555-bf56-b1d06c933cc5,TEXT,MAT_
 Generic Models,BLE_FLR_LVL_NR,d794c645-b8c7-5465-82d3-2cd1a64a061c,TEXT,CST_PROC,Type,Ble Flr Lvl Nr [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_APP-CUT-BG-COLOR,27a62c46-4ab1-56d4-8474-b090cf7406df,TEXT,CST_PROC,Type,Ble App-cut-bg-color [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,RGL_ACCESS_CLEAR_WIDTH_MM,0a5c2f46-8c87-53dc-88b4-9a886e0d908e,TEXT,RGL_CMPL,Type,Rgl Access Clear Width Mm [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PRJ_TB_DESIGN_STAGE_TXT,da480448-0e4c-53bf-9e45-5f8641a5d82c,TEXT,PRJ_INFORMATION,Type,Human-readable design stage label on title block. Populated from PRJ_ORG_PHASE_TXT. [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_CBL_SOURCE_FROM_TXT,f4e05f48-bd68-53d7-bbcf-01555243629b,TEXT,ELC_PWR,Type,Elc Cbl Source From Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MAT_LAYER_4_MATERIAL,646ebf48-0f81-5596-bc9e-e404360ba703,TEXT,MAT_INFO,Type,Mat Layer 4 Material [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_ACC_SZ_DIMENSION_NR,0692f248-1d25-55f2-a381-d4ef73a78047,TEXT,PLM_DRN,Type,Plm Acc Sz Dimension Nr [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -600,7 +599,6 @@ Generic Models,PLM_DRN_VNT_CONNECTION_TYPE_TXT,ad089475-b735-5fdc-8c26-d1fa104b5
 Generic Models,BLE_ROOF_GUTTER_SZ_MM,90f79b75-88c0-5c4b-8c88-0e6c9e20d07f,TEXT,CST_PROC,Type,Ble Roof Gutter Sz Mm [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_APP-SURFACE-FG-PATTERN,a389b775-f56d-5c0f-8863-c1acca491c62,TEXT,CST_PROC,Type,Ble App-surface-fg-pattern [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,SYS_INSULATION_TYPE_TXT,14246a76-589b-4b6c-ab1b-cb1ff88daae3,TEXT,TPL_TRACKING,Type,Insulation type [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PRJ_TB_COMPANY_ADDRESS_TXT,8e83ae76-71fe-55a8-8af1-0408c799f801,TEXT,PRJ_INFORMATION,Type,Producing company address on title block. Populated from PRJ_ORG_COMPANY_ADDRESS_TXT. [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_FRM_PLYWOOD_SHEETS_NR,f6a72f77-4d2c-50c5-bab6-1ea5ac723b52,TEXT,COM_DAT,Type,Cst S Frm Plywood Sheets Nr [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,PLM_HOTWTR_FUEL_TYPE_TXT,00d19977-f0af-53c0-beab-60d396a2ba05,TEXT,PLM_DRN,Type,Plm Hotwtr Fuel Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_MAT_L1_MAT_TXT,466e2578-05f3-5352-9e27-a95a37760ec5,TEXT,CST_PROC,Type,Ble Mat L1 Mat Txt [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -730,7 +728,6 @@ Generic Models,ASS_LVL_COD_TXT,b1e51fab-fa88-50df-8b2f-bcdbe48e7c78,TEXT,ASS_MNG
 Generic Models,PLM_SPT_LD_CAP_KG,3b0d81ab-15d5-55ec-a7ed-8e00a15f8642,TEXT,PLM_DRN,Type,Plm Spt Ld Cap Kg [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ASS_SKIRTING_TYPE_TXT,e15fa9ab-ec13-5055-a863-e50364ebb142,TEXT,ASS_MNG,Type,Ass Skirting Type Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,HVC_DCT_PROPERTY_TXT,ff2cf4ab-256d-5c2b-b593-cb658cc581f7,TEXT,HVC_SYSTEMS,Type,Hvc Dct Property Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PRJ_TB_CLIENT_NAME_TXT,720b78ac-264c-5e0d-8d59-81f51714b167,TEXT,PRJ_INFORMATION,Type,Client / appointing party name. Populated from PRJ_ORG_CLIENT_NAME_TXT. [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_STAIR_HANDRAIL_MAT_TXT,acfcc9ad-ceb4-597e-866e-355b024dc498,TEXT,BLE_STRUCTURE,Type,Hvc Stair Handrail Mat Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,FAB_CONTAINMENT_D_MM,8d26bec0-d074-4fc4-8ea7-61e3d9f10eaa,TEXT,BLE_STRUCTURE,Type,MEP fabrication containment depth in mm [SMACNA],False,,,MULTI,1,0
 Generic Models,FAB_CONTAINMENT_W_MM,e5c2dc93-3bf6-4772-b17d-96ef3512a3dc,TEXT,BLE_STRUCTURE,Type,MEP fabrication containment width in mm [SMACNA],False,,,MULTI,1,0
@@ -839,7 +836,6 @@ Generic Models,PLM_FACADE_WTR_PENETRATION_RESIST_NR,26b078cf-6442-5497-84d5-9277
 Generic Models,RGL_QA_COMMISSIONING_REQ_TXT,b11282cf-ecc6-5a20-983b-712138b4139b,TEXT,RGL_CMPL,Type,Rgl Qa Commissioning Req Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,VT_SHADOWS_BOOL,bd39c2cf-1ba3-42ad-87f5-39bf25ec91fb,YESNO,TPL_TRACKING,Type,Shadows enabled [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_APP-SHADING_RGB,abead5cf-a33a-583e-9cc9-a7cbc321149a,TEXT,CST_PROC,Type,Ble App-shading Rgb [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PRJ_TB_COMPANY_NAME_TXT,3d16e4cf-32c6-5761-ae73-8f264cbab54c,TEXT,PRJ_INFORMATION,Type,Producing company / consultant firm name on title block. Populated from PRJ_ORG_COMPANY_NAME_TXT. [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PH_STATUS_TXT,652b46d0-949e-4a6f-b6e3-6ec1fafac962,TEXT,TPL_TRACKING,Type,Phase status [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,MAT_CODE,758ba3d0-ea41-51fc-8dbf-3bb444174385,TEXT,MAT_INFO,Type,Mat Code [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_TOTAL_EQUIPMENT_COST,a7b8c9d0-e1f2-3456-abcd-7890123456a7,TEXT,CST_PROC,Type,Total equipment cost in UGX [ISO 19650-3:2020],False,,,MULTI,1,0

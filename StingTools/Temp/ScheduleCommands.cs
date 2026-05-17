@@ -779,7 +779,6 @@ namespace StingTools.Temp
                 "PRJ_TB_REVISION_NR_TXT",
                 "PRJ_TB_REVISION_DATE_TXT",
                 "PRJ_DWG_ISSUE_PURPOSE_TXT",
-                "PRJ_TB_CLIENT_NAME_TXT",
                 "PRJ_COMMENTS_TXT"
             };
 
@@ -794,7 +793,6 @@ namespace StingTools.Temp
                 { "PRJ_TB_REVISION_NR_TXT", "Revision" },
                 { "PRJ_TB_REVISION_DATE_TXT", "Revision Date" },
                 { "PRJ_DWG_ISSUE_PURPOSE_TXT", "Issue Purpose" },
-                { "PRJ_TB_CLIENT_NAME_TXT", "Client" },
                 { "PRJ_COMMENTS_TXT", "Comments" }
             };
 

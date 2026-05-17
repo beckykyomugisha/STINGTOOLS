@@ -6250,15 +6250,11 @@ PRJ_PHASE_TXT,Generic Models,Type,True
 PRJ_TB_APVD_BY_TXT,Generic Models,Type,True
 PRJ_TB_CHECKED_BY_TXT,Generic Models,Type,True
 PRJ_TB_CLIENT_ADDRESS_TXT,Generic Models,Type,True
-PRJ_TB_CLIENT_NAME_TXT,Generic Models,Type,True
-PRJ_TB_COMPANY_ADDRESS_TXT,Generic Models,Type,True
-PRJ_TB_COMPANY_NAME_TXT,Generic Models,Type,True
 PRJ_TB_CONTRACTOR_ADDRESS_TXT,Generic Models,Type,True
 PRJ_TB_CONTRACTOR_NAME_TXT,Generic Models,Type,True
 PRJ_TB_DATE_APVD_TXT,Generic Models,Type,True
 PRJ_TB_DATE_CHECKED_TXT,Generic Models,Type,True
 PRJ_TB_DATE_DRAWN_TXT,Generic Models,Type,True
-PRJ_TB_DESIGN_STAGE_TXT,Generic Models,Type,True
 PRJ_TB_DISCIPLINE_TXT,Generic Models,Type,True
 PRJ_TB_DRAWN_BY_TXT,Generic Models,Type,True
 PRJ_TB_MEP_CONSULTANTS_NAME_TXT,Generic Models,Type,True
@@ -9758,7 +9754,6 @@ HVC_EQP_TAG_03_TXT,Duct Fittings,Type,True
 ASS_SYSTEM_TYPE_TXT,Duct Fittings,Type,True
 PRJ_NAME_TXT,Project Information,Type,True
 PRJ_TB_DATE_APVD_TXT,Project Information,Type,True
-PRJ_TB_DESIGN_STAGE_TXT,Project Information,Type,True
 PRJ_ISO_STD_TXT,Project Information,Type,True
 PRJ_ADDRESS_TXT,Project Information,Type,True
 PRJ_TB_CHECKED_BY_TXT,Project Information,Type,True
@@ -9767,7 +9762,6 @@ PRJ_TB_DATE_CHECKED_TXT,Project Information,Type,True
 PRJ_DRAWING_TITLE_TXT,Project Information,Type,True
 PRJ_DRAWING_SCALE_TXT,Project Information,Type,True
 PRJ_TB_REVISION_DATE_TXT,Project Information,Type,True
-PRJ_TB_COMPANY_ADDRESS_TXT,Project Information,Type,True
 PRJ_DWG_ISSUE_PURPOSE_TXT,Project Information,Type,True
 PRJ_TB_DISCIPLINE_TXT,Project Information,Type,True
 PRJ_GRID_REF_TXT,Project Information,Type,True
@@ -9776,7 +9770,6 @@ PRJ_TB_CONTRACTOR_NAME_TXT,Project Information,Type,True
 PRJ_COMMENTS_TXT,Project Information,Type,True
 PRJ_TB_REVISION_DESCRIPTION_TXT,Project Information,Type,True
 PRJ_TB_DRAWN_BY_TXT,Project Information,Type,True
-PRJ_TB_CLIENT_NAME_TXT,Project Information,Type,True
 PRJ_DRAWING_NR_TXT,Project Information,Type,True
 PRJ_TB_CONTRACTOR_ADDRESS_TXT,Project Information,Type,True
 PRJ_DWG_SUITABILITY_COD_TXT,Project Information,Type,True
@@ -9785,7 +9778,6 @@ PRJ_DWG_SUPERSEDES_TXT,Project Information,Type,True
 PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT,Project Information,Type,True
 PRJ_TB_DATE_DRAWN_TXT,Project Information,Type,True
 PRJ_ADDRESS_2_TXT,Project Information,Type,True
-PRJ_TB_COMPANY_NAME_TXT,Project Information,Type,True
 PRJ_TB_CLIENT_ADDRESS_TXT,Project Information,Type,True
 PRJ_TB_TOTAL_NO_SHEETS_TXT,Project Information,Type,True
 PRJ_PHASE_TXT,Project Information,Type,True
