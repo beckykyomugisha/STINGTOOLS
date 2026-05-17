@@ -1,6 +1,8 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Electrical;
 using StingTools.Commands.Electrical.ArcFlash;
@@ -49,6 +51,34 @@ namespace StingTools.Commands.Electrical.Export
         public double LuxCalc  { get; set; }
     }
 
+    public class CableData
+    {
+        public string CableId            { get; set; } = "";
+        public string CircuitId          { get; set; } = "";
+        public string PanelName          { get; set; } = "";
+        public string DestPanel          { get; set; } = "";
+        public double CsaMm2             { get; set; }
+        public double OuterDiameterMm    { get; set; }
+        public int    CoreCount          { get; set; }
+        public string ConductorMaterial  { get; set; } = "CU";
+        public string InsulationType     { get; set; } = "PVC";
+        public double TotalLengthM       { get; set; }
+        public double VoltageDropPct     { get; set; }
+        public string Phase              { get; set; } = "";
+        public double WeightPerMetreKg   { get; set; }
+    }
+
+    public class FeederSummary
+    {
+        public string UpstreamPanel   { get; set; } = "";
+        public string DownstreamPanel { get; set; } = "";
+        public double CsaMm2          { get; set; }
+        public double LengthM         { get; set; }
+        public double ResistanceOhm   { get; set; }  // ρ × L / A  (Cu: ρ=0.0175 Ω·mm²/m)
+        public double ReactanceOhm    { get; set; }  // 0.08 mΩ/m default
+        public double RatingA         { get; set; }
+    }
+
     public class ExportModel
     {
         public string ProjectName    { get; set; } = "";
@@ -59,11 +89,13 @@ namespace StingTools.Commands.Electrical.Export
         public List<ArcFlashRow>             ArcFlashResults { get; set; } = new();
         public List<PanelSummary>            Panels          { get; set; } = new();
         public List<LightingRoom>            LightingRooms   { get; set; } = new();
+        public List<CableData>               Cables          { get; set; } = new();
+        public List<FeederSummary>           Feeders         { get; set; } = new();
     }
 
     public static class ExternalExportEngine
     {
-        public static ExportModel Build(Document doc)
+        public static ExportModel Build(Document doc, double powerFactor = 0.85)
         {
             var m = new ExportModel
             {
@@ -75,18 +107,19 @@ namespace StingTools.Commands.Electrical.Export
             if (doc == null) return m;
             try
             {
-                m.Circuits = BuildCircuits(doc);
+                m.Circuits = BuildCircuits(doc, powerFactor);
                 m.Panels = BuildPanels(doc, m.FaultResults);
                 m.LightingRooms = BuildLightingRooms(doc);
+                m.Cables = BuildCables(doc);
+                m.Feeders = BuildFeeders(doc, m.Panels);
             }
             catch (Exception ex) { StingLog.Warn($"ExternalExportEngine.Build: {ex.Message}"); }
             return m;
         }
 
-        private static List<CircuitSummary> BuildCircuits(Document doc)
+        private static List<CircuitSummary> BuildCircuits(Document doc, double pf = 0.85)
         {
             var rows = new List<CircuitSummary>();
-            const double pf = 0.85;
             foreach (var sys in new FilteredElementCollector(doc)
                 .OfClass(typeof(ElectricalSystem)).Cast<ElectricalSystem>())
             {
@@ -170,6 +203,170 @@ namespace StingTools.Commands.Electrical.Export
                 }
                 catch (Exception ex) { StingLog.Warn($"BuildLightingRooms: {ex.Message}"); }
             }
+            return rows;
+        }
+
+        private static List<CableData> BuildCables(Document doc)
+        {
+            var rows = new List<CableData>();
+            try
+            {
+                // Use reflection to call CableManifest.Load(doc) so this file doesn't need a direct using
+                var cableManifestType = Type.GetType("StingTools.Core.Electrical.CableManifest, StingTools");
+                if (cableManifestType == null) return rows;
+                var manifest = cableManifestType.GetMethod("Load")?.Invoke(null, new object[] { doc });
+                if (manifest == null) return rows;
+                var cables = manifest.GetType().GetProperty("Cables")?.GetValue(manifest) as IEnumerable;
+                if (cables == null) return rows;
+
+                foreach (var cable in cables)
+                {
+                    T Get<T>(string prop)
+                    {
+                        try { return (T)cable.GetType().GetProperty(prop)?.GetValue(cable); }
+                        catch { return default; }
+                    }
+                    rows.Add(new CableData
+                    {
+                        CableId           = Get<string>("Guid") ?? "",
+                        CircuitId         = Get<string>("CircuitId") ?? "",
+                        PanelName         = Get<string>("PanelName") ?? "",
+                        DestPanel         = Get<string>("DestPanel") ?? "",
+                        CsaMm2            = Get<double>("CsaMm2"),
+                        OuterDiameterMm   = Get<double>("OuterDiameterMm"),
+                        CoreCount         = Get<int>("CoreCount"),
+                        ConductorMaterial = Get<string>("ConductorMaterial") ?? "CU",
+                        InsulationType    = Get<string>("InsulationType") ?? "PVC",
+                        TotalLengthM      = Get<double>("TotalLengthM"),
+                        VoltageDropPct    = Get<double>("VoltageDropPct"),
+                        Phase             = Get<string>("Phase") ?? "",
+                        WeightPerMetreKg  = Get<double>("WeightPerMetreKg")
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildCables: {ex.Message}"); }
+            return rows;
+        }
+
+        private static List<FeederSummary> BuildFeeders(Document doc, List<PanelSummary> panels)
+        {
+            var rows = new List<FeederSummary>();
+            try
+            {
+                // Build a quick lookup of known panel names for downstream detection
+                var panelNames = new HashSet<string>(
+                    panels.Select(p => p.PanelName),
+                    StringComparer.OrdinalIgnoreCase);
+
+                // First pass: try to derive feeders from ElectricalSystem connections
+                // where the load element is itself a panel (equipment → equipment feeder)
+                var panelElements = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
+                    .WhereElementIsNotElementType()
+                    .OfType<FamilyInstance>()
+                    .ToList();
+
+                foreach (var panelEl in panelElements)
+                {
+                    try
+                    {
+                        string downstreamName = panelEl.Name ?? "";
+                        if (string.IsNullOrEmpty(downstreamName)) continue;
+
+                        // Find any ElectricalSystem whose load set includes this panel element
+                        foreach (var sys in new FilteredElementCollector(doc)
+                            .OfClass(typeof(ElectricalSystem)).Cast<ElectricalSystem>())
+                        {
+                            try
+                            {
+                                if (sys.SystemType != ElectricalSystemType.PowerCircuit) continue;
+                                var elements = TrySafe(() => sys.Elements);
+                                if (elements == null) continue;
+                                bool containsPanel = false;
+                                foreach (Element loadEl in elements)
+                                {
+                                    if (loadEl?.Id == panelEl.Id) { containsPanel = true; break; }
+                                }
+                                if (!containsPanel) continue;
+
+                                string upstreamName = TrySafe(() => sys.PanelName) ?? "";
+                                if (string.IsNullOrEmpty(upstreamName) || upstreamName == downstreamName) continue;
+
+                                double lengthFt = TrySafe(() => sys.Length);
+                                double lengthM  = lengthFt * 0.3048;
+                                string wire     = SafeStr(sys, BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM);
+                                double csa      = ParseCsa(wire);
+                                double ratingA  = SafeDouble(sys, BuiltInParameter.RBS_ELEC_CIRCUIT_RATING_PARAM);
+
+                                // Determine conductor material from cable manifest if available
+                                string material = "CU";
+                                double rho = material == "AL" ? 0.0285 : 0.0175;
+                                double r   = csa > 0 ? rho * lengthM / csa : 0;
+                                double x   = 0.00008 * lengthM; // 0.08 mΩ/m
+
+                                rows.Add(new FeederSummary
+                                {
+                                    UpstreamPanel   = upstreamName,
+                                    DownstreamPanel = downstreamName,
+                                    CsaMm2          = csa,
+                                    LengthM         = lengthM,
+                                    ResistanceOhm   = r,
+                                    ReactanceOhm    = x,
+                                    RatingA         = ratingA
+                                });
+                            }
+                            catch { }
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"BuildFeeders (panel scan): {ex.Message}"); }
+                }
+
+                // Second pass: fall back to CircuitSummary rows that aren't already captured
+                // and whose LoadName looks like a panel name in the known panel set.
+                // (This covers cases where the Revit model has no direct equipment-to-equipment
+                //  system but the panel name is reflected in the circuit's LoadName.)
+                var alreadyCaptured = new HashSet<string>(
+                    rows.Select(r => r.UpstreamPanel + "→" + r.DownstreamPanel),
+                    StringComparer.OrdinalIgnoreCase);
+
+                foreach (var sys in new FilteredElementCollector(doc)
+                    .OfClass(typeof(ElectricalSystem)).Cast<ElectricalSystem>())
+                {
+                    try
+                    {
+                        if (sys.SystemType != ElectricalSystemType.PowerCircuit) continue;
+                        string loadName     = TrySafe(() => sys.LoadName) ?? "";
+                        string upstreamName = TrySafe(() => sys.PanelName) ?? "";
+                        if (!panelNames.Contains(loadName)) continue;
+                        if (string.IsNullOrEmpty(upstreamName) || upstreamName == loadName) continue;
+                        string key = upstreamName + "→" + loadName;
+                        if (alreadyCaptured.Contains(key)) continue;
+
+                        double lengthFt = TrySafe(() => sys.Length);
+                        double lengthM  = lengthFt * 0.3048;
+                        string wire     = SafeStr(sys, BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM);
+                        double csa      = ParseCsa(wire);
+                        double ratingA  = SafeDouble(sys, BuiltInParameter.RBS_ELEC_CIRCUIT_RATING_PARAM);
+                        double rho      = 0.0175; // default CU
+                        double r        = csa > 0 ? rho * lengthM / csa : 0;
+                        double x        = 0.00008 * lengthM;
+
+                        rows.Add(new FeederSummary
+                        {
+                            UpstreamPanel   = upstreamName,
+                            DownstreamPanel = loadName,
+                            CsaMm2          = csa,
+                            LengthM         = lengthM,
+                            ResistanceOhm   = r,
+                            ReactanceOhm    = x,
+                            RatingA         = ratingA
+                        });
+                        alreadyCaptured.Add(key);
+                    }
+                    catch { }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildFeeders: {ex.Message}"); }
             return rows;
         }
 

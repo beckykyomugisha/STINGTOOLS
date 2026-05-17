@@ -1,3 +1,7 @@
+> **This document has been moved.** The up-to-date version is at `docs/guides/DOCUMENT_MANAGER_GUIDE.md`. The content below is kept for historical reference only.
+
+---
+
 # Document Manager — Plain-English Guide
 
 A practical guide to managing project documents across **Revit (the plugin)**, **the cloud server (Planscape)**, and **the mobile app**, with recommended workflows for the most common roles.

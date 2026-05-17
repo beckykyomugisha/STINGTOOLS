@@ -15,6 +15,12 @@
         },
         "IEEE": {
           "genericAnnotation": "IEEE_SLD_MCB"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_MCB"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_MCB"
         }
       }
     },
@@ -32,6 +38,12 @@
         },
         "IEEE": {
           "genericAnnotation": "IEEE_SLD_MCCB"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_MCCB"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_MCCB"
         }
       }
     },
@@ -49,6 +61,12 @@
         },
         "IEEE": {
           "genericAnnotation": "IEEE_SLD_ACB"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_MCB"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_ACB"
         }
       }
     },
@@ -66,6 +84,12 @@
         },
         "IEEE": {
           "genericAnnotation": "IEEE_SLD_FUSE"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_FUSE"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_FUSE"
         }
       }
     },
@@ -83,6 +107,12 @@
         },
         "IEEE": {
           "genericAnnotation": "IEEE_SLD_FUSED_SWITCH"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_FUSED_SWITCH"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_FUSE"
         }
       }
     },
@@ -100,6 +130,12 @@
         },
         "IEEE": {
           "genericAnnotation": "IEEE_SLD_ISOLATOR"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_ISOLATOR"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_ISOLATOR"
         }
       }
     },
@@ -117,6 +153,12 @@
         },
         "IEEE": {
           "genericAnnotation": "IEEE_SLD_CONTACTOR"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_CONTACTOR"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_CONTACTOR"
         }
       }
     },
@@ -151,6 +193,12 @@
         },
         "IEEE": {
           "genericAnnotation": "IEEE_SLD_VSD"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_VSD"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_MCB"
         }
       }
     },
@@ -168,6 +216,12 @@
         },
         "IEEE": {
           "genericAnnotation": "IEEE_SLD_RCD"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_RCD"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_MCB"
         }
       }
     },
@@ -202,6 +256,12 @@
         },
         "IEEE": {
           "genericAnnotation": "IEEE_SLD_SPD"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_SPD"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_SPD"
         }
       }
     },
@@ -219,6 +279,12 @@
         },
         "IEEE": {
           "genericAnnotation": "IEEE_SLD_XFMR_2W"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_TRANSFORMER"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_TRANSFORMER"
         }
       }
     },
@@ -326,6 +392,12 @@
       "standardMappings": {
         "IEC": {
           "genericAnnotation": "IEC_SLD_KWH_METER"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_METER"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_METER"
         }
       }
     },
@@ -410,6 +482,9 @@
       "standardMappings": {
         "IEC": {
           "genericAnnotation": "IEC_SLD_EARTH"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_EARTH"
         }
       }
     },
@@ -452,6 +527,12 @@
       "standardMappings": {
         "IEC": {
           "genericAnnotation": "IEC_SLD_GENERATOR"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_GENERATOR"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_GENERATOR"
         }
       }
     },
@@ -466,6 +547,12 @@
       "standardMappings": {
         "IEC": {
           "genericAnnotation": "IEC_SLD_UPS"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_UPS"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_UPS"
         }
       }
     },
@@ -525,6 +612,12 @@
         },
         "IEEE": {
           "genericAnnotation": "IEEE_SLD_MOTOR_3PH"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_MOTOR"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_MOTOR"
         }
       }
     },
@@ -542,6 +635,12 @@
         },
         "IEEE": {
           "genericAnnotation": "IEEE_SLD_MOTOR_1PH"
+        },
+        "BS": {
+          "genericAnnotation": "BS_SLD_MOTOR"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_MOTOR"
         }
       }
     },
@@ -610,6 +709,9 @@
         },
         "IEEE": {
           "genericAnnotation": "IEEE_SLD_DB_DOWNSTREAM"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_SLD_PANEL"
         }
       }
     },
@@ -4248,6 +4350,376 @@
           ]
         }
       ]
+    },
+    "SLD_LPS_AIR_TERMINAL": {
+      "conceptId": "SLD_LPS_AIR_TERMINAL",
+      "name": "Lightning Air Terminal",
+      "discipline": "Electrical",
+      "subcategory": "LPS",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_LPS_AIR_TERMINAL"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_62305_AIR_TERMINAL"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA780_AIR_TERMINAL"
+        }
+      }
+    },
+    "SLD_LPS_DOWN_CONDUCTOR": {
+      "conceptId": "SLD_LPS_DOWN_CONDUCTOR",
+      "name": "LPS Down Conductor",
+      "discipline": "Electrical",
+      "subcategory": "LPS",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_LPS_DOWN_CONDUCTOR"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_62305_DOWN_CONDUCTOR"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA780_DOWN_CONDUCTOR"
+        }
+      }
+    },
+    "SLD_LPS_EARTH_ELECTRODE": {
+      "conceptId": "SLD_LPS_EARTH_ELECTRODE",
+      "name": "LPS Earth Electrode",
+      "discipline": "Electrical",
+      "subcategory": "LPS",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_LPS_EARTH_ELECTRODE"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_62305_EARTH_ELECTRODE"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA780_EARTH_ELECTRODE"
+        }
+      }
+    },
+    "SLD_LPS_BONDING_BAR": {
+      "conceptId": "SLD_LPS_BONDING_BAR",
+      "name": "LPS Main Bonding Bar",
+      "discipline": "Electrical",
+      "subcategory": "LPS",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_SLD_LPS_BONDING_BAR"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_62305_BONDING_BAR"
+        }
+      }
+    },
+    "SLD_ATEX_ZONE_0": {
+      "conceptId": "SLD_ATEX_ZONE_0",
+      "name": "ATEX Zone 0 Boundary",
+      "discipline": "Electrical",
+      "subcategory": "HazardousArea",
+      "revitCategory": "Areas",
+      "universe": "Schematic",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60079_ZONE_0"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_60079_ZONE_0"
+        },
+        "DSEAR": {
+          "genericAnnotation": "DSEAR_ZONE_0"
+        }
+      }
+    },
+    "SLD_ATEX_ZONE_1": {
+      "conceptId": "SLD_ATEX_ZONE_1",
+      "name": "ATEX Zone 1 Boundary",
+      "discipline": "Electrical",
+      "subcategory": "HazardousArea",
+      "revitCategory": "Areas",
+      "universe": "Schematic",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60079_ZONE_1"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_60079_ZONE_1"
+        },
+        "DSEAR": {
+          "genericAnnotation": "DSEAR_ZONE_1"
+        }
+      }
+    },
+    "SLD_ATEX_ZONE_2": {
+      "conceptId": "SLD_ATEX_ZONE_2",
+      "name": "ATEX Zone 2 Boundary",
+      "discipline": "Electrical",
+      "subcategory": "HazardousArea",
+      "revitCategory": "Areas",
+      "universe": "Schematic",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60079_ZONE_2"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_60079_ZONE_2"
+        },
+        "DSEAR": {
+          "genericAnnotation": "DSEAR_ZONE_2"
+        }
+      }
+    },
+    "SLD_ATEX_EX_D": {
+      "conceptId": "SLD_ATEX_EX_D",
+      "name": "Ex d Flameproof Enclosure",
+      "discipline": "Electrical",
+      "subcategory": "ATEXEquipment",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60079_1_EX_D"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_60079_1_EX_D"
+        }
+      }
+    },
+    "SLD_ATEX_EX_E": {
+      "conceptId": "SLD_ATEX_EX_E",
+      "name": "Ex e Increased Safety",
+      "discipline": "Electrical",
+      "subcategory": "ATEXEquipment",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60079_7_EX_E"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_60079_7_EX_E"
+        }
+      }
+    },
+    "SLD_ATEX_EX_I": {
+      "conceptId": "SLD_ATEX_EX_I",
+      "name": "Ex i Intrinsic Safety",
+      "discipline": "Electrical",
+      "subcategory": "ATEXEquipment",
+      "revitCategory": "ElectricalEquipment",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60079_11_EX_I"
+        },
+        "BS": {
+          "genericAnnotation": "BS_EN_60079_11_EX_I"
+        }
+      }
+    },
+    "SLD_PHASE_SEQUENCE_ABC": {
+      "conceptId": "SLD_PHASE_SEQUENCE_ABC",
+      "name": "Phase Sequence ABC (Positive)",
+      "discipline": "Electrical",
+      "subcategory": "Notation",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60034_8_PHASE_ABC"
+        },
+        "BS": {
+          "genericAnnotation": "BS_7671_PHASE_ABC"
+        }
+      }
+    },
+    "SLD_PHASE_SEQUENCE_ACB": {
+      "conceptId": "SLD_PHASE_SEQUENCE_ACB",
+      "name": "Phase Sequence ACB (Negative)",
+      "discipline": "Electrical",
+      "subcategory": "Notation",
+      "revitCategory": "ElectricalFixtures",
+      "universe": "Schematic",
+      "isViewDependent": false,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60034_8_PHASE_ACB"
+        },
+        "BS": {
+          "genericAnnotation": "BS_7671_PHASE_ACB"
+        }
+      }
+    },
+    "ELEC_MG_O2_OUTLET": {
+      "conceptId": "ELEC_MG_O2_OUTLET",
+      "name": "Medical Oxygen Outlet",
+      "discipline": "MedicalGas",
+      "subcategory": "MedGasOutlet",
+      "revitCategory": "MEPEquipment",
+      "universe": "FloorPlan",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_7396_1_O2_OUTLET"
+        },
+        "BS_HTM": {
+          "genericAnnotation": "BS_HTM_02_01_O2_OUTLET"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_99_O2_OUTLET"
+        }
+      }
+    },
+    "ELEC_MG_N2O_OUTLET": {
+      "conceptId": "ELEC_MG_N2O_OUTLET",
+      "name": "Nitrous Oxide Outlet",
+      "discipline": "MedicalGas",
+      "subcategory": "MedGasOutlet",
+      "revitCategory": "MEPEquipment",
+      "universe": "FloorPlan",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_7396_1_N2O_OUTLET"
+        },
+        "BS_HTM": {
+          "genericAnnotation": "BS_HTM_02_01_N2O_OUTLET"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_99_N2O_OUTLET"
+        }
+      }
+    },
+    "ELEC_MG_CO2_OUTLET": {
+      "conceptId": "ELEC_MG_CO2_OUTLET",
+      "name": "Carbon Dioxide Outlet",
+      "discipline": "MedicalGas",
+      "subcategory": "MedGasOutlet",
+      "revitCategory": "MEPEquipment",
+      "universe": "FloorPlan",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_7396_1_CO2_OUTLET"
+        },
+        "BS_HTM": {
+          "genericAnnotation": "BS_HTM_02_01_CO2_OUTLET"
+        }
+      }
+    },
+    "ELEC_MG_AIR_OUTLET": {
+      "conceptId": "ELEC_MG_AIR_OUTLET",
+      "name": "Medical Air Outlet",
+      "discipline": "MedicalGas",
+      "subcategory": "MedGasOutlet",
+      "revitCategory": "MEPEquipment",
+      "universe": "FloorPlan",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_7396_1_AIR_OUTLET"
+        },
+        "BS_HTM": {
+          "genericAnnotation": "BS_HTM_02_01_AIR_OUTLET"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_99_MEDICAL_AIR_OUTLET"
+        }
+      }
+    },
+    "ELEC_MG_VAC_OUTLET": {
+      "conceptId": "ELEC_MG_VAC_OUTLET",
+      "name": "Medical Vacuum Outlet",
+      "discipline": "MedicalGas",
+      "subcategory": "MedGasOutlet",
+      "revitCategory": "MEPEquipment",
+      "universe": "FloorPlan",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_7396_1_VAC_OUTLET"
+        },
+        "BS_HTM": {
+          "genericAnnotation": "BS_HTM_02_01_VAC_OUTLET"
+        },
+        "NFPA": {
+          "genericAnnotation": "NFPA_99_VACUUM_OUTLET"
+        }
+      }
+    },
+    "ELEC_MG_AGSS_OUTLET": {
+      "conceptId": "ELEC_MG_AGSS_OUTLET",
+      "name": "AGSS Outlet",
+      "discipline": "MedicalGas",
+      "subcategory": "MedGasOutlet",
+      "revitCategory": "MEPEquipment",
+      "universe": "FloorPlan",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "ISO_7396_2_AGSS_OUTLET"
+        },
+        "BS_HTM": {
+          "genericAnnotation": "BS_HTM_02_01_AGSS_OUTLET"
+        }
+      }
+    },
+    "ELEC_ATEX_ZONE_BOUNDARY": {
+      "conceptId": "ELEC_ATEX_ZONE_BOUNDARY",
+      "name": "ATEX Zone Boundary (Floor Plan)",
+      "discipline": "Electrical",
+      "subcategory": "ATEXZone",
+      "revitCategory": "GenericAnnotations",
+      "universe": "FloorPlan",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60079_10_1_ZONE_BOUNDARY"
+        },
+        "ATEX": {
+          "genericAnnotation": "ATEX_2014_34_EU_ZONE_BOUNDARY"
+        }
+      }
+    },
+    "ELEC_ATEX_EQUIPMENT_EXD": {
+      "conceptId": "ELEC_ATEX_EQUIPMENT_EXD",
+      "name": "ATEX Ex d Equipment Marker (Floor Plan)",
+      "discipline": "Electrical",
+      "subcategory": "ATEXEquipment",
+      "revitCategory": "GenericAnnotations",
+      "universe": "FloorPlan",
+      "isViewDependent": true,
+      "standardMappings": {
+        "IEC": {
+          "genericAnnotation": "IEC_60079_1_EX_D_MARKER"
+        },
+        "ATEX": {
+          "genericAnnotation": "ATEX_2014_34_EU_EX_D_MARKER"
+        }
+      }
     }
   }
 }

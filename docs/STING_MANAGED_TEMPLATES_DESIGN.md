@@ -1,3 +1,7 @@
+> **This document has been consolidated.** See `docs/guides/DRAWING_PRODUCTION_SYSTEM_GUIDE.md` for the complete, up-to-date guide. The content below is kept for historical reference only.
+
+---
+
 # Design — STING-Managed View Templates
 
 ## The proposal in one line

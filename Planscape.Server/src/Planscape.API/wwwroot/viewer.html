@@ -44,12 +44,23 @@ const token     = localStorage.getItem("planscape_token");
 const statusEl  = document.getElementById("status");
 function status(s) { statusEl.textContent = s; }
 
-if (!projectId || !modelId) { status("Missing project / model id."); }
-else {
+// Guard: token must be present before any authenticated request is made.
+// Without this check the Authorization header becomes "Bearer null" which
+// the server rejects with 401 but the error message is confusing.
+if (!token) {
+  status("Not signed in — please open this viewer from the Planscape dashboard.");
+} else if (!projectId || !modelId) {
+  status("Missing project / model id.");
+} else {
   status("Initialising scene…");
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x1a1a1a);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x404060, 0.9));
+  // Hemisphere provides ambient fill; directional gives depth and shadows.
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x404060, 0.8));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+  dirLight.position.set(1, 2, 1.5);
+  scene.add(dirLight);
+
   const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.01, 10000);
   camera.position.set(10, 10, 10);
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -66,14 +77,22 @@ else {
 
   (function animate(){ requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); })();
 
+  const authHeader = { Authorization: "Bearer " + token };
+
   status("Fetching metadata…");
   let meta;
   try {
     const res = await fetch(`/api/projects/${projectId}/models/${modelId}`,
-      { headers: { Authorization: "Bearer " + token } });
+      { headers: authHeader });
+    if (res.status === 401) {
+      status("Session expired — please sign in again from the Planscape dashboard.");
+      throw null; // skip model load
+    }
     if (!res.ok) throw new Error(await res.text());
     meta = await res.json();
-  } catch (e) { status("Auth or metadata failed. " + e.message); }
+  } catch (e) {
+    if (e) status("Metadata fetch failed: " + e.message);
+  }
 
   if (meta) {
     status("Downloading model…");
@@ -83,7 +102,10 @@ else {
     // server's JwtBearerEvents.OnMessageReceived handler.
     const fileUrl = `/api/projects/${projectId}/models/${modelId}/file`;
     const loader = new GLTFLoader();
-    loader.requestHeader = { "Authorization": "Bearer " + token };
+    // setRequestHeader() is the documented GLTFLoader API for custom headers.
+    // Assigning loader.requestHeader directly (property) is non-standard and
+    // silently ignored in some three.js builds.
+    loader.setRequestHeader(authHeader);
     loader.load(
       fileUrl,
       (gltf) => {

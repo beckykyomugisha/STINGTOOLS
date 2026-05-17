@@ -54,7 +54,7 @@ export default function RootLayout() {
         } catch { /* ignore — never lock the user out on an API failure */ }
       }
     });
-    checkAuth();
+    checkAuth().catch(() => {});
     return () => { unsubNotif(); unsubSession(); appStateSub.remove(); };
   }, [router]);
 
@@ -68,7 +68,7 @@ export default function RootLayout() {
     } else if (isAuthenticated && inAuthGroup) {
       router.replace('/(tabs)');
     }
-  }, [isAuthenticated, segments, isReady]);
+  }, [isAuthenticated, segments, isReady, router]);
 
   async function checkAuth() {
     // FLEX-15 — load the user's preferred language before we render any screen.

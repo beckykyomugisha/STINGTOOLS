@@ -25,6 +25,13 @@ namespace StingTools.Commands.Electrical.CircuitWizard
         public static List<ProposedCircuit> PendingCircuits { get; set; } = new();
         public static string PendingPanelName { get; set; } = "";
 
+        /// <summary>
+        /// Options that were active when the wizard called ProposeCircuits.
+        /// Set by the dialog alongside PendingCircuits so that any post-create
+        /// RecalculateCircuit calls use the same power factor / run length.
+        /// </summary>
+        public static CircuitWizardOptions PendingOptions { get; set; } = CircuitWizardOptions.Default;
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
@@ -139,6 +146,19 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                             }
                             try { sys.LoadName = proposal.ProposedLabel; }
                             catch (Exception ex) { StingLog.Warn($"LoadName: {ex.Message}"); }
+
+                            // PendingOptions was applied during the wizard's ProposeCircuits call.
+                            // If the circuit has no cable size yet (e.g. created without a prior
+                            // wizard run), recalculate now using PendingOptions so power factor
+                            // and run length are correct.
+                            if (proposal.ProposedCsaMm2 <= 0)
+                            {
+                                try
+                                {
+                                    CircuitWizardEngine.RecalculateCircuit(proposal, PendingOptions, null);
+                                }
+                                catch (Exception ex) { StingLog.Warn($"RecalculateCircuit post-create: {ex.Message}"); }
+                            }
 
                             tx.Commit();
                             created++;

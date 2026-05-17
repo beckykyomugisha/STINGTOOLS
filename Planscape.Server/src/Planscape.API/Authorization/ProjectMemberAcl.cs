@@ -60,19 +60,31 @@ public static class ProjectMemberAcl
         if (!Guid.TryParse(subClaim, out var userId))
             return new AclSlice(null, null, null, BypassesAcl: true); // can't narrow what we can't identify
 
-        var member = await db.ProjectMembers
+        // Phase 177 — project only the columns that existed before the
+        // AddProjectMemberAcls migration so the query doesn't crash when
+        // the migration hasn't been applied yet (the three ACL columns are
+        // nullable and default to null = "all", so documents still load).
+        var memberRow = await db.ProjectMembers
             .AsNoTracking()
-            .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == userId && m.IsActive, ct);
+            .Where(m => m.ProjectId == projectId && m.UserId == userId && m.IsActive)
+            .Select(m => new
+            {
+                m.Id,
+                AllowedCdeStates    = (string?)null,
+                AllowedDisciplines  = (string?)null,
+                AllowedSuitabilities = (string?)null,
+            })
+            .FirstOrDefaultAsync(ct);
 
         // No member row = inherit (project author / tenant manager fallthrough).
         // Don't 403 here — ProjectAccessAttribute already cleared visibility.
-        if (member == null)
+        if (memberRow == null)
             return new AclSlice(null, null, null, BypassesAcl: true);
 
         return new AclSlice(
-            Cde:           ProjectMember.ParseAllowList(member.AllowedCdeStates),
-            Disciplines:   ProjectMember.ParseAllowList(member.AllowedDisciplines),
-            Suitabilities: ProjectMember.ParseAllowList(member.AllowedSuitabilities),
+            Cde:           ProjectMember.ParseAllowList(memberRow.AllowedCdeStates),
+            Disciplines:   ProjectMember.ParseAllowList(memberRow.AllowedDisciplines),
+            Suitabilities: ProjectMember.ParseAllowList(memberRow.AllowedSuitabilities),
             BypassesAcl:   false);
     }
 

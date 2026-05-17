@@ -182,7 +182,7 @@ namespace StingTools.Core.Drawing
                 if (p.Print != null)         m.Print = p.Print;
 
                 // Phase 169 — TB params merge KEY-by-KEY (not whole-map replace)
-                // so a corp-base profile can ship baseline keys (PRJ_ORG_PROJECT_CODE
+                // so a corp-base profile can ship baseline keys (PRJ_PROJECT_COD_TXT
                 // etc.) that every child profile inherits. Child entries with the
                 // same key win.
                 if (p.TitleBlockParams != null && p.TitleBlockParams.Count > 0)

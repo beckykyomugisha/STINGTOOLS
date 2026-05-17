@@ -90,7 +90,7 @@ namespace StingTools.Core.Drawing
             {
                 var pi = doc?.ProjectInformation;
                 if (pi == null) return null;
-                var p = pi.LookupParameter("PRJ_ORG_PROJECT_CODE");
+                var p = pi.LookupParameter("PRJ_PROJECT_COD_TXT");
                 return p?.StorageType == StorageType.String ? p.AsString() : null;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }

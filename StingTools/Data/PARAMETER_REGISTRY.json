@@ -2180,7 +2180,7 @@
         },
         {
           "param_name": "ASS_TAG_MULTILINE_TXT",
-          "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567810",
+          "guid": "6ba96198-36e0-5a2a-a236-f42ad2ce68c7",
           "tokens": "all",
           "separator": "\\n",
           "prefix": "",
@@ -3100,8 +3100,8 @@
       },
       {
         "key": "BLE_ROOM_NUM",
-        "param_name": "BLE_ROOM_NUM_TXT",
-        "description": "BLE room number (fallback)"
+        "param_name": "ASS_ROOM_NUM_TXT",
+        "description": "Room number (canonical)"
       }
     ],
     "extended_tokens": [
@@ -6528,7 +6528,7 @@
       {
         "key": "COMM_STATE",
         "param_name": "COMM_STATE_TXT",
-        "guid": "5753b5aa-0004-4000-8000-000000000001",
+        "guid": "8486f13f-f340-5937-a1a0-2052c085fe89",
         "description": "Commissioning state (Draft / Pre-C / Witness / Final)",
         "categories": [
           "ALL"
@@ -6658,7 +6658,7 @@
       {
         "key": "CLASH_TRIAGE_CAT",
         "param_name": "CLASH_TRIAGE_CATEGORY_TXT",
-        "guid": "5753b5aa-0008-4000-8000-000000000002",
+        "guid": "eea079dc-7f02-5f3c-b89a-89d07ce899eb",
         "description": "Clash triage category (Hard / Soft / Tolerance / Workflow)",
         "categories": [
           "ALL"
@@ -6668,7 +6668,7 @@
       {
         "key": "CLASH_RES_STATUS",
         "param_name": "CLASH_RESOLUTION_STATUS_TXT",
-        "guid": "5753b5aa-0008-4000-8000-000000000003",
+        "guid": "a151544f-4c23-58f5-b024-4ca993f3ab72",
         "description": "Clash resolution status (Open / Under Review / Resolved / Accepted)",
         "categories": [
           "ALL"
@@ -6728,7 +6728,7 @@
       {
         "key": "ACC_SYNC_STATUS",
         "param_name": "ACC_SYNC_STATUS_TXT",
-        "guid": "5753b5aa-000a-4000-8000-000000000003",
+        "guid": "4a80d4f1-f2c1-548b-a77b-2c632586baa2",
         "description": "ACC sync status (Pending / Synced / Conflict / Failed)",
         "categories": [
           "ALL"
@@ -6748,7 +6748,7 @@
       {
         "key": "COMM_NOTES",
         "param_name": "COMM_NOTES_TXT",
-        "guid": "5753b5aa-0004-4000-8000-000000000011",
+        "guid": "6bafd748-d05f-5df4-bae9-ce3ed4ce34f4",
         "description": "Commissioning free-text notes (defects, overrides, escalations)",
         "categories": [
           "ALL"
@@ -6848,7 +6848,7 @@
       {
         "key": "HEALTH_SCORE_DATE",
         "param_name": "HEALTH_SCORE_DATE_TXT",
-        "guid": "5753b5aa-0009-4000-8000-000000000010",
+        "guid": "aae3fbc7-95f1-5619-b041-5e5669256223",
         "description": "Model health score capture date (ISO 8601)",
         "categories": [
           "ALL"

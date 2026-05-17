@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -45,15 +46,38 @@ namespace StingTools.Commands.Electrical.Export
                             new XElement(cim + "IdentifiedObject.name", p.PanelName ?? ""),
                             new XElement(cim + "Substation.ratedKV",
                                 (p.VoltageV / 1000.0).ToString("0.00000",
-                                    System.Globalization.CultureInfo.InvariantCulture)))),
+                                    CultureInfo.InvariantCulture)))),
                     model.Circuits.Select(c =>
                         new XElement(cim + "EnergyConsumer",
                             new XAttribute(rdf + "ID", Sanitise(c.CircuitId)),
                             new XElement(cim + "IdentifiedObject.name", c.CircuitId ?? ""),
                             new XElement(cim + "EnergyConsumer.pfixed",
-                                c.LoadKW.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)),
+                                c.LoadKW.ToString("0.000", CultureInfo.InvariantCulture)),
                             new XElement(cim + "EnergyConsumer.qfixed",
-                                c.LoadKVAR.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture))))));
+                                c.LoadKVAR.ToString("0.000", CultureInfo.InvariantCulture)))),
+                    model.Feeders.Select(f => {
+                        string fId = Sanitise($"Feeder_{f.UpstreamPanel}_{f.DownstreamPanel}");
+                        return new XElement(cim + "ACLineSegment",
+                            new XAttribute(rdf + "ID", fId),
+                            new XElement(cim + "IdentifiedObject.name",
+                                $"{f.UpstreamPanel}→{f.DownstreamPanel}"),
+                            new XElement(cim + "Conductor.length",
+                                f.LengthM.ToString("0.00", CultureInfo.InvariantCulture)),
+                            new XElement(cim + "ACLineSegment.r",
+                                f.ResistanceOhm.ToString("0.000000", CultureInfo.InvariantCulture)),
+                            new XElement(cim + "ACLineSegment.x",
+                                f.ReactanceOhm.ToString("0.000000", CultureInfo.InvariantCulture)),
+                            // Terminal 1 — upstream
+                            new XElement(cim + "Terminal",
+                                new XAttribute(rdf + "ID", fId + "_T1"),
+                                new XElement(cim + "Terminal.ConductingEquipment",
+                                    new XAttribute(rdf + "resource", "#" + Sanitise(f.UpstreamPanel)))),
+                            // Terminal 2 — downstream
+                            new XElement(cim + "Terminal",
+                                new XAttribute(rdf + "ID", fId + "_T2"),
+                                new XElement(cim + "Terminal.ConductingEquipment",
+                                    new XAttribute(rdf + "resource", "#" + Sanitise(f.DownstreamPanel)))));
+                    })));
             try { doc2.Save(outPath); }
             catch (Exception ex)
             {
@@ -63,7 +87,7 @@ namespace StingTools.Commands.Electrical.Export
             }
             TaskDialog.Show("STING ETAP Export",
                 $"CIM XML exported for ETAP:\n{outPath}\n\n" +
-                $"{model.Panels.Count} substation(s) · {model.Circuits.Count} load(s)");
+                $"{model.Panels.Count} substation(s) · {model.Circuits.Count} load(s) · {model.Feeders.Count} feeder(s)");
             return Result.Succeeded;
         }
 

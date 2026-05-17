@@ -1455,10 +1455,10 @@ namespace StingTools.UI
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
-            // CDE — read STING_CDE_STATE_TXT if present, else "-"
+            // CDE — read ASS_CDE_STATUS_TXT if present, else "-"
             try
             {
-                var p = s.LookupParameter("STING_CDE_STATE_TXT");
+                var p = s.LookupParameter("ASS_CDE_STATUS_TXT");
                 row.CdeStatus = p != null && p.HasValue ? p.AsString() : "-";
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); row.CdeStatus = "-"; }
