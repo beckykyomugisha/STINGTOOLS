@@ -123,11 +123,13 @@ public class TransmittalsController : ControllerBase
 
         // Gap 5 — snapshot document versions at transmittal creation so the
         // record remains accurate even after subsequent uploads / revisions.
+        int snapshotSkippedNotPublished = 0;
         if (req.DocumentIds != null && req.DocumentIds.Length > 0)
         {
-            await SnapshotTransmittalDocumentsAsync(
+            var (_, skippedNP, _) = await SnapshotTransmittalDocumentsAsync(
                 transmittal, projectId, tenantId, req.DocumentIds,
                 HttpContext.RequestAborted);
+            snapshotSkippedNotPublished = skippedNP;
         }
 
         // Audit trail for transmittal creation
@@ -155,7 +157,12 @@ public class TransmittalsController : ControllerBase
             projectId, kind = "created"
         });
 
-        return CreatedAtAction(nameof(GetTransmittals), new { projectId }, transmittal);
+        return CreatedAtAction(nameof(GetTransmittals), new { projectId }, new
+        {
+            transmittal.Id, transmittal.TransmittalCode, transmittal.Recipient,
+            transmittal.Status, transmittal.CreatedAt,
+            skippedDocumentsNotPublished = snapshotSkippedNotPublished
+        });
     }
 
     /// <summary>
@@ -213,6 +220,9 @@ public class TransmittalsController : ControllerBase
                 await SnapshotTransmittalDocumentsAsync(
                     t, projectId, tenantId, req.DocumentIds,
                     HttpContext.RequestAborted);
+                // Skipped-not-published counts are not surfaced in the bulk response
+                // to keep the response compact; callers should use single-create for
+                // per-document feedback.
             }
 
             _db.AuditLogs.Add(new AuditLog
@@ -335,7 +345,7 @@ public class TransmittalsController : ControllerBase
         if (tx.Status == "SENT")
             return Conflict("Documents cannot be added to a SENT transmittal");
 
-        var added = await SnapshotTransmittalDocumentsAsync(
+        var (added, skippedNotPublished, skippedAlreadyLinked) = await SnapshotTransmittalDocumentsAsync(
             tx, projectId, tenantId, documentIds, HttpContext.RequestAborted);
 
         try
@@ -351,7 +361,7 @@ public class TransmittalsController : ControllerBase
             return Conflict(new { message = "One or more documents are already linked to this transmittal." });
         }
 
-        return Ok(new { added });
+        return Ok(new { added, skippedNotPublished, skippedAlreadyLinked });
     }
 
     /// <summary>GET /{txId}/documents — list the version-snapshot rows for a transmittal (GAP-12).</summary>
@@ -364,23 +374,24 @@ public class TransmittalsController : ControllerBase
             .FirstOrDefaultAsync(t => t.Id == txId && t.ProjectId == projectId && t.Project!.TenantId == tenantId, ct);
         if (tx == null) return NotFound();
 
+        // Use a join to avoid an N+1 subquery per row.
         var docs = await _db.TransmittalDocuments
             .AsNoTracking()
             .Where(td => td.TransmittalId == txId)
-            .Select(td => new
-            {
-                td.Id,
-                td.DocumentId,
-                td.DocumentVersionId,
-                td.CdeStateAtTransmittal,
-                td.SuitabilityAtTransmittal,
-                td.FilePathAtTransmittal,
-                td.AddedAt,
-                FileName = _db.Documents
-                    .Where(d => d.Id == td.DocumentId)
-                    .Select(d => d.FileName)
-                    .FirstOrDefault()
-            })
+            .Join(_db.Documents.AsNoTracking(),
+                  td => td.DocumentId,
+                  d  => d.Id,
+                  (td, d) => new
+                  {
+                      td.Id,
+                      td.DocumentId,
+                      td.DocumentVersionId,
+                      td.CdeStateAtTransmittal,
+                      td.SuitabilityAtTransmittal,
+                      td.FilePathAtTransmittal,
+                      td.AddedAt,
+                      d.FileName
+                  })
             .OrderBy(td => td.AddedAt)
             .ToListAsync(ct);
 
@@ -390,25 +401,27 @@ public class TransmittalsController : ControllerBase
     /// <summary>
     /// Snapshots each document's current version into TransmittalDocument rows so
     /// the transmittal record remains accurate even after subsequent uploads.
-    /// Returns the number of rows created (skips IDs that are already linked or
-    /// that don't belong to the project).
+    /// Returns (added: rows created, skippedNotPublished: IDs that weren't PUBLISHED,
+    /// skippedAlreadyLinked: IDs already on this transmittal).
     /// </summary>
-    private async Task<int> SnapshotTransmittalDocumentsAsync(
-        Transmittal transmittal,
-        Guid projectId,
-        Guid tenantId,
-        Guid[] documentIds,
-        CancellationToken ct)
+    private async Task<(int added, int skippedNotPublished, int skippedAlreadyLinked)>
+        SnapshotTransmittalDocumentsAsync(
+            Transmittal transmittal,
+            Guid projectId,
+            Guid tenantId,
+            Guid[] documentIds,
+            CancellationToken ct)
     {
         // GAP-10 — only PUBLISHED (S4) documents should be attached to a transmittal.
-        // Non-PUBLISHED docs are silently skipped so the caller can still create the
-        // transmittal and attach whichever docs are ready, without a hard failure.
-        var docs = await _db.Documents
+        // Non-PUBLISHED docs are counted and reported so callers can inform the user.
+        var publishedDocs = await _db.Documents
             .Where(d => documentIds.Contains(d.Id) && d.ProjectId == projectId && d.TenantId == tenantId
                      && d.CdeStatus == "PUBLISHED")
             .Include(d => d.Versions.OrderByDescending(v => v.VersionNumber).Take(1))
             .AsNoTracking()
             .ToListAsync(ct);
+
+        int skippedNotPublished = documentIds.Length - publishedDocs.Count;
 
         // Existing snapshot IDs to avoid duplicates on the AddDocuments re-call path.
         var alreadyLinked = await _db.TransmittalDocuments
@@ -417,9 +430,10 @@ public class TransmittalsController : ControllerBase
             .ToHashSetAsync(ct);
 
         int created = 0;
-        foreach (var doc in docs)
+        int skippedAlreadyLinked = 0;
+        foreach (var doc in publishedDocs)
         {
-            if (alreadyLinked.Contains(doc.Id)) continue;
+            if (alreadyLinked.Contains(doc.Id)) { skippedAlreadyLinked++; continue; }
 
             var latestVersion = doc.Versions.FirstOrDefault();
             _db.TransmittalDocuments.Add(new TransmittalDocument
@@ -433,7 +447,7 @@ public class TransmittalsController : ControllerBase
             });
             created++;
         }
-        return created;
+        return (created, skippedNotPublished, skippedAlreadyLinked);
     }
 
     private Guid GetTenantId() =>

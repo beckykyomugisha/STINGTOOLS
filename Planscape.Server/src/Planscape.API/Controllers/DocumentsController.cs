@@ -679,11 +679,15 @@ public class DocumentsController : ControllerBase
         var tenantId = GetTenantId();
         var acl = await Planscape.API.Authorization.ProjectMemberAcl.ResolveAsync(_db, projectId, User);
 
+        // Include SKIPPED-scan status: multipart uploads (legacy path) bypass the
+        // AV scanner and are set to SKIPPED rather than CLEAN. Refusing to serve
+        // them from bulk-download would break downloads of any pre-scan-era document.
+        // PENDING and INFECTED are still excluded.
         var docs = await _db.Documents
             .Where(d => documentIds.Contains(d.Id)
                      && d.ProjectId == projectId
                      && d.Project!.TenantId == tenantId
-                     && d.ScanStatus == "CLEAN"
+                     && (d.ScanStatus == "CLEAN" || d.ScanStatus == "SKIPPED")
                      && !string.IsNullOrEmpty(d.FilePath))
             .ToListAsync();
 

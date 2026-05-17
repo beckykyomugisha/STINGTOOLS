@@ -246,8 +246,10 @@ public class CdeContainersController : ControllerBase
     {
         var role = User.FindFirst("role")?.Value ?? "";
         if (role is "Admin" or "Owner") return true;
+        // Must check the *calling user's* membership, not any member of the project.
+        if (!Guid.TryParse(User.FindFirst("sub")?.Value, out var userId)) return false;
         return await _db.ProjectMembers.AnyAsync(
-            m => m.ProjectId == projectId && m.IsActive
+            m => m.ProjectId == projectId && m.UserId == userId && m.IsActive
               && (m.ProjectRole == "Manager" || m.ProjectRole == "Admin" || m.ProjectRole == "Owner"));
     }
 

@@ -33,8 +33,11 @@ public class DocumentRetentionArchiveJob
         var now = DateTime.UtcNow;
 
         // Load in pages of 200 so a large register doesn't pin memory.
+        // NOTE: Do NOT use Skip(page * PageSize) here. After SaveChangesAsync the
+        // archived documents leave the WHERE CdeStatus='PUBLISHED' result set, so
+        // the next query should always start at offset 0 — incrementing page would
+        // silently skip every other batch of 200.
         const int PageSize = 200;
-        int page = 0;
         int totalArchived = 0;
 
         while (true)
@@ -44,7 +47,6 @@ public class DocumentRetentionArchiveJob
                          && d.RetentionExpiresAt != null
                          && d.RetentionExpiresAt <= now)
                 .OrderBy(d => d.RetentionExpiresAt)
-                .Skip(page * PageSize)
                 .Take(PageSize)
                 .ToListAsync(ct);
 
@@ -98,7 +100,6 @@ public class DocumentRetentionArchiveJob
             }
 
             await _db.SaveChangesAsync(ct);
-            page++;
         }
 
         _logger.LogInformation("DocumentRetentionArchiveJob: completed — {Count} documents archived", totalArchived);
