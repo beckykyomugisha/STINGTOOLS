@@ -14,7 +14,6 @@
 // caller passes the list). Colour cells route through VgColorPicker.
 
 using SwBrush = System.Windows.Media.Brushes;
-using SwBrush = System.Windows.Media.Brushes;
 using StingTools.Core;
 namespace StingTools.UI
 {

@@ -1,5 +1,4 @@
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
-using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
 using StingTools.Core;
 namespace StingTools.UI
 {

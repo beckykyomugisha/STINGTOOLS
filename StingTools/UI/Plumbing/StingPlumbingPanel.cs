@@ -3,7 +3,6 @@
 // StingPlumbingCommandHandler on the Revit API thread.
 
 using Autodesk.Revit.UI;
-using Autodesk.Revit.UI;
 using StingTools.Core;
 namespace StingTools.UI.Plumbing
 {

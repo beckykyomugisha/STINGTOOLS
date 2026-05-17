@@ -10,7 +10,6 @@
 // Lives in StingTools.UI alongside the other editor-only helpers.
 
 using SwfColorDialog = System.Windows.Forms.ColorDialog;
-using SwfColorDialog = System.Windows.Forms.ColorDialog;
 using StingTools.Core;
 namespace StingTools.UI
 {

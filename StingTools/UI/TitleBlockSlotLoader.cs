@@ -13,7 +13,6 @@
 // is still useful.
 
 using Newtonsoft.Json.Linq;
-using Newtonsoft.Json.Linq;
 using StingTools.Core;
 namespace StingTools.UI
 {

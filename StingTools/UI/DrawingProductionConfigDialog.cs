@@ -22,12 +22,6 @@
 // can land in a follow-up.
 
 using StingTools.Core.Drawing;
-// Resolve type collisions between WPF and Revit API:
-using StingTools.Core.Drawing;
-//   System.Windows.Controls.Grid vs Autodesk.Revit.DB.Grid
-using StingTools.Core.Drawing;
-//   System.Windows.Visibility    vs Autodesk.Revit.DB.WorksetVisibility ("Visibility" prefix)
-using Visibility = System.Windows.Visibility;
 using Visibility = System.Windows.Visibility;
 using StingTools.Core;
 namespace StingTools.UI

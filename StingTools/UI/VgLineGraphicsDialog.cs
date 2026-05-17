@@ -15,7 +15,6 @@
 // editor's Lines / Cut Lines columns.
 
 using System.Windows.Media;
-using System.Windows.Media;
 using StingTools.Core;
 namespace StingTools.UI
 {

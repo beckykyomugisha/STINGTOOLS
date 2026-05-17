@@ -22,11 +22,9 @@
 // passes into the engine.
 
 using Autodesk.Revit.DB;
-using Autodesk.Revit.DB;
 // Autodesk.Revit.DB and System.Windows.* share a batch of type names
 // (Grid line, Color, Binding parameter, …). Alias the WPF ones so
 // every control / binding / colour ref in this file binds to WPF.
-using Colors       = System.Windows.Media.Colors;
 using Colors       = System.Windows.Media.Colors;
 using StingTools.Core;
 namespace StingTools.UI

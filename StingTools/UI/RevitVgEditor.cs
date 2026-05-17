@@ -25,16 +25,6 @@
 // Performance: DataGrid virtualization on (ScrollUnit=Item, recycling).
 
 using StingTools.Core.Drawing;
-// Resolve type collisions between WPF and Revit API:
-using StingTools.Core.Drawing;
-//   System.Windows.Controls.Grid vs Autodesk.Revit.DB.Grid
-using StingTools.Core.Drawing;
-//   System.Windows.Visibility    vs Autodesk.Revit.DB.Visibility (Workset enum)
-using StingTools.Core.Drawing;
-//   System.Windows.Data.Binding  vs Autodesk.Revit.DB.Binding   (parameter binding)
-using StingTools.Core.Drawing;
-//   System.Windows.Media.Color   vs Autodesk.Revit.DB.Color     (Revit colour)
-using Color      = System.Windows.Media.Color;
 using Color      = System.Windows.Media.Color;
 using StingTools.Core;
 namespace StingTools.UI
