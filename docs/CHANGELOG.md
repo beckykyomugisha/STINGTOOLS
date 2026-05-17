@@ -2,6 +2,43 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 181 — ArchiCAD-Revit-Planscape full alignment: Gaps 1–15)
+
+Branch: `claude/review-archicad-revit-workflows-04E6q`. Deep review + full implementation of all 15 coordination alignment gaps between ArchiCAD, Revit, and the Planscape platform. Goal: zero coordinate drift, correct unit scaling, stable GlobalIds, and synchronized property mappings across the federated model.
+
+##### Client side — Revit / StingBridge
+
+| Gap | File | What was fixed |
+|-----|------|----------------|
+| 1 | `StingBridge/src/IFC/IfcRevitImporter.cs` | `ParseIfcSiteOrigin` extracts IfcMapConversion Eastings/Northings/Elevation; `ApplySurveyOriginTranslation` moves the import symbol by the negated survey origin (metres→feet). |
+| 3 | `StingTools/Commands/Interop/StabilizeIfcGuidsCommand.cs` (new) | Manual-tx command that reads each element's `IfcGUID`/`IFC GUID` and persists it into `IFC_GLOBAL_ID_TXT` shared param. Planscape GLOBALID_DRIFT warning fires when >5 % of known GUIDs change between uploads. |
+| 7 | `StingBridge/src/IFC/IfcRevitImporter.cs` | `ElementTransformUtils.RotateElement` applies true-north angle from `IfcGeometricRepresentationContext.TrueNorth`. |
+| 8 | `StingBridge/src/IFC/IfcRevitImporter.cs` | `NormalizeLevelName` strips "AC_Level " prefix so ArchiCAD storeys match Revit level names without manual renaming. |
+| 9 | `StingTools/Core/StingToolsApp.cs` | `OnDocumentOpened` auto-starts `IfcDropWatcher` when `_ifc_drop/` folder exists alongside the `.rvt`; `OnShutdown` disposes the watcher. |
+| 15 | `StingBridge/src/IFC/IfcRevitImporter.cs` | `RemoveExistingImport` scans `ImportInstance` elements by filename stem and deletes them before re-import to prevent duplicates. |
+| — | `StingBridge/src/IFC/DropFolderImportEventHandler.cs` (new) | `IExternalEventHandler` wrapper that runs `IfcRevitImporter.Import` on the Revit API thread when `IfcDropWatcher.FileArrived` fires. |
+
+Button wired in ARCHICAD COORDINATION section: **Stabilize IFC GUIDs** (tag `IFC_StabilizeGuids`).
+
+##### Server side — Planscape.Server
+
+| Gap | File | What was fixed |
+|-----|------|----------------|
+| 2 | `IfcIngestController` | Alignment validator always runs; `effectiveModelId` auto-minted from `MD5(projectId+filename)` when no modelId supplied so the alignment report is always surfaced. |
+| 4 | `IfcIngestController.UpsertProjectModelTransformAsync` | Creates/updates `ProjectModelTransform` from IfcMapConversion (negated survey origin × 1000 → mm, rotation °, IfcMapConversion.Scale). |
+| 5 | `IIfcIngester` / `XbimIfcIngester` | `UnitScaleToMm` field added to `IfcIngestResult`; `ExtractUnitScaleToMm` detects IFC length unit (METRE/DECI/CENTI/MILLI) and returns the correct metres→mm multiplier. |
+| 6 | `IfcIngestController.WriteGlobalIdRegistryAsync` | Writes `ElementGlobalIdRegistry` rows from `AC_Pset_ElementID.elementGUID` for ArchiCAD-sourced files; upserts by IfcGlobalId. |
+| 10 | `XbimIfcGeometryExtractor.ResolveMapConversionScale` | Reads `IfcMapConversion.Scale` and multiplies into `scaleMm` so AABB extents are geo-corrected. |
+| 11 | `ModelTransformController` | Already fully implemented (federation transform REST API: GET/PUT/DELETE per model). |
+| 12 | `STING_IFC_PSET_MAPPING.json` + `ARCHICAD_IFC_MAPPING.json` | Added `AC_Pset_ElementID.*` and `AC_Pset_RenovationInfo.*` mappings for full ArchiCAD property round-trip. |
+| 13 | `IfcIngestController.DetectAnalyticalTool` | Pre-flight scan of first 200 STEP header lines rejects ETABS/SAP2000/CSi/SAFE/RAM files with HTTP 400 `analytical_model_rejected`. |
+| 14 | `UpsertProjectModelTransformAsync` | Calls `_audit.LogAsync("TRANSFORM_UPSERT", ...)` after each coordinate correction so transforms are traceable in the audit log. |
+
+##### New files
+- `StingBridge/src/IFC/DropFolderImportEventHandler.cs` — drop-folder → Revit API thread bridge
+- `StingTools/Commands/Interop/StabilizeIfcGuidsCommand.cs` — GlobalId persistence before IFC export
+- `Planscape.Server/src/Planscape.API/Data/IFC/STING_IFC_PSET_MAPPING.json` — full IFC property-set → STING parameter mapping (standard + ArchiCAD AC_Pset_* sets)
+
 #### Completed (Phase 179 — Placement Center canonical integration + DrawingType/Pack wiring)
 
 Branch: `claude/toilet-fixture-placement-research-aZtgU`. Six commits. Makes the Placement Center and dock-panel sub-tabs the single canonical surface for all placement / annotation / symbol results, fully integrated with the DrawingType / ViewStylePack system.
