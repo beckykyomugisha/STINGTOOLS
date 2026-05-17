@@ -18,6 +18,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.Core.Drawing;
 namespace StingTools.UI
 {
     public sealed class TitleBlockSlot

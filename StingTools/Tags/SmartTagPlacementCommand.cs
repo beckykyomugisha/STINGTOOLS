@@ -3659,6 +3659,7 @@ namespace StingTools.Tags
             int applied = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Apply Tag Control Session"))
+using StingTools.Core.Drawing;
             {
                 tx.Start();
 

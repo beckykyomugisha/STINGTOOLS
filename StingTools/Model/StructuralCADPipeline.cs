@@ -3309,6 +3309,7 @@ namespace StingTools.Model
 
             int offsetApplied = 0, cantileverMarked = 0;
             using (var tx = new Transaction(_doc, "STING STRUCT: Beam support post-creation"))
+using StingTools.Core.Drawing;
             {
                 tx.Start();
                 for (int i = 0; i < beamCount && i < supports.Count; i++)

@@ -31,6 +31,7 @@ using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Symbols;
 using StingTools.UI;
+using StingTools.Core.Routing;
 
 namespace StingTools.Commands.Symbols
 {

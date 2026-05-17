@@ -1030,6 +1030,7 @@ namespace StingTools.Core
                 }
 
                 using (Transaction tx = new Transaction(doc, "STING Mark Stale"))
+using StingTools.Core.Drawing;
                 {
                     tx.Start();
                     foreach (ElementId id in idsToMark)

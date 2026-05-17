@@ -274,6 +274,7 @@ namespace StingTools.Core.SLD
             if (roots == null || roots.Count == 0) return;
 
             using (var tx = new Transaction(doc, "STING Rebuild SLD content"))
+using StingTools.Core.Drawing;
             {
                 tx.Start();
                 var stub = new SLDResult();

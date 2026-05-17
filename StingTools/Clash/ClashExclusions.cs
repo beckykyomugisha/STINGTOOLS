@@ -1,3 +1,4 @@
+using StingTools.Core;
 // ClashExclusions.cs — persistent list of user-approved clashes that should not re-surface.
 using System;
 using System.Collections.Generic;

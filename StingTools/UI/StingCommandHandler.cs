@@ -8941,6 +8941,7 @@ For live data, open BCC in Revit and re-export.</p></div>
                 var styleName = panel.GetSelectedWireStyle();
                 if (string.IsNullOrEmpty(styleName)) return;
                 using var t = new Autodesk.Revit.DB.Transaction(doc, "STING Set Wire Style");
+using StingTools.Core.Drawing;
                 t.Start();
                 var setting = Autodesk.Revit.DB.Electrical.ElectricalSetting.GetElectricalSettings(doc);
                 // WireType lookup by name — no-op if not found so the project stays clean.

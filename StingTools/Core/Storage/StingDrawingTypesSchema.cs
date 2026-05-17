@@ -117,6 +117,7 @@ namespace StingTools.Core.Storage
             try
             {
                 using var sha = System.Security.Cryptography.SHA256.Create();
+using StingTools.Core.Drawing;
                 byte[] hash = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(s ?? ""));
                 return Convert.ToHexString(hash).ToLowerInvariant();
             }

@@ -1668,6 +1668,7 @@ namespace StingTools.Core.Symbols
             try
             {
                 using (var tx = new Transaction(hostDoc, "STING Load Symbol Family"))
+using StingTools.Core.Routing;
                 {
                     tx.Start();
                     Family fam;

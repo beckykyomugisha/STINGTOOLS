@@ -2874,6 +2874,7 @@ namespace StingTools.Docs
                 // ══════════════════════════════════════════════════════════════════
                 int cobieComponentCount = 0;
                 using (var wb = new XLWorkbook())
+using StingTools.Core.Drawing;
                 {
 
                     // ── 1. INSTRUCTION worksheet ────────────────────────────────

@@ -1623,6 +1623,7 @@ namespace StingTools.Core
                     }
 
                     using (var ms = new MemoryStream())
+using StingTools.Core.Drawing;
                     {
                         bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
                         ms.Position = 0;

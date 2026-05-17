@@ -1429,6 +1429,7 @@ namespace StingTools.Tags
                 result.DiscCode = discCode;
 
                 using (Transaction tx = new Transaction(famDoc, "STING Family Param Inject"))
+using StingTools.Core.Placement;
                 {
                     tx.Start();
 

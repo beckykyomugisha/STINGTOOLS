@@ -7,6 +7,7 @@ using StingTools.Core;
 
 using System;
 using Autodesk.Revit.DB;
+using StingTools.Core.Drawing;
 
 namespace StingTools.Core.Symbols
 {

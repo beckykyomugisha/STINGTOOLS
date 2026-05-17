@@ -846,6 +846,7 @@ namespace StingTools.Core.Fabrication
             string path = Path.Combine(outDir, "STING_v4_iso_symbols.csv");
             bool firstWrite = !File.Exists(path);
             using (var w = new StreamWriter(path, append: !firstWrite))
+using StingTools.Core.Drawing;
             {
                 if (firstWrite)
                 {

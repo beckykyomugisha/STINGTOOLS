@@ -300,6 +300,7 @@ namespace StingTools.Model
             int groupIndex = 1;
 
             using (var tx = new Transaction(doc, "STING Number Elements"))
+using StingTools.Core.Drawing;
             {
                 tx.Start();
                 foreach (var group in groups)

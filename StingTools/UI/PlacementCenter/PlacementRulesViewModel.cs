@@ -21,6 +21,7 @@ using Newtonsoft.Json;
 using StingTools.Core;
 using StingTools.Core.Placement;
 using StingTools.Core.Storage;
+using StingTools.Core.Drawing;
 
 namespace StingTools.UI.PlacementCenter
 {

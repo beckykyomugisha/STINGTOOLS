@@ -373,6 +373,7 @@ namespace StingTools.Docs
             bool horizontal = dir == "H";
 
             using (var tx = new Transaction(doc, "STING Distribute Viewports"))
+using StingTools.Core.Drawing;
             {
                 tx.Start();
                 int count = SheetTemplateEngine.DistributeViewports(doc, sheet, horizontal);

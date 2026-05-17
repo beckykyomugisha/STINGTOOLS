@@ -167,6 +167,7 @@ namespace StingTools.Commands.Routing
             if (AutoDropOptions.EmitSupports)
             {
                 using (var sx = new Transaction(doc, "STING v4 Auto-drop supports"))
+using StingTools.Core.Placement;
                 {
                     try
                     {

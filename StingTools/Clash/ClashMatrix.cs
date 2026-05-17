@@ -1,3 +1,4 @@
+using StingTools.Core;
 // ClashMatrix.cs — pair-wise clash rules keyed by filter expressions.
 using System;
 using System.Collections.Generic;

@@ -54,6 +54,7 @@ namespace StingTools.Commands.Drawing
                 var warnings = new List<string>();
 
                 using (var tx = new Transaction(doc, "STING Presentation Setup"))
+using StingTools.Core.Drawing;
                 {
                     tx.Start();
 

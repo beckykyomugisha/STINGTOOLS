@@ -1,3 +1,4 @@
+using StingTools.Core;
 // LiveClashWireup.cs — subscribes to DocumentChanged and raises LiveClashHandler.Event
 // whenever LiveClashUpdater has queued any dirty elements. Called once at app start.
 using Autodesk.Revit.ApplicationServices;

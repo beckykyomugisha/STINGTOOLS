@@ -506,6 +506,7 @@ namespace StingTools.Tags
             try
             {
                 using (var sub = new SubTransaction(doc))
+using StingTools.Core.Drawing;
                 {
                     sub.Start();
                     try
