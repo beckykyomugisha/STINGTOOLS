@@ -288,6 +288,20 @@ namespace StingTools.Tags
                 "LPS_Audit", "LPS", "Audit lightning protection system compliance (BS EN 62305)"),
             (@"\b(down\s*conduct|air\s*terminal\s*audit|lps\s*class)\b",
                 "LPS_Conductors", "LPS", "Check LPS down conductor count and cross-section"),
+
+            // Symbol Standards (Phase 175 — multi-standard model family symbols)
+            (@"\b(author\s*symbol|wire\s*symbol|inject\s*symbol|symbol\s*author|embed\s*symbol)\b",
+                "Symbols_AuthorFamilySymbols", "SymbolAuthoring", "Author IEC/ANSI/BS/NFPA/CIBSE symbol geometry into model family (.rfa) files"),
+            (@"\b(switch\s*project\s*standard|project\s*standard|switch\s*symbol\s*standard|change\s*symbol\s*standard)\b",
+                "Symbols_SwitchProjectStandard", "SymbolStandard", "Switch project-wide symbol standard (IEC/ANSI/BS/NFPA/CIBSE)"),
+            (@"\b(switch\s*view\s*standard|view\s*standard\s*switch|set\s*view\s*standard)\b",
+                "Symbols_SwitchViewStandard", "SymbolStandard", "Set symbol standard for the active view only"),
+            (@"\b(set\s*element\s*standard|element\s*symbol\s*standard|instance\s*standard|per.?instance\s*standard)\b",
+                "Symbols_SetElementStandard", "SymbolStandard", "Set STING_SYMBOL_STD on selected model family instances"),
+            (@"\b(symbol\s*audit|audit\s*symbol|symbol\s*coverage|coverage\s*audit|symbol\s*drift)\b",
+                "Symbols_SymbolAudit", "SymbolAudit", "Audit symbol standard coverage and drift across project"),
+            (@"\b(place\s*symbol|symbol\s*overlay|overlay\s*symbol|place\s*overlay)\b",
+                "Symbols_PlaceInView", "SymbolPlacement", "Place symbol overlays for elements in the active view"),
         };
 
         // BIM Knowledge Base entries

@@ -2,6 +2,55 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 175 — Multi-standard model family symbol switching)
+
+Branch: `claude/review-symbol-workflow-CJFil`. Implements embedded multi-standard
+curve sets in Revit model families (.rfa), matching the SLD annotation tag switching
+pattern already in place for `IndependentTag` families.
+
+##### Core mechanic
+
+All 5 symbol standard variants (IEC / ANSI / BS / NFPA / CIBSE) are authored into
+each model family simultaneously. A single `STING_SYMBOL_STD` Integer type parameter
+(0=IEC, 1=ANSI, 2=BS, 3=NFPA, 4=CIBSE) controls which set is visible at runtime via
+derived Yes/No formula parameters (`STING_SHOW_IEC_BOOL` … `STING_SHOW_CIBSE_BOOL`).
+Each derived bool uses the compound formula
+`if(STING_LOD_COARSE_VISIBLE, STING_SYMBOL_STD = N, false)` so LOD gating and
+standard selection are resolved in a single parameter read.
+
+##### Files changed
+
+| File | Change |
+|---|---|
+| `Core/ParamRegistry.cs` | Added `SYMBOL_STD_PARAM`, `SHOW_*_BOOL` constants, `STD_CODE_*` integer codes (0–4) |
+| `Core/FamilySymbolAuthor.cs` | Extended `SymbolStandard` enum (BS/NFPA/CIBSE); added `StandardSwitchingParams` class; added `InjectStandardSwitchingParams`, `CreateAllStandardSymbolSets`, `TryCreateStandardCurvesFromJson`; wired into `AuthorSymbols` step 5 with single-standard fallback path |
+| `Data/STING_SYMBOL_SHAPES.json` | Version 1.1 — added BS/NFPA/CIBSE shape entries for all 13 categories with standard-specific geometry differences (NFPA cross, BS diagonals, CIBSE fan arcs) |
+| `Commands/Symbols/SymbolStandardCommands.cs` | `SwapAllTags` extended to write `STING_SYMBOL_STD` on model instances; `StandardNameToCode` helper; new `SetElementSymbolStandardCommand` for per-instance selection |
+| `Commands/Symbols/AuthorFamilySymbolsCommand.cs` | Reports `std-params:N` in both selection and file batch result dialogs |
+| `Tags/FamilyParamCreatorCommand.cs` | `FamilyResult.StandardParamsCreated` delegate added |
+| `UI/StingCommandHandler.cs` | `Symbols_SetElementStandard` dispatch case |
+| `UI/StingDockPanel.xaml` | "Set Elem. Std" button wired to `Symbols_SetElementStandard` |
+| `Tags/NLPCommandProcessor.cs` | 6 NLP patterns for symbol authoring, project/view/element standard switching, audit, and overlay placement |
+
+##### New command
+
+`SetElementSymbolStandardCommand` (tag `Symbols_SetElementStandard`) — list picker
+shows IEC/ANSI/BS/NFPA/CIBSE, writes `STING_SYMBOL_STD` on selected model family
+instances that already carry the param (authored via Author Symbols). Skips and
+reports instances without the param.
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. Formula `if(STING_LOD_COARSE_VISIBLE, STING_SYMBOL_STD = N, false)` uses the
+   Revit formula engine integer-equality syntax; falls back to `STING_SYMBOL_STD = N`
+   if the compound form is rejected by `FamilyManager.SetFormula`.
+3. `STING_SYMBOL_SHAPES.json` v1.1 BS/NFPA/CIBSE entries are stub-quality shapes.
+   Production-accurate geometry (IEC 60617 / ANSI/IEEE 315 / BS 1553 / NFPA 170 /
+   CIBSE Guide) should be authored in native Revit family files by a BIM librarian.
+
+---
+
 #### Completed (Phase 177 — Code-quality sweep: locale safety, null-guard fixes, parameter registry alignment)
 
 Branch: `claude/review-codebase-FlVmh`. Twelve commits. Touched 20+ source files
