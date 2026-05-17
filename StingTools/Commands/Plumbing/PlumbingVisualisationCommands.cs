@@ -339,8 +339,8 @@ namespace StingTools.Commands.Plumbing
                     catch (Exception ex2)
                     {
                         t.RollBack();
-                        message = $"Pressure zone colouring failed: {ex.Message}";
-                        StingLog.Error("PlumbPressureZoneCommand", ex);
+                        message = $"Pressure zone colouring failed: {ex2.Message}";
+                        StingLog.Error("PlumbPressureZoneCommand", ex2);
                         return Result.Failed;
                     }
                 }

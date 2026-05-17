@@ -481,7 +481,7 @@ namespace StingTools.Commands.Plumbing
                     }
                     catch (Exception ex2)
                     {
-                        StingLog.Warn($"PlumbNetworkPressure pipe {pipe.Id}: {ex.Message}");
+                        StingLog.Warn($"PlumbNetworkPressure pipe {pipe.Id}: {ex2.Message}");
                     }
                 }
 

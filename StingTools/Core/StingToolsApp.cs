@@ -1179,8 +1179,7 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"LiveClashUpdater unregister: {ex.Message}"); }
 
             UI.ThemeManager.ClearTarget(); // H-02: Prevent memory leak from static WPF reference
-            try { Planscape.Docs.Workflow.AuditLog.Shutdown(); }
-            catch (Exception ex) { StingLog.Warn($"AuditLog shutdown: {ex.Message}"); }
+            // AuditLog.Shutdown is a no-op (append-only JSONL, no file handle to close)
             StingLog.Shutdown();
             return Result.Succeeded;
         }

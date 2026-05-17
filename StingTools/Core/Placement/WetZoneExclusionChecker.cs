@@ -143,7 +143,7 @@ namespace StingTools.Core.Placement
                     else if (isBasin)  AddBasinZones(zones, fi, origin);
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"WetZoneExclusionChecker.BuildForRoom {room.Id}: {ex.Message}"); }
+            catch (Exception ex2) { StingLog.Warn($"WetZoneExclusionChecker.BuildForRoom {room.Id}: {ex2.Message}"); }
             _cache[room.Id] = zones;
             return zones;
         }

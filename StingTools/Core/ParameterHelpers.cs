@@ -716,6 +716,18 @@ namespace StingTools.Core
             }
         }
 
+        private static bool _inBatchSession = false;
+
+        public static void BeginBatchSession()
+        {
+            lock (_roomCacheLock) { _inBatchSession = true; }
+        }
+
+        public static void EndBatchSession()
+        {
+            lock (_roomCacheLock) { _inBatchSession = false; }
+        }
+
         /// <summary>
         /// Pre-scan all rooms in the project and build a lookup by ElementId.
         /// Cached per-document with a 30-second TTL; use
@@ -3999,7 +4011,7 @@ namespace StingTools.Core
                                 try { ParameterHelpers.SetString(el, paramName, kvp.Value, overwrite: true); }
                                 catch (Exception lockEx2)
                                 {
-                                    StingLog.Warn($"TagPipeline: failed to restore locked token {kvp.Key} on {el.Id}: {lockEx.Message}");
+                                    StingLog.Warn($"TagPipeline: failed to restore locked token {kvp.Key} on {el.Id}: {lockEx2.Message}");
                                 }
                             }
                         }

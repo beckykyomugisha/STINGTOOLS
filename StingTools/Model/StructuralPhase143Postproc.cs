@@ -207,13 +207,13 @@ namespace StingTools.Model
                             {
                                 try { DrawingTypePresentation.Apply(doc, view, dt); }
                                 catch (Exception ex2)
-                                { StingLog.Warn($"DrawingTypePresentation.Apply on {lvl.Name}: {ex.Message}"); }
+                                { StingLog.Warn($"DrawingTypePresentation.Apply on {lvl.Name}: {ex2.Message}"); }
                             }
                             result.LevelsProcessed++;
                         }
                         catch (Exception ex2)
                         {
-                            StingLog.Warn($"ViewPlan.Create level {lvl.Name}: {ex.Message}");
+                            StingLog.Warn($"ViewPlan.Create level {lvl.Name}: {ex2.Message}");
                             result.LevelsSkipped++;
                         }
                     }
@@ -221,7 +221,7 @@ namespace StingTools.Model
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn($"StructuralViewCreator: {ex.Message}");
+                    StingLog.Warn($"StructuralViewCreator: {ex2.Message}");
                     if (tx.HasStarted()) tx.RollBack();
                 }
             }

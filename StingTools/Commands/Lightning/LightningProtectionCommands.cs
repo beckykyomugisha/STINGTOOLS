@@ -2243,7 +2243,7 @@ namespace StingTools.Commands.Lightning
                                 }
                             }
                         }
-                        catch (Exception ex) { StingLog.Warn($"Contained-FI scan: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Contained-FI scan: {ex2.Message}"); }
                     }
                     t.Commit();
                 }
@@ -2345,7 +2345,7 @@ namespace StingTools.Commands.Lightning
                                 }
                             }
                         }
-                        catch (Exception ex) { StingLog.Warn($"Clear contained: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Clear contained: {ex2.Message}"); }
                     }
                     t.Commit();
                 }

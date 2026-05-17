@@ -69,7 +69,7 @@ namespace StingTools.Core.Placement.Excel
                     try { SetProperty(rule, prop, raw); }
                     catch (Exception ex2)
                     {
-                        errors.Add($"Sheet '{ws.Name}' row {r} column '{header}': {ex.Message}");
+                        errors.Add($"Sheet '{ws.Name}' row {r} column '{header}': {ex2.Message}");
                     }
                 }
                 if (!anyValue) continue;

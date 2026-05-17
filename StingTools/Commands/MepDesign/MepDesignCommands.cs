@@ -74,7 +74,7 @@ namespace StingTools.Commands.MepDesign
                         catch (Exception ex2)
                         {
                             skipped++;
-                            warnings.Add($"circuit {el?.Id}: {ex.Message}");
+                            warnings.Add($"circuit {el?.Id}: {ex2.Message}");
                         }
                     }
                     tx.Commit();
@@ -453,7 +453,7 @@ namespace StingTools.Commands.MepDesign
                 catch (Exception ex3)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
-                    StingLog.Warn($"BalanceApply commit: {ex.Message}");
+                    StingLog.Warn($"BalanceApply commit: {ex3.Message}");
                 }
             }
 

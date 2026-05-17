@@ -167,8 +167,8 @@ namespace StingTools.Core.Symbols
                 catch (Exception ex2)
                 {
                     result.Failed++;
-                    result.Errors.Add($"{def.Id}: {ex.Message}");
-                    StingLog.Error($"SymbolLibraryCreator: {def.Id} failed", ex);
+                    result.Errors.Add($"{def.Id}: {ex2.Message}");
+                    StingLog.Error($"SymbolLibraryCreator: {def.Id} failed", ex2);
                 }
             }
 
@@ -1106,8 +1106,8 @@ namespace StingTools.Core.Symbols
                             }
                             catch (Exception ex2)
                             {
-                                StingLog.Warn($"{def.Id} [{sourceLabel}]: CreateDuctConnector failed — {ex.Message}");
-                                result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreateDuctConnector failed — {ex.Message}");
+                                StingLog.Warn($"{def.Id} [{sourceLabel}]: CreateDuctConnector failed — {ex2.Message}");
+                                result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreateDuctConnector failed — {ex2.Message}");
                             }
                             break;
 
@@ -1123,8 +1123,8 @@ namespace StingTools.Core.Symbols
                             }
                             catch (Exception ex3)
                             {
-                                StingLog.Warn($"{def.Id} [{sourceLabel}]: CreatePipeConnector failed — {ex.Message}");
-                                result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreatePipeConnector failed — {ex.Message}");
+                                StingLog.Warn($"{def.Id} [{sourceLabel}]: CreatePipeConnector failed — {ex3.Message}");
+                                result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreatePipeConnector failed — {ex3.Message}");
                             }
                             break;
 
@@ -1139,8 +1139,8 @@ namespace StingTools.Core.Symbols
                             }
                             catch (Exception ex4)
                             {
-                                StingLog.Warn($"{def.Id} [{sourceLabel}]: CreateElectricalConnector failed — {ex.Message}");
-                                result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreateElectricalConnector failed — {ex.Message}");
+                                StingLog.Warn($"{def.Id} [{sourceLabel}]: CreateElectricalConnector failed — {ex4.Message}");
+                                result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreateElectricalConnector failed — {ex4.Message}");
                             }
                             break;
 
@@ -1156,8 +1156,8 @@ namespace StingTools.Core.Symbols
                             }
                             catch (Exception ex5)
                             {
-                                StingLog.Warn($"{def.Id} [{sourceLabel}]: CreateConduitConnector failed — {ex.Message}");
-                                result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreateConduitConnector failed — {ex.Message}");
+                                StingLog.Warn($"{def.Id} [{sourceLabel}]: CreateConduitConnector failed — {ex5.Message}");
+                                result.Warnings.Add($"{def.Id} [{sourceLabel}]: CreateConduitConnector failed — {ex5.Message}");
                             }
                             break;
 
@@ -1533,7 +1533,7 @@ namespace StingTools.Core.Symbols
                     try { compDoc = app.NewFamilyDocument(templateFile); }
                     catch (Exception ex2)
                     {
-                        result.Errors.Add($"{conceptId}_compound: NewFamilyDocument failed — {ex.Message}");
+                        result.Errors.Add($"{conceptId}_compound: NewFamilyDocument failed — {ex2.Message}");
                         result.Failed++;
                         continue;
                     }
@@ -1617,7 +1617,7 @@ namespace StingTools.Core.Symbols
                                 }
                                 catch (Exception ex3)
                                 {
-                                    result.Warnings.Add($"{conceptId}_compound: placing component '{compId}' failed — {ex.Message}");
+                                    result.Warnings.Add($"{conceptId}_compound: placing component '{compId}' failed — {ex3.Message}");
                                 }
 
                                 componentIndex++;
@@ -1634,8 +1634,8 @@ namespace StingTools.Core.Symbols
                     catch (Exception ex3)
                     {
                         try { compDoc?.Close(false); } catch { }
-                        result.Errors.Add($"{conceptId}_compound: {ex.Message}");
-                        StingLog.Error($"SymbolLibraryCreator.CreateCompoundSymbols {conceptId}", ex);
+                        result.Errors.Add($"{conceptId}_compound: {ex3.Message}");
+                        StingLog.Error($"SymbolLibraryCreator.CreateCompoundSymbols {conceptId}", ex3);
                     }
 
                     if (compBuilt)
@@ -1652,8 +1652,8 @@ namespace StingTools.Core.Symbols
                 catch (Exception ex2)
                 {
                     result.Failed++;
-                    result.Errors.Add($"{conceptId}_compound: outer error — {ex.Message}");
-                    StingLog.Error($"SymbolLibraryCreator.CreateCompoundSymbols {conceptId}", ex);
+                    result.Errors.Add($"{conceptId}_compound: outer error — {ex2.Message}");
+                    StingLog.Error($"SymbolLibraryCreator.CreateCompoundSymbols {conceptId}", ex2);
                 }
             }
 

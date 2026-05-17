@@ -36,8 +36,12 @@ using StingTools.BIMManager;
 using StingTools.Core;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using Color = System.Windows.Media.Color;
-using Grid = System.Windows.Controls.Grid;
+using Color      = System.Windows.Media.Color;
+using Grid       = System.Windows.Controls.Grid;
+using Visibility = System.Windows.Visibility;
+using TextBox    = System.Windows.Controls.TextBox;
+using ComboBox   = System.Windows.Controls.ComboBox;
+using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
 
 namespace StingTools.UI
 {
@@ -587,7 +591,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex2)
                     {
-                        StingLog.Warn($"SitePhotosTab thumbnail decode {r.Dto.Id}: {ex.Message}");
+                        StingLog.Warn($"SitePhotosTab thumbnail decode {r.Dto.Id}: {ex2.Message}");
                     }
                 }
             }

@@ -1098,15 +1098,15 @@ namespace StingTools.Core
 
                         if (!fallbackSucceeded)
                         {
-                            report.AppendLine($"  {stepNum,2}. {step.Label} — FAILED: {ex.Message}");
-                            StingLog.Error($"Workflow step {stepNum}: {step.Label}", ex);
+                            report.AppendLine($"  {stepNum,2}. {step.Label} — FAILED: {ex2.Message}");
+                            StingLog.Error($"Workflow step {stepNum}: {step.Label}", ex2);
 
                             // Phase 39: Record failed step with error detail
                             stepResults.Add(new WorkflowStepResult
                             {
                                 CommandTag = step.CommandTag, Label = step.Label,
                                 Status = "FAILED", DurationMs = sw.ElapsedMilliseconds,
-                                ErrorMessage = ex.Message
+                                ErrorMessage = ex2.Message
                             });
 
                             if (step.Optional)

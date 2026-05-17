@@ -5,6 +5,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Temp
 {
@@ -272,8 +273,8 @@ namespace StingTools.Temp
             // Step 20: Healthcare Pack setup (HC-09) — only runs if facility type profile is set.
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document;
-                var pi = doc?.ProjectInformation;
+                var hcDoc = commandData?.Application?.ActiveUIDocument?.Document;
+                var pi = hcDoc?.ProjectInformation;
                 var healthProfile = pi?.LookupParameter("PRJ_ORG_HEALTH_PACK_PROFILE_TXT")?.AsString();
                 if (!string.IsNullOrEmpty(healthProfile))
                 {

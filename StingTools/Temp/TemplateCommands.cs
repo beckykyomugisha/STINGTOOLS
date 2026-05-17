@@ -750,7 +750,7 @@ namespace StingTools.Temp
                     }
                     catch (Exception ex2)
                     {
-                        StingLog.Warn($"View template create failed '{name}': {ex.Message}");
+                        StingLog.Warn($"View template create failed '{name}': {ex2.Message}");
                         skipped++;
                     }
                 }

@@ -313,7 +313,7 @@ namespace StingTools.Tags
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn($"ValidateTags T4-T10 check failed for {el?.Id}: {ex.Message}");
+                    StingLog.Warn($"ValidateTags T4-T10 check failed for {el?.Id}: {ex2.Message}");
                 }
 
                 // Check TAG_2-6 containers
@@ -678,8 +678,8 @@ namespace StingTools.Tags
                     }
                     catch (Exception ex2)
                     {
-                        StingLog.Error("ValidateTagsCommand: ResolveAllIssues failed", ex);
-                        TaskDialog.Show("Validate Tags", $"Auto-fix failed: {ex.Message}");
+                        StingLog.Error("ValidateTagsCommand: ResolveAllIssues failed", ex2);
+                        TaskDialog.Show("Validate Tags", $"Auto-fix failed: {ex2.Message}");
                     }
                 });
             }

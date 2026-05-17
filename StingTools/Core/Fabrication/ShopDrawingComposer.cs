@@ -217,7 +217,7 @@ namespace StingTools.Core.Fabrication
                     }
                     catch (Exception ex2)
                     {
-                        result.Warnings.Add($"DrawingType view apply {viewId.Value}: {ex.Message}");
+                        result.Warnings.Add($"DrawingType view apply {viewId.Value}: {ex2.Message}");
                     }
                 }
             }

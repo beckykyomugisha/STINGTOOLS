@@ -136,7 +136,7 @@ namespace StingTools.Commands.Mep
                     }
                     tx.Commit();
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
                     StingLog.Warn($"MepSystemTracer: stamp failed: {ex.Message}");

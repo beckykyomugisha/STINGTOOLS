@@ -81,7 +81,7 @@ namespace StingTools.Core.Routing
                 try { tx.Start(); }
                 catch (Exception ex2)
                 {
-                    result.Warnings.Add($"Transaction start failed: {ex.Message}");
+                    result.Warnings.Add($"Transaction start failed: {ex2.Message}");
                     return result;
                 }
 
@@ -99,7 +99,7 @@ namespace StingTools.Core.Routing
                         catch (Exception ex3)
                         {
                             result.FailedCount++;
-                            result.Warnings.Add($"Drop from {fx?.Id}: {ex.Message}");
+                            result.Warnings.Add($"Drop from {fx?.Id}: {ex3.Message}");
                         }
                     }
                     tx.Commit();
@@ -107,7 +107,7 @@ namespace StingTools.Core.Routing
                 catch (Exception ex3)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
-                    result.Warnings.Add($"AutoDuctDrop fatal: {ex.Message}");
+                    result.Warnings.Add($"AutoDuctDrop fatal: {ex3.Message}");
                 }
             }
             return result;

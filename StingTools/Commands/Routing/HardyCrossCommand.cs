@@ -137,15 +137,15 @@ namespace StingTools.Commands.Routing
                                 }
                             }
                             catch (Exception ex2)
-                            { StingLog.Warn($"Hardy Cross write-back {pipeEl.Id}: {ex.Message}"); }
+                            { StingLog.Warn($"Hardy Cross write-back {pipeEl.Id}: {ex2.Message}"); }
                         }
                         tx.Commit();
                     }
                     catch (Exception ex2)
                     {
                         if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
-                        StingLog.Error("HardyCrossCommand write-back", ex);
-                        message = ex.Message;
+                        StingLog.Error("HardyCrossCommand write-back", ex2);
+                        message = ex2.Message;
                         return Result.Failed;
                     }
                 }

@@ -601,7 +601,7 @@ namespace StingTools.Commands.Drawing
                 using (var t = new Transaction(doc, "STING Convert Pack to Managed"))
                 {
                     t.Start();
-                    pack.VgOverrides = ViewStylePackApplier.ReadCategoryOverrides(doc, tpl);
+                    ViewStylePackApplier.ReadCategoryOverrides(doc, tpl, pack);
                     pack.TemplateMode = "managed";
                     pack.ManagedFields = new List<string> { "scale", "detailLevel", "discipline", "visualStyle", "phaseFilter", "vgOverrides" };
                     t.Commit();
