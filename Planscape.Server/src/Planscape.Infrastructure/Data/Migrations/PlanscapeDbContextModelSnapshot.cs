@@ -128,6 +128,13 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<DateTime>("CreatedAt")
                     .HasColumnType("timestamp with time zone");
 
+                // F2 — soft-delete columns
+                b.Property<DateTime?>("DeletedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<string>("DeletedByUserId")
+                    .HasColumnType("text");
+
                 b.Property<string>("DisplayName")
                     .IsRequired()
                     .HasColumnType("text");
@@ -137,6 +144,10 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .HasColumnType("text");
 
                 b.Property<bool>("IsActive")
+                    .HasColumnType("boolean");
+
+                // F2 — soft-delete flag; false by default
+                b.Property<bool>("IsDeleted")
                     .HasColumnType("boolean");
 
                 b.Property<string>("Iso19650Role")
@@ -164,7 +175,8 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                 b.HasKey("Id");
 
-                b.HasIndex("Email")
+                // F1 — per-tenant email uniqueness (was global single-column IX_Users_Email)
+                b.HasIndex("TenantId", "Email")
                     .IsUnique();
 
                 b.HasIndex("TenantId");
@@ -1286,6 +1298,10 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<bool>("IsActive")
                     .HasColumnType("boolean");
 
+                // F3 — track last modification time; auto-stamped by SaveChangesAsync
+                b.Property<DateTime>("UpdatedAt")
+                    .HasColumnType("timestamp with time zone");
+
                 b.Property<int>("MaxProjects")
                     .HasColumnType("integer");
 
@@ -1743,10 +1759,13 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
 
+                // F5 — Restrict (not Cascade) paired with F2 soft-delete: a user's
+                // push tokens must be explicitly removed before the user row can be
+                // hard-deleted, preserving the cleanup-job audit trail.
                 b.HasOne("Planscape.Core.Entities.AppUser", "User")
                     .WithMany()
                     .HasForeignKey("UserId")
-                    .OnDelete(DeleteBehavior.Cascade)
+                    .OnDelete(DeleteBehavior.Restrict)
                     .IsRequired();
 
                 b.Navigation("Tenant");
@@ -1854,10 +1873,12 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
 
+                // F5 — Restrict (not Cascade) so a user with active memberships
+                // cannot be hard-deleted; the soft-delete workflow must run first.
                 b.HasOne("Planscape.Core.Entities.AppUser", "User")
                     .WithMany()
                     .HasForeignKey("UserId")
-                    .OnDelete(DeleteBehavior.Cascade)
+                    .OnDelete(DeleteBehavior.Restrict)
                     .IsRequired();
 
                 b.Navigation("Project");

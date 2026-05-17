@@ -24,9 +24,15 @@ import { theme } from '@/utils/theme';
 import {
   getProjectSettings,
   updateProjectSettings,
+  getMyProjectAccess,
   type ProjectSettings,
 } from '@/api/endpoints';
 import { useProjectStore } from '@/stores/projectStore';
+
+// Only BIM Managers (K) and tenant-level Admins / Owners can change project
+// admin settings. Coordinators (C) and field roles see the switches greyed
+// out with an explanatory note so they understand why they can't toggle them.
+const ADMIN_EDIT_ROLES = new Set(['Admin', 'Owner', 'PM', 'BIM_Manager', 'BIMManager']);
 
 export default function ProjectSettingsScreen() {
   const router = useRouter();
@@ -35,13 +41,26 @@ export default function ProjectSettingsScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Whether the current user has a role that can mutate admin toggles.
+  // Starts as null (unknown) while the access check is in flight.
+  const [canEdit, setCanEdit] = useState<boolean | null>(null);
 
   const load = useCallback(async () => {
     if (!projectId) return;
     try {
       setError(null);
-      const s = await getProjectSettings(projectId);
+      const [s, access] = await Promise.all([
+        getProjectSettings(projectId),
+        getMyProjectAccess(projectId).catch(() => null),
+      ]);
       setSettings(s);
+      if (access) {
+        const role = access.projectRole ?? '';
+        setCanEdit(access.bypassesAcl || ADMIN_EDIT_ROLES.has(role));
+      } else {
+        // Fallback: allow UI interaction; server enforces 403.
+        setCanEdit(true);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load settings');
     } finally {
@@ -115,11 +134,19 @@ export default function ProjectSettingsScreen() {
         label="ISO 19650 Compliance"
         description="Information governance toggles for this project. Changes take effect on the next document upload."
       >
+        {canEdit === false && (
+          <View style={styles.readOnlyNote}>
+            <Text style={styles.readOnlyNoteText}>
+              🔒 Your project role does not have permission to change these settings. Contact a BIM Manager or project Admin.
+            </Text>
+          </View>
+        )}
         <ToggleRow
           title="Enforce ISO 19650 file naming"
           subtitle="Reject document uploads whose file name doesn't match Project-Originator-Volume-Level-Type-Role-Class-Number. Photos and issue attachments are exempt."
           value={settings.admin.enforceIso19650Naming}
-          disabled={saving}
+          disabled={saving || canEdit === false}
+          readOnly={canEdit === false}
           onChange={(v) => setAdminFlag('enforceIso19650Naming', v)}
         />
       </Section>
@@ -146,7 +173,9 @@ export default function ProjectSettingsScreen() {
       </Section>
 
       <Text style={styles.footer}>
-        Permission to edit admin settings is gated by your project role (K or C).
+        {canEdit === false
+          ? 'Admin settings are read-only for your current project role.'
+          : 'Permission to edit admin settings is gated by your project role (K or C).'}
       </Text>
     </ScrollView>
   );
@@ -166,20 +195,29 @@ function Section({ label, description, children }: {
   );
 }
 
-function ToggleRow({ title, subtitle, value, disabled, onChange }: {
+function ToggleRow({ title, subtitle, value, disabled, readOnly, onChange }: {
   title: string;
   subtitle?: string;
   value: boolean;
   disabled?: boolean;
+  readOnly?: boolean;
   onChange: (v: boolean) => void;
 }) {
   return (
-    <View style={styles.toggleRow}>
+    <View style={[styles.toggleRow, readOnly && styles.toggleRowReadOnly]}>
       <View style={{ flex: 1, paddingRight: theme.spacing.sm }}>
-        <Text style={styles.toggleTitle}>{title}</Text>
+        <Text style={[styles.toggleTitle, readOnly && styles.toggleTitleReadOnly]}>{title}</Text>
         {subtitle ? <Text style={styles.toggleSub}>{subtitle}</Text> : null}
       </View>
-      <Switch value={value} disabled={disabled} onValueChange={onChange} />
+      <Switch
+        value={value}
+        disabled={disabled}
+        onValueChange={onChange}
+        // Greyed-out thumb colour when read-only so it's visually distinct
+        // from "saving" states which use the platform default muted colour.
+        thumbColor={readOnly ? '#aaa' : undefined}
+        trackColor={readOnly ? { false: '#ccc', true: '#ccc' } : undefined}
+      />
     </View>
   );
 }
@@ -232,8 +270,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: theme.spacing.sm,
   },
+  toggleRowReadOnly: {
+    opacity: 0.55,
+  },
   toggleTitle: { fontSize: theme.fontSize.sm, color: theme.colors.text, fontWeight: '600' },
+  toggleTitleReadOnly: { color: theme.colors.textSecondary },
   toggleSub: { fontSize: theme.fontSize.xs, color: theme.colors.textSecondary, marginTop: 2 },
+  readOnlyNote: {
+    backgroundColor: '#FFF8E1',
+    borderRadius: theme.borderRadius.sm,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs + 2,
+    marginBottom: theme.spacing.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FFA000',
+  },
+  readOnlyNoteText: {
+    fontSize: theme.fontSize.xs,
+    color: '#7B4F00',
+    lineHeight: 16,
+  },
   kvRow: { flexDirection: 'row', paddingVertical: 4 },
   kvKey: { fontSize: theme.fontSize.sm, color: theme.colors.textSecondary, width: 160 },
   kvValue: { fontSize: theme.fontSize.sm, color: theme.colors.text, flex: 1 },

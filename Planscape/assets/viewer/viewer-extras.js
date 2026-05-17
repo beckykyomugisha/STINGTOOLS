@@ -39,6 +39,8 @@
         if (--remaining === 0) {
           h.modelRoot = group;
           h.modelBounds = merged;
+          // fitCamera() now sets camera.up based on dominant vertical axis,
+          // so no separate up-axis sync is needed here.
           h.fitCamera();
           h.bridge.send('loaded', {
             elementCount: countMeshes(group),
@@ -438,7 +440,7 @@
       const floor = upAxis.x ? h.modelBounds.min.x
                   : upAxis.y ? h.modelBounds.min.y
                              : h.modelBounds.min.z;
-      const pos = c.clone();
+      const pos = h.camera.position.clone();
       if (upAxis.x) pos.x = floor + eye;
       else if (upAxis.y) pos.y = floor + eye;
       else pos.z = floor + eye;
@@ -447,10 +449,14 @@
       if (upAxis.x) lookAt.y += 1; else lookAt.x += 1;
       h.camera.lookAt(lookAt);
       walkUp = upAxis;
+      // Expose the active up-axis so coordination-viewer's scroll handler
+      // can project forward movement onto the floor plane, matching WASD.
+      window.__walkUp = upAxis.toArray();
       h.bridge.send('walkthrough', { active: true, upAxis: upAxis.toArray() });
     } else {
       detachWalkInput();
       walkVelocity.set(0, 0, 0);
+      window.__walkUp = null;
       h.bridge.send('walkthrough', { active: false });
     }
   };

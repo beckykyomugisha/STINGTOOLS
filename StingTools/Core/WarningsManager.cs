@@ -4003,7 +4003,9 @@ namespace StingTools.Core
                             {
                                 string st = item.Value<string>("status") ?? "";
                                 bool overdue = false;
-                                string created = item.Value<string>("created_date") ?? "";
+                                string created = item.Value<string>("created_date")
+                                    ?? item.Value<string>("createdAt")
+                                    ?? item.Value<string>("date_raised") ?? "";
                                 string daysOpen = "";
                                 if (DateTime.TryParse(created, out DateTime cDate))
                                 {
@@ -4024,7 +4026,9 @@ namespace StingTools.Core
                                         if (!string.IsNullOrWhiteSpace(av)) assigneeList.Add(av.Trim());
                                     }
                                 }
-                                string singleAssignee = item.Value<string>("assignee") ?? item.Value<string>("created_by") ?? "";
+                                string singleAssignee = item.Value<string>("assignee")
+                                    ?? item.Value<string>("assigned_to")
+                                    ?? item.Value<string>("created_by") ?? "";
                                 if (assigneeList.Count == 0 && !string.IsNullOrWhiteSpace(singleAssignee))
                                     assigneeList.Add(singleAssignee.Trim());
 
@@ -4033,9 +4037,19 @@ namespace StingTools.Core
                                 var elemArr = item["element_ids"] as Newtonsoft.Json.Linq.JArray;
                                 if (elemArr != null) elemCount = elemArr.Count;
 
+                                // Location: prefer explicit field, fall back to lat/lng when available.
+                                string location = item.Value<string>("location") ?? "";
+                                if (string.IsNullOrEmpty(location))
+                                {
+                                    double? lat = item.Value<double?>("latitude");
+                                    double? lng = item.Value<double?>("longitude");
+                                    if (lat.HasValue && lng.HasValue)
+                                        location = $"{lat:F5},{lng:F5}";
+                                }
+
                                 issueRows.Add(new UI.BIMCoordinationCenter.IssueRow
                                 {
-                                    Id = item.Value<string>("id") ?? "",
+                                    Id = item.Value<string>("id") ?? item.Value<string>("issue_id") ?? "",
                                     Title = item.Value<string>("title") ?? "",
                                     Type = item.Value<string>("type") ?? "",
                                     Priority = item.Value<string>("priority") ?? "",
@@ -4048,7 +4062,11 @@ namespace StingTools.Core
                                     ElementCount = elemCount,
                                     Created = created.Length > 10 ? created.Substring(0, 10) : created,
                                     IsOverdue = overdue,
-                                    DaysOpen = daysOpen
+                                    DaysOpen = daysOpen,
+                                    RaisedBy = item.Value<string>("raised_by")
+                                               ?? item.Value<string>("created_by")
+                                               ?? item.Value<string>("createdBy") ?? "",
+                                    Location = location
                                 });
                             }
                         }

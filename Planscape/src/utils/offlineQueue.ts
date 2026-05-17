@@ -111,6 +111,10 @@ export async function enqueue(
   };
 
   const queue = await loadQueue();
+  if (queue.length >= MAX_QUEUE_SIZE) {
+    console.warn(`[OfflineQueue] Queue full (${MAX_QUEUE_SIZE}), dropping oldest action: ${queue[0].type}`);
+    queue.shift();
+  }
   queue.push(action);
   await saveQueue(queue);
   return action;
@@ -452,6 +456,7 @@ export interface SyncResult {
 }
 
 const MAX_RETRIES_PER_ACTION = 3;
+const MAX_QUEUE_SIZE = 200;
 
 /**
  * N-G17 — compute exponential-backoff delay in milliseconds.
