@@ -6,6 +6,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
+using StingTools.Core.Drawing;
 
 namespace StingTools.Core
 {
@@ -3319,16 +3320,70 @@ namespace StingTools.Core
                 // warning evaluation on every WriteTag7All call for large models)
                 ParameterHelpers.SetYesNo(el, ParamRegistry.WARN_VISIBLE, false);
 
-                // TAG_7_SECTION_VISIBLE_A-F = Yes (default all TAG7 sub-sections visible)
-                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_A_BOOL", true);
-                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_B_BOOL", true);
-                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_C_BOOL", true);
-                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_D_BOOL", true);
-                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_E_BOOL", true);
-                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_F_BOOL", true);
+                // TAG_7_SECTION_VISIBLE_A-F and default tag style: resolve the active
+                // ViewStylePack once so both features share the same lookup overhead.
+                bool tag7Visible = true;
+                string resolvedStyleCode = null;   // null → fall back to hard-coded default
+                try
+                {
+                    if (doc?.ActiveView != null)
+                    {
+                        string dtId = DrawingTypeStamper.Read(doc.ActiveView);
+                        if (!string.IsNullOrEmpty(dtId))
+                        {
+                            var dt = DrawingTypeRegistry.Get(doc, dtId);
+                            if (!string.IsNullOrEmpty(dt?.ViewStylePackId))
+                            {
+                                var activePack = DrawingTypeRegistry.TryGetPack(doc, dt.ViewStylePackId);
+                                if (activePack != null)
+                                {
+                                    // TAG7 section visibility per category.
+                                    if (activePack.CategoryTag7Sections != null &&
+                                        activePack.CategoryTag7Sections.TryGetValue(catName, out bool sectFlag))
+                                        tag7Visible = sectFlag;
 
-                // Default tag style: 2.5mm Normal Black (most common AEC standard)
-                ParameterHelpers.SetYesNo(el, "TAG_2.5NOM_BLACK_BOOL", true);
+                                    // Tag style: per-category first, then pack default.
+                                    if (activePack.CategoryTagStyles != null &&
+                                        activePack.CategoryTagStyles.TryGetValue(catName, out var catStyle) &&
+                                        !string.IsNullOrEmpty(catStyle))
+                                        resolvedStyleCode = catStyle;
+                                    else if (!string.IsNullOrEmpty(activePack.DefaultTagStyle))
+                                        resolvedStyleCode = activePack.DefaultTagStyle;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { /* pack resolution is best-effort; fall back to defaults */ }
+
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_A_BOOL", tag7Visible);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_B_BOOL", tag7Visible);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_C_BOOL", tag7Visible);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_D_BOOL", tag7Visible);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_E_BOOL", tag7Visible);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_F_BOOL", tag7Visible);
+
+                // Default tag style: pack-resolved style code wins; fall back to 2.5mm Normal Black.
+                // Mirrors TagStyleEngine.ApplyStyleCode without crossing the internal-class boundary.
+                if (!string.IsNullOrEmpty(resolvedStyleCode))
+                {
+                    try
+                    {
+                        ParameterHelpers.SetString(el, ParamRegistry.TAG_STYLE_CODE, resolvedStyleCode, overwrite: true);
+                        string activeStyleParam = $"TAG_{resolvedStyleCode}_BOOL";
+                        foreach (string sp in ParamRegistry.AllTagStyleParams)
+                        {
+                            var p = el.LookupParameter(sp);
+                            if (p == null || p.IsReadOnly || p.StorageType != StorageType.Integer) continue;
+                            p.Set(string.Equals(sp, activeStyleParam, StringComparison.Ordinal) ? 1 : 0);
+                        }
+                    }
+                    catch { ParameterHelpers.SetYesNo(el, "TAG_2.5NOM_BLACK_BOOL", true); }
+                }
+                else
+                {
+                    ParameterHelpers.SetYesNo(el, "TAG_2.5NOM_BLACK_BOOL", true);
+                }
             }
             catch (Exception ex) { StingLog.Warn($"Display BOOL init on {el.Id}: {ex.Message}"); }
 
