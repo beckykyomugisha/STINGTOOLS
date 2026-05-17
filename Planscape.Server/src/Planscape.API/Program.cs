@@ -1,5 +1,3 @@
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
 using Planscape.API.Middleware;
@@ -19,8 +17,6 @@ using Prometheus;
 using StackExchange.Redis;
 using RedisRateLimiting;
 using RedisRateLimiting.AspNetCore;
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -166,15 +162,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             RequireSignedTokens = true,
             ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 },
-            // A3 — require explicit Jwt:Issuer and Jwt:Audience in all environments.
-            // A silent "Planscape" / "Planscape.Client" fallback lets a
-            // misconfigured deployment accept tokens minted by any other
-            // instance using the same fallback string (e.g. staging → prod
-            // token replay). Throw at startup instead.
-            ValidIssuer = builder.Configuration["Jwt:Issuer"]
-                ?? throw new InvalidOperationException("Jwt:Issuer is required in configuration."),
-            ValidAudience = builder.Configuration["Jwt:Audience"]
-                ?? throw new InvalidOperationException("Jwt:Audience is required in configuration."),
+            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "Planscape",
+            ValidAudience = builder.Configuration["Jwt:Audience"] ?? "Planscape.Client",
             // IssuerSigningKeys (plural) lets us validate tokens signed with
             // either the current or the previous key during rotation.
             IssuerSigningKeys = signingKeys,
@@ -283,11 +272,6 @@ builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationH
     Planscape.Infrastructure.Authorization.SecurityOfficerOrAdminHandler>();
 
 // ── Services ──
-// DataProtection is used by SsoController and MfaController to encrypt
-// secrets at rest. Keys are persisted to the configured key ring
-// (configure builder.Services.AddDataProtection().PersistKeysTo*() for
-// production multi-pod deployments; default stores keys in-process).
-builder.Services.AddDataProtection();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<Planscape.Core.Interfaces.ITenantContext, Planscape.Infrastructure.Services.TenantContext>();
 // STORAGE-01 — Storage:Provider = "S3" | "Local" (default). S3 covers AWS, MinIO, R2, Spaces.
@@ -354,15 +338,6 @@ builder.Services.AddScoped<Planscape.API.Services.IAuditService, Planscape.API.S
 // so Hangfire activates a fresh DbContext per job invocation).
 builder.Services.AddScoped<Planscape.API.BackgroundJobs.MaintenanceTaskSchedulerJob>();
 
-// Clash detection — AABB overlap between SceneNodes of different disciplines.
-builder.Services.AddScoped<Planscape.Infrastructure.Services.IClashDetectionJob,
-                           Planscape.Infrastructure.Services.ClashDetectionJob>();
-// Clash automation — auto-issue / push / webhook triggers for new clashes.
-builder.Services.AddScoped<Planscape.Infrastructure.Services.IClashAutomationService,
-                           Planscape.Infrastructure.Services.ClashAutomationService>();
-// Daily clash scan job — Hangfire activates a fresh scope per invocation.
-builder.Services.AddScoped<Planscape.Infrastructure.Services.DailyClashScanJob>();
-
 // ── Platform Connectors ──
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.AccConnector>();
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.ProcoreConnector>();
@@ -402,18 +377,6 @@ if (!string.IsNullOrEmpty(builder.Configuration["Smtp:Host"])
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.SmtpEmailService>();
 else
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.NullEmailService>();
-
-// Feature gap 6 — P6 live link service + Hangfire scheduler
-builder.Services.AddScoped<Planscape.Infrastructure.Services.P6LiveLinkService>();
-// NOTE: P6LiveLinkJob is superseded by P6SchedulerJob (GAP-D). It is NOT
-// registered here to avoid an unused scoped registration. The recurring job
-// is removed in the app-startup section below via RecurringJob.RemoveIfExists.
-// GAP-A — BOQ compliance re-check (fire-once, triggered from BoqController)
-builder.Services.AddScoped<Planscape.Infrastructure.Services.BoqComplianceReCheckJob>();
-// GAP-D — per-project P6 dynamic scheduler (meta-scheduler, runs every 5 min)
-builder.Services.AddScoped<Planscape.Infrastructure.Services.P6SchedulerJob>();
-// GAP-F — IFC BOQ seed job with Hangfire retry
-builder.Services.AddScoped<Planscape.API.BackgroundJobs.IfcBoqSeedJob>();
 
 // ── Push Notifications ──
 // Supports both raw FCM tokens (via Firebase Project) and ExponentPushToken[…]
@@ -510,10 +473,6 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>
 // ONNX models without dragging the dependency into the API process.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.RedactPublishedPhotoJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DailyPhotoDigestJob>();
-// Gap 1 — server-side audio transcription stub (STT provider wired later).
-builder.Services.AddScoped<Planscape.Infrastructure.Services.AudioTranscriptionJob>();
-// Gap 3 — periodic retry for SitePhotos whose redaction failed.
-builder.Services.AddScoped<Planscape.Infrastructure.Services.RetryFailedRedactionJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPipeline.IPhotoRedactionPipeline,
     Planscape.Infrastructure.Services.PhotoPipeline.SkiaPhotoRedactionPipeline>();
 
@@ -525,14 +484,6 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPipeline.IPhot
 // ~500 MB native dep + worker build pipeline.
 builder.Services.AddScoped<Planscape.Core.Interfaces.IIfcIngester,
     Planscape.Infrastructure.Services.XbimIfcIngester>();
-
-// IFC alignment / georeferencing validator — inspects the IFC header
-// for project units, IfcMapConversion, IfcProjectedCRS, and IfcSite
-// GUIDs at upload time. Surfaces cross-software coordination drift
-// (ArchiCAD vs Revit) before models federate. Scoped because it
-// writes to the same PlanscapeDbContext as the upload controller.
-builder.Services.AddScoped<Planscape.Core.Interfaces.IIfcAlignmentValidator,
-    Planscape.Infrastructure.Services.IfcAlignmentValidator>();
 
 if (isWorker)
 {
@@ -591,12 +542,6 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.SlaBurnRateJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DataErasureJob>();
 // Idempotent platform-tenant seeder ('planscape' slug). Runs once on boot.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformTenantSeeder>();
-builder.Services.AddScoped<Planscape.Infrastructure.Services.Nrm2DescriptionBuilder>();
-builder.Services.AddScoped<Planscape.Infrastructure.Services.IIfcQuantityIngestor, Planscape.Infrastructure.Services.IfcQuantityIngestor>();
-builder.Services.AddScoped<Planscape.Infrastructure.Services.ISuitabilityStateMachine, Planscape.Infrastructure.Services.SuitabilityStateMachine>();
-builder.Services.AddScoped<Planscape.Infrastructure.Services.IModelCheckerService, Planscape.Infrastructure.Services.ModelCheckerService>();
-builder.Services.AddScoped<Planscape.Infrastructure.Services.KpiSnapshotJob>();
-builder.Services.AddScoped<Planscape.Infrastructure.Services.CoordinatorWorkloadJob>();
 
 // P7 + P8 — IFC→glTF converter + thumbnail generator. Null defaults keep the
 // system running without a converter installed; swap the registration to
@@ -829,11 +774,6 @@ builder.Services.AddRateLimiter(options =>
 var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? new[]
 {
     "http://localhost:3000",
-    "http://localhost:8081",
-    "http://localhost:8082",
-    "http://localhost:8083",
-    "http://localhost:8084",
-    "http://localhost:8085",
     "http://localhost:19000",
     "http://localhost:19001",
     "http://localhost:19002",
@@ -968,6 +908,7 @@ app.UseSerilogRequestLogging();
 // Exposed at /metrics in Prometheus exposition format. Scrape once per 15-30s.
 app.UseHttpMetrics();
 app.UseRateLimiter();
+app.UseCors("Dashboard");
 app.UseCors("Mobile");
 // S3.8 — rewrite /api/v1/* → /api/* before routing so existing
 // controllers serve both. Older /api/* paths get a Deprecation
@@ -1026,11 +967,6 @@ if (exposeMetrics)
 // ── Health check ── (NEW-SRV-22)
 // Returns sub-check results so mobile can detect partial degradation.
 // Status codes: 200 healthy, 503 degraded (any sub-check failed).
-// DOWNLOADS — redirect /downloads → /downloads/ so the static
-// index.html is served by UseDefaultFiles without a trailing slash.
-app.MapGet("/downloads", () => Results.Redirect("/downloads/"))
-    .AllowAnonymous();
-
 // HEALTH-01 — Separate probes for orchestrator/mobile consumption.
 // /health/live  → process is running (K8s liveness, mobile ping)
 // /health/ready → process is accepting traffic (K8s readiness, probes)
@@ -1158,10 +1094,8 @@ app.MapHub<TagSyncHub>("/hubs/tagsync");
 app.MapHub<NotificationHub>("/hubs/notifications");
 // S6.3 — CRDT relay for collaborative pin / issue editing.
 app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
-// ArchiCAD live model stream — clients join project group to receive real-time element events.
-app.MapHub<Planscape.Infrastructure.SignalR.ArchiCADHub>("/hubs/archicad");
-// Federated model viewer — notifies connected clients when geometry delta is uploaded.
-app.MapHub<Planscape.Infrastructure.SignalR.FederatedModelHub>("/hubs/federated-model");
+// HC-22 — Healthcare real-time hub (pressure cascade, MGPS alarms, anti-ligature alerts).
+app.MapHub<Planscape.Infrastructure.SignalR.HealthcareHub>("/hubs/healthcare");
 
 // ── Database schema + seed ──
 {
@@ -1202,52 +1136,6 @@ app.MapHub<Planscape.Infrastructure.SignalR.FederatedModelHub>("/hubs/federated-
                 db.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
             creator.CreateTables();
         }
-
-        // Idempotent schema patches — adds columns that were introduced after the initial
-        // EnsureCreated run. Safe to run every startup (IF NOT EXISTS is a no-op on existing columns).
-        var patches = new[]
-        {
-            // TaggedElements additive columns (post-initial-schema)
-            "ALTER TABLE \"TaggedElements\" ADD COLUMN IF NOT EXISTS \"TenantId\" uuid;",
-            "ALTER TABLE \"TaggedElements\" ADD COLUMN IF NOT EXISTS \"LastModifiedUtc\" timestamp with time zone;",
-            "ALTER TABLE \"TaggedElements\" ADD COLUMN IF NOT EXISTS \"Version\" integer NOT NULL DEFAULT 1;",
-            "ALTER TABLE \"TaggedElements\" ADD COLUMN IF NOT EXISTS \"Source\" character varying(40);",
-            // SyncConflicts table (never in initial schema)
-            @"CREATE TABLE IF NOT EXISTS ""SyncConflicts"" (
-                ""Id"" uuid NOT NULL DEFAULT gen_random_uuid(),
-                ""TenantId"" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
-                ""ProjectId"" uuid NOT NULL,
-                ""TaggedElementId"" uuid,
-                ""ElementId"" text NOT NULL DEFAULT '',
-                ""ConflictType"" text NOT NULL DEFAULT 'STALE_UPDATE',
-                ""Resolution"" text NOT NULL DEFAULT 'SERVER_WINS',
-                ""ServerTimestamp"" timestamp with time zone,
-                ""ClientTimestamp"" timestamp with time zone,
-                ""ClientUserName"" text,
-                ""DetectedAt"" timestamp with time zone NOT NULL DEFAULT now(),
-                CONSTRAINT ""PK_SyncConflicts"" PRIMARY KEY (""Id"")
-            );",
-            // SyncWatermarks table (never in initial schema)
-            @"CREATE TABLE IF NOT EXISTS ""SyncWatermarks"" (
-                ""Id"" uuid NOT NULL DEFAULT gen_random_uuid(),
-                ""TenantId"" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
-                ""ProjectId"" uuid NOT NULL,
-                ""DeviceId"" text NOT NULL DEFAULT '',
-                ""LastSyncUtc"" timestamp with time zone NOT NULL DEFAULT now(),
-                ""ElementCount"" integer NOT NULL DEFAULT 0,
-                ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT now(),
-                ""UpdatedAt"" timestamp with time zone NOT NULL DEFAULT now(),
-                CONSTRAINT ""PK_SyncWatermarks"" PRIMARY KEY (""Id"")
-            );",
-        };
-        await using (var cmd = conn.CreateCommand())
-        {
-            foreach (var patch in patches)
-            {
-                cmd.CommandText = patch;
-                await cmd.ExecuteNonQueryAsync();
-            }
-        }
     }
     else
     {
@@ -1285,14 +1173,6 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ClamAvScannerJob>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PlatformSyncJob>(
     "platform-sync", j => j.ExecuteAsync(CancellationToken.None),
     "*/30 * * * *", new RecurringJobOptions { QueueName = "platform-sync" });
-// Feature gap 6 — Primavera P6 live link.
-// GAP-D: replaced the single global */30 recurring job with a dynamic per-project
-// P6SchedulerJob that reads each project's PollIntervalMinutes from its ConfigJson.
-// The old P6LiveLinkJob ("p6-live-link") is removed so we don't double-fire.
-RecurringJob.RemoveIfExists("p6-live-link");
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.P6SchedulerJob>(
-    "p6-scheduler", j => j.ExecuteAsync(CancellationToken.None),
-    "*/5 * * * *", new RecurringJobOptions { QueueName = "default" });
 // BACKUP-01 — nightly 02:15 UTC Postgres dump. Runs only when Backup:Enabled=true.
 // Phase 178b — moved to "heavy" queue (worker-only). pg_dump on a
 // 50 GB tenant database is many minutes of disk + CPU; running it on
@@ -1344,13 +1224,6 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DunningJob>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>(
     "fw-renewals", j => j.ExecuteAsync(CancellationToken.None),
     "30 5 * * *", new RecurringJobOptions { QueueName = "default" });
-
-// Daily clash detection — 01:00 UTC. Runs on the "default" queue; clash
-// detection is CPU-bound (AABB pairwise) but short-lived. Route to "heavy"
-// if large projects routinely exceed the concurrency window.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DailyClashScanJob>(
-    "daily-clash-scan", j => j.ExecuteAsync(CancellationToken.None),
-    "0 1 * * *", new RecurringJobOptions { QueueName = "default" });
 
 // S3.2 — outbox dispatcher (every minute). Drains OutboxMessages with
 // at-least-once + exponential-backoff retry; dead-letters after 6 attempts.
