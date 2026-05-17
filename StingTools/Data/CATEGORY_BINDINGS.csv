@@ -16111,6 +16111,9 @@ PLM_SENTINEL_BOOL,Plumbing Fixtures,Instance,True
 PLM_SENTINEL_BOOL,Pipes,Type,True
 PLM_TMV_TYPE_TXT,Plumbing Fixtures,Instance,True
 PLM_TMV_TYPE_TXT,Pipes,Type,True
+PRJ_ORG_CLIENT_NAME_TXT,Project Information,Instance,True
+PRJ_ORG_COMPANY_ADDRESS_TXT,Project Information,Instance,True
+PRJ_ORG_COMPANY_NAME_TXT,Project Information,Instance,True
 PRJ_ORG_COORD_SYSTEM_TXT,Project Information,Instance,True
 PRJ_ORG_GROUND_LEVEL_TXT,Project Information,Instance,True
 PRJ_ORG_HEALTH_AE_ELEC_TXT,Project Information,Instance,True
@@ -16128,6 +16131,7 @@ PRJ_ORG_HEALTH_IHFG_BOOL,Project Information,Instance,True
 PRJ_ORG_HEALTH_OR_INT,Project Information,Instance,True
 PRJ_ORG_HEALTH_PACK_PROFILE_TXT,Project Information,Instance,True
 PRJ_ORG_HEALTH_QE_TXT,Project Information,Instance,True
+PRJ_ORG_PHASE_TXT,Project Information,Instance,True
 PRJ_ORG_PROJECT_ADDRESS_TXT,Project Information,Instance,True
 PRJ_ORG_PROJECT_CODE_TXT,Project Information,Instance,True
 PRJ_ORG_PROJECT_NAME_TXT,Project Information,Instance,True

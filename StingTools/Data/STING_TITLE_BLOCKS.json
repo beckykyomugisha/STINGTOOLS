@@ -121,18 +121,6 @@
           "group": "IdentityData"
         },
         {
-          "name": "PRJ_ORG_COMPANY_NAME_TXT",
-          "kind": "shared",
-          "instance": true,
-          "group": "IdentityData"
-        },
-        {
-          "name": "PRJ_ORG_COMPANY_ADDRESS_TXT",
-          "kind": "shared",
-          "instance": true,
-          "group": "IdentityData"
-        },
-        {
           "name": "PRJ_ORG_PHASE_TXT",
           "kind": "shared",
           "instance": true,
