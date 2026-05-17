@@ -1,0 +1,67 @@
+{
+  "version": "1.0",
+  "id": "PenetrationRegister",
+  "name": "Penetration Register — Full End-to-End",
+  "description": "One-click pipeline that finds every fire-barrier crossing in the model, places the correct firestop / fire-damper / acoustic-seal family at each one, tags it with an ISO 19650 asset reference, builds the Penetration Register schedule, and exports it as a PDF and COBie-ready CSV. Re-runnable — idempotent on PEN_PFV_UUID_TXT.",
+  "steps": [
+    {
+      "id": "build-seeds",
+      "name": "Build seed families (idempotent)",
+      "command": "BuildSeedFamilies",
+      "skipIfFamilyLoaded": "STING_SEED_SpecialityEquipment",
+      "_notes": "First-time setup. Builds STING_SEED_SpecialityEquipment, STING_SEED_FireDamper, STING_SEED_AcousticSeal from JSON specs. No-op when all three seed families are already loaded."
+    },
+    {
+      "id": "load-shared-params",
+      "name": "Load shared parameters (PEN_* + ASS_*)",
+      "command": "LoadSharedParams",
+      "_notes": "Binds PEN_* penetration parameters and ASS_TAG_* containers to Specialty Equipment and the routed MEP categories so the detector, placer, and auto-tagger can read and write them."
+    },
+    {
+      "id": "detect-and-place",
+      "name": "Detect crossings and place / update penetration families",
+      "command": "Penetrations_DetectAndPlace",
+      "_notes": "Runs SlabPenetrationDetector + WallPenetrationDetector + BeamPenetrationDetector across every MEP curve in the active view. PenetrationProductSelector picks the right seed family and type variant (FR30–FR240, round/rect, combined fire+smoke, acoustic, sleeve). FrpPenetrationPlacer drops face-based instances and stamps the PEN_* parameter pack. Idempotent — re-runs update existing instances rather than duplicating."
+    },
+    {
+      "id": "auto-tag",
+      "name": "Auto-tag penetration family instances",
+      "command": "AutoTag",
+      "_notes": "Runs the standard STING tag pipeline on every newly placed or updated penetration family instance: TypeTokenInherit → PopulateAll → NativeParamMapper → FormulaEngine → BuildAndWriteTag → WriteContainers → WriteTag7. Each instance gets a unique DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ reference visible in the register schedule."
+    },
+    {
+      "id": "coverage-audit",
+      "name": "Audit firestop coverage + structural review",
+      "command": "Validation_PenetrationCoverage",
+      "_notes": "Read-only audit. Surfaces orphan members (MEP curves crossing rated barriers with no penetration family), orphan penetration families (instances with no matching MEP curve), and beam structural review findings (STRUCT_REVIEW / STRUCT_FAIL). Results appear in the result panel; no model changes."
+    },
+    {
+      "id": "build-register-schedule",
+      "name": "Build / refresh Penetration Register schedule",
+      "command": "BatchSchedules",
+      "scheduleNameFilter": "STING - Penetration Register",
+      "_notes": "Creates or refreshes the 'STING - Penetration Register' Revit schedule from MR_SCHEDULES.csv. The schedule includes PEN_CONTROL_NR, PEN_HOST_REF, PEN_FIRE_RATING, PEN_PRODUCT_FAMILY, PEN_TYPE_VARIANT, PEN_OD_MM, PEN_SLAB_THICK_MM, PEN_INSTALL_DATE, PEN_INSPECTOR, and the ASS_TAG_1 asset reference — one row per penetration family instance, grouped by host type."
+    },
+    {
+      "id": "place-on-sheet",
+      "name": "Place register schedule on A1 sheet",
+      "command": "DrawingTypes_FromScopeBoxes",
+      "drawingTypeId": "penetration-register-A1",
+      "_notes": "Creates or updates the A1 Penetration Register sheet using the 'penetration-register-A1' drawing type profile. The schedule is placed in the single Main slot. Idempotent — re-running on an existing sheet refreshes the viewport without creating a duplicate."
+    },
+    {
+      "id": "export-register",
+      "name": "Export Penetration Register to PDF + CSV",
+      "command": "ExportSheetRegister",
+      "sheetNumberFilter": "FP-PEN",
+      "_notes": "Exports all FP-PEN-* sheets to PDF (ISO A1, black-and-white) and writes a flat CSV of the schedule data to <project>/_BIM_COORD/exports/PenetrationRegister_<date>.csv. Both outputs are ready for client delivery and COBie FM handover."
+    }
+  ],
+  "_postNotes": [
+    "After the register is complete, run SwapToManufacturer to replace seed families with vendor-specific firestops (Hilti CP 601S / Promat PROMASTOP / STI SpecSeal / 3M FireDam).",
+    "Mobile installers stamp PEN_INSTALL_DATE / PEN_INSTALLER_TXT / PEN_INSPECTION_DATE on-site through the Planscape mobile sign-off flow.",
+    "Beam STRUCT_FAIL findings must be resolved before fabrication — re-route the offending pipe / duct or obtain a structural engineer's sign-off via PEN_STRUCTURAL_FLAG_TXT.",
+    "For smoke-only barriers (STING_SMOKE_COMPARTMENT_TXT set, no fire rating) the selector places FSD_SMOKE_ONLY dampers. Verify 24 V power supply availability for motorised dampers before placing orders.",
+    "Combined fire+smoke barriers (both STING_FIRE_RATING_TXT and STING_SMOKE_COMPARTMENT_TXT set) receive EIS combined dampers at a higher cost point — flag to M&E coordinator."
+  ]
+}

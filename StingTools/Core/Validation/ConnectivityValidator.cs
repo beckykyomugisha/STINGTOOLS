@@ -71,7 +71,7 @@ namespace StingTools.Core.Validation
                 if (c == null) continue;
                 total++;
                 bool isConnected = false;
-                try { isConnected = c.IsConnected; } catch { }
+                try { isConnected = c.IsConnected; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (!isConnected) unconnected++;
             }
             if (total > 0 && unconnected > 0)

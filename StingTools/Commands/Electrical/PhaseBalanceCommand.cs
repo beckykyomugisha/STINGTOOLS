@@ -103,7 +103,7 @@ namespace StingTools.Commands.Electrical
                 tx.Commit();
             }
 
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Electrical",
                 $"Phase balance applied. Reassigned: {reassigned}\nSkipped (3-pole / grouped / read-only): {skipped}\n\n" +
                 $"Imbalance Δ: {pre.ImbalanceBefore:0.0} kW → {pre.ImbalanceAfter:0.0} kW");
@@ -215,14 +215,14 @@ namespace StingTools.Commands.Electrical
 
         // ── safe wrappers ────────────────────────────────────────────────
         private static bool SafeIsPower(ElectricalSystem s)
-        { try { return s.SystemType == ElectricalSystemType.PowerCircuit; } catch { return true; } }
+        { try { return s.SystemType == ElectricalSystemType.PowerCircuit; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return true; } }
 
         private static int SafePoles(ElectricalSystem s)
-        { try { return s.PolesNumber; } catch { return 1; } }
+        { try { return s.PolesNumber; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 1; } }
 
         private static double SafeLoadKW(ElectricalSystem s)
         {
-            try { return s.ApparentLoad / 1000.0; } catch { return 0; }
+            try { return s.ApparentLoad / 1000.0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         /// <summary>
@@ -251,7 +251,7 @@ namespace StingTools.Commands.Electrical
                     return "A";
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "A";
         }
 
@@ -262,7 +262,7 @@ namespace StingTools.Commands.Electrical
                 var p1 = s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_START_SLOT)?.AsDouble() ?? 0;
                 return s.PolesNumber == 2 && p1 > 0;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
     }
 }

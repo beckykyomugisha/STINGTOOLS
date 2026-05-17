@@ -555,7 +555,7 @@ namespace StingTools.Temp
                 {
                     string text = File.ReadAllText(f);
                     JToken root;
-                    try { root = JToken.Parse(text); } catch { continue; }
+                    try { root = JToken.Parse(text); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                     IEnumerable<JToken> items = root is JArray arr ? arr : new[] { root };
                     foreach (var item in items)
                     {

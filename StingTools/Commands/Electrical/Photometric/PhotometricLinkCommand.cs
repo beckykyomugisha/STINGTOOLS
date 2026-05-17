@@ -82,14 +82,14 @@ namespace StingTools.Commands.Electrical.Photometric
                     string key = Normalise(r.Name);
                     if (luxByRoom.TryGetValue(key, out var v))
                     {
-                        try { ParameterHelpers.SetString(r, ParamRegistry.ELC_PHOTO_LUX, $"{v.lux:0.0}", overwrite: true); } catch { }
-                        try { ParameterHelpers.SetString(r, ParamRegistry.ELC_PHOTO_UGR, $"{v.ugr:0.0}", overwrite: true); } catch { }
+                        try { ParameterHelpers.SetString(r, ParamRegistry.ELC_PHOTO_LUX, $"{v.lux:0.0}", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        try { ParameterHelpers.SetString(r, ParamRegistry.ELC_PHOTO_UGR, $"{v.ugr:0.0}", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         matched++;
                     }
                 }
                 tx.Commit();
             }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Photometric",
                 $"Imported photometric data for {matched} of {rooms.Count} room(s).");
             return Result.Succeeded;
@@ -117,15 +117,15 @@ namespace StingTools.Commands.Electrical.Photometric
                         if (totalLumens < 1) continue;
                         double lux = totalLumens * UF * MF / areaM2;
                         double ugr = EstimateUGR(totalLumens, areaM2);
-                        try { ParameterHelpers.SetString(room, ParamRegistry.ELC_PHOTO_LUX, $"{lux:0.0}", overwrite: true); } catch { }
-                        try { ParameterHelpers.SetString(room, ParamRegistry.ELC_PHOTO_UGR, $"{ugr:0.0}", overwrite: true); } catch { }
+                        try { ParameterHelpers.SetString(room, ParamRegistry.ELC_PHOTO_LUX, $"{lux:0.0}", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        try { ParameterHelpers.SetString(room, ParamRegistry.ELC_PHOTO_UGR, $"{ugr:0.0}", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         written++;
                     }
                     catch (Exception ex) { StingLog.Warn($"PhotoEstimate room: {ex.Message}"); }
                 }
                 tx.Commit();
             }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Photometric Estimate",
                 $"Lux estimates written for {written} room(s).\n" +
                 "Values use UF=0.65 / MF=0.80 per CIBSE LG7. For accurate results use DIALux evo or ElumTools.");
@@ -214,7 +214,7 @@ namespace StingTools.Commands.Electrical.Photometric
                         double watts = ParseDouble(ParameterHelpers.GetString(fi, ParamRegistry.LTG_WATTAGE));
                         if (watts < 1)
                         {
-                            try { watts = fi.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0; } catch { }
+                            try { watts = fi.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                         lumens = watts * 80.0;
                     }

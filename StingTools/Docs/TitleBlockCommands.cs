@@ -23,9 +23,10 @@ namespace StingTools.Docs
     //             DisciplineLegendBind, SheetCountAutoUpdate
     //    Tier 2:  RevisionSync, TransmittalAutoIssue, PreExportValidate
     //
-    //  The 19 PRJ_TB_* parameters are written to either:
-    //    - the placed title-block FamilyInstance on each sheet (per-sheet state)
-    //    - doc.ProjectInformation (global defaults)
+    //  The 15 PRJ_TB_* parameters are written to the placed title-block
+    //  FamilyInstance on each sheet (per-sheet state). Four former mirror params
+    //  (CLIENT_NAME, COMPANY_NAME, COMPANY_ADDRESS, DESIGN_STAGE) were removed;
+    //  those labels now bind directly to PRJ_ORG_* on ProjectInformation.
     //  Binding lives in CATEGORY_BINDINGS.csv (Generic Models + Project Information)
     //  so a one-time LoadSharedParams run makes the new params addressable.
     //
@@ -149,7 +150,7 @@ namespace StingTools.Docs
                 }
                 return widest > 1.4 ? "B" : "R";
             }
-            catch { return "R"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "R"; }
         }
 
         /// <summary>
@@ -527,7 +528,6 @@ namespace StingTools.Docs
         // a sheet can be handed to a client).
         internal static readonly string[] CriticalFields = new[]
         {
-            "PRJ_TB_CLIENT_NAME_TXT",
             "PRJ_TB_DRAWN_BY_TXT",
             "PRJ_TB_CHECKED_BY_TXT",
             "PRJ_TB_APVD_BY_TXT",
@@ -1303,7 +1303,6 @@ namespace StingTools.Docs
     {
         internal static readonly string[] CriticalFields = new[]
         {
-            "PRJ_TB_CLIENT_NAME_TXT",
             "PRJ_TB_DRAWN_BY_TXT",
             "PRJ_TB_CHECKED_BY_TXT",
             "PRJ_TB_APVD_BY_TXT"

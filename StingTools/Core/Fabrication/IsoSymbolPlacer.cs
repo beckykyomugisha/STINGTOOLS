@@ -147,7 +147,7 @@ namespace StingTools.Core.Fabrication
                         int purged = 0;
                         foreach (var sid in stampedIds)
                         {
-                            try { doc.Delete(sid); purged++; } catch { }
+                            try { doc.Delete(sid); purged++; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                         result.SymbolsReplaced += purged;
                         existingByMember.Clear();
@@ -221,49 +221,30 @@ namespace StingTools.Core.Fabrication
             try
             {
                 if (!fs.IsActive) { fs.Activate(); doc.Regenerate(); }
+                XYZ point = (member.Location as LocationPoint)?.Point
+                         ?? (member.Location as LocationCurve)?.Curve?.GetEndPoint(0)
+                         ?? XYZ.Zero;
+                var inst = doc.Create.NewFamilyInstance(point, fs, view);
 
-                XYZ worldPoint = ResolveWorldAnchor(r.Member);
-                if (worldPoint == null) return false;
-                UV anchorUv = ProjectToViewPlane(view, worldPoint);
-
-                // 8-quadrant collision avoidance.
-                UV pickedUv = anchorUv;
-                bool displaced = false;
-                if (Overlaps(occupied, anchorUv, stepFt))
+                // Phase 4 #15 — scale-aware sizing. Detail symbols are
+                // drawn at paper-space size; if the family exposes a
+                // "Symbol Scale" instance parameter we set it to match
+                // the host view's current scale so a 1:50 spool and a
+                // 1:25 detail both show symbols at the same plotted mm.
+                try
                 {
-                    var fallback = TryFallbackPositions(anchorUv, occupied, stepFt);
-                    if (fallback != null)
+                    int vs = (view?.Scale ?? 50);
+                    var p = inst?.LookupParameter("Symbol Scale");
+                    if (p != null && !p.IsReadOnly)
                     {
-                        pickedUv = fallback;
-                        displaced = true;
+                        if (p.StorageType == StorageType.Double)      p.Set((double)vs);
+                        else if (p.StorageType == StorageType.Integer) p.Set(vs);
                     }
+                    var pAss = inst?.LookupParameter("STING_ISO_SYMBOL_SCALE_IN");
+                    if (pAss != null && !pAss.IsReadOnly && pAss.StorageType == StorageType.Double)
+                        pAss.Set((double)vs);
                 }
-                XYZ placePoint = UvToXyz(view, pickedUv);
-
-                var inst = doc.Create.NewFamilyInstance(placePoint, fs, view);
-                if (inst == null) return false;
-                occupied.Add(pickedUv);
-
-                // Rotation — align to member's primary axis projected onto view.
-                ApplyRotation(doc, view, inst, r.Member, placePoint);
-
-                // Scale param — preserve baked-in family default; only override
-                // when the family is at the template default of 1.0 / 0 / unset.
-                ApplySymbolScale(inst, view);
-
-                // Stamps — for idempotency + undo + audit.
-                StampInstance(inst, assemblyId, r);
-
-                // Track for undo.
-                if (result?.SymbolIds != null) result.SymbolIds.Add(inst.Id);
-
-                // P5: leader from displaced symbol to anchor. Skip when the
-                // symbol sits over the member (no displacement) — the
-                // overlay is its own visual cue per ISO 6412.
-                if (displaced)
-                {
-                    TryPlaceLeader(doc, view, anchorUv, pickedUv, stepFt, assemblyId, r, result);
-                }
+                catch (Exception sx) { StingLog.Warn($"IsoSymbolPlacer scale: {sx.Message}"); }
                 return true;
             }
             catch (Exception ex)
@@ -289,10 +270,10 @@ namespace StingTools.Core.Fabrication
                 if (lc?.Curve != null)
                 {
                     try { return lc.Curve.Evaluate(0.5, true); }
-                    catch { return lc.Curve.GetEndPoint(0); }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return lc.Curve.GetEndPoint(0); }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 
@@ -310,7 +291,7 @@ namespace StingTools.Core.Fabrication
                 XYZ delta  = world - origin;
                 return new UV(delta.DotProduct(right), delta.DotProduct(up));
             }
-            catch { return new UV(0, 0); }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return new UV(0, 0); }
         }
 
         private static XYZ UvToXyz(View view, UV uv)
@@ -469,7 +450,7 @@ namespace StingTools.Core.Fabrication
                         return (last - first).Normalize();
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 
@@ -595,7 +576,7 @@ namespace StingTools.Core.Fabrication
                 famName = (fi?.Symbol?.FamilyName ?? "").ToUpperInvariant();
                 symName = (fi?.Symbol?.Name ?? "").ToUpperInvariant();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             string haystack = $"{memberName} {famName} {symName}";
             // Normalise non-alphanumeric to underscore so token matching
@@ -714,7 +695,7 @@ namespace StingTools.Core.Fabrication
 
             if (_missingFamiliesLogged.Add(famName))
                 StingLog.Warn($"IsoSymbolPlacer: family not found -> {famName}");
-            try { result?.MissingFamilies?.Add(famName); } catch { }
+            try { result?.MissingFamilies?.Add(famName); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 
@@ -829,19 +810,19 @@ namespace StingTools.Core.Fabrication
             {
                 if (firstWrite)
                 {
-                    try { Core.Branding.BrandTokens.StampCsvHeader(w, doc, "iso_symbols_audit"); } catch { }
+                    try { Core.Branding.BrandTokens.StampCsvHeader(w, doc, "iso_symbols_audit"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     w.WriteLine("assembly_id,assembly_name,view_id,view_name,member_id,member_category,member_name,family_name,symbol_code,family_file,resolved");
                 }
                 string assyName = "";
-                try { assyName = (doc.GetElement(ai.GetTypeId()) as AssemblyType)?.Name ?? ""; } catch { }
+                try { assyName = (doc.GetElement(ai.GetTypeId()) as AssemblyType)?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 string viewName = "";
-                try { viewName = view?.Name ?? ""; } catch { }
+                try { viewName = view?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 foreach (var r in resolutions)
                 {
                     string memCat = (r.Member?.Category?.Name ?? "").Replace(',', ';');
                     string memNm  = (r.Member?.Name ?? "").Replace(',', ';');
                     string famNm  = "";
-                    try { famNm = ((r.Member as FamilyInstance)?.Symbol?.FamilyName ?? "").Replace(',', ';'); } catch { }
+                    try { famNm = ((r.Member as FamilyInstance)?.Symbol?.FamilyName ?? "").Replace(',', ';'); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     string code   = (r.Entry?.SymbolCode  ?? "").Replace(',', ';');
                     string ff     = (r.Entry?.FamilyFile  ?? "").Replace(',', ';');
                     string resolved = r.Entry == null ? "0" : "1";

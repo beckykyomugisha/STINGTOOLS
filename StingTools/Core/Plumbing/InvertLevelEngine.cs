@@ -129,7 +129,7 @@ namespace StingTools.Core.Plumbing
                 if (p.StorageType == StorageType.Double) p.Set(v);
                 else if (p.StorageType == StorageType.String) p.Set(v.ToString("F3"));
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
     }
 }

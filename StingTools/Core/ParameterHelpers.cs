@@ -716,35 +716,6 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Phase 165 — Issue #21. Public alias for <see cref="InvalidateRoomIndex"/>
-        /// so post-batch callers can use the more descriptive name. Ensures the
-        /// next BuildRoomIndex call rebuilds the cache.
-        /// </summary>
-        public static void ForceRefresh() => InvalidateRoomIndex();
-
-        // Phase 165 — Issue #21. During an explicit PopulationContext session
-        // the TTL is bumped further (90s) so 500-element batches can't expire
-        // the cache mid-loop. PopulationContext.Build flips this on; the
-        // post-batch ForceRefresh / Invalidate flips it off.
-        private static volatile bool _batchSessionActive;
-        private static readonly TimeSpan _roomCacheBatchTtl = TimeSpan.FromSeconds(90);
-
-        /// <summary>
-        /// Phase 165 — Issue #21. Marks an active batch session so the room
-        /// index uses the longer TTL until <see cref="EndBatchSession"/> is
-        /// called. Idempotent — multiple BeginBatchSession calls without
-        /// matching End calls are safe.
-        /// </summary>
-        public static void BeginBatchSession() { _batchSessionActive = true; }
-
-        /// <summary>End an active batch session and force-refresh the cache.</summary>
-        public static void EndBatchSession()
-        {
-            _batchSessionActive = false;
-            ForceRefresh();
-        }
-
-        /// <summary>
         /// Pre-scan all rooms in the project and build a lookup by ElementId.
         /// Cached per-document with a 30-second TTL; use
         /// <see cref="InvalidateRoomIndex"/> to force a rebuild.
@@ -752,21 +723,15 @@ namespace StingTools.Core
         public static Dictionary<ElementId, Room> BuildRoomIndex(Document doc)
         {
             string key = doc?.PathName ?? doc?.Title ?? "";
-            // Phase 165 — Issue #21. Pick TTL based on whether a batch session
-            // is active. Outside a batch: 30 s (covers back-to-back commands).
-            // Inside a batch: 90 s so 500-element loops never expire mid-pass.
-            TimeSpan ttl = _batchSessionActive ? _roomCacheBatchTtl : _roomCacheTtl;
             lock (_roomCacheLock)
             {
                 if (_roomCacheIndex != null
                     && string.Equals(_roomCacheDocKey, key, StringComparison.Ordinal)
-                    && (DateTime.UtcNow - _roomCacheStamp) < ttl)
+                    && (DateTime.UtcNow - _roomCacheStamp) < _roomCacheTtl)
                 {
-                    StingLog.RecordHit(StingLog.CacheKind.RoomIndex); // E-1
                     return _roomCacheIndex;
                 }
             }
-            StingLog.RecordMiss(StingLog.CacheKind.RoomIndex); // E-1
 
             var index = new Dictionary<ElementId, Room>();
             try

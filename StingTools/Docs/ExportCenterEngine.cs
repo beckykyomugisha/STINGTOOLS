@@ -251,8 +251,8 @@ namespace StingTools.Docs
             t["ProjectCode"]   = ReadProjectInfo(pi, "PRJ_PROJECT_COD_TXT") ?? pi?.Number ?? "";
             t["Originator"]    = ReadProjectInfo(pi, "PRJ_ORG_ORIGINATOR_CODE_TXT") ?? "";
             t["OriginatorCode"]= t["Originator"];
-            t["CompanyName"]   = ReadProjectInfo(pi, "PRJ_ORG_COMPANY_NAME_TXT") ?? "";
-            t["ClientName"]    = ReadProjectInfo(pi, "PRJ_ORG_CLIENT_NAME_TXT") ?? pi?.ClientName ?? "";
+            t["CompanyName"]   = ReadProjectInfo(pi, ParamRegistry.ORG_COMPANY_NAME) ?? "";
+            t["ClientName"]    = ReadProjectInfo(pi, ParamRegistry.ORG_CLIENT_NAME) ?? pi?.ClientName ?? "";
 
             if (view is ViewSheet sheet)
             {
@@ -297,7 +297,7 @@ namespace StingTools.Docs
                 if (p == null || !p.HasValue) return null;
                 return p.AsString();
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static string ReadParam(Element el, string name)
@@ -309,7 +309,7 @@ namespace StingTools.Docs
                 if (p == null || !p.HasValue) return null;
                 return p.StorageType == StorageType.String ? p.AsString() : p.AsValueString();
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static (string rev, string date) GetCurrentRevision(Document doc, ViewSheet sheet)
@@ -322,7 +322,7 @@ namespace StingTools.Docs
                 if (doc.GetElement(lastId) is Revision r)
                     return (r.SequenceNumber.ToString(), r.RevisionDate);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return (null, null);
         }
 
@@ -816,7 +816,7 @@ namespace StingTools.Docs
                     profile.Dwg.ExportSetupName != "<in-session>")
                     opts = DWGExportOptions.GetPredefinedOptions(doc, profile.Dwg.ExportSetupName);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             opts ??= new DWGExportOptions();
             opts.MergedViews = profile.Dwg.OutputMode == DwgOutputMode.ModelSpaceOnly;
             opts.FileVersion = MapDwgVersion(profile.Dwg.DwgVersion);
@@ -900,7 +900,7 @@ namespace StingTools.Docs
                     row.OutputPath = merged;
                     row.FileSizeBytes = new FileInfo(merged).Length;
                     row.Success = true;
-                    try { Directory.Delete(temp, true); } catch { }
+                    try { Directory.Delete(temp, true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
                 else
                 {
@@ -919,7 +919,7 @@ namespace StingTools.Docs
                             $"{Path.GetDirectoryName(manifest)}");
                         row.OutputPath = manifest;
                         row.Success = true;
-                        try { Directory.Delete(temp, true); } catch { }
+                        try { Directory.Delete(temp, true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     }
                     else if (profile.Dwg.FallbackOnMergeFailure)
                     {

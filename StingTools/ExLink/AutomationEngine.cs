@@ -414,7 +414,7 @@ namespace StingTools.ExLink
                     .Any(vp => vp.ViewId == v.Id);
                 return vps;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
     }
 

@@ -1,0 +1,1577 @@
+{
+  "version": "2.0",
+  "description": "ArchiCAD IFC → Revit element and property mapping for STING ArchiCAD Import",
+  "quantity_set_warning": "This file contains quantity_set mappings (pset_name starting with Qto_ or BaseQuantities). These require the ArchiCAD IFC translator to have 'Export Quantity Sets' enabled. Without this setting, quantity and cost data will not be available.",
+  "type_mappings": [
+    {
+      "ifc_type": "IFCWALL",
+      "predefined_type": "",
+      "revit_category": "OST_Walls",
+      "revit_family_hint": "",
+      "use_direct_shape": false,
+      "notes": "Standard wall"
+    },
+    {
+      "ifc_type": "IFCWALLSTANDARDCASE",
+      "predefined_type": "",
+      "revit_category": "OST_Walls",
+      "revit_family_hint": "",
+      "use_direct_shape": false,
+      "notes": "Parametric wall"
+    },
+    {
+      "ifc_type": "IFCSLAB",
+      "predefined_type": "FLOOR",
+      "revit_category": "OST_Floors",
+      "revit_family_hint": "",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCSLAB",
+      "predefined_type": "ROOF",
+      "revit_category": "OST_Roofs",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCSLAB",
+      "predefined_type": "CEILING",
+      "revit_category": "OST_Ceilings",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCSLAB",
+      "predefined_type": "BASESLAB",
+      "revit_category": "OST_Floors",
+      "revit_family_hint": "",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCSLAB",
+      "predefined_type": "",
+      "revit_category": "OST_Floors",
+      "revit_family_hint": "",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCCOLUMN",
+      "predefined_type": "",
+      "revit_category": "OST_StructuralColumns",
+      "revit_family_hint": "Column",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCBEAM",
+      "predefined_type": "",
+      "revit_category": "OST_StructuralFraming",
+      "revit_family_hint": "Beam",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCMEMBER",
+      "predefined_type": "BEAM",
+      "revit_category": "OST_StructuralFraming",
+      "revit_family_hint": "Beam",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCMEMBER",
+      "predefined_type": "COLUMN",
+      "revit_category": "OST_StructuralColumns",
+      "revit_family_hint": "Column",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCMEMBER",
+      "predefined_type": "",
+      "revit_category": "OST_StructuralFraming",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCDOOR",
+      "predefined_type": "",
+      "revit_category": "OST_Doors",
+      "revit_family_hint": "Single-Flush",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCWINDOW",
+      "predefined_type": "",
+      "revit_category": "OST_Windows",
+      "revit_family_hint": "Fixed",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCROOF",
+      "predefined_type": "",
+      "revit_category": "OST_Roofs",
+      "revit_family_hint": "",
+      "use_direct_shape": true,
+      "notes": "ArchiCAD roofs have complex geometry — DirectShape preserves it perfectly"
+    },
+    {
+      "ifc_type": "IFCSPACE",
+      "predefined_type": "",
+      "revit_category": "OST_Rooms",
+      "revit_family_hint": "",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCCOVERING",
+      "predefined_type": "CEILING",
+      "revit_category": "OST_Ceilings",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCCOVERING",
+      "predefined_type": "FLOORING",
+      "revit_category": "OST_Floors",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCCOVERING",
+      "predefined_type": "",
+      "revit_category": "OST_GenericModel",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCRAILING",
+      "predefined_type": "",
+      "revit_category": "OST_StairsRailing",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCSTAIR",
+      "predefined_type": "",
+      "revit_category": "OST_Stairs",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCSTAIRFLIGHT",
+      "predefined_type": "",
+      "revit_category": "OST_Stairs",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCRAMP",
+      "predefined_type": "",
+      "revit_category": "OST_Ramps",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCPLATE",
+      "predefined_type": "",
+      "revit_category": "OST_StructuralFraming",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCFOOTING",
+      "predefined_type": "",
+      "revit_category": "OST_StructuralFoundation",
+      "revit_family_hint": "",
+      "use_direct_shape": false
+    },
+    {
+      "ifc_type": "IFCPILE",
+      "predefined_type": "",
+      "revit_category": "OST_StructuralFoundation",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCREINFORCINGBAR",
+      "predefined_type": "",
+      "revit_category": "OST_Rebar",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCFURNISHINGELEMENT",
+      "predefined_type": "",
+      "revit_category": "OST_Furniture",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCOPENINGELEMENT",
+      "predefined_type": "",
+      "revit_category": "OST_GenericModel",
+      "revit_family_hint": "",
+      "use_direct_shape": true,
+      "notes": "Openings are embedded in walls — DirectShape marks location"
+    },
+    {
+      "ifc_type": "IFCFLOWSEGMENT",
+      "predefined_type": "",
+      "revit_category": "OST_DuctCurves",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCFLOWTERMINAL",
+      "predefined_type": "",
+      "revit_category": "OST_MechanicalEquipment",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCFLOWFITTING",
+      "predefined_type": "",
+      "revit_category": "OST_DuctFitting",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCFLOWMOVINGDEVICE",
+      "predefined_type": "",
+      "revit_category": "OST_MechanicalEquipment",
+      "revit_family_hint": "",
+      "use_direct_shape": true
+    },
+    {
+      "ifc_type": "IFCZONE",
+      "predefined_type": "",
+      "revit_category": "OST_Rooms",
+      "revit_family_hint": "",
+      "use_direct_shape": false,
+      "notes": "ArchiCAD zones map to Revit rooms"
+    },
+    {
+      "ifc_type": "IFCBUILDING",
+      "predefined_type": "",
+      "revit_category": "OST_ProjectInformation",
+      "revit_family_hint": "",
+      "use_direct_shape": false,
+      "notes": "Building-level properties map to ProjectInformation"
+    },
+    {
+      "ifc_type": "IFCBUILDINGSTOREY",
+      "predefined_type": "",
+      "revit_category": "OST_Levels",
+      "revit_family_hint": "",
+      "use_direct_shape": false,
+      "notes": "Storeys map to Revit levels"
+    }
+  ],
+  "property_mappings": [
+    {
+      "pset_name": "Pset_WallCommon",
+      "property_name": "Reference",
+      "sting_param": "ASS_PRODCT_COD_TXT",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "Wall type reference/mark"
+    },
+    {
+      "pset_name": "Pset_SlabCommon",
+      "property_name": "Reference",
+      "sting_param": "ASS_PRODCT_COD_TXT",
+      "element_types": ["IFCSLAB"],
+      "notes": "Slab type reference/mark"
+    },
+    {
+      "pset_name": "Pset_DoorCommon",
+      "property_name": "Reference",
+      "sting_param": "ASS_PRODCT_COD_TXT",
+      "element_types": ["IFCDOOR"],
+      "notes": "Door type reference/mark"
+    },
+    {
+      "pset_name": "Pset_WindowCommon",
+      "property_name": "Reference",
+      "sting_param": "ASS_PRODCT_COD_TXT",
+      "element_types": ["IFCWINDOW"],
+      "notes": "Window type reference/mark"
+    },
+    {
+      "pset_name": "Pset_ColumnCommon",
+      "property_name": "Reference",
+      "sting_param": "ASS_PRODCT_COD_TXT",
+      "element_types": ["IFCCOLUMN"],
+      "notes": "Column type reference/mark"
+    },
+    {
+      "pset_name": "Pset_BeamCommon",
+      "property_name": "Reference",
+      "sting_param": "ASS_PRODCT_COD_TXT",
+      "element_types": ["IFCBEAM"],
+      "notes": "Beam type reference/mark"
+    },
+    {
+      "pset_name": "Pset_CoveringCommon",
+      "property_name": "Reference",
+      "sting_param": "ASS_PRODCT_COD_TXT",
+      "element_types": ["IFCCOVERING"],
+      "notes": "Covering type reference/mark"
+    },
+    {
+      "pset_name": "Pset_RoofCommon",
+      "property_name": "Reference",
+      "sting_param": "ASS_PRODCT_COD_TXT",
+      "element_types": ["IFCROOF"],
+      "notes": "Roof type reference/mark"
+    },
+    {
+      "pset_name": "Pset_StairCommon",
+      "property_name": "Reference",
+      "sting_param": "ASS_PRODCT_COD_TXT",
+      "element_types": ["IFCSTAIR"],
+      "notes": "Stair type reference/mark"
+    },
+    {
+      "pset_name": "Pset_RampCommon",
+      "property_name": "Reference",
+      "sting_param": "ASS_PRODCT_COD_TXT",
+      "element_types": ["IFCRAMP"],
+      "notes": "Ramp type reference/mark"
+    },
+    {
+      "pset_name": "Pset_MemberCommon",
+      "property_name": "Reference",
+      "sting_param": "ASS_PRODCT_COD_TXT",
+      "element_types": ["IFCMEMBER"],
+      "notes": "Member type reference/mark"
+    },
+    {
+      "pset_name": "Pset_WallCommon",
+      "property_name": "FireRating",
+      "sting_param": "STING_FIRE_RATING_TXT",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "Wall fire rating"
+    },
+    {
+      "pset_name": "Pset_SlabCommon",
+      "property_name": "FireRating",
+      "sting_param": "STING_FIRE_RATING_TXT",
+      "element_types": ["IFCSLAB"],
+      "notes": "Slab fire rating"
+    },
+    {
+      "pset_name": "Pset_DoorCommon",
+      "property_name": "FireRating",
+      "sting_param": "STING_FIRE_RATING_TXT",
+      "element_types": ["IFCDOOR"],
+      "notes": "Door fire rating"
+    },
+    {
+      "pset_name": "Pset_WindowCommon",
+      "property_name": "FireRating",
+      "sting_param": "STING_FIRE_RATING_TXT",
+      "element_types": ["IFCWINDOW"],
+      "notes": "Window fire rating"
+    },
+    {
+      "pset_name": "Pset_ColumnCommon",
+      "property_name": "FireRating",
+      "sting_param": "STING_FIRE_RATING_TXT",
+      "element_types": ["IFCCOLUMN"],
+      "notes": "Column fire rating"
+    },
+    {
+      "pset_name": "Pset_BeamCommon",
+      "property_name": "FireRating",
+      "sting_param": "STING_FIRE_RATING_TXT",
+      "element_types": ["IFCBEAM"],
+      "notes": "Beam fire rating"
+    },
+    {
+      "pset_name": "Pset_CoveringCommon",
+      "property_name": "FireRating",
+      "sting_param": "STING_FIRE_RATING_TXT",
+      "element_types": ["IFCCOVERING"],
+      "notes": "Covering fire rating"
+    },
+    {
+      "pset_name": "Pset_RoofCommon",
+      "property_name": "FireRating",
+      "sting_param": "STING_FIRE_RATING_TXT",
+      "element_types": ["IFCROOF"],
+      "notes": "Roof fire rating"
+    },
+    {
+      "pset_name": "Pset_StairCommon",
+      "property_name": "FireRating",
+      "sting_param": "STING_FIRE_RATING_TXT",
+      "element_types": ["IFCSTAIR"],
+      "notes": "Stair fire rating"
+    },
+    {
+      "pset_name": "Pset_MemberCommon",
+      "property_name": "FireRating",
+      "sting_param": "STING_FIRE_RATING_TXT",
+      "element_types": ["IFCMEMBER"],
+      "notes": "Member fire rating"
+    },
+    {
+      "pset_name": "Pset_WallCommon",
+      "property_name": "ThermalTransmittance",
+      "sting_param": "PER_U_VALUE_W_M",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "Wall U-value W/m²K"
+    },
+    {
+      "pset_name": "Pset_SlabCommon",
+      "property_name": "ThermalTransmittance",
+      "sting_param": "PER_U_VALUE_W_M",
+      "element_types": ["IFCSLAB"],
+      "notes": "Slab U-value"
+    },
+    {
+      "pset_name": "Pset_WindowCommon",
+      "property_name": "ThermalTransmittance",
+      "sting_param": "PER_U_VALUE_W_M",
+      "element_types": ["IFCWINDOW"],
+      "notes": "Window U-value"
+    },
+    {
+      "pset_name": "Pset_DoorCommon",
+      "property_name": "ThermalTransmittance",
+      "sting_param": "PER_U_VALUE_W_M",
+      "element_types": ["IFCDOOR"],
+      "notes": "Door U-value"
+    },
+    {
+      "pset_name": "Pset_RoofCommon",
+      "property_name": "ThermalTransmittance",
+      "sting_param": "PER_U_VALUE_W_M",
+      "element_types": ["IFCROOF"],
+      "notes": "Roof U-value"
+    },
+    {
+      "pset_name": "Pset_BeamCommon",
+      "property_name": "ThermalTransmittance",
+      "sting_param": "PER_U_VALUE_W_M",
+      "element_types": ["IFCBEAM"],
+      "notes": "Beam U-value (insulated beams)"
+    },
+    {
+      "pset_name": "Pset_SpaceCommon",
+      "property_name": "Reference",
+      "sting_param": "ASS_ZONE_TXT",
+      "element_types": ["IFCSPACE"],
+      "notes": "Room number"
+    },
+    {
+      "pset_name": "Pset_SpaceCommon",
+      "property_name": "Category",
+      "sting_param": "ASS_FUNC_TXT",
+      "element_types": ["IFCSPACE"],
+      "notes": "Room category / function"
+    },
+    {
+      "pset_name": "Pset_SpaceCommon",
+      "property_name": "OccupancyType",
+      "sting_param": "ASS_FUNC_TXT",
+      "element_types": ["IFCSPACE"],
+      "notes": "Room occupancy type (fallback to ASS_FUNC_TXT)"
+    },
+    {
+      "pset_name": "Pset_SpaceCommon",
+      "property_name": "NetPlannedArea",
+      "sting_param": "QTO_NET_FLOOR_AREA_M2",
+      "element_types": ["IFCSPACE"],
+      "notes": "Room net area m²"
+    },
+    {
+      "pset_name": "Pset_SpaceCommon",
+      "property_name": "GrossPlannedArea",
+      "sting_param": "SPC_GROSS_AREA_M2",
+      "element_types": ["IFCSPACE"],
+      "notes": "Room gross area m²"
+    },
+    {
+      "pset_name": "Pset_SpaceCommon",
+      "property_name": "CeilingHeight",
+      "sting_param": "SPC_CEILING_HEIGHT_M",
+      "element_types": ["IFCSPACE"],
+      "notes": "Room ceiling height m"
+    },
+    {
+      "pset_name": "Pset_SpaceCommon",
+      "property_name": "FinishFloor",
+      "sting_param": "SPC_FINISH_FLOOR_TXT",
+      "element_types": ["IFCSPACE"],
+      "notes": "Room floor finish"
+    },
+    {
+      "pset_name": "Pset_SpaceCommon",
+      "property_name": "FinishCeiling",
+      "sting_param": "SPC_FINISH_CEILING_TXT",
+      "element_types": ["IFCSPACE"],
+      "notes": "Room ceiling finish"
+    },
+    {
+      "pset_name": "Pset_SpaceCommon",
+      "property_name": "FinishWalls",
+      "sting_param": "SPC_FINISH_WALLS_TXT",
+      "element_types": ["IFCSPACE"],
+      "notes": "Room wall finish"
+    },
+    {
+      "pset_name": "Pset_SpaceCommon",
+      "property_name": "HandicapAccessible",
+      "sting_param": "PER_HANDICAP_ACCESS_BOOL",
+      "element_types": ["IFCSPACE"],
+      "notes": "Space accessibility"
+    },
+    {
+      "pset_name": "Pset_SpaceCommon",
+      "property_name": "PubliclyAccessible",
+      "sting_param": "SPC_PUBLIC_ACCESSIBLE_BOOL",
+      "element_types": ["IFCSPACE"],
+      "notes": "Space is publicly accessible"
+    },
+    {
+      "pset_name": "Pset_SpaceCommon",
+      "property_name": "AirExchangeRate",
+      "sting_param": "PER_AIR_EXCHANGE_RATE_NR",
+      "element_types": ["IFCSPACE"],
+      "notes": "Room air change rate ACH"
+    },
+    {
+      "pset_name": "Pset_SpaceCommon",
+      "property_name": "MinimumHeadroom",
+      "sting_param": "SPC_MIN_HEADROOM_M",
+      "element_types": ["IFCSPACE"],
+      "notes": "Minimum headroom m"
+    },
+    {
+      "pset_name": "Pset_WallCommon",
+      "property_name": "LoadBearing",
+      "sting_param": "PER_LOAD_BEARING_BOOL",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "Wall load bearing"
+    },
+    {
+      "pset_name": "Pset_ColumnCommon",
+      "property_name": "LoadBearing",
+      "sting_param": "PER_LOAD_BEARING_BOOL",
+      "element_types": ["IFCCOLUMN"],
+      "notes": "Column load bearing"
+    },
+    {
+      "pset_name": "Pset_BeamCommon",
+      "property_name": "LoadBearing",
+      "sting_param": "PER_LOAD_BEARING_BOOL",
+      "element_types": ["IFCBEAM"],
+      "notes": "Beam load bearing"
+    },
+    {
+      "pset_name": "Pset_WallCommon",
+      "property_name": "IsExternal",
+      "sting_param": "PER_IS_EXTERNAL_BOOL",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "Wall is external"
+    },
+    {
+      "pset_name": "Pset_SlabCommon",
+      "property_name": "IsExternal",
+      "sting_param": "PER_IS_EXTERNAL_BOOL",
+      "element_types": ["IFCSLAB"],
+      "notes": "Slab is external"
+    },
+    {
+      "pset_name": "Pset_WallCommon",
+      "property_name": "Compartmentation",
+      "sting_param": "PER_COMPARTMENT_BOOL",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "Wall is fire compartment boundary"
+    },
+    {
+      "pset_name": "Pset_WallCommon",
+      "property_name": "Combustible",
+      "sting_param": "PER_COMBUSTIBLE_BOOL",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "Wall is combustible"
+    },
+    {
+      "pset_name": "Pset_WallCommon",
+      "property_name": "SurfaceSpreadOfFlame",
+      "sting_param": "PER_SURFACE_SPREAD_TXT",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "Surface spread of flame class"
+    },
+    {
+      "pset_name": "Pset_DoorCommon",
+      "property_name": "SelfClosing",
+      "sting_param": "PER_SELF_CLOSING_BOOL",
+      "element_types": ["IFCDOOR"],
+      "notes": "Door self-closing device"
+    },
+    {
+      "pset_name": "Pset_DoorCommon",
+      "property_name": "SmokeStop",
+      "sting_param": "PER_SMOKE_STOP_BOOL",
+      "element_types": ["IFCDOOR"],
+      "notes": "Door smoke-sealed"
+    },
+    {
+      "pset_name": "Pset_DoorCommon",
+      "property_name": "HandicapAccessible",
+      "sting_param": "PER_HANDICAP_ACCESS_BOOL",
+      "element_types": ["IFCDOOR"],
+      "notes": "Door Part M / ADA accessible"
+    },
+    {
+      "pset_name": "Pset_DoorCommon",
+      "property_name": "SecurityRating",
+      "sting_param": "PER_SECURITY_RATING_TXT",
+      "element_types": ["IFCDOOR"],
+      "notes": "Door security rating RC / PAS 24"
+    },
+    {
+      "pset_name": "Pset_WindowCommon",
+      "property_name": "SecurityRating",
+      "sting_param": "PER_SECURITY_RATING_TXT",
+      "element_types": ["IFCWINDOW"],
+      "notes": "Window security rating"
+    },
+    {
+      "pset_name": "Pset_WindowCommon",
+      "property_name": "SolarHeatGainCoefficientGlazing",
+      "sting_param": "PER_SOLAR_GAIN_NR",
+      "element_types": ["IFCWINDOW"],
+      "notes": "Window solar heat gain coefficient g-value"
+    },
+    {
+      "pset_name": "Pset_WindowCommon",
+      "property_name": "FrameMaterial",
+      "sting_param": "PER_FRAME_MATERIAL_TXT",
+      "element_types": ["IFCWINDOW"],
+      "notes": "Window frame material"
+    },
+    {
+      "pset_name": "Pset_SlabCommon",
+      "property_name": "PitchAngle",
+      "sting_param": "PER_PITCH_ANGLE_DEG",
+      "element_types": ["IFCSLAB"],
+      "notes": "Slab pitch angle degrees"
+    },
+    {
+      "pset_name": "Pset_RoofCommon",
+      "property_name": "PitchAngle",
+      "sting_param": "PER_PITCH_ANGLE_DEG",
+      "element_types": ["IFCROOF"],
+      "notes": "Roof pitch angle degrees"
+    },
+    {
+      "pset_name": "Pset_WallCommon",
+      "property_name": "AcousticRating",
+      "sting_param": "PER_ACOUSTIC_RATING_TXT",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "Wall acoustic rating Rw dB"
+    },
+    {
+      "pset_name": "Pset_DoorCommon",
+      "property_name": "AcousticRating",
+      "sting_param": "PER_ACOUSTIC_RATING_TXT",
+      "element_types": ["IFCDOOR"],
+      "notes": "Door acoustic rating Rw dB"
+    },
+    {
+      "pset_name": "Pset_WindowCommon",
+      "property_name": "AcousticRating",
+      "sting_param": "PER_ACOUSTIC_RATING_TXT",
+      "element_types": ["IFCWINDOW"],
+      "notes": "Window acoustic rating Rw dB"
+    },
+    {
+      "pset_name": "AC_Pset_RenovationInfo",
+      "property_name": "RenovationStatus",
+      "sting_param": "RNV_STATUS_TXT",
+      "element_types": [],
+      "notes": "Authoritative renovation status — preferred over ArchiCAD_PropertyGroup_General fallback"
+    },
+    {
+      "pset_name": "AC_Pset_RenovationInfo",
+      "property_name": "IsExistingToRemain",
+      "sting_param": "RNV_IS_EXISTING_BOOL",
+      "element_types": [],
+      "notes": "Element is existing to remain"
+    },
+    {
+      "pset_name": "AC_Pset_RenovationInfo",
+      "property_name": "DemolitionSequenceCode",
+      "sting_param": "RNV_DEMOLITION_SEQ_TXT",
+      "element_types": [],
+      "notes": "Demolition sequence code"
+    },
+    {
+      "pset_name": "AC_Pset_RenovationInfo",
+      "property_name": "NewConstructionSequenceCode",
+      "sting_param": "RNV_NEW_CONST_SEQ_TXT",
+      "element_types": [],
+      "notes": "New construction sequence identifier"
+    },
+    {
+      "pset_name": "AC_Pset_RenovationInfo",
+      "property_name": "DemolitionContractor",
+      "sting_param": "RNV_CONTRACTOR_TXT",
+      "element_types": [],
+      "notes": "Demolition contractor name"
+    },
+    {
+      "pset_name": "ArchiCAD_PropertyGroup_General",
+      "property_name": "Renovation Status",
+      "sting_param": "ASS_STATUS_TXT",
+      "element_types": [],
+      "notes": "Fallback renovation status (kept for backward compat); prefer AC_Pset_RenovationInfo"
+    },
+    {
+      "pset_name": "AC_Pset_ElementID",
+      "property_name": "ID",
+      "sting_param": "AC_ELEMENT_ID_TXT",
+      "element_types": [],
+      "notes": "ArchiCAD internal element GUID — distinct from IFC GlobalId"
+    },
+    {
+      "pset_name": "AC_Pset_ElementID",
+      "property_name": "Hotlink_ID",
+      "sting_param": "AC_HOTLINK_ID_TXT",
+      "element_types": [],
+      "notes": "Originating hotlink module GUID"
+    },
+    {
+      "pset_name": "AC_Pset_ElementID",
+      "property_name": "Hotlink_SourceFile",
+      "sting_param": "AC_HOTLINK_FILE_TXT",
+      "element_types": [],
+      "notes": "Source hotlink .mod file relative path"
+    },
+    {
+      "pset_name": "AC_Pset_ElementID",
+      "property_name": "Revision",
+      "sting_param": "AC_REVISION_TXT",
+      "element_types": [],
+      "notes": "Element-level revision mark"
+    },
+    {
+      "pset_name": "ArchiCAD_PropertyGroup_General",
+      "property_name": "ID",
+      "sting_param": "ASS_SEQ_NUM_TXT",
+      "element_types": [],
+      "notes": "ArchiCAD element ID fallback — prefer AC_Pset_ElementID.ID"
+    },
+    {
+      "pset_name": "ArchiCAD_PropertyGroup_General",
+      "property_name": "Layer",
+      "sting_param": "ASS_LOC_TXT",
+      "element_types": [],
+      "notes": "ArchiCAD layer maps to STING location"
+    },
+    {
+      "pset_name": "AC_Pset_ZoneCategory",
+      "property_name": "ZoneCategoryName",
+      "sting_param": "ZON_CATEGORY_NAME_TXT",
+      "element_types": ["IFCZONE", "IFCSPACE"],
+      "notes": "Zone functional category name"
+    },
+    {
+      "pset_name": "AC_Pset_ZoneCategory",
+      "property_name": "ZoneCategoryCode",
+      "sting_param": "ZON_CATEGORY_CODE_TXT",
+      "element_types": ["IFCZONE", "IFCSPACE"],
+      "notes": "Zone category short code"
+    },
+    {
+      "pset_name": "AC_Pset_ZoneCategory",
+      "property_name": "ZoneNetArea",
+      "sting_param": "ZON_NET_AREA_M2",
+      "element_types": ["IFCZONE", "IFCSPACE"],
+      "notes": "Zone net area m²"
+    },
+    {
+      "pset_name": "AC_Pset_ZoneCategory",
+      "property_name": "ZoneGrossArea",
+      "sting_param": "ZON_GROSS_AREA_M2",
+      "element_types": ["IFCZONE", "IFCSPACE"],
+      "notes": "Zone gross area m²"
+    },
+    {
+      "pset_name": "AC_Pset_ZoneCategory",
+      "property_name": "ZoneVolume",
+      "sting_param": "ZON_VOLUME_M3",
+      "element_types": ["IFCZONE", "IFCSPACE"],
+      "notes": "Zone volume m³"
+    },
+    {
+      "pset_name": "AC_Pset_ZoneCategory",
+      "property_name": "ZoneNumberOfOccupants",
+      "sting_param": "ZON_OCCUPANTS_NR",
+      "element_types": ["IFCZONE", "IFCSPACE"],
+      "notes": "Zone design occupant count"
+    },
+    {
+      "pset_name": "ArchiCAD_PropertyGroup_Classification",
+      "property_name": "Uniclass 2015 Pr",
+      "sting_param": "ASS_UNICLASS_2015_PR_TXT",
+      "element_types": [],
+      "notes": "Uniclass 2015 Product code — separate param from Ss to avoid collision"
+    },
+    {
+      "pset_name": "ArchiCAD_PropertyGroup_Classification",
+      "property_name": "Uniclass 2015 Ss",
+      "sting_param": "ASS_UNICLASS_2015_TXT",
+      "element_types": [],
+      "notes": "Uniclass 2015 System code"
+    },
+    {
+      "pset_name": "ArchiCAD_PropertyGroup_Classification",
+      "property_name": "Uniclass 2015 EF",
+      "sting_param": "CLS_UNICLASS_EF_TXT",
+      "element_types": [],
+      "notes": "Uniclass 2015 Entity Form code"
+    },
+    {
+      "pset_name": "ArchiCAD_PropertyGroup_Classification",
+      "property_name": "OmniClass Number",
+      "sting_param": "CLS_OMNICLASS_NR_TXT",
+      "element_types": [],
+      "notes": "OmniClass number"
+    },
+    {
+      "pset_name": "ArchiCAD_PropertyGroup_Classification",
+      "property_name": "OmniClass Title",
+      "sting_param": "CLS_OMNICLASS_TITLE_TXT",
+      "element_types": [],
+      "notes": "OmniClass title description"
+    },
+    {
+      "pset_name": "ArchiCAD_PropertyGroup_Classification",
+      "property_name": "NBS Code",
+      "sting_param": "RGL_UNBS_STD_TXT",
+      "element_types": [],
+      "notes": "NBS code"
+    },
+    {
+      "pset_name": "ArchiCAD_PropertyGroup_Classification",
+      "property_name": "NBS Description",
+      "sting_param": "CLS_NBS_DESCRIPTION_TXT",
+      "element_types": [],
+      "notes": "NBS code description"
+    },
+    {
+      "pset_name": "ArchiCAD_PropertyGroup_Classification",
+      "property_name": "ETIM Class",
+      "sting_param": "CLS_ETIM_CLASS_TXT",
+      "element_types": [],
+      "notes": "ETIM classification code"
+    },
+    {
+      "pset_name": "ArchiCAD_PropertyGroup_Classification",
+      "property_name": "CSI MasterFormat",
+      "sting_param": "CLS_CSI_MASTERFORMAT_TXT",
+      "element_types": [],
+      "notes": "CSI MasterFormat classification"
+    },
+    {
+      "pset_name": "AC_Pset_ClassificationReference",
+      "property_name": "ClassificationSystem",
+      "sting_param": "CLS_SYSTEM_NAME_TXT",
+      "element_types": [],
+      "notes": "Classification system name"
+    },
+    {
+      "pset_name": "AC_Pset_ClassificationReference",
+      "property_name": "ClassificationEdition",
+      "sting_param": "CLS_EDITION_TXT",
+      "element_types": [],
+      "notes": "Classification edition / version year"
+    },
+    {
+      "pset_name": "AC_Pset_ProfileData",
+      "property_name": "ProfileType",
+      "sting_param": "STR_PROFILE_TYPE_TXT",
+      "element_types": ["IFCBEAM", "IFCCOLUMN", "IFCMEMBER"],
+      "notes": "Structural section profile type"
+    },
+    {
+      "pset_name": "AC_Pset_ProfileData",
+      "property_name": "ProfileName",
+      "sting_param": "STR_PROFILE_NAME_TXT",
+      "element_types": ["IFCBEAM", "IFCCOLUMN", "IFCMEMBER"],
+      "notes": "Section designation e.g. UB 254x102x22"
+    },
+    {
+      "pset_name": "AC_Pset_ProfileData",
+      "property_name": "Depth",
+      "sting_param": "STR_PROFILE_DEPTH_MM",
+      "element_types": ["IFCBEAM", "IFCCOLUMN", "IFCMEMBER"],
+      "notes": "Section overall depth mm"
+    },
+    {
+      "pset_name": "AC_Pset_ProfileData",
+      "property_name": "Width",
+      "sting_param": "STR_PROFILE_WIDTH_MM",
+      "element_types": ["IFCBEAM", "IFCCOLUMN", "IFCMEMBER"],
+      "notes": "Section flange width mm"
+    },
+    {
+      "pset_name": "AC_Pset_ProfileData",
+      "property_name": "CrossSectionArea",
+      "sting_param": "STR_CROSS_SECTION_AREA_MM2",
+      "element_types": ["IFCBEAM", "IFCCOLUMN", "IFCMEMBER"],
+      "notes": "Cross-section area mm²"
+    },
+    {
+      "pset_name": "AC_Pset_ProfileData",
+      "property_name": "MomentOfInertiaY",
+      "sting_param": "STR_MOMENT_INERTIA_Y_CM4",
+      "element_types": ["IFCBEAM", "IFCCOLUMN", "IFCMEMBER"],
+      "notes": "Second moment of area Iy cm⁴"
+    },
+    {
+      "pset_name": "AC_Pset_ProfileData",
+      "property_name": "ElasticSectionModulusY",
+      "sting_param": "STR_SECTION_MOD_Y_CM3",
+      "element_types": ["IFCBEAM", "IFCCOLUMN", "IFCMEMBER"],
+      "notes": "Elastic section modulus Wy cm³"
+    },
+    {
+      "pset_name": "AC_Pset_ProfileData",
+      "property_name": "SurfaceAreaPerLength",
+      "sting_param": "STR_SURFACE_AREA_M2_M",
+      "element_types": ["IFCBEAM", "IFCCOLUMN", "IFCMEMBER"],
+      "notes": "Surface area per unit length m²/m for fire casing"
+    },
+    {
+      "pset_name": "Pset_StairCommon",
+      "property_name": "NumberOfRiser",
+      "sting_param": "STR_RISER_COUNT_NR",
+      "element_types": ["IFCSTAIR", "IFCSTAIRFLIGHT"],
+      "notes": "Stair number of risers"
+    },
+    {
+      "pset_name": "Pset_StairCommon",
+      "property_name": "NumberOfTreads",
+      "sting_param": "STR_TREAD_COUNT_NR",
+      "element_types": ["IFCSTAIR", "IFCSTAIRFLIGHT"],
+      "notes": "Stair number of treads"
+    },
+    {
+      "pset_name": "Pset_StairCommon",
+      "property_name": "RiserHeight",
+      "sting_param": "STR_RISER_HEIGHT_MM",
+      "element_types": ["IFCSTAIR", "IFCSTAIRFLIGHT"],
+      "notes": "Individual riser height mm"
+    },
+    {
+      "pset_name": "Pset_StairCommon",
+      "property_name": "TreadLength",
+      "sting_param": "STR_TREAD_DEPTH_MM",
+      "element_types": ["IFCSTAIR", "IFCSTAIRFLIGHT"],
+      "notes": "Tread going depth mm"
+    },
+    {
+      "pset_name": "Pset_StairCommon",
+      "property_name": "NosingLength",
+      "sting_param": "STR_NOSING_MM",
+      "element_types": ["IFCSTAIR", "IFCSTAIRFLIGHT"],
+      "notes": "Nosing projection mm"
+    },
+    {
+      "pset_name": "Pset_StairCommon",
+      "property_name": "HeadRoom",
+      "sting_param": "SPC_MIN_HEADROOM_M",
+      "element_types": ["IFCSTAIR", "IFCSTAIRFLIGHT"],
+      "notes": "Minimum headroom clearance m"
+    },
+    {
+      "pset_name": "Pset_RampCommon",
+      "property_name": "Slope",
+      "sting_param": "RMP_SLOPE_DEG",
+      "element_types": ["IFCRAMP"],
+      "notes": "Ramp slope gradient degrees"
+    },
+    {
+      "pset_name": "Pset_RampCommon",
+      "property_name": "Width",
+      "sting_param": "RMP_WIDTH_M",
+      "element_types": ["IFCRAMP"],
+      "notes": "Ramp clear width m"
+    },
+    {
+      "pset_name": "Pset_DistributionFlowElementCommon",
+      "property_name": "WorkingPressure",
+      "sting_param": "MEP_WORKING_PRESSURE_PA",
+      "element_types": ["IFCFLOWSEGMENT", "IFCFLOWTERMINAL", "IFCFLOWFITTING", "IFCFLOWMOVINGDEVICE"],
+      "notes": "MEP system working pressure Pa"
+    },
+    {
+      "pset_name": "Pset_DistributionFlowElementCommon",
+      "property_name": "NominalDiameter",
+      "sting_param": "MEP_NOMINAL_DIAMETER_MM",
+      "element_types": ["IFCFLOWSEGMENT", "IFCFLOWTERMINAL", "IFCFLOWFITTING"],
+      "notes": "MEP nominal diameter DN mm"
+    },
+    {
+      "pset_name": "Pset_DistributionFlowElementCommon",
+      "property_name": "DesignFlowRate",
+      "sting_param": "MEP_DESIGN_FLOW_M3S",
+      "element_types": ["IFCFLOWSEGMENT", "IFCFLOWTERMINAL"],
+      "notes": "MEP design flow rate m³/s"
+    },
+    {
+      "pset_name": "Pset_DistributionFlowElementCommon",
+      "property_name": "DesignVelocity",
+      "sting_param": "MEP_DESIGN_VEL_MS",
+      "element_types": ["IFCFLOWSEGMENT"],
+      "notes": "MEP design velocity m/s"
+    },
+    {
+      "pset_name": "Pset_DistributionFlowElementCommon",
+      "property_name": "Insulated",
+      "sting_param": "MEP_INSULATED_BOOL",
+      "element_types": ["IFCFLOWSEGMENT", "IFCFLOWFITTING"],
+      "notes": "MEP element is insulated"
+    },
+    {
+      "pset_name": "Pset_DistributionFlowElementCommon",
+      "property_name": "Material",
+      "sting_param": "MEP_MATERIAL_TXT",
+      "element_types": ["IFCFLOWSEGMENT", "IFCFLOWFITTING"],
+      "notes": "MEP element material"
+    },
+    {
+      "pset_name": "",
+      "property_name": "CostCode",
+      "sting_param": "CST_COST_CODE_TXT",
+      "element_types": [],
+      "notes": "scan_all_psets"
+    },
+    {
+      "pset_name": "",
+      "property_name": "UnitCost",
+      "sting_param": "CST_UNIT_COST_NR",
+      "element_types": [],
+      "notes": "scan_all_psets"
+    },
+    {
+      "pset_name": "",
+      "property_name": "ElementCost",
+      "sting_param": "CST_ELEMENT_COST_NR",
+      "element_types": [],
+      "notes": "scan_all_psets"
+    },
+    {
+      "pset_name": "",
+      "property_name": "TotalCost",
+      "sting_param": "CST_TOTAL_COST_NR",
+      "element_types": [],
+      "notes": "scan_all_psets"
+    },
+    {
+      "pset_name": "",
+      "property_name": "Unit",
+      "sting_param": "CST_UNIT_TXT",
+      "element_types": [],
+      "notes": "scan_all_psets"
+    },
+    {
+      "pset_name": "",
+      "property_name": "CostCategory",
+      "sting_param": "CST_COST_CATEGORY_TXT",
+      "element_types": [],
+      "notes": "scan_all_psets"
+    },
+    {
+      "pset_name": "",
+      "property_name": "TradeName",
+      "sting_param": "CST_TRADE_NAME_TXT",
+      "element_types": [],
+      "notes": "scan_all_psets"
+    },
+    {
+      "pset_name": "",
+      "property_name": "BillOfQuantitiesItem",
+      "sting_param": "CST_BOQ_ITEM_TXT",
+      "element_types": [],
+      "notes": "scan_all_psets"
+    },
+    {
+      "pset_name": "",
+      "property_name": "Cost",
+      "sting_param": "CST_UNIT_COST_NR",
+      "element_types": [],
+      "notes": "scan_all_psets — GDL Cost parameter fallback"
+    },
+    {
+      "pset_name": "",
+      "property_name": "Material_cost",
+      "sting_param": "CST_ELEMENT_COST_NR",
+      "element_types": [],
+      "notes": "scan_all_psets — GDL material cost fallback"
+    },
+    {
+      "pset_name": "Qto_WallBaseQuantities",
+      "property_name": "GrossSideArea",
+      "sting_param": "QTO_GROSS_AREA_M2",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_WallBaseQuantities",
+      "property_name": "NetSideArea",
+      "sting_param": "QTO_NET_AREA_M2",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_WallBaseQuantities",
+      "property_name": "GrossVolume",
+      "sting_param": "QTO_GROSS_VOLUME_M3",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_WallBaseQuantities",
+      "property_name": "NetVolume",
+      "sting_param": "QTO_NET_VOLUME_M3",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_WallBaseQuantities",
+      "property_name": "Length",
+      "sting_param": "QTO_LENGTH_M",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_WallBaseQuantities",
+      "property_name": "Width",
+      "sting_param": "QTO_WIDTH_M",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_WallBaseQuantities",
+      "property_name": "Height",
+      "sting_param": "QTO_HEIGHT_M",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_SlabBaseQuantities",
+      "property_name": "GrossArea",
+      "sting_param": "QTO_GROSS_AREA_M2",
+      "element_types": ["IFCSLAB"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_SlabBaseQuantities",
+      "property_name": "NetArea",
+      "sting_param": "QTO_NET_AREA_M2",
+      "element_types": ["IFCSLAB"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_SlabBaseQuantities",
+      "property_name": "GrossVolume",
+      "sting_param": "QTO_GROSS_VOLUME_M3",
+      "element_types": ["IFCSLAB"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_SlabBaseQuantities",
+      "property_name": "NetVolume",
+      "sting_param": "QTO_NET_VOLUME_M3",
+      "element_types": ["IFCSLAB"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_SlabBaseQuantities",
+      "property_name": "Width",
+      "sting_param": "QTO_WIDTH_M",
+      "element_types": ["IFCSLAB"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_DoorBaseQuantities",
+      "property_name": "Area",
+      "sting_param": "QTO_GROSS_AREA_M2",
+      "element_types": ["IFCDOOR"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_DoorBaseQuantities",
+      "property_name": "Width",
+      "sting_param": "QTO_WIDTH_M",
+      "element_types": ["IFCDOOR"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_DoorBaseQuantities",
+      "property_name": "Height",
+      "sting_param": "QTO_HEIGHT_M",
+      "element_types": ["IFCDOOR"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_DoorBaseQuantities",
+      "property_name": "Perimeter",
+      "sting_param": "QTO_PERIMETER_M",
+      "element_types": ["IFCDOOR"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_WindowBaseQuantities",
+      "property_name": "Area",
+      "sting_param": "QTO_GROSS_AREA_M2",
+      "element_types": ["IFCWINDOW"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_WindowBaseQuantities",
+      "property_name": "GlazingArea",
+      "sting_param": "QTO_GLAZING_AREA_M2",
+      "element_types": ["IFCWINDOW"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_WindowBaseQuantities",
+      "property_name": "Width",
+      "sting_param": "QTO_WIDTH_M",
+      "element_types": ["IFCWINDOW"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_WindowBaseQuantities",
+      "property_name": "Height",
+      "sting_param": "QTO_HEIGHT_M",
+      "element_types": ["IFCWINDOW"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_WindowBaseQuantities",
+      "property_name": "Perimeter",
+      "sting_param": "QTO_PERIMETER_M",
+      "element_types": ["IFCWINDOW"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_SpaceBaseQuantities",
+      "property_name": "NetFloorArea",
+      "sting_param": "QTO_NET_FLOOR_AREA_M2",
+      "element_types": ["IFCSPACE"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_SpaceBaseQuantities",
+      "property_name": "GrossWallArea",
+      "sting_param": "QTO_GROSS_WALL_AREA_M2",
+      "element_types": ["IFCSPACE"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_SpaceBaseQuantities",
+      "property_name": "NetCeilingArea",
+      "sting_param": "QTO_NET_CEILING_AREA_M2",
+      "element_types": ["IFCSPACE"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_SpaceBaseQuantities",
+      "property_name": "NetVolume",
+      "sting_param": "QTO_NET_VOLUME_M3",
+      "element_types": ["IFCSPACE"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_SpaceBaseQuantities",
+      "property_name": "Height",
+      "sting_param": "QTO_HEIGHT_M",
+      "element_types": ["IFCSPACE"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_RoofBaseQuantities",
+      "property_name": "GrossArea",
+      "sting_param": "QTO_GROSS_AREA_M2",
+      "element_types": ["IFCROOF"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_RoofBaseQuantities",
+      "property_name": "NetArea",
+      "sting_param": "QTO_NET_AREA_M2",
+      "element_types": ["IFCROOF"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_RoofBaseQuantities",
+      "property_name": "GrossVolume",
+      "sting_param": "QTO_GROSS_VOLUME_M3",
+      "element_types": ["IFCROOF"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_BeamBaseQuantities",
+      "property_name": "Length",
+      "sting_param": "QTO_LENGTH_M",
+      "element_types": ["IFCBEAM"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_BeamBaseQuantities",
+      "property_name": "GrossVolume",
+      "sting_param": "QTO_GROSS_VOLUME_M3",
+      "element_types": ["IFCBEAM"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_BeamBaseQuantities",
+      "property_name": "NetVolume",
+      "sting_param": "QTO_NET_VOLUME_M3",
+      "element_types": ["IFCBEAM"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_BeamBaseQuantities",
+      "property_name": "Weight",
+      "sting_param": "QTO_WEIGHT_KG",
+      "element_types": ["IFCBEAM"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_BeamBaseQuantities",
+      "property_name": "OuterSurfaceArea",
+      "sting_param": "QTO_GROSS_AREA_M2",
+      "element_types": ["IFCBEAM"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_ColumnBaseQuantities",
+      "property_name": "Length",
+      "sting_param": "QTO_LENGTH_M",
+      "element_types": ["IFCCOLUMN"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_ColumnBaseQuantities",
+      "property_name": "GrossVolume",
+      "sting_param": "QTO_GROSS_VOLUME_M3",
+      "element_types": ["IFCCOLUMN"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_ColumnBaseQuantities",
+      "property_name": "NetVolume",
+      "sting_param": "QTO_NET_VOLUME_M3",
+      "element_types": ["IFCCOLUMN"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_ColumnBaseQuantities",
+      "property_name": "Weight",
+      "sting_param": "QTO_WEIGHT_KG",
+      "element_types": ["IFCCOLUMN"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_CoveringBaseQuantities",
+      "property_name": "Area",
+      "sting_param": "QTO_GROSS_AREA_M2",
+      "element_types": ["IFCCOVERING"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_CoveringBaseQuantities",
+      "property_name": "NetVolume",
+      "sting_param": "QTO_NET_VOLUME_M3",
+      "element_types": ["IFCCOVERING"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_StairBaseQuantities",
+      "property_name": "Length",
+      "sting_param": "QTO_LENGTH_M",
+      "element_types": ["IFCSTAIR"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_StairBaseQuantities",
+      "property_name": "NetVolume",
+      "sting_param": "QTO_NET_VOLUME_M3",
+      "element_types": ["IFCSTAIR"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "BaseQuantities",
+      "property_name": "GrossVolume",
+      "sting_param": "QTO_GROSS_VOLUME_M3",
+      "element_types": [],
+      "notes": "quantity_set: true — IFC 2x3 legacy quantity set name"
+    },
+    {
+      "pset_name": "BaseQuantities",
+      "property_name": "NetVolume",
+      "sting_param": "QTO_NET_VOLUME_M3",
+      "element_types": [],
+      "notes": "quantity_set: true — IFC 2x3 legacy"
+    },
+    {
+      "pset_name": "BaseQuantities",
+      "property_name": "Length",
+      "sting_param": "QTO_LENGTH_M",
+      "element_types": [],
+      "notes": "quantity_set: true — IFC 2x3 legacy"
+    },
+    {
+      "pset_name": "BaseQuantities",
+      "property_name": "GrossArea",
+      "sting_param": "QTO_GROSS_AREA_M2",
+      "element_types": [],
+      "notes": "quantity_set: true — IFC 2x3 legacy"
+    },
+    {
+      "pset_name": "BaseQuantities",
+      "property_name": "NetArea",
+      "sting_param": "QTO_NET_AREA_M2",
+      "element_types": [],
+      "notes": "quantity_set: true — IFC 2x3 legacy"
+    },
+    {
+      "pset_name": "AC_Pset_BuildingCategoryCode",
+      "property_name": "FireCategory",
+      "sting_param": "BLD_FIRE_CLASS_TXT",
+      "element_types": [],
+      "notes": "Building fire occupancy classification"
+    },
+    {
+      "pset_name": "AC_Pset_BuildingCategoryCode",
+      "property_name": "EnergyRatingCertificate",
+      "sting_param": "BLD_EPC_CERT_TXT",
+      "element_types": [],
+      "notes": "EPC / SAP certificate number"
+    },
+    {
+      "pset_name": "AC_Pset_BuildingCategoryCode",
+      "property_name": "EnergyRatingClass",
+      "sting_param": "BLD_EPC_CLASS_TXT",
+      "element_types": [],
+      "notes": "Energy rating class A++ through G"
+    },
+    {
+      "pset_name": "AC_Pset_BuildingCategoryCode",
+      "property_name": "PlanningPermitNumber",
+      "sting_param": "BLD_PLANNING_REF_TXT",
+      "element_types": [],
+      "notes": "Planning permission reference number"
+    },
+    {
+      "pset_name": "Pset_BuildingCommon",
+      "property_name": "YearOfConstruction",
+      "sting_param": "BLD_YEAR_BUILT_TXT",
+      "element_types": [],
+      "notes": "Year of construction"
+    },
+    {
+      "pset_name": "Pset_BuildingCommon",
+      "property_name": "SprinklerProtection",
+      "sting_param": "BLD_SPRINKLERS_BOOL",
+      "element_types": [],
+      "notes": "Building has sprinkler protection"
+    },
+    {
+      "pset_name": "Pset_BuildingCommon",
+      "property_name": "FireProtectionClass",
+      "sting_param": "BLD_FIRE_CLASS_TXT",
+      "element_types": [],
+      "notes": "Building fire protection class"
+    },
+    {
+      "pset_name": "Pset_BuildingStoreyCommon",
+      "property_name": "AboveGround",
+      "sting_param": "BLD_STOREY_ABOVE_GROUND_BOOL",
+      "element_types": ["IFCBUILDINGSTOREY"],
+      "notes": "Storey is above ground level"
+    },
+    {
+      "pset_name": "Pset_BuildingStoreyCommon",
+      "property_name": "LoadBearingCapacity",
+      "sting_param": "BLD_STOREY_IMPOSED_LOAD_NR",
+      "element_types": ["IFCBUILDINGSTOREY"],
+      "notes": "Storey design imposed load kN/m²"
+    },
+    {
+      "pset_name": "ArchiCAD_PropertyGroup_Energy",
+      "property_name": "HeatingLoad",
+      "sting_param": "NRG_HEATING_LOAD_W",
+      "element_types": [],
+      "notes": "Design heating load W"
+    },
+    {
+      "pset_name": "ArchiCAD_PropertyGroup_Energy",
+      "property_name": "CoolingLoad",
+      "sting_param": "NRG_COOLING_LOAD_W",
+      "element_types": [],
+      "notes": "Design cooling load W"
+    },
+    {
+      "pset_name": "ArchiCAD_PropertyGroup_Energy",
+      "property_name": "AnnualHeatingEnergy",
+      "sting_param": "NRG_ANNUAL_HEAT_KWH",
+      "element_types": [],
+      "notes": "Annual heating energy kWh/yr"
+    },
+    {
+      "pset_name": "ArchiCAD_PropertyGroup_Energy",
+      "property_name": "AnnualCoolingEnergy",
+      "sting_param": "NRG_ANNUAL_COOL_KWH",
+      "element_types": [],
+      "notes": "Annual cooling energy kWh/yr"
+    },
+    {
+      "pset_name": "ArchiCAD_PropertyGroup_Energy",
+      "property_name": "AnnualOperatingCost",
+      "sting_param": "NRG_OPERATING_COST_YR",
+      "element_types": [],
+      "notes": "Annual operating energy cost in project currency"
+    },
+    {
+      "pset_name": "ArchiCAD_PropertyGroup_Energy",
+      "property_name": "LifecycleCostEstimate",
+      "sting_param": "NRG_LIFECYCLE_COST_NR",
+      "element_types": [],
+      "notes": "Lifecycle cost estimate NPV 25/60 year"
+    },
+    {
+      "pset_name": "Pset_EnvironmentalImpactValues",
+      "property_name": "GlobalWarmingPotential",
+      "sting_param": "CBN_GWP_KG_CO2E",
+      "element_types": [],
+      "notes": "Global warming potential kg CO₂e"
+    },
+    {
+      "pset_name": "Pset_ManufacturerTypeInformation",
+      "property_name": "Manufacturer",
+      "sting_param": "MNFR_NAME_TXT",
+      "element_types": [],
+      "notes": "Manufacturer name"
+    },
+    {
+      "pset_name": "Pset_ManufacturerTypeInformation",
+      "property_name": "ModelReference",
+      "sting_param": "MNFR_MODEL_TXT",
+      "element_types": [],
+      "notes": "Manufacturer model reference"
+    },
+    {
+      "pset_name": "Pset_ManufacturerTypeInformation",
+      "property_name": "ArticleNumber",
+      "sting_param": "MNFR_ARTICLE_NR_TXT",
+      "element_types": [],
+      "notes": "Manufacturer article number"
+    }
+  ]
+}

@@ -157,7 +157,7 @@ namespace StingTools.Core.Symbols
         private static XYZ SafeHeadPosition(IndependentTag tag, View view)
         {
             try { return tag.TagHeadPosition ?? XYZ.Zero; }
-            catch { return XYZ.Zero; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return XYZ.Zero; }
         }
 
         private static XYZ OffsetForLabelPosition(XYZ headPos, string labelPosition, double offsetFt)
@@ -197,7 +197,7 @@ namespace StingTools.Core.Symbols
                 var p = tag.LookupParameter("STING_SYMBOL_ID");
                 return !string.IsNullOrEmpty(p?.AsString());
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         /// <summary>

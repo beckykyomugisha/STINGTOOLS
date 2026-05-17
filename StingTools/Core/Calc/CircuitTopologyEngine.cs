@@ -62,10 +62,10 @@ namespace StingTools.Core.Calc
             foreach (var id in result.PlacedIds)
             {
                 FamilyInstance fi = null;
-                try { fi = doc.GetElement(id) as FamilyInstance; } catch { }
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (fi == null || fi.Category == null) continue;
                 long catId;
-                try { catId = fi.Category.Id.Value; } catch { continue; }
+                try { catId = fi.Category.Id.Value; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                 BuiltInCategory bic = (BuiltInCategory)catId;
                 if (bic != BuiltInCategory.OST_ElectricalFixtures
                  && bic != BuiltInCategory.OST_LightingFixtures
@@ -73,11 +73,11 @@ namespace StingTools.Core.Calc
                 XYZ p = (fi.Location as LocationPoint)?.Point;
                 if (p == null) continue;
                 Room room = null;
-                try { room = doc.GetRoomAtPoint(p) as Room; } catch { }
+                try { room = doc.GetRoomAtPoint(p) as Room; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 double areaM2 = 0;
                 if (room != null)
                 {
-                    try { areaM2 = room.Area * 0.3048 * 0.3048; } catch { }
+                    try { areaM2 = room.Area * 0.3048 * 0.3048; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
                 string roomName = room?.Name?.ToLowerInvariant() ?? "";
                 bool isWet = roomName.Contains("bath") || roomName.Contains("shower")
@@ -99,7 +99,7 @@ namespace StingTools.Core.Calc
                 .GroupBy(s =>
                 {
                     string lvl = "";
-                    try { lvl = (doc.GetElement(s.fi.LevelId) as Level)?.Name ?? "X"; } catch { }
+                    try { lvl = (doc.GetElement(s.fi.LevelId) as Level)?.Name ?? "X"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     string kind;
                     if (s.fi.Category.Id.Value == (long)BuiltInCategory.OST_LightingFixtures
                      || s.fi.Category.Id.Value == (long)BuiltInCategory.OST_LightingDevices) kind = "LT";
@@ -211,7 +211,7 @@ namespace StingTools.Core.Calc
                 if (TrySetDouble(fi, "STING_CIRCUIT_LOAD_VA", va))         any = true;
                 if (TrySetInt   (fi, "STING_CIRCUIT_RATING_A", rating))    any = true;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return any;
         }
 
@@ -225,7 +225,7 @@ namespace StingTools.Core.Calc
                 p.Set(val ?? "");
                 return true;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         private static bool TrySetDouble(Element el, string param, double val)
@@ -248,7 +248,7 @@ namespace StingTools.Core.Calc
                     return true;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 
@@ -272,7 +272,7 @@ namespace StingTools.Core.Calc
                     return true;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
     }

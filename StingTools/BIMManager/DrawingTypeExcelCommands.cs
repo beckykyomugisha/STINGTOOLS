@@ -617,7 +617,7 @@ namespace StingTools.BIMManager
                 int b = Convert.ToInt32(hex.Substring(5, 2), 16);
                 return (0.2126 * r + 0.7152 * g + 0.0722 * b) > 160;
             }
-            catch { return true; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return true; }
         }
 
         // ──────────────────────────────────────────────────────────────────

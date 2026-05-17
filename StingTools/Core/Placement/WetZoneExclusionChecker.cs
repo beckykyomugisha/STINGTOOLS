@@ -91,7 +91,7 @@ namespace StingTools.Core.Placement
                     .WherePasses(bbf);
                 ElementId roomPhaseId = ElementId.InvalidElementId;
                 try { roomPhaseId = room.CreatedPhaseId; }
-                catch { roomPhaseId = ElementId.InvalidElementId; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); roomPhaseId = ElementId.InvalidElementId; }
                 if (roomPhaseId != null && roomPhaseId != ElementId.InvalidElementId)
                 {
                     try
@@ -126,7 +126,7 @@ namespace StingTools.Core.Placement
                                      ?? fi.Symbol?.LookupParameter("STING_WET_FIXTURE_KIND")?.AsString()
                                      ?? "").Trim().ToUpperInvariant();
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                     if (kindOverride == "NONE") continue;
 

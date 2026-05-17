@@ -71,7 +71,7 @@ namespace StingTools.Commands.Electrical.Photometric
                 var latest = entries.OrderByDescending(e => e.Date).FirstOrDefault();
                 if (latest != null) ifcPath = latest.IfcPath;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             if (!string.IsNullOrEmpty(ifcPath) && File.Exists(ifcPath))
             {

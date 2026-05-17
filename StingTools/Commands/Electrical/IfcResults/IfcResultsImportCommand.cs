@@ -57,7 +57,7 @@ namespace StingTools.Commands.Electrical.IfcResults
                 .WhereElementIsNotElementType().OfType<Room>()
                 .Where(r => r.Area > 0))
             {
-                try { roomsByGuid[r.UniqueId] = r; } catch { }
+                try { roomsByGuid[r.UniqueId] = r; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (!string.IsNullOrEmpty(r.Name)) roomsByName[r.Name] = r;
             }
             var fixturesByGuid = new Dictionary<string, FamilyInstance>(StringComparer.OrdinalIgnoreCase);
@@ -65,7 +65,7 @@ namespace StingTools.Commands.Electrical.IfcResults
                 .OfCategory(BuiltInCategory.OST_LightingFixtures)
                 .WhereElementIsNotElementType().OfType<FamilyInstance>())
             {
-                try { fixturesByGuid[fi.UniqueId] = fi; } catch { }
+                try { fixturesByGuid[fi.UniqueId] = fi; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
 
             string engineParam = ResolveEngineParam(engine);
@@ -113,7 +113,7 @@ namespace StingTools.Commands.Electrical.IfcResults
                 }
                 tx.Commit();
             }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING IFC Import",
                 $"Imported {engine} results from:\n{ifcPath}\n\n" +
                 $"Matched: {matchedRooms} room(s), {matchedFixtures} luminaire(s).\n" +

@@ -337,7 +337,10 @@ namespace StingTools.Docs
                                 $"Type,{Esc(typeName)},{Esc(string.Join("; ", layerNames))},Wall assembly");
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"COBie Assembly: {ex.Message}"); }
+                    // Rate-limited: this catch lives in a foreach over every tagged element
+                    // (1000+ on a real project). GetCompoundStructure rarely fails, but when
+                    // it does it tends to fail for every wall/floor/roof in the loop.
+                    catch (Exception ex) { StingLog.WarnRateLimited("COBie.Assembly", $"COBie Assembly: {ex.Message}"); }
                 }
 
                 var documentLines = new List<string>();
@@ -1611,7 +1614,10 @@ namespace StingTools.Docs
                             var room = ParameterHelpers.GetRoomAtElement(doc, el);
                             if (room != null) roomName = $"{room.Number} {room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString()}";
                         }
-                        catch (Exception ex) { StingLog.Warn($"StreamCOBie room lookup: {ex.Message}"); }
+                        // Rate-limited: foreach loop over all tagged elements (~1000s).
+                        // GetRoomAtElement-style failures hit every element when the project
+                        // has no rooms or the element is in a linked-model context.
+                        catch (Exception ex) { StingLog.WarnRateLimited("COBie.RoomLookup", $"StreamCOBie room lookup: {ex.Message}"); }
 
                         string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                         string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
@@ -1622,8 +1628,10 @@ namespace StingTools.Docs
                         string seq = ParameterHelpers.GetString(el, ParamRegistry.SEQ);
                         string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
                         string rev = ParameterHelpers.GetString(el, ParamRegistry.REV);
-                        string serial = ParameterHelpers.GetString(el, "ASS_SERIAL_NR_TXT");
-                        string installDate = ParameterHelpers.GetString(el, "ASS_INSTALLATION_DATE_TXT");
+                        string serial = ParameterHelpers.GetString(el, ParamRegistry.SERIAL_NR);
+                        string installDate = ParameterHelpers.GetString(el, ParamRegistry.INSTALL_DATE);
+                        // ASS_CST_TOTAL_UGX_NR has no public ParamRegistry constant yet;
+                        // hardcoded by design until the cost-tracking params get promoted.
                         string costStr = ParameterHelpers.GetString(el, "ASS_CST_TOTAL_UGX_NR");
                         string gridRef = ParameterHelpers.GetString(el, ParamRegistry.GRID_REF);
 

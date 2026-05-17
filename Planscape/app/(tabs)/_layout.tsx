@@ -100,13 +100,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/*
-        Tab 4 — My Actions inbox. Aggregates issues assigned to me, meeting
-        action items, and pending document approvals so a BIM/Construction
-        Manager lands here at morning stand-up without hunting through tabs.
-        The content lives in app/inbox/ (its own Stack navigator) outside of
-        (tabs)/; we point href to that route rather than creating a duplicate.
-      */}
+      {/* My Actions inbox */}
       <Tabs.Screen
         name="myactions"
         options={{
@@ -116,11 +110,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/*
-        Hidden screens — still routable via router.push() but absent from the
-        tab bar. Documents, Models, and Settings are accessible from inside the
-        project dashboard (app/projects/[id].tsx navigation grid).
-      */}
+      {/* Hidden screens — routable but absent from tab bar */}
       <Tabs.Screen
         name="documents"
         options={{
@@ -154,6 +144,17 @@ export default function TabLayout() {
         options={{
           href: null,
           title: 'Issue',
+        }}
+      />
+      {/* Phase 178 — Photos tab links to the site-photos gallery stack.
+          The tab navigates via href so the gallery lives outside (tabs)/
+          but is still reachable from the bottom bar. */}
+      <Tabs.Screen
+        name="site-photos"
+        options={{
+          title: 'Photos',
+          href: '/site-photos/gallery' as any,
+          tabBarIcon: ({ focused }) => <TabIcon label="📸" focused={focused} />,
         }}
       />
     </Tabs>

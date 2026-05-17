@@ -32,7 +32,7 @@ namespace StingTools.Core.Plumbing
                 name = ((fixture as FamilyInstance)?.Symbol?.Family?.Name ?? "") + " " +
                        (fixture.Name ?? "");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string upper = name.ToUpperInvariant();
 
             if (upper.Contains("WC") || upper.Contains("TOILET") || upper.Contains("URINAL") || upper.Contains("WATER CLOSET"))
@@ -77,7 +77,7 @@ namespace StingTools.Core.Plumbing
                 if (sel.SealDepthMm < range.minSealDepthMm)
                     sel.SealDepthMm = range.minSealDepthMm;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return sel;
         }
 
@@ -99,7 +99,7 @@ namespace StingTools.Core.Plumbing
                     else if (pSeal.StorageType == StorageType.Integer) pSeal.Set(sel.SealDepthMm);
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
     }
 }

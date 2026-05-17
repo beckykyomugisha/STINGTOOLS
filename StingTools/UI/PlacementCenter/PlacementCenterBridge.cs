@@ -62,41 +62,10 @@ namespace StingTools.UI.PlacementCenter
                     default:
                         var view = doc.ActiveView;
                         if (view == null) break;
-                        // Phase 139.8 — view-bounded room collection. Revit's
-                        // FilteredElementCollector(doc, view.Id) doesn't work
-                        // reliably for non-3D entities like Rooms. Plan views
-                        // expose `view.GenLevel`; collect rooms on that level.
-                        // Fall back to bbox-intersection for sections / 3D.
-                        if (view is ViewPlan plan && plan.GenLevel != null)
-                        {
-                            var levelId = plan.GenLevel.Id;
-                            foreach (var el in new FilteredElementCollector(doc)
-                                .OfCategory(BuiltInCategory.OST_Rooms)
-                                .WhereElementIsNotElementType())
-                            {
-                                if (!(el is Autodesk.Revit.DB.Architecture.Room r) || r.Area <= 0) continue;
-                                if (r.LevelId == levelId) ids.Add(r.Id);
-                            }
-                        }
-                        else
-                        {
-                            // Unknown view type → bbox intersection of room
-                            // bbox vs view crop / outline.
-                            BoundingBoxXYZ vb = null;
-                            try { vb = view.CropBox; } catch { }
-                            foreach (var el in new FilteredElementCollector(doc)
-                                .OfCategory(BuiltInCategory.OST_Rooms)
-                                .WhereElementIsNotElementType())
-                            {
-                                if (!(el is Autodesk.Revit.DB.Architecture.Room r) || r.Area <= 0) continue;
-                                var rb = r.get_BoundingBox(null);
-                                if (rb == null) continue;
-                                if (vb == null
-                                    || (rb.Max.X >= vb.Min.X && rb.Min.X <= vb.Max.X
-                                     && rb.Max.Y >= vb.Min.Y && rb.Min.Y <= vb.Max.Y))
-                                    ids.Add(r.Id);
-                            }
-                        }
+                        foreach (var r in new FilteredElementCollector(doc, view.Id)
+                            .OfCategory(BuiltInCategory.OST_Rooms)
+                            .WhereElementIsNotElementType())
+                            ids.Add(r.Id);
                         break;
                 }
             }

@@ -457,7 +457,7 @@ namespace StingTools.Core.Drawing
                 // Strip any prior pair (idempotent re-apply).
                 if (existed)
                     foreach (var dc in existing)
-                        try { doc.Delete(dc.Id); } catch { }
+                        try { doc.Delete(dc.Id); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 // Place the curve in viewA referencing refB, and the
                 // curve in viewB referencing refA.
@@ -582,13 +582,13 @@ namespace StingTools.Core.Drawing
                     {
                         if (string.Equals(cfg.Captions.TipPlacement, "BothEnds", StringComparison.OrdinalIgnoreCase))
                         {
-                            try { TextNote.Create(doc, view.Id, a, caption, noteTypeId); r.TipCaptionsPlaced++; } catch { }
-                            try { TextNote.Create(doc, view.Id, b, caption, noteTypeId); r.TipCaptionsPlaced++; } catch { }
+                            try { TextNote.Create(doc, view.Id, a, caption, noteTypeId); r.TipCaptionsPlaced++; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            try { TextNote.Create(doc, view.Id, b, caption, noteTypeId); r.TipCaptionsPlaced++; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                         else
                         {
                             var mid = (a + b) / 2;
-                            try { TextNote.Create(doc, view.Id, mid, caption, noteTypeId); r.TipCaptionsPlaced++; } catch { }
+                            try { TextNote.Create(doc, view.Id, mid, caption, noteTypeId); r.TipCaptionsPlaced++; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                     }
                 }
@@ -682,7 +682,7 @@ namespace StingTools.Core.Drawing
                 b = Convert.ToByte(s.Substring(4, 2), 16);
                 return true;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         private static ElementId ResolveLineStyleId(Document doc, string styleName)
@@ -738,7 +738,7 @@ namespace StingTools.Core.Drawing
                 var scopePairGuid = sep > 0 ? key.Substring(0, sep) : key;
                 if (liveScopePairs.Contains(scopePairGuid)) continue;
                 foreach (var dc in kv.Value)
-                    try { doc.Delete(dc.Id); pruned++; } catch { }
+                    try { doc.Delete(dc.Id); pruned++; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             if (pruned > 0)
                 r.Warnings.Add($"pruned {pruned} orphan match-line curve(s) — paired scope boxes no longer adjacent");

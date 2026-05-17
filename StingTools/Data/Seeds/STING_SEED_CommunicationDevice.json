@@ -1,6 +1,12 @@
 {
   "version": "1.0",
   "standard": "STING SEED FAMILY — Communication Devices (BS EN 50173, BICSI ANSI/TIA-568)",
+  "_notes": [
+    "12 type variants covering: WiFi APs (standard / Wi-Fi 6E), data",
+    "outlets (Cat5e/6/6A, fibre), patch panels, CCTV cameras, network",
+    "switches (layer 2), NAS/rack panel, door intercoms (door unit /",
+    "master station), PABX extension."
+  ],
   "symbols": [
     {
       "id": "STING_SEED_CommunicationDevice",
@@ -10,6 +16,7 @@
       "discipline": "Electrical",
       "subcategory": "STING_SEED",
       "isSeed": true,
+      "protectExisting": true,
       "hosting": "FaceBased",
       "symbolSize": 4.0,
       "parameters": [
@@ -76,6 +83,13 @@
           "default": "POE+"
         },
         {
+          "name": "COM_DEV_SPEED_GBPS",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "1"
+        },
+        {
           "name": "COM_DEV_VLAN_TXT",
           "type": "Text",
           "shared": true,
@@ -92,53 +106,15 @@
       ],
       "geometry": {
         "lines": [
-          {
-            "x1": -0.5,
-            "y1": -0.5,
-            "x2": 0.5,
-            "y2": -0.5
-          },
-          {
-            "x1": 0.5,
-            "y1": -0.5,
-            "x2": 0.5,
-            "y2": 0.5
-          },
-          {
-            "x1": 0.5,
-            "y1": 0.5,
-            "x2": -0.5,
-            "y2": 0.5
-          },
-          {
-            "x1": -0.5,
-            "y1": 0.5,
-            "x2": -0.5,
-            "y2": -0.5
-          }
+          { "x1": -0.5, "y1": -0.5, "x2": 0.5, "y2": -0.5 },
+          { "x1": 0.5, "y1": -0.5, "x2": 0.5, "y2": 0.5 },
+          { "x1": 0.5, "y1": 0.5, "x2": -0.5, "y2": 0.5 },
+          { "x1": -0.5, "y1": 0.5, "x2": -0.5, "y2": -0.5 }
         ],
         "arcs": [
-          {
-            "cx": 0,
-            "cy": 0,
-            "r": 0.15,
-            "startDeg": 0,
-            "endDeg": 360
-          },
-          {
-            "cx": 0,
-            "cy": 0,
-            "r": 0.3,
-            "startDeg": 0,
-            "endDeg": 180
-          },
-          {
-            "cx": 0,
-            "cy": 0,
-            "r": 0.45,
-            "startDeg": 0,
-            "endDeg": 180
-          }
+          { "cx": 0, "cy": 0, "r": 0.15, "startDeg": 0, "endDeg": 360 },
+          { "cx": 0, "cy": 0, "r": 0.3, "startDeg": 0, "endDeg": 180 },
+          { "cx": 0, "cy": 0, "r": 0.45, "startDeg": 0, "endDeg": 180 }
         ]
       },
       "solid3D": {
@@ -147,38 +123,154 @@
         "depthMm": 220,
         "heightMm": 40
       },
+      "swapCandidates": [
+        {
+          "label": "Cisco / Aruba WiFi AP",
+          "familyPath": "",
+          "variantPattern": "WIFI_AP*",
+          "priority": 1,
+          "autoLoad": false
+        },
+        {
+          "label": "Axis / Hikvision CCTV",
+          "familyPath": "",
+          "variantPattern": "CCTV_CAMERA*",
+          "priority": 2,
+          "autoLoad": false
+        }
+      ],
       "typeVariants": [
+        {
+          "_group": "--- WiFi ACCESS POINTS ---"
+        },
         {
           "name": "WIFI_AP",
           "params": {
             "COM_DEV_TYPE_TXT": "WIFI_AP",
             "ASS_PRODCT_COD_TXT": "WAP",
             "COM_DEV_PORTS_NR": "1",
-            "COM_DEV_POE_TXT": "POE+"
+            "COM_DEV_POE_TXT": "POE+",
+            "COM_DEV_SPEED_GBPS": "1"
           }
+        },
+        {
+          "name": "WIFI_AP_6GHZ",
+          "params": {
+            "COM_DEV_TYPE_TXT": "WIFI_AP_6GHZ",
+            "ASS_PRODCT_COD_TXT": "WAP-6",
+            "COM_DEV_PORTS_NR": "1",
+            "COM_DEV_POE_TXT": "POE++",
+            "COM_DEV_SPEED_GBPS": "2.5"
+          }
+        },
+        {
+          "_group": "--- DATA OUTLETS ---"
         },
         {
           "name": "DATA_OUTLET_RJ45",
           "params": {
             "COM_DEV_TYPE_TXT": "DATA_OUTLET_RJ45",
             "ASS_PRODCT_COD_TXT": "DAT",
-            "COM_DEV_PORTS_NR": "2"
+            "COM_DEV_PORTS_NR": "2",
+            "COM_DEV_SPEED_GBPS": "1"
           }
+        },
+        {
+          "name": "DATA_OUTLET_CAT6A",
+          "params": {
+            "COM_DEV_TYPE_TXT": "DATA_OUTLET_CAT6A",
+            "ASS_PRODCT_COD_TXT": "DAT-6A",
+            "COM_DEV_PORTS_NR": "2",
+            "COM_DEV_SPEED_GBPS": "10"
+          }
+        },
+        {
+          "name": "DATA_OUTLET_FIBRE",
+          "params": {
+            "COM_DEV_TYPE_TXT": "DATA_OUTLET_FIBRE",
+            "ASS_PRODCT_COD_TXT": "DAT-FO",
+            "COM_DEV_PORTS_NR": "2",
+            "COM_DEV_SPEED_GBPS": "10"
+          }
+        },
+        {
+          "_group": "--- PATCH PANEL / SWITCH ---"
         },
         {
           "name": "PATCH_PANEL",
           "params": {
             "COM_DEV_TYPE_TXT": "PATCH_PANEL",
             "ASS_PRODCT_COD_TXT": "PAT",
-            "COM_DEV_PORTS_NR": "24"
+            "COM_DEV_PORTS_NR": "24",
+            "COM_DEV_SPEED_GBPS": "1"
           }
         },
         {
-          "name": "CCTV_CAMERA",
+          "name": "SWITCH_LAYER2",
+          "params": {
+            "COM_DEV_TYPE_TXT": "NETWORK_SWITCH",
+            "ASS_PRODCT_COD_TXT": "NSW",
+            "COM_DEV_PORTS_NR": "24",
+            "COM_DEV_POE_TXT": "POE+",
+            "COM_DEV_SPEED_GBPS": "1"
+          }
+        },
+        {
+          "name": "NAS_RACK_PANEL",
+          "params": {
+            "COM_DEV_TYPE_TXT": "NAS_PANEL",
+            "ASS_PRODCT_COD_TXT": "NAS",
+            "COM_DEV_PORTS_NR": "2",
+            "COM_DEV_SPEED_GBPS": "10"
+          }
+        },
+        {
+          "_group": "--- CCTV ---"
+        },
+        {
+          "name": "CCTV_CAMERA_IP",
           "params": {
             "COM_DEV_TYPE_TXT": "CCTV_CAMERA",
             "ASS_PRODCT_COD_TXT": "CAM",
-            "COM_DEV_POE_TXT": "POE+"
+            "COM_DEV_POE_TXT": "POE+",
+            "COM_DEV_PORTS_NR": "1"
+          }
+        },
+        {
+          "name": "CCTV_CAMERA_PTZ",
+          "params": {
+            "COM_DEV_TYPE_TXT": "CCTV_CAMERA_PTZ",
+            "ASS_PRODCT_COD_TXT": "CAM-P",
+            "COM_DEV_POE_TXT": "POE++",
+            "COM_DEV_PORTS_NR": "1"
+          }
+        },
+        {
+          "_group": "--- INTERCOM / PABX ---"
+        },
+        {
+          "name": "INTERCOM_DOOR_UNIT",
+          "params": {
+            "COM_DEV_TYPE_TXT": "INTERCOM_DOOR",
+            "ASS_PRODCT_COD_TXT": "ICM-D",
+            "COM_DEV_POE_TXT": "POE",
+            "COM_DEV_PORTS_NR": "1"
+          }
+        },
+        {
+          "name": "INTERCOM_MASTER_STATION",
+          "params": {
+            "COM_DEV_TYPE_TXT": "INTERCOM_MASTER",
+            "ASS_PRODCT_COD_TXT": "ICM-M",
+            "COM_DEV_PORTS_NR": "1"
+          }
+        },
+        {
+          "name": "PABX_EXTENSION",
+          "params": {
+            "COM_DEV_TYPE_TXT": "PABX_EXTENSION",
+            "ASS_PRODCT_COD_TXT": "PBX",
+            "COM_DEV_PORTS_NR": "1"
           }
         }
       ]

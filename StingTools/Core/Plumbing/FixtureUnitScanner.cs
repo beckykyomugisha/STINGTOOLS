@@ -117,7 +117,7 @@ namespace StingTools.Core.Plumbing
                 var sym = fi?.Symbol?.Name ?? "";
                 return (fam + " " + sym + " " + (el.Name ?? "")).Trim();
             }
-            catch { return el?.Name ?? ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return el?.Name ?? ""; }
         }
 
         private static void TryWriteDouble(Element el, string name, double v)
@@ -130,7 +130,7 @@ namespace StingTools.Core.Plumbing
                 else if (p.StorageType == StorageType.Integer) p.Set((int)Math.Round(v));
                 else if (p.StorageType == StorageType.String)  p.Set(v.ToString("F2"));
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
     }
 }

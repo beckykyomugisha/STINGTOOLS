@@ -1,4 +1,4 @@
-# v6.0 | 20260517 | BIM Template mr_parameters -- 2920 params (+60 new: fabrication / v4 routing / panel / structural / drawing types -- Phase 176 comprehensive alignment)
+# v5.7 | 20260425 | BIM Template mr_parameters — 2555 params (TXT/CSV alignment: +194 params synced from MR_PARAMETERS.txt)
 Revit_Category,Parameter_Name,Parameter_GUID,Data_Type,Group_Name,Binding_Type,Description,Has_Formula,Formula,Input_Parameters,Discipline,User_Modifiable,Hide_When_No_Value
 Generic Models,ASS_CAT_TXT,f8fe813a-44e9-5e47-9109-921171dc53b6,TEXT,ASS_MNG,Type,Ass Cat Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_CST_QUANTITY_NR,3c189e63-383c-5011-b7d9-873faed4e6c6,TEXT,ASS_MNG,Type,Ass Cst Quantity Nr [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -2302,7 +2302,7 @@ Generic Models,STR_TAG_1_TXT,e51303da-3780-5409-9c41-2b3287b3042f,TEXT,BLE_STRUC
 Generic Models,MEP_TIE_POINT_ID_TXT,30ba8ffb-0e94-5bad-bc92-d1d25c7e69be,TEXT,PER_SUST,Type,MEP tie-in point identifier,False,,,MULTI,1,0
 Generic Models,WARN_STR_WIR_TENSILE_MPA,f5569d94-c172-5cde-92d3-5b6e5bfa30bb,TEXT,WARN_THRESHOLDS,Type,Warning: wire tensile strength MPa,False,,,MULTI,1,0
 Generic Models,ASS_STALE_TOKENS_TXT,a7c4e231-9f82-5d1a-b4a0-3e6f18d29c05,TEXT,WARN_THRESHOLDS,Instance,LG-04: Comma-separated list of stale token names for targeted re-derivation,False,,,MULTI,1,0
-Generic Models,ASS_INHERIT_STATUS_TXT,b8d5f342-0a93-5e2b-c5b1-4f7029e3ad16,TEXT,ASS_MNG,Instance,AE-04: Token inheritance status -- PROXIMITY_OK / PROXIMITY_FAIL / TYPE_INHERIT / MANUAL,False,,,MULTI,1,0
+Generic Models,ASS_INHERIT_STATUS_TXT,b8d5f342-0a93-5e2b-c5b1-4f7029e3ad16,TEXT,ASS_MNG,Instance,AE-04: Token inheritance status — PROXIMITY_OK / PROXIMITY_FAIL / TYPE_INHERIT / MANUAL,False,,,MULTI,1,0
 Generic Models,STING_DATA_HASH,c9e60453-1ba4-5f3c-d6c2-508a3af4be27,TEXT,ASS_MNG,Type,AE-05: Hash of data directory for workflow skip-if-unchanged detection,False,,,MULTI,1,0
 Generic Models,STING_SETUP_COMPLETE,daf71564-2cb5-504d-e7d3-619b4b05cf38,TEXT,ASS_MNG,Type,AE-03: Timestamp of last MasterSetup completion for idempotency check,False,,,MULTI,1,0
 Sheets,SHT_NUMBER_TXT,f213496b-4218-514b-82cd-ce421248d032,TEXT,SHT,Instance,Sheet Number mapped from Revit native [ISO 19650-1:2018],False,,,MULTI,0,0
@@ -2370,27 +2370,27 @@ Generic Models,WARN_PROP_CARBON_MATERIALS,49ce16f4-fc21-5e30-9bc3-958b117ae699,T
 Generic Models,WARN_SLV_NO_FIRE_RATING,6efed066-5053-591b-95c5-d27ce25ffa11,TEXT,WARN_THRESHOLDS,Type,Tag warning: sleeve missing fire rating,False,,,MULTI,1,0
 Generic Models,WARN_SLV_NO_REF,bd8e24b9-0cf7-5b1e-8680-5e8d13e4aa56,TEXT,WARN_THRESHOLDS,Type,Tag warning: sleeve missing reference,False,,,MULTI,1,0
 Generic Models,WARN_SLV_NO_SEAL,dc546eb8-fe7b-534d-97bd-f2958ad7c3ce,TEXT,WARN_THRESHOLDS,Type,Tag warning: sleeve missing seal,False,,,MULTI,1,0
-Generic Models,ACC_ISSUE_ID_TXT,b9a6bc92-77a7-5a43-8524-dacaf688f178,TEXT,ACC_SYNC,Type,Autodesk Construction Cloud Issue GUID for bidirectional sync,False,,,MULTI,1,0
-Generic Models,ACC_SYNC_STATUS_TXT,4a80d4f1-f2c1-548b-a77b-2c632586baa2,TEXT,ACC_SYNC,Type,ACC sync status (SYNCED / PENDING / ERROR),False,,,MULTI,1,0
+Generic Models,ACC_ISSUE_ID_TXT,v6-0001-0000-0000-000000000010,TEXT,ACC_SYNC,Type,Autodesk Construction Cloud Issue GUID for bidirectional sync,False,,,MULTI,1,0
+Generic Models,ACC_SYNC_STATUS_TXT,v6-0001-0000-0000-000000000011,TEXT,ACC_SYNC,Type,ACC sync status (SYNCED / PENDING / ERROR),False,,,MULTI,1,0
 Generic Models,ARC_FACTORY_ORDER_REF_TXT,273b9909-16b4-5c49-8c96-ff59f2e5ea40,TEXT,BLE_ELES,Type,Joinery factory order reference [BS 8000-5:1990],False,,,MULTI,1,0
 Generic Models,ARC_GLAZING_SPEC_TXT,18208fa9-2926-51ec-b44c-96ebd6c2e6c7,TEXT,BLE_ELES,Type,Glazing specification reference [BS 6262-1:2022],False,,,MULTI,1,0
-Generic Models,ASBUILT_CAPTURE_DATE_TXT,28a9229c-9cac-508d-ae82-a173c3ab7505,TEXT,ASBUILT,Type,ISO 8601 date when as-built data captured from Planscape mobile,False,,,MULTI,1,0
+Generic Models,ASBUILT_CAPTURE_DATE_TXT,v6-0001-0000-0000-00000000000f,TEXT,ASBUILT,Type,ISO 8601 date when as-built data captured from Planscape mobile,False,,,MULTI,1,0
 Generic Models,ASBUILT_COVER_DEVIATION_MM,973e1eb4-6aac-53e4-85ea-a35f4e8d8aec,NUMBER,ASBUILT,Type,As-built concrete cover deviation from design in mm [BS EN 13670:2009],False,,,MULTI,1,0
-Generic Models,ASBUILT_DEVIATION_MM,5f481bdc-c860-5ab4-bcbb-cb91b1b4008b,NUMBER,ASBUILT,Type,As-built vs as-designed deviation in millimetres,False,,,MULTI,1,0
-Generic Models,ASS_BOLT_COUNT_NR,77c9f963-0164-5c71-879d-ee7308091866,INTEGER,ASS_MNG,Type,Total number of bolted connections in the assembly,False,,,MULTI,1,0
-Generic Models,ASS_BOM_REV_TXT,0293f487-2ca9-5514-9b18-ac98b1a20b27,TEXT,ASS_MNG,Type,"Bill of materials revision code (e.g. P01, C01)",False,,,MULTI,1,0
-Generic Models,ASS_BOQ_LINE_REF,eb8aa554-1c95-4d89-9170-0e83e0a3d6d7,TEXT,ASS_MNG,Type,BOQ line reference e.g. 14.3.2 -- Excel roundtrip join key [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASBUILT_DEVIATION_MM,v6-0001-0000-0000-00000000000e,NUMBER,ASBUILT,Type,As-built vs as-designed deviation in millimetres,False,,,MULTI,1,0
+Generic Models,ASS_BOLT_COUNT_NR,v4-0001-0000-0000-00000000000c,INTEGER,ASS_MNG,Type,Total number of bolted connections in the assembly,False,,,MULTI,1,0
+Generic Models,ASS_BOM_REV_TXT,v4-0001-0000-0000-000000000009,TEXT,ASS_MNG,Type,"Bill of materials revision code (e.g. P01, C01)",False,,,MULTI,1,0
+Generic Models,ASS_BOQ_LINE_REF,eb8aa554-1c95-4d89-9170-0e83e0a3d6d7,TEXT,ASS_MNG,Type,BOQ line reference e.g. 14.3.2 — Excel roundtrip join key [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_BOQ_SECTION_NAME,f96d1f95-0bd4-4177-90d1-d3647e48b5ec,TEXT,ASS_MNG,Type,BOQ section name this element belongs to [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_CUT_COUNT_NR,16e7224e-cab9-5233-b155-3fbe194a3d56,INTEGER,ASS_MNG,Type,Number of cut operations required to fabricate the assembly,False,,,MULTI,1,0
-Generic Models,ASS_FAB_LOC_TXT,e420804b-d43f-593c-91b1-fd00a18aa584,TEXT,ASS_MNG,Type,Fabrication location (SHOP / FIELD / VENDOR),False,,,MULTI,1,0
-Generic Models,ASS_FAB_NOTES_TXT,9107dff2-054c-5371-b3ae-6d329aa12542,TEXT,ASS_MNG,Type,Free-text fabrication notes consumed by ShopDrawingComposer,False,,,MULTI,1,0
-Generic Models,ASS_FAB_SEQ_NR,5fc70bc2-9955-583c-9d96-5b54c8f34f53,INTEGER,ASS_MNG,Type,Fabrication sequence number within the fabrication package,False,,,MULTI,1,0
-Generic Models,ASS_FAB_STATUS_TXT,29ba93ba-238e-5aad-930a-a621b0f43b5b,TEXT,ASS_MNG,Type,Fabrication status (NOT_STARTED / CUT / WELDED / INSPECTED / SHIPPED / INSTALLED),False,,,MULTI,1,0
-Generic Models,ASS_FITTING_COUNT_NR,ead7d5f3-68fa-58c6-8a21-fa8c6a1ff318,INTEGER,ASS_MNG,Type,Total number of inline fittings in the assembly,False,,,MULTI,1,0
-Generic Models,ASS_FLANGE_COUNT_NR,016faa7f-1e8f-5a5d-acfb-14983937de69,INTEGER,ASS_MNG,Type,Total number of flanged connections in the assembly,False,,,MULTI,1,0
-Generic Models,ASS_INSTALL_DATE_TXT,953575a9-1d0c-5bb5-a4d2-c52b4b4adf96,TEXT,ASS_MNG,Type,DEPRECATED -- use ASS_INSTALLATION_DATE_TXT. ISO 8601 date when assembly was installed on site.,False,,,MULTI,1,0
-Generic Models,ASS_INSULATION_AREA_M2,21a49d34-9ae2-5058-8d7e-43db4dabd545,NUMBER,ASS_MNG,Type,External insulation surface area in square metres,False,,,MULTI,1,0
-Generic Models,ASS_LENGTH_TOTAL_MM,2605366f-f56b-5843-b8cb-9781b42a4345,NUMBER,ASS_MNG,Type,Total linear length of the assembly in millimetres,False,,,MULTI,1,0
+Generic Models,ASS_CUT_COUNT_NR,v4-0001-0000-0000-000000000010,INTEGER,ASS_MNG,Type,Number of cut operations required to fabricate the assembly,False,,,MULTI,1,0
+Generic Models,ASS_FAB_LOC_TXT,v4-0001-0000-0000-000000000004,TEXT,ASS_MNG,Type,Fabrication location (SHOP / FIELD / VENDOR),False,,,MULTI,1,0
+Generic Models,ASS_FAB_NOTES_TXT,v4-0001-0000-0000-000000000013,TEXT,ASS_MNG,Type,Free-text fabrication notes consumed by ShopDrawingComposer,False,,,MULTI,1,0
+Generic Models,ASS_FAB_SEQ_NR,v4-0001-0000-0000-000000000005,INTEGER,ASS_MNG,Type,Fabrication sequence number within the fabrication package,False,,,MULTI,1,0
+Generic Models,ASS_FAB_STATUS_TXT,v4-0001-0000-0000-000000000006,TEXT,ASS_MNG,Type,Fabrication status (NOT_STARTED / CUT / WELDED / INSPECTED / SHIPPED / INSTALLED),False,,,MULTI,1,0
+Generic Models,ASS_FITTING_COUNT_NR,v4-0001-0000-0000-00000000000e,INTEGER,ASS_MNG,Type,Total number of inline fittings in the assembly,False,,,MULTI,1,0
+Generic Models,ASS_FLANGE_COUNT_NR,v4-0001-0000-0000-00000000000d,INTEGER,ASS_MNG,Type,Total number of flanged connections in the assembly,False,,,MULTI,1,0
+Generic Models,ASS_INSTALL_DATE_TXT,v4-0001-0000-0000-000000000008,TEXT,ASS_MNG,Type,ISO 8601 date when assembly was installed on site,False,,,MULTI,1,0
+Generic Models,ASS_INSULATION_AREA_M2,v4-0001-0000-0000-000000000011,NUMBER,ASS_MNG,Type,External insulation surface area in square metres,False,,,MULTI,1,0
+Generic Models,ASS_LENGTH_TOTAL_MM,v4-0001-0000-0000-00000000000f,NUMBER,ASS_MNG,Type,Total linear length of the assembly in millimetres,False,,,MULTI,1,0
 Generic Models,ASS_NRM2_PARA_AUTHOR_TXT,a5e36532-e5cf-46f0-8100-00dcf8b3cf9b,TEXT,ASS_MNG,Type,Author who last updated the NRM2 paragraph [ISO 19650-3:2020],False,,,MULTI,0,0
 Generic Models,ASS_NRM2_PARA_DATE_TXT,144b8ebb-0b65-4b70-976e-af2e69f11d47,TEXT,ASS_MNG,Type,Date NRM2 paragraph was last updated [ISO 19650-3:2020],False,,,MULTI,0,0
 Generic Models,ASS_NRM2_PARA_PREV_TXT,7e0399f3-072b-4c8b-8480-8f62e022e613,TEXT,ASS_MNG,Type,Previous NRM2 paragraph (for audit trail) [ISO 19650-3:2020],False,,,MULTI,0,0
@@ -2398,90 +2398,88 @@ Generic Models,ASS_NRM2_PARA_TXT,737d0114-a399-4bda-8e4e-7d6132eae440,TEXT,ASS_M
 Generic Models,ASS_PLACE_ANCHOR_TXT,a4b5c6d7-e8f9-4a0b-8c1d-2e3f4a5b6c7d,TEXT,ASS_MNG,Type,"Anchor reference used by FixturePlacementEngine (e.g. DOOR_HINGE, ROOM_CENTRE, WALL_MIDPOINT)",False,,,MULTI,1,0
 Generic Models,ASS_PLACE_OFFSET_X_MM,b5c6d7e8-f9a0-4b1c-9d2e-3f4a5b6c7d8e,NUMBER,ASS_MNG,Type,Signed horizontal offset from placement anchor in millimetres,False,,,MULTI,1,0
 Generic Models,ASS_PLACE_SIDE_TXT,c6d7e8f9-a0b1-4c2d-ae3f-4a5b6c7d8e9f,TEXT,ASS_MNG,Type,Wall or host side constraint (LEFT / RIGHT / EITHER),False,,,MULTI,1,0
-Generic Models,ASS_QC_INSPECTOR_TXT,a028f908-b100-53bc-b21a-1a0a6a03ffac,TEXT,ASS_MNG,Type,Name or ID of QC inspector who released the assembly,False,,,MULTI,1,0
-Generic Models,ASS_SHIP_DATE_TXT,c2fc8e62-b793-517c-94c6-d2d7ae7584fe,TEXT,ASS_MNG,Type,ISO 8601 date when assembly was shipped to site,False,,,MULTI,1,0
-Generic Models,ASS_SPOOL_DRAWING_REF_TXT,c1a5983c-333d-53ff-94d1-4326d9ffff86,TEXT,ASS_MNG,Type,Reference to the generated shop / spool drawing sheet number,False,,,MULTI,1,0
-Generic Models,ASS_SPOOL_NR_TXT,1a4353be-eaaa-5e46-95ee-b64a74667194,TEXT,ASS_MNG,Type,Spool or bundle number assigned by AssemblyBuilder,False,,,MULTI,1,0
-Generic Models,ASS_SUPPORT_COUNT_NR,9fadd466-7dfa-5845-9a18-d618c77c418d,INTEGER,ASS_MNG,Type,Number of supports / hangers referenced by the assembly,False,,,MULTI,1,0
-Generic Models,ASS_TEST_PRESSURE_BAR,3e3624d3-c79d-5dd5-8014-46c8d273b9ea,NUMBER,ASS_MNG,Type,Hydrostatic or pneumatic test pressure for the assembly in bar,False,,,MULTI,1,0
-Generic Models,ASS_WEIGHT_KG,eacedb67-b65b-58f7-a5b7-f1b0253ac6c9,NUMBER,ASS_MNG,Type,Assembly total weight in kilograms (sum of member volume x material density),False,,,MULTI,1,0
-Generic Models,ASS_WELD_COUNT_NR,6c77833e-4b97-57f5-9a8b-97cc20d6cb61,INTEGER,ASS_MNG,Type,Total number of welds in the assembly,False,,,MULTI,1,0
-Generic Models,CBN_A1_A3_KG_CO2E,023cd04f-f470-559f-9649-b1b5a1845003,NUMBER,PER_SUST,Type,Embodied carbon A1-A3 product stage (manufacturing) kgCO2e,False,,,MULTI,1,0
-Generic Models,CBN_A4_KG_CO2E,7442f641-99f2-57fb-ba17-7179157dd04c,NUMBER,PER_SUST,Type,Embodied carbon A4 transport to site kgCO2e,False,,,MULTI,1,0
-Generic Models,CBN_A5_KG_CO2E,7921cbb6-5509-5011-9880-e910a7e70a08,NUMBER,PER_SUST,Type,Embodied carbon A5 construction-install kgCO2e,False,,,MULTI,1,0
-Generic Models,CBN_B6_KG_CO2E_YR,f2b69b7d-ec13-54b0-8fa0-3cef044d2a02,NUMBER,PER_SUST,Type,Operational carbon B6 energy annual kgCO2e/yr,False,,,MULTI,1,0
-Generic Models,CBN_C1_KG_CO2E,8ec17879-48d2-59c2-a931-cc6e615a26fe,NUMBER,PER_SUST,Type,End-of-life C1 deconstruction kgCO2e,False,,,MULTI,1,0
-Generic Models,CBN_C2_KG_CO2E,899430fe-0ee2-5a8e-8ea9-f6050e2f266c,NUMBER,PER_SUST,Type,End-of-life C2 transport to disposal kgCO2e,False,,,MULTI,1,0
-Generic Models,CBN_C3_C4_KG_CO2E,41ab6b2d-7cb4-5df8-b8c9-298516e37e69,NUMBER,PER_SUST,Type,End-of-life C3-C4 waste processing and disposal kgCO2e,False,,,MULTI,1,0
+Generic Models,ASS_QC_INSPECTOR_TXT,v4-0001-0000-0000-00000000000a,TEXT,ASS_MNG,Type,Name or ID of QC inspector who released the assembly,False,,,MULTI,1,0
+Generic Models,ASS_SHIP_DATE_TXT,v4-0001-0000-0000-000000000007,TEXT,ASS_MNG,Type,ISO 8601 date when assembly was shipped to site,False,,,MULTI,1,0
+Generic Models,ASS_SPOOL_DRAWING_REF_TXT,v4-0001-0000-0000-000000000014,TEXT,ASS_MNG,Type,Reference to the generated shop / spool drawing sheet number,False,,,MULTI,1,0
+Generic Models,ASS_SPOOL_NR_TXT,v4-0001-0000-0000-000000000001,TEXT,ASS_MNG,Type,Spool or bundle number assigned by AssemblyBuilder,False,,,MULTI,1,0
+Generic Models,ASS_SUPPORT_COUNT_NR,v4-0001-0000-0000-000000000012,INTEGER,ASS_MNG,Type,Number of supports / hangers referenced by the assembly,False,,,MULTI,1,0
+Generic Models,ASS_TEST_PRESSURE_BAR,v4-0001-0000-0000-000000000003,NUMBER,ASS_MNG,Type,Hydrostatic or pneumatic test pressure for the assembly in bar,False,,,MULTI,1,0
+Generic Models,ASS_WEIGHT_KG,v4-0001-0000-0000-000000000002,NUMBER,ASS_MNG,Type,Assembly total weight in kilograms (sum of member volume x material density),False,,,MULTI,1,0
+Generic Models,ASS_WELD_COUNT_NR,v4-0001-0000-0000-00000000000b,INTEGER,ASS_MNG,Type,Total number of welds in the assembly,False,,,MULTI,1,0
+Generic Models,CBN_A1_A3_KG_CO2E,v6-0001-0000-0000-000000000002,NUMBER,PER_SUST,Type,Embodied carbon A1-A3 product stage (manufacturing) kgCO2e,False,,,MULTI,1,0
+Generic Models,CBN_A4_KG_CO2E,v6-0001-0000-0000-000000000003,NUMBER,PER_SUST,Type,Embodied carbon A4 transport to site kgCO2e,False,,,MULTI,1,0
+Generic Models,CBN_A5_KG_CO2E,v6-0001-0000-0000-000000000004,NUMBER,PER_SUST,Type,Embodied carbon A5 construction-install kgCO2e,False,,,MULTI,1,0
+Generic Models,CBN_B6_KG_CO2E_YR,v6-0001-0000-0000-000000000005,NUMBER,PER_SUST,Type,Operational carbon B6 energy annual kgCO2e/yr,False,,,MULTI,1,0
+Generic Models,CBN_C1_KG_CO2E,v6-0001-0000-0000-000000000006,NUMBER,PER_SUST,Type,End-of-life C1 deconstruction kgCO2e,False,,,MULTI,1,0
+Generic Models,CBN_C2_KG_CO2E,v6-0001-0000-0000-000000000007,NUMBER,PER_SUST,Type,End-of-life C2 transport to disposal kgCO2e,False,,,MULTI,1,0
+Generic Models,CBN_C3_C4_KG_CO2E,v6-0001-0000-0000-000000000008,NUMBER,PER_SUST,Type,End-of-life C3-C4 waste processing and disposal kgCO2e,False,,,MULTI,1,0
 Generic Models,CBN_REFRIGERANT_GWP_KG_CO2E,84428fa6-2f50-5b11-a1ea-db12a58c45e9,NUMBER,PER_SUST,Type,Refrigerant global warming potential contribution in kgCO2e [BS EN 378-2:2016],False,,,MULTI,1,0
 Generic Models,CBN_RUNTIME_HRS_YR_NR,65a3cf4e-6dc8-5095-9664-575a96101272,NUMBER,PER_SUST,Type,Equivalent annual operating hours for operational carbon calc [BS EN 16798-1:2019],False,,,MULTI,1,0
-Generic Models,CLASH_RESOLUTION_ACTION_TXT,ec2a5f88-7506-5b73-afa1-2aacc13210a3,TEXT,CLASH_COORDINATION,Type,Chosen resolution action (MOVE / REROUTE / ACCEPT),False,,,MULTI,1,0
-Generic Models,CLASH_RESOLUTION_STATUS_TXT,a151544f-4c23-58f5-b024-4ca993f3ab72,TEXT,CLASH_COORDINATION,Type,Clash resolution status (PENDING / APPLIED / ACCEPTED),False,,,MULTI,1,0
-Generic Models,CLASH_TRIAGE_CATEGORY_TXT,eea079dc-7f02-5f3c-b89a-89d07ce899eb,TEXT,CLASH_COORDINATION,Type,Clash triage category (STRUCTURAL / SERVICES / NON_CRITICAL),False,,,MULTI,1,0
-Generic Models,CLASH_TRIAGE_SCORE,74014c76-011d-568c-bdf6-eb57e92c9108,NUMBER,CLASH_COORDINATION,Type,Clash triage weighted score 0 to 100,False,,,MULTI,1,0
-Generic Models,CLASH_TRIAGE_SEVERITY_NR,3b894a39-cde3-5e9e-8074-bb6c46f29163,INTEGER,CLASH_COORDINATION,Type,Clash triage severity 1 (lowest) to 5 (highest),False,,,MULTI,1,0
-Generic Models,COMM_DATE_TXT,976ec939-fe4c-5af3-bdda-2edb342950ea,TEXT,COMMISSIONING,Type,ISO 8601 date of commissioning state change,False,,,MULTI,1,0
-Generic Models,COMM_NOTES_TXT,6bafd748-d05f-5df4-bae9-ce3ed4ce34f4,TEXT,COMMISSIONING,Type,Free-text commissioning notes captured from the QR workflow,False,,,MULTI,1,0
-Generic Models,COMM_OPERATIVE_TXT,65c612b4-4649-5a1b-a1b0-8c6d4d7aeb7a,TEXT,COMMISSIONING,Type,Commissioning operative name or ID who performed the test,False,,,MULTI,1,0
-Generic Models,COMM_STATE_TXT,8486f13f-f340-5937-a1a0-2052c085fe89,TEXT,COMMISSIONING,Type,Commissioning state (NOT_STARTED / PRE_COMM / FUNCTIONAL_TEST / WITNESSED / ACCEPTED / HANDED_OVER),False,,,MULTI,1,0
-Generic Models,COMM_WITNESS_TXT,e48f7316-380e-5e5a-b376-149eab440ad3,TEXT,COMMISSIONING,Type,Commissioning witness name or ID (client / CA representative),False,,,MULTI,1,0
+Generic Models,CLASH_RESOLUTION_ACTION_TXT,v6-0001-0000-0000-00000000000d,TEXT,CLASH_COORDINATION,Type,Chosen resolution action (MOVE / REROUTE / ACCEPT),False,,,MULTI,1,0
+Generic Models,CLASH_RESOLUTION_STATUS_TXT,v6-0001-0000-0000-00000000000c,TEXT,CLASH_COORDINATION,Type,Clash resolution status (PENDING / APPLIED / ACCEPTED),False,,,MULTI,1,0
+Generic Models,CLASH_TRIAGE_CATEGORY_TXT,v6-0001-0000-0000-00000000000b,TEXT,CLASH_COORDINATION,Type,Clash triage category (STRUCTURAL / SERVICES / NON_CRITICAL),False,,,MULTI,1,0
+Generic Models,CLASH_TRIAGE_SCORE,v6-0001-0000-0000-00000000000a,NUMBER,CLASH_COORDINATION,Type,Clash triage weighted score 0 to 100,False,,,MULTI,1,0
+Generic Models,CLASH_TRIAGE_SEVERITY_NR,v6-0001-0000-0000-000000000009,INTEGER,CLASH_COORDINATION,Type,Clash triage severity 1 (lowest) to 5 (highest),False,,,MULTI,1,0
+Generic Models,COMM_DATE_TXT,v6-0001-0000-0000-000000000018,TEXT,COMMISSIONING,Type,ISO 8601 date of commissioning state change,False,,,MULTI,1,0
+Generic Models,COMM_NOTES_TXT,v6-0001-0000-0000-00000000001b,TEXT,COMMISSIONING,Type,Free-text commissioning notes captured from the QR workflow,False,,,MULTI,1,0
+Generic Models,COMM_OPERATIVE_TXT,v6-0001-0000-0000-000000000019,TEXT,COMMISSIONING,Type,Commissioning operative name or ID who performed the test,False,,,MULTI,1,0
+Generic Models,COMM_STATE_TXT,v6-0001-0000-0000-000000000017,TEXT,COMMISSIONING,Type,Commissioning state (NOT_STARTED / PRE_COMM / FUNCTIONAL_TEST / WITNESSED / ACCEPTED / HANDED_OVER),False,,,MULTI,1,0
+Generic Models,COMM_WITNESS_TXT,v6-0001-0000-0000-00000000001a,TEXT,COMMISSIONING,Type,Commissioning witness name or ID (client / CA representative),False,,,MULTI,1,0
 Generic Models,CST_BOQ_COVERAGE_PCT,df069f61-b8ce-4dac-98fa-910ea5fcf153,NUMBER,PRJ_INFORMATION,Type,Percentage of elements with resolved BOQ line items [ISO 19650-3:2020],False,,,MULTI,0,0
 Generic Models,CST_BOQ_SNAPSHOT_REF,e2efb537-c07e-4e2d-b61a-4b186c33abe4,TEXT,CST_PROC,Type,Snapshot label when this element was last costed [ISO 19650-3:2020],False,,,MULTI,0,0
 Generic Models,CST_BUDGET_VARIANCE_UGX,93644934-597d-43e7-a835-26f9b6613ec7,NUMBER,PRJ_INFORMATION,Type,Budget variance: budget minus grand total UGX [ISO 19650-3:2020],False,,,MULTI,0,0
-Generic Models,CST_DUTY_PCT,c26d2b96-a012-50d6-bcb9-6a32f24212e0,NUMBER,CST_PROC,Type,Import duty percentage applied to USD price,False,,,MULTI,1,0
+Generic Models,CST_DUTY_PCT,v4-0003-0000-0000-000000000007,NUMBER,CST_PROC,Type,Import duty percentage applied to USD price,False,,,MULTI,1,0
 Generic Models,CST_EMBODIED_CARBON_KG,52512f2c-ecdf-4f7b-8128-a8c99222aa0d,NUMBER,CST_PROC,Type,Embodied carbon in kgCO2e for this element [ISO 19650-3:2020],False,,,MULTI,0,0
-Generic Models,CST_FX_RATE_USD_UGX,d4e003e1-1f43-5d22-93c1-d9e91d672c52,NUMBER,CST_PROC,Type,USD to UGX exchange rate snapshot used on quote date,False,,,MULTI,1,0
-Generic Models,CST_INSTALL_HRS,3195619a-3d2d-54c4-8109-8b6a2adeeccd,NUMBER,CST_PROC,Type,Install time in hours per element for labour takeoff,False,,,MULTI,1,0
-Generic Models,CST_INTL_PRICE_USD,c40720fa-3e80-5880-86c3-a82f43055fbf,NUMBER,CST_PROC,Type,International supplier unit price in USD,False,,,MULTI,1,0
-Generic Models,CST_LABOUR_CREW_TXT,f4fe5c91-af91-563a-b81b-ebb4fc428045,TEXT,CST_PROC,Type,"Labour crew name or role (e.g. PIPEFITTER_2P, ELECTRICIAN_LEAD) used by crew-aware labour takeoff",False,,,MULTI,1,0
-Generic Models,CST_LABOUR_HOURS,cb945ed3-ff4d-531c-89fa-c06f503ab46c,NUMBER,CST_PROC,Type,Estimated labour hours per element for install takeoff,False,,,MULTI,1,0
-Generic Models,CST_LABOUR_RATE_GBP,0f0fab76-bf7f-5c08-8193-964533b88ad9,NUMBER,CST_PROC,Type,Labour rate in GBP per hour (override for UK projects),False,,,MULTI,1,0
-Generic Models,CST_LABOUR_RATE_UGX,3d736d48-cba0-570b-a521-844539bd998c,NUMBER,CST_PROC,Type,Labour rate in UGX per hour,False,,,MULTI,1,0
+Generic Models,CST_FX_RATE_USD_UGX,v4-0003-0000-0000-000000000003,NUMBER,CST_PROC,Type,USD to UGX exchange rate snapshot used on quote date,False,,,MULTI,1,0
+Generic Models,CST_INSTALL_HRS,v6-0001-0000-0000-000000000001,NUMBER,CST_PROC,Type,Install time in hours per element for labour takeoff,False,,,MULTI,1,0
+Generic Models,CST_INTL_PRICE_USD,v4-0003-0000-0000-000000000001,NUMBER,CST_PROC,Type,International supplier unit price in USD,False,,,MULTI,1,0
+Generic Models,CST_LABOUR_CREW_TXT,v6-0001-0000-0000-000000000015,TEXT,CST_PROC,Type,"Labour crew name or role (e.g. PIPEFITTER_2P, ELECTRICIAN_LEAD) used by crew-aware labour takeoff",False,,,MULTI,1,0
+Generic Models,CST_LABOUR_HOURS,v4-0003-0000-0000-000000000004,NUMBER,CST_PROC,Type,Estimated labour hours per element for install takeoff,False,,,MULTI,1,0
+Generic Models,CST_LABOUR_RATE_GBP,v6-0001-0000-0000-000000000016,NUMBER,CST_PROC,Type,Labour rate in GBP per hour (override for UK projects),False,,,MULTI,1,0
+Generic Models,CST_LABOUR_RATE_UGX,v4-0003-0000-0000-000000000005,NUMBER,CST_PROC,Type,Labour rate in UGX per hour,False,,,MULTI,1,0
 Generic Models,CST_LAST_COSTED_DATE,91dba108-d8aa-4b40-862b-94fe107b6d43,TEXT,PRJ_INFORMATION,Type,Date of last BOQ cost calculation [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,CST_LIFECYCLE_COST_UGX,661c0e9a-753f-4f6b-b40a-449995ec081b,NUMBER,CST_PROC,Type,Whole-life cost estimate in UGX (capital + maintenance NPV 25yr) [ISO 19650-3:2020],False,,,MULTI,0,0
 Generic Models,CST_MODELED_TOTAL_UGX,1e00f349-c2db-4983-92d3-e3b2679f7681,NUMBER,CST_PROC,Type,Computed element cost total in UGX [ISO 19650-3:2020],False,,,MULTI,0,0
 Generic Models,CST_PROVISIONAL_SUM,981c4d13-349b-473c-a4b5-71e0b1f4d878,YESNO,CST_PROC,Type,True if this element represents a provisional sum [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,CST_PS_DESCRIPTION,34880114-bc94-4008-a2c5-05a08adcc7d5,TEXT,CST_PROC,Type,Provisional sum scope description [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,CST_QTY_MEASURED,e6dc2ab6-7b17-4c40-865e-2f7610bb5fd0,TEXT,CST_PROC,Type,Measured quantity for BOQ (area/length/volume/count) [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,CST_QUOTE_REF_TXT,4de58d8f-38e2-584f-b8aa-5a5744a80fcd,TEXT,CST_PROC,Type,Supplier quote reference number,False,,,MULTI,1,0
+Generic Models,CST_QUOTE_REF_TXT,v4-0003-0000-0000-000000000008,TEXT,CST_PROC,Type,Supplier quote reference number,False,,,MULTI,1,0
 Generic Models,CST_RATE_CONFIDENCE,9b7bb8b4-173b-47b9-ade4-3d77766f3728,INTEGER,CST_PROC,Type,Rate confidence score 0-100 (source reliability) [ISO 19650-3:2020],False,,,MULTI,0,0
 Generic Models,CST_RATE_SOURCE,6196f318-c337-4faf-b608-785afba40921,TEXT,CST_PROC,Type,Rate source: CSV | COBie | Manual | Override | Carbon [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,CST_SHIPPING_UGX,5758facf-7a3f-5900-b3ea-abf487990b25,NUMBER,CST_PROC,Type,Shipping cost component in UGX,False,,,MULTI,1,0
-Generic Models,CST_UG_PRICE_UGX,694fcd57-d0c2-5ed3-afca-f225781b3bc8,NUMBER,CST_PROC,Type,Local Uganda unit price in UGX,False,,,MULTI,1,0
+Generic Models,CST_SHIPPING_UGX,v4-0003-0000-0000-000000000006,NUMBER,CST_PROC,Type,Shipping cost component in UGX,False,,,MULTI,1,0
+Generic Models,CST_UG_PRICE_UGX,v4-0003-0000-0000-000000000002,NUMBER,CST_PROC,Type,Local Uganda unit price in UGX,False,,,MULTI,1,0
 Generic Models,CST_UNIT_RATE_UGX,d9b66a87-dfcd-474c-9a95-28966c3ea0f5,TEXT,CST_PROC,Type,Unit rate UGX applied to this element [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,CST_UNIT_RATE_USD,4a6c27ee-694f-4d99-9c7f-5c1b305aa6aa,TEXT,CST_PROC,Type,Unit rate USD applied to this element [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ELC_CPC_SZ_MM,d7e8f9a0-b1c2-4d3e-bf4a-5b6c7d8e9fa0,TEXT,ELC_PWR,Type,Circuit protective conductor size in mm2 per BS 7671,False,,,MULTI,1,0
 Generic Models,ELC_FACTORY_QR_TXT,a4257dba-e2fb-5890-96f8-80a14ad0d8c2,TEXT,ELC_PWR,Type,Electrical factory QR code label reference [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ELC_FAT_CERT_REF_TXT,37ac83fc-80c9-5a43-a03b-6365d5424731,TEXT,ELC_PWR,Type,Factory Acceptance Test certificate reference [IEC 61439-1:2020],False,,,MULTI,1,0
-Generic Models,ELC_LPS_AIR_TERMINAL_COUNT_NR,36889f59-a8ba-55c8-8777-6ba332b39bff,TEXT,ELC_PWR,Type,Count of air terminals / lightning rods on the protected zone,False,,,MULTI,1,0
-Generic Models,ELC_LPS_BOND_TYPE_TXT,1cb4c3d3-8c12-5be3-9eeb-4072b4be3240,TEXT,ELC_PWR,Type,Equipotential bonding type (DIRECT / SPD / ISOLATING_SPARK_GAP),False,,,MULTI,1,0
-Generic Models,ELC_LPS_CERT_REF_TXT,0a8dbcfb-6f73-5c8c-94eb-b72606feae87,TEXT,ELC_PWR,Type,Certificate reference for the LPS inspection / commissioning,False,,,MULTI,1,0
-Generic Models,ELC_LPS_CLASS_TXT,081c2e86-3af9-5658-8a26-63da9c1eccc2,TEXT,ELC_PWR,Type,LPS class per BS EN 62305 (I / II / III / IV),False,,,MULTI,1,0
-Generic Models,ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,423133ca-7535-521d-9c37-65ec7ae68166,TEXT,ELC_PWR,Type,Down conductor cross section in mm2 (min 50 mm2 copper per BS EN 62305),False,,,MULTI,1,0
-Generic Models,ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,157527ba-17a8-5014-b6c5-f70273ccd5f5,TEXT,ELC_PWR,Type,"Count of down conductors per BS EN 62305 (min 2 for class IV, 4 for class I)",False,,,MULTI,1,0
-Generic Models,ELC_LPS_EARTH_ELECTRODE_COUNT_NR,d02bca9d-9159-5477-8488-48f9076841fa,TEXT,ELC_PWR,Type,Count of earth electrodes serving the LPS,False,,,MULTI,1,0
-Generic Models,ELC_LPS_EARTH_RESISTANCE_OHM,80da349f-708b-5165-bb2e-f369dec80e4b,TEXT,ELC_PWR,Type,Measured earth resistance in ohms (target <10 ohm per BS EN 62305),False,,,MULTI,1,0
-Generic Models,ELC_LPS_EARTH_TYPE_TXT,3703245d-a866-5e05-8737-72babfbb85a4,TEXT,ELC_PWR,Type,Earth electrode type (ROD / RING / FOUNDATION / MESH),False,,,MULTI,1,0
-Generic Models,ELC_LPS_ELEMENT_TYPE_TXT,75cd5268-c764-551b-872d-00b0b31308a6,TEXT,ELC_PWR,Type,LPS component type marker (AIR_TERMINAL / DOWN_CONDUCTOR / EARTH_ELECTRODE / BONDING_BAR / SPD); primary discriminator for CollectLpsFamily,False,,,MULTI,1,0
-Generic Models,ELC_LPS_INSPECTION_INTERVAL_MONTHS,5339fe4f-caa3-5edc-99b1-53c0defd4ad8,TEXT,ELC_PWR,Type,"Inspection interval in months (12 for class I/II, 24 for class III/IV)",False,,,MULTI,1,0
-Generic Models,ELC_LPS_KC_FACTOR_NR,b1332559-0830-5d8f-8ac7-5f77a963cd94,NUMBER,ELC_PWR,Type,Current-distribution factor kc per BS EN 62305-3 S.6.3 (1/n with floor 0.1; stamped on Project Information by LPS Class Setup / kc Recalc),False,,,MULTI,1,0
-Generic Models,ELC_LPS_MESH_SIZE_M,d6a9566f-eda9-5e6d-9dcf-fd14440c395b,TEXT,ELC_PWR,Type,Air terminal mesh grid size in metres per BS EN 62305 class,False,,,MULTI,1,0
-Generic Models,ELC_LPS_PROTECTION_ANGLE_DEG,0063477e-cda5-58a3-a802-061838e57a47,TEXT,ELC_PWR,Type,Protection cone half-angle in degrees per BS EN 62305 class,False,,,MULTI,1,0
-Generic Models,ELC_LPS_RISK_ASSESSMENT_TXT,330d6fb5-2891-5a28-8ec6-e04618c9d1e4,TEXT,ELC_PWR,Type,Risk assessment reference document per BS EN 62305-2,False,,,MULTI,1,0
-Generic Models,ELC_LPS_ROLLING_SPHERE_RADIUS_M,c4eeed34-608c-56a5-b97f-7c899d76f208,TEXT,ELC_PWR,Type,Rolling sphere radius in metres per BS EN 62305 class (20 / 30 / 45 / 60),False,,,MULTI,1,0
-Generic Models,ELC_LPS_SEPARATION_DISTANCE_MM,441346ff-828f-5298-9fbb-96f27feb22ef,TEXT,ELC_PWR,Type,Separation distance (s) between LPS and services in millimetres,False,,,MULTI,1,0
-Generic Models,ELC_LPS_SURGE_PROTECTION_LVL_TXT,c1605d30-bdcb-560e-9d97-bae3303a078e,TEXT,ELC_PWR,Type,Surge protection device level (Type 1 / Type 2 / Type 3),False,,,MULTI,1,0
-Generic Models,ELC_LPS_TEST_DATE_TXT,d654df13-0913-5e8f-8dfe-98b3971beb86,TEXT,ELC_PWR,Type,ISO 8601 date of last LPS test / inspection,False,,,MULTI,1,0
-Generic Models,ELC_LPS_ZONE_TXT,a01025f4-6155-524e-8514-72507f5e04ef,TEXT,ELC_PWR,Type,Lightning protection zone per BS EN 62305-4 (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3),False,,,MULTI,1,0
+Generic Models,ELC_LPS_AIR_TERMINAL_COUNT_NR,v4-0002-0000-0000-000000000004,INTEGER,ELC_PWR,Type,Count of air terminals / lightning rods on the protected zone,False,,,MULTI,1,0
+Generic Models,ELC_LPS_BOND_TYPE_TXT,v4-0002-0000-0000-000000000008,TEXT,ELC_PWR,Type,Equipotential bonding type (DIRECT / SPD / ISOLATING_SPARK_GAP),False,,,MULTI,1,0
+Generic Models,ELC_LPS_CERT_REF_TXT,v4-0002-0000-0000-000000000012,TEXT,ELC_PWR,Type,Certificate reference for the LPS inspection / commissioning,False,,,MULTI,1,0
+Generic Models,ELC_LPS_CLASS_TXT,v4-0002-0000-0000-000000000001,TEXT,ELC_PWR,Type,LPS class per BS EN 62305 (I / II / III / IV),False,,,MULTI,1,0
+Generic Models,ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,v4-0002-0000-0000-00000000000e,NUMBER,ELC_PWR,Type,Down conductor cross section in mm2 (min 50 mm2 copper per BS EN 62305),False,,,MULTI,1,0
+Generic Models,ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,v4-0002-0000-0000-000000000005,INTEGER,ELC_PWR,Type,"Count of down conductors per BS EN 62305 (min 2 for class IV, 4 for class I)",False,,,MULTI,1,0
+Generic Models,ELC_LPS_EARTH_ELECTRODE_COUNT_NR,v4-0002-0000-0000-000000000006,INTEGER,ELC_PWR,Type,Count of earth electrodes serving the LPS,False,,,MULTI,1,0
+Generic Models,ELC_LPS_EARTH_RESISTANCE_OHM,v4-0002-0000-0000-000000000007,NUMBER,ELC_PWR,Type,Measured earth resistance in ohms (target <10 ohm per BS EN 62305),False,,,MULTI,1,0
+Generic Models,ELC_LPS_EARTH_TYPE_TXT,v4-0002-0000-0000-00000000000f,TEXT,ELC_PWR,Type,Earth electrode type (ROD / RING / FOUNDATION / MESH),False,,,MULTI,1,0
+Generic Models,ELC_LPS_INSPECTION_INTERVAL_MONTHS,v4-0002-0000-0000-000000000010,INTEGER,ELC_PWR,Type,"Inspection interval in months (12 for class I/II, 24 for class III/IV)",False,,,MULTI,1,0
+Generic Models,ELC_LPS_MESH_SIZE_M,v4-0002-0000-0000-000000000003,NUMBER,ELC_PWR,Type,Air terminal mesh grid size in metres per BS EN 62305 class,False,,,MULTI,1,0
+Generic Models,ELC_LPS_PROTECTION_ANGLE_DEG,v4-0002-0000-0000-000000000009,NUMBER,ELC_PWR,Type,Protection cone half-angle in degrees per BS EN 62305 class,False,,,MULTI,1,0
+Generic Models,ELC_LPS_RISK_ASSESSMENT_TXT,v4-0002-0000-0000-00000000000b,TEXT,ELC_PWR,Type,Risk assessment reference document per BS EN 62305-2,False,,,MULTI,1,0
+Generic Models,ELC_LPS_ROLLING_SPHERE_RADIUS_M,v4-0002-0000-0000-000000000002,NUMBER,ELC_PWR,Type,Rolling sphere radius in metres per BS EN 62305 class (20 / 30 / 45 / 60),False,,,MULTI,1,0
+Generic Models,ELC_LPS_SEPARATION_DISTANCE_MM,v4-0002-0000-0000-00000000000d,NUMBER,ELC_PWR,Type,Separation distance (s) between LPS and services in millimetres,False,,,MULTI,1,0
+Generic Models,ELC_LPS_SURGE_PROTECTION_LVL_TXT,v4-0002-0000-0000-00000000000c,TEXT,ELC_PWR,Type,Surge protection device level (Type 1 / Type 2 / Type 3),False,,,MULTI,1,0
+Generic Models,ELC_LPS_TEST_DATE_TXT,v4-0002-0000-0000-000000000011,TEXT,ELC_PWR,Type,ISO 8601 date of last LPS test / inspection,False,,,MULTI,1,0
+Generic Models,ELC_LPS_ZONE_TXT,v4-0002-0000-0000-00000000000a,TEXT,ELC_PWR,Type,Lightning protection zone per BS EN 62305-4 (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3),False,,,MULTI,1,0
 Generic Models,ELC_PANEL_SCHEDULE_REF_TXT,b04373ec-3a97-5c0e-a13b-b72450d52eff,TEXT,ELC_PWR,Type,Electrical panel schedule document reference [BS 7671:2018+A2:2022],False,,,MULTI,1,0
-Generic Models,HEALTH_SCORE_DATE_TXT,aae3fbc7-95f1-5619-b041-5e5669256223,TEXT,HEALTH_METRICS,Type,ISO 8601 timestamp of last health score evaluation,False,,,MULTI,1,0
-Generic Models,HEALTH_SCORE_LAST_NR,d4b84d5f-f0d3-5a69-8401-3d453665a34b,NUMBER,HEALTH_METRICS,Type,Last model health score 0 to 100,False,,,MULTI,1,0
+Generic Models,HEALTH_SCORE_DATE_TXT,v6-0001-0000-0000-000000000014,TEXT,HEALTH_METRICS,Type,ISO 8601 timestamp of last health score evaluation,False,,,MULTI,1,0
+Generic Models,HEALTH_SCORE_LAST_NR,v6-0001-0000-0000-000000000013,NUMBER,HEALTH_METRICS,Type,Last model health score 0 to 100,False,,,MULTI,1,0
 Generic Models,HVC_FACTORY_FLASH_TEST_DATE_TXT,74d83fbc-1edc-5aa9-8edd-de412bfdf921,TEXT,HVC_SYSTEMS,Type,Factory flash test date for refrigerant equipment [BS EN 378-2:2016],False,,,MULTI,1,0
 Generic Models,HVC_FACTORY_QR_TXT,5ebe500d-983b-5a41-97ba-312b62882f28,TEXT,HVC_SYSTEMS,Type,Mechanical factory QR code label reference [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,HVC_REFRIGERANT_CHARGE_KG_NR,aff8756c-b7b5-5c7a-aaab-65efe622a7d4,NUMBER,HVC_SYSTEMS,Type,Equipment refrigerant charge mass in kg [BS EN 378-2:2016],False,,,MULTI,1,0
-Generic Models,IFC_PSET_OVERRIDE_TXT,72c4ee3c-6614-57b3-8309-44fe00cb8103,TEXT,IFC_EXCH,Type,Manual IFC property set override pipe-delimited (Pset_Name=Value),False,,,MULTI,1,0
+Generic Models,IFC_PSET_OVERRIDE_TXT,v6-0001-0000-0000-000000000012,TEXT,IFC_EXCH,Type,Manual IFC property set override pipe-delimited (Pset_Name=Value),False,,,MULTI,1,0
 Generic Models,MAT_CARBON_FACTOR,320d2951-41d8-46a4-9765-2a34ed56d407,NUMBER,MAT_INFO,Type,Embodied carbon factor kgCO2e per kg for this material [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,MAT_MEASURED_AREA_M2,c2a11911-0292-41b1-b9ed-3e0e632f133e,NUMBER,MAT_INFO,Type,Authoritative measured area m2 -- single source for BOQ + COBie [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,MAT_MEASURED_AREA_M2,c2a11911-0292-41b1-b9ed-3e0e632f133e,NUMBER,MAT_INFO,Type,Authoritative measured area m2 — single source for BOQ + COBie [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MAT_UNIT_RATE_UGX,9d6b4cf1-4edf-4cf7-9571-30f7da504e89,TEXT,MAT_INFO,Type,Material unit rate in UGX per measured unit [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MAT_UNIT_RATE_USD,8b5900ed-1c65-4bc1-8b6b-f1f4ebb52e89,TEXT,MAT_INFO,Type,Material unit rate in USD per measured unit [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_PPE_INSULATION_THK_MM,e8f9a0b1-c2d3-4e4f-ca5b-6c7d8e9fa0b1,NUMBER,PLM_DRN,Type,Pipe insulation thickness in millimetres,False,,,MULTI,1,0
@@ -2498,24 +2496,28 @@ Generic Models,PRJ_ORG_LEAD_APPOINTED_PARTY_TXT,77069632-0604-5cb1-b6ef-5e2211f6
 Generic Models,PRJ_ORG_ORIGINATOR_CODE_TXT,d9b568c8-0dcf-5226-add0-a6e3643589e8,TEXT,PRJ_INFORMATION,Type,ISO 19650 originator code (default PLNS) [template engine v1.1],False,,,MULTI,1,0
 Generic Models,PRJ_ORG_PARTICIPANTS_TXT,a4c8ef52-5bb2-579f-9308-8a6c2177bf52,TEXT,PRJ_INFORMATION,Type,Semicolon-separated participants list [template engine v1.1],False,,,MULTI,1,0
 Generic Models,PRJ_ORG_PHASE_TXT,d187fdbd-f701-5334-90da-1ab6694c5034,TEXT,PRJ_INFORMATION,Type,ISO 19650 project phase code (default DE) [template engine v1.1],False,,,MULTI,1,0
+Generic Models,PRJ_ORG_PROJECT_CODE_TXT,d72513d3-2aed-5048-a949-b262fcd51a39,TEXT,PRJ_INFORMATION,Type,Project identifier code (alphanumeric) [template engine v1.1],False,,,MULTI,1,0
 Generic Models,PRJ_ORG_SIGNATURE_PROVIDER_TXT,e669eea3-d1fa-51b7-b820-83fa21d40877,TEXT,PRJ_INFORMATION,Type,Signature provider id (empty = signatures disabled) [template engine v1.1],False,,,MULTI,1,0
 Generic Models,PRJ_ORG_WORKFLOW_PROFILE_TXT,48a26ee9-211d-5525-8fbb-9f8eb1f38878,TEXT,PRJ_INFORMATION,Type,"Workflow profile key (default ""default"") [template engine v1.1]",False,,,MULTI,1,0
-Generic Models,PRJ_TB_DELIVERABLE_CDE_TXT,0d917e49-c6f6-5951-b2b7-7a00bdb3b0df,TEXT,PRJ_INFORMATION,Type,CDE container or folder reference where this deliverable is stored [ISO 19650-2:2018],False,,,MULTI,0,0
-Generic Models,PRJ_TB_DELIVERABLE_DATADROP_TXT,d63919e8-7cf5-5202-bd59-1dc03554fee4,TEXT,PRJ_INFORMATION,Type,ISO 19650 data drop identifier this deliverable belongs to [ISO 19650-2:2018],False,,,MULTI,0,0
-Generic Models,PRJ_TB_DELIVERABLE_DUE_TXT,525f8b24-26eb-52ae-8760-c6aa1621815a,TEXT,PRJ_INFORMATION,Type,Due date for this deliverable in the project programme (ISO 8601) [ISO 19650-2:2018],False,,,MULTI,0,0
-Generic Models,PRJ_TB_DELIVERABLE_STATUS_TXT,5fea853a-6ed7-505e-a677-50fb83f435b0,TEXT,PRJ_INFORMATION,Type,Current deliverable lifecycle status (WIP / Shared / Published / Archive) [ISO 19650-2:2018],False,,,MULTI,0,0
-Generic Models,PRJ_TB_ISSUE_SUMMARY_TXT,a3408dee-9ced-5ccd-970c-0958bcc713a9,TEXT,PRJ_INFORMATION,Type,"Short free-text summary of the issue purpose (e.g. ""For Construction"") [ISO 19650-1:2018]",False,,,MULTI,1,0
-Generic Models,PRJ_TB_LAST_SYNC_BY_TXT,eb514ec7-6636-5987-9667-8e85c31a8f85,TEXT,PRJ_INFORMATION,Type,Username who triggered the last Planscape Server sync [ISO 19650-2:2018],False,,,MULTI,0,0
-Generic Models,PRJ_TB_LAST_SYNC_TXT,1817eeb3-4c56-50c2-b386-6b3be3d98fc4,TEXT,PRJ_INFORMATION,Type,ISO 8601 datetime of last sync to Planscape Server for this sheet [ISO 19650-2:2018],False,,,MULTI,0,0
-Generic Models,PRJ_TB_LAST_TRANSMITTAL_DATE_TXT,8edb7300-d8a4-5df3-b0ba-b21710da9724,TEXT,PRJ_INFORMATION,Type,Date of the last transmittal that included this sheet (ISO 8601) [ISO 19650-2:2018],False,,,MULTI,0,0
-Generic Models,PRJ_TB_LAST_TRANSMITTAL_TXT,953d56bb-e854-5817-9fa0-90ed013f276c,TEXT,PRJ_INFORMATION,Type,Transmittal number of the last issue that included this sheet [ISO 19650-2:2018],False,,,MULTI,0,0
-Generic Models,PRJ_TB_LOCK_BOOL,74c9d75f-840c-5263-9acf-8fecf80ec6aa,YESNO,PRJ_INFORMATION,Type,"When true, prevents TitleBlockParamApplier from overwriting manually set values on this sheet [ISO 19650-1:2018]",False,,,MULTI,1,0
-Generic Models,PRJ_TB_LOGO_PATH_TXT,3bb5edc1-54f9-56ff-92c9-405a8dde646c,TEXT,PRJ_INFORMATION,Type,File path or URL to company logo image for title block rendering [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PRJ_TB_NOTES_LEGEND_REF_TXT,a083c0ca-5782-59a2-a459-85107690aa6d,TEXT,PRJ_INFORMATION,Type,Reference to the notes/legend drawing number applicable to this sheet [ISO 19650-1:2018],False,,,MULTI,0,0
-Generic Models,PRJ_TB_SCALE_OVERRIDE_TXT,624563ac-3067-5990-ba13-a4d750e9ffc2,TEXT,PRJ_INFORMATION,Type,"Override scale label shown on title block (e.g. ""NTS"", ""1:100""). Empty = use view scale. [ISO 19650-1:2018]",False,,,MULTI,1,0
-Generic Models,PRJ_TB_SCHEMA_VERSION_TXT,9832b76e-07df-509e-b139-d402bc50ba68,TEXT,PRJ_INFORMATION,Type,STING title block data schema version this sheet was stamped with [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PRJ_TB_SHOW_DISCBAND_BOOL,483f47d7-a6cd-5fa7-bfde-ff2ab6e43178,YESNO,PRJ_INFORMATION,Type,Show discipline colour band on title block [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PRJ_TB_VARIANT_TXT,e4c060c3-1c31-5860-b0d0-ef9472016895,TEXT,PRJ_INFORMATION,Type,"Drawing variant or option code (e.g. OPT-A, BASE) [ISO 19650-1:2018]",False,,,MULTI,1,0
+Generic Models,PRJ_TB_DELIVERABLE_CDE_TXT,0d917e49-c6f6-5951-b2b7-7a00bdb3b0df,TEXT,PRJ_INFORMATION,Type,Prj Tb Deliverable Cde Txt [ISO 19650-2:2018],False,,,MULTI,0,0
+Generic Models,PRJ_TB_DELIVERABLE_DATADROP_TXT,d63919e8-7cf5-5202-bd59-1dc03554fee4,TEXT,PRJ_INFORMATION,Type,Prj Tb Deliverable Datadrop Txt [ISO 19650-2:2018],False,,,MULTI,0,0
+Generic Models,PRJ_TB_DELIVERABLE_DUE_TXT,525f8b24-26eb-52ae-8760-c6aa1621815a,TEXT,PRJ_INFORMATION,Type,Prj Tb Deliverable Due Txt [ISO 19650-2:2018],False,,,MULTI,0,0
+Generic Models,PRJ_TB_DELIVERABLE_STATUS_TXT,5fea853a-6ed7-505e-a677-50fb83f435b0,TEXT,PRJ_INFORMATION,Type,Prj Tb Deliverable Status Txt [ISO 19650-2:2018],False,,,MULTI,0,0
+Generic Models,PRJ_TB_ISSUE_SUMMARY_TXT,a3408dee-9ced-5ccd-970c-0958bcc713a9,TEXT,PRJ_INFORMATION,Type,Prj Tb Issue Summary Txt [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PRJ_TB_LAST_SYNC_BY_TXT,eb514ec7-6636-5987-9667-8e85c31a8f85,TEXT,PRJ_INFORMATION,Type,Prj Tb Last Sync By Txt [ISO 19650-1:2018],False,,,MULTI,0,0
+Generic Models,PRJ_TB_LAST_SYNC_TXT,1817eeb3-4c56-50c2-b386-6b3be3d98fc4,TEXT,PRJ_INFORMATION,Type,Prj Tb Last Sync Txt [ISO 19650-1:2018],False,,,MULTI,0,0
+Generic Models,PRJ_TB_LAST_TRANSMITTAL_DATE_TXT,8edb7300-d8a4-5df3-b0ba-b21710da9724,TEXT,PRJ_INFORMATION,Type,Prj Tb Last Transmittal Date Txt [ISO 19650-2:2018],False,,,MULTI,0,0
+Generic Models,PRJ_TB_LAST_TRANSMITTAL_TXT,953d56bb-e854-5817-9fa0-90ed013f276c,TEXT,PRJ_INFORMATION,Type,Prj Tb Last Transmittal Txt [ISO 19650-2:2018],False,,,MULTI,0,0
+Generic Models,PRJ_TB_LOCK_BOOL,74c9d75f-840c-5263-9acf-8fecf80ec6aa,YESNO,PRJ_INFORMATION,Type,Prj Tb Lock Bool [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PRJ_TB_LOGO_PATH_TXT,3bb5edc1-54f9-56ff-92c9-405a8dde646c,TEXT,PRJ_INFORMATION,Type,Prj Tb Logo Path Txt [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PRJ_TB_NOTES_LEGEND_REF_TXT,a083c0ca-5782-59a2-a459-85107690aa6d,TEXT,PRJ_INFORMATION,Type,Prj Tb Notes Legend Ref Txt [ISO 19650-1:2018],False,,,MULTI,0,0
+Generic Models,PRJ_TB_SCALE_OVERRIDE_TXT,624563ac-3067-5990-ba13-a4d750e9ffc2,TEXT,PRJ_INFORMATION,Type,Prj Tb Scale Override Txt [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PRJ_TB_SCHEMA_VERSION_TXT,9832b76e-07df-509e-b139-d402bc50ba68,TEXT,PRJ_INFORMATION,Type,Prj Tb Schema Version Txt [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PRJ_TB_SHOW_DISCBAND_BOOL,483f47d7-a6cd-5fa7-bfde-ff2ab6e43178,YESNO,PRJ_INFORMATION,Type,Prj Tb Show Discband Bool [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PRJ_TB_SHOW_KEYPLAN_BOOL,8dd6b517-7173-5a8d-b951-a08807fed830,YESNO,PRJ_INFORMATION,Type,Prj Tb Show Keyplan Bool [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PRJ_TB_SHOW_NORTHARROW_BOOL,58c6e51f-6f22-546b-ac02-086ab6f6fbbf,YESNO,PRJ_INFORMATION,Type,Prj Tb Show Northarrow Bool [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PRJ_TB_SHOW_SCALEBAR_BOOL,fa841ad5-15e1-5ec2-91bc-a69d70cf9c42,YESNO,PRJ_INFORMATION,Type,Prj Tb Show Scalebar Bool [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PRJ_TB_VARIANT_TXT,e4c060c3-1c31-5860-b0d0-ef9472016895,TEXT,PRJ_INFORMATION,Type,Prj Tb Variant Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PRJ_VOLUME_CODE,1a77c2d8-5e9e-4b21-9ec3-90be2f108cd1,TEXT,PRJ_INFORMATION,Type,ISO 19650 Volume code parsed from file name (BLD1/BLD2/SITE/etc.) [Phase 108m],False,,,MULTI,1,0
 Generic Models,PROJECT_BUDGET_UGX,c126b293-0f21-45f6-8433-f0907cd716ef,NUMBER,PRJ_INFORMATION,Type,Project budget set by cost consultant in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,STR_BAR_MARK_TXT,cbd94272-6db5-557c-8e6d-2f254888afc6,TEXT,BLE_STRUCTURE,Type,Rebar bar mark from bending schedule [BS 8666:2020],False,,,MULTI,1,0
@@ -2524,7 +2526,7 @@ Generic Models,STR_BOLT_TORQUE_NM_NR,87cca4d2-1a8c-57a0-a31b-ab78a308fbe5,NUMBER
 Generic Models,STR_CUTTING_LIST_REF_TXT,dbc0b581-2741-5a76-82bc-7956cef3af86,TEXT,BLE_STRUCTURE,Type,Rebar cutting list drawing reference [BS 8666:2020],False,,,MULTI,1,0
 Generic Models,STR_WELD_PROCEDURE_REF_TXT,e182a84b-a159-567f-a62d-fd0c3765f618,TEXT,BLE_STRUCTURE,Type,Welding procedure specification reference [BS EN ISO 15609-1:2019],False,,,MULTI,1,0
 Generic Models,TAG_DEPTH_TIER_INT,b7f3e2a1-0002-4a01-b001-000000090002,INTEGER,STINGTags_ISO19650,Type,Active paragraph depth tier cached on tag family type (1-10),False,,,MULTI,1,0
-Generic Models,TAG_SCALE_TIER_AUTO_BOOL,b7f3e2a1-0001-4a01-b001-000000090001,YESNO,STINGTags_ISO19650,Type,Tag scale tier auto-selection flag,False,,,MULTI,1,0
+Generic Models,TAG_SCALE_TIER_AUTO_BOOL,b7f3e2a1-0001-4a01-b001-000000090001,TEXT,STINGTags_ISO19650,Type,Tag scale tier auto-selection flag,False,,,MULTI,1,0
 Generic Models,TB_AUTHORITY_CODE_TXT,156fb9f9-00c7-5e73-9b8a-9868d4274966,TEXT,TBL_TITLEBLOCK,Type,Authority code KCCA ERA NEMA blank for non-submission [STING TB v1],False,,,MULTI,1,0
 Generic Models,TB_AUTHORITY_FORM_VERSION_TXT,1def6a69-c050-5ce9-a118-b190d7359e23,TEXT,TBL_TITLEBLOCK,Type,Submission form version eg KCCA-2024-Rev3 [STING TB v1],False,,,MULTI,1,0
 Generic Models,TB_DISCIPLINE_LIST_TXT,c2861f75-5490-50c1-ab0a-bee80da086e3,TEXT,TBL_TITLEBLOCK,Type,CSV of discipline codes this title block is valid for eg M;E;P;A;S [STING TB v1],False,,,MULTI,1,0
@@ -2562,355 +2564,3 @@ Generic Models,TB_SHOW_REV_TABLE_BOOL,da7b6ce4-8e29-5985-9211-2c5a917bbc4b,YESNO
 Generic Models,TB_SHOW_SCALEBAR_BOOL,afcd0647-42e0-537f-bd18-5f46ed1871df,YESNO,TBL_TITLEBLOCK,Type,Visibility toggle for nested scale bar [STING TB v1],False,,,MULTI,1,0
 Generic Models,TB_TEMPLATE_VERSION_TXT,02de282c-b472-5abd-b7f4-e62e12d6c6e8,TEXT,TBL_TITLEBLOCK,Type,Family template semantic version eg 1.2.0 [STING TB v1],False,,,MULTI,1,0
 Generic Models,TB_VIEWPORT_SLOTS_JSON_TXT,e76d263f-5b03-5568-8b9e-1d1dbf21f347,TEXT,TBL_TITLEBLOCK,Type,"JSON array of viewport slots {label,normX,normY,normW,normH,viewType,scale} consumed by ShopDrawingComposer [STING TB v1]",False,,,MULTI,1,0
-Views,STING_VIEW_CONTEXT_TAG_TXT,a7c0b2e4-4d91-4a55-9c7e-aa0001000001,TEXT,STING_DRAWING,Instance,Production context tag written by STING per-level / sections / elevations engine [STING DT v137],False,,,MULTI,1,0
-Views,STING_DRAWING_PACKAGE_ID_TXT,a7c0b2e4-4d91-4a55-9c7e-aa0001000002,TEXT,STING_DRAWING,Instance,Drawing package this view or sheet belongs to [STING DT v137],False,,,MULTI,1,0
-Views,STING_AUTO_PLACED_BOOL,a7c0b2e4-4d91-4a55-9c7e-aa0001000003,YESNO,STING_DRAWING,Instance,Flags views auto-placed onto sheets by the STING production engine [STING DT v137],False,,,MULTI,1,0
-Sheets,STING_PRODUCTION_RULE_IDX_INT,a7c0b2e4-4d91-4a55-9c7e-aa0001000004,INTEGER,STING_DRAWING,Instance,ProductionRule index that produced this view [STING DT v137],False,,,MULTI,1,0
-Sheets,STING_SHEET_SEQUENCE_INT,a7c0b2e4-4d91-4a55-9c7e-aa0001000005,INTEGER,STING_DRAWING,Instance,Production sheet sequence number [STING DT v137],False,,,MULTI,1,0
-Project Information,HANDOVER_MODE_HANDOVER_BOOL,a8f3c1d2-4e56-7890-abcd-ef1234567801,YESNO,COMMISSIONING,Instance,Pattern selector -- Handover / FM T4-T10 payload visible [STING Phase 165],False,,,MULTI,1,0
-Project Information,HANDOVER_MODE_DC_BOOL,a8f3c1d2-4e56-7890-abcd-ef1234567802,YESNO,COMMISSIONING,Instance,Pattern selector -- Design & Construction T4-T10 payload visible [STING Phase 165],False,,,MULTI,1,0
-Project Information,HANDOVER_MODE_CUSTOM_BOOL,a8f3c1d2-4e56-7890-abcd-ef1234567803,YESNO,COMMISSIONING,Instance,Pattern selector -- Custom (user-defined) T4-T10 payload visible [STING Phase 165],False,,,MULTI,1,0
-Generic Models,STING_SYMBOL_ID,a4b5c6d7-e8f9-4a0b-1c2d-3e4f5a6b7c8d,TEXT,STING_DRAWING,Instance,Symbol library concept id stamped on placed instances [STING Phase 175],False,,,ELECTRICAL,1,0
-Generic Models,STING_SYMBOL_STANDARD,b5c6d7e8-f9a0-4b1c-2d3e-4f5a6b7c8d9e,TEXT,STING_DRAWING,Instance,Symbol standard variant -- IEC 60617 / IEEE 315 / ISO 14617 [STING Phase 175],False,,,ELECTRICAL,1,0
-Generic Models,STING_HOST_ELEMENT_ID,c6d7e8f9-a0b1-4c2d-3e4f-5a6b7c8d9e0f,TEXT,STING_DRAWING,Instance,Element id of the host modelled element this symbol represents [STING Phase 175],False,,,ELECTRICAL,1,0
-Generic Models,STING_SYMBOL_LABEL_ID,d7e8f9a0-b1c2-4d3e-4f5a-6b7c8d9e0f1a,TEXT,STING_DRAWING,Instance,Stable id linking SLD label / annotation to its symbol family instance [STING Phase 175],False,,,ELECTRICAL,1,0
-Generic Models,STING_SYMBOL_OVERRIDE,e8f9a0b1-c2d3-4e4f-5a6b-7c8d9e0f1a2b,TEXT,STING_DRAWING,Instance,Project-level symbol override id [STING Phase 175],False,,,ELECTRICAL,1,0
-Views,STING_VIEW_SYMBOL_STANDARD,f9a0b1c2-d3e4-4f5a-6b7c-8d9e0f1a2b3c,TEXT,STING_DRAWING,Instance,Per-view symbol standard override -- IEC / IEEE / ISO [STING Phase 175],False,,,ELECTRICAL,1,0
-Generic Models,STING_SLD_ELEMENT_ID,0a1b2c3d-4e5f-4a6b-7c8d-9e0f1a2b3c4d,TEXT,STING_DRAWING,Instance,Source modelled element id paired with this Single Line Diagram symbol [STING Phase 175],False,,,ELECTRICAL,1,0
-Project Information,STING_SYMBOL_LIBRARY_VERSION,1b2c3d4e-5f6a-4b7c-8d9e-0f1a2b3c4d5e,TEXT,STING_DRAWING,Instance,Symbol library version stamp (e.g. 2026.04 IEC) for change tracking [STING Phase 175],False,,,ELECTRICAL,1,0
-Detail Items,STING_MATCH_REF_TXT,a6b7c8d9-eafb-4acc-5d6e-7f8a9bacdbec,TEXT,STING_DRAWING,Instance,Paired sheet reference written on match-line + caption tags [STING Phase 168],False,,,MULTI,1,0
-Detail Items,STING_MATCH_LINE_GUID_TXT,a7b8c9da-fbac-4bcd-6e7f-8a9bacdbecfd,TEXT,STING_DRAWING,Instance,Stable match-line pair identifier [STING Phase 168],False,,,MULTI,1,0
-Detail Items,STING_MATCH_DIR_TXT,a8b9cadb-acbd-4cde-7f8a-9bacdbecfdae,TEXT,STING_DRAWING,Instance,Match-line direction encoding -- VERTICAL / HORIZONTAL / DOGLEG [STING Phase 168],False,,,MULTI,1,0
-Electrical Equipment,ELC_LPS_AIRTERM_TAG_TXT,e1c5f9d4-1001-5111-9111-100000000001,TEXT,ELC_PWR,Instance,LPS air-terminal / finial full ISO 19650 tag [BS EN 62305-3 S.5.2],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_LPS_DOWNCOND_TAG_TXT,e1c5f9d4-1002-5111-9111-100000000002,TEXT,ELC_PWR,Instance,LPS down-conductor full tag [BS EN 62305-3 S.5.3],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_LPS_EARTH_TAG_TXT,e1c5f9d4-1003-5111-9111-100000000003,TEXT,ELC_PWR,Instance,LPS earth-electrode full tag [BS EN 62305-3 S.5.4],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_LPS_BOND_TAG_TXT,e1c5f9d4-1004-5111-9111-100000000004,TEXT,ELC_PWR,Instance,LPS equipotential bonding full tag [BS EN 62305-3 S.6.2],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_LPS_SPD_TAG_TXT,e1c5f9d4-1005-5111-9111-100000000005,TEXT,ELC_PWR,Instance,LPS surge protective device full tag [BS EN 62305-4 / BS EN 61643],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_LPS_TESTCLAMP_TAG_TXT,e1c5f9d4-1006-5111-9111-100000000006,TEXT,ELC_PWR,Instance,LPS test clamp / inspection point full tag [BS EN 62305-3 S.7.2],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_TAG_7_PARA_LPS_TXT,e1c5f9d4-1007-5111-9111-100000000007,TEXT,ELC_PWR,Instance,Electrical TAG7 paragraph container for LPS narrative [STING Phase 176],False,,,ELECTRICAL,1,0
-Electrical Equipment,WARN_ELC_LPS_NO_CLASS,f1d6f0e5-2001-5222-9222-200000000001,TEXT,ELC_PWR,Instance,Warning: LPS class missing [BS EN 62305-1] [CRITICAL],False,,,ELECTRICAL,1,1
-Electrical Equipment,WARN_ELC_LPS_DOWN_COND_INSUFFICIENT,f1d6f0e5-2002-5222-9222-200000000002,TEXT,ELC_PWR,Instance,Warning: down-conductor count below class minimum [BS EN 62305-3 Tab 4] [HIGH],False,,,ELECTRICAL,1,1
-Electrical Equipment,WARN_ELC_LPS_EARTH_RESISTANCE_HIGH,f1d6f0e5-2003-5222-9222-200000000003,TEXT,ELC_PWR,Instance,Warning: earth resistance exceeds 10 ohm [BS EN 62305-3 S.5.4.1] [HIGH],False,,,ELECTRICAL,1,1
-Electrical Equipment,WARN_ELC_LPS_NO_RISK_ASSESSMENT,f1d6f0e5-2004-5222-9222-200000000004,TEXT,ELC_PWR,Instance,Warning: risk assessment (R1..R4) not recorded [BS EN 62305-2] [HIGH],False,,,ELECTRICAL,1,1
-Electrical Equipment,WARN_ELC_LPS_SEPARATION_FAIL,f1d6f0e5-2005-5222-9222-200000000005,TEXT,ELC_PWR,Instance,Warning: separation distance below computed value [BS EN 62305-3 S.6.3] [HIGH],False,,,ELECTRICAL,1,1
-Electrical Equipment,WARN_ELC_LPS_INSPECTION_OVERDUE,f1d6f0e5-2006-5222-9222-200000000006,TEXT,ELC_PWR,Instance,Warning: inspection interval exceeded [BS EN 62305-3 S.E.7] [MEDIUM],False,,,ELECTRICAL,1,1
-Electrical Equipment,WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW,f1d6f0e5-2007-5222-9222-200000000007,TEXT,ELC_PWR,Instance,Warning: down-conductor cross-section below class minimum [BS EN 62305-3 Tab 6] [HIGH],False,,,ELECTRICAL,1,1
-Electrical Equipment,WARN_ELC_LPS_NO_BONDING,f1d6f0e5-2008-5222-9222-200000000008,TEXT,ELC_PWR,Instance,Warning: equipotential bonding type not specified [BS EN 62305-3 S.6.2] [HIGH],False,,,ELECTRICAL,1,1
-Electrical Equipment,WARN_ELC_LPS_MESH_SIZE_EXCEEDED,f1d6f0e5-2009-5222-9222-200000000009,TEXT,ELC_PWR,Instance,Warning: air-termination mesh exceeds class limit [BS EN 62305-3 Tab 2] [HIGH],False,,,ELECTRICAL,1,1
-Electrical Equipment,WARN_ELC_LPS_NO_ZONE,f1d6f0e5-2010-5222-9222-200000000010,TEXT,ELC_PWR,Instance,Warning: LPZ (LPZ0A/LPZ0B/LPZ1/LPZ2/LPZ3) not assigned [BS EN 62305-4 S.4.1] [MEDIUM],False,,,ELECTRICAL,1,1
-Electrical Equipment,ELC_CIRCUIT_REF_TXT,c2a7e5b1-3001-5333-9333-300000000001,TEXT,ELC_PWR,Instance,Electrical circuit reference (e.g. L1 / DB1-3) -- rendered into SLD labels by SymbolAnnotationEngine [STING Phase 175],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_CIRCUIT_RATING_TXT,c2a7e5b1-3002-5333-9333-300000000002,TEXT,ELC_PWR,Instance,Circuit / device rating string (e.g. 32A / 100A) -- rendered into SLD labels [STING Phase 175],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_CIRCUIT_POLES_NR,c2a7e5b1-3003-5333-9333-300000000003,INTEGER,ELC_PWR,Instance,Number of poles (1/2/3/4) for circuit breakers and switches -- rendered into SLD labels [STING Phase 175],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_CIRCUIT_LABEL_TXT,c2a7e5b1-3004-5333-9333-300000000004,TEXT,ELC_PWR,Instance,Free-text display-label override appended to SLD label after circuit ref + rating [STING Phase 175],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_PNL_AIC_RATING_KA,f1d6e7c8-1001-5178-9178-100000000001,TEXT,ELC_PWR,Instance,Standardised AIC (Ampere Interrupting Capacity) tier in kA stamped to the panel for breaker / switchgear specification [STING Phase 178],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_FEEDER_CSA_MM2,f1d6e7c8-1002-5178-9178-100000000002,TEXT,ELC_PWR,Instance,Calculated / proposed feeder cable cross-sectional area in mm2 (distinct from circuit cable size) [STING Phase 178],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_FEEDER_RATING_A,f1d6e7c8-1003-5178-9178-100000000003,TEXT,ELC_PWR,Instance,Calculated feeder breaker / fuse rating in amperes -- the upstream protective device rating [STING Phase 178],False,,,ELECTRICAL,1,0
-Rooms,ELC_EMERG_COVERED_BOOL,f1d6e7c8-1004-5178-9178-100000000004,TEXT,ELC_PWR,Instance,Room has emergency lighting coverage (1=true, 0=false) [BS 5266-1 / BS 9999 / STING Phase 178],False,,,ELECTRICAL,1,0
-Rooms,ELC_LPD_W_PER_M2,f1d6e7c8-1005-5178-9178-100000000005,TEXT,ELC_PWR,Instance,Calculated lighting power density of the room in W/m2 [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178],False,,,ELECTRICAL,1,0
-Rooms,ELC_LPD_LIMIT_W_PER_M2,f1d6e7c8-1006-5178-9178-100000000006,TEXT,ELC_PWR,Instance,Standard LPD limit for the room type in W/m2 [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178],False,,,ELECTRICAL,1,0
-Rooms,ELC_LPD_STATUS_TXT,f1d6e7c8-1007-5178-9178-100000000007,TEXT,ELC_PWR,Instance,LPD compliance status (PASS / FAIL / WARNING / UNCHECKED) [STING Phase 178],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_ARC_FLASH_IE_CAL_CM2,a2e7f8d9-1001-5179-9179-100000000001,TEXT,ELC_PWR,Instance,Calculated incident energy in cal/cm2 at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_ARC_FLASH_BOUNDARY_MM,a2e7f8d9-1002-5179-9179-100000000002,TEXT,ELC_PWR,Instance,Arc flash boundary distance in mm -- the distance at which incident energy = 1.2 cal/cm2 [IEEE 1584-2018 / STING Phase 179],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_ARC_FLASH_PPE_CAT,a2e7f8d9-1003-5179-9179-100000000003,TEXT,ELC_PWR,Instance,NFPA 70E Table 130.5(G) PPE category 0-4 (-1 = exceeds Cat 4 / dangerous) [STING Phase 179],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_ARC_FLASH_WORK_DIST_MM,a2e7f8d9-1004-5179-9179-100000000004,TEXT,ELC_PWR,Instance,Working distance from the arc source in mm (default 455 mm for LV equipment per IEEE 1584) [STING Phase 179],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_ARC_FLASH_LABEL_TXT,a2e7f8d9-1005-5179-9179-100000000005,TEXT,ELC_PWR,Instance,Formatted NFPA 70E arc flash warning label text -- voltage / energy / boundary / PPE [STING Phase 179],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_SEL_COORD_VERIFIED_BOOL,a2e7f8d9-1006-5179-9179-100000000006,TEXT,ELC_PWR,Instance,Selective coordination check result (1=passes / 0=fails) [BS 7671 / NEC 240.87 / STING Phase 179],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_BUSBAR_CSA_MM2,a2e7f8d9-1007-5179-9179-100000000007,TEXT,ELC_PWR,Instance,Busbar trunking conductor cross-sectional area in mm2 [BS EN 60439-1 / STING Phase 179],False,,,ELECTRICAL,1,0
-Electrical Equipment,ELC_BUSBAR_RATING_A,a2e7f8d9-1008-5179-9179-100000000008,TEXT,ELC_PWR,Instance,Busbar trunking continuous current rating in amperes [BS EN 60439-1 / STING Phase 179],False,,,ELECTRICAL,1,0
-Cable Tray,ELC_BUSBAR_FILL_PCT,a2e7f8d9-1009-5179-9179-100000000009,TEXT,ELC_PWR,Instance,Busbar trunking duct fill percentage [STING Phase 179],False,,,ELECTRICAL,1,0
-Conduits,ELC_CONDUIT_ROUTE_TXT,a2e7f8d9-100a-5179-9179-10000000000a,TEXT,ELC_PWR,Instance,Auto-routed conduit path identifier (AUTO:<circuit-id>) [STING Phase 179],False,,,ELECTRICAL,1,0
-Rooms,ELC_PHOTO_LUX_CALC,a2e7f8d9-100b-5179-9179-10000000000b,TEXT,ELC_PWR,Instance,Calculated maintained illuminance at the workplane in lux [CIBSE LG7 / DIALux import / STING Phase 179],False,,,ELECTRICAL,1,0
-Rooms,ELC_PHOTO_UGR_CALC,a2e7f8d9-100c-5179-9179-10000000000c,TEXT,ELC_PWR,Instance,Calculated Unified Glare Rating per the room geometry [CIE 117 / CIBSE LG7 / STING Phase 179],False,,,ELECTRICAL,1,0
-Lighting Fixtures,ELC_PHOTO_FILE_PATH_TXT,b3f8a9da-1801-5180-9180-100000000001,TEXT,ELC_PWR,Type,Absolute or project-relative path to the IES / LDT / GLDF photometric file bound to this fixture [STING Phase 180],False,,,ELECTRICAL,1,0
-Lighting Fixtures,ELC_PHOTO_LUMENS_NR,b3f8a9da-1802-5180-9180-100000000002,TEXT,ELC_PWR,Type,Total luminous flux from the bound photometric file (lm) [IESNA LM-63 / EULUMDAT / STING Phase 180],False,,,ELECTRICAL,1,0
-Lighting Fixtures,ELC_PHOTO_WATTS_NR,b3f8a9da-1803-5180-9180-100000000003,TEXT,ELC_PWR,Type,Total power draw from the bound photometric file (W) [STING Phase 180],False,,,ELECTRICAL,1,0
-Lighting Fixtures,ELC_PHOTO_EFFICACY_LM_W,b3f8a9da-1804-5180-9180-100000000004,TEXT,ELC_PWR,Type,Calculated luminous efficacy lm / W = Lumens / Watts [STING Phase 180],False,,,ELECTRICAL,1,0
-Lighting Fixtures,ELC_PHOTO_BEAM_ANGLE_DEG,b3f8a9da-1805-5180-9180-100000000005,TEXT,ELC_PWR,Type,Beam angle in degrees (the angle within which 50 % peak intensity is contained) [STING Phase 180],False,,,ELECTRICAL,1,0
-Lighting Fixtures,ELC_PHOTO_CCT_K,b3f8a9da-1806-5180-9180-100000000006,TEXT,ELC_PWR,Type,Correlated colour temperature in Kelvin [STING Phase 180],False,,,ELECTRICAL,1,0
-Lighting Fixtures,ELC_PHOTO_CRI_NR,b3f8a9da-1807-5180-9180-100000000007,TEXT,ELC_PWR,Type,Colour Rendering Index Ra [CIE 13.3 / STING Phase 180],False,,,ELECTRICAL,1,0
-Lighting Fixtures,ELC_PHOTO_SYMMETRY_TXT,b3f8a9da-1808-5180-9180-100000000008,TEXT,ELC_PWR,Type,Photometric symmetry (rotational / axial / quadrant / none) per LM-63 / EULUMDAT [STING Phase 180],False,,,ELECTRICAL,1,0
-Rooms,ELC_PHOTO_LUX_DIALUX_NR,c4a9badb-1811-5181-9181-100000000001,TEXT,ELC_PWR,Instance,Calculated illuminance from a DIALux evo IFC import [STING Phase 181],False,,,ELECTRICAL,1,0
-Rooms,ELC_PHOTO_LUX_ELUMTOOLS_NR,c4a9badb-1812-5181-9181-100000000002,TEXT,ELC_PWR,Instance,Calculated illuminance from ElumTools shared parameters [STING Phase 181],False,,,ELECTRICAL,1,0
-Rooms,ELC_PHOTO_LUX_RELUX_NR,c4a9badb-1813-5181-9181-100000000003,TEXT,ELC_PWR,Instance,Calculated illuminance from a Relux IFC import [STING Phase 181],False,,,ELECTRICAL,1,0
-Rooms,ELC_PHOTO_UNIFORMITY_NR,c4a9badb-1814-5181-9181-100000000004,TEXT,ELC_PWR,Instance,Uniformity ratio (Emin / Eavg) per BS EN 12464-1 [STING Phase 181],False,,,ELECTRICAL,1,0
-Rooms,ELC_PHOTO_LAST_ENGINE_TXT,c4a9badb-1815-5181-9181-100000000005,TEXT,ELC_PWR,Instance,Engine ID that wrote the most recent photometric result (DIALux / ElumTools / Relux / Estimate) [STING Phase 181],False,,,ELECTRICAL,1,0
-Rooms,ELC_PHOTO_LAST_CALC_DATE_TXT,c4a9badb-1816-5181-9181-100000000006,TEXT,ELC_PWR,Instance,ISO 8601 date stamp of the most recent photometric calculation [STING Phase 181],False,,,ELECTRICAL,1,0
-Generic Models,STING_SEED_FAMILY_TXT,abc4d5e6-7f8a-9b0c-1d2e-3f4a5b6c7d8e,TEXT,Identity,Instance,"Seed family identifier (e.g. STING_SEED_LightingFixture). Stamped by SymbolLibraryCreator on every seed; SwapToManufacturerCommand reads it to find replacement candidates in STING_FAMILY_SWAP_REGISTRY.json.",False,,,MULTI,1,0
-Generic Models,STING_DESIGN_REF_TXT,bcd5e6f7-8a9b-0c1d-2e3f-4a5b6c7d8e9f,TEXT,Identity,Instance,"Original seed identity preserved when an instance is swapped to a manufacturer family. Lets schedules + audits trace which design intent every real fixture replaces.",False,,,MULTI,1,0
-Generic Models,STING_SWAP_HISTORY_TXT,cde6f708-9b0c-1d2e-3f4a-5b6c7d8e9fa0,TEXT,Identity,Instance,"Swap audit trail: pipe-delimited entries timestamp|operator|sourceFamily|destFamily. Append-only; SwapToManufacturerCommand prepends one entry per swap.",False,,,MULTI,1,0
-Generic Models,ELC_JB_TYPE_TXT,def7081a-9ac1-2d3e-4f50-6172839405a6,TEXT,ELC_PWR,Instance,"Junction box type: PULL_BOX / DRAW_IN_BOX / ADAPTABLE_BOX / TEE_BOX. Drives type-variant selection for the JB seed.",False,,,MULTI,1,0
-Generic Models,ELC_JB_SIZE_MM,ef8192ab-cdb2-3e4f-5061-7283940516b7,TEXT,ELC_PWR,Instance,"Trade-size of the junction box in W x D x H millimetres. Default 100x100x60.",False,,,MULTI,1,0
-Generic Models,ELC_JB_AUTO_PLACED_BOOL,f0a293bc-decb-4f50-6172-839405162718,TEXT,ELC_PWR,Instance,"True (1) when the box was auto-placed by JunctionBoxAutoPlacer at a bend-count or run-length break-point. False (0) for manually-placed boxes.",False,,,MULTI,1,0
-Generic Models,ELC_JB_REASON_TXT,a1b3a4cd-efdc-5061-7283-940516271829,TEXT,ELC_PWR,Instance,"Reason auto-placer put the box here: BENDS_EXCESS / RUN_TOO_LONG / FILL_OVER / WALL_PENETRATION / MANUAL. Surfaced in the Penetration / Pull-Box register schedule.",False,,,MULTI,1,0
-Generic Models,ELC_CDT_BREAKPOINT_TXT,b2c4a5dd-fe1d-6172-8394-051627182930,TEXT,ELC_PWR,Instance,"Reference stamped on a conduit by JunctionBoxAutoPlacer when the run hits a BS 7671 S.522.8.5 break-point. Format: JB:<id>@<reason> when a box was placed; NEEDED:<reason>@<xyz> when the seed family wasn't loaded.",False,,,MULTI,1,0
-Generic Models,CEQ_CATEGORY_TXT,c8d4f6e2-d001-4d27-8c61-0e7a3f9b3001,TEXT,CEQ_CLINICAL,Type,Clinical equipment category: PENDANT / BEDHEAD / IMAGING / PHARMACY / DIAL / MORT / MOBIL,False,,,HEALTHCARE,1,0
-Generic Models,CEQ_CLINICAL_BOOL,c8d4f6e2-d005-4d27-8c61-0e7a3f9b3005,YESNO,CEQ_CLINICAL,Type,Counts towards clinical asset register,False,,,HEALTHCARE,1,0
-Generic Models,CEQ_DECON_METHOD_TXT,c8d4f6e2-d007-4d27-8c61-0e7a3f9b3007,TEXT,CEQ_CLINICAL,Type,Decontamination route,False,,,HEALTHCARE,1,0
-Generic Models,CEQ_ENDO_AER_REF_TXT,c8d4f6e2-2202-4d27-8c61-0e7a3f9bd002,TEXT,CEQ_CLINICAL,Type,Owning automated endoscope reprocessor [H-26],False,,,HEALTHCARE,1,0
-Generic Models,CEQ_ENDO_CYCLE_COUNT_INT,c8d4f6e2-2203-4d27-8c61-0e7a3f9bd003,INTEGER,CEQ_CLINICAL,Type,Reprocessing cycle count [H-26],False,,,HEALTHCARE,1,0
-Generic Models,CEQ_ENDO_LAST_REPRO_DT,c8d4f6e2-2204-4d27-8c61-0e7a3f9bd004,TEXT,CEQ_CLINICAL,Type,Last reprocessing timestamp ISO 8601 [H-26],False,,,HEALTHCARE,1,0
-Generic Models,CEQ_ENDO_SCOPE_ID_TXT,c8d4f6e2-2201-4d27-8c61-0e7a3f9bd001,TEXT,CEQ_CLINICAL,Type,Endoscope unique ID for HTM 01-06 traceability [H-26],False,,,HEALTHCARE,1,0
-Generic Models,CEQ_GMDN_CODE_TXT,c8d4f6e2-d002-4d27-8c61-0e7a3f9b3002,TEXT,CEQ_CLINICAL,Type,Global Medical Device Nomenclature code,False,,,HEALTHCARE,1,0
-Generic Models,CEQ_INFECT_TIER_TXT,c8d4f6e2-d006-4d27-8c61-0e7a3f9b3006,TEXT,CEQ_CLINICAL,Type,Spaulding classification: CRITICAL / SEMI / NON-CRITICAL,False,,,HEALTHCARE,1,0
-Generic Models,CEQ_SFG20_REF_TXT,c8d4f6e2-d004-4d27-8c61-0e7a3f9b3004,TEXT,CEQ_CLINICAL,Type,SFG20 healthcare schedule id,False,,,HEALTHCARE,1,0
-Generic Models,CEQ_UMDNS_CODE_TXT,c8d4f6e2-d003-4d27-8c61-0e7a3f9b3003,TEXT,CEQ_CLINICAL,Type,ECRI Universal Medical Device Nomenclature System code,False,,,HEALTHCARE,1,0
-Generic Models,CLN_ADB_CODE_TXT,c8d4f6e2-a005-4d27-8c61-0e7a3f9b0005,TEXT,CLN_CLINICAL,Type,NHS ADB (Activity DataBase) room code,False,,,HEALTHCARE,1,0
-Generic Models,CLN_ANTERM_LINKED_ID_TXT,c8d4f6e2-a009-4d27-8c61-0e7a3f9b0009,TEXT,CLN_CLINICAL,Type,ElementId of paired anteroom for AIIR/PE cascade,False,,,HEALTHCARE,1,0
-Generic Models,CLN_BARI_DESIGN_KG_NR,c8d4f6e2-a016-4d27-8c61-0e7a3f9b0016,NUMBER,CLN_CLINICAL,Type,Bariatric Safe Working Load (kg) [iHFG / HBN 04-01],False,,,HEALTHCARE,1,0
-Generic Models,CLN_DEFLECTION_LIMIT_MM_NR,c8d4f6e2-2006-4d27-8c61-0e7a3f9bb006,NUMBER,CLN_CLINICAL,Type,Deflection limit for sensitive equipment (mm) [H-23],False,,,HEALTHCARE,1,0
-Generic Models,CLN_EQUIP_WEIGHT_KG_NR,c8d4f6e2-2003-4d27-8c61-0e7a3f9bb003,NUMBER,CLN_CLINICAL,Type,Heavy-equipment design weight (kg) [H-23],False,,,HEALTHCARE,1,0
-Generic Models,CLN_FGI_REF_TXT,c8d4f6e2-a003-4d27-8c61-0e7a3f9b0003,TEXT,CLN_CLINICAL,Type,FGI Guidelines section reference,False,,,HEALTHCARE,1,0
-Generic Models,CLN_FLOOR_LOAD_KN_M2_NR,c8d4f6e2-2001-4d27-8c61-0e7a3f9bb001,NUMBER,CLN_CLINICAL,Type,Imposed floor load (kN/m2) for heavy imaging equipment [H-23],False,,,HEALTHCARE,1,0
-Generic Models,CLN_HBN_REF_TXT,c8d4f6e2-a002-4d27-8c61-0e7a3f9b0002,TEXT,CLN_CLINICAL,Type,HBN reference (e.g. HBN 04-01 R-1234),False,,,HEALTHCARE,1,0
-Generic Models,CLN_HOIST_TRACK_BOOL,c8d4f6e2-a017-4d27-8c61-0e7a3f9b0017,YESNO,CLN_CLINICAL,Type,Ceiling-hoist track installed,False,,,HEALTHCARE,1,0
-Generic Models,CLN_HTM_REF_TXT,c8d4f6e2-a004-4d27-8c61-0e7a3f9b0004,TEXT,CLN_CLINICAL,Type,HTM (Health Technical Memorandum) reference,False,,,HEALTHCARE,1,0
-Generic Models,CLN_INFECT_CLASS_TXT,c8d4f6e2-a008-4d27-8c61-0e7a3f9b0008,TEXT,CLN_CLINICAL,Type,"Infection-control class: STD / AIIR / PE / CLASS-N / CLASS-P [CDC, HBN 04-01]",False,,,HEALTHCARE,1,0
-Generic Models,CLN_LIGATURE_RES_BOOL,c8d4f6e2-a014-4d27-8c61-0e7a3f9b0014,YESNO,CLN_CLINICAL,Type,Anti-ligature design applies [HBN 03-01 / FGI Pt 2],False,,,HEALTHCARE,1,0
-Generic Models,CLN_LIG_RISK_LVL_TXT,c8d4f6e2-a015-4d27-8c61-0e7a3f9b0015,TEXT,CLN_CLINICAL,Type,Ligature risk level: LOW / MED / HIGH / VERY-HIGH,False,,,HEALTHCARE,1,0
-Generic Models,CLN_MRI_ZONE_INT,c8d4f6e2-a012-4d27-8c61-0e7a3f9b0012,INTEGER,CLN_CLINICAL,Type,MRI safety zone 1..4 [IEC 60601-2-33],False,,,HEALTHCARE,1,0
-Generic Models,CLN_NOISE_NR_NR,c8d4f6e2-a020-4d27-8c61-0e7a3f9b0020,INTEGER,CLN_CLINICAL,Type,Noise rating NR (when distinct from PER_ACOUSTICS_BACKGROUND_NOISE_DB),False,,,HEALTHCARE,1,0
-Generic Models,CLN_NURSECALL_TYPE_TXT,c8d4f6e2-a018-4d27-8c61-0e7a3f9b0018,TEXT,CLN_CLINICAL,Type,Nurse-call type: STD / EMG / ASSAULT / CARDIAC,False,,,HEALTHCARE,1,0
-Generic Models,CLN_OCC_VISITOR_INT,c8d4f6e2-a010-4d27-8c61-0e7a3f9b0010,INTEGER,CLN_CLINICAL,Type,Visitor headcount (clinical occupancy reuses ASS_DESIGN_OCCUPANCY_INT),False,,,HEALTHCARE,1,0
-Generic Models,CLN_PRESS_DELTA_DESIGN_PA_NR,c8d4f6e2-a007-4d27-8c61-0e7a3f9b0007,NUMBER,CLN_CLINICAL,Type,Required design differential pressure in Pa (field-tested rides MEP_DELTA_PRESS_PA),False,,,HEALTHCARE,1,0
-Generic Models,CLN_PRESS_REGIME_TXT,c8d4f6e2-a006-4d27-8c61-0e7a3f9b0006,TEXT,CLN_CLINICAL,Type,Pressure regime: NEG / POS / NEUTRAL [HTM 03-01 / ASHRAE 170],False,,,HEALTHCARE,1,0
-Generic Models,CLN_PRIVACY_LVL_TXT,c8d4f6e2-a019-4d27-8c61-0e7a3f9b0019,TEXT,CLN_CLINICAL,Type,Privacy level: OPEN / SEMI / SINGLE / SECURE,False,,,HEALTHCARE,1,0
-Generic Models,CLN_RAD_CONTROLLED_BOOL,c8d4f6e2-a011-4d27-8c61-0e7a3f9b0011,YESNO,CLN_CLINICAL,Type,IRR17 controlled area? [UK Ionising Radiations Regulations 2017],False,,,HEALTHCARE,1,0
-Generic Models,CLN_RF_SHIELD_BOOL,c8d4f6e2-a013-4d27-8c61-0e7a3f9b0013,YESNO,CLN_CLINICAL,Type,RF Faraday cage present (MRI suite),False,,,HEALTHCARE,1,0
-Generic Models,CLN_ROOM_CLASS_TXT,c8d4f6e2-a001-4d27-8c61-0e7a3f9b0001,TEXT,CLN_CLINICAL,Type,"Clinical room class (OR-ULTRA, OR-CONV, OR-HYBRID, ICU, AIIR, PE-PROT, etc.) [HBN/FGI]",False,,,HEALTHCARE,1,0
-Generic Models,CLN_RT60_TARGET_S_NR,c8d4f6e2-2101-4d27-8c61-0e7a3f9bc001,NUMBER,CLN_CLINICAL,Type,Reverberation T60 target (s) per HTM 08-01 [H-24],False,,,HEALTHCARE,1,0
-Generic Models,CLN_STRUCT_SIGN_OFF_DT,c8d4f6e2-2005-4d27-8c61-0e7a3f9bb005,TEXT,CLN_CLINICAL,Type,Structural Engineer sign-off date [H-23],False,,,HEALTHCARE,1,0
-Generic Models,CLN_STRUCT_SIGN_OFF_TXT,c8d4f6e2-2004-4d27-8c61-0e7a3f9bb004,TEXT,CLN_CLINICAL,Type,Structural Engineer sign-off name [H-23],False,,,HEALTHCARE,1,0
-Generic Models,CLN_TRANSPORT_PATH_TXT,c8d4f6e2-2007-4d27-8c61-0e7a3f9bb007,TEXT,CLN_CLINICAL,Type,Heavy-equipment transport path designation [H-23],False,,,HEALTHCARE,1,0
-Generic Models,CLN_VIB_VM_NR,c8d4f6e2-2002-4d27-8c61-0e7a3f9bb002,NUMBER,CLN_CLINICAL,Type,Vibration criterion (um/s rms VC band) [H-23],False,,,HEALTHCARE,1,0
-Generic Models,CLN_WASTE_BIN_BIM_ID_TXT,c8d4f6e2-2503-4d27-8c61-0e7a3f9c0003,TEXT,CLN_CLINICAL,Type,IoT smart bin BIM element id [H-30],False,,,HEALTHCARE,1,0
-Generic Models,CLN_WASTE_CLASS_TXT,c8d4f6e2-2501-4d27-8c61-0e7a3f9c0001,TEXT,CLN_CLINICAL,Type,Clinical waste class: HC1-General/HC2-Offensive/HC3-Infectious/HC4-Anatomical/HC5-Cytotoxic/HC6-Radioactive [H-30],False,,,HEALTHCARE,1,0
-Generic Models,CLN_WASTE_ROUTE_TXT,c8d4f6e2-2502-4d27-8c61-0e7a3f9c0002,TEXT,CLN_CLINICAL,Type,Waste segregation route id [H-30],False,,,HEALTHCARE,1,0
-Generic Models,ELC_ATS_TEST_LOG_REF_TXT,c8d4f6e2-2302-4d27-8c61-0e7a3f9be002,TEXT,ELC_PWR,Type,ATS test log document reference [H-27],False,,,ELECTRICAL,1,0
-Generic Models,ELC_ATS_TIME_S_NR,c8d4f6e2-f002-4d27-8c61-0e7a3f9b5002,NUMBER,ELC_PWR,Type,Required Automatic Transfer Switch time (s) -- NFPA 99 <=10 s for LS/CR,False,,,ELECTRICAL,1,0
-Generic Models,ELC_EES_BRANCH_TXT,c8d4f6e2-f001-4d27-8c61-0e7a3f9b5001,TEXT,ELC_PWR,Type,NFPA 99 Essential Electrical System branch: LIFE-SAF / CRIT / EQP-BR / NORMAL,False,,,ELECTRICAL,1,0
-Generic Models,ELC_GEN_RUN_HRS_TGT_NR,c8d4f6e2-f006-4d27-8c61-0e7a3f9b5006,NUMBER,ELC_PWR,Type,Required generator runtime (h) at full load [NFPA 110],False,,,ELECTRICAL,1,0
-Generic Models,ELC_GEN_TEST_LOG_REF_TXT,c8d4f6e2-2301-4d27-8c61-0e7a3f9be001,TEXT,ELC_PWR,Type,Generator test log document reference [H-27 / NFPA 110],False,,,ELECTRICAL,1,0
-Generic Models,ELC_IPS_BOOL,c8d4f6e2-f003-4d27-8c61-0e7a3f9b5003,YESNO,ELC_PWR,Type,Powered from Isolated Power System (NEC 517),False,,,ELECTRICAL,1,0
-Generic Models,ELC_IT_CARDIAC_BOOL,c8d4f6e2-f004-4d27-8c61-0e7a3f9b5004,YESNO,ELC_PWR,Type,Cardiac-protected outlet (IT-network NEC 517.19),False,,,ELECTRICAL,1,0
-Generic Models,ELC_LPS_COMPLIANCE_STATUS_TXT,b1c4e8d3-7f5a-5d2c-9e6b-3a4f5c8d2b1e,TEXT,ELC_PWR,Type,Plugin-written LPS compliance verdict (PASS / WARN / FAIL / SPACING FAIL / SEP DIST FAIL / EARTH FAIL),False,,,ELECTRICAL,1,0
-Generic Models,ELC_LPS_CONDUCTOR_MATERIAL_TXT,c2d5f9e4-8a6b-5e3d-a07c-4b5d6e9c3f2a,TEXT,ELC_PWR,Type,Down conductor material (COPPER / ALUMINIUM / STEEL) for separation distance km factor,False,,,ELECTRICAL,1,0
-Generic Models,ELC_LPS_PROJECT_NG_OVERRIDE_NR,d3e6fa05-9b7c-5e4d-b18d-5c6e7fad4321,NUMBER,ELC_PWR,Type,Project ground flash density Ng (flashes/km2/year) override from lightning location service,False,,,ELECTRICAL,1,0
-Generic Models,ELC_LSC_TIER_TXT,c8d4f6e2-f007-4d27-8c61-0e7a3f9b5007,TEXT,ELC_PWR,Type,NEC 517 / NFPA 99 Tier: 1 / 2 / 3,False,,,ELECTRICAL,1,0
-Generic Models,ELC_RECEPT_TYPE_TXT,c8d4f6e2-f005-4d27-8c61-0e7a3f9b5005,TEXT,ELC_PWR,Type,Receptacle type: HOSP-GR / TR / ISO / EMG-RED,False,,,ELECTRICAL,1,0
-Generic Models,ELC_UPS_REPLACE_DT,c8d4f6e2-2303-4d27-8c61-0e7a3f9be003,TEXT,ELC_PWR,Type,UPS battery replacement date ISO 8601 [H-27],False,,,ELECTRICAL,1,0
-Generic Models,FLS_COMPARTMENT_ID_TXT,c8d4f6e2-1301-4d27-8c61-0e7a3f9b8001,TEXT,FLS_LIFE_SFTY,Type,Fire compartment membership ID [HTM 05-02 / BS 9999 -- PHE],False,,,FIRE,1,0
-Generic Models,HVC_ACH_OUTSIDE_NR,c8d4f6e2-1104-4d27-8c61-0e7a3f9b6004,INTEGER,HVC_SYSTEMS,Type,Outside-air ACH component (total ACH reuses HVC_AIR_CHANGES_PER_HR),False,,,HVAC,1,0
-Generic Models,HVC_HEPA_GRADE_TXT,c8d4f6e2-1102-4d27-8c61-0e7a3f9b6002,TEXT,HVC_SYSTEMS,Type,HEPA grade: H13 / H14 / U15 / U16 [BS EN 1822],False,,,HVAC,1,0
-Generic Models,HVC_HEPA_LAST_TST_DT,c8d4f6e2-1103-4d27-8c61-0e7a3f9b6003,TEXT,HVC_SYSTEMS,Type,Last DOP / PAO test date (ISO 8601),False,,,HVAC,1,0
-Generic Models,HVC_HEPA_REQ_BOOL,c8d4f6e2-1101-4d27-8c61-0e7a3f9b6001,YESNO,HVC_SYSTEMS,Type,HEPA terminal required [HTM 03-01 / ASHRAE 170],False,,,HVAC,1,0
-Generic Models,HVC_NC_CURVE_INT,c8d4f6e2-2102-4d27-8c61-0e7a3f9bc002,INTEGER,HVC_SYSTEMS,Type,HVAC noise criterion NC curve target [H-24],False,,,HVAC,1,0
-Generic Models,ICT_ENDO_READER_ID_TXT,c8d4f6e2-2205-4d27-8c61-0e7a3f9bd005,TEXT,COM_DAT,Type,RFID reader at endoscope decon station [H-26],False,,,MULTI,1,0
-Generic Models,ICT_HEALTHIOT_ALERT_BAND_TXT,c8d4f6e2-2604-4d27-8c61-0e7a3f9c1004,TEXT,COM_DAT,Type,IoT alert band free-text [H-20],False,,,MULTI,1,0
-Generic Models,ICT_HEALTHIOT_DEVICE_ID_TXT,c8d4f6e2-2601-4d27-8c61-0e7a3f9c1001,TEXT,COM_DAT,Type,Generic healthcare IoT device ID (consumed by IoTDeviceRegistry) [H-20],False,,,MULTI,1,0
-Generic Models,ICT_HEALTHIOT_ENDPOINT_TXT,c8d4f6e2-2603-4d27-8c61-0e7a3f9c1003,TEXT,COM_DAT,Type,IoT endpoint URI [H-20],False,,,MULTI,1,0
-Generic Models,ICT_HEALTHIOT_PROTOCOL_TXT,c8d4f6e2-2602-4d27-8c61-0e7a3f9c1002,TEXT,COM_DAT,Type,IoT protocol BACNET/OPC-UA/MODBUS/REST/PROPRIETARY [H-20],False,,,MULTI,1,0
-Generic Models,ICT_RTLS_ANCHOR_ID_TXT,c8d4f6e2-2401-4d27-8c61-0e7a3f9bf001,TEXT,COM_DAT,Type,RTLS anchor / reader ID [H-29],False,,,MULTI,1,0
-Generic Models,ICT_RTLS_COVERAGE_M_NR,c8d4f6e2-2404-4d27-8c61-0e7a3f9bf004,NUMBER,COM_DAT,Type,RTLS anchor effective coverage radius (m) [H-29],False,,,MULTI,1,0
-Generic Models,ICT_RTLS_TECH_TXT,c8d4f6e2-2402-4d27-8c61-0e7a3f9bf002,TEXT,COM_DAT,Type,RTLS tech: BLE / UWB / Wi-Fi-RSSI / IR / RFID-1356 [H-29],False,,,MULTI,1,0
-Generic Models,ICT_RTLS_TX_POWER_DBM_NR,c8d4f6e2-2403-4d27-8c61-0e7a3f9bf003,NUMBER,COM_DAT,Type,RTLS anchor TX power (dBm) [H-29],False,,,MULTI,1,0
-Generic Models,LIG_AREA_OBS_LOS_TXT,c8d4f6e2-e005-4d27-8c61-0e7a3f9b4005,TEXT,LIG_BEHAVIOURAL,Type,Observation line-of-sight code,False,,,MULTI,1,0
-Generic Models,LIG_FORCE_LIMIT_KG_NR,c8d4f6e2-e004-4d27-8c61-0e7a3f9b4004,NUMBER,LIG_BEHAVIOURAL,Type,Release threshold (kg),False,,,MULTI,1,0
-Generic Models,LIG_PRESSURE_REL_BOOL,c8d4f6e2-e003-4d27-8c61-0e7a3f9b4003,YESNO,LIG_BEHAVIOURAL,Type,Releases under load,False,,,MULTI,1,0
-Generic Models,LIG_PRODUCT_RATING_TXT,c8d4f6e2-e001-4d27-8c61-0e7a3f9b4001,TEXT,LIG_BEHAVIOURAL,Type,Anti-ligature product rating (BS 9263 LR1..LR4 or US grade),False,,,MULTI,1,0
-Generic Models,LIG_SELF_CLOSE_BOOL,c8d4f6e2-e002-4d27-8c61-0e7a3f9b4002,YESNO,LIG_BEHAVIOURAL,Type,Self-closing fitting,False,,,MULTI,1,0
-Generic Models,MGS_AAP_REF_TXT,c8d4f6e2-b008-4d27-8c61-0e7a3f9b1008,TEXT,MGS_SYSTEMS,Type,Owning area alarm panel ID,False,,,MULTI,1,0
-Generic Models,MGS_DESIGN_FLOW_LPM_NR,c8d4f6e2-b003-4d27-8c61-0e7a3f9b1003,NUMBER,MGS_SYSTEMS,Type,"Design flow l/min, free air [HTM 02-01]",False,,,MULTI,1,0
-Generic Models,MGS_DIVERSITY_PCT_NR,c8d4f6e2-b004-4d27-8c61-0e7a3f9b1004,NUMBER,MGS_SYSTEMS,Type,Diversity factor (%) [HTM 02-01 sizing],False,,,MULTI,1,0
-Generic Models,MGS_GAS_TYPE_TXT,c8d4f6e2-b001-4d27-8c61-0e7a3f9b1001,TEXT,MGS_SYSTEMS,Type,Medical gas type: O2 / MA4 / MA7 / N2O / N2 / CO2 / HE / VAC / AGS / DENT [HTM 02-01 / NFPA 99],False,,,MULTI,1,0
-Generic Models,MGS_NOM_PRESS_KPA_NR,c8d4f6e2-b002-4d27-8c61-0e7a3f9b1002,NUMBER,MGS_SYSTEMS,Type,Nominal design pressure (kPa) [BS EN ISO 7396-1],False,,,MULTI,1,0
-Generic Models,MGS_PIPE_BRAZED_BOOL,c8d4f6e2-b009-4d27-8c61-0e7a3f9b1009,YESNO,MGS_SYSTEMS,Type,Brazed under inert-gas purge [HTM 02-01],False,,,MULTI,1,0
-Generic Models,MGS_TU_BS5682_BOOL,c8d4f6e2-b005-4d27-8c61-0e7a3f9b1005,YESNO,MGS_SYSTEMS,Type,Terminal unit complies with BS 5682,False,,,MULTI,1,0
-Generic Models,MGS_TU_INDEXED_BOOL,c8d4f6e2-b006-4d27-8c61-0e7a3f9b1006,YESNO,MGS_SYSTEMS,Type,Has gas-specific NIST/DISS indexing,False,,,MULTI,1,0
-Generic Models,MGS_VERIFY_BY_TXT,c8d4f6e2-b011-4d27-8c61-0e7a3f9b1011,TEXT,MGS_SYSTEMS,Type,ASSE 6030 verifier name,False,,,MULTI,1,0
-Generic Models,MGS_VERIFY_CERT_REF_TXT,c8d4f6e2-b013-4d27-8c61-0e7a3f9b1013,TEXT,MGS_SYSTEMS,Type,Verification certificate reference (mirrors ELC_FAT_CERT_REF_TXT),False,,,MULTI,1,0
-Generic Models,MGS_VERIFY_DT,c8d4f6e2-b010-4d27-8c61-0e7a3f9b1010,TEXT,MGS_SYSTEMS,Type,NFPA 99 S.5.1.12 verification date (ISO 8601),False,,,MULTI,1,0
-Generic Models,MGS_VERIFY_PASS_BOOL,c8d4f6e2-b012-4d27-8c61-0e7a3f9b1012,YESNO,MGS_SYSTEMS,Type,Latest verification passed,False,,,MULTI,1,0
-Generic Models,MGS_ZVB_REF_TXT,c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007,TEXT,MGS_SYSTEMS,Type,Owning zone valve box ID (denormalised; canonical link rides ASS_TIEIN_REF_TXT),False,,,MULTI,1,0
-Generic Models,MNT_CAL_LAST_DT,c8d4f6e2-1401-4d27-8c61-0e7a3f9b9001,TEXT,COMMISSIONING,Type,Last calibration date (ISO 8601) -- distinct from service date,False,,,MULTI,1,0
-Generic Models,MNT_CAL_NEXT_DT,c8d4f6e2-1402-4d27-8c61-0e7a3f9b9002,TEXT,COMMISSIONING,Type,Next calibration due (ISO 8601),False,,,MULTI,1,0
-Generic Models,PLM_AUG_CARE_BOOL,c8d4f6e2-1203-4d27-8c61-0e7a3f9b7003,YESNO,PLM_DRN,Type,Augmented-care wing rules apply [HTM 04-01 Pt C -- Pseudomonas],False,,,PLUMBING,1,0
-Generic Models,PLM_DEAD_LEG_M_NR,c8d4f6e2-1202-4d27-8c61-0e7a3f9b7002,NUMBER,PLM_DRN,Type,Distance from main to outlet (m) [HTM 04-01 <= 1 m for sentinel],False,,,PLUMBING,1,0
-Generic Models,PLM_FLUSH_LOG_REF_TXT,c8d4f6e2-1206-4d27-8c61-0e7a3f9b7006,TEXT,PLM_DRN,Type,Flushing-log document reference,False,,,PLUMBING,1,0
-Generic Models,PLM_POU_FILTER_BOOL,c8d4f6e2-1204-4d27-8c61-0e7a3f9b7004,YESNO,PLM_DRN,Type,Point-of-use filter fitted [HTM 04-01],False,,,PLUMBING,1,0
-Generic Models,PLM_RO_LOOP_BOOL,c8d4f6e2-1207-4d27-8c61-0e7a3f9b7007,YESNO,PLM_DRN,Type,Belongs to dialysis Reverse Osmosis loop,False,,,PLUMBING,1,0
-Generic Models,PLM_SENTINEL_BOOL,c8d4f6e2-1205-4d27-8c61-0e7a3f9b7005,YESNO,PLM_DRN,Type,Sentinel temperature monitoring point [HTM 04-01],False,,,PLUMBING,1,0
-Generic Models,PLM_TMV_TYPE_TXT,c8d4f6e2-1201-4d27-8c61-0e7a3f9b7001,TEXT,PLM_DRN,Type,Thermostatic mixing valve type: TMV2 / TMV3 / NONE [HTM 04-01],False,,,PLUMBING,1,0
-Generic Models,PRJ_ORG_COORD_SYSTEM_TXT,27a03309-63b6-5b89-9545-0e5fc5124d33,TEXT,PRJ_INFORMATION,Type,"Project geodetic coordinate system, e.g. 'OS GB / British National Grid' / 'WGS 84 UTM 36N' / 'Uganda Cassini-Soldner' -- surveyors / GIS reference [BS 7666-2:2006]",False,,,MULTI,1,0
-Generic Models,PRJ_ORG_GROUND_LEVEL_TXT,9411ed93-d511-5a71-adbf-24a75f958e73,TEXT,PRJ_INFORMATION,Type,"Project finished ground level reference, e.g. '+114.250 m AOD' -- survey datum for the project [BS EN ISO 4463-1:2021]",False,,,MULTI,1,0
-Generic Models,PRJ_ORG_HEALTH_AE_ELEC_TXT,c8d4f6e2-1512-4d27-8c61-0e7a3f9ba012,TEXT,PRJ_INFORMATION,Type,Authorising Engineer -- Electrical,False,,,MULTI,1,0
-Generic Models,PRJ_ORG_HEALTH_AE_MGAS_TXT,c8d4f6e2-1510-4d27-8c61-0e7a3f9ba010,TEXT,PRJ_INFORMATION,Type,Authorising Engineer -- Medical Gas,False,,,MULTI,1,0
-Generic Models,PRJ_ORG_HEALTH_AE_VENT_TXT,c8d4f6e2-1509-4d27-8c61-0e7a3f9ba009,TEXT,PRJ_INFORMATION,Type,Authorising Engineer -- Ventilation,False,,,MULTI,1,0
-Generic Models,PRJ_ORG_HEALTH_AE_WATER_TXT,c8d4f6e2-1511-4d27-8c61-0e7a3f9ba011,TEXT,PRJ_INFORMATION,Type,Authorising Engineer -- Water Safety,False,,,MULTI,1,0
-Generic Models,PRJ_ORG_HEALTH_AHJ_TXT,c8d4f6e2-1507-4d27-8c61-0e7a3f9ba007,TEXT,PRJ_INFORMATION,Type,Authority Having Jurisdiction,False,,,MULTI,1,0
-Generic Models,PRJ_ORG_HEALTH_AREA_M2_NR,c8d4f6e2-1506-4d27-8c61-0e7a3f9ba006,NUMBER,PRJ_INFORMATION,Type,Gross internal area (m2),False,,,MULTI,1,0
-Generic Models,PRJ_ORG_HEALTH_BEDS_INT,c8d4f6e2-1502-4d27-8c61-0e7a3f9ba002,INTEGER,PRJ_INFORMATION,Type,Bed count,False,,,MULTI,1,0
-Generic Models,PRJ_ORG_HEALTH_CODE_BASE_TXT,c8d4f6e2-1505-4d27-8c61-0e7a3f9ba005,TEXT,PRJ_INFORMATION,Type,"Code base: HBN/HTM, FGI, iHFG, Other",False,,,MULTI,1,0
-Generic Models,PRJ_ORG_HEALTH_FACILITY_TYPE_TXT,c8d4f6e2-1501-4d27-8c61-0e7a3f9ba001,TEXT,PRJ_INFORMATION,Type,Healthcare facility type: Acute / Mental / Community / Rehab / Day / FM,False,,,MULTI,1,0
-Generic Models,PRJ_ORG_HEALTH_HTM_REGION_TXT,c8d4f6e2-1513-4d27-8c61-0e7a3f9ba013,TEXT,PRJ_INFORMATION,Type,Regional HTM variant: NHS-England / SHTM / WHTM / NHS-NI,False,,,MULTI,1,0
-Generic Models,PRJ_ORG_HEALTH_ICU_INT,c8d4f6e2-1504-4d27-8c61-0e7a3f9ba004,INTEGER,PRJ_INFORMATION,Type,ICU bed count,False,,,MULTI,1,0
-Generic Models,PRJ_ORG_HEALTH_IHFG_BOOL,c8d4f6e2-1514-4d27-8c61-0e7a3f9ba014,YESNO,PRJ_INFORMATION,Type,iHFG (International Health Facility Guidelines) authority applies,False,,,MULTI,1,0
-Generic Models,PRJ_ORG_HEALTH_OR_INT,c8d4f6e2-1503-4d27-8c61-0e7a3f9ba003,INTEGER,PRJ_INFORMATION,Type,Operating room count,False,,,MULTI,1,0
-Generic Models,PRJ_ORG_HEALTH_PACK_PROFILE_TXT,c8d4f6e2-1515-4d27-8c61-0e7a3f9ba015,TEXT,PRJ_INFORMATION,Type,Healthcare pack profile (acute / community / mental / standalone) for validator gating,False,,,MULTI,1,0
-Generic Models,PRJ_ORG_HEALTH_QE_TXT,c8d4f6e2-1508-4d27-8c61-0e7a3f9ba008,TEXT,PRJ_INFORMATION,Type,Qualified Expert (radiation),False,,,MULTI,1,0
-Generic Models,PRJ_ORG_PROJECT_ADDRESS_TXT,85e93a80-42bc-535e-a9e3-bcd76b7c07a0,TEXT,PRJ_INFORMATION,Type,Project / site address shown on the title block [STING Phase 171],False,,,MULTI,1,0
-Generic Models,PRJ_ORG_PROJECT_NAME_TXT,33188c51-0a4f-52e7-ad2a-37e68ca7ddda,TEXT,PRJ_INFORMATION,Type,Project name shown on the title block [STING Phase 171],False,,,MULTI,1,0
-Generic Models,PRJ_ORG_PROJECT_NORTH_TXT,783db6dd-fccc-5efa-b126-b724db119f8f,TEXT,PRJ_INFORMATION,Type,"Project north angle relative to true north, e.g. '12.5deg E of true north' -- for sheet-level coordination + wayfinding [ISO 19650-1:2018]",False,,,MULTI,1,0
-Generic Models,PRJ_ORG_PROJECT_NUMBER_TXT,0c7cd8c7-ae84-5f31-a3ac-cfeffff97954,TEXT,PRJ_INFORMATION,Type,Project number / job number shown on the title block [STING Phase 171],False,,,MULTI,1,0
-Generic Models,PRJ_ORG_RIBA_STAGE_TXT,b34a1ffa-4c71-5469-9806-8fc01315f8a6,TEXT,PRJ_INFORMATION,Type,RIBA work stage (0-7) shown on the title block [STING Phase 171],False,,,MULTI,1,0
-Generic Models,PRJ_ORG_SECURITY_CLASS_TXT,6df039a3-d57c-53c5-be3b-e5a69cae709f,TEXT,PRJ_INFORMATION,Type,"Information security classification, e.g. 'OFFICIAL' / 'OFFICIAL-SENSITIVE' / 'SECRET' / 'PUBLIC' -- drives PDF watermarks + CDE access controls [ISO 27001:2022, NPSA / CPNI guidance]",False,,,MULTI,1,0
-Generic Models,PRJ_ORG_UNICLASS_CO_TXT,d09f3202-3748-5fcd-ae64-9531b2e71db1,TEXT,PRJ_INFORMATION,Type,"Project Uniclass 2015 Complex (Co_) classification, e.g. 'Co_25_30 Office buildings' -- provides the project's industry-standard taxonomy on the title block [Uniclass 2015]",False,,,MULTI,1,0
-Generic Models,PRJ_TB_MEP_CONSULTANTS_ADDRESS_TXT,72432a96-c7b4-5459-8579-18d5f095edd8,TEXT,PRJ_INFORMATION,Type,MEP consultant office address shown on title block -- paired with PRJ_TB_MEP_CONSULTANTS_NAME_TXT [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT,87cdf4f5-91e9-562d-9deb-0532fc642705,TEXT,PRJ_INFORMATION,Type,Structural consultant office address shown on title block -- paired with PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,RAD_BARRIER_TYPE_TXT,c8d4f6e2-c002-4d27-8c61-0e7a3f9b2002,TEXT,RAD_PROTECTION,Type,Barrier type: PRIMARY / SECONDARY / SCATTER / LEAKAGE [NCRP 147],False,,,HEALTHCARE,1,0
-Generic Models,RAD_DOSE_DESIGN_GOAL_TXT,c8d4f6e2-c006-4d27-8c61-0e7a3f9b2006,TEXT,RAD_PROTECTION,Type,Dose design goal: CONTROLLED (5 mGy/yr) / UNCONTROLLED (1 mGy/yr) [NCRP 147],False,,,HEALTHCARE,1,0
-Generic Models,RAD_LEAD_MM_NR,c8d4f6e2-c001-4d27-8c61-0e7a3f9b2001,NUMBER,RAD_PROTECTION,Type,Pb-equivalent thickness in this element (mm) [NCRP 147],False,,,HEALTHCARE,1,0
-Generic Models,RAD_OCC_FACTOR_NR,c8d4f6e2-c005-4d27-8c61-0e7a3f9b2005,NUMBER,RAD_PROTECTION,Type,NCRP 147 Occupancy factor T,False,,,HEALTHCARE,1,0
-Generic Models,RAD_QE_DT,c8d4f6e2-c008-4d27-8c61-0e7a3f9b2008,TEXT,RAD_PROTECTION,Type,QE sign-off date (ISO 8601),False,,,HEALTHCARE,1,0
-Generic Models,RAD_QE_NAME_TXT,c8d4f6e2-c007-4d27-8c61-0e7a3f9b2007,TEXT,RAD_PROTECTION,Type,Qualified Expert (medical / health physicist) signing off,False,,,HEALTHCARE,1,0
-Generic Models,RAD_USE_FACTOR_NR,c8d4f6e2-c004-4d27-8c61-0e7a3f9b2004,NUMBER,RAD_PROTECTION,Type,NCRP 147 Use factor U,False,,,HEALTHCARE,1,0
-Generic Models,RAD_WORKLOAD_MAWK_NR,c8d4f6e2-c003-4d27-8c61-0e7a3f9b2003,NUMBER,RAD_PROTECTION,Type,Workload (mA.min/wk) [NCRP 147],False,,,HEALTHCARE,1,0
-Generic Models,STING_AUTHORISED_BY_TXT,862eb92a-b8c6-5429-9330-e43afd73744b,TEXT,PRJ_INFORMATION,Type,"4-eyes authorisation signature -- distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 S.5.6.2]",False,,,MULTI,1,0
-Generic Models,STING_AUTHORISED_DATE_TXT,380b2001-f9db-5977-be90-a98d214353cc,TEXT,PRJ_INFORMATION,Type,Date of 4-eyes authorisation signature -- paired with STING_AUTHORISED_BY_TXT [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,STING_BOX_LOCATION_ID,c7a3f2e1-9b04-4d88-b5a1-3e6f8d2c1047,TEXT,ASS_MNG,Type,Phase 139.2 -- GUID linking first-fix conduit/BESA box (Construction phase) to its second-fix device (Completion phase) for two-phase placement,False,,,MULTI,1,0
-Generic Models,STING_FEDERATION_STATUS_TXT,9ba3db45-85dd-5f83-92e3-6b9f5a07b52d,TEXT,PRJ_INFORMATION,Type,"Federation status of the sheet's host model at issue time -- e.g. 'Federated v.4', 'Discipline-isolated', 'Coordination-pending' [ISO 19650-2:2018]",False,,,MULTI,1,0
-Generic Models,STING_LOIN_LOD_TXT,3a2b846f-94ae-5dfd-8ab2-aa5800d48f92,TEXT,PRJ_INFORMATION,Type,Level of Information Need / Level of Detail at issue -- e.g. 'LOD 300' / 'LOIN-3' / 'LOD 350' [BS EN 17412-1:2020],False,,,MULTI,1,0
-Generic Models,STING_NOGGIN_REQUIRED,d8b4a3f2-7c05-4e99-c6b2-4f7b9e3d2158,YESNO,ASS_MNG,Type,Phase 139.2 -- flag set on a placed pendant/downlight when no joist is within JoistClearanceMm; export via Placement_ExportNogginRequirements,False,,,MULTI,1,0
-Generic Models,STING_SHEET_BIM_MODE_TXT,c6796da5-3755-5074-b19f-493318188ac8,TEXT,PRJ_INFORMATION,Type,"Per-sheet BIM mode marker -- 'BIM' or 'NONBIM' -- set as default value by the title-block family the sheet uses. TitleBlock_ToggleBIMMode swaps the title-block family between BIM/NONBIM variants, this param keeps a record of the current variant for audit purposes [title block factory v2.0 two-family architecture]",False,,,MULTI,1,0
-Generic Models,STING_SHEET_FULL_REF_TXT,fdb62488-a957-546e-9c2c-95eb4c605559,TEXT,PRJ_INFORMATION,Type,ISO 19650 full 7-segment sheet ID -- concatenation of PROJECT-ORIG-VOLUME-LEVEL-TYPE-ROLE-SEQ (e.g. 'STG-PLNS-ZZ-01-DR-A-0001'). Populated by SetString when any segment changes -- Revit family-formula parser doesn't reliably support text concat in this context [BS EN ISO 19650-2:2018],False,,,MULTI,1,0
-Generic Models,STING_SHEET_LEVEL_TXT,43a870ab-1356-5f0e-977e-d9df46688a3b,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID -- segment 4 (level / location, e.g. '01' / 'GF' / 'ZZ'). Sheet-instance scope [BS EN ISO 19650-2:2018 S.5.1.6]",False,,,MULTI,1,0
-Generic Models,STING_SHEET_OF_TOTAL_TXT,da8b102d-0dcc-5dce-83d1-82abc3bdbab5,TEXT,PRJ_INFORMATION,Type,'Sheet n of total' string for the title block (e.g. '03 / 12'). Auto-updated by SheetCountAutoUpdate command from PRJ_TB_TOTAL_NO_SHEETS_TXT and Revit's built-in Sheet Number [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,STING_SHEET_PROJECT_TXT,d6b56315-8f12-5bc5-b984-039d2b46bb77,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID -- segment 1 (project code, e.g. 'STG'). Sheet-instance scope, populated per sheet [BS EN ISO 19650-2:2018 S.5.1.6]",False,,,MULTI,1,0
-Generic Models,STING_SHEET_ROLE_TXT,75667436-72f2-5b47-af1a-2d861e754989,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID -- segment 6 (role, e.g. 'A' architect / 'S' structural / 'M' mechanical / 'E' electrical / 'P' plumbing / 'FP' fire / 'LV' landscape / 'G' general). Sheet-instance scope [BS EN ISO 19650-2:2018 S.5.1.6]",False,,,MULTI,1,0
-Generic Models,STING_SHEET_SEQ_TXT,b11bf925-8cf7-5941-b8aa-9ccea031253d,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID -- segment 7 (4-digit zero-padded sequence number, e.g. '0001'). Sheet-instance scope [BS EN ISO 19650-2:2018 S.5.1.6]",False,,,MULTI,1,0
-Generic Models,STING_SHEET_TYPE_TXT,c5c9de9a-9ad8-5de7-8ee6-0149cd674a6a,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID -- segment 5 (type, e.g. 'DR' drawing / 'M3' model / 'SH' schedule). Sheet-instance scope [BS EN ISO 19650-2:2018 S.5.1.6]",False,,,MULTI,1,0
-Generic Models,STING_SHEET_VOLUME_TXT,498273b7-a814-57e4-8316-8359609a8bdd,TEXT,PRJ_INFORMATION,Type,"ISO 19650 7-segment sheet ID -- segment 3 (volume / system, e.g. 'ZZ' / '01' / 'M01'). Sheet-instance scope [BS EN ISO 19650-2:2018 S.5.1.6]",False,,,MULTI,1,0
-Generic Models,STING_SUITABILITY_DESC_TXT,7d12b6b6-9c62-515e-a611-92ab4e74e93f,TEXT,PRJ_INFORMATION,Type,"Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for 'S2' the description is 'Shared, Non-contractual' [BS EN ISO 19650-2:2018 S.5.6 Annex A]",False,,,MULTI,1,0
-Generic Models,PLM_DFU_COUNT_INT,9468e66a-ee14-50bb-b0e9-00005ea06497,INTEGER,PLM_DRN,Type,IPC 2021 Drainage Fixture Units assigned to fixture or pipe segment [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_WSFU_COUNT_INT,689d24e8-c9b5-5705-8f7f-57a3e6436c19,INTEGER,PLM_DRN,Type,IPC 2021 Water Supply Fixture Units [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_TRAP_TYPE_TXT,6389d133-18f9-549b-81b2-a7854cc06dff,TEXT,PLM_DRN,Type,Trap type P-TRAP/BOTTLE-TRAP/DEEP-SEAL/INTEGRAL [BS EN 12056-2 Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_TRAP_SEAL_DEPTH_MM,cde11f1f-ce97-59b6-9e31-88733c0074bc,TEXT,PLM_DRN,Type,Trap water seal depth mm minimum 50 [BS EN 12056-2 Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_VENT_SIZE_DN,ce6f77ba-72d5-5904-ba1a-b01d6a09274c,INTEGER,PLM_DRN,Type,Vent pipe nominal diameter mm [IPC 2021 Table 916.1 Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_AAV_REQUIRED_BOOL,cd10ebf4-3e56-5f81-bde7-5a7efbb3312d,YESNO,PLM_DRN,Type,Air Admittance Valve required [BS EN 12380 Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_CALC_DN_MM,6ff40ae1-9a6a-59d7-93aa-1b3ea27b3f28,INTEGER,PLM_DRN,Type,Auto-calculated minimum pipe diameter mm DrainageSizer output [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_CALC_SLOPE_PCT,5a6613d4-2b44-5f13-b023-74ad817ca427,TEXT,PLM_DRN,Type,Auto-calculated minimum slope percent DrainageSizer output [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_DEMAND_FLOW_LPS,4d30cc88-36ca-56bc-b070-9eda111b4ca4,TEXT,PLM_DRN,Type,Design flow rate l/s for pipe or branch [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_VELOCITY_MPS,12bdb567-8260-51e3-9048-c853ad1536e1,TEXT,PLM_DRN,Type,Design flow velocity m/s [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_FRICTION_LOSS_PA_M,2dd14866-68c7-5f8b-8541-2760a011e644,TEXT,PLM_DRN,Type,Friction head loss Pa per metre [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_PRESSURE_TEST_KPA,bc0dcd88-a1a4-58c3-aa26-900b3a1658c2,INTEGER,PLM_DRN,Type,Test pressure kPa default 100 [BS EN 12056-5 Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_FLUID_CATEGORY_TXT,453c0b62-3bc7-57f4-b099-277e022d40e0,TEXT,PLM_DRN,Type,BS EN 1717 fluid category 1-5 [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_VLV_BACKFLOW_TYPE_TXT,7e293a2c-4851-5677-bbb2-99be80e47d54,TEXT,PLM_DRN,Type,Backflow prevention device CHK-SC/CHK-DC/VLV-RPZ/GAP-AA [BS EN 1717 Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_PPE_STANDARD_TXT,39ef8603-2ac1-5bba-9de1-b770f304098b,TEXT,PLM_DRN,Type,Pipe material standard EN 1057/EN 10255/EN 1452/EN 877/EN 12201 [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_PPE_SCHEDULE_TXT,66c4b030-073b-5ae3-a0d9-2c15f6b88b8a,TEXT,PLM_DRN,Type,Pipe schedule SCH 10/40/80 SDR 11/17 [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_PPE_GRADE_TXT,b56727b6-4e83-5e65-85f9-6fcce50ee8cf,TEXT,PLM_DRN,Type,Material grade R220 R250 316L 304L PE100 [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_PPE_WRAS_APPROVED_BOOL,9bf49b76-7b80-5403-b9b6-5519ab4cb7e7,YESNO,PLM_DRN,Type,WRAS approved product [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_PPE_COLOR_BS1710_TXT,1f327972-191d-55e5-98fb-8c6a46d84d3b,TEXT,PLM_DRN,Type,Pipe identification colour per BS 1710 [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_PPE_WALL_THK_MM,e4412254-bea7-5a5e-9113-fee0ee9f5ff2,TEXT,PLM_DRN,Type,Pipe wall thickness mm for invert calc [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_MAT_TXT,75ebc9f4-666a-507e-8ea2-b72040578982,TEXT,PLM_DRN,Type,Pipe material code CU_R250_X MDPE_PE80_BLUE etc [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_RWH_ROOF_AREA_M2,d6a7f909-d625-5513-9ed5-7cb61ab29ae9,TEXT,PLM_DRN,Type,Roof contributing area for rainwater harvesting m2 [BS 8515 Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_RWH_TANK_VOL_M3,75da88b8-9ae8-5c9a-9c24-002d8cb141d3,TEXT,PLM_DRN,Type,Calculated RWH tank volume m3 [BS 8515 Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_RWH_ANNUAL_YIELD_M3,a359f448-eca1-5ad1-83ce-d55cbcce0e0c,TEXT,PLM_DRN,Type,Calculated annual rainwater yield m3 [BS 8515 Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_SUDS_ATTEN_VOL_M3,4933f620-561d-5fdd-8563-2dd9c69d5000,TEXT,PLM_DRN,Type,SuDS attenuation volume m3 [CIRIA C753 Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_SEPTIC_TANK_VOL_L,61260170-e6e4-5676-8b47-a51e08ae36b4,TEXT,PLM_DRN,Type,Septic tank volume litres [BS EN 12566-1 Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_PRV_SET_PRESSURE_KPA,06dab377-9f9e-59be-b442-a9832e492400,TEXT,PLM_DRN,Type,PRV set-point pressure kPa [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_PRV_INLET_PRESSURE_KPA,572fcbbd-495e-52b2-8dec-731734e94aab,TEXT,PLM_DRN,Type,PRV inlet upstream pressure kPa [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_PRESSURE_ZONE_TXT,00fdeb95-2512-5aec-afed-6eca926c9666,TEXT,PLM_DRN,Type,Pressure zone LOW/MID/HIGH/BOOSTED [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_TMV_CLASS_TXT,f6957339-9364-575d-b916-28a31bede75e,TEXT,PLM_DRN,Type,TMV class TMV2 TMV3 [BS 7942 Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_TMV_BLEND_TEMP_C,1cc13cfc-9059-538d-8c2d-02c9384ef850,TEXT,PLM_DRN,Type,TMV blended outlet temperature setpoint C [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_VLV_SET_PRESSURE_BAR,dc00317c-d340-56b9-9f61-3604459d0289,TEXT,PLM_DRN,Type,Valve set pressure bar PRV / safety valves [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_VLV_DESIGN_FLOW_LS,cde9d6ca-3327-585b-a8f7-6260416747c8,TEXT,PLM_DRN,Type,Valve design flow rate l/s [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_VLV_DESIGN_DP_KPA,a0daacb6-3075-5571-adac-f16dd4986012,TEXT,PLM_DRN,Type,Valve design pressure drop kPa [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_VLV_FAIL_POSITION_TXT,83e44d79-e601-5250-bcbc-d63193ac441f,TEXT,PLM_DRN,Type,Valve fail-safe position OPEN/CLOSED/LAST [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_VLV_WRAS_APPROVED_BOOL,ab46d616-d864-572c-8d9d-5bb51ccaab79,YESNO,PLM_DRN,Type,Valve WRAS-approved [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_DEAD_LEG_LENGTH_M,af8461f1-b314-5f60-8e8d-e38963de14f8,TEXT,PLM_DRN,Type,Dead-leg length m flagged by DeadLegDetector [HSG 274 Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_AUG_CARE_BOOL,a243bacd-1f2a-5c23-aa4e-f3c60c1ee37a,YESNO,PLM_DRN,Type,Augmented-care zone fixture HTM 04-01 Part B [Phase 178b],False,,,HEALTHCARE,1,0
-Generic Models,PLM_RO_LOOP_BOOL,bbab9ac4-5a21-5970-bab2-43532234f241,YESNO,PLM_DRN,Type,Member of dialysis RO recirculation loop [HTM 04-01 Part D Phase 178b],False,,,HEALTHCARE,1,0
-Generic Models,PLM_POU_FILTER_BOOL,59bd061b-2641-55e1-8e05-21f1f5dfd56b,YESNO,PLM_DRN,Type,Point-of-use filter fitted [HTM 04-01 Phase 178b],False,,,HEALTHCARE,1,0
-Generic Models,PLM_SENTINEL_BOOL,56f58de8-d502-585d-9f3b-57f169c6c7a2,YESNO,PLM_DRN,Type,TMV sentinel monitoring point [Phase 178b],False,,,PLUMBING,1,0
-Generic Models,PLM_PRJ_PLUMBING_CODE_TXT,98ab6e19-8d12-53c0-b388-8705f9413373,TEXT,ASS_MNG,Type,Project plumbing-code toggle BS-UK / IPC-US / UPC-US [Phase 178b],False,,,MULTI,1,0
-Generic Models,ELC_CDT_PENETRATION_COUNT_NR,c3d5b6ee-0f2e-7283-9405-162718304a5b,TEXT,ELC_PWR,Instance,"Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).",False,,,MULTI,1,0
-Generic Models,PEN_BEAM_DEPTH_RATIO,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1010,NUMBER,PEN_PENETRATION,Instance,Beam-host only: penetration diameter / beam depth - AISC DG2 limit 0.7, BS EN 1992 prudent limit 0.4,False,,,MULTI,1,0
-Generic Models,PEN_BEAM_OFFSET_PCT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d100f,NUMBER,PEN_PENETRATION,Instance,Beam-host only: distance from nearest support as %% of span (BS EN 1992 / AISC DG2 prefer >=10%%, ideally 20-33%%),False,,,MULTI,1,0
-Generic Models,PEN_CERTIFICATION_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1007,TEXT,PEN_PENETRATION,Instance,UL system / BS 476-20 / EN 1366-3 reference for the firestop assembly,False,,,MULTI,1,0
-Generic Models,PEN_CONTROL_NUMBER_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d100d,TEXT,PEN_PENETRATION,Instance,Project-unique penetration control number (FRP-NNNN). Bind to Mark for tag use.,False,,,MULTI,1,0
-Generic Models,PEN_FIRE_RATING_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1001,TEXT,PEN_PENETRATION,Instance,Required fire rating of the penetration: FR30/FR60/FR90/FR120/blank for non-rated [BS 9999, BS 476-20, EN 1366-3],False,,,MULTI,1,0
-Generic Models,PEN_HOST_REF_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1004,TEXT,PEN_PENETRATION,Instance,Host reference: FLR:<id> / WAL:<id> / BEM:<id>,False,,,MULTI,1,0
-Generic Models,PEN_HOST_TYPE_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1005,TEXT,PEN_PENETRATION,Instance,Host element class: FLOOR/WALL/BEAM/CEILING/ROOF,False,,,MULTI,1,0
-Generic Models,PEN_INSPECTION_DATE,a7c0b2e4-3301-4d27-9c61-0e7a3f9d100c,TEXT,PEN_PENETRATION,Instance,Inspection date ISO 8601 (YYYY-MM-DD),False,,,MULTI,1,0
-Generic Models,PEN_INSPECTOR_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d100b,TEXT,PEN_PENETRATION,Instance,Inspector name / company,False,,,MULTI,1,0
-Generic Models,PEN_INSTALLER_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1009,TEXT,PEN_PENETRATION,Instance,Installer name / company,False,,,MULTI,1,0
-Generic Models,PEN_INSTALL_DATE,a7c0b2e4-3301-4d27-9c61-0e7a3f9d100a,TEXT,PEN_PENETRATION,Instance,Install date ISO 8601 (YYYY-MM-DD) - stamped by mobile commissioning sign-off,False,,,MULTI,1,0
-Generic Models,PEN_INSTALL_STATUS_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1008,TEXT,PEN_PENETRATION,Instance,Install status: DRAFT/INSTALLED/INSPECTED/SIGNED-OFF/REWORK,False,,,MULTI,1,0
-Generic Models,PEN_MEMBER_ID_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1006,TEXT,PEN_PENETRATION,Instance,Penetrating member element id (Pipe/Duct/Conduit/CableTray),False,,,MULTI,1,0
-Generic Models,PEN_OD_MM,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1003,NUMBER,PEN_PENETRATION,Instance,Penetrating member outside diameter (mm),False,,,MULTI,1,0
-Generic Models,PEN_PFV_UUID_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d100e,TEXT,PEN_PENETRATION,Instance,Deterministic UUIDv5(host,member) - shared with sleeve schema for cross-pipeline idempotence,False,,,MULTI,1,0
-Generic Models,PEN_SEALANT_TYPE_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1002,TEXT,PEN_PENETRATION,Instance,Sealant system: INTUMESCENT/SILICONE/MORTAR/PILLOW/COLLAR/WRAP/NONE [BS 9999],False,,,MULTI,1,0
-Generic Models,PEN_STRUCTURAL_FLAG_TXT,a7c0b2e4-3301-4d27-9c61-0e7a3f9d1011,TEXT,PEN_PENETRATION,Instance,Beam-host only: STRUCT_OK / STRUCT_REVIEW / STRUCT_FAIL based on AISC DG2 + BS EN 1992 location/size rules,False,,,MULTI,1,0
-Views,STING_DRAWING_TYPE_ID_TXT,a7c0b2e4-4d91-4a55-9c7e-aa0001000006,TEXT,STING_DRAWING,Instance,Drawing type profile id stamped on every view/sheet by DrawingTypeStamper (DrawingType.Id) [STING DT v113],False,,,MULTI,1,0
-Generic Models,STING_HANGER_COUPLER_BOOL,fa04d3c6-9c18-4e22-b8d5-7e9f0a1b2c3d,YESNO,ASS_MNG,Instance,True when PlaceHangersCommand has placed a coupler / clamp hanger for this element; used by RoutingSupportPlacer to track already-placed support hardware [STING v4 Routing],False,,,MULTI,1,0
-Generic Models,STING_HANGER_TRAPEZE_BOOL,e9c3a2f1-8b07-4f11-a7c4-6d8e9f0a1b2c,YESNO,ASS_MNG,Instance,True when PlaceHangersCommand has placed a trapeze (twin-pipe / multi-service) hanger for this element; prevents duplicate placement on re-run [STING v4 Routing],False,,,MULTI,1,0
-Generic Models,STING_PLACED_BY_SYMBOL_PLACER_BOOL,a7c0b2e4-4d91-4a55-9c7e-aa0001000008,YESNO,STING_DRAWING,Instance,Stamped by IsoSymbolPlacer on every detail item placed from STING_ISO_SYMBOLS_INDEX -- prevents duplicate placement on re-run [STING v4 Fabrication],False,,,MULTI,1,0
-Generic Models,STING_STYLE_LOCKED_BOOL,a7c0b2e4-4d91-4a55-9c7e-aa0001000007,YESNO,STING_DRAWING,Instance,When true prevents DrawingTypePresentation.Apply from re-applying the profile -- set manually to lock a view's graphic state [STING DT v113],False,,,MULTI,1,0
-Generic Models,ASS_FIXINGS_TXT,f9fa4ecc-b168-5fbf-8c0c-6fb9edafd8e3,TEXT,ASS_MNG,Instance,Fixings and fastener specification for element installation [STING Data Pipeline],False,,,MULTI,1,0
-Generic Models,ASS_ITEM_CODE_TXT,ca833316-09fd-5164-a389-766b2ffc391a,TEXT,ASS_MNG,Instance,Fabrication item code used in PCF export and cut-list generation [STING v4 Fabrication],False,,,MULTI,1,0
-Generic Models,ASS_SERIAL_TXT,15fc2ad5-cd46-5224-83a4-b5161a590c47,TEXT,ASS_MNG,Instance,Asset serial number for FM and commissioning traceability [STING Asset Mgmt],False,,,MULTI,1,0
-Generic Models,ASS_SYSTEMS_TXT,67851773-5566-5e76-a934-30f9a29b232b,TEXT,ASS_MNG,Instance,Comma-separated list of systems this element serves [STING Setup],False,,,MULTI,1,0
-Generic Models,ASS_SPACING_MM_NR,41224d05-5800-5510-bf83-7a6b787bce56,NUMBER,ASS_MNG,Instance,Element centre-to-centre spacing in millimetres [STING Data Pipeline],False,,,MULTI,1,0
-Generic Models,ASS_TERM_CAPPED_BOOL,7a018e49-ec16-5c81-8224-dca5966e0e6c,YESNO,ASS_MNG,Instance,True when open end of element is capped -- set by TerminationValidator [STING v4 Validation],False,,,MULTI,1,0
-Generic Models,ASS_TERM_REASON_TXT,97deb754-aca8-5a59-b4ab-b49a36a78cc6,TEXT,ASS_MNG,Instance,Reason code for termination state (CAPPED / CONNECTED / OPEN) [STING v4 Validation],False,,,MULTI,1,0
-Generic Models,ASS_TRACE_SEQ_NR,35f84460-99f5-53a3-96e2-89260644de03,INTEGER,ASS_MNG,Instance,MEP system tracer sequence number assigned during MepSystemTracerCommand traversal [STING MEP],False,,,MULTI,1,0
-Generic Models,ASS_PLACEMENT_RULE_TXT,7ac7a3a3-aa4c-5d7f-a2f5-4c86f8644fdd,TEXT,ASS_MNG,Instance,Fixture placement rule id applied by FixturePlacementEngine from STING_PLACEMENT_RULES.json [STING v4 Placement],False,,,MULTI,1,0
-Generic Models,STING_FIXTURE_VARIANT_TXT,d592e5ac-c945-5ca8-8f96-22b212853959,TEXT,ASS_MNG,Instance,Fixture variant identifier used by FamilyHintsBridge for v4 smart placement variant selection [STING v4],False,,,MULTI,1,0
-Generic Models,STING_HEIGHT_STANDARD_TXT,cefa7f40-43f6-5fd2-b48e-4e27825630da,TEXT,ASS_MNG,Instance,Accessibility height standard reference (e.g. BS 8300 Table 2) checked by AccessibilityAuditor [STING Accessibility],False,,,MULTI,1,0
-Generic Models,STING_OMNICLASS_23,e22de72f-9303-5c9f-9e38-8dc0d5dcdac9,TEXT,ASS_MNG,Instance,OmniClass Table 23 Products classification code stamped by ClassificationReader [STING Classification],False,,,MULTI,1,0
-Generic Models,STING_SERVICE_TOKEN,e12f15bc-ca43-5b5e-a1d6-09f52f72de01,TEXT,ASS_MNG,Instance,Service token key used by SeparationValidator to detect inter-service conflicts [STING v4 Validation],False,,,MULTI,1,0
-Generic Models,STING_WET_FIXTURE_KIND,db5a6c26-2e4d-596c-9842-7fcce4c0af3d,TEXT,ASS_MNG,Instance,Wet-zone fixture kind override (BATH / SHOWER / WC / SINK) for WetZoneExclusionChecker [STING v4],False,,,MULTI,1,0
-Generic Models,ELC_CABLE_SEG_CLASS_TXT,80ef2c3c-fc37-5fa8-97b1-7098ad70607d,TEXT,ELC_PWR,Instance,Cable segregation class (LSF / LSHF / MICC / ARMOURED) per BS EN 50174 [STING Electrical],False,,,MULTI,1,0
-Generic Models,ELC_CBL_SIZE_TXT,9bc08e34-2822-5bbc-8c12-d46e89f277dc,TEXT,ELC_PWR,Instance,Cable size / cross-section text descriptor used by MepDesignCommands [STING MEP Design],False,,,MULTI,1,0
-Generic Models,ELC_CDT_CABLE_MANIFEST_TXT,fd6672f7-86e9-55f8-a982-cb3f1118f151,TEXT,ELC_PWR,Instance,JSON manifest of cables routed through this conduit -- written by CalcCommands routing engine [STING Routing],False,,,MULTI,1,0
-Generic Models,ELC_CIRCUIT_NR_TXT,d5553d0a-c956-583d-8d92-5e92cc82e799,TEXT,ELC_PWR,Instance,Circuit number as text label on annotation -- distinct from integer ELC_CKT_NR [STING Wire Annotation],False,,,MULTI,1,0
-Generic Models,ELC_EMERG_TYPE,09813269-4d17-5e24-ab10-35b2da5a4574,TEXT,ELC_PWR,Instance,Emergency lighting category (M0 / M1 / M2 / M3) per BS EN 50172 [STING Emergency Lighting],False,,,MULTI,1,0
-Generic Models,ELC_EQP_PHASE_NR,c81f77b2-622d-5d49-ba1e-3ec1adfea0e7,INTEGER,ELC_PWR,Instance,Equipment phase count (1 or 3) for single-phase vs three-phase discrimination [STING Data Pipeline],False,,,MULTI,1,0
-Generic Models,ELC_EQP_VOLTS_NR,15fdbc66-96ba-5f21-a6aa-b6cf7ff765cd,NUMBER,ELC_PWR,Instance,Equipment rated voltage in volts [STING Data Pipeline],False,,,MULTI,1,0
-Generic Models,ELC_JB_IP_RATING_TXT,1706578b-1bc4-5f1e-8cea-86724468c850,TEXT,ELC_PWR,Instance,Junction box ingress protection rating (e.g. IP54 / IP65) per IEC 60529 [STING Cable Schedule],False,,,MULTI,1,0
-Generic Models,ELC_PNL_LOAD_SUMMARY_COMPLETE_BOOL,00fddd67-e284-5c4c-bf27-9db4d5901850,YESNO,ELC_PWR,Instance,True when panel load summary parameters are fully populated -- workflow gate flag [STING Panels],False,,,MULTI,1,0
-Generic Models,ELC_PNL_NAME_TXT,dbfecaf2-e217-5732-85e6-3f990e9c146a,TEXT,ELC_PWR,Instance,Panel short name as displayed on wire annotation tags (cf. ELC_PNL_DESIGNATION_NAME_TXT) [STING Wire Annotation],False,,,MULTI,1,0
-Generic Models,ELC_SYS_TXT,057c4f4e-d2aa-5945-91eb-3cb5d16fb288,TEXT,ELC_PWR,Instance,Electrical system text description used by FabricationWorkspaceDialog and FabricationGrouper [STING Fabrication],False,,,MULTI,1,0
-Generic Models,ELC_WIRE_COND_MAT_TXT,05fa90ef-bd3d-574c-aa38-8106f0501ede,TEXT,ELC_PWR,Instance,Wire conductor material (Cu / Al) per BS 7671 Table 4A1 [STING Wire Annotation],False,,,MULTI,1,0
-Generic Models,ELC_WIRE_CSA_MM2_NUM,b1fee4cf-701b-56d3-8edb-56161acabfbc,NUMBER,ELC_PWR,Instance,Wire cross-sectional area in mm2 [STING Wire Annotation],False,,,MULTI,1,0
-Generic Models,ELC_WIRE_PHASE_TXT,5d6abeef-51d1-5671-9f27-0792dbf0c438,TEXT,ELC_PWR,Instance,Wire phase designation (L1 / L2 / L3 / N / CPC) [STING Wire Annotation],False,,,MULTI,1,0
-Generic Models,ELC_WIRE_VD_PCT_NUM,b1d76b4a-0fc9-5463-b7ea-ec76c41612a9,NUMBER,ELC_PWR,Instance,Wire voltage drop as percentage of nominal voltage [STING Wire Annotation],False,,,MULTI,1,0
-Generic Models,HVC_AIRFLOW_LS_NR,c7531f1f-b220-5dfc-8794-e0b321e45e90,NUMBER,HVC_SYSTEMS,Instance,HVAC terminal airflow in litres per second (numeric) -- distinct from text HVC_AIRFLOW_LPS [STING MEP],False,,,MULTI,1,0
-Generic Models,HVC_DCT_VELOCITY_MS,5ee52052-a6e8-5c8a-8654-ff1041fb1e99,NUMBER,HVC_SYSTEMS,Instance,Duct air velocity in metres per second used by AvfMetricAdapters visualisation [STING MEP],False,,,MULTI,1,0
-Generic Models,HVC_SYS_TXT,6fbd14b0-80e1-5210-a76d-32e852940d15,TEXT,HVC_SYSTEMS,Instance,HVAC system text description used by FabricationWorkspaceDialog and FabricationGrouper [STING Fabrication],False,,,MULTI,1,0
-Generic Models,MEC_SYS_TXT,f9f08d72-2364-5609-ac27-e0e7af714399,TEXT,HVC_SYSTEMS,Instance,Mechanical system text description used by FabricationGrouper / FabricationScope / FabricationActionRunner [STING Fabrication],False,,,MULTI,1,0
-Generic Models,PLM_FIX_TYPE_TXT,825bb253-9c4b-5051-bd48-8b50ebdbd40b,TEXT,PLM_DRN,Instance,Plumbing fixture type code (WC / BASIN / SHOWER / BATH / URINAL) per BS EN 997 [STING Plumbing],False,,,MULTI,1,0
-Generic Models,PLM_PPE_VELOCITY_MS,5528c145-4f5f-5bad-abcc-adf4aa0ae716,NUMBER,PLM_DRN,Instance,Pipe flow velocity in metres per second used by AvfMetricAdapters visualisation [STING MEP],False,,,MULTI,1,0
-Generic Models,PLM_SYS_TXT,88a3a3b1-6f6c-500f-82a0-df159214cac6,TEXT,PLM_DRN,Instance,Plumbing system text description used by FabricationWorkspaceDialog and FabricationGrouper [STING Fabrication],False,,,MULTI,1,0
-Generic Models,STING_ACOUSTIC_RW_DB,d2e2c278-8b1a-53dc-9cb7-ae89dece74b2,NUMBER,PER_SUST,Instance,Acoustic Rw weighted sound reduction index in dB used by AvfMetricAdapters acoustic visualisation [STING Acoustic],False,,,MULTI,1,0
-Generic Models,STING_CO2_KG,fc83c1da-b807-594a-b795-ab048e743716,NUMBER,PER_SUST,Instance,Calculated whole-life CO2 equivalent in kg used by AvfMetricAdapters carbon visualisation [STING Sustainability],False,,,MULTI,1,0
-Generic Models,BLE_EDGE_TRIM_TXT,052d58a3-699e-57c1-a206-9657dad25ce9,TEXT,BLE_ELES,Instance,Edge trim or nosing specification for floors / stairs [STING Data Pipeline],False,,,MULTI,1,0
-Generic Models,BLE_FIRE_RATING_TXT,bc9eb327-4858-50db-b852-9af4921bc993,TEXT,BLE_ELES,Instance,Fire resistance rating text (e.g. EI 60 / REI 90) per BS EN 13501-2 [STING Data Pipeline],False,,,MULTI,1,0
-Generic Models,BLE_FRAME_MATERIAL_TXT,1c036101-84e0-5461-8aeb-157df334c2e4,TEXT,BLE_ELES,Instance,Frame material description for doors and windows [STING Data Pipeline],False,,,MULTI,1,0
-Generic Models,BLE_GLASS_SPEC_TXT,edccbce5-27f9-593b-aabe-2a8762519451,TEXT,BLE_ELES,Instance,Glazing specification (e.g. 6.4mm SGP laminate / 28mm Argon-filled DGU) [STING Data Pipeline],False,,,MULTI,1,0
-Generic Models,BLE_HARDWARE_TXT,cbf73540-5219-5e36-8e15-c08ccea50e7c,TEXT,BLE_ELES,Instance,Door or window ironmongery / hardware specification [STING Data Pipeline],False,,,MULTI,1,0
-Generic Models,BLE_INSULATION_TXT,a3f36e81-2488-5639-9002-d62f7dad6587,TEXT,BLE_ELES,Instance,Insulation specification (type / thickness / lambda value) [STING Data Pipeline],False,,,MULTI,1,0
-Generic Models,BLE_SUBSTRATE_TXT,e9105a43-bdc7-53cb-bcbe-46a31fe65c4c,TEXT,BLE_ELES,Instance,Substrate material type for plastering / tiling / cladding [STING Data Pipeline],False,,,MULTI,1,0
-Generic Models,BLE_WINDOW_SILL_HEIGHT_NR,152ae98d-78e0-55e6-a5a6-2c4105ae393c,NUMBER,BLE_ELES,Instance,Window sill finished floor level height in millimetres [STING Data Pipeline],False,,,MULTI,1,0
-Generic Models,BLE_WORKTOP_MATERIAL_TXT,cb55e9f0-af7a-56bc-a6be-31e2c73bd451,TEXT,BLE_ELES,Instance,Worktop or counter material specification [STING Data Pipeline],False,,,MULTI,1,0
-Generic Models,DOOR_SEC_LEVEL_INT,9bf50564-234a-5b9b-a4f4-178587e2b16e,INTEGER,BLE_ELES,Instance,Door security level rating 1-6 per STS 202 / LPS 1175 used by PlacementExtCommands [STING Security],False,,,MULTI,1,0
-Generic Models,STING_MASTER_SETUP_TS,a38af81b-c60b-5157-9db0-7d24eb03a55c,TEXT,TPL_TRACKING,Instance,ISO 8601 timestamp written by MasterSetupCommand to record when last full setup was run [STING Setup],False,,,MULTI,1,0
-Generic Models,STR_CONCRETE_GRADE_TXT,db5887e7-5d28-57fa-ac8a-1d971d8c14d9,TEXT,BLE_STRUCTURE,Instance,Concrete specification grade (e.g. C25/30 / C32/40) per BS EN 206 [STING Structural],False,,,MULTI,1,0
-Generic Models,STR_REBAR_SPEC_TXT,a9edae40-3936-5a17-87f9-86d16b90c64b,TEXT,BLE_STRUCTURE,Instance,Reinforcement bar specification (e.g. B500B / Grade 60) per BS 4449 [STING Structural],False,,,MULTI,1,0
-Generic Models,STR_SECTION_SIZE_TXT,625140e9-d5ea-50b2-ab2a-b6533690184a,TEXT,BLE_STRUCTURE,Instance,Structural section size designation (e.g. 254x146x43 UB) [STING Structural],False,,,MULTI,1,0
-Generic Models,TAG_CLUSTER_KEY_TXT,c191f27f-4dc7-52ce-9692-105641f4ad80,TEXT,STINGTags_ISO19650,Instance,Cluster group key used by SmartTagPlacementCommand to group adjacent tags into coordinated clusters [STING Tags],False,,,MULTI,1,0
-Generic Models,TAG_FAMILY_HINT_TXT,08b9059a-a587-5317-861a-e31ba66f1b1c,TEXT,STINGTags_ISO19650,Instance,Tag family name hint written on element type by SmartTagPlacementCommand to guide family selection [STING Tags],False,,,MULTI,1,0
-Generic Models,TAG_PRIORITY_INT,5c93b60b-e787-553b-8e38-457a0d16fe98,INTEGER,STINGTags_ISO19650,Instance,Tag placement priority 1-10 used by SmartTagPlacementCommand -- higher values placed first to claim best positions [STING Tags],False,,,MULTI,1,0
-Generic Models,STING_ISO_SYMBOL_SCALE_IN,2a948624-dd92-583c-8757-0b4f9d056322,NUMBER,STING_DRAWING,Instance,ISO symbol detail-item scale in Revit internal units (feet) written by IsoSymbolPlacer [STING v4 Fabrication],False,,,MULTI,1,0
-Generic Models,STING_SCOPE_BOX_TAG_TXT,f838097f-5723-50ae-9101-702bc5cc9237,TEXT,STING_DRAWING,Instance,STING scope-box tag string written by GenerateFromScopeBoxesCommand for scope-box-to-view binding [STING DT],False,,,MULTI,1,0
-Generic Models,STING_ROUTE_RULE_ID_TXT,8fa28413-7cd8-51c4-9172-399489efd5cd,TEXT,Routing,Instance,In-wall chase routing rule id applied by InWallChaseRouter [STING v4 Routing],False,,,MULTI,1,0
-Generic Models,ASS_TAG_MULTILINE_TXT,6ba96198-36e0-5a2a-a236-f42ad2ce68c7,TEXT,ASS_MNG,Instance,Single-parameter multi-line tag (DISC\nLOC\nZONE\n...\nSEQ) for tag families binding one Label to one parameter with auto line-breaking [STING Tags],False,,,MULTI,1,0

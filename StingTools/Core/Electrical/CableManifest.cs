@@ -33,17 +33,6 @@ namespace StingTools.Core.Electrical
         public string SourceEquipmentId { get; set; } = "";
         public string DestEquipmentId   { get; set; } = "";
         public List<long> RouteTrayIds  { get; set; } = new List<long>();
-
-        /// <summary>
-        /// Junction / pull / draw-in box ElementIds placed along this
-        /// cable's route by JunctionBoxAutoPlacer (Wave F1) — auto-
-        /// stamped after every auto-route pass that fires the BS 7671
-        /// §522.8.5 break-point rule. Independent from RouteTrayIds so
-        /// a downstream cable schedule can quote conduit metres + box
-        /// count separately. Empty for runs with no break-points.
-        /// </summary>
-        public List<long> JunctionBoxIds { get; set; } = new List<long>();
-
         public double TotalLengthM     { get; set; }
         public double VoltageDropPct   { get; set; }
 
@@ -101,29 +90,6 @@ namespace StingTools.Core.Electrical
         {
             var dir = Path.GetDirectoryName(doc?.PathName ?? "") ?? Path.GetTempPath();
             return Path.Combine(dir, "_BIM_COORD", "cables.json");
-        }
-
-        /// <summary>
-        /// Called by CableManifestUpdater when conduit elements change.
-        /// Clears RouteTrayIds for cables routed through any of the affected element IDs,
-        /// forcing the routing engine to re-route them on next run.
-        /// Returns the count of cables invalidated.
-        /// </summary>
-        public int InvalidateCablesForElements(IEnumerable<long> changedElementIds)
-        {
-            var changed = new HashSet<long>(changedElementIds ?? Enumerable.Empty<long>());
-            if (changed.Count == 0) return 0;
-            int count = 0;
-            foreach (var cable in Cables ?? Enumerable.Empty<StingCable>())
-            {
-                if (cable.RouteTrayIds?.Any(id => changed.Contains(id)) == true)
-                {
-                    cable.RouteTrayIds.Clear();
-                    cable.VoltageDropPct = 0;
-                    count++;
-                }
-            }
-            return count;
         }
     }
 }

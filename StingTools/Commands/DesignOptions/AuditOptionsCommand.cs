@@ -58,7 +58,7 @@ namespace StingTools.Commands.DesignOptions
                     if (v == null || v == ElementId.InvalidElementId)
                         schedAlerts.Add(s.Name);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
 
             // ── 2: tags in main-model views pointing at option-only elems ─
@@ -96,7 +96,7 @@ namespace StingTools.Commands.DesignOptions
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
 
             // ── 3: sheets without option hint in name ────────────────────
@@ -129,7 +129,7 @@ namespace StingTools.Commands.DesignOptions
                         sheetAlerts.Add($"{sh.SheetNumber} — {sh.Name} (locked to option '{oname}')");
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
 
             // ── Compose report ───────────────────────────────────────────

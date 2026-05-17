@@ -144,7 +144,7 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                 var s = asString?.Invoke(p, null) as string;
                 return double.TryParse(s, out double v) ? v : 0;
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
     }
 

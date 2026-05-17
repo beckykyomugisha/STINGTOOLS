@@ -47,9 +47,10 @@ namespace StingTools.Core
         private static Dictionary<string, int> _cachedSeqCounters;
         private static bool _contextInvalid = true;
         // PERF-07: TTL-based context rebuild to avoid redundant rebuilds in multi-command workflows.
-        // Instead of rebuilding immediately on every InvalidateContext(), use a 5-second TTL.
+        // 30 s matches SpatialAutoDetect room-index TTL so a typical auto-tag → save → combine
+        // chain (≤10 s) never triggers a redundant context rebuild.
         private static DateTime _contextCacheTime = DateTime.MinValue;
-        private const int ContextCacheTtlMs = 5000;
+        private const int ContextCacheTtlMs = 30000;
         // G2.3: Cached formulas and grid lines for pipeline helper
         private static List<Temp.FormulaEngine.FormulaDefinition> _formulas;
         private static List<Grid> _gridLines;
@@ -790,7 +791,9 @@ namespace StingTools.Core
 
                                     if (_recentlyProcessed.Count > 10000)
                                     {
-                                        int toRemove = 1000;
+                                        // Evict oldest 20% (2000 of 10000) — matches the
+                                        // _tag7HashCache 20%-eviction pattern for consistency.
+                                        int toRemove = 2000;
                                         while (toRemove-- > 0 && _recentlyProcessedQueue.Count > 0)
                                         {
                                             long oldest = _recentlyProcessedQueue.Dequeue();
@@ -1090,6 +1093,7 @@ namespace StingTools.Core
                 BuiltInCategory.OST_CommunicationDevices,
                 BuiltInCategory.OST_SecurityDevices,
                 BuiltInCategory.OST_NurseCallDevices,
+                BuiltInCategory.OST_MedicalEquipment,
                 BuiltInCategory.OST_DuctAccessory,
                 BuiltInCategory.OST_DuctFitting,
                 BuiltInCategory.OST_DuctTerminal,
@@ -1490,7 +1494,10 @@ namespace StingTools.Core
                                     }
                                 }
                             }
-                            catch (Exception spEx) { StingLog.Warn($"StaleMarker spatial detection: {spEx.Message}"); }
+                            // Rate-limited: this catch lives inside an IUpdater that fires
+                            // on every element change. An ungated Warn here could emit
+                            // hundreds of lines per save.
+                            catch (Exception spEx) { StingLog.WarnRateLimited("StaleMarker.SpatialDetect", $"StaleMarker spatial detection: {spEx.Message}"); }
                         }
 
                         // R-06: MEP system change detection — SYS/FUNC become stale on system reassignment
@@ -1513,7 +1520,8 @@ namespace StingTools.Core
                                     }
                                 }
                             }
-                            catch (Exception mepEx) { StingLog.Warn($"StaleMarker MEP detection: {mepEx.Message}"); }
+                            // Rate-limited: see SpatialDetect catch above. IUpdater hot path.
+                            catch (Exception mepEx) { StingLog.WarnRateLimited("StaleMarker.MepDetect", $"StaleMarker MEP detection: {mepEx.Message}"); }
                         }
 
                         if (isStale)

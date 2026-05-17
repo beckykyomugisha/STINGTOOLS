@@ -255,10 +255,10 @@ namespace StingTools.Commands.Plumbing
             foreach (var el in elems)
             {
                 string cls = "";
-                try { cls = el.LookupParameter(ParamRegistry.PLM_TMV_CLASS)?.AsString() ?? ""; } catch { }
+                try { cls = el.LookupParameter(ParamRegistry.PLM_TMV_CLASS)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (string.IsNullOrEmpty(cls)) continue;
                 string outletC = "";
-                try { outletC = el.LookupParameter(ParamRegistry.PLM_TMV_BLEND)?.AsValueString() ?? ""; } catch { }
+                try { outletC = el.LookupParameter(ParamRegistry.PLM_TMV_BLEND)?.AsValueString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 rows.Add($"{el.Id.Value} · {el.Name} · TMV {cls} · outlet {outletC}");
                 total++;
             }

@@ -88,7 +88,7 @@ namespace StingTools.Core.Fabrication.Duct
 
         private static string ReadString(Element el, string param)
         {
-            try { return el?.LookupParameter(param)?.AsString() ?? ""; } catch { return ""; }
+            try { return el?.LookupParameter(param)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
     }
 }

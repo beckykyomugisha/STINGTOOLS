@@ -87,18 +87,11 @@ namespace StingTools.Commands.Mep
             {
                 var view = doc.ActiveView;
                 if (view == null) return scope;
-                var cats = new List<BuiltInCategory>
+                foreach (Type t in new[] { typeof(Pipe), typeof(Duct), typeof(Conduit), typeof(CableTray) })
                 {
-                    BuiltInCategory.OST_PipeCurves,
-                    BuiltInCategory.OST_DuctCurves,
-                    BuiltInCategory.OST_Conduit,
-                    BuiltInCategory.OST_CableTray
-                };
-                var filter = new ElementMulticategoryFilter(cats);
-                var col = new FilteredElementCollector(doc, view.Id)
-                    .WherePasses(filter)
-                    .WhereElementIsNotElementType();
-                foreach (var el in col) scope.Add(el);
+                    var col = new FilteredElementCollector(doc, view.Id).OfClass(t);
+                    foreach (var el in col) scope.Add(el);
+                }
             }
             return scope;
         }
@@ -124,14 +117,6 @@ namespace StingTools.Commands.Mep
                  .Metric("Skipped",          res.Skipped.ToString())
                  .Metric("Failed",           res.Failed.ToString());
 
-            panel.AddSection("STANDARDS")
-                 .Text("Sleeves sized per BS EN 1366-3 minimum annulus rules:")
-                 .Text("  • Pipes / ducts: 50 mm clearance per side")
-                 .Text("  • Conduit:       15 mm clearance per side")
-                 .Text("  • Large-bore (≥250 mm): rule PIPE_LARGEBORE")
-                 .Text("Fire rating inherited from host wall/floor TYPE per BS EN 13501-2.")
-                 .Text("Configure rules in Data/Routing/STING_SLEEVE_RULES.json.");
-
             if (res.Warnings.Count > 0)
             {
                 panel.AddSection("WARNINGS");
@@ -143,8 +128,7 @@ namespace StingTools.Commands.Mep
                  .Text("To round-trip sleeves to Tekla Structures Hole Reservation Manager:")
                  .Text("1. Run Fabrication → Export IFC Provisions for Voids (next command).")
                  .Text("2. Load the IFC4 Reference View in Tekla; use the PFV_UUID as the")
-                 .Text("   matching key between MEP voids and structural cuts.")
-                 .Text("3. Run Export Sleeve BCF to issue per-penetration RFIs to coordinators.");
+                 .Text("   matching key between MEP voids and structural cuts.");
             panel.Show();
         }
     }

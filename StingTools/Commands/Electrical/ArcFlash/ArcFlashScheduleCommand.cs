@@ -31,7 +31,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
             {
                 tx.Start();
                 view = ViewSchedule.CreateSchedule(doc, new ElementId(BuiltInCategory.OST_ElectricalEquipment));
-                try { view.Name = $"STING - Arc Flash Schedule - {DateTime.Now:yyyyMMdd-HHmm}"; } catch { }
+                try { view.Name = $"STING - Arc Flash Schedule - {DateTime.Now:yyyyMMdd-HHmm}"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 var def = view.Definition;
 
                 AddByName(def, doc, "Mark");
@@ -45,7 +45,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 StampDrawingType(view);
                 tx.Commit();
             }
-            try { ctx.UIDoc.ActiveView = view; } catch { }
+            try { ctx.UIDoc.ActiveView = view; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Arc Flash Schedule",
                 $"Schedule created: {view?.Name}\n" +
                 "Place on a sheet manually — PanelScheduleSheetInstance.Create is broken in Revit 2024+.");
@@ -63,7 +63,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 var added = def.AddField(sf);
                 if (!string.IsNullOrEmpty(columnHeading) && added != null)
                 {
-                    try { added.ColumnHeading = columnHeading; } catch { }
+                    try { added.ColumnHeading = columnHeading; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
             }
             catch (Exception ex) { StingLog.Info($"AddByName {paramName}: {ex.Message}"); }

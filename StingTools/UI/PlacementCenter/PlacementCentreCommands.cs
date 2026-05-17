@@ -19,14 +19,5 @@ namespace StingTools.UI.PlacementCenter
         public static readonly RoutedCommand HistoryRefresh  = new RoutedCommand();
         public static readonly RoutedCommand ClearPreview    = new RoutedCommand();
         public static readonly RoutedCommand DeleteSelected  = new RoutedCommand();
-
-        // Phase 139 — Excel round-trip + Building Profile commands.
-        public static readonly RoutedCommand ExportExcel        = new RoutedCommand();
-        public static readonly RoutedCommand ImportExcel        = new RoutedCommand();
-        public static readonly RoutedCommand LoadProfile        = new RoutedCommand();
-        public static readonly RoutedCommand SaveProfile        = new RoutedCommand();
-        public static readonly RoutedCommand RunCoverageAudit   = new RoutedCommand();
-        public static readonly RoutedCommand RunUniformityAudit = new RoutedCommand();
-        public static readonly RoutedCommand RunMaintenanceAudit = new RoutedCommand();
     }
 }

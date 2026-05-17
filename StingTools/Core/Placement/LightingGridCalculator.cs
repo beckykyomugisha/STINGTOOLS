@@ -275,7 +275,7 @@ namespace StingTools.Core.Placement
                 var p = room.get_Parameter(BuiltInParameter.ROOM_NAME);
                 return p?.AsString() ?? room.Name ?? "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         // ── Phase 139.2 — post-processing passes ────────────────────
@@ -323,7 +323,7 @@ namespace StingTools.Core.Placement
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 bool nameSuggestsTiles = ceilingTypeNames.Any(n =>
                     n.IndexOf("600x600", StringComparison.OrdinalIgnoreCase) >= 0
@@ -359,7 +359,7 @@ namespace StingTools.Core.Placement
                 // off post-snap and the engine reports "31 placed" against
                 // a zero-fixture room.
                 BoundingBoxXYZ roomBb = null;
-                try { roomBb = room.get_BoundingBox(null); } catch { }
+                try { roomBb = room.get_BoundingBox(null); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 int adjustments = 0;
                 int reverted = 0;
@@ -379,7 +379,7 @@ namespace StingTools.Core.Placement
                     if (snappedInBbox)
                     {
                         try { snappedInRoom = room.IsPointInRoom(snapped); }
-                        catch { snappedInRoom = true; }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); snappedInRoom = true; }
                     }
 
                     if (snappedInRoom)
@@ -393,7 +393,7 @@ namespace StingTools.Core.Placement
                         // generated from the room's own AABB so it should
                         // still be inside the polygon.
                         bool originalInRoom = false;
-                        try { originalInRoom = room.IsPointInRoom(p); } catch { }
+                        try { originalInRoom = room.IsPointInRoom(p); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         if (originalInRoom) { snappedList.Add(p); reverted++; }
                         else                { dropped++; }
                     }

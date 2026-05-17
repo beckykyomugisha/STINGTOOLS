@@ -77,7 +77,7 @@ namespace StingTools.Commands.Electrical
                 tx.Commit();
             }
 
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Electrical",
                 $"Updated {updated} circuit description(s).\nSkipped: {skipped}\nErrors: {errors}");
             return Result.Succeeded;
@@ -86,7 +86,7 @@ namespace StingTools.Commands.Electrical
         private static bool IsPowerCircuit(ElectricalSystem s)
         {
             try { return s.SystemType == ElectricalSystemType.PowerCircuit; }
-            catch { return true; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return true; }
         }
 
         /// <summary>
@@ -126,7 +126,7 @@ namespace StingTools.Commands.Electrical
                 string num = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER)?.AsString() ?? "";
                 return string.IsNullOrEmpty(panel) ? num : $"{panel}-{num}";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         private static string BuildDescription(Document doc, ElectricalSystem sys,
@@ -175,7 +175,7 @@ namespace StingTools.Commands.Electrical
             {
                 if (el is FamilyInstance fi && fi.Room is Room r) return r.Name ?? "";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             try
             {
                 var loc = (el.Location as LocationPoint)?.Point;
@@ -185,7 +185,7 @@ namespace StingTools.Commands.Electrical
                     if (room != null) return room.Name ?? "";
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "";
         }
 
@@ -193,7 +193,7 @@ namespace StingTools.Commands.Electrical
         {
             if (string.IsNullOrEmpty(s)) return s;
             try { return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(s.ToLower()); }
-            catch { return s; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return s; }
         }
     }
 }

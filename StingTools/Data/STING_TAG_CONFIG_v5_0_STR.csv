@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.5,CREATED=2026-03-16,UPDATED=2026-05-06,FAMILIES=149,ADDS=phase_176_lps_foundation_earth_structural_reuse(BS_EN_62305-3_Annex_E.5.3),PREV=per_family_tier_variation+standards_cited+reuse_check,SYNC=LABEL_DEFINITIONS.json_v6.0(149_categories)+PARAMETER_REGISTRY.json_extended_params.tier_4_10(33_entries)+ELC_LPS_GROUP(7_containers)
+#SCHEMA_VERSION=5.4,CREATED=2026-03-16,UPDATED=2026-04-23,FAMILIES=142,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.9(138_categories)+PARAMETER_REGISTRY.json_extended_params.tier_4_10(33_entries)
 #
 # SCHEMA v5.2 (2026-04-16) — Added 3 trailing columns: Style,Color,Size
 #   Style  : NOM | BOLD | ITALIC | BOLDITALIC               (default per tier: T1=NOM, T2=NOM, T3=NOM)
@@ -339,6 +339,12 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Framing
 3,HIGH,WARN_STR_BEAM_SPAN_DEPTH,Span/depth ratio exceeds guidance,SCI P363 / Steel Designer Manual,Common,Text,⚠ Warning: Span-Depth Ratio,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_SPAN_DEPTH, """")"
 4,MEDIUM,WARN_PER_EMBODIED_CARBON_KG_STR_BEAMS,Carbon > 600 kgCO₂/m²,RIBA 2030 Climate Challenge,Common,Text,⚠ Warning: Beam Embodied Carbon,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_EMBODIED_CARBON_KG_STR_BEAMS, """")"
 5,MEDIUM,WARN_STR_BEAM_LATERAL_BRACING,Lateral bracing interval not specified,BS EN 1993-1-1 / EC3 6.3.2,Common,Text,⚠ Warning: Lateral Bracing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_LATERAL_BRACING, """")"
+# Beam penetration / web opening warnings (PenetrationsDetectAndPlaceCommand — AISC DG2 / BS EN 1992)
+6,CRITICAL,WARN_STR_BEAM_WEB_OPENING,Web opening location or size violates AISC DG2 §3.2 / BS EN 1992-1-1,AISC Design Guide 2 §3.2 / BS EN 1992-1-1 Cl 6.2.5,Common,Text,⚠ Warning: Beam Web Opening Violation,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_WEB_OPENING, """")"
+7,HIGH,WARN_STR_BEAM_NOTCH,Beam-end notch depth exceeds permitted ratio — section capacity reduced,SCI P363 / BS EN 1993-1-1 §6.2.6,Common,Text,⚠ Warning: Beam Notch Depth Exceeded,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_NOTCH, """")"
+8,HIGH,WARN_STR_BEAM_PENETRATION_REVIEW,Beam penetration flagged STRUCT_REVIEW — reroute or reinforce before fabrication,AISC DG2 / BS EN 1992 Cl 6.2.5,Common,Text,⚠ Warning: Beam Penetration Requires Review,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_PENETRATION_REVIEW, """")"
+9,HIGH,WARN_STR_TRANSFER_BEAM,Transfer beam identified — enhanced peer review and specialist approval required,SCI P363 / NHBC Technical Requirements,Common,Text,⚠ Warning: Transfer Beam — Peer Review Required,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_TRANSFER_BEAM, """")"
+10,MEDIUM,WARN_STR_COMPOSITE_SHEAR_STUD,Composite beam has no shear stud count or spacing specified,BS EN 1994-1-1 / EC4 Cl 6.6,Common,Text,⚠ Warning: Shear Stud Spec Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_COMPOSITE_SHEAR_STUD, """")"
 
 Tag Family #3: STING - Structural Foundation Tag
 TAG7: STR_TAG_7_PARA_FDN_TXT  •  Category: Structural Foundations

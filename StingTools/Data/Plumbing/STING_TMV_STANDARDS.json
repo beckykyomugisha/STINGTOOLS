@@ -1,0 +1,67 @@
+{
+  "version": "1.0",
+  "standards": {
+    "BS_8680": {
+      "year": 2022,
+      "title": "Water quality — Code of practice for the design, installation, testing and maintenance of services providing potable water",
+      "tmvClasses": {
+        "A": { "toleranceDegC": 10, "application": "General ablution — outlets 38–43°C" },
+        "B": { "toleranceDegC": 2,  "application": "Ablution where scalding risk — outlets 38–43°C ±2°C" },
+        "C": { "toleranceDegC": 1,  "application": "Healthcare / vulnerable persons — outlets ≤41°C ±1°C" }
+      },
+      "maxOutletTempC": {
+        "shower":     38,
+        "bath":       44,
+        "ablution":   43,
+        "healthcare": 41,
+        "kitchen":    60
+      },
+      "minOutletTempC": 38,
+      "annualTestRequired": true,
+      "quarterlyFlushRequired": true
+    },
+    "HTM_04_01": {
+      "year": 2016,
+      "title": "Safe water in healthcare premises — Part B: Operational management",
+      "healthcareRequirements": {
+        "showerOutletMaxC":   41,
+        "tapOutletMaxC":      41,
+        "bathOutletMaxC":     44,
+        "tmvClassRequired":   "C",
+        "sixMonthlyInspection": true,
+        "annualTest":         true,
+        "inletHotMinC":       55,
+        "inletColdMaxC":      20
+      }
+    },
+    "ACOP_L8": {
+      "year": 2013,
+      "title": "Legionnaires Disease — The control of Legionella bacteria in water systems",
+      "storageHotMinC":       60,
+      "distributionHotMinC":  50,
+      "coldMaxC":             20,
+      "deadLegMaxM":          0.45,
+      "annualRiskAssessment": true
+    },
+    "HSG_274_Part2": {
+      "year": 2014,
+      "title": "Legionnaires disease — Part 2: The control of Legionella bacteria in hot and cold water systems",
+      "sentinelOutletFlushFrequency":   "weekly",
+      "infrequentlyUsedOutletFlush":    "weekly",
+      "deadLegThresholdM":              0.45,
+      "biofilm_remediation":            "Thermal disinfection (70°C for 1 hour) or chlorination"
+    }
+  },
+  "testProcedure": {
+    "steps": [
+      "Record inlet hot and cold temperatures",
+      "Set TMV to nominal outlet temperature",
+      "Measure mixed outlet temperature after 1 minute of flow",
+      "Check outlet within class tolerance",
+      "Test failsafe: isolate cold — outlet must shut off or drop below 46°C within 5 seconds",
+      "Test failsafe: isolate hot — outlet must shut off",
+      "Record test date and result",
+      "Calculate annual test due date"
+    ]
+  }
+}

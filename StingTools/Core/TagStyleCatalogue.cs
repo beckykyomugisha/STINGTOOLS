@@ -120,16 +120,20 @@ namespace StingTools.Core
     public static class TagStyleCatalogue
     {
         private static readonly object _lock = new object();
-        private static bool _loaded;
+        // volatile ensures the DCL first-check outside the lock sees the write
+        // from whichever thread completed EnsureLoaded() without a memory-barrier gap.
+        private static volatile bool _loaded;
 
-        private static List<string> _sizes = new List<string> { "2", "2.5", "3", "3.5" };
-        private static List<string> _styles = new List<string> { "NOM", "BOLD", "ITALIC", "BOLDITALIC" };
-        private static List<string> _colours = new List<string> { "BLACK", "BLUE", "GREEN", "RED", "ORANGE", "PURPLE", "GREY", "WHITE" };
-        private static List<string> _arrowheads = new List<string> { "None", "Arrow Filled 15", "Arrow Filled 30", "Arrow Open 30", "Dot Filled", "Tick", "Heavy End" };
-        private static List<int> _depthTiers = Enumerable.Range(1, 10).ToList();
+        // Backing fields typed as IReadOnlyList so even a cast attempt at the
+        // call site gets a compile-time warning rather than silent mutability.
+        private static IReadOnlyList<string> _sizes = new[] { "2", "2.5", "3", "3.5" };
+        private static IReadOnlyList<string> _styles = new[] { "NOM", "BOLD", "ITALIC", "BOLDITALIC" };
+        private static IReadOnlyList<string> _colours = new[] { "BLACK", "BLUE", "GREEN", "RED", "ORANGE", "PURPLE", "GREY", "WHITE" };
+        private static IReadOnlyList<string> _arrowheads = new[] { "None", "Arrow Filled 15", "Arrow Filled 30", "Arrow Open 30", "Dot Filled", "Tick", "Heavy End" };
+        private static IReadOnlyList<int> _depthTiers = Enumerable.Range(1, 10).ToArray();
         private static Dictionary<string, DisciplineDefault> _defaults =
             new Dictionary<string, DisciplineDefault>(StringComparer.OrdinalIgnoreCase);
-        private static List<TypeVariantSpec> _standardVariants = new List<TypeVariantSpec>();
+        private static IReadOnlyList<TypeVariantSpec> _standardVariants = Array.Empty<TypeVariantSpec>();
 
         public static IReadOnlyList<string> Sizes      { get { EnsureLoaded(); return _sizes; } }
         public static IReadOnlyList<string> Styles     { get { EnsureLoaded(); return _styles; } }
@@ -234,7 +238,7 @@ namespace StingTools.Core
                 }
             }
 
-            _standardVariants = new List<TypeVariantSpec>();
+            var variants = new List<TypeVariantSpec>();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             // Always include disciplinary defaults as standard variants.
@@ -242,7 +246,7 @@ namespace StingTools.Core
             {
                 var spec = dd.ToVariantSpec();
                 if (seen.Add(spec.CanonicalTypeName))
-                    _standardVariants.Add(spec);
+                    variants.Add(spec);
             }
 
             var stdArr = root["standard_variants"] as JArray;
@@ -259,23 +263,24 @@ namespace StingTools.Core
                         DepthTier = v["depth_tier"]?.Value<int>() ?? 3,
                     };
                     if (seen.Add(spec.CanonicalTypeName))
-                        _standardVariants.Add(spec);
+                        variants.Add(spec);
                 }
             }
 
-            if (_standardVariants.Count == 0) BuildBuiltInStandardVariants(seen);
+            if (variants.Count == 0) BuildBuiltInStandardVariants(seen, variants);
+            _standardVariants = variants;
 
             StingLog.Info($"TagStyleCatalogue: loaded {_sizes.Count} sizes, {_styles.Count} styles, " +
                 $"{_colours.Count} colours, {_arrowheads.Count} arrowheads, " +
                 $"{_defaults.Count} disc defaults, {_standardVariants.Count} standard variants");
         }
 
-        private static List<string> ReadStringArray(JObject root, string name, List<string> fallback)
+        private static IReadOnlyList<string> ReadStringArray(JObject root, string name, IReadOnlyList<string> fallback)
         {
             var arr = root[name] as JArray;
             if (arr == null) return fallback;
-            var list = arr.Select(t => t.ToString()).Where(s => !string.IsNullOrEmpty(s)).ToList();
-            return list.Count > 0 ? list : fallback;
+            var list = arr.Select(t => t.ToString()).Where(s => !string.IsNullOrEmpty(s)).ToArray();
+            return list.Length > 0 ? list : fallback;
         }
 
         private static void BuildBuiltInDefaults()
@@ -293,16 +298,17 @@ namespace StingTools.Core
             };
 
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            _standardVariants = new List<TypeVariantSpec>();
+            var variants = new List<TypeVariantSpec>();
             foreach (var dd in _defaults.Values)
             {
                 var v = dd.ToVariantSpec();
-                if (seen.Add(v.CanonicalTypeName)) _standardVariants.Add(v);
+                if (seen.Add(v.CanonicalTypeName)) variants.Add(v);
             }
-            BuildBuiltInStandardVariants(seen);
+            BuildBuiltInStandardVariants(seen, variants);
+            _standardVariants = variants;
         }
 
-        private static void BuildBuiltInStandardVariants(HashSet<string> seen)
+        private static void BuildBuiltInStandardVariants(HashSet<string> seen, List<TypeVariantSpec> variants)
         {
             foreach (string size in _sizes)
             {
@@ -314,7 +320,7 @@ namespace StingTools.Core
                         Arrowhead = "None", DepthTier = t,
                     };
                     if (seen.Add(v.CanonicalTypeName))
-                        _standardVariants.Add(v);
+                        variants.Add(v);
                 }
             }
         }

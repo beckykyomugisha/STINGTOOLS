@@ -74,7 +74,7 @@ namespace StingTools.Core.Plumbing
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             string name = "";
             try
@@ -82,7 +82,7 @@ namespace StingTools.Core.Plumbing
                 name = ((fixture as FamilyInstance)?.Symbol?.Family?.Name ?? "") + " " +
                        (fixture.Name ?? "");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             if (string.IsNullOrWhiteSpace(name)) return 1.0;
             string upper = name.ToUpperInvariant();
             foreach (var kv in CategoryDefaults)
@@ -128,7 +128,7 @@ namespace StingTools.Core.Plumbing
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             return sum;
         }
@@ -149,7 +149,7 @@ namespace StingTools.Core.Plumbing
                     .OfCategory(BuiltInCategory.OST_PlumbingFixtures)
                     .WhereElementIsNotElementType().GetElementCount();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             r.FixturesScanned = fixCount;
 
             foreach (var p in pipes)
@@ -180,7 +180,7 @@ namespace StingTools.Core.Plumbing
                  || sys.Contains("FOUL"))
                     return true;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 
@@ -196,7 +196,7 @@ namespace StingTools.Core.Plumbing
                 double total = s.DistanceTo(e);
                 return total > 1e-6 && (dz / total) > 0.8;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
     }
 }

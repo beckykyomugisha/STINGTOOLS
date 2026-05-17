@@ -56,7 +56,7 @@ namespace StingTools.UI.Plumbing
 
         public void SetStatus(string text)
         {
-            try { _statusText.Text = text; } catch { }
+            try { _statusText.Text = text; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private TabItem BuildSystemTab()

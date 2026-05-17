@@ -317,7 +317,7 @@ namespace StingTools.Core.Placement
                 {
                     try { rx = new System.Text.RegularExpressions.Regex(rule.BoxFamilyTypeRegex,
                                 System.Text.RegularExpressions.RegexOptions.IgnoreCase); }
-                    catch { rx = null; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); rx = null; }
                 }
                 string paramName = string.IsNullOrEmpty(rule.BoxLocationIdParam)
                     ? ParamRegistry.BOX_LOCATION_ID : rule.BoxLocationIdParam;
@@ -664,7 +664,7 @@ namespace StingTools.Core.Placement
                 XYZ c = (bb.Min + bb.Max) * 0.5;
                 points.Add(new XYZ(c.X + offsetXFt, c.Y + offsetYFt, anchorZ));
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
     }
 }

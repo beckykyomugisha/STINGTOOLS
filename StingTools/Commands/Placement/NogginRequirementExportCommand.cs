@@ -53,9 +53,9 @@ namespace StingTools.Commands.Placement
 
                     XYZ pt = (fi.Location as LocationPoint)?.Point ?? XYZ.Zero;
                     string room = "";
-                    try { room = fi.Room?.Name ?? ""; } catch { }
+                    try { room = fi.Room?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     string level = "";
-                    try { level = (doc.GetElement(fi.LevelId) as Level)?.Name ?? ""; } catch { }
+                    try { level = (doc.GetElement(fi.LevelId) as Level)?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     string typeName = doc.GetElement(fi.GetTypeId())?.Name ?? "";
                     string catalogueRef = fi.LookupParameter("MK_CATALOGUE_REF")?.AsString() ?? "";
                     rows.Add(new[] {
@@ -115,14 +115,11 @@ namespace StingTools.Commands.Placement
                                     marker, StructuralType.NonStructural);
                                 markersPlaced++;
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                         tx.Commit();
                     }
-                    catch
-                    {
-                        if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
-                    }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack(); }
                 }
             }
 
@@ -143,7 +140,7 @@ namespace StingTools.Commands.Placement
                         return fs;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 

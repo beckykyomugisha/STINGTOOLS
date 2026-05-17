@@ -183,6 +183,8 @@
         <button class="nav-btn" data-mode="walk" title="Walk mode (W) — first-person navigation"  aria-label="Walk mode">🚶 Walk</button>
         <button class="nav-btn" data-mode="pivot" title="Pivot mode — orbit around selection"     aria-label="Pivot mode">⊕ Pivot</button>
         <button class="nav-btn" data-mode="fit"  title="Fit selection or model (F)"               aria-label="Fit camera">⌖ Fit</button>
+        <button class="nav-btn" data-mode="home"  title="Default eye view — reset to opening camera position"  aria-label="Default eye view">⌂ Home</button>
+        <button class="nav-btn" data-mode="level" title="Level camera — make view horizontal (remove tilt)"     aria-label="Level camera">— Level</button>
         <span class="speed-wrap" id="walkSpeedWrap" title="Walk speed — scroll wheel or +/− buttons">
           <span class="lbl">SPD</span>
           <button id="walkSpeedDown" aria-label="Decrease walk speed" title="Decrease walk speed">−</button>
@@ -228,8 +230,9 @@
             <tr><td>G</td><td>Toggle ghosted view</td></tr>
             <tr><td colspan="2" style="font-weight:600;color:var(--accent);padding-top:8px">Navigation</td></tr>
             <tr><td>O / W</td><td>Orbit / Walk mode</td></tr>
-            <tr><td>Wheel (Walk)</td><td>Adjust walk speed (Shift = coarse)</td></tr>
-            <tr><td>+ / − (Walk)</td><td>Walk speed via on-screen wheel</td></tr>
+            <tr><td>Wheel (Walk)</td><td>Move forward / backward</td></tr>
+            <tr><td>Shift+Wheel (Walk)</td><td>Adjust walk speed (coarse)</td></tr>
+            <tr><td>+ / − (Walk)</td><td>Walk speed via on-screen widget</td></tr>
             <tr><td>Space</td><td>Reset camera</td></tr>
             <tr><td>1–7</td><td>Jump to level</td></tr>
             <tr><td colspan="2" style="font-weight:600;color:var(--accent);padding-top:8px">Coordination</td></tr>
@@ -760,7 +763,39 @@
     const centre = modelBounds.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
     const dist = maxDim * 1.8;
-    camera.position.copy(centre).add(new THREE.Vector3(dist, dist * 0.8, dist));
+    // Sync camera.up to the model's dominant vertical axis so OrbitControls
+    // rotates correctly. Revit GLBs are often Z-up (the axis with the
+    // smallest horizontal span), while spec glTF/GLB is Y-up. Without this,
+    // dragging up on the canvas orbits sideways instead of overhead.
+    const ax = Math.abs(size.x), ay = Math.abs(size.y), az = Math.abs(size.z);
+    if (az <= ax && az <= ay) {
+      // Z-up model (Revit). Place camera perpendicular to the longest
+      // horizontal axis so that axis fills the screen width.
+      camera.up.set(0, 0, 1);
+      if (ax >= ay) {
+        // Long axis is X → view from south (Y-) so X reads left-right.
+        camera.position.copy(centre).add(new THREE.Vector3(0, -dist * 0.8, dist * 0.6));
+      } else {
+        // Long axis is Y → view from west (X-) so Y reads left-right.
+        camera.position.copy(centre).add(new THREE.Vector3(-dist * 0.8, 0, dist * 0.6));
+      }
+    } else if (ay <= ax && ay <= az) {
+      // Y-up model. Same logic for horizontal axes X and Z.
+      camera.up.set(0, 1, 0);
+      if (ax >= az) {
+        camera.position.copy(centre).add(new THREE.Vector3(0, dist * 0.6, -dist * 0.8));
+      } else {
+        camera.position.copy(centre).add(new THREE.Vector3(-dist * 0.8, dist * 0.6, 0));
+      }
+    } else {
+      // X-up model. Horizontal axes are Y and Z.
+      camera.up.set(1, 0, 0);
+      if (ay >= az) {
+        camera.position.copy(centre).add(new THREE.Vector3(dist * 0.6, 0, -dist * 0.8));
+      } else {
+        camera.position.copy(centre).add(new THREE.Vector3(dist * 0.6, -dist * 0.8, 0));
+      }
+    }
     controls.target.copy(centre);
     controls.update();
   }
@@ -1032,6 +1067,83 @@
     }
   }
 
+  // ── Compliance heatmap ────────────────────────────────────────────────────
+  // payload: { elements: [{ guid, isComplete, disc }], mode: 'rag'|'disc' }
+  const _origMaterials = new Map(); // guid → original material
+
+  function setComplianceHeatmap(payload) {
+    if (!modelRoot || !elementMap) return;
+    const { elements = [], mode = 'rag' } = payload || {};
+    const ragByGuid = new Map(elements.map(e => [e.guid, e]));
+
+    const C_GREEN  = new THREE.Color(0x27ae60);
+    const C_AMBER  = new THREE.Color(0xf39c12);
+    const C_RED    = new THREE.Color(0xe74c3c);
+    const C_GREY   = new THREE.Color(0x888888);
+    const DISC_COLORS = {
+      A:'#3498db', M:'#e67e22', E:'#f1c40f', P:'#2ecc71',
+      S:'#9b59b6', FP:'#e74c3c', LV:'#1abc9c', G:'#95a5a6',
+    };
+
+    modelRoot.traverse(obj => {
+      if (!obj.isMesh) return;
+      const guid = obj.userData.elementGuid;
+      if (!guid) return;
+      const info = ragByGuid.get(guid);
+      if (!info) return;
+
+      // Save original material once
+      if (!_origMaterials.has(guid)) _origMaterials.set(guid, obj.material);
+
+      let color;
+      if (mode === 'disc') {
+        color = new THREE.Color(DISC_COLORS[info.disc] || '#888');
+      } else {
+        color = info.isComplete ? C_GREEN : (info.disc ? C_AMBER : C_RED);
+      }
+      const mat = new THREE.MeshLambertMaterial({ color });
+      obj.material = mat;
+    });
+  }
+
+  function clearComplianceHeatmap() {
+    if (!modelRoot) return;
+    modelRoot.traverse(obj => {
+      if (!obj.isMesh) return;
+      const guid = obj.userData.elementGuid;
+      if (guid && _origMaterials.has(guid)) {
+        obj.material = _origMaterials.get(guid);
+        _origMaterials.delete(guid);
+      }
+    });
+  }
+
+  // ── BCF viewpoint capture / restore ──────────────────────────────────────
+  function captureViewpoint(meta) {
+    const eye = camera.position.toArray();
+    const look = controls.target.toArray();
+    const up  = camera.up.toArray();
+    const dir = new THREE.Vector3().subVectors(controls.target, camera.position).normalize().toArray();
+    const selected = highlightedMesh ? [highlightedMesh.userData.elementGuid].filter(Boolean) : [];
+    return {
+      ...(meta || {}),
+      camera: { eye, look, up, dir, fov: camera.fov },
+      selectedGuids: selected,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  function restoreViewpoint(vp) {
+    if (!vp || !vp.camera) return;
+    const { eye, look, up, fov } = vp.camera;
+    if (fov) camera.fov = fov;
+    camera.updateProjectionMatrix();
+    controls.target.set(...look);
+    camera.position.set(...eye);
+    camera.up.set(...up);
+    controls.update();
+  }
+
   function setTool(t) {
     activeTool = t;
     enableSection(t === 'section');
@@ -1052,11 +1164,35 @@
   function countMeshes(obj) { let n = 0; obj.traverse(o => { if (o.isMesh) n++; }); return n; }
   function bbToArray(b) { return [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z]; }
 
+  // Level the camera: keep current position and yaw, zero out pitch so the
+  // view is perfectly horizontal. Works for Z-up (Revit) and Y-up models.
+  function levelCamera() {
+    if (modelBounds.isEmpty()) return;
+    const size = modelBounds.getSize(new THREE.Vector3());
+    const ax = Math.abs(size.x), ay = Math.abs(size.y), az = Math.abs(size.z);
+    // Determine the up vector (same logic as fitCamera / pickUpAxis).
+    let up;
+    if (az <= ax && az <= ay)      up = new THREE.Vector3(0, 0, 1);
+    else if (ay <= ax && ay <= az) up = new THREE.Vector3(0, 1, 0);
+    else                           up = new THREE.Vector3(1, 0, 0);
+    camera.up.copy(up);
+    // Project the current look direction onto the horizontal plane.
+    const fwd = new THREE.Vector3();
+    camera.getWorldDirection(fwd);
+    fwd.addScaledVector(up, -fwd.dot(up));
+    if (fwd.lengthSq() > 1e-6) {
+      fwd.normalize();
+      camera.lookAt(camera.position.clone().add(fwd));
+    }
+    controls.target.copy(camera.position.clone().add(fwd.multiplyScalar(10)));
+    controls.update();
+  }
+
   // STING_VIEWER export — exact same surface viewer-extras + coordination
   // viewer expect.
   window.STING_VIEWER = {
     scene, camera, renderer, controls, bridge,
-    fitCamera, assignElementIds,
+    fitCamera, levelCamera, assignElementIds,
     get modelRoot()       { return modelRoot; },
     set modelRoot(v)       { modelRoot = v; },
     get modelBounds()     { return modelBounds; },

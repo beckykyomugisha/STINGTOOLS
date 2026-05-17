@@ -113,7 +113,7 @@ namespace StingTools.Core.Drawing
             string originalSpFile = null;
             try
             {
-                try { originalSpFile = app.SharedParametersFilename; } catch { }
+                try { originalSpFile = app.SharedParametersFilename; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 famDoc = app.NewFamilyDocument(rftPath);
                 if (famDoc == null || !famDoc.IsFamilyDocument)
                 {
@@ -193,7 +193,7 @@ namespace StingTools.Core.Drawing
             {
                 r.Errors.Add(ex.Message);
                 StingLog.Error($"TitleBlockFactory.Build({spec.Id})", ex);
-                try { famDoc?.Close(false); } catch { }
+                try { famDoc?.Close(false); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             finally
             {
@@ -246,7 +246,7 @@ namespace StingTools.Core.Drawing
                         SearchOption.AllDirectories).FirstOrDefault();
                     if (!string.IsNullOrEmpty(hit)) return hit;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             return null;
         }
@@ -294,7 +294,7 @@ namespace StingTools.Core.Drawing
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             // Final fallback: alongside the addin DLL. AssemblyPath is the
             // FILE path (ends in StingTools.dll), so we have to take the
             // directory — Path.Combine(asmFilePath, "Families/…") would
@@ -307,7 +307,7 @@ namespace StingTools.Core.Drawing
                 if (!string.IsNullOrEmpty(asm))
                     asmDir = Path.GetDirectoryName(asm) ?? ".";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return Path.Combine(asmDir, specPath);
         }
 
@@ -897,7 +897,7 @@ namespace StingTools.Core.Drawing
                     if (gs != null) return gs;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 
@@ -934,7 +934,7 @@ namespace StingTools.Core.Drawing
                 }
                 return first?.Id ?? ElementId.InvalidElementId;
             }
-            catch { return ElementId.InvalidElementId; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ElementId.InvalidElementId; }
         }
 
         private static ElementId ResolveFilledRegionTypeId(Document doc, string typeName)
@@ -953,7 +953,7 @@ namespace StingTools.Core.Drawing
                 }
                 return first?.Id ?? ElementId.InvalidElementId;
             }
-            catch { return ElementId.InvalidElementId; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ElementId.InvalidElementId; }
         }
 
         // Phase 171b — Revit's HorizontalAlign / VerticalAlign enums
@@ -1145,7 +1145,7 @@ namespace StingTools.Core.Drawing
             foreach (var c in candidates)
             {
                 try { return Enum.Parse(_verticalAlignType, c, ignoreCase: true); }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             // Last resort: pick the first declared enum value so the call
             // at least dispatches successfully.
@@ -1154,7 +1154,7 @@ namespace StingTools.Core.Drawing
                 var values = Enum.GetValues(_verticalAlignType);
                 if (values.Length > 0) return values.GetValue(0);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 
@@ -1174,8 +1174,8 @@ namespace StingTools.Core.Drawing
             if (famDoc == null) return null;
             object famFactory = null;
             object appFactory = null;
-            try { famFactory = famDoc.FamilyCreate; } catch { }
-            try { appFactory = famDoc.Application?.Create; } catch { }
+            try { famFactory = famDoc.FamilyCreate; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { appFactory = famDoc.Application?.Create; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             EnsureNewLabelDiscovered(famFactory, appFactory, r);
             if (_newLabelMethod == null || _newLabelTarget == null) return null;
             object vAlign = ParseVAlign(vAlignName);

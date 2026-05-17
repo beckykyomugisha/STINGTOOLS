@@ -22,37 +22,6 @@ namespace StingTools.Core.Drawing
 {
     public static class DrawingCropApplier
     {
-        // PERF-08 + FIX-3: per-view bbox union cache keyed by (docKey, viewId).
-        // The union shifts only when the view's element set changes; cache
-        // entries carry the cardinality at compute time so a stale entry
-        // is detected and refreshed before it produces an out-of-date crop.
-        // Evicted on DrawingTypeRegistry.Reload(doc) and on any element
-        // count mismatch at lookup time.
-        private sealed class BboxEntry
-        {
-            public BoundingBoxXYZ Union;
-            public int            ElementCount;
-        }
-        private static readonly object _bboxLock = new object();
-        private static readonly Dictionary<string, Dictionary<long, BboxEntry>> _bboxCache
-            = new Dictionary<string, Dictionary<long, BboxEntry>>(StringComparer.OrdinalIgnoreCase);
-
-        private static string DocKey(Document doc)
-        {
-            if (doc == null) return "__null__";
-            try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
-            catch { return "__unknown__"; }
-        }
-
-        public static void InvalidateCache(Document doc)
-        {
-            string key = DocKey(doc);
-            lock (_bboxLock)
-            {
-                if (_bboxCache.ContainsKey(key)) _bboxCache.Remove(key);
-            }
-        }
-
         public static List<string> Apply(Document doc, View view, DrawingType dt)
         {
             var warnings = new List<string>();
@@ -137,76 +106,31 @@ namespace StingTools.Core.Drawing
         {
             try
             {
-                // PERF-08: cache the un-margined union per view; margin is
-                // applied below on every call so repeated profile applies
-                // (e.g. SyncStyles) skip the FilteredElementCollector pass.
-                var union = GetOrComputeUnion(doc, view, warnings);
+                // Union the bboxes of every element visible in the view.
+                BoundingBoxXYZ union = null;
+                foreach (var el in new FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType())
+                {
+                    var bb = el.get_BoundingBox(view);
+                    if (bb == null) continue;
+                    if (union == null) { union = new BoundingBoxXYZ { Min = bb.Min, Max = bb.Max }; continue; }
+                    union.Min = new XYZ(Math.Min(union.Min.X, bb.Min.X),
+                                         Math.Min(union.Min.Y, bb.Min.Y),
+                                         Math.Min(union.Min.Z, bb.Min.Z));
+                    union.Max = new XYZ(Math.Max(union.Max.X, bb.Max.X),
+                                         Math.Max(union.Max.Y, bb.Max.Y),
+                                         Math.Max(union.Max.Z, bb.Max.Z));
+                }
                 if (union == null) { warnings.Add("TightBbox: view is empty, no crop applied."); return; }
 
                 var marginFt = (marginMm / 304.8);
-                var withMargin = new BoundingBoxXYZ
-                {
-                    Min = union.Min - new XYZ(marginFt, marginFt, 0),
-                    Max = union.Max + new XYZ(marginFt, marginFt, 0),
-                };
+                union.Min = union.Min - new XYZ(marginFt, marginFt, 0);
+                union.Max = union.Max + new XYZ(marginFt, marginFt, 0);
 
                 view.CropBoxActive  = true;
                 view.CropBoxVisible = true;
-                view.CropBox        = withMargin;
+                view.CropBox        = union;
             }
             catch (Exception ex) { warnings.Add($"TightBbox: {ex.Message}"); }
-        }
-
-        private static BoundingBoxXYZ GetOrComputeUnion(Document doc, View view, List<string> warnings)
-        {
-            string key = DocKey(doc);
-            long viewKey = view.Id.Value;
-
-            // FIX-3: cheap element-count fingerprint. ID() runs O(1) per
-            // element via the FilteredElementCollector; element movement
-            // alone won't trigger a refresh, which is acceptable for the
-            // crop-margin use case (margin dominates the visible result),
-            // but element add / delete is captured.
-            int currentCount = 0;
-            try
-            {
-                currentCount = new FilteredElementCollector(doc, view.Id)
-                    .WhereElementIsNotElementType().GetElementCount();
-            }
-            catch { /* fall through; treat as forced re-compute */ }
-
-            lock (_bboxLock)
-            {
-                if (_bboxCache.TryGetValue(key, out var docMap)
-                    && docMap.TryGetValue(viewKey, out var cached)
-                    && cached.ElementCount == currentCount
-                    && cached.Union != null)
-                    return cached.Union;
-            }
-
-            BoundingBoxXYZ union = null;
-            int counted = 0;
-            foreach (var el in new FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType())
-            {
-                counted++;
-                var bb = el.get_BoundingBox(view);
-                if (bb == null) continue;
-                if (union == null) { union = new BoundingBoxXYZ { Min = bb.Min, Max = bb.Max }; continue; }
-                union.Min = new XYZ(Math.Min(union.Min.X, bb.Min.X),
-                                     Math.Min(union.Min.Y, bb.Min.Y),
-                                     Math.Min(union.Min.Z, bb.Min.Z));
-                union.Max = new XYZ(Math.Max(union.Max.X, bb.Max.X),
-                                     Math.Max(union.Max.Y, bb.Max.Y),
-                                     Math.Max(union.Max.Z, bb.Max.Z));
-            }
-
-            lock (_bboxLock)
-            {
-                if (!_bboxCache.TryGetValue(key, out var docMap))
-                    _bboxCache[key] = docMap = new Dictionary<long, BboxEntry>();
-                docMap[viewKey] = new BboxEntry { Union = union, ElementCount = counted };
-            }
-            return union;
         }
 
         private static void SetRoomBoundaryCrop(Document doc, View view, double marginMm, List<string> warnings)

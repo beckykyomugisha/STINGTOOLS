@@ -359,7 +359,7 @@ namespace StingTools.Commands.Drawing
                             bb.Max = origin + perp * widthFt + new XYZ(0, 0, 30.0 / 0.3048);
                             return new DrawingContext { CustomBounds = bb, Tag = "Grid-" + g.Name, PackageId = preset.PackageId };
                         }
-                        catch { return null; }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
                     }).Where(x => x != null);
                 }
                 else
@@ -478,13 +478,13 @@ namespace StingTools.Commands.Drawing
                                         if (ownerPlan == null) { warnings.Add("No owner plan for elevation marker."); continue; }
                                         var marker = ElevationMarker.CreateElevationMarker(doc, vft.Id, origin, dt.Scale > 0 ? dt.Scale : 100);
                                         var view = marker.CreateElevation(doc, ownerPlan.Id, idx);
-                                        try { view.Name = $"Exterior Elevation - {face} - {dt.Name}"; } catch { }
+                                        try { view.Name = $"Exterior Elevation - {face} - {dt.Name}"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                                         try
                                         {
                                             var fp = view.get_Parameter(BuiltInParameter.VIEWER_BOUND_OFFSET_FAR);
                                             if (fp != null && !fp.IsReadOnly) fp.Set(elev.FarClipMm / 304.8);
                                         }
-                                        catch { }
+                                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                                         var ar = DrawingTypePresentation.Apply(doc, view, dt, new DrawingTypePresentation.ApplyOptions
                                         {
                                             AnnotationOptions = new AnnotationRunOptions { ViewScale = view.Scale }
@@ -636,7 +636,7 @@ namespace StingTools.Commands.Drawing
                     foreach (var v in new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>().Where(v => v.IsTemplate && (v.Name ?? "").StartsWith(prefix, StringComparison.Ordinal)).ToList())
                     {
                         var newName = v.Name.Replace(":", "-");
-                        try { v.Name = newName; renamed++; } catch { }
+                        try { v.Name = newName; renamed++; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     }
                     pack.TemplateMode = "external";
                     t.Commit();

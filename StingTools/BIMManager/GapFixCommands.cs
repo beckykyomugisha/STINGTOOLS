@@ -488,7 +488,9 @@ namespace StingTools.BIMManager
                                 if (headers.ContainsKey("SerialNumber"))
                                 {
                                     string sn = ws.Cell(r, headers["SerialNumber"]).GetString().Trim();
-                                    if (!string.IsNullOrEmpty(sn)) ParameterHelpers.SetString(el, "ASS_SERIAL_TXT", sn, overwrite: true);
+                                    // Fix: was "ASS_SERIAL_TXT" which does not exist in MR_PARAMETERS.txt;
+                                    // the canonical parameter is ASS_SERIAL_NR_TXT (ParamRegistry.SERIAL_NR).
+                                    if (!string.IsNullOrEmpty(sn)) ParameterHelpers.SetString(el, ParamRegistry.SERIAL_NR, sn, overwrite: true);
                                 }
                                 if (headers.ContainsKey("BarCode"))
                                 {

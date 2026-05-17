@@ -390,7 +390,7 @@ namespace StingTools.Core.Routing
                 var p = fitting.LookupParameter("Angle");
                 if (p != null && p.StorageType == StorageType.Double) return p.AsDouble() * (180.0 / Math.PI);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 
@@ -412,7 +412,7 @@ namespace StingTools.Core.Routing
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 
@@ -432,7 +432,7 @@ namespace StingTools.Core.Routing
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return n;
         }
 
@@ -541,7 +541,7 @@ namespace StingTools.Core.Routing
                 string s = ParameterHelpers.GetString(el, param);
                 if (!string.IsNullOrEmpty(s) && int.TryParse(s, out int n)) return n;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 
@@ -555,7 +555,7 @@ namespace StingTools.Core.Routing
                     System.Globalization.CultureInfo.InvariantCulture,
                     out double m)) return m;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
     }

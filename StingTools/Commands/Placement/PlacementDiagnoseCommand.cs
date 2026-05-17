@@ -54,8 +54,8 @@ namespace StingTools.Commands.Placement
             foreach (var d in doors.Take(50))
             {
                 Room from = null, to = null;
-                try { from = d.FromRoom; } catch { }
-                try { to = d.ToRoom; } catch { }
+                try { from = d.FromRoom; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { to = d.ToRoom; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (from != null) doorsWithFromRoom++;
                 if (to != null) doorsWithToRoom++;
                 bool wallHost = d.Host is Wall;
@@ -120,7 +120,7 @@ namespace StingTools.Commands.Placement
             Directory.CreateDirectory(outDir);
             string txtPath = Path.Combine(outDir,
                 $"STING_PlacementDiagnose_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
-            try { File.WriteAllText(txtPath, sb.ToString()); } catch { }
+            try { File.WriteAllText(txtPath, sb.ToString()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             string preview = sb.Length > 4000 ? sb.ToString().Substring(0, 4000) + "\n…(truncated, see file)" : sb.ToString();
             TaskDialog.Show("STING - Placement Diagnose", preview + $"\n\nFull report: {txtPath}");

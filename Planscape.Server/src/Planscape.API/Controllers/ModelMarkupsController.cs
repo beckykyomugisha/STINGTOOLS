@@ -43,16 +43,28 @@ public class ModelMarkupsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult> Create(Guid projectId, [FromBody] ModelMarkupRequest req, CancellationToken ct)
     {
+        // Idempotency: if the client re-sends after a network failure, return
+        // the existing row rather than creating a duplicate.
+        if (!string.IsNullOrEmpty(req.IdempotencyKey))
+        {
+            var existing = await _db.ModelMarkups
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.ProjectId == projectId
+                                       && m.IdempotencyKey == req.IdempotencyKey, ct);
+            if (existing != null) return Ok(new { existing.Id });
+        }
+
         var markup = new ModelMarkup
         {
-            TenantId      = _tenant.TenantId,
-            ProjectId     = projectId,
-            ModelId       = req.ModelId,
-            IssueId       = req.IssueId,
-            Label         = req.Label,
-            Color         = req.Color ?? "#E8912D",
-            Thickness     = req.Thickness ?? 2f,
-            PolylinesJson = req.PolylinesJson ?? "[]",
+            TenantId       = _tenant.TenantId,
+            ProjectId      = projectId,
+            ModelId        = req.ModelId,
+            IssueId        = req.IssueId,
+            Label          = req.Label,
+            Color          = req.Color ?? "#E8912D",
+            Thickness      = req.Thickness ?? 2f,
+            PolylinesJson  = req.PolylinesJson ?? "[]",
+            IdempotencyKey = req.IdempotencyKey,
         };
         _db.ModelMarkups.Add(markup);
         await _db.SaveChangesAsync(ct);
@@ -70,4 +82,4 @@ public class ModelMarkupsController : ControllerBase
     }
 }
 
-public record ModelMarkupRequest(Guid? ModelId, Guid? IssueId, string? Label, string? Color, float? Thickness, string? PolylinesJson);
+public record ModelMarkupRequest(Guid? ModelId, Guid? IssueId, string? Label, string? Color, float? Thickness, string? PolylinesJson, string? IdempotencyKey);
