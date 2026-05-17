@@ -109,7 +109,7 @@
           "default": "OFFICIAL"
         },
         {
-          "name": "PRJ_TB_CLIENT_NAME_TXT",
+          "name": "PRJ_ORG_CLIENT_NAME_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
@@ -121,13 +121,7 @@
           "group": "IdentityData"
         },
         {
-          "name": "PRJ_TB_COMPANY_NAME_TXT",
-          "kind": "shared",
-          "instance": true,
-          "group": "IdentityData"
-        },
-        {
-          "name": "PRJ_TB_COMPANY_ADDRESS_TXT",
+          "name": "PRJ_ORG_PHASE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
@@ -616,7 +610,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "param": "PRJ_ORG_CLIENT_NAME_TXT",
           "anchor": [
             4,
             95
@@ -656,7 +650,7 @@
           "vAlign": "Middle"
         },
         {
-          "param": "PRJ_TB_COMPANY_NAME_TXT",
+          "param": "PRJ_ORG_COMPANY_NAME_TXT",
           "anchor": [
             40,
             46
@@ -666,7 +660,7 @@
           "vAlign": "Middle"
         },
         {
-          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
+          "param": "PRJ_ORG_COMPANY_ADDRESS_TXT",
           "anchor": [
             40,
             41
@@ -1125,12 +1119,6 @@
           "instance": true,
           "group": "IdentityData",
           "default": "Shared"
-        },
-        {
-          "name": "PRJ_TB_DESIGN_STAGE_TXT",
-          "kind": "shared",
-          "instance": true,
-          "group": "IdentityData"
         },
         {
           "name": "PRJ_TB_REVISION_NR_TXT",
@@ -2291,7 +2279,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "param": "PRJ_ORG_CLIENT_NAME_TXT",
           "anchor": [
             3,
             118.08333333333333
@@ -2323,7 +2311,7 @@
           "size": 1.1
         },
         {
-          "param": "PRJ_TB_COMPANY_NAME_TXT",
+          "param": "PRJ_ORG_COMPANY_NAME_TXT",
           "anchor": [
             3,
             75.74999999999999
@@ -2331,7 +2319,7 @@
           "size": 1.43
         },
         {
-          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
+          "param": "PRJ_ORG_COMPANY_ADDRESS_TXT",
           "anchor": [
             3,
             68.24999999999999
@@ -3753,7 +3741,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "param": "PRJ_ORG_CLIENT_NAME_TXT",
           "anchor": [
             3,
             118.08333333333333
@@ -3785,7 +3773,7 @@
           "size": 1.1
         },
         {
-          "param": "PRJ_TB_COMPANY_NAME_TXT",
+          "param": "PRJ_ORG_COMPANY_NAME_TXT",
           "anchor": [
             3,
             75.74999999999999
@@ -3793,7 +3781,7 @@
           "size": 1.43
         },
         {
-          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
+          "param": "PRJ_ORG_COMPANY_ADDRESS_TXT",
           "anchor": [
             3,
             68.24999999999999
@@ -5215,7 +5203,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "param": "PRJ_ORG_CLIENT_NAME_TXT",
           "anchor": [
             2,
             99.91666666666667
@@ -5247,7 +5235,7 @@
           "size": 0.85
         },
         {
-          "param": "PRJ_TB_COMPANY_NAME_TXT",
+          "param": "PRJ_ORG_COMPANY_NAME_TXT",
           "anchor": [
             2,
             64.25
@@ -5255,7 +5243,7 @@
           "size": 1.1
         },
         {
-          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
+          "param": "PRJ_ORG_COMPANY_ADDRESS_TXT",
           "anchor": [
             2,
             57.75000000000001
@@ -6021,7 +6009,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "param": "PRJ_ORG_CLIENT_NAME_TXT",
           "anchor": [
             2,
             99.91666666666667
@@ -6053,7 +6041,7 @@
           "size": 0.85
         },
         {
-          "param": "PRJ_TB_COMPANY_NAME_TXT",
+          "param": "PRJ_ORG_COMPANY_NAME_TXT",
           "anchor": [
             2,
             64.25
@@ -6061,7 +6049,7 @@
           "size": 1.1
         },
         {
-          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
+          "param": "PRJ_ORG_COMPANY_ADDRESS_TXT",
           "anchor": [
             2,
             57.75000000000001
@@ -7483,7 +7471,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "param": "PRJ_ORG_CLIENT_NAME_TXT",
           "anchor": [
             2,
             79.93333333333334
@@ -7515,7 +7503,7 @@
           "size": 0.72
         },
         {
-          "param": "PRJ_TB_COMPANY_NAME_TXT",
+          "param": "PRJ_ORG_COMPANY_NAME_TXT",
           "anchor": [
             2,
             51.60000000000001
@@ -7523,7 +7511,7 @@
           "size": 0.94
         },
         {
-          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
+          "param": "PRJ_ORG_COMPANY_ADDRESS_TXT",
           "anchor": [
             2,
             46.20000000000001
@@ -8945,7 +8933,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "param": "PRJ_ORG_CLIENT_NAME_TXT",
           "anchor": [
             2,
             79.93333333333334
@@ -8977,7 +8965,7 @@
           "size": 0.72
         },
         {
-          "param": "PRJ_TB_COMPANY_NAME_TXT",
+          "param": "PRJ_ORG_COMPANY_NAME_TXT",
           "anchor": [
             2,
             51.60000000000001
@@ -8985,7 +8973,7 @@
           "size": 0.94
         },
         {
-          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
+          "param": "PRJ_ORG_COMPANY_ADDRESS_TXT",
           "anchor": [
             2,
             46.20000000000001
@@ -10407,7 +10395,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "param": "PRJ_ORG_CLIENT_NAME_TXT",
           "anchor": [
             2,
             63.583333333333336
@@ -10439,7 +10427,7 @@
           "size": 0.59
         },
         {
-          "param": "PRJ_TB_COMPANY_NAME_TXT",
+          "param": "PRJ_ORG_COMPANY_NAME_TXT",
           "anchor": [
             2,
             41.25000000000001
@@ -10447,7 +10435,7 @@
           "size": 0.77
         },
         {
-          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
+          "param": "PRJ_ORG_COMPANY_ADDRESS_TXT",
           "anchor": [
             2,
             36.75000000000001
@@ -11795,7 +11783,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "param": "PRJ_ORG_CLIENT_NAME_TXT",
           "anchor": [
             2,
             63.583333333333336
@@ -11827,7 +11815,7 @@
           "size": 0.59
         },
         {
-          "param": "PRJ_TB_COMPANY_NAME_TXT",
+          "param": "PRJ_ORG_COMPANY_NAME_TXT",
           "anchor": [
             2,
             41.25000000000001
@@ -11835,7 +11823,7 @@
           "size": 0.77
         },
         {
-          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
+          "param": "PRJ_ORG_COMPANY_ADDRESS_TXT",
           "anchor": [
             2,
             36.75000000000001
@@ -13183,7 +13171,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "param": "PRJ_ORG_CLIENT_NAME_TXT",
           "anchor": [
             2,
             50.86666666666667
@@ -13215,7 +13203,7 @@
           "size": 0.47
         },
         {
-          "param": "PRJ_TB_COMPANY_NAME_TXT",
+          "param": "PRJ_ORG_COMPANY_NAME_TXT",
           "anchor": [
             2,
             33.199999999999996
@@ -13223,7 +13211,7 @@
           "size": 0.61
         },
         {
-          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
+          "param": "PRJ_ORG_COMPANY_ADDRESS_TXT",
           "anchor": [
             2,
             29.399999999999995
@@ -14535,7 +14523,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "param": "PRJ_ORG_CLIENT_NAME_TXT",
           "anchor": [
             2,
             50.86666666666667
@@ -14567,7 +14555,7 @@
           "size": 0.47
         },
         {
-          "param": "PRJ_TB_COMPANY_NAME_TXT",
+          "param": "PRJ_ORG_COMPANY_NAME_TXT",
           "anchor": [
             2,
             33.199999999999996
@@ -14575,7 +14563,7 @@
           "size": 0.61
         },
         {
-          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
+          "param": "PRJ_ORG_COMPANY_ADDRESS_TXT",
           "anchor": [
             2,
             29.399999999999995
@@ -18676,7 +18664,7 @@
           "size": 1.4
         },
         {
-          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "param": "PRJ_ORG_CLIENT_NAME_TXT",
           "anchor": [
             765,
             12.0
@@ -18960,7 +18948,7 @@
           "size": 1.4
         },
         {
-          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "param": "PRJ_ORG_CLIENT_NAME_TXT",
           "anchor": [
             765,
             12.0
@@ -19203,7 +19191,7 @@
           "hAlign": "Center"
         },
         {
-          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "param": "PRJ_ORG_CLIENT_NAME_TXT",
           "anchor": [
             420.5,
             257.0

@@ -675,8 +675,7 @@ namespace StingTools.Tags
                 if (prjCat != null && prjCat.AllowsBoundParameters)
                 {
                     prjSet.Insert(prjCat);
-                    // Merge with existing PRJ_INFORMATION override if it already exists —
-                    // some existing PRJ_TB_* params may want both ProjectInfo AND sheets.
+                    // Merge with existing PRJ_INFORMATION override if it already exists.
                     if (overrides.TryGetValue("PRJ_INFORMATION", out var existing))
                     {
                         foreach (Category c in existing) prjSet.Insert(c);

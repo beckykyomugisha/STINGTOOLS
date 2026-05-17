@@ -183,7 +183,7 @@ The kit ships as 15 `.rfa` families covering every deliverable surface a typical
 6. **Hanger-only fabrication (`STING_TB_ASSEMBLY_HANGER`)** — A2 (smaller) because hanger packages are simpler. Used for drawing lone support / hanger / bracket assemblies.
 7. **Technical presentation (`STING_TB_TECHNICAL_A1`)** — internal IDR / TDR. Discipline colour band on the right edge (Mech blue / Elec yellow / Plumb green / Arch grey / Struct red), key plan top-left, north arrow top-right (auto-rotates to True North), revision history bottom-left, project info bottom-right. Hosts MEP coord, mech plan, plant rooms, clash sheets.
 8. **Client presentation (`STING_TB_CLIENT_A1`)** — softer typography (Arial 18 pt minimum), client logo top, no grids/levels/sections visible, big breathing room. Hosts presentation 3Ds, perspectives, context-site, render boards, exterior elevations. Style pack flips between `corp-presentation-rich` (full colour) and `corp-presentation-mono` (greyscale) per deliverable.
-9. **Issued For Construction (`STING_TB_IFC_A1`)** — solid red 25 mm "ISSUED FOR CONSTRUCTION" banner across the top. Revision table on, QR code links to RFI portal. Validator refuses to ship if `PRJ_TB_DESIGN_STAGE_TXT != "C"`.
+9. **Issued For Construction (`STING_TB_IFC_A1`)** — solid red 25 mm "ISSUED FOR CONSTRUCTION" banner across the top. Revision table on, QR code links to RFI portal. Validator refuses to ship if `PRJ_ORG_PHASE_TXT != "C"`.
 10. **Issued For Tender (`STING_TB_IFT_A1`)** — diagonal "ISSUED FOR TENDER" watermark at 8 % opacity. Required seals from Lead Architect / Structural Engineer / MEP Engineer. CDE state pinned to `S3`.
 11. **As-built (`STING_TB_AS_BUILT_A1`)** — green "AS-BUILT — RECORD" status banner. Existing-phase elements show un-halftoned (the record IS the existing fabric). Frozen rev table.
 12. **KCCA submission (`STING_TB_SUBMISSION_KCCA`)** — authority-specific. Required `PRJ_PLOT_NUMBER`, `PRJ_LRV_NUMBER`, `PRJ_PHYSICAL_ADDRESS` non-empty. KCCA-tagged grid bubble. Revision pattern `P\d{2}`. Form version baked in (`KCCA-2024-Rev3`).
@@ -227,7 +227,7 @@ A: Yes — but then every project has to re-build the layout, the font sizes dri
 6. Drop a second label bound to `PRJ_NUMBER_TXT` directly under it. Font: Arial Narrow, 14 pt.
 7. Drop a third label bound to **`PRJ_TB_DELIVERABLE_STATUS_TXT`** (S2 / S3 / S4 / WIP / SHARED / PUBLISHED). Font: 14 pt, bold, all caps. This is the **CDE state stamp**.
 8. Drop a fourth label bound to `PRJ_TB_REVISION_NR_TXT` and `PRJ_TB_REVISION_DATE_TXT` separated by a `—`. Font: 12 pt.
-9. Drop a fifth label bound to `PRJ_TB_CLIENT_NAME_TXT`, then on the line below `PRJ_TB_CLIENT_ADDRESS_TXT`. Font: 12 pt.
+9. Drop a fifth label bound to `PRJ_ORG_CLIENT_NAME_TXT`, then on the line below `PRJ_TB_CLIENT_ADDRESS_TXT`. Font: 12 pt.
 10. **Insert ▸ Image** company strip footer. Size = 297 × 16 mm, anchored to the bottom of the sheet.
 11. **Family Types** — add the *family parameters*:
 
@@ -283,7 +283,7 @@ Tender packs, IFC bundles, and authority submissions all need a "this is what's 
 │  PRJ_TB_ISSUE_SUMMARY_TXT (multi-line label, 8 lines)              │
 │  ─────────────────────────────────────────────────────────────     │
 │  PROJECT TEAM                                                      │
-│  Client    : PRJ_TB_CLIENT_NAME_TXT                                │
+│  Client    : PRJ_ORG_CLIENT_NAME_TXT                               │
 │  Architect : PRJ_TB_CONSULTANT_NAME_TXT                            │
 │  Structural: PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT                │
 │  MEP       : PRJ_TB_MEP_CONSULTANTS_NAME_TXT                       │
@@ -573,7 +573,7 @@ Four siblings, all derived from the technical-presentation block but with differ
 | Status banner | "ISSUED FOR CONSTRUCTION" — solid red bar 25 mm tall across the top | Site can see the status without reading the strip |
 | `TB_SHOW_REV_TABLE_BOOL` | 1 | Site needs the rev history |
 | `TB_SHOW_QR_CODE_BOOL` | 1 (links to RFI portal) | Site can scan to ask an RFI |
-| Required project params | `PRJ_TB_DESIGN_STAGE_TXT == "C"` (Construction) | Validator refuses if stage is still "DE" |
+| Required project params | `PRJ_ORG_PHASE_TXT == "C"` (Construction) | Validator refuses if stage is still "DE" |
 
 ### 10.2 IFT — Issued For Tender (`STING_TB_IFT_A1.rfa`)
 
@@ -894,7 +894,7 @@ The **project-level** title-block parameters bound to `ProjectInformation`. Edit
 
 | Parameter | Use |
 |---|---|
-| `PRJ_TB_CLIENT_NAME_TXT` | Client legal entity |
+| `PRJ_ORG_CLIENT_NAME_TXT` | Client legal entity (read from ProjectInformation — no per-sheet copy needed) |
 | `PRJ_TB_CLIENT_ADDRESS_TXT` | Client postal address |
 | `PRJ_TB_CONSULTANT_NAME_TXT` | Lead consultant (architect) |
 | `PRJ_TB_CONSULTANT_ADDRESS_TXT` | Consultant postal address |
@@ -907,7 +907,7 @@ The **project-level** title-block parameters bound to `ProjectInformation`. Edit
 
 | Parameter | Use |
 |---|---|
-| `PRJ_TB_DESIGN_STAGE_TXT` | RIBA / ISO 19650 stage code (`DE`, `C`, `H`, …) |
+| `PRJ_ORG_PHASE_TXT` | RIBA / ISO 19650 stage code (`DE`, `C`, `H`, …) — read from ProjectInformation |
 | `PRJ_TB_DISCIPLINE_TXT` | Discipline label (e.g. "Mechanical") |
 
 ### 16.4 Approvals
