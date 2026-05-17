@@ -695,45 +695,99 @@ namespace StingTools.Core.Fabrication
 
         private static FamilySymbol ResolveFamilySymbol(Document doc, SymbolEntry entry, FabricationResult result)
         {
-            string famName = Path.GetFileNameWithoutExtension(entry.FamilyFile);
+            // Tier 1: seed family — CSV names like STING_FAM_PIPE_ELBOW_90_BW.rfa
+            // Check already-loaded families first (fast), then load from Families/ISO6412/ on disk.
+            string csvFamName = Path.GetFileNameWithoutExtension(entry.FamilyFile);
+            var fs = FindLoadedFamily(doc, csvFamName);
+            if (fs != null) { ValidateFamilyTemplate(fs, result); return fs; }
+
+            string seedPath = Path.Combine(StingToolsApp.DataPath ?? "", "..", "Families", "ISO6412", entry.FamilyFile);
+            fs = TryLoadFamilyFromPath(doc, seedPath, result);
+            if (fs != null) return fs;
+
+            // Tier 2: JSON-generated family — SymbolLibraryCreator writes ISO6412_<CODE>.rfa
+            // to <project>/_BIM_COORD/Families/Symbols/ISO6412/ (see SymbolLibraryCommands.cs).
+            // The CSV SymbolCode (e.g. ELBOW_90_BW) maps to id ISO6412_ELBOW_90_BW in the JSON,
+            // so the generated filename is always "ISO6412_" + SymbolCode + ".rfa".
+            string jsonFamName = "ISO6412_" + entry.SymbolCode;
+            string jsonFamFile = jsonFamName + ".rfa";
+            fs = FindLoadedFamily(doc, jsonFamName);
+            if (fs != null) { ValidateFamilyTemplate(fs, result); return fs; }
+
+            string generatedPath = ResolveGeneratedFamilyPath(doc, jsonFamFile);
+            if (!string.IsNullOrEmpty(generatedPath))
+            {
+                fs = TryLoadFamilyFromPath(doc, generatedPath, result);
+                if (fs != null) return fs;
+            }
+
+            string reportName = $"{csvFamName} / {jsonFamName}";
+            if (_missingFamiliesLogged.Add(csvFamName))
+                StingLog.Warn($"IsoSymbolPlacer: family not found -> {reportName}. " +
+                    "Run 'Create ISO 6412 Symbols' from the Symbols batch or place a seed .rfa " +
+                    $"named '{entry.FamilyFile}' in Families/ISO6412/.");
+            try { result?.MissingFamilies?.Add(csvFamName); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>Searches already-loaded FamilySymbols in the document for an exact family name match.</summary>
+        private static FamilySymbol FindLoadedFamily(Document doc, string familyName)
+        {
             try
             {
                 foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)))
                 {
                     if (el is FamilySymbol fs &&
-                        string.Equals(fs.FamilyName, famName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        ValidateFamilyTemplate(fs, result);
+                        string.Equals(fs.FamilyName, familyName, StringComparison.OrdinalIgnoreCase))
                         return fs;
-                    }
                 }
-                // Try lazy load from families folder
-                string familyPath = Path.Combine(StingToolsApp.DataPath ?? "", "..", "Families", "ISO6412", entry.FamilyFile);
-                if (File.Exists(familyPath))
+            }
+            catch (Exception ex) { StingLog.Warn($"IsoSymbolPlacer.FindLoadedFamily: {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>Loads a family from an absolute path and returns its first FamilySymbol. Returns null when
+        /// the file doesn't exist or the load fails.</summary>
+        private static FamilySymbol TryLoadFamilyFromPath(Document doc, string path, FabricationResult result)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
+            try
+            {
+                Family f;
+                if (doc.LoadFamily(path, out f) && f != null)
                 {
-                    Family f;
-                    if (doc.LoadFamily(familyPath, out f) && f != null)
+                    foreach (ElementId sid in f.GetFamilySymbolIds())
                     {
-                        foreach (ElementId sid in f.GetFamilySymbolIds())
+                        if (doc.GetElement(sid) is FamilySymbol fs)
                         {
-                            if (doc.GetElement(sid) is FamilySymbol fs)
-                            {
-                                ValidateFamilyTemplate(fs, result);
-                                return fs;
-                            }
+                            ValidateFamilyTemplate(fs, result);
+                            return fs;
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                result.Warnings.Add($"IsoSymbolPlacer.ResolveFamilySymbol {famName}: {ex.Message}");
+                result?.Warnings?.Add($"IsoSymbolPlacer.TryLoadFamilyFromPath {Path.GetFileName(path)}: {ex.Message}");
             }
-
-            if (_missingFamiliesLogged.Add(famName))
-                StingLog.Warn($"IsoSymbolPlacer: family not found -> {famName}");
-            try { result?.MissingFamilies?.Add(famName); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
+        }
+
+        /// <summary>Returns the full path where SymbolLibraryCreator would have saved a generated family,
+        /// i.e. &lt;project&gt;/_BIM_COORD/Families/Symbols/ISO6412/&lt;filename&gt;. Returns empty string when
+        /// the document path is unavailable (cloud models, unsaved documents).</summary>
+        private static string ResolveGeneratedFamilyPath(Document doc, string familyFile)
+        {
+            try
+            {
+                string projPath = doc?.PathName;
+                if (string.IsNullOrEmpty(projPath)) return "";
+                string projDir = Path.GetDirectoryName(projPath);
+                if (string.IsNullOrEmpty(projDir)) return "";
+                return Path.Combine(projDir, "_BIM_COORD", "Families", "Symbols", "ISO6412", familyFile);
+            }
+            catch (Exception ex) { StingLog.Warn($"IsoSymbolPlacer.ResolveGeneratedFamilyPath: {ex.Message}"); }
+            return "";
         }
 
         // Process-static dedup so the per-family warning only fires once
