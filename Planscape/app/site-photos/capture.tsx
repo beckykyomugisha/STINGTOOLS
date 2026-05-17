@@ -37,7 +37,7 @@ import {
   reasonAutoCreatesIssue,
   type ClassifierContext,
 } from '@/components/site-photos/classifier';
-import { captureSitePhoto } from '@/api/endpoints';
+import { captureSitePhoto, getSpatialStructure, type SpatialStructure } from '@/api/endpoints';
 import { enqueue, persistPhotoForQueue, queuedPhotoStats } from '@/utils/offlineQueue';
 import { computePairKey } from '@/services/imageService';
 import { AudioRecorder } from '@/components/AudioRecorder';
@@ -102,6 +102,28 @@ export default function CaptureSitePhotoScreen() {
       setRationaleLoading(false);
     })();
   }, []);
+
+  // ── Spatial structure (levels + zones) ──────────────────────────────
+  // Fetched once on mount so the confirm-stage chip pickers are populated.
+  // Failure is non-fatal — the chips simply won't appear and the ISO label
+  // still renders with whatever the user typed / defaulted to.
+  useEffect(() => {
+    if (!projectId) return;
+    getSpatialStructure(projectId)
+      .then((data) => {
+        setSpatialData(data);
+        // Pre-select defaults: GF for level, Z01 for zone.
+        if (!levelCode && data.levels.length > 0) {
+          const gf = data.levels.find((l) => l.code === 'GF');
+          setLevelCode(gf ? gf.code : data.levels[0].code);
+        }
+        if (!zoneCode && data.zones.length > 0) {
+          const z01 = data.zones.find((z) => z.code === 'Z01');
+          setZoneCode(z01 ? z01.code : data.zones[0].code);
+        }
+      })
+      .catch(() => { /* non-fatal — chips hidden, free-text fallback */ });
+  }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function ensureCameraPermission(): Promise<boolean> {
     if (permission?.granted) return true;
@@ -422,34 +444,92 @@ export default function CaptureSitePhotoScreen() {
           <Text style={styles.routeHint}>→ Stays in the internal gallery only.</Text>
         )}
 
-        {/* Anchor row — level / zone */}
+        {/* Anchor row — level / zone chip pickers */}
         <Text style={styles.sectionLabel}>Location</Text>
-        <View style={styles.anchorRow}>
-          <View style={styles.anchorField}>
-            <Text style={styles.anchorLabel}>Level</Text>
-            <TextInput
-              style={styles.anchorInput}
-              placeholder="L01, GF, B1"
-              placeholderTextColor={theme.colors.disabled}
-              value={levelCode}
-              onChangeText={setLevelCode}
-              autoCapitalize="characters"
-              autoCorrect={false}
-            />
-          </View>
-          <View style={styles.anchorField}>
-            <Text style={styles.anchorLabel}>Zone</Text>
-            <TextInput
-              style={styles.anchorInput}
-              placeholder="Z01, EXT"
-              placeholderTextColor={theme.colors.disabled}
-              value={zoneCode}
-              onChangeText={setZoneCode}
-              autoCapitalize="characters"
-              autoCorrect={false}
-            />
-          </View>
-        </View>
+
+        {/* Level chips */}
+        <Text style={styles.anchorLabel}>Level</Text>
+        {spatialData && spatialData.levels.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.chipScroll}
+            contentContainerStyle={styles.chipScrollContent}
+          >
+            {spatialData.levels.map((lvl) => (
+              <TouchableOpacity
+                key={lvl.code}
+                style={[styles.isoChip, levelCode === lvl.code && styles.isoChipActive]}
+                onPress={() => setLevelCode(lvl.code)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: levelCode === lvl.code }}
+                accessibilityLabel={`Level ${lvl.label}`}
+              >
+                <Text style={[styles.isoChipText, levelCode === lvl.code && styles.isoChipTextActive]}>
+                  {lvl.code}
+                </Text>
+                {levelCode === lvl.code ? (
+                  <Text style={styles.isoChipSubtitle}>{lvl.label}</Text>
+                ) : null}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        ) : (
+          <TextInput
+            style={styles.anchorInput}
+            placeholder="L01, GF, B1"
+            placeholderTextColor={theme.colors.disabled}
+            value={levelCode}
+            onChangeText={setLevelCode}
+            autoCapitalize="characters"
+            autoCorrect={false}
+          />
+        )}
+
+        {/* Zone chips */}
+        <Text style={[styles.anchorLabel, { marginTop: theme.spacing.sm }]}>Zone</Text>
+        {spatialData && spatialData.zones.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.chipScroll}
+            contentContainerStyle={styles.chipScrollContent}
+          >
+            {spatialData.zones.map((z) => (
+              <TouchableOpacity
+                key={z.code}
+                style={[styles.isoChip, zoneCode === z.code && styles.isoChipActive]}
+                onPress={() => setZoneCode(z.code)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: zoneCode === z.code }}
+                accessibilityLabel={`Zone ${z.label}`}
+              >
+                <Text style={[styles.isoChipText, zoneCode === z.code && styles.isoChipTextActive]}>
+                  {z.code}
+                </Text>
+                {zoneCode === z.code ? (
+                  <Text style={styles.isoChipSubtitle}>{z.label}</Text>
+                ) : null}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        ) : (
+          <TextInput
+            style={styles.anchorInput}
+            placeholder="Z01, EXT"
+            placeholderTextColor={theme.colors.disabled}
+            value={zoneCode}
+            onChangeText={setZoneCode}
+            autoCapitalize="characters"
+            autoCorrect={false}
+          />
+        )}
+
+        {/* ISO 19650 assembled code preview */}
+        <Text style={styles.isoLabel}>
+          ISO ref: {reason ? reason.slice(0, 1).toUpperCase() : 'XX'}-{levelCode || 'XX'}-{zoneCode || 'XX'}
+        </Text>
+
         {shot?.latitude !== undefined ? (
           <Text style={styles.gpsHint}>
             GPS captured · ±{Math.round(shot.accuracyM ?? 0)}m
@@ -625,8 +705,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
-  anchorRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  anchorField: { flex: 1, marginRight: theme.spacing.sm },
   anchorLabel: { fontSize: theme.fontSize.xs, color: theme.colors.textSecondary, marginBottom: 2 },
   anchorInput: {
     backgroundColor: theme.colors.surface,
@@ -637,6 +715,43 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     fontSize: theme.fontSize.md,
     color: theme.colors.text,
+  },
+  // ISO chip pickers (level + zone)
+  chipScroll: { marginBottom: 4 },
+  chipScrollContent: { paddingRight: theme.spacing.sm },
+  isoChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    marginRight: theme.spacing.xs,
+    alignItems: 'center',
+    minWidth: 48,
+  },
+  isoChipActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  isoChipText: {
+    color: theme.colors.text,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+  },
+  isoChipTextActive: { color: '#fff' },
+  isoChipSubtitle: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 9,
+    marginTop: 1,
+  },
+  isoLabel: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.primary,
+    fontWeight: '500',
+    marginTop: theme.spacing.xs,
+    marginBottom: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   gpsHint: { fontSize: theme.fontSize.xs, color: theme.colors.textSecondary, marginTop: 4 },
   captionInput: {

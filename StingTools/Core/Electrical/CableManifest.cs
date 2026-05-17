@@ -102,5 +102,28 @@ namespace StingTools.Core.Electrical
             var dir = Path.GetDirectoryName(doc?.PathName ?? "") ?? Path.GetTempPath();
             return Path.Combine(dir, "_BIM_COORD", "cables.json");
         }
+
+        /// <summary>
+        /// Called by CableManifestUpdater when conduit elements change.
+        /// Clears RouteTrayIds for cables routed through any of the affected element IDs,
+        /// forcing the routing engine to re-route them on next run.
+        /// Returns the count of cables invalidated.
+        /// </summary>
+        public int InvalidateCablesForElements(IEnumerable<long> changedElementIds)
+        {
+            var changed = new HashSet<long>(changedElementIds ?? Enumerable.Empty<long>());
+            if (changed.Count == 0) return 0;
+            int count = 0;
+            foreach (var cable in Cables ?? Enumerable.Empty<StingCable>())
+            {
+                if (cable.RouteTrayIds?.Any(id => changed.Contains(id)) == true)
+                {
+                    cable.RouteTrayIds.Clear();
+                    cable.VoltageDropPct = 0;
+                    count++;
+                }
+            }
+            return count;
+        }
     }
 }

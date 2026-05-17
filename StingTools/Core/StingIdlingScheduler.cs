@@ -167,6 +167,35 @@ namespace StingTools.Core
     }
 
     /// <summary>
+    /// GEOMETRY-SYNC: Full model geometry push via GeometrySyncHandler after
+    /// DocumentSynchronizedWithCentral. Extracts all changed elements accumulated
+    /// since the last full sync and posts a consolidated delta GLB to Planscape.
+    /// Priority 5 (lowest — can wait for any idle slot after STC).
+    /// BudgetMs is high because tessellation of a full model can be slow; the job
+    /// itself spawns a background Task for the actual HTTP POST and returns true
+    /// (done) immediately after raising the ExternalEvent.
+    /// </summary>
+    public class FullGeometrySyncJob : IIdlingJob
+    {
+        public string Name     => "FullGeometrySync";
+        public int    Priority => 5;
+        public int    BudgetMs => 200; // just raises an ExternalEvent — fast
+
+        public bool Execute(UIApplication uiApp)
+        {
+            try
+            {
+                StingTools.Commands.IFC.GeometrySyncHandler.RaiseIfConnected();
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"FullGeometrySyncJob: {ex.Message}");
+            }
+            return true; // single-shot
+        }
+    }
+
+    /// <summary>
     /// TAG-STALE-WARN-01: Idling consumer that promotes stale-element flags into
     /// the BIM issues register when the stale count crosses a threshold.
     /// Runs ONCE per enqueue (returns true on completion). Dedupes against any

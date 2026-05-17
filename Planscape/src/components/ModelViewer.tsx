@@ -35,8 +35,24 @@ export interface ModelViewerHandle {
   setBackground: (color: number) => void;
   // Federation: load multiple GLBs at once (one per discipline).
   loadFederation: (sources: Array<{ url: string; label?: string; discipline?: string }>) => void;
+  // Per-model visibility toggle for federated scenes.
+  setModelVisible: (label: string, visible: boolean) => void;
   // Oblique section: arbitrary normal direction + 0..1 offset across bounds.
   setSectionPlane: (opts: { enabled: boolean; normal?: [number, number, number]; offset?: number }) => void;
+  // Multi-plane section: add / update / remove individual clipping planes.
+  addSectionPlaneAxis: (axis: 'x' | 'y' | 'z' | 'free', offset?: number) => void;
+  updateSectionPlane: (id: number, offset: number) => void;
+  removeSectionPlane: (id: number) => void;
+  clearSectionPlanes: () => void;
+  // Section box: 6-plane AABB clip with optional inset (0=tight bounds).
+  setSectionBox: (opts?: { inset?: number }) => void;
+  updateSectionBoxFace: (faceIndex: number, offsetMm: number) => void;
+  clearSectionBox: () => void;
+  // Exploded view: factor 0=collapsed, 1=fully exploded.
+  setExplodeFactor: (factor: number) => void;
+  // Markup canvas overlay (draw/arrow/text/rect; null to exit markup mode).
+  startMarkup: (mode: 'draw' | 'arrow' | 'text' | 'rect' | null) => void;
+  clearMarkup: () => void;
   // First-person walkthrough.
   setWalkthrough: (enabled: boolean) => void;
   // Polygon area measurement.
@@ -75,6 +91,7 @@ interface ModelViewerProps {
   onMeasure?: (e: { distance: number; points: number[][] }) => void;
   onMeasureArea?: (e: { area: number; points: number[][] }) => void;
   onMeasureVolume?: (e: { volume: number; size: number[]; bounds: number[] }) => void;
+  onMeasureAngle?: (e: { angle: number; vertex: number[]; a: number[]; b: number[] }) => void;
   onWalkthrough?: (e: { active: boolean }) => void;
   onLodChanged?: (e: { level: number; avgFps: number }) => void;
   onToolChanged?: (tool: ViewerTool) => void;
@@ -173,7 +190,24 @@ export const ModelViewer = React.forwardRef<ModelViewerHandle, ModelViewerProps>
       clearPins: () => send({ type: "clearPins" }),
       setBackground: (color) => send({ type: "setBackground", payload: { color } }),
       loadFederation: (sources) => send({ type: "loadFederation", payload: { sources } }),
+      setModelVisible: (label, visible) =>
+        send({ type: "setModelVisible", payload: { label, visible } }),
       setSectionPlane: (opts) => send({ type: "setSectionPlane", payload: opts }),
+      addSectionPlaneAxis: (axis, offset) =>
+        send({ type: "addSectionPlaneAxis", payload: { axis, offset } }),
+      updateSectionPlane: (id, offset) =>
+        send({ type: "updateSectionPlane", payload: { id, offset } }),
+      removeSectionPlane: (id) =>
+        send({ type: "removeSectionPlane", payload: { id } }),
+      clearSectionPlanes: () => send({ type: "clearSectionPlanes" }),
+      setSectionBox: (opts) => send({ type: "setSectionBox", payload: opts ?? {} }),
+      updateSectionBoxFace: (faceIndex, offsetMm) =>
+        send({ type: "updateSectionBoxFace", payload: { faceIndex, offsetMm } }),
+      clearSectionBox: () => send({ type: "clearSectionBox" }),
+      setExplodeFactor: (factor) =>
+        send({ type: "setExplodeFactor", payload: { factor } }),
+      startMarkup: (mode) => send({ type: "startMarkup", payload: { mode } }),
+      clearMarkup: () => send({ type: "clearMarkup" }),
       setWalkthrough: (enabled) => send({ type: "setWalkthrough", payload: { enabled } }),
       startArea: () => send({ type: "startArea" }),
       addAreaPoint: (point) => send({ type: "addAreaPoint", payload: { point } }),

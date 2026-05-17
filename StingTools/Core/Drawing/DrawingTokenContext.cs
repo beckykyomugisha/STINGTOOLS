@@ -51,8 +51,8 @@ namespace StingTools.Core.Drawing
                 { "mark",       mark       ?? string.Empty },
                 { "purpose",    dt?.Purpose ?? string.Empty },
                 { "phase",      dt?.Phase   ?? string.Empty },
-                { "project",    ReadProjectInfo(doc, "PRJ_ORG_PROJECT_CODE") },
-                { "originator", ReadProjectInfo(doc, "PRJ_ORG_ORIGINATOR_CODE") },
+                { "project",    ReadProjectInfo(doc, "PRJ_PROJECT_COD_TXT") },
+                { "originator", ReadProjectInfo(doc, "PRJ_ORG_ORIGINATOR_CODE_TXT") },
                 // ISO 19650 fields with profile fallback to discipline.
                 { "vol",        dt?.IsoNaming?.Volume      ?? string.Empty },
                 { "type",       dt?.IsoNaming?.Type        ?? string.Empty },

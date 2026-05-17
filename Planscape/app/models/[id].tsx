@@ -24,7 +24,11 @@ import { getToken } from "@/api/client";
 import type { ModelMeta, ElementMap, ModelPin } from "@/types/models";
 
 export default function ModelViewerScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, highlightElement, issueId } = useLocalSearchParams<{
+    id: string;
+    highlightElement?: string;
+    issueId?: string;
+  }>();
   const router = useRouter();
   const projectId = useProjectStore((s) => s.activeProjectId);
   const viewerRef = useRef<ModelViewerHandle>(null);
@@ -161,6 +165,7 @@ export default function ModelViewerScreen() {
           modelUrl={modelUrl}
           elementMap={elementMap}
           pins={pins}
+          onReady={() => setViewerReady(true)}
           onPick={onPick}
           onPlaceIssue={onPlaceIssue}
           onPinTap={onPinTap}

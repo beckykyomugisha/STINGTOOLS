@@ -18,6 +18,7 @@ using System.IO;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json.Linq;
+using StingTools.UI;
 
 namespace StingTools.Core.SLD
 {
@@ -65,11 +66,15 @@ namespace StingTools.Core.SLD
                 {
                     try
                     {
+                        var layoutOpts = StingElectricalCommandHandler.CurrentSLDLayoutOptions;
+                        var annotOpts  = StingElectricalCommandHandler.CurrentSLDAnnotationOptions;
+
                         if (structural)
                         {
                             // One rebuild per view, regardless of how many
                             // additions / deletions arrived in this batch.
-                            SLDGenerator.UpdateSLD(doc, v, ElementId.InvalidElementId);
+                            SLDGenerator.UpdateSLD(doc, v, ElementId.InvalidElementId,
+                                layoutOpts, annotOpts);
                         }
                         else
                         {
@@ -78,7 +83,7 @@ namespace StingTools.Core.SLD
                             // avoids the per-ID full-rebuild storm.
                             foreach (var id in modified)
                             {
-                                SLDGenerator.UpdateSLD(doc, v, id);
+                                SLDGenerator.UpdateSLD(doc, v, id, layoutOpts, annotOpts);
                             }
                         }
                     }

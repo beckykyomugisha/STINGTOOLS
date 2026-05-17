@@ -426,6 +426,89 @@ public class ModelsController : ControllerBase
 
     private Guid? CurrentUserId() =>
         Guid.TryParse(User.FindFirst("sub")?.Value, out var id) ? id : null;
+
+    // ── Federation manifest — unified scene catalogue for the viewer ──
+
+    /// <summary>
+    /// GET /api/projects/{id}/federation/manifest — unified scene manifest.
+    /// Returns the list of scene chunks the viewer needs to load, grouped by
+    /// discipline + level. Mobile/web fetches this once and streams chunks on
+    /// demand based on camera position + filter state.
+    /// </summary>
+    [HttpGet("/api/projects/{projectId:guid}/federation/manifest")]
+    public async Task<ActionResult> GetFederationManifest(Guid projectId, CancellationToken ct)
+    {
+        if (!await ProjectInTenant(projectId, ct)) return Forbid();
+
+        var models = await _db.ProjectModels.AsNoTracking()
+            .Where(m => m.ProjectId == projectId && m.DeletedAt == null)
+            .Select(m => new {
+                id = m.Id,
+                name = m.Name,
+                discipline = m.Discipline ?? "?",
+                format = m.Format.ToString(),
+                uploadedAt = m.UploadedAt,
+                elementCount = m.ElementCount,
+                bounds = (m.BoundsMinX.HasValue && m.BoundsMaxX.HasValue) ? new {
+                    min = new[] { m.BoundsMinX, m.BoundsMinY, m.BoundsMinZ },
+                    max = new[] { m.BoundsMaxX, m.BoundsMaxY, m.BoundsMaxZ },
+                } : null,
+                units = m.Units,
+                revision = m.Revision,
+            }).ToListAsync(ct);
+
+        var chunks = await _db.SceneNodes.AsNoTracking()
+            .Where(n => n.ProjectId == projectId && n.DeletedAt == null)
+            .Select(n => new {
+                id = n.Id,
+                sourceModelId = n.SourceModelId,
+                discipline = n.Discipline,
+                level = n.LevelCode,
+                system = n.SystemCode,
+                storagePath = n.StoragePath,
+                contentHash = n.ContentHash,
+                sizeBytes = n.FileSizeBytes,
+                vertexCount = n.VertexCount,
+                aabb = new { min = new[] { n.MinX, n.MinY, n.MinZ }, max = new[] { n.MaxX, n.MaxY, n.MaxZ } },
+                compression = n.Compression,
+            }).ToListAsync(ct);
+
+        // Compute overall federation bounds
+        double? minX = chunks.Count > 0 ? chunks.Min(c => c.aabb.min[0]) : null;
+        double? minY = chunks.Count > 0 ? chunks.Min(c => c.aabb.min[1]) : null;
+        double? minZ = chunks.Count > 0 ? chunks.Min(c => c.aabb.min[2]) : null;
+        double? maxX = chunks.Count > 0 ? chunks.Max(c => c.aabb.max[0]) : null;
+        double? maxY = chunks.Count > 0 ? chunks.Max(c => c.aabb.max[1]) : null;
+        double? maxZ = chunks.Count > 0 ? chunks.Max(c => c.aabb.max[2]) : null;
+
+        // Get alignment reports for cross-checks
+        var alignmentReports = await _db.IfcAlignmentReports.AsNoTracking()
+            .Where(r => r.ProjectId == projectId)
+            .GroupBy(r => r.ProjectModelId)
+            .Select(g => g.OrderByDescending(r => r.ValidatedAt).First())
+            .ToListAsync(ct);
+
+        var disciplines = models.GroupBy(m => m.discipline).Select(g => new {
+            code = g.Key,
+            modelCount = g.Count(),
+            chunkCount = chunks.Count(c => g.Select(x => x.id).Contains(c.sourceModelId)),
+        }).ToList();
+
+        return Ok(new {
+            projectId,
+            generatedAt = DateTime.UtcNow,
+            models,
+            chunks,
+            disciplines,
+            bounds = new { min = new[] { minX, minY, minZ }, max = new[] { maxX, maxY, maxZ } },
+            alignment = new {
+                reported = alignmentReports.Count,
+                passed = alignmentReports.Count(r => r.Verdict == "PASS"),
+                warned = alignmentReports.Count(r => r.Verdict == "WARN"),
+                failed = alignmentReports.Count(r => r.Verdict == "FAIL"),
+            },
+        });
+    }
 }
 
 public class UploadModelRequest

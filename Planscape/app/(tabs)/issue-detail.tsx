@@ -20,7 +20,7 @@
  *      offline they queue as an ATTACH_PHOTO action via offlineQueue.
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -52,7 +52,7 @@ import {
 } from '@/api/endpoints';
 import { apiFetch, getToken } from '@/api/client';
 import { getModel, modelFileUrl } from '@/api/models';
-import { ModelViewer } from '@/components/ModelViewer';
+import { ModelViewer, type ModelViewerHandle } from '@/components/ModelViewer';
 import type { BimIssue, IssueAttachment, Project, ProjectMember, IssueActivityEntry } from '@/types/api';
 import type { ModelMeta, ModelPin } from '@/types/models';
 import { theme, getPriorityColor } from '@/utils/theme';
@@ -87,6 +87,8 @@ export default function IssueDetailScreen() {
   // coordinators see 3D context without leaving the detail screen. The viewer
   // WebView can't forward an Authorization header, so the geometry URL gets
   // the JWT appended as ?access_token=...; same pattern as app/models/[id].tsx.
+  const viewerRef = useRef<ModelViewerHandle>(null);
+  const [viewerReady, setViewerReady] = useState(false);
   const [viewerMeta, setViewerMeta] = useState<ModelMeta | null>(null);
   const [viewerModelUrl, setViewerModelUrl] = useState<string | undefined>(undefined);
   const [viewerPins, setViewerPins] = useState<ModelPin[]>([]);
@@ -309,6 +311,24 @@ export default function IssueDetailScreen() {
     })();
     return () => { cancelled = true; };
   }, [issue, project, showResolvedSiblings]);
+
+  /**
+   * Zoom to element — once the embedded ModelViewer reports ready and the
+   * issue carries a modelElementGuid, fit the whole model for context then
+   * targeted-zoom to the matching mesh via the viewer handle's
+   * `selectAndZoom` command (wired through to viewer.html, which traverses
+   * the scene by elementGuid and frames the AABB).
+   */
+  useEffect(() => {
+    if (!viewerReady || !issue?.modelElementGuid || !viewerRef.current) return;
+    // Two-step zoom: whole-model fit (for context), then targeted zoom.
+    viewerRef.current.fit();
+    // Give the renderer one frame to commit the fit before the targeted zoom.
+    const t = setTimeout(() => {
+      viewerRef.current?.selectAndZoom(issue.modelElementGuid!);
+    }, 120);
+    return () => clearTimeout(t);
+  }, [viewerReady, issue?.modelElementGuid]);
 
   /**
    * Phase 96 — look up the current user's project role so action gating can
@@ -701,6 +721,24 @@ export default function IssueDetailScreen() {
           >
             <Text style={styles.actionButtonPrimaryText}>🧊  View in 3D</Text>
           </TouchableOpacity>
+          {/* View in model — only shown when the issue has a model anchor.
+              Navigates to /models/[id] with the element pre-selected and
+              zoomed. The inline viewer (below) auto-zooms on load; this
+              button is the fullscreen alternative. */}
+          {issue.modelId && issue.modelElementGuid ? (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.actionButtonModel]}
+              onPress={() =>
+                router.push(
+                  `/models/${issue.modelId}?highlightElement=${encodeURIComponent(issue.modelElementGuid!)}&issueId=${issue.id}` as any
+                )
+              }
+              accessibilityRole="button"
+              accessibilityLabel="View linked element in 3D model viewer"
+            >
+              <Text style={styles.actionButtonModelText}>📐  View in model</Text>
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity
             style={[styles.actionButton, styles.actionButtonSecondary]}
             onPress={handleAttachPress}
@@ -728,8 +766,10 @@ export default function IssueDetailScreen() {
             </Text>
             <View style={styles.viewerHost}>
               <ModelViewer
+                ref={viewerRef}
                 modelUrl={viewerModelUrl}
                 pins={viewerPins}
+                onReady={() => setViewerReady(true)}
                 onError={(err) => setViewerError(err)}
                 onPinTap={(e) => {
                   // Phase 163 — tapping a sibling pin navigates to that
@@ -1259,6 +1299,14 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.accent,
   },
   actionButtonSecondaryText: {
+    color: theme.colors.surface,
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+  },
+  actionButtonModel: {
+    backgroundColor: theme.colors.primary + 'CC',
+  },
+  actionButtonModelText: {
     color: theme.colors.surface,
     fontSize: theme.fontSize.md,
     fontWeight: '600',
