@@ -36,6 +36,8 @@ using StingTools.BIMManager;
 using StingTools.Core;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Color = System.Windows.Media.Color;
+using Grid = System.Windows.Controls.Grid;
 
 namespace StingTools.UI
 {
