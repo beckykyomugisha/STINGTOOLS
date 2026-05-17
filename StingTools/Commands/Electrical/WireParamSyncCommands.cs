@@ -157,6 +157,7 @@ namespace StingTools.Commands.Electrical
 
             // First preference: data already written to shared params
             d.CsaMm2       = WireParamHelpers.GetDouble(conduit, "ELC_WIRE_CSA_MM2_NUM");
+            d.AmpacityA    = WireParamHelpers.GetDouble(conduit, "ELC_WIRE_AMPACITY_A");
             d.ConductorMat = ParameterHelpers.GetString(conduit, "ELC_WIRE_COND_MAT_TXT");
             d.InstallMethod = ParameterHelpers.GetString(conduit, "ELC_WIRE_INSTALL_METHOD_TXT");
             d.CircuitType  = ParameterHelpers.GetString(conduit, "ELC_WIRE_CIRCUIT_TYPE_TXT");

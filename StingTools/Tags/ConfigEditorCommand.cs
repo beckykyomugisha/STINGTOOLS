@@ -81,7 +81,7 @@ namespace StingTools.Tags
             switch (result)
             {
                 case TaskDialogResult.CommandLink1:
-                    ShowFullConfig();
+                    ShowFullConfig(configPath);
                     break;
 
                 case TaskDialogResult.CommandLink2:
@@ -150,7 +150,7 @@ namespace StingTools.Tags
             return Result.Succeeded;
         }
 
-        private void ShowFullConfig()
+        private void ShowFullConfig(string configPath = null)
         {
             var report = new StringBuilder();
             report.AppendLine("═══ Tag Configuration ═══");
@@ -189,10 +189,63 @@ namespace StingTools.Tags
             report.AppendLine($"── ZONE Codes ──");
             report.AppendLine($"  {string.Join(", ", TagConfig.ZoneCodes)}");
 
+            report.AppendLine();
+            report.AppendLine("── Advanced Settings ──");
+            report.AppendLine($"  AUTO_CORRECT_STATUS_FROM_PHASE : {TagConfig.AutoCorrectStatusFromPhase}");
+            report.AppendLine($"    When true, STATUS token is always re-derived from Revit phase data,");
+            report.AppendLine($"    overwriting any manually set value. Default: false.");
+            double leaderMargin = TagConfig.GetConfigDouble("LEADER_CLEARANCE_MARGIN_FT", 0.5);
+            report.AppendLine($"  LEADER_CLEARANCE_MARGIN_FT     : {leaderMargin:F2} ft  ({leaderMargin * 304.8:F0} mm)");
+            report.AppendLine($"    Minimum distance from element centre before a leader is added.");
+            report.AppendLine($"    Edit project_config.json to change either value.");
+
             TaskDialog full = new TaskDialog("Full Tag Configuration");
             full.MainInstruction = $"{TagConfig.DiscMap.Count} disciplines | {TagConfig.SysMap.Count} systems | {TagConfig.ProdMap.Count} products";
             full.MainContent = report.ToString();
-            full.Show();
+            full.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Toggle AUTO_CORRECT_STATUS_FROM_PHASE",
+                $"Currently: {TagConfig.AutoCorrectStatusFromPhase} — flips and saves to project_config.json");
+            full.CommonButtons = TaskDialogCommonButtons.Close;
+            var fullResult = full.Show();
+            if (fullResult == TaskDialogResult.CommandLink1)
+                ToggleAutoCorrectStatus(configPath);
+        }
+
+        /// <summary>GAP-UI-01: Toggle AUTO_CORRECT_STATUS_FROM_PHASE and persist to project_config.json.</summary>
+        private void ToggleAutoCorrectStatus(string configPath)
+        {
+            if (string.IsNullOrEmpty(configPath))
+            {
+                TaskDialog.Show("STING", "Save the Revit project first — config path is not set.");
+                return;
+            }
+            bool newValue = !TagConfig.AutoCorrectStatusFromPhase;
+            TagConfig.AutoCorrectStatusFromPhase = newValue;
+            try
+            {
+                // Read existing JSON (if any), patch the key, write back
+                Dictionary<string, object> data;
+                if (System.IO.File.Exists(configPath))
+                {
+                    string existingJson = System.IO.File.ReadAllText(configPath);
+                    data = JsonConvert.DeserializeObject<Dictionary<string, object>>(existingJson)
+                           ?? new Dictionary<string, object>();
+                }
+                else data = new Dictionary<string, object>();
+
+                data["AUTO_CORRECT_STATUS_FROM_PHASE"] = newValue;
+                string tmpPath = configPath + ".tmp";
+                System.IO.File.WriteAllText(tmpPath, JsonConvert.SerializeObject(data, Formatting.Indented));
+                System.IO.File.Move(tmpPath, configPath, true);
+                StingLog.Info($"ConfigEditor: AUTO_CORRECT_STATUS_FROM_PHASE → {newValue}");
+                TaskDialog.Show("Setting Saved",
+                    $"AUTO_CORRECT_STATUS_FROM_PHASE = {newValue}\n\nThis setting is now active for this project.");
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("Save Failed", $"Could not update config:\n{ex.Message}");
+                StingLog.Error("ToggleAutoCorrectStatus failed", ex);
+            }
         }
 
         private void SaveConfig(string path, Document doc)
@@ -220,6 +273,10 @@ namespace StingTools.Tags
                             { "segment_order", TagConfig.SegmentOrder }
                         }
                     },
+                    // GAP-UI-01: Advanced settings — included so users can see and edit them in the JSON
+                    { "AUTO_CORRECT_STATUS_FROM_PHASE", TagConfig.AutoCorrectStatusFromPhase },
+                    // GAP-UI-02: Leader clearance margin — persisted at whatever the current config value is
+                    { "LEADER_CLEARANCE_MARGIN_FT", TagConfig.GetConfigDouble("LEADER_CLEARANCE_MARGIN_FT", 0.5) },
                 };
 
                 string json = JsonConvert.SerializeObject(config, Formatting.Indented);

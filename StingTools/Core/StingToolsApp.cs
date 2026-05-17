@@ -33,7 +33,7 @@ namespace StingTools.Core
     {
         public static string AssemblyPath { get; private set; }
         public static string DataPath { get; private set; }
-        private static UpdaterId _sldUpdaterId;
+        private static UpdaterId _sldUpdaterId = null;
 
         public Result OnStartup(UIControlledApplication application)
         {
@@ -114,6 +114,10 @@ namespace StingTools.Core
                 {
                     StingLog.Error("ParamRegistry pre-load failed (commands will use defaults)", ex);
                 }
+
+                // Validate NLP intent patterns — logs any commandTag that can't be resolved
+                try { Tags.NLPEngine.ValidateIntentPatterns(); }
+                catch (Exception ex) { StingLog.Warn($"NLP pattern validation: {ex.Message}"); }
 
                 // Load user-preferred output directory from project_config.json
                 try { OutputLocationHelper.LoadFromConfig(); }

@@ -27,8 +27,13 @@ namespace StingTools.Tags
     /// </summary>
     internal static class TagPlacementEngine
     {
-        /// <summary>ENH-03: Default clearance margin (in feet) for leader elbow avoidance.</summary>
-        private const double LeaderClearanceMargin = 0.5;
+        /// <summary>
+        /// ENH-03 / GAP-PLACE-01: Clearance margin (feet) for leader elbow avoidance.
+        /// Configurable via LEADER_CLEARANCE_MARGIN_FT in project_config.json (default 0.5 ft).
+        /// Projects with dense annotations can reduce this; plant rooms may need 2–3 ft.
+        /// </summary>
+        private static double LeaderClearanceMargin
+            => TagConfig.GetConfigDouble("LEADER_CLEARANCE_MARGIN_FT", 0.5);
 
         // ── B-1 SpatialGrid view cache ───────────────────────────────────
         // Memoise the (existing-tag) SpatialGrid per (docKey, viewId) so two
@@ -1158,7 +1163,7 @@ namespace StingTools.Tags
                 }
 
                 // Leader length clamping: enforce min/max distance from element center
-                double leaderMinFt = 3.0;
+                double leaderMinFt = LeaderClearanceMargin;
                 double leaderMaxFt = 40.0;
                 double distToBest = bestPos.DistanceTo(center);
                 if (distToBest > 0.001)

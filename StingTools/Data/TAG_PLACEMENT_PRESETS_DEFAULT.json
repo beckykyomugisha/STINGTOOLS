@@ -2,6 +2,7 @@
   "name": "Default",
   "createdFrom": "Built-in",
   "created": "2026-03-15",
+  "updated": "2026-05-17",
   "rules": {
     "Mechanical Equipment": {
       "preferredSide": 0,
@@ -99,6 +100,401 @@
       "orientation": "Horizontal",
       "leaderThreshold": 1.5
     },
+    "Plumbing Fixtures": {
+      "preferredSide": 0,
+      "addLeader": true,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5,
+      "note": "Sanitary ware typically small footprint; tag above with short leader."
+    },
+    "Conduits": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 0.8,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0,
+      "note": "Conduit runs are linear; tag above centreline, no leader for short offsets."
+    },
+    "Conduit Fittings": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.8,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 0.8,
+      "note": "Fittings are point objects on a conduit run; short leader to right avoids run text."
+    },
+    "Cable Trays": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.2,
+      "note": "Cable trays are wide linear elements; tag above, no leader unless congested."
+    },
+    "Cable Tray Fittings": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.8,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 0.8
+    },
+    "Communication Devices": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.8,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0,
+      "note": "Wall-mounted devices sit at wall face; tag to the right with leader."
+    },
+    "Data Devices": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.8,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0
+    },
+    "Fire Alarm Devices": {
+      "preferredSide": 0,
+      "addLeader": true,
+      "offsetX": 0.0,
+      "offsetY": 1.2,
+      "orientation": "Horizontal",
+      "leaderThreshold": 0.8,
+      "note": "Ceiling-mounted detectors and sounders; tag above with short leader."
+    },
+    "Nurse Call Devices": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.8,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0,
+      "note": "Wall / bedhead mounted; tag to right with leader."
+    },
+    "Security Devices": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.8,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0,
+      "note": "CCTV, card readers, etc. are wall-mounted at door head or frame; tag right."
+    },
+    "Lighting Devices": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.8,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0,
+      "note": "Switches and dimmers are wall-mounted; tag to right."
+    },
+    "Telephone Devices": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.8,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0
+    },
+    "Specialty Equipment": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 1.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 2.0,
+      "note": "Bespoke / trade-specific equipment; tag to right with generous leader."
+    },
+    "Medical Equipment": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 1.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 2.0,
+      "note": "HTM equipment schedules; tag to right of equipment, not obstructing clinical area."
+    },
+    "Structural Columns": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 1.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5,
+      "note": "Column marks are right-offset following BS 1192 grid annotation convention."
+    },
+    "Structural Framing": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 0.8,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5,
+      "note": "Beam marks sit above the beam centreline per BS 1192."
+    },
+    "Structural Foundations": {
+      "preferredSide": 3,
+      "addLeader": true,
+      "offsetX": 0.0,
+      "offsetY": -1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5,
+      "note": "Foundation marks are typically below the element in plan."
+    },
+    "Structural Connections": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.8,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0
+    },
+    "Walls": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 1.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 2.0,
+      "note": "Wall marks offset to right of wall face; leader always added for wall tags."
+    },
+    "Floors": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 3.0,
+      "note": "Floor marks centred on slab (like room tags), no leader."
+    },
+    "Ceilings": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 3.0,
+      "note": "Ceiling marks centred on panel in RCP views, no leader."
+    },
+    "Roofs": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 3.0
+    },
+    "Stairs": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 1.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 2.0,
+      "note": "Stair marks offset to right; stairs are large elements needing generous clearance."
+    },
+    "Ramps": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 1.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 2.0
+    },
+    "Railings": {
+      "preferredSide": 0,
+      "addLeader": true,
+      "offsetX": 0.0,
+      "offsetY": 0.8,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0
+    },
+    "Furniture": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5
+    },
+    "Casework": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5,
+      "note": "Kitchen/lab casework; tag above with no leader unless very dense."
+    },
+    "Parking": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 3.0,
+      "note": "Parking space marks centred in bay, no leader."
+    },
+    "Areas": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 3.0,
+      "note": "Area marks centred in region, no leader."
+    },
+    "MEP Spaces": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 3.0,
+      "note": "HVAC zone spaces centred, no leader."
+    },
+    "Duct Accessories": {
+      "preferredSide": 0,
+      "addLeader": true,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0,
+      "note": "Dampers, fire dampers, volume controllers; small inline element, short leader above."
+    },
+    "Duct Fittings": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.8,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 0.8,
+      "note": "Transitions, bends, tees; small elements on duct run."
+    },
+    "Pipe Accessories": {
+      "preferredSide": 0,
+      "addLeader": true,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0,
+      "note": "Valves, strainers, pressure gauges; tag above inline element."
+    },
+    "Pipe Fittings": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.8,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 0.8
+    },
+    "Flex Ducts": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 0.8,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0,
+      "note": "Flexible duct connections; tag midspan above run."
+    },
+    "Flex Pipes": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 0.8,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0
+    },
+    "Fire Protection": {
+      "preferredSide": 0,
+      "addLeader": true,
+      "offsetX": 0.0,
+      "offsetY": 1.2,
+      "orientation": "Horizontal",
+      "leaderThreshold": 0.8,
+      "note": "Sprinkler heads and fire suppression nozzles; tag above, short leader."
+    },
+    "Mass": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 1.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 3.0,
+      "note": "Conceptual mass elements; generous leader."
+    },
+    "Curtain Panels": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.8,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5,
+      "note": "Curtain wall panels; tag to right side of panel."
+    },
+    "Curtain Wall Mullions": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.6,
+      "offsetY": 0.0,
+      "orientation": "Vertical",
+      "leaderThreshold": 0.8,
+      "note": "Vertical mullions; vertical tag orientation aligned with element."
+    },
+    "Structural Rebar": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.5,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 0.5,
+      "note": "Rebar bars in section; compact tag with short leader."
+    },
+    "Structural Area Reinforcement": {
+      "preferredSide": 0,
+      "addLeader": true,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5,
+      "note": "Area reinforcement in slab; tag above centroid."
+    },
+    "Planting": {
+      "preferredSide": 0,
+      "addLeader": true,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5,
+      "note": "Landscape planting elements; tag above canopy extent."
+    },
+    "Site": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 1.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 3.0,
+      "note": "Site elements at small scale; longer leader threshold."
+    },
+    "Topography": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 1.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 5.0,
+      "note": "Toposurface: very large elements at site scale."
+    },
     "STING - LPS Air Terminal Tag": {
       "preferredSide": 1,
       "addLeader": true,
@@ -152,6 +548,78 @@
       "orientation": "Horizontal",
       "leaderThreshold": 1.0,
       "note": "BS EN 62305-3 §7.2 — test clamps are external inspection points; offset with short leader."
+    },
+    "STING - Medical Gas Outlet Tag": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.8,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0,
+      "note": "HTM 02-01 — bedhead medical gas outlets; tag to right of outlet symbol."
+    },
+    "STING - Medical Gas Manifold Tag": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 1.2,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 2.0,
+      "note": "HTM 02-01 — manifolds are larger plant items; longer offset to avoid body."
+    },
+    "STING - Emergency Equipment Tag": {
+      "preferredSide": 0,
+      "addLeader": true,
+      "offsetX": 0.0,
+      "offsetY": 1.2,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0,
+      "note": "Emergency eyewash / shower / defibrillator; tag above for visibility."
+    },
+    "STING - HVAC Sensor Tag": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.6,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 0.8,
+      "note": "Wall / duct-mounted sensors; compact tag to the right."
+    },
+    "STING - Fire Door Tag": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5,
+      "note": "BS 9999 / Approved Document B — fire door leaf; tag above like standard door mark."
+    },
+    "STING - Tie-In Point Tag": {
+      "preferredSide": 0,
+      "addLeader": true,
+      "offsetX": 0.0,
+      "offsetY": 1.5,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5,
+      "note": "Piping / electrical tie-in points; tag above interface point with leader for clarity."
+    },
+    "STING - Waste Container Tag": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 0.8,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0,
+      "note": "Clinical / domestic waste points in healthcare; tag to right."
+    },
+    "STING - Radiation Shielding Tag": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 1.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 2.0,
+      "note": "NCRP 147 — shielded wall / ceiling / floor elements; tag to right of element."
     }
   }
 }

@@ -163,7 +163,7 @@ namespace StingTools.Core.Electrical
                     // Re-read and re-place using the project wire-annotation style.
                     WireAnnotationData wireData = WireAnnotationEngine.ReadWireData(conduit);
                     var style = WireAnnotationStyleOverride.Merge(
-                        WireAnnotationStyle.Load(doc), conduit);
+                        WireAnnotationStyleStore.Load(doc), conduit);
                     ElementId newAnnotId = WireAnnotationEngine.PlaceAnnotation(
                         doc, view, conduit, wireData, style);
 
