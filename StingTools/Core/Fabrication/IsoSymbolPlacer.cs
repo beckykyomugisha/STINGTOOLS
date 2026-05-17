@@ -882,5 +882,83 @@ namespace StingTools.Core.Fabrication
         }
 
         private static double MmToFt(double mm) => mm / 304.8;
+
+        // ─── Pre-flight report ─────────────────────────────────────────
+
+        /// <summary>
+        /// Pre-flight check called by GenerateFabPackageCommand BEFORE the
+        /// package is generated. Returns a report describing how many of the
+        /// 188 catalogue entries have a matching .rfa on disk so the user
+        /// knows up-front what placement coverage to expect.
+        /// </summary>
+        public static MissingFamilyReport GetMissingFamilyReport()
+        {
+            EnsureIndexLoaded();
+            var report = new MissingFamilyReport();
+            if (_index == null) return report;
+
+            string familyDir = "";
+            try
+            {
+                familyDir = Path.GetFullPath(
+                    Path.Combine(StingToolsApp.DataPath ?? "", "..", "Families", "ISO6412"));
+            }
+            catch (Exception ex) { StingLog.Warn($"GetMissingFamilyReport dir: {ex.Message}"); }
+
+            var uniqueFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var e in _index)
+                if (!string.IsNullOrEmpty(e.FamilyFile)) uniqueFiles.Add(e.FamilyFile);
+
+            report.Total = uniqueFiles.Count;
+            foreach (var file in uniqueFiles)
+            {
+                string fullPath = string.IsNullOrEmpty(familyDir)
+                    ? "" : Path.Combine(familyDir, file);
+                if (!string.IsNullOrEmpty(fullPath) && File.Exists(fullPath))
+                    report.Present.Add(file);
+                else
+                    report.Missing.Add(file);
+            }
+            return report;
+        }
+
+        // ─── General MEP view support ──────────────────────────────────
+
+        /// <summary>
+        /// Returns true when the placer can legally call
+        /// <c>doc.Create.NewFamilyInstance(point, fs, view)</c> for a Detail
+        /// Item symbol on the given view. Acceptable view types: Section,
+        /// Elevation, Detail, DraftingView, and floor/ceiling Plans when the
+        /// family is a Detail Item or Generic Annotation.
+        /// </summary>
+        public static bool CanPlaceOnView(View view)
+        {
+            if (view == null || view.IsTemplate) return false;
+            switch (view.ViewType)
+            {
+                case ViewType.Section:
+                case ViewType.Elevation:
+                case ViewType.Detail:
+                case ViewType.DraftingView:
+                case ViewType.FloorPlan:
+                case ViewType.CeilingPlan:
+                case ViewType.EngineeringPlan:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+    }
+
+    /// <summary>Pre-flight report from <see cref="IsoSymbolPlacer.GetMissingFamilyReport"/>.</summary>
+    public sealed class MissingFamilyReport
+    {
+        public int Total { get; set; }
+        public List<string> Present { get; } = new List<string>();
+        public List<string> Missing { get; } = new List<string>();
+        public int PresentCount => Present.Count;
+        public int MissingCount => Missing.Count;
+        public string Summary =>
+            $"{PresentCount} of {Total} symbol families present on disk; {MissingCount} missing — placement will be partial.";
     }
 }

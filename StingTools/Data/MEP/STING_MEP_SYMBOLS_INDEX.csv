@@ -1,0 +1,228 @@
+# STING MEP Symbols Index — general-purpose MEP plan / section / SLD annotation symbols.
+# Used by MepSymbolEngine (Core/Symbols/MepSymbolEngine.cs) alongside the ISO 6412 spool
+# catalogue (Data/Fabrication/STING_ISO_SYMBOLS_INDEX.csv). Each row maps a short
+# symbol_code to the .rfa family produced by SymbolLibraryCreator from the matching JSON
+# definition in Data/Symbols/.
+#
+# Columns:
+#   symbol_code    — short identifier matching SymbolDefinition.Id in JSON
+#   family_filename — .rfa produced by SymbolLibraryCreator (placed in _BIM_COORD/Families/Symbols/)
+#   category        — discipline bucket (Mechanical / Electrical / Plumbing / FireProtection / Lighting)
+#   standard        — authoring standard (CIBSE | IEC60617 | IEEE315 | BS7671 | ISO14617 | BS6465)
+#   view_types      — comma-separated: Plan | Section | SLD | Fabrication | All
+#   color_scheme    — preferred scheme: Corporate | BS1710 | CIBSE | IEC60617 | ASHRAE | NBS
+#   paper_size_mm   — target paper-space symbol size at any view scale
+#   description     — human-readable label
+#
+# NOTE: ISO 6412 spool symbols (piping/duct elbow, tee, valve, etc.) are NOT listed here;
+# they are loaded from Data/Fabrication/STING_ISO_SYMBOLS_INDEX.csv by the same engine.
+# This file covers plan-annotation and schematic symbols only.
+symbol_code,family_filename,category,standard,view_types,color_scheme,paper_size_mm,description
+#
+# ── HVAC / Ventilation ──────────────────────────────────────────────────────
+HVAC_SAD_SQ,HVAC_SAD_SQ.rfa,Mechanical,CIBSE,Plan,ASHRAE,6.0,Supply Air Diffuser (Square)
+HVAC_SAD_RND,HVAC_SAD_RND.rfa,Mechanical,CIBSE,Plan,ASHRAE,6.0,Supply Air Diffuser (Round)
+HVAC_RAG_SQ,HVAC_RAG_SQ.rfa,Mechanical,CIBSE,Plan,ASHRAE,6.0,Return Air Grille (Square)
+HVAC_RAG_RND,HVAC_RAG_RND.rfa,Mechanical,CIBSE,Plan,ASHRAE,6.0,Return Air Grille (Round)
+HVAC_LINEAR_SLOT,HVAC_LINEAR_SLOT.rfa,Mechanical,CIBSE,Plan,ASHRAE,6.0,Linear Slot Diffuser
+HVAC_EXTRACT_VALVE_RND,HVAC_EXTRACT_VALVE_RND.rfa,Mechanical,CIBSE,Plan,ASHRAE,5.0,Extract Valve (Round)
+HVAC_DISPLACEMENT,HVAC_DISPLACEMENT.rfa,Mechanical,CIBSE,Plan,ASHRAE,6.0,Displacement Ventilation Terminal
+HVAC_SWIRL,HVAC_SWIRL.rfa,Mechanical,CIBSE,Plan,ASHRAE,5.0,Swirl Diffuser
+HVAC_TRANSFER_GRILLE,HVAC_TRANSFER_GRILLE.rfa,Mechanical,CIBSE,Plan,ASHRAE,6.0,Transfer Grille
+HVAC_FIRE_DAMPER,HVAC_FIRE_DAMPER.rfa,Mechanical,CIBSE,Plan,ASHRAE,5.0,Fire Damper
+HVAC_SMOKE_DAMPER,HVAC_SMOKE_DAMPER.rfa,Mechanical,CIBSE,Plan,ASHRAE,5.0,Smoke Damper
+HVAC_FIRE_SMOKE_DAMPER,HVAC_FIRE_SMOKE_DAMPER.rfa,Mechanical,CIBSE,Plan,ASHRAE,5.0,Combined Fire/Smoke Damper
+HVAC_VCD,HVAC_VCD.rfa,Mechanical,CIBSE,Plan,ASHRAE,5.0,Volume Control Damper
+HVAC_MOTORISED_DAMPER,HVAC_MOTORISED_DAMPER.rfa,Mechanical,CIBSE,Plan,ASHRAE,5.0,Motorised Damper
+HVAC_NR_DAMPER,HVAC_NR_DAMPER.rfa,Mechanical,CIBSE,Plan,ASHRAE,5.0,Non-Return / Backdraught Damper
+HVAC_FCU,HVAC_FCU.rfa,Mechanical,CIBSE,Plan,ASHRAE,8.0,Fan Coil Unit (4-pipe)
+HVAC_FCU_2PIPE,HVAC_FCU_2PIPE.rfa,Mechanical,CIBSE,Plan,ASHRAE,8.0,Fan Coil Unit (2-pipe)
+HVAC_VAV,HVAC_VAV.rfa,Mechanical,CIBSE,Plan,ASHRAE,6.0,VAV Box (Variable Air Volume)
+HVAC_CAV,HVAC_CAV.rfa,Mechanical,CIBSE,Plan,ASHRAE,6.0,CAV Box (Constant Air Volume)
+HVAC_AHU,HVAC_AHU.rfa,Mechanical,CIBSE,Plan,ASHRAE,10.0,Air Handling Unit (schematic)
+HVAC_FAN_AXIAL,HVAC_FAN_AXIAL.rfa,Mechanical,CIBSE,Plan,ASHRAE,6.0,Axial Fan
+HVAC_FAN_CENTRIFUGAL,HVAC_FAN_CENTRIFUGAL.rfa,Mechanical,CIBSE,Plan,ASHRAE,6.0,Centrifugal Fan
+HVAC_THERMOSTAT,HVAC_THERMOSTAT.rfa,Mechanical,CIBSE,Plan,Corporate,4.0,Room Thermostat / Controller
+HVAC_CO2_SENSOR,HVAC_CO2_SENSOR.rfa,Mechanical,CIBSE,Plan,Corporate,4.0,CO2 Sensor
+HVAC_TEMP_SENSOR,HVAC_TEMP_SENSOR.rfa,Mechanical,CIBSE,Plan,Corporate,4.0,Temperature Sensor
+HVAC_HUMIDITY_SENSOR,HVAC_HUMIDITY_SENSOR.rfa,Mechanical,CIBSE,Plan,Corporate,4.0,Humidity Sensor
+HVAC_PRESSURE_DIFF,HVAC_PRESSURE_DIFF.rfa,Mechanical,CIBSE,Plan,Corporate,4.0,Pressure Differential Sensor
+HVAC_PUMP_INLINE,HVAC_PUMP_INLINE.rfa,Mechanical,CIBSE,Plan|Section,ASHRAE,6.0,Inline Circulating Pump
+HVAC_PUMP_BASE,HVAC_PUMP_BASE.rfa,Mechanical,CIBSE,Plan|Section,ASHRAE,8.0,End-Suction Base-Mounted Pump
+HVAC_BOILER,HVAC_BOILER.rfa,Mechanical,CIBSE,Plan|Section,ASHRAE,10.0,Boiler (schematic)
+HVAC_CHILLER,HVAC_CHILLER.rfa,Mechanical,CIBSE,Plan|Section,ASHRAE,12.0,Chiller (schematic)
+HVAC_COOLING_TOWER,HVAC_COOLING_TOWER.rfa,Mechanical,CIBSE,Plan|Section,ASHRAE,10.0,Cooling Tower (schematic)
+HVAC_HEAT_EXCHANGER,HVAC_HEAT_EXCHANGER.rfa,Mechanical,CIBSE,Plan|Section,ASHRAE,8.0,Plate Heat Exchanger
+HVAC_EXPANSION_VESSEL,HVAC_EXPANSION_VESSEL.rfa,Mechanical,CIBSE,Plan|Section,ASHRAE,6.0,Expansion Vessel
+#
+# ── Pipe accessories (plan / section annotation) ─────────────────────────────
+PIPE_GATE_VALVE,PIPE_GATE_VALVE.rfa,Mechanical,ISO14617,Plan|Section,BS1710,5.0,Gate Valve
+PIPE_GLOBE_VALVE,PIPE_GLOBE_VALVE.rfa,Mechanical,ISO14617,Plan|Section,BS1710,5.0,Globe Valve
+PIPE_BALL_VALVE,PIPE_BALL_VALVE.rfa,Mechanical,ISO14617,Plan|Section,BS1710,5.0,Ball Valve
+PIPE_BUTTERFLY_VALVE,PIPE_BUTTERFLY_VALVE.rfa,Mechanical,ISO14617,Plan|Section,BS1710,5.0,Butterfly Valve
+PIPE_CHECK_VALVE,PIPE_CHECK_VALVE.rfa,Mechanical,ISO14617,Plan|Section,BS1710,5.0,Non-Return (Check) Valve
+PIPE_GATE_VALVE_INDICATING,PIPE_GATE_VALVE_INDICATING.rfa,Mechanical,ISO14617,Plan|Section,BS1710,5.0,Indicating Gate Valve (OS&Y)
+PIPE_NEEDLE_VALVE,PIPE_NEEDLE_VALVE.rfa,Mechanical,ISO14617,Plan|Section,BS1710,4.0,Needle Valve
+PIPE_DIAPHRAGM_VALVE,PIPE_DIAPHRAGM_VALVE.rfa,Mechanical,ISO14617,Plan|Section,BS1710,5.0,Diaphragm Valve
+PIPE_SOLENOID_VALVE,PIPE_SOLENOID_VALVE.rfa,Mechanical,ISO14617,Plan|Section,BS1710,5.0,Solenoid Valve (Motorised)
+PIPE_PRESSURE_REDUCING,PIPE_PRESSURE_REDUCING.rfa,Mechanical,ISO14617,Plan|Section,BS1710,5.0,Pressure Reducing Valve (PRV)
+PIPE_SAFETY_RELIEF,PIPE_SAFETY_RELIEF.rfa,Mechanical,ISO14617,Plan|Section,BS1710,5.0,Safety Relief Valve
+PIPE_STRAINER_Y,PIPE_STRAINER_Y.rfa,Mechanical,ISO14617,Plan|Section,BS1710,5.0,Y-Strainer / Filter
+PIPE_PUMP_INLINE,PIPE_PUMP_INLINE.rfa,Mechanical,ISO14617,Plan|Section,BS1710,6.0,Inline Circulating Pump
+PIPE_METER,PIPE_METER.rfa,Mechanical,ISO14617,Plan|Section,BS1710,5.0,Flow Meter (general)
+PIPE_PRESSURE_GAUGE,PIPE_PRESSURE_GAUGE.rfa,Mechanical,ISO14617,Plan|Section,BS1710,4.0,Pressure Gauge
+PIPE_THERMOMETER,PIPE_THERMOMETER.rfa,Mechanical,ISO14617,Plan|Section,BS1710,4.0,Thermometer
+PIPE_AIR_VENT,PIPE_AIR_VENT.rfa,Mechanical,ISO14617,Section,BS1710,4.0,Automatic Air Vent
+PIPE_DRAIN,PIPE_DRAIN.rfa,Mechanical,ISO14617,Section,BS1710,4.0,Drain Valve / Blowdown Valve
+#
+# ── Plumbing / Sanitary ware ─────────────────────────────────────────────────
+PLM_WC_WALL,PLM_WC_WALL.rfa,Plumbing,BS6465,Plan,Corporate,10.0,WC (Wall-Hung)
+PLM_WC_CLOSE_COUPLED,PLM_WC_CLOSE_COUPLED.rfa,Plumbing,BS6465,Plan,Corporate,10.0,WC (Close-Coupled)
+PLM_URINAL_WALL,PLM_URINAL_WALL.rfa,Plumbing,BS6465,Plan,Corporate,8.0,Urinal (Wall-Hung)
+PLM_WHB,PLM_WHB.rfa,Plumbing,BS6465,Plan,Corporate,8.0,Wash Hand Basin
+PLM_VANITY_BASIN,PLM_VANITY_BASIN.rfa,Plumbing,BS6465,Plan,Corporate,8.0,Vanity Basin / Countertop
+PLM_SINK_SINGLE,PLM_SINK_SINGLE.rfa,Plumbing,BS6465,Plan,Corporate,8.0,Single Sink
+PLM_SINK_DOUBLE,PLM_SINK_DOUBLE.rfa,Plumbing,BS6465,Plan,Corporate,10.0,Double Sink
+PLM_CLEANERS_SINK,PLM_CLEANERS_SINK.rfa,Plumbing,BS6465,Plan,Corporate,8.0,Cleaner's Sink / Belfast Sink
+PLM_SHOWER_TRAY,PLM_SHOWER_TRAY.rfa,Plumbing,BS6465,Plan,Corporate,10.0,Shower Tray / Wet Room
+PLM_BATH,PLM_BATH.rfa,Plumbing,BS6465,Plan,Corporate,12.0,Bath
+PLM_SHOWER_HEAD,PLM_SHOWER_HEAD.rfa,Plumbing,BS6465,Plan,Corporate,5.0,Shower Head / Rose
+PLM_HOT_WATER_CYLINDER,PLM_HOT_WATER_CYLINDER.rfa,Plumbing,BS6465,Plan|Section,BS1710,8.0,Hot Water Storage Cylinder
+PLM_COLD_WATER_CISTERN,PLM_COLD_WATER_CISTERN.rfa,Plumbing,BS6465,Plan|Section,BS1710,8.0,Cold Water Storage Cistern
+PLM_CALORIFIER,PLM_CALORIFIER.rfa,Plumbing,BS6465,Plan|Section,BS1710,8.0,Calorifier / Indirect Water Heater
+PLM_BOOSTER_SET,PLM_BOOSTER_SET.rfa,Plumbing,BS6465,Plan|Section,BS1710,8.0,Booster Pump Set
+PLM_WATER_METER,PLM_WATER_METER.rfa,Plumbing,BS6465,Plan,Corporate,5.0,Water Meter
+PLM_STOPCOCK,PLM_STOPCOCK.rfa,Plumbing,BS6465,Plan,BS1710,5.0,Stopcock / Isolation Valve
+PLM_HOSE_UNION,PLM_HOSE_UNION.rfa,Plumbing,BS6465,Plan,Corporate,4.0,Hose Union Tap
+PLM_THERMOSTATIC_MV,PLM_THERMOSTATIC_MV.rfa,Plumbing,BS6465,Plan,BS1710,5.0,Thermostatic Mixing Valve (TMV)
+PLM_FLOOR_DRAIN,PLM_FLOOR_DRAIN.rfa,Plumbing,BS8301,Plan,Corporate,5.0,Floor Drain / Gully
+PLM_TRAP_P,PLM_TRAP_P.rfa,Plumbing,BS8301,Section,Corporate,4.0,P-Trap
+PLM_TRAP_S,PLM_TRAP_S.rfa,Plumbing,BS8301,Section,Corporate,4.0,S-Trap
+PLM_ACCESS_EYE,PLM_ACCESS_EYE.rfa,Plumbing,BS8301,Plan,Corporate,4.0,Rodding Eye / Access Eye
+#
+# ── Fire protection ──────────────────────────────────────────────────────────
+FP_SPKR_PENDANT,FP_SPKR_PENDANT.rfa,FireProtection,BS5839,Plan,Corporate,5.0,Sprinkler Head (Pendant)
+FP_SPKR_UPRIGHT,FP_SPKR_UPRIGHT.rfa,FireProtection,BS5839,Plan,Corporate,5.0,Sprinkler Head (Upright)
+FP_SPKR_SIDEWALL,FP_SPKR_SIDEWALL.rfa,FireProtection,BS5839,Plan,Corporate,5.0,Sprinkler Head (Sidewall)
+FP_SPKR_CONCEALED,FP_SPKR_CONCEALED.rfa,FireProtection,BS5839,Plan,Corporate,5.0,Concealed Sprinkler
+FP_SPKR_ESFR,FP_SPKR_ESFR.rfa,FireProtection,BS5839,Plan,Corporate,5.0,ESFR Sprinkler (Storage)
+FP_DELUGE_NOZZLE,FP_DELUGE_NOZZLE.rfa,FireProtection,BS5839,Plan,Corporate,5.0,Deluge Nozzle
+FP_SMOKE_OPTICAL,FP_SMOKE_OPTICAL.rfa,FireProtection,BS5839,Plan,Corporate,5.0,Smoke Detector (Optical)
+FP_SMOKE_IONISATION,FP_SMOKE_IONISATION.rfa,FireProtection,BS5839,Plan,Corporate,4.0,Smoke Detector (Ionisation)
+FP_HEAT_FIXED,FP_HEAT_FIXED.rfa,FireProtection,BS5839,Plan,Corporate,4.0,Heat Detector (Fixed Temperature)
+FP_HEAT_RATE_OF_RISE,FP_HEAT_RATE_OF_RISE.rfa,FireProtection,BS5839,Plan,Corporate,4.0,Heat Detector (Rate of Rise)
+FP_MULTI_SENSOR,FP_MULTI_SENSOR.rfa,FireProtection,BS5839,Plan,Corporate,4.0,Multi-Sensor Detector
+FP_BEAM_DETECTOR,FP_BEAM_DETECTOR.rfa,FireProtection,BS5839,Plan,Corporate,4.0,Beam Detector (Tx)
+FP_FLAME_DETECTOR,FP_FLAME_DETECTOR.rfa,FireProtection,BS5839,Plan,Corporate,4.0,Flame Detector
+FP_CALL_POINT,FP_CALL_POINT.rfa,FireProtection,BS5839,Plan,Corporate,4.0,Manual Call Point (Break Glass)
+FP_ALARM_SOUNDER,FP_ALARM_SOUNDER.rfa,FireProtection,BS5839,Plan,Corporate,4.0,Alarm Sounder
+FP_SOUNDER_BEACON,FP_SOUNDER_BEACON.rfa,FireProtection,BS5839,Plan,Corporate,4.0,Sounder / Visual Alarm Device
+FP_FACP,FP_FACP.rfa,FireProtection,BS5839,Plan,Corporate,8.0,Fire Alarm Control Panel
+FP_RISER_INLET,FP_RISER_INLET.rfa,FireProtection,BS5839,Plan,Corporate,5.0,Dry/Wet Riser Inlet
+FP_LANDING_VALVE,FP_LANDING_VALVE.rfa,FireProtection,BS5839,Plan,Corporate,5.0,Dry/Wet Riser Landing Valve
+FP_HOSE_REEL,FP_HOSE_REEL.rfa,FireProtection,BS5839,Plan,Corporate,5.0,Fire Hose Reel
+FP_FIRE_EXTINGUISHER,FP_FIRE_EXTINGUISHER.rfa,FireProtection,BS5839,Plan,Corporate,4.0,Fire Extinguisher
+FP_SPRINKLER_CONTROL_SET,FP_SPRINKLER_CONTROL_SET.rfa,FireProtection,BS5839,Plan|Section,Corporate,8.0,Sprinkler Control Valve Set
+FP_ALARM_VALVE,FP_ALARM_VALVE.rfa,FireProtection,BS5839,Plan|Section,Corporate,6.0,Alarm Valve / Alarm Check Valve
+FP_PREACTION_VALVE,FP_PREACTION_VALVE.rfa,FireProtection,BS5839,Plan|Section,Corporate,6.0,Pre-Action / Deluge Valve
+FP_FIRE_PUMP,FP_FIRE_PUMP.rfa,FireProtection,BS5839,Plan|Section,Corporate,8.0,Fire Pump Set
+#
+# ── Lighting ─────────────────────────────────────────────────────────────────
+LTG_DOWNLIGHT_RND,LTG_DOWNLIGHT_RND.rfa,Electrical,IEC60617-11,Plan,Corporate,5.0,Recessed Downlight (Round)
+LTG_DOWNLIGHT_SQ,LTG_DOWNLIGHT_SQ.rfa,Electrical,IEC60617-11,Plan,Corporate,5.0,Recessed Downlight (Square)
+LTG_SURFACE_RND,LTG_SURFACE_RND.rfa,Electrical,IEC60617-11,Plan,Corporate,5.0,Surface Mounted Luminaire (Round)
+LTG_SURFACE_SQ,LTG_SURFACE_SQ.rfa,Electrical,IEC60617-11,Plan,Corporate,6.0,Surface Mounted Luminaire (Square)
+LTG_PENDANT,LTG_PENDANT.rfa,Electrical,IEC60617-11,Plan,Corporate,4.0,Pendant Luminaire
+LTG_TRACK_LINEAR,LTG_TRACK_LINEAR.rfa,Electrical,IEC60617-11,Plan,Corporate,6.0,Track Lighting
+LTG_FLUORO_1T,LTG_FLUORO_1T.rfa,Electrical,IEC60617-11,Plan,Corporate,8.0,Fluorescent Single Tube (Batten)
+LTG_FLUORO_2T,LTG_FLUORO_2T.rfa,Electrical,IEC60617-11,Plan,Corporate,8.0,Fluorescent Twin Tube
+LTG_LED_LINEAR,LTG_LED_LINEAR.rfa,Electrical,IEC60617-11,Plan,Corporate,8.0,LED Linear Strip
+LTG_EMERGENCY_MAINTAINED,LTG_EMERGENCY_MAINTAINED.rfa,Electrical,IEC60617-11,Plan,Corporate,5.0,Emergency Luminaire (Maintained)
+LTG_EMERGENCY_NON_MAINTAINED,LTG_EMERGENCY_NON_MAINTAINED.rfa,Electrical,IEC60617-11,Plan,Corporate,5.0,Emergency Luminaire (Non-Maintained)
+LTG_EXIT_SIGN,LTG_EXIT_SIGN.rfa,Electrical,ISO7010,Plan,Corporate,6.0,Exit Sign / Running Man
+LTG_WALL_WASHER,LTG_WALL_WASHER.rfa,Electrical,IEC60617-11,Plan,Corporate,5.0,Wall Washer Luminaire
+LTG_EXTERIOR_BOLLARD,LTG_EXTERIOR_BOLLARD.rfa,Electrical,IEC60617-11,Plan,Corporate,5.0,Exterior Bollard Light
+LTG_EXTERIOR_COLUMN,LTG_EXTERIOR_COLUMN.rfa,Electrical,IEC60617-11,Plan,Corporate,5.0,Exterior Column / Street Light
+LTG_SWITCH_1G,LTG_SWITCH_1G.rfa,Electrical,IEC60617-11,Plan,Corporate,4.0,1-Gang Light Switch
+LTG_SWITCH_2G,LTG_SWITCH_2G.rfa,Electrical,IEC60617-11,Plan,Corporate,4.0,2-Gang Light Switch
+LTG_SWITCH_2WAY,LTG_SWITCH_2WAY.rfa,Electrical,IEC60617-11,Plan,Corporate,4.0,2-Way Switch
+LTG_DIMMER,LTG_DIMMER.rfa,Electrical,IEC60617-11,Plan,Corporate,4.0,Dimmer Switch
+LTG_OCCUPANCY_SENSOR,LTG_OCCUPANCY_SENSOR.rfa,Electrical,IEC60617-11,Plan,Corporate,4.0,Occupancy / PIR Sensor
+LTG_EMERGENCY_TEST,LTG_EMERGENCY_TEST.rfa,Electrical,BS5266,Plan,Corporate,4.0,Emergency Test Key Switch
+LTG_LUMINAIRE_CONTROL,LTG_LUMINAIRE_CONTROL.rfa,Electrical,DALI,Plan,Corporate,4.0,DALI Luminaire Controller
+#
+# ── Electrical power devices (plan annotation) ───────────────────────────────
+ELEC_SOCKET_SINGLE,ELEC_SOCKET_SINGLE.rfa,Electrical,BS7671,Plan,Corporate,4.0,Single Socket Outlet (13A BS 1363)
+ELEC_SOCKET_DOUBLE,ELEC_SOCKET_DOUBLE.rfa,Electrical,BS7671,Plan,Corporate,4.0,Double Socket Outlet (13A)
+ELEC_SOCKET_UNSWITCHED,ELEC_SOCKET_UNSWITCHED.rfa,Electrical,BS7671,Plan,Corporate,4.0,Unswitched Socket Outlet
+ELEC_FCU,ELEC_FCU.rfa,Electrical,BS7671,Plan,Corporate,4.0,Fused Connection Unit (FCU)
+ELEC_EV_CHARGER,ELEC_EV_CHARGER.rfa,Electrical,BS7671,Plan,Corporate,5.0,EV Charging Point
+ELEC_SOCKET_FLOOR,ELEC_SOCKET_FLOOR.rfa,Electrical,BS7671,Plan,Corporate,4.0,Floor Socket Outlet
+ELEC_SOCKET_WEATHERPROOF,ELEC_SOCKET_WEATHERPROOF.rfa,Electrical,BS7671,Plan,Corporate,4.0,Weatherproof Socket Outlet
+ELEC_SOCKET_ISOLATOR,ELEC_SOCKET_ISOLATOR.rfa,Electrical,BS7671,Plan,Corporate,4.0,Cooker Isolator Switch
+ELEC_CONSUMER_UNIT,ELEC_CONSUMER_UNIT.rfa,Electrical,BS7671,Plan,Corporate,8.0,Consumer Unit / Distribution Board
+ELEC_PANEL_BOARD,ELEC_PANEL_BOARD.rfa,Electrical,BS7671,Plan,Corporate,8.0,Panel Board / DB (large)
+ELEC_MOTOR_STARTER,ELEC_MOTOR_STARTER.rfa,Electrical,BS7671,Plan,Corporate,6.0,Motor Starter / MCC Starter
+ELEC_ISOLATOR_SWITCH,ELEC_ISOLATOR_SWITCH.rfa,Electrical,BS7671,Plan,Corporate,4.0,Local Isolator Switch
+ELEC_DATA_SOCKET,ELEC_DATA_SOCKET.rfa,Electrical,BS7671,Plan,Corporate,4.0,Data Socket Outlet (RJ45)
+ELEC_TELEPHONE_SOCKET,ELEC_TELEPHONE_SOCKET.rfa,Electrical,BS7671,Plan,Corporate,4.0,Telephone Socket
+ELEC_ADDRESSABLE_INTERFACE,ELEC_ADDRESSABLE_INTERFACE.rfa,Electrical,BS7671,Plan,Corporate,4.0,Addressable Interface Module
+ELEC_ISOLATOR_MAIN,ELEC_ISOLATOR_MAIN.rfa,Electrical,BS7671,Plan,Corporate,6.0,Main Isolator / Switch Disconnector
+ELEC_TRANSFORMER,ELEC_TRANSFORMER.rfa,Electrical,BS7671,Plan|Section,Corporate,8.0,Transformer (step-down/isolation)
+ELEC_GENERATOR,ELEC_GENERATOR.rfa,Electrical,BS7671,Plan|Section,Corporate,8.0,Emergency Generator
+ELEC_UPS,ELEC_UPS.rfa,Electrical,BS7671,Plan,Corporate,8.0,UPS Unit
+ELEC_ATS,ELEC_ATS.rfa,Electrical,BS7671,Plan,Corporate,6.0,Automatic Transfer Switch (ATS)
+ELEC_CONTAINMENT_TRAY,ELEC_CONTAINMENT_TRAY.rfa,Electrical,BS7671,Plan,Corporate,4.0,Cable Tray (plan symbol)
+ELEC_CONTAINMENT_LADDER,ELEC_CONTAINMENT_LADDER.rfa,Electrical,BS7671,Plan,Corporate,4.0,Cable Ladder (plan symbol)
+ELEC_CONTAINMENT_TRUNKING,ELEC_CONTAINMENT_TRUNKING.rfa,Electrical,BS7671,Plan,Corporate,4.0,Cable Trunking (plan symbol)
+ELEC_CONDUIT_POINT,ELEC_CONDUIT_POINT.rfa,Electrical,BS7671,Plan,Corporate,3.0,Conduit Junction Point
+#
+# ── SLD symbols — IEC 60617 (single-line diagrams) ───────────────────────────
+SLD_MCB,SLD_MCB.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,Miniature Circuit Breaker (MCB)
+SLD_MCCB,SLD_MCCB.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,Moulded Case Circuit Breaker (MCCB)
+SLD_ACB,SLD_ACB.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,Air Circuit Breaker (ACB)
+SLD_FUSE,SLD_FUSE.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,Fuse (IEC)
+SLD_FUSED_SWITCH,SLD_FUSED_SWITCH.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,Fused Switch Disconnector
+SLD_ISOLATOR,SLD_ISOLATOR.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,Isolator / Disconnector
+SLD_CONTACTOR,SLD_CONTACTOR.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,Contactor
+SLD_SOFT_STARTER,SLD_SOFT_STARTER.rfa,Electrical,IEC60617,SLD,IEC60617,5.0,Soft Starter
+SLD_VSD,SLD_VSD.rfa,Electrical,IEC60617,SLD,IEC60617,5.0,Variable Speed Drive (VFD)
+SLD_RCD,SLD_RCD.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,Residual Current Device (RCD)
+SLD_RCBO,SLD_RCBO.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,RCBO (MCB + RCD)
+SLD_SPD,SLD_SPD.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,Surge Protective Device (SPD)
+SLD_XFMR_2W,SLD_XFMR_2W.rfa,Electrical,IEC60617,SLD,IEC60617,6.0,Transformer 2-Winding
+SLD_XFMR_3W,SLD_XFMR_3W.rfa,Electrical,IEC60617,SLD,IEC60617,6.0,Transformer 3-Winding
+SLD_AUTOXFMR,SLD_AUTOXFMR.rfa,Electrical,IEC60617,SLD,IEC60617,6.0,Auto-Transformer
+SLD_AMMETER,SLD_AMMETER.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,Ammeter
+SLD_VOLTMETER,SLD_VOLTMETER.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,Voltmeter
+SLD_WATTMETER,SLD_WATTMETER.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,Wattmeter
+SLD_KWH_METER,SLD_KWH_METER.rfa,Electrical,IEC60617,SLD,IEC60617,5.0,kWh Energy Meter
+SLD_CT,SLD_CT.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,Current Transformer (CT)
+SLD_VT,SLD_VT.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,Voltage Transformer (VT)
+SLD_BUSBAR,SLD_BUSBAR.rfa,Electrical,IEC60617,SLD,IEC60617,8.0,Busbar
+SLD_BUS_SECTION,SLD_BUS_SECTION.rfa,Electrical,IEC60617,SLD,IEC60617,6.0,Bus Section / Bus Coupler
+SLD_EARTH,SLD_EARTH.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,Earth / Ground Connection
+SLD_NEUTRAL,SLD_NEUTRAL.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,Neutral Bar
+SLD_EARTH_BAR,SLD_EARTH_BAR.rfa,Electrical,IEC60617,SLD,IEC60617,5.0,Earth Bar / Earth Busbar
+SLD_GENERATOR,SLD_GENERATOR.rfa,Electrical,IEC60617,SLD,IEC60617,6.0,Generator
+SLD_UPS,SLD_UPS.rfa,Electrical,IEC60617,SLD,IEC60617,6.0,Uninterruptible Power Supply (UPS)
+SLD_MOTOR,SLD_MOTOR.rfa,Electrical,IEC60617,SLD,IEC60617,5.0,Motor (M)
+SLD_MOTOR_OVERCURRENT,SLD_MOTOR_OVERCURRENT.rfa,Electrical,IEC60617,SLD,IEC60617,5.0,Motor with Overcurrent Protection
+SLD_CAPACITOR_BANK,SLD_CAPACITOR_BANK.rfa,Electrical,IEC60617,SLD,IEC60617,5.0,Power Factor Correction Capacitor Bank
+SLD_PFC_PANEL,SLD_PFC_PANEL.rfa,Electrical,IEC60617,SLD,IEC60617,6.0,Power Factor Correction Panel
+SLD_DISTRIBUTION_BOARD,SLD_DISTRIBUTION_BOARD.rfa,Electrical,IEC60617,SLD,IEC60617,6.0,Distribution Board (DB) box
+SLD_MDB,SLD_MDB.rfa,Electrical,IEC60617,SLD,IEC60617,6.0,Main Distribution Board (MDB)
+SLD_SDB,SLD_SDB.rfa,Electrical,IEC60617,SLD,IEC60617,5.0,Sub-Distribution Board (SDB)
+SLD_SOCKET_FINAL_CIRCUIT,SLD_SOCKET_FINAL_CIRCUIT.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,Socket Final Circuit (SLD representation)
+SLD_LIGHTING_FINAL_CIRCUIT,SLD_LIGHTING_FINAL_CIRCUIT.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,Lighting Final Circuit (SLD)
+SLD_LOAD_GENERAL,SLD_LOAD_GENERAL.rfa,Electrical,IEC60617,SLD,IEC60617,4.0,General Load (triangle)
+#
+# ── SLD symbols — IEEE 315 / ANSI Y32 (US projects) ──────────────────────────
+IEEE_SLD_MCB,IEEE_SLD_MCB.rfa,Electrical,IEEE315,SLD,IEC60617,4.0,MCB — IEEE 315 Trip Breaker
+IEEE_SLD_MCCB,IEEE_SLD_MCCB.rfa,Electrical,IEEE315,SLD,IEC60617,4.0,MCCB — IEEE 315 Moulded Case
+IEEE_SLD_FUSE,IEEE_SLD_FUSE.rfa,Electrical,IEEE315,SLD,IEC60617,4.0,Fuse — IEEE 315 Diamond
+IEEE_SLD_ISOLATOR,IEEE_SLD_ISOLATOR.rfa,Electrical,IEEE315,SLD,IEC60617,4.0,Isolator / Disconnect Switch — IEEE 315
+IEEE_SLD_CONTACTOR,IEEE_SLD_CONTACTOR.rfa,Electrical,IEEE315,SLD,IEC60617,4.0,Contactor — IEEE 315
+IEEE_SLD_TRANSFORMER,IEEE_SLD_TRANSFORMER.rfa,Electrical,IEEE315,SLD,IEC60617,6.0,Transformer — IEEE 315
+IEEE_SLD_MOTOR,IEEE_SLD_MOTOR.rfa,Electrical,IEEE315,SLD,IEC60617,5.0,Motor — IEEE 315
+IEEE_SLD_GENERATOR,IEEE_SLD_GENERATOR.rfa,Electrical,IEEE315,SLD,IEC60617,6.0,Generator — IEEE 315

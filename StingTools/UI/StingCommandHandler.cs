@@ -432,6 +432,11 @@ namespace StingTools.UI
                     case "Symbols_AuthorSymbols":       RunCommand<Commands.Symbols.AuthorFamilySymbolsCommand>(app); break;
                     case "Symbols_SetElementStandard": RunCommand<Commands.Symbols.SetElementSymbolStandardCommand>(app); break;
 
+                    // ── MEP Detail Symbols (FamilyInstance-based, MepSymbolEngine) ──
+                    case "Symbols_PlaceMepDetail":         RunCommand<Commands.Symbols.PlaceMepDetailSymbolsCommand>(app); break;
+                    case "Symbols_PlaceMepDetailAll":      RunCommand<Commands.Symbols.PlaceMepDetailSymbolsProjectWideCommand>(app); break;
+                    case "Symbols_ClearMepDetail":         RunCommand<Commands.Symbols.ClearMepDetailSymbolsCommand>(app); break;
+
                     // ── Phase 175: Symbol Maintenance ──
                     case "Symbols_HealOrphans":    RunCommand<Commands.Symbols.HealSymbolOrphansCommand>(app); break;
                     case "Symbols_Coverage":       RunCommand<Commands.Symbols.SymbolCoverageAuditCommand>(app); break;
