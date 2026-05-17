@@ -33,6 +33,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using StingTools.Core.Placement;
+using StingTools.Core;
 
 namespace StingTools.Core.Calc
 {

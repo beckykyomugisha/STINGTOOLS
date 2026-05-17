@@ -18,6 +18,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Plumbing;
 using StingTools.Core.Drawing;
+using StingTools.Core;
 
 namespace StingTools.Core.Drawing.Dimensioning
 {

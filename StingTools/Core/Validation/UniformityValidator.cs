@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
+using StingTools.Core;
 
 namespace StingTools.Core.Validation
 {

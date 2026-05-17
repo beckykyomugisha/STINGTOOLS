@@ -26,6 +26,7 @@ namespace StingTools.Core.Placement.Excel
                 return (rules, errors);
             }
             using (var wb = new XLWorkbook(filePath))
+using StingTools.Core;
             {
                 foreach (var ws in wb.Worksheets)
                 {

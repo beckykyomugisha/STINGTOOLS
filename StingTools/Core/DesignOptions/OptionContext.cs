@@ -13,6 +13,7 @@
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using StingTools.Core;
 
 namespace StingTools.Core.DesignOptions
 {
