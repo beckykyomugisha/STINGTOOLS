@@ -17,6 +17,8 @@ using Prometheus;
 using StackExchange.Redis;
 using RedisRateLimiting;
 using RedisRateLimiting.AspNetCore;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -162,8 +164,15 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             RequireSignedTokens = true,
             ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 },
-            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "Planscape",
-            ValidAudience = builder.Configuration["Jwt:Audience"] ?? "Planscape.Client",
+            // A3 — require explicit Jwt:Issuer and Jwt:Audience in all environments.
+            // A silent "Planscape" / "Planscape.Client" fallback lets a
+            // misconfigured deployment accept tokens minted by any other
+            // instance using the same fallback string (e.g. staging → prod
+            // token replay). Throw at startup instead.
+            ValidIssuer = builder.Configuration["Jwt:Issuer"]
+                ?? throw new InvalidOperationException("Jwt:Issuer is required in configuration."),
+            ValidAudience = builder.Configuration["Jwt:Audience"]
+                ?? throw new InvalidOperationException("Jwt:Audience is required in configuration."),
             // IssuerSigningKeys (plural) lets us validate tokens signed with
             // either the current or the previous key during rotation.
             IssuerSigningKeys = signingKeys,
@@ -1177,6 +1186,41 @@ app.MapHub<Planscape.Infrastructure.SignalR.FederatedModelHub>("/hubs/federated-
             var creator = (Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator)
                 db.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
             creator.CreateTables();
+        }
+        else
+        {
+            // Schema drift fixup: apply ADD COLUMN IF NOT EXISTS for columns added
+            // after the initial CreateTables(). Safe and idempotent on every restart.
+            await using var fixCmd = conn.CreateCommand();
+            fixCmd.CommandText = @"
+                ALTER TABLE ""Users""
+                    ADD COLUMN IF NOT EXISTS ""IsDeleted""       boolean             NOT NULL DEFAULT false,
+                    ADD COLUMN IF NOT EXISTS ""DeletedAt""       timestamptz         NULL,
+                    ADD COLUMN IF NOT EXISTS ""DeletedByUserId"" uuid                NULL;
+                ALTER TABLE ""IssueComments""
+                    ADD COLUMN IF NOT EXISTS ""DeletedAt""       timestamptz         NULL,
+                    ADD COLUMN IF NOT EXISTS ""DeletedByUserId"" uuid                NULL,
+                    ADD COLUMN IF NOT EXISTS ""IsDeleted""       boolean             NOT NULL DEFAULT false;
+                ALTER TABLE ""SceneNodes""
+                    ADD COLUMN IF NOT EXISTS ""DeletedAt""       timestamptz         NULL;
+                ALTER TABLE ""ProjectModels""
+                    ADD COLUMN IF NOT EXISTS ""DeletedAt""       timestamptz         NULL;
+                ALTER TABLE ""DocumentMarkups""
+                    ADD COLUMN IF NOT EXISTS ""DeletedAt""       timestamptz         NULL;
+                ALTER TABLE ""ModelMarkups""
+                    ADD COLUMN IF NOT EXISTS ""DeletedAt""       timestamptz         NULL;
+                ALTER TABLE ""Tenants""
+                    ADD COLUMN IF NOT EXISTS ""UpdatedAt""       timestamptz         NOT NULL DEFAULT NOW(),
+                    ADD COLUMN IF NOT EXISTS ""BillingPlan""     text                NULL,
+                    ADD COLUMN IF NOT EXISTS ""TrialEndsAt""     timestamptz         NULL,
+                    ADD COLUMN IF NOT EXISTS ""TrialReminderSentDays"" text          NULL,
+                    ADD COLUMN IF NOT EXISTS ""BrandingJson""    text                NULL,
+                    ADD COLUMN IF NOT EXISTS ""KeywordExtensionsJson"" text          NULL,
+                    ADD COLUMN IF NOT EXISTS ""BimManagerRolesJson"" text            NULL,
+                    ADD COLUMN IF NOT EXISTS ""EnforceNaming""   boolean             NOT NULL DEFAULT false,
+                    ADD COLUMN IF NOT EXISTS ""CustomStateJson"" text                NULL;
+            ";
+            await fixCmd.ExecuteNonQueryAsync();
         }
     }
     else

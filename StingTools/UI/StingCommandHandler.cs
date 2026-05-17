@@ -3501,10 +3501,31 @@ namespace StingTools.UI
                     case "AttachIssueLocation":   AttachIssueLocationFromView(app); break;
                     case "CaptureIssueSnapshot":  CaptureViewSnapshot(app); break;
                     case "LinkIssueElements":     RunCommand<BIMManager.SelectIssueElementsCommand>(app); break;
+                    // ── BCC Model Health refresh ──
+                    case "RefreshHealth":
+                    {
+                        StingLog.Info("BCC: RefreshHealth triggered — reloading coordination data");
+                        RunCommand<BIMManager.CoordinationCenterCommand>(app);
+                        break;
+                    }
+                    // ── BCC Bulk Issue actions ──
+                    case "BulkIssueReassign":
+                        StingLog.Warn("BCC BulkIssueReassign: handler not yet implemented");
+                        TaskDialog.Show("STING BCC", "Bulk reassign is not yet available. Use Issues > Update Issue for individual items.");
+                        break;
+                    case "BulkIssueResolve":
+                        StingLog.Warn("BCC BulkIssueResolve: handler not yet implemented");
+                        TaskDialog.Show("STING BCC", "Bulk resolve is not yet available. Use Issues > Update Issue for individual items.");
+                        break;
+                    case "BulkIssueExport":
+                        RunCommand<BIMManager.BulkBIMExportCommand>(app);
+                        break;
                     // ── Warnings ──
                     case "AutoFixWarnings":
                     {
-                        TaskDialog.Show("STING — Auto-Fix Warnings", "Auto-fix scan queued.\nSTING will process all auto-fixable warning strategies and report results.");
+                        StingLog.Info("BCC: AutoFixWarnings — should route to WarningsManager.AutoFixAll, not BIMManager batch fixer");
+                        // TODO: wire to WarningsManager.AutoFixAll() once exposed as IExternalCommand
+                        TaskDialog.Show("STING BCC", "Auto-fix warnings is not yet available from this panel. Use BIM > Warnings > Auto-Fix instead.");
                         break;
                     }
                     case "SaveBaseline":

@@ -143,9 +143,9 @@ public class IfcIngestController : ControllerBase
             if (existing.TryGetValue(el.GlobalId, out var row))
             {
                 row.CategoryName = el.IfcType;
-                row.AssTag1      = el.Properties.GetValueOrDefault("Pset_Common.Tag")
+                row.Tag1      = el.Properties.GetValueOrDefault("Pset_Common.Tag")
                                 ?? el.Properties.GetValueOrDefault("IfcTag")
-                                ?? row.AssTag1 ?? "";
+                                ?? row.Tag1 ?? "";
                 row.SyncedAt     = DateTime.UtcNow;
                 updated++;
             }
@@ -155,7 +155,7 @@ public class IfcIngestController : ControllerBase
                 {
                     ProjectId    = projectId,
                     UniqueId     = el.GlobalId,
-                    AssTag1      = el.Properties.GetValueOrDefault("Pset_Common.Tag")
+                    Tag1      = el.Properties.GetValueOrDefault("Pset_Common.Tag")
                                 ?? el.Properties.GetValueOrDefault("IfcTag")
                                 ?? "",
                     CategoryName = el.IfcType,

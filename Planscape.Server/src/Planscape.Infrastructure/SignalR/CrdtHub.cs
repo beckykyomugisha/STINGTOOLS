@@ -105,15 +105,17 @@ public class CrdtHub : Hub
 
         if (docKey.StartsWith("project:", StringComparison.Ordinal))
         {
-            var afterPrefix = docKey.AsSpan(8);
+            // AsSpan is a ref struct and cannot be used in async methods in C# 12.
+            // Use Substring instead — these strings are short so the allocation is trivial.
+            var afterPrefix = docKey.Substring(8);
             var sep = afterPrefix.IndexOf(':');
-            var guidPart = sep >= 0 ? afterPrefix[..sep].ToString() : afterPrefix.ToString();
+            var guidPart = sep >= 0 ? afterPrefix.Substring(0, sep) : afterPrefix;
             return Guid.TryParse(guidPart, out var pid) ? pid : null;
         }
 
         if (docKey.StartsWith("issue:", StringComparison.Ordinal))
         {
-            var guidPart = docKey.AsSpan(6).ToString();
+            var guidPart = docKey.Substring(6);
             if (!Guid.TryParse(guidPart, out var iid)) return null;
             return await _db.Issues.AsNoTracking()
                 .Where(i => i.Id == iid)

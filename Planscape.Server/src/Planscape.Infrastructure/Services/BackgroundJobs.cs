@@ -257,7 +257,17 @@ public class SlaEscalationJob
         {
             var overdueHours = (now - issue.DueDate!.Value).TotalHours;
             var tenantId = issue.Project?.TenantId ?? Guid.Empty;
-            if (tenantId == Guid.Empty) continue;
+            if (tenantId == Guid.Empty || issue.Project?.TenantId == null)
+            {
+                // E2 — log missing TenantId so data-quality issues surface in
+                // structured logs rather than being silently skipped. A missing
+                // TenantId typically means the Project FK was not eagerly loaded
+                // or the row was created without a tenant (data migration gap).
+                _logger.LogWarning(
+                    "SlaEscalationJob: skipping issue {IssueId} — missing TenantId on project {ProjectId}",
+                    issue.Id, issue.ProjectId);
+                continue;
+            }
 
             // Step 3 — Owner / Admin notification (≥ 72 h)
             if (overdueHours >= 72 && !await EscalationFiredAsync(db, issue.Id, "ESCALATE_STEP_3", ct))
@@ -691,7 +701,10 @@ public class PlatformSyncJob
             catch (Exception ex)
             {
                 failed++;
-                conn.LastSyncAt = DateTime.UtcNow;
+                // E1 — do NOT update LastSyncAt on exception. Leaving it at its
+                // previous value means the staleness indicator stays meaningful:
+                // a stale LastSyncAt tells operators exactly how long ago the last
+                // *successful* sync ran, which is the actionable signal they need.
                 conn.LastSyncStatus = "ERROR";
                 conn.LastSyncError = ex.Message;
                 _logger.LogError(ex, "PlatformSyncJob error for connection {Id}", conn.Id);
