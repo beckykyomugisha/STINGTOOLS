@@ -999,6 +999,303 @@
           { "x1": 0, "y1":  0.25, "x2": 0, "y2":  0.55 }
         ]
       }
+    },
+    {
+      "id": "SLD_LPS_AIR_TERMINAL",
+      "name": "Lightning Air Terminal",
+      "category": "LightningProtection",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "LPS",
+      "symbolSize": 5.0,
+      "description": "Air terminal / finial — BS EN 62305-3 / NFPA 780",
+      "parameters": [
+        { "name": "STRIKE_RADIUS_M",      "type": "Number", "shared": true, "default": "20" },
+        { "name": "LPS_PROTECTION_LEVEL", "type": "Text",   "shared": true, "default": "II" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": 0,    "y1": -0.5, "x2": 0,    "y2":  0.5 },
+          { "x1": -0.2, "y1":  0.5, "x2": 0.2,  "y2":  0.5 },
+          { "x1": -0.3, "y1":  0.3, "x2": 0.3,  "y2":  0.3 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": -0.5, "x2": 0, "y2": -0.8 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_LPS_DOWN_CONDUCTOR",
+      "name": "LPS Down Conductor",
+      "category": "LightningProtection",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "LPS",
+      "symbolSize": 4.0,
+      "description": "Down conductor routing symbol — BS EN 62305-3 §5.3",
+      "parameters": [
+        { "name": "CONDUCTOR_CSA_MM2", "type": "Number", "shared": true, "default": "50" },
+        { "name": "LPS_DC_NUMBER",     "type": "Text",   "shared": true, "default": "DC-01" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": 0,    "y1":  0.5, "x2": 0,   "y2": -0.5 },
+          { "x1": -0.2, "y1":  0.0, "x2": 0.2, "y2":  0.0 }
+        ],
+        "arcs": [
+          { "cx": 0, "cy": -0.3, "r": 0.15, "startDeg": 0, "endDeg": 360 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1":  0.5, "x2": 0, "y2":  0.75 },
+          { "x1": 0, "y1": -0.5, "x2": 0, "y2": -0.75 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_LPS_EARTH_ELECTRODE",
+      "name": "LPS Earth Electrode",
+      "category": "LightningProtection",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "LPS",
+      "symbolSize": 5.0,
+      "description": "Earth electrode / earth pit — BS EN 62305-3 §5.4 / NFPA 780",
+      "parameters": [
+        { "name": "ELECTRODE_RESISTANCE_OHM", "type": "Number", "shared": true, "default": "10" },
+        { "name": "ELECTRODE_DEPTH_M",        "type": "Number", "shared": true, "default": "2.4" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1":  0.0,  "y1":  0.5, "x2":  0.0,  "y2":  0.0 },
+          { "x1": -0.5,  "y1":  0.0, "x2":  0.5,  "y2":  0.0 },
+          { "x1": -0.35, "y1": -0.15, "x2": 0.35, "y2": -0.15 },
+          { "x1": -0.2,  "y1": -0.3, "x2":  0.2,  "y2": -0.3 }
+        ],
+        "connectionLines": [
+          { "x1": 0, "y1": 0.5, "x2": 0, "y2": 0.8 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_LPS_BONDING_BAR",
+      "name": "LPS Main Bonding Bar",
+      "category": "LightningProtection",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "LPS",
+      "symbolSize": 6.0,
+      "description": "Main equipotential bonding bar / MEB — BS EN 62305-3",
+      "parameters": [
+        { "name": "MEB_RATING_A", "type": "Number", "shared": true, "default": "100" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5,  "y1":  0.0,  "x2":  0.5,  "y2":  0.0 },
+          { "x1": -0.5,  "y1": -0.15, "x2":  0.5,  "y2": -0.15 },
+          { "x1": -0.3,  "y1":  0.0,  "x2": -0.3,  "y2": -0.4 },
+          { "x1":  0.0,  "y1":  0.0,  "x2":  0.0,  "y2": -0.4 },
+          { "x1":  0.3,  "y1":  0.0,  "x2":  0.3,  "y2": -0.4 }
+        ],
+        "connectionLines": [
+          { "x1": -0.3, "y1": -0.4, "x2": -0.3, "y2": -0.65 },
+          { "x1":  0.0, "y1": -0.4, "x2":  0.0, "y2": -0.65 },
+          { "x1":  0.3, "y1": -0.4, "x2":  0.3, "y2": -0.65 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_ATEX_ZONE_0",
+      "name": "ATEX Zone 0 Boundary",
+      "category": "ATEX",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "HazardousArea",
+      "symbolSize": 6.0,
+      "description": "Zone 0 — continuous presence of explosive atmosphere (IEC 60079-10-1 / DSEAR)",
+      "parameters": [
+        { "name": "ATEX_ZONE_REF",   "type": "Text", "shared": true },
+        { "name": "ATEX_GAS_GROUP",  "type": "Text", "shared": true, "default": "IIA" },
+        { "name": "ATEX_T_CLASS",    "type": "Text", "shared": true, "default": "T3" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5, "style": "Medium Lines" },
+          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5, "style": "Medium Lines" },
+          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5, "style": "Medium Lines" },
+          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5, "style": "Medium Lines" },
+          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5 },
+          { "x1": -0.5, "y1":  0.5, "x2":  0.5, "y2": -0.5 }
+        ],
+        "text": [ { "x": 0, "y": 0.65, "value": "Z0", "heightMm": 2.0 } ]
+      }
+    },
+    {
+      "id": "SLD_ATEX_ZONE_1",
+      "name": "ATEX Zone 1 Boundary",
+      "category": "ATEX",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "HazardousArea",
+      "symbolSize": 6.0,
+      "description": "Zone 1 — likely presence of explosive atmosphere (IEC 60079-10-1 / DSEAR)",
+      "parameters": [
+        { "name": "ATEX_ZONE_REF",  "type": "Text", "shared": true },
+        { "name": "ATEX_GAS_GROUP", "type": "Text", "shared": true, "default": "IIA" },
+        { "name": "ATEX_T_CLASS",   "type": "Text", "shared": true, "default": "T3" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5, "style": "Dash" },
+          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5, "style": "Dash" },
+          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5, "style": "Dash" },
+          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5, "style": "Dash" }
+        ],
+        "text": [ { "x": 0, "y": 0.65, "value": "Z1", "heightMm": 2.0 } ]
+      }
+    },
+    {
+      "id": "SLD_ATEX_ZONE_2",
+      "name": "ATEX Zone 2 Boundary",
+      "category": "ATEX",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "HazardousArea",
+      "symbolSize": 6.0,
+      "description": "Zone 2 — unlikely presence of explosive atmosphere (IEC 60079-10-1 / DSEAR)",
+      "parameters": [
+        { "name": "ATEX_ZONE_REF",  "type": "Text", "shared": true },
+        { "name": "ATEX_GAS_GROUP", "type": "Text", "shared": true, "default": "IIA" },
+        { "name": "ATEX_T_CLASS",   "type": "Text", "shared": true, "default": "T3" }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5, "style": "Dot" },
+          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5, "style": "Dot" },
+          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5, "style": "Dot" },
+          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5, "style": "Dot" }
+        ],
+        "text": [ { "x": 0, "y": 0.65, "value": "Z2", "heightMm": 2.0 } ]
+      }
+    },
+    {
+      "id": "SLD_ATEX_EX_D",
+      "name": "Ex d — Flameproof Enclosure",
+      "category": "ATEX",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "ATEXEquipment",
+      "symbolSize": 4.0,
+      "description": "Ex d flameproof enclosure protection concept — IEC 60079-1 / ATEX Directive",
+      "parameters": [
+        { "name": "ATEX_MARKING_TXT", "type": "Text", "shared": true, "default": "Ex d IIA T3 Gb" },
+        { "name": "ATEX_CERT_NO",     "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": -0.35, "x2":  0.4, "y2": -0.35, "style": "Wide Lines" },
+          { "x1":  0.4, "y1": -0.35, "x2":  0.4, "y2":  0.35, "style": "Wide Lines" },
+          { "x1":  0.4, "y1":  0.35, "x2": -0.4, "y2":  0.35, "style": "Wide Lines" },
+          { "x1": -0.4, "y1":  0.35, "x2": -0.4, "y2": -0.35, "style": "Wide Lines" }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "Ex d", "heightMm": 1.8 } ]
+      }
+    },
+    {
+      "id": "SLD_ATEX_EX_E",
+      "name": "Ex e — Increased Safety",
+      "category": "ATEX",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "ATEXEquipment",
+      "symbolSize": 4.0,
+      "description": "Ex e increased safety protection concept — IEC 60079-7 / ATEX Directive",
+      "parameters": [
+        { "name": "ATEX_MARKING_TXT", "type": "Text", "shared": true, "default": "Ex e IIA T3 Gc" },
+        { "name": "ATEX_CERT_NO",     "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "Ex e", "heightMm": 1.8 } ]
+      }
+    },
+    {
+      "id": "SLD_ATEX_EX_I",
+      "name": "Ex i — Intrinsic Safety",
+      "category": "ATEX",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "ATEXEquipment",
+      "symbolSize": 4.0,
+      "description": "Ex i intrinsic safety protection concept — IEC 60079-11 / ATEX Directive",
+      "parameters": [
+        { "name": "ATEX_MARKING_TXT", "type": "Text", "shared": true, "default": "Ex ia IIA T3 Ga" },
+        { "name": "ATEX_CERT_NO",     "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 }
+        ],
+        "lines": [
+          { "x1": -0.28, "y1": -0.28, "x2": 0.28, "y2": 0.28 }
+        ],
+        "text": [ { "x": 0, "y": -0.02, "value": "Ex i", "heightMm": 1.8 } ]
+      }
+    },
+    {
+      "id": "SLD_PHASE_SEQUENCE_ABC",
+      "name": "Phase Sequence ABC (Positive)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Notation",
+      "symbolSize": 4.0,
+      "description": "ABC (positive / clockwise) phase rotation notation — IEC 60034-8",
+      "parameters": [
+        { "name": "PHASE_SEQUENCE_TXT", "type": "Text", "shared": true, "default": "ABC" }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 30, "endDeg": 330 }
+        ],
+        "lines": [
+          { "x1": 0.35, "y1":  0.20, "x2": 0.45, "y2":  0.05 },
+          { "x1": 0.35, "y1":  0.20, "x2": 0.20, "y2":  0.30 }
+        ],
+        "text": [
+          { "x":  0.00, "y":  0.52, "value": "A", "heightMm": 1.6 },
+          { "x": -0.45, "y": -0.26, "value": "B", "heightMm": 1.6 },
+          { "x":  0.45, "y": -0.26, "value": "C", "heightMm": 1.6 }
+        ]
+      }
+    },
+    {
+      "id": "SLD_PHASE_SEQUENCE_ACB",
+      "name": "Phase Sequence ACB (Negative)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Notation",
+      "symbolSize": 4.0,
+      "description": "ACB (negative / counter-clockwise) phase rotation notation — IEC 60034-8",
+      "parameters": [
+        { "name": "PHASE_SEQUENCE_TXT", "type": "Text", "shared": true, "default": "ACB" }
+      ],
+      "geometry": {
+        "arcs": [
+          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 330, "endDeg": 30 }
+        ],
+        "lines": [
+          { "x1": 0.35, "y1": -0.20, "x2": 0.45, "y2": -0.05 },
+          { "x1": 0.35, "y1": -0.20, "x2": 0.20, "y2": -0.30 }
+        ],
+        "text": [
+          { "x":  0.00, "y":  0.52, "value": "A", "heightMm": 1.6 },
+          { "x":  0.45, "y": -0.26, "value": "C", "heightMm": 1.6 },
+          { "x": -0.45, "y": -0.26, "value": "B", "heightMm": 1.6 }
+        ]
+      }
     }
   ]
 }

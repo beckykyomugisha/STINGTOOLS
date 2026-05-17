@@ -558,6 +558,217 @@
         "text": [ { "x": 0, "y": 0, "value": "H", "heightMm": 1.8 } ]
       },
       "solid3D": { "type": "Cylinder", "diameterMm": 100, "heightMm": 40 }
+    },
+    {
+      "id": "ELEC_MG_O2_OUTLET",
+      "name": "Medical Oxygen Outlet (O2)",
+      "category": "MedicalGas",
+      "familyType": "MEPEquipment",
+      "discipline": "MedicalGas",
+      "subcategory": "MedGasOutlet",
+      "symbolSize": 4.0,
+      "description": "Oxygen (O2) medical pipeline outlet — BS HTM 02-01 / NFPA 99 §5.1",
+      "parameters": [
+        { "name": "GAS_TYPE_TXT",           "type": "Text",   "shared": true, "default": "O2"  },
+        { "name": "FLOW_RATE_L_MIN",        "type": "Number", "shared": true, "default": 10    },
+        { "name": "WORKING_PRESSURE_KPA",   "type": "Number", "shared": true, "default": 400   },
+        { "name": "OUTLET_TYPE_TXT",        "type": "Text",   "shared": true, "default": "Schraeder" },
+        { "name": "MG_ZONE_TXT",            "type": "Text",   "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": -0.3, "x2":  0.4, "y2": -0.3 },
+          { "x1":  0.4, "y1": -0.3, "x2":  0.4, "y2":  0.3 },
+          { "x1":  0.4, "y1":  0.3, "x2": -0.4, "y2":  0.3 },
+          { "x1": -0.4, "y1":  0.3, "x2": -0.4, "y2": -0.3 }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "O2", "heightMm": 1.8 } ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 85, "depthMm": 35, "heightMm": 85 }
+    },
+    {
+      "id": "ELEC_MG_N2O_OUTLET",
+      "name": "Nitrous Oxide Outlet (N2O)",
+      "category": "MedicalGas",
+      "familyType": "MEPEquipment",
+      "discipline": "MedicalGas",
+      "subcategory": "MedGasOutlet",
+      "symbolSize": 4.0,
+      "description": "Nitrous oxide (N2O) medical pipeline outlet — BS HTM 02-01 / NFPA 99",
+      "parameters": [
+        { "name": "GAS_TYPE_TXT",           "type": "Text",   "shared": true, "default": "N2O" },
+        { "name": "FLOW_RATE_L_MIN",        "type": "Number", "shared": true, "default": 10    },
+        { "name": "WORKING_PRESSURE_KPA",   "type": "Number", "shared": true, "default": 400   },
+        { "name": "OUTLET_TYPE_TXT",        "type": "Text",   "shared": true, "default": "Schraeder" },
+        { "name": "MG_ZONE_TXT",            "type": "Text",   "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": -0.3, "x2":  0.4, "y2": -0.3 },
+          { "x1":  0.4, "y1": -0.3, "x2":  0.4, "y2":  0.3 },
+          { "x1":  0.4, "y1":  0.3, "x2": -0.4, "y2":  0.3 },
+          { "x1": -0.4, "y1":  0.3, "x2": -0.4, "y2": -0.3 }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "N2O", "heightMm": 1.6 } ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 85, "depthMm": 35, "heightMm": 85 }
+    },
+    {
+      "id": "ELEC_MG_CO2_OUTLET",
+      "name": "Carbon Dioxide Outlet (CO2)",
+      "category": "MedicalGas",
+      "familyType": "MEPEquipment",
+      "discipline": "MedicalGas",
+      "subcategory": "MedGasOutlet",
+      "symbolSize": 4.0,
+      "description": "Carbon dioxide (CO2) medical pipeline outlet — BS HTM 02-01",
+      "parameters": [
+        { "name": "GAS_TYPE_TXT",           "type": "Text",   "shared": true, "default": "CO2" },
+        { "name": "FLOW_RATE_L_MIN",        "type": "Number", "shared": true, "default": 5     },
+        { "name": "WORKING_PRESSURE_KPA",   "type": "Number", "shared": true, "default": 400   },
+        { "name": "OUTLET_TYPE_TXT",        "type": "Text",   "shared": true, "default": "Schraeder" },
+        { "name": "MG_ZONE_TXT",            "type": "Text",   "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": -0.3, "x2":  0.4, "y2": -0.3 },
+          { "x1":  0.4, "y1": -0.3, "x2":  0.4, "y2":  0.3 },
+          { "x1":  0.4, "y1":  0.3, "x2": -0.4, "y2":  0.3 },
+          { "x1": -0.4, "y1":  0.3, "x2": -0.4, "y2": -0.3 }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "CO2", "heightMm": 1.6 } ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 85, "depthMm": 35, "heightMm": 85 }
+    },
+    {
+      "id": "ELEC_MG_AIR_OUTLET",
+      "name": "Medical Air Outlet",
+      "category": "MedicalGas",
+      "familyType": "MEPEquipment",
+      "discipline": "MedicalGas",
+      "subcategory": "MedGasOutlet",
+      "symbolSize": 4.0,
+      "description": "Medical compressed air outlet (400 kPa / 7 bar variants) — BS HTM 02-01 / NFPA 99 §5.1.3",
+      "parameters": [
+        { "name": "GAS_TYPE_TXT",           "type": "Text",   "shared": true, "default": "AIR" },
+        { "name": "FLOW_RATE_L_MIN",        "type": "Number", "shared": true, "default": 40    },
+        { "name": "WORKING_PRESSURE_KPA",   "type": "Number", "shared": true, "default": 400   },
+        { "name": "OUTLET_TYPE_TXT",        "type": "Text",   "shared": true, "default": "Schraeder" },
+        { "name": "MG_ZONE_TXT",            "type": "Text",   "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": -0.3, "x2":  0.4, "y2": -0.3 },
+          { "x1":  0.4, "y1": -0.3, "x2":  0.4, "y2":  0.3 },
+          { "x1":  0.4, "y1":  0.3, "x2": -0.4, "y2":  0.3 },
+          { "x1": -0.4, "y1":  0.3, "x2": -0.4, "y2": -0.3 }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "AIR", "heightMm": 1.6 } ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 85, "depthMm": 35, "heightMm": 85 }
+    },
+    {
+      "id": "ELEC_MG_VAC_OUTLET",
+      "name": "Medical Vacuum Outlet",
+      "category": "MedicalGas",
+      "familyType": "MEPEquipment",
+      "discipline": "MedicalGas",
+      "subcategory": "MedGasOutlet",
+      "symbolSize": 4.0,
+      "description": "Medical vacuum (MEDIVAC) pipeline outlet — BS HTM 02-01 / NFPA 99 §5.1.5",
+      "parameters": [
+        { "name": "GAS_TYPE_TXT",           "type": "Text",   "shared": true, "default": "VAC" },
+        { "name": "FLOW_RATE_L_MIN",        "type": "Number", "shared": true, "default": 40    },
+        { "name": "WORKING_PRESSURE_KPA",   "type": "Number", "shared": true, "default": -80   },
+        { "name": "OUTLET_TYPE_TXT",        "type": "Text",   "shared": true, "default": "Schraeder" },
+        { "name": "MG_ZONE_TXT",            "type": "Text",   "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": -0.3, "x2":  0.4, "y2": -0.3 },
+          { "x1":  0.4, "y1": -0.3, "x2":  0.4, "y2":  0.3 },
+          { "x1":  0.4, "y1":  0.3, "x2": -0.4, "y2":  0.3 },
+          { "x1": -0.4, "y1":  0.3, "x2": -0.4, "y2": -0.3 }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "VAC", "heightMm": 1.6 } ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 85, "depthMm": 35, "heightMm": 85 }
+    },
+    {
+      "id": "ELEC_MG_AGSS_OUTLET",
+      "name": "AGSS Outlet (Anaesthetic Gas Scavenging)",
+      "category": "MedicalGas",
+      "familyType": "MEPEquipment",
+      "discipline": "MedicalGas",
+      "subcategory": "MedGasOutlet",
+      "symbolSize": 4.0,
+      "description": "Anaesthetic Gas Scavenging System (AGSS) outlet — BS HTM 02-01 §4.4 / ISO 7396-2",
+      "parameters": [
+        { "name": "GAS_TYPE_TXT",           "type": "Text",   "shared": true, "default": "AGSS" },
+        { "name": "FLOW_RATE_L_MIN",        "type": "Number", "shared": true, "default": 50     },
+        { "name": "WORKING_PRESSURE_KPA",   "type": "Number", "shared": true, "default": -25    },
+        { "name": "OUTLET_TYPE_TXT",        "type": "Text",   "shared": true, "default": "AGSS-30mm" },
+        { "name": "MG_ZONE_TXT",            "type": "Text",   "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": -0.3, "x2":  0.4, "y2": -0.3 },
+          { "x1":  0.4, "y1": -0.3, "x2":  0.4, "y2":  0.3 },
+          { "x1":  0.4, "y1":  0.3, "x2": -0.4, "y2":  0.3 },
+          { "x1": -0.4, "y1":  0.3, "x2": -0.4, "y2": -0.3 }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "AGS", "heightMm": 1.5 } ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 85, "depthMm": 35, "heightMm": 85 }
+    },
+    {
+      "id": "ELEC_ATEX_ZONE_BOUNDARY",
+      "name": "ATEX Zone Boundary (Floor Plan)",
+      "category": "ATEX",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "ATEXZone",
+      "symbolSize": 6.0,
+      "description": "Hazardous area zone boundary line marker for electrical floor plan drawings — IEC 60079-10-1 / ATEX Directive 2014/34/EU",
+      "parameters": [
+        { "name": "ATEX_ZONE_CLASS",  "type": "Text", "shared": true, "default": "Zone 1" },
+        { "name": "ATEX_GAS_GROUP",   "type": "Text", "shared": true, "default": "IIA"    },
+        { "name": "ATEX_T_CLASS",     "type": "Text", "shared": true, "default": "T3"     },
+        { "name": "ATEX_AREA_REF",    "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.6, "y1":  0.0, "x2":  0.6, "y2":  0.0, "style": "STING Dashed Long" },
+          { "x1": -0.6, "y1":  0.08, "x2":  0.6, "y2":  0.08 }
+        ],
+        "text": [ { "x": 0, "y": 0.2, "value": "EX", "heightMm": 1.8 } ]
+      }
+    },
+    {
+      "id": "ELEC_ATEX_EQUIPMENT_EXD",
+      "name": "ATEX Ex d Equipment Marker (Floor Plan)",
+      "category": "ATEX",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "ATEXEquipment",
+      "symbolSize": 4.0,
+      "description": "Flameproof (Ex d) equipment marker for use on electrical floor plan drawings — IEC 60079-1",
+      "parameters": [
+        { "name": "ATEX_MARKING_TXT", "type": "Text", "shared": true, "default": "Ex d IIA T3 Gb" },
+        { "name": "ATEX_CERT_NO",     "type": "Text", "shared": true },
+        { "name": "EQUIPMENT_REF",    "type": "Text", "shared": true }
+      ],
+      "geometry": {
+        "lines": [
+          { "x1": -0.4, "y1": -0.3, "x2":  0.4, "y2": -0.3 },
+          { "x1":  0.4, "y1": -0.3, "x2":  0.4, "y2":  0.3 },
+          { "x1":  0.4, "y1":  0.3, "x2": -0.4, "y2":  0.3 },
+          { "x1": -0.4, "y1":  0.3, "x2": -0.4, "y2": -0.3 },
+          { "x1": -0.4, "y1": -0.3, "x2":  0.4, "y2":  0.3 }
+        ],
+        "text": [ { "x": 0, "y": 0, "value": "Ex d", "heightMm": 1.6 } ]
+      },
+      "solid3D": { "type": "Box", "widthMm": 85, "depthMm": 85, "heightMm": 85 }
     }
   ]
 }

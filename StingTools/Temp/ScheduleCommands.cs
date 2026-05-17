@@ -597,8 +597,7 @@ namespace StingTools.Temp
             ["ASS_LVL_COD_TXT"] = new[] { "Level" },
             ["ASS_ZONE_TXT"] = new[] { "Level" },
             ["ASS_DEPARTMENT_ASSIGNMENT_TXT"] = new[] { "Department" },
-            ["BLE_ROOM_NUM_TXT"] = new[] { "Number", "Room Number" },
-            ["ASS_RM_COD_TXT"] = new[] { "Number", "Room Number" },
+            ["ASS_ROOM_NUM_TXT"] = new[] { "Number", "Room Number" },
             // System / discipline
             ["ASS_SYSTEM_TYPE_TXT"] = new[] { "System Type", "System Name", "System Classification" },
             ["ASS_DISCIPLINE_COD_TXT"] = new[] { "Family and Type", "Family" },

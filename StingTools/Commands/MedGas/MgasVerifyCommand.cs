@@ -25,7 +25,7 @@ namespace StingTools.Commands.MedGas
                 var rec = new MgasVerificationRecord
                 {
                     DateUtc = DateTime.UtcNow,
-                    ProjectCode = doc.ProjectInformation?.LookupParameter("PRJ_ORG_PROJECT_CODE_TXT")?.AsString() ?? "",
+                    ProjectCode = doc.ProjectInformation?.LookupParameter("PRJ_PROJECT_COD_TXT")?.AsString() ?? "",
                     Zone = "ALL",
                     GasCode = "ALL",
                     VerifierName = Environment.UserName

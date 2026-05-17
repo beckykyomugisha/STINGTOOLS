@@ -28,7 +28,11 @@ namespace StingTools.Commands.Symbols
     {
         public static readonly (string File, string Folder, string Label)[] AllBatches = new[]
         {
-            ("STING_SLD_SYMBOLS.json",       "SLD",        "Single Line Diagram"),
+            ("STING_SLD_SYMBOLS.json",       "SLD/IEC",    "Single Line Diagram (IEC 60617)"),
+            ("STING_SLD_SYMBOLS_IEEE.json",  "SLD/IEEE",   "Single Line Diagram (IEEE 315)"),
+            ("STING_SLD_SYMBOLS_BS.json",    "SLD/BS",     "Single Line Diagram (BS EN 60617)"),
+            ("STING_SLD_SYMBOLS_NFPA.json",  "SLD/NFPA",   "Single Line Diagram (NFPA 70)"),
+            ("STING_SLD_SYMBOLS_CIBSE.json", "SLD/CIBSE",  "Building Services (CIBSE)"),
             ("STING_LIGHTING_SYMBOLS.json",  "Lighting",   "Lighting"),
             ("STING_FP_SYMBOLS.json",        "FireProt",   "Fire Protection"),
             ("STING_MEP_SYMBOLS.json",       "HVAC",       "HVAC / Mechanical"),
@@ -141,8 +145,64 @@ namespace StingTools.Commands.Symbols
         {
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { TaskDialog.Show("STING - Symbols", "No document open."); return Result.Failed; }
-            var r = SymbolBatchHelper.RunBatch(ctx.Doc, "STING_SLD_SYMBOLS.json", "SLD");
+            var r = SymbolBatchHelper.RunBatch(ctx.Doc, "STING_SLD_SYMBOLS.json", "SLD/IEC");
             TaskDialog.Show("STING - SLD Symbols", SymbolBatchHelper.FormatReport("SLD Symbols (IEC 60617)", r));
+            return Result.Succeeded;
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateSLDSymbolsIEEECommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { TaskDialog.Show("STING - Symbols", "No document open."); return Result.Failed; }
+            var r = SymbolBatchHelper.RunBatch(ctx.Doc, "STING_SLD_SYMBOLS_IEEE.json", "SLD/IEEE");
+            TaskDialog.Show("STING - SLD Symbols (IEEE)", SymbolBatchHelper.FormatReport("SLD Symbols (IEEE 315)", r));
+            return Result.Succeeded;
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateSLDSymbolsBSCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { TaskDialog.Show("STING - Symbols", "No document open."); return Result.Failed; }
+            var r = SymbolBatchHelper.RunBatch(ctx.Doc, "STING_SLD_SYMBOLS_BS.json", "SLD/BS");
+            TaskDialog.Show("STING - SLD Symbols (BS)", SymbolBatchHelper.FormatReport("SLD Symbols (BS EN 60617)", r));
+            return Result.Succeeded;
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateSLDSymbolsNFPACommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { TaskDialog.Show("STING - Symbols", "No document open."); return Result.Failed; }
+            var r = SymbolBatchHelper.RunBatch(ctx.Doc, "STING_SLD_SYMBOLS_NFPA.json", "SLD/NFPA");
+            TaskDialog.Show("STING - SLD Symbols (NFPA)", SymbolBatchHelper.FormatReport("SLD Symbols (NFPA 70)", r));
+            return Result.Succeeded;
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateCIBSESymbolsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { TaskDialog.Show("STING - Symbols", "No document open."); return Result.Failed; }
+            var r = SymbolBatchHelper.RunBatch(ctx.Doc, "STING_SLD_SYMBOLS_CIBSE.json", "SLD/CIBSE");
+            TaskDialog.Show("STING - CIBSE Symbols", SymbolBatchHelper.FormatReport("Building Services (CIBSE)", r));
             return Result.Succeeded;
         }
     }
@@ -258,6 +318,66 @@ namespace StingTools.Commands.Symbols
                 overwriteParameterValues = true;
                 return true;
             }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Fix 7 — Compound symbol command (tag: Symbols_CreateCompound)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Fix 7 — Creates compound annotation families from concept definitions
+    /// that declare compoundComponents or compoundRungs. Each compound is
+    /// assembled from the component .rfa files already created by the symbol
+    /// library build (CreateSymbolLibraryCommand or a batch command), nested
+    /// inside a new GenericAnnotation family document, and saved as
+    /// {conceptId}_compound.rfa in the same output folder.
+    ///
+    /// The command tag is "Symbols_CreateCompound". Wiring into
+    /// WorkflowEngine.ResolveCommand and StingElectricalCommandHandler is
+    /// handled by the main session after both agents complete.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateCompoundSymbolsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { TaskDialog.Show("STING - Compound Symbols", "No document open."); return Result.Failed; }
+
+            string conceptsPath = StingToolsApp.FindDataFile("Symbols/STING_SYMBOL_CONCEPTS.json")
+                ?? StingToolsApp.FindDataFile("STING_SYMBOL_CONCEPTS.json");
+            if (string.IsNullOrEmpty(conceptsPath) || !File.Exists(conceptsPath))
+            {
+                TaskDialog.Show("STING - Compound Symbols",
+                    "STING_SYMBOL_CONCEPTS.json not found in data directory.\n" +
+                    "Ensure the data files are correctly deployed alongside StingTools.dll.");
+                return Result.Failed;
+            }
+
+            // Output folder mirrors the primary symbol library output so component
+            // .rfa files are found by the compound builder without extra configuration.
+            string outRoot   = SymbolBatchHelper.ResolveOutputRoot(ctx.Doc);
+            string outFolder = Path.Combine(outRoot, "SLD");  // Compound SLD symbols live in SLD sub-folder.
+            Directory.CreateDirectory(outFolder);
+
+            SymbolCreationResult r;
+            try
+            {
+                r = SymbolLibraryCreator.CreateCompoundSymbols(
+                    ctx.Doc, conceptsPath, outFolder, loadIntoProject: true);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CreateCompoundSymbolsCommand", ex);
+                msg = ex.Message;
+                return Result.Failed;
+            }
+
+            TaskDialog.Show("STING - Compound Symbols",
+                SymbolBatchHelper.FormatReport("Compound Symbols", r));
+            return Result.Succeeded;
         }
     }
 

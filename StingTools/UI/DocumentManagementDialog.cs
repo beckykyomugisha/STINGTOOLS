@@ -93,28 +93,33 @@ namespace StingTools.UI
 
     internal static class DocumentManagementDialog
     {
-        // ── Theme (frozen for thread safety) ─────────────────────────
+        // ── Theme (routed through ThemeManager so DMD tracks the active palette) ─
+        // Theme-driven brushes resolve live from the active theme on each
+        // access; theme-agnostic tints stay as frozen static fields. The
+        // dialog re-reads these per Show(), so cycling the theme via the
+        // dock-panel toggle propagates here on the next open.
         private static SolidColorBrush FZ(byte r, byte g, byte b) { var br = new SolidColorBrush(Color.FromRgb(r, g, b)); br.Freeze(); return br; }
-        private static readonly SolidColorBrush BrHeader  = FZ(0x1A, 0x23, 0x7E);
-        private static readonly SolidColorBrush BrAccent  = FZ(0xE8, 0x91, 0x2D);
-        private static readonly SolidColorBrush BrBg      = FZ(0xF5, 0xF5, 0xF5);
-        private static readonly SolidColorBrush BrWhite   = Brushes.White;
-        private static readonly SolidColorBrush BrFgDark  = FZ(0x22, 0x22, 0x22);
-        private static readonly SolidColorBrush BrFgSub   = FZ(0x88, 0x88, 0x88);
-        private static readonly SolidColorBrush BrBorder  = FZ(0xD0, 0xD0, 0xD0);
-        private static readonly SolidColorBrush BrGreen   = FZ(0x2E, 0x7D, 0x32);
-        private static readonly SolidColorBrush BrOrange  = FZ(0xE6, 0x51, 0x00);
-        private static readonly SolidColorBrush BrRed     = FZ(0xC6, 0x28, 0x28);
+        private static SolidColorBrush BrHeader  => ThemeManager.GetBrush("NavyHeader");
+        private static SolidColorBrush BrAccent  => ThemeManager.GetBrush("OrangeAccent");
+        private static SolidColorBrush BrBg      => ThemeManager.GetBrush("PrimaryBg");
+        private static SolidColorBrush BrWhite   => ThemeManager.GetBrush("CardBg");
+        private static SolidColorBrush BrFgDark  => ThemeManager.GetBrush("PanelFg");
+        private static SolidColorBrush BrFgSub   => ThemeManager.GetBrush("SubtleFg");
+        private static SolidColorBrush BrBorder  => ThemeManager.GetBrush("BorderColor");
+        private static SolidColorBrush BrGreen   => ThemeManager.GetBrush("SuccessColor");
+        private static SolidColorBrush BrOrange  => ThemeManager.GetBrush("WarningColor");
+        private static SolidColorBrush BrRed     => ThemeManager.GetBrush("ErrorColor");
+        private static SolidColorBrush BrRowAlt  => ThemeManager.GetBrush("AltRowBg");
+        // Theme-agnostic accent palette — semantic tints used as decoration
         private static readonly SolidColorBrush BrPurple  = FZ(0x6A, 0x1B, 0x9A);
         private static readonly SolidColorBrush BrTeal    = FZ(0x00, 0x69, 0x5C);
         private static readonly SolidColorBrush BrAmber     = FZ(0xFF, 0x8F, 0x00);
-        private static readonly SolidColorBrush BrHeaderSub  = FZ(0xBB, 0xDE, 0xFB); // DMD-MEDIUM-01: frozen header subtitle brush
+        private static readonly SolidColorBrush BrHeaderSub  = FZ(0xBB, 0xDE, 0xFB);
         private static readonly SolidColorBrush BrLightGreen = FZ(0xE8, 0xF5, 0xE9);
         private static readonly SolidColorBrush BrLightGrey  = FZ(0xF0, 0xF0, 0xF0);
         private static readonly SolidColorBrush BrNearWhite  = FZ(0xF8, 0xF8, 0xF8);
         private static readonly SolidColorBrush BrBlueGrey   = FZ(0xF0, 0xF4, 0xF8);
         private static readonly SolidColorBrush BrLegendHdr  = FZ(0xE8, 0xEE, 0xF5);
-        private static readonly SolidColorBrush BrRowAlt     = FZ(0xF8, 0xF8, 0xFA);
         private static readonly SolidColorBrush BrRowRed     = FZ(0xFF, 0xEB, 0xEE);
         private static readonly SolidColorBrush BrRowAmber   = FZ(0xFF, 0xF3, 0xE0);
         private static readonly SolidColorBrush BrLightE8    = FZ(0xE8, 0xE8, 0xE8);
