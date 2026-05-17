@@ -442,6 +442,7 @@ namespace StingTools.Tags
             return (scale * 2.0) / (304.8);
         }
 
+
         /// <summary>Get element center point in view coordinates.</summary>
         public static XYZ GetElementCenter(Element elem, View view)
         {

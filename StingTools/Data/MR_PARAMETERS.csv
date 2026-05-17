@@ -1,4 +1,4 @@
-# v5.9 | 20260506 | BIM Template mr_parameters — 2587 params (+4 ELC_CIRCUIT_*: REF / RATING / POLES / LABEL — Phase 175 SLD symbol-annotation engine inputs)
+# v5.9 | 20260517 | BIM Template mr_parameters — 2615 params (+28: healthcare tag containers CLN/MGS/RAD/CEQ/LIG, STING_DRAWING params, ASS tie-in/trace, MEP system codes, cable tray dims, TAG cluster/hint — Phase 179 alignment)
 Revit_Category,Parameter_Name,Parameter_GUID,Data_Type,Group_Name,Binding_Type,Description,Has_Formula,Formula,Input_Parameters,Discipline,User_Modifiable,Hide_When_No_Value
 Generic Models,ASS_CAT_TXT,f8fe813a-44e9-5e47-9109-921171dc53b6,TEXT,ASS_MNG,Type,Ass Cat Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_CST_QUANTITY_NR,3c189e63-383c-5011-b7d9-873faed4e6c6,TEXT,ASS_MNG,Type,Ass Cst Quantity Nr [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -2844,3 +2844,31 @@ Generic Models,PLM_POU_FILTER_BOOL,59bd061b-2641-55e1-8e05-21f1f5dfd56b,YESNO,PL
 Generic Models,PLM_SENTINEL_BOOL,56f58de8-d502-585d-9f3b-57f169c6c7a2,YESNO,PLM_DRN,Type,TMV sentinel monitoring point [Phase 178b],False,,,PLUMBING,1,0
 Generic Models,PLM_PRJ_PLUMBING_CODE_TXT,98ab6e19-8d12-53c0-b388-8705f9413373,TEXT,ASS_MNG,Type,Project plumbing-code toggle BS-UK / IPC-US / UPC-US [Phase 178b],False,,,MULTI,1,0
 Generic Models,ELC_CDT_PENETRATION_COUNT_NR,c3d5b6ee-0f2e-7283-9405-162718304a5b,TEXT,ELC_PWR,Instance,"Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).",False,,,MULTI,1,0
+Generic Models,ASS_ITEM_CODE_TXT,d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a,TEXT,ASS_MNG,Instance,Procurement item code for asset ordering,False,,,MULTI,1,0
+Generic Models,ASS_SYSTEMS_TXT,e3f4a5b6-c7d8-4e9f-a0b1-2c3d4e5f6a7b,TEXT,ASS_MNG,Instance,Pipe/duct systems this element connects to (pipe-delimited),False,,,MULTI,1,0
+Generic Models,ASS_TERM_CAPPED_BOOL,f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c,YESNO,ASS_MNG,Instance,Terminal point is capped (stub-end or blanked off),False,,,MULTI,1,0
+Generic Models,ASS_TERM_REASON_TXT,a5b6c7d8-e9f0-4a1b-c2d3-4e5f6a7b8c9d,TEXT,ASS_MNG,Instance,Reason terminal is capped: FUTURE / DECOMMISSIONED / DESIGN-RESERVE,False,,,MULTI,1,0
+Generic Models,ASS_TRACE_SEQ_NR,b6c7d8e9-f0a1-4b2c-d3e4-5f6a7b8c9d0e,INTEGER,ASS_MNG,Instance,Sequential trace number for multi-element commissioning sequences,False,,,MULTI,1,0
+Mechanical Equipment,MEC_SYS_TXT,b8c9d0e1-f2a3-4b4c-d5e6-f7a8b9c0d1e2,TEXT,HVC_SYSTEMS,Instance,Mechanical system code,False,,,MECHANICAL,1,0
+Ducts,HVC_DCT_INSULATION_THK_MM,c9e0f1a2-b3c4-4d5e-f6a7-b8c9d0e1f2a3,NUMBER,HVC_SYSTEMS,Instance,Duct insulation thickness mm,False,,,MECHANICAL,1,0
+Plumbing Fixtures,PLM_SYS_TXT,c9d0e1f2-a3b4-4c5d-e6f7-a8b9c0d1e2f3,TEXT,PLM_DRN,Instance,Plumbing system code,False,,,PIPING,1,0
+Cable Trays,BLE_CBL_TRAY_WIDTH_MM,a3c1d2e4-5f67-4b89-9a0b-1c2d3e4f5a6b,NUMBER,BLE_ELES,Instance,Cable tray internal width mm,False,,,ELECTRICAL,1,0
+Cable Trays,BLE_CBL_TRAY_DEPTH_MM,b4d2e3f5-6a78-5c9a-ab1c-2d3e4f5a6b7c,NUMBER,BLE_ELES,Instance,Cable tray internal depth mm,False,,,ELECTRICAL,1,0
+Generic Models,TAG_CLUSTER_KEY_TXT,b6c7d8e9-f0a1-4b2c-d3e4-f5a6b7c8d9e0,TEXT,STINGTags_ISO19650,Instance,Cluster group key for tag clustering,False,,,MULTI,1,0
+Generic Models,TAG_FAMILY_HINT_TXT,c7d8e9f0-a1b2-4c3d-e4f5-a6b7c8d9e0f1,TEXT,STINGTags_ISO19650,Instance,Tag family name hint for placement,False,,,MULTI,1,0
+Views,STING_DRAWING_TYPE_ID_TXT,c1d2e3f4-a5b6-4c7d-8e9f-a0b1c2d3e4f5,TEXT,STING_DRAWING,Instance,DrawingType registry id stamped on views/sheets [Phase 113],False,,,MULTI,1,0
+Views,STING_STYLE_LOCKED_BOOL,d2e3f4a5-b6c7-4d8e-9f0a-b1c2d3e4f5a6,YESNO,STING_DRAWING,Instance,Style-locked flag: prevents SyncStyles from overwriting [Phase 113],False,,,MULTI,1,0
+Views,STING_PACK_ID_TXT,e3f4a5b6-c7d8-4e9f-a0b1-c2d3e4f5a6b7,TEXT,STING_DRAWING,Instance,ViewStylePack registry id stamped on managed view templates [Phase 137],False,,,MULTI,1,0
+Views,STING_PACK_CHECKSUM_TXT,f4a5b6c7-d8e9-4f0a-b1c2-d3e4f5a6b7c8,TEXT,STING_DRAWING,Instance,SHA-256 checksum of ViewStylePack JSON for drift detection [Phase 137],False,,,MULTI,1,0
+Views,STING_CDE_STATE_TXT,a5b6c7d8-e9f0-4a1b-c2d3-e4f5a6b7c8d9,TEXT,STING_DRAWING,Instance,CDE state stamp for ISO 19650-2 document lifecycle [Phase 141],False,,,MULTI,1,0
+Medical Equipment,CLN_EQP_TAG,c1a00001-0000-4c1a-0000-000000000001,TEXT,CLN_CLINICAL,Instance,Clinical equipment ISO 19650 tag container,False,,,MULTI,1,0
+Rooms,CLN_ROOM_TAG,c1a00001-0000-4c1a-0000-000000000002,TEXT,CLN_CLINICAL,Instance,Clinical room ISO 19650 tag container,False,,,MULTI,1,0
+Medical Equipment,CLN_TAG_7_PARA_TXT,c1a00001-0000-4c1a-0000-000000000003,TEXT,CLN_CLINICAL,Instance,Clinical TAG7 rich narrative paragraph container,False,,,MULTI,1,0
+Mechanical Equipment,MGS_EQP_TAG,4d677001-0000-4d67-0000-000000000001,TEXT,MGS_SYSTEMS,Instance,Medical gas equipment ISO 19650 tag container,False,,,MULTI,1,0
+Mechanical Equipment,MGS_TAG_7_PARA_TXT,4d677001-0000-4d67-0000-000000000002,TEXT,MGS_SYSTEMS,Instance,Medical gas TAG7 rich narrative paragraph container,False,,,MULTI,1,0
+Generic Models,RAD_EQP_TAG,12ad0001-0000-12ad-0000-000000000001,TEXT,RAD_PROTECTION,Instance,Radiation protection ISO 19650 tag container,False,,,MULTI,1,0
+Generic Models,RAD_TAG_7_PARA_TXT,12ad0001-0000-12ad-0000-000000000002,TEXT,RAD_PROTECTION,Instance,Radiation protection TAG7 rich narrative paragraph container,False,,,MULTI,1,0
+Medical Equipment,CEQ_EQP_TAG,c724bdf9-9a08-53f9-92f3-a6b33470fc1e,TEXT,CEQ_CLINICAL,Instance,Clinical specialist equipment ISO 19650 tag container,False,,,MULTI,1,0
+Medical Equipment,CEQ_TAG_7_PARA_TXT,d3e4cf7f-2e40-5d11-aefd-662ceb933060,TEXT,CEQ_CLINICAL,Instance,Clinical specialist equipment TAG7 rich narrative paragraph container,False,,,MULTI,1,0
+Doors,LIG_FIT_TAG,11900001-0000-1190-0000-000000000001,TEXT,LIG_BEHAVIOURAL,Instance,Anti-ligature fitting ISO 19650 tag container,False,,,MULTI,1,0
+Doors,LIG_TAG_7_PARA_TXT,11900001-0000-1190-0000-000000000002,TEXT,LIG_BEHAVIOURAL,Instance,Anti-ligature TAG7 rich narrative paragraph container,False,,,MULTI,1,0

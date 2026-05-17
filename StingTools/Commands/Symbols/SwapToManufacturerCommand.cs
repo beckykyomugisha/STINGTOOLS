@@ -33,6 +33,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.Tags;
 using StingTools.UI;
 using StingTools.Core.Validation;
 using StingTools.Core.Validation.Healthcare;
@@ -82,6 +83,9 @@ namespace StingTools.Commands.Symbols
         public string Category { get; set; }
         public List<ElementId> InstanceIds { get; } = new List<ElementId>();
         public List<SwapCandidate> Candidates { get; } = new List<SwapCandidate>();
+        /// <summary>True when at least one instance in this plan was successfully
+        /// swapped via <c>Element.ChangeTypeId</c> during the swap transaction.</summary>
+        public bool WasSwapped { get; set; }
     }
 
     [Transaction(TransactionMode.Manual)]
@@ -201,6 +205,7 @@ namespace StingTools.Commands.Symbols
                                 }
                                 swapped++;
                                 swappedIds.Add(id);
+                                p.WasSwapped = true;
                             }
                             catch (Exception ex)
                             {
@@ -243,6 +248,20 @@ namespace StingTools.Commands.Symbols
                 tg.Assimilate();
             }
 
+            // Option A — auto-author STING symbol curves into every
+            // manufacturer family that was the winning swap target.
+            // Runs outside the swap TransactionGroup so symbol authoring
+            // failures never roll back successfully-swapped instances.
+            // Each family is opened via EditFamily, InjectAutomationPresentationPack
+            // + AuthorSymbols are run inside their own transaction, then
+            // the family is reloaded into the project.
+            int symbolsAuthored = 0;
+            if (swapped > 0)
+            {
+                try { symbolsAuthored = AutoAuthorSwappedFamilies(doc, plans); }
+                catch (Exception ex) { StingLog.Warn($"AutoAuthorSwappedFamilies: {ex.Message}"); }
+            }
+
             try { ActionAuditLog.Record("Family_Swap",
                 $"swapped={swapped} skipped={skipped} errors={errors} rejoined={rejoined}"); }
             catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
@@ -265,7 +284,7 @@ namespace StingTools.Commands.Symbols
                 catch (Exception ex2) { StingLog.Warn($"Post-swap revalidation: {ex2.Message}"); }
             }
 
-            ShowResult(plans, swapped, skipped, errors, rejoined, revalidationFindings, revalidate);
+            ShowResult(plans, swapped, skipped, errors, rejoined, revalidationFindings, revalidate, symbolsAuthored);
             return Result.Succeeded;
         }
 
@@ -629,6 +648,112 @@ namespace StingTools.Commands.Symbols
             return rejoined;
         }
 
+        // ── Option A — auto symbol authoring ────────────────────────────
+
+        /// <summary>
+        /// After every swap batch, open each unique manufacturer family
+        /// that was the winning swap target, inject STING automation
+        /// presentation parameters, author all 5-standard symbol curve
+        /// sets (IEC/ANSI/BS/NFPA/CIBSE), and reload the family back
+        /// into the project. Runs outside the swap TransactionGroup so
+        /// a symbol-authoring failure on one family never rolls back
+        /// successfully-swapped model instances.
+        /// </summary>
+        private static int AutoAuthorSwappedFamilies(Document doc, IList<SwapPlan> plans)
+        {
+            if (doc == null || plans == null) return 0;
+
+            // Collect unique Family objects, but only from plans that were
+            // actually swapped — skip plans whose instances were all pinned,
+            // errored, or skipped so we don't author (and waste time on)
+            // families that were never activated in this session.
+            var seen     = new HashSet<ElementId>();
+            var families = new List<Family>();
+            foreach (var p in plans.Where(p => p.WasSwapped))
+            {
+                var winner = p.Candidates.FirstOrDefault();
+                if (winner?.ResolvedTypeId == null ||
+                    winner.ResolvedTypeId == ElementId.InvalidElementId) continue;
+                try
+                {
+                    if (doc.GetElement(winner.ResolvedTypeId) is FamilySymbol fs &&
+                        fs.Family != null && seen.Add(fs.Family.Id))
+                    {
+                        families.Add(fs.Family);
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"AutoAuthor collect '{winner.ResolvedFamilyName}': {ex.Message}"); }
+            }
+            if (families.Count == 0) return 0;
+
+            int authored = 0;
+            foreach (var fam in families)
+            {
+                Document famDoc = null;
+                try
+                {
+                    famDoc = doc.EditFamily(fam);
+                    if (famDoc == null)
+                    {
+                        StingLog.Warn($"AutoAuthor: EditFamily returned null for '{fam.Name}' — skip.");
+                        continue;
+                    }
+
+                    bool txOk = false;
+                    using (var tx = new Transaction(famDoc, "STING Author Symbols"))
+                    {
+                        tx.Start();
+                        try
+                        {
+                            // Ensure LOD/visibility parameters exist before
+                            // AuthorSymbols tries to key off them.
+                            FamilyParamEngine.InjectAutomationPresentationPack(famDoc);
+                            FamilySymbolAuthor.AuthorSymbols(famDoc);
+                            tx.Commit();
+                            txOk = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                            StingLog.Warn($"AutoAuthor symbol tx '{fam.Name}': {ex.Message}");
+                        }
+                    }
+
+                    // Reload the freshly-authored family back into the project so
+                    // instances pick up the new parameters and visibility formulas.
+                    // Only count a family as authored when both the tx committed AND
+                    // the reload back into the project document succeeded.
+                    if (txOk)
+                    {
+                        bool loaded = famDoc.LoadFamily(doc, new StingFamilyReloadOptions());
+                        if (loaded)
+                            authored++;
+                        else
+                            StingLog.Warn($"AutoAuthor: LoadFamily returned false for '{fam.Name}' — symbols authored in famDoc but not reloaded into project.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"AutoAuthor '{fam.Name}': {ex.Message}");
+                }
+                finally
+                {
+                    try { famDoc?.Close(false); }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                }
+            }
+            return authored;
+        }
+
+        private sealed class StingFamilyReloadOptions : IFamilyLoadOptions
+        {
+            public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
+            { overwriteParameterValues = false; return true; }
+            public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse,
+                out FamilySource source, out bool overwriteParameterValues)
+            { source = FamilySource.Family; overwriteParameterValues = false; return true; }
+        }
+
         private static void AppendSwapHistory(Element el, string ts, string op, string src, string dst)
         {
             try
@@ -642,10 +767,11 @@ namespace StingTools.Commands.Symbols
         }
 
         private static void ShowResult(List<SwapPlan> plans, int swapped, int skipped, int errors,
-            int rejoined, int revalidationFindings, bool revalidated)
+            int rejoined, int revalidationFindings, bool revalidated, int symbolsAuthored)
         {
             var panel = StingResultPanel.Create("Swap to Manufacturer — Result");
             string subtitle = $"{swapped} swapped · {skipped} skipped · {errors} errors · {rejoined} connectors rejoined";
+            if (symbolsAuthored > 0) subtitle += $" · {symbolsAuthored} families authored";
             if (revalidated) subtitle += $" · {revalidationFindings} re-validate findings";
             panel.SetSubtitle(subtitle);
             panel.AddSection("SUMMARY")
@@ -653,7 +779,9 @@ namespace StingTools.Commands.Symbols
                 .Metric("Skipped (no candidate)", skipped.ToString())
                 .MetricError("Errors", errors.ToString())
                 .Metric("Connectors rejoined", rejoined.ToString(),
-                    "auto re-stitched after swap (within 600 mm, same domain)");
+                    "auto re-stitched after swap (within 600 mm, same domain)")
+                .Metric("Symbol families authored", symbolsAuthored.ToString(),
+                    "manufacturer families that had STING multi-standard symbol curves injected automatically");
             if (revalidated)
             {
                 if (revalidationFindings > 0)
