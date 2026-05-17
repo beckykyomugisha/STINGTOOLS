@@ -653,6 +653,49 @@ The existing **Connectivity / Fill / Spec / Termination / Slope**
 validators are reused — the healthcare validators chain on top, never
 replace them.
 
+### 6.1 RdsCompletenessValidator — mandatory parameter set
+
+`RdsCompletenessValidator` checks the 14 parameters below on every room
+whose `CLN_ROOM_CLASS_TXT` is non-empty (i.e. every clinical room).
+A room that fails any check is flagged `RDS.INCOMPLETE` at Warning
+severity; the room data sheet may not be issued until all items are
+resolved.
+
+| # | Parameter | Group | Applies to | Source standard |
+|---|---|---|---|---|
+| 1 | `CLN_ROOM_CLASS_TXT` | 28 CLN | All clinical rooms | ADB / HBN room-type enum |
+| 2 | `ASS_ROOM_NAME_TXT` | 1 ASS | All rooms | ISO 19650 / ADB |
+| 3 | `ASS_ROOM_NUM_TXT` | 1 ASS | All rooms | ISO 19650 / ADB |
+| 4 | `ASS_ROOM_AREA_SQ_M` | 1 ASS | All rooms | HBN / FGI minimum area |
+| 5 | `ASS_DESIGN_OCCUPANCY_INT` | 1 ASS | All rooms | FGI / BS 9999 |
+| 6 | `HVC_AIR_CHANGES_PER_HR` | 5 HVC | All rooms with ventilation | HTM 03-01 / ASHRAE 170 |
+| 7 | `PER_ENVIRONMENTAL_TEMP_DESIGN_C` | 8 PER | All rooms | HTM 03-01 / ASHRAE 170 |
+| 8 | `PER_ENVIRONMENTAL_HUMIDITY_DESIGN_PCT` | 8 PER | All rooms | HTM 03-01 / ASHRAE 170 |
+| 9 | `BLE_ROOM_FINISH_FLOOR_TXT` | 10 BLE | All rooms | ADB finishes schedule |
+| 10 | `BLE_ROOM_FINISH_CEILING_TXT` | 10 BLE | All rooms | ADB finishes schedule |
+| 11 | `BLE_ROOM_FINISH_WALL_TXT` | 10 BLE | All rooms | ADB finishes schedule |
+| 12 | `LTG_DESIGN_ILLUMINANCE_LUX` | 7 LTG | All rooms | HTM 06-01 / CIBSE LG2 |
+| 13 | `PER_ACOUSTICS_BACKGROUND_NOISE_DB` | 8 PER | All rooms | HTM 08-01 |
+| 14 | `FLS_COMPARTMENT_ID_TXT` | 8 FLS | All rooms | HTM 05-01 / BS 9999 |
+
+**Room-class exemptions** (not yet enforced in code — planned for H-28
+profile enhancement):
+
+| Room class | Exempt from | Reason |
+|---|---|---|
+| `MORT`, `POST` | `HVC_AIR_CHANGES_PER_HR` mandatory-value gate | Down-flow / negative-pressure regimes defined separately via `ROM_PRESS_REGIME_TXT` |
+| `DIAL` | `BLE_ROOM_FINISH_BASE_TXT` (not in the 14) | Plinths replace skirting |
+| Non-clinical (stores, plant) | All 14 | Gate is `CLN_ROOM_CLASS_TXT` non-empty; plant/store rooms carry no clinical class |
+
+**Parameters that are desirable but not yet mandatory** (candidates for
+promotion in a future minor release after field calibration):
+
+- `ASS_ROOM_VOLUME_CU_M` — needed for RT60 / reverberation calculation
+- `PER_ENVIRONMENTAL_HUMIDITY_DESIGN_PCT` range (min / max) rather than single design point
+- `CLN_INFECTION_CTRL_CLASS_TXT` — required by CDC / ADB for isolation rooms
+- `BLE_ROOM_FINISH_BASE_TXT` — skirting / coving finish (ADB)
+- `CLN_STRUCT_SIGN_OFF_DT` — mandatory before handover for imaging rooms (currently enforced by `StructuralLoadValidator`, not `RdsCompletenessValidator`)
+
 ---
 
 ## 7. Drawing Type catalogue (Phase H-3)

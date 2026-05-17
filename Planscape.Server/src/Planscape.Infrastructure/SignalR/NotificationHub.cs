@@ -140,6 +140,34 @@ public class NotificationHub : Hub
     }
 
     /// <summary>
+    /// Broadcast the caller's 3D camera state to other members of the project
+    /// so they see a live cursor frustum at the same coordinates. Throttled
+    /// client-side (≤6 Hz); the hub itself just fans out the payload to the
+    /// project group, excluding the sender. Payload shape is opaque (the
+    /// viewer reads {userId, name, pos[3], target[3]}).
+    /// </summary>
+    public async Task BroadcastCameraState(string projectId, object state)
+    {
+        if (!Guid.TryParse(projectId, out _))
+            throw new HubException("Invalid project id");
+        // Sender must already have joined the project group (which validates
+        // membership). Re-validate cheaply by checking the connection's
+        // groups — SignalR doesn't expose that, so trust the JoinProject
+        // gate that was enforced earlier.
+        await Clients.OthersInGroup($"project-{projectId}").SendAsync("CameraState", state);
+    }
+
+    /// <summary>
+    /// Drop the caller's 3D presence cursor on every other member's viewer.
+    /// </summary>
+    public async Task LeaveCameraPresence(string projectId, string userId)
+    {
+        if (!Guid.TryParse(projectId, out _)) return;
+        await Clients.OthersInGroup($"project-{projectId}")
+            .SendAsync("CameraDisconnect", new { userId });
+    }
+
+    /// <summary>
     /// Register for user-specific notifications — only for the caller's own user id.
     /// </summary>
     public async Task RegisterUser(string userId)

@@ -384,8 +384,8 @@
       bindMenu('#btnMeasure', '#menuMeasure', {
         '#mPP':    () => { setActiveTool('measure'); toast('Measure: pick two points'); },
         '#mArea':  () => { handleHostCommand({ type: 'startArea' }); toast('Area: tap points, double-click to close'); },
-        '#mAngle': () => { setActiveTool('measure'); toast('Angle: pick three points'); },
-        '#mClear': () => { handleHostCommand({ type: 'clearMeasure' }); }
+        '#mAngle': () => { startAngleTool(); },
+        '#mClear': () => { handleHostCommand({ type: 'clearMeasure' }); state.angleTool = false; state.anglePoints = []; }
       });
       bindMenu('#btnSection', '#menuSection', {
         '#sX':    () => openSectionPlane('x'),
@@ -399,7 +399,17 @@
         '#vShaded':    () => setRenderMode('shaded'),
         '#vWire':      () => setRenderMode('wire'),
         '#vXray':      () => setRenderMode('xray'),
-        '#vGhost':     () => setRenderMode('ghost')
+        '#vGhost':     () => setRenderMode('ghost'),
+        '#vEdges':     () => toggleEdgeOverlay(),
+        '#vCaps':      () => toggleSectionCaps(),
+        '#vCoords':    () => toggleCoordReadout(),
+        '#vExplode':   () => toggleExplodedView(),
+        '#vTop':       () => setCameraPreset('top'),
+        '#vFront':     () => setCameraPreset('front'),
+        '#vSide':      () => setCameraPreset('right'),
+        '#vIso':       () => setCameraPreset('iso'),
+        '#vBmSave':    () => saveBookmark(1),
+        '#vBmRestore': () => restoreBookmark(1),
       });
       bindMenu('#btnIssues', '#menuIssues', {
         '#iCreate': () => openIssueModal(),
@@ -409,9 +419,9 @@
       bindMenu('#btnMarkup', '#menuMarkup', {
         '#mkScreenshot': () => takeScreenshot(),
         '#mkShare':      () => shareCurrentView(),
-        '#mkText':       () => toast('Markup: text — coming next', 'warn'),
-        '#mkArrow':      () => toast('Markup: arrow — coming next', 'warn'),
-        '#mkDraw':       () => toast('Markup: freehand — coming next', 'warn')
+        '#mkText':  () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'text'  } }); toast('Markup: click to place text'); },
+        '#mkArrow': () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'arrow' } }); toast('Markup: drag to draw arrow'); },
+        '#mkDraw':  () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'draw'  } }); toast('Markup: drag to draw freehand'); }
       });
 
       $('#btnClashes').addEventListener('click', () => switchBottomTab('clashes'));
@@ -667,8 +677,12 @@
         ]);
         const cb = $('input[type=checkbox]', row);
         cb.addEventListener('change', () => {
-          // No multi-model federation in the basic flow — ghost / show all matching IDs
-          if (V.modelRoot) {
+          // Use per-model visibility from extras if available; fall back to full-scene toggle.
+          const label = m.name || m.fileName || '';
+          const extras = window.STING_VIEWER_EXTRAS;
+          if (extras && extras.setModelVisible && label) {
+            extras.setModelVisible(label, cb.checked);
+          } else if (V.modelRoot) {
             V.modelRoot.traverse(obj => { if (obj.isMesh) obj.visible = cb.checked; });
           }
         });
@@ -3740,6 +3754,29 @@
       // Hook the original 'pick' events through to our properties panel.
       const origSend = V.bridge.send;
       V.bridge.send = function (type, payload) {
+        // Angle measurement: intercept picks and collect 3 points.
+        if (type === 'pick' && payload && state.angleTool) {
+          if (payload.point) {
+            state.anglePoints = state.anglePoints || [];
+            state.anglePoints.push(payload.point);
+            const n = state.anglePoints.length;
+            if (n === 1) toast('Angle: now click first arm point');
+            else if (n === 2) toast('Angle: now click second arm point');
+            else if (n >= 3) {
+              const [v, a, b] = state.anglePoints.map(p => ({ x: p[0], y: p[1], z: p[2] }));
+              const ax = a.x-v.x, ay = a.y-v.y, az = a.z-v.z;
+              const bx = b.x-v.x, by = b.y-v.y, bz = b.z-v.z;
+              const dot = ax*bx + ay*by + az*bz;
+              const lenA = Math.sqrt(ax*ax+ay*ay+az*az), lenB = Math.sqrt(bx*bx+by*by+bz*bz);
+              const angle = lenA > 0 && lenB > 0
+                ? Math.acos(Math.max(-1, Math.min(1, dot/(lenA*lenB)))) * 180 / Math.PI
+                : 0;
+              toast(`Angle: ${angle.toFixed(2)}°`, 'info');
+              state.angleTool = false; state.anglePoints = [];
+            }
+          }
+          return origSend.call(V.bridge, type, payload);
+        }
         if (type === 'pick' && payload && payload.guid) {
           // Route canvas-picks through the multi-select-aware selector so
           // clearing happens correctly and the floating selection toolbar
@@ -3750,6 +3787,18 @@
                      : ev.shiftKey               ? 'add'
                      : 'replace';
           selectElementByGuid(payload.guid, mode);
+        }
+        // Live XYZ readout — push values into the coord chip if it's visible.
+        if (type === 'coord' && payload) {
+          const chip = document.getElementById('coordChip');
+          if (chip && chip.style.display !== 'none') {
+            if (payload.hit && payload.point) {
+              const [x, y, z] = payload.point;
+              chip.textContent = `X ${x.toFixed(0)}  Y ${y.toFixed(0)}  Z ${z.toFixed(0)}`;
+            } else if (payload.off !== true) {
+              chip.textContent = 'XYZ —';
+            }
+          }
         }
         // R13 — engine emits pinTap for any pin in pinMeta. Coord pins
         // tagged with __coord = 'issue' / 'clash' route into our focus
@@ -3987,6 +4036,74 @@
       toast('View: ' + mode);
     }
 
+    // Exploded view — requires a federated model. Toggles between 0 and 1.
+    function toggleExplodedView() {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.setExplodeFactor) { toast('Explode requires a federated model', 'warn'); return; }
+      state.explodeFactor = state.explodeFactor > 0 ? 0 : 1;
+      extras.setExplodeFactor(state.explodeFactor);
+      toast(state.explodeFactor > 0 ? 'Exploded view — click View → Explode to collapse' : 'Exploded view: collapsed');
+    }
+
+    // Edge-silhouette overlay — wireframe-on-shaded for depth perception.
+    function toggleEdgeOverlay() {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.setEdgeOverlay) return;
+      state.edgeOverlay = !state.edgeOverlay;
+      extras.setEdgeOverlay(state.edgeOverlay);
+      toast(state.edgeOverlay ? 'Edge overlay ON' : 'Edge overlay OFF');
+    }
+
+    // Section caps — translucent fill at every clipping plane.
+    function toggleSectionCaps() {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.setSectionCaps) return;
+      state.sectionCaps = !state.sectionCaps;
+      extras.setSectionCaps(state.sectionCaps);
+      toast(state.sectionCaps ? 'Section caps ON' : 'Section caps OFF');
+    }
+
+    // Live XYZ readout — coordinator hovers cursor; coords stream into a chip.
+    function toggleCoordReadout() {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.setCoordReadout) return;
+      state.coordReadout = !state.coordReadout;
+      extras.setCoordReadout(state.coordReadout);
+      let chip = document.getElementById('coordChip');
+      if (!chip) {
+        chip = document.createElement('div');
+        chip.id = 'coordChip';
+        chip.style.cssText = 'position:absolute;right:12px;top:48px;background:rgba(15,18,24,0.85);border:1px solid #2a3140;border-radius:6px;padding:6px 10px;font:11px ui-monospace,monospace;color:#cdd6e3;z-index:60;pointer-events:none;display:none;';
+        chip.textContent = 'XYZ —';
+        (document.getElementById('viewerCanvas') || document.body).appendChild(chip);
+      }
+      chip.style.display = state.coordReadout ? 'block' : 'none';
+      toast(state.coordReadout ? 'Coordinates readout ON' : 'Coordinates readout OFF');
+    }
+
+    // Camera presets — orthogonal + iso through the extras layer so the
+    // walk-mode up-axis fix-up runs consistently.
+    function setCameraPreset(preset) {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.setCameraPreset) return;
+      extras.setCameraPreset(preset);
+      toast('View: ' + preset);
+    }
+
+    // Camera bookmark slots — captured in extras, persisted only in-session.
+    function saveBookmark(slot) {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.saveCameraBookmark) return;
+      extras.saveCameraBookmark(slot);
+      toast(`Bookmark ${slot} saved — View → Restore to recall`);
+    }
+    function restoreBookmark(slot) {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.restoreCameraBookmark) return;
+      extras.restoreCameraBookmark(slot);
+      toast(`Bookmark ${slot} restored`);
+    }
+
     function setupSectionCard() {
       $('#sectionClose').addEventListener('click', () => $('#sectionCard').style.display = 'none');
       $('#sectionAddX').addEventListener('click', () => addSectionPlane('x'));
@@ -4000,13 +4117,63 @@
       addSectionPlane(axis);
     }
     function addSectionPlane(axis) {
-      const normals = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1], free: [0, 1, 0] };
-      const n = normals[axis] || normals.y;
-      handleHostCommand({ type: 'setSectionPlane', payload: { enabled: true, normal: n, offset: 0.5 } });
+      if (axis === 'box') {
+        // Section box: 6-plane AABB clip. Slight inset so edges are visible.
+        handleHostCommand({ type: 'setSectionBox', payload: { inset: 0 } });
+        toast('Section box active — drag faces in the Section card to adjust');
+        renderSectionCard();
+        return;
+      }
+      handleHostCommand({ type: 'addSectionPlaneAxis', payload: { axis, offset: 0.5 } });
+      renderSectionCard();
     }
     function clearSection() {
-      handleHostCommand({ type: 'setSectionPlane', payload: { enabled: false } });
+      handleHostCommand({ type: 'clearSectionPlanes' });
+      handleHostCommand({ type: 'clearSectionBox' });
       $('#sectionCard').style.display = 'none';
+      state.sectionPlanes = [];
+    }
+
+    // Render the section card plane list with per-plane offset sliders.
+    function renderSectionCard() {
+      const body = $('#sectionCard .body');
+      if (!body) return;
+      const existing = body.querySelector('.plane-list');
+      if (existing) existing.remove();
+      const planes = (window.STING_VIEWER_EXTRAS?.getSectionPlanes?.() || []);
+      if (!planes.length) return;
+      const list = document.createElement('div');
+      list.className = 'plane-list';
+      list.style.cssText = 'margin-top:8px;display:flex;flex-direction:column;gap:4px;';
+      planes.forEach(p => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted)';
+        row.innerHTML = `<span style="min-width:36px;text-transform:uppercase">${p.axis}</span>
+          <input type="range" min="0" max="100" value="${Math.round((p.offset||0.5)*100)}"
+            style="flex:1;accent-color:var(--accent)" data-id="${p.id}" />
+          <span class="pct">${Math.round((p.offset||0.5)*100)}%</span>
+          <button style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px" data-remove="${p.id}">✕</button>`;
+        const slider = row.querySelector('input[type=range]');
+        slider.addEventListener('input', () => {
+          const off = parseInt(slider.value, 10) / 100;
+          row.querySelector('.pct').textContent = slider.value + '%';
+          handleHostCommand({ type: 'updateSectionPlane', payload: { id: p.id, offset: off } });
+        });
+        row.querySelector(`[data-remove="${p.id}"]`).addEventListener('click', () => {
+          handleHostCommand({ type: 'removeSectionPlane', payload: { id: p.id } });
+          renderSectionCard();
+        });
+        list.appendChild(row);
+      });
+      body.appendChild(list);
+    }
+
+    // ── Angle measurement ──────────────────────────────────────────────
+    function startAngleTool() {
+      state.angleTool = true;
+      state.anglePoints = [];
+      setActiveTool('pick');
+      toast('Angle: click vertex, then first arm point, then second arm point', 'info');
     }
 
     // ── Keyboard shortcuts ─────────────────────────────────────────────

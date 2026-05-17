@@ -41,7 +41,7 @@
     "room.finish.base":     "BLE_ROOM_FINISH_BASE_TXT",
     "room.occupancy":       "ASS_DESIGN_OCCUPANCY_INT",
     "room.escape":          "BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR",
-    "prj.code":             "PRJ_ORG_PROJECT_CODE_TXT",
+    "prj.code":             "PRJ_PROJECT_COD_TXT",
     "prj.name":             "PRJ_ORG_PROJECT_NAME_TXT",
     "prj.client":           "PRJ_ORG_CLIENT_NAME_TXT",
     "prj.facility_type":    "PRJ_ORG_HEALTH_FACILITY_TYPE_TXT",

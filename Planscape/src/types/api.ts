@@ -89,6 +89,9 @@ export interface BimIssue {
   // assignee. Server stores it as a JSON-encoded string and emits it as
   // `string` in GetIssues responses; on the wire we accept both shapes.
   watcherUserIds?: string[] | string | null;
+  // CO-ASSIGNEES — additional users jointly responsible for resolving the
+  // issue. All receive the same assignment push as the primary assignee.
+  coAssigneeUserIds?: string[] | string | null;
 }
 
 /** NEW-INFO-06/07 — Activity timeline entries surfaced from AuditLog. */
@@ -243,10 +246,24 @@ export interface Meeting {
   id: string;
   projectId: string;
   title: string;
-  type: string;
+  /** Meeting type: BIM Coordination | Design Review | Client Review | etc. */
+  meetingType: string;
+  /** Legacy alias kept for backward compat */
+  type?: string;
   scheduledAt: string;
+  durationMinutes?: number | null;
+  location?: string | null;
+  meetingUrl?: string | null;
+  /** SCHEDULED | IN_PROGRESS | COMPLETED | CANCELLED */
   status: string;
-  organiser: string;
+  minutes?: string | null;
+  minutesDocumentId?: string | null;
+  organiser?: string;
+  createdBy?: string;
+  createdAt?: string;
+  notifiedUserIds?: string | null;
+  recurrenceRule?: string | null;
+  seriesId?: string | null;
   actionItemCount?: number;
 }
 
@@ -327,10 +344,24 @@ export interface Meeting {
   id: string;
   projectId: string;
   title: string;
-  type: string;
+  /** Meeting type: BIM Coordination | Design Review | Client Review | etc. */
+  meetingType: string;
+  /** Legacy alias kept for backward compat */
+  type?: string;
   scheduledAt: string;
+  durationMinutes?: number | null;
+  location?: string | null;
+  meetingUrl?: string | null;
+  /** SCHEDULED | IN_PROGRESS | COMPLETED | CANCELLED */
   status: string;
-  organiser: string;
+  minutes?: string | null;
+  minutesDocumentId?: string | null;
+  organiser?: string;
+  createdBy?: string;
+  createdAt?: string;
+  notifiedUserIds?: string | null;
+  recurrenceRule?: string | null;
+  seriesId?: string | null;
   actionItemCount?: number;
 }
 
