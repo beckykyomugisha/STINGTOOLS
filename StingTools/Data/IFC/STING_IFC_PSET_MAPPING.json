@@ -31,5 +31,53 @@
   { "sting_param": "ASBUILT_DEVIATION_MM",   "ifc_pset": "Pset_ConstructionOperation",        "ifc_property": "AsBuiltDeviation", "ifc_data_type": "IfcLengthMeasure" },
   { "sting_param": "ASBUILT_CAPTURE_DATE_TXT","ifc_pset": "Pset_ConstructionOperation",       "ifc_property": "AsBuiltCaptureDate", "ifc_data_type": "IfcLabel" },
   { "sting_param": "ACC_ISSUE_ID_TXT",       "ifc_pset": "Pset_ConstructionOperation",        "ifc_property": "ACCIssueId", "ifc_data_type": "IfcIdentifier" },
-  { "sting_param": "HEALTH_SCORE_LAST_NR",   "ifc_pset": "Pset_ConstructionOperation",        "ifc_property": "ModelHealthScore", "ifc_data_type": "IfcInteger" }
+  { "sting_param": "HEALTH_SCORE_LAST_NR",   "ifc_pset": "Pset_ConstructionOperation",        "ifc_property": "ModelHealthScore", "ifc_data_type": "IfcInteger" },
+
+  // ── ArchiCAD native property sets (AC_Pset_*) ────────────────────────────
+  // Emitted automatically by ArchiCAD on IFC export (v22+).
+  // Planscape reads these on upload and maps them to STING coordination
+  // parameters so ArchiCAD models participate in ISO 19650 workflows
+  // without any plugin. Source field = "archicad" for audit trail.
+  // priority: lower number wins when multiple mappings target the same
+  // sting_param; default priority is 1 (highest).
+
+  // Element identity
+  { "sting_param": "ASS_SEQ_NUM_TXT",   "ifc_pset": "AC_Pset_ElementID",              "ifc_property": "ElementID",           "ifc_data_type": "IfcIdentifier",  "source": "archicad", "notes": "ArchiCAD element ID → STING sequence number" },
+  { "sting_param": "ASS_TAG_1",         "ifc_pset": "AC_Pset_ElementID",              "ifc_property": "ElementCode",         "ifc_data_type": "IfcIdentifier",  "source": "archicad", "priority": 2 },
+
+  // Zone / location
+  { "sting_param": "ASS_ZONE_TXT",      "ifc_pset": "AC_Pset_ZoneBasicProperties",   "ifc_property": "ZoneName",            "ifc_data_type": "IfcLabel",       "source": "archicad" },
+  { "sting_param": "ASS_LOC_TXT",       "ifc_pset": "AC_Pset_ZoneBasicProperties",   "ifc_property": "ZoneNo",              "ifc_data_type": "IfcLabel",       "source": "archicad", "notes": "Zone number used as location code" },
+  { "sting_param": "ASS_ZONE_TXT",      "ifc_pset": "AC_Pset_RoomBasicProperties",   "ifc_property": "RoomName",            "ifc_data_type": "IfcLabel",       "source": "archicad", "priority": 2, "notes": "Fallback: room name when zone pset absent" },
+
+  // Renovation / phase → STATUS
+  { "sting_param": "ASS_STATUS_TXT",    "ifc_pset": "AC_Pset_RenovationOverride",    "ifc_property": "RenovationStatus",    "ifc_data_type": "IfcLabel",       "source": "archicad",
+    "value_map": { "Existing": "EXISTING", "Demolition": "DEMOLISHED", "New": "NEW", "Temporary": "TEMPORARY" } },
+
+  // Classification / product code
+  { "sting_param": "ASS_PRODCT_COD_TXT","ifc_pset": "AC_Pset_ElementProperties",     "ifc_property": "Classification",      "ifc_data_type": "IfcLabel",       "source": "archicad" },
+  { "sting_param": "ASS_PRODCT_COD_TXT","ifc_pset": "AC_Pset_SectionalProperties",   "ifc_property": "ProfileName",         "ifc_data_type": "IfcLabel",       "source": "archicad", "priority": 2, "notes": "Structural profile name for beams/columns" },
+
+  // MEP system data
+  { "sting_param": "ASS_SYSTEM_TYPE_TXT","ifc_pset": "AC_Pset_MEPSystemData",        "ifc_property": "SystemName",          "ifc_data_type": "IfcLabel",       "source": "archicad" },
+  { "sting_param": "ASS_FUNC_TXT",       "ifc_pset": "AC_Pset_MEPSystemData",        "ifc_property": "SystemCode",          "ifc_data_type": "IfcLabel",       "source": "archicad" },
+  { "sting_param": "ASS_DISCIPLINE_COD_TXT","ifc_pset": "AC_Pset_MEPSystemData",     "ifc_property": "Discipline",          "ifc_data_type": "IfcLabel",       "source": "archicad" },
+
+  // Structural
+  { "sting_param": "STR_MATERIAL_TXT",  "ifc_pset": "AC_Pset_StructuralProfile",    "ifc_property": "CrossSectionMaterial", "ifc_data_type": "IfcLabel",       "source": "archicad" },
+  { "sting_param": "STR_GRADE_TXT",     "ifc_pset": "AC_Pset_StructuralProfile",    "ifc_property": "MaterialGrade",       "ifc_data_type": "IfcLabel",       "source": "archicad" },
+
+  // Room / space quantities
+  { "sting_param": "GEO_AREA_GS_M2",   "ifc_pset": "AC_Pset_RoomBasicProperties",   "ifc_property": "RoomFloorPlanArea",   "ifc_data_type": "IfcAreaMeasure", "source": "archicad" },
+  { "sting_param": "GEO_HEIGHT_MM",     "ifc_pset": "AC_Pset_RoomBasicProperties",   "ifc_property": "RoomHeight",          "ifc_data_type": "IfcLengthMeasure","source": "archicad" },
+  { "sting_param": "GEO_VOLUME_M3",     "ifc_pset": "AC_Pset_RoomBasicProperties",   "ifc_property": "RoomVolume",          "ifc_data_type": "IfcVolumeMeasure","source": "archicad" },
+
+  // User-defined "Planscape_Asset" property set — define this in ArchiCAD's
+  // Property Manager to pre-populate STING tags before IFC export.
+  // ArchiCAD: Options → Element Attributes → Properties → New property set → "Planscape_Asset"
+  { "sting_param": "ASS_DISCIPLINE_COD_TXT","ifc_pset": "Planscape_Asset",           "ifc_property": "Discipline",          "ifc_data_type": "IfcLabel",       "source": "archicad-custom" },
+  { "sting_param": "ASS_LOC_TXT",       "ifc_pset": "Planscape_Asset",               "ifc_property": "LocationCode",        "ifc_data_type": "IfcLabel",       "source": "archicad-custom" },
+  { "sting_param": "ASS_ZONE_TXT",      "ifc_pset": "Planscape_Asset",               "ifc_property": "ZoneCode",            "ifc_data_type": "IfcLabel",       "source": "archicad-custom" },
+  { "sting_param": "ASS_SYSTEM_TYPE_TXT","ifc_pset": "Planscape_Asset",              "ifc_property": "SystemType",          "ifc_data_type": "IfcLabel",       "source": "archicad-custom" },
+  { "sting_param": "ASS_TAG_1",         "ifc_pset": "Planscape_Asset",               "ifc_property": "Tag",                 "ifc_data_type": "IfcIdentifier",  "source": "archicad-custom", "notes": "Full ISO 19650 tag if pre-tagged in ArchiCAD" }
 ]

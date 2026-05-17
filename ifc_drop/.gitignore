@@ -1,0 +1,22 @@
+# ifc_drop — runtime hot-folder for ArchiCAD / IFC file exchange.
+#
+# This folder is monitored by IfcDropWatcher at runtime.
+# The folder structure is tracked in git; the IFC files inside are NOT.
+#
+# Sub-folder layout (created automatically by IfcDropWatcher.Start()):
+#   ifc_drop/            ← drop .ifc files here
+#   ifc_drop/processing/ ← moved here while being processed
+#   ifc_drop/done/       ← archived after successful import
+#   ifc_drop/failed/     ← moved here on import error (+ .log sidecar)
+
+# Ignore all IFC files and their derivatives everywhere in this tree.
+*.ifc
+*.ifczip
+*.ifcxml
+*.log
+
+# Keep the sub-folder placeholders.
+!.gitignore
+!processing/.gitkeep
+!done/.gitkeep
+!failed/.gitkeep
