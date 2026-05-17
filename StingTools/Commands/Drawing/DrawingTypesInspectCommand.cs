@@ -60,19 +60,47 @@ namespace StingTools.Commands.Drawing
                 }
                 sb.AppendLine();
 
+                // Title-block readiness — fast pre-flight summary of which
+                // title-block families profiles reference vs. what's loaded
+                // in the project, plus whether the TitleBlockRouter has a
+                // discipline default configured. Surfaces the silent
+                // "first available" fallback risk in one place.
+                AppendTitleBlockReadiness(doc, lib, sb);
+
                 // Validation summary
                 int errors   = reports.Sum(r => r.Issues.Count(i => i.Severity == ValidationSeverity.Error));
                 int warnings = reports.Sum(r => r.Issues.Count(i => i.Severity == ValidationSeverity.Warning));
-                sb.AppendLine($"Validation: {errors} error(s), {warnings} warning(s)");
+                int infos    = reports.Sum(r => r.Issues.Count(i => i.Severity == ValidationSeverity.Info));
+                sb.AppendLine($"Validation: {errors} error(s), {warnings} warning(s), {infos} info");
 
                 // Drift summary (Week 4) — per-view check against profile
                 try
                 {
                     var drifts = DrawingDriftDetector.Scan(doc);
-                    if (drifts.Count == 0)
+                    int actionable = drifts.Count(r => r.AnyActionable);
+                    int suppressed = drifts.Count(r => r.AnySuppressed);
+                    if (actionable == 0 && suppressed == 0)
                         sb.AppendLine("Drift:      0 view(s) out of sync with their profile");
+                    else if (actionable == 0)
+                        sb.AppendLine($"Drift:      0 actionable; {suppressed} view(s) have template-controlled fields (informational, no action required)");
                     else
-                        sb.AppendLine($"Drift:      {drifts.Count} view(s) drifted — run 'Sync Styles' to resync");
+                        sb.AppendLine($"Drift:      {actionable} view(s) drifted — run 'Sync Styles' to resync"
+                            + (suppressed > 0 ? $"; {suppressed} additional view(s) have template-controlled fields (informational only)" : ""));
+
+                    // E-2: list any DRIFT_SUPPRESSED_BY_TEMPLATE entries in a
+                    // separate "Informational — no action required" section so
+                    // users understand why SyncStyles will not touch them.
+                    if (suppressed > 0)
+                    {
+                        sb.AppendLine();
+                        sb.AppendLine("Informational — no action required (view template controls these fields):");
+                        foreach (var r in drifts.Where(rr => rr.AnySuppressed).Take(10))
+                        {
+                            sb.AppendLine($"  {r.ViewName}  [{r.DrawingTypeId}]");
+                            foreach (var s in r.Suppressed.Take(3))
+                                sb.AppendLine($"     · {s}");
+                        }
+                    }
                 }
                 catch (Exception dex) { sb.AppendLine($"Drift scan failed: {dex.Message}"); }
 
@@ -82,6 +110,28 @@ namespace StingTools.Commands.Drawing
                     sb.AppendLine($"  [{r.DrawingTypeId}]");
                     foreach (var i in r.Issues.Where(i => i.Severity != ValidationSeverity.Info))
                         sb.AppendLine($"    {i.Severity,-7} {i.Code}: {i.Message}");
+                }
+
+                // GAP-Q: surface Info-level issues (DT-050 / DT-057 / DT-061
+                // / DT-137-NOSLOTS) in a collapsed section so authors get
+                // a heads-up about non-blocking schema concerns without
+                // confusing them with errors / warnings.
+                var infoOnlyReports = reports
+                    .Where(r => !r.HasErrors && !r.HasWarnings
+                                && r.Issues.Any(i => i.Severity == ValidationSeverity.Info))
+                    .ToList();
+                if (infos > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"Info ({infos} item{(infos == 1 ? "" : "s")} — non-blocking, profile-author hints):");
+                    foreach (var r in infoOnlyReports.Take(20))
+                    {
+                        sb.AppendLine($"  [{r.DrawingTypeId}]");
+                        foreach (var i in r.Issues.Where(i => i.Severity == ValidationSeverity.Info).Take(5))
+                            sb.AppendLine($"    Info    {i.Code}: {i.Message}");
+                    }
+                    if (infoOnlyReports.Count > 20)
+                        sb.AppendLine($"  …(+{infoOnlyReports.Count - 20} more)");
                 }
 
                 TaskDialog.Show("STING — Drawing Types", sb.ToString().Length > 10000
@@ -101,6 +151,108 @@ namespace StingTools.Commands.Drawing
         {
             if (string.IsNullOrEmpty(s)) return "";
             return s.Length <= len ? s : s.Substring(0, len - 1) + "…";
+        }
+
+        private static void AppendTitleBlockReadiness(Document doc, DrawingTypeLibrary lib, StringBuilder sb)
+        {
+            if (doc == null || lib == null) return;
+            try
+            {
+                var loadedFamilies = new System.Collections.Generic.HashSet<string>(
+                    new FilteredElementCollector(doc)
+                        .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                        .OfClass(typeof(FamilySymbol))
+                        .Cast<FamilySymbol>()
+                        .Select(fs => fs.FamilyName ?? ""),
+                    StringComparer.OrdinalIgnoreCase);
+
+                var referenced = lib.DrawingTypes
+                    .Where(t => !string.IsNullOrWhiteSpace(t.TitleBlockFamily))
+                    .GroupBy(t => t.TitleBlockFamily, StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(g => g.Key)
+                    .ToList();
+
+                sb.AppendLine("Title-block readiness:");
+                if (referenced.Count == 0)
+                {
+                    sb.AppendLine("  (no profiles declare a titleBlockFamily)");
+                }
+                else
+                {
+                    int missing = 0;
+                    foreach (var grp in referenced)
+                    {
+                        bool loaded = loadedFamilies.Contains(grp.Key);
+                        if (!loaded) missing++;
+                        sb.AppendLine($"  {(loaded ? "✓" : "✗")} {grp.Key}  ({grp.Count()} profile{(grp.Count() == 1 ? "" : "s")})");
+                    }
+                    if (missing > 0)
+                        sb.AppendLine($"  ⚠ {missing} family(ies) not loaded — sheets created from those profiles will fall back to the first available title block, and populated cells may silently drop.");
+                }
+
+                // TitleBlockRouter status
+                var router = StingTools.Core.TitleBlockRouter.ByDiscipline ?? new System.Collections.Generic.Dictionary<string, ElementId>();
+                int routed = router.Values.Count(id => id != ElementId.InvalidElementId);
+                bool hasDefault = StingTools.Core.TitleBlockRouter.DefaultId != ElementId.InvalidElementId;
+                sb.AppendLine($"  Router: {routed} discipline override(s); default {(hasDefault ? "set" : "UNSET")} (run Project Setup Wizard to configure).");
+
+                // Parameter cardinality audit — dry-run Apply against every sheet
+                // that already exists in the project to surface "param declared but
+                // not on the family" mismatches without touching the model.
+                AppendParamCardinalitySummary(doc, lib, sb);
+
+                sb.AppendLine();
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"Title-block readiness check failed: {ex.Message}");
+            }
+        }
+
+        private static void AppendParamCardinalitySummary(Document doc, DrawingTypeLibrary lib, StringBuilder sb)
+        {
+            if (doc == null || lib == null) return;
+            try
+            {
+                // Collect all sheets that have a STING drawing-type stamp so we
+                // can run a dry-run Apply against each — giving us which declared
+                // param keys are absent from the loaded title-block family.
+                var sheets = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewSheet))
+                    .Cast<ViewSheet>()
+                    .Where(s => !string.IsNullOrEmpty(StingTools.Core.Drawing.DrawingTypeStamper.Read(s)))
+                    .ToList();
+
+                if (sheets.Count == 0) return;
+
+                var dryRun = new StingTools.Core.Drawing.ApplyOptions { DryRun = true };
+                var allMissing = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+                int totalDeclared = 0;
+
+                foreach (var sheet in sheets)
+                {
+                    var dtId = StingTools.Core.Drawing.DrawingTypeStamper.Read(sheet);
+                    var dt = DrawingTypeRegistry.Get(doc, dtId);
+                    if (dt == null) continue;
+                    try
+                    {
+                        var result = StingTools.Core.Drawing.TitleBlockParamApplier.Apply(
+                            doc, sheet, dt, tokens: null, options: dryRun);
+                        totalDeclared += result.ParametersDeclared;
+                        foreach (var m in result.ParametersMissing)
+                            allMissing.Add(m);
+                    }
+                    catch { /* per-sheet failure — continue */ }
+                }
+
+                if (allMissing.Count > 0)
+                {
+                    var sample = string.Join(", ", allMissing.OrderBy(k => k).Take(5));
+                    sb.AppendLine($"  TB params: {totalDeclared} declared, {allMissing.Count} not found on family: {sample}"
+                        + (allMissing.Count > 5 ? " …" : ""));
+                }
+            }
+            catch { /* cardinality audit must never surface an error in a read-only diagnostic */ }
         }
     }
 

@@ -76,18 +76,27 @@ namespace StingTools.Docs
         /// </summary>
         public static ElementId ResolveTitleBlock(Document doc, DrawingType dt)
         {
-            if (doc == null || dt == null || string.IsNullOrWhiteSpace(dt.TitleBlockFamily))
-                return ElementId.InvalidElementId;
+            if (doc == null || dt == null) return ElementId.InvalidElementId;
+            var (tbFamily, tbSymbol) = DrawingDispatcher.ResolveTitleBlockVariant(dt);
+            if (string.IsNullOrWhiteSpace(tbFamily)) return ElementId.InvalidElementId;
             try
             {
-                var col = new FilteredElementCollector(doc)
+                var matches = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_TitleBlocks)
-                    .OfClass(typeof(FamilySymbol));
-                foreach (var el in col)
-                    if (el is FamilySymbol fs
-                        && string.Equals(fs.FamilyName, dt.TitleBlockFamily,
-                                         StringComparison.OrdinalIgnoreCase))
-                        return fs.Id;
+                    .OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>()
+                    .Where(fs => string.Equals(fs.FamilyName, tbFamily,
+                                               StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (!string.IsNullOrWhiteSpace(tbSymbol))
+                {
+                    var picked = matches.FirstOrDefault(fs =>
+                        string.Equals(fs.Name, tbSymbol,
+                                      StringComparison.OrdinalIgnoreCase));
+                    if (picked != null) return picked.Id;
+                }
+                var fallback = matches.FirstOrDefault();
+                if (fallback != null) return fallback.Id;
             }
             catch { /* fall through */ }
             return ElementId.InvalidElementId;
@@ -101,55 +110,40 @@ namespace StingTools.Docs
         public static void PostCreate(Document doc, ViewSheet sheet, DrawingType dt, List<string> warnings)
         {
             if (doc == null || sheet == null || dt == null) return;
+            // INT-05: route through the canonical sheet-apply so future
+            // callers (production-rule engine, fabrication composer) all
+            // share the same stamp + title-block pipeline.
             try
             {
-                DrawingTypeStamper.Stamp(sheet, dt.Id);
+                var tokens = BuildDefaultTokens(doc, sheet, dt);
+                var r = DrawingTypePresentation.ApplyToSheet(doc, sheet, dt, tokens);
+                if (warnings != null) foreach (var w in r.Warnings) warnings.Add(w);
             }
             catch (Exception ex)
             {
-                warnings?.Add("Stamp: " + ex.Message);
-            }
-
-            try
-            {
-                var tokens = BuildDefaultTokens(sheet, dt);
-                var r = TitleBlockParamApplier.Apply(doc, sheet, dt, tokens);
-                if (warnings != null) foreach (var w in r.Warnings) warnings.Add("TitleBlockParams: " + w);
-            }
-            catch (Exception ex)
-            {
-                warnings?.Add("TitleBlockParams: " + ex.Message);
+                warnings?.Add("ApplyToSheet: " + ex.Message);
             }
         }
 
         /// <summary>
-        /// Best-effort token dict for the sheet-manager path: disc /
-        /// discipline pulled from the profile, lvl / mark left empty
-        /// (the sheet-manager command does not know which level or
-        /// section mark this produces), seq formatted from the sheet
-        /// number's trailing digit run when present.
+        /// INT-06 + FG-08: token dict for the sheet-manager path now
+        /// goes through the canonical <see cref="DrawingTokenContext"/>
+        /// builder, so the same profile produces the same title-block
+        /// cell values regardless of whether the operator pressed
+        /// "Create From Template" or invoked the fabrication composer.
+        /// ISO 19650 codes from <c>dt.IsoNaming</c> flow through
+        /// transparently — the SheetManager never had to know about
+        /// them before, but the title-block cells expect them.
         /// </summary>
-        private static Dictionary<string, string> BuildDefaultTokens(ViewSheet sheet, DrawingType dt)
+        private static Dictionary<string, string> BuildDefaultTokens(Document doc, ViewSheet sheet, DrawingType dt)
         {
-            var disc       = dt.Discipline ?? "";
-            var discipline = dt.Discipline ?? "";
-            var num = sheet.SheetNumber ?? "";
-            var seq = "";
-            for (int i = num.Length - 1; i >= 0; i--)
-            {
-                if (char.IsDigit(num[i])) seq = num[i] + seq;
-                else if (seq.Length > 0) break;
-            }
-            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                { "disc",       disc },
-                { "discipline", discipline },
-                { "seq",        seq },
-                { "spool",      "" },
-                { "sys",        "" },
-                { "lvl",        "" },
-                { "mark",       "" },
-            };
+            var seq = DrawingTokenContext.ExtractSeqFromSheetNumber(sheet?.SheetNumber);
+            return DrawingTokenContext.Build(
+                doc: doc,
+                dt: dt,
+                discCode:   dt?.Discipline,
+                discipline: dt?.Discipline,
+                seq:        seq);
         }
     }
 }
