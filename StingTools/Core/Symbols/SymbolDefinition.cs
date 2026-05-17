@@ -312,6 +312,16 @@ namespace StingTools.Core.Symbols
         [JsonProperty("ratingFormat")]       public string RatingFormat { get; set; } = "{rating}{unit}";
         [JsonProperty("circuitRefPrefix")]   public string CircuitRefPrefix { get; set; } = "";
         [JsonProperty("circuitRefSuffix")]   public string CircuitRefSuffix { get; set; } = "";
+        // Phase 179 — BS 7671 / IEC 60364 supplementary annotation fields.
+        // Default false so existing IEC / IEEE standards stay unchanged.
+        [JsonProperty("showCsaMm2")]         public bool ShowCsaMm2 { get; set; }
+        [JsonProperty("showVdPct")]          public bool ShowVdPct { get; set; }
+        [JsonProperty("showFaultKa")]        public bool ShowFaultKa { get; set; }
+        [JsonProperty("showLoad")]           public bool ShowLoad { get; set; }
+        [JsonProperty("csaFormat")]          public string CsaFormat { get; set; } = "{csa}mm²";
+        [JsonProperty("vdFormat")]           public string VdFormat { get; set; } = "VD {vd}%";
+        [JsonProperty("faultFormat")]        public string FaultFormat { get; set; } = "Iₖ {fault}kA";
+        [JsonProperty("loadFormat")]         public string LoadFormat { get; set; } = "{load}kVA";
     }
 
     public sealed class MixedStandardProfilesFile
