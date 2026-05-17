@@ -49,7 +49,7 @@ namespace StingTools.Commands.Interop
 
             // Pre-check: can we even write IFC_GLOBAL_ID_TXT on any element?
             // If the shared param is not bound, we skip silently and report.
-            int written = 0, skippedNoParam = 0, skippedReadOnly = 0, unchanged = 0;
+            int written = 0, skippedNoParam = 0, skippedReadOnly = 0, unchanged = 0, skippedNotExported = 0;
             int total = 0;
             var conflicts = new List<string>(); // existing GUID ≠ current Revit GUID
 
@@ -79,8 +79,12 @@ namespace StingTools.Commands.Interop
                             continue;
 
                         // Read the current Revit-side IfcGUID.
-                        string revitIfcGuid = ReadRevitIfcGuid(el);
-                        if (string.IsNullOrEmpty(revitIfcGuid)) continue;
+                        string? revitIfcGuid = ReadRevitIfcGuid(el);
+                        if (string.IsNullOrEmpty(revitIfcGuid))
+                        {
+                            skippedNotExported++;
+                            continue;
+                        }
                         total++;
 
                         // Write into IFC_GLOBAL_ID_TXT.
@@ -128,6 +132,8 @@ namespace StingTools.Commands.Interop
                 sb.AppendLine($"No STING param   : {skippedNoParam}  (bind IFC_GLOBAL_ID_TXT shared param first)");
             if (skippedReadOnly > 0)
                 sb.AppendLine($"Read-only skipped: {skippedReadOnly}");
+            if (skippedNotExported > 0)
+                sb.AppendLine($"Not yet exported : {skippedNotExported}  (run IFC export once to assign GUIDs)");
 
             if (conflicts.Count > 0)
             {
@@ -153,7 +159,7 @@ namespace StingTools.Commands.Interop
 
         // ── Helpers ──────────────────────────────────────────────────────────
 
-        private static string ReadRevitIfcGuid(Element el)
+        private static string? ReadRevitIfcGuid(Element el)
         {
             foreach (string name in IfcGuidParamNames)
             {
@@ -169,9 +175,11 @@ namespace StingTools.Commands.Interop
                 catch { /* parameter not accessible on this element */ }
             }
 
-            // Fall back to UniqueId if no IFC GUID param found —
-            // Revit will use this as the base for the IfcGloballyUniqueId.
-            return el.UniqueId;
+            // No IFC GUID parameter found — element has never been exported to IFC.
+            // Return null so the caller skips it rather than storing a Revit UniqueId
+            // (which is NOT the 22-character IFC GloballyUniqueId and would cause
+            // Planscape drift detection to compare apples to oranges).
+            return null;
         }
     }
 }
