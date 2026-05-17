@@ -173,6 +173,16 @@ namespace StingTools.Core
         public const string VIEW_TAG_STYLE_GUID = "E2F3A4B5-C6D7-4E8F-9A0B-1C2D3E4F5A6C";
         public const string TAG_SEG_MASK = "TAG_SEG_MASK_TXT";
         public const string TAG_SEG_MASK_GUID = "F3A4B5C6-D7E8-4F9A-0B1C-2D3E4F5A6B7D";
+        // ── Tag audit trail ─────────────────────────────────────────────
+        /// <summary>Previous ASS_TAG_1 value before the last tag write — used for change detection and reverse diff.</summary>
+        public const string TAG_PREV = "ASS_TAG_PREV_TXT";
+        public const string TAG_PREV_GUID = "c1f4d6b8-2a3e-4d5b-9c6f-7a8b9c0d1e2e";
+        /// <summary>ISO-8601 datetime of the last tag modification written by any STING command.</summary>
+        public const string TAG_MODIFIED_DT = "ASS_TAG_MODIFIED_DT";
+        public const string TAG_MODIFIED_DT_GUID = "c1f4d6b8-2a3e-4d5b-9c6f-7a8b9c0d1e2d";
+        /// <summary>Revit Environment.UserName that performed the last tag modification.</summary>
+        public const string TAG_MODIFIED_BY = "ASS_TAG_MODIFIED_BY_TXT";
+        public const string TAG_MODIFIED_BY_GUID = "c1f4d6b8-2a3e-4d5b-9c6f-7a8b9c0d1e2f";
         // Per-view 8-char "1"/"0" mask gating which segments render in
         // BuildDisplayTag without mutating the canonical ASS_TAG_1_TXT.
         // Bound to OST_Views so users can hide ZONE in a presentation view
