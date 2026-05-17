@@ -2312,11 +2312,11 @@ namespace StingTools.UI
                 var dlg = new TaskDialog("STING AI Assistant");
                 dlg.MainInstruction = "What would you like AI help with?";
                 dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Design brief",
-                    "e.g. "I have 230M UGX, design a 3 bedroom modern house"");
+                    "e.g. \"I have 230M UGX, design a 3 bedroom modern house\"");
                 dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "BIM knowledge Q&A",
-                    "e.g. "What does ISO 19650 say about suitability codes?"");
+                    "e.g. \"What does ISO 19650 say about suitability codes?\"");
                 dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Draft document",
-                    "e.g. "Draft a transmittal for the drawings I just issued"");
+                    "e.g. \"Draft a transmittal for the drawings I just issued\"");
                 dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
                 var result = dlg.Show();
                 if (result == TaskDialogResult.Cancel) return;
