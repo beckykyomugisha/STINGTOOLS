@@ -1773,13 +1773,18 @@ namespace StingTools.Core
                     foreach (JObject s in supArr)
                     {
                         string name = s["param_name"]?.ToString() ?? "";
-                        if (name.Contains("STATUS") && !name.Contains("PARA") && !name.Contains("WARN")) STATUS = name;
-                        else if (name.Contains("DETAIL")) DETAIL_NUM = name;
-                        else if (name.Contains("MNT")) MNT_TYPE = name;
-                        else if (name == "TAG_PARA_STATE_1_BOOL") PARA_STATE_1 = name;
-                        else if (name == "TAG_PARA_STATE_2_BOOL") PARA_STATE_2 = name;
-                        else if (name == "TAG_PARA_STATE_3_BOOL") PARA_STATE_3 = name;
-                        else if (name == "TAG_WARN_VISIBLE_BOOL") WARN_VISIBLE = name;
+                        // Exact-match the canonical singletons. The earlier substring
+                        // form ("name.Contains") let any later support_params row
+                        // overwrite the binding (e.g. SLV_STATUS_TXT was clobbering
+                        // STATUS). Defaults at the field declarations remain authoritative;
+                        // these assignments just confirm them when the registry agrees.
+                        if      (name == "ASS_STATUS_TXT")             STATUS = name;
+                        else if (name == "ASS_INST_DETAIL_NUM_TXT")    DETAIL_NUM = name;
+                        else if (name == "MNT_TYPE_TXT")               MNT_TYPE = name;
+                        else if (name == "TAG_PARA_STATE_1_BOOL")      PARA_STATE_1 = name;
+                        else if (name == "TAG_PARA_STATE_2_BOOL")      PARA_STATE_2 = name;
+                        else if (name == "TAG_PARA_STATE_3_BOOL")      PARA_STATE_3 = name;
+                        else if (name == "TAG_WARN_VISIBLE_BOOL")      WARN_VISIBLE = name;
                         else if (name == "TAG_WARN_SEVERITY_FILTER_TXT") WARN_SEVERITY_FILTER = name;
 
                         // DATA-02: Track required/optional status
