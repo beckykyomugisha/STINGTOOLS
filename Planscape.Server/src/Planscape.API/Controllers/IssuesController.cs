@@ -68,6 +68,7 @@ public class IssuesController : ControllerBase
     public async Task<ActionResult> GetIssues(Guid projectId,
         [FromQuery] string? status = null, [FromQuery] string? type = null,
         [FromQuery] Guid? modelId = null,
+        [FromQuery] DateTime? since = null,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
         // Phase 175 audit P1-14 — clamp pageSize so a client can't ask
@@ -84,6 +85,8 @@ public class IssuesController : ControllerBase
         // request only issues anchored to the active model. Backed by the
         // existing single-column index on BimIssue.ModelId (PlanscapeDbContext.cs:136).
         if (modelId.HasValue) query = query.Where(i => i.ModelId == modelId);
+        // INT-10 — incremental pull: only return issues modified after the client's watermark.
+        if (since.HasValue) query = query.Where(i => i.UpdatedAt > since.Value);
 
         var total = await query.CountAsync();
         var issues = await query
@@ -414,6 +417,11 @@ public class IssuesController : ControllerBase
             if (req.Status is "RESOLVED" or "CLOSED")
                 issue.ResolvedAt = DateTime.UtcNow;
         }
+        if (req.ResolvedBy != null && req.ResolvedBy != issue.ResolvedBy)
+        {
+            diff["ResolvedBy"] = new { from = issue.ResolvedBy, to = req.ResolvedBy };
+            issue.ResolvedBy = req.ResolvedBy;
+        }
         if (req.Priority != null && req.Priority != issue.Priority)
         {
             diff["Priority"] = new { from = issue.Priority, to = req.Priority };
@@ -519,6 +527,7 @@ public class IssuesController : ControllerBase
             }
         }
 
+        issue.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
         // Push to newly assigned user.
@@ -1185,9 +1194,10 @@ public record UpdateIssueRequest(
     // ── Additive fields below this line ───────────────────────────────────
     // Replace the watcher list (null = leave unchanged; empty array = clear).
     Guid[]? WatcherUserIds,
+    // Who resolved the issue (display name or system identifier).
+    // Null = leave unchanged.
+    string? ResolvedBy,
     // Assignee FK fields — preferred over the display-name string above.
-    // When supplied the server resolves the user, validates project membership,
-    // and writes all three fields (Assignee, AssigneeEmail, AssigneeUserId).
     string? AssigneeEmail,
     Guid? AssigneeUserId,
     // CO-ASSIGNEES — additional users who share responsibility.
