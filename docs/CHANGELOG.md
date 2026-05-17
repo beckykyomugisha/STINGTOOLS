@@ -2,6 +2,73 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 182 — ArchiCAD-Revit-Planscape deeper alignment: Gaps A–F)
+
+Branch: `claude/review-archicad-revit-workflows-04E6q`. Second-pass deep review uncovering six additional coordination gaps and implementing all fixes. Goal: zero coordinate drift, durable event delivery, stable GlobalIds, correct protocol versioning, and CRS-validated model origins across the ArchiCAD ↔ Revit ↔ Planscape federated model.
+
+##### Gap A — StabilizeIfcGuidsCommand: wrong UniqueId fallback (client)
+
+**File:** `StingTools/Commands/Interop/StabilizeIfcGuidsCommand.cs`
+
+`ReadRevitIfcGuid` previously fell back to `el.UniqueId` when no `IfcGUID` / `IFC GUID` parameter existed. Revit's `UniqueId` is NOT the same encoding as the 22-character IFC `GloballyUniqueId` that the IFC exporter writes — storing it in `IFC_GLOBAL_ID_TXT` would make Planscape's `GLOBALID_DRIFT` detection compare apples to oranges.
+
+Fix: return `null` when no IFC export history exists; skip the element and count it as `skippedNotExported`. Report now surfaces the skip count with the action message `(run IFC export once to assign GUIDs)`.
+
+##### Gap B — ArchiCADController: no late-join event history (server)
+
+**File:** `Planscape.Server/src/Planscape.API/Controllers/ArchiCADController.cs`
+
+`POST /push` only fan-out via SignalR; clients that reconnected after a push missed all model changes until the next push.
+
+Fix: added `internal static class ArchiCADEventBuffer` — an in-memory ring buffer capped at 200 events per project using a `ConcurrentDictionary<Guid, Queue<ArchiCADEvent>>` with per-queue locking. `Push` feeds the buffer before the SignalR fan-out. New endpoint `GET /api/archicad/{projectId}/events/recent?count=200` returns the buffer snapshot for late-join clients; accepts both project-member JWT auth and bridge-key auth so StingBridge can poll its own buffer.
+
+##### Gap C — IfcAlignmentValidator: no CRS mismatch detection (server)
+
+**File:** `Planscape.Server/src/Planscape.Infrastructure/Services/IfcAlignmentValidator.cs`
+
+The alignment validator compared models against each other but never against the project's canonical `ProjectCoordinateSystem`. A model exported from a wrong coordinate frame would pass the cross-model check silently.
+
+Fix: before the verdict block, query `ProjectCoordinateSystems` for the project. If a CRS is declared and the model carries survey coordinates, compute ΔEasting / ΔNorthing / ΔElevation; emit `WARN COORD_CRS_MISMATCH` (with tool-specific fix hint) when any component exceeds 10 m. If the project CRS is declared but the model has no survey origin at all, emit `INFO COORD_CRS_NO_ORIGIN` with the target coordinates. DB exceptions are caught and logged as non-fatal warnings so existing validation results are never lost.
+
+##### Gap D — ArchiCADLiveLink: no protocol versioning, single-property bottleneck, short export timeout (client)
+
+**File:** `StingBridge/src/ArchiCAD/ArchiCADLiveLink.cs`
+
+Three sub-gaps in the named-pipe protocol:
+
+- **D.1 Versioning:** no version field in any message — a breaking add-on update would fail silently. Added `ProtocolVersion = "1.0"` constant; every `SendCommand` call injects `["version"] = ProtocolVersion`. `IsAvailable()` reads the reply version and calls `StingLog.Warn` on mismatch (graceful degradation, connection stays up).
+- **D.2 BatchSetProperties:** each `SetProperty` call opened a pipe, wrote one property, and closed — setting 8 STING tokens per changed element meant 8 round-trips per element. Added `BatchSetProperties(string guidOrId, Dictionary<string,string> properties)` sending a single `batchSetProperty` command with all properties in one round-trip.
+- **D.3 Export timeout:** `TriggerPartialExport` used the same 3-second timeout as ping. Large ArchiCAD models need 10–30 s to export. Added `ExportTimeoutMs = 30_000` constant and `OpenPipe(int timeoutMs)` overload; `TriggerPartialExport` uses the longer timeout.
+
+##### Gap E — PlanscapeCloudPush: in-memory queue lost on restart (client)
+
+**File:** `StingBridge/src/ArchiCAD/PlanscapeCloudPush.cs`
+
+The `ConcurrentQueue` holding undelivered events was in-memory only — a StingBridge process crash or restart silently discarded all queued model changes.
+
+Fix: added a disk-backed JSON queue at `%TEMP%/stingbridge_queue/{projectId}.json`. Constructor computes the path and calls `LoadPersistedQueue()` (reads the file, re-enqueues events, deletes the file). On HTTP failure, `PersistQueueToDisk()` is called after re-queuing. On clean `Dispose()`, any non-empty queue is written to disk before the HTTP client is released.
+
+##### Gap F — IfcRevitImporter: scan cap too low for large IFC files (client)
+
+**File:** `StingBridge/src/IFC/IfcRevitImporter.cs`
+
+`ParseIfcSiteOrigin` scanned at most 10,000 lines when searching for `IfcMapConversion`. Large IFC files (>100 MB) frequently have `IfcMapConversion` beyond line 10,000, causing the survey origin to be silently missed and every import to land at the wrong coordinate.
+
+Fix: increased the scan cap from `10_000` to `50_000` lines.
+
+##### Summary
+
+| Gap | Side | File | Finding |
+|-----|------|------|---------|
+| A | Client | `StabilizeIfcGuidsCommand.cs` | Wrong UniqueId fallback replaced with null + skip counter |
+| B | Server | `ArchiCADController.cs` | 200-event ring buffer + `GET /events/recent` late-join endpoint |
+| C | Server | `IfcAlignmentValidator.cs` | CRS mismatch / no-origin findings vs `ProjectCoordinateSystem` |
+| D | Client | `ArchiCADLiveLink.cs` | Protocol versioning + `BatchSetProperties` + 30 s export timeout |
+| E | Client | `PlanscapeCloudPush.cs` | Disk-backed JSON queue survives process restart |
+| F | Client | `IfcRevitImporter.cs` | Scan cap 10 k → 50 k for large IFC files |
+
+---
+
 #### Completed (Phase 181 — ArchiCAD-Revit-Planscape full alignment: Gaps 1–15)
 
 Branch: `claude/review-archicad-revit-workflows-04E6q`. Deep review + full implementation of all 15 coordination alignment gaps between ArchiCAD, Revit, and the Planscape platform. Goal: zero coordinate drift, correct unit scaling, stable GlobalIds, and synchronized property mappings across the federated model.

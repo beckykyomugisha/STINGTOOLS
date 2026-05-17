@@ -215,7 +215,7 @@ namespace StingBridge.IFC
 
                 string? line;
                 int linesScanned = 0;
-                while ((line = reader.ReadLine()) != null && linesScanned++ < 10_000)
+                while ((line = reader.ReadLine()) != null && linesScanned++ < 50_000)
                 {
                     // Collect IFCDIRECTION entity labels → (X, Y) for true north lookup.
                     if (line.Contains("IFCDIRECTION"))

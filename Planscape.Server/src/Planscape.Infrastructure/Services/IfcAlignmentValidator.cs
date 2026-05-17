@@ -373,6 +373,50 @@ public sealed class IfcAlignmentValidator : IIfcAlignmentValidator
             report.GeometryCentroidZ = (report.SurveyElevation ?? 0) * 1000.0;
         }
 
+        // Gap C: Validate against the project's canonical coordinate system.
+        // When the coordinator has declared a reference origin, each uploaded model
+        // must land within 10 m of it — otherwise surveyors have misconfigured their
+        // export settings.
+        try
+        {
+            var projectCrs = await _db.ProjectCoordinateSystems.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.ProjectId == projectId, ct);
+
+            if (projectCrs != null)
+            {
+                if (report.SurveyEasting.HasValue && projectCrs.OriginEasting.HasValue)
+                {
+                    double deltaE = Math.Abs(report.SurveyEasting.Value  - projectCrs.OriginEasting.Value);
+                    double deltaN = Math.Abs((report.SurveyNorthing ?? 0) - (projectCrs.OriginNorthing ?? 0));
+                    double deltaElev = Math.Abs((report.SurveyElevation ?? 0) - (projectCrs.OriginElevation ?? 0));
+
+                    if (deltaE > 10.0 || deltaN > 10.0 || deltaElev > 10.0)
+                    {
+                        findings.Add(new("WARN", "COORD_CRS_MISMATCH",
+                            $"Model survey origin ({report.SurveyEasting:F1}, {report.SurveyNorthing:F1}) " +
+                            $"differs from project canonical origin ({projectCrs.OriginEasting:F1}, {projectCrs.OriginNorthing:F1}) " +
+                            $"by ΔE={deltaE:F1} m, ΔN={deltaN:F1} m, ΔElev={deltaElev:F1} m — exceeds 10 m tolerance.",
+                            $"Re-export from {(report.Source == "archicad" ? "ArchiCAD (Options > Project Preferences > Survey Point)" : "Revit (Manage > Coordinates > Acquire Coordinates)")} " +
+                            $"using the project benchmark: E={projectCrs.OriginEasting:F3} m, N={projectCrs.OriginNorthing:F3} m. " +
+                            $"Reference CRS: {projectCrs.CrsName ?? projectCrs.CrsEpsgCode ?? "unspecified"}."));
+                    }
+                }
+                else if (!report.SurveyEasting.HasValue && projectCrs.OriginEasting.HasValue)
+                {
+                    findings.Add(new("INFO", "COORD_CRS_NO_ORIGIN",
+                        "This model has no IfcMapConversion block but the project has a declared coordinate system. " +
+                        "The model cannot be automatically positioned in the federated view.",
+                        $"Add georeferencing to the export: target E={projectCrs.OriginEasting:F3} m, " +
+                        $"N={projectCrs.OriginNorthing:F3} m, elevation={projectCrs.OriginElevation:F3} m " +
+                        $"({projectCrs.CrsName ?? projectCrs.CrsEpsgCode ?? "project CRS"})."));
+                }
+            }
+        }
+        catch (Exception crsEx)
+        {
+            _logger.LogWarning(crsEx, "Gap C: ProjectCoordinateSystem validation failed (non-fatal).");
+        }
+
         // Determine verdict
         report.Verdict = findings.Any(f => f.Severity == "FAIL") ? "FAIL"
                        : findings.Any(f => f.Severity == "WARN") ? "WARN"

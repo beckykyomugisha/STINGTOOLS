@@ -27,6 +27,39 @@ using BCrypt.Net;
 
 namespace Planscape.API.Controllers
 {
+    /// <summary>
+    /// In-memory ring buffer of recent ArchiCAD events per project.
+    /// Capped at 200 events per project to bound memory usage.
+    /// Populated by Push; consumed by GetRecentEvents for late-join clients.
+    /// </summary>
+    internal static class ArchiCADEventBuffer
+    {
+        private const int MaxPerProject = 200;
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, System.Collections.Generic.Queue<ArchiCADEvent>>
+            _store = new();
+
+        public static void Add(Guid projectId, System.Collections.Generic.IEnumerable<ArchiCADEvent> events)
+        {
+            var q = _store.GetOrAdd(projectId, _ => new System.Collections.Generic.Queue<ArchiCADEvent>());
+            lock (q)
+            {
+                foreach (var ev in events)
+                {
+                    q.Enqueue(ev);
+                    if (q.Count > MaxPerProject) q.Dequeue();
+                }
+            }
+        }
+
+        public static System.Collections.Generic.List<ArchiCADEvent> Get(Guid projectId, int last = 200)
+        {
+            if (!_store.TryGetValue(projectId, out var q)) return new();
+            lock (q) return q.TakeLast(last).ToList();
+        }
+
+        public static void Clear(Guid projectId) => _store.TryRemove(projectId, out _);
+    }
+
     [ApiController]
     [Route("api/archicad")]
     public class ArchiCADController : ControllerBase
@@ -56,6 +89,9 @@ namespace Planscape.API.Controllers
                 return BadRequest(new { error = "Maximum 5,000 events per push" });
 
             string group = $"archicad:{projectId}";
+
+            // Persist events in ring buffer for late-join clients.
+            ArchiCADEventBuffer.Add(projectId, payload.Events);
 
             // Fan-out each event to connected web/mobile/desktop clients.
             foreach (var ev in payload.Events)
@@ -102,6 +138,47 @@ namespace Planscape.API.Controllers
             });
 
             return Ok();
+        }
+
+        // ── GET /api/archicad/{projectId}/events/recent ──────────────────────────
+        // Returns up to the last 200 ArchiCAD events for this project.
+        // Used by web/mobile clients on connect to catch up on model state.
+        // Also accessible by authenticated users (not just StingBridge).
+
+        [HttpGet("{projectId:guid}/events/recent")]
+        [Authorize]
+        public async Task<IActionResult> RecentEvents(
+            Guid projectId,
+            [FromQuery] int count = 200,
+            CancellationToken ct = default)
+        {
+            // Verify the caller is a project member (standard auth check).
+            var tenantClaim = User.FindFirst("tenant_id")?.Value;
+            if (!Guid.TryParse(tenantClaim, out var tenantId))
+                return Unauthorized(new { error = "Missing tenant claim" });
+
+            var isMember = await _db.ProjectMembers
+                .AnyAsync(m => m.ProjectId == projectId && m.UserId == GetUserId(), ct);
+            if (!isMember)
+            {
+                // Also accept bridge-key auth so StingBridge can poll its own buffer.
+                var bridgeProject = await AuthenticateBridge(projectId);
+                if (bridgeProject == null) return Forbid();
+            }
+
+            int safeCount = Math.Clamp(count, 1, 200);
+            var events = ArchiCADEventBuffer.Get(projectId, safeCount);
+
+            return Ok(new
+            {
+                projectId,
+                eventCount  = events.Count,
+                events,
+                bufferCap   = 200,
+                note        = events.Count == 0
+                    ? "No recent events. StingBridge has not pushed any changes yet."
+                    : $"Last {events.Count} events (in-memory, reset on server restart).",
+            });
         }
 
         // ── GET /api/archicad/{projectId}/keygen ─────────────────────────────
