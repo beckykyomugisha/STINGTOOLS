@@ -114,5 +114,72 @@ namespace StingTools.Core.Drawing
             if (string.IsNullOrEmpty(actual)) return false;
             return string.Equals(ruleValue, actual, StringComparison.OrdinalIgnoreCase);
         }
+
+        // ─────────────────────────────────────────────────────────────────
+        //  TITLE-BLOCK VARIANT RESOLUTION — Gap 3
+        // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>Evaluates DrawingType.TitleBlockVariantRules against the supplied context
+        /// and returns the (family, symbol) pair to use. Returns the DrawingType's own
+        /// TitleBlockFamily/TitleBlockSymbolType when no rule matches or rules are absent.</summary>
+        public static (string Family, string Symbol) ResolveTitleBlockVariant(
+            DrawingType dt,
+            string contextPhase = null,
+            string contextDiscipline = null,
+            string contextColourScheme = null,
+            bool isPrintContext = false)
+        {
+            string family = dt?.TitleBlockFamily;
+            string symbol = dt?.TitleBlockSymbolType;
+
+            if (dt?.TitleBlockVariantRules == null || dt.TitleBlockVariantRules.Count == 0)
+                return (family, symbol);
+
+            foreach (var rule in dt.TitleBlockVariantRules)
+            {
+                if (string.IsNullOrWhiteSpace(rule?.When)) continue;
+                if (EvaluateVariantCondition(rule.When, contextPhase, contextDiscipline, contextColourScheme, isPrintContext))
+                {
+                    if (!string.IsNullOrWhiteSpace(rule.UseFamily)) family = rule.UseFamily;
+                    if (!string.IsNullOrWhiteSpace(rule.UseSymbol)) symbol = rule.UseSymbol;
+                    break;
+                }
+            }
+            return (family, symbol);
+        }
+
+        private static bool EvaluateVariantCondition(
+            string when,
+            string phase, string discipline, string colourScheme, bool isPrint)
+        {
+            // Split on " AND " (case-insensitive) — all clauses must match
+            var clauses = when.Split(new[] { " AND " }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var clause in clauses)
+            {
+                var c = clause.Trim();
+                if (string.IsNullOrEmpty(c)) continue;
+
+                if (c.Equals("context=print", StringComparison.OrdinalIgnoreCase))
+                { if (!isPrint) return false; continue; }
+
+                if (c.Equals("context=screen", StringComparison.OrdinalIgnoreCase))
+                { if (isPrint) return false; continue; }
+
+                var eq = c.IndexOf('=');
+                if (eq < 0) continue; // unrecognised clause — skip (permissive)
+                var key = c.Substring(0, eq).Trim().ToLowerInvariant();
+                var val = c.Substring(eq + 1).Trim();
+
+                bool matched = key switch
+                {
+                    "phase" => string.Equals(phase, val, StringComparison.OrdinalIgnoreCase),
+                    "discipline" => string.Equals(discipline, val, StringComparison.OrdinalIgnoreCase),
+                    "print.colourscheme" => string.Equals(colourScheme, val, StringComparison.OrdinalIgnoreCase),
+                    _ => true // unknown key — skip clause (forward-compatible)
+                };
+                if (!matched) return false;
+            }
+            return true;
+        }
     }
 }

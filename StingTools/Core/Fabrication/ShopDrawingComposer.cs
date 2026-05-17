@@ -127,7 +127,10 @@ namespace StingTools.Core.Fabrication
                     var routed = StingTools.Core.TitleBlockRouter.Resolve(doc, discCode);
                     if (routed != null) tbId = routed.Id;
                 }
-                // 3) Per-discipline STING_TB_ASSEMBLY_* hard-code as last resort
+                // 3) Per-discipline STING_TB_ASSEMBLY_* hard-code as last resort.
+                // Gap-6: when we reach this tier, the profile family (if any) was
+                // not found — the discipline-dict name is the "expected" value and
+                // whatever ResolveTitleBlock picks is the "used" value.
                 if (tbId == ElementId.InvalidElementId)
                     tbId = ResolveTitleBlock(doc, discipline, result);
             }
@@ -296,9 +299,12 @@ namespace StingTools.Core.Fabrication
                 {
                     if (el is FamilySymbol fs)
                     {
-                        string msg = $"Title block '{familyName}' not loaded; falling back to '{fs.FamilyName}'. Populated fab cells may be silently dropped.";
+                        string actualFamily = fs.FamilyName;
+                        string msg = $"Title block '{familyName}' not loaded; falling back to '{actualFamily}'. Populated fab cells may be silently dropped.";
                         StingLog.Warn("ShopDrawingComposer: " + msg);
                         result?.Warnings.Add(msg);
+                        // Gap-6: record the discipline-dict fallback (sheet not yet created).
+                        result?.TitleBlockFallbacks.Add((-1L, "(from discipline dict) " + familyName, actualFamily));
                         return fs.Id;
                     }
                 }
