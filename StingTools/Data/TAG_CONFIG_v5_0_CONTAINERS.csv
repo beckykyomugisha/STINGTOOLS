@@ -184,11 +184,12 @@ LPS_FAMILY,STING - LPS Test Clamp Tag,"Electrical Equipment,Generic Models,Speci
 #
 # Section 14: HEALTHCARE PACK CONTAINERS (Phase H-1)
 #
-HEALTHCARE_CONTAINER,CLN_TAG,Clinical room metadata tag,"Rooms",CLN_ROOM_CLASS_TXT
-HEALTHCARE_CONTAINER,MGS_TAG,Medical gas tag,"Pipes,Pipe Fittings,Pipe Accessories,Plumbing Fixtures,Mechanical Equipment",MGS_GAS_TYPE_TXT
-HEALTHCARE_CONTAINER,RAD_TAG,Radiation barrier tag,"Walls,Doors,Windows,Generic Models",RAD_LEAD_MM_NR
-HEALTHCARE_CONTAINER,CEQ_TAG,Clinical equipment tag,"Medical Equipment,Nurse Call Devices,Specialty Equipment,Mechanical Equipment,Generic Models,Plumbing Fixtures",CEQ_CATEGORY_TXT
-HEALTHCARE_CONTAINER,LIG_TAG,Anti-ligature tag,"Doors,Plumbing Fixtures,Lighting Fixtures,Generic Models",LIG_PRODUCT_RATING_TXT
+HEALTHCARE_CONTAINER,CLN_ROOM_TAG,Clinical room tag,"Rooms",CLN_ROOM_CLASS_TXT
+HEALTHCARE_CONTAINER,CLN_EQP_TAG,Clinical equipment tag,"Medical Equipment,Specialty Equipment,Generic Models",CLN_ROOM_CLASS_TXT
+HEALTHCARE_CONTAINER,MGS_EQP_TAG,Medical gas equipment tag,"Pipes,Pipe Fittings,Pipe Accessories,Plumbing Fixtures,Mechanical Equipment",MGS_GAS_TYPE_TXT
+HEALTHCARE_CONTAINER,RAD_EQP_TAG,Radiation barrier tag,"Walls,Doors,Windows,Generic Models",RAD_LEAD_MM_NR
+HEALTHCARE_CONTAINER,CEQ_EQP_TAG,Clinical specialist equipment tag,"Medical Equipment,Nurse Call Devices,Specialty Equipment,Mechanical Equipment,Generic Models,Plumbing Fixtures",CEQ_CATEGORY_TXT
+HEALTHCARE_CONTAINER,LIG_FIT_TAG,Anti-ligature fitting tag,"Doors,Plumbing Fixtures,Lighting Fixtures,Generic Models",LIG_PRODUCT_RATING_TXT
 HEALTHCARE_FAMILY,STING - Clinical Room Tag,Rooms,CLN_ROOM_CLASS_TXT
 HEALTHCARE_FAMILY,STING - Medical Gas Tag,"Pipes,Pipe Fittings,Pipe Accessories,Plumbing Fixtures",MGS_GAS_TYPE_TXT
 HEALTHCARE_FAMILY,STING - MGS Terminal Unit Tag,Plumbing Fixtures,MGS_GAS_TYPE_TXT
