@@ -573,7 +573,7 @@ namespace StingTools.Core.Drawing
         //       regex evaluated against the caller's level code, e.g.
         //       "^B\d+" to match any basement level
         //   projectCodeMatches
-        //       regex evaluated against doc's PRJ_ORG_PROJECT_CODE
+        //       regex evaluated against doc's PRJ_PROJECT_COD_TXT
         //   hasScopeBox
         //       true = only fires when the caller passes a scope box
         //       with a matching discipline / doc type

@@ -403,7 +403,7 @@ namespace StingTools.ExLink
                     ws.Cell(row, 5).Value = s.get_Parameter(BuiltInParameter.SHEET_APPROVED_BY)?.AsString() ?? "";
                     ws.Cell(row, 6).Value = s.get_Parameter(BuiltInParameter.SHEET_ISSUE_DATE)?.AsString() ?? "";
                     ws.Cell(row, 7).Value = s.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION)?.AsString() ?? "";
-                    ws.Cell(row, 8).Value = ParameterHelpers.GetString(s, "STING_CDE_STATUS") != "" ? ParameterHelpers.GetString(s, "STING_CDE_STATUS") : "WIP";
+                    ws.Cell(row, 8).Value = ParameterHelpers.GetString(s, "ASS_CDE_STATUS_TXT") != "" ? ParameterHelpers.GetString(s, "ASS_CDE_STATUS_TXT") : "WIP";
                     row++;
                 }
 

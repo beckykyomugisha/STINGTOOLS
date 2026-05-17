@@ -21,24 +21,30 @@ public class PricingController : ControllerBase
     {
         return Ok(new
         {
+            pluginOnly = Render(BillingPlan.PluginOnly, "StingTools Plugin", "Revit plugin only · local workflow · no cloud needed", highlight: false),
             plans = new[]
             {
-                Render(BillingPlan.Studio,   "Studio",   "Solo studio · 1 author + 10 coordinators · 3 projects",  highlight: false),
-                Render(BillingPlan.Practice, "Practice", "Small practice · 1 author + 25 coordinators · 10 projects", highlight: false),
-                Render(BillingPlan.Network,  "Network",  "Mid-size firm · 3 authors + 35 coordinators · 10 projects", highlight: true),
-                Render(BillingPlan.Enterprise, "Enterprise", "≥100 seats · SSO · SLA · on-prem option", highlight: false, custom: true),
+                Render(BillingPlan.Studio,    "Small",      "Plugin + cloud · up to 6 users · 5 projects",            highlight: false),
+                Render(BillingPlan.Practice,  "Medium",     "Plugin + cloud · up to 12 users · 10 projects",          highlight: true),
+                Render(BillingPlan.Network,   "Large",      "Plugin + cloud · up to 20 users · unlimited projects",   highlight: false),
+                Render(BillingPlan.Enterprise,"Enterprise", "≥20 seats · SSO · SLA · on-prem option",                 highlight: false, custom: true),
             },
             mim = new
             {
                 name = "MIM Add-on",
                 description = "Asset lifecycle + handover module for FM phase",
-                priceUsd = 12,
+                priceUsd = 10,
                 cycle = "monthly",
             },
             annualDiscount = new
             {
-                description = "Pay yearly, get 2 months free",
-                multiplierMonthsPerYear = 10,
+                description = "Pay annually — get 1 month free (pay 11, use 12)",
+                multiplierMonthsPerYear = 11,
+            },
+            ngoDiscount = new
+            {
+                description = "NGO and government organisations",
+                discountPct = 15,
             },
             currencies = new
             {
@@ -47,11 +53,11 @@ public class PricingController : ControllerBase
             },
             comparison = new[]
             {
-                new { vs = "Autodesk Construction Cloud", price = "$40-80/seat/mo", planscape = "$4.50/seat at Network" },
-                new { vs = "Procore",                     price = "$375-549+/mo",   planscape = "$80-150/firm" },
-                new { vs = "Trimble Connect",             price = "$20-40/seat",    planscape = "$4.50/seat" },
-                new { vs = "BIM Track",                   price = "$40-55/seat",    planscape = "issue-tracking + viewer + plugin" },
-                new { vs = "Dalux",                       price = "$30-50/seat",    planscape = "offline-first parity" },
+                new { vs = "Autodesk Construction Cloud", price = "$40-80/seat/mo",    planscape = "$35-90/firm (not per seat)" },
+                new { vs = "Procore",                     price = "$375-549+/mo",      planscape = "$35-90/firm" },
+                new { vs = "Trimble Connect",             price = "$20-40/seat",       planscape = "flat firm pricing" },
+                new { vs = "BIM Track",                   price = "$40-55/seat",       planscape = "issue-tracking + viewer + plugin included" },
+                new { vs = "Dalux",                       price = "$30-50/seat",       planscape = "offline-first + local currency billing" },
             },
         });
     }
@@ -61,6 +67,7 @@ public class PricingController : ControllerBase
     [Produces("text/html")]
     public ContentResult HtmlPage()
     {
+        var plugin = BillingPlanLimits.For(BillingPlan.PluginOnly);
         var s = BillingPlanLimits.For(BillingPlan.Studio);
         var p = BillingPlanLimits.For(BillingPlan.Practice);
         var n = BillingPlanLimits.For(BillingPlan.Network);
@@ -90,12 +97,13 @@ public class PricingController : ControllerBase
 <body>
 <header>
   <h1>Pricing built for East African firms</h1>
-  <p class=""lead"">Per-firm, per-month, USD. Pay annually and get two months free. Invoiced in your local currency via Flutterwave (UGX/KES/TZS/RWF/NGN/ZAR/ZMW) or in USD/EUR/GBP via Stripe.</p>
+  <p class=""lead"">Per-firm, per-month, USD. Pay annually and get 1 month free. NGO &amp; government: 15% discount. Invoiced in your local currency via Flutterwave (UGX/KES/TZS/RWF/NGN/ZAR/ZMW) or in USD/EUR/GBP via Stripe.</p>
 </header>
 <section class=""grid"">
-  {Card("Studio",   s, "For solo studios just getting started.",         featured: false, plan: "Studio")}
-  {Card("Practice", p, "Small practice with one author and a field team.", featured: false, plan: "Practice")}
-  {Card("Network",  n, "Mid-size firm. The default we recommend.",      featured: true,  plan: "Network", pill: "Most popular")}
+  {PluginOnlyCard(plugin)}
+  {Card("Small",   s, "Plugin + cloud · up to 6 users · 5 projects.",          featured: false, plan: "Studio")}
+  {Card("Medium",  p, "Plugin + cloud · up to 12 users · 10 projects.",        featured: true,  plan: "Practice", pill: "Most popular")}
+  {Card("Large",   n, "Plugin + cloud · up to 20 users · unlimited projects.", featured: false, plan: "Network")}
   {EnterpriseCard()}
 </section>
 <footer>
@@ -129,28 +137,48 @@ public class PricingController : ControllerBase
 
     private static string[] FeaturesFor(BillingPlan plan) => plan switch
     {
+        BillingPlan.PluginOnly => new[]
+        {
+            "Full Revit 2025/2026/2027 plugin", "ISO 19650 tagging suite",
+            "IFC 4 export + property sets", "Local file storage only",
+            "Unlimited Revit users on one machine", "No internet required",
+        },
         BillingPlan.Studio => new[]
         {
-            "Revit plugin (1 seat)", "Mobile + web viewer (10 seats)",
-            "Issue tracking", "ISO 19650 tag templates", "Offline-first mobile",
+            "Everything in StingTools Plugin", "Up to 6 users (cloud)",
+            "Cloud sync + real-time dashboard", "5 active projects · 10 GB storage",
+            "Issue tracker (BCF 2.1)", "Offline-first mobile app",
         },
         BillingPlan.Practice => new[]
         {
-            "Everything in Studio", "25 coordinator seats", "10 active projects",
-            "25 GB model storage", "Document control + CDE", "Meeting minutes + transmittals",
+            "Everything in Small", "Up to 12 users", "10 active projects · 25 GB storage",
+            "Document control + CDE", "Meeting minutes + transmittals",
         },
         BillingPlan.Network => new[]
         {
-            "Everything in Practice", "3 author seats", "35 coordinator seats",
-            "50 GB model storage", "4D/5D scheduling", "Federation across disciplines", "Priority support",
+            "Everything in Medium", "Up to 20 users", "Unlimited projects · 50 GB storage",
+            "4D/5D scheduling", "Federation across disciplines", "Priority support",
         },
         BillingPlan.Enterprise => new[]
         {
-            "Everything in Network", "Unlimited seats + projects", "SSO (SAML/OIDC)",
-            "Dedicated tenant + on-prem option", "99.9% SLA", "Audit replay + ISO 27001-light evidence pack",
+            "Everything in Large", "Unlimited seats + projects", "SSO (SAML/OIDC)",
+            "On-prem or dedicated tenant", "99.9% SLA", "ISO 27001-light evidence pack",
         },
         _ => Array.Empty<string>(),
     };
+
+    private static string PluginOnlyCard(BillingPlanLimits.Limits l)
+    {
+        var feats = string.Join("", FeaturesFor(BillingPlan.PluginOnly).Select(f => $"<li>{f}</li>"));
+        return $@"<article class=""card plugin-card"">
+  <div class=""pill"" style=""background:rgba(28,31,38,.08);color:#1c1f26"">Plugin only</div>
+  <div class=""name"">StingTools</div>
+  <div class=""price"">${l.MonthlyUsd:0}<span class=""cycle""> / firm / mo</span></div>
+  <div class=""cycle"">or ${l.MonthlyUsd * 11:0} / year · no cloud needed</div>
+  <ul class=""feat"">{feats}</ul>
+  <a class=""cta"" href=""/signup?plan=PluginOnly"">Start 30-day trial</a>
+</article>";
+    }
 
     private static string Card(string name, BillingPlanLimits.Limits l, string blurb, bool featured, string plan, string? pill = null)
     {
@@ -166,7 +194,7 @@ public class PricingController : ControllerBase
   {pillHtml}
   <div class=""name"">{name}</div>
   <div class=""price"">${l.MonthlyUsd:0}<span class=""cycle""> / firm / mo</span></div>
-  <div class=""cycle"">Pay annually = ${l.MonthlyUsd * 10:0} / year</div>
+  <div class=""cycle"">Pay annually = ${l.MonthlyUsd * 11:0} / year (1 month free)</div>
   <ul class=""feat"">{feats}</ul>
   <a class=""{ctaClass}"" href=""/signup?plan={plan}"">Start 30-day trial</a>
 </article>";
@@ -175,8 +203,9 @@ public class PricingController : ControllerBase
     private static string EnterpriseCard() => @"<article class=""card"">
   <div class=""name"">Enterprise</div>
   <div class=""price"">Custom</div>
-  <div class=""cycle"">From $3,500 / mo</div>
+  <div class=""cycle"">Unlimited users, on-prem option</div>
   <ul class=""feat"">
+    <li>Everything in Large</li>
     <li>Unlimited seats + projects</li>
     <li>SSO (SAML/OIDC)</li>
     <li>On-prem deployment option</li>

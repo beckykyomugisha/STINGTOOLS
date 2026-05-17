@@ -85,7 +85,7 @@ namespace StingTools.Docs
                 w.WriteStartElement("orgParams");
                 foreach (string p in new[]
                 {
-                    "PRJ_ORG_PROJECT_COD_TXT", "PRJ_ORG_ORIGINATOR_COD_TXT",
+                    "PRJ_PROJECT_COD_TXT", "PRJ_ORG_ORIGINATOR_CODE_TXT",
                     "PRJ_ORG_COMPANY_NAME_TXT", "PRJ_ORG_CLIENT_NAME_TXT",
                     "PRJ_ORG_PHASE_TXT", "PRJ_ORG_CLASS_TXT",
                 })

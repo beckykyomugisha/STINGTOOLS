@@ -210,7 +210,7 @@ namespace StingTools.UI
             paramPanel.Children.Add(new TextBlock { Text = "Parameters", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = BrFgDark });
             var paramList = new System.Windows.Controls.ListBox { SelectionMode = SelectionMode.Multiple, Height = 300 };
 
-            var defaultParams = new[] { "ASS_TAG_1", "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+            var defaultParams = new[] { "ASS_TAG_1_TXT", "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
                 "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT",
                 "ASS_SEQ_NUM_TXT", "ASS_TAG_7_TXT", "ASS_STATUS_TXT", "ASS_REVISION_TXT" };
             var optionalParams = new[] { "Width", "Height", "Area", "Volume", "Length", "Flow", "Voltage",

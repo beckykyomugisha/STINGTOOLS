@@ -17,6 +17,8 @@
     { "commandTag": "Validation_BS7671", "label": "BS 7671 §522.8 standards validation",
       "optional": true, "condition": "has_conduits", "skipIfDataUnchanged": true },
     { "commandTag": "Rprt_Audit",        "label": "Generate compliance audit",  "optional": true  },
-    { "commandTag": "Rprt_ExcelExport",  "label": "Export panel schedules",     "optional": true  }
+    { "commandTag": "Rprt_ExcelExport",  "label": "Export panel schedules",     "optional": true  },
+    { "commandTag": "SLD_Update",        "label": "Refresh SLD view(s)",        "optional": true,
+      "condition": "sld_view_exists" }
   ]
 }
