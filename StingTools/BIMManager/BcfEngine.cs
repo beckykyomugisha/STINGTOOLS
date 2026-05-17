@@ -6,7 +6,6 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Xml.Linq;
-using StingTools.Core;
 
 namespace Planscape.Shared.BCF
 {
