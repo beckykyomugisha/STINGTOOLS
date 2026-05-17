@@ -84,7 +84,7 @@ namespace StingTools.Commands.Electrical.Schematics
                 for (int i = 0; i < candidates.Count; i++)
                 {
                     string nm = candidates[i]
-                        .get_Parameter(BuiltInParameter.RBS_PANEL_NAME)?.AsString()
+                        .LookupParameter("Panel Name")?.AsString()
                         ?? candidates[i].Name
                         ?? $"Panel {i + 1}";
                     td.AddCommandLink(cmdLinks[i], nm);
@@ -109,7 +109,7 @@ namespace StingTools.Commands.Electrical.Schematics
 
             // Read panel data.
             string panelName = chosenPanel
-                .get_Parameter(BuiltInParameter.RBS_PANEL_NAME)?.AsString()
+                .LookupParameter("Panel Name")?.AsString()
                 ?? chosenPanel.Name
                 ?? "Panel";
 
@@ -120,7 +120,7 @@ namespace StingTools.Commands.Electrical.Schematics
 
             string ratingInfo = chosenPanel.LookupParameter("ELC_BUSBAR_RATING_TXT")?.AsString()
                 ?? chosenPanel
-                    .get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_SUPPLY_FROM)?.AsString()
+                    .LookupParameter("Electrical - Panel Service")?.AsString()
                 ?? "";
 
             // Gather circuits whose BaseEquipment matches this panel.

@@ -1091,14 +1091,15 @@ namespace StingTools.Core.Symbols
                     switch (domain)
                     {
                         case Domain.DomainHvac:
-                            // Revit 2025 API: CreateDuctConnector(Document, ConnectorProfileType, Line)
-                            // The Reference overload was removed; pass the Line directly.
+                            // Revit 2025 API: CreateDuctConnector(Document, ConnectorProfileType,
+                            // Reference, DuctSystemType) — 4 args; 3-arg overload does not exist.
                             try
                             {
                                 ce = ConnectorElement.CreateDuctConnector(
                                     fdoc,
                                     ResolveProfileType(c.Shape),
-                                    refLine.GeometryCurve as Line);
+                                    refLine.GeometryCurve.GetEndPointReference(0),
+                                    DuctSystemType.SupplyAir);
                                 SetConnectorSystemTypeParam(ce, c.SystemType, domain, def.Id, sourceLabel, result);
                             }
                             catch (Exception ex)
@@ -1109,14 +1110,13 @@ namespace StingTools.Core.Symbols
                             break;
 
                         case Domain.DomainPiping:
-                            // Revit 2025 API: CreatePipeConnector(Document, PipeSystemType, Line)
-                            // ConnectorProfileType arg replaced by PipeSystemType.
+                            // Revit 2025 API: CreatePipeConnector(Document, PipeSystemType, Reference)
                             try
                             {
                                 ce = ConnectorElement.CreatePipeConnector(
                                     fdoc,
                                     Autodesk.Revit.DB.Plumbing.PipeSystemType.SupplyHydronic,
-                                    refLine.GeometryCurve as Line);
+                                    refLine.GeometryCurve.GetEndPointReference(0));
                                 SetConnectorSystemTypeParam(ce, c.SystemType, domain, def.Id, sourceLabel, result);
                             }
                             catch (Exception ex)
@@ -1127,19 +1127,13 @@ namespace StingTools.Core.Symbols
                             break;
 
                         case Domain.DomainElectrical:
-                            // Fix 1d — ConnectorElement.CreateElectricalConnector in Revit 2025:
-                            //   CreateElectricalConnector(doc, electricalSystemType, startRef, endRef)
+                            // Revit 2025 API: CreateElectricalConnector(Document, ElectricalSystemType, Reference)
                             try
                             {
-                                XYZ p2elec = origin.Add(facing.Multiply(MmToFt(10)));
-                                if (p2elec.DistanceTo(origin) < 1e-6)
-                                    p2elec = origin.Add(XYZ.BasisZ.Multiply(MmToFt(10)));
-
-                                // Revit 2025 API: CreateElectricalConnector(Document, ElectricalSystemType, Line)
                                 ce = ConnectorElement.CreateElectricalConnector(
                                     fdoc,
                                     ResolveElectricalSystemType(c.SystemType),
-                                    refLine.GeometryCurve as Line);
+                                    refLine.GeometryCurve.GetEndPointReference(0));
                             }
                             catch (Exception ex)
                             {
@@ -1153,10 +1147,10 @@ namespace StingTools.Core.Symbols
                             //   CreateConduitConnector(doc, reference)
                             try
                             {
-                                // Revit 2025 API: CreateConduitConnector(Document, Line)
+                                // Revit 2025 API: CreateConduitConnector(Document, Reference)
                                 ce = ConnectorElement.CreateConduitConnector(
                                     fdoc,
-                                    refLine.GeometryCurve as Line);
+                                    refLine.GeometryCurve.GetEndPointReference(0));
                             }
                             catch (Exception ex)
                             {

@@ -289,7 +289,8 @@ namespace StingTools.Core.SLD
                 {
                     try
                     {
-                        var ratingParam = circuit.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_RATING);
+                        var ratingParam = circuit.LookupParameter("Frame")
+                            ?? circuit.LookupParameter("Rating");
                         if (ratingParam != null)
                         {
                             // RBS_ELEC_CIRCUIT_RATING is stored as Double (amperes) in internal units.
@@ -346,7 +347,8 @@ namespace StingTools.Core.SLD
                 // units, i.e. volts).  Values < 50 are assumed to be in kV and converted.
                 try
                 {
-                    var voltParam = fi.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE_PARAM);
+                    var voltParam = fi.LookupParameter("RBS_ELEC_VOLTAGE_PARAM")
+                        ?? fi.LookupParameter("Voltage");
                     if (voltParam != null)
                     {
                         double rawV = voltParam.AsDouble();

@@ -90,7 +90,8 @@ namespace StingTools.Commands.Electrical.Validation
                     double systemVoltage = 230.0; // IEC default
                     try
                     {
-                        var voltParam = panel.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE_PARAM);
+                        var voltParam = panel.LookupParameter("RBS_ELEC_VOLTAGE_PARAM")
+                            ?? panel.LookupParameter("Voltage");
                         if (voltParam != null && voltParam.AsDouble() > 0)
                             systemVoltage = voltParam.AsDouble();
                     }

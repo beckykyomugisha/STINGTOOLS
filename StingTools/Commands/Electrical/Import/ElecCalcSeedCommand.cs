@@ -54,7 +54,8 @@ namespace StingTools.Commands.Electrical.Import
                 bool doJson = fmt == TaskDialogResult.CommandLink2 || fmt == TaskDialogResult.CommandLink3;
                 if (fmt == TaskDialogResult.Cancel) return Result.Cancelled;
 
-                string outDir = OutputLocationHelper.GetOutputDirectory(doc, "ElecCalcSeed");
+                string outDir = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc), "ElecCalcSeed");
+                Directory.CreateDirectory(outDir);
                 string proj   = SanitiseName(doc.ProjectInformation?.Name ?? "project");
                 var files = new List<string>();
 
