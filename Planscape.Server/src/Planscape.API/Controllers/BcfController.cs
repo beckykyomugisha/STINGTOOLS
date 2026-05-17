@@ -13,18 +13,24 @@ namespace Planscape.API.Controllers;
 /// <summary>
 /// T3 — BCF 2.1 bidirectional round-trip.
 ///
-///   GET  /api/projects/{projectId}/bcf/export  → returns a .bcfzip with all
-///        open issues serialised as BCF topics + viewpoints.
+///   GET  /api/projects/{projectId}/bcf/export  → .bcfzip consumable by
+///        ArchiCAD BCF Manager, Revit StingTools plugin, Solibri, BIM Collab.
 ///   POST /api/projects/{projectId}/bcf/import  → accepts a .bcfzip, upserts
 ///        matching issues by BcfGuid.
 ///
 /// BCF 2.1 (buildingSMART) structure:
 ///   bcf.version (XML)
-///   {topic-guid}/markup.bcf (XML: Topic + Comment nodes)
-///   {topic-guid}/viewpoint.bcfv (XML: camera + visibility)
+///   {topic-guid}/markup.bcf   (XML: Topic + Comment nodes)
+///   {topic-guid}/viewpoint.bcfv (XML: camera + Components[IfcGuid])
 ///
-/// Scaffold stores the essentials; camera serialisation matches the existing
-/// BCF writer in the plugin so exports round-trip cleanly.
+/// ArchiCAD compatibility notes:
+///   - Each viewpoint includes &lt;Components&gt;&lt;Component IfcGuid="..."/&gt; when
+///     ModelElementGuid is set. ArchiCAD BCF Manager uses this to locate and
+///     highlight the element automatically on import (ArchiCAD 22+).
+///   - ?source=archicad query param restricts export to issues originating
+///     from ArchiCAD IFC uploads (Source field on BimIssue).
+///   - Export filename encodes the source hint so clients know which IFC
+///     model's GUIDs are referenced.
 /// </summary>
 [ApiController]
 [Route("api/projects/{projectId:guid}/bcf")]
@@ -39,13 +45,21 @@ public class BcfController : ControllerBase
     public BcfController(PlanscapeDbContext db) => _db = db;
 
     [HttpGet("export")]
-    public async Task<IActionResult> Export(Guid projectId, [FromQuery] string? status, CancellationToken ct)
+    public async Task<IActionResult> Export(
+        Guid projectId,
+        [FromQuery] string? status,
+        [FromQuery] string? source,
+        CancellationToken ct)
     {
         if (!await ProjectInTenant(projectId, ct)) return Forbid();
 
         var q = _db.Issues.AsNoTracking().Where(i => i.ProjectId == projectId);
         if (!string.IsNullOrEmpty(status)) q = q.Where(i => i.Status == status);
+        // ?source=archicad → only issues raised against ArchiCAD IFC uploads
+        if (!string.IsNullOrEmpty(source)) q = q.Where(i => i.Source == source);
         var issues = await q.ToListAsync(ct);
+
+        var sourceHint = string.IsNullOrEmpty(source) ? "all" : source;
 
         using var ms = new MemoryStream();
         using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
@@ -65,7 +79,7 @@ public class BcfController : ControllerBase
             }
         }
         ms.Position = 0;
-        return File(ms.ToArray(), "application/zip", $"planscape-{projectId:N}.bcfzip");
+        return File(ms.ToArray(), "application/zip", $"planscape-{projectId:N}-{sourceHint}.bcfzip");
     }
 
     [HttpPost("import")]
@@ -168,13 +182,26 @@ public class BcfController : ControllerBase
 
     private static string BuildViewpoint(BimIssue i)
     {
-        // Minimal orthogonal camera anchored on the issue's model XYZ when set.
+        // Orthogonal camera anchored on the issue's model XYZ when set.
         var hasXyz = i.ModelX.HasValue && i.ModelY.HasValue && i.ModelZ.HasValue;
         var px = hasXyz ? i.ModelX!.Value : 0;
         var py = hasXyz ? i.ModelY!.Value : 0;
         var pz = hasXyz ? i.ModelZ!.Value : 10;
+
+        // BCF 2.1 §4.4 Components — IfcGuid lets ArchiCAD (and Revit, Solibri,
+        // BIM Collab) locate and highlight the flagged element on BCF import.
+        // ModelElementGuid is set when an issue is raised from the 3D viewer.
+        var components = !string.IsNullOrEmpty(i.ModelElementGuid)
+            ? $"<Components>" +
+              $"<ViewSetupHints SpacesVisible=\"false\" SpaceBoundariesVisible=\"false\" OpeningsVisible=\"false\"/>" +
+              $"<Selection><Component IfcGuid=\"{X(i.ModelElementGuid)}\"/></Selection>" +
+              $"<Visibility DefaultVisibility=\"true\"/>" +
+              $"</Components>"
+            : "";
+
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
             "<VisualizationInfo xmlns=\"" + BcfXmlns + "\">" +
+              components +
               "<OrthogonalCamera>" +
                 $"<CameraViewPoint><X>{px:0.###}</X><Y>{py:0.###}</Y><Z>{pz:0.###}</Z></CameraViewPoint>" +
                 "<CameraDirection><X>0</X><Y>0</Y><Z>-1</Z></CameraDirection>" +

@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Structure;
+using StingTools.Core;
 using StingTools.Core.Electrical;
+using StingTools.Core.Routing;
 
 namespace StingTools.Commands.Electrical.Routing
 {
@@ -128,6 +131,162 @@ namespace StingTools.Commands.Electrical.Routing
             foreach (var d in StandardConduitMm)
                 if (d >= requiredDiamMm) return d;
             return StandardConduitMm[StandardConduitMm.Length - 1];
+        }
+
+        /// <summary>
+        /// Advanced routing overload that uses A* on a VoxelGrid obstacle map to
+        /// find an obstacle-avoiding path. Falls back to the standard rectilinear
+        /// L/Z path when A* returns no solution or VoxelGrid construction fails.
+        ///
+        /// Obstacles collected: structural framing, structural columns, floors.
+        /// Voxel size: 200 mm (VoxelGrid.DefaultSideMm).
+        /// </summary>
+        public static List<RouteSegment> ComputeRouteAdvanced(
+            Document doc, XYZ start, XYZ end, double diameterMm,
+            string label = "", double maxFillPct = 0.40)
+        {
+            try
+            {
+                // ── Build obstacle outlines from structural elements ──────
+                var obstacleOutlines = new List<Outline>();
+                try
+                {
+                    var structCategories = new[]
+                    {
+                        typeof(Floor),
+                        typeof(FamilyInstance)   // structural columns + framing via filter below
+                    };
+                    // Floors
+                    var floors = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Floor)).Cast<Floor>();
+                    foreach (var f in floors)
+                    {
+                        try
+                        {
+                            var bb = f.get_BoundingBox(null);
+                            if (bb != null)
+                                obstacleOutlines.Add(new Outline(bb.Min, bb.Max));
+                        }
+                        catch { }
+                    }
+                    // Structural columns
+                    var cols = new FilteredElementCollector(doc)
+                        .OfClass(typeof(FamilyInstance))
+                        .OfCategory(BuiltInCategory.OST_StructuralColumns)
+                        .Cast<FamilyInstance>();
+                    foreach (var c in cols)
+                    {
+                        try
+                        {
+                            var bb = c.get_BoundingBox(null);
+                            if (bb != null)
+                                obstacleOutlines.Add(new Outline(bb.Min, bb.Max));
+                        }
+                        catch { }
+                    }
+                    // Structural framing
+                    var framing = new FilteredElementCollector(doc)
+                        .OfClass(typeof(FamilyInstance))
+                        .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                        .Cast<FamilyInstance>();
+                    foreach (var f in framing)
+                    {
+                        try
+                        {
+                            var bb = f.get_BoundingBox(null);
+                            if (bb != null)
+                                obstacleOutlines.Add(new Outline(bb.Min, bb.Max));
+                        }
+                        catch { }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ComputeRouteAdvanced obstacle collect: {ex.Message}"); }
+
+                // ── Build VoxelGrid ──────────────────────────────────────
+                // Envelope is a generous box around start + end with 2 m padding.
+                double padFt = 2.0 / 0.3048;
+                var minPt = new XYZ(
+                    Math.Min(start.X, end.X) - padFt,
+                    Math.Min(start.Y, end.Y) - padFt,
+                    Math.Min(start.Z, end.Z) - padFt);
+                var maxPt = new XYZ(
+                    Math.Max(start.X, end.X) + padFt,
+                    Math.Max(start.Y, end.Y) + padFt,
+                    Math.Max(start.Z, end.Z) + padFt);
+
+                var outline = new BoundingBoxXYZ { Min = minPt, Max = maxPt };
+                var grid = new VoxelGrid(outline, obstacleOutlines);
+                int cellCount = grid.Build();
+                if (cellCount == 0)
+                {
+                    StingLog.Warn("ComputeRouteAdvanced: VoxelGrid built 0 cells — falling back to rectilinear.");
+                    return ComputeRoute(start, end, diameterMm, label);
+                }
+
+                // ── Locate start / end cells ─────────────────────────────
+                // Walk cells to find the one whose centre is nearest start/end.
+                VoxelCell startCell = null, endCell = null;
+                double bestStart = double.MaxValue, bestEnd = double.MaxValue;
+                foreach (var cell in grid.Cells)
+                {
+                    double cx = (cell.MinX + cell.MaxX) * 0.5;
+                    double cy = (cell.MinY + cell.MaxY) * 0.5;
+                    double cz = (cell.MinZ + cell.MaxZ) * 0.5;
+                    double ds = (cx - start.X) * (cx - start.X) +
+                                (cy - start.Y) * (cy - start.Y) +
+                                (cz - start.Z) * (cz - start.Z);
+                    double de = (cx - end.X) * (cx - end.X) +
+                                (cy - end.Y) * (cy - end.Y) +
+                                (cz - end.Z) * (cz - end.Z);
+                    if (ds < bestStart) { bestStart = ds; startCell = cell; }
+                    if (de < bestEnd)   { bestEnd = de;   endCell   = cell; }
+                }
+
+                if (startCell == null || endCell == null)
+                {
+                    StingLog.Warn("ComputeRouteAdvanced: could not map start/end to voxel cells — falling back.");
+                    return ComputeRoute(start, end, diameterMm, label);
+                }
+
+                // ── Run A* ───────────────────────────────────────────────
+                var astarResult = AStarSolver.FindPath(grid, startCell, endCell);
+                if (!astarResult.Success || astarResult.Path == null || astarResult.Path.Count < 2)
+                {
+                    StingLog.Warn($"ComputeRouteAdvanced: A* {astarResult.FailureReason} — falling back to rectilinear.");
+                    return ComputeRoute(start, end, diameterMm, label);
+                }
+
+                // ── Convert VoxelCell path → RouteSegments ───────────────
+                var waypoints = new List<XYZ>(astarResult.Path.Count + 2);
+                waypoints.Add(start);   // exact start
+                foreach (var cell in astarResult.Path)
+                {
+                    waypoints.Add(new XYZ(
+                        (cell.MinX + cell.MaxX) * 0.5,
+                        (cell.MinY + cell.MaxY) * 0.5,
+                        (cell.MinZ + cell.MaxZ) * 0.5));
+                }
+                waypoints.Add(end);     // exact end
+
+                var segs = new List<RouteSegment>();
+                for (int i = 0; i < waypoints.Count - 1; i++)
+                {
+                    var a = waypoints[i];
+                    var b = waypoints[i + 1];
+                    if (a.DistanceTo(b) > 0.01)
+                        segs.Add(new RouteSegment(a, b, diameterMm, label));
+                }
+                if (segs.Count == 0)
+                    return ComputeRoute(start, end, diameterMm, label);
+
+                StingLog.Info($"ComputeRouteAdvanced: A* path {astarResult.Path.Count} cells → {segs.Count} segments, cost={astarResult.TotalCost:F2}.");
+                return segs;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ComputeRouteAdvanced failed, falling back to rectilinear: {ex.Message}");
+                return ComputeRoute(start, end, diameterMm, label);
+            }
         }
 
         public static double EstimateCableOdMm(double csaMm2)

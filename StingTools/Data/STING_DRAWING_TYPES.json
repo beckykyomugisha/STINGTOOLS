@@ -213,8 +213,8 @@
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
-        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
-        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Project Code": "${PRJ_PROJECT_COD_TXT}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE_TXT}",
         "Company Name": "${PRJ_ORG_COMPANY_NAME}",
         "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
@@ -1563,8 +1563,8 @@
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
-        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
-        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Project Code": "${PRJ_PROJECT_COD_TXT}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE_TXT}",
         "Company Name": "${PRJ_ORG_COMPANY_NAME}",
         "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
@@ -1731,6 +1731,73 @@
             "ruleType": "AutoDimMEPRun",
             "enabled": true,
             "minSizeMm": 100
+          }
+        ]
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
+    },
+    {
+      "id": "elec-sld-A1-1to100",
+      "name": "Electrical Single Line Diagram — A1 @ 1:100",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "E",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Electrical SLD",
+      "viewStylePackId": "corp-standard-plan",
+      "sheetNumberPattern": "E-SLD-{seq:D3}",
+      "sheetNamePattern": "ELECTRICAL SINGLE LINE DIAGRAM {mark}",
+      "crop": {
+        "kind": "TightBbox",
+        "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "tagSize": "2.5",
+        "tagStyle": "NOM",
+        "tagColor": "ORANGE",
+        "colorScheme": "Level",
+        "segmentMask": "11111111",
+        "displayMode": 5
+      },
+      "slots": [
+        {
+          "label": "SLD",
+          "viewType": "Drafting",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.74,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Legend",
+          "viewType": "Legend",
+          "normX": 0.8,
+          "normY": 0.05,
+          "normW": 0.18,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "rules": [
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
           }
         ]
       },
@@ -4152,8 +4219,8 @@
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
-        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
-        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Project Code": "${PRJ_PROJECT_COD_TXT}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE_TXT}",
         "Company Name": "${PRJ_ORG_COMPANY_NAME}",
         "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
@@ -7740,6 +7807,18 @@
       "phase": "*",
       "docType": "RISER",
       "drawingTypeId": "elec-riser-A2-1to100"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "SLD",
+      "drawingTypeId": "elec-sld-A1-1to100"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "SINGLE_LINE",
+      "drawingTypeId": "elec-sld-A1-1to100"
     },
     {
       "discipline": "*",
