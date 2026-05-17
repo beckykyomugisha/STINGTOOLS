@@ -2,6 +2,7 @@
 // CRITICAL: never throws. Never starts a transaction. All real work deferred to ExternalEvent.
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;

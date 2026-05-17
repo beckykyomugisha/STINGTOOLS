@@ -64,7 +64,7 @@ namespace StingTools.Model
         /// <param name="beamDirection">Unit vector along the beam axis (for bolt grid orientation).</param>
         /// <param name="view">The view in which to place detail elements (must be a detail/drafting/plan view).</param>
         /// <returns>Result containing created element Ids and any warnings.</returns>
-        public static ConnectionSynthesisResult SynthesizeConnection(
+        internal static ConnectionSynthesisResult SynthesizeConnection(
             Document doc,
             ConnectionDetail detail,
             XYZ interfacePoint,

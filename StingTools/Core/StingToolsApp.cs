@@ -1055,7 +1055,7 @@ namespace StingTools.Core
                 {
                     StingLog.Warn($"DocumentSaved enqueue: {qEx.Message}");
                 }
-            }
+
                 // Geometry delta sync — raise GeometrySyncHandler if any elements changed.
                 // Must happen AFTER the compliance/tag enqueue so the ExternalEvent fires
                 // on the next available Revit API idle slot (never inside this handler).

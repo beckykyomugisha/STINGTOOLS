@@ -427,20 +427,6 @@ namespace StingTools.Tags
             set { /* cap is config-driven now; setter kept for API back-compat */ }
         }
 
-        /// <summary>
-        /// Scale-tier-aware offset. Tier mm and cap come from
-        /// <see cref="Core.ScaleTiers"/>, which resolves per-project
-        /// overrides then the bundled SCALE_TIERS.json then a hardcoded
-        /// fallback. Result is mm → ft × viewScale, clamped to the cap.
-        /// </summary>
-        public static int ReadTagPriority(Element host)
-        {
-            int viewScale = (view != null && view.Scale > 0) ? view.Scale : 100;
-            Core.ScaleTiers.Tier tier = Core.ScaleTiers.ForView(view);
-            double offsetFt = (tier.OffsetMm / 304.8) * viewScale;
-            return Math.Min(offsetFt, Core.ScaleTiers.OffsetCapFt);
-        }
-
         /// <summary>Get element center point in view coordinates.</summary>
         public static XYZ GetElementCenter(Element elem, View view)
         {

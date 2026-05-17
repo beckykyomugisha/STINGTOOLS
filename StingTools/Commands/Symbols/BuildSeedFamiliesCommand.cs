@@ -34,6 +34,13 @@ using StingTools.UI;
 
 namespace StingTools.Commands.Symbols
 {
+    public enum SeedRebuildMode
+    {
+        MissingOnly,
+        RebuildUnfinalized,
+        RebuildAll
+    }
+
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class BuildSeedFamiliesCommand : IExternalCommand
