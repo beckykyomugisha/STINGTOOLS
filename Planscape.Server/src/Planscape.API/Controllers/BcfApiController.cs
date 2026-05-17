@@ -144,27 +144,150 @@ public class BcfApiController : ControllerBase
         });
     }
 
-    // ── Write endpoints — Phase 178c follow-up. Return 501 deliberately. ──
+    // ── BCF 3.0 write endpoints ────────────────────────────────────────────
+
+    public sealed record BcfTopicCreateDto(
+        string Title,
+        string? Description,
+        string? TopicType,
+        string? TopicStatus,
+        string? Priority,
+        string? AssignedTo,
+        DateTime? DueDate,
+        double? CameraX, double? CameraY, double? CameraZ,
+        string? ModelElementGuid);
 
     [HttpPost]
-    public IActionResult CreateTopic() =>
-        StatusCode(StatusCodes.Status501NotImplemented,
-            new { error = "not_implemented", phase = "178c_followup", endpoint = "POST /topics" });
+    public async Task<ActionResult> CreateTopic(
+        Guid projectId,
+        [FromBody] BcfTopicCreateDto dto,
+        CancellationToken ct)
+    {
+        if (!await ProjectInTenant(projectId, ct)) return Forbid();
+
+        var guid   = Guid.NewGuid().ToString();
+        var author = User.FindFirst("display_name")?.Value
+                  ?? User.FindFirst("email")?.Value
+                  ?? "bcf-api";
+
+        var issue = new BimIssue
+        {
+            TenantId         = Guid.Parse(User.FindFirst("tenant_id")!.Value),
+            ProjectId        = projectId,
+            IssueCode        = $"BCF-{guid[..8].ToUpper()}",
+            BcfGuid          = guid,
+            Title            = dto.Title.Length > 240 ? dto.Title[..240] : dto.Title,
+            Description      = dto.Description,
+            Type             = dto.TopicType?.ToUpperInvariant() ?? "RFI",
+            Status           = dto.TopicStatus?.ToUpperInvariant() ?? "OPEN",
+            Priority         = dto.Priority?.ToUpperInvariant() ?? "MEDIUM",
+            Assignee         = dto.AssignedTo,
+            DueDate          = dto.DueDate,
+            ModelX           = dto.CameraX,
+            ModelY           = dto.CameraY,
+            ModelZ           = dto.CameraZ,
+            ModelElementGuid = dto.ModelElementGuid,
+            CreatedAt        = DateTime.UtcNow,
+            CreatedBy        = author,
+            Source           = "bcf-api-3.0",
+        };
+
+        _db.Issues.Add(issue);
+        await _db.SaveChangesAsync(ct);
+        return StatusCode(StatusCodes.Status201Created, MapTopic(issue));
+    }
+
+    public sealed record BcfTopicUpdateDto(
+        string? Title,
+        string? Description,
+        string? TopicType,
+        string? TopicStatus,
+        string? Priority,
+        string? AssignedTo,
+        DateTime? DueDate);
 
     [HttpPut("{topicGuid:guid}")]
-    public IActionResult UpdateTopic(Guid topicGuid) =>
-        StatusCode(StatusCodes.Status501NotImplemented,
-            new { error = "not_implemented", phase = "178c_followup", endpoint = "PUT /topics/{guid}" });
+    public async Task<ActionResult> UpdateTopic(
+        Guid projectId,
+        Guid topicGuid,
+        [FromBody] BcfTopicUpdateDto dto,
+        CancellationToken ct)
+    {
+        if (!await ProjectInTenant(projectId, ct)) return Forbid();
+
+        var issue = await _db.Issues.FirstOrDefaultAsync(
+            i => i.ProjectId == projectId
+              && (i.BcfGuid == topicGuid.ToString() || i.Id == topicGuid), ct);
+        if (issue == null) return NotFound();
+
+        if (dto.Title       != null) issue.Title    = dto.Title.Length > 240 ? dto.Title[..240] : dto.Title;
+        if (dto.Description != null) issue.Description = dto.Description;
+        if (dto.TopicType   != null) issue.Type     = dto.TopicType.ToUpperInvariant();
+        if (dto.TopicStatus != null) issue.Status   = dto.TopicStatus.ToUpperInvariant();
+        if (dto.Priority    != null) issue.Priority = dto.Priority.ToUpperInvariant();
+        if (dto.AssignedTo  != null) issue.Assignee = dto.AssignedTo;
+        if (dto.DueDate     != null) issue.DueDate  = dto.DueDate;
+        issue.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+        return Ok(MapTopic(issue));
+    }
 
     [HttpDelete("{topicGuid:guid}")]
-    public IActionResult DeleteTopic(Guid topicGuid) =>
-        StatusCode(StatusCodes.Status501NotImplemented,
-            new { error = "not_implemented", phase = "178c_followup", endpoint = "DELETE /topics/{guid}" });
+    [Authorize(Roles = "Admin,Owner,Coordinator")]
+    public async Task<ActionResult> DeleteTopic(Guid projectId, Guid topicGuid, CancellationToken ct)
+    {
+        if (!await ProjectInTenant(projectId, ct)) return Forbid();
+
+        var issue = await _db.Issues.FirstOrDefaultAsync(
+            i => i.ProjectId == projectId
+              && (i.BcfGuid == topicGuid.ToString() || i.Id == topicGuid), ct);
+        if (issue == null) return NotFound();
+
+        _db.Issues.Remove(issue);
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    public sealed record BcfCommentCreateDto(string Comment, string? ReplyToCommentGuid);
 
     [HttpPost("{topicGuid:guid}/comments")]
-    public IActionResult AddComment(Guid topicGuid) =>
-        StatusCode(StatusCodes.Status501NotImplemented,
-            new { error = "not_implemented", phase = "178c_followup", endpoint = "POST /topics/{guid}/comments" });
+    public async Task<ActionResult> AddComment(
+        Guid projectId,
+        Guid topicGuid,
+        [FromBody] BcfCommentCreateDto dto,
+        CancellationToken ct)
+    {
+        if (!await ProjectInTenant(projectId, ct)) return Forbid();
+
+        var issue = await ResolveByGuid(projectId, topicGuid, ct);
+        if (issue == null) return NotFound();
+
+        var author = User.FindFirst("display_name")?.Value
+                  ?? User.FindFirst("email")?.Value ?? "bcf-api";
+
+        var comment = new IssueComment
+        {
+            TenantId   = issue.TenantId,
+            IssueId    = issue.Id,
+            Body       = dto.Comment,
+            AuthorName = author,
+            Source     = "bcf-api-3.0",
+            CreatedAt  = DateTime.UtcNow,
+        };
+        _db.IssueComments.Add(comment);
+        await _db.SaveChangesAsync(ct);
+
+        return StatusCode(StatusCodes.Status201Created, new
+        {
+            guid                  = comment.Id,
+            date                  = comment.CreatedAt.ToString("o"),
+            author                = comment.AuthorName,
+            comment               = comment.Body,
+            topic_guid            = topicGuid,
+            reply_to_comment_guid = dto.ReplyToCommentGuid,
+        });
+    }
 
     [HttpGet("{topicGuid:guid}/viewpoints/{viewpointGuid:guid}/snapshot")]
     public IActionResult GetSnapshot(Guid topicGuid, Guid viewpointGuid) =>
