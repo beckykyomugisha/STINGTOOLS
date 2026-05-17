@@ -2874,6 +2874,9 @@ PARAM	c8d4f6e2-2404-4d27-8c61-0e7a3f9bf004	ICT_RTLS_COVERAGE_M_NR	NUMBER		3	1	RT
 PARAM	c8d4f6e2-2501-4d27-8c61-0e7a3f9c0001	CLN_WASTE_CLASS_TXT	TEXT		28	1	Clinical waste class: HC1-General/HC2-Offensive/HC3-Infectious/HC4-Anatomical/HC5-Cytotoxic/HC6-Radioactive [H-30]	1
 PARAM	c8d4f6e2-2502-4d27-8c61-0e7a3f9c0002	CLN_WASTE_ROUTE_TXT	TEXT		28	1	Waste segregation route id [H-30]	1
 PARAM	c8d4f6e2-2503-4d27-8c61-0e7a3f9c0003	CLN_WASTE_BIN_BIM_ID_TXT	TEXT		28	1	IoT smart bin BIM element id [H-30]	1
+PARAM	c8d4f6e2-ff01-4d27-8c61-0e7a3f9cff01	CLN_TAG_7_PARA_CLINICAL_TXT	TEXT		28	1	Clinical room TAG7 paragraph container (pressure regime, infection class, ACH, ADB code, HTM ref) [ISO 19650-3:2020 / Phase H-1]	1
+PARAM	c8d4f6e2-ff02-4d27-8c61-0e7a3f9cff02	MGS_TAG_7_PARA_GAS_TXT	TEXT		29	1	Medical gas system TAG7 paragraph container (gas type, design flow, pressure, outlet count, NFPA 99 zone) [ISO 19650-3:2020 / Phase H-1]	1
+PARAM	c8d4f6e2-ff03-4d27-8c61-0e7a3f9cff03	RAD_TAG_7_PARA_SHIELD_TXT	TEXT		30	1	Radiation protection TAG7 paragraph container (lead mm, modality, workload, QE sign-off) [ISO 19650-3:2020 / Phase H-1]	1
 PARAM	c8d4f6e2-2601-4d27-8c61-0e7a3f9c1001	ICT_HEALTHIOT_DEVICE_ID_TXT	TEXT		3	1	Generic healthcare IoT device ID (consumed by IoTDeviceRegistry) [H-20]	1
 PARAM	c8d4f6e2-2602-4d27-8c61-0e7a3f9c1002	ICT_HEALTHIOT_PROTOCOL_TXT	TEXT		3	1	IoT protocol BACNET/OPC-UA/MODBUS/REST/PROPRIETARY [H-20]	1
 PARAM	c8d4f6e2-2603-4d27-8c61-0e7a3f9c1003	ICT_HEALTHIOT_ENDPOINT_TXT	TEXT		3	1	IoT endpoint URI [H-20]	1
