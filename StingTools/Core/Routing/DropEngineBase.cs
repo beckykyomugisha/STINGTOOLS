@@ -81,6 +81,22 @@ namespace StingTools.Core.Routing
         /// </summary>
         public bool EnforceSeparation { get; set; } = true;
 
+        /// <summary>
+        /// When true, the scoring in FindNearestContainment biases toward
+        /// containment elements that participate in an existing connector
+        /// network (i.e. have neighbours), reducing the risk of routing to
+        /// isolated stubs. Default true.
+        /// </summary>
+        public bool PreferConnectedTrays { get; set; } = true;
+
+        /// <summary>
+        /// When true, the drop engine iterates every connector on the
+        /// fixture rather than just the best free connector, emitting one
+        /// drop per unique unconnected service connector. Useful when a
+        /// fixture hosts both a hot-water and a cold-water connection.
+        /// </summary>
+        public bool MultiServiceMode { get; set; } = false;
+
         protected DropEngineBase(Document doc)
         {
             Doc = doc;

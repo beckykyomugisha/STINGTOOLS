@@ -1335,6 +1335,29 @@ namespace StingTools.Tags
 
             return (placed, skipped, collisions);
         }
+
+        /// <summary>
+        /// Returns a scale-appropriate model-space offset (in feet) to use as the
+        /// base clearance between a tag head and the nearest element boundary.
+        /// Derived from the view's scale: tighter at large scale (1:50), wider at
+        /// small scale (1:500). Falls back to 0.25 ft (~75 mm) when scale is
+        /// unavailable.
+        /// </summary>
+        public static double GetModelOffset(View view)
+        {
+            if (view == null) return 0.25;
+            try
+            {
+                int scale = view.Scale;
+                if (scale <= 0) return 0.25;
+                // 1 mm on paper = scale mm in model = scale/304.8 ft in model.
+                // Use 2 mm paper clearance as the baseline annotation clearance.
+                double paperMm = 2.0;
+                double modelFt = paperMm * scale / 304.8;
+                return Math.Max(0.1, Math.Min(modelFt, 5.0));
+            }
+            catch { return 0.25; }
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════

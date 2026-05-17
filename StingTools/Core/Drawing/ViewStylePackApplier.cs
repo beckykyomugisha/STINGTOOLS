@@ -154,5 +154,49 @@ namespace StingTools.Core.Drawing
         }
 
         private static int Clamp(int v, int lo, int hi) => v < lo ? lo : v > hi ? hi : v;
+
+        // ── Additional API surface used by drawing-type machinery ─────────
+
+        /// <summary>Invalidate any internal caches (currently a no-op — state is
+        /// held per-call, not statically). Provided for callers that follow the
+        /// invalidate-then-apply pattern.</summary>
+        public static void InvalidateCache() { }
+
+        /// <summary>Read the category VG override map from the pack into a plain
+        /// dictionary (key = category key, value = the raw override object).
+        /// Returns an empty dictionary when the pack has no overrides.</summary>
+        public static Dictionary<string, object> ReadCategoryOverrides(ViewStylePack pack)
+        {
+            var result = new Dictionary<string, object>();
+            if (pack?.VgOverrides == null) return result;
+            foreach (var kv in pack.VgOverrides)
+                result[kv.Key] = kv.Value;
+            return result;
+        }
+
+        /// <summary>Apply the pack's VG + filter settings as a preset; delegates
+        /// to <see cref="Apply"/>.</summary>
+        public static void ApplyPresetOverrides(Document doc, View view, ViewStylePack pack)
+        {
+            Apply(doc, view, pack);
+        }
+
+        /// <summary>Apply only category VG overrides from the pack, skipping filter
+        /// rules.</summary>
+        public static void ApplyCategoryOverridesOnly(Document doc, View view, ViewStylePack pack)
+        {
+            if (doc == null || view == null || pack == null) return;
+            var dummy = new PackApplyResult();
+            ApplyCategoryOverrides(doc, view, pack, dummy);
+        }
+
+        /// <summary>Apply only filter rules from the pack, skipping category VG
+        /// overrides.</summary>
+        public static void ApplyFilterRulesOnly(Document doc, View view, ViewStylePack pack)
+        {
+            if (doc == null || view == null || pack == null) return;
+            var dummy = new PackApplyResult();
+            ApplyFilterRules(doc, view, pack, dummy);
+        }
     }
 }
