@@ -125,6 +125,15 @@ export default function TabLayout() {
           title: 'Models',
         }}
       />
+      {/* Gap H — coordinate alignment management screen */}
+      <Tabs.Screen
+        name="alignment"
+        options={{
+          title: 'Alignment',
+          href: '/alignment' as any,
+          tabBarIcon: ({ focused }) => <TabIcon label="🔧" focused={focused} />,
+        }}
+      />
       <Tabs.Screen
         name="settings"
         options={{

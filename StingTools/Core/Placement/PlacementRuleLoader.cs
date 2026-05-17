@@ -36,6 +36,7 @@ namespace StingTools.Core.Placement
             "STING_PLACEMENT_RULES.mechanical.json",
             "STING_PLACEMENT_RULES.electrical.json",
             "STING_PLACEMENT_RULES.healthcare-education.json",
+            "STING_PLACEMENT_RULES.toilet-fixtures.json",  // Phase 177 — full toilet-room fixture coverage
         };
 
         /// <summary>

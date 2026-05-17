@@ -119,6 +119,60 @@ namespace StingTools.Core.Drawing
             return r;
         }
 
+        // ── Batch context ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns a lightweight disposable batch context. Callers that call
+        /// <see cref="Apply"/> in a loop should wrap the loop in a <c>using</c>
+        /// block around <see cref="Batch()"/> so future optimisations (e.g.
+        /// ProjectInformation caching) can be enabled without API changes.
+        /// The current implementation returns a no-op disposable.
+        /// </summary>
+        public static IDisposable Batch() => new BatchContext();
+
+        private sealed class BatchContext : IDisposable { public void Dispose() { } }
+
+        // ── Preview / audit helpers ─────────────────────────────────────────────
+
+        /// <summary>
+        /// Resolves every entry in <paramref name="dt"/>.TitleBlockParams using
+        /// ProjectInformation and the caller-supplied <paramref name="tokens"/>
+        /// but does NOT write anything. Returns a dictionary of
+        /// paramName → resolvedValue that the caller can diff or display.
+        /// </summary>
+        public static Dictionary<string, string> Peek(
+            Document doc, DrawingType dt, IDictionary<string, string> tokens = null)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (doc == null || dt?.TitleBlockParams == null) return result;
+            foreach (var kv in dt.TitleBlockParams)
+                result[kv.Key] = ResolveTemplate(doc, kv.Value, tokens);
+            return result;
+        }
+
+        /// <summary>
+        /// Scans <paramref name="dt"/>.TitleBlockParams for <c>${paramName}</c>
+        /// tokens and returns the names of any ProjectInformation parameters
+        /// that do not exist on the current document. Used by the validator
+        /// to surface DT-090 warnings pre-flight.
+        /// </summary>
+        public static List<string> FindMissingProjectInfoParams(Document doc, DrawingType dt)
+        {
+            var missing = new List<string>();
+            if (doc == null || dt?.TitleBlockParams == null) return missing;
+            var pi = doc.ProjectInformation;
+            foreach (var kv in dt.TitleBlockParams)
+            {
+                foreach (Match m in _projInfo.Matches(kv.Value ?? ""))
+                {
+                    var name = m.Groups[1].Value;
+                    if (pi?.LookupParameter(name) == null && !missing.Contains(name))
+                        missing.Add(name);
+                }
+            }
+            return missing;
+        }
+
         // ── Internals ──
 
         private static string ResolveTemplate(

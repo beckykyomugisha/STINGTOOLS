@@ -337,6 +337,11 @@ builder.Services.AddScoped<Planscape.API.Services.IAuditService, Planscape.API.S
 // Phase 178c (T3-22) — Maintenance task scheduler (registered as Scoped
 // so Hangfire activates a fresh DbContext per job invocation).
 builder.Services.AddScoped<Planscape.API.BackgroundJobs.MaintenanceTaskSchedulerJob>();
+// Gap 4 — PDF watermark/e-signature stamp on S4 publication. Scoped so
+// Hangfire creates a fresh DbContext + storage service per invocation.
+builder.Services.AddScoped<Planscape.API.BackgroundJobs.DocumentPublicationStampJob>();
+// GAP-18 — daily retention-archive job.
+builder.Services.AddScoped<Planscape.API.BackgroundJobs.DocumentRetentionArchiveJob>();
 
 // ── Platform Connectors ──
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.AccConnector>();
@@ -484,6 +489,24 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.PhotoPipeline.IPhot
 // ~500 MB native dep + worker build pipeline.
 builder.Services.AddScoped<Planscape.Core.Interfaces.IIfcIngester,
     Planscape.Infrastructure.Services.XbimIfcIngester>();
+// Gap 1 — Per-element AABB extraction from IFC bounding-box representations.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IIfcGeometryExtractor,
+    Planscape.Infrastructure.Services.XbimIfcGeometryExtractor>();
+// Gap 4 — IFC tessellation + SceneNode population job (AABB-based sidecar; GLB when Xbim.Geometry added).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IIfcTessellationJob,
+    Planscape.Infrastructure.Services.IfcTessellationJob>();
+// Gap 5 — Per-element IFC delta tracking (Added / Modified / Deleted across uploads).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IIfcDeltaService,
+    Planscape.Infrastructure.Services.IfcDeltaService>();
+// Gap F — Auto-compute coordinate transform from IfcMapConversion data.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IAutoAlignService,
+    Planscape.Infrastructure.Services.AutoAlignService>();
+// Gap G — Full project-wide federated coordinate coherence scan.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IFederatedCoherenceJob,
+    Planscape.Infrastructure.Services.FederatedCoherenceJob>();
+// Gap A–D — IFC alignment / georeferencing validator (called after every IFC ingest).
+builder.Services.AddScoped<Planscape.Core.Interfaces.IIfcAlignmentValidator,
+    Planscape.Infrastructure.Services.IfcAlignmentValidator>();
 
 if (isWorker)
 {
@@ -1237,6 +1260,13 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.OutboxDispatcher>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DemoSandboxJob>(
     "demo-reset", j => j.ExecuteAsync(CancellationToken.None),
     "0 2 * * *", new RecurringJobOptions { QueueName = "default" });
+
+// GAP-18 — daily retention archive: auto-transition PUBLISHED docs past their
+// RetentionExpiresAt date to ARCHIVE. Runs at 03:30 UTC (06:30 EAT) so it
+// completes before office hours in East Africa.
+RecurringJob.AddOrUpdate<Planscape.API.BackgroundJobs.DocumentRetentionArchiveJob>(
+    "document-retention-archive", j => j.ExecuteAsync(CancellationToken.None),
+    "30 3 * * *", new RecurringJobOptions { QueueName = "maintenance" });
 
 // S7.2 — SLA burn-rate alerts every 5 minutes. Reads rolling-window
 // 5xx counts from Redis (populated by the request middleware in S7.2.1)

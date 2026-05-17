@@ -172,6 +172,55 @@ def cmd_process_ifc(cfg: BridgeConfig, ifc_path: str) -> int:
     return 1 if result["errors"] else 0
 
 
+def cmd_auto_publish(cfg: BridgeConfig, publisher_set_name: str | None) -> int:
+    """
+    Discover ArchiCAD, find the IFC Publisher Set, trigger it, then
+    optionally kick an IFC drop-folder sync pass.
+    """
+    log.info("ArchiCAD auto-publish starting …")
+    try:
+        ac = ArchiCadClient.discover() if cfg.archicad_port <= 0 else ArchiCadClient(port=cfg.archicad_port)
+    except ArchiCadError as e:
+        log.error("Cannot find ArchiCAD: %s", e)
+        return 1
+
+    if not publisher_set_name:
+        publisher_set_name = ac.find_ifc_publisher_set()
+        if not publisher_set_name:
+            log.error(
+                "No IFC Publisher Set found automatically. "
+                "Use --publisher-set to specify one. "
+                "Available sets: %s",
+                [p.get("name") for p in ac.get_publisher_sets()],
+            )
+            return 1
+        log.info("Auto-detected Publisher Set: %r", publisher_set_name)
+
+    log.info("Triggering Publisher Set: %r", publisher_set_name)
+    ok = ac.trigger_publisher(publisher_set_name)
+    if not ok:
+        log.error("Publisher Set trigger failed.")
+        return 1
+    log.info("Publisher Set triggered — waiting 5 s for IFC file to land …")
+
+    import time
+    time.sleep(5)
+
+    # If an IFC drop folder is configured, do a hot-folder pass immediately.
+    drop_dir = cfg.ifc_drop_dir or "./IFC_DROP"
+    if drop_dir:
+        log.info("Running IFC drop-folder pass: %s", drop_dir)
+        ps = _make_ps_client(cfg)
+        from .watch.ifc_watcher import IFCDropHandler
+        import pathlib
+        for ifc_file in sorted(pathlib.Path(drop_dir).glob("*.ifc")):
+            handler = IFCDropHandler(planscape_client=ps, config=cfg, on_progress=lambda m: log.info("  %s", m))
+            result = handler.process(str(ifc_file))
+            log.info("  %s → elements=%d synced=%d errors=%d", ifc_file.name, result["elements"], result["synced"], len(result["errors"]))
+
+    return 0
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="STING ArchiCAD ↔ Planscape sync bridge"
@@ -193,6 +242,15 @@ def main() -> None:
     )
     p_proc_ifc.add_argument("ifc_path", help="Path to the .ifc file")
 
+    p_auto_pub = sub.add_parser(
+        "auto-publish",
+        help="Trigger an ArchiCAD Publisher Set and process the resulting IFC file",
+    )
+    p_auto_pub.add_argument(
+        "--publisher-set", default=None,
+        help="Exact Publisher Set name (auto-detected if omitted)",
+    )
+
     args = parser.parse_args()
     cfg = BridgeConfig.from_env()
 
@@ -209,6 +267,8 @@ def main() -> None:
         sys.exit(cmd_watch_ifc(cfg, drop_dir))
     elif args.command == "process-ifc":
         sys.exit(cmd_process_ifc(cfg, args.ifc_path))
+    elif args.command == "auto-publish":
+        sys.exit(cmd_auto_publish(cfg, getattr(args, "publisher_set", None)))
 
 
 if __name__ == "__main__":

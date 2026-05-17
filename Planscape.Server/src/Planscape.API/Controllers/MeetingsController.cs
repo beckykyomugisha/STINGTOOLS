@@ -664,6 +664,25 @@ public class MeetingsController : ControllerBase
 
         await _db.SaveChangesAsync();
 
+        // Gap 13 — notify the meeting creator/chair when an action item is completed.
+        if ((req.Status == "COMPLETE" || req.Status == "CLOSED") && action.Meeting?.CreatedByUserId.HasValue == true)
+        {
+            _ = _push.SendToUserAsync(action.Meeting.CreatedByUserId.Value, new PushPayload
+            {
+                Title = "Action Item Completed",
+                Body = $"{action.Assignee ?? "Someone"} completed: " +
+                       (action.Description.Length > 60 ? action.Description[..60] + "…" : action.Description),
+                Channel = "meetings",
+                Data = new Dictionary<string, string>
+                {
+                    ["type"] = "action_completed",
+                    ["meetingId"] = meetingId.ToString(),
+                    ["actionId"] = actionId.ToString(),
+                    ["projectId"] = projectId.ToString()
+                }
+            });
+        }
+
         _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("MeetingUpdated", new
         {
             action.MeetingId, projectId, kind = "action_updated",

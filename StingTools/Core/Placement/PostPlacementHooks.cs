@@ -24,6 +24,14 @@ namespace StingTools.Core.Placement
         /// <summary>Run TagPipelineHelper.RunFullPipeline on every placed instance.</summary>
         public static bool RunDataTagPipeline { get; set; } = false;
 
+        /// <summary>
+        /// True when RunDataTagPipeline is on but the reflection target
+        /// (TagPipelineHelper.RunFullPipeline) could not be resolved.
+        /// Set once on first RunFor() call; used by FixturePlacementEngine
+        /// to surface a one-shot warning in the run report.
+        /// </summary>
+        public static bool TagPipelineMissing { get; private set; } = false;
+
         /// <summary>Seed COBIE_* parameters from the rule's StandardRef / Notes.</summary>
         public static bool SeedCobieComponent { get; set; } = false;
 
@@ -52,9 +60,9 @@ namespace StingTools.Core.Placement
                 // edge between Placement and Core. If TagPipelineHelper
                 // moves or is renamed we just skip silently.
                 var t = Type.GetType("StingTools.Core.TagPipelineHelper, StingTools");
-                if (t == null) return;
+                if (t == null) { TagPipelineMissing = true; return; }
                 var m = t.GetMethod("RunFullPipeline", new[] { typeof(Document), typeof(Element) });
-                if (m == null) return;
+                if (m == null) { TagPipelineMissing = true; return; }
                 m.Invoke(null, new object[] { fi.Document, fi });
             }
             catch (Exception ex) { StingLog.Warn($"PostPlacementHooks.RunTagPipeline {fi.Id}: {ex.Message}"); }
