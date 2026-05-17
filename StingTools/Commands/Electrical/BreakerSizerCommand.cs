@@ -56,7 +56,7 @@ namespace StingTools.Commands.Electrical
                 var systems = new FilteredElementCollector(doc)
                     .OfClass(typeof(ElectricalSystem))
                     .Cast<ElectricalSystem>()
-                    .Where(s => { try { return s.SystemType == ElectricalSystemType.PowerCircuit; } catch { return true; } })
+                    .Where(s => { try { return s.SystemType == ElectricalSystemType.PowerCircuit; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return true; } })
                     .ToList();
 
                 foreach (var sys in systems)
@@ -136,7 +136,7 @@ namespace StingTools.Commands.Electrical
                 }
                 tx.Commit();
             }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Electrical",
                 $"Applied breaker ratings to {updated} circuit(s). Skipped: {skipped}");
             return Result.Succeeded;

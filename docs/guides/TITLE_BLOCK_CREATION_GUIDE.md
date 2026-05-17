@@ -20,16 +20,6 @@
 >
 > If you used STING before April 2026 and your project still has the legacy 9 boolean fields in `_BIM_COORD/drawing_types.json`, opening the editor and clicking Save once auto-migrates the project file to the new Rules schema (idempotent).
 
-> ### What changed in May 2026 — Two-Family BIM Architecture (Phase 170 revision)
->
-> 1. **Each working-sheet paper size now ships TWO families** — `STING_TB_<SIZE>_BIM_v<MAJOR>.<MINOR>.rfa` and `STING_TB_<SIZE>_NONBIM_v<MAJOR>.<MINOR>.rfa`. The earlier hybrid (single family + `STING_BIM_MODE_BOOL` Yes/No toggle + reflow groups + two-label trick) is **removed** — Revit's family-formula parser rejected every conditional/text-concat form we tried in production. See `TITLE_BLOCK_FAMILY_DESIGN.md` § 3.1 for the full rationale.
-> 2. **JSON `extends` inheritance** — common identity-data parameters, the bottom-strip framework and the 8 viewport slots are authored once in an abstract `<SIZE>_common_v*` base, and the BIM + NONBIM concrete variants only declare the cells unique to their mode. Generator regenerates both per build, so there's no drift.
-> 3. **Per-sheet BIM marker** — every sheet inherits `STING_SHEET_BIM_MODE_TXT` (`"BIM"` or `"NONBIM"`) from whichever title-block family is loaded. Audit commands flag mismatches.
-> 4. **Slot-routing automation** — each slot now declares a `purposeTag` (`main-plan` / `key-plan` / `section` / `axon` / `detail` / `legend` / `schedule`). `Data/STING_VIEWPORT_PLACEMENT_RULES.json` maps `(viewType, namePattern)` to a `purposeTag`. The new `TitleBlock_AutoPlaceViewports` command routes each selected view to its matching slot.
-> 5. **`TitleBlock_ToggleBIMMode` command** — swaps the active sheet's title-block family between BIM and NONBIM variants. Viewports transfer 1:1 since slot ids are stable across modes.
->
-> If your project still references the old `STING_TB_A1_v2.0` single-family name (or any other size without the `_BIM_` / `_NONBIM_` suffix), update sheet templates to point at the new two-family names. Old families remain loadable but no longer get regenerated.
-
 ---
 
 ## Table of Contents
@@ -183,7 +173,7 @@ The kit ships as 15 `.rfa` families covering every deliverable surface a typical
 6. **Hanger-only fabrication (`STING_TB_ASSEMBLY_HANGER`)** — A2 (smaller) because hanger packages are simpler. Used for drawing lone support / hanger / bracket assemblies.
 7. **Technical presentation (`STING_TB_TECHNICAL_A1`)** — internal IDR / TDR. Discipline colour band on the right edge (Mech blue / Elec yellow / Plumb green / Arch grey / Struct red), key plan top-left, north arrow top-right (auto-rotates to True North), revision history bottom-left, project info bottom-right. Hosts MEP coord, mech plan, plant rooms, clash sheets.
 8. **Client presentation (`STING_TB_CLIENT_A1`)** — softer typography (Arial 18 pt minimum), client logo top, no grids/levels/sections visible, big breathing room. Hosts presentation 3Ds, perspectives, context-site, render boards, exterior elevations. Style pack flips between `corp-presentation-rich` (full colour) and `corp-presentation-mono` (greyscale) per deliverable.
-9. **Issued For Construction (`STING_TB_IFC_A1`)** — solid red 25 mm "ISSUED FOR CONSTRUCTION" banner across the top. Revision table on, QR code links to RFI portal. Validator refuses to ship if `PRJ_ORG_PHASE_TXT != "C"`.
+9. **Issued For Construction (`STING_TB_IFC_A1`)** — solid red 25 mm "ISSUED FOR CONSTRUCTION" banner across the top. Revision table on, QR code links to RFI portal. Validator refuses to ship if `PRJ_TB_DESIGN_STAGE_TXT != "C"`.
 10. **Issued For Tender (`STING_TB_IFT_A1`)** — diagonal "ISSUED FOR TENDER" watermark at 8 % opacity. Required seals from Lead Architect / Structural Engineer / MEP Engineer. CDE state pinned to `S3`.
 11. **As-built (`STING_TB_AS_BUILT_A1`)** — green "AS-BUILT — RECORD" status banner. Existing-phase elements show un-halftoned (the record IS the existing fabric). Frozen rev table.
 12. **KCCA submission (`STING_TB_SUBMISSION_KCCA`)** — authority-specific. Required `PRJ_PLOT_NUMBER`, `PRJ_LRV_NUMBER`, `PRJ_PHYSICAL_ADDRESS` non-empty. KCCA-tagged grid bubble. Revision pattern `P\d{2}`. Form version baked in (`KCCA-2024-Rev3`).
@@ -227,7 +217,7 @@ A: Yes — but then every project has to re-build the layout, the font sizes dri
 6. Drop a second label bound to `PRJ_NUMBER_TXT` directly under it. Font: Arial Narrow, 14 pt.
 7. Drop a third label bound to **`PRJ_TB_DELIVERABLE_STATUS_TXT`** (S2 / S3 / S4 / WIP / SHARED / PUBLISHED). Font: 14 pt, bold, all caps. This is the **CDE state stamp**.
 8. Drop a fourth label bound to `PRJ_TB_REVISION_NR_TXT` and `PRJ_TB_REVISION_DATE_TXT` separated by a `—`. Font: 12 pt.
-9. Drop a fifth label bound to `PRJ_ORG_CLIENT_NAME_TXT`, then on the line below `PRJ_TB_CLIENT_ADDRESS_TXT`. Font: 12 pt.
+9. Drop a fifth label bound to `PRJ_TB_CLIENT_NAME_TXT`, then on the line below `PRJ_TB_CLIENT_ADDRESS_TXT`. Font: 12 pt.
 10. **Insert ▸ Image** company strip footer. Size = 297 × 16 mm, anchored to the bottom of the sheet.
 11. **Family Types** — add the *family parameters*:
 
@@ -283,7 +273,7 @@ Tender packs, IFC bundles, and authority submissions all need a "this is what's 
 │  PRJ_TB_ISSUE_SUMMARY_TXT (multi-line label, 8 lines)              │
 │  ─────────────────────────────────────────────────────────────     │
 │  PROJECT TEAM                                                      │
-│  Client    : PRJ_ORG_CLIENT_NAME_TXT                               │
+│  Client    : PRJ_TB_CLIENT_NAME_TXT                                │
 │  Architect : PRJ_TB_CONSULTANT_NAME_TXT                            │
 │  Structural: PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT                │
 │  MEP       : PRJ_TB_MEP_CONSULTANTS_NAME_TXT                       │
@@ -573,7 +563,7 @@ Four siblings, all derived from the technical-presentation block but with differ
 | Status banner | "ISSUED FOR CONSTRUCTION" — solid red bar 25 mm tall across the top | Site can see the status without reading the strip |
 | `TB_SHOW_REV_TABLE_BOOL` | 1 | Site needs the rev history |
 | `TB_SHOW_QR_CODE_BOOL` | 1 (links to RFI portal) | Site can scan to ask an RFI |
-| Required project params | `PRJ_ORG_PHASE_TXT == "C"` (Construction) | Validator refuses if stage is still "DE" |
+| Required project params | `PRJ_TB_DESIGN_STAGE_TXT == "C"` (Construction) | Validator refuses if stage is still "DE" |
 
 ### 10.2 IFT — Issued For Tender (`STING_TB_IFT_A1.rfa`)
 
@@ -894,7 +884,7 @@ The **project-level** title-block parameters bound to `ProjectInformation`. Edit
 
 | Parameter | Use |
 |---|---|
-| `PRJ_ORG_CLIENT_NAME_TXT` | Client legal entity (read from ProjectInformation — no per-sheet copy needed) |
+| `PRJ_TB_CLIENT_NAME_TXT` | Client legal entity |
 | `PRJ_TB_CLIENT_ADDRESS_TXT` | Client postal address |
 | `PRJ_TB_CONSULTANT_NAME_TXT` | Lead consultant (architect) |
 | `PRJ_TB_CONSULTANT_ADDRESS_TXT` | Consultant postal address |
@@ -907,7 +897,7 @@ The **project-level** title-block parameters bound to `ProjectInformation`. Edit
 
 | Parameter | Use |
 |---|---|
-| `PRJ_ORG_PHASE_TXT` | RIBA / ISO 19650 stage code (`DE`, `C`, `H`, …) — read from ProjectInformation |
+| `PRJ_TB_DESIGN_STAGE_TXT` | RIBA / ISO 19650 stage code (`DE`, `C`, `H`, …) |
 | `PRJ_TB_DISCIPLINE_TXT` | Discipline label (e.g. "Mechanical") |
 
 ### 16.4 Approvals
@@ -1129,229 +1119,3 @@ Edit the map in the editor's **Title-block parameter binding** card (row-per-par
 ```
 
 For a deeper dive into the drawing-type catalogue, the 11 view style packs, the 21-vocabulary auto-annotation rules and 5 worked automation procedures, read the companion guide [`DRAWING_TYPE_MANAGER_GUIDE.md`](DRAWING_TYPE_MANAGER_GUIDE.md).
-
----
-
-## 21. Phase 137–139 — Workflow updates (April 2026)
-
-Title-block authoring (Stages 1–10) is unchanged. What follows is what
-the *consuming* engine learned to do for your title-block kit between
-Phase 137 and Phase 139.
-
-### 21.1 Phase 137 — STING-Managed View Templates
-
-Each `ViewStylePack` referenced by a Drawing Type can now operate in
-**managed mode** (`templateMode: "managed"`). When a sheet is created
-against a recipe whose pack is managed, the engine guarantees the
-required Revit view template exists *before* applying the title block:
-
-```
-1. Routing                            → recipe id
-2. Resolve recipe                     → pack id
-3. ManagedTemplateSyncer.EnsureTemplate(doc, pack, viewType)
-     - absent       → copy seed of right ViewType, rename, write fields
-     - present + match  → no-op
-     - present + drift  → re-apply pack settings, re-stamp checksum
-4. Create / find sheet
-5. Drop title block (Stages 1–10 here)
-6. Title-block param fill (TitleBlockParamApplier)
-7. Stamp sheet number
-```
-
-Two shared parameters land on every managed template:
-
-| Param | Purpose |
-|---|---|
-| `STING_PACK_ID_TXT` | Stable pack id this template is bound to |
-| `STING_PACK_CHECKSUM_TXT` | SHA-256 of the pack JSON at last sync |
-
-#### 21.1.1 What it changes for the title-block author
-
-- **You no longer need to ship a matching view template per title block.** The pack JSON now *is* the view template definition (when `templateMode = managed`).
-- The title block's `TB_NESTED_*_FAMILY_TXT` annotation kit is still authored as before (Stages 1–10) — the managed template only owns *graphic* settings (VG, filters, line wt, detail level), not nested-family identity.
-- The validator's "view template missing" warning becomes self-healing — the engine recreates the template on next Apply.
-
-> **Layman tip:** if your office still hand-authors view templates per
-> title block, set the pack to `templateMode = managed` and stop. STING
-> will own and maintain the template forever after.
-
-### 21.2 Phase 138 — Slot loader + typo-prevention dropdowns
-
-`StingTools/UI/TitleBlockSlotLoader.cs` lazy-loads slot definitions
-from `<project>/Title Blocks/*.rfa` so the editor's Slots card can
-populate slot labels (PLAN / ISO / ELEV0 / ELEV90 / 3D / KEY_PLAN /
-NOTES / BOM / etc.) from the **actual title-block file** instead of
-typing the labels by hand.
-
-Workflow change:
-
-1. Author a title block as in Stage 4 (Stages 1–10 above).
-2. The slot table you encode in `TB_VIEWPORT_SLOTS_JSON_TXT` is now **read by the editor**, not just the engine.
-3. When an editor user picks the title-block family in the Drawing Type recipe, the Slots card auto-populates with the title block's slots.
-4. The user can then per-slot override `viewType`, `scale`, `viewTemplate` — but *cannot* mistype the slot label (it's a dropdown sourced from the family).
-
-Typo-prevention pass also replaces every free-text TextBox in the
-View Style Pack tab with a typed dropdown:
-
-| Was free text | Now sourced from |
-|---|---|
-| Fill pattern name | `FillPatternElement` collection |
-| Line pattern name | `LinePatternElement` collection |
-| Filter rule name | `ParameterFilterElement` collection |
-| Colour | `VgColorPicker` (Windows colour picker + recents + discipline palette) |
-| Override cell | swatch render + click-to-edit popup (`VgFillPatternDialog`, `VgLineGraphicsDialog`) |
-
-> **Layman tip:** if you've ever typed `STING-2.0mm Shop ` (with a
-> trailing space) into a recipe and wondered why the engine couldn't
-> find the text style — the dropdowns mean those bugs no longer
-> exist.
-
-
-### 21.3 Phase 139 — Three new title-block bindings
-
-Three new Drawing Types shipped in Phase 139's presentation library
-expansion need binding to existing kit members:
-
-| Recipe | Title-block kit member | Style pack |
-|---|---|---|
-| `pres-mood-A2` | `STING_TB_MARKETING_A2` (or new `STING_TB_MOOD_A2` per office) | `corp-presentation-mood` |
-| `pres-axon-color-A1` | `STING_TB_CLIENT_A1` (one big viewport variant) | `corp-presentation-axon-color` |
-| `pres-data-viz-A3` | `STING_TB_STARTUP_A3` (info-page variant) or new `STING_TB_DATAVIZ_A3` | `corp-presentation-data-viz` |
-
-If you ship the kit baselined in §4.1 and don't author dedicated
-mood / axon / data-viz title blocks, the validator falls back to the
-nearest match per `purpose × paper`. To produce a dedicated kit
-member, duplicate the closest existing `.rfa` and bump the variant
-suffix:
-
-```
-STING_TB_MARKETING_A2.rfa   →   STING_TB_MOOD_A2.rfa
-STING_TB_CLIENT_A1.rfa      →   STING_TB_AXON_COLOR_A1.rfa
-STING_TB_STARTUP_A3.rfa     →   STING_TB_DATAVIZ_A3.rfa
-```
-
-then edit the `TB_DRAWING_TYPE_ID_TXT` family parameter to bind to
-the new recipe id.
-
-#### 21.3.1 Excel round-trip for kit members
-
-The editor's catalogue Excel round-trip (Phase 139, see
-[`DRAWING_TYPE_MANAGER_GUIDE.md`](DRAWING_TYPE_MANAGER_GUIDE.md) §17.5.2)
-includes a `DrawingTypes` worksheet whose `titleBlockFamily` column is
-the binding to your kit. Bulk-edit 40 recipes' title-block bindings
-in Excel rather than the editor row-by-row when re-issuing a project
-that switched to a new client kit.
-
-Workflow:
-
-1. Editor ▸ **Export catalogue to Excel…**
-2. In Excel, find/replace `STING_TB_TECHNICAL_A1` → `STING_TB_TECHNICAL_CLIENT_BRANDED_A1` across the `titleBlockFamily` column.
-3. Editor ▸ **Import catalogue from Excel…** → 3-pane diff → accept all.
-4. Save. Project file now binds every recipe to the rebranded kit.
-
-> **Layman tip:** rebranding for a new client used to mean opening 40
-> recipes one by one. Now it's a column-wide find/replace.
-
-### 21.4 Updated 10-step engine pipeline (post-Phase 137)
-
-The pipeline section §11.3 / `DRAWING_TYPE_MANAGER_GUIDE.md` §5
-expanded to include managed-template sync (3.5) and TokenProfile
-apply (7.5). The full sequence as it actually runs in v139:
-
-```
- 1. Routing                       → drawingTypeId
- 2. Resolve recipe                → DrawingType profile
- 3. Pre-flight validator          → warnings/errors
- 3.5 ManagedTemplateSyncer        → ensures STING:<pack>:<viewType>
- 4. Create / find sheet
- 5. Lock check (STING_STYLE_LOCKED_BOOL)
- 6. Stamp DrawingType id
- 7. DrawingTypePresentation.Apply
-       a. scale
-       b. detail level
-       c. view template (managed or external)
-       d. crop strategy
-       e. style pack
-       7.5 TokenProfileApplier (NEW Phase 135)
-       f. annotation pass
- 8. Place viewports (slots[])
- 9. TitleBlockParamApplier  (declarative param map)
-10. Stamp sheet number
-```
-
-The title block participates in steps 4 (placement), 9 (param fill)
-and 10 (number stamp). Steps 3.5, 5–7 govern its surrounding view
-context.
-
-### 21.5 Updated kit checklist
-
-Add three lines to your kit's `manifest.json`:
-
-```jsonc
-{
-  "kitName":      "STING Corp v1.1",
-  "kitVersion":   "1.1.0",
-  "validatedOn": "2026-04-27",
-  "managedPacks": [
-    "corp-coordination",
-    "corp-fabrication-shop",
-    "corp-standard-plan"
-  ],
-  "drawingTypeBindings": "<corporate>/STING_DRAWING_TYPES.json",
-  "viewStylePacks":      "<corporate>/STING_VIEW_STYLE_PACKS.json",
-  "members": [ /* unchanged from §13.4 */ ]
-}
-```
-
-`managedPacks` lists every pack the office wants STING to *own* the
-view template for. `drawingTypeBindings` and `viewStylePacks` are
-explicit pointers to the corporate JSON files so a fresh project
-opens against the correct version.
-
-### 21.6 Updated troubleshooting
-
-Three new symptom rows:
-
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| Sheet generated, view template named `STING:corp-coordination:FloorPlan` appeared unexpectedly | The pack flipped to `templateMode: "managed"` between issues | Either keep it (recommended) or run **DrawingTypes ▸ Detach From Managed** to revert |
-| Editor's Slots card shows blank labels | Title-block family doesn't expose `TB_VIEWPORT_SLOTS_JSON_TXT`, or JSON is malformed | Open the family, check the slot JSON, save with valid JSON |
-| Excel import of catalogue silently swaps a title block on multiple recipes | A find/replace caught more rows than intended | Re-export, diff against the previous export, undo unwanted rows |
-
-### 21.7 Updated file map
-
-| File | Purpose |
-|---|---|
-| `StingTools/Core/Drawing/ManagedTemplateSyncer.cs` | Phase 137 — auto-creates / heals view templates from packs in managed mode |
-| `StingTools/Core/Drawing/TokenProfileApplier.cs` | Phase 135 — applies TokenProfile (depth / preset / mask / scheme) to view + auto-tags |
-| `StingTools/Core/Drawing/DrawingTypeExcelExporter.cs` + `DrawingTypeExcelImporter.cs` | Phase 139 — catalogue ↔ Excel round-trip |
-| `StingTools/Commands/Drawing/ManagedTemplateCommands.cs` | ConvertPackToManaged / DetachFromManaged / RegeneratePackTemplates |
-| `StingTools/Commands/Drawing/SetupPresentationLibraryCommand.cs` | Seeds 11 new presentation packs + 3 Drawing Types |
-| `StingTools/UI/RevitVgEditor.cs` + `VgFillPatternDialog.cs` + `VgLineGraphicsDialog.cs` + `VgColorPicker.cs` | Phase 138 — Revit-VG-style 4-tab pack editor |
-| `StingTools/UI/TitleBlockSlotLoader.cs` | Phase 138 — slot-dropdown helper that lazy-loads title-block slot JSON |
-| `StingTools/Data/STING_VIEW_STYLE_PACKS.json` | Now ships **22** packs (11 baseline + 11 presentation) |
-| `StingTools/Data/STING_DRAWING_TYPES.json` | Now ships **43** recipes |
-| `<project>/_BIM_COORD/drawing_types.json` | Per-project recipe overrides (Excel-importable) |
-| `<project>/_BIM_COORD/view_style_packs.json` | Per-project pack overrides (Excel-importable) |
-
-### 21.8 Cheat-sheet — what the title-block author should do today
-
-1. **Author your kit** (Stages 1–10) — unchanged.
-2. **Bind each kit member to a recipe** via the Drawing Type editor's Sheet card (§20.1) — unchanged.
-3. **Fill in the recipe's `titleBlockParams` map** so cells like *Client Name*, *Project Code*, *Sheet Status* auto-populate at issue time (§20.3) — unchanged.
-4. **Decide which packs are managed** — flip the corp packs (`corp-coordination`, `corp-fabrication-shop`, `corp-standard-plan`, …) to `templateMode: "managed"` so STING owns the view templates and you don't have to ship `.rvt`-embedded templates per kit. *(NEW — Phase 137)*
-5. **Lean on the Slots card auto-population** — encode your slot JSON in the family once; the editor fills the dropdowns from there. *(NEW — Phase 138)*
-6. **Ship your kit alongside an Excel snapshot** of `STING_DRAWING_TYPES.json` so projects can bulk re-bind in Excel. *(NEW — Phase 139)*
-7. **Validate before issue** — `DOCS ▸ Sheet Manager ▸ ISO Compliance` runs the title-block validator; managed-template drift is reported and self-healed by `Sync Styles`.
-
----
-
-> **Final layman summary (post-Phase 139):**
-> The title-block kit is the *physical* artefact (15 `.rfa` files +
-> manifest); the Drawing Type catalogue is the *logical* binding
-> (43 recipes); the view style packs are the *visual identity*
-> (22 packs). Phase 137 lets STING own the Revit view templates so
-> you don't ship them per kit. Phase 138 makes the editor type-safe.
-> Phase 139 adds Excel round-trip so you can bulk-edit. The
-> validator + Sync Styles + drift detection make the system
-> self-healing.

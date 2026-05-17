@@ -46,7 +46,7 @@ namespace StingTools.Core.Twin
                             return room?.Id?.Value == roomId.Value;
                         }
                     }
-                } catch { }
+                } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 return false;
             });
         }
@@ -100,7 +100,7 @@ namespace StingTools.Core.Twin
                 if (p.StorageType == StorageType.String) return p.AsString();
                 return p.AsValueString();
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
     }
 }

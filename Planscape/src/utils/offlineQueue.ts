@@ -325,6 +325,32 @@ async function replayAction(action: OfflineAction): Promise<void> {
       );
       break;
     }
+
+    // HC-11 — Healthcare Pack offline replay handlers.
+    case 'HC_MGAS_VERIFICATION': {
+      const { postMgasVerification } = await import('@/api/endpoints');
+      await postMgasVerification(
+        p.projectId as string,
+        p.payload as Parameters<typeof postMgasVerification>[1],
+      );
+      break;
+    }
+    case 'HC_PRESSURE_LOG': {
+      const { postPressureLog } = await import('@/api/endpoints');
+      await postPressureLog(
+        p.projectId as string,
+        p.payload as Parameters<typeof postPressureLog>[1],
+      );
+      break;
+    }
+    case 'HC_ANTI_LIGATURE_AUDIT': {
+      const { postAntiLigatureAudit } = await import('@/api/endpoints');
+      await postAntiLigatureAudit(
+        p.projectId as string,
+        p.payload as Parameters<typeof postAntiLigatureAudit>[1],
+      );
+      break;
+    }
   }
 }
 

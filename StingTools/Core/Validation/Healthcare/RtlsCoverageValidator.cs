@@ -34,7 +34,7 @@ namespace StingTools.Core.Validation.Healthcare
                     {
                         room = fi.Room ?? (fi.Location is LocationPoint lp ? doc.GetRoomAtPoint(lp.Point) : null);
                     }
-                } catch { }
+                } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (room == null) continue;
 
                 var rfShield = GetParamBool(room, "CLN_RF_SHIELD_BOOL");

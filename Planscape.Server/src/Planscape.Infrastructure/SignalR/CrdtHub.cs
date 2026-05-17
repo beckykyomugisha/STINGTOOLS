@@ -105,8 +105,6 @@ public class CrdtHub : Hub
 
         if (docKey.StartsWith("project:", StringComparison.Ordinal))
         {
-            // AsSpan is a ref struct and cannot be used in async methods in C# 12.
-            // Use Substring instead — these strings are short so the allocation is trivial.
             var afterPrefix = docKey.Substring(8);
             var sep = afterPrefix.IndexOf(':');
             var guidPart = sep >= 0 ? afterPrefix.Substring(0, sep) : afterPrefix;

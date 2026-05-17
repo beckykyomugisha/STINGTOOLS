@@ -1093,6 +1093,7 @@ namespace StingTools.Core
                 BuiltInCategory.OST_CommunicationDevices,
                 BuiltInCategory.OST_SecurityDevices,
                 BuiltInCategory.OST_NurseCallDevices,
+                BuiltInCategory.OST_MedicalEquipment,
                 BuiltInCategory.OST_DuctAccessory,
                 BuiltInCategory.OST_DuctFitting,
                 BuiltInCategory.OST_DuctTerminal,
@@ -1493,7 +1494,10 @@ namespace StingTools.Core
                                     }
                                 }
                             }
-                            catch (Exception spEx) { StingLog.Warn($"StaleMarker spatial detection: {spEx.Message}"); }
+                            // Rate-limited: this catch lives inside an IUpdater that fires
+                            // on every element change. An ungated Warn here could emit
+                            // hundreds of lines per save.
+                            catch (Exception spEx) { StingLog.WarnRateLimited("StaleMarker.SpatialDetect", $"StaleMarker spatial detection: {spEx.Message}"); }
                         }
 
                         // R-06: MEP system change detection — SYS/FUNC become stale on system reassignment
@@ -1516,7 +1520,8 @@ namespace StingTools.Core
                                     }
                                 }
                             }
-                            catch (Exception mepEx) { StingLog.Warn($"StaleMarker MEP detection: {mepEx.Message}"); }
+                            // Rate-limited: see SpatialDetect catch above. IUpdater hot path.
+                            catch (Exception mepEx) { StingLog.WarnRateLimited("StaleMarker.MepDetect", $"StaleMarker MEP detection: {mepEx.Message}"); }
                         }
 
                         if (isStale)

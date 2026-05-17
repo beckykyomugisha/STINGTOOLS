@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "description": "STING plumbing pump catalogue — representative duty points for pump selection. Real projects require manufacturer confirmation.",
+  "disclaimer": "Duty points are indicative only. Always verify with manufacturer pump curves before specification.",
+  "pumps": [
+    { "manufacturer": "Grundfos", "model": "CM1-5",         "series": "CM",       "typicalApplication": "Domestic booster",         "ratedFlowLps": 0.20, "ratedHeadM": 35, "powerKw": 0.37, "efficiencyPct": 52, "notes": "Single-stage centrifugal, 1~230V" },
+    { "manufacturer": "Grundfos", "model": "CM3-5",         "series": "CM",       "typicalApplication": "Domestic booster",         "ratedFlowLps": 0.48, "ratedHeadM": 35, "powerKw": 0.55, "efficiencyPct": 55, "notes": "Single-stage centrifugal, 1~230V" },
+    { "manufacturer": "Grundfos", "model": "CM5-5",         "series": "CM",       "typicalApplication": "Light commercial",         "ratedFlowLps": 0.83, "ratedHeadM": 35, "powerKw": 0.75, "efficiencyPct": 57, "notes": "Single-stage centrifugal" },
+    { "manufacturer": "Grundfos", "model": "CM10-3",        "series": "CM",       "typicalApplication": "Commercial",               "ratedFlowLps": 1.67, "ratedHeadM": 30, "powerKw": 1.10, "efficiencyPct": 60, "notes": "Single-stage centrifugal, 3~400V" },
+    { "manufacturer": "Grundfos", "model": "CR5-8",         "series": "CR",       "typicalApplication": "Multi-storey supply",      "ratedFlowLps": 0.83, "ratedHeadM": 60, "powerKw": 1.10, "efficiencyPct": 58, "notes": "Vertical multi-stage" },
+    { "manufacturer": "Grundfos", "model": "CR10-8",        "series": "CR",       "typicalApplication": "Large commercial",         "ratedFlowLps": 1.67, "ratedHeadM": 60, "powerKw": 2.20, "efficiencyPct": 62, "notes": "Vertical multi-stage, 3~400V" },
+    { "manufacturer": "Grundfos", "model": "CR15-8",        "series": "CR",       "typicalApplication": "Large commercial",         "ratedFlowLps": 2.50, "ratedHeadM": 60, "powerKw": 3.00, "efficiencyPct": 63, "notes": "Vertical multi-stage, 3~400V" },
+    { "manufacturer": "Grundfos", "model": "CR32-5",        "series": "CR",       "typicalApplication": "High-rise",                "ratedFlowLps": 5.33, "ratedHeadM": 50, "powerKw": 5.50, "efficiencyPct": 65, "notes": "Vertical multi-stage, 3~400V" },
+    { "manufacturer": "Wilo",     "model": "Helix V1005",   "series": "Helix V",  "typicalApplication": "Domestic booster",         "ratedFlowLps": 0.27, "ratedHeadM": 40, "powerKw": 0.37, "efficiencyPct": 53, "notes": "Vertical multi-stage" },
+    { "manufacturer": "Wilo",     "model": "Helix V3607",   "series": "Helix V",  "typicalApplication": "Commercial",               "ratedFlowLps": 1.00, "ratedHeadM": 63, "powerKw": 1.50, "efficiencyPct": 60, "notes": "Vertical multi-stage, 3~400V" },
+    { "manufacturer": "Wilo",     "model": "Helix V6007",   "series": "Helix V",  "typicalApplication": "Large commercial",         "ratedFlowLps": 1.67, "ratedHeadM": 63, "powerKw": 2.20, "efficiencyPct": 62, "notes": "Vertical multi-stage, 3~400V" },
+    { "manufacturer": "Stuart Turner", "model": "Monsoon S2.0", "series": "Monsoon", "typicalApplication": "Shower boost (neg head)", "ratedFlowLps": 0.13, "ratedHeadM": 20, "powerKw": 0.45, "efficiencyPct": 35, "notes": "Twin impeller, negative-head capable" },
+    { "manufacturer": "Stuart Turner", "model": "Monsoon S3.0", "series": "Monsoon", "typicalApplication": "Shower boost (neg head)", "ratedFlowLps": 0.20, "ratedHeadM": 25, "powerKw": 0.65, "efficiencyPct": 38, "notes": "Twin impeller, negative-head capable" },
+    { "manufacturer": "DAB",      "model": "E.sybox mini3", "series": "E.sybox",  "typicalApplication": "Variable speed booster",   "ratedFlowLps": 0.90, "ratedHeadM": 51, "powerKw": 1.20, "efficiencyPct": 55, "notes": "Inverter drive, IoT enabled, 1~230V" },
+    { "manufacturer": "DAB",      "model": "E.sybox 1.8",   "series": "E.sybox",  "typicalApplication": "Variable speed booster",   "ratedFlowLps": 0.50, "ratedHeadM": 48, "powerKw": 0.75, "efficiencyPct": 52, "notes": "Inverter drive" },
+    { "manufacturer": "Lowara",   "model": "e-SV2F015M",    "series": "e-SV",     "typicalApplication": "Light commercial",         "ratedFlowLps": 0.33, "ratedHeadM": 45, "powerKw": 0.37, "efficiencyPct": 50, "notes": "IE3 motor, 1~230V" },
+    { "manufacturer": "Lowara",   "model": "e-SV4F040M",    "series": "e-SV",     "typicalApplication": "Commercial",               "ratedFlowLps": 0.67, "ratedHeadM": 60, "powerKw": 0.75, "efficiencyPct": 55, "notes": "IE3 motor, 3~400V" },
+    { "manufacturer": "Lowara",   "model": "e-SV8F110T",    "series": "e-SV",     "typicalApplication": "Large commercial",         "ratedFlowLps": 1.33, "ratedHeadM": 100,"powerKw": 3.00, "efficiencyPct": 60, "notes": "IE3 motor, 3~400V" },
+    { "manufacturer": "Armstrong","model": "Pumpadur 25-60", "series": "Pumpadur", "typicalApplication": "Circulating / recirc",     "ratedFlowLps": 0.20, "ratedHeadM": 6,  "powerKw": 0.025,"efficiencyPct": 30, "notes": "DHW recirc, A-rated" },
+    { "manufacturer": "Grundfos", "model": "MAGNA1 25-40",  "series": "MAGNA1",   "typicalApplication": "DHW recirc / LTHW",        "ratedFlowLps": 0.50, "ratedHeadM": 4,  "powerKw": 0.070,"efficiencyPct": 35, "notes": "Variable speed circulator, EEI <= 0.23" }
+  ],
+  "selectionRules": {
+    "safetyMarginPct": 20,
+    "preferVariableSpeed": true,
+    "note": "Add 20% to calculated duty head when selecting. Prefer inverter-driven or variable-speed pumps for energy efficiency per BS EN 50598."
+  }
+}

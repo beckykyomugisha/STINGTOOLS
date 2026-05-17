@@ -80,7 +80,7 @@ namespace StingTools.Commands.Electrical.Lighting
                             if (status == "NONE") view.SetElementOverrides(r.Id, ogsRed);
                             else if (status == "SAME_CIRCUIT") view.SetElementOverrides(r.Id, ogsAmber);
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     }
 
                     rows.Add(new EmergAuditRow
@@ -96,7 +96,7 @@ namespace StingTools.Commands.Electrical.Lighting
                 tx.Commit();
             }
             StingElectricalCommandHandler.LastEmergAudit = rows;
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             int none = rows.Count(r => r.Status == "NONE");
             int same = rows.Count(r => r.Status == "SAME_CIRCUIT");
             TaskDialog.Show("STING Emergency Lighting",
@@ -113,7 +113,7 @@ namespace StingTools.Commands.Electrical.Lighting
                 if (pt == null) return false;
                 return r.IsPointInRoom(pt);
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         public static bool IsEmergency(FamilyInstance fi)
@@ -128,7 +128,7 @@ namespace StingTools.Commands.Electrical.Lighting
                 string emergType = ParameterHelpers.GetString(fi, "ELC_EMERG_TYPE");
                 if (!string.IsNullOrEmpty(emergType)) return true;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 
@@ -142,7 +142,7 @@ namespace StingTools.Commands.Electrical.Lighting
                     var sys = fi.MEPModel?.GetElectricalSystems()?.FirstOrDefault();
                     if (sys != null) ids.Add(sys.Id.Value);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             return ids.Count;
         }
@@ -157,7 +157,7 @@ namespace StingTools.Commands.Electrical.Lighting
                     var sys = fi.MEPModel?.GetElectricalSystems()?.FirstOrDefault();
                     if (sys != null) setA.Add(sys.Id.Value);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             foreach (var fi in b)
             {
@@ -166,7 +166,7 @@ namespace StingTools.Commands.Electrical.Lighting
                     var sys = fi.MEPModel?.GetElectricalSystems()?.FirstOrDefault();
                     if (sys != null && setA.Contains(sys.Id.Value)) return true;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             return false;
         }

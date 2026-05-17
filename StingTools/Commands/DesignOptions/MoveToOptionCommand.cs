@@ -196,7 +196,7 @@ namespace StingTools.Commands.DesignOptions
                 if (cat == null) return false;
                 return cat.CategoryType == CategoryType.Model;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
     }
 }

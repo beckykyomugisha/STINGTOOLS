@@ -96,7 +96,7 @@ namespace StingTools.Core.Validation
                             {
                                 total++;
                                 Domain d;
-                                try { d = c.Domain; } catch { d = Domain.DomainUndefined; }
+                                try { d = c.Domain; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); d = Domain.DomainUndefined; }
                                 if (d == Domain.DomainPiping) piping++;
                                 else if (d == Domain.DomainUndefined) untypedDomain++;
                             }

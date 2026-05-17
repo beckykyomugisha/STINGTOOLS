@@ -152,57 +152,6 @@ namespace StingTools.Commands.Placement
                     return Result.Cancelled;
                 }
 
-                // Phase 139.27 (I-02) — validate the learned rules before
-                // they hit disk. Pre-139.27 a malformed cluster could write
-                // a Density rule with PerAreaM2=0 (impossible to derive
-                // here, but kept as a defensive gate) that would then
-                // place 1 fixture per room forever. Run them through the
-                // loader's MergeRules so ValidateRuleSet's same checks fire,
-                // then drop any rule the validator flagged as broken.
-                var droppedRules = new List<string>();
-                try
-                {
-                    // Use MergeRules so LastValidationWarnings populates.
-                    PlacementRuleLoader.MergeRules(rules, null);
-                    var problems = PlacementRuleLoader.LastValidationWarnings ?? new List<string>();
-                    foreach (var p in problems) StingLog.Warn($"LearnPlacementV4: {p}");
-
-                    // Drop any rule whose MergeKey appears in a Density-rate
-                    // warning — those rules will silently place 1 / room.
-                    var bad = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var p in problems)
-                    {
-                        if (p == null) continue;
-                        if (p.IndexOf("declares no PerAreaM2/PerOccupant", StringComparison.OrdinalIgnoreCase) < 0) continue;
-                        // Format: "PlacementRuleLoader: rule '<key>' is RuleKind=Density …"
-                        int s = p.IndexOf('\''), e = s >= 0 ? p.IndexOf('\'', s + 1) : -1;
-                        if (s >= 0 && e > s) bad.Add(p.Substring(s + 1, e - s - 1));
-                    }
-                    if (bad.Count > 0)
-                    {
-                        var keep = new List<PlacementRule>(rules.Count);
-                        foreach (var r in rules)
-                        {
-                            if (r != null && bad.Contains(r.MergeKey))
-                            {
-                                droppedRules.Add(r.MergeKey);
-                                continue;
-                            }
-                            keep.Add(r);
-                        }
-                        rules = keep;
-                    }
-                }
-                catch (Exception vex) { StingLog.Warn($"LearnPlacementV4 validate: {vex.Message}"); }
-
-                if (rules.Count == 0)
-                {
-                    TaskDialog.Show("STING — Learn Placement",
-                        "All learned rules failed validation (typically Density rules without a rate). " +
-                        "Pre-set MountingHeightMm and ensure samples differ by room name before re-running.");
-                    return Result.Cancelled;
-                }
-
                 string dir = Path.GetDirectoryName(doc.PathName);
                 string path = Path.Combine(dir, "STING_PLACEMENT_RULES.learned.json");
                 var set = new PlacementRuleSet
@@ -213,10 +162,6 @@ namespace StingTools.Commands.Placement
                 };
                 File.WriteAllText(path, JsonConvert.SerializeObject(set, Formatting.Indented));
 
-                string droppedNote = droppedRules.Count == 0
-                    ? ""
-                    : $"\n\n⚠ Dropped {droppedRules.Count} invalid rule(s): {string.Join(", ", droppedRules.Take(5))}{(droppedRules.Count > 5 ? "…" : "")}";
-
                 var td = new TaskDialog("STING — Learn Placement")
                 {
                     MainInstruction = $"Wrote {rules.Count} learned rule(s).",
@@ -225,10 +170,7 @@ namespace StingTools.Commands.Placement
                         "Review then either:\n" +
                         "  · Open Placement Centre → Import… and pick this file, or\n" +
                         "  · Rename to STING_PLACEMENT_RULES.project.json to make the rules win automatically.\n\n" +
-                        $"Clusters inspected: {clusters.Count}" +
-                        droppedNote +
-                        "\n\nLearned rules persist at Priority=90 — to remove them, delete the .learned.json " +
-                        "file or untick 'Honour learned overrides' in the Placement Centre.",
+                        $"Clusters inspected: {clusters.Count}",
                     CommonButtons = TaskDialogCommonButtons.Close,
                 };
                 td.Show();

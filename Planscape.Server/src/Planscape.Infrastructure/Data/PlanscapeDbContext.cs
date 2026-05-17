@@ -194,11 +194,6 @@ public class PlanscapeDbContext : DbContext
     // Phase 178c (T3-24) — Document revision history (per-CDE-transition snapshots).
     public DbSet<DocumentRevision> DocumentRevisions => Set<DocumentRevision>();
 
-    // Feature gap 2/3 — BOQ snapshots (cloud cost dashboard)
-    public DbSet<BoqSnapshot> BoqSnapshots => Set<BoqSnapshot>();
-    // Feature gap 6 — Primavera P6 live-link sync log
-    public DbSet<P6SyncLog> P6SyncLogs => Set<P6SyncLog>();
-
     // ── NRM2 BOQ engine — classification, take-off, quantity lines,
     //    baselines, variations, work packages, preambles, and the
     //    BoqDocument header that frames them all.
@@ -236,6 +231,10 @@ public class PlanscapeDbContext : DbContext
 
     // ── Mobile offline 3D cache manifest.
     public DbSet<MobileOfflineModelManifest> MobileOfflineModelManifests => Set<MobileOfflineModelManifest>();
+
+    // ── P6 / BOQ snapshot ──
+    public DbSet<P6SyncLog>   P6SyncLogs   => Set<P6SyncLog>();
+    public DbSet<BoqSnapshot> BoqSnapshots => Set<BoqSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -594,11 +593,14 @@ public class PlanscapeDbContext : DbContext
         {
             e.HasKey(n => n.Id);
             e.HasIndex(n => n.IssueId);
+            e.HasIndex(n => new { n.IssueId, n.IdempotencyKey }).IsUnique()
+                .HasFilter("\"IdempotencyKey\" IS NOT NULL"); // partial: only unique when supplied
             e.HasOne(n => n.Document).WithMany().HasForeignKey(n => n.DocumentId).OnDelete(DeleteBehavior.SetNull);
             e.Property(n => n.StoragePath).HasMaxLength(500).IsRequired();
             e.Property(n => n.Language).HasMaxLength(8);
             e.Property(n => n.MimeType).HasMaxLength(40).IsRequired();
             e.Property(n => n.CreatedBy).HasMaxLength(120);
+            e.Property(n => n.IdempotencyKey).HasMaxLength(100);
         });
 
         // ── DocumentRecord ──

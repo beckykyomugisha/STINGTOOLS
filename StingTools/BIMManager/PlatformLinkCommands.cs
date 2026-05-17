@@ -1996,7 +1996,7 @@ namespace StingTools.BIMManager
                 else
                 {
                     bool isModified = false;
-                    try { isModified = doc.IsModified; } catch { }
+                    try { isModified = doc.IsModified; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     StingLog.Info($"Planscape sync: workshared (IsModified={isModified})");
                     if (isModified)
                     {
@@ -2160,7 +2160,7 @@ namespace StingTools.BIMManager
                     catch { /* tier hydration is best-effort */ }
 
                     Element typeEl = null;
-                    try { typeEl = doc.GetElement(el.GetTypeId()); } catch { }
+                    try { typeEl = doc.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     int paraDepth   = StingTools.Core.TagConfig.ReadActiveParagraphDepth(typeEl, el);
                     string pattern  = StingTools.Core.TagConfig.ResolveActivePatternMode(typeEl, el);
 

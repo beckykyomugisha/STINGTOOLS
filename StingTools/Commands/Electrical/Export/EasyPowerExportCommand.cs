@@ -26,7 +26,7 @@ namespace StingTools.Commands.Electrical.Export
 
             var model = ExternalExportEngine.Build(doc);
             string outDir = OutputLocationHelper.GetOutputDirectory(doc);
-            try { outDir = Path.Combine(outDir, "electrical"); Directory.CreateDirectory(outDir); } catch { }
+            try { outDir = Path.Combine(outDir, "electrical"); Directory.CreateDirectory(outDir); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string outPath = Path.Combine(outDir, $"STING_EasyPower_{DateTime.Now:yyyyMMdd-HHmm}.xml");
 
             var sb = new StringBuilder();

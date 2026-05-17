@@ -50,14 +50,14 @@ namespace StingTools.Commands.Electrical.Coordination
                 }
                 tx.Commit();
             }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             try
             {
                 System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
                 {
                     var dlg = new SelectiveCoordDialog(root, violations, tcc);
-                    try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                    try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     dlg.ShowDialog();
                 });
             }

@@ -54,16 +54,6 @@ namespace StingTools.Core
                 // loads later in OnDocumentOpened and can flip the flag off.
                 StingOfflineConfig.ApplyDefaults();
 
-                // Wire the Standards library's pluggable log sink to StingLog so
-                // StandardsComplianceEngine messages land in the same log file as
-                // the rest of the plugin (replaces the old NLog dependency).
-                StingTools.Standards.Compliance.StandardsLog.Sink = (lvl, msg, ex) =>
-                {
-                    if (lvl == StingTools.Standards.Compliance.StandardsLogLevel.Info) StingLog.Info(msg);
-                    else if (lvl == StingTools.Standards.Compliance.StandardsLogLevel.Warn) StingLog.Warn(msg);
-                    else StingLog.Error(msg, ex);
-                };
-
                 // Pack 7 — wire the DocumentChanged cascade handler (room
                 // renumbers, level changes, sheet ISO violations). Gated by
                 // StingOfflineConfig.RealtimeCascadesEnabled at callback time.
@@ -86,45 +76,14 @@ namespace StingTools.Core
                 // source parameters change. Users enable it from Tag Studio.
                 StingTag7NarrativeUpdater.Register(application);
 
-                // Phase 175 — SLD sync updater. Registered unconditionally; it
-                // self-gates on project_config "sld_sync_enabled" inside Execute.
-                try
-                {
-                    var sldUpdater = new StingTools.Core.SLD.SLDSyncUpdater(application.ActiveAddInId);
-                    Autodesk.Revit.DB.UpdaterRegistry.RegisterUpdater(sldUpdater);
-                    var elecFilter = new Autodesk.Revit.DB.ElementMulticategoryFilter(
-                        new System.Collections.Generic.List<Autodesk.Revit.DB.BuiltInCategory>
-                        {
-                            Autodesk.Revit.DB.BuiltInCategory.OST_ElectricalEquipment,
-                            Autodesk.Revit.DB.BuiltInCategory.OST_ElectricalFixtures,
-                            Autodesk.Revit.DB.BuiltInCategory.OST_LightingFixtures,
-                        });
-                    Autodesk.Revit.DB.UpdaterRegistry.AddTrigger(
-                        sldUpdater.GetUpdaterId(), elecFilter,
-                        Autodesk.Revit.DB.Element.GetChangeTypeAny());
-                    _sldUpdaterId = sldUpdater.GetUpdaterId();
-                }
-                catch (Exception sldEx)
-                {
-                    StingLog.Warn($"SLDSyncUpdater register failed: {sldEx.Message}");
-                }
-
-                // Register CableManifestUpdater (conduit/tray change → manifest sync)
-                try
-                {
-                    StingTools.Core.Routing.CableManifestUpdater.Register(application);
-                    StingLog.Info("CableManifestUpdater registered.");
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"CableManifestUpdater.Register failed: {ex.Message}");
-                }
-
-                // Register the real Core.Clash live updater (9-category geometry/
-                // addition/deletion triggers). Replaces the prior Phase-106 stub
-                // call which resolved via `using StingTools.Clash;` to a no-op
-                // updater that never populated DirtyQueue.
+                // Phase 106: reserve the Live Clash Updater id. Triggers are
+                // deferred to a follow-on phase so models that don't use clash
+                // detection pay zero cost at startup.
                 LiveClashUpdater.Register(application);
+
+                // Register real-time plumbing pipe auto-sizer (IUpdater) — starts disabled.
+                // Enabled via Plumbing tab toggle; sizes newly placed pipes on-the-fly.
+                StingTools.Core.Plumbing.RealTimePipeSizer.Register(application);
 
                 // Subscribe DocumentChanged → drain LiveClashUpdater.DirtyQueue
                 // by raising LiveClashHandler.Event. Without this, edits queue
@@ -743,80 +702,10 @@ namespace StingTools.Core
                     StingLog.Warn($"DocumentOpened offline-config reload: {ocEx.Message}");
                 }
 
-                // Phase 165 (NEW-02 / Clash wiring) — lazy-start the ClashScheduler
-                // when a project is opened. Pulls the cadence from the project's
-                // default_clash_matrix.json (SchedulerIntervalMinutes) and falls
-                // back to 60 minutes. Idempotent: re-opens hit Instance.Stop()
-                // first so we don't stack timers across documents.
-                try
-                {
-                    if (TagConfig.AutoStartClashScheduler && e.Document != null && !e.Document.IsFamilyDocument)
-                    {
-                        UIApplication uiAppForClash = UI.StingCommandHandler.CurrentApp;
-                        if (uiAppForClash == null)
-                        {
-                            var revitApp = e.Document.Application;
-                            if (revitApp != null) uiAppForClash = new UIApplication(revitApp);
-                        }
-                        if (uiAppForClash != null)
-                        {
-                            try { Clash.ClashScheduler.Instance.Stop(); } catch { /* first-run no-op */ }
-                            Clash.ClashScheduler.Instance.Start(uiAppForClash, intervalMinutes: 0);
-                            StingLog.Info("ClashScheduler started for active document");
-                        }
-                    }
-                }
-                catch (Exception csEx) { StingLog.Warn($"DocumentOpened ClashScheduler start: {csEx.Message}"); }
-
-                // Phase 167 + folder consolidation: auto-bootstrap a default
-                // ProjectSetup so every subsystem writes into ONE project root,
-                // then silently sweep any legacy sibling folders (_BIM_COORD,
-                // _bim_manager, STING_BIM_MANAGER, STING_Exports, STING_Project,
-                // .bimmanager, *_Briefcase_*, STING_BOQ_RateHeatMap,
-                // STING_WORKFLOW_LOG.json) into the unified container.
-                try
-                {
-                    if (e.Document != null && !e.Document.IsFamilyDocument && !string.IsNullOrEmpty(e.Document.PathName))
-                    {
-                        var setup = ProjectFolderEngine.LoadOrBootstrapSetup(e.Document);
-                        if (setup != null)
-                        {
-                            string root = setup.ResolveRootPath(e.Document.PathName);
-                            StingLog.Info($"DocumentOpened: project setup ready — root={root}, mode={setup.Mode}");
-
-                            // Idempotent silent migration. Only reports if it
-                            // actually moved something — no UI prompt, never
-                            // blocks the open path.
-                            try
-                            {
-                                var rep = ProjectFolderEngine.MigrateFromLegacy(e.Document);
-                                if (rep != null && (rep.FilesMoved > 0 || rep.FoldersRemoved > 0))
-                                {
-                                    StingLog.Info($"DocumentOpened auto-migration: {rep.FilesMoved} files moved, {rep.FoldersRemoved} legacy folders removed.");
-                                }
-                            }
-                            catch (Exception mEx) { StingLog.Warn($"DocumentOpened auto-migration: {mEx.Message}"); }
-                        }
-                    }
-                }
-                catch (Exception cfEx) { StingLog.Warn($"DocumentOpened CDE folder bootstrap: {cfEx.Message}"); }
-
                 // Pack 8 — drip-feed a compliance refresh through the Idling
                 // scheduler so the dashboard is live within a second of open.
                 try { StingIdlingScheduler.Enqueue(new ComplianceRefreshJob()); }
                 catch (Exception schEx) { StingLog.Warn($"DocumentOpened Idling enqueue: {schEx.Message}"); }
-
-                // TAG-STALE-WARN-01: After the compliance refresh populates the cache,
-                // promote any pre-existing stale elements that exceed the threshold into
-                // a BIM issue so coordinators see the work outstanding from a previous
-                // session immediately on open. The job is single-shot and dedupes against
-                // any existing OPEN stale issue, so re-opening a model is a no-op.
-                try
-                {
-                    if (TagConfig.StaleWarningThreshold > 0)
-                        StingIdlingScheduler.Enqueue(new StaleWarningPromotionJob());
-                }
-                catch (Exception swEx) { StingLog.Warn($"DocumentOpened stale-warning enqueue: {swEx.Message}"); }
             }
             catch (Exception ex)
             {
@@ -1212,7 +1101,7 @@ namespace StingTools.Core
                 string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 if (string.IsNullOrEmpty(tag1)) continue;
 
-                string FromReg(string p) { try { return ParameterHelpers.GetString(el, p); } catch { return ""; } }
+                string FromReg(string p) { try { return ParameterHelpers.GetString(el, p); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; } }
 
                 results.Add(new Planscape.Shared.Models.TagElementSync
                 {
@@ -1259,15 +1148,6 @@ namespace StingTools.Core
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
             StingTag7NarrativeUpdater.Unregister();
-            try { StingTools.Core.Routing.CableManifestUpdater.Unregister(); } catch { }
-
-            // Phase 175 — unregister the SLD sync updater.
-            try
-            {
-                if (_sldUpdaterId != null)
-                    Autodesk.Revit.DB.UpdaterRegistry.UnregisterUpdater(_sldUpdaterId);
-            }
-            catch (Exception ex) { StingLog.Warn($"SLDSyncUpdater unregister: {ex.Message}"); }
 
             // Clash rec-2: Unregister the live clash IUpdater. Safe against re-entry
             // and no-op if never registered.

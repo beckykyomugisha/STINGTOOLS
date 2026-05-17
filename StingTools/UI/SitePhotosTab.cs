@@ -566,14 +566,20 @@ namespace StingTools.UI
                     if (bytes == null) continue;
                     try
                     {
-                        var img = new BitmapImage();
-                        img.BeginInit();
-                        img.CacheOption = BitmapCacheOption.OnLoad;
-                        img.DecodePixelWidth = 160; // 2x for retina; rendered at 80
-                        img.StreamSource = new MemoryStream(bytes);
-                        img.EndInit();
-                        img.Freeze();
-                        r.Thumbnail = img;
+                        // Dispose the MemoryStream after EndInit — with CacheOption.OnLoad
+                        // the BitmapImage copies the pixel data into its own memory store,
+                        // so the stream is no longer needed. Per-photo leak otherwise.
+                        using (var ms = new MemoryStream(bytes))
+                        {
+                            var img = new BitmapImage();
+                            img.BeginInit();
+                            img.CacheOption = BitmapCacheOption.OnLoad;
+                            img.DecodePixelWidth = 160; // 2x for retina; rendered at 80
+                            img.StreamSource = ms;
+                            img.EndInit();
+                            img.Freeze();
+                            r.Thumbnail = img;
+                        }
                     }
                     catch (Exception ex)
                     {

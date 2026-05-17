@@ -50,7 +50,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 if (dvft == null) { tx.RollBack(); message = "No drafting view family type found."; return Result.Failed; }
 
                 view = ViewDrafting.Create(doc, dvft.Id);
-                try { view.Name = $"STING - Arc Flash Labels - {DateTime.Now:yyyyMMdd-HHmm}"; } catch { }
+                try { view.Name = $"STING - Arc Flash Labels - {DateTime.Now:yyyyMMdd-HHmm}"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 var solidFill = ParameterHelpers.GetSolidFillPattern(doc);
                 var frt = new FilteredElementCollector(doc)
@@ -92,8 +92,8 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 StampDrawingType(view);
                 tx.Commit();
             }
-            try { ctx.UIDoc.ActiveView = view; } catch { }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ctx.UIDoc.ActiveView = view; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Arc Flash Labels",
                 $"Created drafting view '{view?.Name}' with {rows.Count} label(s).");
             return Result.Succeeded;

@@ -53,7 +53,7 @@ namespace StingTools.Commands.Healthcare.Specialist
                   if (p == null || !p.HasValue) return "";
                   if (p.StorageType==StorageType.String) return p.AsString() ?? "";
                   if (p.StorageType==StorageType.Integer) return p.AsInteger().ToString();
-                  return p.AsValueString() ?? ""; } catch { return ""; }
+                  return p.AsValueString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
     }
 }

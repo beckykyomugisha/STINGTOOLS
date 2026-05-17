@@ -6,19 +6,26 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  token: string;
+  // Server returns camelCase via ASP.NET Core JSON serialiser
+  accessToken: string;
   refreshToken: string;
   expiresAt: string;
-  user: UserProfile;
+  userName: string;
+  role: string;
+  tier: string;
+  mimEnabled: boolean;
 }
 
 export interface UserProfile {
   id: string;
+  tenantId: string;
   email: string;
   displayName: string;
   role: string;
-  tenantId: string;
-  tenantName: string;
+  iso19650Role: string;
+  tier: string;
+  mimEnabled?: boolean;
+  lastLoginAt?: string;
 }
 
 export interface Project {
@@ -212,7 +219,11 @@ export interface OfflineAction {
     // T3-17 — mobile deliverable CRUD + transition, queued when offline.
     | 'CREATE_DELIVERABLE'
     | 'UPDATE_DELIVERABLE'
-    | 'TRANSITION_DELIVERABLE';
+    | 'TRANSITION_DELIVERABLE'
+    // HC-11 — Healthcare Pack mobile screens: queued when network is absent.
+    | 'HC_MGAS_VERIFICATION'
+    | 'HC_PRESSURE_LOG'
+    | 'HC_ANTI_LIGATURE_AUDIT';
   payload: Record<string, unknown>;
   createdAt: string;
   synced: boolean;
@@ -303,97 +314,6 @@ export interface ProjectSettings {
     hasCustomDeliverableStateMachine: boolean;
     customDeliverableStateMachineJson: string | null;
   };
-}
-
-export interface NotificationPreferences {
-  id: string;
-  userId: string;
-  tenantId: string;
-  issuesEnabled: boolean;
-  complianceEnabled: boolean;
-  revisionsEnabled: boolean;
-  meetingsEnabled: boolean;
-  slaBreachesEnabled: boolean;
-  channel: 'push' | 'email' | 'signalr' | 'all';
-  quietHoursStart?: string;
-  quietHoursEnd?: string;
-  timeZone?: string;
-  updatedAt: string;
-}
-
-// ── NEW-INT-01 — entities the mobile app can now list/read ────────────
-
-export interface Transmittal {
-  id: string;
-  projectId: string;
-  transmittalNumber: string;
-  subject: string;
-  issuedBy: string;
-  issuedTo: string;
-  status: 'DRAFT' | 'SENT' | 'ACKNOWLEDGED';
-  createdAt: string;
-  sentAt?: string;
-  documentCount?: number;
-}
-
-export interface Meeting {
-  id: string;
-  projectId: string;
-  title: string;
-  /** Meeting type: BIM Coordination | Design Review | Client Review | etc. */
-  meetingType: string;
-  /** Legacy alias kept for backward compat */
-  type?: string;
-  scheduledAt: string;
-  durationMinutes?: number | null;
-  location?: string | null;
-  meetingUrl?: string | null;
-  /** SCHEDULED | IN_PROGRESS | COMPLETED | CANCELLED */
-  status: string;
-  minutes?: string | null;
-  minutesDocumentId?: string | null;
-  organiser?: string;
-  createdBy?: string;
-  createdAt?: string;
-  notifiedUserIds?: string | null;
-  recurrenceRule?: string | null;
-  seriesId?: string | null;
-  actionItemCount?: number;
-}
-
-export interface WorkflowRun {
-  id: string;
-  projectId: string;
-  presetName: string;
-  userName: string;
-  stepsPassed: number;
-  stepsFailed: number;
-  stepsSkipped: number;
-  durationMs: number;
-  complianceBefore: number;
-  complianceAfter: number;
-  executedAt: string;
-}
-
-export interface WarningRecord {
-  id: string;
-  projectId: string;
-  category: string;
-  severity: string;
-  description: string;
-  elementId?: string;
-  createdAt: string;
-}
-
-export interface ProjectSettings {
-  issueTypes: string[];
-  priorities: string[];
-  disciplines: string[];
-  cdeStates: string[];
-  suitabilityCodes: string[];
-  limits: { maxAttachmentMB: number; maxDocumentMB: number; maxPhotosPerIssue: number };
-  slaHours: { critical: number; high: number; medium: number; low: number };
-  geofence: { hasBoundary: boolean; requireBoundary: boolean };
 }
 
 export interface NotificationPreferences {

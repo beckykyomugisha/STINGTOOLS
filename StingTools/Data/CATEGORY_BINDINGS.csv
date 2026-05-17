@@ -16125,7 +16125,6 @@ STING_SHEET_SEQ_TXT,Sheets,Instance,True
 STING_SHEET_TYPE_TXT,Sheets,Instance,True
 STING_SHEET_VOLUME_TXT,Sheets,Instance,True
 STING_SUITABILITY_DESC_TXT,Project Information,Instance,True
-PRJ_PROJECT_COD_TXT,Project Information,Instance,True
 ELC_CDT_PENETRATION_COUNT_NR,Conduits,Instance,True
 ELC_CDT_PENETRATION_COUNT_NR,Pipes,Instance,True
 ELC_CDT_PENETRATION_COUNT_NR,Ducts,Instance,True

@@ -988,7 +988,6 @@ public class DocumentsController : ControllerBase
         }
 
         // Phase 177 — ACL on the *target* state and suitability.
-        // doc is guaranteed non-null here: either found above or just created in the isCreate block.
         if (await RequireAclTargetAsync(projectId, doc!, req.NewCdeStatus ?? doc!.CdeStatus, req.SuitabilityCode)
                 is { } aclDenied)
             return aclDenied;

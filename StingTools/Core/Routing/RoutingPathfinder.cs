@@ -190,25 +190,6 @@ namespace StingTools.Core.Routing
                         .WherePasses(bboxFilter);
                     foreach (var el in col)
                     {
-                        // STING_WALL_ROUTING_FLAG / STING_SLAB_ROUTING_FLAG
-                        // — when set to ALLOW, the wall / slab is removed
-                        // from the obstacle list so A* can route THROUGH
-                        // it (chase, penetration, removable cover). Type-
-                        // bound parameter so a single edit to the wall
-                        // type drives the policy across every instance.
-                        // Stay defensive: read both instance + type just
-                        // in case a project has bound it as instance.
-                        if (cat == BuiltInCategory.OST_Walls ||
-                            cat == BuiltInCategory.OST_Floors)
-                        {
-                            string flagName = cat == BuiltInCategory.OST_Walls
-                                ? "STING_WALL_ROUTING_FLAG"
-                                : "STING_SLAB_ROUTING_FLAG";
-                            string flag = ReadFlag(el, flagName)
-                                ?? ReadFlag(doc.GetElement(el.GetTypeId()), flagName);
-                            if (string.Equals(flag, "ALLOW",
-                                StringComparison.OrdinalIgnoreCase)) continue;
-                        }
                         var bb = el.get_BoundingBox(null);
                         if (bb == null) continue;
                         list.Add(new Outline(bb.Min, bb.Max));
@@ -220,20 +201,6 @@ namespace StingTools.Core.Routing
                 }
             }
             return list;
-        }
-
-        private static string ReadFlag(Element el, string paramName)
-        {
-            if (el == null) return null;
-            try
-            {
-                var p = el.LookupParameter(paramName);
-                if (p == null) return null;
-                if (p.StorageType == StorageType.String) return p.AsString();
-                if (p.StorageType == StorageType.Integer) return p.AsInteger() == 1 ? "ALLOW" : "DENY";
-            }
-            catch { }
-            return null;
         }
     }
 }

@@ -22,7 +22,7 @@ namespace StingTools.Core.Validation.Healthcare
                 if (p != null && p.HasValue && p.StorageType == StorageType.String)
                     facType = (p.AsString() ?? "").Trim();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             if (string.IsNullOrEmpty(facType)) return all;
 
             // Build the shared cache once for the whole chain so each individual

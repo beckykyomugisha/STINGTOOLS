@@ -105,7 +105,7 @@ namespace StingTools.Core.Routing
             foreach (var id in memberIds)
             {
                 MEPCurve curve = null;
-                try { curve = doc.GetElement(id) as MEPCurve; } catch { }
+                try { curve = doc.GetElement(id) as MEPCurve; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (curve == null) continue;
 
                 // Wave J3 — split-segment metadata inheritance. When a
@@ -231,7 +231,7 @@ namespace StingTools.Core.Routing
                     if (!string.IsNullOrEmpty(r)) return r;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "FR60";
         }
 
@@ -329,7 +329,7 @@ namespace StingTools.Core.Routing
                 double hv = (hp != null && hp.StorageType == StorageType.Double) ? hp.AsDouble() * 304.8 : 0;
                 if (wv > 0 || hv > 0) return Math.Max(wv, hv);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
     }

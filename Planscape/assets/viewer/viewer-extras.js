@@ -92,9 +92,7 @@
       const upAxis = pickUpAxis(sz);
       h.camera.up.set(upAxis.x, upAxis.y, upAxis.z);
       const eye = eyeFromBounds(h.modelBounds);
-      // Keep the current camera's horizontal position; only snap the
-      // vertical component to floor + eye height so walk starts from
-      // wherever the user was looking, not at the bounding box centre.
+      const c = h.modelBounds.getCenter(new THREE.Vector3());
       const floor = upAxis.x ? h.modelBounds.min.x
                   : upAxis.y ? h.modelBounds.min.y
                              : h.modelBounds.min.z;
@@ -103,16 +101,9 @@
       else if (upAxis.y) pos.y = floor + eye;
       else pos.z = floor + eye;
       h.camera.position.copy(pos);
-      // Flatten the current look direction onto the floor plane so the
-      // initial walk view is horizontal but keeps the same heading.
-      const fwd = new THREE.Vector3();
-      h.camera.getWorldDirection(fwd);
-      const dot = fwd.dot(upAxis);
-      fwd.addScaledVector(upAxis, -dot);
-      if (fwd.lengthSq() > 0.01) {
-        fwd.normalize();
-        h.camera.lookAt(pos.clone().add(fwd));
-      }
+      const lookAt = pos.clone();
+      if (upAxis.x) lookAt.y += 1; else lookAt.x += 1;
+      h.camera.lookAt(lookAt);
       walkUp = upAxis;
       // Expose the active up-axis so coordination-viewer's scroll handler
       // can project forward movement onto the floor plane, matching WASD.
@@ -216,19 +207,11 @@
       .addScaledVector(right, walkInput.right * speed);
     h.camera.position.addScaledVector(walkVelocity, dt);
     if (walkInput.lookX || walkInput.lookY) {
-      // Rotate around the model's up axis (yaw) first, then around the
-      // camera's local right axis (pitch). This keeps look-left/right and
-      // look-up/down correct for both Y-up and Z-up models.
-      const yawQ = new THREE.Quaternion().setFromAxisAngle(walkUp, -walkInput.lookX);
-      h.camera.quaternion.premultiply(yawQ);
-      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(h.camera.quaternion);
-      const pitchQ = new THREE.Quaternion().setFromAxisAngle(right, -walkInput.lookY);
-      h.camera.quaternion.premultiply(pitchQ);
-      // Clamp pitch so the camera can't flip upside-down.
-      const up2 = walkUp.clone().applyQuaternion(h.camera.quaternion);
-      if (up2.dot(walkUp) < 0.05) {
-        h.camera.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(right, walkInput.lookY));
-      }
+      const eu = new THREE.Euler().setFromQuaternion(h.camera.quaternion, 'YXZ');
+      eu.y -= walkInput.lookX;
+      eu.x -= walkInput.lookY;
+      eu.x = Math.max(-1.4, Math.min(1.4, eu.x));
+      h.camera.quaternion.setFromEuler(eu);
       walkInput.lookX = 0; walkInput.lookY = 0;
     }
   }

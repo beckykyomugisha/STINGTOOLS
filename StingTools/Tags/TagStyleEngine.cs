@@ -553,6 +553,70 @@ namespace StingTools.Tags
             return updated;
         }
 
+        // ── TAG-01: Single style code parameter ──────────────────────────────────
+
+        /// <summary>
+        /// TAG-01: Write the style code string to TAG_STYLE_CODE_TXT AND keep the
+        /// corresponding BOOL param set to true for backwards compat with existing
+        /// .rfa families. Clears all other BOOL style params.
+        /// </summary>
+        public static void ApplyStyleCode(Document doc, Element el, string styleCode)
+        {
+            if (el == null || string.IsNullOrEmpty(styleCode)) return;
+            try
+            {
+                // Write the code string
+                ParameterHelpers.SetString(el, ParamRegistry.TAG_STYLE_CODE, styleCode, overwrite: true);
+
+                // Maintain BOOL params for compat: set matching BOOL true, all others false
+                string activeParam = $"TAG_{styleCode}_BOOL";
+                string[] allStyleParams = ParamRegistry.AllTagStyleParams;
+                foreach (string pname in allStyleParams)
+                {
+                    Parameter p = ParameterHelpers.CachedLookup(el, pname);
+                    if (p == null || p.IsReadOnly) continue;
+                    bool shouldBeOn = string.Equals(pname, activeParam, StringComparison.Ordinal);
+                    SetTagFormulaBool(p, shouldBeOn);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ApplyStyleCode({styleCode}): {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// TAG-01: Read TAG_STYLE_CODE_TXT first; if empty, fall back to scanning the
+        /// 128 BOOL params and returning the first true one's code string.
+        /// Returns empty string if no style is set.
+        /// </summary>
+        public static string GetStyleCode(Element el)
+        {
+            if (el == null) return "";
+            try
+            {
+                string code = ParameterHelpers.GetString(el, ParamRegistry.TAG_STYLE_CODE);
+                if (!string.IsNullOrEmpty(code)) return code;
+
+                // Fallback: scan BOOL params
+                string[] allStyleParams = ParamRegistry.AllTagStyleParams;
+                foreach (string pname in allStyleParams)
+                {
+                    Parameter p = ParameterHelpers.CachedLookup(el, pname);
+                    if (p == null) continue;
+                    int val = 0;
+                    if (p.StorageType == StorageType.Integer) val = p.AsInteger();
+                    else if (p.StorageType == StorageType.String && int.TryParse(p.AsString(), out int sv)) val = sv;
+                    if (val != 0)
+                    {
+                        // Strip "TAG_" prefix and "_BOOL" suffix to get type name e.g. "2BOLD_BLUE"
+                        if (pname.StartsWith("TAG_") && pname.EndsWith("_BOOL"))
+                            return pname.Substring(4, pname.Length - 9);
+                        return pname;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetStyleCode: {ex.Message}"); }
+            return "";
+        }
+
         /// <summary>
         /// Apply discipline-aware tag styles from a color scheme.
         /// Each element gets the style matching its DISC token.

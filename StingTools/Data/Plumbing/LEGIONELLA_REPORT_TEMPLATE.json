@@ -1,0 +1,53 @@
+{
+  "templateId": "legionella_risk_assessment",
+  "title": "Legionella Risk Assessment Report",
+  "standards": ["ACOP L8 (4th ed.)", "HSG 274 Part 2", "HTM 04-01 Part B"],
+  "tokens": {
+    "{{PROJECT_NAME}}": "doc.ProjectInformation.Name",
+    "{{ASSESSMENT_DATE}}": "DateTime.Today.ToString(\"dd MMMM yyyy\")",
+    "{{ASSESSOR_NAME}}": "doc.ProjectInformation.Author",
+    "{{CLIENT_NAME}}": "ParamRegistry.ORG_CLIENT_NAME",
+    "{{BUILDING_TYPE}}": "PlumbingSystemConfig.BuildingType",
+    "{{DEAD_LEG_COUNT}}": "DeadLegResult.LegsFlagged",
+    "{{DEAD_LEG_TABLE}}": "DeadLegResult.Findings formatted as table",
+    "{{TMV_COUNT}}": "TMVRegisterResult.TotalTMVs",
+    "{{TMV_FAIL_COUNT}}": "TMVRegisterResult.FailCount",
+    "{{TMV_TABLE}}": "TMVRegisterResult.Records formatted as table",
+    "{{STORAGE_HOT_TEMP}}": "from system config or default 60",
+    "{{DISTRIBUTION_HOT_TEMP}}": "from system config or default 50",
+    "{{COLD_MAX_TEMP}}": "from system config or default 20",
+    "{{RISK_RATING}}": "computed: HIGH if any dead leg > 0.45m, MEDIUM if TMV failures, LOW otherwise",
+    "{{NEXT_REVIEW_DATE}}": "DateTime.Today.AddMonths(12).ToString(\"MMMM yyyy\")"
+  },
+  "sections": [
+    {
+      "title": "1. Executive Summary",
+      "content": "This Legionella Risk Assessment has been prepared for {{PROJECT_NAME}} in accordance with the requirements of ACOP L8 (4th Edition) and HSG 274 Part 2. The assessment date is {{ASSESSMENT_DATE}}. Overall risk rating: {{RISK_RATING}}."
+    },
+    {
+      "title": "2. Building and System Description",
+      "content": "Building type: {{BUILDING_TYPE}}. The domestic water installation comprises hot water storage at a minimum of {{STORAGE_HOT_TEMP}}°C, distributed at {{DISTRIBUTION_HOT_TEMP}}°C minimum, with cold water maintained below {{COLD_MAX_TEMP}}°C at all outlets."
+    },
+    {
+      "title": "3. Dead-Leg Register",
+      "content": "{{DEAD_LEG_COUNT}} dead-leg(s) identified exceeding the HSG 274 limit of 0.45m. See table: {{DEAD_LEG_TABLE}}",
+      "tableToken": "{{DEAD_LEG_TABLE}}",
+      "tableColumns": ["Pipe ID", "System", "Length (m)", "Diameter (mm)", "Risk", "Action Required"]
+    },
+    {
+      "title": "4. TMV Register",
+      "content": "{{TMV_COUNT}} thermostatic mixing valve(s) identified. {{TMV_FAIL_COUNT}} fail temperature validation. See register: {{TMV_TABLE}}",
+      "tableToken": "{{TMV_TABLE}}",
+      "tableColumns": ["Element ID", "Location", "Room", "Class", "Inlet Hot (°C)", "Inlet Cold (°C)", "Outlet Set (°C)", "Outlet Actual (°C)", "Last Test", "Annual Due", "Status"]
+    },
+    {
+      "title": "5. Control Measures",
+      "content": "The following control measures are required per ACOP L8 §155-168:\n• Hot water storage ≥ 60°C\n• Hot distribution ≥ 50°C at all sentinel outlets\n• Cold water ≤ 20°C at all outlets\n• Weekly flush of infrequently used outlets\n• Annual descaling of showerheads and hoses\n• Regular inspection of calorifiers and tanks\n• Annual TMV inspection and test per BS 8680"
+    },
+    {
+      "title": "6. Risk Summary and Next Review",
+      "content": "Overall risk rating: {{RISK_RATING}}. This assessment is valid for 12 months. Next review due: {{NEXT_REVIEW_DATE}}. Assessor: {{ASSESSOR_NAME}}."
+    }
+  ],
+  "note": "This template is rendered by PlumbLegionellaReportCommand using a text-based renderer when the .docx template file is not present. To enable Word rendering, place a legionella_risk_assessment.docx template file in the _template_sources directory."
+}

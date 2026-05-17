@@ -45,7 +45,7 @@ namespace StingTools.Commands.Electrical.Busbar
             }
 
             CableManifest manifest;
-            try { manifest = CableManifest.Load(doc); } catch { manifest = null; }
+            try { manifest = CableManifest.Load(doc); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); manifest = null; }
 
             int sized = 0;
             using (var tx = new Transaction(doc, "STING Busbar Sizing"))
@@ -67,9 +67,9 @@ namespace StingTools.Commands.Electrical.Busbar
                             ? BusbarSizerEngine.FillPercent(ductAreaMm2, result.CsaMm2, 3)
                             : 0;
 
-                        try { ParameterHelpers.SetString(tray, ParamRegistry.ELC_BUSBAR_CSA, $"{result.CsaMm2:0}", overwrite: true); } catch { }
-                        try { ParameterHelpers.SetString(tray, ParamRegistry.ELC_BUSBAR_RATING, $"{result.RatingA:0}", overwrite: true); } catch { }
-                        try { ParameterHelpers.SetString(tray, ParamRegistry.ELC_BUSBAR_FILL, $"{fillPct:0.0}", overwrite: true); } catch { }
+                        try { ParameterHelpers.SetString(tray, ParamRegistry.ELC_BUSBAR_CSA, $"{result.CsaMm2:0}", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        try { ParameterHelpers.SetString(tray, ParamRegistry.ELC_BUSBAR_RATING, $"{result.RatingA:0}", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        try { ParameterHelpers.SetString(tray, ParamRegistry.ELC_BUSBAR_FILL, $"{fillPct:0.0}", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                         if (fillPct > 80) ApplyRedOverride(doc, tray);
                         if (!result.Compliant) StingLog.Warn($"Busbar {tray.Name}: {result.Warning}");
@@ -79,7 +79,7 @@ namespace StingTools.Commands.Electrical.Busbar
                 }
                 tx.Commit();
             }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             TaskDialog.Show("STING Busbar Sizing",
                 $"Busbar trunking sizing complete — {sized} run(s) assessed.\n" +
@@ -113,7 +113,7 @@ namespace StingTools.Commands.Electrical.Busbar
                         if (sys != null)
                             totalKW += (sys.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0) / 1000.0;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
                 if (totalKW > 0)
                     return totalKW * 1000 / (400.0 * Math.Sqrt(3) * 0.9);

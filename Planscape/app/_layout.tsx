@@ -13,6 +13,7 @@ import { initI18n } from '@/i18n';
 import { markBackgrounded, challengeIfDue } from '@/services/biometricLock';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { loadThemePref } from '@/theme/theme';
+import { reapOrphanQueuedPhotos } from '../src/utils/offlineQueue';
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
@@ -23,6 +24,7 @@ export default function RootLayout() {
   useEffect(() => {
     crashReporter.init();
     crashReporter.flushPending().catch(() => {});
+    reapOrphanQueuedPhotos().catch(console.error);
     const unsubNotif = notificationTapRouter.attach(router);
     // NEW-INT-04 — on refresh-token failure, apiFetch emits this event and we
     // force-navigate to the login screen so the user isn't stuck with silent 401s.

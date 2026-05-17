@@ -1067,6 +1067,83 @@
     }
   }
 
+  // ── Compliance heatmap ────────────────────────────────────────────────────
+  // payload: { elements: [{ guid, isComplete, disc }], mode: 'rag'|'disc' }
+  const _origMaterials = new Map(); // guid → original material
+
+  function setComplianceHeatmap(payload) {
+    if (!modelRoot || !elementMap) return;
+    const { elements = [], mode = 'rag' } = payload || {};
+    const ragByGuid = new Map(elements.map(e => [e.guid, e]));
+
+    const C_GREEN  = new THREE.Color(0x27ae60);
+    const C_AMBER  = new THREE.Color(0xf39c12);
+    const C_RED    = new THREE.Color(0xe74c3c);
+    const C_GREY   = new THREE.Color(0x888888);
+    const DISC_COLORS = {
+      A:'#3498db', M:'#e67e22', E:'#f1c40f', P:'#2ecc71',
+      S:'#9b59b6', FP:'#e74c3c', LV:'#1abc9c', G:'#95a5a6',
+    };
+
+    modelRoot.traverse(obj => {
+      if (!obj.isMesh) return;
+      const guid = obj.userData.elementGuid;
+      if (!guid) return;
+      const info = ragByGuid.get(guid);
+      if (!info) return;
+
+      // Save original material once
+      if (!_origMaterials.has(guid)) _origMaterials.set(guid, obj.material);
+
+      let color;
+      if (mode === 'disc') {
+        color = new THREE.Color(DISC_COLORS[info.disc] || '#888');
+      } else {
+        color = info.isComplete ? C_GREEN : (info.disc ? C_AMBER : C_RED);
+      }
+      const mat = new THREE.MeshLambertMaterial({ color });
+      obj.material = mat;
+    });
+  }
+
+  function clearComplianceHeatmap() {
+    if (!modelRoot) return;
+    modelRoot.traverse(obj => {
+      if (!obj.isMesh) return;
+      const guid = obj.userData.elementGuid;
+      if (guid && _origMaterials.has(guid)) {
+        obj.material = _origMaterials.get(guid);
+        _origMaterials.delete(guid);
+      }
+    });
+  }
+
+  // ── BCF viewpoint capture / restore ──────────────────────────────────────
+  function captureViewpoint(meta) {
+    const eye = camera.position.toArray();
+    const look = controls.target.toArray();
+    const up  = camera.up.toArray();
+    const dir = new THREE.Vector3().subVectors(controls.target, camera.position).normalize().toArray();
+    const selected = highlightedMesh ? [highlightedMesh.userData.elementGuid].filter(Boolean) : [];
+    return {
+      ...(meta || {}),
+      camera: { eye, look, up, dir, fov: camera.fov },
+      selectedGuids: selected,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  function restoreViewpoint(vp) {
+    if (!vp || !vp.camera) return;
+    const { eye, look, up, fov } = vp.camera;
+    if (fov) camera.fov = fov;
+    camera.updateProjectionMatrix();
+    controls.target.set(...look);
+    camera.position.set(...eye);
+    camera.up.set(...up);
+    controls.update();
+  }
+
   function setTool(t) {
     activeTool = t;
     enableSection(t === 'section');

@@ -2808,7 +2808,7 @@ namespace StingTools.BIMManager
                                                 written = true;
                                                 break;
                                             case StorageType.Double:
-                                                if (double.TryParse(excelVal, out double dv))
+                                                if (double.TryParse(excelVal, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double dv))
                                                 { param.Set(dv); written = true; }
                                                 break;
                                             case StorageType.Integer:

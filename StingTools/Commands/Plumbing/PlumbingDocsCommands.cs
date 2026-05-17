@@ -111,7 +111,7 @@ namespace StingTools.Commands.Plumbing
                 {
                     string lvl = el.LevelId == ElementId.InvalidElementId ? "" : ctx.Doc.GetElement(el.LevelId)?.Name ?? "";
                     string inv = "";
-                    try { inv = el.LookupParameter(ParamRegistry.PLM_DRN_INV_DS)?.AsValueString() ?? ""; } catch { }
+                    try { inv = el.LookupParameter(ParamRegistry.PLM_DRN_INV_DS)?.AsValueString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     panel.Text($"{el.Id.Value} · {el.Name} · level {lvl} · invert {inv}");
                 }
             }
@@ -164,7 +164,7 @@ namespace StingTools.Commands.Plumbing
             if (!string.IsNullOrEmpty(dir))
             {
                 pack = Path.Combine(dir, "_BIM_COORD", "plumbing", "commissioning");
-                try { Directory.CreateDirectory(pack); } catch { }
+                try { Directory.CreateDirectory(pack); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
 
             var panel = StingResultPanel.Create("Plumbing Commissioning Pack");

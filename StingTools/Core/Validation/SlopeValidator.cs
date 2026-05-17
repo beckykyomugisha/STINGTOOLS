@@ -116,7 +116,7 @@ namespace StingTools.Core.Validation
                         nm.Contains("STORM") || nm.Contains("DRAIN")) return true;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 
@@ -137,7 +137,7 @@ namespace StingTools.Core.Validation
                 }
                 if (p != null && p.StorageType == StorageType.Double) return p.AsDouble();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // Fall back to geometric slope from LocationCurve endpoints.
             try

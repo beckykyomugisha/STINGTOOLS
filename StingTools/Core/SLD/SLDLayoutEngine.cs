@@ -111,8 +111,7 @@ namespace StingTools.Core.SLD
 
                 if (node.IsPanel && node.Children.Count > 0)
                 {
-                    // Busbar at the parent's bottom edge (output connector).
-                    double busY = pos.Y - symHalf;
+                    double busY = pos.Y - busOff;
                     var busFrom = new XYZ(pos.X - Mm(10), busY, 0);
                     var busTo   = new XYZ(pos.X + Mm(10) + node.Children.Count * Mm(opts.SymbolSpacingMm), busY, 0);
                     layout.BusbarSegments.Add((busFrom, busTo));
@@ -121,13 +120,7 @@ namespace StingTools.Core.SLD
                     {
                         Place(child);
                         if (layout.SymbolPositions.TryGetValue(child.ElementId, out var childPos))
-                        {
-                            // Terminate at top of child symbol (input connector), not centre.
-                            var childTop = new XYZ(childPos.X, childPos.Y + symHalf, 0);
-                            layout.BranchLines.Add((new XYZ(childPos.X, busY, 0), childTop));
-                            layout.BranchLinesWithPoles.Add(
-                                (new XYZ(childPos.X, busY, 0), childTop, child.Poles));
-                        }
+                            layout.BranchLines.Add((new XYZ(childPos.X, busY, 0), childPos));
                     }
                 }
             }

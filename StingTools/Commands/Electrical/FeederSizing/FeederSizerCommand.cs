@@ -75,7 +75,7 @@ namespace StingTools.Commands.Electrical.FeederSizing
                 }
                 tx.Commit();
             }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Feeders",
                 $"Sized {results.Count} feeder(s). Stamped {written}. VD exceedances: {vdFails}.");
             return Result.Succeeded;

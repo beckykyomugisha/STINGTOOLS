@@ -141,7 +141,7 @@ namespace StingTools.Core.Validation
                 string memberIdTxt = ParameterHelpers.GetString(fi, "PEN_MEMBER_ID_TXT");
                 if (!long.TryParse(memberIdTxt, out long mid)) continue;
                 Element member = null;
-                try { member = doc.GetElement(new ElementId(mid)); } catch { }
+                try { member = doc.GetElement(new ElementId(mid)); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (member == null)
                 {
                     findings.Add(new ValidationResult(fi.Id, ValidationSeverity.Warning,

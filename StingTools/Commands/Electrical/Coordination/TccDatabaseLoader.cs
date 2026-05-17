@@ -246,6 +246,38 @@ namespace StingTools.Commands.Electrical.Coordination
                 (faultKa - MinFaultKa) / (MaxFaultKa - MinFaultKa)));
             return Math.Max(ClearingMs_At_10xIn, 300.0 * (1.0 - ratio));
         }
+
+        /// <summary>
+        /// Log-log interpolation between TccPoint pairs.
+        /// Points must be sorted ascending by FaultKa.
+        /// </summary>
+        public static double LogLogInterpolate(IList<TccPoint> pts, double faultKa)
+        {
+            if (pts == null || pts.Count == 0) return 100;
+            if (faultKa <= pts[0].FaultKa) return pts[0].ClearingMs;
+            if (faultKa >= pts[pts.Count - 1].FaultKa) return pts[pts.Count - 1].ClearingMs;
+
+            for (int i = 0; i < pts.Count - 1; i++)
+            {
+                var lo = pts[i]; var hi = pts[i + 1];
+                if (faultKa >= lo.FaultKa && faultKa <= hi.FaultKa)
+                {
+                    // log-log interpolation: ln(y) = ln(y0) + t*(ln(y1)-ln(y0))
+                    // where t = (ln(x)-ln(x0))/(ln(x1)-ln(x0))
+                    if (lo.FaultKa <= 0 || hi.FaultKa <= 0 ||
+                        lo.ClearingMs <= 0 || hi.ClearingMs <= 0)
+                        return lo.ClearingMs; // guard against zeros
+                    double logX0 = Math.Log(lo.FaultKa);
+                    double logX1 = Math.Log(hi.FaultKa);
+                    double logX  = Math.Log(faultKa);
+                    double t = (logX - logX0) / (logX1 - logX0);
+                    double logY = Math.Log(lo.ClearingMs)
+                                + t * (Math.Log(hi.ClearingMs) - Math.Log(lo.ClearingMs));
+                    return Math.Exp(logY);
+                }
+            }
+            return pts[pts.Count - 1].ClearingMs;
+        }
     }
 
     public class TccCurve
@@ -263,6 +295,7 @@ namespace StingTools.Commands.Electrical.Coordination
     public static class TccDatabaseLoader
     {
         private static TccDatabase _cache;
+        private static string _cachePath;
         private static DateTime _cacheTime;
         private static readonly object _lock = new object();
 
@@ -270,18 +303,25 @@ namespace StingTools.Commands.Electrical.Coordination
         {
             lock (_lock)
             {
-                if (_cache != null && (DateTime.Now - _cacheTime).TotalMinutes < 5) return _cache;
+                // Include the resolved path in the cache key so switching data files
+                // (e.g., different project override) invalidates the cache correctly.
+                string resolvedPath = string.IsNullOrEmpty(dataPath)
+                    ? StingToolsApp.FindDataFile("STING_TCC_DATABASE.json")
+                    : dataPath;
+                if (_cache != null
+                    && resolvedPath == _cachePath
+                    && (DateTime.Now - _cacheTime).TotalMinutes < 5)
+                    return _cache;
                 try
                 {
-                    string path = string.IsNullOrEmpty(dataPath)
-                        ? StingToolsApp.FindDataFile("STING_TCC_DATABASE.json")
-                        : dataPath;
-                    if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                    if (!string.IsNullOrEmpty(resolvedPath) && File.Exists(resolvedPath))
                     {
-                        _cache = JsonConvert.DeserializeObject<TccDatabase>(File.ReadAllText(path))
+                        _cache = JsonConvert.DeserializeObject<TccDatabase>(
+                                     File.ReadAllText(resolvedPath))
                                  ?? TccDatabase.BuildDefault();
                     }
                     else { _cache = TccDatabase.BuildDefault(); }
+                    _cachePath = resolvedPath;
                     _cacheTime = DateTime.Now;
                 }
                 catch (Exception ex)

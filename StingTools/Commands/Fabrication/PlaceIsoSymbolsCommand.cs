@@ -149,7 +149,7 @@ namespace StingTools.Commands.Fabrication
         private static bool IsStingIsoView(View v)
         {
             try { return (v?.Name ?? "").StartsWith("STING ISO 6412", StringComparison.OrdinalIgnoreCase); }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         /// <summary>
@@ -166,7 +166,7 @@ namespace StingTools.Commands.Fabrication
                 string tail = name.Substring(idx + 2).Trim();
                 if (long.TryParse(tail, out long val)) return new ElementId(val);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return ElementId.InvalidElementId;
         }
 

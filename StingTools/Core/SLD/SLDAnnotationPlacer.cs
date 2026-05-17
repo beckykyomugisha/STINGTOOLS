@@ -43,8 +43,6 @@ namespace StingTools.Core.SLD
             if (doc == null || view == null || root == null || layout == null) return;
             var rules = SymbolStandardRegistry.GetAnnotationRules(standardId);
             annotOpts = annotOpts ?? SLDAnnotationOptions.Default;
-            var std = SymbolStandardRegistry.GetStandard(standardId);
-            double symSizeMm = std?.SymbolSizeMm > 0 ? std.SymbolSizeMm : 8.0;
 
             var stack = new Stack<SLDNode>();
             stack.Push(root);
@@ -53,7 +51,7 @@ namespace StingTools.Core.SLD
                 var node = stack.Pop();
                 if (layout.SymbolPositions.TryGetValue(node.ElementId, out var pos))
                 {
-                    ElementId noteId = PlaceCircuitAnnotation(doc, view, node, pos, rules, annotOpts, symSizeMm);
+                    ElementId noteId = PlaceCircuitAnnotation(doc, view, node, pos, rules, annotOpts);
                     if (noteId != ElementId.InvalidElementId
                         && nodeToInstance != null
                         && nodeToInstance.TryGetValue(node.ElementId, out var instanceId))
@@ -70,8 +68,7 @@ namespace StingTools.Core.SLD
         /// Returns <see cref="ElementId.InvalidElementId"/> when no label is produced.
         /// </summary>
         public static ElementId PlaceCircuitAnnotation(Document doc, ViewDrafting view, SLDNode node,
-            XYZ position, AnnotationRules rules, SLDAnnotationOptions annotOpts = null,
-            double symSizeMm = 8.0)
+            XYZ position, AnnotationRules rules, SLDAnnotationOptions annotOpts = null)
         {
             annotOpts = annotOpts ?? SLDAnnotationOptions.Default;
             try

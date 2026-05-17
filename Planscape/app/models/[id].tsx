@@ -15,6 +15,7 @@ import {
   ModelViewerHandle,
   type PickEvent,
   type PlaceIssueEvent,
+  type BcfViewpoint,
 } from "@/components/ModelViewer";
 import { useProjectStore } from "@/stores/projectStore";
 import { getModel, modelFileUrl, fetchElementMap } from "@/api/models";
@@ -109,13 +110,16 @@ export default function ModelViewerScreen() {
   }, [viewerReady, highlightElement]);
 
   function onPick(e: PickEvent) {
-    if (!e.meta) return;
-    const tag = e.meta.tag ?? e.name ?? e.guid.slice(0, 8);
-    Alert.alert(tag, [
-      e.meta.category && `Category: ${e.meta.category}`,
-      e.meta.discipline && `Discipline: ${e.meta.discipline}`,
-      e.meta.level && `Level: ${e.meta.level}`,
-    ].filter(Boolean).join("\n") || "No metadata available.");
+    const tag = e.meta?.tag ?? e.name ?? e.guid.slice(0, 8);
+    const lines = [
+      e.meta?.category   && `Category: ${e.meta.category}`,
+      e.meta?.discipline && `Discipline: ${e.meta.discipline}`,
+      e.meta?.level      && `Level: ${e.meta.level}`,
+      e.meta?.system     && `System: ${e.meta.system}`,
+      e.meta?.status     && `Status: ${e.meta.status}`,
+      `GUID: ${e.guid.slice(0, 8)}…`,
+    ].filter(Boolean).join("\n");
+    Alert.alert(tag, lines || "No metadata available.");
   }
 
   function onPlaceIssue(e: PlaceIssueEvent) {
@@ -221,11 +225,14 @@ export default function ModelViewerScreen() {
   );
 }
 
-function ExtraToolbar({ viewerRef, walkActive, sectionEnabled, setSectionEnabled }: {
+function ExtraToolbar({ viewerRef, walkActive, sectionEnabled, setSectionEnabled,
+  heatmapActive, onToggleHeatmap }: {
   viewerRef: React.RefObject<ModelViewerHandle>;
   walkActive: boolean;
   sectionEnabled: boolean;
   setSectionEnabled: (v: boolean) => void;
+  heatmapActive: boolean;
+  onToggleHeatmap: () => void;
 }) {
   const [areaActive, setAreaActive] = useState(false);
   const cell = (label: string, active: boolean, onPress: () => void) => (
@@ -241,11 +248,12 @@ function ExtraToolbar({ viewerRef, walkActive, sectionEnabled, setSectionEnabled
         setSectionEnabled(next);
         viewerRef.current?.setSectionPlane({ enabled: next, normal: [0, -1, 0], offset: 0.5 });
       })}
-      {cell(areaActive ? "Finish area" : "Area", areaActive, () => {
+      {cell(areaActive ? "Done" : "Area", areaActive, () => {
         if (areaActive) { viewerRef.current?.finishArea(); setAreaActive(false); }
         else            { viewerRef.current?.startArea();  setAreaActive(true); }
       })}
-      {cell("Volume", false, () => viewerRef.current?.measureSelectionVolume())}
+      {cell("Vol", false, () => viewerRef.current?.measureSelectionVolume())}
+      {cell(heatmapActive ? "RAG ✓" : "RAG", heatmapActive, onToggleHeatmap)}
     </View>
   );
 }

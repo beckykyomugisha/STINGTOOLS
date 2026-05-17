@@ -21,15 +21,14 @@ export function useAuth() {
           await setBaseUrl(serverUrl);
         }
         const res = await apiLogin({ email, password });
-        await setTokens(res.token, res.refreshToken);
-        setUser(res.user);
-        // Phase 142 — populate the global authStore so screens can identify
-        // "the current user" without a round-trip to /me. Was previously
-        // declared but never set, leaving issue-detail / documents reading
-        // null.
+        // Server returns `accessToken`, not `token`
+        await setTokens(res.accessToken, res.refreshToken);
+        // Fetch full profile now that the token is stored
+        const profile = await getMe();
+        setUser(profile);
         useAuthStore.getState().setAuth(
-          res.token, res.user.id, res.user.tenantId,
-          res.user.email, res.user.displayName);
+          res.accessToken, profile.id, profile.tenantId,
+          profile.email, profile.displayName);
         // B4 — register the device push token with the server now that we
         // have a JWT. Fire-and-forget; permission may be denied or the
         // server may be unreachable, neither of which should block sign-in.

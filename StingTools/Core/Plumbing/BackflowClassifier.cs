@@ -72,7 +72,7 @@ namespace StingTools.Core.Plumbing
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             string sysName = "";
             try
@@ -82,7 +82,7 @@ namespace StingTools.Core.Plumbing
                     sysName = fi.MEPModel?.ConnectorManager?.Connectors?
                               .Cast<Connector>().FirstOrDefault()?.MEPSystem?.Name ?? "";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             r.SystemName = sysName;
             string upper = (sysName ?? "").ToUpperInvariant();
 
@@ -111,7 +111,7 @@ namespace StingTools.Core.Plumbing
                 var pipes = new FilteredElementCollector(doc).OfClass(typeof(Pipe)).Cast<Pipe>();
                 foreach (var p in pipes) list.Add(ClassifyElement(doc, p));
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return list;
         }
     }
@@ -164,7 +164,7 @@ namespace StingTools.Core.Plumbing
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             return findings;
         }
@@ -183,7 +183,7 @@ namespace StingTools.Core.Plumbing
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 

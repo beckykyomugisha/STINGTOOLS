@@ -4,7 +4,7 @@
  * breakdown table. Fetches from GET /api/projects/{id}/boq/snapshot.
  */
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,6 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
 import { theme } from '@/utils/theme';
 import { getBoqSnapshot, listProjects } from '@/api/endpoints';
 import type { BoqDisciplineRow, BoqSnapshotResponse } from '@/api/endpoints';

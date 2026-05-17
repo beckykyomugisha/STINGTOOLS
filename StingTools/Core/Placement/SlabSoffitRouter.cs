@@ -190,7 +190,7 @@ namespace StingTools.Core.Placement
                     if (layers != null)
                     {
                         int structuralIdx = -1;
-                        try { structuralIdx = cs.StructuralMaterialIndex; } catch { }
+                        try { structuralIdx = cs.StructuralMaterialIndex; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         // Walk EVERY layer to compute slab thickness; walk only
                         // INTERIOR (= below-soffit) finish layers to compute
                         // the available service zone. Floor compound layers
@@ -233,7 +233,7 @@ namespace StingTools.Core.Placement
                 var lvl = _doc.GetElement(levelId) as Level;
                 return lvl?.Elevation ?? 0;
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         private static void TryStampSoffit(Element el, double slabThicknessMm, double offsetMm)

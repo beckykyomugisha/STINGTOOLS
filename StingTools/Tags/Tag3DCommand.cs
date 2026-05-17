@@ -728,7 +728,7 @@ namespace StingTools.Tags
                 var status = WorksharingUtils.GetCheckoutStatus(doc, el.Id);
                 return status != CheckoutStatus.OwnedByOtherUser;
             }
-            catch { return true; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return true; }
         }
 
         private static void TryPin(FamilyInstance fi)
@@ -748,7 +748,7 @@ namespace StingTools.Tags
                         StringComparison.OrdinalIgnoreCase));
                 return ws?.Id ?? WorksetId.InvalidWorksetId;
             }
-            catch { return WorksetId.InvalidWorksetId; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return WorksetId.InvalidWorksetId; }
         }
 
         private static bool TryAssignWorkset(FamilyInstance fi, WorksetId wsId)

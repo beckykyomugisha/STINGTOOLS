@@ -343,12 +343,12 @@ namespace StingTools.Commands.Electrical
 
         // ── safe param accessors ─────────────────────────────────────────
         private static string SafeStr(Element e, BuiltInParameter bip)
-        { try { return e.get_Parameter(bip)?.AsString() ?? ""; } catch { return ""; } }
+        { try { return e.get_Parameter(bip)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; } }
         private static double SafeDouble(Element e, BuiltInParameter bip)
-        { try { return e.get_Parameter(bip)?.AsDouble() ?? 0; } catch { return 0; } }
+        { try { return e.get_Parameter(bip)?.AsDouble() ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; } }
         private static int SafeInt(Element e, BuiltInParameter bip)
-        { try { return e.get_Parameter(bip)?.AsInteger() ?? 0; } catch { return 0; } }
-        private static T TrySafe<T>(Func<T> f) { try { return f(); } catch { return default(T); } }
+        { try { return e.get_Parameter(bip)?.AsInteger() ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; } }
+        private static T TrySafe<T>(Func<T> f) { try { return f(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return default(T); } }
 
         private static string ReadCircuitPhase(ElectricalSystem sys)
         {
@@ -371,7 +371,7 @@ namespace StingTools.Commands.Electrical
                     return string.IsNullOrEmpty(v) ? "" : "A";
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "";
         }
 
@@ -389,7 +389,7 @@ namespace StingTools.Commands.Electrical
                     string v = p.AsValueString();
                     if (!string.IsNullOrEmpty(v)) return v;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             return "";
         }
@@ -404,7 +404,7 @@ namespace StingTools.Commands.Electrical
                     if (p.StorageType == StorageType.Integer) return p.AsInteger();
                     if (p.StorageType == StorageType.Double) return (int)p.AsDouble();
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             return 0;
         }
@@ -419,7 +419,7 @@ namespace StingTools.Commands.Electrical
                     if (p.StorageType == StorageType.Double) return p.AsDouble();
                     if (p.StorageType == StorageType.Integer) return p.AsInteger();
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             return 0;
         }

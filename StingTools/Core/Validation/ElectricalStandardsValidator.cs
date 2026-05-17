@@ -272,7 +272,7 @@ namespace StingTools.Core.Validation
                     NumberStyles.Any, CultureInfo.InvariantCulture, out double m) && m > 0)
                     return m * 1000.0;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // 2) Built-in CURVE_ELEM_LENGTH (feet → mm).
             try
@@ -281,7 +281,7 @@ namespace StingTools.Core.Validation
                 if (p != null && p.StorageType == StorageType.Double)
                     return p.AsDouble() * 304.8; // ft → mm
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // 3) LocationCurve length.
             try
@@ -289,7 +289,7 @@ namespace StingTools.Core.Validation
                 var loc = el.Location as LocationCurve;
                 if (loc?.Curve != null) return loc.Curve.Length * 304.8;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 
@@ -301,7 +301,7 @@ namespace StingTools.Core.Validation
                 string s = ParameterHelpers.GetString(el, ParamRegistry.ELC_CDT_CABLE_COUNT_NR);
                 if (!string.IsNullOrEmpty(s) && int.TryParse(s, out int n) && n > 0) return n;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             // Unknown — return 0 so the fill table picks the conservative 3+ row.
             return 0;
         }
@@ -314,7 +314,7 @@ namespace StingTools.Core.Validation
                 string s = ParameterHelpers.GetString(el, ParamRegistry.ELC_CDT_BEND_COUNT_NR);
                 if (!string.IsNullOrEmpty(s) && int.TryParse(s, out int n)) return n;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // 2) Geometric fallback — walk the conduit's connector graph
             // and count connected ConduitFittings whose bend angle is
@@ -359,7 +359,7 @@ namespace StingTools.Core.Validation
                     NumberStyles.Any, CultureInfo.InvariantCulture, out double d) && d > 0)
                     return d;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // Family-name regex fallback (compiled regex cached at class scope).
             try
@@ -371,7 +371,7 @@ namespace StingTools.Core.Validation
                     NumberStyles.Any, CultureInfo.InvariantCulture, out double d2))
                     return d2;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 

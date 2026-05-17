@@ -22,14 +22,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Planscape.Shared.BCF;
 using StingTools.Core;
-using StingTools.Core.Clash;
-using StingTools.Core.Mep;
 using StingTools.UI;
 
 namespace StingTools.Commands.Mep
@@ -45,9 +42,7 @@ namespace StingTools.Commands.Mep
             var doc = ctx.Doc;
 
             // Collect placed sleeves — any FamilyInstance with
-            // STING_SLEEVE_PFV_UUID set. Both PlaceSleevesCommand and
-            // AutoSleevePlacementCommand now write the same schema so this
-            // collector picks up sleeves from either entry point.
+            // STING_SLEEVE_PFV_UUID set.
             var sleeves = new List<FamilyInstance>();
             try
             {
@@ -57,7 +52,7 @@ namespace StingTools.Commands.Mep
                 {
                     try
                     {
-                        var p = fi.LookupParameter(SleeveParamRegistry.PfvUuid);
+                        var p = fi.LookupParameter("STING_SLEEVE_PFV_UUID");
                         if (p?.AsString() is { Length: > 0 }) sleeves.Add(fi);
                     }
                     catch { }
@@ -129,14 +124,14 @@ namespace StingTools.Commands.Mep
 
         private static CoordIssue BuildIssue(Document doc, FamilyInstance sleeve)
         {
-            string pfvUuid = sleeve.LookupParameter(SleeveParamRegistry.PfvUuid)?.AsString() ?? sleeve.UniqueId;
-            string bore    = sleeve.LookupParameter(SleeveParamRegistry.BoreMm)?.AsDouble().ToString("F0") ?? "";
-            string width   = sleeve.LookupParameter(SleeveParamRegistry.WidthMm)?.AsDouble().ToString("F0") ?? "";
-            string height  = sleeve.LookupParameter(SleeveParamRegistry.HeightMm)?.AsDouble().ToString("F0") ?? "";
-            string depth   = sleeve.LookupParameter(SleeveParamRegistry.DepthMm)?.AsDouble().ToString("F0") ?? "";
-            string rule    = sleeve.LookupParameter(SleeveParamRegistry.RuleId)?.AsString() ?? "";
-            string fireRat = sleeve.LookupParameter(SleeveParamRegistry.HostFireRating)?.AsString() ?? "";
-            string ulSys   = sleeve.LookupParameter(SleeveParamRegistry.UlSystem)?.AsString() ?? "";
+            string pfvUuid = sleeve.LookupParameter("STING_SLEEVE_PFV_UUID")?.AsString() ?? sleeve.UniqueId;
+            string bore    = sleeve.LookupParameter("STING_SLEEVE_BORE_MM")?.AsDouble().ToString("F0") ?? "";
+            string width   = sleeve.LookupParameter("STING_SLEEVE_WIDTH_MM")?.AsDouble().ToString("F0") ?? "";
+            string height  = sleeve.LookupParameter("STING_SLEEVE_HEIGHT_MM")?.AsDouble().ToString("F0") ?? "";
+            string depth   = sleeve.LookupParameter("STING_SLEEVE_DEPTH_MM")?.AsDouble().ToString("F0") ?? "";
+            string rule    = sleeve.LookupParameter("STING_SLEEVE_RULE_ID")?.AsString() ?? "";
+            string fireRat = sleeve.LookupParameter("STING_SLEEVE_HOST_FIRE_RATING")?.AsString() ?? "";
+            string ulSys   = sleeve.LookupParameter("STING_SLEEVE_UL_SYS")?.AsString() ?? "";
 
             string hostCat = sleeve.Host?.Category?.Name ?? "Unknown host";
             string levelName = "";
@@ -177,98 +172,7 @@ namespace StingTools.Commands.Mep
             issue.Labels.Add("SLEEVE");
             if (!string.IsNullOrEmpty(hostCat)) issue.Labels.Add(hostCat);
             if (!string.IsNullOrEmpty(fireRat))  issue.Labels.Add($"FIRE_{fireRat}");
-
-            // Build a real BCF viewpoint anchored on the sleeve so remote
-            // coordinators (BIMcollab / ACC / Solibri) open the topic with
-            // a spatial reference instead of the default stub camera.
-            issue.ViewpointBcfvXml = BuildSleeveViewpoint(doc, sleeve);
             return issue;
-        }
-
-        /// <summary>
-        /// Build a BCF 2.1 VisualizationInfo XML anchored on the sleeve's
-        /// bounding box. Coordinates are emitted in metres per the BCF spec.
-        /// </summary>
-        private static string BuildSleeveViewpoint(Document doc, FamilyInstance sleeve)
-        {
-            try
-            {
-                var bb = sleeve.get_BoundingBox(null);
-                if (bb == null) return null;
-
-                const float FtToM = 0.3048f;
-                var min = new Vector3(
-                    (float)bb.Min.X * FtToM, (float)bb.Min.Y * FtToM, (float)bb.Min.Z * FtToM);
-                var max = new Vector3(
-                    (float)bb.Max.X * FtToM, (float)bb.Max.Y * FtToM, (float)bb.Max.Z * FtToM);
-                var centre = 0.5f * (min + max);
-                var size   = max - min;
-                float diag = size.Length();
-                var offset = new Vector3(1, 1, 0.5f) * (diag * 1.3f + 2f);
-
-                var vb = new BcfViewpointBuilder
-                {
-                    Camera = new BcfViewpointCamera
-                    {
-                        ViewPoint   = centre + offset,
-                        Direction   = Vector3.Normalize(centre - (centre + offset)),
-                        Up          = new Vector3(0, 0, 1),
-                        FieldOfView = 45f,
-                        AspectRatio = 1.33f,
-                    },
-                };
-
-                // 500 mm padded section box around the sleeve.
-                const float pad = 0.5f;
-                var mn = new Vector3(min.X - pad, min.Y - pad, min.Z - pad);
-                var mx = new Vector3(max.X + pad, max.Y + pad, max.Z + pad);
-                vb.ClippingPlanes.Add(new BcfClippingPlane { Location = mn, Direction = new Vector3(-1, 0, 0) });
-                vb.ClippingPlanes.Add(new BcfClippingPlane { Location = mx, Direction = new Vector3( 1, 0, 0) });
-                vb.ClippingPlanes.Add(new BcfClippingPlane { Location = mn, Direction = new Vector3( 0,-1, 0) });
-                vb.ClippingPlanes.Add(new BcfClippingPlane { Location = mx, Direction = new Vector3( 0, 1, 0) });
-                vb.ClippingPlanes.Add(new BcfClippingPlane { Location = mn, Direction = new Vector3( 0, 0,-1) });
-                vb.ClippingPlanes.Add(new BcfClippingPlane { Location = mx, Direction = new Vector3( 0, 0, 1) });
-
-                // Highlight the sleeve in the viewer's selection.
-                if (!string.IsNullOrEmpty(sleeve.UniqueId))
-                {
-                    string ifcGuid = TryIfcGuid(doc, sleeve);
-                    if (!string.IsNullOrEmpty(ifcGuid))
-                    {
-                        vb.Selection.Add(new BcfComponent
-                        {
-                            IfcGuid           = ifcGuid,
-                            AuthoringTool     = "Revit",
-                            OriginatingSystem = "STING",
-                        });
-                        vb.Colors.Add((ifcGuid, "#FFB300"));
-                    }
-                }
-                return vb.BuildBcfv();
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"BuildSleeveViewpoint {sleeve?.Id}: {ex.Message}");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Try to resolve an IFC GUID for the sleeve. Falls back to the
-        /// Revit UniqueId compressed to IFC base64 form if the official
-        /// IfcGuid utility isn't available — close enough for selection
-        /// highlighting.
-        /// </summary>
-        private static string TryIfcGuid(Document doc, Element el)
-        {
-            try
-            {
-                var p = el.get_Parameter(BuiltInParameter.IFC_GUID);
-                var v = p?.AsString();
-                if (!string.IsNullOrEmpty(v)) return v;
-            }
-            catch { }
-            return el?.UniqueId;
         }
     }
 }

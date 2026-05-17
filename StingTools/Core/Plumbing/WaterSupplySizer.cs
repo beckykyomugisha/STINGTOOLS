@@ -192,7 +192,7 @@ namespace StingTools.Core.Plumbing
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             return (lu, wsfu);
         }
@@ -248,7 +248,7 @@ namespace StingTools.Core.Plumbing
                     || s.Contains("DHW")     || s.Contains("HWS")  || s.Contains("CWS")
                     || s.Contains("MAINS")   || s.Contains("SUPPLY")) return true;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
 
@@ -265,7 +265,7 @@ namespace StingTools.Core.Plumbing
                     if (double.TryParse(p.AsString(), out var d)) return d;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 
@@ -279,7 +279,7 @@ namespace StingTools.Core.Plumbing
                 else if (p.StorageType == StorageType.Integer) p.Set((int)Math.Round(v));
                 else if (p.StorageType == StorageType.String)  p.Set(v.ToString("F3"));
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private static void TryWriteInt(Element el, string name, int v)
@@ -292,7 +292,7 @@ namespace StingTools.Core.Plumbing
                 else if (p.StorageType == StorageType.Double)  p.Set((double)v);
                 else if (p.StorageType == StorageType.String)  p.Set(v.ToString());
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
     }
 }
