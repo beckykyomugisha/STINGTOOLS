@@ -483,6 +483,40 @@ namespace StingTools.UI
                         RunCommand<StingTools.Commands.Electrical.HomeRunArrowBatchCommand>(app); break;
                     case "Electrical_PanelWireReconcile":
                         RunCommand<StingTools.Commands.Electrical.PanelWireReconcileCommand>(app); break;
+                    case "Electrical_WireAnnotationStyle":
+                        RunCommand<Commands.Electrical.WireAnnotationStyleCommand>(app); break;
+                    case "Electrical_WireAnnotationRefreshStyle":
+                        RunCommand<Commands.Electrical.WireAnnotationRefreshStyleCommand>(app); break;
+                    // Gap 1: stamp single conduit wire params from connected ElectricalSystem
+                    case "Electrical_WireParamStamp":
+                        RunCommand<Commands.Electrical.WireParamStampCommand>(app); break;
+                    // Gap 2: batch stamp all conduits in view / selection
+                    case "Electrical_BatchWireParamPopulate":
+                        RunCommand<Commands.Electrical.BatchWireParamPopulateCommand>(app); break;
+                    // Gap 3: VD calculation write-back
+                    case "Electrical_WireVDSync":
+                        RunCommand<Commands.Electrical.WireVDSyncCommand>(app); break;
+                    // Gap 4: cable sizer write-back
+                    case "Electrical_WireCableSizerSync":
+                        RunCommand<Commands.Electrical.WireCableSizerSyncCommand>(app); break;
+                    // Gap 5: cable schedule view + CSV
+                    case "Electrical_CableScheduleBuild":
+                        RunCommand<Commands.Electrical.Routing.CableScheduleBuilderCommand>(app); break;
+                    // Gap 9: full run home-run traversal via BFS
+                    case "Electrical_HomeRunFull":
+                        RunCommand<Commands.Electrical.WireHomeRunFullCommand>(app); break;
+                    // Gap 11: CPC sizing per BS 7671 Table 54.7
+                    case "Electrical_WireCpcSizer":
+                        RunCommand<Commands.Electrical.WireCpcSizerCommand>(app); break;
+                    // Gap 12: fire-rated / armoured routing validation
+                    case "Electrical_WireRoutingValidation":
+                        RunCommand<Commands.Electrical.WireRoutingValidationCommand>(app); break;
+                    // Gap 13: write ELC_SEL_COORD_OK from selective coordination check
+                    case "Electrical_WireCoordStamp":
+                        RunCommand<Commands.Electrical.WireCoordStampCommand>(app); break;
+                    // Gap 7: save wire style from dock panel inline controls
+                    case "Electrical_WireSaveStyle":
+                        HandleWireSaveStyleFromPanel(app); break;
 
                     // ── v4 Phase D: hanger placement ──
                     case "Routing_PlaceHangers": RunCommand<Commands.Routing.PlaceHangersCommand>(app); break;

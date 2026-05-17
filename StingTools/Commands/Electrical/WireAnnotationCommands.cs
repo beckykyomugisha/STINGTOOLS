@@ -47,6 +47,13 @@ namespace StingTools.Commands.Electrical
         double VoltDropPct,
         double DiameterMm,
         double FillPct,
+        double AmpacityA,
+        double MaxDemandA,
+        string CircuitType,
+        string InstallMethod,
+        bool   IsArmoured,
+        bool   IsFireRated,
+        bool   IsShielded,
         int    BendCount    // number of bends on this conduit run (BS 7671 §522.8.5)
     );
 
@@ -357,6 +364,7 @@ namespace StingTools.Commands.Electrical
             bool fireRated= ReadBoolParam(conduit, "ELC_WIRE_FIRE_RATED_BOOL");
             bool shielded = ReadBoolParam(conduit, "ELC_WIRE_SHIELDED_BOOL");
 
+            double csa = 0, vd = 0, fill2 = 0;
             try
             {
                 var p = conduit.LookupParameter("ELC_WIRE_CSA_MM2_NUM");
@@ -459,6 +467,9 @@ namespace StingTools.Commands.Electrical
                 }
             } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
+            double ampacity  = ReadNumParam(conduit, "ELC_WIRE_AMPACITY_A");
+            double maxDemand = ReadNumParam(conduit, "ELC_WIRE_MAX_DEMAND_A");
+
             double diaMm = 0.0;
             try
             {
@@ -475,10 +486,14 @@ namespace StingTools.Commands.Electrical
             }
             catch { }
 
+            double fill = fill2 > 0 ? fill2 : ReadNumParam(conduit, "ELC_CDT_CBL_FILL_PCT");
+
             return new WireAnnotationData(
                 phase, cores, csa,
-                string.IsNullOrEmpty(mat) ? "" : mat,
-                circ, panel, vd, diaMm, fill, bendCount);
+                string.IsNullOrEmpty(mat) ? "Cu" : mat,
+                circ, panel, vd, diaMm, fill,
+                ampacity, maxDemand, circType, instMeth,
+                armoured, fireRated, shielded, bendCount);
         }
 
         private static double ReadNumParam(Element el, string name)
@@ -557,6 +572,14 @@ namespace StingTools.Commands.Electrical
                 if (d.FillPct > style.FillAlarmPct) fillStr += " ⚠";
                 extras.Add(fillStr);
             }
+
+            if (style.ShowAmpacity && d.AmpacityA > 0)
+            {
+                string ampStr = $"Iz={d.AmpacityA:0.#}A";
+                if (d.MaxDemandA > 0) ampStr += $" Ib={d.MaxDemandA:0.#}A";
+                extras.Add(ampStr);
+            }
+
             if (d.BendCount > 0)
             {
                 string bendStr = $"{d.BendCount}B";
@@ -1044,6 +1067,7 @@ namespace StingTools.Commands.Electrical
             }
             return false;
         }
+
 
         public static FamilySymbol ResolveOptInWireTagSymbol(Document doc)
         {
