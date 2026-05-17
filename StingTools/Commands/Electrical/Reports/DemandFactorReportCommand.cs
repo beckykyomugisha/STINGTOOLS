@@ -62,7 +62,7 @@ namespace StingTools.Commands.Electrical.Reports
             }
 
             string outDir = OutputLocationHelper.GetOutputDirectory(doc);
-            try { outDir = Path.Combine(outDir, "electrical"); Directory.CreateDirectory(outDir); } catch { }
+            try { outDir = Path.Combine(outDir, "electrical"); Directory.CreateDirectory(outDir); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string filePath = Path.Combine(outDir,
                 $"DemandFactorReport_{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
 
@@ -125,7 +125,7 @@ namespace StingTools.Commands.Electrical.Reports
                 string cat   = first.Category?.Name ?? "";
                 return CircuitWizardEngine.ClassifyLoad(fname, cat);
             }
-            catch { return "Other"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "Other"; }
         }
 
         private class DemandRule

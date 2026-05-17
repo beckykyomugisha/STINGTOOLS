@@ -13,6 +13,13 @@ namespace StingTools.UI
         private StingDockPanel _page;
 
         /// <summary>
+        /// Static reference set when SetupDockablePane runs so StingCommandHandler
+        /// can access the live WPF page without walking the visual tree or relying on
+        /// System.Windows.Application.Current (which may not be initialised in Revit).
+        /// </summary>
+        public static StingDockPanel Instance { get; private set; }
+
+        /// <summary>
         /// The GUID used to register this dockable pane with Revit.
         /// CHANGED from B3C4D5E6-... to force Revit to discard cached floating
         /// pane state from UIState.dat and use the new Tabbed dock position.
@@ -25,6 +32,7 @@ namespace StingTools.UI
         public void SetupDockablePane(DockablePaneProviderData data)
         {
             _page = new StingDockPanel();
+            Instance = _page;
             data.FrameworkElement = _page;
             data.InitialState = new DockablePaneState
             {

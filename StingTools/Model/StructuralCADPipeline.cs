@@ -1763,19 +1763,11 @@ namespace StingTools.Model
                     double widthMm = detectBeamSize && bl.WidthDetected
                         ? bl.WidthMm
                         : fallbackBeamW;
-
-                    // Phase-140 P1-B: per-beam depth from span when enabled. Falls
-                    // back to defaultDepthMm (the wizard BEAM Depth value) when off.
-                    double depthMm = (cfgB != null && cfgB.UseSpanToDepthRatio)
-                        ? BeamDepthCalculator.ComputeDepthMm(
-                            bl.LengthFt * Units.FeetToMm, cfgB)
-                        : defaultDepthMm;
-
-                    string typeKey = $"{depthMm:F0}x{widthMm:F0}";
+                    string typeKey = $"{defaultDepthMm:F0}x{widthMm:F0}";
                     if (!typeCache.TryGetValue(typeKey, out var symbol))
                     {
                         var typeMatch = _typeFactory.FindOrCreateBeamType(
-                            depthMm, widthMm,
+                            defaultDepthMm, widthMm,
                             allowDuplicate: createBeamTypes);
                         if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
                         symbol = _doc.GetElement(typeMatch.TypeId) as FamilySymbol;

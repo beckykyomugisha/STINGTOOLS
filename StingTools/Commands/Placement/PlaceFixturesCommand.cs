@@ -28,15 +28,6 @@ namespace StingTools.Commands.Placement
         public static bool DryRunPreference { get; set; } = true;
         public static bool SnapTo300mmGrid  { get; set; } = true;
 
-        // Phase 139.7 — scope radio plumbing. The Fixtures sub-tab has
-        // three radios (rbFxScopeSel / rbFxScopeView / rbFxScopeAll).
-        // The dock panel's checked-event handler writes this enum; the
-        // engine reads it on every Place run. Defaults to SelectedRooms
-        // to preserve the historic behaviour when the panel hasn't
-        // initialised the value yet.
-        public enum FixtureScopeMode { SelectedRooms, ActiveView, AllRooms }
-        public static FixtureScopeMode ScopeMode { get; set; } = FixtureScopeMode.SelectedRooms;
-
         // Category filters (from the Fixtures panel).
         public static bool IncludeElectricalFixtures  { get; set; } = true;
         public static bool IncludeLightingDevices     { get; set; } = true;
@@ -137,7 +128,7 @@ namespace StingTools.Commands.Placement
                     else
                     {
                         BoundingBoxXYZ vb = null;
-                        try { vb = view.CropBox; } catch { }
+                        try { vb = view.CropBox; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         foreach (var el in new FilteredElementCollector(doc)
                             .OfCategory(BuiltInCategory.OST_Rooms)
                             .WhereElementIsNotElementType())
@@ -185,16 +176,16 @@ namespace StingTools.Commands.Placement
             bool dryRun;
             if (PlaceFixturesOptions.DryRunPreference)
             {
-                dryRun = PromptDryRunChoice(scopeLabel);
+                dryRun = PromptDryRunChoice(selectedRoomIds.Count);
             }
             else
             {
-                if (!ConfirmPlacement(scopeLabel)) return Result.Cancelled;
+                if (!ConfirmPlacement(selectedRoomIds.Count)) return Result.Cancelled;
                 dryRun = false;
             }
             if (dryRun == false
                 && PlaceFixturesOptions.DryRunPreference == false
-                && !ConfirmPlacement(scopeLabel)) return Result.Cancelled;
+                && !ConfirmPlacement(selectedRoomIds.Count)) return Result.Cancelled;
 
             // Category filter: discipline checkboxes from the Fixtures
             // panel restrict which PlacementRule.CategoryFilter values
@@ -221,32 +212,6 @@ namespace StingTools.Commands.Placement
                 StingLog.Warn($"PlaceFixturesCommand: rule load failed: {ex.Message}");
             }
 
-            // Phase 139.27 (I-04) — pre-flight gate on the project building
-            // profile. Pre-139.27 the loader's FilterByProfile method
-            // existed but wasn't called by this entry point — a project
-            // that disabled BS 7671 would still see every electrical rule
-            // fire because the dock-panel's category checkboxes don't
-            // intersect with profile.ActiveStandards. Apply the filter
-            // and surface a one-shot summary so the user sees what got
-            // dropped and why.
-            ProjectBuildingProfile profile = null;
-            try { profile = ProjectBuildingProfileIO.Load(doc.PathName); } catch { }
-            if (profile != null && rules != null && rules.Count > 0)
-            {
-                int beforeCount = rules.Count;
-                var profileFiltered = PlacementRuleLoader.FilterByProfile(rules, profile);
-                int dropped = beforeCount - (profileFiltered?.Count ?? 0);
-                if (dropped > 0)
-                {
-                    string actLabel = (profile.ActiveStandards != null && profile.ActiveStandards.Length > 0)
-                        ? string.Join(", ", profile.ActiveStandards)
-                        : "(none — all rules pass)";
-                    string btLabel = string.IsNullOrEmpty(profile.BuildingType) ? "(any)" : profile.BuildingType;
-                    StingLog.Info($"PlaceFixturesCommand: ProjectBuildingProfile dropped {dropped} rule(s) — BuildingType={btLabel}, ActiveStandards={actLabel}.");
-                }
-                rules = profileFiltered;
-            }
-
             List<PlacementRule> filtered = null;
             if (rules != null && rules.Count > 0)
             {
@@ -261,48 +226,6 @@ namespace StingTools.Commands.Placement
                         "or add a rule for the target category to " +
                         "STING_PLACEMENT_RULES.json.");
                     return Result.Cancelled;
-                }
-
-                // Phase 139.7 — pre-flight: warn the user about checked
-                // categories that have ZERO loaded family symbols. Without
-                // this check the engine prints "No FamilySymbol found for
-                // category 'X' — skipping its rules" once and silently
-                // drops all rules in that category, leaving the designer
-                // wondering why no sockets / switches landed.
-                var emptyCats = new List<string>();
-                foreach (var cat in allowedCats)
-                {
-                    bool hasSymbol = false;
-                    try
-                    {
-                        foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)))
-                        {
-                            if (el is FamilySymbol fs && fs.Category != null
-                                && string.Equals(fs.Category.Name, cat, StringComparison.OrdinalIgnoreCase))
-                            { hasSymbol = true; break; }
-                        }
-                    }
-                    catch { }
-                    if (!hasSymbol) emptyCats.Add(cat);
-                }
-                if (emptyCats.Count > 0)
-                {
-                    var td2 = new TaskDialog("STING v4 — Categories without a placeable Type")
-                    {
-                        MainInstruction = $"{emptyCats.Count} ticked categor{(emptyCats.Count == 1 ? "y has" : "ies have")} no Family Type loaded",
-                        MainContent =
-                            "These categories have no Family Type (FamilySymbol) loaded into the project:\n  " +
-                            string.Join("\n  ", emptyCats.Take(15)) +
-                            (emptyCats.Count > 15 ? $"\n  + {emptyCats.Count - 15} more" : "") +
-                            "\n\nIn Revit a Family (.rfa) is the container; a Type (FamilySymbol) is one of the variants " +
-                            "inside it. The engine places instances of a Type, not the Family — a Family with none of its " +
-                            "Types loaded into the project drops every rule in its category.\n\n" +
-                            "Insert > Load Family, then drag at least one Type from the .rfa in Project Browser into a view, " +
-                            "and run Placement_AuditSetup for the full setup check. Continue anyway?",
-                        CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
-                        DefaultButton = TaskDialogResult.No,
-                    };
-                    if (td2.Show() != TaskDialogResult.Yes) return Result.Cancelled;
                 }
             }
 
@@ -336,6 +259,10 @@ namespace StingTools.Commands.Placement
 
         private bool PromptDryRunChoice(string scopeLabel)
         {
+            string scope = selectedRoomCount > 0
+                ? $"{selectedRoomCount} selected room(s)"
+                : "ALL rooms in project";
+
             // Revit's TaskDialog.DefaultButton must refer to a button in CommonButtons —
             // it cannot point at a CommandLink. Leave DefaultButton unset so Revit picks
             // the first-added CommandLink as the default.

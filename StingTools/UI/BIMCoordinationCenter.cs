@@ -104,6 +104,7 @@ namespace StingTools.UI
         private string _currentTab;
 
         // Phase 76: Static warning element IDs selected from BCC Warnings DataGrid (stored as long values)
+        // FIX-6: Cleared in OnClosed so IDs do not leak across BCC window reopens / new sessions.
         public static IReadOnlyList<long> SelectedWarningIds { get; private set; } = new List<long>();
 
         internal static void SetSelectedWarningIds(IEnumerable<long> ids)
@@ -238,7 +239,7 @@ namespace StingTools.UI
             else if (detailsTok != null && detailsTok.Type == Newtonsoft.Json.Linq.JTokenType.String)
             {
                 try { details = Newtonsoft.Json.Linq.JObject.Parse((string)detailsTok ?? "{}"); }
-                catch { details = null; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); details = null; }
             }
 
             var card = new Grid { Margin = new Thickness(0, 4, 0, 4) };
@@ -1064,6 +1065,20 @@ namespace StingTools.UI
                     // ActionDispatcher (modeless via ExternalEvent) instead of
                     // closing the dialog. Coordinators stay in the centre and
                     // can iterate without re-opening it.
+                    if (ActionDispatcher != null) ActionDispatcher("ExportReport");
+                    else { ResultAction = "ExportReport"; Close(); }
+                    e.Handled = true;
+                }
+                // FIX-8: Ctrl+S — sync/save (BCC sync action)
+                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.S
+                    && (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
+                {
+                    StingLog.Info("BCC: Ctrl+S — sync/save not yet wired to a single action; use BIM > Export or Platform > Sync.");
+                    e.Handled = true;
+                }
+                // FIX-8: Ctrl+P — print / export report
+                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.P)
+                {
                     if (ActionDispatcher != null) ActionDispatcher("ExportReport");
                     else { ResultAction = "ExportReport"; Close(); }
                     e.Handled = true;
@@ -2001,9 +2016,9 @@ namespace StingTools.UI
                 var trendCard = MakeCard();
                 var trendStack = new StackPanel();
 
-                // Direction indicator
-                double firstPct = _data.ComplianceTrend.First().Pct;
-                double lastPct = _data.ComplianceTrend.Last().Pct;
+                // Direction indicator — guard against an empty list before indexing
+                double firstPct = _data.ComplianceTrend.Count > 0 ? _data.ComplianceTrend[0].Pct : 0.0;
+                double lastPct  = _data.ComplianceTrend.Count > 0 ? _data.ComplianceTrend[_data.ComplianceTrend.Count - 1].Pct : 0.0;
                 double delta = lastPct - firstPct;
                 string arrow = delta > 1 ? "\u2191" : delta < -1 ? "\u2193" : "\u2192";
                 var trendColor = delta > 1 ? CGreen : delta < -1 ? CRed : CAmber;
@@ -3079,12 +3094,12 @@ namespace StingTools.UI
                 var resolveMi = new MenuItem { Header = "✓ Mark resolved" };
                 resolveMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) DispatchAction($"ResolveIssue_{r.Id}"); };
                 var copyIdMi = new MenuItem { Header = "📋 Copy ID" };
-                copyIdMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) { try { Clipboard.SetText(r.Id ?? string.Empty); } catch { } } };
+                copyIdMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) { try { Clipboard.SetText(r.Id ?? string.Empty); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } } };
                 var copyLinkMi = new MenuItem { Header = "🔗 Copy permalink" };
                 copyLinkMi.Click += (s2, e2) =>
                 {
                     var r = CtxRow();
-                    if (r != null) { try { Clipboard.SetText($"planscape://issue/{r.Id}"); } catch { } }
+                    if (r != null) { try { Clipboard.SetText($"planscape://issue/{r.Id}"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } }
                 };
                 var selectMi = new MenuItem { Header = "Select Linked Elements" };
                 selectMi.Click += (s2, e2) => { var r = CtxRow(); if (r != null) DispatchAction($"SelectIssue_{r.Id}"); };
@@ -4261,7 +4276,7 @@ namespace StingTools.UI
                             $"You've been added to the Planscape project '{_data.ProjectName}' as {tm.Role}.\n" +
                             $"Sign in at {BIMManager.PlanscapeServerClient.Instance.ServerUrl}\n\n" +
                             "\u2014 Sent from BIM Coordination Center";
-                        try { System.Windows.Clipboard.SetText(invite); } catch { }
+                        try { System.Windows.Clipboard.SetText(invite); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         ShowStatus($"Invite copied for {tm.Name}");
                     }
                     else ShowStatus("Select a row with an email first.");
@@ -6261,15 +6276,17 @@ namespace StingTools.UI
                     {
                         try
                         {
-                            var selDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
-                            var selIds = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Selection?.GetElementIds();
-                            if (selDoc != null && selIds != null && selIds.Count > 0)
+                            var uidoc = StingCommandHandler.CurrentApp?.ActiveUIDocument;
+                            if (uidoc == null) { StingLog.Warn("BCC: no active document for selection auto-populate"); return; }
+                            var selDoc = uidoc.Document;
+                            var selIds = uidoc.Selection?.GetElementIds() ?? new List<Autodesk.Revit.DB.ElementId>();
+                            if (selDoc != null && selIds.Count > 0)
                             {
                                 string autoLoc = AutoPopulateIssueLocation(selDoc, selIds);
                                 if (!string.IsNullOrEmpty(autoLoc)) locBox.Text = autoLoc;
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     };
                     var locBtn = new Button { Content = "📍 Capture from View", Height = 24, Padding = new Thickness(6, 0, 6, 0), FontSize = 10, Cursor = Cursors.Hand, Margin = new Thickness(4, 0, 0, 0) };
                     locBtn.Click += (s, e) => { DispatchAction("AttachIssueLocation"); locBox.Text = "(Location captured)"; };
@@ -7407,7 +7424,7 @@ namespace StingTools.UI
                                 }
                                 else { rowData.Add(""); }
                             }
-                            catch { rowData.Add(""); }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); rowData.Add(""); }
                         }
                         rows.Add(rowData);
                     }
@@ -7852,10 +7869,10 @@ namespace StingTools.UI
                 ctxResolve.Click += (s, e) => { var r = CtxDelRow(); if (r != null) DispatchAction("ApproveDeliverable_" + r.Code); };
                 dgCtx.Items.Add(ctxResolve);
                 var ctxCopyId = new MenuItem { Header = "📋 Copy ID" };
-                ctxCopyId.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText(r.Code ?? string.Empty); } catch { } } };
+                ctxCopyId.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText(r.Code ?? string.Empty); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } } };
                 dgCtx.Items.Add(ctxCopyId);
                 var ctxCopyLink = new MenuItem { Header = "🔗 Copy permalink" };
-                ctxCopyLink.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText($"planscape://deliverable/{r.Code}"); } catch { } } };
+                ctxCopyLink.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText($"planscape://deliverable/{r.Code}"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } } };
                 dgCtx.Items.Add(ctxCopyLink);
                 dgCtx.Items.Add(new Separator());
                 var ctxCDE = new MenuItem { Header = "Update CDE Status" };
@@ -8332,7 +8349,7 @@ namespace StingTools.UI
                 if (p != null && p.HasValue && p.StorageType == Autodesk.Revit.DB.StorageType.String)
                     return (p.AsString() ?? "").Trim();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "";
         }
 
@@ -8358,7 +8375,7 @@ namespace StingTools.UI
                         headerWrap.Children.Add(MakeMetricChip($"Profile: {prof}", Br(Color.FromRgb(0x6A, 0x1B, 0x9A))));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             // Code-base chip (HBN/HTM, FGI, iHFG, Other).
             try
             {
@@ -8371,7 +8388,7 @@ namespace StingTools.UI
                         headerWrap.Children.Add(MakeMetricChip($"Code base: {cb}", Br(CHeaderBg)));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             stack.Children.Add(headerWrap);
 
             // Intro card
@@ -10357,12 +10374,12 @@ namespace StingTools.UI
                     if (el is Autodesk.Revit.DB.FamilyInstance fi)
                     {
                         Autodesk.Revit.DB.Phase phase = null;
-                        try { phase = doc.GetElement(el.CreatedPhaseId) as Autodesk.Revit.DB.Phase; } catch { }
+                        try { phase = doc.GetElement(el.CreatedPhaseId) as Autodesk.Revit.DB.Phase; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         var r = phase != null ? fi.get_Room(phase) : fi.Room;
                         if (r != null) room = r.Name;
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 var parts = new List<string>();
                 if (!string.IsNullOrEmpty(lvl)  && lvl  != "XX") parts.Add(lvl);
                 if (!string.IsNullOrEmpty(zone) && zone != "XX" && zone != "ZZ") parts.Add(zone);
@@ -10599,7 +10616,7 @@ namespace StingTools.UI
                 if (bcc != null && bcc != w && bcc.IsLoaded)
                 {
                     try { ownerHwnd = new System.Windows.Interop.WindowInteropHelper(bcc).Handle; }
-                    catch { ownerHwnd = IntPtr.Zero; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); ownerHwnd = IntPtr.Zero; }
                 }
                 if (ownerHwnd == IntPtr.Zero)
                 {

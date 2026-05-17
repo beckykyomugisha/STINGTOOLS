@@ -1,0 +1,162 @@
+# STING Wire Annotation Tag — Family Parameter Specification
+# Family category : Conduit Tags  (OST_ConduitTags)
+# Template        : Conduit Tag.rft
+# Save as         : STING Wire Annotation Tag.rfa
+# Shared param file: StingTools/Data/MR_PARAMETERS.txt
+#
+# STING picks this family up automatically from the project when
+# ResolveOptInWireTagSymbol() finds a FamilySymbol whose FamilyName
+# contains "Wire Annotation" or "STING Wire".
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# HOW CONDUCTOR-COUNT SLASHES WORK
+# ─────────────────────────────────────────────────────────────────────────────
+# The engine (WireAnnotationEngine.PlaceSlashMarks) draws the slash detail
+# lines in code — it does NOT rely on family geometry for the slashes.
+# This is intentional: it gives full runtime control over length, spacing,
+# angle, colour, and weight without requiring the family to be re-authored.
+#
+# The family's job is the LABEL (text) part of the annotation.  Load the
+# shared parameters below and wire them to Label elements in the family.
+# The label auto-populates from the conduit because IndependentTag reads
+# parameters off its host element.
+#
+# If you also want slash geometry inside the family (e.g. for paper-space
+# tags that don't use the code-drawn marks), use the SHOW_SLASH_N_BOOL
+# parameters defined below to control visibility of N line geometry objects.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# PART A — SHARED PARAMETERS (from MR_PARAMETERS.txt, Group 4: ELC_PWR)
+# ─────────────────────────────────────────────────────────────────────────────
+# These must be added as INSTANCE parameters via the shared parameter file.
+# They are read from the conduit host by the IndependentTag reference.
+#
+# GUID                                  NAME                          Type      Label?  Notes
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# c1a2b3c4-d5e6-4f70-8a9b-0c1d2e3f4a5b  ELC_WIRE_CORE_COUNT_INT      Integer   No      Drives SHOW_SLASH_N_BOOL formulas
+# d2b3c4d5-e6f7-4081-9b0c-1d2e3f4a5b6c  ELC_WIRE_PHASE_TXT           Text      YES     Label row: phase
+# e3c4d5e6-f708-4192-0c1d-2e3f4a5b6c7d  ELC_WIRE_CSA_MM2_NUM         Number    YES     Label row: CSA
+# f4d5e6f7-0819-42a3-1d2e-3f4a5b6c7d8e  ELC_WIRE_COND_MAT_TXT        Text      YES     Label row: material (Cu/Al)
+# 05e6f708-192a-43b4-2e3f-4a5b6c7d8e9f  ELC_CIRCUIT_NR_TXT           Text      YES     Label row: circuit number (auto from panel)
+# 16f70819-2a3b-44c5-3f4a-5b6c7d8e9fa0  ELC_WIRE_VD_PCT_NUM          Number    YES     Label row: voltage drop %
+# 27081920-3b4c-45d6-4a5b-6c7d8e9fa0b1  ELC_WIRE_AMPACITY_A          Number    YES     Label row: cable ampacity
+# 38192031-4c5d-46e7-5b6c-7d8e9fa0b1c2  ELC_WIRE_INSTALL_METHOD_TXT  Text      YES     Label row: install method ref
+# af809708-b324-4d54-c2d3-e4f507182839  ELC_WIRE_CIRCUIT_TYPE_TXT    Text      YES     Label row: circuit type
+# 7c5d6475-8091-4a21-9fa0-b1c2d3e4f506  ELC_WIRE_ARMOURED_BOOL       Yes/No    No      Formula input for label suffix
+# 8d6e7586-9102-4b32-a0b1-c2d3e4f50617  ELC_WIRE_FIRE_RATED_BOOL     Yes/No    No      Formula input for label suffix
+# 9e7f8697-a213-4c43-b1c2-d3e4f5061728  ELC_WIRE_SHIELDED_BOOL       Yes/No    No      Formula input for label suffix
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# PART B — FAMILY (non-shared) PARAMETERS for visibility control
+# ─────────────────────────────────────────────────────────────────────────────
+# Add these as FAMILY parameters (not shared) — they control which slash lines
+# are visible.  Each is a Yes/No type with a formula referencing CORE_COUNT.
+#
+# NAME              Type    Formula                              Controls
+# ────────────────────────────────────────────────────────────────────────────────
+# SHOW_SLASH_1_BOOL Yes/No  = ELC_WIRE_CORE_COUNT_INT >= 1      Slash line 1 visibility
+# SHOW_SLASH_2_BOOL Yes/No  = ELC_WIRE_CORE_COUNT_INT >= 2      Slash line 2 visibility
+# SHOW_SLASH_3_BOOL Yes/No  = ELC_WIRE_CORE_COUNT_INT >= 3      Slash line 3 visibility
+# SHOW_SLASH_4_BOOL Yes/No  = ELC_WIRE_CORE_COUNT_INT >= 4      Slash line 4 visibility
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# PART C — FAMILY (non-shared) PARAMETERS for appearance control (optional)
+# ─────────────────────────────────────────────────────────────────────────────
+# These mirror the style engine parameters for in-family geometry control.
+# They are NOT required if you rely entirely on the code-drawn slashes.
+# If you include them, set sensible defaults directly in the family.
+#
+# NAME                    Type    Default   Notes
+# ─────────────────────────────────────────────────────────────────────────────────
+# SLASH_LENGTH_MM         Length  6 mm      Slash mark length (perpendicular to conduit)
+# SLASH_SPACING_MM        Length  3 mm      Gap between slash centres along conduit axis
+# SLASH_ANGLE_DEG         Number  60        Angle off conduit axis (30–90°)
+# LABEL_OFFSET_MM         Length  600 mm    Perpendicular offset of label from conduit
+#
+# These should drive in-family parametric lines and reference planes so that
+# the geometry updates when the family type is changed.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# PART D — FAMILY GEOMETRY (in-family slash lines — optional path)
+# ─────────────────────────────────────────────────────────────────────────────
+# If implementing slashes inside the family:
+#
+# For each slash N (1–4):
+#   1. Draw a model line (or symbolic line) crossing the conduit reference line
+#   2. Set its length to SLASH_LENGTH_MM
+#   3. Set its spacing from the previous slash to SLASH_SPACING_MM
+#   4. Rotate it SLASH_ANGLE_DEG from the conduit axis
+#   5. Assign its Visibility parameter to SHOW_SLASH_N_BOOL
+#
+# Reference planes needed:
+#   - Horizontal ref plane (conduit axis, also the tag origin)
+#   - Left_1, Left_2, Left_3, Left_4 — slash centre positions along axis
+#   - Slash_Top, Slash_Bottom — define perpendicular extent = SLASH_LENGTH_MM
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# PART E — LABEL LAYOUT (suggested label rows)
+# ─────────────────────────────────────────────────────────────────────────────
+# Line 1 (primary):  ELC_WIRE_CORE_COUNT_INT × ELC_WIRE_CSA_MM2_NUM mm² ELC_WIRE_COND_MAT_TXT
+# Line 2 (circuit):  ELC_WIRE_PHASE_TXT  |  ELC_CIRCUIT_NR_TXT
+# Line 3 (detail):   ELC_WIRE_INSTALL_METHOD_TXT  [ELC_WIRE_CIRCUIT_TYPE_TXT]
+# Line 4 (VD/amp):   VD=ELC_WIRE_VD_PCT_NUM%  Iz=ELC_WIRE_AMPACITY_A A
+#                    (suppress when zero using Revit label suppress-if-empty)
+#
+# Each label row is a separate Label element positioned vertically in the family.
+# Use "Suppress if blank" on all rows to hide empty fields gracefully.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# PART F — TYPE CATALOGUE (family types for common wire specs)
+# ─────────────────────────────────────────────────────────────────────────────
+# TYPE NAME                  ELC_WIRE_CORE_COUNT_INT   ELC_WIRE_CSA_MM2_NUM
+# ─────────────────────────────────────────────────────────────────────────────
+# 1C-1.5mm2-Cu              1                          1.5
+# 1C-2.5mm2-Cu              1                          2.5
+# 2C-1.5mm2-Cu              2                          1.5
+# 2C-2.5mm2-Cu              2                          2.5
+# 3C-2.5mm2-Cu              3                          2.5
+# 3C-4mm2-Cu                3                          4.0
+# 3C-6mm2-Cu                3                          6.0
+# 3C-10mm2-Cu               3                         10.0
+# 4C-2.5mm2-Cu              4                          2.5
+# 4C-4mm2-Cu                4                          4.0
+# 4C-6mm2-Cu                4                          6.0
+# 4C-10mm2-Cu               4                         10.0
+# 4C-16mm2-Cu               4                         16.0
+# 4C-25mm2-Cu               4                         25.0
+# 4C-35mm2-Cu               4                         35.0
+# 4C-50mm2-Cu-SWA           4                         50.0
+# 4C-70mm2-Cu-SWA           4                         70.0
+# 4C-95mm2-Cu-SWA           4                         95.0
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# NOTES ON AUTO-COLOUR (engine-side, no family action required)
+# ─────────────────────────────────────────────────────────────────────────────
+# Colour is applied by WireAnnotationEngine.ResolveColor() at placement time
+# and again by WireAnnotationRefreshStyleCommand. The family does NOT need
+# colour parameters — the engine applies OverrideGraphicSettings to the slash
+# detail lines directly.
+#
+# Auto-colour rules (when ELC_WIRE_ANNOT_COLOR_CODE_INT = 0 or unset):
+#   VD > 3% OR fill > 40%   → red   (BS 7671 voltage-drop / IET fill alarm)
+#   ELC_WIRE_FIRE_RATED_BOOL = true  → orange (fire-survival circuit)
+#   ELC_WIRE_ARMOURED_BOOL   = true  → blue   (SWA, screened)
+#   default                          → black
+#
+# Manual override: set ELC_WIRE_ANNOT_COLOR_CODE_INT on the conduit:
+#   0 = auto, 1 = red, 2 = blue, 3 = orange, 4 = green
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# NOTES ON SCALE
+# ─────────────────────────────────────────────────────────────────────────────
+# All geometry lengths are in real-world mm. The engine converts to Revit feet.
+# The scale factor (ELC_WIRE_ANNOT_SCALE_FACTOR, default 1.0) is a pure
+# multiplier on top of the mm values. This is separate from the view scale.
+#
+# Typical values:
+#   1:50  detail drawings  → scale factor 0.5 (halves label offset and slash size)
+#   1:100 floor plans      → scale factor 1.0 (nominal)
+#   1:200 site plans       → scale factor 2.0 (doubles to remain legible)
+#
+# The project default is set in STING_WIRE_ANNOT_STYLE.json.
+# Per-conduit override: ELC_WIRE_ANNOT_SCALE_FACTOR (NUMBER parameter on conduit).

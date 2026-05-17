@@ -1199,10 +1199,7 @@ namespace StingTools.Docs
                         viewsWithoutScopeBox++;
                     }
                 }
-                catch
-                {
-                    viewsWithoutScopeBox++;
-                }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); viewsWithoutScopeBox++; }
             }
 
             // Action selection
@@ -2648,7 +2645,9 @@ namespace StingTools.Docs
                                 if (el != null && el.get_BoundingBox(view) != null)
                                     visibleChanged.Add(kvp.Key);
                             }
-                            catch (Exception ex) { StingLog.Warn($"Check element visibility failed: {ex.Message}"); }
+                            // Rate-limited: nested foreach (viewports × changed elements).
+                            // Combined N×M can reach 100K+ iterations on a large revision set.
+                            catch (Exception ex) { StingLog.WarnRateLimited("AutoRevCloud.Visibility", $"Check element visibility failed: {ex.Message}"); }
                         }
 
                         if (visibleChanged.Count == 0) continue;

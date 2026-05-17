@@ -72,7 +72,7 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                 tx.Commit();
             }
 
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             var top = results.OrderByDescending(r => r.FaultKa).FirstOrDefault();
             TaskDialog.Show("STING Fault Current",
                 $"Calculated fault levels for {results.Count} panel(s). " +
@@ -141,7 +141,7 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                 }
                 tx.Commit();
             }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING AIC", $"AIC ratings stamped to {stamped} panel(s).");
             return Result.Succeeded;
         }

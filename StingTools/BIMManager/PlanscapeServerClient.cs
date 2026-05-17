@@ -222,7 +222,7 @@ public sealed class PlanscapeServerClient : IDisposable
             _accessToken  = "";
             _refreshToken = "";
             _tokenExpiry  = DateTime.MinValue;
-            try { _http?.DefaultRequestHeaders.Authorization = null; } catch { }
+            try { _http?.DefaultRequestHeaders.Authorization = null; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             DeletePersistedSession();
             throw new InvalidOperationException(
                 "Planscape session expired. Please log in again from the BIM tab.");
@@ -256,7 +256,7 @@ public sealed class PlanscapeServerClient : IDisposable
         DeletePersistedSession();
 
         // C2 — stop the real-time listener (fire-and-forget; we don't await in a sync method).
-        _ = Task.Run(async () => { try { await PlanscapeRealtimeClient.Instance.StopAsync(); } catch { } });
+        _ = Task.Run(async () => { try { await PlanscapeRealtimeClient.Instance.StopAsync(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } });
 
         StingLog.Info("Planscape: Disconnected.");
     }
@@ -378,8 +378,12 @@ public sealed class PlanscapeServerClient : IDisposable
         List<TagElementPayload> elements)
     {
         if (!await EnsureAuthenticatedAsync())
+        {
+            UI.StingDockPanel.LastInstance?.UpdateSyncStatus(UI.StingDockPanel.SyncState.Offline);
             return new SyncResult { Success = false, Error = LastError ?? "Not connected." };
+        }
 
+        UI.StingDockPanel.LastInstance?.UpdateSyncStatus(UI.StingDockPanel.SyncState.Syncing);
         try
         {
             var resp = await PostJsonAsync("/api/tagsync/sync", new
@@ -387,9 +391,15 @@ public sealed class PlanscapeServerClient : IDisposable
                 projectId, revitVersion, pluginVersion,
                 userName = ConnectedUser, elements
             });
-            if (!resp.ok) { LastError = $"Sync failed ({resp.status}): {resp.body}"; return new SyncResult { Success = false, Error = LastError }; }
+            if (!resp.ok)
+            {
+                LastError = $"Sync failed ({resp.status}): {resp.body}";
+                UI.StingDockPanel.LastInstance?.UpdateSyncStatus(UI.StingDockPanel.SyncState.Error, LastError);
+                return new SyncResult { Success = false, Error = LastError };
+            }
 
             var json = JObject.Parse(resp.body);
+            UI.StingDockPanel.LastInstance?.UpdateSyncStatus(UI.StingDockPanel.SyncState.Synced);
             return new SyncResult
             {
                 Success           = true,
@@ -400,7 +410,13 @@ public sealed class PlanscapeServerClient : IDisposable
                 RagStatus         = json["ragStatus"]?.Value<string>()      ?? "AMBER"
             };
         }
-        catch (Exception ex) { LastError = ex.Message; StingLog.Error("Planscape: Sync failed", ex); return new SyncResult { Success = false, Error = ex.Message }; }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            StingLog.Error("Planscape: Sync failed", ex);
+            UI.StingDockPanel.LastInstance?.UpdateSyncStatus(UI.StingDockPanel.SyncState.Error, ex.Message);
+            return new SyncResult { Success = false, Error = ex.Message };
+        }
     }
 
     // ────────────────────────────────────────────────────────────────────────────
@@ -461,7 +477,102 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return null; }
     }
 
-    /// <summary>Create an issue on the server. Returns the new issue code, or null on failure.</summary>
+    /// <summary>Pull all issues from the server and merge them into the local
+    /// _bim_manager/issues.json so the BCC can see mobile-created issues.
+    /// Existing local-only issues (no server id) are preserved. Server
+    /// issues are upserted by their GUID. Returns the number merged.</summary>
+    public async Task<int> SyncIssuesFromServerAsync(Guid projectId, string issuesJsonPath)
+    {
+        var arr = await GetIssuesAsync(projectId, "ALL");
+        if (arr == null || arr.Count == 0) return 0;
+        try
+        {
+            // Load existing local array so we can upsert.
+            JArray local;
+            try { local = File.Exists(issuesJsonPath) ? JArray.Parse(File.ReadAllText(issuesJsonPath)) : new JArray(); }
+            catch { local = new JArray(); }
+
+            // Index local items by their server id (if present) for O(1) lookup.
+            var localById = new Dictionary<string, JObject>(StringComparer.OrdinalIgnoreCase);
+            foreach (JObject loc in local)
+            {
+                string lid = loc.Value<string>("server_id") ?? loc.Value<string>("id") ?? "";
+                if (!string.IsNullOrEmpty(lid)) localById[lid] = loc;
+            }
+
+            int merged = 0;
+            foreach (JObject srv in arr)
+            {
+                string sid = srv.Value<string>("id") ?? "";
+                if (string.IsNullOrEmpty(sid)) continue;
+
+                // Map server camelCase → local snake_case schema expected by BuildCoordData.
+                string assignee = srv.Value<string>("assignee") ?? "";
+                string createdDate = srv.Value<string>("createdAt") ?? srv.Value<string>("created_date") ?? "";
+
+                // Build element_ids JArray from server's linkedElementIds string.
+                var elemArr = new JArray();
+                string linkedRaw = srv.Value<string>("linkedElementIds") ?? "";
+                if (!string.IsNullOrWhiteSpace(linkedRaw) && linkedRaw.StartsWith("["))
+                {
+                    try { elemArr = JArray.Parse(linkedRaw); } catch { /* ignore */ }
+                }
+
+                var mapped = new JObject
+                {
+                    ["id"]               = sid,
+                    ["server_id"]        = sid,
+                    ["issue_id"]         = srv.Value<string>("issueCode") ?? sid,
+                    ["type"]             = srv.Value<string>("type") ?? "",
+                    ["type_description"] = srv.Value<string>("type") ?? "",
+                    ["priority"]         = srv.Value<string>("priority") ?? "MEDIUM",
+                    ["title"]            = srv.Value<string>("title") ?? "",
+                    ["description"]      = srv.Value<string>("description") ?? "",
+                    ["status"]           = srv.Value<string>("status") ?? "OPEN",
+                    ["assignee"]         = assignee,
+                    ["assigned_to"]      = assignee,
+                    ["discipline"]       = srv.Value<string>("discipline") ?? "",
+                    ["revision"]         = srv.Value<string>("revision") ?? "",
+                    ["raised_by"]        = srv.Value<string>("createdBy") ?? "",
+                    ["created_by"]       = srv.Value<string>("createdBy") ?? "",
+                    ["created_date"]     = createdDate,
+                    ["modified_date"]    = srv.Value<string>("updatedAt") ?? createdDate,
+                    ["date_due"]         = srv.Value<string>("dueDate") ?? "",
+                    ["date_closed"]      = srv.Value<string>("resolvedAt") ?? "",
+                    ["source"]           = srv.Value<string>("source") ?? "server",
+                    ["element_ids"]      = elemArr,
+                    ["model_id"]         = srv.Value<string>("modelId") ?? "",
+                    ["model_element_guid"] = srv.Value<string>("modelElementGuid") ?? "",
+                    ["latitude"]         = srv.Value<double?>("latitude"),
+                    ["longitude"]        = srv.Value<double?>("longitude"),
+                    ["linked_transmittals"] = new JArray(),
+                    ["comments"]         = new JArray()
+                };
+
+                if (localById.TryGetValue(sid, out var existing))
+                {
+                    // Replace in-place so local additions (comments, linked_transmittals) survive.
+                    if (existing["comments"] is JArray c && c.Count > 0) mapped["comments"] = c;
+                    if (existing["linked_transmittals"] is JArray lt && lt.Count > 0) mapped["linked_transmittals"] = lt;
+                    int idx = local.IndexOf(existing);
+                    local[idx] = mapped;
+                }
+                else
+                {
+                    local.Add(mapped);
+                    localById[sid] = mapped;
+                }
+                merged++;
+            }
+
+            File.WriteAllText(issuesJsonPath, local.ToString(Newtonsoft.Json.Formatting.Indented));
+            StingLog.Info($"SyncIssuesFromServer: merged {merged} issues into {issuesJsonPath}");
+            return merged;
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"SyncIssuesFromServer: {ex.Message}"); return 0; }
+    }
+
+
     public async Task<string?> CreateIssueAsync(Guid projectId, string type, string title,
         string priority = "MEDIUM", string? assignee = null, string? discipline = null,
         List<long>? linkedElementIds = null,
@@ -524,7 +635,7 @@ public sealed class PlanscapeServerClient : IDisposable
                 t => t["counterKey"]?.Value<string>() ?? "",
                 t => t["currentValue"]?.Value<int>() ?? 0);
         }
-        catch { return new Dictionary<string, int>(); }
+        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return new Dictionary<string, int>(); }
     }
 
     // ────────────────────────────────────────────────────────────────────────────
@@ -571,7 +682,7 @@ public sealed class PlanscapeServerClient : IDisposable
                     json["email"]?.Value<string>()      ?? "",
                     json["projectId"]?.Value<string>()  ?? "");
         }
-        catch { return ("", "", ""); }
+        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ("", "", ""); }
     }
 
     // ────────────────────────────────────────────────────────────────────────────
@@ -786,6 +897,73 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return false; }
     }
 
+    // ── BOQ Snapshot (feature gap 3) ──────────────────────────────────────────
+
+    /// <summary>
+    /// Pushes a BOQ snapshot to POST /api/projects/{projectId}/boq/snapshot.
+    /// <paramref name="dto"/> must be serialisable to JSON with fields:
+    /// totalEstimated, totalActual, disciplines[].
+    /// </summary>
+    public async Task<bool> PushBoqSnapshotAsync(Guid projectId, object dto)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/boq/snapshot", dto);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    // ── P6 Live Link (feature gap 6) ──────────────────────────────────────────
+
+    /// <summary>Saves P6 connection settings via POST /api/projects/{id}/p6/configure.</summary>
+    public async Task<bool> ConfigureP6Async(Guid projectId, object settings)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/p6/configure", settings);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    /// <summary>Triggers an immediate P6 sync via POST /api/projects/{id}/p6/sync.</summary>
+    public async Task<(bool ok, string status)> TriggerP6SyncAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return (false, "Not authenticated.");
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/p6/sync", new { });
+            if (!resp.ok) return (false, resp.body);
+            var obj = JObject.Parse(resp.body);
+            string status = obj["status"]?.ToString() ?? "Sync triggered";
+            return (true, status);
+        }
+        catch (Exception ex) { LastError = ex.Message; return (false, ex.Message); }
+    }
+
+    // ── P6 Writeback ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Integration gap F4 — Fetches all tagged elements that have a P6 activity id
+    /// so the plugin can write P6 actuals (percentComplete, actualStart, actualFinish)
+    /// back to Revit element parameters.
+    /// Returns a JArray of { elementUniqueId, p6ActivityId, percentComplete, actualStart, actualFinish }.
+    /// </summary>
+    public async Task<JArray?> GetP6ElementsAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/p6/elements");
+            if (!resp.ok) { LastError = resp.body; return null; }
+            return JArray.Parse(resp.body);
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
     // ── MIM (Model Information Management) ────────────────────────────────────
 
     public async Task<JArray?> GetMimAssetsAsync(Guid projectId, int page = 1, int pageSize = 100)
@@ -854,7 +1032,7 @@ public sealed class PlanscapeServerClient : IDisposable
                 var body = JObject.Parse(resp.body);
                 return body["created"]?.Value<int>() ?? 0;
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
         catch (Exception ex) { LastError = ex.Message; return -1; }
     }
@@ -875,7 +1053,7 @@ public sealed class PlanscapeServerClient : IDisposable
                 var body = JObject.Parse(resp.body);
                 return body["created"]?.Value<int>() ?? 0;
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
         catch (Exception ex) { LastError = ex.Message; return -1; }
     }
@@ -1574,6 +1752,86 @@ public sealed class PlanscapeServerClient : IDisposable
             ".fbx"  => "application/octet-stream",
             _ => "application/octet-stream",
         };
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    //  INT-10 — Mobile↔plugin issue coordination
+    // ────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Pull issues from the server and merge them into the local issues.json sidecar.
+    /// Server wins on conflict (last-write-wins by updatedAt).
+    /// Uses <paramref name="since"/> for incremental pull; pass null for a full refresh.
+    /// </summary>
+    public async Task<int> PullServerIssuesAsync(Autodesk.Revit.DB.Document doc, DateTime? since = null)
+    {
+        if (!IsConnected) return 0;
+        if (CurrentProjectId == Guid.Empty)
+        {
+            StingLog.Warn("PullServerIssues: no CurrentProjectId — skipping");
+            return 0;
+        }
+
+        try
+        {
+            var url = $"/api/projects/{CurrentProjectId}/issues";
+            if (since.HasValue)
+                url += $"?since={Uri.EscapeDataString(since.Value.ToString("o"))}";
+
+            var resp = await GetAsync(url).ConfigureAwait(false);
+            if (!resp.ok) { StingLog.Warn($"PullServerIssues: HTTP {resp.status}"); return 0; }
+
+            var json = JObject.Parse(resp.body);
+            var serverArr = (json["issues"] as JArray) ?? JArray.Parse(resp.body);
+
+            // Load local sidecar
+            var localPath = Path.Combine(Core.OutputLocationHelper.GetOutputDirectory(doc), "issues.json");
+            JArray local = new JArray();
+            if (File.Exists(localPath))
+            {
+                try { local = JArray.Parse(File.ReadAllText(localPath)); }
+                catch (Exception ex) { StingLog.Warn($"PullServerIssues: local parse failed — {ex.Message}"); }
+            }
+
+            // Merge by id — server entry wins when updatedAt is newer
+            var merged = new Dictionary<string, JObject>(StringComparer.OrdinalIgnoreCase);
+            foreach (var tok in local)
+            {
+                if (tok is JObject obj && obj["id"]?.ToString() is string id && !string.IsNullOrEmpty(id))
+                    merged[id] = obj;
+            }
+
+            int updated = 0;
+            foreach (var tok in serverArr)
+            {
+                if (tok is not JObject sv) continue;
+                var id = sv["id"]?.ToString();
+                if (string.IsNullOrEmpty(id)) continue;
+
+                if (merged.TryGetValue(id, out var lv))
+                {
+                    var svTime = sv["updatedAt"]?.Value<DateTime?>() ?? DateTime.MinValue;
+                    var lvTime = lv["updatedAt"]?.Value<DateTime?>() ?? DateTime.MinValue;
+                    if (svTime >= lvTime) { merged[id] = sv; updated++; }
+                }
+                else
+                {
+                    merged[id] = sv;
+                    updated++;
+                }
+            }
+
+            var result = new JArray(merged.Values.Cast<object>().ToArray());
+            Directory.CreateDirectory(Path.GetDirectoryName(localPath)!);
+            File.WriteAllText(localPath, result.ToString(Formatting.Indented));
+            StingLog.Info($"PullServerIssues: merged {updated} issue(s) from server into {localPath}");
+            return updated;
+        }
+        catch (Exception ex)
+        {
+            StingLog.Error("PullServerIssues failed", ex);
+            return 0;
+        }
     }
 }
 

@@ -54,11 +54,21 @@ public class TaggedElement : ITenantScoped
     public DateTime SyncedAt { get; set; } = DateTime.UtcNow;
     public string SyncedBy { get; set; } = "";
 
+    // Source identification — set by the IFC ingester to track the authoring tool.
+    // Added for ArchiCAD source identification.
+    public string? Source { get; set; } // "archicad" | "ifc" | "revit" | null
+
     // Optimistic-concurrency / last-write-wins support for bidirectional sync.
     // LastModifiedUtc is the client-supplied wall-clock modification time; the
     // server uses it to detect stale updates from out-of-date clients.
     public DateTime? LastModifiedUtc { get; set; }
     public int Version { get; set; } = 1;
+
+    // P6 live-link fields — populated by P6LiveLinkService when a matching activity is found.
+    public string?  P6ActivityId    { get; set; }
+    public double?  PercentComplete { get; set; }
+    public string?  ActualStart     { get; set; }
+    public string?  ActualFinish    { get; set; }
 
     // Navigation
     public Project? Project { get; set; }

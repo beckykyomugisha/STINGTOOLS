@@ -125,7 +125,7 @@ namespace StingTools.Core.Validation
                 if (p == null || !p.HasValue) return fallback;
                 if (p.StorageType == StorageType.String) return p.AsString() ?? fallback;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return fallback;
         }
     }

@@ -125,7 +125,7 @@ namespace StingTools.Core.Placement
                         ? "(unknown)"
                         : dt.ToString("yyyy-MM-dd HH:mm:ss");
                 }
-                catch { _buildStamp = "(unknown)"; }
+                catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Read assembly build stamp: {ex.Message}"); _buildStamp = "(unknown)"; }
                 return _buildStamp;
             }
         }
@@ -189,7 +189,7 @@ namespace StingTools.Core.Placement
                     foreach (var w in vw)
                         if (!string.IsNullOrEmpty(w)) result.Warnings.Add(w);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Collect rule-loader validation warnings: {ex.Message}"); }
 
             // Phase 139.27 (N-05) — accessibility / mounting-height validation
             // against STING_HEIGHT_STANDARDS.json. Silent until 139.27.
@@ -293,75 +293,13 @@ namespace StingTools.Core.Placement
             StingLog.Info($"FixturePlacementEngine: run start — {rooms.Count} rooms, {ordered.Count} rules.");
             try
             {
-                bool needsCatalogue = ordered.Any(r => r != null
-                    && (!string.IsNullOrEmpty(r.ManufacturerCode)
-                        || !string.IsNullOrEmpty(r.CatalogueRef)
-                        || r.IsClusterMember));
-                if (needsCatalogue)
-                {
-                    CurrentPhase = "Pre-flight: catalogue scan";
-                    var swCat = System.Diagnostics.Stopwatch.StartNew();
-                    var task = System.Threading.Tasks.Task.Run(() =>
-                    {
-                        try { ManufacturerCatalogueRegistry.AutoPopulateFromFamilies(doc); }
-                        catch (Exception ex) { StingLog.Warn($"AutoPopulate inner: {ex.Message}"); }
-                    });
-                    if (!task.Wait(TimeSpan.FromSeconds(20)))
-                    {
-                        result.Warnings.Add("Catalogue auto-populate timed out after 20s — skipped. Manufacturer score component will be 0.5 for unresolved rules.");
-                        StingLog.Warn("FixturePlacementEngine: AutoPopulate timed out — proceeding without catalogue refresh.");
-                    }
-                    else
-                    {
-                        StingLog.Info($"FixturePlacementEngine: AutoPopulate done in {swCat.ElapsedMilliseconds} ms.");
-                    }
-                }
-                else
-                    StingLog.Info("FixturePlacementEngine: skipping AutoPopulate — no rule references manufacturer fields.");
-            }
-            catch (Exception ex) { result.Warnings.Add($"Catalogue auto-populate: {ex.Message}"); }
-            try
-            {
-                CurrentPhase = "Pre-flight: two-phase shared-param check";
-                var swVal = System.Diagnostics.Stopwatch.StartNew();
-                TwoPhaseBoxPlacer.ValidateSharedParams(doc, ordered, result.Warnings);
-                StingLog.Info($"FixturePlacementEngine: ValidateSharedParams done in {swVal.ElapsedMilliseconds} ms.");
-            }
-            catch (Exception ex) { result.Warnings.Add($"Two-phase preflight: {ex.Message}"); }
-
-            // Phase 139.2 G — Step 1: place every first-fix box for the
-            // TwoPhaseEnabled rules.  These run before per-room iteration
-            // so the second-fix matching index covers the whole scope.
-            Dictionary<string, XYZ> firstFixIndex = null;
-            if (!dryRun)
-            {
-                bool anyTwoPhase = ordered.Any(r => r != null && r.TwoPhaseEnabled);
-                if (!anyTwoPhase)
-                {
-                    StingLog.Info("FixturePlacementEngine: no TwoPhaseEnabled rule — skipping first-fix pass.");
-                }
-                else
-                {
-                    CurrentPhase = "Pre-flight: first-fix box placement";
-                    var swFf = System.Diagnostics.Stopwatch.StartNew();
-                    try { firstFixIndex = TwoPhaseBoxPlacer.PlaceFirstFixBoxes(doc, roomIds, ordered, result); }
-                    catch (Exception ex) { result.Warnings.Add($"Two-phase first-fix: {ex.Message}"); }
-                    StingLog.Info($"FixturePlacementEngine: PlaceFirstFixBoxes done in {swFf.ElapsedMilliseconds} ms ({firstFixIndex?.Count ?? 0} boxes).");
-                }
-            }
-
-            try
-            {
                 int processed = 0;
                 int total = rooms.Count;
                 bool cancelled = false;
-                StingLog.Info($"FixturePlacementEngine: pre-flight finished in {swEngine.ElapsedMilliseconds} ms — entering per-room loop ({total} rooms).");
-                CurrentPhase = "Per-room loop";
                 foreach (var room in rooms)
                 {
                     // PC-13 — per-room state so dependent rules see predecessors.
                     var roomState = new RoomState();
-                    string roomName = SafeRoomName(room);
                     foreach (var rule in ordered)
                     {
                         var diag = result.Diag(rule.MergeKey);
@@ -389,44 +327,33 @@ namespace StingTools.Core.Placement
                             if (RuleHasConflict(rule, roomState))
                             {
                                 result.Warnings.Add($"Room {room.Id} / {rule.MergeKey}: skipped — ConflictsWith already fired.");
-                                if (diag != null) diag.RoomsBlockedByConflict++;
                                 continue;
                             }
                             // PC-13 — DependsOn: skip if predecessor produced no placements yet.
                             if (!string.IsNullOrEmpty(rule.DependsOn) && !roomState.PlacedByRule.ContainsKey(rule.DependsOn))
                             {
                                 result.Warnings.Add($"Room {room.Id} / {rule.MergeKey}: skipped — DependsOn '{rule.DependsOn}' has no placement in this room.");
-                                if (diag != null) diag.RoomsBlockedByDependsOn++;
                                 continue;
                             }
 
                             ProcessRoomRule(doc, room, rule, scorer,
                                 perCategorySymbol, result, dryRun, roomState);
 
-                            // PC-13 / Phase 139.27 (M-06) — CoPlaceWith fires at
-                            // EVERY placement point of the primary rule, not just
-                            // the last. Pre-139.27 only the last point of a 5-fixture
-                            // primary triggered the co-rule; the other 4 silently
-                            // missed their dependent device (smoke detector under
-                            // luminaire, double-pole isolator next to fan, etc.).
+                            // PC-13 — CoPlaceWith: fire each co-rule at the same XYZ as the primary's last point.
                             if (rule.CoPlaceWith != null && rule.CoPlaceWith.Count > 0
-                                && roomState.PlacedByRule.TryGetValue(rule.MergeKey, out var primaryPoints)
-                                && primaryPoints != null && primaryPoints.Count > 0)
+                                && roomState.LastPointByRule.TryGetValue(rule.MergeKey, out var lastPt))
                             {
                                 foreach (var coId in rule.CoPlaceWith)
                                 {
                                     var coRule = ordered.FirstOrDefault(r => string.Equals(r.MergeKey, coId, StringComparison.OrdinalIgnoreCase));
                                     if (coRule == null) continue;
-                                    foreach (var primaryPt in primaryPoints)
+                                    try
                                     {
-                                        try
-                                        {
-                                            ProcessRoomRuleAtPoint(doc, room, coRule, scorer, perCategorySymbol, result, dryRun, roomState, primaryPt);
-                                        }
-                                        catch (Exception cex)
-                                        {
-                                            result.Warnings.Add($"Co-place {coRule.MergeKey} in room {room.Id}: {cex.Message}");
-                                        }
+                                        ProcessRoomRuleAtPoint(doc, room, coRule, scorer, perCategorySymbol, result, dryRun, roomState, lastPt);
+                                    }
+                                    catch (Exception cex)
+                                    {
+                                        result.Warnings.Add($"Co-place {coRule.MergeKey} in room {room.Id}: {cex.Message}");
                                     }
                                 }
                             }
@@ -456,88 +383,6 @@ namespace StingTools.Core.Placement
                     }
                 }
 
-                // Phase 139.2 G — Step 3: place every second-fix device
-                // by GUID-proximity match to the first-fix index.
-                if (!dryRun && firstFixIndex != null && firstFixIndex.Count > 0)
-                {
-                    try { TwoPhaseBoxPlacer.PlaceSecondFixDevices(doc, roomIds, ordered, firstFixIndex, result); }
-                    catch (Exception ex) { result.Warnings.Add($"Two-phase second-fix: {ex.Message}"); }
-                }
-
-                // Phase 139.27 (M-02 partial) — stamp STING_NOGGIN_REQUIRED on
-                // every placed instance whose XY matches a NogginRequiredPoint
-                // from the scorer's lighting-grid cache. Pre-139.27 these
-                // points were computed but discarded; the export command
-                // (NogginRequirementExportCommand) had no parameter to read.
-                if (!dryRun)
-                {
-                    try
-                    {
-                        StampNogginRequirementsFromGrid(doc, scorer, result);
-                    }
-                    catch (Exception nx) { result.Warnings.Add($"Noggin stamp: {nx.Message}"); }
-
-                    // Phase 139.27 (M-02 deep) — structural-awareness audit.
-                    // Walk each placed instance and warn when the location
-                    // sits inside a beam-junction or column clearance zone
-                    // — drilling there would breach structure. Currently
-                    // advisory-only (no auto-relocation); the warning lands
-                    // in PlacementResult.Warnings so the BIM coordinator
-                    // can resolve before issuing.
-                    try
-                    {
-                        AuditStructuralClearance(doc, ordered, result);
-                    }
-                    catch (Exception sx) { result.Warnings.Add($"Structural audit: {sx.Message}"); }
-
-                    // Phase 139.27 (X-03) — best-effort MEP connector auto-join.
-                    // Walks placed FamilyInstances with MEP connectors and
-                    // tries to connect each open connector to the closest
-                    // unconnected connector on a neighbouring placed
-                    // instance whose system classification matches. Skipped
-                    // when no rule sets RouteSegmentCategory (i.e. not a
-                    // routing rule). All exceptions captured per instance.
-                    try
-                    {
-                        AutoJoinMepConnectors(doc, ordered, result);
-                    }
-                    catch (Exception mx) { result.Warnings.Add($"MEP connector join: {mx.Message}"); }
-
-                    // Phase 139.27 (X-04) — cable / conduit bundle advisory.
-                    // For rules with CableBundleAdvisoryCount > 0, count how
-                    // many same-category instances landed within bundle
-                    // clearance (300 mm default) and warn when the count
-                    // exceeds the BS 7671 Table 4 derating thresholds
-                    // (no auto-resize; advisory only).
-                    try
-                    {
-                        AuditCableBundleDerating(doc, ordered, result);
-                    }
-                    catch (Exception cx) { result.Warnings.Add($"Cable bundle audit: {cx.Message}"); }
-
-                    // Phase 139.30 (X-05) — door swing envelope vs switch
-                    // placement. Switches anchored at DOOR_HINGE_SIDE_*
-                    // can sit inside the door's swept arc; opening the
-                    // door hits the switch with the handle. Walks every
-                    // placed switch / electrical fixture and checks
-                    // against every door's swept envelope.
-                    try
-                    {
-                        AuditDoorSwingClearance(doc, ordered, result);
-                    }
-                    catch (Exception dx) { result.Warnings.Add($"Door swing audit: {dx.Message}"); }
-
-                    // Phase 139.30 (X-01) — circuit-aware electrical pass.
-                    // Groups placed sockets / electrical fixtures into
-                    // BS 7671 ring / radial circuits and stamps RCD
-                    // group + circuit ID per element.
-                    try
-                    {
-                        StingTools.Core.Calc.CircuitTopologyEngine.AssignCircuits(doc, result);
-                    }
-                    catch (Exception ex) { result.Warnings.Add($"Circuit topology: {ex.Message}"); }
-                }
-
                 if (!dryRun)
                 {
                     tx.Commit();
@@ -559,11 +404,11 @@ namespace StingTools.Core.Placement
                         foreach (var id in result.PlacedIds)
                         {
                             Element el = null;
-                            try { el = doc.GetElement(id); } catch { }
+                            try { el = doc.GetElement(id); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Post-commit GetElement({id.Value}): {ex.Message}"); }
                             if (el == null) { rolledBack++; continue; }
                             alive.Add(id);
                             string cat = "(uncategorised)";
-                            try { cat = el.Category?.Name ?? "(uncategorised)"; } catch { }
+                            try { cat = el.Category?.Name ?? "(uncategorised)"; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Read placed element category: {ex.Message}"); }
                             perCategoryAlive[cat] = perCategoryAlive.TryGetValue(cat, out var n) ? n + 1 : 1;
                         }
                         if (rolledBack > 0)
@@ -693,8 +538,6 @@ namespace StingTools.Core.Placement
                 candidates = scorer.Score(room, rule, placedPoints, alreadyInRoom);
                 result.CandidatesEvaluated += candidates.Count;
             }
-            var diagRoom = result.Diag(rule.MergeKey);
-            if (diagRoom != null) diagRoom.CandidatesGenerated += candidates.Count;
             if (candidates.Count == 0) return;
 
             // PC-12 — derive the count for Density / Linear rules from the room's
@@ -710,7 +553,6 @@ namespace StingTools.Core.Placement
                 {
                     result.CountsByRule[rule.MergeKey] = result.CountsByRule.TryGetValue(rule.MergeKey, out var n) ? n + 1 : 1;
                     result.CountsByRoom[roomKey] = result.CountsByRoom.TryGetValue(roomKey, out var m) ? m + 1 : 1;
-                    if (diagRoom != null) diagRoom.CandidatesPlaced++;
                     if (state != null)
                     {
                         if (!state.PlacedByRule.TryGetValue(rule.MergeKey, out var lst))
@@ -722,83 +564,11 @@ namespace StingTools.Core.Placement
                         state.LastPointByRule[rule.MergeKey] = c.Position;
                     }
                 }
-
-                // Phase 139.27 (I-01) — dry-run preview of post-placement
-                // hooks. The hooks themselves cannot run in dry-run (no
-                // FamilyInstance to operate on), but the user needs to know
-                // BEFORE they commit whether tagging / COBie seed / MEP
-                // join are configured and resolvable. Surfaced only once
-                // per rule per session, gated by toggles.
-                if (PostPlacementHooks.RunDataTagPipeline && PostPlacementHooks.TagPipelineMissing)
-                {
-                    string warnKey = $"DryRun:{rule.MergeKey}:tagging-missing";
-                    if (!result.Warnings.Any(w => w.Contains(warnKey)))
-                        result.Warnings.Add($"{warnKey} — would-be-tagged in live run, but TagPipelineHelper not resolvable; tagging will silently no-op.");
-                }
                 return;
             }
 
             FamilySymbol symbol = ResolveSymbol(doc, rule.CategoryFilter, rule, perCategorySymbol, result);
-            if (symbol == null)
-            {
-                if (diagRoom != null)
-                {
-                    diagRoom.SkippedNoSymbol++;
-                    if (string.IsNullOrEmpty(diagRoom.FirstSkipReason))
-                        diagRoom.FirstSkipReason = $"No FamilySymbol for category '{rule.CategoryFilter}'";
-                }
-                return;
-            }
-
-            // Phase 139.27 (M-07) — manufacturer-miss penalty surfaced as a
-            // diagnostic count. PlacementScorer's catalogue scoring is the
-            // proper home for the 0.5 penalty (see PlacementScorer.cs); here
-            // we just record that a rule referenced a catalogue entry the
-            // registry didn't resolve. Surfaced in the result panel so users
-            // know the placement landed without manufacturer-side validation.
-            try
-            {
-                if (!string.IsNullOrEmpty(rule.CatalogueRef) || !string.IsNullOrEmpty(rule.ManufacturerCode))
-                {
-                    bool resolved = false;
-                    try { resolved = ManufacturerCatalogueRegistry.GetForRule(rule) != null; } catch { }
-                    if (!resolved && diagRoom != null) diagRoom.ManufacturerMisses++;
-                }
-            }
-            catch { }
-
-            // Phase 139.18 — warn once per (rule, family) when a wall- or
-            // ceiling-anchored rule resolves to an un-hosted family. The
-            // engine still places it (post-placement wall-snap + rotation
-            // does its best), but designers should re-author the family
-            // as wall-hosted / ceiling-hosted for proper attachment.
-            try
-            {
-                string anchorPt = (rule.AnchorType ?? "").ToUpperInvariant();
-                bool wantsWallHost = anchorPt == "WALL_MIDPOINT" || anchorPt == "WALL_CORNER"
-                                  || anchorPt == "WALL_FACE_OFFSET"
-                                  || anchorPt.StartsWith("DOOR_")
-                                  || anchorPt.StartsWith("WINDOW_");
-                bool wantsCeilingHost = anchorPt == "CEILING_CENTRE"
-                                  || anchorPt == "CEILING_TILE_CENTRE"
-                                  || anchorPt == "LIGHTING_GRID"
-                                  || anchorPt == "LUX_GRID";
-                var fpt = symbol.Family?.FamilyPlacementType ?? FamilyPlacementType.Invalid;
-                bool isHosted = fpt == FamilyPlacementType.OneLevelBasedHosted;
-                if ((wantsWallHost || wantsCeilingHost) && !isHosted)
-                {
-                    string warnKey = "FamilyPlacementType:" + (symbol.Family?.Name ?? "?") + ":" + rule.MergeKey;
-                    if (!result.Warnings.Any(w => w.Contains(warnKey)))
-                    {
-                        result.Warnings.Add(
-                            $"{warnKey} — rule '{rule.MergeKey}' uses {anchorPt} but the resolved family " +
-                            $"'{symbol.Family?.Name}' is {fpt}, not OneLevelBasedHosted. Engine will place " +
-                            $"+ snap + rotate but the family won't attach to the wall/ceiling. " +
-                            $"Re-author the family as wall-hosted (or ceiling-hosted) for proper attachment.");
-                    }
-                }
-            }
-            catch { }
+            if (symbol == null) return;
 
             if (!symbol.IsActive)
             {
@@ -824,7 +594,7 @@ namespace StingTools.Core.Placement
                     foreach (var lst in state.PlacedByRule.Values)
                         if (lst != null) existingNearby.AddRange(lst);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Collect existing PlacedByRule for dedup: {ex.Message}"); }
             double dedupFt = Math.Max(rule.ToleranceMm, 25.0) * MmToFt;
             double dedupSq = dedupFt * dedupFt;
 
@@ -859,28 +629,12 @@ namespace StingTools.Core.Placement
                     if (pf.Skipped || fi == null)
                     {
                         result.SkippedCount++;
-                        if (diagRoom != null)
-                        {
-                            diagRoom.SkippedHostPreflight++;
-                            if (string.IsNullOrEmpty(diagRoom.FirstSkipReason))
-                                diagRoom.FirstSkipReason = pf.Reason ?? "host preflight skipped";
-                        }
                         if (!string.IsNullOrEmpty(pf.Reason))
                             result.Warnings.Add(pf.Reason);
                         continue;
                     }
 
                     WriteAnchorParameters(fi, rule);
-                    OrientPlacedInstance(doc, fi, rule, room);
-                    // Phase 139.16 diagnostic: log placement XYZ + distance to host
-                    // wall (post-snap) so users / I can verify wall-anchored rules
-                    // landed flush on the wall rather than in the centre of the room.
-                    try
-                    {
-                        XYZ p = (fi.Location as LocationPoint)?.Point;
-                        if (p != null)
-                            StingLog.Info($"FixturePlacementEngine: placed '{rule.MergeKey}' at ({p.X:F2},{p.Y:F2},{p.Z:F2}) host={(fi.Host?.GetType().Name ?? "<none>")}.");
-                    } catch { }
                     // Pack 123 / Gap E — stamp provenance so BOQ / cleanup /
                     // audit can identify auto-created fixtures. Centre's
                     // "Stamp provenance" checkbox flips PlaceFixturesOptions.
@@ -898,7 +652,6 @@ namespace StingTools.Core.Placement
                     result.CountsByRoom[roomKey] = result.CountsByRoom.TryGetValue(roomKey, out var m) ? m + 1 : 1;
                     if (diagRoom != null) diagRoom.CandidatesPlaced++;
                     placedPoints.Add(c.Position);
-                    existingNearby.Add(c.Position); // Phase 139.25 — live dedup
 
                     // PC-13 — record placement on per-room state for downstream rules.
                     if (state != null)
@@ -937,7 +690,7 @@ namespace StingTools.Core.Placement
             {
                 case PlacementRuleKind.Density:
                 {
-                    int byArea = 0, byOcc = 0, byBed = 0, byCubicle = 0, byPupil = 0, byWs = 0;
+                    int byArea = 0, byOcc = 0;
                     if (rule.PerAreaM2 > 0)
                     {
                         double areaM2 = 0;
@@ -946,53 +699,27 @@ namespace StingTools.Core.Placement
                     }
                     if (rule.PerOccupant > 0)
                     {
-                        int occ = ReadRoomIntParam(room,
-                            string.IsNullOrWhiteSpace(rule.OccupancyParamName) ? "STING_OCC_COUNT_INT" : rule.OccupancyParamName);
+                        int occ = 0;
+                        try
+                        {
+                            var p = room.LookupParameter("STING_OCC_COUNT_INT");
+                            if (p != null && p.HasValue && p.StorageType == StorageType.Integer) occ = p.AsInteger();
+                        }
+                        catch { }
                         if (occ > 0) byOcc = Math.Max(1, (int)Math.Ceiling((double)occ / rule.PerOccupant));
                     }
-                    // Phase 178a hardening — PerBed / PerToiletCubicle / PerPupil
-                    // / PerWorkstation were declared on PlacementRule but ignored
-                    // here, so healthcare/sanitary/education/office density rules
-                    // fell through to cap=1.
-                    if (rule.PerBed > 0)
-                    {
-                        int beds = ReadRoomIntParam(room, "STING_BED_COUNT_INT");
-                        if (beds > 0) byBed = Math.Max(1, (int)Math.Ceiling((double)beds / rule.PerBed));
-                    }
-                    if (rule.PerToiletCubicle > 0)
-                    {
-                        int cubicles = ReadRoomIntParam(room, "STING_CUBICLE_COUNT_INT");
-                        if (cubicles > 0) byCubicle = Math.Max(1, (int)Math.Ceiling((double)cubicles / rule.PerToiletCubicle));
-                    }
-                    if (rule.PerPupil > 0)
-                    {
-                        int pupils = ReadRoomIntParam(room, "STING_PUPIL_COUNT_INT");
-                        if (pupils > 0) byPupil = Math.Max(1, (int)Math.Ceiling((double)pupils / rule.PerPupil));
-                    }
-                    if (rule.PerWorkstation > 0)
-                    {
-                        int ws = ReadRoomIntParam(room, "STING_WORKSTATION_COUNT_INT");
-                        if (ws > 0) byWs = Math.Max(1, (int)Math.Ceiling((double)ws / rule.PerWorkstation));
-                    }
-                    cap = Math.Max(Math.Max(byArea, byOcc),
-                          Math.Max(Math.Max(byBed, byCubicle), Math.Max(byPupil, byWs)));
+                    cap = Math.Max(byArea, byOcc);
                     if (cap == 0) cap = 1;
                     break;
                 }
                 case PlacementRuleKind.Linear:
                 {
-                    // Phase 139.5 Q15 — Linear cap was always candidateCount
-                    // regardless of PerLinearMetre. Now: perimeter (m) ÷
-                    // PerLinearMetre = required count, taken from the room's
-                    // boundary (or bbox fallback). When PerLinearMetre is 0,
-                    // fall through to candidateCount as before.
                     if (rule.PerLinearMetre > 0)
                     {
-                        double perimeterM = ComputeRoomPerimeterMetres(room);
-                        if (perimeterM > 0)
-                            cap = Math.Max(1, (int)Math.Ceiling(perimeterM / rule.PerLinearMetre));
-                        else
-                            cap = candidateCount;
+                        // Perimeter is approximated from the bounding box; the
+                        // PERIMETER_OFFSET anchor already produces one candidate
+                        // per step, so we just take all candidates.
+                        cap = candidateCount;
                     }
                     else cap = candidateCount;
                     break;
@@ -1052,7 +779,6 @@ namespace StingTools.Core.Placement
                     return;
                 }
                 WriteAnchorParameters(pf.Placed, rule);
-                OrientPlacedInstance(doc, pf.Placed, rule, room);
                 if (StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance)
                 {
                     try { StingTools.Core.Storage.StingProvenanceSchema.Stamp(pf.Placed, "FixturePlacementEngine.CoPlace", rule.MergeKey ?? ""); } catch { }
@@ -1115,14 +841,7 @@ namespace StingTools.Core.Placement
             int bestChainIndex = int.MaxValue;
             try
             {
-                // Phase 139.4 — apply OfCategory before OfClass so the
-                // collector pre-filters by category index (Revit's native
-                // index lookup) instead of walking every FamilySymbol.
-                BuiltInCategory bic = BuiltInCategory.INVALID;
-                try { bic = ResolveBuiltInCategoryByName(doc, categoryName); } catch { }
-                FilteredElementCollector collector = (bic != BuiltInCategory.INVALID)
-                    ? new FilteredElementCollector(doc).OfCategory(bic).OfClass(typeof(FamilySymbol))
-                    : new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol));
+                var collector = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol));
                 foreach (var el in collector)
                 {
                     if (!(el is FamilySymbol fs)) continue;
@@ -1387,7 +1106,7 @@ namespace StingTools.Core.Placement
                     }
                     if (room != null && room.IsPointInRoom(probe)) roomOnPositiveNormal = true;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Room-side test for facing flip: {ex.Message}"); }
 
                 XYZ inward = roomOnPositiveNormal ? wallNormal : wallNormal.Negate();
 
@@ -1578,7 +1297,7 @@ namespace StingTools.Core.Placement
                     if (int.TryParse(s, out int v)) return v;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] ReadRoomIntParam: {ex.Message}"); }
             return 0;
         }
 
@@ -1589,7 +1308,7 @@ namespace StingTools.Core.Placement
                 var p = room.get_Parameter(BuiltInParameter.ROOM_NAME);
                 return p?.AsString() ?? room.Name ?? "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] SafeRoomName lookup: {ex.Message}"); return ""; }
         }
 
         // Phase 139.4 — resolve a Document.Settings.Categories entry to its
@@ -1605,8 +1324,8 @@ namespace StingTools.Core.Placement
         {
             if (doc == null || string.IsNullOrEmpty(categoryName)) return BuiltInCategory.INVALID;
             string path = "", title = "";
-            try { path = doc.PathName ?? ""; } catch { }
-            try { title = doc.Title ?? ""; } catch { }
+            try { path = doc.PathName ?? ""; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Read doc.PathName for BIC cache key: {ex.Message}"); }
+            try { title = doc.Title ?? ""; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Read doc.Title for BIC cache key: {ex.Message}"); }
             string key = path + "|" + title;
             Dictionary<string, BuiltInCategory> map;
             lock (_bicByNameLock)
@@ -1625,7 +1344,7 @@ namespace StingTools.Core.Placement
                                 if (bic != BuiltInCategory.INVALID)
                                     map[c.Name] = bic;
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Category.Id -> BuiltInCategory cast: {ex.Message}"); }
                         }
                     }
                     catch (Exception ex) { StingLog.Warn($"ResolveBuiltInCategoryByName: {ex.Message}"); }
@@ -1671,7 +1390,7 @@ namespace StingTools.Core.Placement
             foreach (var id in result.PlacedIds)
             {
                 FamilyInstance fi = null;
-                try { fi = doc.GetElement(id) as FamilyInstance; } catch { }
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] StampNoggin GetElement({id.Value}): {ex.Message}"); }
                 if (fi == null) continue;
                 XYZ p = (fi.Location as LocationPoint)?.Point;
                 if (p == null) continue;
@@ -1755,12 +1474,12 @@ namespace StingTools.Core.Placement
             foreach (var id in result.PlacedIds)
             {
                 FamilyInstance fi = null;
-                try { fi = doc.GetElement(id) as FamilyInstance; } catch { }
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] StructuralAudit GetElement({id.Value}): {ex.Message}"); }
                 if (fi == null) continue;
                 XYZ p = (fi.Location as LocationPoint)?.Point;
                 if (p == null) continue;
                 bool nearStructure = false;
-                try { nearStructure = sa.IsNearJunction(p, clearanceFt); } catch { }
+                try { nearStructure = sa.IsNearJunction(p, clearanceFt); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] StructuralAwareness.IsNearJunction: {ex.Message}"); }
                 if (!nearStructure) continue;
                 conflicts++;
                 if (conflicts <= 10)
@@ -1848,7 +1567,7 @@ namespace StingTools.Core.Placement
                 }
             }
 
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] ComplianceScan.InvalidateCache: {ex.Message}"); }
             return totalRouted;
         }
 
@@ -1915,7 +1634,7 @@ namespace StingTools.Core.Placement
             foreach (var id in result.PlacedIds)
             {
                 FamilyInstance fi = null;
-                try { fi = doc.GetElement(id) as FamilyInstance; } catch { }
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] AutoJoin GetElement({id.Value}): {ex.Message}"); }
                 if (fi == null) continue;
                 var mgr = fi.MEPModel?.ConnectorManager;
                 if (mgr == null) continue;
@@ -1923,7 +1642,7 @@ namespace StingTools.Core.Placement
                 {
                     if (c == null || c.IsConnected) continue;
                     string sysKey = "?";
-                    try { sysKey = c.Domain.ToString() + ":" + (c.MEPSystem?.Name ?? c.Description ?? c.Owner?.Category?.Name ?? ""); } catch { }
+                    try { sysKey = c.Domain.ToString() + ":" + (c.MEPSystem?.Name ?? c.Description ?? c.Owner?.Category?.Name ?? ""); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Build connector sysKey: {ex.Message}"); }
                     if (!openConns.TryGetValue(sysKey, out var list))
                     {
                         list = new List<(Connector, ElementId)>();
@@ -2063,7 +1782,7 @@ namespace StingTools.Core.Placement
                 double sb = b.Shape == ConnectorProfileType.Round ? b.Radius * 2 : Math.Max(b.Width, b.Height);
                 return Math.Abs(sa - sb) < 1e-3;
             }
-            catch { return true; }
+            catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] SameSize connector compare: {ex.Message}"); return true; }
         }
 
         /// <summary>
@@ -2117,7 +1836,7 @@ namespace StingTools.Core.Placement
                         var pW = sym?.LookupParameter("Width") ?? sym?.get_Parameter(BuiltInParameter.DOOR_WIDTH);
                         if (pW != null && pW.StorageType == StorageType.Double) widthFt = Math.Max(0.5, pW.AsDouble());
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Read door Width parameter: {ex.Message}"); }
                     doors.Add(new DoorEnvelope
                     {
                         Id      = fi.Id,
@@ -2137,7 +1856,7 @@ namespace StingTools.Core.Placement
             foreach (var id in result.PlacedIds)
             {
                 FamilyInstance fi = null;
-                try { fi = doc.GetElement(id) as FamilyInstance; } catch { }
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] DoorSwingAudit GetElement({id.Value}): {ex.Message}"); }
                 if (fi == null) continue;
                 XYZ p = (fi.Location as LocationPoint)?.Point;
                 if (p == null) continue;
@@ -2209,7 +1928,7 @@ namespace StingTools.Core.Placement
                 double cosToOpen   = v.Normalize().DotProduct(openDir.Normalize());
                 return cosToClosed > 0 && cosToOpen > 0;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] PointInsideSweptArc geometry: {ex.Message}"); return false; }
         }
 
         /// <summary>
@@ -2235,12 +1954,12 @@ namespace StingTools.Core.Placement
             foreach (var id in result.PlacedIds)
             {
                 FamilyInstance fi = null;
-                try { fi = doc.GetElement(id) as FamilyInstance; } catch { }
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] CableBundleAudit GetElement({id.Value}): {ex.Message}"); }
                 if (fi == null) continue;
                 XYZ p = (fi.Location as LocationPoint)?.Point;
                 if (p == null) continue;
                 string cat = "(uncategorised)";
-                try { cat = fi.Category?.Name ?? "(uncategorised)"; } catch { }
+                try { cat = fi.Category?.Name ?? "(uncategorised)"; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] CableBundleAudit category read: {ex.Message}"); }
                 if (!byCategory.TryGetValue(cat, out var list))
                 {
                     list = new List<(ElementId, XYZ)>();

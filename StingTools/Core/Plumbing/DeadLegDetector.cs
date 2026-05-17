@@ -77,7 +77,7 @@ namespace StingTools.Core.Plumbing
                                     r.PipesWritten++;
                                 }
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                     }
                 }
@@ -98,7 +98,7 @@ namespace StingTools.Core.Plumbing
                     || sys.Contains("DOMESTIC COLD") || sys.Contains("DOMESTIC HOT")
                     || sys.Contains("BLEND") || sys.Contains("TEMP");
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         // A pipe is a "terminal" leg if exactly one end is connected
@@ -113,7 +113,7 @@ namespace StingTools.Core.Plumbing
                     if (c.IsConnected) connectedEnds++;
                 return connectedEnds <= 1;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         // Walk from the terminal pipe back through fittings until we
@@ -124,7 +124,7 @@ namespace StingTools.Core.Plumbing
             double accLen = 0;
             var visited = new HashSet<long>();
             visited.Add(start.Id.Value);
-            try { accLen += start.LookupParameter("Length")?.AsDouble() * 0.3048 ?? 0; } catch { }
+            try { accLen += start.LookupParameter("Length")?.AsDouble() * 0.3048 ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             Element current = start;
             int safety = 200;
@@ -153,7 +153,7 @@ namespace StingTools.Core.Plumbing
                                     foreach (Connector oc in ocm.Connectors)
                                         if (oc.IsConnected) neighbours++;
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                             if (neighbours >= 3) { junction = owner; break; }
                             if (owner is Pipe pp && potablePipeIds.Contains(pp.Id.Value)) { nextPipe = pp; break; }
                             if (owner.Category?.Id?.Value == (long)BuiltInCategory.OST_PipeFitting) { nextPipe = owner; break; }
@@ -161,14 +161,14 @@ namespace StingTools.Core.Plumbing
                         if (junction != null || nextPipe != null) break;
                     }
                 }
-                catch { break; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); break; }
 
                 if (junction != null) break;
                 if (nextPipe == null) break;
                 visited.Add(nextPipe.Id.Value);
                 if (nextPipe is Pipe np)
                 {
-                    try { accLen += np.LookupParameter("Length")?.AsDouble() * 0.3048 ?? 0; } catch { }
+                    try { accLen += np.LookupParameter("Length")?.AsDouble() * 0.3048 ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
                 current = nextPipe;
             }

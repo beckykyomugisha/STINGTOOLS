@@ -87,8 +87,13 @@ async function refreshAccessToken(): Promise<string | null> {
       return data.token;
     } finally {
       // Drop the cached promise once complete so the next 401 can trigger a
-      // fresh refresh later.
-      setTimeout(() => { refreshInFlight = null; }, 0);
+      // fresh refresh later. Clear synchronously so the slot is available
+      // immediately after settlement — a setTimeout(0) deferred clear leaves
+      // a window where a racing 401 skips the new-promise branch and awaits
+      // a promise that has already resolved (harmless in practice) but more
+      // importantly never assigns its own new promise, causing the slot to
+      // stay null longer than intended.
+      refreshInFlight = null;
     }
   })();
   return refreshInFlight;

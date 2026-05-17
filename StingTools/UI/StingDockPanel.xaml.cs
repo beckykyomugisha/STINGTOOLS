@@ -88,18 +88,6 @@ namespace StingTools.UI
             // Pack 0 — reflect current offline state the moment the panel is realised.
             try { UpdateOfflineStatus(StingTools.Core.StingOfflineConfig.IsOffline, StingTools.Core.StingOfflineConfig.Source); }
             catch { /* non-fatal */ }
-
-            // Standards — paint the active region into the header chip and
-            // subscribe to ProjectStandardsManager.StandardsChanged so the
-            // chip updates live whenever a region is applied (SetRegionCommand,
-            // OnDocumentOpened sync, ProjectSetupWizard finish).
-            try
-            {
-                RefreshRegionIndicator();
-                StingTools.Standards.ProjectStandardsManager.Instance.StandardsChanged
-                    += (_, __) => RefreshRegionIndicator();
-            }
-            catch { /* non-fatal */ }
         }
 
         /// <summary>
@@ -367,19 +355,6 @@ namespace StingTools.UI
                 StingCommandHandler.SetExtraParam("Scale500Mm",  (sldScale500?.Value  ?? 12.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
                 StingCommandHandler.SetExtraParam("Scale1000Mm", (sldScale1000?.Value ?? 20.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
                 StingCommandHandler.SetExtraParam("OffsetCapFt", (sldOffsetCap?.Value ?? 30.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
-
-                // Phase 165 — per-category scale multipliers (previously orphaned).
-                // Read by ApplyScaleTiersCommand and persisted to project_config.json
-                // under SCALE_CATEGORY_MULTIPLIERS so SmartTagPlacementCommand can
-                // multiply the base offset by the per-category factor at placement time.
-                if (FindName("sldMultDucts") is System.Windows.Controls.Slider mD)
-                    StingCommandHandler.SetExtraParam("MultDucts", mD.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
-                if (FindName("sldMultPipes") is System.Windows.Controls.Slider mP)
-                    StingCommandHandler.SetExtraParam("MultPipes", mP.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
-                if (FindName("sldMultEquipment") is System.Windows.Controls.Slider mE)
-                    StingCommandHandler.SetExtraParam("MultEquipment", mE.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
-                if (FindName("sldMultFixtures") is System.Windows.Controls.Slider mF)
-                    StingCommandHandler.SetExtraParam("MultFixtures", mF.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
             }
             catch (Exception ex) { StingLog.Warn($"Read Scale tab sliders failed: {ex.Message}"); }
         }
@@ -717,19 +692,6 @@ namespace StingTools.UI
             return def;
         }
 
-        // Phase 139.7 — read a named RadioButton's IsChecked state.
-        private static bool RadState(DependencyObject root, string name, bool def)
-        {
-            if (root == null) return def;
-            try
-            {
-                var rb = FindVisualChild<System.Windows.Controls.RadioButton>(root, name);
-                if (rb != null) return rb.IsChecked == true;
-            }
-            catch { }
-            return def;
-        }
-
         private static bool RadioState(DependencyObject root, string name, bool def)
         {
             if (root == null) return def;
@@ -773,17 +735,6 @@ namespace StingTools.UI
                 StingTools.Commands.Placement.PlaceFixturesOptions.IncludePlumbingFixtures     = ChkState(root, "chkFxPlm",     true);
                 StingTools.Commands.Placement.PlaceFixturesOptions.IncludeAirTerminals         = ChkState(root, "chkFxHvac",    true);
                 StingTools.Commands.Placement.PlaceFixturesOptions.IncludeSprinklers           = ChkState(root, "chkFxSpr",     true);
-
-                // Phase 139.7 — Fixtures scope radios. Default to
-                // SelectedRooms so an unset state preserves historic
-                // behaviour. The radios are mutually exclusive
-                // (GroupName = "FxScope") so the first checked wins.
-                if (RadState(root, "rbFxScopeView", false))
-                    StingTools.Commands.Placement.PlaceFixturesOptions.ScopeMode = StingTools.Commands.Placement.PlaceFixturesOptions.FixtureScopeMode.ActiveView;
-                else if (RadState(root, "rbFxScopeAll", false))
-                    StingTools.Commands.Placement.PlaceFixturesOptions.ScopeMode = StingTools.Commands.Placement.PlaceFixturesOptions.FixtureScopeMode.AllRooms;
-                else
-                    StingTools.Commands.Placement.PlaceFixturesOptions.ScopeMode = StingTools.Commands.Placement.PlaceFixturesOptions.FixtureScopeMode.SelectedRooms;
 
                 StingTools.Commands.Placement.PlaceFixturesOptions.EnforceDocM    = ChkState(root, "chkFxDocM",    true);
                 StingTools.Commands.Placement.PlaceFixturesOptions.EnforceBS7671  = ChkState(root, "chkFxBS7671",  true);
@@ -1010,8 +961,60 @@ namespace StingTools.UI
         }
 
         /// <summary>
-        /// Push the latest sync status into the header chip. Safe to call from any thread.
+        // ── INT-07 ────────────────────────────────────────────────────────────────
+
+        public enum SyncState { Offline, Syncing, Synced, Error }
+
+        private static readonly SolidColorBrush _syncGreenBrush =
+            FZ(Color.FromRgb(46, 204, 113));
+        private static readonly SolidColorBrush _syncBlueBrush =
+            FZ(Color.FromRgb(52, 152, 219));
+        private static readonly SolidColorBrush _syncOrangeBrush =
+            FZ(Color.FromRgb(230, 126, 34));
+        private static readonly SolidColorBrush _syncGreyBrush =
+            FZ(Color.FromRgb(127, 140, 141));
+
+        /// <summary>
+        /// Updates the SyncStatusChip label and colour. Safe to call from any thread.
         /// </summary>
+        public void UpdateSyncStatus(SyncState state, string errorDetail = null)
+        {
+            void Apply()
+            {
+                try
+                {
+                    if (bdrSync == null || txtSync == null) return;
+                    switch (state)
+                    {
+                        case SyncState.Syncing:
+                            txtSync.Text = "⟳ Syncing…";
+                            bdrSync.Background = _syncBlueBrush;
+                            break;
+                        case SyncState.Synced:
+                            txtSync.Text = "● Synced";
+                            bdrSync.Background = _syncGreenBrush;
+                            break;
+                        case SyncState.Error:
+                            txtSync.Text = "⚠ Sync error";
+                            bdrSync.Background = _syncOrangeBrush;
+                            if (!string.IsNullOrEmpty(errorDetail))
+                                bdrSync.ToolTip = errorDetail;
+                            break;
+                        default: // Offline
+                            txtSync.Text = "◌ Offline";
+                            bdrSync.Background = _syncGreyBrush;
+                            break;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    Core.StingLog.Warn($"UpdateSyncStatus failed: {ex.Message}");
+                }
+            }
+            if (Dispatcher.CheckAccess()) Apply();
+            else Dispatcher.BeginInvoke(new System.Action(Apply));
+        }
+
         public void RefreshSyncIndicator()
         {
             void Apply()

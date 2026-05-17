@@ -185,7 +185,7 @@ namespace StingTools.Commands.Placement
             using (var tx = new Transaction(doc, "STING Lighting Grid Placement"))
             {
                 tx.Start();
-                if (!symbol.IsActive) { try { symbol.Activate(); doc.Regenerate(); } catch { } }
+                if (!symbol.IsActive) { try { symbol.Activate(); doc.Regenerate(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } }
                 foreach (var plan in plans)
                 {
                     var lvl = doc.GetElement(plan.Room.LevelId) as Level;
@@ -230,7 +230,7 @@ namespace StingTools.Commands.Placement
             try { ActionAuditLog.Record("Lighting_GridPlace",
                 $"rooms={plans.Count} placed={placed} failed={failed}"); }
             catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             ShowResult(plans, placed, dryRun: false, doc, totalBlocked);
             return Result.Succeeded;
@@ -329,7 +329,7 @@ namespace StingTools.Commands.Placement
                 {
                     string nm = "";
                     try { nm = p.Room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? p.Room.Name; }
-                    catch { nm = p.Room.Id.ToString(); }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); nm = p.Room.Id.ToString(); }
                     panel.Metric(nm,
                         p.Result.FixturesPlaced.ToString(),
                         $"{p.Result.RoomTypeCode} @ {p.Result.TargetLux:F0} lx  ({p.Result.RoomAreaM2:F1} m²)");
@@ -366,7 +366,7 @@ namespace StingTools.Commands.Placement
                 if (p != null && p.StorageType == StorageType.Integer && p.AsInteger() > 0)
                     return p.AsInteger();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 

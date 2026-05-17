@@ -71,7 +71,7 @@ namespace StingTools.Commands.Electrical
                                     ParameterHelpers.SetString(p, ParamRegistry.ELC_PNL_VOLTAGE, $"{vDouble:0}V", overwrite: true);
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                         // Connected load (kW)
                         try
@@ -80,7 +80,7 @@ namespace StingTools.Commands.Electrical
                             if (loadVA > 0)
                                 ParameterHelpers.SetString(p, ParamRegistry.ELC_PNL_LOAD, $"{loadVA / 1000.0:0.0}", overwrite: true);
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                         // Location from spatial / project
                         string loc = SpatialAutoDetect.DetectLoc(doc, p, roomIndex, projLoc) ?? "";
@@ -94,7 +94,7 @@ namespace StingTools.Commands.Electrical
                             if (!string.IsNullOrEmpty(mfg))
                                 ParameterHelpers.SetString(p, "ELC_PNL_MANUFACTURER_TXT", mfg, overwrite: false);
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                         updated++;
                     }
@@ -103,7 +103,7 @@ namespace StingTools.Commands.Electrical
                 tx.Commit();
             }
 
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Electrical", $"Synced parameters on {updated} panel(s).");
             return Result.Succeeded;
         }
@@ -161,7 +161,7 @@ namespace StingTools.Commands.Electrical
                     ParameterHelpers.SetString(panel, "ELC_PNL_ENCLOSURE_TXT", snap.Enclosure, overwrite: true);
                 tx.Commit();
             }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Electrical", $"Saved to '{panel.Name}'.");
             return Result.Succeeded;
         }
@@ -202,7 +202,7 @@ namespace StingTools.Commands.Electrical
                         .Where(s =>
                         {
                             try { return s.BaseEquipment != null && s.BaseEquipment.Id == psv.GetPanel(); }
-                            catch { return false; }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
                         })
                         .OrderBy(s => SafeStartingSlot(s))
                         .ToList();
@@ -240,13 +240,13 @@ namespace StingTools.Commands.Electrical
                 var p = s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_START_SLOT);
                 if (p != null) return (int)p.AsDouble();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 
         private static int SafePoles(ElectricalSystem s)
         {
-            try { return s.PolesNumber; } catch { return 1; }
+            try { return s.PolesNumber; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 1; }
         }
     }
 
@@ -265,7 +265,7 @@ namespace StingTools.Commands.Electrical
             // The snapshot pushed back to the panel after Dispatch already includes
             // load-summary rows, so all this command does is invalidate any cache
             // and surface a confirmation.
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Electrical", "Load summary refreshed — see the LOAD SUMMARY grid.");
             return Result.Succeeded;
         }

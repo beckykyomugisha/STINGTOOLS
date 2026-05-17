@@ -168,7 +168,7 @@ namespace StingTools.Core
                     string resolved = setup.ResolveRootPath(doc.PathName);
                     if (!string.IsNullOrEmpty(resolved))
                     {
-                        try { Directory.CreateDirectory(resolved); } catch { }
+                        try { Directory.CreateDirectory(resolved); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         if (Directory.Exists(resolved)) return resolved;
                     }
                 }
@@ -280,7 +280,7 @@ namespace StingTools.Core
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             catch (Exception ex) { StingLog.Warn($"LoadOrDetectSetup: {ex.Message}"); }
             return null;
@@ -303,7 +303,7 @@ namespace StingTools.Core
                 var setup = ProjectSetup.CreateBIM(code, code); // root = relative folder named after the code
                 setup.RootPathIsRelative = true;
                 setup.ProjectName = "";
-                try { setup.ProjectName = doc.ProjectInformation?.Name ?? ""; } catch { }
+                try { setup.ProjectName = doc.ProjectInformation?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 InitializeSetup(doc, setup);
                 StingLog.Info($"LoadOrBootstrapSetup: minted default BIM setup for {code}");
                 return setup;
@@ -463,7 +463,7 @@ namespace StingTools.Core
                                 n = files.Length;
                                 if (n > 0) lm = files.Max(f => f.LastWriteTime);
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                         list.Add(new FolderHealthEntry
                         {
@@ -496,7 +496,7 @@ namespace StingTools.Core
                             n = files.Length;
                             if (n > 0) lm = files.Max(fi => fi.LastWriteTime);
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     }
                     list.Add(new FolderHealthEntry
                     {
@@ -811,7 +811,7 @@ namespace StingTools.Core
                         if (n.Exists)
                             n.FileCount = Directory.GetFiles(p, "*.*", SearchOption.TopDirectoryOnly).Length;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     if (discSubs && setup?.Disciplines != null)
                     {
                         foreach (string disc in setup.Disciplines)
@@ -883,7 +883,7 @@ namespace StingTools.Core
                         if (!string.IsNullOrEmpty(match))
                         {
                             folder = Path.Combine(folder, match);
-                            try { Directory.CreateDirectory(folder); } catch { }
+                            try { Directory.CreateDirectory(folder); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                     }
                 }
@@ -923,7 +923,7 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(pattern))
                 return $"{baseName ?? "export"}_{DateTime.Now:yyyyMMdd_HHmmss}{ext}";
             string code = "PRJ";
-            try { code = doc?.ProjectInformation?.Number ?? "PRJ"; } catch { }
+            try { code = doc?.ProjectInformation?.Number ?? "PRJ"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string s = pattern
                 .Replace("{name}", baseName ?? "export")
                 .Replace("{date}", DateTime.Now.ToString("yyyyMMdd"))

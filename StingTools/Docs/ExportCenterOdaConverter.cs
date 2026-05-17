@@ -56,7 +56,7 @@ namespace StingTools.Docs
                 if (!string.IsNullOrEmpty(st.OdaLibraryPath) && File.Exists(st.OdaLibraryPath))
                     return _cachedExePath = st.OdaLibraryPath;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // 2) Well-known installer paths — ODA names the dir "ODA File Converter <version>".
             string[] roots =
@@ -74,7 +74,7 @@ namespace StingTools.Docs
                         if (File.Exists(exe)) return _cachedExePath = exe;
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
 
             // 3) Registry — ODA's installer drops an Uninstall entry that includes InstallLocation.
@@ -100,7 +100,7 @@ namespace StingTools.Docs
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             return _cachedExePath = null;
         }
@@ -156,7 +156,7 @@ namespace StingTools.Docs
                 // The ODA tool can be slow on large folders; cap at 10 minutes.
                 if (!proc.WaitForExit(10 * 60 * 1000))
                 {
-                    try { proc.Kill(true); } catch { }
+                    try { proc.Kill(true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     StingLog.Warn("OdaConverter.Convert timed out after 10 minutes.");
                     return 0;
                 }

@@ -1996,7 +1996,7 @@ namespace StingTools.BIMManager
                 else
                 {
                     bool isModified = false;
-                    try { isModified = doc.IsModified; } catch { }
+                    try { isModified = doc.IsModified; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     StingLog.Info($"Planscape sync: workshared (IsModified={isModified})");
                     if (isModified)
                     {
@@ -2082,10 +2082,22 @@ namespace StingTools.BIMManager
             }
             catch (Exception ex) { StingLog.Warn($"Planscape sync timestamp update: {ex.Message}"); }
 
+            // Pull issues from server into local issues.json so the BCC can see
+            // issues created in the Planscape mobile app or web.
+            int issuesMerged = 0;
+            try
+            {
+                string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+                issuesMerged = Task.Run(() => client.SyncIssuesFromServerAsync(projectId, issuesPath))
+                    .GetAwaiter().GetResult();
+            }
+            catch (Exception ex) { StingLog.Warn($"Issue pull from server: {ex.Message}"); }
+
             TaskDialog.Show("Planscape Sync — Complete",
                 $"Sync to Planscape server complete!\n\n" +
                 $"Elements sent:    {tagSync.Count:N0}\n" +
-                $"Drained payloads: {sResult.TagsCreated:N0}\n\n" +
+                $"Drained payloads: {sResult.TagsCreated:N0}\n" +
+                $"Issues pulled:    {issuesMerged:N0}\n\n" +
                 $"Server: {client.ServerUrl}\n" +
                 $"User: {client.ConnectedUser}\n\n" +
                 $"Compliance metrics will arrive on the ComplianceHub.");
@@ -2148,7 +2160,7 @@ namespace StingTools.BIMManager
                     catch { /* tier hydration is best-effort */ }
 
                     Element typeEl = null;
-                    try { typeEl = doc.GetElement(el.GetTypeId()); } catch { }
+                    try { typeEl = doc.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     int paraDepth   = StingTools.Core.TagConfig.ReadActiveParagraphDepth(typeEl, el);
                     string pattern  = StingTools.Core.TagConfig.ResolveActivePatternMode(typeEl, el);
 

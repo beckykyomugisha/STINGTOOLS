@@ -53,7 +53,7 @@ export function startConnectivityListener(): Unsubscribe {
     if (now - _lastDrainAt < DEBOUNCE_MS) return;
     _lastDrainAt = now;
     // Fire-and-forget — the syncQueue broadcast will update any subscribed UI.
-    syncQueue().catch(() => { /* errors handled inside syncQueue */ });
+    syncQueue().catch((err) => { console.warn('[OfflineQueue] Drain failed:', err); });
   });
   return _unsubscribe;
 }

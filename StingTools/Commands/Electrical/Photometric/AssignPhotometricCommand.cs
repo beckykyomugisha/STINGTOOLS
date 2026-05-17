@@ -78,7 +78,7 @@ namespace StingTools.Commands.Electrical.Photometric
                 }
                 tx.Commit();
             }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Photometric",
                 $"Assigned '{file.LuminaireName}' to {stamped} luminaire type(s).\n\n" +
                 $"Lumens: {file.TotalLumens:0} · Watts: {file.TotalWatts:0.0} · Efficacy: {file.Efficacy:0.0} lm/W");

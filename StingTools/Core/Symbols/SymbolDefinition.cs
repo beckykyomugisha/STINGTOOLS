@@ -102,6 +102,67 @@ namespace StingTools.Core.Symbols
         [JsonProperty("typeVariants", NullValueHandling = NullValueHandling.Ignore)]
         public List<TypeVariantDefinition> TypeVariants { get; set; }
             = new List<TypeVariantDefinition>();
+
+        /// <summary>
+        /// When true the builder never overwrites an existing .rfa on disk,
+        /// even when the caller requests a full rebuild. Combine with the
+        /// <c>.sting-finalized</c> sidecar for belt-and-braces protection
+        /// of hand-polished seed families.
+        /// </summary>
+        [JsonProperty("protectExisting", NullValueHandling = NullValueHandling.Ignore)]
+        public bool ProtectExisting { get; set; } = false;
+
+        /// <summary>
+        /// Optional path to a pre-built .rfa the builder augments rather
+        /// than generating geometry from scratch. Supports absolute paths
+        /// and paths relative to Data/Seeds/. When the file is found the
+        /// builder opens it, injects STING params + seed stamp + type
+        /// variants, saves to the seed output folder, and skips geometry
+        /// generation. Falls back to generate-from-scratch when the path
+        /// doesn't resolve.
+        /// </summary>
+        [JsonProperty("sourceFamilyPath", NullValueHandling = NullValueHandling.Ignore)]
+        public string SourceFamilyPath { get; set; }
+
+        /// <summary>
+        /// Pre-registered swap candidates for this seed. BuildSeedFamilies
+        /// auto-registers these into STING_FAMILY_SWAP_REGISTRY.json so
+        /// SwapToManufacturerCommand can immediately offer finished
+        /// manufacturer families without the user manually loading them.
+        /// </summary>
+        [JsonProperty("swapCandidates", NullValueHandling = NullValueHandling.Ignore)]
+        public List<SeedSwapCandidate> SwapCandidates { get; set; }
+    }
+
+    /// <summary>
+    /// One pre-registered swap candidate. Mirrors the swap-registry schema
+    /// so BuildSeedFamiliesCommand can serialise entries directly.
+    /// </summary>
+    public sealed class SeedSwapCandidate
+    {
+        /// <summary>Label shown in the swap picker.</summary>
+        [JsonProperty("label")]          public string Label          { get; set; } = "";
+
+        /// <summary>
+        /// Path to the manufacturer .rfa — absolute or relative to
+        /// Data/Seeds/ (e.g. "Families/Manufacturers/Legrand_2G.rfa").
+        /// </summary>
+        [JsonProperty("familyPath")]     public string FamilyPath     { get; set; } = "";
+
+        /// <summary>Regex matched against the source seed type name ("SWITCH_.*_2W"). Empty = any.</summary>
+        [JsonProperty("variantPattern")] public string VariantPattern { get; set; } = "";
+
+        /// <summary>Regex matched against the destination family type name. Empty = any.</summary>
+        [JsonProperty("typePattern")]    public string TypePattern    { get; set; } = "";
+
+        /// <summary>Lower number = offered first in the swap picker.</summary>
+        [JsonProperty("priority")]       public int    Priority       { get; set; } = 999;
+
+        /// <summary>
+        /// When true BuildSeedFamiliesCommand loads this .rfa into the
+        /// active project so it is immediately available in the catalogue.
+        /// </summary>
+        [JsonProperty("autoLoad")]       public bool   AutoLoad       { get; set; } = false;
     }
 
     /// <summary>

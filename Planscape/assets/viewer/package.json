@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node build.mjs",
     "preview": "vite preview",
     "check": "node --check coordination-viewer.js && node --check signalr-shim.js && node --check viewer-extras.js"
   },

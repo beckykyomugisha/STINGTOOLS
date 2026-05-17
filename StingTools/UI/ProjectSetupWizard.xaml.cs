@@ -120,6 +120,12 @@ namespace StingTools.UI
                 LevelRows[i].Index = i + 1;
         }
 
+        private void RenumberLevelRows()
+        {
+            for (int i = 0; i < LevelRows.Count; i++)
+                LevelRows[i].Index = i + 1;
+        }
+
         // ── Pre-populate from Revit data ─────────────────────────────
 
         /// <summary>

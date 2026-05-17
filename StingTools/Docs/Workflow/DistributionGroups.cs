@@ -42,10 +42,6 @@ namespace Planscape.Docs.Workflow
             if (!File.Exists(path)) return new List<DistributionGroup>();
             try
             {
-                // S3.6.1 — version gate before deserialise.
-                StingTools.Core.PluginSchemaVersion.EnsureFileVersion(
-                    path, "planscape.distribution-groups",
-                    StingTools.Core.PluginSchemaVersion.CurrentDistribution);
                 return JsonConvert.DeserializeObject<List<DistributionGroup>>(File.ReadAllText(path))
                        ?? new List<DistributionGroup>();
             }
@@ -106,14 +102,6 @@ namespace Planscape.Docs.Workflow
 
         private static string ResolveProjectRoot(Document doc)
         {
-            // Folder consolidation: nest "_BIM_COORD" inside the unified
-            // project root's _data folder rather than as a sibling of the .rvt.
-            try
-            {
-                string consolidated = StingTools.Core.ProjectFolderEngine.GetDataPath(doc);
-                if (!string.IsNullOrEmpty(consolidated)) return consolidated;
-            }
-            catch { /* fall through to legacy lookup */ }
             try
             {
                 string p = doc?.PathName;

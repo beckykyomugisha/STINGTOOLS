@@ -52,7 +52,7 @@ namespace StingTools.Commands.Electrical.Reports
                 }
                 view = ViewSchedule.CreateSchedule(doc,
                     new ElementId(BuiltInCategory.OST_ElectricalCircuit));
-                try { view.Name = $"STING - Voltage Drop Schedule - {DateTime.Now:yyyyMMdd-HHmm}"; } catch { }
+                try { view.Name = $"STING - Voltage Drop Schedule - {DateTime.Now:yyyyMMdd-HHmm}"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 AddVDFields(view);
                 AddSortPanelCircuit(view);
                 StampDrawingType(view);
@@ -85,7 +85,7 @@ namespace StingTools.Commands.Electrical.Reports
                         var sf = def.GetSchedulableFields().FirstOrDefault(f => f.ParameterId == pid);
                         if (sf != null) def.AddField(sf);
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"AddVDFields: {ex.Message}"); }

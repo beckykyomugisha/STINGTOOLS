@@ -36,7 +36,7 @@ namespace StingTools.Commands.Electrical.Reports
                 tx.Start();
                 view = ViewSchedule.CreateSchedule(doc,
                     new ElementId(BuiltInCategory.OST_ElectricalEquipment));
-                try { view.Name = $"STING - Fault Level Schedule - {DateTime.Now:yyyyMMdd-HHmm}"; } catch { }
+                try { view.Name = $"STING - Fault Level Schedule - {DateTime.Now:yyyyMMdd-HHmm}"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 AddFields(view);
                 StampDrawingType(view);
                 tx.Commit();

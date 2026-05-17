@@ -99,13 +99,15 @@ services:
     build:
       context: ../..
       dockerfile: Planscape.Server/docker/Dockerfile
-    command: ["dotnet", "Planscape.API.dll", "--worker"]
     environment:
       # Worker shares the same Program.cs as the api, so it needs the same
       # env to wire DI / DbContext / Redis. Without Redis__Connection the
       # default 'localhost:6379' resolves to the worker container itself
       # (no redis there) and Hangfire/SignalR backplane fail on startup.
       - ASPNETCORE_ENVIRONMENT=Development
+      # Phase 178 — PLANSCAPE_ROLE=worker activates the heavy Hangfire queues
+      # (photo-redaction, IFC conversion, DB backup) without exposing HTTP.
+      - PLANSCAPE_ROLE=worker
       - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
       - ConnectionStrings__Migrations=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
       # Phase 175 — JWT_KEY MUST be supplied via .env or shell env.
@@ -119,8 +121,10 @@ services:
       - Redis__Connection=redis:6379
       - ModelConverter__Provider=${MODEL_CONVERTER_PROVIDER:-null}
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
     volumes:
       # Worker shares the api's storage volume so background jobs (e.g.

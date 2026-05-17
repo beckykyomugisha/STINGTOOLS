@@ -71,10 +71,10 @@ namespace StingTools.UI
             WireRefGrid.ItemsSource       = WireRefRows;
             ConduitWireGrid.ItemsSource   = ConduitWires;
             // Phase 178 — bind the newly-unlocked grids
-            try { FeederResultsGrid.ItemsSource = Feeders;       } catch { }
-            try { FaultResultsGrid.ItemsSource  = FaultResults;  } catch { }
-            try { EmergAuditGrid.ItemsSource    = EmergAudit;    } catch { }
-            try { LpdGrid.ItemsSource           = LpdRows;       } catch { }
+            try { FeederResultsGrid.ItemsSource = Feeders;       } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { FaultResultsGrid.ItemsSource  = FaultResults;  } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { EmergAuditGrid.ItemsSource    = EmergAudit;    } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { LpdGrid.ItemsSource           = LpdRows;       } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             try { StingElectricalCommandHandler.Initialize(this); }
             catch (Exception ex) { Core.StingLog.Error("ElectricalPanel handler init", ex); }
@@ -84,7 +84,7 @@ namespace StingTools.UI
 
         public void UpdateStatus(string text)
         {
-            try { Dispatcher.Invoke(() => txtElecStatus.Text = text ?? ""); } catch { }
+            try { Dispatcher.Invoke(() => txtElecStatus.Text = text ?? ""); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         // ── Unified click dispatcher ─────────────────────────────────────
@@ -213,7 +213,7 @@ namespace StingTools.UI
                     ShowLoadingPct = RiserShowLoadingPct?.IsChecked == true
                 };
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private void SheetPlacementMode_Changed(object sender, SelectionChangedEventArgs e)
@@ -232,7 +232,7 @@ namespace StingTools.UI
                     LpdCustomRow.Visibility = tag == "Custom" ? Visibility.Visible : Visibility.Collapsed;
                 StingElectricalCommandHandler.CurrentLpdCustomLimit = ParseDouble(LpdCustomLimit?.Text, 0);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         private void ConduitAdd_Click(object sender, RoutedEventArgs e)
@@ -309,7 +309,7 @@ namespace StingTools.UI
         public void RefreshConduitFillResult(string text, bool exceeds)
         {
             try { Dispatcher.Invoke(() => txtConduitFillResult.Text = text + (exceeds ? "  ⚠" : "  ✅")); }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         public void RefreshBalancePreview(string before, string after)
@@ -322,12 +322,12 @@ namespace StingTools.UI
                     if (!string.IsNullOrEmpty(after))  txtBalanceAfter.Text  = after;
                 });
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         public void RefreshDescriptionPreview(string preview)
         {
-            try { Dispatcher.Invoke(() => txtDescPreview.Text = preview ?? "(no preview)"); } catch { }
+            try { Dispatcher.Invoke(() => txtDescPreview.Text = preview ?? "(no preview)"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
         // ── Snapshot collectors used by command handlers ─────────────────

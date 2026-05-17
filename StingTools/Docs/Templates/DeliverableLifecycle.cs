@@ -60,8 +60,6 @@ namespace Planscape.Docs.Templates
                 WriteAudit(doc, "doc.superseded", (string)existing.DocNumber,
                     new JObject { ["superseded_by"] = newDocNumber, ["reason"] = reason, ["user"] = issuedBy });
                 Persist(doc, existing);
-                // Phase 177 — mirror to server (fail-soft).
-                DeliverableServerSync.FireAndForget(doc, existing, "superseded", reason);
                 return new LifecycleResult { Updated = existing, TemplateId = "A03", Message = $"Superseded by {newDocNumber}" };
             }
             catch (Exception ex)
@@ -90,9 +88,6 @@ namespace Planscape.Docs.Templates
                 });
                 Persist(doc, existing);
                 Persist(doc, newReplacing);
-                // Phase 177 — mirror both rows to server.
-                DeliverableServerSync.FireAndForget(doc, existing,    "replaced",   reason);
-                DeliverableServerSync.FireAndForget(doc, newReplacing, "replacing",  reason);
                 return new LifecycleResult { Updated = newReplacing, TemplateId = "A04", Message = $"Replaces {existing.DocNumber}" };
             }
             catch (Exception ex)
@@ -128,8 +123,6 @@ namespace Planscape.Docs.Templates
                     ["reason"]      = reason
                 });
                 Persist(doc, d);
-                // Phase 177 — mirror to server (fail-soft, fire-and-forget).
-                DeliverableServerSync.FireAndForget(doc, d, action, reason);
                 return new LifecycleResult { Updated = d, TemplateId = templateId, Message = newStatus };
             }
             catch (Exception ex)
@@ -180,10 +173,6 @@ namespace Planscape.Docs.Templates
                 JArray arr;
                 if (File.Exists(path))
                 {
-                    // S3.6.2 — version gate before deserialise.
-                    StingTools.Core.PluginSchemaVersion.EnsureFileVersion(
-                        path, "planscape.deliverables",
-                        StingTools.Core.PluginSchemaVersion.CurrentDeliverables);
                     arr = JArray.Parse(File.ReadAllText(path));
                 }
                 else arr = new JArray();
@@ -220,23 +209,10 @@ namespace Planscape.Docs.Templates
         {
             try { AuditLog.Append(doc, action, docId, payload); }
             catch (Exception ex) { StingLog.Warn($"AuditLog unavailable for {action}: {ex.Message}"); }
-            // Phase 177 — stream the same event to the Planscape server so
-            // cross-workstation audit queries see it. Fire-and-forget so a
-            // network blip never breaks the local audit chain.
-            try { DeliverableServerSync.PushAudit(doc, action, "Deliverable", docId, payload); }
-            catch (Exception ex) { StingLog.Warn($"Audit server push failed: {ex.Message}"); }
         }
 
         private static string ResolveProjectRoot(Document doc)
         {
-            // Folder consolidation: nest "_BIM_COORD" inside the unified
-            // project root's _data folder rather than as a sibling of the .rvt.
-            try
-            {
-                string consolidated = StingTools.Core.ProjectFolderEngine.GetDataPath(doc);
-                if (!string.IsNullOrEmpty(consolidated)) return consolidated;
-            }
-            catch { /* fall through to legacy lookup */ }
             try
             {
                 string p = doc?.PathName;

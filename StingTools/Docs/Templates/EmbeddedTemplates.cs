@@ -48,9 +48,6 @@ namespace Planscape.Docs.Templates
             ("D14", "meeting_minutes.docx",         "D", "meeting_minutes",    null, "Meeting Minutes"),
             ("D15", "progress_report.docx",         "D", "progress_report",    null, "Progress Report"),
             ("D16", "handover_certificate.docx",    "D", "handover",           null, "Handover Certificate"),
-
-            // Healthcare Pack H-8 — Room Data Sheet (NHS ADB / HBN-driven)
-            ("E17", "healthcare_rds.docx",          "E", "rds",                null, "Room Data Sheet"),
         };
 
         /// <summary>Streams embedded files + writes defaults on first run (idempotent).</summary>
@@ -82,19 +79,7 @@ namespace Planscape.Docs.Templates
                 string resourceName = FindResource(asm, TemplateResourcePrefix, entry.File);
                 if (resourceName == null)
                 {
-                    // HC-03: For the healthcare RDS template specifically, fall back to writing a
-                    // plain-text stub that explains the token contract.  The RDS render pipeline
-                    // (RdsTokenContext → TemplateEngine) will detect the .docx absence, find the
-                    // .txt stub, and write a plain-text summary to _BIM_COORD/generated/ so that
-                    // the issue command always produces output even without the Word template.
-                    if (entry.Id == "E17" && entry.Purpose == "rds")
-                    {
-                        WritePlainTextRdsStub(target);
-                    }
-                    else
-                    {
-                        StingLog.Warn($"EmbeddedTemplates: resource missing for {entry.File}");
-                    }
+                    StingLog.Warn($"EmbeddedTemplates: resource missing for {entry.File}");
                     continue;
                 }
                 StreamToDisk(asm, resourceName, target);
@@ -150,59 +135,6 @@ namespace Planscape.Docs.Templates
             manifest.Save(manifestPath);
         }
 
-        // HC-03 — Plain-text RDS fallback written to the templates directory when the
-        // healthcare_rds.docx embedded resource is absent.  The RDS render pipeline checks
-        // for a .txt file with the same base name and renders a plain-text room-data summary
-        // using the token context rather than failing silently.
-        private static void WritePlainTextRdsStub(string docxPath)
-        {
-            try
-            {
-                string txtPath = Path.ChangeExtension(docxPath, ".txt");
-                if (File.Exists(txtPath)) return;
-
-                string stubContent =
-                    "STING HEALTHCARE — ROOM DATA SHEET TEMPLATE STUB\r\n" +
-                    "=================================================\r\n" +
-                    "\r\n" +
-                    "This file is a plain-text fallback used by the STING RDS render pipeline\r\n" +
-                    "when the full healthcare_rds.docx Word template is not present.\r\n" +
-                    "\r\n" +
-                    "To author the full Word template, use the token contract defined in\r\n" +
-                    "StingTools/Docs/Templates/TokenContext.cs (RdsTokenContext inner class).\r\n" +
-                    "\r\n" +
-                    "Mandatory tokens that must be present in the .docx as {{token}} placeholders:\r\n" +
-                    "  {{RoomNumber}}       — Room number (ASS_LOC_TXT + ASS_LVL_COD_TXT + SEQ)\r\n" +
-                    "  {{RoomName}}         — Room name from Revit Room.Name\r\n" +
-                    "  {{RoomClass}}        — CLN_ROOM_CLASS_TXT (e.g. CONSULTING, OR, ICU_BAY)\r\n" +
-                    "  {{DesignAch}}        — CLN_DESIGN_ACH_INT (target air changes per hour)\r\n" +
-                    "  {{DesignPressure}}   — CLN_DESIGN_PRESSURE_DELTA_PA_INT (Pa relative pressure)\r\n" +
-                    "  {{DesignTemp}}       — CLN_DESIGN_TEMP_C_DBL (°C set-point)\r\n" +
-                    "  {{DesignRh}}         — CLN_DESIGN_RH_PCT_INT (% relative humidity)\r\n" +
-                    "  {{NoiseNr}}          — CLN_NOISE_NR_TXT (NR target, e.g. NR-35)\r\n" +
-                    "  {{AntiLigature}}     — LIG_PRODUCT_RATING_TXT (YES / NO / PARTIAL)\r\n" +
-                    "  {{FireRating}}       — FIR_RATING_TXT (e.g. 60/60/60)\r\n" +
-                    "  {{ProjectCode}}      — PRJ_ORG_PROJECT_CODE_TXT\r\n" +
-                    "  {{OriginatorCode}}   — PRJ_ORG_ORIGINATOR_CODE_TXT\r\n" +
-                    "  {{IssueDate}}        — Current date at render time\r\n" +
-                    "  {{Revision}}         — ASS_REV_TXT\r\n" +
-                    "\r\n" +
-                    "Place the authored healthcare_rds.docx in the same folder as this file\r\n" +
-                    "(_BIM_COORD/templates/) to enable rich Word rendering.\r\n" +
-                    "\r\n" +
-                    "When this .txt stub is present and the .docx is absent, the RDS pipeline\r\n" +
-                    "writes a plain-text summary to _BIM_COORD/generated/ with all token values\r\n" +
-                    "substituted, so RDS issue commands always produce output.\r\n";
-
-                File.WriteAllText(txtPath, stubContent, System.Text.Encoding.UTF8);
-                StingLog.Info("EmbeddedTemplates: created plain-text RDS stub at " + txtPath);
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("EmbeddedTemplates.WritePlainTextRdsStub failed", ex);
-            }
-        }
-
         private static string FindResource(Assembly asm, string prefix, string fileName)
         {
             string simple = prefix + fileName;
@@ -221,14 +153,6 @@ namespace Planscape.Docs.Templates
 
         private static string ResolveProjectRoot(Document doc)
         {
-            // Folder consolidation: nest "_BIM_COORD" inside the unified
-            // project root's _data folder rather than as a sibling of the .rvt.
-            try
-            {
-                string consolidated = StingTools.Core.ProjectFolderEngine.GetDataPath(doc);
-                if (!string.IsNullOrEmpty(consolidated)) return consolidated;
-            }
-            catch { /* fall through to legacy lookup */ }
             try
             {
                 string p = doc?.PathName;

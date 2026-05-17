@@ -56,7 +56,7 @@ namespace StingTools.Core.Validation
             {
                 if (c == null) continue;
                 bool isConnected = false;
-                try { isConnected = c.IsConnected; } catch { }
+                try { isConnected = c.IsConnected; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (!isConnected) open++;
             }
             if (open == 0) return;
@@ -98,7 +98,7 @@ namespace StingTools.Core.Validation
                     if (r == "CAPPED" || r == "REDUCER" || r == "BLANK") return true;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
         }
     }

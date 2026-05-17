@@ -133,7 +133,7 @@ namespace StingTools.Core.Symbols
         private static bool HasSymbolId(IndependentTag tag)
         {
             try { return !string.IsNullOrEmpty(tag.LookupParameter("STING_SYMBOL_ID")?.AsString()); }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
     }
 }

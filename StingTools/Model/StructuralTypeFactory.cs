@@ -322,8 +322,8 @@ namespace StingTools.Model
                 name, @"(\d+(?:\.\d+)?)\s*[x×X]\s*(\d+(?:\.\d+)?)");
             if (match.Success)
             {
-                if (double.TryParse(match.Groups[1].Value, out double v1) &&
-                    double.TryParse(match.Groups[2].Value, out double v2))
+                if (double.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double v1) &&
+                    double.TryParse(match.Groups[2].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double v2))
                 {
                     // Imperial sections: values are in inches (W14x22 = 14" deep, 22 lb/ft)
                     if (isImperial)
@@ -339,7 +339,7 @@ namespace StingTools.Model
                 name, @"[A-Za-z]+\s*(\d{2,4})");
             if (match.Success)
             {
-                if (double.TryParse(match.Groups[1].Value, out double v))
+                if (double.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double v))
                 {
                     if (isImperial) v *= 25.4; // inches → mm
                     return (v, v);

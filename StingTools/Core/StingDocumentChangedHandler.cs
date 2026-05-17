@@ -21,7 +21,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Events;
 using Autodesk.Revit.UI;
@@ -98,6 +97,12 @@ namespace StingTools.Core
         {
             if (id == null || id == ElementId.InvalidElementId) return;
             long key = id.Value;
+            lock (_recentlyProcessed)
+            {
+                if (_recentlyProcessed.Contains(key)) return;
+                if (_recentlyProcessed.Count > RecentCacheLimit)
+                    _recentlyProcessed.Clear();
+            }
 
             Element el;
             try { el = doc.GetElement(id); } catch { return; }
@@ -105,20 +110,6 @@ namespace StingTools.Core
 
             CascadeKind kind = ClassifyCascade(el);
             if (kind == CascadeKind.None) return;
-
-            // Views can be re-scaled multiple times; the dedup set is a
-            // one-shot guard, so skip it for ViewScaleChanged. All other
-            // cascades stay deduped to avoid re-running rebuilds on every
-            // micro-edit during a single transaction batch.
-            if (kind != CascadeKind.ViewScaleChanged)
-            {
-                lock (_recentlyProcessed)
-                {
-                    if (_recentlyProcessed.Contains(key)) return;
-                    if (_recentlyProcessed.Count > RecentCacheLimit)
-                        _recentlyProcessed.Clear();
-                }
-            }
 
             _queue.Enqueue(new CascadeItem { Kind = kind, ElementId = id, DocHash = doc.PathName ?? "" });
         }
@@ -131,37 +122,12 @@ namespace StingTools.Core
                 int catId = (int)(el.Category.Id.Value);
                 if (catId == (int)BuiltInCategory.OST_Rooms) return CascadeKind.RoomRenamed;
                 if (catId == (int)BuiltInCategory.OST_Sheets) return CascadeKind.SheetRenumbered;
-                // Review fix for tag-scale issue: a View with TAG_SCALE_TIER_AUTO
-                // active needs to re-apply scale-aware tag styling whenever its
-                // Scale property is mutated. View elements come through
-                // GetModifiedElementIds with no category match above; pick them
-                // up here so OnIdling can dispatch Tags.SetScaleAwareTagSize.
-                if (el is Autodesk.Revit.DB.View view && !view.IsTemplate
-                    && IsScalable(view))
-                    return CascadeKind.ViewScaleChanged;
                 // Any taggable category whose level may have changed.
                 if (el.LevelId != null && el.LevelId != ElementId.InvalidElementId)
                     return CascadeKind.ElementLevelChanged;
             }
             catch { }
             return CascadeKind.None;
-        }
-
-        private static bool IsScalable(Autodesk.Revit.DB.View v)
-        {
-            switch (v.ViewType)
-            {
-                case ViewType.FloorPlan:
-                case ViewType.CeilingPlan:
-                case ViewType.Elevation:
-                case ViewType.Section:
-                case ViewType.Detail:
-                case ViewType.AreaPlan:
-                case ViewType.EngineeringPlan:
-                    return true;
-                default:
-                    return false;
-            }
         }
 
         private static void OnIdling(object sender, IdlingEventArgs e)
@@ -193,11 +159,7 @@ namespace StingTools.Core
                                 ApplyCascade(doc, el, item.Kind);
                                 t.Commit();
                             }
-                            // ViewScaleChanged stays out of the dedup set so a
-                            // user adjusting view scale repeatedly keeps getting
-                            // the auto-style apply each time.
-                            if (item.Kind != CascadeKind.ViewScaleChanged)
-                                lock (_recentlyProcessed) _recentlyProcessed.Add(item.ElementId.Value);
+                            lock (_recentlyProcessed) _recentlyProcessed.Add(item.ElementId.Value);
                             drained++;
                         }
                         catch (Exception ex)
@@ -259,31 +221,6 @@ namespace StingTools.Core
                     }
                     catch { /* non-fatal */ }
                     break;
-
-                case CascadeKind.ViewScaleChanged:
-                    try
-                    {
-                        if (!(el is Autodesk.Revit.DB.View view) || view.IsTemplate) break;
-                        // Honour the project-level opt-in: TAG_SCALE_TIER_AUTO_BOOL on
-                        // ProjectInformation. When unset / false, leave the user's
-                        // manual style alone.
-                        Element projInfo = doc.ProjectInformation;
-                        Parameter flag = projInfo?.LookupParameter(ParamRegistry.TAG_SCALE_TIER_AUTO);
-                        if (flag == null || flag.StorageType != StorageType.Integer || flag.AsInteger() == 0)
-                            break;
-
-                        ScaleTiers.Tier tier = ScaleTiers.ForView(view);
-                        if (!ParamRegistry.TagStyleSizes.Contains(tier.TextSizeMm)) break;
-                        var result = Tags.SetScaleAwareTagSizeCommand.ApplyToView(
-                            doc, view, tier.TextSizeMm, "AutoOnScaleChange");
-                        int total = result.InstanceSwitches + result.TypeMatrixFlips;
-                        if (total > 0)
-                            StingLog.Info($"AutoScaleTagSize on view-scale change: view='{view.Name}' " +
-                                          $"changed={total} (instances={result.InstanceSwitches}, " +
-                                          $"typeFlips={result.TypeMatrixFlips})");
-                    }
-                    catch (Exception ex) { StingLog.Warn($"ViewScaleChanged cascade: {ex.Message}"); }
-                    break;
             }
         }
 
@@ -301,7 +238,6 @@ namespace StingTools.Core
             RoomRenamed,
             ElementLevelChanged,
             SheetRenumbered,
-            ViewScaleChanged,
         }
 
         private class CascadeItem

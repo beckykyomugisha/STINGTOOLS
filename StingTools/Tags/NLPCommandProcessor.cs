@@ -226,6 +226,68 @@ namespace StingTools.Tags
                 "Healthcare_WasteFlow", "HealthcareValidate", "Clinical waste flow audit (HTM 07-01)"),
             (@"\b(iot\s*(devices|registry|inventory)|bms\s*registry)\b",
                 "Healthcare_IoTRegistry", "HealthcareValidate", "IoT device registry inspector"),
+
+            // Panel Schedule commands (Phase 176 — BatchPanelSchedulesCommand)
+            (@"\b(batch\s*panel\s*schedule|create\s*panel\s*schedule|auto\s*panel)\b",
+                "Panel_BatchSchedules", "PanelSchedules", "Batch-create panel schedules from rules (Phase 176)"),
+            (@"\b(panel\s*audit|panel\s*drift|schedule\s*drift)\b",
+                "Panel_Audit", "PanelSchedules", "Audit panels for missing schedules and template drift"),
+            (@"\b(fill\s*(spare|spares)\s*(circuit|ways?|slot)|panel\s*spare)\b",
+                "Panel_FillSpares", "PanelSchedules", "Fill empty circuit slots with spares"),
+            (@"\b(panel\s*(schedule\s*)?export|export\s*panel\s*(to\s*)?excel)\b",
+                "Panel_ExportToExcel", "PanelSchedules", "Export panel schedules to Excel"),
+            (@"\b(panel\s*(schedule\s*)?import|import\s*panel\s*(from\s*)?excel)\b",
+                "Panel_ImportFromExcel", "PanelSchedules", "Import panel schedules from Excel"),
+
+            // Routing / Auto-Drop (v4 MVP — AutoDropCommand, GenerateLayoutCommand)
+            (@"\b(auto\s*drop|auto.?route|mep\s*drop)\b",
+                "Routing_AutoDrop", "Routing", "Auto-drop MEP services off main to branches (v4 MVP)"),
+            (@"\b(generate\s*layout|routing\s*layout|mep\s*layout)\b",
+                "Routing_GenerateLayout", "Routing", "Generate MEP routing layout (v4 MVP)"),
+            (@"\b(validate\s*fill|fill\s*check|fill\s*ratio\s*check)\b",
+                "Routing_ValidateFills", "Routing", "Validate conduit and cable tray fill ratios (v4 MVP)"),
+
+            // Penetrations & Sleeves (PenetrationsDetectAndPlaceCommand / SleeveEngine)
+            (@"\b(detect\s*penetration|penetration\s*detect|mep\s*penetration|auto\s*penetrat)\b",
+                "Routing_DetectPenetrations", "Penetrations", "Detect and place MEP penetrations through structure"),
+            (@"\b(auto\s*sleeve|place\s*sleeve|sleeve\s*place|sleeve\s*size)\b",
+                "Routing_AutoSleeve", "Penetrations", "Auto-size and place fire-rated MEP sleeves"),
+            (@"\b(sleeve\s*audit|sleeve\s*check|sleeve\s*rating|slv\s*audit)\b",
+                "Routing_SleeveAudit", "Penetrations", "Audit MEP sleeves for missing fire rating / seal type"),
+
+            // Fabrication (v4 MVP — GenerateFabPackageCommand)
+            (@"\b(generate\s*fab|fab\s*package|fabrication\s*package)\b",
+                "Fabrication_GeneratePackage", "Fabrication", "Generate fabrication package (spool drawings + cut list)"),
+            (@"\b(export\s*cut\s*list|cut\s*list|isometric\s*export|export\s*iso)\b",
+                "Fabrication_ExportCutList", "Fabrication", "Export cut list / isometric drawings from fab package"),
+            (@"\b(weld\s*map|export\s*weld|iso\s*symbol)\b",
+                "Fabrication_ExportWeldMap", "Fabrication", "Export weld map and ISO 6412 symbols"),
+            (@"\b(spool\s*(number|nr|check|audit)|check\s*spool)\b",
+                "Fabrication_SpoolAudit", "Fabrication", "Check elements for missing spool numbers (v4 MVP)"),
+
+            // Placement (v4 MVP — PlaceFixturesCommand, LightingGridCommand)
+            (@"\b(place\s*fixture|fixture\s*place|auto\s*fix\s*place)\b",
+                "Placement_PlaceFixtures", "Placement", "Rule-based fixture placement (v4 MVP)"),
+            (@"\b(lighting\s*grid|place\s*light\s*grid|auto\s*light)\b",
+                "Placement_LightingGrid", "Placement", "Lighting grid auto-placement (v4 MVP)"),
+
+            // Drawing Types / Scope Boxes (DrawingTemplateManager)
+            (@"\b(sync\s*style|drawing\s*style\s*sync|drift\s*repair|repair\s*drift)\b",
+                "DrawingTypes_SyncStyles", "DrawingTypes", "Sync drawing type styles and repair drift"),
+            (@"\b(from\s*scope\s*box|scope\s*box\s*view|generate\s*from\s*scope)\b",
+                "DrawingTypes_FromScopeBoxes", "DrawingTypes", "Generate views from STING scope box naming convention"),
+            (@"\b(browser\s*organ|view\s*browser\s*org|drawing\s*browser)\b",
+                "DrawingTypes_BrowserOrganize", "DrawingTypes", "Create browser organizer by drawing type"),
+            (@"\b(inspect\s*drawing\s*type|drawing\s*type\s*inspect|list\s*drawing\s*type)\b",
+                "DrawingTypes_Inspect", "DrawingTypes", "Inspect all drawing types and routing rules"),
+            (@"\b(reload\s*drawing\s*type|refresh\s*drawing|drawing\s*type\s*reload)\b",
+                "DrawingTypes_Reload", "DrawingTypes", "Reload drawing type registry from disk"),
+
+            // Lightning Protection (LPS — Phase 176)
+            (@"\b(lightning\s*protect|lps\s*audit|lps\s*check|earth\s*resist(ance)?)\b",
+                "LPS_Audit", "LPS", "Audit lightning protection system compliance (BS EN 62305)"),
+            (@"\b(down\s*conduct|air\s*terminal\s*audit|lps\s*class)\b",
+                "LPS_Conductors", "LPS", "Check LPS down conductor count and cross-section"),
         };
 
         // BIM Knowledge Base entries

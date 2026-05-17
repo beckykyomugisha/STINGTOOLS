@@ -209,7 +209,7 @@ namespace StingTools.Core.Fabrication
         {
             try { var p = el.LookupParameter(param);
                   return p != null && p.StorageType == StorageType.Integer && p.AsInteger() == 1; }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         private static double SafeLengthFt(Element el)
@@ -219,7 +219,7 @@ namespace StingTools.Core.Fabrication
                 if (el is MEPCurve mep)
                     return ((mep.Location as LocationCurve)?.Curve?.Length) ?? 0.0;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0.0;
         }
 

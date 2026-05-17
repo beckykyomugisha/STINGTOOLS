@@ -433,78 +433,12 @@ namespace StingTools.Tags
         /// overrides then the bundled SCALE_TIERS.json then a hardcoded
         /// fallback. Result is mm → ft × viewScale, clamped to the cap.
         /// </summary>
-        /// <summary>
-        /// B-3: estimate a tag's bounding box when get_BoundingBox returns
-        /// null. Uses the view's tag-text height × character count as a width
-        /// approximation centred on the tag's head position. Returns
-        /// <see cref="Box2D.IsEmpty"/> when no head position is available.
-        /// </summary>
-        internal static Box2D EstimateTagBoxFallback(IndependentTag tag, View view, double tagWidth, double tagHeight)
-        {
-            try
-            {
-                XYZ head = tag?.TagHeadPosition;
-                if (head == null) return new Box2D(0, 0, 0, 0);
-                string text = "";
-                try { text = tag.TagText ?? ""; } catch { }
-                int chars = Math.Max(8, text.Length);
-                // Tag text width ~ tagWidth * chars/8 (calibrated to 8-char base width).
-                double estW = Math.Max(tagWidth, tagWidth * chars / 8.0);
-                double estH = tagHeight;
-                return new Box2D(
-                    head.X - estW / 2.0, head.Y - estH / 2.0,
-                    head.X + estW / 2.0, head.Y + estH / 2.0);
-            }
-            catch { return new Box2D(0, 0, 0, 0); }
-        }
-
-        public static double GetModelOffset(View view, double baseOffset = 0.01)
-            => GetModelOffset(view, null, baseOffset);
-
-        /// <summary>
-        /// Phase 165 — overload that applies the per-category multiplier from
-        /// SCALE_CATEGORY_MULTIPLIERS (Tag Studio Scale tab sliders) to the
-        /// resolved tier offset. Pass an Element to look up its category and
-        /// multiply automatically; pass null for the base behaviour.
-        /// </summary>
-        public static double GetModelOffset(View view, Element host, double baseOffset = 0.01)
+        public static int ReadTagPriority(Element host)
         {
             int viewScale = (view != null && view.Scale > 0) ? view.Scale : 100;
             Core.ScaleTiers.Tier tier = Core.ScaleTiers.ForView(view);
             double offsetFt = (tier.OffsetMm / 304.8) * viewScale;
-            // Per-category multiplier from the Scale tab sliders. Defaults to 1.0
-            // for unmapped categories, so callers that pass null host behave
-            // exactly as before (offsetFt unchanged).
-            if (host != null)
-            {
-                string key = MultiplierKeyForCategory(host);
-                if (!string.IsNullOrEmpty(key))
-                {
-                    double mult = Core.ScaleTiers.GetCategoryMultiplier(key);
-                    if (mult > 0 && Math.Abs(mult - 1.0) > 0.001) offsetFt *= mult;
-                }
-            }
             return Math.Min(offsetFt, Core.ScaleTiers.OffsetCapFt);
-        }
-
-        // Phase 165 — map a Revit category to one of the four multiplier
-        // keys exposed in the Scale tab. Returns null when no bucket matches
-        // so the offset is left untouched.
-        private static string MultiplierKeyForCategory(Element host)
-        {
-            try
-            {
-                string cat = host?.Category?.Name ?? "";
-                if (string.IsNullOrEmpty(cat)) return null;
-                if (cat.IndexOf("Duct", StringComparison.OrdinalIgnoreCase) >= 0)     return "DUCTS";
-                if (cat.IndexOf("Pipe", StringComparison.OrdinalIgnoreCase) >= 0)     return "PIPES";
-                // Equipment buckets — Mechanical Equipment, Electrical Equipment
-                if (cat.IndexOf("Equipment", StringComparison.OrdinalIgnoreCase) >= 0) return "EQUIPMENT";
-                // Fixture buckets — Lighting Fixtures, Plumbing Fixtures, Electrical Fixtures
-                if (cat.IndexOf("Fixture", StringComparison.OrdinalIgnoreCase) >= 0)   return "FIXTURES";
-                return null;
-            }
-            catch { return null; }
         }
 
         /// <summary>Get element center point in view coordinates.</summary>
@@ -845,7 +779,7 @@ namespace StingTools.Tags
                 var bic = (BuiltInCategory)cat.Id.Value;
                 return TagFamilyConfig.GetFamilyName(bic);
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return $"{TagFamilyConfig.FamilyPrefix} - {cat.Name} Tag"; }
+            catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] GetStingFamilyName BIC cast: {ex.Message}"); return $"{TagFamilyConfig.FamilyPrefix} - {cat.Name} Tag"; }
         }
 
         // ── View crop box helper ─────────────────────────────────────
@@ -859,7 +793,7 @@ namespace StingTools.Tags
                 if (crop == null) return null;
                 return Box2D.FromBoundingBox(crop);
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
+            catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] GetViewCropBox: {ex.Message}"); return null; }
         }
 
         // ── Performance: suppress annotation regen ───────────────────
@@ -951,12 +885,12 @@ namespace StingTools.Tags
             // GAP-N: route through Stamper.Read so a template-controlled
             // pack=…|cs=… stamp doesn't leak into the registry lookup.
             try { dtId = StingTools.Core.Drawing.DrawingTypeStamper.Read(view); }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] DrawingTypeStamper.Read: {ex.Message}"); return 0; }
             if (string.IsNullOrWhiteSpace(dtId)) return 0;
 
             StingTools.Core.Drawing.DrawingType dt;
             try { dt = StingTools.Core.Drawing.DrawingTypeRegistry.Get(doc, dtId); }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] DrawingTypeRegistry.Get({dtId}): {ex.Message}"); return 0; }
             if (dt == null) return 0;
             string disc = dt.Discipline;
             if (string.IsNullOrWhiteSpace(disc) || disc == "*") return 0;
@@ -975,7 +909,7 @@ namespace StingTools.Tags
                     }
                     return !string.Equals(elDisc, disc, StringComparison.OrdinalIgnoreCase);
                 }
-                catch { return false; }
+                catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] DrawingType discipline filter: {ex.Message}"); return false; }
             });
             return before - elements.Count;
         }
@@ -1390,7 +1324,7 @@ namespace StingTools.Tags
                             if (tag != null) placed++;
                             else skipped++;
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; }
+                        catch (Exception ex) { StingLog.Warn($"[TagPlacementEngine] IndependentTag.Create on linked view: {ex.Message}"); skipped++; }
                     }
                 }
                 catch (Exception ex)
@@ -1609,7 +1543,7 @@ namespace StingTools.Tags
                         useLeader, orient, tagPos);
                     if (tag != null) placed++;
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; }
+                catch (Exception ex) { StingLog.Warn($"[PlacementPreset] IndependentTag.Create from preset: {ex.Message}"); skipped++; }
             }
 
             return (placed, skipped);
@@ -1660,7 +1594,7 @@ namespace StingTools.Tags
             var tags = new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(IndependentTag))
                 .Cast<IndependentTag>()
-                .OrderBy(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0.0; } })
+                .OrderBy(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"[AlignTagBands] Read TagHeadPosition.Y for sort: {ex.Message}"); return 0.0; } })
                 .ToList();
 
             if (tags.Count < 2) return 0;
@@ -1670,8 +1604,8 @@ namespace StingTools.Tags
             for (int i = 1; i < tags.Count; i++)
             {
                 double prevY, thisY;
-                try { prevY = tags[i - 1].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); prevY = 0; }
-                try { thisY = tags[i].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); thisY = 0; }
+                try { prevY = tags[i - 1].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"[AlignTagBands] Read prev TagHeadPosition.Y: {ex.Message}"); prevY = 0; }
+                try { thisY = tags[i].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"[AlignTagBands] Read this TagHeadPosition.Y: {ex.Message}"); thisY = 0; }
 
                 if (Math.Abs(thisY - prevY) <= tagHeightEstimate * 1.2)
                     current.Add(tags[i]);
@@ -1686,7 +1620,7 @@ namespace StingTools.Tags
             int moved = 0;
             foreach (var group in groups)
             {
-                var ys = group.Select(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0.0; } })
+                var ys = group.Select(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"[AlignTagBands] Read group TagHeadPosition.Y: {ex.Message}"); return 0.0; } })
                     .OrderBy(y => y).ToList();
                 double medianY = ys[ys.Count / 2];
                 foreach (var tag in group)
@@ -2649,7 +2583,7 @@ namespace StingTools.Tags
                 .Where(f =>
                 {
                     try { return f.FamilyCategory?.CategoryType == CategoryType.Annotation; }
-                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
+                    catch (Exception ex) { StingLog.Warn($"[BatchTagTextSize] Read FamilyCategory.CategoryType: {ex.Message}"); return false; }
                 })
                 .OrderBy(f => f.Name)
                 .ToList();
@@ -2988,7 +2922,7 @@ namespace StingTools.Tags
             }
 
             var typeIds = new HashSet<ElementId>(
-                scope.Select(e => { try { return e.GetTypeId(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ElementId.InvalidElementId; } })
+                scope.Select(e => { try { return e.GetTypeId(); } catch (Exception ex) { StingLog.Warn($"[SwitchTagPosition] Element.GetTypeId: {ex.Message}"); return ElementId.InvalidElementId; } })
                     .Where(id => id != ElementId.InvalidElementId));
 
             int updated = 0;
@@ -3422,7 +3356,7 @@ namespace StingTools.Tags
                                 {
                                     elbowPos = tag.GetLeaderEnd(hostRef);
                                 }
-                                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); elbowPos = elemCenter; }
+                                catch (Exception ex) { StingLog.Warn($"[AdjustElbows] tag.GetLeaderEnd: {ex.Message}"); elbowPos = elemCenter; }
                                 break;
                         }
 

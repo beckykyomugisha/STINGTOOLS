@@ -59,7 +59,8 @@ namespace StingTools.Docs
                     if (area > 10000)
                         result.Issues.Add(new SpatialIssue(room.Id, "Very Large Room", $"Room '{name}' ({number}) area = {area:F0} sqft — verify", "Low"));
                 }
-                catch (Exception ex) { StingLog.Warn($"SpatialAudit room: {ex.Message}"); }
+                // Rate-limited: foreach over all rooms (can reach 5000 on hospital projects).
+                catch (Exception ex) { StingLog.WarnRateLimited("SpatialAudit.Room", $"SpatialAudit room: {ex.Message}"); }
             }
 
             // Check for duplicate room numbers

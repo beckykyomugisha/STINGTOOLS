@@ -36,7 +36,7 @@ namespace StingTools.UI
         public CircuitWizardDialog(UIApplication app)
         {
             InitializeComponent();
-            try { ThemeManager.RegisterTarget(this); ThemeManager.InitialiseResources(); } catch { }
+            try { ThemeManager.RegisterTarget(this); ThemeManager.InitialiseResources(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             _app = app;
             _doc = app?.ActiveUIDocument?.Document;
             ProposalGrid.ItemsSource = Proposals;
@@ -117,7 +117,7 @@ namespace StingTools.UI
                 var sets = fi.MEPModel?.GetElectricalSystems();
                 return sets != null && sets.Count > 0;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
         private static (double loadVA, double voltage, int poles) ReadConnectorData(FamilyInstance fi)
@@ -141,7 +141,7 @@ namespace StingTools.UI
                             // to family parameters below.
                             var _ = c.GetMEPConnectorInfo();
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     }
                 }
                 // Voltage from family / system param (defaults to 230V).
@@ -150,7 +150,7 @@ namespace StingTools.UI
                     var vp = fi.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE);
                     if (vp != null) voltageV = vp.AsDouble();
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             catch (Exception ex) { StingLog.Warn($"ReadConnectorData: {ex.Message}"); }
             return (load, voltageV, poles);

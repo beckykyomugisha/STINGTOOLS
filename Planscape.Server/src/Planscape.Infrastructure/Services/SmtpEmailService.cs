@@ -90,6 +90,9 @@ public class SmtpEmailService : IEmailService
         await SendAsync(toEmail, new RenderedEmail(subject, html, StripHtml(htmlBody)), ct);
     }
 
+    public Task SendAsync(string toEmail, string subject, string htmlBody, CancellationToken ct = default)
+        => SendNotificationAsync(toEmail, subject, htmlBody, ct);
+
     // ── Rendering helpers ─────────────────────────────────────────────────────
 
     private async Task<RenderedEmail> RenderAsync(
@@ -279,4 +282,7 @@ public class NullEmailService : IEmailService
             toEmail, subject);
         return Task.CompletedTask;
     }
+
+    public Task SendAsync(string toEmail, string subject, string htmlBody, CancellationToken ct = default)
+        => SendNotificationAsync(toEmail, subject, htmlBody, ct);
 }

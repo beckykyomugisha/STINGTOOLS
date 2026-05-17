@@ -108,7 +108,7 @@ namespace StingTools.Commands.RoutingExt
                     var fr = el.LookupParameter("FIRE_RATING")?.AsString() ?? "";
                     if (fr.Contains("60") || fr.Contains("90") || fr.Contains("120")) compartmentWalls++;
                 }
-            } catch { }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             RtPanel.B("RT-05 Auto fire damper", "Approved Document B + BS 9999")
                 .AddSection("SCAN")
                 .Metric("Ducts in model",       ducts.ToString())

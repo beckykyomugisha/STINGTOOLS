@@ -100,7 +100,7 @@ namespace StingTools.UI
             btnOk.Click    += (s, e) => { result = current; win.DialogResult = true; win.Close(); };
 
             win.Content = root;
-            try { win.Owner = Application.Current?.MainWindow; } catch { }
+            try { win.Owner = Application.Current?.MainWindow; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             win.ShowDialog();
             return result;
         }

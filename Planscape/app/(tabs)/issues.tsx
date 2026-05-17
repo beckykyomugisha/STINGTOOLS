@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Vibration,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -69,27 +70,6 @@ async function openViewer(projectCode: string, modelId?: string | null): Promise
   }
 }
 
-/**
- * Phase 94 — MOB-01/MOB-06. Open the Planscape xeokit viewer for a project in
- * an in-app browser. URL shape is {serverUrl}/viewer/index.html?model=<code>.xkt.
- * The viewer itself lives in wwwroot on the Planscape.Server and reads the
- * 'model' query parameter to fetch the xkt bundle.
- */
-async function openViewer(projectCode: string): Promise<void> {
-  try {
-    const base = await _getBaseUrl();
-    const url = `${base}/viewer/index.html?model=${encodeURIComponent(projectCode)}.xkt`;
-    await WebBrowser.openBrowserAsync(url, {
-      // Corporate-themed in-app browser tab — falls back to Safari View
-      // Controller on iOS and Custom Tabs on Android automatically.
-      toolbarColor: theme.colors.primary,
-      controlsColor: theme.colors.accent,
-      dismissButtonStyle: 'close',
-    });
-  } catch (err) {
-    Alert.alert('Viewer unavailable', err instanceof Error ? err.message : String(err));
-  }
-}
 
 type PriorityFilter = 'ALL' | 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 type StatusFilter = 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
@@ -151,6 +131,7 @@ export default function IssuesScreen() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newType, setNewType] = useState('RFI');
@@ -375,6 +356,7 @@ export default function IssuesScreen() {
     setNewModelElementGuid(null);
     setNewModelXyz(null);
     setCreationStatus(null);
+    setModalError(null);
   }
 
   // MODEL-VIEWER — lazy-load the project's models the first time the create
@@ -558,19 +540,22 @@ export default function IssuesScreen() {
       resetCreateForm();
       loadData(activeProject.id);
     } catch (err) {
-      // NEW-INFO-14 — Explicit handling for the geofence 403 so the user sees
-      // "Outside project boundary" rather than a raw HTTP error.
+      // NEW-INFO-14 — surface creation errors inside the modal so the user
+      // can see them without closing the form and losing their input.
       const msg = err instanceof Error ? err.message : 'Failed to create issue';
+      let friendly: string;
       if (msg.includes('HTTP 403') || msg.toLowerCase().includes('geofence')
           || msg.toLowerCase().includes('outside the project')) {
-        setError('Outside project geofence — move on site or ask your BIM manager to widen the boundary.');
+        friendly = 'Outside project geofence — move on site or ask your BIM manager to widen the boundary.';
       } else if (msg.includes('HTTP 400') && msg.toLowerCase().includes('latitude')) {
-        setError('Invalid GPS reading — try again in a moment.');
+        friendly = 'Invalid GPS reading — try again in a moment.';
       } else if (msg.includes('HTTP 400') && msg.toLowerCase().includes('assignee')) {
-        setError('Chosen assignee is not a member of this project.');
+        friendly = 'Chosen assignee is not a member of this project.';
       } else {
-        setError(msg);
+        friendly = msg;
       }
+      setModalError(friendly);
+      Vibration.vibrate(80);
     } finally {
       setCreating(false);
       setCreationStatus(null);
@@ -739,6 +724,25 @@ export default function IssuesScreen() {
         >
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>New Issue</Text>
+
+            {/* In-modal error banner — keeps user's input intact */}
+            {modalError ? (
+              <View style={styles.modalErrorBanner}>
+                <Text style={styles.modalErrorText}>{modalError}</Text>
+                <TouchableOpacity onPress={() => setModalError(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={styles.modalErrorDismiss}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {/* ScrollView keeps the Create button reachable even on small
+                screens or when the keyboard is visible. */}
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
 
             {newElementIds ? (
               <View style={styles.linkedElementChip}>
@@ -956,30 +960,44 @@ export default function IssuesScreen() {
             )}
 
             {creationStatus && (
-              <Text style={{
-                marginTop: theme.spacing.sm,
-                fontSize: theme.fontSize.xs,
-                color: theme.colors.textSecondary,
-                textAlign: 'center',
-              }}>{creationStatus}</Text>
+              <Text style={styles.creationStatusText}>{creationStatus}</Text>
             )}
 
+            </ScrollView>
+
+            {/* Action row pinned below the scroll area so it's always visible */}
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.cancelButton}
                 onPress={() => { setShowCreate(false); resetCreateForm(); }}
+                activeOpacity={0.7}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.createButton, (!newTitle.trim() || creating) && styles.buttonDisabled]}
-                onPress={handleCreate}
+                style={[
+                  styles.createButton,
+                  creating && styles.createButtonBusy,
+                  (!newTitle.trim() || creating) && styles.buttonDisabled,
+                ]}
+                onPress={() => {
+                  if (!newTitle.trim() || creating) return;
+                  Vibration.vibrate(30);
+                  handleCreate();
+                }}
+                activeOpacity={0.75}
                 disabled={!newTitle.trim() || creating}
+                accessibilityRole="button"
+                accessibilityLabel="Create issue"
+                accessibilityState={{ disabled: !newTitle.trim() || creating, busy: creating }}
               >
                 {creating ? (
-                  <ActivityIndicator color={theme.colors.surface} size="small" />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <ActivityIndicator color={theme.colors.surface} size="small" />
+                    <Text style={styles.createButtonText}>Creating…</Text>
+                  </View>
                 ) : (
-                  <Text style={styles.createButtonText}>Create</Text>
+                  <Text style={styles.createButtonText}>Create issue →</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -1574,14 +1592,58 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     backgroundColor: theme.colors.accent,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    shadowColor: theme.colors.accent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  createButtonBusy: {
+    backgroundColor: theme.colors.primary,
   },
   buttonDisabled: {
-    opacity: 0.5,
+    opacity: 0.45,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   createButtonText: {
     fontSize: theme.fontSize.md,
-    fontWeight: '600',
+    fontWeight: '700',
     color: theme.colors.surface,
+  },
+  modalScroll: {
+    flexShrink: 1,
+  },
+  modalScrollContent: {
+    paddingBottom: theme.spacing.sm,
+  },
+  modalErrorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFEBEE',
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+    gap: theme.spacing.sm,
+  },
+  modalErrorText: {
+    flex: 1,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.danger,
+  },
+  modalErrorDismiss: {
+    fontSize: 14,
+    color: theme.colors.danger,
+    fontWeight: '700',
+  },
+  creationStatusText: {
+    marginTop: theme.spacing.sm,
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
   },
 
   // Phase 96 — bulk action bar + multi-select checkbox

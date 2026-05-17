@@ -48,7 +48,7 @@ namespace StingTools.Commands.StandardsExt
             try {
                 rooms = new FilteredElementCollector(ctx.Doc).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType().GetElementCount();
                 doors = new FilteredElementCollector(ctx.Doc).OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType().GetElementCount();
-            } catch { }
+            } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             StdP.B("STD-03 Accessibility audit", "BS 8300 + Part M + ADA")
                 .AddSection("SCOPE")
                 .Metric("Rooms", rooms.ToString())

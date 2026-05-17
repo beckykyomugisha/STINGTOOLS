@@ -573,7 +573,7 @@ namespace StingTools.Core.Clash
                 var ws = doc.GetWorksetTable().GetWorkset(el.WorksetId);
                 return ws?.Name ?? "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         /// <summary>

@@ -427,9 +427,16 @@ public class SitePhotosController : ControllerBase
         [FromBody] ApproveRequest req,
         CancellationToken ct)
     {
-        if (!await IsApproverAsync(projectId, ct)) return Forbid();
         var photo = await LoadPhotoAsync(projectId, photoId, ct);
         if (photo == null) return NotFound();
+
+        // Prevent self-approval: the approver cannot approve their own photo
+        var callerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                      ?? User.FindFirst("sub")?.Value;
+        if (photo.CapturedByUserId.HasValue && photo.CapturedByUserId.ToString() == callerId)
+            return BadRequest(new { error = "You cannot approve your own photo. Another approver must review it." });
+
+        if (!await IsApproverAsync(projectId, ct)) return Forbid();
 
         var caption = (req.Caption ?? photo.Caption ?? "").Trim();
         if (caption.Length < MinCaptionChars)
@@ -467,9 +474,17 @@ public class SitePhotosController : ControllerBase
         [FromBody] RejectRequest req,
         CancellationToken ct)
     {
-        if (!await IsApproverAsync(projectId, ct)) return Forbid();
         var photo = await LoadPhotoAsync(projectId, photoId, ct);
         if (photo == null) return NotFound();
+
+        // Prevent self-rejection: the photo owner cannot reject their own photo
+        // (would allow reset to Internal and re-submit indefinitely without peer review)
+        var callerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                      ?? User.FindFirst("sub")?.Value;
+        if (photo.CapturedByUserId.HasValue && photo.CapturedByUserId.ToString() == callerId)
+            return BadRequest(new { error = "You cannot reject your own photo." });
+
+        if (!await IsApproverAsync(projectId, ct)) return Forbid();
 
         var actorId = CurrentUserIdOrNull();
         photo.Audience         = "Internal";          // back to internal-only

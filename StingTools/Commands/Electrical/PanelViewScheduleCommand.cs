@@ -77,11 +77,11 @@ namespace StingTools.Commands.Electrical
                             .FirstOrDefault(v => string.Equals(v.Name, viewName, StringComparison.OrdinalIgnoreCase));
                         if (existing != null)
                         {
-                            try { doc.Delete(existing.Id); } catch { skipped++; continue; }
+                            try { doc.Delete(existing.Id); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; continue; }
                         }
                         var schedule = ViewSchedule.CreateSchedule(doc,
                             new ElementId(BuiltInCategory.OST_ElectricalCircuit));
-                        try { schedule.Name = viewName; } catch { }
+                        try { schedule.Name = viewName; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         AddCircuitFields(schedule);
                         AddPanelFilter(schedule, panel.Name);
                         StampDrawingType(schedule);
@@ -103,7 +103,7 @@ namespace StingTools.Commands.Electrical
                 }
                 tx.Commit();
             }
-            try { ComplianceScan.InvalidateCache(); } catch { }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Sheet Placement",
                 $"Created {created} ViewSchedule(s). Placed on sheet: {placed}. Skipped: {skipped}.\n\n" +
                 "Note: ViewSchedule does not show Revit-computed totals. For live computed-cell data, use the native panel schedule and drag manually.");
@@ -120,7 +120,7 @@ namespace StingTools.Commands.Electrical
                 foreach (var inst in new FilteredElementCollector(doc)
                     .OfClass(typeof(PanelScheduleSheetInstance)).Cast<PanelScheduleSheetInstance>())
                 {
-                    try { placed.Add(inst.ScheduleId.Value); } catch { }
+                    try { placed.Add(inst.ScheduleId.Value); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"GuidedManual collect placed: {ex.Message}"); }

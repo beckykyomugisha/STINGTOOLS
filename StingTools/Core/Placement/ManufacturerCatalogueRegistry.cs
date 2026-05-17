@@ -205,14 +205,14 @@ namespace StingTools.Core.Placement
                 string fromFinder = StingToolsApp.FindDataFile(FileName);
                 if (!string.IsNullOrEmpty(fromFinder)) return fromFinder;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             try
             {
                 string root = StingToolsApp.DataPath;
                 if (!string.IsNullOrEmpty(root))
                     return Path.Combine(root, FileName.Replace('/', Path.DirectorySeparatorChar));
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
         }
 
@@ -233,7 +233,7 @@ namespace StingTools.Core.Placement
                 if (p.StorageType == StorageType.Integer) return p.AsInteger().ToString();
                 return p.AsValueString() ?? "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         private static double ReadDouble(Element el, string paramName)
@@ -256,7 +256,7 @@ namespace StingTools.Core.Placement
                         return 0.0;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0.0;
         }
 

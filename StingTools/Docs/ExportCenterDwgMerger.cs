@@ -37,7 +37,7 @@ namespace StingTools.Docs
                 var t = Type.GetTypeFromProgID("AutoCAD.Application");
                 _availableCache = t != null;
             }
-            catch { _availableCache = false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); _availableCache = false; }
             return _availableCache.Value;
         }
 
@@ -99,7 +99,7 @@ namespace StingTools.Docs
                     stagedFolder, sourceDwgs, layoutNames, outputDwg, targetDwgVersion);
 
                 // Stage 4 — clean up the temporary input folder.
-                try { Directory.Delete(odaIn, true); } catch { }
+                try { Directory.Delete(odaIn, true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 StingLog.Info($"DwgMerger.MergeViaOda: staged {converted} normalised DWGs + manifest at {stagedFolder}.");
                 return manifest;
@@ -187,8 +187,8 @@ namespace StingTools.Docs
             }
             finally
             {
-                try { master?.Close(false); } catch { }
-                try { acad?.Quit(); } catch { }
+                try { master?.Close(false); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { acad?.Quit(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (acad != null && Marshal.IsComObject(acad))
                     Marshal.FinalReleaseComObject(acad);
             }

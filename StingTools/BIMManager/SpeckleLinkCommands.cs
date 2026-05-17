@@ -686,7 +686,7 @@ namespace StingTools.BIMManager
         private static string SafeReadBody(HttpResponseMessage resp)
         {
             try { return resp.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty; }
-            catch { return string.Empty; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return string.Empty; }
         }
     }
 

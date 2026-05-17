@@ -56,7 +56,7 @@ namespace StingTools.Core.Routing
             foreach (var id in memberIds)
             {
                 MEPCurve curve = null;
-                try { curve = doc.GetElement(id) as MEPCurve; } catch { }
+                try { curve = doc.GetElement(id) as MEPCurve; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (curve == null) continue;
 
                 LocationCurve loc = curve.Location as LocationCurve;
@@ -101,7 +101,7 @@ namespace StingTools.Core.Routing
 
                     var crossing = new XYZ(crossXy.X, crossXy.Y, z);
                     double thicknessFt = 0;
-                    try { thicknessFt = wall.Width; } catch { thicknessFt = 0; }
+                    try { thicknessFt = wall.Width; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); thicknessFt = 0; }
 
                     var rec = new PenetrationRecord
                     {
@@ -153,7 +153,7 @@ namespace StingTools.Core.Routing
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return "";
         }
 
@@ -170,7 +170,7 @@ namespace StingTools.Core.Routing
                 var h = curve.LookupParameter("Height")?.AsDouble() ?? 0;
                 if (w > 0 || h > 0) return Math.Max(w, h) * 304.8;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
 

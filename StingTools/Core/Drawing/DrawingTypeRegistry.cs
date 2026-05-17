@@ -33,62 +33,15 @@ namespace StingTools.Core.Drawing
         private static readonly Dictionary<string, DrawingTypeLibrary> _cache
             = new Dictionary<string, DrawingTypeLibrary>(StringComparer.OrdinalIgnoreCase);
 
-        // C-5: per-document memoization of ResolveExtends results so callers
-        // (DrawingDriftDetector.Scan, DrawingTypePresentation.Apply, the
-        // auto-tagger discipline filter) don't recompute the merged inheritance
-        // chain on every Get() call. Cleared by Reload(doc).
-        private static readonly Dictionary<string, Dictionary<string, DrawingType>> _resolvedCache
-            = new Dictionary<string, Dictionary<string, DrawingType>>(StringComparer.OrdinalIgnoreCase);
-
         // Public surface -------------------------------------------------
 
         public static DrawingType Get(Document doc, string id)
         {
             if (string.IsNullOrWhiteSpace(id)) return null;
             var lib = GetLibrary(doc);
-
-            // C-5: cached resolved DrawingType. Lookup is O(1); first-call
-            // miss runs ResolveExtends once and stores the result.
-            string docKey = DocKey(doc);
-            lock (_lock)
-            {
-                if (_resolvedCache.TryGetValue(docKey, out var docMap)
-                    && docMap.TryGetValue(id, out var memo))
-                {
-                    StingTools.Core.StingLog.RecordHit(StingTools.Core.StingLog.CacheKind.DrawingTypeRegistry); // E-1
-                    return memo;
-                }
-            }
-            StingTools.Core.StingLog.RecordMiss(StingTools.Core.StingLog.CacheKind.DrawingTypeRegistry); // E-1
-
             var raw = lib.DrawingTypes.FirstOrDefault(
                 t => string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase));
-            var resolved = raw == null ? null : ResolveExtends(lib, raw);
-
-            lock (_lock)
-            {
-                if (!_resolvedCache.TryGetValue(docKey, out var docMap))
-                {
-                    docMap = new Dictionary<string, DrawingType>(StringComparer.OrdinalIgnoreCase);
-                    _resolvedCache[docKey] = docMap;
-                }
-                docMap[id] = resolved;
-            }
-            return resolved;
-        }
-
-        /// <summary>
-        /// Phase 137 — convenience accessor that mirrors
-        /// <see cref="ViewStylePackRegistry"/>.Get but lives next to the
-        /// drawing-type registry so callers can reach packs without an
-        /// extra using-statement. Returns null when the pack id is null,
-        /// empty, or unresolved.
-        /// </summary>
-        public static ViewStylePack TryGetPack(Document doc, string packId)
-        {
-            if (string.IsNullOrWhiteSpace(packId)) return null;
-            try { return ViewStylePackRegistry.Get(doc, packId); }
-            catch { return null; }
+            return raw == null ? null : ResolveExtends(lib, raw);
         }
 
         /// <summary>
@@ -96,15 +49,6 @@ namespace StingTools.Core.Drawing
         /// child non-null / non-default fields override parent. Loop
         /// detection via visited-set; mirror of ViewStylePackRegistry.
         /// </summary>
-        // FIX-5: dedupe ACC-01 drift warnings so they fire once per
-        // (child, drifted parent) pair per session rather than on every
-        // first cache miss. Cleared by Reload alongside the resolved cache.
-        // Process-wide rather than per-doc on purpose — drift warnings are
-        // about corporate-vs-project state, which carries across "Save As".
-        private static readonly HashSet<string> _extendsDriftWarned
-            = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private static readonly object _driftWarnedLock = new object();
-
         private static DrawingType ResolveExtends(DrawingTypeLibrary lib, DrawingType leaf)
         {
             if (string.IsNullOrWhiteSpace(leaf.Extends)) return leaf;
@@ -112,11 +56,7 @@ namespace StingTools.Core.Drawing
             var chain = new List<DrawingType>();
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var cur = leaf;
-            // GAP-P: hard depth limit guards against pathological JSON where
-            // the visited-set doesn't catch a cycle (e.g. multiple null-id
-            // entries chained together).
-            int depthGuard = 0;
-            while (cur != null && depthGuard++ < 32)
+            while (cur != null)
             {
                 if (!visited.Add(cur.Id ?? Guid.NewGuid().ToString()))
                 {
@@ -124,31 +64,6 @@ namespace StingTools.Core.Drawing
                     break;
                 }
                 chain.Add(cur);
-                // ACC-01: detect a drifted parent in the extends chain. If the
-                // parent's origin has been flipped to "project" by checksum
-                // drift, the child silently inherits the drifted fields. Log
-                // a warning so the operator knows their resolved child is
-                // non-canonical even when the JSON file is shipped pristine.
-                if (cur != leaf
-                    && string.Equals(cur.Origin, "project", StringComparison.OrdinalIgnoreCase)
-                    && !string.IsNullOrEmpty(cur.Checksum))
-                {
-                    string warnKey = (leaf.Id ?? string.Empty) + "→" + (cur.Id ?? string.Empty);
-                    bool fire;
-                    lock (_driftWarnedLock)
-                    {
-                        // GAP-G: soft-cap so a long-running session with many
-                        // unique (child, parent) pairs cannot leak unbounded
-                        // memory. 1024 is an order of magnitude above any
-                        // realistic project's drawing-type catalogue.
-                        if (_extendsDriftWarned.Count > 1024) _extendsDriftWarned.Clear();
-                        fire = _extendsDriftWarned.Add(warnKey);
-                    }
-                    if (fire)
-                        StingTools.Core.StingLog.Warn(
-                            $"DrawingType '{leaf.Id}' extends '{cur.Id}' which has drifted from corporate baseline; " +
-                            "merged snapshot reflects the project-edited parent values.");
-                }
                 if (string.IsNullOrWhiteSpace(cur.Extends)) break;
                 cur = lib.DrawingTypes.FirstOrDefault(
                     t => string.Equals(t.Id, cur.Extends, StringComparison.OrdinalIgnoreCase));
@@ -164,7 +79,6 @@ namespace StingTools.Core.Drawing
                 if (!string.IsNullOrEmpty(p.Phase))            m.Phase = p.Phase;
                 if (!string.IsNullOrEmpty(p.PaperSize))        m.PaperSize = p.PaperSize;
                 if (!string.IsNullOrEmpty(p.TitleBlockFamily)) m.TitleBlockFamily = p.TitleBlockFamily;
-                if (!string.IsNullOrEmpty(p.TitleBlockSymbolType)) m.TitleBlockSymbolType = p.TitleBlockSymbolType;
                 if (!string.IsNullOrEmpty(p.Orientation))      m.Orientation = p.Orientation;
                 if (p.Scale > 0)                               m.Scale = p.Scale;
                 if (!string.IsNullOrEmpty(p.DetailLevel))      m.DetailLevel = p.DetailLevel;
@@ -173,62 +87,17 @@ namespace StingTools.Core.Drawing
                 if (!string.IsNullOrEmpty(p.SheetNumberPattern)) m.SheetNumberPattern = p.SheetNumberPattern;
                 if (!string.IsNullOrEmpty(p.SheetNamePattern))   m.SheetNamePattern = p.SheetNamePattern;
                 if (!string.IsNullOrEmpty(p.ViewStylePackId))    m.ViewStylePackId = p.ViewStylePackId;
-                if (p.IsoNaming != null) m.IsoNaming = p.IsoNaming;
                 if (p.Crop != null)          m.Crop = p.Crop;
                 if (p.SectionMarker != null) m.SectionMarker = p.SectionMarker;
                 if (p.Slots != null && p.Slots.Count > 0) m.Slots = p.Slots;
                 if (p.Annotation != null)    m.Annotation = p.Annotation;
-                if (p.TokenProfile != null)  m.TokenProfile = p.TokenProfile;
                 if (p.Print != null)         m.Print = p.Print;
-
-                // Phase 169 — TB params merge KEY-by-KEY (not whole-map replace)
-                // so a corp-base profile can ship baseline keys (PRJ_PROJECT_COD_TXT
-                // etc.) that every child profile inherits. Child entries with the
-                // same key win.
-                if (p.TitleBlockParams != null && p.TitleBlockParams.Count > 0)
-                {
-                    if (m.TitleBlockParams == null)
-                        m.TitleBlockParams = new Dictionary<string, string>(p.TitleBlockParams.Count, StringComparer.Ordinal);
-                    foreach (var kv in p.TitleBlockParams)
-                        m.TitleBlockParams[kv.Key] = kv.Value;
-                }
-                if (p.TitleBlockParamsBySymbol != null && p.TitleBlockParamsBySymbol.Count > 0)
-                {
-                    if (m.TitleBlockParamsBySymbol == null)
-                        m.TitleBlockParamsBySymbol = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var kvSym in p.TitleBlockParamsBySymbol)
-                    {
-                        if (kvSym.Value == null) continue;
-                        if (!m.TitleBlockParamsBySymbol.TryGetValue(kvSym.Key, out var grp))
-                            m.TitleBlockParamsBySymbol[kvSym.Key] = grp = new Dictionary<string, string>(StringComparer.Ordinal);
-                        foreach (var kv in kvSym.Value) grp[kv.Key] = kv.Value;
-                    }
-                }
             }
             return m;
         }
 
         public static IReadOnlyList<DrawingType> ListAll(Document doc)
             => GetLibrary(doc).DrawingTypes;
-
-        /// <summary>
-        /// FG-05: invalidate every cached resolved DrawingType for a doc
-        /// without re-loading the JSON library. Call after editing a
-        /// single profile in-session (e.g. via the WPF editor) so children
-        /// that extend the edited parent re-merge their snapshot on next
-        /// <see cref="Get"/>.
-        /// </summary>
-        public static void InvalidateResolvedCache(Document doc)
-        {
-            string docKey = DocKey(doc);
-            lock (_lock)
-            {
-                if (_resolvedCache.ContainsKey(docKey)) _resolvedCache.Remove(docKey);
-            }
-            try { DrawingTypePresentation.InvalidateViewTemplateCache(doc); } catch { }
-            try { DrawingTypePresentation.InvalidatePackCache(doc); }       catch { }
-            try { DrawingDriftDetector.InvalidateCache(doc); }              catch { }
-        }
 
         public static IReadOnlyList<DrawingRoutingRule> ListRouting(Document doc)
             => GetLibrary(doc).Routing;
@@ -239,46 +108,7 @@ namespace StingTools.Core.Drawing
             {
                 var key = DocKey(doc);
                 if (_cache.ContainsKey(key)) _cache.Remove(key);
-                if (_resolvedCache.ContainsKey(key)) _resolvedCache.Remove(key);
             }
-            // FIX-5: clear the drift-warning dedupe set so a Reload after
-            // editing a parent re-warns once on next resolution.
-            lock (_driftWarnedLock) _extendsDriftWarned.Clear();
-            // FG-05: also notify any in-process editor / live applier so a
-            // mid-session edit of a parent profile cascades through every
-            // child that extends it. The presentation + drift caches above
-            // hold the resolved snapshots.
-
-            // D-3: cascade the reload through every dependent cache so a JSON
-            // edit (drawing_types.json or view_style_packs.json) doesn't leave
-            // a stale view-template / pack / managed-template id behind.
-            try { DrawingTypePresentation.InvalidateViewTemplateCache(doc); }
-            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Reload InvalidateViewTemplateCache: {ex.Message}"); }
-
-            try { DrawingTypePresentation.InvalidatePackCache(doc); }
-            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Reload InvalidatePackCache: {ex.Message}"); }
-
-            try { ManagedTemplateSyncer.InvalidateCache(doc); }
-            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Reload InvalidateManagedTemplateCache: {ex.Message}"); }
-
-            // PERF-08: tight-bbox cache must be cleared when profiles change
-            // (a different margin or crop kind would otherwise return the
-            // previous run's cached union).
-            try { DrawingCropApplier.InvalidateCache(doc); }
-            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Reload InvalidateCropCache: {ex.Message}"); }
-
-            // PERF-06: drift detector reverse index gets cleared too.
-            try { DrawingDriftDetector.InvalidateCache(doc); }
-            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Reload InvalidateDriftCache: {ex.Message}"); }
-
-            // PERF-02: pack applier filter / category caches.
-            try { ViewStylePackApplier.InvalidateCache(doc); }
-            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Reload InvalidatePackApplierCache: {ex.Message}"); }
-
-            // Editor-side title-block slot cache — re-read FamilySymbol JSON
-            // after a registry reload so freshly-loaded title blocks surface.
-            try { StingTools.UI.TitleBlockSlotLoader.InvalidateCache(doc); }
-            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Reload InvalidateTitleBlockSlotCache: {ex.Message}"); }
         }
 
         public static DrawingTypeLibrary GetLibrary(Document doc)
@@ -310,10 +140,6 @@ namespace StingTools.Core.Drawing
                 var path = StingTools.Core.StingToolsApp.FindDataFile("STING_DRAWING_TYPES.json");
                 if (!string.IsNullOrEmpty(path) && File.Exists(path))
                 {
-                    // S3.6.2 — version gate before deserialise.
-                    StingTools.Core.PluginSchemaVersion.EnsureFileVersion(
-                        path, "planscape.drawing-types",
-                        StingTools.Core.PluginSchemaVersion.CurrentDrawingTypes);
                     var json = File.ReadAllText(path);
                     var lib = JsonConvert.DeserializeObject<DrawingTypeLibrary>(json);
                     if (lib != null && lib.DrawingTypes != null && lib.DrawingTypes.Count > 0)
@@ -395,33 +221,9 @@ namespace StingTools.Core.Drawing
             }
             merged.DrawingTypes = byId.Values.ToList();
 
-            // Project routing rules are prepended (first-match-wins semantics).
-            // GAP-J: dedupe by the (discipline, phase, docType) triple plus
-            // any predicate fields that participate in matching, so a project
-            // rule that overrides a corporate rule for the same key fully
-            // suppresses the corporate entry rather than leaving it as a
-            // never-reached trailing rule.
+            // Project routing rules are prepended (first-match-wins semantics)
             if (over.Routing != null && over.Routing.Count > 0)
-            {
                 merged.Routing.InsertRange(0, over.Routing);
-                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                var deduped = new List<DrawingRoutingRule>();
-                foreach (var rule in merged.Routing)
-                {
-                    if (rule == null) continue;
-                    string sig = string.Join("|",
-                        rule.Discipline ?? "*",
-                        rule.Phase ?? "*",
-                        rule.DocType ?? "*",
-                        rule.DisciplineMatches ?? "",
-                        rule.PhaseMatches ?? "",
-                        rule.DocTypeMatches ?? "",
-                        rule.LevelMatches ?? "",
-                        rule.ProjectCodeMatches ?? "");
-                    if (seen.Add(sig)) deduped.Add(rule);
-                }
-                merged.Routing = deduped;
-            }
 
             return merged;
         }
@@ -446,20 +248,8 @@ namespace StingTools.Core.Drawing
                     using (var sha = SHA256.Create())
                     {
                         var hash = sha.ComputeHash(Encoding.UTF8.GetBytes(json));
-                        // ACC-08: full 64-char hex hash. Previous 16-char Base64
-                        // prefix had ~96 bits of collision space, which is
-                        // unacceptable for an integrity check.
-                        var sb = new StringBuilder(hash.Length * 2);
-                        foreach (var b in hash) sb.Append(b.ToString("x2"));
-                        var actual = sb.ToString();
-                        // Migration safety: a project that opened with the old
-                        // 16-char Base64 prefix should silently upgrade to the
-                        // new 64-char hex form on first read. Treat any prior
-                        // value that's not 64 hex chars as legacy and skip the
-                        // drift warning.
-                        bool priorIsLegacy = !string.IsNullOrEmpty(prior)
-                            && prior.Length != 64;
-                        if (!string.IsNullOrEmpty(prior) && !priorIsLegacy && prior != actual)
+                        var actual = Convert.ToBase64String(hash).Substring(0, 16);
+                        if (!string.IsNullOrEmpty(prior) && prior != actual)
                         {
                             StingTools.Core.StingLog.Warn(
                                 $"DrawingType '{t.Id}' checksum drift: shipped={prior} actual={actual}. " +

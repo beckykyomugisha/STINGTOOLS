@@ -27,7 +27,7 @@ namespace StingTools.Core.Drawing
         /// a matching entry.
         /// </summary>
         public static DrawingType Resolve(Document doc, string discipline, string phase, string docType)
-            => Resolve(doc, discipline, phase, docType, levelCode: null, optionName: null);
+            => Resolve(doc, discipline, phase, docType, levelCode: null);
 
         /// <summary>
         /// Level-aware variant — Week 6. When the routing table uses
@@ -36,18 +36,6 @@ namespace StingTools.Core.Drawing
         /// roof-specific profiles can fire.
         /// </summary>
         public static DrawingType Resolve(Document doc, string discipline, string phase, string docType, string levelCode)
-            => Resolve(doc, discipline, phase, docType, levelCode, optionName: null);
-
-        /// <summary>
-        /// Phase 175 — option-aware variant. Adds the routing rule's
-        /// optionMatches regex predicate so a profile catalogue can
-        /// route the same (disc, phase, docType) tuple to different
-        /// profiles based on the active design option (e.g. baseline
-        /// option uses production pack, VE option uses presentation
-        /// pack).
-        /// </summary>
-        public static DrawingType Resolve(Document doc, string discipline, string phase, string docType,
-            string levelCode, string optionName)
         {
             var lib = DrawingTypeRegistry.GetLibrary(doc);
             if (lib?.Routing == null || lib.Routing.Count == 0) return null;
@@ -63,7 +51,6 @@ namespace StingTools.Core.Drawing
                     && !RegexMatches(rule.LevelMatches, levelCode)) continue;
                 if (!string.IsNullOrEmpty(rule.ProjectCodeMatches)
                     && !RegexMatches(rule.ProjectCodeMatches, projectCode)) continue;
-                if (!DrawingOptionApplier.MatchesOptionPredicate(rule, optionName)) continue;
                 return DrawingTypeRegistry.Get(doc, rule.DrawingTypeId);
             }
             return null;
@@ -90,7 +77,7 @@ namespace StingTools.Core.Drawing
             {
                 var pi = doc?.ProjectInformation;
                 if (pi == null) return null;
-                var p = pi.LookupParameter("PRJ_PROJECT_COD_TXT");
+                var p = pi.LookupParameter("PRJ_ORG_PROJECT_CODE");
                 return p?.StorageType == StorageType.String ? p.AsString() : null;
             }
             catch { return null; }

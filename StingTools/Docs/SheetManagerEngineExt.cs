@@ -342,7 +342,7 @@ namespace StingTools.Docs
                 string p = StingTools.Core.ProjectFolderEngine.GetDataPath(doc, "layout_presets.json");
                 if (!string.IsNullOrEmpty(p)) return p;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string dir = Path.GetDirectoryName(doc.PathName);
             if (string.IsNullOrEmpty(dir))
                 dir = StingToolsApp.DataPath ?? Path.GetTempPath();
