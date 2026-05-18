@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — placement scorer.
 //
 // Given a room, a placement rule and optional host element, produces
@@ -30,8 +31,9 @@ namespace StingTools.Core.Placement
         /// Composite score below this value rejects the candidate
         /// (returns empty list).  Phase 139 G — lowered from 0.40 to
         /// 0.35 so coverage-guarantee mode keeps borderline candidates.
+        /// Configurable from the Placement Centre Run &amp; Routing tab.
         /// </summary>
-        public const double ScoreThreshold = 0.35;
+        public static double ScoreThreshold = 0.35;
 
         /// <summary>
         /// Millimetre-to-feet conversion (Revit's internal unit).
@@ -89,6 +91,14 @@ namespace StingTools.Core.Placement
         {
             _doc = doc;
         }
+
+        /// <summary>
+        /// Per-(room, rule) lighting grid results accumulated during scoring.
+        /// Key is "{roomId}::{ruleId}". FixturePlacementEngine reads this after
+        /// the full room loop to stamp noggin requirements onto placed instances.
+        /// </summary>
+        public Dictionary<string, LightingGridResult> GridResults { get; }
+            = new Dictionary<string, LightingGridResult>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Lazy-initialised BS EN 12464-1 lux calculator. Shared across
@@ -584,7 +594,7 @@ namespace StingTools.Core.Placement
                     if (inter != null && inter.Volume > 1e-9)
                         return true;
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     StingLog.Warn($"PlacementScorer: wall-intersect {wallId} failed: {ex.Message}");
                 }

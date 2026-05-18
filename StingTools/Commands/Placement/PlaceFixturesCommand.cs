@@ -76,6 +76,9 @@ namespace StingTools.Commands.Placement
         public static bool StampProvenance        { get; set; } = true;
         public static bool HonourLearned          { get; set; } = true;
 
+        public enum FixtureScopeMode { ActiveView, AllRooms, SelectedRooms }
+        public static FixtureScopeMode ScopeMode { get; set; } = FixtureScopeMode.ActiveView;
+
         /// <summary>
         /// Return the set of Revit category names this command should
         /// consider, based on the discipline checkboxes. Used by
@@ -267,7 +270,7 @@ namespace StingTools.Commands.Placement
             if (!dryRun && res.PlacedIds.Count > 0)
             {
                 try { uidoc.Selection.SetElementIds(res.PlacedIds); }
-                catch (Exception ex) { StingLog.Warn($"PlaceFixturesCommand select failed: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"PlaceFixturesCommand select failed: {ex2.Message}"); }
             }
 
             return Result.Succeeded;

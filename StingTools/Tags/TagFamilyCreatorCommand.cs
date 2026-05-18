@@ -1811,7 +1811,7 @@ namespace StingTools.Tags
                     if (!string.IsNullOrEmpty(originalFile))
                         app.SharedParametersFilename = originalFile;
                 }
-                catch (Exception ex) { StingLog.Warn($"best effort: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"best effort: {ex2.Message}"); }
             }
         }
 

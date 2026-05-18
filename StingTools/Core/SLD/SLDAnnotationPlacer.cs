@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — SLD annotation placer (Phase 175 + Phase 179 enhancements)
 //
 // Draws busbars, branch lines, and per-symbol labels on a generated SLD

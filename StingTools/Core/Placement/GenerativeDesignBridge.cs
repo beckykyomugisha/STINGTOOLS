@@ -1,3 +1,4 @@
+using StingTools.Core;
 // PC-15 — Generative Design bridge.
 //
 // Runs an in-memory simulated trial of FixturePlacementEngine against

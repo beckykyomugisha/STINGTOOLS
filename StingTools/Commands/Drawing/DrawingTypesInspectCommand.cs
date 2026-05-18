@@ -14,11 +14,13 @@
 using System;
 using System.Linq;
 using System.Text;
+using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Drawing;
+using StingTools.Core.Validation;
 
 namespace StingTools.Commands.Drawing
 {

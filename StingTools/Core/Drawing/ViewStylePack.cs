@@ -1,3 +1,4 @@
+using System;
 // StingTools — Drawing Template Manager · Week 2
 //
 // ViewStylePack factors the graphic-override payload out of
@@ -189,6 +190,96 @@ namespace StingTools.Core.Drawing
 
         [JsonProperty("checksum", NullValueHandling = NullValueHandling.Ignore)]
         public string Checksum { get; set; }
+
+        // ── Phase 137 — managed template mode ───────────────────────
+
+        /// <summary>Template mode: "managed" (STING owns the view template) or "external" (user-maintained).</summary>
+        [JsonProperty("templateMode", NullValueHandling = NullValueHandling.Ignore)]
+        public string TemplateMode { get; set; }
+
+        /// <summary>True when TemplateMode == "managed".</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool IsManaged => string.Equals(TemplateMode, "managed", System.StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>View discipline string for managed template (e.g. "Mechanical", "Electrical").</summary>
+        [JsonProperty("discipline", NullValueHandling = NullValueHandling.Ignore)]
+        public string Discipline { get; set; }
+
+        /// <summary>Visual style for managed template (e.g. "HiddenLine", "Shaded").</summary>
+        [JsonProperty("visualStyle", NullValueHandling = NullValueHandling.Ignore)]
+        public string VisualStyle { get; set; }
+
+        /// <summary>Revit phase filter name to apply to the managed template.</summary>
+        [JsonProperty("phaseFilter", NullValueHandling = NullValueHandling.Ignore)]
+        public string PhaseFilter { get; set; }
+
+        /// <summary>Revit phase name to apply to the managed template.</summary>
+        [JsonProperty("phase", NullValueHandling = NullValueHandling.Ignore)]
+        public string Phase { get; set; }
+
+        /// <summary>Annotation crop setting for the managed template.</summary>
+        [JsonProperty("annotationCrop", NullValueHandling = NullValueHandling.Ignore)]
+        public bool? AnnotationCrop { get; set; }
+
+        /// <summary>Far clip distance in mm for the managed template. Null = no override.</summary>
+        [JsonProperty("farClipMm", NullValueHandling = NullValueHandling.Ignore)]
+        public double? FarClipMm { get; set; }
+
+        /// <summary>View range specification for the managed template (serialised as a sub-object).</summary>
+        [JsonProperty("viewRange", NullValueHandling = NullValueHandling.Ignore)]
+        public PackViewRange ViewRange { get; set; }
+
+        /// <summary>Underlay level name for the managed template.</summary>
+        [JsonProperty("underlay", NullValueHandling = NullValueHandling.Ignore)]
+        public string Underlay { get; set; }
+
+        /// <summary>Background colour / setting string for the managed template.</summary>
+        [JsonProperty("background", NullValueHandling = NullValueHandling.Ignore)]
+        public string Background { get; set; }
+
+        /// <summary>Workset visibility mode for the managed template.</summary>
+        [JsonProperty("worksetVisibility", NullValueHandling = NullValueHandling.Ignore)]
+        public string WorksetVisibility { get; set; }
+
+        /// <summary>Link overrides specification (serialised as a raw JSON token).</summary>
+        [JsonProperty("linkOverrides", NullValueHandling = NullValueHandling.Ignore)]
+        public object LinkOverrides { get; set; }
+
+        /// <summary>Color fill scheme references for the managed template.</summary>
+        [JsonProperty("colorFillSchemes", NullValueHandling = NullValueHandling.Ignore)]
+        public object ColorFillSchemes { get; set; }
+
+        /// <summary>Whether filters are active on the managed template.</summary>
+        [JsonProperty("filterEnabled", NullValueHandling = NullValueHandling.Ignore)]
+        public bool FilterEnabled { get; set; } = true;
+
+        /// <summary>Fields that the managed template controls. Null = use DefaultManagedFields in ManagedTemplateSyncer.</summary>
+        [JsonProperty("managedFields", NullValueHandling = NullValueHandling.Ignore)]
+        public System.Collections.Generic.List<string> ManagedFields { get; set; }
+
+        // ── Phase 135 — token profile defaults ──────────────────────
+
+        /// <summary>Default tag colour scheme applied at pack level (e.g. "STING Discipline").</summary>
+        [JsonProperty("tagColorScheme", NullValueHandling = NullValueHandling.Ignore)]
+        public string TagColorScheme { get; set; }
+
+        /// <summary>Default tag style preset applied at pack level.</summary>
+        [JsonProperty("defaultTagStyle", NullValueHandling = NullValueHandling.Ignore)]
+        public string DefaultTagStyle { get; set; }
+
+        /// <summary>Per-category tag style overrides. Category name → style preset name.</summary>
+        [JsonProperty("categoryTagStyles", NullValueHandling = NullValueHandling.Ignore)]
+        public System.Collections.Generic.Dictionary<string, string> CategoryTagStyles { get; set; }
+
+        // ── Phase 177 — per-category paragraph depth ─────────────────
+
+        /// <summary>Per-category paragraph depth overrides. Category name → depth tier (1-10).</summary>
+        [JsonProperty("categoryDepths", NullValueHandling = NullValueHandling.Ignore)]
+        public System.Collections.Generic.Dictionary<string, int> CategoryDepths { get; set; }
+
+        /// <summary>Per-category TAG7 section visibility flags. Category name → section-visible bool.</summary>
+        [JsonProperty("categoryTag7Sections", NullValueHandling = NullValueHandling.Ignore)]
+        public System.Collections.Generic.Dictionary<string, bool> CategoryTag7Sections { get; set; }
     }
 
     public sealed class StyleFilterRule

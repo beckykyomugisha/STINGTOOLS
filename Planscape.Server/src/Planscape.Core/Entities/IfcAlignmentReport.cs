@@ -39,6 +39,17 @@ public class IfcAlignmentReport : ITenantScoped
     /// <summary>CRS name (e.g. "EPSG:27700" — British National Grid). Critical for site coordination.</summary>
     public string? CrsName { get; set; }
 
+    /// <summary>Scale factor from IfcMapConversion (Gap D). Should be 1.0. Non-unity values cause geometry scaling errors.</summary>
+    public double? MapConversionScale { get; set; }
+
+    /// <summary>Rotation angle derived from IfcMapConversion XAxisAbscissa + XAxisOrdinate (Gap C). Degrees, clockwise from Y.</summary>
+    public double? MapConversionRotationDeg { get; set; }
+
+    /// <summary>Centroid of the model's AABB (average of min/max bounds), in project units. Used for Gap I drift detection.</summary>
+    public double? GeometryCentroidX { get; set; }
+    public double? GeometryCentroidY { get; set; }
+    public double? GeometryCentroidZ { get; set; }
+
     /// <summary>Overall alignment quality: PASS / WARN / FAIL.</summary>
     public string Verdict { get; set; } = "WARN";
 

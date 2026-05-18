@@ -77,6 +77,8 @@ namespace StingTools.Tags
             public int FormulasApplied { get; set; }
             public int FormulasSkipped { get; set; }
             public int TiersPreserved { get; set; }
+            public int WarningsApplied { get; set; }
+            public int WarningsSkipped { get; set; }
             public bool LabelRebound { get; set; }
             /// <summary>Number of warning-row tier formulas applied.</summary>
             public int WarningsApplied { get; set; }
@@ -295,7 +297,7 @@ namespace StingTools.Tags
                     if (!string.IsNullOrEmpty(originalSpFile))
                         opts.App.SharedParametersFilename = originalSpFile;
                 }
-                catch (Exception ex) { StingLog.Warn($"restore SP file: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"restore SP file: {ex2.Message}"); }
             }
             return added;
         }

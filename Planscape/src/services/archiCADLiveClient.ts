@@ -12,9 +12,8 @@
 //   await client.disconnect();
 
 import * as signalR from '@microsoft/signalr';
+import { getBaseUrl } from '../api/client';
 import { secureStorage } from './secureStorage';
-
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.planscape.app';
 
 export interface ArchiCADElement {
   kind:         'Added' | 'Changed' | 'Deleted';
@@ -49,10 +48,13 @@ export class ArchiCADLiveClient {
 
   async connect(projectId: string): Promise<void> {
     this._projectId = projectId;
-    const token = await secureStorage.getToken();
+    const [token, baseUrl] = await Promise.all([
+      secureStorage.getToken(),
+      getBaseUrl(),
+    ]);
 
     this.connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${BASE_URL}/hubs/archicad`, {
+      .withUrl(`${baseUrl}/hubs/archicad`, {
         accessTokenFactory: () => token ?? '',
       })
       .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])

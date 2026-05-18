@@ -51,7 +51,9 @@ public class WorkflowsController : ControllerBase
             DurationMs = req.DurationMs,
             ComplianceBefore = req.ComplianceBefore,
             ComplianceAfter = req.ComplianceAfter,
-            StepResultsJson = req.StepResultsJson
+            StepResultsJson = req.StepResultsJson,
+            // Gaps 10/14 — entity linkage: JSON blob of affected document/issue/transmittal IDs.
+            LinkedEntityJson = req.LinkedEntityJson
         };
 
         _db.WorkflowRuns.Add(run);
@@ -73,11 +75,12 @@ public class WorkflowsController : ControllerBase
 
         // Phase 178b — real-time event so dashboards refresh the trend
         // chart + workflow-runs panel without polling.
+        // Gaps 10/14 — include linkedEntityJson so subscribers can correlate the run.
         _ = _hub.Clients.Group($"project-{projectId}").SendAsync("WorkflowRunCompleted", new {
             projectId, runId = run.Id, run.PresetName, run.UserName,
             run.StepsPassed, run.StepsFailed, run.StepsSkipped,
             run.DurationMs, run.ComplianceBefore, run.ComplianceAfter,
-            run.ExecutedAt
+            run.ExecutedAt, run.LinkedEntityJson
         });
 
         return CreatedAtAction(nameof(GetHistory), new { projectId }, new { id = run.Id, executedAt = run.ExecutedAt });
@@ -98,6 +101,7 @@ public class WorkflowsController : ControllerBase
             {
                 w.Id, w.PresetName, w.UserName, w.StepsPassed, w.StepsFailed, w.StepsSkipped,
                 w.DurationMs, w.ComplianceBefore, w.ComplianceAfter, w.ExecutedAt,
+                w.LinkedEntityJson,
                 ComplianceDelta = w.ComplianceAfter - w.ComplianceBefore
             })
             .ToListAsync();
@@ -148,4 +152,9 @@ public record LogWorkflowRunRequest
     public double ComplianceBefore { get; init; }
     public double ComplianceAfter { get; init; }
     public string? StepResultsJson { get; init; }
+    /// <summary>
+    /// Gaps 10/14 — JSON blob of entity IDs affected by this run.
+    /// Shape: { "documentIds": [...], "issueIds": [...], "transmittalIds": [...] }
+    /// </summary>
+    public string? LinkedEntityJson { get; init; }
 }

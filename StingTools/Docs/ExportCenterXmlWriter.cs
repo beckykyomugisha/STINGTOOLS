@@ -5,6 +5,7 @@ using System.Linq;
 using System.Xml;
 using Autodesk.Revit.DB;
 using StingTools.Core;
+using System.Text;
 
 namespace StingTools.Docs
 {

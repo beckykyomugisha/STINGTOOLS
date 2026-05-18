@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json.Linq;
+using StingTools.Core.Placement;
+using System.Collections.Concurrent;
 
 namespace StingTools.Core
 {
@@ -207,6 +209,26 @@ namespace StingTools.Core
         public const string SLD_ELEMENT_ID_GUID       = "0A1B2C3D-4E5F-4A6B-7C8D-9E0F1A2B3C4D";
         public const string SYMBOL_LIBRARY_VERSION    = "STING_SYMBOL_LIBRARY_VERSION";
         public const string SYMBOL_LIBRARY_VERSION_GUID = "1B2C3D4E-5F6A-4B7C-8D9E-0F1A2B3C4D5E";
+
+        // Family-embedded standard switching — model family (.rfa) parameters.
+        // STING_SYMBOL_STD is an Integer type param; each value gates one
+        // standard's embedded symbolic curve set via derived Yes/No formulas.
+        //   0 = IEC (IEC 60617 / EN 60617)
+        //   1 = ANSI (ANSI/IEEE 315)
+        //   2 = BS (BS 1553 / BS 8888)
+        //   3 = NFPA (NFPA 170)
+        //   4 = CIBSE (CIBSE Guide symbols)
+        public const string SYMBOL_STD_PARAM    = "STING_SYMBOL_STD";
+        public const string SHOW_IEC_BOOL       = "STING_SHOW_IEC_BOOL";
+        public const string SHOW_ANSI_BOOL      = "STING_SHOW_ANSI_BOOL";
+        public const string SHOW_BS_BOOL        = "STING_SHOW_BS_BOOL";
+        public const string SHOW_NFPA_BOOL      = "STING_SHOW_NFPA_BOOL";
+        public const string SHOW_CIBSE_BOOL     = "STING_SHOW_CIBSE_BOOL";
+        public const int    STD_CODE_IEC        = 0;
+        public const int    STD_CODE_ANSI       = 1;
+        public const int    STD_CODE_BS         = 2;
+        public const int    STD_CODE_NFPA       = 3;
+        public const int    STD_CODE_CIBSE      = 4;
 
         // Phase 175 — Circuit-annotation parameters consumed by
         // Core/Symbols/SymbolAnnotationEngine.BuildLabel. STING-prefixed

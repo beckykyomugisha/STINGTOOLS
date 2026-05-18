@@ -210,7 +210,9 @@ class SyncEngine:
         write_pairs: list[tuple[str, dict[str, str]]],
         result: SyncResult,
     ) -> None:
-        # Fetch element details (story index, bounding box, layer)
+        # Fetch element details (story index, bounding box, layer).
+        # If details cannot be fetched the chunk is skipped entirely rather than
+        # processing elements with empty dicts which would create invalid tokens.
         details_map: dict[str, dict] = {}
         try:
             details_list = self._ac.get_details_of_elements(chunk)
@@ -219,9 +221,12 @@ class SyncEngine:
                 if eid:
                     details_map[eid] = item.get("details", item)
         except ArchiCadError as e:
-            log.warning("get_details_of_elements failed: %s", e)
+            log.warning("get_details_of_elements failed for chunk of %d — skipping chunk: %s",
+                        len(chunk), e)
+            result.errors.append(f"get_details_of_elements: {e}")
+            return  # skip this chunk; data would be incomplete
 
-        # Fetch property values
+        # Fetch property values — also required for valid token derivation.
         props_map: dict[str, dict] = {}
         try:
             prop_values = self._ac.get_property_values(chunk, _PROPS_TO_READ)
@@ -238,7 +243,10 @@ class SyncEngine:
                         bag[name] = str(val.get("value", ""))
                 props_map[eid] = bag
         except ArchiCadError as e:
-            log.warning("get_property_values failed: %s", e)
+            log.warning("get_property_values failed for chunk of %d — skipping chunk: %s",
+                        len(chunk), e)
+            result.errors.append(f"get_property_values: {e}")
+            return  # skip this chunk; token derivation would be empty
 
         for guid in chunk:
             details = details_map.get(guid, {})

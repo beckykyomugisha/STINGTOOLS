@@ -1,6 +1,7 @@
 using System;
 using Autodesk.Revit.DB;
 using System.Collections.Generic;
+using StingTools.Core;
 
 namespace StingTools.Core.Validation.Healthcare
 {

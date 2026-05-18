@@ -816,6 +816,9 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .ValueGeneratedOnAdd()
                     .HasColumnType("uuid");
 
+                b.Property<string>("BridgeKeyHash")
+                    .HasColumnType("text");
+
                 b.Property<string>("Code")
                     .IsRequired()
                     .HasColumnType("text");

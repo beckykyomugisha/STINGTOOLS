@@ -62,7 +62,7 @@ namespace StingTools.Commands.Mep
                             if (WriteDouble(el, "ELC_CDT_CBL_FILL_PCT", fill)) updated++;
                             else skipped++;
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             skipped++;
                             warnings.Add($"cdt {el?.Id}: {ex.Message}");
@@ -84,7 +84,7 @@ namespace StingTools.Commands.Mep
                             if (WriteDouble(el, "ELC_CTR_FILL_PCT", fill)) updated++;
                             else skipped++;
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             skipped++;
                             warnings.Add($"tray {el?.Id}: {ex.Message}");

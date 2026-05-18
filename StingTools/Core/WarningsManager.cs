@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using RevitGroup = Autodesk.Revit.DB.Group;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
@@ -817,7 +818,7 @@ namespace StingTools.Core
                         Element el = doc.GetElement(new ElementId(kv.Key));
                         name = el != null ? $"{ParameterHelpers.GetCategoryName(el)} [{el.Id.Value}]" : $"[{kv.Key}]";
                     }
-                    catch (Exception ex) { StingLog.Warn($"Hotspot element name: {ex.Message}"); name = $"[{kv.Key}]"; }
+                    catch (Exception ex2) { StingLog.Warn($"Hotspot element name: {ex2.Message}"); name = $"[{kv.Key}]"; }
                     return (new ElementId(kv.Key), name, kv.Value);
                 })
                 .ToList();
@@ -1737,7 +1738,7 @@ namespace StingTools.Core
                             }
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"CreateIssuesFromWarnings parse: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"CreateIssuesFromWarnings parse: {ex2.Message}"); }
                 }
 
                 // Determine next issue ID — scan for max existing numeric suffix
@@ -4094,7 +4095,7 @@ namespace StingTools.Core
                                 cloudsByRevId2[rid2] = cnt2 + 1;
                             }
                         }
-                        catch (Exception ex) { StingLog.Warn($"Revision cloud count failed: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Revision cloud count failed: {ex2.Message}"); }
                     }
                     foreach (var rev in revisions2)
                     {

@@ -14,6 +14,7 @@ using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Routing;
 using StingTools.UI;
+using StingTools.Core.Placement;
 
 namespace StingTools.Commands.Routing
 {

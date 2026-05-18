@@ -2,6 +2,182 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 179 — Placement Center canonical integration + DrawingType/Pack wiring)
+
+Branch: `claude/toilet-fixture-placement-research-aZtgU`. Six commits. Makes the Placement Center and dock-panel sub-tabs the single canonical surface for all placement / annotation / symbol results, fully integrated with the DrawingType / ViewStylePack system.
+
+##### PlacementResultBus (new)
+
+`Core/Placement/PlacementResultBus.cs` — static event bus with `PlacementRunSummary` (Source / DrawingTypeId / PackId / Headline / Metrics / Warnings / AffectedIds / RunUtc). Any placement/annotation/symbol command calls `PlacementResultBus.Publish(summary)` after its run; all subscribers update automatically with zero coupling. `LastResult` allows late-subscribers to replay the most recent run.
+
+##### Placement Center context strip
+
+`UI/PlacementCenter/StingPlacementCenter.xaml` + `.xaml.cs` — new `Grid.Row="0"` context strip above the TabControl showing the active view's DrawingType id, ViewStylePack id, and discipline code. Subscribes to `PlacementResultBus.ResultPublished`; on each result the strip headline updates instantly and the Run tab result panel (`grpRunResult`) populates with headline, metric badges, and the AffectedIds list backing the "Select" button. `RefreshDrawingTypeContext()` reads `DrawingTypeStamper.Read(activeView)` and resolves DT + pack via `DrawingTypeRegistry`. Re-opening the window replays the last result.
+
+##### ISO symbol placement wired through DrawingType
+
+`Commands/Fabrication/PlaceIsoSymbolsCommand.cs` — resolves discipline from the active view's stamped DrawingType, passes it as a filter to `IsoSymbolPlacer.PlaceSymbolsForAssembly`, then publishes a `PlacementRunSummary` and shows `FabricationResultDialog`. `IsoSymbolPlacer` gained `CategoryMatchesDiscipline` helper mapping DT discipline strings to CSV category column prefix patterns (Pipe/Duct/Electrical).
+
+##### AnnotationRunner fixes + CategoryTagStyles/CategoryDepths
+
+`Core/Drawing/AnnotationRunner.cs` — `Run` overloads added to fix the `DrawingTypePresentation.Apply` call-site mismatch. `ResolveTagTypeId` tier-3 fallback reads `ViewStylePack.CategoryTagStyles` to find a tag family whose name contains the style preset. `TagCategory` applies `ViewStylePack.CategoryDepths` paragraph depth via `ParameterHelpers.SetInt(el, "TAG_PARA_DEPTH_INT", depth)` after `IndependentTag.Create`.
+
+##### BuildAndWriteTag: TAG7 sections, DefaultTagStyle, CategoryTagStyles
+
+`Core/TagConfig.cs` — single pack-resolution pass in the display BOOL init block:
+- **CategoryTag7Sections**: per-category bool controls `TAG_7_SECTION_VISIBLE_A/B/C/D/E/F_BOOL` (false = hide all TAG7 sub-sections for this category in the active drawing type).
+- **CategoryTagStyles + DefaultTagStyle**: per-category or pack-level tag style code applied via inline BOOL-matrix logic (mirrors `TagStyleEngine.ApplyStyleCode` without crossing the `internal` class boundary). Replaces the hard-coded `TAG_2.5NOM_BLACK_BOOL = true` with pack-configured defaults.
+
+##### GenerateFabPackageCommand fabrication routing
+
+`Commands/Fabrication/GenerateFabPackageCommand.cs` — now publishes `PlacementRunSummary` to `PlacementResultBus` after every run so the Placement Center and dock panel strips update without the user switching windows. `FabricationResultDialog` wired as the result display (TaskDialog fallback if the WPF dialog fails).
+
+##### Inline result strips in dock panel
+
+`UI/StingDockPanel.xaml` + `.xaml.cs` — `PlacementResultBus` subscription added to the code-behind; `OnPlacementResultBus` routes "Tags"/"Fixtures" results to `bdrFixturesResult`/`txtFixturesResultHeadline` and "Routing"/"Symbols" results to `bdrRoutingResult`/`txtRoutingResultHeadline`. Strips are collapsed until a result arrives, then auto-show with the run headline.
+
+##### SmartTagPlacementCommand DrawingType wiring
+
+`Tags/SmartTagPlacementCommand.cs` — `ResolvePackForView` helper resolves the active DrawingType pack. During placement: tag family type resolution consults `CategoryTagStyles`; after `IndependentTag.Create`, `CategoryDepths` depth is applied; placed tag ElementIds collected into `AffectedIds`. After the transaction: publishes `PlacementRunSummary(Source="Tags")` so the context strip and dock panel strip update immediately.
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `CategoryTag7Sections` currently controls visibility of ALL TAG7 sub-sections for the category uniformly (one bool per category). Per-section granularity can be added later by extending the dict key to `"Category:SectionLetter"`.
+3. `DefaultTagStyle` / `CategoryTagStyles` values must match a valid `TagStyleParamName` code (e.g. `"2.5NOM_BLACK"`) — mismatches fall back to the hard-coded default silently.
+4. `PlacementResultBus` is purely in-process; no persistence. The Placement Center replays `LastResult` on re-open but not across Revit sessions.
+
+---
+
+#### Completed (Phase 176 — symbol authoring: Option A, 7 MEP categories, elevation symbols)
+
+Branch: `claude/review-symbol-workflow-CJFil`.
+
+Three enhancements to the Phase 175 symbol authoring system:
+
+**1. Option A — auto-author symbols on manufacturer swap (`SwapToManufacturerCommand.cs`)**
+
+After `ChangeTypeId` swaps seed instances to manufacturer families, the manufacturer families previously had no STING symbol params. Now:
+- After `tg.Assimilate()`, `AutoAuthorSwappedFamilies(doc, plans)` collects every unique `Family` from winning swap candidates.
+- For each family: `doc.EditFamily` → `FamilyParamEngine.InjectAutomationPresentationPack` → `FamilySymbolAuthor.AuthorSymbols` → `famDoc.LoadFamily` → `famDoc.Close`.
+- Uses a new nested `StingFamilyReloadOptions : IFamilyLoadOptions` (`overwriteParameterValues = false`).
+- Runs outside the swap `TransactionGroup` so authoring failures never roll back successfully-swapped instances.
+- Result panel now shows "Symbol families authored: N".
+- `using StingTools.Tags;` added (for `FamilyParamEngine`, which is `internal` but accessible within the same assembly).
+
+**2. 7 missing MEP categories (`STING_SYMBOL_SHAPES.json` → v1.2)**
+
+All 7 new categories have full IEC/ANSI/BS/NFPA/CIBSE geometry:
+
+| Category | IEC/BS | ANSI/SMACNA | NFPA | CIBSE |
+|---|---|---|---|---|
+| `OST_DuctTerminal` | Square + inscribed circle | Square with X | Narrow rectangle | Square + inner circle |
+| `OST_DuctAccessory` | Rect + single blade diagonal | Rect + double blade | Rect + diagonal | Rect + centre horizontal |
+| `OST_PipeAccessory` | Bowtie (two triangles — valve) | Bowtie | Circle at node + stubs | Diamond |
+| `OST_DuctFitting` | Narrow rectangle (inline) | Same | Same | Same |
+| `OST_PipeFitting` | Narrow rectangle (inline) | Same | Same | Same |
+| `OST_LightingDevices` | Circle + 45° diagonal tail | Same | Circle + top tick | Circle + horizontal line |
+| `OST_GenericModel` | Diamond | Diamond | Diamond | Square + centre dot |
+
+Total categories: 13 → 21 (plus `_UNUSED` key). All are now properly resolved when `FamilySymbolAuthor` looks up `bic.ToString()` in the JSON cache.
+
+**3. Per-standard elevation symbols (`FamilySymbolAuthor.cs`)**
+
+The elevation symbol previously used a single generic bounding box (same geometry for all 5 standards). Now:
+- `CreateAllStandardElevationSets` authors per-standard elevation curves in the XZ front-elevation sketch plane, gated on `STING_SHOW_*_BOOL` (same visibility mechanism as plan symbols).
+- Called inside Step 5 of `AuthorSymbols` when `switchParams != null` and `opts.CreateElevationSymbol == true`.
+- `TryCreateStandardElevationCurvesFromJson` reads `{STANDARD}_elev` arrays from JSON. Coordinate mapping: `x * halfW` → `XYZ.X`; `y * halfW + centerZ` → `XYZ.Z` (symbol centred at `heightFt/2`).
+- `CreateElevCircle` helper creates quarter-arcs in the XZ plane (Y = 0).
+- Generic bounding box (Step 3) remains for categories without elevation JSON data — no regression.
+
+**Elevation data added to JSON for 2 most-impactful categories:**
+
+| Category | IEC_elev | ANSI_elev | BS_elev | NFPA_elev | CIBSE_elev |
+|---|---|---|---|---|---|
+| `OST_FireAlarmDevices` | Circle + horizontal bar | Square | Circle + bar | Square + inner circle | Circle + bar |
+| `OST_Sprinklers` | Circle (deflector) + pipe stub | Upright triangle (NFPA 13) | Circle + pipe stub | Pendant triangle (NFPA 13) | Circle + pipe stub |
+
+**Elevation symbol answer (user question: "can it be done automatically?")**
+
+YES — elevation symbols are now fully automatic via the same JSON-driven mechanism as plan symbols. Add `{STANDARD}_elev` arrays to any category in `STING_SYMBOL_SHAPES.json` and re-run `AuthorSymbols`; no Revit UI interaction required. The coordinate schema is identical to plan symbols except `y` maps to `XYZ.Z` (vertical height) instead of `XYZ.Y` (depth). For most MEP categories the generic bounding box is sufficient since the 3D body appears in elevation views; elevation symbol data is most valuable for fire alarm devices and sprinklers where the symbol identifies the standard visually.
+
+---
+
+#### Completed (Phase 175 — review fixes: symbol workflow correctness)
+
+Branch: `claude/review-symbol-workflow-CJFil` (same branch). Post-review hardening pass across all Phase 175 files.
+
+**Critical fixes**
+- `NLPCommandProcessor.cs`: 5 of 6 Phase 175 `CommandTag` strings were wrong, meaning NLP dispatch via `WorkflowEngine.ResolveCommandPublic` silently fell through to "not executable". Fixed to match `StingCommandHandler` case literals: `AuthorSymbols`, `SwitchProject`, `SwitchView`, `Audit`, `PlaceView`.
+- `FamilySymbolAuthor.cs`: `STING_SYMBOL_STD` was created as a **type** param (`isInstance=false`), making `SetElementSymbolStandardCommand.LookupParameter` always return `null`. Changed to **instance** param (`isInstance=true`). All existing family types are now seeded with `STD_CODE_IEC` in a foreach loop over `fm.Types`.
+- `FamilySymbolAuthor.cs`: `AnnotationSymbolCurvesCreated` used `=` (assign) instead of `+=` (accumulate) in `TryCreateJsonDrivenPlanSymbol` and `EmbedAnnotationPlanSymbolGeometry`, causing multi-standard authoring loops to lose curve counts from earlier iterations.
+
+**High-priority fixes**
+- `SwitchViewStandardCommand`: added `FilteredElementCollector(doc, view.Id)` loop to write `STING_SYMBOL_STD` on model family instances visible in the active view, so embedded curves switch standard immediately alongside annotation tags.
+- `STING_SYMBOL_SHAPES.json`: `OST_LightingFixtures_Recessed` is not a valid `BuiltInCategory.ToString()` value — `catKey` lookup can never match it. Renamed to `_OST_LightingFixtures_Recessed_UNUSED`.
+- `WorkflowEngine.ResolveCommand`: added 9 missing Phase 175 symbol resolver entries (`Symbols_AuthorSymbols`, `Symbols_SwitchProject`, `Symbols_SwitchView`, `Symbols_Audit`, `Symbols_PlaceView`, `Symbols_PlaceAll`, `Symbols_SetElementStandard`, `Symbols_SyncFilters`, `Symbols_SetProfile`), enabling NLP → workflow dispatch for all symbol commands.
+
+**Medium fixes**
+- `TryCreateJsonDrivenPlanSymbol`: `stdKey` was `ANSI/IEC` only — BS/NFPA/CIBSE silently collapsed to IEC. Replaced with a full 5-arm `switch` expression.
+- `LoadSymbolShapesJson`: added double-checked lock (`_cacheSync`) for thread safety; added version-mismatch warning when JSON schema revision differs from expected `"1.1"`.
+- `TryLinkBoundingBoxToFamilyDimensions`: `"Length"` and `"Length_MM"` removed from depth candidates for MEP linear categories (pipe, duct, conduit, cable tray, flex variants) where those names denote axial run length, not cross-section depth. New `IsMepLinearCategory` helper detects affected `BuiltInCategory` values.
+- `SyncViewFilterVisibilityCommand`: stray spaces in class declaration brace removed.
+
+**Low fixes**
+- `STING_SYMBOL_SHAPES.json`: added `"angles": "radians"` metadata field; arc segments in the file use raw radian values (`a1`, `a2`).
+- `MR_PARAMETERS.txt`: added comment block documenting 8 Phase 175 family-local (non-shared) params: `STING_SYMBOL_STD`, `STING_SHOW_{IEC,ANSI,BS,NFPA,CIBSE}_BOOL`, `STING_PLAN_HALF_W_FT`, `STING_PLAN_HALF_D_FT`.
+
+---
+
+#### Completed (Phase 175 — Multi-standard model family symbol switching)
+
+Branch: `claude/review-symbol-workflow-CJFil`. Implements embedded multi-standard
+curve sets in Revit model families (.rfa), matching the SLD annotation tag switching
+pattern already in place for `IndependentTag` families.
+
+##### Core mechanic
+
+All 5 symbol standard variants (IEC / ANSI / BS / NFPA / CIBSE) are authored into
+each model family simultaneously. A single `STING_SYMBOL_STD` Integer type parameter
+(0=IEC, 1=ANSI, 2=BS, 3=NFPA, 4=CIBSE) controls which set is visible at runtime via
+derived Yes/No formula parameters (`STING_SHOW_IEC_BOOL` … `STING_SHOW_CIBSE_BOOL`).
+Each derived bool uses the compound formula
+`if(STING_LOD_COARSE_VISIBLE, STING_SYMBOL_STD = N, false)` so LOD gating and
+standard selection are resolved in a single parameter read.
+
+##### Files changed
+
+| File | Change |
+|---|---|
+| `Core/ParamRegistry.cs` | Added `SYMBOL_STD_PARAM`, `SHOW_*_BOOL` constants, `STD_CODE_*` integer codes (0–4) |
+| `Core/FamilySymbolAuthor.cs` | Extended `SymbolStandard` enum (BS/NFPA/CIBSE); added `StandardSwitchingParams` class; added `InjectStandardSwitchingParams`, `CreateAllStandardSymbolSets`, `TryCreateStandardCurvesFromJson`; wired into `AuthorSymbols` step 5 with single-standard fallback path |
+| `Data/STING_SYMBOL_SHAPES.json` | Version 1.1 — added BS/NFPA/CIBSE shape entries for all 13 categories with standard-specific geometry differences (NFPA cross, BS diagonals, CIBSE fan arcs) |
+| `Commands/Symbols/SymbolStandardCommands.cs` | `SwapAllTags` extended to write `STING_SYMBOL_STD` on model instances; `StandardNameToCode` helper; new `SetElementSymbolStandardCommand` for per-instance selection |
+| `Commands/Symbols/AuthorFamilySymbolsCommand.cs` | Reports `std-params:N` in both selection and file batch result dialogs |
+| `Tags/FamilyParamCreatorCommand.cs` | `FamilyResult.StandardParamsCreated` delegate added |
+| `UI/StingCommandHandler.cs` | `Symbols_SetElementStandard` dispatch case |
+| `UI/StingDockPanel.xaml` | "Set Elem. Std" button wired to `Symbols_SetElementStandard` |
+| `Tags/NLPCommandProcessor.cs` | 6 NLP patterns for symbol authoring, project/view/element standard switching, audit, and overlay placement |
+
+##### New command
+
+`SetElementSymbolStandardCommand` (tag `Symbols_SetElementStandard`) — list picker
+shows IEC/ANSI/BS/NFPA/CIBSE, writes `STING_SYMBOL_STD` on selected model family
+instances that already carry the param (authored via Author Symbols). Skips and
+reports instances without the param.
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. Formula `if(STING_LOD_COARSE_VISIBLE, STING_SYMBOL_STD = N, false)` uses the
+   Revit formula engine integer-equality syntax; falls back to `STING_SYMBOL_STD = N`
+   if the compound form is rejected by `FamilyManager.SetFormula`.
+3. `STING_SYMBOL_SHAPES.json` v1.1 BS/NFPA/CIBSE entries are stub-quality shapes.
+   Production-accurate geometry (IEC 60617 / ANSI/IEEE 315 / BS 1553 / NFPA 170 /
+   CIBSE Guide) should be authored in native Revit family files by a BIM librarian.
+
+---
+
 #### Completed (Phase 177 — Code-quality sweep: locale safety, null-guard fixes, parameter registry alignment)
 
 Branch: `claude/review-codebase-FlVmh`. Twelve commits. Touched 20+ source files
@@ -4090,3 +4266,66 @@ button continues to invoke the Centre as a modeless window.
      parameter rows that are intentionally unbound. A future
      `BINDING_COVERAGE_REPORT` job could flag the small subset of
      instance parameters that still lack a category binding.
+
+#### Completed (Phase 177 — Toilet Fixture Placement & Plumbing Auto-Router)
+
+**Scope**: 100% toilet-room fixture placement coverage + Naviate-inspired plumbing auto-router.
+
+**New files**:
+
+| File | Purpose |
+|---|---|
+| `StingTools/Data/Placement/STING_PLACEMENT_RULES.toilet-fixtures.json` | 30+ placement rules across 20 fixture groups for complete toilet-room coverage |
+| `StingTools/Core/Routing/PlumbingFixtureRouter.cs` | Naviate MEP-inspired pipe auto-router: soil/waste + CWS/HWS supply, gravity slope, AAV placement, BS EN 12056-2 pipe sizing |
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Core/Placement/PlacementScorer.AnchorTypes.cs` | Added `WINDOW_SIDE_WALL_RIGHT` and `WINDOW_SIDE_WALL_LEFT` anchor types + `EmitWindowSideWall()` implementation |
+| `StingTools/Core/Placement/PlacementRuleLoader.cs` | Added `STING_PLACEMENT_RULES.toilet-fixtures.json` to `DisciplinePacks[]` so rules auto-load |
+
+**Toilet-room fixture groups (20 groups, 30+ rules)**:
+
+| Group | Fixtures covered |
+|---|---|
+| 1 | WC / Water Closet (window-centred, comfort-height, wall-hung, no-window fallback) |
+| 2 | Urinal (standard 610mm AFF, ADA 432mm AFF) |
+| 3 | Lavatory / Basin (standard 850mm, ADA 865mm, commercial) |
+| 4 | Toilet paper holder (single, double, recessed — always RIGHT of WC) |
+| 5 | Grab bars (side right, side left fold-down ADA, rear) |
+| 6 | Sanitary bin + toilet brush (floor level, right side) |
+| 7 | Soap / sanitiser dispenser (wall-mounted and countertop) |
+| 8 | Mirror + medicine cabinet (above basin) |
+| 9 | Towel ring, towel bar, robe/towel hook |
+| 10 | Hand dryer (commercial) + paper towel dispenser |
+| 11 | Waste / rubbish bin |
+| 12 | Coat hook (back of door) |
+| 13 | Baby changing station (fold-down, 864mm AFF) |
+| 14 | Bathroom shelf |
+| 15 | Emergency pull cord (accessible + healthcare variant) |
+| 16 | Shower: head, TMV valve, fold-down seat, horizontal grab bar, curtain rod, shampoo niche, floor drain |
+| 17 | Commercial extras: feminine napkin disposal, entrance mat, sanitary vending machine |
+| 18 | Extract ventilation: ceiling grille (Approved Doc F) + wall-mounted fan |
+| 19 | Bidet |
+| 20 | Mirror / vanity light (IP44, 2000mm AFF) |
+
+**New anchor types**:
+- `WINDOW_SIDE_WALL_RIGHT` — emits candidate on the right side wall relative to the window-wall orientation; used for toilet paper holders, right grab bars, sanitary bin
+- `WINDOW_SIDE_WALL_LEFT` — mirror variant; used for left fold-down grab bars
+
+**PlumbingFixtureRouter — Naviate integration strategy**:
+- Connector-based fixture classification (soil vs waste vs CWS/HWS)
+- Gravity slope enforcement: 1:40 (2.5%) per BS EN 12056-2
+- Pipe sizing by discharge units: BS EN 12056-2 Table F.1 (32–110mm)
+- AAV auto-placement when vent run exceeds configurable threshold (default 3000mm)
+- Parameter stamping: `PLM_PIPE_SERVICE_TXT`, `PLM_SLOPE_PCT_V4`, `PLM_NOMINAL_DIA_MM`
+- `PlumbingStandards` constants class: BS EN 12056-2, CIBSE Guide G, HTM 04-01
+
+**Standards covered**: BS 6465-1:2006+A1:2009, BS 8300:2018, ADA §604/§605/§606/§608/§609, ANSI A117.1-2017, HTM 04-01/08-03, HTM HBN 00-02, BS EN 12056-2, CIBSE Guide G, Approved Doc F/H/M, WRAS, TMV3, BS 7671 (zone requirements).
+
+**Caveats**:
+1. Built without `dotnet build` verification (Linux sandbox, no Revit API).
+2. Toilet paper holder right-of-WC placement depends on `WINDOW_SIDE_WALL_RIGHT` anchor emitting correctly from `EmitWindowSideWall()`; verify in Revit when a window-wall WC is placed.
+3. `PlumbingFixtureRouter` requires soil-stack pipes (system abbrev `SS`/`SOIL`/`WASTE`/`SVP`) and rising mains (`CWS`/`HWS`) pre-routed in the model before auto-routing can connect fixtures.
+4. AAV family `STING_AAV_Inline` must be loaded in the project; router warns gracefully if missing.

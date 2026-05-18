@@ -10,6 +10,8 @@ using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using ClosedXML.Excel;
 using StingTools.Core;
+using StingTools.Core.Drawing;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Docs
 {

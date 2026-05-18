@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Electrical;
 using Autodesk.Revit.UI;
@@ -383,6 +384,26 @@ namespace StingTools.UI
                     RunCommand<StingTools.Commands.Placement.EVChargerLayoutCommand>(app); break;
                 case "Placement_MedGasOutlets":
                     RunCommand<StingTools.Commands.Placement.MedGasOutletPlacementCommand>(app); break;
+
+                // ── SLD inline annotations ────────────────────────────────────
+                case "SldAnnotate_All":          RunCommand<StingTools.Commands.Symbols.SldAnnotateAllCommand>(app); break;
+                case "SldAnnotate_Voltage":      RunCommand<StingTools.Commands.Symbols.SldAnnotateVoltageCommand>(app); break;
+                case "SldAnnotate_Current":      RunCommand<StingTools.Commands.Symbols.SldAnnotateCurrentCommand>(app); break;
+                case "SldAnnotate_Fault":        RunCommand<StingTools.Commands.Symbols.SldAnnotateFaultCommand>(app); break;
+                case "SldAnnotate_Cable":        RunCommand<StingTools.Commands.Symbols.SldAnnotateCableCommand>(app); break;
+                case "SldAnnotate_Phase":        RunCommand<StingTools.Commands.Symbols.SldAnnotatePhaseCommand>(app); break;
+                case "SldAnnotate_Load":         RunCommand<StingTools.Commands.Symbols.SldAnnotateLoadCommand>(app); break;
+                case "SldAnnotate_Reference":    RunCommand<StingTools.Commands.Symbols.SldAnnotateReferenceCommand>(app); break;
+                case "SldAnnotate_Impedance":    RunCommand<StingTools.Commands.Symbols.SldAnnotateImpedanceCommand>(app); break;
+                case "SldAnnotate_Diversity":    RunCommand<StingTools.Commands.Symbols.SldAnnotateDiversityCommand>(app); break;
+                case "SldAnnotate_Format":
+                case "SldAnnotate_Format_Compact":
+                case "SldAnnotate_Format_Full":
+                case "SldAnnotate_Format_Reference": RunCommand<StingTools.Commands.Symbols.SldAnnotationFormatCommand>(app); break;
+                case "SldAnnotate_UpdateCalcs":  RunCommand<StingTools.Commands.Symbols.SldUpdateFromCalcsCommand>(app); break;
+                case "SldAnnotate_Toggle":       RunCommand<StingTools.Commands.Symbols.SldAnnotationToggleCommand>(app); break;
+                case "SldAnnotate_Clear":        RunCommand<StingTools.Commands.Symbols.SldAnnotationClearCommand>(app); break;
+                case "SldAnnotate_Audit":        RunCommand<StingTools.Commands.Symbols.SldAnnotationAuditCommand>(app); break;
 
                 default:
                     StingLog.Info($"ElectricalCommandHandler: unknown tag '{tag}'");

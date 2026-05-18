@@ -1,3 +1,4 @@
+using StingTools.Core;
 // PC-17 — Post-placement hooks.
 //
 // Optional side-effects fired by FixturePlacementEngine after every
@@ -57,9 +58,9 @@ namespace StingTools.Core.Placement
                 // edge between Placement and Core. If TagPipelineHelper
                 // moves or is renamed we just skip silently.
                 var t = Type.GetType("StingTools.Core.TagPipelineHelper, StingTools");
-                if (t == null) return;
+                if (t == null) { TagPipelineMissing = true; return; }
                 var m = t.GetMethod("RunFullPipeline", new[] { typeof(Document), typeof(Element) });
-                if (m == null) return;
+                if (m == null) { TagPipelineMissing = true; return; }
                 m.Invoke(null, new object[] { fi.Document, fi });
             }
             catch (Exception ex) { StingLog.Warn($"PostPlacementHooks.RunTagPipeline {fi.Id}: {ex.Message}"); }

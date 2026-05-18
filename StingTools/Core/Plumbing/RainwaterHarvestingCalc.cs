@@ -3,7 +3,9 @@
 // Phase 178c. Pure calculator — no Revit dependency, no element writes.
 
 using System;
+using System.Collections.Generic;
 using StingTools.Standards.BS8515;
+using System.Linq;
 
 namespace StingTools.Core.Plumbing
 {

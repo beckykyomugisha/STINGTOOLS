@@ -18,6 +18,7 @@ using Color = System.Windows.Media.Color;
 using System.Windows.Data;
 using Binding = System.Windows.Data.Binding;
 using Visibility = System.Windows.Visibility;
+using Autodesk.Revit.DB.Architecture;
 
 namespace StingTools.UI
 {

@@ -31,6 +31,9 @@ using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Symbols;
 using StingTools.UI;
+using StingTools.Core.Routing;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 
 namespace StingTools.Commands.Symbols
 {
@@ -149,7 +152,22 @@ namespace StingTools.Commands.Symbols
             }
             catch (Exception ex) { StingLog.Warn($"Connector audit: {ex.Message}"); }
 
-            ShowResult(aggregate, perSeed, outRoot, rebuildMode);
+            // ── Finalization gate validation ────────────────────────────
+            // Check STING_FINALIZATION_CHECKLIST on every produced .rfa.
+            // Incomplete seeds are reported in the result panel so the
+            // author knows exactly what manual steps remain before they
+            // can stamp .sting-finalized.
+            List<(string seedName, string reason)> gateIncomplete = null;
+            try
+            {
+                var rfaPaths = aggregate.CreatedRfaPaths ?? new List<string>();
+                gateIncomplete = ValidateFinalizationGates(doc, rfaPaths);
+                if (gateIncomplete.Count > 0)
+                    aggregate.Warnings.Insert(0, $"Finalization gate: {gateIncomplete.Count} seed(s) NOT ready for .sting-finalized — see FINALIZATION GATE section.");
+            }
+            catch (Exception ex) { StingLog.Warn($"ValidateFinalizationGates: {ex.Message}"); }
+
+            ShowResult(aggregate, perSeed, outRoot, rebuildMode, gateIncomplete);
 
             try { ActionAuditLog.Record("BuildSeedFamilies",
                 $"mode={rebuildMode} built={built} failed={failed} protected={aggregate.Protected} outRoot={outRoot}"); }
@@ -314,7 +332,7 @@ namespace StingTools.Commands.Symbols
                         }
                     }
                 }
-                catch (Exception ex) { result.Warnings.Add($"SwapCandidates parse '{Path.GetFileName(specPath)}': {ex.Message}"); }
+                catch (Exception ex2) { result.Warnings.Add($"SwapCandidates parse '{Path.GetFileName(specPath)}': {ex2.Message}"); }
             }
 
             // Prune pass — remove auto-registered entries that are no longer
@@ -390,9 +408,115 @@ namespace StingTools.Commands.Symbols
             return found;
         }
 
+        // ── Finalization gate ─────────────────────────────────────────────
+
+        /// <summary>
+        /// Reads STING_FINALIZATION_CHECKLIST (Integer) from every produced
+        /// seed family that was successfully loaded into the project.
+        /// Returns a list of (seedName, gateValue) pairs where gateValue is
+        /// false — these seeds should NOT receive the .sting-finalized sidecar
+        /// until the author wires the missing steps (penetration Mark formula,
+        /// connector face-ref, type variants, etc.).
+        /// </summary>
+        private static List<(string seedName, string reason)> ValidateFinalizationGates(
+            Document doc, List<string> rfaPaths)
+        {
+            const string GATE_PARAM = "STING_FINALIZATION_CHECKLIST";
+            var incomplete = new List<(string, string)>();
+            if (doc == null || rfaPaths == null) return incomplete;
+
+            // Penetration seeds require a specific per-seed check because
+            // the Mark = PEN_CONTROL_NUMBER_TXT formula is the one step
+            // the auto-builder cannot wire (Revit API limit).
+            var penetrationSeeds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "STING_SEED_SpecialityEquipment",
+                "STING_SEED_FireDamper",
+                "STING_SEED_AcousticSeal",
+            };
+
+            foreach (var rfaPath in rfaPaths)
+            {
+                if (!File.Exists(rfaPath)) continue;
+                string seedName = Path.GetFileNameWithoutExtension(rfaPath);
+
+                // Locate the matching loaded family in the project document.
+                Family fam = null;
+                try
+                {
+                    string famName = seedName.Replace("STING_SEED_", "");
+                    foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(Family)))
+                    {
+                        if (el is Family f &&
+                            (string.Equals(f.Name, seedName, StringComparison.OrdinalIgnoreCase)
+                             || string.Equals(f.Name, famName, StringComparison.OrdinalIgnoreCase)))
+                        { fam = f; break; }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ValidateFinalizationGates search: {ex.Message}"); }
+
+                if (fam == null) continue; // family not loaded yet — gate deferred
+
+                // Open family doc and read the gate param.
+                bool gateOk = false;
+                string reason = "STING_FINALIZATION_CHECKLIST param missing or false";
+                try
+                {
+                    var fdoc = doc.EditFamily(fam);
+                    try
+                    {
+                        var mgr = fdoc.FamilyManager;
+                        var p = mgr?.get_Parameter(GATE_PARAM);
+                        if (p == null)
+                        {
+                            // No gate param at all — treat as not finalized; note authoring step.
+                            reason = $"'{GATE_PARAM}' parameter not present in family";
+                        }
+                        else if (p.StorageType == StorageType.Integer && p.AsInteger() == 1)
+                        {
+                            gateOk = true;
+                        }
+                        else
+                        {
+                            reason = $"'{GATE_PARAM}' is {(p.StorageType == StorageType.Integer ? p.AsInteger().ToString() : p.AsString())} — author must set to 1";
+                        }
+
+                        // Extra check for penetration seeds: verify Mark
+                        // formula is wired by looking for a formula on the
+                        // built-in Mark parameter that references PEN_CONTROL_NUMBER_TXT.
+                        if (gateOk && penetrationSeeds.Contains(seedName))
+                        {
+                            try
+                            {
+                                var markP = mgr?.get_Parameter("Mark");
+                                if (markP == null || string.IsNullOrEmpty(markP.AsValueString())
+                                    || !markP.IsFormula)
+                                {
+                                    gateOk = false;
+                                    reason = "Penetration seed: Mark formula '= PEN_CONTROL_NUMBER_TXT' not wired in Family Editor";
+                                }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        }
+                    }
+                    finally { try { fdoc.Close(false); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"ValidateFinalizationGates: '{seedName}' — open family failed: {ex.Message}");
+                    continue;
+                }
+
+                if (!gateOk)
+                    incomplete.Add((seedName, reason));
+            }
+            return incomplete;
+        }
+
         private static void ShowResult(SymbolCreationResult r,
             List<(string seed, int created, int failed, int warnings, int prot)> perSeed,
-            string outRoot, SeedRebuildMode mode)
+            string outRoot, SeedRebuildMode mode,
+            List<(string seedName, string reason)> gateIncomplete = null)
         {
             var panel = StingResultPanel.Create("Seed Families — Build");
             panel.SetSubtitle($"Mode: {mode}  |  {r.Created} created, {r.Existed} existed, " +
@@ -435,8 +559,28 @@ namespace StingTools.Commands.Symbols
                 foreach (var e in r.Errors.Take(15)) panel.Text(e);
             }
 
+            if (gateIncomplete != null && gateIncomplete.Count > 0)
+            {
+                panel.AddSection("FINALIZATION GATE — DO NOT stamp .sting-finalized yet");
+                foreach (var (name, reason) in gateIncomplete)
+                    panel.Text($"  ✗  {name}: {reason}");
+                panel.Text("");
+                panel.Text("Steps to clear the gate:");
+                panel.Text("  1. Open the .rfa in the Family Editor.");
+                panel.Text("  2. Complete every item in the seed's finalization checklist");
+                panel.Text("     (see Families/Seeds/README.md for your seed type).");
+                panel.Text("  3. Set STING_FINALIZATION_CHECKLIST (family param) to 1.");
+                panel.Text("  4. For penetration seeds: wire Mark = PEN_CONTROL_NUMBER_TXT formula.");
+                panel.Text("  5. Save and reload. Then place '.sting-finalized' alongside the .rfa.");
+            }
+            else if (gateIncomplete != null && r.Created > 0)
+            {
+                panel.AddSection("FINALIZATION GATE").Text("All produced seeds passed the gate.");
+            }
+
             panel.AddSection("PROTECTION NOTES")
                 .Text("Finalize a seed: place a file named '<seed>.rfa.sting-finalized' alongside the .rfa.")
+                .Text("  ONLY place this sidecar AFTER the Finalization Gate section above shows no failures.")
                 .Text("  Future runs in any mode will skip that seed unless you delete the sidecar.")
                 .Text("protectExisting:true in the JSON spec blocks Rebuild All as an extra safety net.")
                 .Text("Use 'Rebuild Unfinalized' after editing a JSON spec to pick up changes safely.");
@@ -518,7 +662,7 @@ namespace StingTools.Commands.Symbols
                                     .OfClass(typeof(Autodesk.Revit.DB.ConnectorElement))
                                     .GetElementCount();
                             }
-                            finally { try { fdoc.Close(false); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } }
+                            finally { try { fdoc.Close(false); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); } }
                         }
                         catch (Exception ex) { warnings.Add($"Connector audit: '{id}' — open family failed: {ex.Message}"); continue; }
 

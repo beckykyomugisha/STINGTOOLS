@@ -12,6 +12,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using StingTools.Core.Placement;
+using StingTools.Core;
 
 namespace StingTools.Core.Visualization
 {

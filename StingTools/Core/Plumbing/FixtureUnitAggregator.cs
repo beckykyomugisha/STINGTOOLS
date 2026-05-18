@@ -161,7 +161,7 @@ namespace StingTools.Core.Plumbing
                     r.PipeIsStack[p.Id] = IsVerticalStack(p);
                     if (dfu > 0.001) r.PipesTagged++;
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     r.Warnings.Add($"BuildDfuMap pipe {p.Id}: {ex.Message}");
                 }

@@ -112,7 +112,7 @@ namespace StingTools.Temp
                                     psv = PanelScheduleView.CreateInstanceView(doc, tid, panel.Id);
                                     if (psv != null) break;
                                 }
-                                catch (Exception ex) { StingLog.Warn($"Create panel schedule with template: {ex.Message}"); }
+                                catch (Exception ex2) { StingLog.Warn($"Create panel schedule with template: {ex2.Message}"); }
                             }
                         }
 

@@ -293,7 +293,7 @@ namespace StingTools.UI
                 openBtn.Click += (s, e) =>
                 {
                     try { Process.Start(new ProcessStartInfo(b.CsvExportPath) { UseShellExecute = true })?.Dispose(); }
-                    catch (Exception ex) { StingLog.Warn($"Open export: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"Open export: {ex2.Message}"); }
                 };
                 rightButtons.Children.Add(openBtn);
             }
@@ -305,7 +305,7 @@ namespace StingTools.UI
                     string text = b.RawText ?? BuildPlainText(b);
                     Clipboard.SetText(text);
                 }
-                catch (Exception ex) { StingLog.Warn($"Copy: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Copy: {ex2.Message}"); }
             };
             rightButtons.Children.Add(copyBtn);
             var closeBtn = MakeFooterBtn("Close", BrHeader);

@@ -117,7 +117,7 @@ namespace StingTools.Commands.Electrical.Validation
                             var loadParam = circuit.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD);
                             if (loadParam != null) loadVa = loadParam.AsDouble();
                         }
-                        catch (Exception ex) { StingLog.Warn($"IPSValidate load: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"IPSValidate load: {ex2.Message}"); }
 
                         string circRef   = circuit.CircuitNumber ?? circuit.Id.ToString();
                         string panelName = panel.Name            ?? panel.Id.ToString();
@@ -129,14 +129,14 @@ namespace StingTools.Commands.Electrical.Validation
                                 $"{loadVa:F0} VA > {maxVaPerBranch:F0} VA limit " +
                                 $"({MaxHazardCurrentMa} mA × {systemVoltage:F0} V)");
                             try { ParameterHelpers.SetString(circuit, "IPS_BRANCH_COMPLIANT", "0", overwrite: true); }
-                            catch (Exception ex) { StingLog.Warn($"IPSValidate stamp fail: {ex.Message}"); }
+                            catch (Exception ex3) { StingLog.Warn($"IPSValidate stamp fail: {ex3.Message}"); }
                         }
                         else
                         {
                             passes.Add(
                                 $"PASS  Panel {panelName}  Circuit {circRef}: {loadVa:F0} VA");
                             try { ParameterHelpers.SetString(circuit, "IPS_BRANCH_COMPLIANT", "1", overwrite: true); }
-                            catch (Exception ex) { StingLog.Warn($"IPSValidate stamp pass: {ex.Message}"); }
+                            catch (Exception ex3) { StingLog.Warn($"IPSValidate stamp pass: {ex3.Message}"); }
                         }
                     }
 

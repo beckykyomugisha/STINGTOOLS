@@ -81,7 +81,7 @@ namespace StingTools.Commands.DesignOptions
                         p.Set(targetId);
                         ok++;
                     }
-                    catch (Exception ex) { fail.Add($"{v.Name}: {ex.Message}"); }
+                    catch (Exception ex2) { fail.Add($"{v.Name}: {ex2.Message}"); }
                 }
                 t.Commit();
             }
@@ -128,7 +128,7 @@ namespace StingTools.Commands.DesignOptions
                         var p = v.get_Parameter(BuiltInParameter.VIEWER_OPTION_VISIBILITY);
                         if (p != null) { p.Set(ElementId.InvalidElementId); ok++; }
                     }
-                    catch (Exception ex) { StingLog.Warn($"ResetViewOption: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"ResetViewOption: {ex2.Message}"); }
                 }
                 t.Commit();
             }

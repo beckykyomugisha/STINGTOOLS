@@ -88,7 +88,7 @@ namespace StingTools.Commands.Fabrication
                         catch
                         {
                             try { vs.Name = $"{ScheduleName}_{DateTime.Now:HHmmss}"; }
-                            catch (Exception ex) { StingLog.Warn($"SpoolSchedule rename fallback: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"SpoolSchedule rename fallback: {ex2.Message}"); }
                         }
 
                         var sd = vs.Definition;

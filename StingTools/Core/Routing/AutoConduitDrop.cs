@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — AutoConduitDrop.
 //
 // For each selected fixture with an electrical connector, finds the
@@ -239,7 +240,7 @@ namespace StingTools.Core.Routing
             using (var tx = new Transaction(Doc, "STING v4 Auto-conduit drop"))
             {
                 try { tx.Start(); }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     result.Warnings.Add($"Transaction start failed: {ex.Message}");
                     return result;
@@ -270,7 +271,7 @@ namespace StingTools.Core.Routing
                                     fx, BuiltInCategory.OST_Conduit, SearchRadiusMm, result);
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex3)
                         {
                             result.FailedCount++;
                             result.Warnings.Add($"Drop from {fx?.Id}: {ex.Message}");
@@ -278,7 +279,7 @@ namespace StingTools.Core.Routing
                     }
                     tx.Commit();
                 }
-                catch (Exception ex)
+                catch (Exception ex3)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
                     result.Warnings.Add($"AutoConduitDrop fatal: {ex.Message}");

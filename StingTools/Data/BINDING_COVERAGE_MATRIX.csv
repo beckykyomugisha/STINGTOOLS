@@ -1,4 +1,4 @@
-# v5.0 | 20260315 | BIM Template binding_coverage_matrix
+# v5.1 | 20260517 | BIM Template binding_coverage_matrix (+10: ASS_ITEM_CODE/SYSTEMS/TERM/TRACE, HVC_DCT_INSULATION, BLE_CBL_TRAY dims, MEC_SYS, PLM_SYS — Phase 179 alignment)
 Parameter_Name,Air Terminals,Cable Tray Fittings,Cable Trays,Casework,Ceilings,Communication Devices,Conduit Fittings,Conduits,Curtain Panels,Curtain Wall Mullions,Data Devices,Doors,Duct Accessories,Duct Fittings,Ducts,Electrical Circuits,Electrical Equipment,Electrical Fixtures,Fire Alarm Devices,Flex Ducts,Floors,Furniture,Generic Models,Lighting Devices,Lighting Fixtures,Materials,Mechanical Equipment,Nurse Call Devices,Pipe Accessories,Pipe Fittings,Pipes,Plumbing Equipment,Plumbing Fixtures,Project Information,Ramps,Roofs,Rooms,Security Devices,Specialty Equipment,Sprinklers,Stairs,Structural Columns,Structural Foundations,Structural Framing,Telephone Devices,Walls,Windows
 ASS_CAT_TXT,1,0,1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,0,0,0,1,1,1
 ASS_CRITICALITY_RATING_NR,1,0,1,1,0,1,0,1,0,0,1,0,0,0,0,0,1,1,0,0,0,1,1,0,1,0,1,1,0,0,0,1,1,0,0,0,0,1,1,1,0,0,0,0,1,0,0
@@ -1460,3 +1460,13 @@ ELC_PHOTO_LUX_RELUX_NR,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 ELC_PHOTO_UNIFORMITY_NR,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0
 ELC_PHOTO_LAST_ENGINE_TXT,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0
 ELC_PHOTO_LAST_CALC_DATE_TXT,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0
+ASS_ITEM_CODE_TXT,1,0,1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,0,0,0,1,1,1
+ASS_SYSTEMS_TXT,1,0,1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,0,0,0,1,1,1
+ASS_TERM_CAPPED_BOOL,0,0,1,0,0,0,1,1,0,0,0,0,1,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+ASS_TERM_REASON_TXT,0,0,1,0,0,0,1,1,0,0,0,0,1,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+ASS_TRACE_SEQ_NR,0,0,1,0,0,0,1,1,0,0,0,0,1,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+HVC_DCT_INSULATION_THK_MM,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+BLE_CBL_TRAY_WIDTH_MM,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+BLE_CBL_TRAY_DEPTH_MM,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+MEC_SYS_TXT,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+PLM_SYS_TXT,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0

@@ -10,6 +10,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
+using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.Attributes;
@@ -18,6 +19,10 @@ using StingTools.UI;
 using StingTools.BIMManager;
 using StingTools.Core.Clash;
 using Planscape.PluginSync;
+using StingTools.Core.Drawing;
+using StingTools.Core.Validation;
+using StingTools.Core.Validation.Healthcare;
+using StingTools.UI.Plumbing;
 
 namespace StingTools.Core
 {

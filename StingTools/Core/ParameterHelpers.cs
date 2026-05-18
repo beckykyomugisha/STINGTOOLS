@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
@@ -2574,7 +2575,7 @@ namespace StingTools.Core
                         written += SetIfEmptyInt(el, ParamRegistry.DEPT,
                             dept.AsString() ?? "");
                 }
-                catch (Exception ex) { StingLog.Warn($"Room department mapping failed: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Room department mapping failed: {ex2.Message}"); }
             }
 
             // ── Dimensional parameters (BLE_ schedule fields) ──────────────────
@@ -4023,7 +4024,7 @@ namespace StingTools.Core
                             if (TokenParamMap.TryGetValue(kvp.Key, out string paramName))
                             {
                                 try { ParameterHelpers.SetString(el, paramName, kvp.Value, overwrite: true); }
-                                catch (Exception lockEx)
+                                catch (Exception lockEx2)
                                 {
                                     StingLog.Warn($"TagPipeline: failed to restore locked token {kvp.Key} on {el.Id}: {lockEx.Message}");
                                 }

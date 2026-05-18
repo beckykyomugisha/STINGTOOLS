@@ -5,8 +5,10 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
+using System.Threading.Tasks;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Placement;
 
 // Autodesk.Revit.UI ships TextBox + ComboBox types that collide with
 // System.Windows.Controls equivalents used by the WPF dockable panel.
@@ -15,6 +17,7 @@ using StingTools.Core;
 using TextBox = System.Windows.Controls.TextBox;
 using ComboBox = System.Windows.Controls.ComboBox;
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
+using System.Text.RegularExpressions;
 
 namespace StingTools.UI
 {
@@ -84,6 +87,10 @@ namespace StingTools.UI
 
             BuildColorSwatches();
             _instance = this;
+
+            // Subscribe to PlacementResultBus so Fixtures and Routing result strips
+            // update automatically after any placement/routing run.
+            PlacementResultBus.ResultPublished += OnPlacementResultBus;
 
             // Pack 0 — reflect current offline state the moment the panel is realised.
             try { UpdateOfflineStatus(StingTools.Core.StingOfflineConfig.IsOffline, StingTools.Core.StingOfflineConfig.Source); }
@@ -1969,6 +1976,91 @@ namespace StingTools.UI
         {
             if (FindName(controlName) is System.Windows.Controls.TextBlock tb)
                 tb.Text = text;
+        }
+
+        /// <summary>
+        /// Returns the wire style name currently selected in the Electrical
+        /// sub-panel's wire-style ComboBox, or null/empty when no selection
+        /// has been made or the control is not present.
+        /// </summary>
+        public string GetSelectedWireStyle()
+        {
+            try
+            {
+                // Try the Electrical embedded panel first
+                if (FindName("cbWireStyle") is ComboBox cb)
+                    return (cb.SelectedItem as ComboBoxItem)?.Content?.ToString()
+                        ?? cb.SelectedItem?.ToString();
+                // Fallback: look inside StingElectricalPanel
+                var ep = FindName("ElectricalPanel") as System.Windows.FrameworkElement
+                    ?? FindVisualChild<StingTools.UI.StingElectricalPanel>(this);
+                if (ep != null)
+                {
+                    var inner = ep.FindName("cbWireStyle") as ComboBox
+                        ?? FindVisualChild<ComboBox>(ep, c => c.Name == "cbWireStyle");
+                    if (inner != null)
+                        return (inner.SelectedItem as ComboBoxItem)?.Content?.ToString()
+                            ?? inner.SelectedItem?.ToString();
+                }
+            }
+            catch (System.Exception ex)
+            { StingTools.Core.StingLog.Warn("GetSelectedWireStyle: " + ex.Message); }
+            return null;
+        }
+
+        private static T FindVisualChild<T>(System.Windows.DependencyObject parent,
+            System.Func<T, bool> predicate = null) where T : System.Windows.DependencyObject
+        {
+            if (parent == null) return null;
+            int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is T t && (predicate == null || predicate(t))) return t;
+                var found = FindVisualChild<T>(child, predicate);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Handler for <see cref="PlacementResultBus.ResultPublished"/>.
+        /// Updates the inline result strips in the Fixtures and Routing sub-tabs of
+        /// the TAGS tab based on the source of the published summary.
+        /// </summary>
+        private void OnPlacementResultBus(PlacementRunSummary summary)
+        {
+            if (summary == null) return;
+            Dispatcher.InvokeAsync(() =>
+            {
+                try
+                {
+                    if (summary.Source == "Tags" || summary.Source == "Fixtures")
+                    {
+                        var strip = FindName("bdrFixturesResult") as System.Windows.Controls.Border;
+                        var lbl   = FindName("txtFixturesResultHeadline") as System.Windows.Controls.TextBlock;
+                        if (strip != null && lbl != null)
+                        {
+                            lbl.Text = summary.Headline;
+                            strip.Visibility = System.Windows.Visibility.Visible;
+                        }
+                    }
+                    if (summary.Source == "Routing" || summary.Source == "Symbols")
+                    {
+                        var strip = FindName("bdrRoutingResult") as System.Windows.Controls.Border;
+                        var lbl   = FindName("txtRoutingResultHeadline") as System.Windows.Controls.TextBlock;
+                        if (strip != null && lbl != null)
+                        {
+                            lbl.Text = summary.Headline;
+                            strip.Visibility = System.Windows.Visibility.Visible;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingTools.Core.StingLog.Warn($"OnPlacementResultBus UI update: {ex.Message}");
+                }
+            });
         }
     }
 }

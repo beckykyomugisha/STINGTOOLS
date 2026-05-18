@@ -1,3 +1,4 @@
+using System;
 // StingTools — ISO 19650-2 / BS 1192 controlled vocabularies
 //
 // Single source of truth for every dropdown that should be a

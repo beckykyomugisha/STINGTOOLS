@@ -62,6 +62,12 @@ namespace StingTools.UI.PlacementCenter
                     default:
                         var view = doc.ActiveView;
                         if (view == null) break;
+                        // 3D / perspective views contain no Room elements —
+                        // warn early so the user isn't left with a silent "0 rooms" result.
+                        if (view.ViewType == ViewType.ThreeD || view.ViewType == ViewType.Undefined)
+                        {
+                            StingLog.Warn("PlacementCenterBridge.ResolveScope: active view is a 3D/perspective view — rooms resolve to empty. Switch to a plan or section view, or change scope to Project.");
+                        }
                         foreach (var r in new FilteredElementCollector(doc, view.Id)
                             .OfCategory(BuiltInCategory.OST_Rooms)
                             .WhereElementIsNotElementType())

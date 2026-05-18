@@ -144,7 +144,7 @@ namespace StingTools.Temp
                 int hidden = 0;
                 for (int i = 0; i < fCount; i++)
                 {
-                    try { if (def.GetField(i).IsHidden) hidden++; } catch (Exception ex) { StingLog.Warn($"Check schedule field hidden state: {ex.Message}"); }
+                    try { if (def.GetField(i).IsHidden) hidden++; } catch (Exception ex2) { StingLog.Warn($"Check schedule field hidden state: {ex2.Message}"); }
                 }
                 if (hidden > fCount / 2)
                     issues.Add($"[MANY HIDDEN] {name}: {hidden}/{fCount} fields hidden");
@@ -1229,7 +1229,7 @@ namespace StingTools.Temp
                     string total = field.DisplayType == ScheduleFieldDisplayType.Totals ? " [SUM]" : "";
                     report.AppendLine($"  [{vis}] {field.GetName()} → \"{field.ColumnHeading}\"{total}");
                 }
-                catch (Exception ex) { StingLog.Warn($"Field read: {ex.Message}"); report.AppendLine($"  [?] (error reading field {i})"); }
+                catch (Exception ex2) { StingLog.Warn($"Field read: {ex2.Message}"); report.AppendLine($"  [?] (error reading field {i})"); }
             }
             report.AppendLine($"\n  Visible: {fieldCount - hidden}, Hidden: {hidden}");
 
@@ -1441,7 +1441,7 @@ namespace StingTools.Temp
                             if (f.IsHidden) hidden++;
                             fieldNames.Add(f.GetName());
                         }
-                        catch (Exception ex) { StingLog.Warn($"Read schedule field for report: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Read schedule field for report: {ex2.Message}"); }
                     }
 
                     // Determine category from schedule (if available)

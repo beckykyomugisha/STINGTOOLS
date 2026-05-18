@@ -1,4 +1,4 @@
-# v3.0 | 20260313 | BIM Template category_bindings
+# v3.1 | 20260517 | BIM Template category_bindings (+134: ASS_ITEM_CODE/SYSTEMS/TERM/TRACE, HVC_DCT_INSULATION, BLE_CBL_TRAY dims, MEC_SYS, PLM_SYS — Phase 179 alignment)
 Parameter_Name,Revit_Category,Binding_Type,Is_Shared
 ASS_CAT_TXT,Air Terminals,Type,True
 ASS_CAT_TXT,Cable Trays,Type,True
@@ -16128,3 +16128,137 @@ STING_SUITABILITY_DESC_TXT,Project Information,Instance,True
 ELC_CDT_PENETRATION_COUNT_NR,Conduits,Instance,True
 ELC_CDT_PENETRATION_COUNT_NR,Pipes,Instance,True
 ELC_CDT_PENETRATION_COUNT_NR,Ducts,Instance,True
+ASS_ITEM_CODE_TXT,Air Terminals,Type,True
+ASS_ITEM_CODE_TXT,Cable Trays,Type,True
+ASS_ITEM_CODE_TXT,Casework,Type,True
+ASS_ITEM_CODE_TXT,Ceilings,Type,True
+ASS_ITEM_CODE_TXT,Columns,Type,True
+ASS_ITEM_CODE_TXT,Communication Devices,Type,True
+ASS_ITEM_CODE_TXT,Conduits,Type,True
+ASS_ITEM_CODE_TXT,Curtain Panels,Type,True
+ASS_ITEM_CODE_TXT,Curtain Systems,Type,True
+ASS_ITEM_CODE_TXT,Curtain Wall Mullions,Type,True
+ASS_ITEM_CODE_TXT,Data Devices,Type,True
+ASS_ITEM_CODE_TXT,Doors,Type,True
+ASS_ITEM_CODE_TXT,Duct Accessories,Type,True
+ASS_ITEM_CODE_TXT,Duct Fittings,Type,True
+ASS_ITEM_CODE_TXT,Ducts,Type,True
+ASS_ITEM_CODE_TXT,Electrical Equipment,Type,True
+ASS_ITEM_CODE_TXT,Electrical Fixtures,Type,True
+ASS_ITEM_CODE_TXT,Flex Ducts,Type,True
+ASS_ITEM_CODE_TXT,Flex Pipes,Type,True
+ASS_ITEM_CODE_TXT,Floors,Type,True
+ASS_ITEM_CODE_TXT,Furniture,Type,True
+ASS_ITEM_CODE_TXT,Furniture Systems,Type,True
+ASS_ITEM_CODE_TXT,Generic Models,Type,True
+ASS_ITEM_CODE_TXT,Lighting Fixtures,Type,True
+ASS_ITEM_CODE_TXT,Mechanical Equipment,Type,True
+ASS_ITEM_CODE_TXT,Medical Equipment,Type,True
+ASS_ITEM_CODE_TXT,Nurse Call Devices,Type,True
+ASS_ITEM_CODE_TXT,Pipe Accessories,Type,True
+ASS_ITEM_CODE_TXT,Pipe Fittings,Type,True
+ASS_ITEM_CODE_TXT,Pipes,Type,True
+ASS_ITEM_CODE_TXT,Plumbing Equipment,Type,True
+ASS_ITEM_CODE_TXT,Plumbing Fixtures,Type,True
+ASS_ITEM_CODE_TXT,Railings,Type,True
+ASS_ITEM_CODE_TXT,Ramps,Type,True
+ASS_ITEM_CODE_TXT,Roofs,Type,True
+ASS_ITEM_CODE_TXT,Rooms,Type,True
+ASS_ITEM_CODE_TXT,Security Devices,Type,True
+ASS_ITEM_CODE_TXT,Specialty Equipment,Type,True
+ASS_ITEM_CODE_TXT,Sprinklers,Type,True
+ASS_ITEM_CODE_TXT,Stairs,Type,True
+ASS_ITEM_CODE_TXT,Telephone Devices,Type,True
+ASS_ITEM_CODE_TXT,Walls,Type,True
+ASS_ITEM_CODE_TXT,Windows,Type,True
+ASS_SYSTEMS_TXT,Air Terminals,Type,True
+ASS_SYSTEMS_TXT,Cable Trays,Type,True
+ASS_SYSTEMS_TXT,Casework,Type,True
+ASS_SYSTEMS_TXT,Ceilings,Type,True
+ASS_SYSTEMS_TXT,Columns,Type,True
+ASS_SYSTEMS_TXT,Communication Devices,Type,True
+ASS_SYSTEMS_TXT,Conduits,Type,True
+ASS_SYSTEMS_TXT,Curtain Panels,Type,True
+ASS_SYSTEMS_TXT,Curtain Systems,Type,True
+ASS_SYSTEMS_TXT,Curtain Wall Mullions,Type,True
+ASS_SYSTEMS_TXT,Data Devices,Type,True
+ASS_SYSTEMS_TXT,Doors,Type,True
+ASS_SYSTEMS_TXT,Duct Accessories,Type,True
+ASS_SYSTEMS_TXT,Duct Fittings,Type,True
+ASS_SYSTEMS_TXT,Ducts,Type,True
+ASS_SYSTEMS_TXT,Electrical Equipment,Type,True
+ASS_SYSTEMS_TXT,Electrical Fixtures,Type,True
+ASS_SYSTEMS_TXT,Flex Ducts,Type,True
+ASS_SYSTEMS_TXT,Flex Pipes,Type,True
+ASS_SYSTEMS_TXT,Floors,Type,True
+ASS_SYSTEMS_TXT,Furniture,Type,True
+ASS_SYSTEMS_TXT,Furniture Systems,Type,True
+ASS_SYSTEMS_TXT,Generic Models,Type,True
+ASS_SYSTEMS_TXT,Lighting Fixtures,Type,True
+ASS_SYSTEMS_TXT,Mechanical Equipment,Type,True
+ASS_SYSTEMS_TXT,Medical Equipment,Type,True
+ASS_SYSTEMS_TXT,Nurse Call Devices,Type,True
+ASS_SYSTEMS_TXT,Pipe Accessories,Type,True
+ASS_SYSTEMS_TXT,Pipe Fittings,Type,True
+ASS_SYSTEMS_TXT,Pipes,Type,True
+ASS_SYSTEMS_TXT,Plumbing Equipment,Type,True
+ASS_SYSTEMS_TXT,Plumbing Fixtures,Type,True
+ASS_SYSTEMS_TXT,Railings,Type,True
+ASS_SYSTEMS_TXT,Ramps,Type,True
+ASS_SYSTEMS_TXT,Roofs,Type,True
+ASS_SYSTEMS_TXT,Rooms,Type,True
+ASS_SYSTEMS_TXT,Security Devices,Type,True
+ASS_SYSTEMS_TXT,Specialty Equipment,Type,True
+ASS_SYSTEMS_TXT,Sprinklers,Type,True
+ASS_SYSTEMS_TXT,Stairs,Type,True
+ASS_SYSTEMS_TXT,Telephone Devices,Type,True
+ASS_SYSTEMS_TXT,Walls,Type,True
+ASS_SYSTEMS_TXT,Windows,Type,True
+ASS_TERM_CAPPED_BOOL,Cable Trays,Instance,True
+ASS_TERM_CAPPED_BOOL,Conduits,Instance,True
+ASS_TERM_CAPPED_BOOL,Duct Accessories,Instance,True
+ASS_TERM_CAPPED_BOOL,Duct Fittings,Instance,True
+ASS_TERM_CAPPED_BOOL,Ducts,Instance,True
+ASS_TERM_CAPPED_BOOL,Generic Models,Instance,True
+ASS_TERM_CAPPED_BOOL,Pipe Accessories,Instance,True
+ASS_TERM_CAPPED_BOOL,Pipe Fittings,Instance,True
+ASS_TERM_CAPPED_BOOL,Pipes,Instance,True
+ASS_TERM_REASON_TXT,Cable Trays,Instance,True
+ASS_TERM_REASON_TXT,Conduits,Instance,True
+ASS_TERM_REASON_TXT,Duct Accessories,Instance,True
+ASS_TERM_REASON_TXT,Duct Fittings,Instance,True
+ASS_TERM_REASON_TXT,Ducts,Instance,True
+ASS_TERM_REASON_TXT,Generic Models,Instance,True
+ASS_TERM_REASON_TXT,Pipe Accessories,Instance,True
+ASS_TERM_REASON_TXT,Pipe Fittings,Instance,True
+ASS_TERM_REASON_TXT,Pipes,Instance,True
+ASS_TRACE_SEQ_NR,Cable Trays,Instance,True
+ASS_TRACE_SEQ_NR,Conduits,Instance,True
+ASS_TRACE_SEQ_NR,Duct Accessories,Instance,True
+ASS_TRACE_SEQ_NR,Duct Fittings,Instance,True
+ASS_TRACE_SEQ_NR,Ducts,Instance,True
+ASS_TRACE_SEQ_NR,Generic Models,Instance,True
+ASS_TRACE_SEQ_NR,Pipe Accessories,Instance,True
+ASS_TRACE_SEQ_NR,Pipe Fittings,Instance,True
+ASS_TRACE_SEQ_NR,Pipes,Instance,True
+HVC_DCT_INSULATION_THK_MM,Air Terminals,Type,True
+HVC_DCT_INSULATION_THK_MM,Duct Accessories,Type,True
+HVC_DCT_INSULATION_THK_MM,Duct Fittings,Type,True
+HVC_DCT_INSULATION_THK_MM,Ducts,Type,True
+HVC_DCT_INSULATION_THK_MM,Flex Ducts,Type,True
+HVC_DCT_INSULATION_THK_MM,Generic Models,Type,True
+MEC_SYS_TXT,Air Terminals,Instance,True
+MEC_SYS_TXT,Duct Accessories,Instance,True
+MEC_SYS_TXT,Duct Fittings,Instance,True
+MEC_SYS_TXT,Ducts,Instance,True
+MEC_SYS_TXT,Generic Models,Instance,True
+MEC_SYS_TXT,Mechanical Equipment,Instance,True
+BLE_CBL_TRAY_WIDTH_MM,Cable Trays,Type,True
+BLE_CBL_TRAY_DEPTH_MM,Cable Trays,Type,True
+PLM_SYS_TXT,Generic Models,Instance,True
+PLM_SYS_TXT,Pipe Accessories,Instance,True
+PLM_SYS_TXT,Pipe Fittings,Instance,True
+PLM_SYS_TXT,Pipes,Instance,True
+PLM_SYS_TXT,Plumbing Equipment,Instance,True
+PLM_SYS_TXT,Plumbing Fixtures,Instance,True
+PLM_SYS_TXT,Sprinklers,Instance,True

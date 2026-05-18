@@ -10,12 +10,14 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Color = System.Windows.Media.Color;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using SwColor  = System.Windows.Media.Color;
 using Grid     = System.Windows.Controls.Grid;
 using ComboBox = System.Windows.Controls.ComboBox;
 using TextBox  = System.Windows.Controls.TextBox;
+using Grid = System.Windows.Controls.Grid;
 
 namespace StingTools.BIMManager
 {

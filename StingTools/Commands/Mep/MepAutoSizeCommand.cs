@@ -89,7 +89,7 @@ namespace StingTools.Commands.Mep
 
             using (var tx = new Transaction(doc, "STING Auto-size pipes"))
             {
-                try { tx.Start(); } catch (Exception ex) { res.Warnings.Add($"tx: {ex.Message}"); goto Done; }
+                try { tx.Start(); } catch (Exception ex2) { res.Warnings.Add($"tx: {ex2.Message}"); goto Done; }
                 try
                 {
                     foreach (var p in pipes)
@@ -106,7 +106,7 @@ namespace StingTools.Commands.Mep
                             if (WriteSize(p, "Diameter", standard)) res.Resized++;
                             else res.Skipped++;
                         }
-                        catch (Exception ex)
+                        catch (Exception ex3)
                         {
                             res.Skipped++;
                             res.Warnings.Add($"size {p.Id}: {ex.Message}");
@@ -114,7 +114,7 @@ namespace StingTools.Commands.Mep
                     }
                     tx.Commit();
                 }
-                catch (Exception ex)
+                catch (Exception ex3)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
                     res.Warnings.Add($"Pipe sizing fatal: {ex.Message}");
@@ -241,7 +241,7 @@ namespace StingTools.Commands.Mep
                                 MepSizeTables.RoundUpTo(diaMm, MepSizeTables.DuctStandardMm))) wrote = true;
                             if (wrote) res.Resized++; else res.Skipped++;
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             res.Skipped++;
                             res.Warnings.Add($"size {d.Id}: {ex.Message}");
@@ -349,7 +349,7 @@ namespace StingTools.Commands.Mep
                             if (WriteDouble(c, "Diameter", std * MmToFt)) res.Resized++;
                             else res.Skipped++;
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             res.Skipped++;
                             res.Warnings.Add($"size {c.Id}: {ex.Message}");

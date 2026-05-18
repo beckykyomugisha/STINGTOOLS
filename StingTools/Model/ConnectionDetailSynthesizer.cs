@@ -17,6 +17,7 @@
 // junction detection (when SynthesizeConnectionDetails is true in the config).
 
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;

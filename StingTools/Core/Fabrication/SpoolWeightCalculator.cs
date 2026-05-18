@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — SpoolWeightCalculator.
 //
 // Estimates a spool's weight from its member elements so AssemblyGrouper

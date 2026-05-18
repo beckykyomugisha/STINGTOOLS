@@ -11,10 +11,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Structure;
 using StingTools.Core;
+using StingTools.Core.Routing;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Placement
 {
@@ -247,12 +250,12 @@ namespace StingTools.Core.Placement
                 if (!string.IsNullOrEmpty(r.RoomFilter))
                 {
                     try { roomFilterRx[r.MergeKey] = new System.Text.RegularExpressions.Regex(r.RoomFilter, System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled); }
-                    catch (Exception ex) { result.Warnings.Add($"Rule '{r.MergeKey}' RoomFilter regex: {ex.Message}"); }
+                    catch (Exception ex2) { result.Warnings.Add($"Rule '{r.MergeKey}' RoomFilter regex: {ex2.Message}"); }
                 }
                 if (!string.IsNullOrEmpty(r.ExcludeRoomFilter))
                 {
                     try { excludeFilterRx[r.MergeKey] = new System.Text.RegularExpressions.Regex(r.ExcludeRoomFilter, System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled); }
-                    catch (Exception ex) { result.Warnings.Add($"Rule '{r.MergeKey}' ExcludeRoomFilter regex: {ex.Message}"); }
+                    catch (Exception ex2) { result.Warnings.Add($"Rule '{r.MergeKey}' ExcludeRoomFilter regex: {ex2.Message}"); }
                 }
             }
 
@@ -276,7 +279,7 @@ namespace StingTools.Core.Placement
                 }
                 catch (Exception fEx) { StingLog.Warn($"FailuresPreprocessor wire: {fEx.Message}"); }
                 try { tx.Start(); }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     result.Warnings.Add($"Transaction start failed: {ex.Message}");
                     return result;
@@ -361,7 +364,7 @@ namespace StingTools.Core.Placement
                                 }
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             result.Warnings.Add($"Room {room.Id} / {rule.MergeKey}: {ex.Message}");
                             result.SkippedCount++;
@@ -407,11 +410,11 @@ namespace StingTools.Core.Placement
                         foreach (var id in result.PlacedIds)
                         {
                             Element el = null;
-                            try { el = doc.GetElement(id); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Post-commit GetElement({id.Value}): {ex.Message}"); }
+                            try { el = doc.GetElement(id); } catch (Exception ex2) { StingLog.Warn($"[FixturePlacementEngine] Post-commit GetElement({id.Value}): {ex2.Message}"); }
                             if (el == null) { rolledBack++; continue; }
                             alive.Add(id);
                             string cat = "(uncategorised)";
-                            try { cat = el.Category?.Name ?? "(uncategorised)"; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Read placed element category: {ex.Message}"); }
+                            try { cat = el.Category?.Name ?? "(uncategorised)"; } catch (Exception ex3) { StingLog.Warn($"[FixturePlacementEngine] Read placed element category: {ex3.Message}"); }
                             perCategoryAlive[cat] = perCategoryAlive.TryGetValue(cat, out var n) ? n + 1 : 1;
                         }
                         if (rolledBack > 0)
@@ -675,7 +678,7 @@ namespace StingTools.Core.Placement
                     try { PostPlacementHooks.RunFor(fi, rule); }
                     catch (Exception hkEx) { result.Warnings.Add($"PC-17 post-place hook for {fi.Id}: {hkEx.Message}"); }
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     result.SkippedCount++;
                     result.Warnings.Add($"Place {rule.CategoryFilter} in {SafeRoomName(room)}: {ex.Message}");
@@ -1350,10 +1353,10 @@ namespace StingTools.Core.Placement
                                 if (bic != BuiltInCategory.INVALID)
                                     map[c.Name] = bic;
                             }
-                            catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Category.Id -> BuiltInCategory cast: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"[FixturePlacementEngine] Category.Id -> BuiltInCategory cast: {ex2.Message}"); }
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"ResolveBuiltInCategoryByName: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"ResolveBuiltInCategoryByName: {ex2.Message}"); }
                     _bicByName[key] = map;
                 }
             }
@@ -1480,12 +1483,12 @@ namespace StingTools.Core.Placement
             foreach (var id in result.PlacedIds)
             {
                 FamilyInstance fi = null;
-                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] StructuralAudit GetElement({id.Value}): {ex.Message}"); }
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex2) { StingLog.Warn($"[FixturePlacementEngine] StructuralAudit GetElement({id.Value}): {ex2.Message}"); }
                 if (fi == null) continue;
                 XYZ p = (fi.Location as LocationPoint)?.Point;
                 if (p == null) continue;
                 bool nearStructure = false;
-                try { nearStructure = sa.IsNearJunction(p, clearanceFt); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] StructuralAwareness.IsNearJunction: {ex.Message}"); }
+                try { nearStructure = sa.IsNearJunction(p, clearanceFt); } catch (Exception ex3) { StingLog.Warn($"[FixturePlacementEngine] StructuralAwareness.IsNearJunction: {ex3.Message}"); }
                 if (!nearStructure) continue;
                 conflicts++;
                 if (conflicts <= 10)
@@ -1640,7 +1643,7 @@ namespace StingTools.Core.Placement
             foreach (var id in result.PlacedIds)
             {
                 FamilyInstance fi = null;
-                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] AutoJoin GetElement({id.Value}): {ex.Message}"); }
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex2) { StingLog.Warn($"[FixturePlacementEngine] AutoJoin GetElement({id.Value}): {ex2.Message}"); }
                 if (fi == null) continue;
                 var mgr = fi.MEPModel?.ConnectorManager;
                 if (mgr == null) continue;
@@ -1648,7 +1651,7 @@ namespace StingTools.Core.Placement
                 {
                     if (c == null || c.IsConnected) continue;
                     string sysKey = "?";
-                    try { sysKey = c.Domain.ToString() + ":" + (c.MEPSystem?.Name ?? c.Description ?? c.Owner?.Category?.Name ?? ""); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Build connector sysKey: {ex.Message}"); }
+                    try { sysKey = c.Domain.ToString() + ":" + (c.MEPSystem?.Name ?? c.Description ?? c.Owner?.Category?.Name ?? ""); } catch (Exception ex3) { StingLog.Warn($"[FixturePlacementEngine] Build connector sysKey: {ex3.Message}"); }
                     if (!openConns.TryGetValue(sysKey, out var list))
                     {
                         list = new List<(Connector, ElementId)>();
@@ -1711,7 +1714,7 @@ namespace StingTools.Core.Placement
                             if (a.IsConnected) { joined++; directJoins++; } else failed++;
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         failed++;
                         StingLog.Warn($"AutoJoinMepConnectors {aid.Value}->{tid.Value}: {ex.Message}");
@@ -1862,7 +1865,7 @@ namespace StingTools.Core.Placement
             foreach (var id in result.PlacedIds)
             {
                 FamilyInstance fi = null;
-                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] DoorSwingAudit GetElement({id.Value}): {ex.Message}"); }
+                try { fi = doc.GetElement(id) as FamilyInstance; } catch (Exception ex2) { StingLog.Warn($"[FixturePlacementEngine] DoorSwingAudit GetElement({id.Value}): {ex2.Message}"); }
                 if (fi == null) continue;
                 XYZ p = (fi.Location as LocationPoint)?.Point;
                 if (p == null) continue;

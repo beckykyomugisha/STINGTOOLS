@@ -1,14 +1,18 @@
+using System;
 // StingTools v4 MVP — fixture placement rule.
 //
-// PC-01 + PC-06..08 + PC-12..13 expand the rule POCO from the original 11
-// fields to ~30 fields covering: 3-D offsets and rotation (PC-06), full
+// PC-01 + PC-06..08 + PC-12..16 expand the rule POCO from the original 11
+// fields to ~50 fields covering: 3-D offsets / rotation (PC-06), full
 // room scoping suite (PC-07), variant fallback chain (PC-08), density and
-// linear rule kinds (PC-12), and dependency DAG support (PC-13).
+// linear rule kinds (PC-12), dependency DAG support (PC-13), coverage-grid
+// guarantee (PC-14), integrated routing (PC-15), two-phase construction
+// phasing (PC-16), and cluster placement (PC-17).
 //
 // All millimetre-valued properties are in millimetres; the engine
 // converts to Revit internal feet at placement time.
 
 using System.Collections.Generic;
+using StingTools.Core.Routing;
 
 namespace StingTools.Core.Placement
 {
@@ -61,6 +65,12 @@ namespace StingTools.Core.Placement
         /// resolution. Applied after VariantHint when both are set.
         /// </summary>
         public string FamilyTypeRegex { get; set; } = "";
+
+        /// <summary>
+        /// Source discipline pack filename (set by PlacementRuleLoader).
+        /// Read-only for the UI; used in merge-conflict warnings and Excel export.
+        /// </summary>
+        public string SourcePack { get; set; } = "";
 
         // ── Room scoping (PC-07) ────────────────────────────────────
 
@@ -128,6 +138,9 @@ namespace StingTools.Core.Placement
         /// <summary>Minimum centre-to-centre spacing in millimetres between fixtures placed by this rule within the same room.</summary>
         public double MinSpacingMm { get; set; } = 1000.0;
 
+        /// <summary>Maximum allowable spacing in mm between coverage-grid fixtures (BS EN 12464 / BS 5839). 0 = no maximum.</summary>
+        public double MaxSpacingMm { get; set; } = 0.0;
+
         /// <summary>Hard cap on fixtures placed by this rule per room. 0 = no cap.</summary>
         public int MaxPerRoom { get; set; } = 0;
 
@@ -139,8 +152,58 @@ namespace StingTools.Core.Placement
         /// <summary>PC-12 — Density rule: 1 fixture per N occupants (read from room's STING_OCC_COUNT_INT).</summary>
         public double PerOccupant { get; set; } = 0.0;
 
+        /// <summary>PC-12 — Density rule: 1 fixture per N beds (healthcare; read from room's STING_BED_COUNT_INT).</summary>
+        public double PerBed { get; set; } = 0.0;
+
+        /// <summary>PC-12 — Density rule: 1 fixture per N workstations (office; read from room's STING_WS_COUNT_INT).</summary>
+        public double PerWorkstation { get; set; } = 0.0;
+
+        /// <summary>PC-12 — Density rule: 1 fixture per N pupils (education; read from room's STING_PUPIL_COUNT_INT).</summary>
+        public double PerPupil { get; set; } = 0.0;
+
+        /// <summary>PC-12 — Density rule: 1 fixture per N toilet cubicles (BS 6465 accessory rules).</summary>
+        public double PerToiletCubicle { get; set; } = 0.0;
+
+        /// <summary>PC-12 — Name of a room integer parameter to read occupancy from when PerOccupant is set. Defaults to STING_OCC_COUNT_INT.</summary>
+        public string OccupancyParamName { get; set; } = "";
+
         /// <summary>PC-12 — Linear rule: 1 fixture per N metres of room perimeter.</summary>
         public double PerLinearMetre { get; set; } = 0.0;
+
+        // ── Coverage grid (PC-14) ────────────────────────────────────
+
+        /// <summary>PC-14 — effective coverage radius in mm (BS EN 12464-1 / BS 5839-1 / BS EN 14604). 0 = no coverage grid.</summary>
+        public double CoverageRadiusMm { get; set; } = 0.0;
+
+        /// <summary>PC-14 — when true, engine adds fixtures until CoveragePercent ≥ 99 % even if MaxPerRoom would cap earlier.</summary>
+        public bool GuaranteeCoverage { get; set; } = false;
+
+        // ── Integrated routing (PC-15) ───────────────────────────────
+
+        /// <summary>PC-15 — NONE / AUTO_CONDUIT / AUTO_PIPE / AUTO_DUCT / WALL_FOLLOWER. If set, the engine routes from each placed fixture after placement.</summary>
+        public string RoutingMode { get; set; } = "NONE";
+
+        /// <summary>PC-15 — vertical offset in mm from the fixture connector to where the route begins (negative = below connector).</summary>
+        public double RouteOffsetMm { get; set; } = 0.0;
+
+        /// <summary>PC-15 — PIPE / CONDUIT / CABLE_TRAY / DUCT. Must match an available Revit system category when RoutingMode ≠ NONE.</summary>
+        public string RouteSegmentCategory { get; set; } = "";
+
+        // ── Two-phase construction (PC-16) ───────────────────────────
+
+        /// <summary>PC-16 — when true, the TwoPhaseBoxPlacer runs first-fix box before second-fix fixture placement.</summary>
+        public bool TwoPhaseEnabled { get; set; } = false;
+
+        /// <summary>PC-16 — FIRST_FIX / SECOND_FIX / FINISHED. Controls which construction phase this rule targets.</summary>
+        public string ConstructionPhase { get; set; } = "FINISHED";
+
+        // ── Cluster placement (PC-17) ────────────────────────────────
+
+        /// <summary>PC-17 — when true, this rule participates in cluster placement with other rules sharing ClusterGroupId.</summary>
+        public bool IsClusterMember { get; set; } = false;
+
+        /// <summary>PC-17 — group identifier for co-located clusters (e.g. "SWITCH_PLATE_CLUSTER"). Rules in the same group are placed as a single compound element.</summary>
+        public string ClusterGroupId { get; set; } = "";
 
         // ── Dependency DAG (PC-13) ──────────────────────────────────
 

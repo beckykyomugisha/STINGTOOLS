@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — AEC/FM Filter Registry
 //
 // Loads STING_AEC_FILTERS.json once per document, layers an optional

@@ -375,6 +375,59 @@ public class ProjectMembersController : ControllerBase
         return Ok(new { member.Id, member.ProjectRole, member.Iso19650Role });
     }
 
+    // ── Gap 2 — Edit per-member ACLs post-invite ──────────────────────────────
+    //
+    // The existing PUT /{memberId} updates role + ACLs together. This focused
+    // endpoint lets a BIM manager edit ONLY the three allow-list axes without
+    // touching the role, so the UI can present a separate "Access settings"
+    // card without risking an accidental role change.
+
+    [HttpPut("{memberId}/acl")]
+    public async Task<ActionResult> UpdateAcl(Guid projectId, Guid memberId, [FromBody] UpdateAclRequest req)
+    {
+        if (!await IsManagerOrAboveAsync(projectId)) return Forbid();
+
+        var member = await _db.ProjectMembers
+            .FirstOrDefaultAsync(m => m.Id == memberId && m.ProjectId == projectId && m.IsActive);
+        if (member == null) return NotFound();
+
+        // null = "leave this axis unchanged"; [] = "clear the axis (no restriction)"
+        if (req.AllowedCdeStates     != null) member.AllowedCdeStates     = ToCsv(req.AllowedCdeStates);
+        if (req.AllowedDisciplines   != null) member.AllowedDisciplines   = ToCsv(req.AllowedDisciplines);
+        if (req.AllowedSuitabilities != null) member.AllowedSuitabilities = ToCsv(req.AllowedSuitabilities);
+
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId  = GetTenantId(),
+            ProjectId = projectId,
+            UserId    = userId,
+            Action    = "project_member_acl_updated",
+            EntityType = "ProjectMember",
+            EntityId  = memberId.ToString(),
+            DetailsJson = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                allowedCdeStates     = member.AllowedCdeStates,
+                allowedDisciplines   = member.AllowedDisciplines,
+                allowedSuitabilities = member.AllowedSuitabilities,
+            }),
+            Timestamp = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+
+        // Re-shard SignalR subscriptions to reflect the new allow-list.
+        _ = _membershipNotifier.NotifyAclChangedAsync(member.UserId, projectId);
+
+        return Ok(new
+        {
+            member.Id,
+            member.AllowedCdeStates,
+            member.AllowedDisciplines,
+            member.AllowedSuitabilities
+        });
+    }
+
     // ── Remove a member ────────────────────────────────────────────────────────
 
     [HttpDelete("{memberId}")]
@@ -522,3 +575,12 @@ public record UpdateMemberRequest(
     string[]? AllowedDisciplines   = null,
     string[]? AllowedSuitabilities = null,
     Guid?   AccessProfileId        = null);
+
+/// <summary>
+/// Gap 2 — focused ACL-only update. Null means "leave unchanged";
+/// empty array means "remove restriction on this axis".
+/// </summary>
+public record UpdateAclRequest(
+    string[]? AllowedCdeStates     = null,
+    string[]? AllowedDisciplines   = null,
+    string[]? AllowedSuitabilities = null);

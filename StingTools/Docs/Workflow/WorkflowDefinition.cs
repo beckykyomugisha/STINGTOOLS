@@ -1,3 +1,4 @@
+using System;
 // WorkflowDefinition.cs — template engine v1.1 (S15).
 //
 // POCOs describing a workflow definition (states, transitions, SLAs,

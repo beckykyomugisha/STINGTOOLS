@@ -29,6 +29,8 @@ using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.DirectContext3D;
 using Autodesk.Revit.DB.ExternalService;
+using StingTools.Core;
+using System.Linq;
 
 namespace StingTools.Core.Visualization
 {

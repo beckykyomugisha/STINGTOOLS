@@ -29,6 +29,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -490,7 +491,7 @@ namespace StingTools.Commands.TagStudio
                 if (paramByName.TryGetValue(ParamRegistry.TAG_DEPTH_TIER, out var depthFp))
                 {
                     try { fm.Set(depthFp, spec.DepthTier); }
-                    catch (Exception ex) { StingLog.Warn($"Set TAG_DEPTH_TIER_INT on {typeName}: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"Set TAG_DEPTH_TIER_INT on {typeName}: {ex2.Message}"); }
                 }
             }
 

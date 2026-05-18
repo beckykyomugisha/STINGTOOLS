@@ -28,6 +28,8 @@ namespace StingTools.Core.Drawing
     public sealed class TitleBlockApplyResult
     {
         public int ParamsWritten { get; set; }
+        public int ParametersDeclared { get; set; }
+        public List<string> ParametersMissing { get; } = new List<string>();
         public List<string> Warnings { get; } = new List<string>();
     }
 

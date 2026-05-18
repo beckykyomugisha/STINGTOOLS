@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager
 //
 // DrawingTypePresentation is the shared application step for batch
@@ -185,6 +186,8 @@ namespace StingTools.Core.Drawing
             /// VG/template re-apply but no auto-dim/auto-tag).
             /// </summary>
             public AnnotationRunOptions AnnotationOptions { get; set; }
+            /// <summary>When true, no writes are made; only validation is run.</summary>
+            public bool DryRun { get; set; }
         }
 
         public sealed class ApplyResult
@@ -563,7 +566,7 @@ namespace StingTools.Core.Drawing
                     {
                         ViewScale = dt.Scale > 0 ? dt.Scale : view.Scale
                     };
-                    var annResult = AnnotationRunner.Run(doc, view, dt.Annotation, annOpts);
+                    var annResult = AnnotationRunner.Run(doc, view, dt, annOpts);
                     r.AnnotationTagsPlaced = annResult.TagsPlaced;
                     r.AnnotationDimsPlaced = annResult.DimsPlaced;
                     r.AnnotationDecPlaced  = annResult.DecorativePlaced;

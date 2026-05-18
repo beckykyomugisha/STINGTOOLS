@@ -84,7 +84,7 @@ namespace StingTools.Commands.Mep
                         return Result.Failed;
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
                     StingLog.Error("ExportPfvIfcCommand", ex);
