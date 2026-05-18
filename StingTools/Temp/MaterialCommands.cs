@@ -249,7 +249,7 @@ namespace StingTools.Temp
                                 AppearanceAssetElement newAsset = baseAsset.Duplicate(assetName);
                                 newMat.AppearanceAssetId = newAsset.Id;
                             }
-                            catch (Exception ex)
+                            catch (Exception exApp)
                             {
                                 // Retry with a unique suffix (name collision is the most common cause)
                                 try
@@ -260,7 +260,7 @@ namespace StingTools.Temp
                                 }
                                 catch (Exception ex2)
                                 {
-                                    StingLog.Warn($"Appearance asset duplication for '{matName}' failed (sharing base asset): {ex2.Message} / retry: {ex2.Message}");
+                                    StingLog.Warn($"Appearance asset duplication for '{matName}' failed (sharing base asset): {exApp.Message} / retry: {ex2.Message}");
                                     newMat.AppearanceAssetId = baseMat.AppearanceAssetId;
                                 }
                             }
