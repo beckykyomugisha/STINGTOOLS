@@ -1163,13 +1163,19 @@ namespace StingTools.UI.PlacementCenter
             {
                 var rules   = PlacementRuleLoader.Load(_doc.PathName);
                 var roomIds = PlacementCenterBridge.ResolveScope(_uiDoc, VM.RunOpts.Scope);
-                var progress = new StingProgressDialog("Placing fixtures…", roomIds.Count);
+                var progress = StingProgressDialog.Show("Placing fixtures…", roomIds.Count);
+                Func<int, int, bool> progressHook = (processed, total) =>
+                {
+                    progress.Increment($"Room {processed} of {total}");
+                    return progress.IsCancelled;
+                };
                 List<ElementId> placed;
                 using (var tg = new TransactionGroup(_doc, "STING Place Fixtures (Run & Routing)"))
                 {
                     tg.Start();
-                    placed = FixturePlacementEngine.PlaceFixturesInScope(
-                        _doc, roomIds, rules, dry, progress);
+                    var result = FixturePlacementEngine.PlaceFixturesInScope(
+                        _doc, roomIds, rules, dry, progressHook);
+                    placed = result?.PlacedIds ?? new List<ElementId>();
                     tg.Assimilate();
                 }
                 progress.Close();
