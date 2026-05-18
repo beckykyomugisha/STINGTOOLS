@@ -1,0 +1,868 @@
+<Page x:Class="StingTools.UI.StingHvacPanel"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="STING HVAC"
+      Background="{DynamicResource PrimaryBg}">
+
+    <Page.Resources>
+        <Style x:Key="HvacSectionHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,4,0,2"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+        <Style x:Key="HvacLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Margin" Value="0,2,4,2"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="HvacActionBtn" TargetType="Button">
+            <Setter Property="MinWidth" Value="74"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Margin" Value="2,1"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style x:Key="HvacPrimaryBtn" TargetType="Button" BasedOn="{StaticResource HvacActionBtn}">
+            <Setter Property="Background" Value="#FF00897B"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="Height" Value="26"/>
+        </Style>
+        <Style x:Key="HvacWarnBtn" TargetType="Button" BasedOn="{StaticResource HvacActionBtn}">
+            <Setter Property="Background" Value="#FFEF6C00"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style x:Key="HvacExpander" TargetType="Expander">
+            <Setter Property="Margin" Value="0,3"/>
+            <Setter Property="Padding" Value="2"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+            <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+        </Style>
+        <Style x:Key="ChipCheck" TargetType="CheckBox">
+            <Setter Property="Margin" Value="0,2,8,2"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="HvacGrid" TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="RowHeight" Value="20"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="AlternatingRowBackground" Value="{DynamicResource SecondaryBg}"/>
+        </Style>
+    </Page.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ============== Title strip ============== -->
+        <Border Grid.Row="0" Background="{DynamicResource HeaderBg}" Padding="8,4">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="❄ STING HVAC" FontWeight="Bold" FontSize="13"
+                           Foreground="{DynamicResource HeaderFg}"/>
+                <TextBlock x:Name="txtHvacStatus" Text="Ready" FontSize="9" Margin="14,0,0,0"
+                           Foreground="{DynamicResource HeaderFg}" Opacity="0.7"
+                           VerticalAlignment="Center"/>
+                <Button Style="{StaticResource HvacActionBtn}" Content="⚙ Settings"
+                        Tag="Hvac_OpenSettings" Click="Cmd_Click"
+                        Margin="14,0,0,0" Height="20" FontSize="9"
+                        ToolTip="Open the MEP sizing rules registry settings"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ============== Project context strip ============== -->
+        <Border Grid.Row="1" Background="{DynamicResource SecondaryBg}" Padding="8,4">
+            <StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Standard:" Style="{StaticResource HvacLabel}"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbStandard" Margin="0,1,8,1" FontSize="10"
+                              SelectionChanged="cmbStandard_SelectionChanged">
+                        <ComboBoxItem Content="CIBSE Guide B/C (UK)" IsSelected="True" Tag="CIBSE"/>
+                        <ComboBoxItem Content="ASHRAE 90.1 (US)"          Tag="ASHRAE"/>
+                        <ComboBoxItem Content="EN 1505 / 1506 (EU)"        Tag="EN1505"/>
+                        <ComboBoxItem Content="DIN 4740 (DE)"              Tag="DIN4740"/>
+                        <ComboBoxItem Content="SS-EN (Nordic)"             Tag="SSEN"/>
+                    </ComboBox>
+
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Region:" Style="{StaticResource HvacLabel}"/>
+                    <ComboBox Grid.Row="0" Grid.Column="3" x:Name="cmbRegion" Margin="0,1" FontSize="10"
+                              SelectionChanged="cmbRegion_SelectionChanged">
+                        <ComboBoxItem Content="UK / SI"     IsSelected="True" Tag="UK_SI"/>
+                        <ComboBoxItem Content="US / IP"     Tag="US_IP"/>
+                        <ComboBoxItem Content="EU / SI"     Tag="EU_SI"/>
+                        <ComboBoxItem Content="DE / SI"     Tag="DE_SI"/>
+                        <ComboBoxItem Content="Nordic / SI" Tag="SE_SI"/>
+                    </ComboBox>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Pressure class:" Style="{StaticResource HvacLabel}"/>
+                    <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbPressure" Margin="0,1,8,1" FontSize="10"
+                              SelectionChanged="cmbPressure_SelectionChanged">
+                        <ComboBoxItem Content="Low ≤ 500 Pa (DW/144 A)"   IsSelected="True" Tag="low"/>
+                        <ComboBoxItem Content="Medium ≤ 1000 Pa (DW/144 B)"  Tag="med"/>
+                        <ComboBoxItem Content="High ≤ 2500 Pa (DW/144 C)"    Tag="high"/>
+                        <ComboBoxItem Content="Extra ≤ 7500 Pa (DW/144 D)"   Tag="extra"/>
+                    </ComboBox>
+
+                    <TextBlock Grid.Row="1" Grid.Column="2" Text="Air density:" Style="{StaticResource HvacLabel}"/>
+                    <ComboBox Grid.Row="1" Grid.Column="3" x:Name="cmbDensity" Margin="0,1" FontSize="10"
+                              SelectionChanged="cmbDensity_SelectionChanged">
+                        <ComboBoxItem Content="1.20 kg/m³ (sea level, 20°C)" IsSelected="True" Tag="1.20"/>
+                        <ComboBoxItem Content="1.15 kg/m³ (warm, 30°C)"      Tag="1.15"/>
+                        <ComboBoxItem Content="1.10 kg/m³ (hot / altitude)"  Tag="1.10"/>
+                        <ComboBoxItem Content="1.25 kg/m³ (cold, 0°C)"       Tag="1.25"/>
+                    </ComboBox>
+                </Grid>
+
+                <!-- Sizing strategy + scope radios -->
+                <Grid Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Sizing strategy:" Style="{StaticResource HvacLabel}"/>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
+                        <RadioButton Content="Velocity"       GroupName="HvacStrategy" IsChecked="True" Tag="velocity"       Margin="0,0,8,0" FontSize="10" Checked="Strategy_Checked"/>
+                        <RadioButton Content="Equal friction" GroupName="HvacStrategy" Tag="equal_friction" Margin="0,0,8,0" FontSize="10" Checked="Strategy_Checked"/>
+                        <RadioButton Content="Static regain"  GroupName="HvacStrategy" Tag="static_regain"  Margin="0,0,8,0" FontSize="10" Checked="Strategy_Checked"/>
+                        <RadioButton Content="Constant P"     GroupName="HvacStrategy" Tag="constant_pressure"               FontSize="10" Checked="Strategy_Checked"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Scope:" Style="{StaticResource HvacLabel}"/>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
+                        <RadioButton Content="All"          GroupName="HvacScope" Tag="Project"    Margin="0,0,8,0" FontSize="10" Checked="Scope_Checked"/>
+                        <RadioButton Content="Selection"    GroupName="HvacScope" Tag="Selection"  Margin="0,0,8,0" FontSize="10" Checked="Scope_Checked"/>
+                        <RadioButton Content="Active view"  GroupName="HvacScope" IsChecked="True" Tag="ActiveView" FontSize="10" Checked="Scope_Checked"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- ============== Tabs ============== -->
+        <TabControl Grid.Row="2" x:Name="tabHvac" Background="{DynamicResource PrimaryBg}">
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="FontSize" Value="10"/>
+                    <Setter Property="Padding" Value="6,3"/>
+                    <Setter Property="Foreground" Value="{DynamicResource TabFg}"/>
+                    <Setter Property="Background" Value="{DynamicResource TabBg}"/>
+                    <Style.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource TabSelectedFg}"/>
+                            <Setter Property="Background" Value="{DynamicResource TabSelectedBg}"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </TabControl.Resources>
+
+            <!-- ============== TAB 1: EQPT ============== -->
+            <TabItem Header="EQPT">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="EQUIPMENT (AHU · FCU · VAV · Chiller · Boiler · HP)" Style="{StaticResource HvacSectionHeader}"/>
+
+                        <!-- Chip filters -->
+                        <WrapPanel Margin="0,2,0,2">
+                            <CheckBox Content="AHU"      Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="FCU"      Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="VAV"      Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="Chiller"  Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="Boiler"   Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="HP"       Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="Fans"     Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                        </WrapPanel>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="3*"/>
+                                <ColumnDefinition Width="2*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <DataGrid Grid.Column="0" x:Name="EquipmentGrid"
+                                      Style="{StaticResource HvacGrid}" MinHeight="180">
+                                <DataGrid.Columns>
+                                    <DataGridCheckBoxColumn Header="" Binding="{Binding IsSelected}" Width="24"/>
+                                    <DataGridTextColumn Header="Tag"        Binding="{Binding Tag}"        Width="100"/>
+                                    <DataGridTextColumn Header="Type"       Binding="{Binding Type}"       Width="55"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="kW"         Binding="{Binding CapacityKw}" Width="55"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="L/s"        Binding="{Binding FlowLs}"     Width="60"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="System"     Binding="{Binding System}"     Width="*"   IsReadOnly="True"/>
+                                    <DataGridTextColumn Header=""           Binding="{Binding StatusDot}"  Width="24"  IsReadOnly="True"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                <Expander Header="IDENTITY" Style="{StaticResource HvacExpander}" IsExpanded="True">
+                                    <Grid Margin="4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Tag:"   Style="{StaticResource HvacLabel}"/>
+                                        <TextBox   Grid.Row="0" Grid.Column="1" Margin="2" FontSize="10"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Mark:"  Style="{StaticResource HvacLabel}"/>
+                                        <TextBox   Grid.Row="1" Grid.Column="1" Margin="2" FontSize="10"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Manu:"  Style="{StaticResource HvacLabel}"/>
+                                        <ComboBox  Grid.Row="2" Grid.Column="1" Margin="2" FontSize="10" IsEditable="True">
+                                            <ComboBoxItem Content="Daikin"/>
+                                            <ComboBoxItem Content="Mitsubishi"/>
+                                            <ComboBoxItem Content="Trox"/>
+                                            <ComboBoxItem Content="Halton"/>
+                                            <ComboBoxItem Content="Lindab"/>
+                                            <ComboBoxItem Content="Carrier"/>
+                                            <ComboBoxItem Content="Trane"/>
+                                        </ComboBox>
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Model:" Style="{StaticResource HvacLabel}"/>
+                                        <TextBox   Grid.Row="3" Grid.Column="1" Margin="2" FontSize="10"/>
+                                    </Grid>
+                                </Expander>
+
+                                <Expander Header="PERFORMANCE" Style="{StaticResource HvacExpander}" IsExpanded="True">
+                                    <Grid Margin="4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Capacity:" Style="{StaticResource HvacLabel}"/>
+                                        <TextBox   Grid.Row="0" Grid.Column="1" Margin="2" FontSize="10"/>
+                                        <TextBlock Grid.Row="0" Grid.Column="2" Text="kW"     Style="{StaticResource HvacLabel}"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Flow:"     Style="{StaticResource HvacLabel}"/>
+                                        <TextBox   Grid.Row="1" Grid.Column="1" Margin="2" FontSize="10"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="2" Text="L/s"    Style="{StaticResource HvacLabel}"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="ESP:"      Style="{StaticResource HvacLabel}"/>
+                                        <TextBox   Grid.Row="2" Grid.Column="1" Margin="2" FontSize="10"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="2" Text="Pa"     Style="{StaticResource HvacLabel}"/>
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="ηs:"       Style="{StaticResource HvacLabel}"/>
+                                        <TextBox   Grid.Row="3" Grid.Column="1" Margin="2" FontSize="10"/>
+                                    </Grid>
+                                </Expander>
+
+                                <Expander Header="ACOUSTICS" Style="{StaticResource HvacExpander}"/>
+                                <Expander Header="CONNECTIONS" Style="{StaticResource HvacExpander}"/>
+                                <Expander Header="COBie + ASSET" Style="{StaticResource HvacExpander}"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <WrapPanel Margin="0,6,0,0">
+                            <Button Style="{StaticResource HvacPrimaryBtn}" Content="Place equipment"
+                                    Tag="Hvac_PlaceEquipment" Click="Cmd_Click"
+                                    ToolTip="Place an HVAC equipment family from the symbol catalogue"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Auto-tag"
+                                    Tag="AutoTag" Click="Cmd_Click" ToolTip="Auto-tag all visible HVAC elements (ISO 19650)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Schedule…"
+                                    Tag="Hvac_EquipmentSchedule" Click="Cmd_Click" ToolTip="Generate / refresh mechanical equipment schedule"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Connect"
+                                    Tag="Hvac_ConnectionAudit" Click="Cmd_Click" ToolTip="Audit MEP connector graph"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Select"
+                                    Tag="Hvac_SelectMechanical" Click="Cmd_Click" ToolTip="Select all Mechanical Equipment in active view"/>
+                            <Button Style="{StaticResource HvacWarnBtn}" Content="Audit"
+                                    Tag="Hvac_EquipmentAudit" Click="Cmd_Click" ToolTip="Audit equipment for completeness + connector health"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 2: SYS ============== -->
+            <TabItem Header="SYS">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="MECHANICAL SYSTEMS" Style="{StaticResource HvacSectionHeader}"/>
+
+                        <WrapPanel Margin="0,2,0,2">
+                            <CheckBox Content="Supply"   Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="Return"   Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="Exhaust"  Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="OA"       Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="Relief"   Style="{StaticResource ChipCheck}"/>
+                        </WrapPanel>
+                        <WrapPanel Margin="0,0,0,2">
+                            <CheckBox Content="Air"         Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="Chilled"     Style="{StaticResource ChipCheck}"/>
+                            <CheckBox Content="HW"          Style="{StaticResource ChipCheck}"/>
+                            <CheckBox Content="Refrigerant" Style="{StaticResource ChipCheck}"/>
+                            <CheckBox Content="Condensate"  Style="{StaticResource ChipCheck}"/>
+                        </WrapPanel>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="3*"/>
+                                <ColumnDefinition Width="2*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <DataGrid Grid.Column="0" x:Name="SystemGrid"
+                                      Style="{StaticResource HvacGrid}" MinHeight="200">
+                                <DataGrid.Columns>
+                                    <DataGridCheckBoxColumn Header="" Binding="{Binding IsSelected}" Width="24"/>
+                                    <DataGridTextColumn Header="System"    Binding="{Binding Name}"      Width="120"/>
+                                    <DataGridTextColumn Header="Class"     Binding="{Binding Class}"     Width="60"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Equip"     Binding="{Binding Equipment}" Width="100" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="L/s"       Binding="{Binding FlowLs}"    Width="55"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="ΔP Pa"     Binding="{Binding DropPa}"    Width="55"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="NC"        Binding="{Binding Nc}"       Width="40"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header=""          Binding="{Binding StatusDot}" Width="24"  IsReadOnly="True"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                <Expander Header="DEFINITION" Style="{StaticResource HvacExpander}" IsExpanded="True">
+                                    <Grid Margin="4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Name:"   Style="{StaticResource HvacLabel}"/>
+                                        <TextBox   Grid.Row="0" Grid.Column="1" Margin="2" FontSize="10"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Class:"  Style="{StaticResource HvacLabel}"/>
+                                        <ComboBox  Grid.Row="1" Grid.Column="1" Margin="2" FontSize="10">
+                                            <ComboBoxItem Content="Supply"  IsSelected="True"/>
+                                            <ComboBoxItem Content="Return"/>
+                                            <ComboBoxItem Content="Exhaust"/>
+                                            <ComboBoxItem Content="OA"/>
+                                            <ComboBoxItem Content="Relief"/>
+                                        </ComboBox>
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Fluid:"  Style="{StaticResource HvacLabel}"/>
+                                        <ComboBox  Grid.Row="2" Grid.Column="1" Margin="2" FontSize="10">
+                                            <ComboBoxItem Content="Air" IsSelected="True"/>
+                                            <ComboBoxItem Content="CHW"/>
+                                            <ComboBoxItem Content="HW"/>
+                                            <ComboBoxItem Content="Refrigerant gas"/>
+                                            <ComboBoxItem Content="Refrigerant liquid"/>
+                                            <ComboBoxItem Content="Condensate"/>
+                                        </ComboBox>
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Setpoint:" Style="{StaticResource HvacLabel}"/>
+                                        <TextBox   Grid.Row="3" Grid.Column="1" Margin="2" FontSize="10" Text="+25 Pa"/>
+                                    </Grid>
+                                </Expander>
+
+                                <Expander Header="PRESSURE BUDGET" Style="{StaticResource HvacExpander}" IsExpanded="True">
+                                    <StackPanel Margin="4">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition/><RowDefinition/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Available:" Style="{StaticResource HvacLabel}"/>
+                                            <TextBlock Grid.Row="0" Grid.Column="1" Text="680 Pa"     Style="{StaticResource HvacLabel}" FontWeight="Bold"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Used:"      Style="{StaticResource HvacLabel}"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="642 Pa (94%)" Style="{StaticResource HvacLabel}" Foreground="#FF2E7D32"/>
+                                        </Grid>
+                                        <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" Margin="0,4" Padding="4">
+                                            <StackPanel>
+                                                <TextBlock Text="• AHU ESP        350 Pa" FontSize="10"/>
+                                                <TextBlock Text="• Ductwork       180 Pa" FontSize="10"/>
+                                                <TextBlock Text="• Coils           60 Pa" FontSize="10"/>
+                                                <TextBlock Text="• Terminals       30 Pa" FontSize="10"/>
+                                                <TextBlock Text="• Margin          22 Pa" FontSize="10" Foreground="#FF1976D2"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </Expander>
+
+                                <Expander Header="ZONES" Style="{StaticResource HvacExpander}"/>
+                                <Expander Header="FIRE DAMPERS" Style="{StaticResource HvacExpander}"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <WrapPanel Margin="0,6,0,0">
+                            <Button Style="{StaticResource HvacPrimaryBtn}" Content="Build system"
+                                    Tag="Hvac_SystemAudit" Click="Cmd_Click" ToolTip="Audit MEP system topology"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Auto-FD"
+                                    Tag="Hvac_AutoFireDamper" Click="Cmd_Click" ToolTip="Auto-place fire dampers at fire-rated boundaries"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Re-flow"
+                                    Tag="Mep_SystemTracer" Click="Cmd_Click" ToolTip="Re-trace MEP system flows"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Balance"
+                                    Tag="Hvac_HardyCross" Click="Cmd_Click" ToolTip="Hardy-Cross flow balancing"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Pressure map"
+                                    Tag="Mep_PressureDrop" Click="Cmd_Click" ToolTip="Pressure-drop report on selected system"/>
+                            <Button Style="{StaticResource HvacWarnBtn}" Content="Audit topology"
+                                    Tag="Mep_SystemAnalyse" Click="Cmd_Click" ToolTip="Run system-level connectivity analysis"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 3: CALCS ============== -->
+            <TabItem Header="CALCS">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="SIZING · BALANCING · ACOUSTICS" Style="{StaticResource HvacSectionHeader}"/>
+
+                        <CheckBox Content="Resize ducts"    Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                        <CheckBox Content="Re-balance"      Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                        <CheckBox Content="Update NC"       Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                        <CheckBox Content="Auto-fit aspect" Style="{StaticResource ChipCheck}"/>
+
+                        <Expander Header="TARGETS (per segment role)" Style="{StaticResource HvacExpander}" IsExpanded="True">
+                            <StackPanel Margin="4">
+                                <DataGrid x:Name="SizingRoleGrid" Style="{StaticResource HvacGrid}" MinHeight="120">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Role"        Binding="{Binding Role}"           Width="*"  IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="Max v (m/s)" Binding="{Binding MaxVelocityMs}"  Width="80"/>
+                                        <DataGridTextColumn Header="Pa/m"        Binding="{Binding FrictionPaPerM}" Width="60"/>
+                                        <DataGridTextColumn Header="Aspect"      Binding="{Binding AspectMax}"      Width="60"/>
+                                        <DataGridTextColumn Header="Source"      Binding="{Binding Source}"         Width="120" IsReadOnly="True"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <TextBlock Text="Edits to this grid live in &lt;project&gt;/_BIM_COORD/mep_sizing_rules.json"
+                                           FontSize="9" Margin="0,3" Opacity="0.7"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,3">
+                                    <Button Style="{StaticResource HvacActionBtn}" Content="Reload rules"
+                                            Tag="Hvac_ReloadRules" Click="Cmd_Click"
+                                            ToolTip="Re-read STING_MEP_SIZING_RULES.json + project override from disk"/>
+                                    <Button Style="{StaticResource HvacActionBtn}" Content="Reset defaults"
+                                            Tag="Hvac_ResetDefaults" Click="Cmd_Click"
+                                            ToolTip="Reset role targets to corporate baseline"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="LIVE RESULTS" Style="{StaticResource HvacExpander}" IsExpanded="True">
+                            <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" Padding="6" Margin="4">
+                                <StackPanel>
+                                    <TextBlock Text="No run yet. Click an action below." FontSize="10" Opacity="0.7"/>
+                                    <TextBlock Text="Last result: -" FontSize="10" Margin="0,4,0,0"/>
+                                    <TextBlock Text="Sized: -   Skipped: -   Failed: -" FontSize="10"/>
+                                    <TextBlock Text="Hardy-Cross convergence: -" FontSize="10"/>
+                                    <TextBlock Text="Worst NC: -    Worst ΔP: -" FontSize="10"/>
+                                </StackPanel>
+                            </Border>
+                        </Expander>
+
+                        <Expander Header="ISSUES" Style="{StaticResource HvacExpander}">
+                            <DataGrid x:Name="IssueGrid" Style="{StaticResource HvacGrid}" MinHeight="120">
+                                <DataGrid.Columns>
+                                    <DataGridCheckBoxColumn Header="" Binding="{Binding IsSelected}" Width="24"/>
+                                    <DataGridTextColumn Header="Lvl"        Binding="{Binding Severity}"   Width="40" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Element"    Binding="{Binding Element}"    Width="100" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Issue"      Binding="{Binding Issue}"      Width="*"   IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Suggestion" Binding="{Binding Suggestion}" Width="*"   IsReadOnly="True"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Expander>
+
+                        <WrapPanel Margin="0,6,0,0">
+                            <Button Style="{StaticResource HvacPrimaryBtn}" Content="Auto-size"
+                                    Tag="Hvac_AutoSizeDuct" Click="Cmd_Click"
+                                    ToolTip="Auto-size ducts per active strategy + region rules"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Friction"
+                                    Tag="Hvac_DuctFriction" Click="Cmd_Click" ToolTip="Darcy-Weisbach + SMACNA fitting-loss report"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Static regain"
+                                    Tag="Hvac_StaticRegain" Click="Cmd_Click" ToolTip="Static-regain sizing"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Equal friction"
+                                    Tag="Hvac_EqualFriction" Click="Cmd_Click" ToolTip="Equal-friction sizing"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Balance"
+                                    Tag="Hvac_HardyCross" Click="Cmd_Click" ToolTip="Hardy-Cross balancing"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Vibro-ac"
+                                    Tag="Mep_VibroAcoustic" Click="Cmd_Click" ToolTip="Duct-borne NC rating"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Fitting loss"
+                                    Tag="Mep_FittingLoss" Click="Cmd_Click" ToolTip="Per-fitting Kv loss report"/>
+                            <Button Style="{StaticResource HvacWarnBtn}" Content="Run all validators"
+                                    Tag="Hvac_RunAllValidators" Click="Cmd_Click" ToolTip="Run all v4 + healthcare validators"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 4: DUCT ============== -->
+            <TabItem Header="DUCT">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="DUCT TYPES · SIZES · GAUGE · INSULATION" Style="{StaticResource HvacSectionHeader}"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="3*"/>
+                                <ColumnDefinition Width="2*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <DataGrid x:Name="DuctTypeGrid" Style="{StaticResource HvacGrid}" MinHeight="180">
+                                    <DataGrid.Columns>
+                                        <DataGridCheckBoxColumn Header="" Binding="{Binding IsSelected}" Width="24"/>
+                                        <DataGridTextColumn Header="Name"          Binding="{Binding Name}"          Width="*"/>
+                                        <DataGridTextColumn Header="Shape"         Binding="{Binding Shape}"         Width="70"/>
+                                        <DataGridTextColumn Header="Material"      Binding="{Binding Material}"      Width="80"/>
+                                        <DataGridTextColumn Header="P-class"       Binding="{Binding PressureClass}" Width="60"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                <Expander Header="STANDARD SIZES (mm)" Style="{StaticResource HvacExpander}" IsExpanded="True">
+                                    <DataGrid x:Name="StandardSizeGrid" Style="{StaticResource HvacGrid}" MinHeight="120">
+                                        <DataGrid.Columns>
+                                            <DataGridCheckBoxColumn Header=""    Binding="{Binding IsEnabled}" Width="34"/>
+                                            <DataGridTextColumn Header="Size mm" Binding="{Binding SizeMm}"    Width="*"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Expander>
+
+                                <Expander Header="GAUGE / SEAM" Style="{StaticResource HvacExpander}">
+                                    <StackPanel Margin="4">
+                                        <TextBlock Text="Width ≤ 600 mm   →  0.7 mm  ·  Seam A (Pittsburgh)" FontSize="10"/>
+                                        <TextBlock Text="600 – 1200 mm    →  0.9 mm  ·  Seam A"             FontSize="10"/>
+                                        <TextBlock Text="1200 – 1800 mm   →  1.0 mm  ·  Seam B (Snap-lock)" FontSize="10"/>
+                                        <TextBlock Text="&gt; 1800 mm     →  1.2 mm  ·  Seam D (Double)"     FontSize="10"/>
+                                    </StackPanel>
+                                </Expander>
+
+                                <Expander Header="INSULATION + LINING" Style="{StaticResource HvacExpander}">
+                                    <StackPanel Margin="4">
+                                        <CheckBox Content="External wrap 25 mm  K=0.04" FontSize="10" IsChecked="True"/>
+                                        <CheckBox Content="Internal lining 25 mm"        FontSize="10"/>
+                                        <CheckBox Content="Vapour barrier on cold ducts" FontSize="10"/>
+                                    </StackPanel>
+                                </Expander>
+
+                                <Expander Header="FABRICATION DEFAULTS" Style="{StaticResource HvacExpander}">
+                                    <StackPanel Margin="4">
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton Content="Workshop" GroupName="DuctFab" IsChecked="True" FontSize="10" Margin="0,0,8,0"/>
+                                            <RadioButton Content="Site"     GroupName="DuctFab"                FontSize="10"/>
+                                        </StackPanel>
+                                        <ComboBox FontSize="10" Margin="0,4,0,0">
+                                            <ComboBoxItem Content="Seam A — Pittsburgh lock" IsSelected="True"/>
+                                            <ComboBoxItem Content="Seam B — Snap lock"/>
+                                            <ComboBoxItem Content="Seam C — Grooved"/>
+                                            <ComboBoxItem Content="Seam D — Double-seam"/>
+                                            <ComboBoxItem Content="Seam F — TDC / TDF flange"/>
+                                        </ComboBox>
+                                        <TextBlock Text="Section length: 3.0 m (DW/144)" FontSize="10" Margin="0,4,0,0" Opacity="0.7"/>
+                                    </StackPanel>
+                                </Expander>
+                            </StackPanel>
+                        </Grid>
+
+                        <WrapPanel Margin="0,6,0,0">
+                            <Button Style="{StaticResource HvacPrimaryBtn}" Content="Create types"
+                                    Tag="Hvac_CreateDuctTypes" Click="Cmd_Click"
+                                    ToolTip="Create duct types from STING_FAB_RULES.json"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Place duct"
+                                    Tag="Hvac_ModelCreateDuct" Click="Cmd_Click" ToolTip="Create a duct run between picked points"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Auto-drop"
+                                    Tag="Hvac_AutoDrop" Click="Cmd_Click" ToolTip="Auto-drop branches to nearest duct"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Generate layout"
+                                    Tag="Hvac_GenerateLayout" Click="Cmd_Click" ToolTip="Auto-generate corridor / band layout"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Seam audit"
+                                    Tag="Hvac_DuctSeamAudit" Click="Cmd_Click" ToolTip="SMACNA seam tally per spool"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Place hangers"
+                                    Tag="Hvac_PlaceHangers" Click="Cmd_Click" ToolTip="Place hangers along duct runs"/>
+                            <Button Style="{StaticResource HvacWarnBtn}" Content="Validate fills"
+                                    Tag="Hvac_ValidateFills" Click="Cmd_Click" ToolTip="Validate connector flow + fill against design"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 5: LOADS ============== -->
+            <TabItem Header="LOADS">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="HEATING + COOLING LOADS · OUTDOOR AIR · gbXML" Style="{StaticResource HvacSectionHeader}"/>
+
+                        <Grid Margin="0,2,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Engine:" Style="{StaticResource HvacLabel}"/>
+                            <ComboBox  Grid.Column="1" FontSize="10" Margin="0,0,8,0">
+                                <ComboBoxItem Content="Revit native"           IsSelected="True"/>
+                                <ComboBoxItem Content="gbXML → IES VE"/>
+                                <ComboBoxItem Content="gbXML → TRACE 3D Plus"/>
+                                <ComboBoxItem Content="gbXML → Carrier HAP"/>
+                                <ComboBoxItem Content="gbXML → EnergyPlus"/>
+                            </ComboBox>
+                            <TextBlock Grid.Column="2" Text="Code:"   Style="{StaticResource HvacLabel}"/>
+                            <ComboBox  Grid.Column="3" FontSize="10">
+                                <ComboBoxItem Content="ASHRAE 90.1-2022" IsSelected="True"/>
+                                <ComboBoxItem Content="ASHRAE 62.1-2022"/>
+                                <ComboBoxItem Content="CIBSE Guide A"/>
+                                <ComboBoxItem Content="Part L 2021"/>
+                                <ComboBoxItem Content="BB101 (UK schools)"/>
+                                <ComboBoxItem Content="ADF1 (UK ventilation)"/>
+                            </ComboBox>
+                        </Grid>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="3*"/>
+                                <ColumnDefinition Width="2*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <DataGrid Grid.Column="0" x:Name="SpaceLoadGrid"
+                                      Style="{StaticResource HvacGrid}" MinHeight="180">
+                                <DataGrid.Columns>
+                                    <DataGridCheckBoxColumn Header="" Binding="{Binding IsSelected}" Width="24"/>
+                                    <DataGridTextColumn Header="Space"        Binding="{Binding SpaceName}" Width="140"/>
+                                    <DataGridTextColumn Header="Type"         Binding="{Binding SpaceType}" Width="100" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="A m²"         Binding="{Binding AreaM2}"    Width="55"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="ppl"          Binding="{Binding People}"    Width="40"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="H kW"         Binding="{Binding HeatingKw}" Width="55"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="C kW"         Binding="{Binding CoolingKw}" Width="55"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="OA L/s"       Binding="{Binding OAls}"      Width="60"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header=""             Binding="{Binding Warning}"   Width="24"  IsReadOnly="True"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                <Expander Header="ENVELOPE" Style="{StaticResource HvacExpander}" IsExpanded="True">
+                                    <StackPanel Margin="4">
+                                        <TextBlock Text="Wall R: 3.2 m²K/W"   FontSize="10"/>
+                                        <TextBlock Text="Roof R: 6.0 m²K/W"   FontSize="10"/>
+                                        <TextBlock Text="Glazing U: 1.4 W/m²K" FontSize="10"/>
+                                        <TextBlock Text="Infiltration: 0.5 ach" FontSize="10"/>
+                                    </StackPanel>
+                                </Expander>
+                                <Expander Header="INTERNAL GAINS" Style="{StaticResource HvacExpander}">
+                                    <StackPanel Margin="4">
+                                        <TextBlock Text="Lighting:  8 W/m²"  FontSize="10"/>
+                                        <TextBlock Text="Equipment: 12 W/m²" FontSize="10"/>
+                                        <TextBlock Text="People:    75 W/person" FontSize="10"/>
+                                    </StackPanel>
+                                </Expander>
+                                <Expander Header="VENTILATION" Style="{StaticResource HvacExpander}" IsExpanded="True">
+                                    <StackPanel Margin="4">
+                                        <ComboBox FontSize="10">
+                                            <ComboBoxItem Content="10 L/s · person"   IsSelected="True"/>
+                                            <ComboBoxItem Content="8 L/s · person"/>
+                                            <ComboBoxItem Content="6 L/s · person + 1 L/s·m²"/>
+                                            <ComboBoxItem Content="0.5 ach"/>
+                                            <ComboBoxItem Content="Per ASHRAE 62.1 zone calc"/>
+                                        </ComboBox>
+                                        <TextBlock Text="ASHRAE 62.1 · ADF1 · BB101" FontSize="9" Margin="0,4" Opacity="0.7"/>
+                                    </StackPanel>
+                                </Expander>
+                                <Expander Header="COMPUTED LOADS" Style="{StaticResource HvacExpander}">
+                                    <StackPanel Margin="4">
+                                        <TextBlock Text="Heating:   -" FontSize="10"/>
+                                        <TextBlock Text="Cooling:   -" FontSize="10"/>
+                                        <TextBlock Text="Sensible:  -" FontSize="10"/>
+                                        <TextBlock Text="Latent:    -" FontSize="10"/>
+                                        <TextBlock Text="OA:        -" FontSize="10"/>
+                                    </StackPanel>
+                                </Expander>
+                            </StackPanel>
+                        </Grid>
+
+                        <WrapPanel Margin="0,6,0,0">
+                            <Button Style="{StaticResource HvacPrimaryBtn}" Content="Run loads"
+                                    Tag="Hvac_RunLoads" Click="Cmd_Click"
+                                    ToolTip="Run heating + cooling loads (Revit native or via gbXML)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Export gbXML"
+                                    Tag="Hvac_ExportGbxml" Click="Cmd_Click" ToolTip="Export gbXML for IES / TRACE / HAP / EnergyPlus"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Audit envelope"
+                                    Tag="Hvac_AuditEnvelope" Click="Cmd_Click" ToolTip="Audit space + envelope completeness"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Auto-assign types"
+                                    Tag="Hvac_SpaceAnalysis" Click="Cmd_Click" ToolTip="Auto-assign space types from category + name patterns"/>
+                            <Button Style="{StaticResource HvacWarnBtn}" Content="Ventilation audit"
+                                    Tag="Hvac_Ventilation" Click="Cmd_Click" ToolTip="ASHRAE 62.1 / ADF1 / BB101 minimum-OA audit"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 6: FAB ============== -->
+            <TabItem Header="FAB">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="FABRICATION · SPOOLS · CUT-LIST · NC EXPORT" Style="{StaticResource HvacSectionHeader}"/>
+
+                        <WrapPanel Margin="0,2,0,2">
+                            <CheckBox Content="Workshop"      Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="Site"          Style="{StaticResource ChipCheck}"/>
+                            <CheckBox Content="Shop-ready"    Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="With hangers"  Style="{StaticResource ChipCheck}"/>
+                        </WrapPanel>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="3*"/>
+                                <ColumnDefinition Width="2*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <DataGrid Grid.Column="0" x:Name="SpoolGrid"
+                                      Style="{StaticResource HvacGrid}" MinHeight="200">
+                                <DataGrid.Columns>
+                                    <DataGridCheckBoxColumn Header="" Binding="{Binding IsSelected}" Width="24"/>
+                                    <DataGridTextColumn Header="Spool"     Binding="{Binding Tag}"          Width="120"/>
+                                    <DataGridTextColumn Header="System"    Binding="{Binding System}"       Width="80"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="L m"       Binding="{Binding LengthM}"      Width="55"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="kg"        Binding="{Binding WeightKg}"     Width="55"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Fit"       Binding="{Binding FittingCount}" Width="45"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header=""          Binding="{Binding ShopReady}"    Width="24"  IsReadOnly="True"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                <Expander Header="ASSEMBLY" Style="{StaticResource HvacExpander}" IsExpanded="True">
+                                    <StackPanel Margin="4">
+                                        <TextBlock Text="Tag:      -" FontSize="10"/>
+                                        <TextBlock Text="Material: -" FontSize="10"/>
+                                        <TextBlock Text="Seam:     -" FontSize="10"/>
+                                    </StackPanel>
+                                </Expander>
+                                <Expander Header="HANGERS" Style="{StaticResource HvacExpander}">
+                                    <StackPanel Margin="4">
+                                        <CheckBox Content="Drop rod M10"  FontSize="10" IsChecked="True"/>
+                                        <CheckBox Content="Trapeze"       FontSize="10"/>
+                                        <TextBlock Text="Spacing: 2.4 m (DW/144)" FontSize="10" Opacity="0.7"/>
+                                    </StackPanel>
+                                </Expander>
+                                <Expander Header="OUTPUTS" Style="{StaticResource HvacExpander}" IsExpanded="True">
+                                    <StackPanel Margin="4">
+                                        <CheckBox Content="Shop drawing" FontSize="10" IsChecked="True"/>
+                                        <CheckBox Content="Cut list CSV" FontSize="10" IsChecked="True"/>
+                                        <CheckBox Content="NC file"      FontSize="10"/>
+                                        <CheckBox Content="ISO axon"     FontSize="10"/>
+                                        <CheckBox Content="Weld map"     FontSize="10"/>
+                                    </StackPanel>
+                                </Expander>
+                            </StackPanel>
+                        </Grid>
+
+                        <WrapPanel Margin="0,6,0,0">
+                            <Button Style="{StaticResource HvacPrimaryBtn}" Content="Build assemblies"
+                                    Tag="Fabrication_OpenWorkspace" Click="Cmd_Click"
+                                    ToolTip="Open the fabrication workspace"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Cut list"
+                                    Tag="Hvac_ExportCutList" Click="Cmd_Click" ToolTip="Export cut list CSV"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Isometrics"
+                                    Tag="Hvac_ExportIsometrics" Click="Cmd_Click" ToolTip="Export ISO 6412 isometrics"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Weld map"
+                                    Tag="Hvac_ExportWeldMap" Click="Cmd_Click" ToolTip="Export weld map"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="NC export"
+                                    Tag="Hvac_ExportNC" Click="Cmd_Click" ToolTip="Export NC machine code"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Hanger takedown"
+                                    Tag="Hvac_HangerTakedown" Click="Cmd_Click" ToolTip="Hanger schedule"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Flange rating"
+                                    Tag="Hvac_FlangeRating" Click="Cmd_Click" ToolTip="Flange rating report"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Spool weight"
+                                    Tag="Hvac_SpoolWeight" Click="Cmd_Click" ToolTip="Per-spool weight totals"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 7: RPRT ============== -->
+            <TabItem Header="RPRT">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="HEALTH · DRIFT · WORKFLOW RUNS · EXPORTS" Style="{StaticResource HvacSectionHeader}"/>
+
+                        <Expander Header="HEALTH KPIs" Style="{StaticResource HvacExpander}" IsExpanded="True">
+                            <Grid Margin="4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Sized:        -"      FontSize="10"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="Balanced:     -"      FontSize="10"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="NC fail:      - / -"  FontSize="10"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Drifted:      -"      FontSize="10"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="OA shortage:  -"      FontSize="10"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="FD missing:   -"      FontSize="10"/>
+                            </Grid>
+                        </Expander>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="3*"/>
+                                <ColumnDefinition Width="2*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Expander Grid.Column="0" Header="DRIFT" Style="{StaticResource HvacExpander}" IsExpanded="True">
+                                <DataGrid x:Name="DriftGrid" Style="{StaticResource HvacGrid}" MinHeight="160">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Lvl"     Binding="{Binding Severity}" Width="40"  IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="Element" Binding="{Binding Element}"  Width="120" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="Was → Now" Binding="{Binding WasNow}" Width="*"   IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="Reason"  Binding="{Binding Reason}"   Width="*"   IsReadOnly="True"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Expander>
+
+                            <Expander Grid.Column="1" Header="WORKFLOW RUNS" Style="{StaticResource HvacExpander}" IsExpanded="True" Margin="4,0,0,0">
+                                <DataGrid x:Name="WorkflowGrid" Style="{StaticResource HvacGrid}" MinHeight="160">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="#"     Binding="{Binding Number}"    Width="40"  IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="Name"  Binding="{Binding Name}"      Width="*"   IsReadOnly="True"/>
+                                        <DataGridTextColumn Header=""      Binding="{Binding StatusDot}" Width="24"  IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="When"  Binding="{Binding Timestamp}" Width="90"  IsReadOnly="True"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Expander>
+                        </Grid>
+
+                        <WrapPanel Margin="0,6,0,0">
+                            <Button Style="{StaticResource HvacPrimaryBtn}" Content="Equipment schedule"
+                                    Tag="Hvac_EquipmentSchedule" Click="Cmd_Click" ToolTip="Generate / refresh mechanical equipment schedule"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Diversity report"
+                                    Tag="Mep_SystemAnalyse" Click="Cmd_Click" ToolTip="System-level diversity report"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Carbon"
+                                    Tag="V6Carbon" Click="Cmd_Click" ToolTip="EN 15978 A1–A3 carbon for HVAC plant"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="PDF pack"
+                                    Tag="DocPackage" Click="Cmd_Click" ToolTip="Bundle HVAC drawings into a PDF pack"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Push to API"
+                                    Tag="PlatformSync" Click="Cmd_Click" ToolTip="Push results to Planscape server"/>
+                            <Button Style="{StaticResource HvacWarnBtn}" Content="Reload rules"
+                                    Tag="Hvac_ReloadRules" Click="Cmd_Click" ToolTip="Re-read STING_MEP_SIZING_RULES.json"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+        </TabControl>
+    </Grid>
+</Page>
