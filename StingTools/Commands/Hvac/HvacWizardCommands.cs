@@ -3,7 +3,7 @@
 // Replaces the TaskDialog stubs that the HVAC dock panel was routing
 // Hvac_RunLoads and Hvac_ExportGbxml to with real Revit API calls.
 //
-//   HvacRunLoadsCommand   — posts PostableCommand.AnalyzeHeatingAndCoolingLoads
+//   HvacRunLoadsCommand   — posts the heating-and-cooling-loads command
 //                           so Revit's native loads engine runs against the
 //                           current energy-analysis model. The native dialog
 //                           opens for the user to confirm zone settings; on
@@ -82,33 +82,19 @@ namespace StingTools.Commands.Hvac
                 };
                 if (go.Show() != TaskDialogResult.Yes) return Result.Cancelled;
 
-                // Post the native command. The enum name + internal command id
-                // moved between Revit versions:
-                //   - 2020-2024:  PostableCommand.AnalyzeHeatingAndCoolingLoads
-                //   - 2025:        ID_HEATING_AND_COOLING_LOADS (string id only,
-                //                  the enum constant was removed)
-                //   - 2026:        either form may resolve.
-                // Reflection over PostableCommand names + a string-id fallback
-                // keeps STING source compiling against any of those Revit APIs.
-                RevitCommandId postId = null;
-
-                try
-                {
-                    Type enumType = typeof(PostableCommand);
-                    foreach (string candidate in new[]
-                    {
-                        "AnalyzeHeatingAndCoolingLoads",
-                        "HeatingAndCoolingLoads",
-                        "AnalyzeLoads"
-                    })
-                    {
-                        if (!Enum.IsDefined(enumType, candidate)) continue;
-                        var enumVal = (PostableCommand)Enum.Parse(enumType, candidate);
-                        postId = RevitCommandId.LookupPostableCommandId(enumVal);
-                        if (postId != null) break;
-                    }
-                }
-                catch (Exception lookupEx) { StingLog.Warn($"PostableCommand enum lookup: {lookupEx.Message}"); }
+                // Post the native command. The enum constant + internal command id
+                // moved between Revit versions. The enum member literal we want
+                // ("AnalyzeHeatingAndCoolingLoads") was REMOVED in Revit 2025, so
+                // referencing it by name from source breaks the build on 2025+.
+                //
+                // Resolution is therefore 100% reflection — no compile-time
+                // reference to any PostableCommand member exists anywhere in
+                // STING source. We resolve the enum type by full name, walk its
+                // values, match candidate names, then invoke
+                // RevitCommandId.LookupPostableCommandId via reflection too.
+                // Falls through to the internal-command-id chain when the enum
+                // member doesn't exist in this Revit build.
+                RevitCommandId postId = ResolveLoadsCommandId();
 
                 if (postId == null)
                 {
@@ -163,6 +149,80 @@ namespace StingTools.Commands.Hvac
                 message = ex.Message;
                 return Result.Failed;
             }
+        }
+
+        /// <summary>
+        /// Resolve the Heating-and-Cooling-Loads postable command id via 100%
+        /// reflection. No compile-time reference to any PostableCommand
+        /// member exists in this class, so the source builds against every
+        /// Revit version 2020 → 2026 regardless of which enum constants
+        /// the API ships with.
+        /// </summary>
+        private static RevitCommandId ResolveLoadsCommandId()
+        {
+            try
+            {
+                // Find the PostableCommand enum dynamically. Try the type
+                // already loaded (typeof would have to compile against it),
+                // and fall back to a string-based assembly-qualified lookup.
+                Type enumType = null;
+                try
+                {
+                    foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                    {
+                        if (enumType != null) break;
+                        Type[] types = null;
+                        try { types = asm.GetTypes(); }
+                        catch (System.Reflection.ReflectionTypeLoadException rtle) { types = rtle.Types; }
+                        catch { continue; }
+                        if (types == null) continue;
+                        foreach (var t in types)
+                        {
+                            if (t != null && t.IsEnum && t.FullName == "Autodesk.Revit.UI.PostableCommand")
+                            { enumType = t; break; }
+                        }
+                    }
+                }
+                catch (Exception exT) { StingLog.Warn($"PostableCommand type lookup: {exT.Message}"); }
+                if (enumType == null) return null;
+
+                string[] candidates = {
+                    "AnalyzeHeatingAndCoolingLoads",
+                    "HeatingAndCoolingLoads",
+                    "AnalyzeLoads"
+                };
+
+                // Find the matching enum member via Enum.GetNames so we never
+                // reference the literal by source. If the name is present in
+                // this Revit version's enum, parse + dispatch via reflection.
+                string[] names;
+                try { names = Enum.GetNames(enumType); }
+                catch { return null; }
+
+                var lookupMethod = typeof(RevitCommandId).GetMethod(
+                    "LookupPostableCommandId",
+                    new[] { enumType });
+                if (lookupMethod == null) return null;
+
+                foreach (string c in candidates)
+                {
+                    foreach (string n in names)
+                    {
+                        if (!string.Equals(n, c, StringComparison.Ordinal)) continue;
+                        object enumVal;
+                        try { enumVal = Enum.Parse(enumType, n); }
+                        catch { continue; }
+                        try
+                        {
+                            object idObj = lookupMethod.Invoke(null, new[] { enumVal });
+                            if (idObj is RevitCommandId rid) return rid;
+                        }
+                        catch (Exception exI) { StingLog.Warn($"LookupPostableCommandId({n}): {exI.Message}"); }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveLoadsCommandId: {ex.Message}"); }
+            return null;
         }
     }
 

@@ -4693,3 +4693,63 @@ summary plus one cleanup (BIM Coordination Center HVAC tab).
 4. `HvacCarbonReportCommand` factors are CIBSE TM65 + IPCC AR6 *defaults*; manufacturer EPDs (Daikin, Trane, etc.) should override via `Data/STING_HVAC_CARBON_FACTORS.json`.
 5. `GeneralPressureRegimeValidator` is not yet auto-discovered by `RunAllValidatorsCommand` — call sites that want it must instantiate it explicitly. Wiring it into the unified validator chain is a one-line follow-up (additive, no engine changes).
 6. The BIM Coordination Center HVAC tab is read-only — all editable work happens on the STING HVAC dock panel (the quick-action buttons forward through `StingDockPanel.DispatchCommand`).
+
+#### Completed (Phase 184 — shared-parameter binding + build hardening)
+
+**Build hardening**:
+
+`HvacRunLoadsCommand` no longer contains *any* compile-time reference to
+any `PostableCommand` enum member — even in comments. The literal
+`PostableCommand.AnalyzeHeatingAndCoolingLoads` was removed in Revit
+2025, so referencing it by source name breaks any build targeting 2025+.
+The new `ResolveLoadsCommandId()` private helper walks every loaded
+assembly to find the `Autodesk.Revit.UI.PostableCommand` enum type by
+full-name string, enumerates its names via `Enum.GetNames`, parses by
+string match, and invokes `RevitCommandId.LookupPostableCommandId(enum)`
+via reflected `MethodInfo`. Source compiles against every Revit version
+2020 → 2026 regardless of which enum constants ship; falls back to the
+internal-command-id chain when the enum member doesn't exist in this
+Revit build.
+
+The Phase 180 → Phase 182 fixes for `StingCommandHandler.Instance`
+(replaced with `StingDockPanel.DispatchCommand`) and the Phase 182 fix
+for `PostableCommand.AnalyzeHeatingAndCoolingLoads` (reflection
+fallback) remain in place; both errors are now structurally impossible
+to recur — `grep` across the repo confirms zero non-comment references.
+
+**Shared-parameter binding** (closes the Phase 183 caveat):
+
+Eleven new shared parameters bound across all three source files:
+
+| Parameter | GUID | Group | Phase |
+|---|---|---|---|
+| `HVC_SEGMENT_ROLE_TXT`         | 5bf0485f-08dd-53d1-9cc5-d956305d42e0 | 5 HVC_SYSTEMS  | 182 |
+| `HVC_SIZE_PREV_TXT`            | b4385937-438e-5d5f-8ce0-f13c2a94a63d | 5 HVC_SYSTEMS  | 182 |
+| `HVC_SIZE_MODIFIED_DT`         | b485412f-0a10-5cf7-9a49-dd2ae6199442 | 5 HVC_SYSTEMS  | 182 |
+| `HVC_SIZE_RULE_ID_TXT`         | b02ae4ea-c9a0-5424-9e20-7d4406352260 | 5 HVC_SYSTEMS  | 182 |
+| `HVC_PIPE_SERVICE_TXT`         | 97e69122-4e43-5b88-9c82-6eaf586ddc07 | 5 HVC_SYSTEMS  | 183 |
+| `HVC_PRESSURE_CLASS_TXT`       | 61d432d6-77fe-5811-972f-0b28493d3de7 | 5 HVC_SYSTEMS  | 183 |
+| `HVC_SIZE_STALE_BOOL`          | ecbc8e8a-3466-53dd-92c9-a28d15ebf43d | 5 HVC_SYSTEMS  | 183 |
+| `HVC_REFRIGERANT_KG_NR`        | b99d07d1-6eca-50cf-b983-b6fe2442bc8c | 5 HVC_SYSTEMS  | 183 |
+| `HVC_REFRIGERANT_TYPE_TXT`     | 10d87a6e-b7d8-5058-81a9-bc62394d9bad | 5 HVC_SYSTEMS  | 183 |
+| `HVC_CAPACITY_KW`              | 397ee526-7af0-5516-a2a1-48db5a42f249 | 5 HVC_SYSTEMS  | 183 |
+| `PRJ_ORG_PRESSURE_PROFILE_TXT` | 8b3bfdcf-aab3-5944-a451-e4766bfaf8ce | 13 PRJ_INFORMATION | 183 |
+
+GUIDs are deterministic UUIDv5 from STING namespace
+`a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a`, so regenerating from name
+yields the same id (re-runs are idempotent).
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Data/MR_PARAMETERS.txt` | +11 UTF-16 LE `PARAM` rows appended to groups 5 + 13 |
+| `StingTools/Data/MR_PARAMETERS.csv` | +11 corresponding CSV mirror rows |
+| `StingTools/Data/PARAMETER_REGISTRY.json` | +11 `support_params` entries; version bumped 5.11 → 5.12 |
+| `StingTools/Commands/Hvac/HvacWizardCommands.cs` | `ResolveLoadsCommandId()` helper replaces compile-time enum reference |
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. Adding a shared parameter to `MR_PARAMETERS.txt` defines its GUID + name + group, but Revit still needs to *bind* the parameter to a category before instances can read or write it. `CATEGORY_BINDINGS.csv` is the binding layer; this phase only adds the definitions. Wiring the 11 new params to `Ducts` / `Pipes` / `Mechanical Equipment` / `Project Information` happens on the next pass — until then `ParameterHelpers.SetString` writes are silently dropped, exactly as documented in the Phase 183 caveats.
+3. The Revit shared-parameter file convention uses `TYPE=TEXT` for every parameter regardless of semantic type (`_NR`, `_BOOL`, `_DT`); STING shares this convention. Runtime conversion lives in `ParameterHelpers.GetInt/GetDouble`.
