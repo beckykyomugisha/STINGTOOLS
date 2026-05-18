@@ -38,7 +38,6 @@ using ComboBox   = System.Windows.Controls.ComboBox;
 using Grid       = System.Windows.Controls.Grid;
 using TextBox    = System.Windows.Controls.TextBox;
 using StingTools.Core;
-using Grid = System.Windows.Controls.Grid;
 namespace StingTools.UI
 {
     public class ShopDrawingOptions

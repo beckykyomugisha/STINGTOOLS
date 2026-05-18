@@ -138,7 +138,7 @@ namespace StingTools.Commands.Electrical.VoltageDrop
             try { return s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM)?.AsString() ?? ""; }
             catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); return ""; }
         }
-        private static string SafePanel(ElectricalSystem s) { try { return s?.PanelName ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; } }
+        private static string SafePanel(ElectricalSystem s) { try { return s?.PanelName ?? ""; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); return ""; } }
         private static string SafeCircuitNumber(ElectricalSystem s)
         {
             try { return s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER)?.AsString() ?? ""; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); return ""; }

@@ -79,7 +79,7 @@ namespace StingTools.Commands.Electrical.Busbar
                 }
                 tx.Commit();
             }
-            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
 
             TaskDialog.Show("STING Busbar Sizing",
                 $"Busbar trunking sizing complete — {sized} run(s) assessed.\n" +

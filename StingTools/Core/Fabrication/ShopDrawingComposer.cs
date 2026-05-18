@@ -232,7 +232,7 @@ namespace StingTools.Core.Fabrication
                     }
                     catch (Exception ex2)
                     {
-                        result.Warnings.Add($"DrawingType view apply {viewId.Value}: {ex.Message}");
+                        result.Warnings.Add($"DrawingType view apply {viewId.Value}: {ex2.Message}");
                     }
                 }
             }
@@ -573,7 +573,7 @@ namespace StingTools.Core.Fabrication
                     SkipAutoDim     = false,
                     SkipSpots       = false,
                 };
-                var r = StingTools.Core.Drawing.AnnotationRunner.Run(doc, view, pack, opts);
+                var r = StingTools.Core.Drawing.AnnotationRunner.Run(doc, view, dt, opts);
                 foreach (var w in r.Warnings)
                     result.Warnings.Add($"FabDim view {view.Id.Value}: {w}");
             }

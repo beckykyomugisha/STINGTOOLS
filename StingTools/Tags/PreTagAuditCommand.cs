@@ -554,8 +554,8 @@ namespace StingTools.Tags
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Error("PreTagAudit auto-fix", ex);
-                    TaskDialog.Show("STING", $"Auto-fix encountered an error: {ex.Message}");
+                    StingLog.Error("PreTagAudit auto-fix", ex2);
+                    TaskDialog.Show("STING", $"Auto-fix encountered an error: {ex2.Message}");
                 }
             });
 
@@ -608,8 +608,8 @@ namespace StingTools.Tags
                     }
                     catch (System.Exception ex2)
                     {
-                        StingLog.Warn($"Create issues from audit: {ex.Message}");
-                        TaskDialog.Show("STING", $"Error creating issues: {ex.Message}");
+                        StingLog.Warn($"Create issues from audit: {ex2.Message}");
+                        TaskDialog.Show("STING", $"Error creating issues: {ex2.Message}");
                     }
                 });
             }

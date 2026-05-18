@@ -507,48 +507,6 @@ namespace StingTools.Core.Routing
         }
 
         /// <summary>
-        /// Multi-service variant of TryDropFromFixture. Iterates every
-        /// free connector on the fixture and calls TryDropFromFixture once
-        /// per connector, so a dual-service fixture (e.g. CW + HW) gets
-        /// a separate drop for each connector.  Returns true when at least
-        /// one drop succeeds.
-        /// </summary>
-        protected bool TryDropFromFixtureAllConnectors(
-            Element fixtureEl,
-            BuiltInCategory containmentCat,
-            double maxSearchMm,
-            DropResult result)
-        {
-            bool anyOk = false;
-            if (fixtureEl == null) { result.SkippedCount++; return false; }
-            foreach (var conn in GetAllConnectors(fixtureEl))
-            {
-                bool isConnected;
-                try { isConnected = conn.IsConnected; } catch { continue; }
-                if (isConnected) continue;
-                XYZ origin = null;
-                try { origin = conn.Origin; } catch { continue; }
-                if (origin == null) continue;
-
-                var host = FindNearestContainment(origin, containmentCat, maxSearchMm);
-                if (host == null) { result.SkippedCount++; continue; }
-                var to = ComputeInterceptPoint(origin, host);
-                to = MaybeSnapToCorridorBand(origin, to, result);
-                var id = CreateRunBetween(origin, to, host, result);
-                if (id != null && id != ElementId.InvalidElementId)
-                {
-                    result.CreatedIds.Add(id);
-                    anyOk = true;
-                }
-                else
-                {
-                    result.FailedCount++;
-                }
-            }
-            return anyOk;
-        }
-
-        /// <summary>
         /// When SnapToCorridorBand is enabled and the engine's ServiceId
         /// maps to a corridor band, nudge the intercept Z to the band
         /// centre (relative to the host level) provided the existing

@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
     <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
     <OutputType>Library</OutputType>
     <RootNamespace>StingTools</RootNamespace>
     <AssemblyName>StingTools</AssemblyName>

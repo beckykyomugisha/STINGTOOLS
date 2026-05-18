@@ -994,7 +994,7 @@ namespace StingTools.Tags
             var choice = confirm.Show();
             if (choice == TaskDialogResult.Cancel)
                 return Result.Cancelled;
-            bool skipExistingOnDisk = (choice == TaskDialogResult.CommandLink1);
+            bool skipExistingOnDisk = false; // default: recreate all families
 
             string outputDir = outputDirEarly;
             report.AppendLine($"STING Tag Family Creation Report");

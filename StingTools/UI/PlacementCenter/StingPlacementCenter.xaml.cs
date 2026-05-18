@@ -25,8 +25,11 @@ using StingTools.Core;
 using StingTools.Core.Drawing;
 using StingTools.Core.Placement;
 using StingTools.Core.Routing;
+using PlacementResult = StingTools.Core.Placement.PlacementResult;
 using StingTools.Core.Validation;
 using StingTools.Core.Visualization;
+using ValidationSeverity = StingTools.Core.Validation.ValidationSeverity;
+using TextBox = System.Windows.Controls.TextBox;
 
 namespace StingTools.UI.PlacementCenter
 {
@@ -1160,13 +1163,19 @@ namespace StingTools.UI.PlacementCenter
             {
                 var rules   = PlacementRuleLoader.Load(_doc.PathName);
                 var roomIds = PlacementCenterBridge.ResolveScope(_uiDoc, VM.RunOpts.Scope);
-                var progress = new StingProgressDialog("Placing fixtures…", roomIds.Count);
+                var progress = StingProgressDialog.Show("Placing fixtures…", roomIds.Count);
+                Func<int, int, bool> progressHook = (processed, total) =>
+                {
+                    progress.Increment($"Room {processed} of {total}");
+                    return progress.IsCancelled;
+                };
                 List<ElementId> placed;
                 using (var tg = new TransactionGroup(_doc, "STING Place Fixtures (Run & Routing)"))
                 {
                     tg.Start();
-                    placed = FixturePlacementEngine.PlaceFixturesInScope(
-                        _doc, roomIds, rules, dry, progress);
+                    var result = FixturePlacementEngine.PlaceFixturesInScope(
+                        _doc, roomIds, rules, dry, progressHook);
+                    placed = result?.PlacedIds ?? new List<ElementId>();
                     tg.Assimilate();
                 }
                 progress.Close();
@@ -1372,7 +1381,7 @@ namespace StingTools.UI.PlacementCenter
                 lstRunFindings.ItemsSource = findings?.ToList() ?? new List<string>();
 
             if (grpRunResult != null)
-                grpRunResult.Visibility = Visibility.Visible;
+                grpRunResult.Visibility = System.Windows.Visibility.Visible;
         }
 
         // ── DrawingType context strip ────────────────────────────────
@@ -1395,7 +1404,8 @@ namespace StingTools.UI.PlacementCenter
                 }
                 var dt = _doc != null ? DrawingTypeRegistry.Get(_doc, dtId) : null;
                 string packId = "—";
-                if (_doc != null && DrawingTypeRegistry.TryGetPack(_doc, dtId, out var pack) && pack != null)
+                var pack = _doc != null ? DrawingTypeRegistry.TryGetPack(_doc, dtId) : null;
+                if (pack != null)
                     packId = pack.Id ?? "—";
                 SetDtContextLabels(
                     dt?.Id ?? dtId,
@@ -1462,7 +1472,8 @@ namespace StingTools.UI.PlacementCenter
                     {
                         var dt = DrawingTypeRegistry.Get(_doc, summary.DrawingTypeId);
                         string packId = "—";
-                        if (DrawingTypeRegistry.TryGetPack(_doc, summary.DrawingTypeId, out var pk) && pk != null)
+                        var pk = DrawingTypeRegistry.TryGetPack(_doc, summary.DrawingTypeId);
+                        if (pk != null)
                             packId = pk.Id ?? "—";
                         SetDtContextLabels(
                             dt?.Id ?? summary.DrawingTypeId,

@@ -118,7 +118,7 @@ namespace StingTools.Commands.Panels
                     catch (Exception ex3)
                     {
                         c.Errors++;
-                        StingLog.Warn($"Add{(addSpare ? "Spare" : "Space")} [{r},{col}] on '{psv.Name}': {ex.Message}");
+                        StingLog.Warn($"Add{(addSpare ? "Spare" : "Space")} [{r},{col}] on '{psv.Name}': {ex3.Message}");
                     }
                 }
             }
@@ -149,7 +149,7 @@ namespace StingTools.Commands.Panels
                     catch (Exception ex2)
                     {
                         errors++;
-                        StingLog.Warn($"Clear [{r},{c}] on '{psv.Name}': {ex.Message}");
+                        StingLog.Warn($"Clear [{r},{c}] on '{psv.Name}': {ex2.Message}");
                     }
                 }
             }
@@ -186,7 +186,7 @@ namespace StingTools.Commands.Panels
                     catch (Exception ex3)
                     {
                         errors++;
-                        StingLog.Warn($"Convert space → spare [{r},{c}] on '{psv.Name}': {ex.Message}");
+                        StingLog.Warn($"Convert space → spare [{r},{c}] on '{psv.Name}': {ex3.Message}");
                     }
                 }
             }

@@ -316,7 +316,7 @@ namespace StingTools.Docs
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn($"Could not place view '{bestView.Name}' in slot '{slot.Label}': {ex.Message}");
+                    StingLog.Warn($"Could not place view '{bestView.Name}' in slot '{slot.Label}': {ex2.Message}");
                 }
             }
 

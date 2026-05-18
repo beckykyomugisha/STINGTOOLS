@@ -801,7 +801,7 @@ namespace StingTools.Temp
                     catch (Exception ex2)
                     {
                         failed++;
-                        StingLog.Warn($"Bind '{paramName}': {ex.Message}");
+                        StingLog.Warn($"Bind '{paramName}': {ex2.Message}");
                     }
                 }
 
@@ -1655,7 +1655,7 @@ namespace StingTools.Temp
                 catch (Exception ex2)
                 {
                     StingLog.Error($"BOQ fallback save failed: {ex2.Message}");
-                    TaskDialog.Show("BOQ Export", $"Could not save BOQ file.\n{ex.Message}\n{ex2.Message}");
+                    TaskDialog.Show("BOQ Export", $"Could not save BOQ file.\n{ex2.Message}\n{ex2.Message}");
                     return Result.Failed;
                 }
             }
@@ -4244,7 +4244,7 @@ namespace StingTools.Temp
                 try { wb.SaveAs(fallback); }
                 catch (Exception ex2)
                 {
-                    TaskDialog.Show("Excel Link", $"Could not save:\n{ex.Message}\n{ex2.Message}");
+                    TaskDialog.Show("Excel Link", $"Could not save:\n{ex2.Message}\n{ex2.Message}");
                     return Result.Failed;
                 }
             }

@@ -31,21 +31,21 @@ namespace StingTools.Commands.Symbols
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) return Result.Failed;
 
-            var modeItems = new List<StingTools.UI.StingListPicker.ListItem>
+            var modeItems = new List<StingTools.Select.StingListPicker.ListItem>
             {
-                new StingTools.UI.StingListPicker.ListItem
+                new StingTools.Select.StingListPicker.ListItem
                 {
                     Label  = "Selected family instances (in active view)",
                     Detail = "Author symbols into the families of selected instances, then reload into the active project.",
                     Tag    = "selection"
                 },
-                new StingTools.UI.StingListPicker.ListItem
+                new StingTools.Select.StingListPicker.ListItem
                 {
                     Label  = "Pick one or more .rfa files",
                     Detail = "File-picker: select .rfa file(s), author symbols, save in-place. Optionally reload into the active project.",
                     Tag    = "file_single"
                 },
-                new StingTools.UI.StingListPicker.ListItem
+                new StingTools.Select.StingListPicker.ListItem
                 {
                     Label  = "Pick a folder of .rfa files",
                     Detail = "Process every .rfa in the selected folder. Optionally reload all into the active project.",
@@ -53,7 +53,7 @@ namespace StingTools.Commands.Symbols
                 },
             };
 
-            var picked = StingTools.UI.StingListPicker.Show(
+            var picked = StingTools.Select.StingListPicker.Show(
                 "STING — Author Family Symbols",
                 "Wire view-type-aware symbolic geometry (plan bounding box, elevation outline, " +
                 "LOD visibility), STING subcategories, annotation plan symbols, and MEP connector " +

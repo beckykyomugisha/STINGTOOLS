@@ -12,7 +12,6 @@ using StingTools.Tags;
 // would be Autodesk.Revit.DB.Grid / .Color.
 using Grid  = System.Windows.Controls.Grid;
 using Color = System.Windows.Media.Color;
-using Grid = System.Windows.Controls.Grid;
 
 namespace StingTools.UI
 {

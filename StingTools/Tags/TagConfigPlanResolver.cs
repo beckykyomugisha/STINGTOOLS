@@ -53,7 +53,7 @@ namespace StingTools.Tags
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn($"TagConfigPlanResolver: parsing '{name}' failed — {ex.Message}");
+                    StingLog.Warn($"TagConfigPlanResolver: parsing '{name}' failed — {ex2.Message}");
                 }
             }
             return merged;
@@ -97,7 +97,7 @@ namespace StingTools.Tags
                     }
                     catch (Exception ex2)
                     {
-                        StingLog.Warn($"TagConfigPlanResolver.LoadAllPerMode: parsing '{name}' failed — {ex.Message}");
+                        StingLog.Warn($"TagConfigPlanResolver.LoadAllPerMode: parsing '{name}' failed — {ex2.Message}");
                     }
                 }
                 if (merged.Count > 0) result[modeKv.Key] = merged;

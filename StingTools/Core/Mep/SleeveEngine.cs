@@ -184,7 +184,7 @@ namespace StingTools.Core.Mep
                             }
                         }
                         catch (Exception ex2)
-                        { result.Warnings.Add($"InstanceVoidCut {cand.Host.Id}: {ex.Message}"); }
+                        { result.Warnings.Add($"InstanceVoidCut {cand.Host.Id}: {ex2.Message}"); }
 
                         result.PlacedIds.Add(fi.Id);
                         result.Placed++;
@@ -192,7 +192,7 @@ namespace StingTools.Core.Mep
                     catch (Exception ex2)
                     {
                         result.Failed++;
-                        result.Warnings.Add($"sleeve place: {ex.Message}");
+                        result.Warnings.Add($"sleeve place: {ex2.Message}");
                     }
                 }
 

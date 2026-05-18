@@ -1,3 +1,4 @@
+#nullable enable annotations
 // StingTools — StabilizeIfcGuidsCommand.cs (Gap 3 — GlobalId stability)
 //
 // Before exporting to IFC, Revit re-generates IfcGloballyUniqueId values

@@ -269,7 +269,7 @@ namespace StingTools.Commands.Drawing
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn($"LoadFamilyFromDisk '{name}': {ex.Message}");
+                    StingLog.Warn($"LoadFamilyFromDisk '{name}': {ex2.Message}");
                 }
             }
             return null;

@@ -218,7 +218,7 @@ namespace StingTools.Core.Routing
                         catch (Exception ex2)
                         {
                             r.Errors++;
-                            r.Warnings.Add($"Place {sym.Name} at {rec.MemberId?.Value}: {ex.Message}");
+                            r.Warnings.Add($"Place {sym.Name} at {rec.MemberId?.Value}: {ex2.Message}");
                             continue;
                         }
                     }
