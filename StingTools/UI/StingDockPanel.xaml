@@ -3463,20 +3463,18 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- ARCHICAD COORDINATION -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="ARCHICAD COORDINATION"/>
+                        <!-- IFC INGESTION (vendor-neutral: ArchiCAD, Tekla, Bentley, Solibri) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="IFC INGESTION"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#2E7D32">
                             <StackPanel>
-                                <TextBlock Text="ArchiCAD ↔ Revit sync via IFC drop-folder or Live Link (AC 26+)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <TextBlock Text="Import IFC from any authoring tool. ArchiCAD users export IFC from their seat — Planscape needs no ArchiCAD licence." FontSize="9" Foreground="#888" Margin="0,0,0,4" TextWrapping="Wrap"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="AC Sync" Tag="IFC_ArchiCADSync" Click="Cmd_Click"
-                                            ToolTip="Sync ArchiCAD model into Revit: tries Live Link (named pipe) first, falls back to IFC drop folder" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="IFC Drop Import" Tag="IFC_DropImport" Click="Cmd_Click"
-                                            ToolTip="Manually import an IFC file via file picker — Link or Import mode"/>
-                                    <Button Style="{StaticResource TealBtn}" Content="AC IFC Import" Tag="ArchiCadIfcImport" Click="Cmd_Click"
-                                            ToolTip="ArchiCAD IFC import with full coordinate alignment (4×4 matrix, IfcUnitAssignment, storey elevation correction) and ARCHICAD_IFC_MAPPING.json property enrichment"/>
+                                    <Button Style="{StaticResource TealBtn}" Content="IFC Import" Tag="ArchiCadIfcImport" Click="Cmd_Click"
+                                            ToolTip="IFC import with full coordinate alignment (4×4 matrix, IfcUnitAssignment, storey elevation correction) and PSet property enrichment. ArchiCAD-flavoured IFC is the reference profile but any IFC2x3/IFC4 file works." FontWeight="Bold"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Stabilize IFC GUIDs" Tag="IFC_StabilizeGuids" Click="Cmd_Click"
-                                            ToolTip="Gap 3 — Persist each element's IfcGloballyUniqueId into IFC_GLOBAL_ID_TXT before IFC export. Planscape uses this to detect GlobalId drift across uploads (GLOBALID_DRIFT warning)."/>
+                                            ToolTip="Persist each element's IfcGloballyUniqueId into IFC_GLOBAL_ID_TXT before IFC export. Planscape uses this to detect GlobalId drift across uploads (GLOBALID_DRIFT warning)."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Push to Planscape" Tag="IFC_PushModel" Click="Cmd_Click"
+                                            ToolTip="Tessellate all visible elements to GLB and upload to the Planscape federated model endpoint for mobile/web viewer consumption."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

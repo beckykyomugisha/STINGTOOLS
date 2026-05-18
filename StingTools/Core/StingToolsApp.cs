@@ -43,10 +43,6 @@ namespace StingTools.Core
 #pragma warning disable CS0649 // Reserved for Phase 175 SLD sync updater wiring
         private static UpdaterId _sldUpdaterId = null;
 #pragma warning restore CS0649
-        // Phase 184 — _activeIfcDropWatcher field removed alongside the Gap 9
-        // auto-start block (Document-open IFC drop hot path). IfcDropWatcher
-        // remains available in Commands/IFC/StingBridgeStubs.cs for any
-        // command that wants to start a watcher explicitly.
 
         public Result OnStartup(UIControlledApplication application)
         {
@@ -648,13 +644,7 @@ namespace StingTools.Core
                     StingLog.Warn($"AUTO_RUN_WORKFLOW_ON_OPEN check failed: {arwEx.Message}");
                 }
 
-                // Phase 184 — Gap 9 IfcDropWatcher auto-start block removed.
-                // The Document-open hot path was deactivated alongside the
-                // _activeIfcDropWatcher field. Commands that need a drop-folder
-                // watcher should instantiate StingBridge.IFC.IfcDropWatcher
-                // directly and manage its lifetime themselves.
-
-                // Phase 77: Consume any pending workflow presets from WorkflowScheduler triggers
+// Phase 77: Consume any pending workflow presets from WorkflowScheduler triggers
                 // (document-open, compliance-fall, SLA-violation, warning-threshold triggers)
                 try
                 {
@@ -1170,9 +1160,6 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"SyncScheduler stop: {ex.Message}"); }
 
-            // Phase 184 — _activeIfcDropWatcher Dispose removed alongside the
-            // Gap 9 auto-start block. The IfcDropWatcher class itself remains
-            // available in Commands/IFC/StingBridgeStubs.cs.
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
             StingTag7NarrativeUpdater.Unregister();
