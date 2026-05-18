@@ -3647,7 +3647,8 @@ namespace StingTools.UI
                     case "PlanscapeTestConnection": RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
                     case "PlanscapeClearCredentials": BIMManager.PlanscapeServerClient.Instance.Disconnect(); break;
                     case "PlanscapeExportConfig":   RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                    case "PlanscapeOpenBrowser":    BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app); break;
+                    case "PlanscapeOpenBrowser":    PlanscapeOpenWebDashboard(app); break;
+                    case "PlanscapeOpenWebDashboard": PlanscapeOpenWebDashboard(app); break;
                     // Phase 78 Section 6.1: TeamReport
                     case "TeamReport":             RunCommand<BIMManager.ExportPermissionMatrixCommand>(app); break;
                     // Phase 78 Section 6.1: MeetingTemplates
@@ -8627,6 +8628,39 @@ namespace StingTools.UI
             string link = $"planscape://dashboard/{projectName}/{timestamp}";
             System.Windows.Clipboard.SetText(link);
             TaskDialog.Show("STING — Planscape", $"Dashboard link copied to clipboard:\n{link}\n\nShare this link with your team or embed it in a QR code.");
+        }
+
+        // BCC → Planscape platform → "🌐 Open Web Dashboard" button.
+        // Opens the current Planscape server's dashboard (wwwroot/index.html —
+        // the latest panel design with sidebar + project picker) in the OS
+        // default browser. Uses PlanscapeServerClient.ServerUrl when the user
+        // is signed in; falls back to the docker-compose default so the
+        // button still works before login. If a project is active on the
+        // client we deep-link straight into its dashboard view.
+        private static void PlanscapeOpenWebDashboard(UIApplication app)
+        {
+            var client = BIMManager.PlanscapeServerClient.Instance;
+            string baseUrl = client.ServerUrl;
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                baseUrl = "http://localhost:5000";
+            }
+            string url = baseUrl.TrimEnd('/') + "/index.html";
+            if (client.IsConnected && client.CurrentProjectId != Guid.Empty)
+            {
+                url += $"#project-dashboard?project={client.CurrentProjectId}";
+            }
+            try
+            {
+                System.Diagnostics.Process.Start(
+                    new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true })?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlanscapeOpenWebDashboard: failed to launch '{url}': {ex.Message}");
+                TaskDialog.Show("STING — Planscape",
+                    $"Could not open the dashboard in your default browser.\n\nURL: {url}\nError: {ex.Message}");
+            }
         }
 
         private static void PlanscapeGenerateTeamsMessage(UIApplication app)
