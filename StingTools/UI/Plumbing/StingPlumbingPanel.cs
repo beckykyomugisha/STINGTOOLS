@@ -152,8 +152,85 @@ namespace StingTools.UI.Plumbing
             AddCard(sp, "Hangers & supports");
             AddBtn(sp, "Plumb_PlaceHangers", "Plan Hanger Positions",
                 "BS 5572 / MSS SP-58 hanger spacing + trapeze grouping (planning pass).");
+
+            // ── Plan-level symbol placement (STING_PLUMBING_SYMBOLS.json) ─────
+            AddCard(sp, "Symbol placement — sanitary fixtures");
+            AddWrapBtns(sp,
+                ("PlumbSym_WC",      "WC"),
+                ("PlumbSym_Urinal",  "Urinal"),
+                ("PlumbSym_Bidet",   "Bidet"),
+                ("PlumbSym_WHB",     "Wash-hand basin"),
+                ("PlumbSym_VanityBasin", "Vanity basin"),
+                ("PlumbSym_Bath",    "Bath"),
+                ("PlumbSym_Shower",  "Shower tray"));
+
+            AddCard(sp, "Symbol placement — sinks");
+            AddWrapBtns(sp,
+                ("PlumbSym_SingleSink",   "Single sink"),
+                ("PlumbSym_DoubleSink",   "Double sink"),
+                ("PlumbSym_CleanersSink", "Cleaner's sink"));
+
+            AddCard(sp, "Symbol placement — drainage points");
+            AddWrapBtns(sp,
+                ("PlumbSym_FloorDrainRound",  "Floor drain (round)"),
+                ("PlumbSym_FloorDrainSquare", "Floor drain (square)"),
+                ("PlumbSym_Gulley",           "Yard gulley"));
+
+            AddCard(sp, "Symbol placement — valves & accessories");
+            AddWrapBtns(sp,
+                ("PlumbSym_GateValve",       "Gate valve"),
+                ("PlumbSym_GlobeValve",      "Globe valve"),
+                ("PlumbSym_BallValve",       "Ball valve"),
+                ("PlumbSym_ButterflyValve",  "Butterfly valve"),
+                ("PlumbSym_CheckValve",      "Check valve"),
+                ("PlumbSym_PRV",             "PRV"),
+                ("PlumbSym_Strainer",        "Y-strainer"),
+                ("PlumbSym_FlexConn",        "Flex connector"));
+
+            AddCard(sp, "Symbol placement — equipment");
+            AddWrapBtns(sp,
+                ("PlumbSym_HWCDirect",   "HWC (direct)"),
+                ("PlumbSym_HWCIndirect", "HWC (indirect)"));
+
+            AddCard(sp, "Browse all plumbing symbols");
+            AddBtn(sp, "PlumbSym_BrowseAll", "Browse & Place…",
+                "Full searchable picker across all 24 plumbing symbols — search by name, subcategory, or BS EN standard.");
+
             t.Content = WrapScroll(sp);
             return t;
+        }
+
+        private static void AddWrapBtns(Panel host, params (string tag, string label)[] btns)
+        {
+            var wrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+            foreach (var (tag, label) in btns)
+            {
+                var b = new Button
+                {
+                    Content = label,
+                    Tag     = tag,
+                    ToolTip = tag,
+                    Margin  = new Thickness(2),
+                    Padding = new Thickness(6, 4, 6, 4),
+                    FontSize = 10
+                };
+                b.Click += (s, e) =>
+                {
+                    try
+                    {
+                        var tg = ((Button)s).Tag as string;
+                        if (string.IsNullOrEmpty(tg)) return;
+                        StingPlumbingCommandHandler.Instance?.SetCommand(tg);
+                        StingPlumbingCommandHandler.Event?.Raise();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("STING Plumbing dispatch error: " + ex.Message);
+                    }
+                };
+                wrap.Children.Add(b);
+            }
+            host.Children.Add(wrap);
         }
 
         private TabItem BuildStormTab()
