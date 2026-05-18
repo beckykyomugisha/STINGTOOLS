@@ -12,7 +12,7 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "RATING_A", "type": "Text", "shared": true, "default": "13" }
+        { "name": "RATING_A", "type": "Text", "shared": true, "default": "13", "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
@@ -33,7 +33,7 @@
       "symbolSize": 5.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "RATING_A", "type": "Text", "shared": true, "default": "13" }
+        { "name": "RATING_A", "type": "Text", "shared": true, "default": "13", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -59,7 +59,7 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "FUSE_RATING", "type": "Text", "shared": true, "default": "13" }
+        { "name": "FUSE_RATING", "type": "Text", "shared": true, "default": "13", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -85,8 +85,8 @@
       "symbolSize": 6.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "POWER_KW", "type": "Text", "shared": true, "default": "7.4" },
-        { "name": "MODE_TYPE", "type": "Text", "shared": true, "default": "Mode 3" }
+        { "name": "POWER_KW", "type": "Text", "shared": true, "default": "7.4", "instance": false },
+        { "name": "MODE_TYPE", "type": "Text", "shared": true, "default": "Mode 3", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -234,7 +234,7 @@
       "symbolSize": 8.0,
       "parameters": [
         { "name": "DB_REF", "type": "Text", "shared": true },
-        { "name": "WAYS", "type": "Integer", "shared": true, "default": "12" }
+        { "name": "WAYS", "type": "Integer", "shared": true, "default": "12", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -263,7 +263,7 @@
       "symbolSize": 8.0,
       "parameters": [
         { "name": "DB_REF", "type": "Text", "shared": true },
-        { "name": "WAYS", "type": "Integer", "shared": true }
+        { "name": "WAYS", "type": "Integer", "shared": true, "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -291,7 +291,7 @@
       "symbolSize": 12.0,
       "parameters": [
         { "name": "PANEL_REF", "type": "Text", "shared": true },
-        { "name": "INCOMER_A", "type": "Text", "shared": true }
+        { "name": "INCOMER_A", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -316,7 +316,7 @@
       "subcategory": "Protection",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "RATING_A", "type": "Text", "shared": true }
+        { "name": "RATING_A", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.45, "startDeg": 0, "endDeg": 360 } ],
@@ -362,7 +362,7 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "DEVICE_REF", "type": "Text", "shared": true },
-        { "name": "RESOLUTION", "type": "Text", "shared": true, "default": "1080p" }
+        { "name": "RESOLUTION", "type": "Text", "shared": true, "default": "1080p", "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.45, "startDeg": 0, "endDeg": 360 } ],
@@ -390,7 +390,7 @@
       "symbolSize": 4.5,
       "parameters": [
         { "name": "DEVICE_REF", "type": "Text", "shared": true },
-        { "name": "IP_RATING", "type": "Text", "shared": true, "default": "IP66" }
+        { "name": "IP_RATING", "type": "Text", "shared": true, "default": "IP66", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -487,7 +487,7 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "DEVICE_REF", "type": "Text", "shared": true },
-        { "name": "POWER_W", "type": "Text", "shared": true, "default": "6" }
+        { "name": "POWER_W", "type": "Text", "shared": true, "default": "6", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -569,10 +569,10 @@
       "symbolSize": 4.0,
       "description": "Oxygen (O2) medical pipeline outlet — BS HTM 02-01 / NFPA 99 §5.1",
       "parameters": [
-        { "name": "GAS_TYPE_TXT",           "type": "Text",   "shared": true, "default": "O2"  },
-        { "name": "FLOW_RATE_L_MIN",        "type": "Number", "shared": true, "default": 10    },
-        { "name": "WORKING_PRESSURE_KPA",   "type": "Number", "shared": true, "default": 400   },
-        { "name": "OUTLET_TYPE_TXT",        "type": "Text",   "shared": true, "default": "Schraeder" },
+        { "name": "GAS_TYPE_TXT",           "type": "Text",   "shared": true, "default": "O2", "instance": false  },
+        { "name": "FLOW_RATE_L_MIN",        "type": "Number", "shared": true, "default": 10, "instance": false    },
+        { "name": "WORKING_PRESSURE_KPA",   "type": "Number", "shared": true, "default": 400, "instance": false   },
+        { "name": "OUTLET_TYPE_TXT",        "type": "Text",   "shared": true, "default": "Schraeder", "instance": false },
         { "name": "MG_ZONE_TXT",            "type": "Text",   "shared": true }
       ],
       "geometry": {
@@ -596,10 +596,10 @@
       "symbolSize": 4.0,
       "description": "Nitrous oxide (N2O) medical pipeline outlet — BS HTM 02-01 / NFPA 99",
       "parameters": [
-        { "name": "GAS_TYPE_TXT",           "type": "Text",   "shared": true, "default": "N2O" },
-        { "name": "FLOW_RATE_L_MIN",        "type": "Number", "shared": true, "default": 10    },
-        { "name": "WORKING_PRESSURE_KPA",   "type": "Number", "shared": true, "default": 400   },
-        { "name": "OUTLET_TYPE_TXT",        "type": "Text",   "shared": true, "default": "Schraeder" },
+        { "name": "GAS_TYPE_TXT",           "type": "Text",   "shared": true, "default": "N2O", "instance": false },
+        { "name": "FLOW_RATE_L_MIN",        "type": "Number", "shared": true, "default": 10, "instance": false    },
+        { "name": "WORKING_PRESSURE_KPA",   "type": "Number", "shared": true, "default": 400, "instance": false   },
+        { "name": "OUTLET_TYPE_TXT",        "type": "Text",   "shared": true, "default": "Schraeder", "instance": false },
         { "name": "MG_ZONE_TXT",            "type": "Text",   "shared": true }
       ],
       "geometry": {
@@ -623,10 +623,10 @@
       "symbolSize": 4.0,
       "description": "Carbon dioxide (CO2) medical pipeline outlet — BS HTM 02-01",
       "parameters": [
-        { "name": "GAS_TYPE_TXT",           "type": "Text",   "shared": true, "default": "CO2" },
-        { "name": "FLOW_RATE_L_MIN",        "type": "Number", "shared": true, "default": 5     },
-        { "name": "WORKING_PRESSURE_KPA",   "type": "Number", "shared": true, "default": 400   },
-        { "name": "OUTLET_TYPE_TXT",        "type": "Text",   "shared": true, "default": "Schraeder" },
+        { "name": "GAS_TYPE_TXT",           "type": "Text",   "shared": true, "default": "CO2", "instance": false },
+        { "name": "FLOW_RATE_L_MIN",        "type": "Number", "shared": true, "default": 5, "instance": false     },
+        { "name": "WORKING_PRESSURE_KPA",   "type": "Number", "shared": true, "default": 400, "instance": false   },
+        { "name": "OUTLET_TYPE_TXT",        "type": "Text",   "shared": true, "default": "Schraeder", "instance": false },
         { "name": "MG_ZONE_TXT",            "type": "Text",   "shared": true }
       ],
       "geometry": {
@@ -650,10 +650,10 @@
       "symbolSize": 4.0,
       "description": "Medical compressed air outlet (400 kPa / 7 bar variants) — BS HTM 02-01 / NFPA 99 §5.1.3",
       "parameters": [
-        { "name": "GAS_TYPE_TXT",           "type": "Text",   "shared": true, "default": "AIR" },
-        { "name": "FLOW_RATE_L_MIN",        "type": "Number", "shared": true, "default": 40    },
-        { "name": "WORKING_PRESSURE_KPA",   "type": "Number", "shared": true, "default": 400   },
-        { "name": "OUTLET_TYPE_TXT",        "type": "Text",   "shared": true, "default": "Schraeder" },
+        { "name": "GAS_TYPE_TXT",           "type": "Text",   "shared": true, "default": "AIR", "instance": false },
+        { "name": "FLOW_RATE_L_MIN",        "type": "Number", "shared": true, "default": 40, "instance": false    },
+        { "name": "WORKING_PRESSURE_KPA",   "type": "Number", "shared": true, "default": 400, "instance": false   },
+        { "name": "OUTLET_TYPE_TXT",        "type": "Text",   "shared": true, "default": "Schraeder", "instance": false },
         { "name": "MG_ZONE_TXT",            "type": "Text",   "shared": true }
       ],
       "geometry": {
@@ -677,10 +677,10 @@
       "symbolSize": 4.0,
       "description": "Medical vacuum (MEDIVAC) pipeline outlet — BS HTM 02-01 / NFPA 99 §5.1.5",
       "parameters": [
-        { "name": "GAS_TYPE_TXT",           "type": "Text",   "shared": true, "default": "VAC" },
-        { "name": "FLOW_RATE_L_MIN",        "type": "Number", "shared": true, "default": 40    },
-        { "name": "WORKING_PRESSURE_KPA",   "type": "Number", "shared": true, "default": -80   },
-        { "name": "OUTLET_TYPE_TXT",        "type": "Text",   "shared": true, "default": "Schraeder" },
+        { "name": "GAS_TYPE_TXT",           "type": "Text",   "shared": true, "default": "VAC", "instance": false },
+        { "name": "FLOW_RATE_L_MIN",        "type": "Number", "shared": true, "default": 40, "instance": false    },
+        { "name": "WORKING_PRESSURE_KPA",   "type": "Number", "shared": true, "default": -80, "instance": false   },
+        { "name": "OUTLET_TYPE_TXT",        "type": "Text",   "shared": true, "default": "Schraeder", "instance": false },
         { "name": "MG_ZONE_TXT",            "type": "Text",   "shared": true }
       ],
       "geometry": {
@@ -704,10 +704,10 @@
       "symbolSize": 4.0,
       "description": "Anaesthetic Gas Scavenging System (AGSS) outlet — BS HTM 02-01 §4.4 / ISO 7396-2",
       "parameters": [
-        { "name": "GAS_TYPE_TXT",           "type": "Text",   "shared": true, "default": "AGSS" },
-        { "name": "FLOW_RATE_L_MIN",        "type": "Number", "shared": true, "default": 50     },
-        { "name": "WORKING_PRESSURE_KPA",   "type": "Number", "shared": true, "default": -25    },
-        { "name": "OUTLET_TYPE_TXT",        "type": "Text",   "shared": true, "default": "AGSS-30mm" },
+        { "name": "GAS_TYPE_TXT",           "type": "Text",   "shared": true, "default": "AGSS", "instance": false },
+        { "name": "FLOW_RATE_L_MIN",        "type": "Number", "shared": true, "default": 50, "instance": false     },
+        { "name": "WORKING_PRESSURE_KPA",   "type": "Number", "shared": true, "default": -25, "instance": false    },
+        { "name": "OUTLET_TYPE_TXT",        "type": "Text",   "shared": true, "default": "AGSS-30mm", "instance": false },
         { "name": "MG_ZONE_TXT",            "type": "Text",   "shared": true }
       ],
       "geometry": {
@@ -732,8 +732,8 @@
       "description": "Hazardous area zone boundary line marker for electrical floor plan drawings — IEC 60079-10-1 / ATEX Directive 2014/34/EU",
       "parameters": [
         { "name": "ATEX_ZONE_CLASS",  "type": "Text", "shared": true, "default": "Zone 1" },
-        { "name": "ATEX_GAS_GROUP",   "type": "Text", "shared": true, "default": "IIA"    },
-        { "name": "ATEX_T_CLASS",     "type": "Text", "shared": true, "default": "T3"     },
+        { "name": "ATEX_GAS_GROUP",   "type": "Text", "shared": true, "default": "IIA", "instance": false    },
+        { "name": "ATEX_T_CLASS",     "type": "Text", "shared": true, "default": "T3", "instance": false     },
         { "name": "ATEX_AREA_REF",    "type": "Text", "shared": true }
       ],
       "geometry": {
@@ -754,8 +754,8 @@
       "symbolSize": 4.0,
       "description": "Flameproof (Ex d) equipment marker for use on electrical floor plan drawings — IEC 60079-1",
       "parameters": [
-        { "name": "ATEX_MARKING_TXT", "type": "Text", "shared": true, "default": "Ex d IIA T3 Gb" },
-        { "name": "ATEX_CERT_NO",     "type": "Text", "shared": true },
+        { "name": "ATEX_MARKING_TXT", "type": "Text", "shared": true, "default": "Ex d IIA T3 Gb", "instance": false },
+        { "name": "ATEX_CERT_NO",     "type": "Text", "shared": true, "instance": false },
         { "name": "EQUIPMENT_REF",    "type": "Text", "shared": true }
       ],
       "geometry": {

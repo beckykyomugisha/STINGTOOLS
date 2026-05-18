@@ -231,7 +231,7 @@ namespace StingTools.Core.Symbols
                 {
                     tx.Start();
                     DrawGeometry(fdoc, def, std, result);
-                    AddParameters(fdoc, def, result);
+                    AddParameters(app, fdoc, def, result);
                     bool hasSymbolConnectors  = def.Connectors != null && def.Connectors.Count > 0;
                     bool hasVariantConnectors = def.TypeVariants != null
                         && def.TypeVariants.Exists(v => v?.Connectors != null && v.Connectors.Count > 0);
@@ -915,11 +915,29 @@ namespace StingTools.Core.Symbols
             }
         }
 
-        private static void AddParameters(Document fdoc, SymbolDefinition def, SymbolCreationResult result)
+        private static void AddParameters(Application app, Document fdoc,
+            SymbolDefinition def, SymbolCreationResult result)
         {
             if (def.Parameters == null || def.Parameters.Count == 0) return;
             if (!fdoc.IsFamilyDocument) return;
             var fm = fdoc.FamilyManager;
+
+            // Need a seed type to receive default values. Some templates ship
+            // with no types at all; create one so fm.Set has a target.
+            bool anyDefault = def.Parameters.Exists(p => p != null && !string.IsNullOrEmpty(p.Default));
+            if (anyDefault && fm.CurrentType == null)
+            {
+                try { fm.CurrentType = fm.NewType("Default"); }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"{def.Id}: seed type for defaults failed — {ex.Message}");
+                }
+            }
+
+            // Lazy-load the shared parameter file once per family — only if any
+            // parameter actually requests shared: true.
+            DefinitionFile sharedFile = null;
+            bool sharedFileResolved = false;
 
             foreach (var p in def.Parameters)
             {
@@ -928,15 +946,120 @@ namespace StingTools.Core.Symbols
                 {
                     if (fm.get_Parameter(p.Name) != null) continue; // already exists
 
-                    // Fix 1b — GroupTypeId is correct; SpecTypeId usage verified for 2025.
                     var groupTypeId = GroupTypeId.IdentityData;
                     var specTypeId  = ResolveSpecTypeId(p.Type);
-                    fm.AddParameter(p.Name, groupTypeId, specTypeId, p.IsInstance);
+
+                    FamilyParameter fp = null;
+                    if (p.IsShared)
+                    {
+                        if (!sharedFileResolved)
+                        {
+                            sharedFile = TryOpenSharedParameterFile(app, def, result);
+                            sharedFileResolved = true;
+                        }
+                        fp = TryAddSharedParameter(fm, sharedFile, p, groupTypeId, def, result);
+                        if (fp == null)
+                        {
+                            // Fallback: bind as a regular family parameter so the
+                            // type/instance property still appears in the family.
+                            fp = fm.AddParameter(p.Name, groupTypeId, specTypeId, p.IsInstance);
+                        }
+                    }
+                    else
+                    {
+                        fp = fm.AddParameter(p.Name, groupTypeId, specTypeId, p.IsInstance);
+                    }
+
+                    if (fp != null && !string.IsNullOrEmpty(p.Default))
+                        TrySetDefault(fm, fp, p.Default, def, result);
                 }
                 catch (Exception ex)
                 {
                     result.Warnings.Add($"{def.Id}: param '{p.Name}' add failed — {ex.Message}");
                 }
+            }
+        }
+
+        private static DefinitionFile TryOpenSharedParameterFile(Application app,
+            SymbolDefinition def, SymbolCreationResult result)
+        {
+            try
+            {
+                var file = app.OpenSharedParameterFile();
+                if (file == null)
+                    result.Warnings.Add($"{def.Id}: shared parameter file not set — shared params fall back to family params");
+                return file;
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{def.Id}: OpenSharedParameterFile failed — {ex.Message}");
+                return null;
+            }
+        }
+
+        private static FamilyParameter TryAddSharedParameter(FamilyManager fm,
+            DefinitionFile defFile, ParameterDefinition p, ForgeTypeId groupTypeId,
+            SymbolDefinition def, SymbolCreationResult result)
+        {
+            if (defFile == null) return null;
+            try
+            {
+                ExternalDefinition extDef = null;
+                foreach (DefinitionGroup g in defFile.Groups)
+                {
+                    foreach (Definition d in g.Definitions)
+                    {
+                        if (string.Equals(d.Name, p.Name, StringComparison.OrdinalIgnoreCase))
+                        { extDef = d as ExternalDefinition; break; }
+                    }
+                    if (extDef != null) break;
+                }
+                if (extDef == null)
+                {
+                    result.Warnings.Add($"{def.Id}: shared param '{p.Name}' not found in shared file — bound as family param");
+                    return null;
+                }
+                return fm.AddParameter(extDef, groupTypeId, p.IsInstance);
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{def.Id}: shared param '{p.Name}' add failed — {ex.Message}");
+                return null;
+            }
+        }
+
+        private static void TrySetDefault(FamilyManager fm, FamilyParameter fp,
+            string value, SymbolDefinition def, SymbolCreationResult result)
+        {
+            if (fp == null || value == null) return;
+            try
+            {
+                switch (fp.StorageType)
+                {
+                    case StorageType.String:
+                        fm.Set(fp, value);
+                        break;
+                    case StorageType.Integer:
+                        if (int.TryParse(value, out int i))
+                            fm.Set(fp, i);
+                        else if (bool.TryParse(value, out bool b))
+                            fm.Set(fp, b ? 1 : 0);
+                        break;
+                    case StorageType.Double:
+                        if (double.TryParse(value,
+                            System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            out double d))
+                            fm.Set(fp, d);
+                        break;
+                    case StorageType.ElementId:
+                        // Material / reference defaults aren't expressible as JSON strings.
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{def.Id}: default for '{fp.Definition?.Name}' failed — {ex.Message}");
             }
         }
 

@@ -12,8 +12,8 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "K_FACTOR", "type": "Text", "shared": true, "default": "80" },
-        { "name": "TEMP_RATING_C", "type": "Text", "shared": true, "default": "68" },
+        { "name": "K_FACTOR", "type": "Text", "shared": true, "default": "80", "instance": false },
+        { "name": "TEMP_RATING_C", "type": "Text", "shared": true, "default": "68", "instance": false },
         { "name": "STATUS", "type": "Text", "shared": true }
       ],
       "geometry": {
@@ -38,7 +38,7 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "K_FACTOR", "type": "Text", "shared": true }
+        { "name": "K_FACTOR", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
@@ -112,7 +112,7 @@
       "symbolSize": 5.0,
       "parameters": [
         { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "K_FACTOR", "type": "Text", "shared": true, "default": "200" }
+        { "name": "K_FACTOR", "type": "Text", "shared": true, "default": "200", "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
@@ -195,7 +195,7 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "TEMP_TRIP_C", "type": "Text", "shared": true, "default": "60" }
+        { "name": "TEMP_TRIP_C", "type": "Text", "shared": true, "default": "60", "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
@@ -254,7 +254,7 @@
       "symbolSize": 5.0,
       "parameters": [
         { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "BEAM_LENGTH_M", "type": "Text", "shared": true }
+        { "name": "BEAM_LENGTH_M", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -305,7 +305,7 @@
       "symbolSize": 4.5,
       "parameters": [
         { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "DETECTION_TYPE", "type": "Text", "shared": true, "default": "UV/IR" }
+        { "name": "DETECTION_TYPE", "type": "Text", "shared": true, "default": "UV/IR", "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
@@ -350,7 +350,7 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "DB_RATING", "type": "Text", "shared": true, "default": "100" }
+        { "name": "DB_RATING", "type": "Text", "shared": true, "default": "100", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -392,7 +392,7 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "EN54_CATEGORY", "type": "Text", "shared": true, "default": "C-3-15" }
+        { "name": "EN54_CATEGORY", "type": "Text", "shared": true, "default": "C-3-15", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -417,8 +417,8 @@
       "symbolSize": 8.0,
       "parameters": [
         { "name": "PANEL_REF", "type": "Text", "shared": true },
-        { "name": "EN54_PART", "type": "Text", "shared": true, "default": "EN54-2" },
-        { "name": "ZONE_COUNT", "type": "Integer", "shared": true }
+        { "name": "EN54_PART", "type": "Text", "shared": true, "default": "EN54-2", "instance": false },
+        { "name": "ZONE_COUNT", "type": "Integer", "shared": true, "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -469,7 +469,7 @@
       "symbolSize": 6.0,
       "parameters": [
         { "name": "VALVE_REF", "type": "Text", "shared": true },
-        { "name": "SIZE_MM", "type": "Text", "shared": true, "default": "100" }
+        { "name": "SIZE_MM", "type": "Text", "shared": true, "default": "100", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -581,7 +581,7 @@
       "subcategory": "Monitor",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "RANGE_BAR", "type": "Text", "shared": true, "default": "0-16" }
+        { "name": "RANGE_BAR", "type": "Text", "shared": true, "default": "0-16", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -650,7 +650,7 @@
       "symbolSize": 5.0,
       "parameters": [
         { "name": "VALVE_REF", "type": "Text", "shared": true },
-        { "name": "SIZE_MM", "type": "Text", "shared": true, "default": "100" }
+        { "name": "SIZE_MM", "type": "Text", "shared": true, "default": "100", "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
