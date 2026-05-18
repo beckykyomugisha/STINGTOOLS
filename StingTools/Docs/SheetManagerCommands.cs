@@ -433,10 +433,10 @@ namespace StingTools.Docs
                         // Create sheet
                         var sheet = ViewSheet.Create(doc, tbSym.Id);
                         try { sheet.SheetNumber = row.SheetNumber; }
-                        catch (Exception ex2) { StingLog.Warn($"Sheet number conflict '{row.SheetNumber}': {ex2.Message}"); }
+                        catch (Exception exNr) { StingLog.Warn($"Sheet number conflict '{row.SheetNumber}': {exNr.Message}"); }
 
                         try { sheet.Name = row.SheetName; }
-                        catch (Exception ex3) { StingLog.Warn($"Sheet name conflict '{row.SheetName}': {ex3.Message}"); }
+                        catch (Exception exNm) { StingLog.Warn($"Sheet name conflict '{row.SheetName}': {exNm.Message}"); }
 
                         // Write custom shared parameter values
                         if (row.CustomParams != null && row.CustomParams.Count > 0)
