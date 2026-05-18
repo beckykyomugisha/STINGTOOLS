@@ -1505,7 +1505,7 @@ namespace StingTools.Core
         {
             string stingParamName =
                 bic == BuiltInCategory.OST_PipeFitting     ? "PLM_PPE_SZ_MM" :
-                bic == BuiltInCategory.OST_ConduitFittings ? "ELC_CDT_SZ_MM" :
+                bic == BuiltInCategory.OST_ConduitFitting ? "ELC_CDT_SZ_MM" :
                 null;
             if (string.IsNullOrEmpty(stingParamName)) return;
 
@@ -1870,8 +1870,8 @@ namespace StingTools.Core
         {
             try
             {
-                // NOTE: NewSymbolicCurve returns SymbolicCurve (subtype of ModelCurve) in Revit 2025.
-                var mc = famDoc.FamilyCreate.NewSymbolicCurve(geom, sp) as ModelCurve;
+                // SymbolicCurve and ModelCurve are siblings (both extend CurveElement); no cast needed.
+                var mc = famDoc.FamilyCreate.NewSymbolicCurve(geom, sp);
                 if (mc == null) return 0;
 
                 if (subcat != null)
@@ -1975,7 +1975,7 @@ namespace StingTools.Core
             return bic == BuiltInCategory.OST_PipeFitting     ||
                    bic == BuiltInCategory.OST_DuctFitting      ||
                    bic == BuiltInCategory.OST_CableTrayFitting  ||
-                   bic == BuiltInCategory.OST_ConduitFittings   ||
+                   bic == BuiltInCategory.OST_ConduitFitting   ||
                    bic == BuiltInCategory.OST_PipeCurves        ||
                    bic == BuiltInCategory.OST_DuctCurves;
         }
@@ -1983,7 +1983,7 @@ namespace StingTools.Core
         private static bool IsRoundConnector(BuiltInCategory bic)
         {
             return bic == BuiltInCategory.OST_PipeFitting    ||
-                   bic == BuiltInCategory.OST_ConduitFittings  ||
+                   bic == BuiltInCategory.OST_ConduitFitting  ||
                    bic == BuiltInCategory.OST_PipeCurves;
         }
 

@@ -1742,4 +1742,18 @@ namespace StingTools.BIMManager
             }
         }
     }
+
+    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.ReadOnly)]
+    [Autodesk.Revit.Attributes.Regeneration(Autodesk.Revit.Attributes.RegenerationOption.Manual)]
+    public class TeamWorkloadCommand : Autodesk.Revit.UI.IExternalCommand
+    {
+        public Autodesk.Revit.UI.Result Execute(
+            Autodesk.Revit.UI.ExternalCommandData data, ref string message,
+            Autodesk.Revit.DB.ElementSet elements)
+        {
+            Autodesk.Revit.UI.TaskDialog.Show("STING – Team Workload",
+                "Team Workload reporting is not yet available in this build.");
+            return Autodesk.Revit.UI.Result.Succeeded;
+        }
+    }
 }
