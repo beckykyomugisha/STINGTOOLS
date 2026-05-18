@@ -225,6 +225,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<BoqBaseline>            BoqBaselines            => Set<BoqBaseline>();
     public DbSet<BoqVariation>           BoqVariations           => Set<BoqVariation>();
     public DbSet<BoqDocument>            BoqDocuments            => Set<BoqDocument>();
+    public DbSet<PaymentCertificate>     PaymentCertificates     => Set<PaymentCertificate>();
     public DbSet<Nrm2PreliminariesItem>  Nrm2PreliminariesItems  => Set<Nrm2PreliminariesItem>();
 
     // ── Suitability code state machine (ISO 19650-2).
@@ -1406,6 +1407,36 @@ public class PlanscapeDbContext : DbContext
             e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Baseline).WithMany().HasForeignKey(x => x.BaselineId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.BimIssue).WithMany().HasForeignKey(x => x.BimIssueId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Phase 184k / P5.1 — payment certificates.
+        modelBuilder.Entity<PaymentCertificate>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.ContractRef, x.CertNumber }).IsUnique();
+            e.HasIndex(x => new { x.ProjectId, x.Status });
+            e.Property(x => x.ContractRef).HasMaxLength(80).IsRequired();
+            e.Property(x => x.Form).HasMaxLength(40);
+            e.Property(x => x.Status).HasMaxLength(20);
+            e.Property(x => x.Currency).HasMaxLength(8);
+            e.Property(x => x.ContractorName).HasMaxLength(200);
+            e.Property(x => x.EmployerName).HasMaxLength(200);
+            e.Property(x => x.ProjectName).HasMaxLength(200);
+            e.Property(x => x.SignedByContractor).HasMaxLength(200);
+            e.Property(x => x.SignedByEmployer).HasMaxLength(200);
+            e.Property(x => x.CreatedBy).HasMaxLength(200);
+            e.Property(x => x.Note).HasMaxLength(4000);
+            e.Property(x => x.RetentionPercent).HasColumnType("numeric(6,3)");
+            e.Property(x => x.EffectiveRetentionPercent).HasColumnType("numeric(6,3)");
+            e.Property(x => x.HalfRetentionAtPercent).HasColumnType("numeric(6,3)");
+            e.Property(x => x.VatPercent).HasColumnType("numeric(6,3)");
+            e.Property(x => x.GrossValuation).HasColumnType("numeric(18,2)");
+            e.Property(x => x.RetentionAmount).HasColumnType("numeric(18,2)");
+            e.Property(x => x.OtherDeductions).HasColumnType("numeric(18,2)");
+            e.Property(x => x.NetThisCert).HasColumnType("numeric(18,2)");
+            e.Property(x => x.VatAmount).HasColumnType("numeric(18,2)");
+            e.Property(x => x.TotalPayable).HasColumnType("numeric(18,2)");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<BoqDocument>(e =>

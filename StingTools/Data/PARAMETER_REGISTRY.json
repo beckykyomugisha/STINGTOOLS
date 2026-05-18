@@ -1,6 +1,6 @@
 {
   "version": "5.12",
-  "description": "STING Tools master parameter registry v5.11 — Option-3-B + curation passes 1+2 (full sync to MR_PARAMETERS.txt + tag-container moves + warning threshold values + category_enum_map gap-fill). Moved 96 tag-display stubs from support_params into container_groups (1 new ARCH_TAG group + STR_TAG categories extended); set 8 real warning threshold values with UK AEC source citations (BS 8004 / EC7, BS EN 1992-1-1, BS 7671, CIBSE Guide B3 + G, LETI / RIBA 2030 Challenge, BS EN 806-3); marked 376 non-numeric warnings as check_type=presence; added 3 missing Revit categories to category_enum_map (Toposolid, Hardscape, structural sub-categories, etc.). Phase 183: bound 11 HVAC sizing-registry shared params (HVC_SEGMENT_ROLE/SIZE_PREV/SIZE_MODIFIED/SIZE_RULE_ID/PIPE_SERVICE/PRESSURE_CLASS/SIZE_STALE/REFRIGERANT_KG/REFRIGERANT_TYPE/CAPACITY_KW + PRJ_ORG_PRESSURE_PROFILE).",
+  "description": "STING Tools master parameter registry v5.11 \u2014 Option-3-B + curation passes 1+2 (full sync to MR_PARAMETERS.txt + tag-container moves + warning threshold values + category_enum_map gap-fill). Moved 96 tag-display stubs from support_params into container_groups (1 new ARCH_TAG group + STR_TAG categories extended); set 8 real warning threshold values with UK AEC source citations (BS 8004 / EC7, BS EN 1992-1-1, BS 7671, CIBSE Guide B3 + G, LETI / RIBA 2030 Challenge, BS EN 806-3); marked 376 non-numeric warnings as check_type=presence; added 3 missing Revit categories to category_enum_map (Toposolid, Hardscape, structural sub-categories, etc.). Phase 183: bound 11 HVAC sizing-registry shared params (HVC_SEGMENT_ROLE/SIZE_PREV/SIZE_MODIFIED/SIZE_RULE_ID/PIPE_SERVICE/PRESSURE_CLASS/SIZE_STALE/REFRIGERANT_KG/REFRIGERANT_TYPE/CAPACITY_KW + PRJ_ORG_PRESSURE_PROFILE).",
   "tag_format": {
     "separator": "-",
     "num_pad": 4,
@@ -309,7 +309,7 @@
     {
       "param_name": "HANDOVER_MODE_HANDOVER_BOOL",
       "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567801",
-      "description": "Pattern selector — Handover / FM T4-T10 payload is live. Paired with HANDOVER_MODE_DC_BOOL; exactly one is true per project.",
+      "description": "Pattern selector \u2014 Handover / FM T4-T10 payload is live. Paired with HANDOVER_MODE_DC_BOOL; exactly one is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
       "required": false
@@ -317,7 +317,7 @@
     {
       "param_name": "HANDOVER_MODE_DC_BOOL",
       "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567802",
-      "description": "Pattern selector — Design & Construction T4-T10 payload is live. Paired with HANDOVER_MODE_HANDOVER_BOOL; exactly one is true per project.",
+      "description": "Pattern selector \u2014 Design & Construction T4-T10 payload is live. Paired with HANDOVER_MODE_HANDOVER_BOOL; exactly one is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
       "required": false
@@ -325,7 +325,7 @@
     {
       "param_name": "HANDOVER_MODE_CUSTOM_BOOL",
       "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567803",
-      "description": "Pattern selector — Custom (user-defined) T4-T10 payload is live. Exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL / HANDOVER_MODE_CUSTOM_BOOL is true per project.",
+      "description": "Pattern selector \u2014 Custom (user-defined) T4-T10 payload is live. Exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL / HANDOVER_MODE_CUSTOM_BOOL is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
       "required": false
@@ -1365,7 +1365,7 @@
     {
       "param_name": "TAG_BOX_COLOR_R_INT",
       "guid": "a1b2c3d4-5035-4a01-b001-000000000153",
-      "description": "Tag bounding box fill color — Red channel (0-255)",
+      "description": "Tag bounding box fill color \u2014 Red channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1373,7 +1373,7 @@
     {
       "param_name": "TAG_BOX_COLOR_G_INT",
       "guid": "a1b2c3d4-5036-4a01-b001-000000000154",
-      "description": "Tag bounding box fill color — Green channel (0-255)",
+      "description": "Tag bounding box fill color \u2014 Green channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1381,7 +1381,7 @@
     {
       "param_name": "TAG_BOX_COLOR_B_INT",
       "guid": "a1b2c3d4-5037-4a01-b001-000000000155",
-      "description": "Tag bounding box fill color — Blue channel (0-255)",
+      "description": "Tag bounding box fill color \u2014 Blue channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1411,7 +1411,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_R_INT",
       "guid": "a1b2c3d4-5039-4a01-b001-000000000157",
-      "description": "Tag leader line color — Red channel (0-255)",
+      "description": "Tag leader line color \u2014 Red channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1419,7 +1419,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_G_INT",
       "guid": "a1b2c3d4-503a-4a01-b001-000000000158",
-      "description": "Tag leader line color — Green channel (0-255)",
+      "description": "Tag leader line color \u2014 Green channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1427,7 +1427,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_B_INT",
       "guid": "a1b2c3d4-503b-4a01-b001-000000000159",
-      "description": "Tag leader line color — Blue channel (0-255)",
+      "description": "Tag leader line color \u2014 Blue channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1985,7 +1985,7 @@
     {
       "param_name": "STING_SLEEVE_PFV_UUID",
       "guid": "cfe809e7-77c4-5f44-a43c-1d770d97abea",
-      "description": "Deterministic UUIDv5 keyed on (host, mep) — round-trip key for IFC Pset_ProvisionForVoid and BCF topic GUID.",
+      "description": "Deterministic UUIDv5 keyed on (host, mep) \u2014 round-trip key for IFC Pset_ProvisionForVoid and BCF topic GUID.",
       "binding": "Instance",
       "required": false,
       "group": "Sleeve"
@@ -1993,7 +1993,7 @@
     {
       "param_name": "STING_SLEEVE_BORE_MM",
       "guid": "5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c13",
-      "description": "Round sleeve bore in millimetres (element OD + 2× insulation + 2× clearance, clamped to rule minimum).",
+      "description": "Round sleeve bore in millimetres (element OD + 2\u00d7 insulation + 2\u00d7 clearance, clamped to rule minimum).",
       "binding": "Instance",
       "required": false,
       "group": "Sleeve"
@@ -2017,7 +2017,7 @@
     {
       "param_name": "STING_SLEEVE_DEPTH_MM",
       "guid": "5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c16",
-      "description": "Sleeve depth in millimetres (host thickness + 2× protrusion).",
+      "description": "Sleeve depth in millimetres (host thickness + 2\u00d7 protrusion).",
       "binding": "Instance",
       "required": false,
       "group": "Sleeve"
@@ -23721,7 +23721,7 @@
     {
       "param_name": "HVC_SEGMENT_ROLE_TXT",
       "guid": "5bf0485f-08dd-53d1-9cc5-d956305d42e0",
-      "description": "Duct segment role classification (main / branch / runout / outdoor_air / exhaust / kitchen / smoke) — cached by HvacSegmentRoleDetector [Phase 182]",
+      "description": "Duct segment role classification (main / branch / runout / outdoor_air / exhaust / kitchen / smoke) \u2014 cached by HvacSegmentRoleDetector [Phase 182]",
       "datatype": "TEXT",
       "group_id": 5,
       "group_name": "HVC_SYSTEMS",
@@ -23733,7 +23733,7 @@
     {
       "param_name": "HVC_SIZE_PREV_TXT",
       "guid": "b4385937-438e-5d5f-8ce0-f13c2a94a63d",
-      "description": "Previous duct size before auto-sizing run, format WxH or Ø (audit trail) [Phase 182]",
+      "description": "Previous duct size before auto-sizing run, format WxH or \u00d8 (audit trail) [Phase 182]",
       "datatype": "TEXT",
       "group_id": 5,
       "group_name": "HVC_SYSTEMS",
@@ -23805,7 +23805,7 @@
     {
       "param_name": "HVC_REFRIGERANT_KG_NR",
       "guid": "b99d07d1-6eca-50cf-b983-b6fe2442bc8c",
-      "description": "Refrigerant charge mass in kilograms (used by HvacCarbonReportCommand × GWP) [Phase 183]",
+      "description": "Refrigerant charge mass in kilograms (used by HvacCarbonReportCommand \u00d7 GWP) [Phase 183]",
       "datatype": "TEXT",
       "group_id": 5,
       "group_name": "HVC_SYSTEMS",
@@ -23849,6 +23849,526 @@
       "required": false,
       "discipline": "ALL",
       "curated": true
+    },
+    {
+      "param_name": "Qto_WallBaseQuantities.Length",
+      "guid": "9ab41e3a-744e-59cd-5730-333c3c7eb992",
+      "description": "IFC4 Qto_WallBaseQuantities Length [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_WallBaseQuantities.Width",
+      "guid": "eeb35ef6-c4e8-5c67-7fd7-9408c9594fe6",
+      "description": "IFC4 Qto_WallBaseQuantities Width [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_WallBaseQuantities.Height",
+      "guid": "cb7a2f1a-37c9-5d7f-5ce2-25f1c31136a5",
+      "description": "IFC4 Qto_WallBaseQuantities Height [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_WallBaseQuantities.GrossSideArea",
+      "guid": "b0a78f29-7d3d-5e5f-6d32-ab1b7d5084f4",
+      "description": "IFC4 Qto_WallBaseQuantities GrossSideArea [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_WallBaseQuantities.NetSideArea",
+      "guid": "88974132-8ff0-50ed-fca5-45e892cf1566",
+      "description": "IFC4 Qto_WallBaseQuantities NetSideArea [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_WallBaseQuantities.GrossVolume",
+      "guid": "f8ff3513-d500-5e8d-217b-0bf652016ba1",
+      "description": "IFC4 Qto_WallBaseQuantities GrossVolume [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_WallBaseQuantities.NetVolume",
+      "guid": "771413db-af09-5bae-d3d2-f1aae3a19286",
+      "description": "IFC4 Qto_WallBaseQuantities NetVolume [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_WallBaseQuantities.GrossWeight",
+      "guid": "3f2ae25a-7a1d-55a4-bf13-7c57230842df",
+      "description": "IFC4 Qto_WallBaseQuantities GrossWeight [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_WallBaseQuantities.NetWeight",
+      "guid": "02fde911-e9e2-5c16-f2ac-f70424f9b31c",
+      "description": "IFC4 Qto_WallBaseQuantities NetWeight [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_BeamBaseQuantities.Length",
+      "guid": "94cd7131-6470-5385-77f3-1a0c91309318",
+      "description": "IFC4 Qto_BeamBaseQuantities Length [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_BeamBaseQuantities.CrossSectionArea",
+      "guid": "7438f6c3-e9a2-5d19-c08d-2bc29c2ad46d",
+      "description": "IFC4 Qto_BeamBaseQuantities CrossSectionArea [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_BeamBaseQuantities.OuterSurfaceArea",
+      "guid": "d9d9ae06-a4ca-5f0b-820e-6f4862ece7d1",
+      "description": "IFC4 Qto_BeamBaseQuantities OuterSurfaceArea [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_BeamBaseQuantities.GrossVolume",
+      "guid": "238f519a-91d2-581d-aba6-43b355237ed8",
+      "description": "IFC4 Qto_BeamBaseQuantities GrossVolume [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_BeamBaseQuantities.NetVolume",
+      "guid": "f242b483-830a-55ba-ea10-8f4e967bb7c9",
+      "description": "IFC4 Qto_BeamBaseQuantities NetVolume [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_BeamBaseQuantities.GrossWeight",
+      "guid": "8086b41d-8b22-574b-03c1-18d8e2b05e31",
+      "description": "IFC4 Qto_BeamBaseQuantities GrossWeight [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_BeamBaseQuantities.NetWeight",
+      "guid": "9b33f24b-1503-58a8-c5cb-eb6da98c4dae",
+      "description": "IFC4 Qto_BeamBaseQuantities NetWeight [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_ColumnBaseQuantities.Length",
+      "guid": "3e50bc96-3e38-5657-fe39-932459dd36be",
+      "description": "IFC4 Qto_ColumnBaseQuantities Length [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_ColumnBaseQuantities.CrossSectionArea",
+      "guid": "e4f172e0-f28a-5bcb-2701-bb15af9b4bc8",
+      "description": "IFC4 Qto_ColumnBaseQuantities CrossSectionArea [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_ColumnBaseQuantities.OuterSurfaceArea",
+      "guid": "a974f450-396b-5101-85c4-b8ae56f7fef1",
+      "description": "IFC4 Qto_ColumnBaseQuantities OuterSurfaceArea [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_ColumnBaseQuantities.GrossVolume",
+      "guid": "58b4f4bf-4c46-5b40-3ba1-5740e07a379d",
+      "description": "IFC4 Qto_ColumnBaseQuantities GrossVolume [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_ColumnBaseQuantities.NetVolume",
+      "guid": "3f5bc414-48ae-53bd-c586-e17ff83ab5b7",
+      "description": "IFC4 Qto_ColumnBaseQuantities NetVolume [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_ColumnBaseQuantities.GrossWeight",
+      "guid": "996ffebd-6e66-5adf-fc61-524fc3102aab",
+      "description": "IFC4 Qto_ColumnBaseQuantities GrossWeight [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_ColumnBaseQuantities.NetWeight",
+      "guid": "ff1bdae4-1d62-5506-c0fe-cc46553b01e7",
+      "description": "IFC4 Qto_ColumnBaseQuantities NetWeight [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SlabBaseQuantities.Width",
+      "guid": "46085e03-22a8-512a-d89e-c9c2160df51a",
+      "description": "IFC4 Qto_SlabBaseQuantities Width [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SlabBaseQuantities.Length",
+      "guid": "7d87e1d8-a1d2-5aaa-6ce2-9a74668972c5",
+      "description": "IFC4 Qto_SlabBaseQuantities Length [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SlabBaseQuantities.Depth",
+      "guid": "5e593e7c-1d15-5c27-4ad3-29a9e718613e",
+      "description": "IFC4 Qto_SlabBaseQuantities Depth [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SlabBaseQuantities.Perimeter",
+      "guid": "24f7f725-424d-5674-0036-d04a7713c499",
+      "description": "IFC4 Qto_SlabBaseQuantities Perimeter [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SlabBaseQuantities.GrossArea",
+      "guid": "62727d3a-bbb0-5444-2d51-6c033a7a21fe",
+      "description": "IFC4 Qto_SlabBaseQuantities GrossArea [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SlabBaseQuantities.NetArea",
+      "guid": "f3ffdafa-4ff9-599d-f707-22d32e72f072",
+      "description": "IFC4 Qto_SlabBaseQuantities NetArea [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SlabBaseQuantities.GrossVolume",
+      "guid": "4387584b-4134-50a1-db96-50d9203a9e37",
+      "description": "IFC4 Qto_SlabBaseQuantities GrossVolume [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SlabBaseQuantities.NetVolume",
+      "guid": "84b5f093-c98e-53ae-9739-b0ad669707e4",
+      "description": "IFC4 Qto_SlabBaseQuantities NetVolume [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SlabBaseQuantities.GrossWeight",
+      "guid": "f6c34d9f-8130-5e82-a955-1b0503046be0",
+      "description": "IFC4 Qto_SlabBaseQuantities GrossWeight [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SlabBaseQuantities.NetWeight",
+      "guid": "392378ce-4f24-56b7-db6d-72684d86df5a",
+      "description": "IFC4 Qto_SlabBaseQuantities NetWeight [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_DoorBaseQuantities.Width",
+      "guid": "8d437636-b95e-551a-4a02-ce419a882783",
+      "description": "IFC4 Qto_DoorBaseQuantities Width [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_DoorBaseQuantities.Height",
+      "guid": "450613a2-782c-5342-ed5c-74275145c7d1",
+      "description": "IFC4 Qto_DoorBaseQuantities Height [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_DoorBaseQuantities.Perimeter",
+      "guid": "585fe016-e9d8-5273-4be7-ab343dea9e81",
+      "description": "IFC4 Qto_DoorBaseQuantities Perimeter [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_DoorBaseQuantities.Area",
+      "guid": "485e61a9-6e71-553e-51e7-61de07aa9f41",
+      "description": "IFC4 Qto_DoorBaseQuantities Area [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_WindowBaseQuantities.Width",
+      "guid": "71bc1e06-98e0-5f9e-8082-5967d87f5f5a",
+      "description": "IFC4 Qto_WindowBaseQuantities Width [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_WindowBaseQuantities.Height",
+      "guid": "41390edf-33c2-529c-7888-cf786cf9716c",
+      "description": "IFC4 Qto_WindowBaseQuantities Height [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_WindowBaseQuantities.Perimeter",
+      "guid": "0143f5a7-c05c-5b53-21d3-b3c3804d88c8",
+      "description": "IFC4 Qto_WindowBaseQuantities Perimeter [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_WindowBaseQuantities.Area",
+      "guid": "b39ca48e-a678-5df2-c97b-2778d52684a5",
+      "description": "IFC4 Qto_WindowBaseQuantities Area [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SpaceBaseQuantities.Height",
+      "guid": "3bf10110-14b2-57e7-9714-b0cae5537d58",
+      "description": "IFC4 Qto_SpaceBaseQuantities Height [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SpaceBaseQuantities.FinishCeilingHeight",
+      "guid": "c9b26107-3b89-51bf-cd88-d15c2562392d",
+      "description": "IFC4 Qto_SpaceBaseQuantities FinishCeilingHeight [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SpaceBaseQuantities.GrossPerimeter",
+      "guid": "3af2aeb0-0af5-548c-1940-bde7d12814bb",
+      "description": "IFC4 Qto_SpaceBaseQuantities GrossPerimeter [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SpaceBaseQuantities.NetPerimeter",
+      "guid": "9471e8f5-a0ee-5422-a53a-798044bca591",
+      "description": "IFC4 Qto_SpaceBaseQuantities NetPerimeter [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SpaceBaseQuantities.GrossFloorArea",
+      "guid": "ddf40fd0-b45c-5e9f-2f4b-e04ec70b8448",
+      "description": "IFC4 Qto_SpaceBaseQuantities GrossFloorArea [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SpaceBaseQuantities.NetFloorArea",
+      "guid": "4fd5d0c9-05c8-51da-b483-e05520f1551d",
+      "description": "IFC4 Qto_SpaceBaseQuantities NetFloorArea [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SpaceBaseQuantities.GrossWallArea",
+      "guid": "c2ecfdf2-1a4c-5eb6-ad87-24d9785d2ae7",
+      "description": "IFC4 Qto_SpaceBaseQuantities GrossWallArea [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SpaceBaseQuantities.NetWallArea",
+      "guid": "6467637d-f7ac-5e77-fcba-98e577b8818c",
+      "description": "IFC4 Qto_SpaceBaseQuantities NetWallArea [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SpaceBaseQuantities.GrossVolume",
+      "guid": "92f90bf7-a6ac-5b15-0444-69710bef13aa",
+      "description": "IFC4 Qto_SpaceBaseQuantities GrossVolume [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_SpaceBaseQuantities.NetVolume",
+      "guid": "92a3ea22-1725-51db-50ab-cf5add228b9b",
+      "description": "IFC4 Qto_SpaceBaseQuantities NetVolume [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_CoveringBaseQuantities.GrossArea",
+      "guid": "9d692f75-2243-5fdd-2689-2c86c9fe054b",
+      "description": "IFC4 Qto_CoveringBaseQuantities GrossArea [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_CoveringBaseQuantities.NetArea",
+      "guid": "9e7c4539-dbc3-5d4e-ccf9-3ff59337145b",
+      "description": "IFC4 Qto_CoveringBaseQuantities NetArea [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_PipeSegmentBaseQuantities.Length",
+      "guid": "d3b9848e-d6cf-5b15-9594-a6627f91157f",
+      "description": "IFC4 Qto_PipeSegmentBaseQuantities Length [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_PipeSegmentBaseQuantities.OuterSurfaceArea",
+      "guid": "06d6b106-bec6-5999-f18c-faac1c2c664b",
+      "description": "IFC4 Qto_PipeSegmentBaseQuantities OuterSurfaceArea [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_PipeSegmentBaseQuantities.GrossWeight",
+      "guid": "dbdab6df-5036-5e67-7e02-31ea2498f614",
+      "description": "IFC4 Qto_PipeSegmentBaseQuantities GrossWeight [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_DuctSegmentBaseQuantities.Length",
+      "guid": "7fadbeaa-348c-530e-e45c-e38afac61a5e",
+      "description": "IFC4 Qto_DuctSegmentBaseQuantities Length [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_DuctSegmentBaseQuantities.OuterSurfaceArea",
+      "guid": "b87a14f0-ef29-596a-57e9-e8bc921223ce",
+      "description": "IFC4 Qto_DuctSegmentBaseQuantities OuterSurfaceArea [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Qto_DuctSegmentBaseQuantities.GrossWeight",
+      "guid": "9e5b0089-6461-5fb1-272d-8e518c35f86f",
+      "description": "IFC4 Qto_DuctSegmentBaseQuantities GrossWeight [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Pset_StingCost.UnitRate",
+      "guid": "46d1c660-c578-5808-6050-d8fdb88c9b6d",
+      "description": "STING cost property set UnitRate [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Pset_StingCost.Currency",
+      "guid": "a768f8a1-7609-5d07-54e6-73b78d3cae54",
+      "description": "STING cost property set Currency [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Text"
+    },
+    {
+      "param_name": "Pset_StingCost.TotalCost",
+      "guid": "f787a2bc-04cf-5f98-e322-418604468d23",
+      "description": "STING cost property set TotalCost [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "Pset_StingCost.ProvisionalSum",
+      "guid": "a2384fa5-ffad-538e-bb92-9e4b30821ee4",
+      "description": "STING cost property set ProvisionalSum [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "YesNo"
+    },
+    {
+      "param_name": "Pset_StingCost.RateSource",
+      "guid": "e8223222-58c4-5f3a-0dd5-4f8fe77271ce",
+      "description": "STING cost property set RateSource [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Text"
+    },
+    {
+      "param_name": "Pset_StingCost.NRM2Section",
+      "guid": "6160717f-4a9f-5991-247a-ef111e10f201",
+      "description": "STING cost property set NRM2Section [Phase 184k / P8]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Text"
     }
   ],
   "token_presets": {
@@ -23943,7 +24463,7 @@
           "separator": "-",
           "prefix": "",
           "suffix": "",
-          "description": "Multi-line top — DISC-LOC-ZONE-LVL (top line of a 2-line tag family layout: place TAG_5 above TAG_6)"
+          "description": "Multi-line top \u2014 DISC-LOC-ZONE-LVL (top line of a 2-line tag family layout: place TAG_5 above TAG_6)"
         },
         {
           "param_name": "ASS_TAG_6_TXT",
@@ -23952,7 +24472,7 @@
           "separator": "-",
           "prefix": "",
           "suffix": "",
-          "description": "Multi-line bottom — SYS-FUNC-PROD-SEQ (bottom line of a 2-line tag family layout: place below TAG_5)"
+          "description": "Multi-line bottom \u2014 SYS-FUNC-PROD-SEQ (bottom line of a 2-line tag family layout: place below TAG_5)"
         },
         {
           "param_name": "ASS_TAG_7_TXT",
@@ -23961,7 +24481,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "Comprehensive descriptive narrative — AI-assembled asset profile with embedded markup tokens for rich rendering"
+          "description": "Comprehensive descriptive narrative \u2014 AI-assembled asset profile with embedded markup tokens for rich rendering"
         },
         {
           "param_name": "ASS_TAG_7A_TXT",
@@ -23970,7 +24490,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section A: Identity Header — asset name, product, manufacturer, model (styled as BOLD in tag families)"
+          "description": "TAG7 Section A: Identity Header \u2014 asset name, product, manufacturer, model (styled as BOLD in tag families)"
         },
         {
           "param_name": "ASS_TAG_7B_TXT",
@@ -23979,7 +24499,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section B: System & Function Context — full system/function descriptions (styled as ITALIC in tag families)"
+          "description": "TAG7 Section B: System & Function Context \u2014 full system/function descriptions (styled as ITALIC in tag families)"
         },
         {
           "param_name": "ASS_TAG_7C_TXT",
@@ -23988,7 +24508,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section C: Spatial Context — room, department, grid reference"
+          "description": "TAG7 Section C: Spatial Context \u2014 room, department, grid reference"
         },
         {
           "param_name": "ASS_TAG_7D_TXT",
@@ -23997,7 +24517,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section D: Lifecycle & Status — status, revision, origin, maintenance"
+          "description": "TAG7 Section D: Lifecycle & Status \u2014 status, revision, origin, maintenance"
         },
         {
           "param_name": "ASS_TAG_7E_TXT",
@@ -24006,7 +24526,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section E: Technical Specifications — discipline-specific MEP/BLE performance data"
+          "description": "TAG7 Section E: Technical Specifications \u2014 discipline-specific MEP/BLE performance data"
         },
         {
           "param_name": "ASS_TAG_7F_TXT",
@@ -24015,7 +24535,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section F: Classification & Reference — Uniformat, OmniClass, keynote, cost, ISO tag"
+          "description": "TAG7 Section F: Classification & Reference \u2014 Uniformat, OmniClass, keynote, cost, ISO tag"
         },
         {
           "param_name": "RGL_TAG_7_PARA_CMPL_TXT",
@@ -25897,7 +26417,7 @@
         "key": "TERM_CAPPED",
         "param_name": "ASS_TERM_CAPPED_BOOL",
         "guid": "f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c",
-        "description": "Termination capped/blanked flag (connectivity validator — open end with intentional cap)",
+        "description": "Termination capped/blanked flag (connectivity validator \u2014 open end with intentional cap)",
         "categories": [
           "Pipes",
           "Ducts",
@@ -25942,12 +26462,12 @@
       {
         "key": "ROOM_AREA",
         "param_name": "ASS_ROOM_AREA_SQ_M",
-        "description": "Room area (m²)"
+        "description": "Room area (m\u00b2)"
       },
       {
         "key": "ROOM_VOLUME",
         "param_name": "ASS_ROOM_VOLUME_CU_M",
-        "description": "Room volume (m³)"
+        "description": "Room volume (m\u00b3)"
       },
       {
         "key": "DEPT",
@@ -26073,7 +26593,7 @@
       {
         "key": "ELE_AREA",
         "param_name": "BLE_ELE_AREA_SQ_M",
-        "description": "Element area (m²)"
+        "description": "Element area (m\u00b2)"
       },
       {
         "key": "CEILING_HEIGHT",
@@ -26335,7 +26855,7 @@
       {
         "key": "ELC_PNL_FAULT_KA",
         "param_name": "ELC_PNL_SHORT_CIRCUIT_RATING_KA",
-        "description": "Calculated fault current at panel (kA) — reuses Phase 175 short-circuit param [STING Phase 178]",
+        "description": "Calculated fault current at panel (kA) \u2014 reuses Phase 175 short-circuit param [STING Phase 178]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -26353,7 +26873,7 @@
         "key": "ELC_FEEDER_CSA",
         "param_name": "ELC_FEEDER_CSA_MM2",
         "guid": "f1d6e7c8-1002-5178-9178-100000000002",
-        "description": "Calculated / proposed feeder cable cross-sectional area (mm²) — distinct from circuit cable size [STING Phase 178]",
+        "description": "Calculated / proposed feeder cable cross-sectional area (mm\u00b2) \u2014 distinct from circuit cable size [STING Phase 178]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -26362,7 +26882,7 @@
         "key": "ELC_FEEDER_RATING_A",
         "param_name": "ELC_FEEDER_RATING_A",
         "guid": "f1d6e7c8-1003-5178-9178-100000000003",
-        "description": "Calculated feeder breaker / fuse rating in amperes — the upstream protective device rating [STING Phase 178]",
+        "description": "Calculated feeder breaker / fuse rating in amperes \u2014 the upstream protective device rating [STING Phase 178]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -26370,7 +26890,7 @@
       {
         "key": "ELC_CKT_VD_PCT",
         "param_name": "ELC_VLT_DROP_PCT",
-        "description": "Calculated voltage drop % — reuses existing Phase 175 param [STING Phase 178]",
+        "description": "Calculated voltage drop % \u2014 reuses existing Phase 175 param [STING Phase 178]",
         "categories": [
           "Electrical Circuits"
         ]
@@ -26378,7 +26898,7 @@
       {
         "key": "ELC_CKT_CSA_MM2",
         "param_name": "ELC_CBL_SZ_MM",
-        "description": "Assigned cable CSA — reuses existing Phase 175 param [STING Phase 178]",
+        "description": "Assigned cable CSA \u2014 reuses existing Phase 175 param [STING Phase 178]",
         "categories": [
           "Electrical Circuits",
           "Wires"
@@ -26387,7 +26907,7 @@
       {
         "key": "ELC_CONDUIT_FILL_PCT",
         "param_name": "ELC_CDT_CBL_FILL_PCT",
-        "description": "Calculated conduit fill % — reuses existing Phase 175 param [STING Phase 178]",
+        "description": "Calculated conduit fill % \u2014 reuses existing Phase 175 param [STING Phase 178]",
         "categories": [
           "Conduits"
         ]
@@ -26405,7 +26925,7 @@
         "key": "ELC_LPD_W_M2",
         "param_name": "ELC_LPD_W_PER_M2",
         "guid": "f1d6e7c8-1005-5178-9178-100000000005",
-        "description": "Calculated lighting power density (W/m²) [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]",
+        "description": "Calculated lighting power density (W/m\u00b2) [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]",
         "categories": [
           "Rooms"
         ]
@@ -26414,7 +26934,7 @@
         "key": "ELC_LPD_LIMIT_W_M2",
         "param_name": "ELC_LPD_LIMIT_W_PER_M2",
         "guid": "f1d6e7c8-1006-5178-9178-100000000006",
-        "description": "Standard LPD limit for the room type (W/m²) [STING Phase 178]",
+        "description": "Standard LPD limit for the room type (W/m\u00b2) [STING Phase 178]",
         "categories": [
           "Rooms"
         ]
@@ -26432,7 +26952,7 @@
         "key": "ELC_ARC_FLASH_IE",
         "param_name": "ELC_ARC_FLASH_IE_CAL_CM2",
         "guid": "a2e7f8d9-1001-5179-9179-100000000001",
-        "description": "Calculated incident energy in cal/cm² at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]",
+        "description": "Calculated incident energy in cal/cm\u00b2 at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -26450,7 +26970,7 @@
         "key": "ELC_ARC_FLASH_PPE",
         "param_name": "ELC_ARC_FLASH_PPE_CAT",
         "guid": "a2e7f8d9-1003-5179-9179-100000000003",
-        "description": "NFPA 70E Table 130.5(G) PPE category 0–4 (-1 = exceeds Cat 4) [STING Phase 179]",
+        "description": "NFPA 70E Table 130.5(G) PPE category 0\u20134 (-1 = exceeds Cat 4) [STING Phase 179]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -26486,7 +27006,7 @@
         "key": "ELC_BUSBAR_CSA",
         "param_name": "ELC_BUSBAR_CSA_MM2",
         "guid": "a2e7f8d9-1007-5179-9179-100000000007",
-        "description": "Busbar trunking conductor cross-sectional area (mm²) [BS EN 60439-1 / STING Phase 179]",
+        "description": "Busbar trunking conductor cross-sectional area (mm\u00b2) [BS EN 60439-1 / STING Phase 179]",
         "categories": [
           "Electrical Equipment",
           "Cable Trays"
@@ -29348,7 +29868,7 @@
       {
         "key": "STING_SLEEVE_CREATED_BY",
         "param_name": "STING_SLEEVE_CREATED_BY",
-        "description": "Audit — placement command"
+        "description": "Audit \u2014 placement command"
       }
     ],
     "tier_4_10": [
@@ -29366,7 +29886,7 @@
         "key": "COMM_DATE",
         "param_name": "COMM_DATE_TXT",
         "guid": "5753b5aa-0004-4000-8000-000000000002",
-        "description": "Commissioning date (ISO 8601) — when state was last stamped",
+        "description": "Commissioning date (ISO 8601) \u2014 when state was last stamped",
         "categories": [
           "ALL"
         ],
@@ -29376,7 +29896,7 @@
         "key": "COMM_OPERATIVE",
         "param_name": "COMM_OPERATIVE_TXT",
         "guid": "5753b5aa-0004-4000-8000-000000000003",
-        "description": "Commissioning operative — name / ID of engineer who stamped the asset",
+        "description": "Commissioning operative \u2014 name / ID of engineer who stamped the asset",
         "categories": [
           "ALL"
         ],
@@ -29386,7 +29906,7 @@
         "key": "CST_UG_PRICE",
         "param_name": "CST_UG_PRICE_UGX",
         "guid": "694fcd57-d0c2-5ed3-afca-f225781b3bc8",
-        "description": "Uganda local price (UGX) — quoted supplier price ex-works",
+        "description": "Uganda local price (UGX) \u2014 quoted supplier price ex-works",
         "categories": [
           "ALL"
         ],
@@ -29396,7 +29916,7 @@
         "key": "CST_INTL_PRICE",
         "param_name": "CST_INTL_PRICE_USD",
         "guid": "c40720fa-3e80-5880-86c3-a82f43055fbf",
-        "description": "International price (USD) — CIF/DAP quote for imported goods",
+        "description": "International price (USD) \u2014 CIF/DAP quote for imported goods",
         "categories": [
           "ALL"
         ],
@@ -29406,7 +29926,7 @@
         "key": "CST_QUOTE_REF",
         "param_name": "CST_QUOTE_REF_TXT",
         "guid": "4de58d8f-38e2-584f-b8aa-5a5744a80fcd",
-        "description": "Quote reference — supplier quote/PO number",
+        "description": "Quote reference \u2014 supplier quote/PO number",
         "categories": [
           "ALL"
         ],
@@ -29416,7 +29936,7 @@
         "key": "CBN_A1_A3",
         "param_name": "CBN_A1_A3_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000001",
-        "description": "Product stage carbon A1-A3 (kgCO2e) — cradle-to-gate embodied",
+        "description": "Product stage carbon A1-A3 (kgCO2e) \u2014 cradle-to-gate embodied",
         "categories": [
           "ALL"
         ],
@@ -29426,7 +29946,7 @@
         "key": "CBN_A4",
         "param_name": "CBN_A4_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000002",
-        "description": "Transport stage carbon A4 (kgCO2e) — factory-to-site haulage",
+        "description": "Transport stage carbon A4 (kgCO2e) \u2014 factory-to-site haulage",
         "categories": [
           "ALL"
         ],
@@ -29436,7 +29956,7 @@
         "key": "CBN_B6",
         "param_name": "CBN_B6_KG_CO2E_YR",
         "guid": "5753b5aa-0006-4000-8000-000000000003",
-        "description": "Operational energy carbon B6 (kgCO2e/yr) — annual in-use emissions",
+        "description": "Operational energy carbon B6 (kgCO2e/yr) \u2014 annual in-use emissions",
         "categories": [
           "ALL"
         ],
@@ -29446,7 +29966,7 @@
         "key": "ASS_SPOOL_NR",
         "param_name": "ASS_SPOOL_NR_TXT",
         "guid": "1a4353be-eaaa-5e46-95ee-b64a74667194",
-        "description": "Fabrication spool number — BS EN ISO 6412 isometric reference",
+        "description": "Fabrication spool number \u2014 BS EN ISO 6412 isometric reference",
         "categories": [
           "ALL"
         ],
@@ -29466,7 +29986,7 @@
         "key": "ASS_QC_INSPECTOR",
         "param_name": "ASS_QC_INSPECTOR_TXT",
         "guid": "a028f908-b100-53bc-b21a-1a0a6a03ffac",
-        "description": "QC inspector — name / ID of signing engineer",
+        "description": "QC inspector \u2014 name / ID of signing engineer",
         "categories": [
           "ALL"
         ],
@@ -29476,7 +29996,7 @@
         "key": "CLASH_TRIAGE_SEV",
         "param_name": "CLASH_TRIAGE_SEVERITY_NR",
         "guid": "5753b5aa-0008-4000-8000-000000000001",
-        "description": "Clash triage severity (0-5) — higher = more blocking",
+        "description": "Clash triage severity (0-5) \u2014 higher = more blocking",
         "categories": [
           "ALL"
         ],
@@ -29506,7 +30026,7 @@
         "key": "ASBUILT_DEV",
         "param_name": "ASBUILT_DEVIATION_MM",
         "guid": "5753b5aa-0009-4000-8000-000000000001",
-        "description": "As-built deviation (mm) — delta vs design position from reality capture",
+        "description": "As-built deviation (mm) \u2014 delta vs design position from reality capture",
         "categories": [
           "ALL"
         ],
@@ -29516,7 +30036,7 @@
         "key": "ASBUILT_DATE",
         "param_name": "ASBUILT_CAPTURE_DATE_TXT",
         "guid": "5753b5aa-0009-4000-8000-000000000002",
-        "description": "As-built capture date (ISO 8601) — when reality-capture snapshot was taken",
+        "description": "As-built capture date (ISO 8601) \u2014 when reality-capture snapshot was taken",
         "categories": [
           "ALL"
         ],
@@ -29526,7 +30046,7 @@
         "key": "HEALTH_SCORE",
         "param_name": "HEALTH_SCORE_LAST_NR",
         "guid": "5753b5aa-0009-4000-8000-000000000003",
-        "description": "Model health score (0-100) — last computed compliance / data quality rating",
+        "description": "Model health score (0-100) \u2014 last computed compliance / data quality rating",
         "categories": [
           "ALL"
         ],
@@ -29536,7 +30056,7 @@
         "key": "IFC_PSET_OVERRIDE",
         "param_name": "IFC_PSET_OVERRIDE_TXT",
         "guid": "5753b5aa-000a-4000-8000-000000000001",
-        "description": "IFC PSet override — custom IFC property set / value mapping for export",
+        "description": "IFC PSet override \u2014 custom IFC property set / value mapping for export",
         "categories": [
           "ALL"
         ],
@@ -29546,7 +30066,7 @@
         "key": "ACC_ISSUE_ID",
         "param_name": "ACC_ISSUE_ID_TXT",
         "guid": "5753b5aa-000a-4000-8000-000000000002",
-        "description": "ACC Issue ID — Autodesk Construction Cloud Issue round-trip reference",
+        "description": "ACC Issue ID \u2014 Autodesk Construction Cloud Issue round-trip reference",
         "categories": [
           "ALL"
         ],
@@ -29566,7 +30086,7 @@
         "key": "COMM_WITNESS",
         "param_name": "COMM_WITNESS_TXT",
         "guid": "5753b5aa-0004-4000-8000-000000000010",
-        "description": "Commissioning witness — name / ID of client/third-party observer",
+        "description": "Commissioning witness \u2014 name / ID of client/third-party observer",
         "categories": [
           "ALL"
         ],
@@ -29586,7 +30106,7 @@
         "key": "CST_INSTALL_HRS",
         "param_name": "CST_INSTALL_HRS",
         "guid": "5753b5aa-0005-4000-8000-000000000010",
-        "description": "Installation labour hours (N-G12) — estimated man-hours for install",
+        "description": "Installation labour hours (N-G12) \u2014 estimated man-hours for install",
         "categories": [
           "ALL"
         ],
@@ -29596,7 +30116,7 @@
         "key": "CST_LABOUR_CREW",
         "param_name": "CST_LABOUR_CREW_TXT",
         "guid": "5753b5aa-0005-4000-8000-000000000011",
-        "description": "Labour crew identifier — crew code assigned to install",
+        "description": "Labour crew identifier \u2014 crew code assigned to install",
         "categories": [
           "ALL"
         ],
@@ -29606,7 +30126,7 @@
         "key": "CST_LABOUR_RATE_GBP",
         "param_name": "CST_LABOUR_RATE_GBP",
         "guid": "5753b5aa-0005-4000-8000-000000000012",
-        "description": "Labour rate (GBP/hr) — override for cost roll-up",
+        "description": "Labour rate (GBP/hr) \u2014 override for cost roll-up",
         "categories": [
           "ALL"
         ],
@@ -29616,7 +30136,7 @@
         "key": "CBN_A5",
         "param_name": "CBN_A5_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000010",
-        "description": "Construction stage carbon A5 (kgCO2e) — site installation emissions",
+        "description": "Construction stage carbon A5 (kgCO2e) \u2014 site installation emissions",
         "categories": [
           "ALL"
         ],
@@ -29626,7 +30146,7 @@
         "key": "CBN_C1",
         "param_name": "CBN_C1_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000011",
-        "description": "End-of-life carbon C1 (kgCO2e) — demolition energy",
+        "description": "End-of-life carbon C1 (kgCO2e) \u2014 demolition energy",
         "categories": [
           "ALL"
         ],
@@ -29636,7 +30156,7 @@
         "key": "CBN_C2",
         "param_name": "CBN_C2_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000012",
-        "description": "End-of-life carbon C2 (kgCO2e) — transport to waste processing",
+        "description": "End-of-life carbon C2 (kgCO2e) \u2014 transport to waste processing",
         "categories": [
           "ALL"
         ],
@@ -29646,7 +30166,7 @@
         "key": "CBN_C3_C4",
         "param_name": "CBN_C3_C4_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000013",
-        "description": "End-of-life carbon C3-C4 (kgCO2e) — waste processing + disposal",
+        "description": "End-of-life carbon C3-C4 (kgCO2e) \u2014 waste processing + disposal",
         "categories": [
           "ALL"
         ],
@@ -29656,7 +30176,7 @@
         "key": "CLASH_TRIAGE_SCORE",
         "param_name": "CLASH_TRIAGE_SCORE",
         "guid": "5753b5aa-0008-4000-8000-000000000010",
-        "description": "Clash triage composite score (0-100) — weighted severity x business impact",
+        "description": "Clash triage composite score (0-100) \u2014 weighted severity x business impact",
         "categories": [
           "ALL"
         ],
@@ -29666,7 +30186,7 @@
         "key": "CLASH_RES_ACTION",
         "param_name": "CLASH_RESOLUTION_ACTION_TXT",
         "guid": "5753b5aa-0008-4000-8000-000000000011",
-        "description": "Clash resolution action — remediation action taken or planned",
+        "description": "Clash resolution action \u2014 remediation action taken or planned",
         "categories": [
           "ALL"
         ],
@@ -30050,7 +30570,7 @@
       "guid": "2e3596c7-f913-5c86-9c2b-547f6375ca3c",
       "description": "Room minimum area compliance",
       "threshold": "7.0",
-      "unit": "m²",
+      "unit": "m\u00b2",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -30140,7 +30660,7 @@
       "guid": "cc3fc151-264e-5c9e-88fe-add4e5c4e52f",
       "description": "U-value thermal transmittance check",
       "threshold": "0.30",
-      "unit": "W/m²K",
+      "unit": "W/m\u00b2K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -30330,7 +30850,7 @@
       "guid": "18e66013-b783-5748-9389-06897dd57a86",
       "description": "Vertical circulation structural load check",
       "threshold": "5.0",
-      "unit": "kN/m²",
+      "unit": "kN/m\u00b2",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -30360,7 +30880,7 @@
       "guid": "43c8ea79-cafd-5da0-9e6f-e228b85efb39",
       "description": "U-value thermal transmittance check",
       "threshold": "0.30",
-      "unit": "W/m²K",
+      "unit": "W/m\u00b2K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -30500,7 +31020,7 @@
       "guid": "573be7bf-3821-5434-b6f6-783e1c83ef87",
       "description": "Fire safety device coverage limit",
       "threshold": "12.0",
-      "unit": "m²",
+      "unit": "m\u00b2",
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal"
@@ -30510,7 +31030,7 @@
       "guid": "9cff654b-b254-4be2-9067-c5bb1fbb2b1b",
       "description": "Sprinkler coverage area limit",
       "threshold": "12.0",
-      "unit": "m²",
+      "unit": "m\u00b2",
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal"
@@ -30640,7 +31160,7 @@
       "guid": "4b0595c4-908f-58fc-821c-b1cacc438418",
       "description": "Space lighting power density limit",
       "threshold": "10",
-      "unit": "W/m²",
+      "unit": "W/m\u00b2",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal"
@@ -30700,7 +31220,7 @@
       "guid": "b8930262-2de1-4ec1-a68b-c7d1ce741b3c",
       "description": "Embodied carbon footprint limit per unit",
       "threshold": "500",
-      "unit": "kgCO₂e/m²",
+      "unit": "kgCO\u2082e/m\u00b2",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal"
@@ -30710,7 +31230,7 @@
       "guid": "05aac695-72d4-4826-be4c-f7f050ff2cba",
       "description": "Floor U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m²K",
+      "unit": "W/m\u00b2K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -30720,7 +31240,7 @@
       "guid": "8fad1a00-1d39-4672-87f7-72aa5f3350c2",
       "description": "Roof U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m²K",
+      "unit": "W/m\u00b2K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -30730,7 +31250,7 @@
       "guid": "a64d1a09-088f-4e61-9356-8190e9efc50e",
       "description": "Wall U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m²K",
+      "unit": "W/m\u00b2K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -30740,7 +31260,7 @@
       "guid": "698beeb9-f4f0-5c0c-a998-dbe92cb657b0",
       "description": "VOC emissions limit for indoor air quality",
       "threshold": "250",
-      "unit": "µg/m³",
+      "unit": "\u00b5g/m\u00b3",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -35291,7 +35811,7 @@
       "guid": "f8f7f079-15c9-5799-b518-3abe89470613",
       "description": "Foundation bearing capacity minimum (warn if allowable bearing falls below this) [BS 8004 / BS EN 1997-1 Eurocode 7]",
       "threshold": "100",
-      "unit": "kN/m²",
+      "unit": "kN/m\u00b2",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "project",
@@ -35636,7 +36156,7 @@
       "guid": "8f1233a3-a77a-583b-8e95-0afd66d0a766",
       "description": "Embodied carbon limit A1-A5, offices (2025 target; 2030 target 350) [LETI Climate Emergency Design Guide / RIBA 2030 Challenge]",
       "threshold": "600",
-      "unit": "kgCO₂/m²",
+      "unit": "kgCO\u2082/m\u00b2",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "project",

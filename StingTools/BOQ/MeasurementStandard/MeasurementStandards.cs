@@ -187,11 +187,51 @@ namespace StingTools.BOQ.MeasurementStandard
 
         public string ClassifyRow(BOQLineItem line, Element el)
         {
-            // ICMS3 group codes 01-04 — lifecycle phases.
-            // Without lifecycle phase data on the row we default to 02
-            // Construction. Carbon factors live on the BOQLineItem
-            // (EmbodiedCarbonKg) and surface in the description.
-            return "02";  // Construction phase
+            // ICMS3 group codes (lifecycle phases):
+            //   01  Acquisition           — site purchase, legal, fees
+            //   02  Construction          — main capex
+            //   03  Operation             — maintenance, replacement, run cost
+            //   04  End-of-life           — decommission, disposal
+            //
+            // Phase 184k refinement: read Revit phase parameters to bucket
+            // each line correctly rather than collapsing everything to 02.
+            // - PHASE_DEMOLISHED set + phase name contains "demolition" → 04
+            // - PHASE_DEMOLISHED set (any other phase)                  → 03
+            // - PHASE_CREATED phase name contains "existing" / "site"   → 01
+            // - Default                                                  → 02 Construction
+            if (el == null) return "02";
+            try
+            {
+                var demoParam = el.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
+                if (demoParam != null && demoParam.HasValue)
+                {
+                    var demoId = demoParam.AsElementId();
+                    if (demoId != null && demoId.Value > 0)
+                    {
+                        Phase demoPhase = el.Document?.GetElement(demoId) as Phase;
+                        string demoName = (demoPhase?.Name ?? "").ToLowerInvariant();
+                        if (demoName.Contains("demolition") || demoName.Contains("end-of-life") ||
+                            demoName.Contains("decommission"))
+                            return "04";
+                        return "03";  // Demolished in a non-demolition phase → operation cycle
+                    }
+                }
+
+                var createdParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                if (createdParam != null && createdParam.HasValue)
+                {
+                    var createdId = createdParam.AsElementId();
+                    Phase createdPhase = el.Document?.GetElement(createdId) as Phase;
+                    string createdName = (createdPhase?.Name ?? "").ToLowerInvariant();
+                    if (createdName.Contains("existing") || createdName.Contains("acquisition") ||
+                        createdName.Contains("site preparation") || createdName.Contains("enabling"))
+                        return "01";
+                    if (createdName.Contains("operation") || createdName.Contains("maintenance"))
+                        return "03";
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Icms3Standard.ClassifyRow: {ex.Message}"); }
+            return "02";  // Default: construction
         }
 
         public string BuildDescription(BOQLineItem line, Element el)
