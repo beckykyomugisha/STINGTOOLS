@@ -142,7 +142,7 @@ namespace StingTools.Commands.Electrical
         public string InstallMethod;
         public string CircuitType;
         public double MaxDemandA;
-        public double AmpacityA = 0.0;
+        public double AmpacityA;
         public bool   IsFireRated;
         public bool   IsArmoured;
         public bool   IsShielded;
