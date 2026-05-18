@@ -114,7 +114,7 @@ namespace StingTools.BIMManager
         //
         // A small built-in fallback covers the case where the CSV is
         // missing — defensive only; the CSV is shipped with the plugin.
-        private static Dictionary<string, (double ratePerUnit, string unit, string description)> _defaultCostRatesCache;
+        private static Dictionary<string, (double ratePerUnit, string unit, string description)>? _defaultCostRatesCache;
         private static readonly object _defaultCostRatesLock = new object();
 
         internal static Dictionary<string, (double ratePerUnit, string unit, string description)> DefaultCostRates
