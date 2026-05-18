@@ -10,29 +10,12 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Controls.Primitives;
 using System.Windows.Shapes;
-using System.Threading.Tasks;
-using StingTools.Core;
-using StingTools.BIMManager;
-using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using Path        = System.IO.Path;
-using TaskDialog  = Autodesk.Revit.UI.TaskDialog;
-using Button      = System.Windows.Controls.Button;
-using Binding     = System.Windows.Data.Binding;
-using Color       = System.Windows.Media.Color;
-using ComboBox    = System.Windows.Controls.ComboBox;
-using ContextMenu = System.Windows.Controls.ContextMenu;
-using Ellipse     = System.Windows.Shapes.Ellipse;
-using Grid        = System.Windows.Controls.Grid;
-using Line        = System.Windows.Shapes.Line;
+using StingTools.Core;
 using MenuItem    = System.Windows.Controls.MenuItem;
+using ContextMenu = System.Windows.Controls.ContextMenu;
+using ComboBox    = System.Windows.Controls.ComboBox;
 using TextBox     = System.Windows.Controls.TextBox;
-using Visibility  = System.Windows.Visibility;
-using Newtonsoft.Json.Linq;
-using StingTools.Core.Validation.Healthcare;
-using Autodesk.Revit.DB.Architecture;
-using Color = System.Windows.Media.Color;
-using Grid = System.Windows.Controls.Grid;
 
 namespace StingTools.UI
 {
@@ -8120,8 +8103,8 @@ namespace StingTools.UI
                 }
 
                 var groups = Newtonsoft.Json.JsonConvert.DeserializeObject<
-                    List<Docs.Workflow.DistributionGroup>>(System.IO.File.ReadAllText(groupsPath))
-                    ?? new List<Docs.Workflow.DistributionGroup>();
+                    List<Planscape.Docs.Workflow.DistributionGroup>>(System.IO.File.ReadAllText(groupsPath))
+                    ?? new List<Planscape.Docs.Workflow.DistributionGroup>();
 
                 if (groups.Count == 0)
                 {
@@ -8708,8 +8691,9 @@ namespace StingTools.UI
             var tabDStack = new StackPanel { Margin = new Thickness(8) };
 
             // Build workload rows from TeamWorkloadEngine
-            var workloadRows = new List<TeamWorkloadEngine.WorkloadRow>();
-            try { workloadRows = TeamWorkloadEngine.Build(StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document); }
+            var workloadRows = new List<StingTools.BIMManager.TeamWorkloadEngine.WorkloadRow>();
+            var _workloadDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+            try { workloadRows = StingTools.BIMManager.TeamWorkloadEngine.Build(_workloadDoc); }
             catch (Exception ex) { StingLog.Warn($"BCC workload tab: {ex.Message}"); }
 
             if (workloadRows.Count == 0)
@@ -8783,12 +8767,12 @@ namespace StingTools.UI
             {
                 try
                 {
-                    var bccDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
-                    string rows2 = TeamWorkloadEngine.Build(bccDoc)
+                    var exportDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                    string rows2 = StingTools.BIMManager.TeamWorkloadEngine.Build(exportDoc)
                         .OrderByDescending(r => r.Critical * 3 + r.High * 2 + r.OpenTotal)
                         .Select(r => $"{r.Assignee},{r.OpenTotal},{r.Critical},{r.High},{r.Overdue},{r.OldestDays}")
                         .Aggregate("Assignee,Open,Critical,High,Overdue,OldestDays\n", (a, b) => a + b + "\n");
-                    string path = Path.Combine(OutputLocationHelper.GetOutputDirectory(bccDoc), $"team_workload_{DateTime.Now:yyyyMMdd}.csv");
+                    string path = System.IO.Path.Combine(OutputLocationHelper.GetOutputDirectory(exportDoc), $"team_workload_{DateTime.Now:yyyyMMdd}.csv");
                     File.WriteAllText(path, rows2);
                     TaskDialog.Show("STING — Team Workload", $"Exported to:\n{path}");
                 }

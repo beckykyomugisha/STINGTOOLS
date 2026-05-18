@@ -23,10 +23,26 @@ namespace StingTools.Commands.Placement
     /// maps 1:1 to a CheckBox in StingDockPanel.xaml. Defaults match
     /// the XAML IsChecked="True" initial state.
     /// </summary>
+    /// <summary>Defines which set of rooms the Place Fixtures command operates on.</summary>
+    public enum FixtureScopeMode
+    {
+        /// <summary>Only rooms on the currently active plan view level.</summary>
+        ActiveView,
+        /// <summary>Only rooms that were selected in the model when the command was invoked.</summary>
+        SelectedRooms,
+        /// <summary>All rooms in the entire project.</summary>
+        AllRooms,
+        /// <summary>Rooms explicitly filtered by room name / department criteria.</summary>
+        ByRoom,
+    }
+
     public static class PlaceFixturesOptions
     {
         public static bool DryRunPreference { get; set; } = true;
         public static bool SnapTo300mmGrid  { get; set; } = true;
+
+        /// <summary>Determines which rooms the engine targets during a run.</summary>
+        public static FixtureScopeMode ScopeMode { get; set; } = FixtureScopeMode.SelectedRooms;
 
         // Category filters (from the Fixtures panel).
         public static bool IncludeElectricalFixtures  { get; set; } = true;
@@ -109,7 +125,7 @@ namespace StingTools.Commands.Placement
             string scopeLabel;
             switch (PlaceFixturesOptions.ScopeMode)
             {
-                case PlaceFixturesOptions.FixtureScopeMode.ActiveView:
+                case FixtureScopeMode.ActiveView:
                 {
                     var view = uidoc.ActiveView;
                     if (view == null)
@@ -152,13 +168,13 @@ namespace StingTools.Commands.Placement
                     scopeLabel = $"Active view ({selectedRoomIds.Count} room(s))";
                     break;
                 }
-                case PlaceFixturesOptions.FixtureScopeMode.AllRooms:
+                case FixtureScopeMode.AllRooms:
                 {
                     scopeLabel = "All rooms (entire project)";
                     // Leave selectedRoomIds empty — engine treats empty as "all rooms".
                     break;
                 }
-                case PlaceFixturesOptions.FixtureScopeMode.SelectedRooms:
+                case FixtureScopeMode.SelectedRooms:
                 default:
                 {
                     foreach (var id in uidoc.Selection.GetElementIds())

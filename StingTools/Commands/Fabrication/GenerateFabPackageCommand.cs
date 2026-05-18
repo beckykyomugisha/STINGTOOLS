@@ -43,6 +43,29 @@ namespace StingTools.Commands.Fabrication
         // Content mode — ISO 6412 (workshop) vs Generic (geometry only)
         public static bool ContentModeIso6412  { get; set; } = true;
 
+        // ISO 6412 symbol placement mode.  Off = skip all symbols;
+        // NewOnly = stamp only members without an existing symbol;
+        // Replace = purge then re-stamp everything.
+        public static PlacementMode SymbolPlacementMode { get; set; } = PlacementMode.NewOnly;
+
+        // Per-discipline ISO symbol placement toggles
+        public static bool PlaceISOPipe        { get; set; } = true;
+        public static bool PlaceISODuct        { get; set; } = true;
+        public static bool PlaceISOElectrical  { get; set; } = true;
+
+        /// <summary>
+        /// Controls when ISO 6412 symbols are placed onto iso-view detail views.
+        /// </summary>
+        public enum PlacementMode
+        {
+            /// <summary>Skip ISO symbol placement entirely.</summary>
+            Off,
+            /// <summary>Place symbols only for assembly members that do not yet have one.</summary>
+            NewOnly,
+            /// <summary>Purge all existing symbols and re-place from scratch.</summary>
+            Replace,
+        }
+
         /// <summary>
         /// Shop-drawing composition options captured from the
         /// ShopDrawingOptionsDialog. Null = use engine defaults

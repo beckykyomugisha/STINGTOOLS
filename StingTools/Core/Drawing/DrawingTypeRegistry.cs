@@ -104,9 +104,10 @@ namespace StingTools.Core.Drawing
             => GetLibrary(doc).Routing;
 
         /// <summary>
-        /// Resolve a ViewStylePack by id for the given document.
-        /// Returns null when no pack with that id is registered.
-        /// Used by DrawingDriftDetector and DrawingTypePresentation.
+        /// Convenience method: look up a <see cref="ViewStylePack"/> by id via
+        /// <see cref="ViewStylePackRegistry"/>.  Returns null when the pack is not
+        /// found (no exception).  Used by <c>DrawingDriftDetector</c> and other
+        /// consumers that want a null-check rather than a try/catch.
         /// </summary>
         public static ViewStylePack TryGetPack(Document doc, string packId)
         {

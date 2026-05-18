@@ -811,13 +811,17 @@ namespace StingTools.Core
         // family re-author pass.
         /// <summary>Pattern selector — Handover / FM T4-T10 payload is visible.</summary>
         public static string MODE_HANDOVER { get; private set; } = "HANDOVER_MODE_HANDOVER_BOOL";
-        public const string MODE_HANDOVER_GUID = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
+        /// <summary>Shared-parameter GUID for HANDOVER_MODE_HANDOVER_BOOL.</summary>
+        public const string MODE_HANDOVER_GUID = "A1E2F3B4-C5D6-4E7F-8A9B-0C1D2E3F4A5B";
         /// <summary>Pattern selector — Design & Construction T4-T10 payload is visible.</summary>
         public static string MODE_DC { get; private set; } = "HANDOVER_MODE_DC_BOOL";
-        public const string MODE_DC_GUID = "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e";
+        /// <summary>Shared-parameter GUID for HANDOVER_MODE_DC_BOOL.</summary>
+        public const string MODE_DC_GUID = "B2F3A4C5-D6E7-4F8A-9B0C-1D2E3F4A5B6C";
         /// <summary>Pattern selector — Custom (user-defined) T4-T10 payload is visible.</summary>
         public static string MODE_CUSTOM { get; private set; } = "HANDOVER_MODE_CUSTOM_BOOL";
-        public const string MODE_CUSTOM_GUID = "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f";
+        /// <summary>Shared-parameter GUID for HANDOVER_MODE_CUSTOM_BOOL.</summary>
+        public const string MODE_CUSTOM_GUID = "C3A4B5D6-E7F8-4A9B-0C1D-2E3F4A5B6C7D";
+
 
         // ── Warning threshold definitions (v5.5) ─────────────────────────
         // Loaded from warning_thresholds section of PARAMETER_REGISTRY.json.
@@ -1769,13 +1773,18 @@ namespace StingTools.Core
                     foreach (JObject s in supArr)
                     {
                         string name = s["param_name"]?.ToString() ?? "";
-                        if (name.Contains("STATUS") && !name.Contains("PARA") && !name.Contains("WARN")) STATUS = name;
-                        else if (name.Contains("DETAIL")) DETAIL_NUM = name;
-                        else if (name.Contains("MNT")) MNT_TYPE = name;
-                        else if (name == "TAG_PARA_STATE_1_BOOL") PARA_STATE_1 = name;
-                        else if (name == "TAG_PARA_STATE_2_BOOL") PARA_STATE_2 = name;
-                        else if (name == "TAG_PARA_STATE_3_BOOL") PARA_STATE_3 = name;
-                        else if (name == "TAG_WARN_VISIBLE_BOOL") WARN_VISIBLE = name;
+                        // Exact-match the canonical singletons. The earlier substring
+                        // form ("name.Contains") let any later support_params row
+                        // overwrite the binding (e.g. SLV_STATUS_TXT was clobbering
+                        // STATUS). Defaults at the field declarations remain authoritative;
+                        // these assignments just confirm them when the registry agrees.
+                        if      (name == "ASS_STATUS_TXT")             STATUS = name;
+                        else if (name == "ASS_INST_DETAIL_NUM_TXT")    DETAIL_NUM = name;
+                        else if (name == "MNT_TYPE_TXT")               MNT_TYPE = name;
+                        else if (name == "TAG_PARA_STATE_1_BOOL")      PARA_STATE_1 = name;
+                        else if (name == "TAG_PARA_STATE_2_BOOL")      PARA_STATE_2 = name;
+                        else if (name == "TAG_PARA_STATE_3_BOOL")      PARA_STATE_3 = name;
+                        else if (name == "TAG_WARN_VISIBLE_BOOL")      WARN_VISIBLE = name;
                         else if (name == "TAG_WARN_SEVERITY_FILTER_TXT") WARN_SEVERITY_FILTER = name;
 
                         // DATA-02: Track required/optional status

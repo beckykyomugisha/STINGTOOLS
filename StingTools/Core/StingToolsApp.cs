@@ -18,6 +18,7 @@ using Newtonsoft.Json.Linq;
 using StingTools.UI;
 using StingTools.BIMManager;
 using StingTools.Core.Clash;
+using StingTools.Mcp;
 using Planscape.PluginSync;
 using StingTools.Core.Drawing;
 using StingTools.Core.Validation;
@@ -38,7 +39,8 @@ namespace StingTools.Core
     {
         public static string AssemblyPath { get; private set; }
         public static string DataPath { get; private set; }
-        private static UpdaterId _sldUpdaterId;
+        private static UpdaterId _sldUpdaterId = null;
+        private static StingBridge.IFC.IfcDropWatcher? _activeIfcDropWatcher;
 
         public Result OnStartup(UIControlledApplication application)
         {
@@ -219,6 +221,7 @@ namespace StingTools.Core
                 }
                 catch (Exception syncEx) { StingLog.Warn($"SyncScheduler start failed: {syncEx.Message}"); }
 
+                StingMcpServer.StartIfConfigured();
                 StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;
             }
@@ -637,6 +640,39 @@ namespace StingTools.Core
                 {
                     StingLog.Warn($"AUTO_RUN_WORKFLOW_ON_OPEN check failed: {arwEx.Message}");
                 }
+
+                // Gap 9: Auto-start IfcDropWatcher if an _ifc_drop folder exists
+                // adjacent to the project file. This ensures the drop-folder hot path
+                // is always live when the user opens a project, without requiring manual
+                // activation via a command.
+                try
+                {
+                    string docPath9 = e.Document?.PathName;
+                    if (!string.IsNullOrEmpty(docPath9))
+                    {
+                        string projectDir9 = System.IO.Path.GetDirectoryName(docPath9);
+                        if (!string.IsNullOrEmpty(projectDir9))
+                        {
+                            string dropFolder9 = System.IO.Path.Combine(projectDir9, "_ifc_drop");
+                            if (System.IO.Directory.Exists(dropFolder9) && _activeIfcDropWatcher == null)
+                            {
+                                var watcher9 = new StingBridge.IFC.IfcDropWatcher(dropFolder9);
+                                watcher9.FileArrived += (_, wArgs) =>
+                                {
+                                    StingLog.Info($"IfcDropWatcher (auto): IFC arrived → {wArgs.FilePath}");
+                                    // Queue import on the Revit external event so we run on the API thread.
+                                    var handler = new StingBridge.IFC.DropFolderImportEventHandler(e.Document, wArgs.FilePath);
+                                    var ev = Autodesk.Revit.UI.ExternalEvent.Create(handler);
+                                    ev.Raise();
+                                };
+                                watcher9.Start();
+                                _activeIfcDropWatcher = watcher9;
+                                StingLog.Info($"Gap 9: IfcDropWatcher auto-started on {dropFolder9}");
+                            }
+                        }
+                    }
+                }
+                catch (Exception w9Ex) { StingLog.Warn($"Gap 9 IfcDropWatcher auto-start: {w9Ex.Message}"); }
 
                 // Phase 77: Consume any pending workflow presets from WorkflowScheduler triggers
                 // (document-open, compliance-fall, SLA-violation, warning-threshold triggers)
@@ -1154,6 +1190,7 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"SyncScheduler stop: {ex.Message}"); }
 
+            try { _activeIfcDropWatcher?.Dispose(); _activeIfcDropWatcher = null; } catch { }
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
             StingTag7NarrativeUpdater.Unregister();
@@ -1181,6 +1218,7 @@ namespace StingTools.Core
             UI.ThemeManager.ClearTarget(); // H-02: Prevent memory leak from static WPF reference
             try { Planscape.Docs.Workflow.AuditLog.Shutdown(); }
             catch (Exception ex) { StingLog.Warn($"AuditLog shutdown: {ex.Message}"); }
+            StingMcpServer.Stop();
             StingLog.Shutdown();
             return Result.Succeeded;
         }

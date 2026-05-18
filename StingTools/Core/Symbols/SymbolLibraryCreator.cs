@@ -40,6 +40,7 @@ namespace StingTools.Core.Symbols
         public int Created { get; set; }
         public int Existed { get; set; }
         public int Failed { get; set; }
+        /// <summary>Count of families skipped because they carry a finalized / protected sidecar.</summary>
         public int Protected { get; set; }
         public List<string> Warnings { get; } = new List<string>();
         public List<string> Errors { get; } = new List<string>();

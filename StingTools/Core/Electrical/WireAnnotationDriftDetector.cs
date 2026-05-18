@@ -160,10 +160,12 @@ namespace StingTools.Core.Electrical
                     AnnotationMarkerRegistry.DeleteByOwner(
                         doc, view, AnnotationMarkerRegistry.TickMarkPrefix, conduit.UniqueId);
 
-                    // Re-read and re-place
+                    // Re-read and re-place using the project wire-annotation style.
                     WireAnnotationData wireData = WireAnnotationEngine.ReadWireData(conduit);
+                    var style = WireAnnotationStyleOverride.Merge(
+                        WireAnnotationStyleStore.Load(doc), conduit);
                     ElementId newAnnotId = WireAnnotationEngine.PlaceAnnotation(
-                        doc, view, conduit, wireData, WireAnnotationStyle.Default());
+                        doc, view, conduit, wireData, style);
 
                     if (newAnnotId != ElementId.InvalidElementId)
                         refreshed++;

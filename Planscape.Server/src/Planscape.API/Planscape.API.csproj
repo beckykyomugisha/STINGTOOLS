@@ -61,5 +61,10 @@
     <None Update="I18n\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- Gap 12 — IFC pset mapping JSON ships next to the DLL under Data/IFC/
+         so IfcIngestController can resolve it via AppContext.BaseDirectory. -->
+    <None Update="Data\IFC\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>

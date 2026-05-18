@@ -2,6 +2,127 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 183 — Model collaboration: Gaps H–N)
+
+Branch: `claude/review-archicad-revit-workflows-04E6q`. Third-pass review of the full collaboration layer, uncovering seven more gaps and fixing them all.
+
+| Gap | File(s) | Finding & Fix |
+|-----|---------|---------------|
+| H | `Program.cs` | **Critical:** `ArchiCADHub` and `FederatedModelHub` were declared but never registered with `app.MapHub<>()`. Every live ArchiCAD push and every federated model notification was dead code — no client could connect. Added `app.MapHub<ArchiCADHub>("/hubs/archicad")` and `app.MapHub<FederatedModelHub>("/hubs/model")`. |
+| I | `IfcDeltaService.cs` | **Hash instability:** SHA-256 was computed over `Dictionary<string,string>` with natural insertion order. The same element with properties in a different order produced a different hash on each upload and was always classified as "Modified". Fixed: sort keys with `SortedDictionary<string,string>(StringComparer.Ordinal)` before serialising. |
+| J | `IfcIngestController.cs` | After a successful IFC ingest the 3D viewer never refreshed — `FederatedModelHub.NotifyUpdate` was never called. Injected `IHubContext<FederatedModelHub>` and broadcast `ModelUpdated` (source `"archicad"` or `"ifc-ingest"`) after the audit log, non-fatally caught. |
+| K | `AutoAlignService.cs` | When `ComputeAsync` persisted a new coordinate transform, no SignalR event fired. Added optional `IHubContext<FederatedModelHub>` parameter; after `SaveChangesAsync` broadcasts `ModelUpdated(source="auto-align")` so viewer clients reload the coordinate frame. |
+| L | `archiCADLiveClient.ts` | On connect (and after reconnect) the client never called `GET /api/archicad/{projectId}/events/recent` — the ring buffer added in Phase 182 was unused. Added `_fetchRecentEvents()` called after `JoinProject` and `onreconnected`; events replayed in chronological order. |
+| M | `ArchiCADController.cs` | ArchiCAD push authors were never registered in `PresenceTracker` — the BCC "N people viewing" chip only showed web/mobile users. Injected `PresenceTracker` + `IHubContext<NotificationHub>`; on every `Push`, derive a stable synthetic `userId` from `MD5(author.Email)`, call `PresenceTracker.Join(projectId, connId, PresentUser(..., Source="archicad"))`, and broadcast `PresenceChanged` to the notification group. |
+| N | `PlanscapeRealtimeClient.cs` | The Revit plugin had no `ModelUpdated` event — when any tool (IFC upload, ArchiCAD push, auto-align) changed the federated model, the BIM Coordination Center didn't know. Added `ModelUpdated` event and `c.On<object>("ModelUpdated", ...)` registration in `RegisterHandlers`. |
+| O | `FederatedModelHub.cs` | `NotifyUpdate` had no `source` field — clients couldn't distinguish ArchiCAD pushes from IFC uploads from auto-align. Added `string source = "unknown"` parameter propagated in the `ModelUpdated` payload. All callers (FederatedModelController, IfcIngestController, AutoAlignService) pass the correct label. |
+
+---
+
+#### Completed (Phase 182 — ArchiCAD-Revit-Planscape deeper alignment: Gaps A–F)
+
+Branch: `claude/review-archicad-revit-workflows-04E6q`. Second-pass deep review uncovering six additional coordination gaps and implementing all fixes. Goal: zero coordinate drift, durable event delivery, stable GlobalIds, correct protocol versioning, and CRS-validated model origins across the ArchiCAD ↔ Revit ↔ Planscape federated model.
+
+##### Gap A — StabilizeIfcGuidsCommand: wrong UniqueId fallback (client)
+
+**File:** `StingTools/Commands/Interop/StabilizeIfcGuidsCommand.cs`
+
+`ReadRevitIfcGuid` previously fell back to `el.UniqueId` when no `IfcGUID` / `IFC GUID` parameter existed. Revit's `UniqueId` is NOT the same encoding as the 22-character IFC `GloballyUniqueId` that the IFC exporter writes — storing it in `IFC_GLOBAL_ID_TXT` would make Planscape's `GLOBALID_DRIFT` detection compare apples to oranges.
+
+Fix: return `null` when no IFC export history exists; skip the element and count it as `skippedNotExported`. Report now surfaces the skip count with the action message `(run IFC export once to assign GUIDs)`.
+
+##### Gap B — ArchiCADController: no late-join event history (server)
+
+**File:** `Planscape.Server/src/Planscape.API/Controllers/ArchiCADController.cs`
+
+`POST /push` only fan-out via SignalR; clients that reconnected after a push missed all model changes until the next push.
+
+Fix: added `internal static class ArchiCADEventBuffer` — an in-memory ring buffer capped at 200 events per project using a `ConcurrentDictionary<Guid, Queue<ArchiCADEvent>>` with per-queue locking. `Push` feeds the buffer before the SignalR fan-out. New endpoint `GET /api/archicad/{projectId}/events/recent?count=200` returns the buffer snapshot for late-join clients; accepts both project-member JWT auth and bridge-key auth so StingBridge can poll its own buffer.
+
+##### Gap C — IfcAlignmentValidator: no CRS mismatch detection (server)
+
+**File:** `Planscape.Server/src/Planscape.Infrastructure/Services/IfcAlignmentValidator.cs`
+
+The alignment validator compared models against each other but never against the project's canonical `ProjectCoordinateSystem`. A model exported from a wrong coordinate frame would pass the cross-model check silently.
+
+Fix: before the verdict block, query `ProjectCoordinateSystems` for the project. If a CRS is declared and the model carries survey coordinates, compute ΔEasting / ΔNorthing / ΔElevation; emit `WARN COORD_CRS_MISMATCH` (with tool-specific fix hint) when any component exceeds 10 m. If the project CRS is declared but the model has no survey origin at all, emit `INFO COORD_CRS_NO_ORIGIN` with the target coordinates. DB exceptions are caught and logged as non-fatal warnings so existing validation results are never lost.
+
+##### Gap D — ArchiCADLiveLink: no protocol versioning, single-property bottleneck, short export timeout (client)
+
+**File:** `StingBridge/src/ArchiCAD/ArchiCADLiveLink.cs`
+
+Three sub-gaps in the named-pipe protocol:
+
+- **D.1 Versioning:** no version field in any message — a breaking add-on update would fail silently. Added `ProtocolVersion = "1.0"` constant; every `SendCommand` call injects `["version"] = ProtocolVersion`. `IsAvailable()` reads the reply version and calls `StingLog.Warn` on mismatch (graceful degradation, connection stays up).
+- **D.2 BatchSetProperties:** each `SetProperty` call opened a pipe, wrote one property, and closed — setting 8 STING tokens per changed element meant 8 round-trips per element. Added `BatchSetProperties(string guidOrId, Dictionary<string,string> properties)` sending a single `batchSetProperty` command with all properties in one round-trip.
+- **D.3 Export timeout:** `TriggerPartialExport` used the same 3-second timeout as ping. Large ArchiCAD models need 10–30 s to export. Added `ExportTimeoutMs = 30_000` constant and `OpenPipe(int timeoutMs)` overload; `TriggerPartialExport` uses the longer timeout.
+
+##### Gap E — PlanscapeCloudPush: in-memory queue lost on restart (client)
+
+**File:** `StingBridge/src/ArchiCAD/PlanscapeCloudPush.cs`
+
+The `ConcurrentQueue` holding undelivered events was in-memory only — a StingBridge process crash or restart silently discarded all queued model changes.
+
+Fix: added a disk-backed JSON queue at `%TEMP%/stingbridge_queue/{projectId}.json`. Constructor computes the path and calls `LoadPersistedQueue()` (reads the file, re-enqueues events, deletes the file). On HTTP failure, `PersistQueueToDisk()` is called after re-queuing. On clean `Dispose()`, any non-empty queue is written to disk before the HTTP client is released.
+
+##### Gap F — IfcRevitImporter: scan cap too low for large IFC files (client)
+
+**File:** `StingBridge/src/IFC/IfcRevitImporter.cs`
+
+`ParseIfcSiteOrigin` scanned at most 10,000 lines when searching for `IfcMapConversion`. Large IFC files (>100 MB) frequently have `IfcMapConversion` beyond line 10,000, causing the survey origin to be silently missed and every import to land at the wrong coordinate.
+
+Fix: increased the scan cap from `10_000` to `50_000` lines.
+
+##### Summary
+
+| Gap | Side | File | Finding |
+|-----|------|------|---------|
+| A | Client | `StabilizeIfcGuidsCommand.cs` | Wrong UniqueId fallback replaced with null + skip counter |
+| B | Server | `ArchiCADController.cs` | 200-event ring buffer + `GET /events/recent` late-join endpoint |
+| C | Server | `IfcAlignmentValidator.cs` | CRS mismatch / no-origin findings vs `ProjectCoordinateSystem` |
+| D | Client | `ArchiCADLiveLink.cs` | Protocol versioning + `BatchSetProperties` + 30 s export timeout |
+| E | Client | `PlanscapeCloudPush.cs` | Disk-backed JSON queue survives process restart |
+| F | Client | `IfcRevitImporter.cs` | Scan cap 10 k → 50 k for large IFC files |
+
+---
+
+#### Completed (Phase 181 — ArchiCAD-Revit-Planscape full alignment: Gaps 1–15)
+
+Branch: `claude/review-archicad-revit-workflows-04E6q`. Deep review + full implementation of all 15 coordination alignment gaps between ArchiCAD, Revit, and the Planscape platform. Goal: zero coordinate drift, correct unit scaling, stable GlobalIds, and synchronized property mappings across the federated model.
+
+##### Client side — Revit / StingBridge
+
+| Gap | File | What was fixed |
+|-----|------|----------------|
+| 1 | `StingBridge/src/IFC/IfcRevitImporter.cs` | `ParseIfcSiteOrigin` extracts IfcMapConversion Eastings/Northings/Elevation; `ApplySurveyOriginTranslation` moves the import symbol by the negated survey origin (metres→feet). |
+| 3 | `StingTools/Commands/Interop/StabilizeIfcGuidsCommand.cs` (new) | Manual-tx command that reads each element's `IfcGUID`/`IFC GUID` and persists it into `IFC_GLOBAL_ID_TXT` shared param. Planscape GLOBALID_DRIFT warning fires when >5 % of known GUIDs change between uploads. |
+| 7 | `StingBridge/src/IFC/IfcRevitImporter.cs` | `ElementTransformUtils.RotateElement` applies true-north angle from `IfcGeometricRepresentationContext.TrueNorth`. |
+| 8 | `StingBridge/src/IFC/IfcRevitImporter.cs` | `NormalizeLevelName` strips "AC_Level " prefix so ArchiCAD storeys match Revit level names without manual renaming. |
+| 9 | `StingTools/Core/StingToolsApp.cs` | `OnDocumentOpened` auto-starts `IfcDropWatcher` when `_ifc_drop/` folder exists alongside the `.rvt`; `OnShutdown` disposes the watcher. |
+| 15 | `StingBridge/src/IFC/IfcRevitImporter.cs` | `RemoveExistingImport` scans `ImportInstance` elements by filename stem and deletes them before re-import to prevent duplicates. |
+| — | `StingBridge/src/IFC/DropFolderImportEventHandler.cs` (new) | `IExternalEventHandler` wrapper that runs `IfcRevitImporter.Import` on the Revit API thread when `IfcDropWatcher.FileArrived` fires. |
+
+Button wired in ARCHICAD COORDINATION section: **Stabilize IFC GUIDs** (tag `IFC_StabilizeGuids`).
+
+##### Server side — Planscape.Server
+
+| Gap | File | What was fixed |
+|-----|------|----------------|
+| 2 | `IfcIngestController` | Alignment validator always runs; `effectiveModelId` auto-minted from `MD5(projectId+filename)` when no modelId supplied so the alignment report is always surfaced. |
+| 4 | `IfcIngestController.UpsertProjectModelTransformAsync` | Creates/updates `ProjectModelTransform` from IfcMapConversion (negated survey origin × 1000 → mm, rotation °, IfcMapConversion.Scale). |
+| 5 | `IIfcIngester` / `XbimIfcIngester` | `UnitScaleToMm` field added to `IfcIngestResult`; `ExtractUnitScaleToMm` detects IFC length unit (METRE/DECI/CENTI/MILLI) and returns the correct metres→mm multiplier. |
+| 6 | `IfcIngestController.WriteGlobalIdRegistryAsync` | Writes `ElementGlobalIdRegistry` rows from `AC_Pset_ElementID.elementGUID` for ArchiCAD-sourced files; upserts by IfcGlobalId. |
+| 10 | `XbimIfcGeometryExtractor.ResolveMapConversionScale` | Reads `IfcMapConversion.Scale` and multiplies into `scaleMm` so AABB extents are geo-corrected. |
+| 11 | `ModelTransformController` | Already fully implemented (federation transform REST API: GET/PUT/DELETE per model). |
+| 12 | `STING_IFC_PSET_MAPPING.json` + `ARCHICAD_IFC_MAPPING.json` | Added `AC_Pset_ElementID.*` and `AC_Pset_RenovationInfo.*` mappings for full ArchiCAD property round-trip. |
+| 13 | `IfcIngestController.DetectAnalyticalTool` | Pre-flight scan of first 200 STEP header lines rejects ETABS/SAP2000/CSi/SAFE/RAM files with HTTP 400 `analytical_model_rejected`. |
+| 14 | `UpsertProjectModelTransformAsync` | Calls `_audit.LogAsync("TRANSFORM_UPSERT", ...)` after each coordinate correction so transforms are traceable in the audit log. |
+
+##### New files
+- `StingBridge/src/IFC/DropFolderImportEventHandler.cs` — drop-folder → Revit API thread bridge
+- `StingTools/Commands/Interop/StabilizeIfcGuidsCommand.cs` — GlobalId persistence before IFC export
+- `Planscape.Server/src/Planscape.API/Data/IFC/STING_IFC_PSET_MAPPING.json` — full IFC property-set → STING parameter mapping (standard + ArchiCAD AC_Pset_* sets)
+
 #### Completed (Phase 179 — Placement Center canonical integration + DrawingType/Pack wiring)
 
 Branch: `claude/toilet-fixture-placement-research-aZtgU`. Six commits. Makes the Placement Center and dock-panel sub-tabs the single canonical surface for all placement / annotation / symbol results, fully integrated with the DrawingType / ViewStylePack system.

@@ -13,6 +13,7 @@ using Autodesk.Revit.DB;
 using Color = System.Windows.Media.Color;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using SwColor  = System.Windows.Media.Color;
 using Grid     = System.Windows.Controls.Grid;
 using ComboBox = System.Windows.Controls.ComboBox;
 using TextBox  = System.Windows.Controls.TextBox;
@@ -151,7 +152,7 @@ namespace StingTools.BIMManager
             SizeToContent = SizeToContent.Height;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             ResizeMode = ResizeMode.NoResize;
-            Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
+            Background = new SolidColorBrush(SwColor.FromRgb(30, 30, 30));
             Foreground = Brushes.White;
 
             Build();
@@ -187,9 +188,9 @@ namespace StingTools.BIMManager
             _cbProvider = new ComboBox
             {
                 Margin = new Thickness(0, 4, 0, 4),
-                Background = new SolidColorBrush(Color.FromRgb(50, 50, 50)),
+                Background = new SolidColorBrush(SwColor.FromRgb(50, 50, 50)),
                 Foreground = Brushes.White,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)),
+                BorderBrush = new SolidColorBrush(SwColor.FromRgb(80, 80, 80)),
             };
             _cbProvider.Items.Add("");
             _cbProvider.Items.Add("ACC");
@@ -208,9 +209,9 @@ namespace StingTools.BIMManager
             _tbCloudRoot = new TextBox
             {
                 Text = _setup.CloudRoot ?? "",
-                Background = new SolidColorBrush(Color.FromRgb(50, 50, 50)),
+                Background = new SolidColorBrush(SwColor.FromRgb(50, 50, 50)),
                 Foreground = Brushes.White,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)),
+                BorderBrush = new SolidColorBrush(SwColor.FromRgb(80, 80, 80)),
                 VerticalContentAlignment = VerticalAlignment.Center,
                 Padding = new Thickness(4, 2, 4, 2),
             };
@@ -219,9 +220,9 @@ namespace StingTools.BIMManager
                 Content = "…",
                 Width = 30,
                 Margin = new Thickness(4, 0, 0, 0),
-                Background = new SolidColorBrush(Color.FromRgb(60, 60, 60)),
+                Background = new SolidColorBrush(SwColor.FromRgb(60, 60, 60)),
                 Foreground = Brushes.White,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)),
+                BorderBrush = new SolidColorBrush(SwColor.FromRgb(80, 80, 80)),
                 ToolTip = "Browse for local Dropbox / OneDrive sync folder",
             };
             btnBrowse.Click += BrowseRoot;
@@ -250,7 +251,7 @@ namespace StingTools.BIMManager
                 Text = "• ACC: enter the ACC hub / project URL or leave blank to stage locally.\n" +
                        "• SharePoint: enter the site URL; staged files are queued for upload.\n" +
                        "• Dropbox / OneDrive: enter the local sync folder path (e.g. C:\\Users\\You\\Dropbox\\ProjectX).",
-                Foreground = new SolidColorBrush(Color.FromRgb(160, 160, 160)),
+                Foreground = new SolidColorBrush(SwColor.FromRgb(160, 160, 160)),
                 FontSize = 11,
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 4, 0, 12),
@@ -266,8 +267,8 @@ namespace StingTools.BIMManager
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(0, 8, 0, 0),
             };
-            var btnSave = new Button { Content = "Save", Width = 80, Margin = new Thickness(0, 0, 8, 0), Background = new SolidColorBrush(Color.FromRgb(0, 120, 215)), Foreground = Brushes.White, BorderBrush = Brushes.Transparent };
-            var btnCancel = new Button { Content = "Cancel", Width = 80, Background = new SolidColorBrush(Color.FromRgb(60, 60, 60)), Foreground = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)) };
+            var btnSave = new Button { Content = "Save", Width = 80, Margin = new Thickness(0, 0, 8, 0), Background = new SolidColorBrush(SwColor.FromRgb(0, 120, 215)), Foreground = Brushes.White, BorderBrush = Brushes.Transparent };
+            var btnCancel = new Button { Content = "Cancel", Width = 80, Background = new SolidColorBrush(SwColor.FromRgb(60, 60, 60)), Foreground = Brushes.White, BorderBrush = new SolidColorBrush(SwColor.FromRgb(80, 80, 80)) };
             btnSave.Click += (s, e) =>
             {
                 _setup.CloudProvider = (_cbProvider.SelectedItem as string) ?? "";
@@ -292,7 +293,7 @@ namespace StingTools.BIMManager
             var lbl = new TextBlock
             {
                 Text = text,
-                Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 180)),
+                Foreground = new SolidColorBrush(SwColor.FromRgb(180, 180, 180)),
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 4, 8, 4),
             };

@@ -54,7 +54,7 @@ namespace StingTools.Commands.IFC
             dlg.Title = "Select IFC file to import";
             if (dlg.Show() != ItemSelectionDialogResult.Confirmed) return Result.Cancelled;
 
-            string ifcPath = ModelPathUtils.ConvertModelPathToUserVisiblePath(
+            string ifcPath = Autodesk.Revit.DB.ModelPathUtils.ConvertModelPathToUserVisiblePath(
                 dlg.GetSelectedModelPath());
 
             if (!File.Exists(ifcPath))

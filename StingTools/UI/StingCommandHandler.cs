@@ -477,9 +477,11 @@ namespace StingTools.UI
                     case "SldAnnotate_Audit":      RunCommand<Commands.Symbols.SldAnnotationAuditCommand>(app); break;
 
                     // ── StingBridge: ArchiCAD / IFC workflows ──
-                    case "IFC_ArchiCADSync":  RunCommand<Commands.IFC.ArchiCADSyncCommand>(app); break;
-                    case "IFC_DropImport":    RunCommand<Commands.IFC.IfcDropImportCommand>(app); break;
-                    case "IFC_PushModel":     RunCommand<Commands.IFC.IFC_PushModelCommand>(app); break;
+                    case "IFC_ArchiCADSync":      RunCommand<Commands.IFC.ArchiCADSyncCommand>(app); break;
+                    case "IFC_DropImport":         RunCommand<Commands.IFC.IfcDropImportCommand>(app); break;
+                    case "IFC_PushModel":          RunCommand<Commands.IFC.IFC_PushModelCommand>(app); break;
+                    case "ArchiCadIfcImport":      RunCommand<Commands.Interop.ArchiCadIfcImportCommand>(app); break;
+                    case "IFC_StabilizeGuids":     RunCommand<Commands.Interop.StabilizeIfcGuidsCommand>(app); break;
 
                     // ── Phase 175: SLD Generator ──
                     case "SLD_Generate":           RunCommand<Commands.SLD.GenerateSLDCommand>(app); break;
@@ -8966,37 +8968,16 @@ For live data, open BCC in Revit and re-export.</p></div>
             return false;
         }
 
+        /// <summary>
+        /// Reads the wire-style inline controls from the electrical dock panel and
+        /// persists the user's selection. Stub — full implementation in Phase 179.
+        /// </summary>
         private static void HandleWireSaveStyleFromPanel(UIApplication app)
         {
-            try
-            {
-                var doc = app?.ActiveUIDocument?.Document;
-                if (doc == null) return;
-                var panel = StingDockPanel.LastInstance;
-                if (panel == null) return;
-                // Read wire style selection from the dock panel and persist it.
-                var styleName = panel.GetSelectedWireStyle();
-                if (string.IsNullOrEmpty(styleName)) return;
-                using var t = new Autodesk.Revit.DB.Transaction(doc, "STING Set Wire Style");
-                t.Start();
-                var setting = Autodesk.Revit.DB.Electrical.ElectricalSetting.GetElectricalSettings(doc);
-                // WireType lookup by name — no-op if not found so the project stays clean.
-                foreach (Autodesk.Revit.DB.Electrical.WireType wt in
-                    new Autodesk.Revit.DB.FilteredElementCollector(doc)
-                        .OfClass(typeof(Autodesk.Revit.DB.Electrical.WireType)))
-                {
-                    if (string.Equals(wt.Name, styleName, System.StringComparison.OrdinalIgnoreCase))
-                    {
-                        setting.SetDefaultWireType(wt.Id);
-                        break;
-                    }
-                }
-                t.Commit();
-            }
-            catch (Exception ex)
-            {
-                StingTools.Core.StingLog.Warn($"HandleWireSaveStyleFromPanel: {ex.Message}");
-            }
+            // Gap 7: full implementation deferred to Phase 179.
+            // Wire-style controls are read from StingElectricalPanel and saved
+            // to project settings when this is implemented.
+            StingTools.Core.StingLog.Info("HandleWireSaveStyleFromPanel: stub — Phase 179 implementation pending.");
         }
     }
 }

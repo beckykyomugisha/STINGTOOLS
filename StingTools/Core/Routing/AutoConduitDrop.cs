@@ -68,6 +68,13 @@ namespace StingTools.Core.Routing
         public string FabMethod { get; set; } = "SITE";
 
         /// <summary>
+        /// When true, use an A* pathfinder to route conduit drops around
+        /// obstacles instead of the default straight L/Z path.
+        /// Opt-in; disabled by default for performance safety.
+        /// </summary>
+        public bool UsePathfinder { get; set; } = false;
+
+        /// <summary>
         /// When true, fixtures whose host is a Wall and whose
         /// InstallMethod is "CHASED" are routed via
         /// <see cref="InWallChaseRouter"/> instead of the standard

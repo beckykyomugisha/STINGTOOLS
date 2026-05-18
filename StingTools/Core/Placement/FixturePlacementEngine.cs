@@ -301,7 +301,9 @@ namespace StingTools.Core.Placement
                 bool cancelled = false;
                 foreach (var room in rooms)
                 {
+                    // Phase 139.5 Q21 — room name derived once per room for fast pre-filter.
                     string roomName = SafeRoomName(room);
+
                     // PC-13 — per-room state so dependent rules see predecessors.
                     var roomState = new RoomState();
                     foreach (var rule in ordered)
@@ -517,6 +519,9 @@ namespace StingTools.Core.Placement
         {
             string roomKey = $"{room.Id}::{SafeRoomName(room)}";
             int alreadyInRoom = result.CountsByRoom.ContainsKey(roomKey) ? result.CountsByRoom[roomKey] : 0;
+
+            // Phase 139.27 — per-rule diagnostic entry for this room+rule pair.
+            var diagRoom = result.Diag(rule.MergeKey);
 
             var placedPoints = new List<XYZ>(); // for spacing scoring
 

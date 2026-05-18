@@ -78,25 +78,19 @@ namespace StingTools.Core.Drawing
             return Apply(doc, view, drawingType, options);
         }
 
-        /// <summary>
-        /// Overload used by DrawingTypePresentation when it passes
-        /// <c>dt.Annotation</c> (an <see cref="AnnotationRulePack"/>) rather
-        /// than the full DrawingType. Resolves the view's stamped DrawingType
-        /// from the registry and merges in the caller-supplied pack (caller-pack
-        /// wins on non-null fields).
-        /// </summary>
-        public static AnnotationRunStats Run(
-            Document doc, View view, AnnotationRulePack annotation, AnnotationRunOptions options = null)
-        {
-            // Try to get the full DrawingType from the stamped id on the view.
-            DrawingType dt = null;
-            try
+            bool dense = !pack.DenseUntilScale.HasValue || view.Scale <= pack.DenseUntilScale.Value;
+
+#pragma warning disable CS0618 // legacy AutoXxx flags are folded into Rules at load time; readers still consult them for backward compat
+            try { if (!opts.SkipAutoDim && pack.AutoDimGrids)  DimGrids(doc, view, pack, new AnnotationRunStats()); } catch (Exception ex) { result.Warnings.Add("AutoDimGrids: " + ex.Message); }
+            try { if (!opts.SkipAutoDim && pack.AutoDimLevels) DimLevels(doc, view, pack, new AnnotationRunStats()); } catch (Exception ex) { result.Warnings.Add("AutoDimLevels: " + ex.Message); }
+
+            if (dense && !opts.SkipAutoTag)
             {
                 var dtId = DrawingTypeStamper.Read(view);
                 if (!string.IsNullOrEmpty(dtId))
                     dt = DrawingTypeRegistry.Get(doc, dtId);
             }
-            catch { /* registry may not be initialised yet — fall through */ }
+#pragma warning restore CS0618
 
             if (dt == null) dt = new DrawingType();
             // Caller-supplied pack wins: overlay it onto the resolved DT's Annotation.
