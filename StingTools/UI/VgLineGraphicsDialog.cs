@@ -20,7 +20,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using StingTools.Core;
-using Autodesk.Revit.UI;
+
 namespace StingTools.UI
 {
     public sealed class VgLineGraphics

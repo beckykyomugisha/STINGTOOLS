@@ -62,7 +62,7 @@ namespace StingTools.Commands.Drawing
 
             // Caches must be invalidated so subsequent ViewStylePack applies
             // see the freshly-minted filters.
-            ViewStylePackApplier.InvalidateCache(doc);
+            ViewStylePackApplier.InvalidateCache();
 
             var sb = new StringBuilder();
             sb.AppendLine($"Library: {lib.Filters.Count} filter definitions");
@@ -162,7 +162,7 @@ namespace StingTools.Commands.Drawing
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             AecFilterRegistry.Reload(ctx.Doc);
-            ViewStylePackApplier.InvalidateCache(ctx.Doc);
+            ViewStylePackApplier.InvalidateCache();
             TaskDialog.Show("STING - AEC Filters",
                 "Filter library cache cleared.\n\nNext call to AecFilterRegistry will re-read STING_AEC_FILTERS.json from disk.");
             return Result.Succeeded;

@@ -1525,7 +1525,7 @@ namespace StingTools.Model
                 }
 
                 // DWG-STRUCT-DEEP-6b: Connection detail synthesis
-                if (config?.SynthesizeConnectionDetails == true)
+                if (CurrentConfig?.SynthesizeConnectionDetails == true)
                 {
                     try
                     {
@@ -1537,7 +1537,7 @@ namespace StingTools.Model
                              || activeView.ViewType == ViewType.Section))
                         {
                             // Detect junctions from the extraction result already computed in this run
-                            // Re-extract to get junction list (importInstance is the param of RunFullPipelineWithConfig)
+                            // Re-extract to get junction list
                             var connExtract = ExtractStructuralGeometry(importInstance);
                             var junctions = DetectJunctions(connExtract);
                             using (var txConn = new Transaction(_doc, "STING STRUCT: Connection Details"))
@@ -1545,8 +1545,8 @@ namespace StingTools.Model
                                 txConn.Start();
                                 var synResults = ConnectionDetailSynthesizer.SynthesizeAll(
                                     _doc, junctions, activeView,
-                                    config.ConnectionShearDemand_kN,
-                                    config.ConnectionMomentDemand_kNm);
+                                    CurrentConfig.ConnectionShearDemand_kN,
+                                    CurrentConfig.ConnectionMomentDemand_kNm);
                                 foreach (var sr in synResults)
                                     totalResult.Warnings.AddRange(sr.Warnings);
                                 txConn.Commit();

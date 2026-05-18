@@ -403,7 +403,7 @@ namespace StingTools.Commands.Electrical.Routing
                 try
                 {
                     var sf = allSchedulable.FirstOrDefault(f =>
-                        f.GetSchedulableFieldType() == SchedulableFieldType.Instance
+                        f.FieldType == ScheduleFieldType.Instance
                         && doc.GetElement(f.ParameterId) is SharedParameterElement spe
                         && spe.GetDefinition().Name == paramName
                         && !alreadyAdded.Contains(f.ParameterId));

@@ -233,8 +233,8 @@ namespace StingTools.Core.Fabrication
             try
             {
                 if (!fs.IsActive) { fs.Activate(); doc.Regenerate(); }
-                XYZ point = (member.Location as LocationPoint)?.Point
-                         ?? (member.Location as LocationCurve)?.Curve?.GetEndPoint(0)
+                XYZ point = (r.Member.Location as LocationPoint)?.Point
+                         ?? (r.Member.Location as LocationCurve)?.Curve?.GetEndPoint(0)
                          ?? XYZ.Zero;
                 var inst = doc.Create.NewFamilyInstance(point, fs, view);
 

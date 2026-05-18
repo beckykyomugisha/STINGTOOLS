@@ -121,57 +121,68 @@ namespace StingTools.Core.Drawing
             return r;
         }
 
-        // ── Batch context ──────────────────────────────────────────────────────────
-
         /// <summary>
-        /// Returns a lightweight disposable batch context. Callers that call
-        /// <see cref="Apply"/> in a loop should wrap the loop in a <c>using</c>
-        /// block around <see cref="Batch()"/> so future optimisations (e.g.
-        /// ProjectInformation caching) can be enabled without API changes.
-        /// The current implementation returns a no-op disposable.
+        /// Returns a no-op IDisposable scope that callers can wrap in a
+        /// <c>using</c> statement for symmetry with other batch-mode
+        /// helpers. No actual batching is performed — Apply() is
+        /// lightweight enough to call per-sheet.
         /// </summary>
-        public static IDisposable Batch() => new BatchContext();
+        public static System.IDisposable Batch() => new BatchScope();
 
-        private sealed class BatchContext : IDisposable { public void Dispose() { } }
-
-        // ── Preview / audit helpers ─────────────────────────────────────────────
-
-        /// <summary>
-        /// Resolves every entry in <paramref name="dt"/>.TitleBlockParams using
-        /// ProjectInformation and the caller-supplied <paramref name="tokens"/>
-        /// but does NOT write anything. Returns a dictionary of
-        /// paramName → resolvedValue that the caller can diff or display.
-        /// </summary>
-        public static Dictionary<string, string> Peek(
-            Document doc, DrawingType dt, IDictionary<string, string> tokens = null)
+        private sealed class BatchScope : System.IDisposable
         {
-            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            if (doc == null || dt?.TitleBlockParams == null) return result;
-            foreach (var kv in dt.TitleBlockParams)
-                result[kv.Key] = ResolveTemplate(doc, kv.Value, tokens);
-            return result;
+            public void Dispose() { /* intentional no-op */ }
         }
 
         /// <summary>
-        /// Scans <paramref name="dt"/>.TitleBlockParams for <c>${paramName}</c>
-        /// tokens and returns the names of any ProjectInformation parameters
-        /// that do not exist on the current document. Used by the validator
-        /// to surface DT-090 warnings pre-flight.
+        /// Apply dt.TitleBlockParams to a batch of sheets. Returns a flat list of
+        /// warnings from all sheets. Never throws.
+        /// </summary>
+        public static List<string> Batch(
+            Document doc, IEnumerable<ElementId> sheetIds, DrawingType dt,
+            Dictionary<string, string> tokens)
+        {
+            var warnings = new List<string>();
+            if (sheetIds == null) return warnings;
+            foreach (var id in sheetIds)
+            {
+                try
+                {
+                    var sheet = doc?.GetElement(id) as ViewSheet;
+                    if (sheet == null) continue;
+                    var r = Apply(doc, sheet, dt, tokens);
+                    warnings.AddRange(r.Warnings);
+                }
+                catch (Exception ex) { warnings.Add($"Batch sheet {id}: {ex.Message}"); }
+            }
+            return warnings;
+        }
+
+        /// <summary>
+        /// Returns a list of ProjectInformation parameter names referenced by
+        /// dt.TitleBlockParams that do not exist in the project. Used by
+        /// pre-flight validators to surface missing parameters before a run.
         /// </summary>
         public static List<string> FindMissingProjectInfoParams(Document doc, DrawingType dt)
         {
             var missing = new List<string>();
             if (doc == null || dt?.TitleBlockParams == null) return missing;
-            var pi = doc.ProjectInformation;
-            foreach (var kv in dt.TitleBlockParams)
+            try
             {
-                foreach (Match m in _projInfo.Matches(kv.Value ?? ""))
+                var pi = doc.ProjectInformation;
+                if (pi == null) return missing;
+                foreach (var kv in dt.TitleBlockParams)
                 {
-                    var name = m.Groups[1].Value;
-                    if (pi?.LookupParameter(name) == null && !missing.Contains(name))
-                        missing.Add(name);
+                    var ms = _projInfo.Matches(kv.Value ?? "");
+                    foreach (System.Text.RegularExpressions.Match m in ms)
+                    {
+                        var name = m.Groups[1].Value;
+                        if (pi.LookupParameter(name) == null && !missing.Contains(name))
+                            missing.Add(name);
+                    }
                 }
             }
+            catch { /* defensive */ }
             return missing;
         }
 
@@ -231,6 +242,94 @@ namespace StingTools.Core.Drawing
                 }
             }
             catch { return null; }
+        }
+
+        /// <summary>
+        /// Clear any title-block parameter values that were stamped by a
+        /// prior DrawingType profile but are not present in the new profile.
+        /// Prevents stale corporate metadata from a previous profile bleeding
+        /// through when the sheet is re-assigned to a different drawing type.
+        ///
+        /// Only parameters whose keys are NOT in the new profile's
+        /// TitleBlockParams are cleared; the new Apply() call will re-write
+        /// the ones that remain. String parameters are set to empty string;
+        /// Integer / Double parameters are set to 0.
+        ///
+        /// Requires an active transaction from the caller. Never throws.
+        /// </summary>
+        public static void ClearStaleKeysFromPriorProfile(
+            Document doc, ViewSheet sheet, string priorDrawingTypeId)
+        {
+            if (doc == null || sheet == null
+                || string.IsNullOrWhiteSpace(priorDrawingTypeId)) return;
+            try
+            {
+                // Resolve the prior drawing type to get its TitleBlockParams keys.
+                DrawingType priorDt = null;
+                try { priorDt = DrawingTypeRegistry.Get(doc, priorDrawingTypeId); }
+                catch (Exception ex) { StingTools.Core.StingLog.Warn($"Suppressed: {ex.Message}"); }
+
+                if (priorDt?.TitleBlockParams == null || priorDt.TitleBlockParams.Count == 0) return;
+
+                var tb = FindTitleBlockInstance(doc, sheet);
+                if (tb == null) return;
+
+                foreach (var key in priorDt.TitleBlockParams.Keys)
+                {
+                    if (string.IsNullOrWhiteSpace(key)) continue;
+                    try
+                    {
+                        var p = tb.LookupParameter(key);
+                        if (p == null || p.IsReadOnly) continue;
+                        switch (p.StorageType)
+                        {
+                            case StorageType.String:  p.Set(""); break;
+                            case StorageType.Integer: p.Set(0);  break;
+                            case StorageType.Double:  p.Set(0.0); break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingTools.Core.StingLog.Warn(
+                            $"ClearStaleKeysFromPriorProfile: '{key}': {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn(
+                    $"TitleBlockParamApplier.ClearStaleKeysFromPriorProfile: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Resolves the value of each TitleBlockParams entry in <paramref name="dt"/>
+        /// using the same ${ProjectInfo} and {token} substitution rules as
+        /// <see cref="Apply"/>, but does NOT write anything to the title block.
+        /// Returns a dictionary of parameter-name → resolved-value strings.
+        /// Used by pre-flight validators and drift detectors to compare what
+        /// would be written against what is already on the sheet.
+        /// </summary>
+        public static Dictionary<string, string> Peek(
+            Document doc, DrawingType dt,
+            IDictionary<string, string> tokens = null)
+        {
+            var result = new Dictionary<string, string>();
+            if (doc == null || dt?.TitleBlockParams == null) return result;
+            foreach (var kv in dt.TitleBlockParams)
+            {
+                if (string.IsNullOrWhiteSpace(kv.Key)) continue;
+                try
+                {
+                    result[kv.Key] = ResolveTemplate(doc, kv.Value ?? "", tokens);
+                }
+                catch (Exception ex)
+                {
+                    StingTools.Core.StingLog.Warn($"TitleBlockParamApplier.Peek '{kv.Key}': {ex.Message}");
+                    result[kv.Key] = "";
+                }
+            }
+            return result;
         }
 
         private static FamilyInstance FindTitleBlockInstance(Document doc, ViewSheet sheet)

@@ -25,13 +25,10 @@ namespace StingTools.Core.Placement
         /// <summary>Run TagPipelineHelper.RunFullPipeline on every placed instance.</summary>
         public static bool RunDataTagPipeline { get; set; } = false;
 
-        /// <summary>
-        /// True when RunDataTagPipeline is on but the reflection target
-        /// (TagPipelineHelper.RunFullPipeline) could not be resolved.
-        /// Set once on first RunFor() call; used by FixturePlacementEngine
-        /// to surface a one-shot warning in the run report.
-        /// </summary>
-        public static bool TagPipelineMissing { get; private set; } = false;
+        /// <summary>Set to true when the tag pipeline assembly could not be located
+        /// at startup. Checked by the Fixtures UI to show a tooltip explaining why
+        /// data-tagging is unavailable for this session.</summary>
+        public static bool TagPipelineMissing { get; set; } = false;
 
         /// <summary>Seed COBIE_* parameters from the rule's StandardRef / Notes.</summary>
         public static bool SeedCobieComponent { get; set; } = false;

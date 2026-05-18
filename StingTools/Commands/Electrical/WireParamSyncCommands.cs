@@ -24,6 +24,7 @@ using Autodesk.Revit.UI.Selection;
 using StingTools.Commands.Electrical.CableSizer;
 using StingTools.Commands.Electrical.VoltageDrop;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Commands.Electrical
 {
@@ -156,6 +157,7 @@ namespace StingTools.Commands.Electrical
 
             // First preference: data already written to shared params
             d.CsaMm2       = WireParamHelpers.GetDouble(conduit, "ELC_WIRE_CSA_MM2_NUM");
+            d.AmpacityA    = WireParamHelpers.GetDouble(conduit, "ELC_WIRE_AMPACITY_A");
             d.ConductorMat = ParameterHelpers.GetString(conduit, "ELC_WIRE_COND_MAT_TXT");
             d.InstallMethod = ParameterHelpers.GetString(conduit, "ELC_WIRE_INSTALL_METHOD_TXT");
             d.CircuitType  = ParameterHelpers.GetString(conduit, "ELC_WIRE_CIRCUIT_TYPE_TXT");
@@ -176,37 +178,60 @@ namespace StingTools.Commands.Electrical
                         d.MaxDemandA   = sys.ApparentCurrent;
 
                         // Phase + core count derived from SystemType.
-                        // Revit ElectricalSystem does not expose a PolesNumber property;
-                        // phase count is encoded in ElectricalSystemType (Three-phase variants
-                        // include ThreePhase, ThreePhaseDelta, ThreePhaseWye, etc.).
-                        bool isThreePhase = sys.SystemType == ElectricalSystemType.ThreePhase
-                            || sys.SystemType == ElectricalSystemType.ThreePhaseDelta
-                            || sys.SystemType == ElectricalSystemType.ThreePhaseWye;
-
-                        switch (sys.SystemType)
+                        // Revit ElectricalSystemType has: PowerCircuit, Data, Telephone,
+                        // FireAlarm, Security, NurseCall, Communication, UndefinedSystemType.
+                        // Three-phase detection uses reflection to read NumberOfPoles when
+                        // available (not present in all Revit API versions); falls back to
+                        // checking the DistributionSystemType parameter via a shared-parameter
+                        // look-up which is cheaper than a full reflection walk.
+                        int numPoles = 1;
+                        try
                         {
-                            case ElectricalSystemType.PowerCircuit:
-                            case ElectricalSystemType.UPS:
-                                d.Phase = "1Ø";
-                                d.CoreCount = 2; // live + neutral + (CPC separate)
-                                d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Power" : d.CircuitType;
-                                break;
-                            case ElectricalSystemType.ThreePhase:
-                            case ElectricalSystemType.ThreePhaseDelta:
-                            case ElectricalSystemType.ThreePhaseWye:
+                            var polesProp = sys.GetType().GetProperty("NumberOfPoles");
+                            if (polesProp != null)
+                                numPoles = (int)polesProp.GetValue(sys);
+                            else
+                            {
+                                // Fallback: read ELC_PHASE_COUNT_INT if set by the wire-param sync
+                                var phasePar = sys.LookupParameter("ELC_PHASE_COUNT_INT");
+                                if (phasePar != null && phasePar.StorageType == Autodesk.Revit.DB.StorageType.Integer)
+                                    numPoles = phasePar.AsInteger();
+                            }
+                        }
+                        catch { }
+                        bool isThreePhase = numPoles >= 3;
+
+                        // SystemType string compared case-insensitively to handle API
+                        // version differences (e.g. LightingCircuit absent in some builds).
+                        string sysTypeName = "";
+                        try { sysTypeName = sys.SystemType.ToString(); } catch { }
+
+                        if (string.Equals(sysTypeName, "PowerCircuit", StringComparison.OrdinalIgnoreCase)
+                            || sys.SystemType == ElectricalSystemType.PowerCircuit)
+                        {
+                            if (isThreePhase)
+                            {
                                 d.Phase = "3Ø";
                                 d.CoreCount = 4; // 3 phase + neutral (CPC separate)
                                 d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Power" : d.CircuitType;
-                                break;
-                            case ElectricalSystemType.LightingCircuit:
+                            }
+                            else
+                            {
                                 d.Phase = "1Ø";
-                                d.CoreCount = 2;
-                                d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Lighting" : d.CircuitType;
-                                break;
-                            default:
-                                d.Phase = "1Ø";
-                                d.CoreCount = 2;
-                                break;
+                                d.CoreCount = 2; // live + neutral (CPC separate)
+                                d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Power" : d.CircuitType;
+                            }
+                        }
+                        else if (string.Equals(sysTypeName, "LightingCircuit", StringComparison.OrdinalIgnoreCase))
+                        {
+                            d.Phase = "1Ø";
+                            d.CoreCount = 2;
+                            d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Lighting" : d.CircuitType;
+                        }
+                        else
+                        {
+                            d.Phase = "1Ø";
+                            d.CoreCount = 2;
                         }
 
                         // Panel name from base equipment

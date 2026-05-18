@@ -3426,7 +3426,7 @@ namespace StingTools.Core
 
                 // Penalty for excessive model groups
                 int groups = new FilteredElementCollector(doc)
-                    .OfClass(typeof(RevitGroup))
+                    .OfClass(typeof(Autodesk.Revit.DB.Group))
                     .GetElementCount();
                 if (groups > 100) perfScore -= 3;
 

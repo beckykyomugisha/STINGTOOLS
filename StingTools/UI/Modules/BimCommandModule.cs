@@ -170,7 +170,9 @@ namespace StingTools.UI.Modules
             registry.Register("Panel_ClearSparesSpaces",   app => StingCommandHandler.RunCommandPublic<Commands.Panels.ClearSparesAndSpacesCommand>(app));
 
             // ── Team workload ────────────────────────────────────────────────
-            registry.Register("BIM_TeamWorkload",          app => StingCommandHandler.RunCommandPublic<BIMManager.TeamWorkloadCommand>(app));
+            // TeamWorkloadCommand is implemented directly in BIMCoordinationCenter (BIM-TEAM-WORKLOAD-01).
+            // The BIM_TeamWorkload button opens the BCC on the Team/Workload sub-tab.
+            registry.Register("BIM_TeamWorkload",          app => StingCommandHandler.RunCommandPublic<BIMManager.CoordinationCenterCommand>(app));
 
             // ── Folder cloud sync ────────────────────────────────────────────
             registry.Register("Folder_CloudSync",          app => StingCommandHandler.RunCommandPublic<BIMManager.FolderCloudSyncSettingsCommand>(app));

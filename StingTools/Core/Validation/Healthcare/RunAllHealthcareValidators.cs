@@ -1,4 +1,3 @@
-using StingTools.Core.Validation;
 using System;
 using Autodesk.Revit.DB;
 using System.Collections.Generic;

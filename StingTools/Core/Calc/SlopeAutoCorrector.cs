@@ -24,38 +24,50 @@ using Autodesk.Revit.DB.Plumbing;
 
 namespace StingTools.Core.Calc
 {
+    /// <summary>
+    /// Describes the connector topology impact of a proposed slope fix.
+    /// </summary>
     public enum ConnectorImpact
     {
-        NoConnections,
-        FlipDirection,
-        MovedAttachedFitting,
-        SkippedConnected,
+        /// <summary>No connected elements — fix is fully safe.</summary>
+        NoConnections = 0,
+        /// <summary>Pipe direction is flipped; connector inlet/outlet roles are re-evaluated.</summary>
+        FlipDirection = 1,
+        /// <summary>A connected fitting is moved with the pipe endpoint to preserve topology.</summary>
+        MovedAttachedFitting = 2,
+        /// <summary>Both ends are connected — the fix is skipped to avoid disconnecting the network.</summary>
+        SkippedConnected = 3,
     }
 
     public class SlopeFix
     {
-        public ElementId PipeId         { get; set; } = ElementId.InvalidElementId;
-        public double OriginalPct       { get; set; }
-        public double TargetPct         { get; set; }
-        public double AppliedPct        { get; set; }
-        public double DeltaZFt          { get; set; }
-        public string Action            { get; set; } = "";
-        public bool   Success           { get; set; }
-        public string FailureReason     { get; set; } = "";
+        public ElementId PipeId           { get; set; } = ElementId.InvalidElementId;
+        public double OriginalPct         { get; set; }
+        public double TargetPct           { get; set; }
+        public double AppliedPct          { get; set; }
+        public string Action              { get; set; } = "";
+        public bool   Success             { get; set; }
+        public string FailureReason       { get; set; } = "";
+        /// <summary>Elevation delta applied at the downstream endpoint (Revit internal feet).</summary>
+        public double DeltaZFt            { get; set; }
+        /// <summary>Connector topology impact classification for this fix.</summary>
         public ConnectorImpact ConnectorImpact { get; set; } = ConnectorImpact.NoConnections;
-        public ElementId MovedFittingId { get; set; } = ElementId.InvalidElementId;
+        /// <summary>ElementId of a fitting that was moved with the endpoint to preserve topology (InvalidElementId when not applicable).</summary>
+        public ElementId MovedFittingId   { get; set; } = ElementId.InvalidElementId;
     }
 
     public class SlopeAutoCorrectionResult
     {
-        public int PipesScanned                 { get; set; }
-        public int PipesFlipped                 { get; set; }
-        public int PipesDepressed               { get; set; }
-        public int PipesUnchanged               { get; set; }
-        public int PipesFailed                  { get; set; }
+        public int PipesScanned     { get; set; }
+        public int PipesFlipped     { get; set; }
+        public int PipesDepressed   { get; set; }
+        public int PipesUnchanged   { get; set; }
+        public int PipesFailed      { get; set; }
+        /// <summary>Pipes skipped because both ends are connected to other elements,
+        /// making endpoint moves unsafe without disconnecting the network.</summary>
         public int PipesSkippedConnectedBothEnds { get; set; }
-        public List<SlopeFix> Fixes             { get; } = new List<SlopeFix>();
-        public List<string> Warnings            { get; } = new List<string>();
+        public List<SlopeFix> Fixes { get; } = new List<SlopeFix>();
+        public List<string> Warnings { get; } = new List<string>();
     }
 
     public static class SlopeAutoCorrector
@@ -64,7 +76,12 @@ namespace StingTools.Core.Calc
         private const double MinSlopeRainwaterPct = 1.0;
         private const double SelfCleansingVelocityMs = 0.7;
 
-        public static SlopeAutoCorrectionResult Preview(Document doc) => RunFix(doc, dryRun: true);
+        /// <summary>
+        /// Dry-run preview — scans all drainage pipes and computes what fixes
+        /// would be applied without modifying the model.
+        /// </summary>
+        public static SlopeAutoCorrectionResult Preview(Document doc)
+            => RunFix(doc, dryRun: true);
 
         public static SlopeAutoCorrectionResult RunFix(Document doc, bool dryRun)
         {

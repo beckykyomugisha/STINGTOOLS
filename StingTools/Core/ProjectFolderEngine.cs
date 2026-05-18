@@ -464,7 +464,7 @@ namespace StingTools.Core
                                 n = files.Length;
                                 if (n > 0) lm = files.Max(f => f.LastWriteTime);
                             }
-                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                         }
                         list.Add(new FolderHealthEntry
                         {
@@ -497,7 +497,7 @@ namespace StingTools.Core
                             n = files.Length;
                             if (n > 0) lm = files.Max(fi => fi.LastWriteTime);
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                     }
                     list.Add(new FolderHealthEntry
                     {
