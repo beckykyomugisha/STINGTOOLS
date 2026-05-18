@@ -156,6 +156,11 @@ public class PlanscapeDbContext : DbContext
     public DbSet<HealthcareAntiLigatureAudit> HealthcareAntiLigatureAudits => Set<HealthcareAntiLigatureAudit>();
     public DbSet<HealthcareRdsSnapshot>       HealthcareRdsSnapshots       => Set<HealthcareRdsSnapshot>();
 
+    // Phase 188 (Tier 3) — HVAC snapshots pushed by the desktop plugin.
+    // One row per sizing / balance / drift / loads / carbon run; mobile
+    // HVAC dashboard reads via /api/projects/{id}/hvac/...
+    public DbSet<HvacSnapshot>                HvacSnapshots                => Set<HvacSnapshot>();
+
     // Phase 178f — penetration commissioning sign-off captured by the
     // mobile app on-site. One row per FRP / fire damper / acoustic
     // seal instance keyed on PenetrationControlNumber + PfvUuid.

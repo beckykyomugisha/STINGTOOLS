@@ -12,8 +12,8 @@
       "symbolSize": 6.0,
       "parameters": [
         { "name": "SYSTEM_REF", "type": "Text", "shared": true },
-        { "name": "FLOW_LS", "type": "Text", "shared": true },
-        { "name": "NECK_SIZE_MM", "type": "Text", "shared": true, "default": "300" }
+        { "name": "FLOW_LS", "type": "Text", "shared": true, "instance": false },
+        { "name": "NECK_SIZE_MM", "type": "Text", "shared": true, "default": "300", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -44,8 +44,8 @@
       "symbolSize": 5.0,
       "parameters": [
         { "name": "SYSTEM_REF", "type": "Text", "shared": true },
-        { "name": "FLOW_LS", "type": "Text", "shared": true },
-        { "name": "NECK_DIA_MM", "type": "Text", "shared": true, "default": "200" }
+        { "name": "FLOW_LS", "type": "Text", "shared": true, "instance": false },
+        { "name": "NECK_DIA_MM", "type": "Text", "shared": true, "default": "200", "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
@@ -73,7 +73,7 @@
       "symbolSize": 6.0,
       "parameters": [
         { "name": "SYSTEM_REF", "type": "Text", "shared": true },
-        { "name": "FLOW_LS", "type": "Text", "shared": true }
+        { "name": "FLOW_LS", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -104,7 +104,7 @@
       "symbolSize": 5.0,
       "parameters": [
         { "name": "SYSTEM_REF", "type": "Text", "shared": true },
-        { "name": "FLOW_LS", "type": "Text", "shared": true }
+        { "name": "FLOW_LS", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
@@ -132,8 +132,8 @@
       "symbolSize": 12.0,
       "parameters": [
         { "name": "SYSTEM_REF", "type": "Text", "shared": true },
-        { "name": "LENGTH_MM", "type": "Text", "shared": true, "default": "1200" },
-        { "name": "SLOT_COUNT", "type": "Integer", "shared": true, "default": "2" }
+        { "name": "LENGTH_MM", "type": "Text", "shared": true, "default": "1200", "instance": false },
+        { "name": "SLOT_COUNT", "type": "Integer", "shared": true, "default": "2", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -159,7 +159,7 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "SYSTEM_REF", "type": "Text", "shared": true },
-        { "name": "FLOW_LS", "type": "Text", "shared": true }
+        { "name": "FLOW_LS", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [
@@ -194,7 +194,7 @@
       "symbolSize": 6.0,
       "parameters": [
         { "name": "SYSTEM_REF", "type": "Text", "shared": true },
-        { "name": "FLOW_LS", "type": "Text", "shared": true }
+        { "name": "FLOW_LS", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -252,7 +252,7 @@
       "subcategory": "AirTerminal",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "FLOW_LS", "type": "Text", "shared": true }
+        { "name": "FLOW_LS", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -278,9 +278,9 @@
       "subcategory": "Damper",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "FIRE_RATING", "type": "Text", "shared": true, "default": "EI 60" },
-        { "name": "SIZE_W_MM", "type": "Text", "shared": true },
-        { "name": "SIZE_H_MM", "type": "Text", "shared": true }
+        { "name": "FIRE_RATING", "type": "Text", "shared": true, "default": "EI 60", "instance": false },
+        { "name": "SIZE_W_MM", "type": "Text", "shared": true, "instance": false },
+        { "name": "SIZE_H_MM", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -333,7 +333,7 @@
       "subcategory": "Damper",
       "symbolSize": 5.5,
       "parameters": [
-        { "name": "FIRE_RATING", "type": "Text", "shared": true, "default": "EIS 60" }
+        { "name": "FIRE_RATING", "type": "Text", "shared": true, "default": "EIS 60", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -384,7 +384,7 @@
       "subcategory": "Damper",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "ACTUATOR_TYPE", "type": "Text", "shared": true, "default": "Modulating" }
+        { "name": "ACTUATOR_TYPE", "type": "Text", "shared": true, "default": "Modulating", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -438,9 +438,9 @@
       "symbolSize": 8.0,
       "parameters": [
         { "name": "EQUIPMENT_REF", "type": "Text", "shared": true },
-        { "name": "COOLING_KW", "type": "Text", "shared": true },
-        { "name": "HEATING_KW", "type": "Text", "shared": true },
-        { "name": "AIRFLOW_LS", "type": "Text", "shared": true }
+        { "name": "COOLING_KW", "type": "Text", "shared": true, "instance": false },
+        { "name": "HEATING_KW", "type": "Text", "shared": true, "instance": false },
+        { "name": "AIRFLOW_LS", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -500,8 +500,8 @@
       "symbolSize": 6.0,
       "parameters": [
         { "name": "EQUIPMENT_REF", "type": "Text", "shared": true },
-        { "name": "MAX_FLOW_LS", "type": "Text", "shared": true },
-        { "name": "MIN_FLOW_LS", "type": "Text", "shared": true }
+        { "name": "MAX_FLOW_LS", "type": "Text", "shared": true, "instance": false },
+        { "name": "MIN_FLOW_LS", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -531,7 +531,7 @@
       "subcategory": "Equipment",
       "symbolSize": 6.0,
       "parameters": [
-        { "name": "FLOW_LS", "type": "Text", "shared": true }
+        { "name": "FLOW_LS", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -561,9 +561,9 @@
       "symbolSize": 16.0,
       "parameters": [
         { "name": "EQUIPMENT_REF", "type": "Text", "shared": true },
-        { "name": "AIRFLOW_LS", "type": "Text", "shared": true },
-        { "name": "COOLING_KW", "type": "Text", "shared": true },
-        { "name": "HEATING_KW", "type": "Text", "shared": true }
+        { "name": "AIRFLOW_LS", "type": "Text", "shared": true, "instance": false },
+        { "name": "COOLING_KW", "type": "Text", "shared": true, "instance": false },
+        { "name": "HEATING_KW", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -600,7 +600,7 @@
       "symbolSize": 5.0,
       "parameters": [
         { "name": "EQUIPMENT_REF", "type": "Text", "shared": true },
-        { "name": "FLOW_LS", "type": "Text", "shared": true }
+        { "name": "FLOW_LS", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
@@ -626,7 +626,7 @@
       "symbolSize": 6.0,
       "parameters": [
         { "name": "EQUIPMENT_REF", "type": "Text", "shared": true },
-        { "name": "FLOW_LS", "type": "Text", "shared": true }
+        { "name": "FLOW_LS", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [

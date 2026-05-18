@@ -12,7 +12,7 @@
       "symbolSize": 5.5,
       "parameters": [
         { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "FLUSH_VOLUME_L", "type": "Text", "shared": true, "default": "6" }
+        { "name": "FLUSH_VOLUME_L", "type": "Text", "shared": true, "default": "6", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -273,7 +273,7 @@
       "symbolSize": 8.0,
       "parameters": [
         { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "TRAY_SIZE_MM", "type": "Text", "shared": true, "default": "800" }
+        { "name": "TRAY_SIZE_MM", "type": "Text", "shared": true, "default": "800", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -305,7 +305,7 @@
       "symbolSize": 17.0,
       "parameters": [
         { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "BATH_SIZE_MM", "type": "Text", "shared": true, "default": "1700x700" }
+        { "name": "BATH_SIZE_MM", "type": "Text", "shared": true, "default": "1700x700", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -435,7 +435,7 @@
       "subcategory": "Valve",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "SIZE_MM", "type": "Text", "shared": true, "default": "25" }
+        { "name": "SIZE_MM", "type": "Text", "shared": true, "default": "25", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -462,7 +462,7 @@
       "subcategory": "Valve",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "SIZE_MM", "type": "Text", "shared": true }
+        { "name": "SIZE_MM", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
@@ -486,7 +486,7 @@
       "subcategory": "Valve",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "SIZE_MM", "type": "Text", "shared": true }
+        { "name": "SIZE_MM", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
@@ -511,7 +511,7 @@
       "subcategory": "Valve",
       "symbolSize": 4.5,
       "parameters": [
-        { "name": "SIZE_MM", "type": "Text", "shared": true }
+        { "name": "SIZE_MM", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
@@ -619,7 +619,7 @@
       "subcategory": "Valve",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "SET_PRESSURE_BAR", "type": "Text", "shared": true, "default": "3" }
+        { "name": "SET_PRESSURE_BAR", "type": "Text", "shared": true, "default": "3", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -649,7 +649,7 @@
       "symbolSize": 7.0,
       "parameters": [
         { "name": "EQUIPMENT_REF", "type": "Text", "shared": true },
-        { "name": "CAPACITY_L", "type": "Text", "shared": true, "default": "150" }
+        { "name": "CAPACITY_L", "type": "Text", "shared": true, "default": "150", "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
@@ -678,7 +678,7 @@
       "symbolSize": 7.0,
       "parameters": [
         { "name": "EQUIPMENT_REF", "type": "Text", "shared": true },
-        { "name": "CAPACITY_L", "type": "Text", "shared": true, "default": "180" }
+        { "name": "CAPACITY_L", "type": "Text", "shared": true, "default": "180", "instance": false }
       ],
       "geometry": {
         "arcs": [

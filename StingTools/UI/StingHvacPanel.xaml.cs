@@ -2,6 +2,9 @@ using System;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Mechanical;
+using Autodesk.Revit.DB.Plumbing;
 using StingTools.Core;
 
 namespace StingTools.UI
@@ -129,6 +132,270 @@ namespace StingTools.UI
         /// (gap B9). Without this, "Reload rules" was a no-op visually.
         /// </summary>
         public void RefreshSizingRoles() => SeedSizingRolesFromRegistry();
+
+        /// <summary>
+        /// Phase 188 (Tier 2 / gap G1) — walk the model once and populate
+        /// every data grid on the panel. Called automatically on document
+        /// open (from <c>StingToolsApp.OnDocumentOpened</c>) and manually
+        /// from the Hvac_RefreshPanel toolbar button.
+        ///
+        /// Reads exclusively via Element parameters + the connector graph,
+        /// so it's safe to call from any read transaction. Does NOT write
+        /// to the model.
+        /// </summary>
+        public void RefreshFromDoc(Document doc)
+        {
+            if (doc == null) return;
+            try
+            {
+                Action act = () =>
+                {
+                    try { RefreshEquipmentRows(doc); }   catch (Exception ex) { StingLog.Warn($"EquipmentRows refresh: {ex.Message}"); }
+                    try { RefreshSystemRows(doc); }      catch (Exception ex) { StingLog.Warn($"SystemRows refresh: {ex.Message}"); }
+                    try { RefreshSpaceLoadRows(doc); }   catch (Exception ex) { StingLog.Warn($"SpaceLoadRows refresh: {ex.Message}"); }
+                    try { RefreshSpoolRows(doc); }       catch (Exception ex) { StingLog.Warn($"SpoolRows refresh: {ex.Message}"); }
+                    try { RefreshDriftRows(doc); }       catch (Exception ex) { StingLog.Warn($"DriftRows refresh: {ex.Message}"); }
+                    PushRunRow("Panel refresh from document", "⬤");
+                };
+                if (Dispatcher?.CheckAccess() == true) act();
+                else Dispatcher?.Invoke(act);
+            }
+            catch (Exception ex) { StingLog.Warn($"RefreshFromDoc: {ex.Message}"); }
+        }
+
+        private void RefreshEquipmentRows(Document doc)
+        {
+            EquipmentRows.Clear();
+            var eq = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_MechanicalEquipment)
+                .WhereElementIsNotElementType();
+            foreach (Element e in eq)
+            {
+                try
+                {
+                    string tag    = ReadString(e, "ASS_TAG_1");
+                    if (string.IsNullOrEmpty(tag)) tag = e.Name ?? $"#{e.Id.Value}";
+                    string family = (e is FamilyInstance fi) ? (fi.Symbol?.Family?.Name ?? "") : "";
+                    string klass  = ClassifyHvacEquipment(family, e.Name ?? "", ReadString(e, "ASS_PRODCT_COD_TXT"));
+                    double kw     = ReadDouble(e, "HVC_CAPACITY_KW");
+                    double flowLs = ReadDouble(e, "HVC_FLOW_LS");
+                    string system = ReadString(e, "HVC_SYS_TXT");
+                    if (string.IsNullOrEmpty(system))
+                        system = (e is FamilyInstance fi2)
+                            ? (fi2.MEPModel?.ConnectorManager?.Connectors?.Size > 0 ? "(connected)" : "")
+                            : "";
+                    string dot = (kw > 0 && flowLs > 0) ? "⬤" : ((kw > 0 || flowLs > 0) ? "⬡" : "✗");
+                    EquipmentRows.Add(new HvacEquipmentRow
+                    {
+                        IsSelected = false,
+                        Tag = tag, Type = klass,
+                        CapacityKw = kw, FlowLs = flowLs,
+                        System = system, StatusDot = dot,
+                        Manufacturer = ReadString(e, "MAN_NAME_TXT"),
+                        Model        = ReadString(e, "MAN_MODEL_TXT")
+                    });
+                }
+                catch (Exception ex) { StingLog.Warn($"Equipment row {e?.Id}: {ex.Message}"); }
+            }
+        }
+
+        private void RefreshSystemRows(Document doc)
+        {
+            SystemRows.Clear();
+            var sys = new FilteredElementCollector(doc)
+                .OfClass(typeof(MEPSystem))
+                .WhereElementIsNotElementType();
+            foreach (Element s in sys)
+            {
+                try
+                {
+                    string name = s.Name ?? "";
+                    string sysClass = "";
+                    double flowLs = 0;
+                    string equip = "";
+                    if (s is MechanicalSystem ms)
+                    {
+                        sysClass = (ms.SystemType.ToString() ?? "").Replace("Mechanical", "");
+                        var flowP = s.get_Parameter(BuiltInParameter.RBS_DUCT_FLOW_PARAM);
+                        if (flowP != null && flowP.StorageType == StorageType.Double)
+                            flowLs = flowP.AsDouble() * 0.4719;
+                        try { equip = ms.BaseEquipment?.Name ?? ""; } catch { }
+                    }
+                    else if (s is PipingSystem ps)
+                    {
+                        sysClass = (ps.SystemType.ToString() ?? "").Replace("Piping", "");
+                        var flowP = s.get_Parameter(BuiltInParameter.RBS_PIPE_FLOW_PARAM);
+                        if (flowP != null && flowP.StorageType == StorageType.Double)
+                            flowLs = flowP.AsDouble();
+                        try { equip = ps.BaseEquipment?.Name ?? ""; } catch { }
+                    }
+                    else continue;
+                    SystemRows.Add(new HvacSystemRow
+                    {
+                        IsSelected = false,
+                        Name = name, Class = sysClass,
+                        Equipment = equip, FlowLs = flowLs,
+                        DropPa = 0, Nc = 0,
+                        StatusDot = flowLs > 0 ? "⬤" : "⬡"
+                    });
+                }
+                catch (Exception ex) { StingLog.Warn($"System row {s?.Id}: {ex.Message}"); }
+            }
+        }
+
+        private void RefreshSpaceLoadRows(Document doc)
+        {
+            SpaceLoadRows.Clear();
+            var spaces = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_MEPSpaces)
+                .WhereElementIsNotElementType();
+            foreach (Element sp in spaces)
+            {
+                try
+                {
+                    double area = ReadDouble(sp, "Area") * 0.092903;  // ft² → m²
+                    int people  = (int)ReadDouble(sp, "Number of People");
+                    double heat = ReadDouble(sp, "Design Heating Load") / 3.41214;  // BTU/h → W → /1000 = kW
+                    double cool = ReadDouble(sp, "Design Cooling Load") / 3.41214;
+                    if (heat > 0) heat /= 1000.0;
+                    if (cool > 0) cool /= 1000.0;
+                    double oa = ReadDouble(sp, "Specified Supply Airflow") * 0.4719;
+                    string warn = (heat == 0 && cool == 0) ? "⚠ no loads" : "";
+                    SpaceLoadRows.Add(new HvacSpaceLoadRow
+                    {
+                        IsSelected = false,
+                        SpaceName = sp.Name ?? "",
+                        SpaceType = ReadString(sp, "Space Type"),
+                        AreaM2 = area, People = people,
+                        HeatingKw = heat, CoolingKw = cool,
+                        OAls = oa, Warning = warn
+                    });
+                }
+                catch (Exception ex) { StingLog.Warn($"Space row {sp?.Id}: {ex.Message}"); }
+            }
+        }
+
+        private void RefreshSpoolRows(Document doc)
+        {
+            SpoolRows.Clear();
+            var assemblies = new FilteredElementCollector(doc)
+                .OfClass(typeof(AssemblyInstance))
+                .WhereElementIsNotElementType();
+            foreach (Element a in assemblies)
+            {
+                try
+                {
+                    if (!(a is AssemblyInstance ai)) continue;
+                    string cat = "";
+                    try { cat = doc.Settings.Categories.get_Item(ai.AssemblyTypeName)?.Name ?? ""; } catch { }
+                    string name = ai.AssemblyTypeName ?? "";
+                    if (!(name.IndexOf("Duct", StringComparison.OrdinalIgnoreCase) >= 0
+                        || cat.IndexOf("Duct", StringComparison.OrdinalIgnoreCase) >= 0))
+                        continue;
+                    double weightKg = ReadDouble(a, "ASSY_WEIGHT_KG_NR");
+                    int    fittings = (int)ReadDouble(a, "ASSY_FITTING_COUNT_NR");
+                    double lengthM  = ReadDouble(a, "ASSY_LENGTH_M_NR");
+                    SpoolRows.Add(new HvacSpoolRow
+                    {
+                        IsSelected = false,
+                        Tag = ai.Name ?? $"S-{ai.Id.Value}",
+                        System = ReadString(ai, "HVC_SYS_TXT"),
+                        LengthM = lengthM, WeightKg = weightKg,
+                        FittingCount = fittings,
+                        ShopReady = weightKg > 0 ? "✔" : "?"
+                    });
+                }
+                catch (Exception ex) { StingLog.Warn($"Spool row {a?.Id}: {ex.Message}"); }
+            }
+        }
+
+        private void RefreshDriftRows(Document doc)
+        {
+            DriftRows.Clear();
+            var ducts = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_DuctCurves)
+                .WhereElementIsNotElementType();
+            foreach (Element d in ducts)
+            {
+                try
+                {
+                    int stale = 0;
+                    var p = d.LookupParameter("HVC_SIZE_STALE_BOOL");
+                    if (p != null && p.HasValue)
+                    {
+                        if (p.StorageType == StorageType.Integer) stale = p.AsInteger();
+                        else if (p.StorageType == StorageType.String
+                              && int.TryParse(p.AsString(), out int v)) stale = v;
+                    }
+                    if (stale != 1) continue;
+
+                    string prev = ReadString(d, "HVC_SIZE_PREV_TXT");
+                    string ruleId = ReadString(d, "HVC_SIZE_RULE_ID_TXT");
+                    string dateStr = ReadString(d, "HVC_SIZE_MODIFIED_DT");
+                    double w = ReadDouble(d, "Width")  * 304.8;
+                    double h = ReadDouble(d, "Height") * 304.8;
+                    double dia = ReadDouble(d, "Diameter") * 304.8;
+                    string now = (w > 0 && h > 0) ? $"{w:F0}x{h:F0}" : (dia > 0 ? $"Ø{dia:F0}" : "?");
+                    DriftRows.Add(new HvacDriftRow
+                    {
+                        Severity = "⚠",
+                        Element  = $"#{d.Id.Value}",
+                        WasNow   = string.IsNullOrEmpty(prev) ? $"? → {now}" : $"{prev} → {now}",
+                        Reason   = string.IsNullOrEmpty(ruleId)
+                            ? (string.IsNullOrEmpty(dateStr) ? "stale" : $"stale @ {dateStr}")
+                            : $"{ruleId} @ {dateStr}"
+                    });
+                }
+                catch (Exception ex) { StingLog.Warn($"Drift row {d?.Id}: {ex.Message}"); }
+            }
+        }
+
+        // ── small read helpers (mirror ParameterHelpers but local for the Dispatcher thread) ──
+        private static string ReadString(Element el, string name)
+        {
+            try
+            {
+                var p = el?.LookupParameter(name);
+                if (p == null) return "";
+                if (p.StorageType == StorageType.String) return p.AsString() ?? "";
+                if (p.StorageType == StorageType.Integer) return p.AsInteger().ToString();
+                if (p.StorageType == StorageType.Double) return p.AsValueString() ?? "";
+            }
+            catch { }
+            return "";
+        }
+        private static double ReadDouble(Element el, string name)
+        {
+            try
+            {
+                var p = el?.LookupParameter(name);
+                if (p == null) return 0;
+                if (p.StorageType == StorageType.Double) return p.AsDouble();
+                if (p.StorageType == StorageType.Integer) return p.AsInteger();
+                if (p.StorageType == StorageType.String &&
+                    double.TryParse(p.AsString(),
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out double v)) return v;
+            }
+            catch { }
+            return 0;
+        }
+
+        private static string ClassifyHvacEquipment(string family, string typeName, string prodCode)
+        {
+            string all = $"{family}|{typeName}|{prodCode}".ToUpperInvariant();
+            if (all.Contains("CHILLER"))      return "CHL";
+            if (all.Contains("BOILER"))       return "BLR";
+            if (all.Contains("AHU") || all.Contains("AIR HANDL")) return "AHU";
+            if (all.Contains("FCU") || all.Contains("FAN COIL"))  return "FCU";
+            if (all.Contains("VAV"))          return "VAV";
+            if (all.Contains("VRF") || all.Contains("VRV")) return "VRF";
+            if (all.Contains("HEAT PUMP") || all == "HP") return "HP";
+            if (all.Contains("COOLING TOWER")) return "CT";
+            if (all.Contains("FAN"))          return "FAN";
+            return "EQP";
+        }
 
         /// <summary>
         /// Phase 182 — serialise the current sizing-role grid to the project

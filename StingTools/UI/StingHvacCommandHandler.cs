@@ -138,6 +138,44 @@ namespace StingTools.UI
                     case "Hvac_SaveRules":
                         // Phase 182 — gap D1/A6
                         Run<StingTools.Commands.Hvac.HvacSaveRulesCommand>(app); break;
+                    case "Hvac_RefreshPanel":
+                        // Phase 188 — Tier 2 / G1: re-seed every grid from the
+                        // active document. Read-only.
+                        Run<StingTools.Commands.Hvac.HvacRefreshPanelCommand>(app); break;
+                    case "Hvac_ScrapeEquipmentParams":
+                        // Phase 188 — Tier 2 / F2: stamp HVC_CAPACITY_KW +
+                        // HVC_REFRIGERANT_TYPE_TXT on mechanical equipment so
+                        // HvacCarbonReportCommand has something to read.
+                        Run<StingTools.Commands.Hvac.HvacScrapeEquipmentParamsCommand>(app); break;
+                    case "Hvac_PushSnapshot":
+                        // Phase 188 — Tier 3: push panel state (drift / loads /
+                        // sizing) to /api/projects/{id}/hvac/snapshots so the
+                        // mobile dashboard reflects current model state.
+                        Run<StingTools.Commands.Hvac.HvacPushSnapshotCommand>(app); break;
+                    case "Hvac_ResetDefaults":
+                        // Phase 188 — Fix G4: button on CALCS tab was an orphan.
+                        // Reload the registry from corporate baseline + re-seed
+                        // the CALCS DataGrid, effectively discarding any in-memory
+                        // edits the user made to the rule rows. Project override
+                        // on disk is left untouched (Save button is the only
+                        // path that writes it).
+                        try
+                        {
+                            StingTools.Core.Mep.MepSizingRegistry.Reload();
+                            StingTools.UI.StingHvacPanel.Instance?.RefreshSizingRoles();
+                            StingTools.UI.StingHvacPanel.Instance?.PushRunRow(
+                                "Reset sizing rules → baseline", "⬤");
+                            TaskDialog.Show("STING HVAC",
+                                "Sizing-role grid reset to corporate baseline. " +
+                                "Project override on disk (_BIM_COORD/mep_sizing_rules.json) " +
+                                "is unchanged — click 'Save to project' to re-apply your edits.");
+                        }
+                        catch (Exception exR)
+                        {
+                            StingLog.Warn($"ResetDefaults: {exR.Message}");
+                            TaskDialog.Show("STING HVAC", $"Reset failed: {exR.Message}");
+                        }
+                        break;
                     case "Hvac_DetectStaleSizes":
                         // Phase 183 — gap D8 (manual scan, no IUpdater overhead)
                         Run<StingTools.Commands.Hvac.HvacDetectStaleSizesCommand>(app); break;

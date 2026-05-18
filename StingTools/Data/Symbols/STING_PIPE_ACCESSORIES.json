@@ -11,8 +11,8 @@
       "subcategory": "Valve",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "SIZE_MM", "type": "Text", "shared": true },
-        { "name": "RATING", "type": "Text", "shared": true, "default": "PN16" },
+        { "name": "SIZE_MM", "type": "Text", "shared": true, "instance": false },
+        { "name": "RATING", "type": "Text", "shared": true, "default": "PN16", "instance": false },
         { "name": "SERVICE_LABEL", "type": "Text", "shared": true }
       ],
       "geometry": {
@@ -40,7 +40,7 @@
       "subcategory": "Valve",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "SIZE_MM", "type": "Text", "shared": true }
+        { "name": "SIZE_MM", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
@@ -64,7 +64,7 @@
       "subcategory": "Valve",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "SIZE_MM", "type": "Text", "shared": true }
+        { "name": "SIZE_MM", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
@@ -89,7 +89,7 @@
       "subcategory": "Valve",
       "symbolSize": 4.5,
       "parameters": [
-        { "name": "SIZE_MM", "type": "Text", "shared": true }
+        { "name": "SIZE_MM", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
@@ -135,7 +135,7 @@
       "subcategory": "Valve",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "SIZE_MM", "type": "Text", "shared": true }
+        { "name": "SIZE_MM", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -212,7 +212,7 @@
       "subcategory": "Valve",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "VOLTAGE", "type": "Text", "shared": true, "default": "230VAC" }
+        { "name": "VOLTAGE", "type": "Text", "shared": true, "default": "230VAC", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -241,7 +241,7 @@
       "subcategory": "Valve",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "SET_PRESSURE_BAR", "type": "Text", "shared": true }
+        { "name": "SET_PRESSURE_BAR", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -429,7 +429,7 @@
       "subcategory": "Instrument",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "RANGE_BAR", "type": "Text", "shared": true, "default": "0-10" }
+        { "name": "RANGE_BAR", "type": "Text", "shared": true, "default": "0-10", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -453,7 +453,7 @@
       "subcategory": "Instrument",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "RANGE_C", "type": "Text", "shared": true, "default": "0-100" }
+        { "name": "RANGE_C", "type": "Text", "shared": true, "default": "0-100", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -477,7 +477,7 @@
       "subcategory": "Instrument",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "SIZE_MM", "type": "Text", "shared": true }
+        { "name": "SIZE_MM", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
@@ -502,8 +502,8 @@
       "symbolSize": 5.0,
       "parameters": [
         { "name": "EQUIPMENT_REF", "type": "Text", "shared": true },
-        { "name": "FLOW_LS", "type": "Text", "shared": true },
-        { "name": "HEAD_M", "type": "Text", "shared": true }
+        { "name": "FLOW_LS", "type": "Text", "shared": true, "instance": false },
+        { "name": "HEAD_M", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.35, "startDeg": 0, "endDeg": 360 } ],
