@@ -345,35 +345,5 @@ namespace StingTools.Core.Drawing
             catch { return null; }
         }
 
-        /// <summary>
-        /// Clears title-block parameter values that were written by a prior DrawingType
-        /// profile so they do not persist when the sheet is reassigned to a different profile.
-        /// Looks up the prior profile's TitleBlockParams keys and blanks each value on the
-        /// title-block instance. No-ops when the prior profile cannot be resolved.
-        /// </summary>
-        public static void ClearStaleKeysFromPriorProfile(Document doc, ViewSheet sheet, string priorDrawingTypeId)
-        {
-            if (doc == null || sheet == null || string.IsNullOrEmpty(priorDrawingTypeId)) return;
-            try
-            {
-                var priorDt = DrawingTypeRegistry.Get(doc, priorDrawingTypeId);
-                if (priorDt?.TitleBlockParams == null || priorDt.TitleBlockParams.Count == 0) return;
-                var tb = FindTitleBlockInstance(doc, sheet);
-                if (tb == null) return;
-                foreach (var key in priorDt.TitleBlockParams.Keys)
-                {
-                    try
-                    {
-                        var p = tb.LookupParameter(key);
-                        if (p == null || p.IsReadOnly) continue;
-                        if (p.StorageType == StorageType.String)  p.Set(string.Empty);
-                        else if (p.StorageType == StorageType.Integer) p.Set(0);
-                        else if (p.StorageType == StorageType.Double)  p.Set(0.0);
-                    }
-                    catch { /* best-effort per-param */ }
-                }
-            }
-            catch (Exception ex) { StingTools.Core.StingLog.Warn($"ClearStaleKeysFromPriorProfile: {ex.Message}"); }
-        }
     }
 }

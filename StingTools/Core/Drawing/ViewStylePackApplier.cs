@@ -149,8 +149,6 @@ namespace StingTools.Core.Drawing
         /// <paramref name="view"/>. Silently skips when the document is not workshared.
         /// The pack's WorksetVisibility string is a mode keyword: "ShowAll" / "HideAll" / null (skip).
         /// </summary>
-        public static void InvalidateCache(Document doc) { }
-
         public static void ApplyWorksetVisibility(Document doc, View view, ViewStylePack pack, PackApplyResult r)
         {
             if (doc == null || view == null || pack == null || r == null) return;
@@ -169,14 +167,6 @@ namespace StingTools.Core.Drawing
                     view.SetWorksetVisibility(wk.Id, visibility);
             }
             catch (Exception ex) { r.Warnings.Add($"ApplyWorksetVisibility: {ex.Message}"); }
-        }
-
-        public static void ApplyPresetOverrides(Document doc, View view,
-            List<StingTools.Core.Drawing.PresetCategoryOverride> presetVg, PackApplyResult r)
-        {
-            if (doc == null || view == null || presetVg == null || r == null) return;
-            // Minimal stub — preset overrides are applied via DrawingTypePresentation pipeline
-            r.Warnings.Add("ApplyPresetOverrides: preset VG overrides applied via DrawingTypePresentation.");
         }
 
         private static ElementId ResolveCategoryId(Document doc, string key)
@@ -329,15 +319,6 @@ namespace StingTools.Core.Drawing
             ApplyCategoryOverrides(doc, view, pack, dummy);
         }
 
-        /// <summary>Apply only category VG overrides from the pack, collecting
-        /// results into an existing <see cref="PackApplyResult"/>.</summary>
-        public static void ApplyCategoryOverridesOnly(
-            Document doc, View view, ViewStylePack pack, PackApplyResult r)
-        {
-            if (doc == null || view == null || pack == null || r == null) return;
-            ApplyCategoryOverrides(doc, view, pack, r);
-        }
-
         /// <summary>Apply only filter rules from the pack, skipping category VG
         /// overrides.</summary>
         public static void ApplyFilterRulesOnly(Document doc, View view, ViewStylePack pack)
@@ -347,25 +328,5 @@ namespace StingTools.Core.Drawing
             ApplyFilterRules(doc, view, pack, dummy);
         }
 
-        /// <summary>Apply only filter rules from the pack, collecting results into
-        /// an existing <see cref="PackApplyResult"/>.</summary>
-        public static void ApplyFilterRulesOnly(
-            Document doc, View view, ViewStylePack pack, PackApplyResult r)
-        {
-            if (doc == null || view == null || pack == null || r == null) return;
-            ApplyFilterRules(doc, view, pack, r);
-        }
-
-        /// <summary>Apply workset visibility settings from the pack onto the view.
-        /// Currently a no-op stub — workset visibility is set project-wide in Revit
-        /// and cannot be overridden per-view via the API; this method exists so
-        /// callers that reference it compile correctly and warnings are surfaced at
-        /// runtime via <paramref name="r"/>.</summary>
-        public static void ApplyWorksetVisibility(
-            Document doc, View view, ViewStylePack pack, PackApplyResult r)
-        {
-            if (r != null)
-                r.Warnings.Add("ApplyWorksetVisibility: workset visibility has no per-view public Revit API — skipped.");
-        }
     }
 }

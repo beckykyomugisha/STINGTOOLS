@@ -44,7 +44,6 @@ using TextBox    = System.Windows.Controls.TextBox;
 using Visibility = System.Windows.Visibility;
 using Binding    = System.Windows.Data.Binding;
 using SelectionChangedEventArgs = System.Windows.Controls.SelectionChangedEventArgs;
-using StingTools.Core;
 namespace StingTools.UI
 {
     public sealed class RevitVgEditor

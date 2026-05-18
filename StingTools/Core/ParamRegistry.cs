@@ -822,11 +822,6 @@ namespace StingTools.Core
         /// <summary>Shared-parameter GUID for HANDOVER_MODE_CUSTOM_BOOL.</summary>
         public const string MODE_CUSTOM_GUID = "C3A4B5D6-E7F8-4A9B-0C1D-2E3F4A5B6C7D";
 
-
-        public const string MODE_HANDOVER_GUID = "A1B2C3D4-E5F6-4A5B-9C8D-7E6F5A4B3C2D";
-        public const string MODE_DC_GUID       = "B2C3D4E5-F6A7-4B6C-AD9E-8F7A6B5C4D3E";
-        public const string MODE_CUSTOM_GUID   = "C3D4E5F6-A7B8-4C7D-BE0F-9A8B7C6D5E4F";
-
         // ── Warning threshold definitions (v5.5) ─────────────────────────
         // Loaded from warning_thresholds section of PARAMETER_REGISTRY.json.
         // Each entry defines a compliance check with threshold, unit, and severity.
