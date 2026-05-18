@@ -2347,10 +2347,13 @@ namespace StingTools.UI
                     case "WorkflowPreset": RunCommand<Temp.WorkflowPresetRunnerCommand>(app); break;
                     case "CancellableOperation": RunCommand<Temp.CancellableOperationCommand>(app); break;
 
-                    // Workflow presets dispatched from Document Manager
+                    // Workflow presets dispatched from Document Manager + HVAC tab
                     case "WorkflowPreset_DailyQA":
                     case "WorkflowPreset_DocumentPackage":
                     case "WorkflowPreset_ProjectKickoff":
+                    case "WorkflowPreset_HVACDesign":
+                    case "WorkflowPreset_HVACCommissioning":
+                    case "WorkflowPreset_DuctSpoolProduction":
                     {
                         // Phase 74: Use local `tag` not instance `_commandTag` to prevent race condition
                         string presetName = tag.Replace("WorkflowPreset_", "");

@@ -3605,6 +3605,141 @@
                 </ScrollViewer>
             </TabItem>
 
+            <!-- ═══════════════════════ HVAC TAB (Phase 188 / A4) ═══════════════════════ -->
+            <!-- Launcher for the dedicated STING HVAC dock panel + quick-access
+                 buttons for the most-used HVAC commands. The full grid editor
+                 lives in the separate panel (Ribbon → ❄ HVAC → STING HVAC). -->
+            <TabItem Header="HVAC">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+
+                        <!-- HEADER -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <StackPanel>
+                                <TextBlock Text="HVAC — DUCT · PIPE · LOADS · CARBON" FontWeight="Bold" FontSize="11" Foreground="#00897B"/>
+                                <TextBlock Text="Sizing, balancing, drift detection, pressure-class audit, plant carbon, loads + gbXML" FontSize="9" Foreground="#888"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PRIMARY ENTRY: Open the dedicated HVAC dock panel -->
+                        <Border BorderBrush="#00695C" BorderThickness="2" CornerRadius="4" Margin="0,2,0,6" Padding="8"
+                                Background="#E0F2F1">
+                            <StackPanel>
+                                <TextBlock Text="❄ STING HVAC CENTER" FontWeight="Bold" FontSize="12" Foreground="#004D40"/>
+                                <TextBlock Text="Full 7-tab editor: EQPT · SYS · CALCS · DUCT · LOADS · FAB · RPRT"
+                                           FontSize="10" Foreground="#00695C" Margin="0,2,0,6"/>
+                                <Button Content="Open STING HVAC Panel"
+                                        Tag="ToggleHvacPanel" Click="Cmd_Click"
+                                        Background="#00897B" Foreground="White"
+                                        FontWeight="Bold" Height="30" FontSize="11"
+                                        ToolTip="Toggle the dedicated STING HVAC dockable panel (tabbed behind PropertiesPalette)"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- SIZING -->
+                        <TextBlock Text="SIZING" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                        <WrapPanel>
+                            <Button Style="{StaticResource ActionBtn}" Content="Auto-size Duct" Tag="Mep_AutoSizeDuct"
+                                    Click="Cmd_Click" ToolTip="Auto-size ducts per active strategy + segment role (Phase 182/183)"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Auto-size Pipe" Tag="Mep_AutoSizePipe"
+                                    Click="Cmd_Click" ToolTip="Auto-size pipes per detected service (chw/hws/dcw/dhw/refrig/steam/gas)"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Auto-size All" Tag="Mep_AutoSizeAll"
+                                    Click="Cmd_Click" ToolTip="Run duct + pipe + conduit auto-size in sequence"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Friction" Tag="Hvac_DuctFriction"
+                                    Click="Cmd_Click" ToolTip="Darcy-Weisbach + SMACNA fitting-loss report"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Static regain" Tag="Hvac_StaticRegain"
+                                    Click="Cmd_Click" ToolTip="Static-regain sizing"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Equal friction" Tag="Hvac_EqualFriction"
+                                    Click="Cmd_Click" ToolTip="Equal-friction sizing"/>
+                        </WrapPanel>
+
+                        <!-- BALANCE + AUDIT -->
+                        <TextBlock Text="BALANCE · AUDIT" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                        <WrapPanel>
+                            <Button Style="{StaticResource ActionBtn}" Content="Hardy-Cross" Tag="Hvac_HardyCross"
+                                    Click="Cmd_Click" ToolTip="Hardy-Cross flow balancing on pipe loops"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Pressure drop" Tag="Mep_PressureDrop"
+                                    Click="Cmd_Click" ToolTip="Per-system pressure drop report"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Vibro-acoustic" Tag="Mep_VibroAcoustic"
+                                    Click="Cmd_Click" ToolTip="Duct-borne NC rating per branch"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Pressure class" Tag="Hvac_PressureClassAudit"
+                                    Click="Cmd_Click" ToolTip="Audit ducts against active DW/144 pressure class (Phase 183)"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Detect stale" Tag="Hvac_DetectStaleSizes"
+                                    Click="Cmd_Click" ToolTip="Flag ducts whose size diverges &gt;20% from current flow target (Phase 183)"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Run validators" Tag="Hvac_RunAllValidators"
+                                    Click="Cmd_Click" ToolTip="Run v4 + healthcare + pressure-regime validator chain"/>
+                        </WrapPanel>
+
+                        <!-- LOADS + gbXML -->
+                        <TextBlock Text="LOADS · gbXML" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                        <WrapPanel>
+                            <Button Style="{StaticResource ActionBtn}" Content="Run loads" Tag="Hvac_RunLoads"
+                                    Click="Cmd_Click" ToolTip="Post Revit's Heating and Cooling Loads dialog (reflection-based, works on all Revit versions)"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Export gbXML" Tag="Hvac_ExportGbxml"
+                                    Click="Cmd_Click" ToolTip="Export to gbXML for IES / TRACE / HAP / EnergyPlus"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Space audit" Tag="Hvac_AuditEnvelope"
+                                    Click="Cmd_Click" ToolTip="Audit MEP-space envelope completeness"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Ventilation audit" Tag="Hvac_Ventilation"
+                                    Click="Cmd_Click" ToolTip="ASHRAE 62.1 / ADF1 / BB101 minimum-OA audit"/>
+                        </WrapPanel>
+
+                        <!-- CARBON + SCHEDULE -->
+                        <TextBlock Text="CARBON · SCHEDULE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                        <WrapPanel>
+                            <Button Style="{StaticResource ActionBtn}" Content="Plant carbon" Tag="Hvac_CarbonReport"
+                                    Click="Cmd_Click" ToolTip="CIBSE TM65 embodied + IPCC AR6 refrigerant GWP (Phase 183)"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Scrape params" Tag="Hvac_ScrapeEquipmentParams"
+                                    Click="Cmd_Click" ToolTip="Stamp HVC_CAPACITY_KW + HVC_REFRIGERANT_TYPE_TXT on Mechanical Equipment (Phase 188)"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HVAC schedule" Tag="MEPScheduleHVAC"
+                                    Click="Cmd_Click" ToolTip="Generate / refresh mechanical equipment schedule"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Refresh panel" Tag="Hvac_RefreshPanel"
+                                    Click="Cmd_Click" ToolTip="Re-seed the HVAC dock-panel grids from the active document"/>
+                        </WrapPanel>
+
+                        <!-- FABRICATION -->
+                        <TextBlock Text="FABRICATION" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                        <WrapPanel>
+                            <Button Style="{StaticResource ActionBtn}" Content="Open workspace" Tag="Fabrication_OpenWorkspace"
+                                    Click="Cmd_Click" ToolTip="Open the fabrication workspace dialog"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Seam audit" Tag="Hvac_DuctSeamAudit"
+                                    Click="Cmd_Click" ToolTip="SMACNA seam tally per spool"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Cut list" Tag="Hvac_ExportCutList"
+                                    Click="Cmd_Click" ToolTip="Export per-spool cut list CSV"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Isometrics" Tag="Hvac_ExportIsometrics"
+                                    Click="Cmd_Click" ToolTip="Export ISO 6412 isometrics"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="NC export" Tag="Hvac_ExportNC"
+                                    Click="Cmd_Click" ToolTip="Export NC machine code"/>
+                        </WrapPanel>
+
+                        <!-- WORKFLOW PRESETS -->
+                        <TextBlock Text="WORKFLOW PRESETS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                        <WrapPanel>
+                            <Button Style="{StaticResource ActionBtn}" Content="HVAC Design"
+                                    Tag="WorkflowPreset_HVACDesign" Click="Cmd_Click"
+                                    ToolTip="Run the 7-step HVAC design preset: audit → size → balance → NC → validators (Phase 182)"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HVAC Commissioning"
+                                    Tag="WorkflowPreset_HVACCommissioning" Click="Cmd_Click"
+                                    ToolTip="Run the CIBSE TM39 commissioning sequence"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Duct Spool Pack"
+                                    Tag="WorkflowPreset_DuctSpoolProduction" Click="Cmd_Click"
+                                    ToolTip="Build duct fabrication hand-off pack (8 steps)"/>
+                        </WrapPanel>
+
+                        <!-- SYNC · MOBILE -->
+                        <TextBlock Text="SYNC · MOBILE · SETTINGS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                        <WrapPanel>
+                            <Button Style="{StaticResource ActionBtn}" Content="Push to API" Tag="Hvac_PushSnapshot"
+                                    Click="Cmd_Click" ToolTip="Push drift / loads / sizing snapshots to Planscape server — mobile HVAC dashboard reads these (Phase 188 / Tier 3)"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="Reload rules" Tag="Hvac_ReloadRules"
+                                    Click="Cmd_Click" ToolTip="Reload STING_MEP_SIZING_RULES.json + project override"/>
+                            <Button Style="{StaticResource ActionBtn}" Content="HVAC settings" Tag="Hvac_OpenSettings"
+                                    Click="Cmd_Click" ToolTip="Open the MEP sizing rules registry info dialog"/>
+                        </WrapPanel>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
             <!-- ═══════════════════════ TAGS TAB (Tag Studio) ═══════════════════════ -->
             <TabItem Header="TAGS">
                 <!-- TAG TAB: DockPanel so sub-tab headers are ALWAYS visible at top.
