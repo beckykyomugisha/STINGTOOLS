@@ -16,6 +16,8 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.UI;
+using StingTools.Core.Validation;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Drawing
 {

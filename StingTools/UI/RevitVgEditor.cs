@@ -24,19 +24,28 @@
 //
 // Performance: DataGrid virtualization on (ScrollUnit=Item, recycling).
 
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Media;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 using StingTools.Core.Drawing;
-// Resolve type collisions between WPF and Revit API:
-using StingTools.Core.Drawing;
-//   System.Windows.Controls.Grid vs Autodesk.Revit.DB.Grid
-using StingTools.Core.Drawing;
-//   System.Windows.Visibility    vs Autodesk.Revit.DB.Visibility (Workset enum)
-using StingTools.Core.Drawing;
-//   System.Windows.Data.Binding  vs Autodesk.Revit.DB.Binding   (parameter binding)
-using StingTools.Core.Drawing;
-//   System.Windows.Media.Color   vs Autodesk.Revit.DB.Color     (Revit colour)
+using Button     = System.Windows.Controls.Button;
 using Color      = System.Windows.Media.Color;
-using Color      = System.Windows.Media.Color;
+using ComboBox   = System.Windows.Controls.ComboBox;
+using Grid       = System.Windows.Controls.Grid;
+using TextBox    = System.Windows.Controls.TextBox;
+using Visibility = System.Windows.Visibility;
+using SelectionChangedEventArgs = System.Windows.Controls.SelectionChangedEventArgs;
 using StingTools.Core;
+using Color = System.Windows.Media.Color;
+using Grid = System.Windows.Controls.Grid;
 namespace StingTools.UI
 {
     public sealed class RevitVgEditor
@@ -1253,7 +1262,7 @@ namespace StingTools.UI
                             string patternName = null;
                             if (sub.LineColor != null && sub.LineColor.IsValid)
                                 colourHex = $"#{sub.LineColor.Red:X2}{sub.LineColor.Green:X2}{sub.LineColor.Blue:X2}";
-                            try { weight = sub.GetLineWeight(GraphicsStyleType.Projection) ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            try { weight = sub.GetLineWeight(GraphicsStyleType.Projection) ?? 0; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                             try
                             {
                                 var pid = sub.GetLinePatternId(GraphicsStyleType.Projection);
@@ -1263,10 +1272,10 @@ namespace StingTools.UI
                                     else if (_doc.GetElement(pid) is LinePatternElement lp) patternName = lp.Name;
                                 }
                             }
-                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); }
                             _lineStyleByName[sub.Name] = (colourHex, weight, patternName);
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                     }
                 }
             }

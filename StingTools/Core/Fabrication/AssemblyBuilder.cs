@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — AssemblyBuilder.
 //
 // Wraps Autodesk.Revit.DB.AssemblyInstance.Create with the v4 naming
@@ -13,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Fabrication
 {

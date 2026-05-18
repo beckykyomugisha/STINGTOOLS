@@ -121,7 +121,7 @@ namespace StingTools.BIMManager
                         $"Pushed {dtosForServer.Count} elements.\nCommit: {commitId}");
                     return;
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     StingLog.Error("Speckle: HTTP push failed", ex);
                     TaskDialog.Show("Speckle Send",

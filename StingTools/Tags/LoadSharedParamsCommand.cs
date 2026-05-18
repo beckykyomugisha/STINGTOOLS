@@ -251,7 +251,7 @@ namespace StingTools.Tags
                 {
                     (matRemovedOnly, matAddedOnly) = CleanMaterialBindings(doc, app);
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     StingLog.Error("CleanMaterialBindings (no-bind path) failed", ex);
                 }
@@ -367,7 +367,7 @@ namespace StingTools.Tags
                 var (groupName, defs) = groupsToProcess[gi];
 
                 try { progress?.Increment($"Group {gi + 1}/{groupsToProcess.Count}: {groupName}"); }
-                catch (Exception ex) { StingLog.Warn($"Progress increment: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Progress increment: {ex2.Message}"); }
 
                 // Pick pre-built binding for this group
                 InstanceBinding binding = groupBindings.TryGetValue(groupName, out InstanceBinding gb)
@@ -414,7 +414,7 @@ namespace StingTools.Tags
                                 else
                                     skipped++;
                             }
-                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; }
+                            catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); skipped++; }
                         }
 
                         tx.Commit();
@@ -424,7 +424,7 @@ namespace StingTools.Tags
                         // Log AFTER transaction, not inside
                         StingLog.Info($"  → committed: {groupBound} bound, {defs.Count - groupBound} skipped");
                     }
-                    catch (Exception ex)
+                    catch (Exception ex3)
                     {
                         StingLog.Error($"Group '{groupName}' transaction failed", ex);
                         if (tx.HasStarted() && !tx.HasEnded())
@@ -889,7 +889,7 @@ namespace StingTools.Tags
                                     StingLog.Warn($"ReInsert(InternalDef) failed for '{name}'");
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             removeFailed++;
                             if (removeFailed <= 5)
@@ -931,7 +931,7 @@ namespace StingTools.Tags
                                     StingLog.Warn($"ReInsert(InternalDef) add-mat failed for '{name}'");
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             addFailed++;
                             if (addFailed <= 5)
@@ -941,7 +941,7 @@ namespace StingTools.Tags
 
                     tx.Commit();
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     StingLog.Error("CleanMaterialBindings batch tx failed", ex);
                     if (tx.HasStarted() && !tx.HasEnded())

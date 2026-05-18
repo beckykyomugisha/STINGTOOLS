@@ -496,7 +496,7 @@ namespace StingTools.Temp
                                     earned = weight * ratio;
                                 }
                             }
-                            catch (Exception ex)
+                            catch (Exception ex2)
                             {
                                 StingLog.Warn($"VGConsistent scoring: {ex.Message}");
                                 earned = weight * 0.5; // partial credit on error
@@ -2044,7 +2044,7 @@ namespace StingTools.Temp
                             sub.SetLinePatternId(patId, GraphicsStyleType.Projection);
                         created++;
                     }
-                    catch (Exception ex) { StingLog.Warn($"Line style '{name}': {ex.Message}"); skipped++; }
+                    catch (Exception ex2) { StingLog.Warn($"Line style '{name}': {ex2.Message}"); skipped++; }
                 }
                 tx.Commit();
             }
@@ -2228,7 +2228,7 @@ namespace StingTools.Temp
 
                         created++;
                     }
-                    catch (Exception ex) { StingLog.Warn($"Dim style '{name}': {ex.Message}"); skipped++; }
+                    catch (Exception ex2) { StingLog.Warn($"Dim style '{name}': {ex2.Message}"); skipped++; }
                 }
                 tx.Commit();
             }
@@ -2468,7 +2468,7 @@ namespace StingTools.Temp
                                     filtersApplied++;
                                 }
                             }
-                            catch (Exception ex)
+                            catch (Exception ex2)
                             {
                                 StingLog.Warn($"VG filter '{kvp.Key}' on '{target.Name}': {ex.Message}");
                             }
@@ -2489,13 +2489,13 @@ namespace StingTools.Temp
                                         if (ws.Name.StartsWith("Z-Linked"))
                                         {
                                             try { target.SetWorksetVisibility(ws.Id, WorksetVisibility.Hidden); }
-                                            catch (Exception ex) { StingLog.Warn($"Hide linked workset '{ws.Name}': {ex.Message}"); }
+                                            catch (Exception ex2) { StingLog.Warn($"Hide linked workset '{ws.Name}': {ex2.Message}"); }
                                         }
                                     }
                                 }
                             }
                         }
-                        catch (Exception ex) { StingLog.Warn($"worksharing not available: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"worksharing not available: {ex2.Message}"); }
 
                         // Layer 6: CSV-driven VG schemes (106 VG_SCHEME rows)
                         // Match template name to a VG scheme and apply category-level overrides
@@ -2578,18 +2578,18 @@ namespace StingTools.Temp
                                             schemesApplied++;
                                         }
                                     }
-                                    catch (Exception ex) { StingLog.Warn($"Apply category override for VG scheme: {ex.Message}"); }
+                                    catch (Exception ex3) { StingLog.Warn($"Apply category override for VG scheme: {ex3.Message}"); }
                                 }
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex3)
                         {
                             StingLog.Warn($"VG scheme on '{target.Name}': {ex.Message}");
                         }
 
                         viewsConfigured++;
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         StingLog.Warn($"VG override '{target.Name}': {ex.Message}");
                     }
@@ -2780,7 +2780,7 @@ namespace StingTools.Temp
                                         perCategory[catName] = 0;
                                 }
                             }
-                            catch (Exception ex) { StingLog.Warn($"Resolve category '{catName}' for binding: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"Resolve category '{catName}' for binding: {ex2.Message}"); }
                         }
                     }
 
@@ -2798,7 +2798,7 @@ namespace StingTools.Temp
                         var existing = bmap.get_Item(extDef);
                         if (existing != null) alreadyBound = true;
                     }
-                    catch (Exception ex) { StingLog.Warn($"Check existing parameter binding: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"Check existing parameter binding: {ex2.Message}"); }
 
                     if (alreadyBound)
                     {
@@ -2834,7 +2834,7 @@ namespace StingTools.Temp
                             totalFailed += paramGroup.Count();
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex3)
                     {
                         StingLog.Warn($"Bind '{paramName}': {ex.Message}");
                         totalFailed += paramGroup.Count();
@@ -3446,7 +3446,7 @@ namespace StingTools.Temp
                 {
                     paramList = TagFamilyConfig.GetAllFamilyParams(categoryDisplay, baseName);
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     StingLog.Warn($"GetAllFamilyParams failed for {rfaFileName}: {ex.Message}");
                     paramList = new List<string>(universalParams);
@@ -3460,7 +3460,7 @@ namespace StingTools.Temp
                     {
                         perFamily.Add($"[FAIL] {rfaFileName} — could not open as family");
                         failed++;
-                        try { famDoc?.Close(false); } catch (Exception ex) { StingLog.Warn($"Close non-family: {ex.Message}"); }
+                        try { famDoc?.Close(false); } catch (Exception ex3) { StingLog.Warn($"Close non-family: {ex3.Message}"); }
                         continue;
                     }
 
@@ -3573,12 +3573,12 @@ namespace StingTools.Temp
                     famDoc.Close(false);
                     famDoc = null;
                 }
-                catch (Exception ex)
+                catch (Exception ex3)
                 {
                     failed++;
                     StingLog.Error($"ProcessStingTagFamilies: {rfaFileName} failed", ex);
                     perFamily.Add($"[FAIL] {rfaFileName} — {ex.Message}");
-                    try { famDoc?.Close(false); } catch (Exception ex2) { StingLog.Warn($"Close after failure: {ex2.Message}"); }
+                    try { famDoc?.Close(false); } catch (Exception ex22) { StingLog.Warn($"Close after failure: {ex22.Message}"); }
                 }
             }
 
@@ -3850,7 +3850,7 @@ namespace StingTools.Temp
                         created++;
                         existingNames.Add(fullName);
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         StingLog.Warn($"Template schedule '{fullName}': {ex.Message}");
                         skipped++;
@@ -3963,7 +3963,7 @@ namespace StingTools.Temp
 
                                             if (paramsWritten > 0) tplInstances++;
                                         }
-                                        catch (Exception ex)
+                                        catch (Exception ex2)
                                         {
                                             StingLog.Warn($"TPL instance creation ({sourceTable}): {ex.Message}");
                                         }
@@ -3987,7 +3987,7 @@ namespace StingTools.Temp
                     if (tplInstances > 0)
                         tplNote += $"\nCreated {tplInstances} Generic Model instances with metadata.";
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     StingLog.Warn($"TPL_SCHEDULE_METADATA.csv integration: {ex.Message}");
                     tplNote = $"\nTPL metadata error: {ex.Message}";
@@ -4477,7 +4477,7 @@ namespace StingTools.Temp
                     StingLog.Info($"Clone Template: '{sourceTemplate.Name}' → " +
                         $"'{cloneName}' (disc={targetDisc})");
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     if (tx.HasStarted()) tx.RollBack();
                     StingLog.Error("Clone Template failed", ex);
@@ -4615,7 +4615,7 @@ namespace StingTools.Temp
                             templatesSynced++;
                             report.AppendLine($"  {kvp.Key} — synced ({disc})");
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             report.AppendLine($"  {kvp.Key} — FAILED: {ex.Message}");
                         }

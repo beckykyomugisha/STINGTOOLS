@@ -14,9 +14,13 @@
 // committed values (or null if Cancelled). Used by the inline VG
 // editor's Lines / Cut Lines columns.
 
-using System.Windows.Media;
+using System;
+using System.Collections.Generic;
+using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using StingTools.Core;
+using Autodesk.Revit.UI;
 namespace StingTools.UI
 {
     public sealed class VgLineGraphics

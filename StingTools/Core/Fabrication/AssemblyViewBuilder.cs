@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — AssemblyViewBuilder.
 //
 // Creates the canonical view set for a v4 fabrication assembly,

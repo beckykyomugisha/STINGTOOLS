@@ -83,7 +83,7 @@ namespace StingTools.Commands.Electrical
             }
 
             bool isPanel = selectedNode.IsPanel
-                || selected.Category?.Id?.IntegerValue == (int)BuiltInCategory.OST_ElectricalEquipment;
+                || selected.Category?.Id?.Value == (long)BuiltInCategory.OST_ElectricalEquipment;
 
             // ── Collect elements to trace and choose colour ───────────────────
             List<ElementId> tracedIds;

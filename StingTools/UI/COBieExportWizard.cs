@@ -471,7 +471,7 @@ namespace StingTools.UI
                     if (!string.IsNullOrEmpty(_outputDir.Text))
                     {
                         try { dlg.InitialDirectory = _outputDir.Text; }
-                        catch (Exception ex) { StingLog.Warn($"COBie browse dir: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"COBie browse dir: {ex2.Message}"); }
                     }
                     if (dlg.ShowDialog() == true)
                         _outputDir.Text = System.IO.Path.GetDirectoryName(dlg.FileName) ?? _outputDir.Text;

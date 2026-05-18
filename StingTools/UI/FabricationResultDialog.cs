@@ -22,6 +22,9 @@ using StingTools.Core.Fabrication;
 using Color    = System.Windows.Media.Color;
 using TextBox  = System.Windows.Controls.TextBox;
 using Grid     = System.Windows.Controls.Grid;
+using StingTools.Core.Drawing;
+using Color = System.Windows.Media.Color;
+using Grid = System.Windows.Controls.Grid;
 
 namespace StingTools.UI
 {

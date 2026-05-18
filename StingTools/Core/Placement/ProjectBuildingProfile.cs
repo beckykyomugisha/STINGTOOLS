@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139 — Project building profile for the Placement Centre.
 //
 // Filters which placement rules activate based on building type and

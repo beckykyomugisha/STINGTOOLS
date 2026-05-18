@@ -1,3 +1,4 @@
+using System;
 // HC-24: AGV / pneumatic-tube path optimiser.
 //
 // Upgrades the placeholder adjacency-BFS noted in HEALTHCARE_PACK_DESIGN §11 H-10 to

@@ -21,14 +21,24 @@
 // reads + returns a ShopDrawingOptions record the calling command
 // passes into the engine.
 
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 // Autodesk.Revit.DB and System.Windows.* share a batch of type names
 // (Grid line, Color, Binding parameter, …). Alias the WPF ones so
 // every control / binding / colour ref in this file binds to WPF.
-using Colors       = System.Windows.Media.Colors;
-using Colors       = System.Windows.Media.Colors;
+using Button     = System.Windows.Controls.Button;
+using Colors     = System.Windows.Media.Colors;
+using ComboBox   = System.Windows.Controls.ComboBox;
+using Grid       = System.Windows.Controls.Grid;
+using TextBox    = System.Windows.Controls.TextBox;
 using StingTools.Core;
+using Grid = System.Windows.Controls.Grid;
 namespace StingTools.UI
 {
     public class ShopDrawingOptions

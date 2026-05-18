@@ -38,6 +38,8 @@ using Grid         = System.Windows.Controls.Grid;
 using Color        = System.Windows.Media.Color;
 using Colors       = System.Windows.Media.Colors;
 using Binding      = System.Windows.Data.Binding;
+using Color = System.Windows.Media.Color;
+using Grid = System.Windows.Controls.Grid;
 
 namespace StingTools.UI
 {

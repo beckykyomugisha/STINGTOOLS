@@ -16,6 +16,7 @@ using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Placement;
+using Autodesk.Revit.DB.Architecture;
 
 namespace StingTools.Commands.Placement
 {
@@ -115,11 +116,11 @@ namespace StingTools.Commands.Placement
                                     marker, StructuralType.NonStructural);
                                 markersPlaced++;
                             }
-                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                         }
                         tx.Commit();
                     }
-                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack(); }
+                    catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack(); }
                 }
             }
 

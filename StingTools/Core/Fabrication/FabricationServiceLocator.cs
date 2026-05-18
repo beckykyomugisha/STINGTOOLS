@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — FabricationServiceLocator (minimal safe surface).
 //
 // Phase B originally tried to walk FabricationService → palette → button

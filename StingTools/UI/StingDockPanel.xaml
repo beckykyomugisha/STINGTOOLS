@@ -1424,6 +1424,12 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Fix Drift" Tag="Symbols_FixDrift" Click="Cmd_Click" ToolTip="Re-mint symbols whose stamped standard doesn't match the resolver"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Batch Heal All" Tag="Symbols_BatchHeal" Click="Cmd_Click" ToolTip="Heal orphans + fix drift + sync filter visibility in one pass"/>
                                 </WrapPanel>
+                                <!-- MEP Detail Symbols — FamilyInstance-based, scale-aware, colour-coded -->
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Place MEP Symbols" Tag="Symbols_PlaceMepDetail" Click="Cmd_Click" ToolTip="Place scale-aware MEP detail symbols (FamilyInstance) on MEP elements in the active view. Distinct from tag overlays — uses MepSymbolEngine + CSV catalogue."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Place All Views" Tag="Symbols_PlaceMepDetailAll" Click="Cmd_Click" ToolTip="Place MEP detail symbols across all eligible views project-wide (Corporate std, CIBSE colours)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clear MEP Symbols" Tag="Symbols_ClearMepDetail" Click="Cmd_Click" ToolTip="Remove all STING MEP detail symbols from the active view"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 

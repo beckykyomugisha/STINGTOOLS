@@ -7,6 +7,9 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Drawing;
+using Newtonsoft.Json;
+using System.Collections.Concurrent;
 
 namespace StingTools.UI
 {
@@ -415,6 +418,7 @@ namespace StingTools.UI
                     case "Symbols_CreateFP":       RunCommand<Commands.Symbols.CreateFPSymbolsCommand>(app); break;
                     case "Symbols_Reload":         RunCommand<Commands.Symbols.ReloadSymbolLibraryCommand>(app); break;
                     case "Symbols_Inspect":        RunCommand<Commands.Symbols.InspectSymbolLibraryCommand>(app); break;
+                    case "Symbols_ConfigSizes":    RunCommand<Commands.Symbols.ConfigureSymbolSizesCommand>(app); break;
 
                     // ── Phase 175: Symbol Standards ──
                     case "Symbols_SwitchProject":  RunCommand<Commands.Symbols.SwitchProjectStandardCommand>(app); break;
@@ -432,6 +436,11 @@ namespace StingTools.UI
                     case "Symbols_AuthorSymbols":       RunCommand<Commands.Symbols.AuthorFamilySymbolsCommand>(app); break;
                     case "Symbols_SetElementStandard": RunCommand<Commands.Symbols.SetElementSymbolStandardCommand>(app); break;
 
+                    // ── MEP Detail Symbols (FamilyInstance-based, MepSymbolEngine) ──
+                    case "Symbols_PlaceMepDetail":         RunCommand<Commands.Symbols.PlaceMepDetailSymbolsCommand>(app); break;
+                    case "Symbols_PlaceMepDetailAll":      RunCommand<Commands.Symbols.PlaceMepDetailSymbolsProjectWideCommand>(app); break;
+                    case "Symbols_ClearMepDetail":         RunCommand<Commands.Symbols.ClearMepDetailSymbolsCommand>(app); break;
+
                     // ── Phase 175: Symbol Maintenance ──
                     case "Symbols_HealOrphans":    RunCommand<Commands.Symbols.HealSymbolOrphansCommand>(app); break;
                     case "Symbols_Coverage":       RunCommand<Commands.Symbols.SymbolCoverageAuditCommand>(app); break;
@@ -440,6 +449,32 @@ namespace StingTools.UI
 
                     // ── Phase 180: Compound symbol factory ──
                     case "Symbols_CreateCompound": RunCommand<Commands.Symbols.CreateCompoundSymbolsCommand>(app); break;
+
+                    // ── Equipment / fixture browse-and-place (plan-level) ──
+                    case "Equip_PlaceElec":    RunCommand<Commands.Symbols.PlaceElecFixtureCommand>(app); break;
+                    case "Equip_PlacePlumb":   RunCommand<Commands.Symbols.PlacePlumbingFixtureCommand>(app); break;
+                    case "Equip_PlaceHvac":    RunCommand<Commands.Symbols.PlaceHvacEquipmentCommand>(app); break;
+                    case "Equip_PlaceLight":   RunCommand<Commands.Symbols.PlaceLightingFixtureCommand>(app); break;
+                    case "Equip_PlaceFP":      RunCommand<Commands.Symbols.PlaceFpDeviceCommand>(app); break;
+                    case "Equip_PlacePipeAcc": RunCommand<Commands.Symbols.PlacePipeAccessoryCommand>(app); break;
+                    case "Equip_BrowseAll":    RunCommand<Commands.Symbols.BrowseAllEquipmentSymbolsCommand>(app); break;
+
+                    // ── SLD inline annotations ──
+                    case "SldAnnotate_All":        RunCommand<Commands.Symbols.SldAnnotateAllCommand>(app); break;
+                    case "SldAnnotate_Voltage":    RunCommand<Commands.Symbols.SldAnnotateVoltageCommand>(app); break;
+                    case "SldAnnotate_Current":    RunCommand<Commands.Symbols.SldAnnotateCurrentCommand>(app); break;
+                    case "SldAnnotate_Fault":      RunCommand<Commands.Symbols.SldAnnotateFaultCommand>(app); break;
+                    case "SldAnnotate_Cable":      RunCommand<Commands.Symbols.SldAnnotateCableCommand>(app); break;
+                    case "SldAnnotate_Phase":      RunCommand<Commands.Symbols.SldAnnotatePhaseCommand>(app); break;
+                    case "SldAnnotate_Load":       RunCommand<Commands.Symbols.SldAnnotateLoadCommand>(app); break;
+                    case "SldAnnotate_Reference":  RunCommand<Commands.Symbols.SldAnnotateReferenceCommand>(app); break;
+                    case "SldAnnotate_Impedance":  RunCommand<Commands.Symbols.SldAnnotateImpedanceCommand>(app); break;
+                    case "SldAnnotate_Diversity":  RunCommand<Commands.Symbols.SldAnnotateDiversityCommand>(app); break;
+                    case "SldAnnotate_Format":     RunCommand<Commands.Symbols.SldAnnotationFormatCommand>(app); break;
+                    case "SldAnnotate_UpdateCalcs":RunCommand<Commands.Symbols.SldUpdateFromCalcsCommand>(app); break;
+                    case "SldAnnotate_Toggle":     RunCommand<Commands.Symbols.SldAnnotationToggleCommand>(app); break;
+                    case "SldAnnotate_Clear":      RunCommand<Commands.Symbols.SldAnnotationClearCommand>(app); break;
+                    case "SldAnnotate_Audit":      RunCommand<Commands.Symbols.SldAnnotationAuditCommand>(app); break;
 
                     // ── StingBridge: ArchiCAD / IFC workflows ──
                     case "IFC_ArchiCADSync":      RunCommand<Commands.IFC.ArchiCADSyncCommand>(app); break;
@@ -1888,10 +1923,10 @@ namespace StingTools.UI
                                     .FirstOrDefault(v => v.ViewId == uidoc.ActiveView.Id);
                                 uiView?.ZoomToFit();
                             }
-                            catch (Exception ex) { StingLog.Warn($"SelectByElementGuid zoom: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"SelectByElementGuid zoom: {ex2.Message}"); }
                             uidoc.ShowElements(el);
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             StingLog.Warn($"SelectByElementGuid: {ex.Message}");
                             Autodesk.Revit.UI.TaskDialog.Show("Site Photos",
@@ -2258,7 +2293,7 @@ namespace StingTools.UI
                                         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", root) { UseShellExecute = true })?.Dispose();
                                 }
                             }
-                            catch (Exception ex)
+                            catch (Exception ex2)
                             {
                                 StingTools.Core.StingLog.Warn($"CreateFolders: {ex.Message}");
                                 // Fall back to legacy direct creation
@@ -2280,7 +2315,7 @@ namespace StingTools.UI
                     case "FolderHealth":
                     {
                         try { UI.FolderHealthPanel.ShowDialog(app); }
-                        catch (Exception ex) { Autodesk.Revit.UI.TaskDialog.Show("STING", $"Folder Health failed: {ex.Message}"); }
+                        catch (Exception ex2) { Autodesk.Revit.UI.TaskDialog.Show("STING", $"Folder Health failed: {ex2.Message}"); }
                         break;
                     }
                     case "FolderMigrate":
@@ -2295,7 +2330,7 @@ namespace StingTools.UI
                                     $"Moved {rep.FilesMoved} files. Removed {rep.FoldersRemoved} legacy folders." +
                                     (rep.Warnings.Count > 0 ? $"\n\nWarnings: {rep.Warnings.Count}" : ""));
                             }
-                            catch (Exception ex) { Autodesk.Revit.UI.TaskDialog.Show("STING", $"Migration failed: {ex.Message}"); }
+                            catch (Exception ex2) { Autodesk.Revit.UI.TaskDialog.Show("STING", $"Migration failed: {ex2.Message}"); }
                         }
                         break;
                     }
@@ -2434,7 +2469,7 @@ namespace StingTools.UI
                                 }
                                 else TaskDialog.Show("STING", "No coordination log found.");
                             }
-                            catch (Exception ex) { TaskDialog.Show("STING", $"Export failed: {ex.Message}"); }
+                            catch (Exception ex2) { TaskDialog.Show("STING", $"Export failed: {ex2.Message}"); }
                         }
                         break;
                     }
@@ -2529,7 +2564,7 @@ namespace StingTools.UI
                             DataExportEngine.Execute(doc, app.ActiveUIDocument, exportSettings);
                             TaskDialog.Show("STING Export", $"Exported successfully to:\n{exportSettings.OutputPath}");
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             StingLog.Error($"Data export failed: {ex.Message}", ex);
                             TaskDialog.Show("STING Export", $"Export failed: {ex.Message}");
@@ -3021,7 +3056,7 @@ namespace StingTools.UI
                                     .ToList();
                             }
                         }
-                        catch (Exception ex) { Core.StingLog.Warn($"ScheduleWizard CSV load: {ex.Message}"); }
+                        catch (Exception ex2) { Core.StingLog.Warn($"ScheduleWizard CSV load: {ex2.Message}"); }
 
                         var dlgResult = UI.ScheduleWizardDialog.Show(csvDefs, existingScheds);
                         if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
@@ -3053,7 +3088,7 @@ namespace StingTools.UI
                                         SetExtraParam(kv.Key, kv.Value);
                                 Execute(app);
                             }
-                            catch (Exception ex) { StingLog.Warn("TemplateDashboard loop: " + ex.Message); break; }
+                            catch (Exception ex2) { StingLog.Warn("TemplateDashboard loop: " + ex2.Message); break; }
                         }
                         break;
                     }
@@ -3072,7 +3107,7 @@ namespace StingTools.UI
                                         SetExtraParam(kv.Key, kv.Value);
                                 Execute(app);
                             }
-                            catch (Exception ex) { StingLog.Warn("SchedulingCostDashboard loop: " + ex.Message); break; }
+                            catch (Exception ex2) { StingLog.Warn("SchedulingCostDashboard loop: " + ex2.Message); break; }
                         }
                         break;
                     }
@@ -3093,7 +3128,7 @@ namespace StingTools.UI
                                         SetExtraParam(kv.Key, kv.Value);
                                 Execute(app);
                             }
-                            catch (Exception ex) { StingLog.Warn("RevisionManagerDashboard loop: " + ex.Message); break; }
+                            catch (Exception ex2) { StingLog.Warn("RevisionManagerDashboard loop: " + ex2.Message); break; }
                         }
                         break;
                     }
@@ -3112,7 +3147,7 @@ namespace StingTools.UI
                                         SetExtraParam(kv.Key, kv.Value);
                                 Execute(app);
                             }
-                            catch (Exception ex) { StingLog.Warn("WarningsDashboard loop: " + ex.Message); break; }
+                            catch (Exception ex2) { StingLog.Warn("WarningsDashboard loop: " + ex2.Message); break; }
                         }
                         break;
                     }
@@ -3132,7 +3167,7 @@ namespace StingTools.UI
                                         SetExtraParam(kv.Key, kv.Value);
                                 Execute(app);
                             }
-                            catch (Exception ex) { StingLog.Warn("BEPDashboard loop: " + ex.Message); break; }
+                            catch (Exception ex2) { StingLog.Warn("BEPDashboard loop: " + ex2.Message); break; }
                         }
                         break;
                     }
@@ -3151,7 +3186,7 @@ namespace StingTools.UI
                                         SetExtraParam(kv.Key, kv.Value);
                                 Execute(app);
                             }
-                            catch (Exception ex) { StingLog.Warn("COBieExportDashboard loop: " + ex.Message); break; }
+                            catch (Exception ex2) { StingLog.Warn("COBieExportDashboard loop: " + ex2.Message); break; }
                         }
                         break;
                     }
@@ -3170,7 +3205,7 @@ namespace StingTools.UI
                                         SetExtraParam(kv.Key, kv.Value);
                                 Execute(app);
                             }
-                            catch (Exception ex) { StingLog.Warn("IssueTrackerDashboard loop: " + ex.Message); break; }
+                            catch (Exception ex2) { StingLog.Warn("IssueTrackerDashboard loop: " + ex2.Message); break; }
                         }
                         break;
                     }
@@ -3245,7 +3280,7 @@ namespace StingTools.UI
                             var doc = app?.ActiveUIDocument?.Document;
                             if (doc != null) UI.BOQCostManagerWindow.ShowFor(doc);
                         }
-                        catch (Exception ex) { StingLog.Error("BOQCostManager dispatch", ex); }
+                        catch (Exception ex2) { StingLog.Error("BOQCostManager dispatch", ex2); }
                         break;
                     }
                     case "BOQRefresh":              RunCommand<BOQ.BOQRefreshCommand>(app); break;
@@ -3696,7 +3731,7 @@ namespace StingTools.UI
                     // freezing the Leader & Elbow sub-tab because UnfreezeTagSubTabs()
                     // was never called after execution.
                     try { StingDockPanel.NotifyCommandComplete(); }
-                    catch (Exception ex) { StingLog.Warn($"Non-critical — panel may not be open: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"Non-critical — panel may not be open: {ex2.Message}"); }
                 }
             }
             }); // S8.2.1 — close PluginTelemetry.Run lambda
@@ -3811,11 +3846,11 @@ namespace StingTools.UI
                         System.Windows.Application.Current?.Dispatcher?.InvokeAsync(() =>
                         {
                             try { SheetManagerDialog.RefreshData(); }
-                            catch (Exception ex) { StingLog.Warn($"SM refresh failed: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"SM refresh failed: {ex2.Message}"); }
                         });
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"SM refresh dispatch failed: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"SM refresh dispatch failed: {ex2.Message}"); }
             }
         }
 

@@ -13,6 +13,8 @@
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using StingTools.Core;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Core.DesignOptions
 {

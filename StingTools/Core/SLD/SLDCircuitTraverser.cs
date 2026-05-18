@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — SLD circuit traverser (Phase 175 + Phase 179 enhancements)
 //
 // Walks the project's electrical hierarchy starting from root panels.
@@ -391,7 +392,7 @@ namespace StingTools.Core.SLD
                             if (rt > 0) node.RuntimeMin = rt;
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"ReadElementParams runtime: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"ReadElementParams runtime: {ex2.Message}"); }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"ReadElementParams: {ex.Message}"); }

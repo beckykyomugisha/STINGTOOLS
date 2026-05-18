@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139.2 — Compound cluster placer.
 //
 // MK Grid Plus assemblies are mounted in a single faceplate frame but
@@ -122,7 +123,7 @@ namespace StingTools.Core.Placement
                                 }
                                 XYZ p;
                                 try { p = curve.Evaluate(t, false); }
-                                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); p = frameCentre + alongFallback.Multiply(centred * pitchFt); }
+                                catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); p = frameCentre + alongFallback.Multiply(centred * pitchFt); }
                                 output.Add((r, p));
                             }
                             return output;

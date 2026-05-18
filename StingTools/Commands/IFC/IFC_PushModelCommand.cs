@@ -103,7 +103,7 @@ namespace StingTools.Commands.IFC
                         ? $"IFC_PushModel: upload succeeded ({glb.Length / 1024:N0} kB)"
                         : $"IFC_PushModel: upload failed — {client.LastError}");
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     StingLog.Error("IFC_PushModel background task", ex);
                 }

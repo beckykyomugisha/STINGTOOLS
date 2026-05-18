@@ -1,3 +1,4 @@
+using StingTools.Core;
 // §5.3 — reader for the nine routing / MEP-hint parameters.
 //
 // AutoConduitDrop / AutoPipeDrop / AutoDuctDrop and the related validators

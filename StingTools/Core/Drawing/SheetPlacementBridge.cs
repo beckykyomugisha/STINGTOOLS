@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager · Phase 137
 //
 // SheetPlacementBridge converts a DrawingType.Slot's normalised
@@ -10,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
+using StingTools.Core.Placement;
 
 namespace StingTools.Core.Drawing
 {

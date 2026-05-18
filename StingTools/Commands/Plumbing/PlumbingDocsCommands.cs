@@ -15,6 +15,7 @@ using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Plumbing;
 using StingTools.UI;
+using StingTools.Core.Drawing;
 
 namespace StingTools.Commands.Plumbing
 {

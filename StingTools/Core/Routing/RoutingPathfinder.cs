@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — RoutingPathfinder façade.
 //
 // One-call wrapper around VoxelGrid + AStarSolver (+ future ACO

@@ -72,13 +72,13 @@ namespace StingTools.Commands.Electrical.Routing
                                     s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER)?.AsString() ?? "",
                                     cable.CircuitId, StringComparison.OrdinalIgnoreCase));
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                         if (sys == null) continue;
 
                         Element loadEl = null;
                         Element panelEl = null;
-                        try { loadEl = sys.Elements?.Cast<Element>().FirstOrDefault(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                        try { panelEl = sys.BaseEquipment; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        try { loadEl = sys.Elements?.Cast<Element>().FirstOrDefault(); } catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); }
+                        try { panelEl = sys.BaseEquipment; } catch (Exception ex4) { StingLog.Warn($"Suppressed: {ex4.Message}"); }
                         if (loadEl == null || panelEl == null) continue;
 
                         var startPt = (loadEl.Location as LocationPoint)?.Point;
@@ -156,11 +156,11 @@ namespace StingTools.Commands.Electrical.Routing
                                                 System.Globalization.CultureInfo.InvariantCulture),
                                             overwrite: true);
                                     }
-                                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                                    catch (Exception ex5) { StingLog.Warn($"Suppressed: {ex5.Message}"); }
                                     routeIds.Add(conduit.Id.Value);
                                 }
                             }
-                            catch (Exception ex) { StingLog.Warn($"Conduit.Create: {ex.Message}"); }
+                            catch (Exception ex5) { StingLog.Warn($"Conduit.Create: {ex5.Message}"); }
                         }
                         if (routeIds.Count > 0)
                         {
@@ -168,7 +168,7 @@ namespace StingTools.Commands.Electrical.Routing
                             routed++;
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"AutoRoute cable {cable.CircuitId}: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"AutoRoute cable {cable.CircuitId}: {ex2.Message}"); }
                 }
                 tx.Commit();
             }
@@ -238,7 +238,7 @@ namespace StingTools.Commands.Electrical.Routing
                                 }
                             }
                         }
-                        catch (Exception ex) { StingLog.Warn($"JB → manifest sync: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"JB → manifest sync: {ex2.Message}"); }
 
                         tx2.Commit();
                     }
@@ -285,7 +285,7 @@ namespace StingTools.Commands.Electrical.Routing
                             if (place.Placed > 0)
                                 StingLog.Info($"FRP placer: placed {place.Placed} family instance(s).");
                         }
-                        catch (Exception ex) { StingLog.Warn($"FrpPenetrationPlacer: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"FrpPenetrationPlacer: {ex2.Message}"); }
 
                         tx2.Commit();
                     }

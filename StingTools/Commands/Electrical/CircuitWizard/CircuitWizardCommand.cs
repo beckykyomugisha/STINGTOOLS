@@ -107,7 +107,7 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                                     set.Insert(c2);
                                     sys.Add(set);
                                 }
-                                catch (Exception ex) { StingLog.Warn($"Add connector to circuit: {ex.Message}"); }
+                                catch (Exception ex2) { StingLog.Warn($"Add connector to circuit: {ex2.Message}"); }
                             }
 
                             try { sys.SelectPanel(panel); }
@@ -142,7 +142,7 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                                         }
                                     }
                                 }
-                                catch (Exception ex) { StingLog.Info($"Phase param write soft-fail: {ex.Message}"); }
+                                catch (Exception ex2) { StingLog.Info($"Phase param write soft-fail: {ex2.Message}"); }
                             }
                             try { sys.LoadName = proposal.ProposedLabel; }
                             catch (Exception ex) { StingLog.Warn($"LoadName: {ex.Message}"); }
@@ -157,7 +157,7 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                                 {
                                     CircuitWizardEngine.RecalculateCircuit(proposal, PendingOptions, null);
                                 }
-                                catch (Exception ex) { StingLog.Warn($"RecalculateCircuit post-create: {ex.Message}"); }
+                                catch (Exception ex2) { StingLog.Warn($"RecalculateCircuit post-create: {ex2.Message}"); }
                             }
 
                             tx.Commit();
@@ -167,7 +167,7 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                         {
                             StingLog.Error($"Create circuit {proposal.ProposedLabel}: {ex.Message}", ex);
                             failed.Add($"{proposal.ProposedLabel}: {ex.Message}");
-                            try { if (tx.HasStarted()) tx.RollBack(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            try { if (tx.HasStarted()) tx.RollBack(); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                         }
                     }
                 }

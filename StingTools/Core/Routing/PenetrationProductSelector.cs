@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — PenetrationProductSelector.
 //
 // Phase 178f + Phase 179 — picks the right penetration product family

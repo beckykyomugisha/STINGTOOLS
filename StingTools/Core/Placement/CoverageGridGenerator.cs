@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139 D2 — Coverage grid generator.
 //
 // For rules with GuaranteeCoverage=true and CoverageRadiusMm>0.
@@ -9,6 +10,7 @@ using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
+using System.Linq;
 
 namespace StingTools.Core.Placement
 {
