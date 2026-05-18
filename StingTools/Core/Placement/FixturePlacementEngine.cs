@@ -519,8 +519,6 @@ namespace StingTools.Core.Placement
         {
             string roomKey = $"{room.Id}::{SafeRoomName(room)}";
             int alreadyInRoom = result.CountsByRoom.ContainsKey(roomKey) ? result.CountsByRoom[roomKey] : 0;
-            var diagRoom = result.Diag(rule.MergeKey);
-
             // Phase 139.27 — per-rule diagnostic entry for this room+rule pair.
             var diagRoom = result.Diag(rule.MergeKey);
 

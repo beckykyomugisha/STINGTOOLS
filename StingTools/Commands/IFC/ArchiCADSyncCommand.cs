@@ -69,14 +69,14 @@ namespace StingTools.Commands.IFC
         private static string ResolveDropFolder(Document doc)
         {
             // User-overridable via ProjectInformation parameter.
-            string custom = doc.ProjectInformation?
+            string? custom = doc.ProjectInformation?
                 .LookupParameter("IFC_DROP_FOLDER_TXT")?.AsString();
 
             if (!string.IsNullOrWhiteSpace(custom) && Directory.Exists(custom))
                 return custom;
 
             // Default: alongside the .rvt file.
-            string rvtDir = Path.GetDirectoryName(doc.PathName);
+            string? rvtDir = Path.GetDirectoryName(doc.PathName);
             if (!string.IsNullOrWhiteSpace(rvtDir))
                 return Path.Combine(rvtDir, "_ifc_drop");
 

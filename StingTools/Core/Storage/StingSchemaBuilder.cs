@@ -48,7 +48,7 @@ namespace StingTools.Core.Storage
         /// Resolve the stale-flag schema, creating it on first access per-document.
         /// Safe to call repeatedly — Schema.Lookup is cheap.
         /// </summary>
-        public static Schema GetOrCreateStaleSchema()
+        public static Schema? GetOrCreateStaleSchema()
         {
             try
             {
