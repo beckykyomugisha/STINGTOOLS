@@ -4753,3 +4753,43 @@ yields the same id (re-runs are idempotent).
 1. Built without `dotnet build` verification (Linux sandbox).
 2. Adding a shared parameter to `MR_PARAMETERS.txt` defines its GUID + name + group, but Revit still needs to *bind* the parameter to a category before instances can read or write it. `CATEGORY_BINDINGS.csv` is the binding layer; this phase only adds the definitions. Wiring the 11 new params to `Ducts` / `Pipes` / `Mechanical Equipment` / `Project Information` happens on the next pass — until then `ParameterHelpers.SetString` writes are silently dropped, exactly as documented in the Phase 183 caveats.
 3. The Revit shared-parameter file convention uses `TYPE=TEXT` for every parameter regardless of semantic type (`_NR`, `_BOOL`, `_DT`); STING shares this convention. Runtime conversion lives in `ParameterHelpers.GetInt/GetDouble`.
+
+#### Completed (Phase 185 — category bindings for the 11 new HVAC params)
+
+**Scope**: closes the Phase 184 caveat — adds 19 `CATEGORY_BINDINGS.csv`
+rows so the 11 new shared parameters actually attach to their target
+Revit categories. After this, `ParameterHelpers.SetString` writes from
+`MepAutoSizeDuct/Pipe`, `HvacDetectStaleSizes`, `HvacPressureClassAudit`,
+`HvacCarbonReport` and `HvacSegmentRoleDetector` land on real
+instance/type parameters instead of degrading silently.
+
+**Binding decisions**:
+
+| Parameter | Categories | Binding | Rationale |
+|---|---|---|---|
+| `HVC_SEGMENT_ROLE_TXT`         | Ducts, Flex Ducts                      | Instance | Each duct segment has its own role |
+| `HVC_SIZE_PREV_TXT`            | Ducts, Flex Ducts                      | Instance | Per-element audit trail |
+| `HVC_SIZE_MODIFIED_DT`         | Ducts, Flex Ducts                      | Instance | Per-element audit trail |
+| `HVC_SIZE_RULE_ID_TXT`         | Ducts, Flex Ducts                      | Instance | Per-element audit trail |
+| `HVC_PIPE_SERVICE_TXT`         | Pipes, Flex Pipes                      | Instance | Service detected per pipe |
+| `HVC_PRESSURE_CLASS_TXT`       | Ducts, Flex Ducts                      | Instance | Sizing-time class stamp |
+| `HVC_SIZE_STALE_BOOL`          | Ducts, Flex Ducts                      | Instance | Per-element drift flag |
+| `HVC_REFRIGERANT_KG_NR`        | Mechanical Equipment                   | Type     | Per equipment family/type |
+| `HVC_REFRIGERANT_TYPE_TXT`     | Mechanical Equipment                   | Type     | Per equipment family/type |
+| `HVC_CAPACITY_KW`              | Mechanical Equipment, Air Terminals    | Type     | VRF indoor units register as terminals; FCU/VAV likewise |
+| `PRJ_ORG_PRESSURE_PROFILE_TXT` | Project Information                    | Instance | Project-level singleton |
+
+**Total**: 19 new binding rows across 11 parameters.
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Data/CATEGORY_BINDINGS.csv` | +19 rows; header bumped to v3.2 |
+| `docs/CHANGELOG.md` | this entry |
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `ParameterHelpers.SetString` honours each parameter's Instance vs Type binding semantics — writing to a Type-bound parameter from a code path that holds an `Element` (instance) goes through `Element.LookupParameter`, which finds the type's parameter automatically. Writing to an Instance-bound parameter from a Type code path won't work; the HVAC commands all hold instances so this hazard doesn't arise.
+3. The Revit shared-parameter file (`MR_PARAMETERS.txt`) plus this binding CSV together form the "load shared parameters" pipeline run by `LoadSharedParamsCommand` (`Tags/LoadSharedParamsCommand.cs`). Projects opened before Phase 184/185 need to re-run `LoadSharedParams` to bind the new params.

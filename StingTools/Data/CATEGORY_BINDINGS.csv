@@ -1,3 +1,4 @@
+# v3.2 | 20260518 | BIM Template category_bindings (+19: HVAC sizing audit trail, pipe service, pressure class, refrigerant, capacity — Phase 184 alignment with MR_PARAMETERS.txt v5.12)
 # v3.1 | 20260517 | BIM Template category_bindings (+134: ASS_ITEM_CODE/SYSTEMS/TERM/TRACE, HVC_DCT_INSULATION, BLE_CBL_TRAY dims, MEC_SYS, PLM_SYS — Phase 179 alignment)
 Parameter_Name,Revit_Category,Binding_Type,Is_Shared
 ASS_CAT_TXT,Air Terminals,Type,True
@@ -16262,3 +16263,22 @@ PLM_SYS_TXT,Pipes,Instance,True
 PLM_SYS_TXT,Plumbing Equipment,Instance,True
 PLM_SYS_TXT,Plumbing Fixtures,Instance,True
 PLM_SYS_TXT,Sprinklers,Instance,True
+HVC_SEGMENT_ROLE_TXT,Ducts,Instance,True
+HVC_SEGMENT_ROLE_TXT,Flex Ducts,Instance,True
+HVC_SIZE_PREV_TXT,Ducts,Instance,True
+HVC_SIZE_PREV_TXT,Flex Ducts,Instance,True
+HVC_SIZE_MODIFIED_DT,Ducts,Instance,True
+HVC_SIZE_MODIFIED_DT,Flex Ducts,Instance,True
+HVC_SIZE_RULE_ID_TXT,Ducts,Instance,True
+HVC_SIZE_RULE_ID_TXT,Flex Ducts,Instance,True
+HVC_PIPE_SERVICE_TXT,Pipes,Instance,True
+HVC_PIPE_SERVICE_TXT,Flex Pipes,Instance,True
+HVC_PRESSURE_CLASS_TXT,Ducts,Instance,True
+HVC_PRESSURE_CLASS_TXT,Flex Ducts,Instance,True
+HVC_SIZE_STALE_BOOL,Ducts,Instance,True
+HVC_SIZE_STALE_BOOL,Flex Ducts,Instance,True
+HVC_REFRIGERANT_KG_NR,Mechanical Equipment,Type,True
+HVC_REFRIGERANT_TYPE_TXT,Mechanical Equipment,Type,True
+HVC_CAPACITY_KW,Mechanical Equipment,Type,True
+HVC_CAPACITY_KW,Air Terminals,Type,True
+PRJ_ORG_PRESSURE_PROFILE_TXT,Project Information,Instance,True
