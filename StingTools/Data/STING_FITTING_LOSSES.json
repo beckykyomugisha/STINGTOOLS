@@ -1,0 +1,46 @@
+{
+  "_schema": "STING_FITTING_LOSSES",
+  "_version": "1.0",
+  "_notes": [
+    "Project-overrideable loss coefficients for MEP fittings.",
+    "Loaded lazily by Model/MEPIntelligenceEngine.cs FittingLossCalculator on first call.",
+    "JSON entries shadow the hardcoded baseline; missing types fall back to the in-code dictionary.",
+    "Project override lives at <project>/_BIM_COORD/fitting_losses.json (loader honour pattern is the same as MepSizingRegistry).",
+    "Standards: CIBSE Guide C, SMACNA DW/144, ASHRAE Handbook of Fundamentals Chapter 21 (Duct Design)."
+  ],
+
+  "fittings": [
+    { "id": "Elbow90",         "kv": 1.20, "equivLengthM": 3.0,  "standard": "DW/144" },
+    { "id": "Elbow45",         "kv": 0.50, "equivLengthM": 1.5,  "standard": "DW/144" },
+    { "id": "Elbow90Radius",   "kv": 0.30, "equivLengthM": 1.0,  "standard": "DW/144" },
+    { "id": "TeeStraight",     "kv": 0.30, "equivLengthM": 1.5,  "standard": "ASHRAE" },
+    { "id": "TeeBranch",       "kv": 1.80, "equivLengthM": 6.0,  "standard": "ASHRAE" },
+    { "id": "Reducer",         "kv": 0.15, "equivLengthM": 0.5,  "standard": "DW/144" },
+    { "id": "Expander",        "kv": 0.40, "equivLengthM": 1.2,  "standard": "DW/144" },
+    { "id": "Damper",          "kv": 0.52, "equivLengthM": 2.0,  "standard": "CIBSE Guide C" },
+    { "id": "FireDamper",      "kv": 0.80, "equivLengthM": 3.0,  "standard": "DW/144" },
+    { "id": "BalancingDamper", "kv": 2.00, "equivLengthM": 5.0,  "standard": "CIBSE Guide C" },
+    { "id": "Filter",          "kv": 3.00, "equivLengthM": 10.0, "standard": "ASHRAE" },
+    { "id": "Coil",            "kv": 4.00, "equivLengthM": 12.0, "standard": "ASHRAE" },
+    { "id": "Grille",          "kv": 2.50, "equivLengthM": 8.0,  "standard": "CIBSE Guide C" },
+    { "id": "Diffuser",        "kv": 1.50, "equivLengthM": 5.0,  "standard": "CIBSE Guide C" },
+    { "id": "Silencer",        "kv": 1.00, "equivLengthM": 4.0,  "standard": "CIBSE Guide C" },
+    { "id": "FlexDuct",        "kv": 2.00, "equivLengthM": 6.0,  "standard": "DW/144" },
+
+    { "id": "ElbowPipe90",     "kv": 0.90, "equivLengthM": 1.5,  "standard": "CIBSE Guide C" },
+    { "id": "ElbowPipe45",     "kv": 0.40, "equivLengthM": 0.8,  "standard": "CIBSE Guide C" },
+    { "id": "BallValve",       "kv": 0.05, "equivLengthM": 0.2,  "standard": "CIBSE Guide C" },
+    { "id": "GateValve",       "kv": 0.12, "equivLengthM": 0.4,  "standard": "CIBSE Guide C" },
+    { "id": "CheckValve",      "kv": 2.50, "equivLengthM": 5.0,  "standard": "CIBSE Guide C" },
+    { "id": "ButterflyValve",  "kv": 0.30, "equivLengthM": 1.0,  "standard": "CIBSE Guide C" },
+    { "id": "Strainer",        "kv": 2.00, "equivLengthM": 5.0,  "standard": "CIBSE Guide C" },
+    { "id": "Entry",           "kv": 0.50, "equivLengthM": 1.0,  "standard": "CIBSE Guide C" },
+    { "id": "Exit",            "kv": 1.00, "equivLengthM": 2.0,  "standard": "CIBSE Guide C" },
+    { "id": "TeePipeStraight", "kv": 0.50, "equivLengthM": 2.0,  "standard": "CIBSE Guide C" },
+    { "id": "TeePipeBranch",   "kv": 1.50, "equivLengthM": 5.0,  "standard": "CIBSE Guide C" },
+    { "id": "ReducerPipe",     "kv": 0.15, "equivLengthM": 0.5,  "standard": "CIBSE Guide C" },
+    { "id": "TeeValve",        "kv": 5.00, "equivLengthM": 12.0, "standard": "CIBSE Guide C" },
+    { "id": "PressureReducer", "kv": 8.00, "equivLengthM": 20.0, "standard": "CIBSE Guide C" },
+    { "id": "FlowMeter",       "kv": 3.50, "equivLengthM": 10.0, "standard": "CIBSE Guide C" }
+  ]
+}

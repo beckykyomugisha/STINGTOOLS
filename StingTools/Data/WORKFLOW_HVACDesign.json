@@ -1,0 +1,21 @@
+{
+  "id": "HVACDesign",
+  "label": "HVAC — Design pass",
+  "description": "Audit topology → auto-size ducts → balance system → NC check → validate. The standard HVAC engineer's pre-issue sequence. Respects the active scope and sizing-strategy radio set on the HVAC dock panel.",
+  "discipline": "Mechanical",
+  "icon": "❄",
+  "steps": [
+    { "commandTag": "Hvac_SystemAudit",     "label": "System topology audit" },
+    { "commandTag": "Hvac_ConnectionAudit", "label": "Connector graph audit" },
+    { "commandTag": "Hvac_AutoSizeDuct",    "label": "Auto-size ducts (strategy + scope from HVAC panel)" },
+    { "commandTag": "Hvac_HardyCross",      "label": "Hardy-Cross balance" },
+    { "commandTag": "Mep_VibroAcoustic",    "label": "NC rating per branch" },
+    { "commandTag": "Hvac_RunAllValidators","label": "Run v4 validators (+ healthcare if applicable)" },
+    { "commandTag": "Hvac_EquipmentSchedule","label": "Refresh mechanical equipment schedule" }
+  ],
+  "notes": [
+    "Each step opens its own transaction; on cancel the partial work commits but later steps are skipped.",
+    "The HVAC panel WorkflowGrid records every step + status.",
+    "Edit <project>/_BIM_COORD/workflow_overrides.json to swap individual steps for project-specific commands."
+  ]
+}

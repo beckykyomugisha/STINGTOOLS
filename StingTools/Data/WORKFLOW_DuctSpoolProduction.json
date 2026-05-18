@@ -1,0 +1,21 @@
+{
+  "id": "DuctSpoolProduction",
+  "label": "HVAC — Duct spool pack",
+  "description": "Build duct assemblies → seam audit (SMACNA) → flange + hanger schedules → cut list → NC machine file → isometrics. The end-of-design hand-off pack a fabrication shop needs.",
+  "discipline": "Mechanical",
+  "icon": "❄",
+  "steps": [
+    { "commandTag": "Fabrication_OpenWorkspace",    "label": "Open fabrication workspace + build assemblies" },
+    { "commandTag": "Hvac_DuctSeamAudit",           "label": "SMACNA seam tally per spool" },
+    { "commandTag": "Hvac_FlangeRating",            "label": "Flange rating audit" },
+    { "commandTag": "Hvac_HangerTakedown",          "label": "Hanger schedule (DW/144 spacing)" },
+    { "commandTag": "Hvac_SpoolWeight",             "label": "Per-spool weight + material total" },
+    { "commandTag": "Hvac_ExportCutList",           "label": "Cut list CSV" },
+    { "commandTag": "Hvac_ExportIsometrics",        "label": "ISO 6412 isometrics" },
+    { "commandTag": "Hvac_ExportNC",                "label": "NC machine file (LVD / Plasma)" }
+  ],
+  "notes": [
+    "Each export honours OutputLocationHelper.GetOutputDirectory(doc) so files land alongside the project.",
+    "Re-running is idempotent; existing files are versioned by timestamp."
+  ]
+}

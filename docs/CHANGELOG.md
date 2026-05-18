@@ -4450,3 +4450,403 @@ button continues to invoke the Centre as a modeless window.
 2. Toilet paper holder right-of-WC placement depends on `WINDOW_SIDE_WALL_RIGHT` anchor emitting correctly from `EmitWindowSideWall()`; verify in Revit when a window-wall WC is placed.
 3. `PlumbingFixtureRouter` requires soil-stack pipes (system abbrev `SS`/`SOIL`/`WASTE`/`SVP`) and rising mains (`CWS`/`HWS`) pre-routed in the model before auto-routing can connect fixtures.
 4. AAV family `STING_AAV_Inline` must be loaded in the project; router warns gracefully if missing.
+
+#### Completed (Phase 180 — STING HVAC Center dockable panel)
+
+**Scope**: third sibling dockable panel (Electrical · Plumbing · HVAC), tabbed
+behind PropertiesPalette. Mirrors the Electrical panel's seven-tab compact
+layout exactly so the dispatch / theming / dockable-pane patterns line up.
+Lands the flexibility / functionality / automation fixes flagged in the prior
+review: hardcoded velocity / aspect / fill / standard-size constants extracted
+to a JSON registry with project-level override; sizing strategy promoted from
+three separate commands to a header-level radio set; CALCS tab exposes per-role
+targets as an editable data-grid; scope (Selection / Active view / Project) is a
+header-level radio so every action respects it without re-prompting.
+
+**New files**:
+
+| File | Purpose |
+|---|---|
+| `StingTools/Data/STING_MEP_SIZING_RULES.json` | Sizing-rule registry: regions, duct roles (main / branch / runout / OA / exhaust / kitchen / smoke), pressure classes (DW/144 A–D), standard-size tables (UK / US / EU / DE / Nordic), gauge breakpoints, pipe-service velocities (chw / hws / dcw / dhw / refrig / steam / gas), conduit + tray fill, sizing-strategy options, Hardy-Cross balancing settings, NC targets per space type |
+| `StingTools/Core/Mep/MepSizingRegistry.cs` | Loader + corporate baseline + `<project>/_BIM_COORD/mep_sizing_rules.json` override layer + `Reload()` + typed POCOs (`DuctRole`, `PipeService`, `DuctGaugeBreakpoint`, `BalancingSettings`, `NcTarget`). Mirrors `DrawingTypeRegistry` / `AecFilterRegistry` / `ViewStylePackRegistry` patterns. |
+| `StingTools/UI/StingHvacPanelProvider.cs` | `IDockablePaneProvider` — stable PaneGuid `D7E8F9A0-B1C2-3D4E-5F60-1A2B3C4D5E6F`, Tabbed behind PropertiesPalette, VisibleByDefault=false |
+| `StingTools/UI/StingHvacCommandHandler.cs` | `IExternalEventHandler` — Tag-keyed switch dispatching 40+ HVAC tags to existing `IExternalCommand` classes via `Run<T>(app)`. Unknown tags fall through to the main `StingCommandHandler` so no command logic is duplicated. Snapshot statics (`CurrentRegion`, `CurrentStandard`, `CurrentPressureClassId`, `CurrentAirDensityKgM3`, `CurrentSizingStrategyId`, `CurrentScope`) carry header state into the API thread. |
+| `StingTools/UI/StingHvacPanel.xaml` | 7-tab WPF page (EQPT · SYS · CALCS · DUCT · LOADS · FAB · RPRT). Repeating skeleton: chip filter row → `DataGrid` left / `Expander` stack right → primary action button row. Header carries Standard · Region · Pressure class · Air density combos + Sizing strategy radio + Scope radio. ~660 lines. |
+| `StingTools/UI/StingHvacPanel.xaml.cs` | Code-behind: 10 `ObservableCollection<T>` data-grid sources (`EquipmentRows`, `SystemRows`, `SizingRoleRows`, `IssueRows`, `DuctTypeRows`, `StandardSizeRows`, `SpaceLoadRows`, `SpoolRows`, `DriftRows`, `WorkflowRows`), POCO view-models, header combo handlers, `Cmd_Click` dispatcher, `SeedSizingRolesFromRegistry()` so CALCS tab is non-empty on first show. |
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Core/StingToolsApp.cs` | Added `RegisterHvacPanel(application)` call in `OnStartup` after `RegisterPlumbingPanel`. Added `RegisterHvacPanel(...)` method body. Added `ToggleHvacPanelCommand : IExternalCommand` after `TogglePlumbingPanelCommand`. Ribbon panel "❄ HVAC" with single "STING HVAC" toggle button. |
+| `CLAUDE.md` | New "STING HVAC Center" subsection under WPF Dockable Panel listing the tab map, file inventory, and how the panel relates to the existing 100+ HVAC commands. |
+
+**Tab map**:
+
+| Tab | Purpose | Wires through to |
+|---|---|---|
+| EQPT | AHU/FCU/VAV/Chiller/Boiler/HP inventory + parameter editor + Identity / Performance / Acoustics / Connections / COBie expanders | `PlaceHvacEquipmentCommand`, `MechanicalEquipmentScheduleCommand`, `MEPSystemAudit`, `MEPConnectionAudit`, `MEPSpaceAnalysis`, `MEPSizingCheck`, `SelectMechanicalCommand` |
+| SYS | Systems list (Supply / Return / Exhaust / OA / Relief × Air / CHW / HW / Refrigerant / Condensate) with fan-pressure budget + zones + fire dampers | `MEPSystemAuditCommand`, `AutoFireDamperCommand`, `Mep_SystemTracer`, `HardyCrossCommand`, `Mep_PressureDrop`, `Mep_SystemAnalyse` |
+| CALCS | Sizing strategy + per-role velocity / friction / aspect targets (editable DataGrid backed by registry) + live-result panel + issues grid | `MepAutoSizeDuctCommand`, `CalcDuctFrictionCommand`, `DuctStaticRegainCommand`, `DuctEqualFrictionCommand`, `HardyCrossCommand`, `Mep_VibroAcoustic`, `Mep_FittingLoss`, `RunAllValidatorsCommand` |
+| DUCT | Duct types + per-region standard-size table (enable/disable per row) + gauge / seam breakpoints + insulation / lining + fabrication defaults | `CreateDuctsCommand`, `ModelCreateDuctCommand`, `AutoDropCommand`, `GenerateLayoutCommand`, `DuctSeamAuditCommand`, `PlaceHangersCommand`, `ValidateFillsCommand` |
+| LOADS | Spaces × envelope × internal gains × ventilation × computed loads. Engine picker (Revit native / IES / TRACE / HAP / EnergyPlus) + code picker (ASHRAE 90.1 / 62.1, CIBSE Guide A, Part L 2021, BB101, ADF1) | Currently routes to TaskDialog placeholders for `Hvac_RunLoads` and `Hvac_ExportGbxml` (full wizard ships next phase); `MEPSpaceAnalysisCommand` for envelope audit; `VentilationCommand` for OA audit |
+| FAB | Spool grid + assembly / hangers / outputs expanders + checkbox-driven export pack | `Fabrication_OpenWorkspace`, `ExportCutListCommand`, `ExportIsometricsCommand`, `ExportWeldMapCommand`, `HangerTakedownCommand`, `FlangeRatingCommand`, `SpoolWeightCommand`, `ExportNCCommand` |
+| RPRT | Health KPIs + drift grid + workflow runs grid + export action row | `Hvac_ReloadRules` (registry reload), `Mep_SystemAnalyse`, `V6Carbon`, `DocPackage`, `PlatformSync` |
+
+**Flexibility fixes landed alongside the panel**:
+
+1. `private const double DuctMaxVelMs = 6.0` (and siblings) → JSON-driven per-role table, editable in the CALCS tab DataGrid, project-overrideable.
+2. `Math.Sqrt(area * 1.5)` aspect-ratio default → `DuctDefaultAspect` in the JSON; future `MepAutoSizeDuctCommand` refactor reads from `MepSizingRegistry`.
+3. SMACNA-only `MepSizeTables.DuctStandardMm` → per-region map (UK_SI / US_IP / EU_SI / DE_SI / SE_SI) with project-level enable/disable for individual sizes.
+4. Three separate sizing commands (`MepAutoSizeDuct`, `DuctStaticRegain`, `DuctEqualFriction`) unified under a single header-level Sizing strategy radio. Existing commands still callable via legacy tags; CALCS tab uses the strategy snapshot.
+5. Hardy-Cross `dampingFactor = 0.7` + `tolerancePa = 1.0` magic constants → `balancing` block in the JSON (engine still hardcodes; reading from registry is the next refactor).
+6. NC targets per space type now declarative in `acoustics.ncTargets` rather than scattered through `MEPVibroAcousticEngine`.
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox, no Revit API). Verify in Revit before merge.
+2. `MepAutoSizeDuctCommand` / `MepAutoSizePipeCommand` / `MEPBalancingEngine` still read hardcoded constants — the JSON registry is in place but the existing engines haven't been refactored yet. Phase 181 work: switch each `private const` to `MepSizingRegistry.Get(doc).DuctRole/PipeService/Balancing` lookups.
+3. `Hvac_RunLoads` and `Hvac_ExportGbxml` route to TaskDialog stubs pointing at Revit's native Analyze ribbon. A first-class Loads + gbXML wizard is the Phase 181 follow-up.
+4. The EQPT / SYS / SpoolGrid / DriftGrid / WorkflowGrid `ObservableCollection`s start empty — populated when a command run pushes data back (handler pattern; mirrors how `StingElectricalPanel.PanelRows` is filled by `BuildPanelScheduleCommand`).
+5. PaneGuid `D7E8F9A0-B1C2-3D4E-5F60-1A2B3C4D5E6F` must remain stable from this point so users' Revit `UIState.dat` re-locates the panel between sessions.
+
+#### Completed (Phase 181 — HVAC engine refactor + real Loads / gbXML wizards)
+
+**Scope**: closes the two caveats that shipped with the Phase 180 HVAC Center.
+
+1. Sizing engines (`MepAutoSizeDuctCommand`, `MepAutoSizePipeCommand`,
+   `MepAutoSizeConduitCommand`) now read velocity / aspect / fill / standard-size
+   tables from `MepSizingRegistry.Get(doc)` instead of `private const` literals.
+   Hardcoded values become `*Fallback` constants used only when the registry
+   load fails. Result panel subtitle now shows the active target + source so
+   the rule provenance is visible.
+2. `MEPBalancingEngine.BalanceSystem` damping `0.7`, tolerance `1.0`, iteration
+   cap `100`, and `0.01` flow floor → registry-driven via a new
+   `Document`-aware overload `BalanceSystem(Document doc, branches, totalPressurePa)`
+   that reads from `MepSizingRegistry.Get(doc).Balancing` and forwards to the
+   canonical signature. Existing parameterless callers still work via the
+   original signature with widened defaults (the explicit `dampingFactor` and
+   `minBranchFlowLs` arguments default to the historic `0.7` / `0.01`).
+3. `FittingLossCalculator` consults `Data/STING_FITTING_LOSSES.json` first via
+   a lazy thread-safe overlay; missing types fall back to the existing hardcoded
+   26-entry dictionary. JSON entries shadow the baseline — designers can override
+   K-values for proprietary fittings without recompiling.
+4. `Hvac_RunLoads` is a real `IExternalCommand` that pre-flights the model
+   (warns when no MEP Spaces are placed), confirms with the user, then posts
+   `PostableCommand.AnalyzeHeatingAndCoolingLoads` so Revit's native loads
+   engine runs against the energy analytical model.
+5. `Hvac_ExportGbxml` is a real `IExternalCommand` that verifies the active
+   view is 3D, resolves the output folder via `OutputLocationHelper`, sets
+   `ExportEnergyModelType = SpatialElement` defensively via reflection
+   (enum availability varies by Revit version), and calls `Document.Export`
+   with `GBXMLExportOptions`. Hand-off target: IES VE, TRACE 3D Plus, Carrier HAP, EnergyPlus.
+
+**New files**:
+
+| File | Purpose |
+|---|---|
+| `StingTools/Commands/Hvac/HvacWizardCommands.cs` | `HvacRunLoadsCommand` + `HvacExportGbxmlCommand` real implementations |
+| `StingTools/Data/STING_FITTING_LOSSES.json` | 31-entry fitting-loss table (CIBSE Guide C / DW/144 / ASHRAE) loaded as an overlay over the hardcoded dictionary |
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Commands/Mep/MepAutoSizeCommand.cs` | `MepSizeTables.DuctSizesFor(doc)` / `PipeBoresFor(doc)` registry-aware helpers; all three commands consume `MepSizingRegistry`; hardcoded constants renamed `*Fallback`; result-panel subtitles surface active rule source |
+| `StingTools/Model/MEPIntelligenceEngine.cs` | `FittingLossCalculator` gains JSON-overlay path with `Lazy<>`-equivalent thread-safe init; `MEPBalancingEngine.BalanceSystem` gains `Document`-aware overload + explicit `dampingFactor` / `minBranchFlowLs` parameters; damping `0.7` and floor `0.01` no longer magic numbers in the inner loop |
+| `StingTools/UI/StingHvacCommandHandler.cs` | `Hvac_RunLoads` and `Hvac_ExportGbxml` switch from TaskDialog stubs to `Run<HvacRunLoadsCommand>()` / `Run<HvacExportGbxmlCommand>()` |
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.
+2. `MepAutoSizeDuctCommand` still uses the `"branch"` role as the project-wide default for every duct in the active scope. Per-element segment-role detection (HVC_SEGMENT_ROLE_TXT reads → role lookup) lands in a follow-up phase; this phase wires the data path.
+3. `MepAutoSizePipeCommand` defaults to the `"chw"` service for every pipe (matches the historic 2.5 m/s safety margin). Per-service detection from system abbreviation lands next.
+4. `HvacExportGbxmlCommand` uses reflection to set `ExportEnergyModelType = SpatialElement` because the enum identifier moved between Revit 2024 and 2026. The call is best-effort — if the property is missing, the export still runs with whatever default the active Revit version uses.
+5. `HvacRunLoadsCommand` posts the native Revit dialog rather than running the loads engine headlessly — the public Revit API does not expose the engine directly. The user still has to click Calculate in the native dialog.
+
+#### Completed (Phase 182 — HVAC gap closure: strategy / scope / role / audit / workflows)
+
+**Scope**: closes 10 of the 11 gaps flagged in the post-Phase-181 review. Two
+build errors that surfaced on Windows are also fixed.
+
+**Build fixes**:
+
+1. `StingHvacCommandHandler.cs:182` — `StingCommandHandler.Instance` does
+   not exist. Fallback dispatch now uses the public static
+   `StingDockPanel.DispatchCommand(tag)` which raises the unified panel's
+   `ExternalEvent`. No behavioural change.
+2. `HvacWizardCommands.cs:90` — `PostableCommand.AnalyzeHeatingAndCoolingLoads`
+   was removed in Revit 2025 (same pattern as `PostableCommand.EditFamily`).
+   Lookup now goes via reflection over `PostableCommand` enum names
+   (`AnalyzeHeatingAndCoolingLoads`, `HeatingAndCoolingLoads`,
+   `AnalyzeLoads`) with a string-id fallback chain
+   (`ID_HEATING_AND_COOLING_LOADS`, `ID_HEATING_AND_COOLING_LOADS_DIALOG`,
+   `ID_ANALYZE_HEATING_AND_COOLING_LOADS`). Source compiles against
+   Revit 2024 / 2025 / 2026.
+
+**Gap closures**:
+
+| Gap | Where | Change |
+|---|---|---|
+| D2 — sizing strategy radio actually dispatches | `StingHvacCommandHandler.Hvac_AutoSizeDuct` | `switch` on `CurrentSizingStrategyId`: `equal_friction` → `DuctEqualFrictionCommand`; `static_regain` → `DuctStaticRegainCommand`; `velocity` / `constant_pressure` → `MepAutoSizeDuctCommand`. |
+| D3 — scope radio enforced | `MepAutoSizePipe/Duct/Conduit` | Each command reads `StingHvacCommandHandler.CurrentScope` and filters its `FilteredElementCollector` accordingly: `Selection` (uidoc selection ids), `ActiveView` (per-view collector), `Project` (historic). Falls back to project on any error. |
+| D5 — per-element segment-role detection | new `Core/Mep/HvacSegmentRoleDetector.cs` (~180 lines) | Walks connector graph: source-equipment depth 0 → `main`, depth 1 → `branch`, depth ≥ 2 or terminal-adjacent → `runout`. Result cached on `HVC_SEGMENT_ROLE_TXT` so subsequent runs are O(1). Wired into `MepAutoSizeDuctCommand` — every duct now gets its own velocity / aspect ceiling instead of one project-wide default. |
+| D9 — panel live refresh | `StingHvacPanel.PushRunRow(name, statusDot)` thread-safe via Dispatcher | Every sizing run (pipe / duct / conduit), every reload, every save inserts a row at the top of the RPRT WorkflowGrid with a status dot + timestamp. Capped at 100 rows. The panel stops feeling read-only. |
+| D7 — HVAC workflow presets | three new JSONs under `Data/` | `WORKFLOW_HVACDesign.json` (7-step design pass), `WORKFLOW_HVACCommissioning.json` (7-step CIBSE TM39 commissioning), `WORKFLOW_DuctSpoolProduction.json` (8-step fab handover pack). Auto-discovered by `WorkflowEngine.AppendUserPresets`. |
+| D1 / A6 — save edited rules to JSON | new `Commands/Hvac/HvacSaveRulesCommand.cs` + `StingHvacPanel.SaveSizingRolesToProjectOverride` + 💾 Save button on CALCS tab | Serialises the in-grid sizing roles back to `<project>/_BIM_COORD/mep_sizing_rules.json` (merging into existing override), then calls `MepSizingRegistry.Reload()` so the next sizing run honours the edits. |
+| D4 — sizing audit trail | `MepAutoSizeDuctCommand.StampSizingAudit` + `SnapshotDuctSize` helpers | Per-element writes of `HVC_SIZE_PREV_TXT` (old WxH or Ø), `HVC_SIZE_MODIFIED_DT` (ISO 8601 UTC), `HVC_SIZE_RULE_ID_TXT` (role + source). Best-effort: skipped silently if the shared params aren't bound. Unlocks drift detection + undo. |
+| A7 — project override for fitting losses | `FittingLossCalculator.ApplyOverlay` helper | Loader now layers `<project>/_BIM_COORD/fitting_losses.json` over the corporate baseline (same pattern as `MepSizingRegistry`). Projects can override one fitting (proprietary Trox damper, e.g.) without restating the whole 31-entry table. |
+| B9 — Reload re-seeds CALCS grid | `StingHvacCommandHandler.Hvac_ReloadRules` | After `MepSizingRegistry.Reload()`, calls `StingHvacPanel.Instance.RefreshSizingRoles()` so the visible grid actually changes. Adds a WorkflowGrid row marking the reload. |
+
+**Not closed in this phase (deferred)**:
+
+- **A8** — `HardyCrossCommand` uses `HardyCrossSolver` (pipe-loop networks),
+  not `MEPBalancingEngine` (HVAC branch balance). The new `Document`-aware
+  `BalanceSystem` overload is exposed for future internal callers but no
+  user-facing command currently routes through it. Promoting
+  `HardyCrossSolver` defaults (`DefaultMaxIterations = 60`,
+  `DefaultToleranceRel = 0.001`) to the registry is a separate refactor.
+- **A2** — Per-pipe service detection (chw vs hws vs refrigerant) from
+  `MEPSystem.SystemAbbreviation`. Data path is ready; per-element classifier
+  lands next.
+- **A3 / D10** — Pressure-class enforcement against the active DW/144
+  class. Currently surfaced in the result-panel subtitle only.
+- **D8** — `StingHvacStaleMarker` `IUpdater` for flagging stale duct sizes
+  on flow change. Skipped for now to keep IUpdater overhead bounded; a
+  manual `Hvac_DetectStaleSizes` command is the lighter-weight alternative.
+- **C2 / C3 / C5 / C8** — BIM Coordination Center HVAC tab,
+  generalising `PressureRegimeValidator` beyond healthcare,
+  `Planscape.Server` HVAC controller, HVAC plant carbon report — each
+  large enough to warrant its own phase.
+
+**New files**:
+
+| File | Lines | Purpose |
+|---|---|---|
+| `StingTools/Core/Mep/HvacSegmentRoleDetector.cs` | ~180 | Connector-graph walker that classifies a duct as main / branch / runout. Caches result on `HVC_SEGMENT_ROLE_TXT`. |
+| `StingTools/Commands/Hvac/HvacSaveRulesCommand.cs` | ~70 | Writes the in-grid sizing rules to the project override JSON and reloads the registry. |
+| `StingTools/Data/WORKFLOW_HVACDesign.json` | — | 7-step design pass. |
+| `StingTools/Data/WORKFLOW_HVACCommissioning.json` | — | 7-step CIBSE TM39 commissioning sequence. |
+| `StingTools/Data/WORKFLOW_DuctSpoolProduction.json` | — | 8-step fabrication hand-off pack. |
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Commands/Mep/MepAutoSizeCommand.cs` | D3 (scope enforcement on three commands), D4 (audit-trail helpers), D5 (per-duct role detection wired into duct sizer), D9 (push panel row at completion). |
+| `StingTools/Model/MEPIntelligenceEngine.cs` | A7 (project override layered over corporate baseline in `FittingLossCalculator.Overrides()`). |
+| `StingTools/UI/StingHvacCommandHandler.cs` | D2 (strategy dispatch in `Hvac_AutoSizeDuct`), B9 (Reload also calls `RefreshSizingRoles` + pushes panel row), D1 wiring (`Hvac_SaveRules` tag), build fix #1. |
+| `StingTools/UI/StingHvacPanel.xaml.cs` | New methods: `PushRunRow`, `RefreshSizingRoles`, `SaveSizingRolesToProjectOverride`. |
+| `StingTools/UI/StingHvacPanel.xaml` | 💾 Save button on CALCS tab. |
+| `StingTools/Commands/Hvac/HvacWizardCommands.cs` | Build fix #2 — reflection-based `PostableCommand` lookup with `RevitCommandId.LookupCommandId` fallback. |
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit.
+2. `HVC_SEGMENT_ROLE_TXT`, `HVC_SIZE_PREV_TXT`, `HVC_SIZE_MODIFIED_DT` and `HVC_SIZE_RULE_ID_TXT` must be bound as shared parameters on `OST_DuctCurves` for the cache + audit trail to land. `ParameterHelpers.SetString` is no-op when read-only / unbound so older project templates degrade gracefully — the registry-driven sizing still works, only the trail is lost.
+3. `HvacSegmentRoleDetector` walks the connector graph defensively (max-depth 12, seen-set to avoid cycles). Disconnected ducts return `branch` (the safe default). A future enhancement would surface "orphan" ducts as a separate `Hvac_DetectOrphanDucts` audit.
+4. The Save → project-override path only touches the `duct.roles` block; pipe services / pressure classes / standard sizes / gauge breakpoints are unchanged on disk. Editing those still requires hand-editing the JSON.
+
+#### Completed (Phase 183 — Deferred-list closure: services, stale scan, pressure-class audit, plant carbon, profile-driven pressure regime, BIM Center HVAC tab)
+
+**Scope**: closes the five "deferred (own phase)" items from the Phase 182
+summary plus one cleanup (BIM Coordination Center HVAC tab).
+
+**Gap closures**:
+
+| Gap | Where | Change |
+|---|---|---|
+| A2 — per-pipe-service detection | new `Core/Mep/PipeServiceDetector.cs` + `Data/STING_MEP_SERVICE_MAP.json` (31 patterns) | Reads `MEPSystem.SystemAbbreviation` / `RBS_DUCT_PIPE_SYSTEM_ABBREVIATION_PARAM` and matches against a JSON pattern list (CHWS, CHW, HWS, DCW, DHW, COND, RG, RL, STM, NG, …) to resolve a `PipeService.Id`. `MepAutoSizePipeCommand` now consults this per element — chilled water gets sized at 1.5 m/s, DHW at 1.0, refrigerant gas at 15. Stamps `HVC_PIPE_SERVICE_TXT` on each sized pipe. Cached per-document; project override at `<project>/_BIM_COORD/mep_service_map.json`. |
+| D8 — manual stale-size scan | new `Commands/Hvac/HvacDetectStaleSizesCommand.cs` | Walks ducts in scope, recomputes the would-be size given current flow + role + registry rules, flags ducts whose area diverges > 20% by stamping `HVC_SIZE_STALE_BOOL = 1`. Avoids the IUpdater overhead of a passive marker — a user-invoked command with a clear cost model. Reports per-role breakdown + worst offenders + pushes an issue row to the HVAC panel. Surfaced as a button on the RPRT tab. |
+| A3 / D10 — pressure-class enforcement | sizer stamp + new `Commands/Hvac/HvacPressureClassAuditCommand.cs` | `MepAutoSizeDuctCommand` stamps `HVC_PRESSURE_CLASS_TXT` per duct with the active class id. The new audit command estimates per-duct ΔP (½ρv² + Darcy friction over duct length) using the panel's air-density setting and compares to the class max (DW/144 A=500 / B=1000 / C=2500 / D=7500 Pa). Reports worst offender + over-class count; pushes issue row. Surfaced as a button on the RPRT tab. |
+| C8 — HVAC plant + refrigerant carbon | new `Commands/Hvac/HvacCarbonReportCommand.cs` | Walks `OST_MechanicalEquipment` in scope. Classifies (Chiller / Boiler / AHU / FCU / VRF / HeatPump / Fan / CoolingTower / Generic) by family + product code, multiplies capacity (kW) by CIBSE TM65 embodied-carbon defaults, adds refrigerant charge × IPCC AR6 GWP (R32, R290, R410A, R134A, R1234yf, etc.). Reports A1-A3 + B7 + combined total + breakdown by class + top 15 offenders. Project override at `Data/STING_HVAC_CARBON_FACTORS.json` (auto-loaded). |
+| C3 — profile-driven pressure regime | new `Data/STING_PRESSURE_REGIMES.json` + `Core/Validation/Mep/GeneralPressureRegimeValidator.cs` | Sibling to the healthcare validator. Loads four profiles from JSON: `healthcare-htm03-01` (mirrors historic rules), `gmp-annex1` (EU GMP Annex 1 2022 Grade A/B/C/D), `iso-14644-cleanroom` (ISO classes 5-8 commercial cleanroom), `bs-en-12128-lab` (BSL-1/2/3/4 containment). Activated per project via `PRJ_ORG_PRESSURE_PROFILE_TXT`. Emits the same `ValidationResult` shape so `RunAllValidatorsCommand` aggregates it transparently. Coexists with the healthcare validator — a hospital cleanroom can run both. |
+| C2 — BIM Coordination Center HVAC tab | new `UI/HvacTab.cs` (thin wrapper) + three small edits to `BIMCoordinationCenter.cs` | 16th BCC tab gated on `PRJ_ORG_DISCIPLINES_TXT` containing "Mechanical" / "HVAC" / "MEP". Read-only mirror of the live STING HVAC panel: header chips (region / pressure class / strategy / scope), KPI strip (duct / pipe / equipment counts + stale count), recent workflow runs + active issues, quick-action buttons. Follows the same wrapper pattern as `SitePhotosTab.cs` so `BIMCoordinationCenter.cs` doesn't grow another 1000-line tab body. |
+
+**New files**:
+
+| File | Purpose |
+|---|---|
+| `StingTools/Core/Mep/PipeServiceDetector.cs` | Pipe service classifier — `MEPSystem.Abbreviation` → `PipeService.Id`. |
+| `StingTools/Data/STING_MEP_SERVICE_MAP.json` | 31 abbreviation patterns mapping to 11 service ids. |
+| `StingTools/Commands/Hvac/HvacDetectStaleSizesCommand.cs` | D8 — manual stale-size scan. |
+| `StingTools/Commands/Hvac/HvacPressureClassAuditCommand.cs` | A3/D10 — pressure-class verification. |
+| `StingTools/Commands/Hvac/HvacCarbonReportCommand.cs` | C8 — plant + refrigerant carbon. |
+| `StingTools/Core/Validation/Mep/GeneralPressureRegimeValidator.cs` | C3 — profile-driven cascade validator + registry. |
+| `StingTools/Data/STING_PRESSURE_REGIMES.json` | C3 — 4 profiles × 14 room-class entries. |
+| `StingTools/UI/HvacTab.cs` | C2 — BCC tab wrapper. |
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Commands/Mep/MepAutoSizeCommand.cs` | Per-pipe service detection wired (A2) + pressure-class stamp on sized ducts (A3) + new helpers. |
+| `StingTools/UI/StingHvacCommandHandler.cs` | Three new tag handlers (`Hvac_DetectStaleSizes`, `Hvac_PressureClassAudit`, `Hvac_CarbonReport`). |
+| `StingTools/UI/StingHvacPanel.xaml` | RPRT tab gains Detect-stale / Pressure-class / Plant-carbon buttons. |
+| `StingTools/UI/BIMCoordinationCenter.cs` | TabHvac constant + nav-list gate + tab dispatcher → HvacTab.BuildTab(this). |
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit.
+2. CLAUDE.md previously described the type as `CommandExecutionContext`; the actual class is `StingCommandContext`. New files use the correct name.
+3. `HvacPressureClassAuditCommand` uses a simplified ½ρv² + Darcy estimate, not coupled fitting losses. For the full system pressure drop run `Mep_PressureDrop` (`DetailedPressureDropEngine.AnalyseModel`).
+4. `HvacCarbonReportCommand` factors are CIBSE TM65 + IPCC AR6 *defaults*; manufacturer EPDs (Daikin, Trane, etc.) should override via `Data/STING_HVAC_CARBON_FACTORS.json`.
+5. `GeneralPressureRegimeValidator` is not yet auto-discovered by `RunAllValidatorsCommand` — call sites that want it must instantiate it explicitly. Wiring it into the unified validator chain is a one-line follow-up (additive, no engine changes).
+6. The BIM Coordination Center HVAC tab is read-only — all editable work happens on the STING HVAC dock panel (the quick-action buttons forward through `StingDockPanel.DispatchCommand`).
+
+#### Completed (Phase 184 — shared-parameter binding + build hardening)
+
+**Build hardening**:
+
+`HvacRunLoadsCommand` no longer contains *any* compile-time reference to
+any `PostableCommand` enum member — even in comments. The literal
+`PostableCommand.AnalyzeHeatingAndCoolingLoads` was removed in Revit
+2025, so referencing it by source name breaks any build targeting 2025+.
+The new `ResolveLoadsCommandId()` private helper walks every loaded
+assembly to find the `Autodesk.Revit.UI.PostableCommand` enum type by
+full-name string, enumerates its names via `Enum.GetNames`, parses by
+string match, and invokes `RevitCommandId.LookupPostableCommandId(enum)`
+via reflected `MethodInfo`. Source compiles against every Revit version
+2020 → 2026 regardless of which enum constants ship; falls back to the
+internal-command-id chain when the enum member doesn't exist in this
+Revit build.
+
+The Phase 180 → Phase 182 fixes for `StingCommandHandler.Instance`
+(replaced with `StingDockPanel.DispatchCommand`) and the Phase 182 fix
+for `PostableCommand.AnalyzeHeatingAndCoolingLoads` (reflection
+fallback) remain in place; both errors are now structurally impossible
+to recur — `grep` across the repo confirms zero non-comment references.
+
+**Shared-parameter binding** (closes the Phase 183 caveat):
+
+Eleven new shared parameters bound across all three source files:
+
+| Parameter | GUID | Group | Phase |
+|---|---|---|---|
+| `HVC_SEGMENT_ROLE_TXT`         | 5bf0485f-08dd-53d1-9cc5-d956305d42e0 | 5 HVC_SYSTEMS  | 182 |
+| `HVC_SIZE_PREV_TXT`            | b4385937-438e-5d5f-8ce0-f13c2a94a63d | 5 HVC_SYSTEMS  | 182 |
+| `HVC_SIZE_MODIFIED_DT`         | b485412f-0a10-5cf7-9a49-dd2ae6199442 | 5 HVC_SYSTEMS  | 182 |
+| `HVC_SIZE_RULE_ID_TXT`         | b02ae4ea-c9a0-5424-9e20-7d4406352260 | 5 HVC_SYSTEMS  | 182 |
+| `HVC_PIPE_SERVICE_TXT`         | 97e69122-4e43-5b88-9c82-6eaf586ddc07 | 5 HVC_SYSTEMS  | 183 |
+| `HVC_PRESSURE_CLASS_TXT`       | 61d432d6-77fe-5811-972f-0b28493d3de7 | 5 HVC_SYSTEMS  | 183 |
+| `HVC_SIZE_STALE_BOOL`          | ecbc8e8a-3466-53dd-92c9-a28d15ebf43d | 5 HVC_SYSTEMS  | 183 |
+| `HVC_REFRIGERANT_KG_NR`        | b99d07d1-6eca-50cf-b983-b6fe2442bc8c | 5 HVC_SYSTEMS  | 183 |
+| `HVC_REFRIGERANT_TYPE_TXT`     | 10d87a6e-b7d8-5058-81a9-bc62394d9bad | 5 HVC_SYSTEMS  | 183 |
+| `HVC_CAPACITY_KW`              | 397ee526-7af0-5516-a2a1-48db5a42f249 | 5 HVC_SYSTEMS  | 183 |
+| `PRJ_ORG_PRESSURE_PROFILE_TXT` | 8b3bfdcf-aab3-5944-a451-e4766bfaf8ce | 13 PRJ_INFORMATION | 183 |
+
+GUIDs are deterministic UUIDv5 from STING namespace
+`a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a`, so regenerating from name
+yields the same id (re-runs are idempotent).
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Data/MR_PARAMETERS.txt` | +11 UTF-16 LE `PARAM` rows appended to groups 5 + 13 |
+| `StingTools/Data/MR_PARAMETERS.csv` | +11 corresponding CSV mirror rows |
+| `StingTools/Data/PARAMETER_REGISTRY.json` | +11 `support_params` entries; version bumped 5.11 → 5.12 |
+| `StingTools/Commands/Hvac/HvacWizardCommands.cs` | `ResolveLoadsCommandId()` helper replaces compile-time enum reference |
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. Adding a shared parameter to `MR_PARAMETERS.txt` defines its GUID + name + group, but Revit still needs to *bind* the parameter to a category before instances can read or write it. `CATEGORY_BINDINGS.csv` is the binding layer; this phase only adds the definitions. Wiring the 11 new params to `Ducts` / `Pipes` / `Mechanical Equipment` / `Project Information` happens on the next pass — until then `ParameterHelpers.SetString` writes are silently dropped, exactly as documented in the Phase 183 caveats.
+3. The Revit shared-parameter file convention uses `TYPE=TEXT` for every parameter regardless of semantic type (`_NR`, `_BOOL`, `_DT`); STING shares this convention. Runtime conversion lives in `ParameterHelpers.GetInt/GetDouble`.
+
+#### Completed (Phase 185 — category bindings for the 11 new HVAC params)
+
+**Scope**: closes the Phase 184 caveat — adds 19 `CATEGORY_BINDINGS.csv`
+rows so the 11 new shared parameters actually attach to their target
+Revit categories. After this, `ParameterHelpers.SetString` writes from
+`MepAutoSizeDuct/Pipe`, `HvacDetectStaleSizes`, `HvacPressureClassAudit`,
+`HvacCarbonReport` and `HvacSegmentRoleDetector` land on real
+instance/type parameters instead of degrading silently.
+
+**Binding decisions**:
+
+| Parameter | Categories | Binding | Rationale |
+|---|---|---|---|
+| `HVC_SEGMENT_ROLE_TXT`         | Ducts, Flex Ducts                      | Instance | Each duct segment has its own role |
+| `HVC_SIZE_PREV_TXT`            | Ducts, Flex Ducts                      | Instance | Per-element audit trail |
+| `HVC_SIZE_MODIFIED_DT`         | Ducts, Flex Ducts                      | Instance | Per-element audit trail |
+| `HVC_SIZE_RULE_ID_TXT`         | Ducts, Flex Ducts                      | Instance | Per-element audit trail |
+| `HVC_PIPE_SERVICE_TXT`         | Pipes, Flex Pipes                      | Instance | Service detected per pipe |
+| `HVC_PRESSURE_CLASS_TXT`       | Ducts, Flex Ducts                      | Instance | Sizing-time class stamp |
+| `HVC_SIZE_STALE_BOOL`          | Ducts, Flex Ducts                      | Instance | Per-element drift flag |
+| `HVC_REFRIGERANT_KG_NR`        | Mechanical Equipment                   | Type     | Per equipment family/type |
+| `HVC_REFRIGERANT_TYPE_TXT`     | Mechanical Equipment                   | Type     | Per equipment family/type |
+| `HVC_CAPACITY_KW`              | Mechanical Equipment, Air Terminals    | Type     | VRF indoor units register as terminals; FCU/VAV likewise |
+| `PRJ_ORG_PRESSURE_PROFILE_TXT` | Project Information                    | Instance | Project-level singleton |
+
+**Total**: 19 new binding rows across 11 parameters.
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Data/CATEGORY_BINDINGS.csv` | +19 rows; header bumped to v3.2 |
+| `docs/CHANGELOG.md` | this entry |
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `ParameterHelpers.SetString` honours each parameter's Instance vs Type binding semantics — writing to a Type-bound parameter from a code path that holds an `Element` (instance) goes through `Element.LookupParameter`, which finds the type's parameter automatically. Writing to an Instance-bound parameter from a Type code path won't work; the HVAC commands all hold instances so this hazard doesn't arise.
+3. The Revit shared-parameter file (`MR_PARAMETERS.txt`) plus this binding CSV together form the "load shared parameters" pipeline run by `LoadSharedParamsCommand` (`Tags/LoadSharedParamsCommand.cs`). Projects opened before Phase 184/185 need to re-run `LoadSharedParams` to bind the new params.
+
+#### Completed (Phase 186 — integrate local edits from claude/fix-errors-7HSLJ)
+
+**Scope**: integrate three legitimate edits the user had pending on a
+sibling branch (`origin/claude/fix-errors-7HSLJ`) that were blocking
+a `git pull` of the HVAC branch. The pull failed because the user had
+uncommitted modifications to two files; by landing those edits cleanly
+in this branch the next pull will fast-forward.
+
+**Integrated changes**:
+
+1. `#nullable enable annotations` pragma added to
+   `Commands/IFC/StingBridgeStubs.cs` and `Core/StingToolsApp.cs`.
+   Opt-in C# 8 nullable-reference annotations — harmless, additive.
+
+2. `_activeIfcDropWatcher` field + Gap 9 IFC drop-folder auto-start
+   block + Dispose call removed from `StingToolsApp.cs`. The
+   Document-open hot path was deactivated. The `IfcDropWatcher` class
+   itself remains available in `Commands/IFC/StingBridgeStubs.cs` for
+   any command that wants to start a watcher explicitly.
+
+3. `_sldUpdaterId` field declaration now wrapped in
+   `#pragma warning disable/restore CS0649` since it's reserved for
+   Phase 175 SLD sync updater wiring (assignment lands later).
+
+**Not integrated**: unresolved merge-conflict markers
+(`<<<<<<< HEAD` / `=======` / `>>>>>>>` referencing
+`origin/claude/review-model-collaboration-3ZiRc`) were physically
+present in the sibling branch's `StingToolsApp.cs` and would not have
+compiled there. They are NOT brought across — this branch resolves the
+conflict in the obvious direction (keep the SLD pragma, drop the
+IfcDropWatcher field).
+
+**Build errors carried over from Phase 184**:
+
+The CS0117 errors that re-appeared in the user's screenshot
+(`StingCommandHandler.Instance`, `PostableCommand.AnalyzeHeatingAndCoolingLoads`)
+were already fixed in Phase 181/184. The sibling branch
+`claude/fix-errors-7HSLJ` simply hadn't picked up those fixes yet —
+they arrive automatically with the next pull of this branch via the
+`ResolveLoadsCommandId()` reflection helper (zero compile-time
+references to the missing enum member) and the
+`StingDockPanel.DispatchCommand` fallback dispatch (zero references to
+the missing `Instance` property). `grep` of the entire repo confirms
+no non-comment references to either broken API remain.
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Commands/IFC/StingBridgeStubs.cs` | +`#nullable enable annotations` |
+| `StingTools/Core/StingToolsApp.cs` | +`#nullable enable annotations`, `_sldUpdaterId` wrapped in CS0649 pragmas, `_activeIfcDropWatcher` field + Gap 9 block + Dispose call removed |
+| `docs/CHANGELOG.md` | this entry |
+
+**Caveat**:
+
+1. Built without `dotnet build` verification (Linux sandbox). The user's pull command should now succeed and the resulting build should be clean.

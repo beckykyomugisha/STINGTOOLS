@@ -49,6 +49,83 @@ namespace StingTools.Model
 
     internal static class FittingLossCalculator
     {
+        // Phase 181 — project-overrideable overlay. If
+        // Data/STING_FITTING_LOSSES.json exists, entries there shadow the
+        // hardcoded baseline below. Lookup is lazy + thread-safe.
+        private static readonly object _overrideLock = new object();
+        private static Dictionary<FittingType, FittingLossData> _overrides;
+        private static bool _overridesLoaded;
+
+        private static Dictionary<FittingType, FittingLossData> Overrides()
+        {
+            if (_overridesLoaded) return _overrides;
+            lock (_overrideLock)
+            {
+                if (_overridesLoaded) return _overrides;
+                _overridesLoaded = true;
+                var map = new Dictionary<FittingType, FittingLossData>();
+                try
+                {
+                    // 1. Corporate baseline from Data/STING_FITTING_LOSSES.json.
+                    string path = StingTools.Core.StingToolsApp.FindDataFile("STING_FITTING_LOSSES.json");
+                    if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
+                        ApplyOverlay(path, map);
+
+                    // 2. Project override (Phase 182, gap A7) at
+                    //    <project>/_BIM_COORD/fitting_losses.json. The project
+                    //    override is merged on top of corporate so a project
+                    //    can rewrite a single fitting (e.g. a custom Trox damper)
+                    //    without redeclaring all 31 baseline entries.
+                    try
+                    {
+                        var doc = StingTools.UI.StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                        if (doc != null && !string.IsNullOrEmpty(doc.PathName))
+                        {
+                            string projDir = System.IO.Path.GetDirectoryName(doc.PathName);
+                            if (!string.IsNullOrEmpty(projDir))
+                            {
+                                string projPath = System.IO.Path.Combine(projDir, "_BIM_COORD", "fitting_losses.json");
+                                if (System.IO.File.Exists(projPath)) ApplyOverlay(projPath, map);
+                            }
+                        }
+                    }
+                    catch (Exception exP) { StingLog.Warn($"FittingLossCalculator project overlay: {exP.Message}"); }
+
+                    if (map.Count > 0)
+                    {
+                        _overrides = map;
+                        StingLog.Info($"FittingLossCalculator: {map.Count} entries overlaid from JSON (corporate + project).");
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"FittingLossCalculator overlay load: {ex.Message}"); }
+                return _overrides;
+            }
+        }
+
+        private static void ApplyOverlay(string path, Dictionary<FittingType, FittingLossData> map)
+        {
+            try
+            {
+                var jt = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText(path));
+                var fittings = jt["fittings"] as Newtonsoft.Json.Linq.JArray;
+                if (fittings == null) return;
+                foreach (var t in fittings)
+                {
+                    var o = t as Newtonsoft.Json.Linq.JObject; if (o == null) continue;
+                    string idStr = (string)o["id"]; if (string.IsNullOrEmpty(idStr)) continue;
+                    if (!Enum.TryParse<FittingType>(idStr, out var ft)) continue;
+                    map[ft] = new FittingLossData
+                    {
+                        Type         = ft,
+                        Kv           = (double?)o["kv"]           ?? 1.0,
+                        EquivLengthM = (double?)o["equivLengthM"] ?? 2.0,
+                        Standard     = (string)o["standard"]      ?? "JSON"
+                    };
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"FittingLossCalculator ApplyOverlay {path}: {ex.Message}"); }
+        }
+
         private static readonly Dictionary<FittingType, FittingLossData> _fittings =
             new Dictionary<FittingType, FittingLossData>
         {
@@ -88,9 +165,11 @@ namespace StingTools.Model
             { FittingType.FlowMeter,       new FittingLossData { Type = FittingType.FlowMeter,       Kv = 3.50, EquivLengthM = 10.0, Standard = "CIBSE" } },
         };
 
-        /// <summary>Get loss coefficient for a fitting type.</summary>
+        /// <summary>Get loss coefficient for a fitting type. JSON overlay wins over the hardcoded baseline.</summary>
         public static FittingLossData GetFittingLoss(FittingType type)
         {
+            var ov = Overrides();
+            if (ov != null && ov.TryGetValue(type, out var fromJson)) return fromJson;
             return _fittings.TryGetValue(type, out var data) ? data :
                 new FittingLossData { Type = type, Kv = 1.0, EquivLengthM = 2.0, Standard = "Estimated" };
         }
@@ -319,10 +398,44 @@ namespace StingTools.Model
 
     internal static class MEPBalancingEngine
     {
+        /// <summary>
+        /// Document-aware overload (Phase 181) — pulls maxIterations / tolerancePa /
+        /// dampingFactor / minBranchFlowLs from STING_MEP_SIZING_RULES.json
+        /// (with the project override merged) and forwards to the canonical
+        /// <see cref="BalanceSystem(List{ValueTuple{string,double,double}}, double, int, double, double, double)"/>
+        /// overload below. Existing callers that don't have a Document continue
+        /// to work via the original signature.
+        /// </summary>
+        public static BalancingResult BalanceSystem(
+            Document doc,
+            List<(string Name, double DesignFlowLs, double ResistanceCoeff)> branches,
+            double totalSupplyPressurePa)
+        {
+            double damping = 0.7, minFlow = 0.01;
+            int maxIters = 100; double tol = 1.0;
+            try
+            {
+                var bal = StingTools.Core.Mep.MepSizingRegistry.Get(doc).Balancing;
+                if (bal != null)
+                {
+                    if (bal.MaxIterations > 0)   maxIters = bal.MaxIterations;
+                    if (bal.TolerancePa > 0)     tol      = bal.TolerancePa;
+                    if (bal.DampingFactor > 0)   damping  = bal.DampingFactor;
+                    if (bal.MinBranchFlowLs > 0) minFlow  = bal.MinBranchFlowLs;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BalanceSystem registry fallback: {ex.Message}"); }
+            return BalanceSystem(branches, totalSupplyPressurePa, maxIters, tol, damping, minFlow);
+        }
+
         /// <summary>Run Hardy Cross iterative flow balancing on parallel branches.</summary>
         public static BalancingResult BalanceSystem(
             List<(string Name, double DesignFlowLs, double ResistanceCoeff)> branches,
-            double totalSupplyPressurePa, int maxIterations = 100, double tolerancePa = 1.0)
+            double totalSupplyPressurePa,
+            int maxIterations = 100,
+            double tolerancePa = 1.0,
+            double dampingFactor = 0.7,
+            double minBranchFlowLs = 0.01)
         {
             var result = new BalancingResult();
 
@@ -359,11 +472,11 @@ namespace StingTools.Model
 
                         double correction = -imbalance / denominator;
 
-                        // Damping factor for stability (0.7 under-relaxation)
-                        flows[i] += correction * 0.7;
+                        // Under-relaxation damping (registry-driven, default 0.7)
+                        flows[i] += correction * dampingFactor;
 
-                        // Ensure flow stays positive (physical constraint)
-                        if (flows[i] < 0.01) flows[i] = 0.01;
+                        // Ensure flow stays positive (registry-driven minimum)
+                        if (flows[i] < minBranchFlowLs) flows[i] = minBranchFlowLs;
 
                         maxCorrection = Math.Max(maxCorrection, Math.Abs(imbalance));
                     }

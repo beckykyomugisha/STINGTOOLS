@@ -1,0 +1,47 @@
+{
+  "_schema": "STING_MEP_SERVICE_MAP",
+  "_version": "1.0",
+  "_notes": [
+    "Maps MEPSystem.SystemAbbreviation / SystemType pattern → PipeService.Id",
+    "in STING_MEP_SIZING_RULES.json. Closes the per-service pipe-velocity",
+    "gap from the Phase 181 review (A2). Project override layered from",
+    "<project>/_BIM_COORD/mep_service_map.json (first match wins per service)."
+  ],
+
+  "patterns": [
+    { "match": "CHW",       "serviceId": "chw",        "notes": "Chilled water flow + return" },
+    { "match": "CHWS",      "serviceId": "chw",        "notes": "Chilled water supply (Trane)" },
+    { "match": "CHWR",      "serviceId": "chw",        "notes": "Chilled water return" },
+    { "match": "CWS",       "serviceId": "chw",        "notes": "Cooling water supply (ASHRAE)" },
+    { "match": "CWR",       "serviceId": "chw",        "notes": "Cooling water return" },
+    { "match": "HW",        "serviceId": "hws",        "notes": "Heating water (generic)" },
+    { "match": "HWS",       "serviceId": "hws",        "notes": "Heating water supply" },
+    { "match": "HWR",       "serviceId": "hws",        "notes": "Heating water return" },
+    { "match": "LTHW",      "serviceId": "hws",        "notes": "Low-temp hot water" },
+    { "match": "LHW",       "serviceId": "lhw",        "notes": "Low-temp heating water return" },
+    { "match": "LPHW",      "serviceId": "lhw",        "notes": "LPHW return" },
+    { "match": "MTHW",      "serviceId": "hws",        "notes": "Medium-temp hot water" },
+    { "match": "DCW",       "serviceId": "dcw",        "notes": "Domestic cold water" },
+    { "match": "CW",        "serviceId": "dcw",        "notes": "Cold water (generic, lower priority)" },
+    { "match": "DHW",       "serviceId": "dhw",        "notes": "Domestic hot water" },
+    { "match": "HWC",       "serviceId": "dhw_circ",   "notes": "Hot water circulation" },
+    { "match": "DHWR",      "serviceId": "dhw_circ",   "notes": "DHW recirculation" },
+    { "match": "DHWS",      "serviceId": "dhw",        "notes": "DHW supply" },
+    { "match": "COND",      "serviceId": "condensate", "notes": "Condensate drain" },
+    { "match": "CONDENSATE","serviceId": "condensate", "notes": "Long form" },
+    { "match": "RG",        "serviceId": "refrig_gas", "notes": "Refrigerant gas" },
+    { "match": "REFRIG_GAS","serviceId": "refrig_gas", "notes": "Refrigerant gas long" },
+    { "match": "VRF_GAS",   "serviceId": "refrig_gas", "notes": "VRF gas line" },
+    { "match": "RL",        "serviceId": "refrig_liq", "notes": "Refrigerant liquid" },
+    { "match": "REFRIG_LIQ","serviceId": "refrig_liq", "notes": "Refrigerant liquid long" },
+    { "match": "VRF_LIQ",   "serviceId": "refrig_liq", "notes": "VRF liquid line" },
+    { "match": "STM",       "serviceId": "steam",      "notes": "Low-pressure steam" },
+    { "match": "STEAM",     "serviceId": "steam",      "notes": "Steam (generic)" },
+    { "match": "LPS",       "serviceId": "steam",      "notes": "Low-pressure steam" },
+    { "match": "NG",        "serviceId": "natural_gas","notes": "Natural gas" },
+    { "match": "GAS",       "serviceId": "natural_gas","notes": "Generic gas, lower priority" },
+    { "match": "FUEL_OIL",  "serviceId": "natural_gas","notes": "Fall back to gas velocities" }
+  ],
+
+  "_priorityNote": "Longer / more-specific abbreviations win. The detector walks the array in order and stops on the first prefix match (case-insensitive), so most-specific entries (CHWS) appear before less-specific (CHW, CW) when they would collide."
+}
