@@ -28,14 +28,22 @@ public class FederatedModelHub : Hub
 
     /// <summary>
     /// Notify all viewer clients in a project that geometry has changed.
-    /// Called by <see cref="Planscape.API.Controllers.FederatedModelController"/>
-    /// after persisting the delta.
+    /// Called by <see cref="Planscape.API.Controllers.FederatedModelController"/>,
+    /// <see cref="Planscape.API.Controllers.IfcIngestController"/>, and
+    /// <see cref="Planscape.Infrastructure.Services.AutoAlignService"/> after
+    /// persisting the delta or a new coordinate transform.
     /// </summary>
+    /// <param name="source">
+    /// Originating tool: "revit" | "archicad" | "ifc-ingest" | "auto-align" | "unknown".
+    /// Clients use this to decide how to refresh (e.g. mobile shows "ArchiCAD updated"
+    /// rather than a generic banner).
+    /// </param>
     public static async Task NotifyUpdate(
         IHubContext<FederatedModelHub> hubContext,
         string projectId,
         IEnumerable<string> updatedUniqueIds,
-        IEnumerable<long> deletedElementIds)
+        IEnumerable<long> deletedElementIds,
+        string source = "unknown")
     {
         await hubContext.Clients
             .Group(ModelGroup(projectId))
@@ -44,6 +52,7 @@ public class FederatedModelHub : Hub
                 projectId,
                 updatedIds  = updatedUniqueIds,
                 deletedIds  = deletedElementIds,
+                source,
                 timestamp   = DateTime.UtcNow
             });
     }
