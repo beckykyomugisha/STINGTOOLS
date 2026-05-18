@@ -85,6 +85,12 @@ namespace StingTools.Core
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
 
+                // Register the cost stale marker (IUpdater) — starts disabled.
+                // Toggled via Cost_ToggleStaleMarker. Marks ASS_CST_STALE_BOOL
+                // when geometry / material / type changes invalidate a costed
+                // element so the QS sees the stale BOQ row before exporting.
+                StingCostStaleMarker.Register(application);
+
                 // Register the Tag 7 narrative auto-updater (IUpdater) — starts disabled.
                 // Keeps ASS_TAG_7_TXT in sync with the active paragraph preset when
                 // source parameters change. Users enable it from Tag Studio.
@@ -1183,6 +1189,7 @@ namespace StingTools.Core
             // available in Commands/IFC/StingBridgeStubs.cs.
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
+            StingCostStaleMarker.Unregister();
             StingTag7NarrativeUpdater.Unregister();
             StingTools.Core.Plumbing.RealTimePipeSizer.Unregister();
             try { StingTools.Core.Routing.CableManifestUpdater.Unregister(); } catch { }

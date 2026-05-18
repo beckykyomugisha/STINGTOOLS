@@ -1,0 +1,44 @@
+{
+  "name": "BOQ — Full refresh and publish",
+  "description": "Validate the model, rebuild the BOQ from current geometry, snapshot the result, export to xlsx and push to the Planscape server. Halts on validation errors so a broken model doesn't ship a zero-priced BOQ.",
+  "rollback_on_failure": true,
+  "rollback_on_optional_failure": false,
+  "steps": [
+    {
+      "commandTag": "Cost_MigrateESEntities",
+      "label": "Migrate any v1 Extensible Storage cost overrides to v2 (one-shot)",
+      "optional": true
+    },
+    {
+      "commandTag": "Cost_ReloadRules",
+      "label": "Reload take-off rules + rate provider caches",
+      "optional": true
+    },
+    {
+      "commandTag": "Cost_ValidateAll",
+      "label": "Run cost validators (5-chain)",
+      "optional": false
+    },
+    {
+      "commandTag": "BOQRefresh",
+      "label": "Rebuild BOQ from model",
+      "optional": false,
+      "timeoutSeconds": 600
+    },
+    {
+      "commandTag": "BOQSnapshotSave",
+      "label": "Save snapshot (with checksum + server push)",
+      "optional": false
+    },
+    {
+      "commandTag": "Cost_ClearStale",
+      "label": "Clear stale-cost flags",
+      "optional": true
+    },
+    {
+      "commandTag": "BOQExport",
+      "label": "Export BOQ to xlsx",
+      "optional": false
+    }
+  ]
+}

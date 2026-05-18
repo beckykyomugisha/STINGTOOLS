@@ -3310,6 +3310,15 @@ namespace StingTools.UI
                     case "ApplySectorPack":         RunCommand<Core.ApplySectorPackCommand>(app); break;
                     case "UnifiedDWGWizard":        RunCommand<Model.UnifiedDWGWizardCommand>(app); break;
                     case "BOQRateHeatMap":          RunCommand<BOQ.BOQRateSourceHeatMapCommand>(app); break;
+
+                    // Phase 184 — Cost management (P2)
+                    case "Cost_ValidateAll":            RunCommand<Commands.Cost.CostValidateAllCommand>(app); break;
+                    case "Cost_ClearStale":             RunCommand<Commands.Cost.CostClearStaleCommand>(app); break;
+                    case "Cost_RunWorkflow":            RunCommand<Commands.Cost.CostRunWorkflowCommand>(app); break;
+                    case "Cost_ToggleStaleMarker":      RunCommand<Commands.Cost.CostToggleStaleMarkerCommand>(app); break;
+                    case "Cost_ReloadRules":            RunCommand<Commands.Cost.CostReloadRulesCommand>(app); break;
+                    case "Cost_MigrateCurrencyParams":  RunCommand<Commands.Cost.CostMigrateCurrencyParamsCommand>(app); break;
+                    case "Cost_MigrateESEntities":      RunCommand<Commands.Cost.CostMigrateESEntitiesCommand>(app); break;
                     case "BuildingCodeSeed":        RunCommand<Core.BuildingCodeSeedCommand>(app); break;
                     case "PrjVolumeCodeAuto":       RunCommand<Core.ProjectVolumeCodeAutoPopulateCommand>(app); break;
                     case "FederationReview":        RunCommand<Core.FederationCoordinationReviewCommand>(app); break;

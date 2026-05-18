@@ -17,6 +17,9 @@ using Autodesk.Revit.DB;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.BIMManager;
+using StingTools.BOQ.Rates;
+using StingTools.BOQ.Sync;
+using StingTools.BOQ.Takeoff;
 using StingTools.Core;
 using StingTools.Temp;
 
@@ -162,7 +165,7 @@ namespace StingTools.BOQ
             double lifecycleUgx = ComputeLifecycleCost(rateUgx * quantity, catName);
 
             string disc = DisciplineForCategory(catName);
-            string nrm2Section = DeriveNrm2Section(catName, disc);
+            string nrm2Section = DeriveNrm2Section(doc, el, catName, disc);
             string sectionName = picked.description;
             if (string.IsNullOrEmpty(sectionName)) sectionName = catName;
 
@@ -208,67 +211,81 @@ namespace StingTools.BOQ
             Dictionary<string, string> cobieCostCodes,
             out string rateSource, out int rateConfidence)
         {
-            // Pass 0: User override from the BOQ panel edit flow. Written by
-            // BOQWriteItemParamsCommand as CST_UNIT_RATE_UGX + CST_RATE_SOURCE=Override.
-            // Must win over all CSV/COBie/default matches so inline edits persist
-            // across BuildBOQDocument rebuilds.
-            try
-            {
-                string stored = ParameterHelpers.GetString(el, "CST_RATE_SOURCE");
-                if (string.Equals(stored, "Override", StringComparison.OrdinalIgnoreCase))
-                {
-                    string rateStr = ParameterHelpers.GetString(el, "CST_UNIT_RATE_UGX");
-                    if (double.TryParse(rateStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double ovr) && ovr > 0)
-                    {
-                        rateSource = "Override";
-                        rateConfidence = 100;
-                        string unit = "each";
-                        if (csvRates.TryGetValue(catName, out var csvDirect)) unit = csvDirect.unit;
-                        return (ovr, unit, catName);
-                    }
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"ResolveRate override: {ex.Message}"); }
+            // P0 refactor — delegate to the pluggable rate-provider chain.
+            // The 5 legacy passes are now individual providers registered
+            // with RateProviderRegistry; behaviour is preserved while
+            // allowing new providers (BCIS, Spon's, project rate card) to
+            // slot in without editing this method.
+            double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+            double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
 
-            // Pass 1: CSV match by category name (most specific, highest confidence)
-            if (csvRates.TryGetValue(catName, out var direct))
+            var registry = RateProviderRegistry.Get(doc, csvRates, cobieCostCodes, ugxPerUsd, ugxPerGbp);
+            var req = new RateRequest
             {
-                rateSource = "CSV";
-                rateConfidence = 90;
-                return (direct.rate, direct.unit, catName);
-            }
+                CategoryName = catName ?? "",
+                Discipline = DisciplineForCategory(catName),
+                ProdCode = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "",
+                MatCode = ParameterHelpers.GetString(el, "MAT_CODE") ?? "",
+                Unit = csvRates != null && csvRates.TryGetValue(catName ?? "", out var hint) ? hint.unit : "",
+                CurrencyCode = "UGX",
+                AsOf = DateTime.UtcNow,
+                Element = el
+            };
 
-            // Pass 2: CSV match by PROD code (useful for MEP equipment)
-            string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
-            if (!string.IsNullOrEmpty(prod) && csvRates.TryGetValue(prod, out var byProd))
+            var lookup = registry.Resolve(req);
+            if (lookup == null || lookup.UnitRate <= 0)
             {
-                rateSource = "CSV";
-                rateConfidence = 85;
-                return (byProd.rate, byProd.unit, prod);
+                rateSource = "None";
+                rateConfidence = 20;
+                return (0, "each", catName);
             }
 
-            // Pass 3: COBie type map — look up cost-rate code then CSV
-            if (cobieCostCodes != null && cobieCostCodes.TryGetValue(catName, out string cobieCode)
-                && !string.IsNullOrEmpty(cobieCode) && csvRates.TryGetValue(cobieCode, out var byCobie))
-            {
-                rateSource = "COBie";
-                rateConfidence = 75;
-                return (byCobie.rate, byCobie.unit, cobieCode);
-            }
+            // Map provider id back to the legacy RateSource label so the
+            // rest of the codebase (heat-map, schedules, exports) keeps
+            // working without changes.
+            rateSource = MapProviderIdToLegacySource(lookup.SourceId);
+            rateConfidence = lookup.Confidence;
+            return (lookup.UnitRate, lookup.Unit, lookup.MatchedKey ?? catName);
+        }
 
-            // Pass 4: Scheduling4DEngine defaults
-            if (Scheduling4DEngine.DefaultCostRates.TryGetValue(catName, out var dcr))
-            {
-                rateSource = "Default";
-                rateConfidence = 60;
-                return (dcr.ratePerUnit, dcr.unit, dcr.description);
-            }
+        // Normalises unit strings so a CSV "m²" matches a rule's "m2".
+        // Returns true when the units denote the same quantity dimension.
+        private static bool UnitsAlign(string ruleUnit, string callerUnit)
+        {
+            string a = NormaliseUnit(ruleUnit);
+            string b = NormaliseUnit(callerUnit);
+            if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b)) return false;
+            return string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+        }
 
-            // Pass 5: No match — emit a zero rate with low confidence so the row is
-            // still visible to the QS and gets flagged by BOQ health scoring.
-            rateSource = "None";
-            rateConfidence = 20;
-            return (0, "each", catName);
+        private static string NormaliseUnit(string u)
+        {
+            if (string.IsNullOrEmpty(u)) return "";
+            string s = u.Trim().ToLowerInvariant();
+            switch (s)
+            {
+                case "m²": case "sqm": case "m2": return "m2";
+                case "m³": case "cum": case "m3": return "m3";
+                case "lm": case "lin-m": case "linear-m": case "m": return "m";
+                case "tonne": case "tonnes": case "t": case "kg": return "kg";
+                case "no": case "nr": case "item": case "each": case "ea": return "each";
+                default: return s;
+            }
+        }
+
+        // Legacy RateSource labels — preserved so heat-maps and schedules
+        // built against the old shape keep working.
+        private static string MapProviderIdToLegacySource(string providerId)
+        {
+            switch (providerId ?? "")
+            {
+                case "param-override": return "Override";
+                case "es-override":    return "Override";
+                case "csv-default":    return "CSV";
+                case "cobie-typemap":  return "COBie";
+                case "default-baseline": return "Default";
+                default:               return providerId ?? "None";
+            }
         }
 
         // ── Quantity derivation ────────────────────────────────────────────
@@ -277,6 +294,35 @@ namespace StingTools.BOQ
 
         private static double DeriveQuantity(Element el, string unit)
         {
+            // P0 refactor — first consult the data-driven TakeoffRuleRegistry.
+            // When a rule matches AND its declared unit aligns with the
+            // caller's requested unit, the rule's quantitySource +
+            // unitConversion drive the quantity. If the units disagree we
+            // fall back to legacy logic so a CSV rate at "each" cannot be
+            // accidentally combined with an area quantity.
+            try
+            {
+                Document doc = el?.Document;
+                if (doc != null)
+                {
+                    string catName = ParameterHelpers.GetCategoryName(el);
+                    string disc = DisciplineForCategory(catName);
+                    string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "";
+                    var rule = TakeoffRuleRegistry.Get(doc).Match(catName, disc, prod);
+                    if (rule != null && UnitsAlign(rule.Unit, unit))
+                    {
+                        double q = TakeoffRuleRegistry.EvaluateQuantity(el, rule);
+                        // Apply rule-level wastage (P0 reserves; full waste
+                        // pipeline lands in P5.2 once star-rates use it).
+                        if (rule.WastePercent > 0)
+                            q *= 1.0 + rule.WastePercent / 100.0;
+                        return q;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DeriveQuantity rule lookup: {ex.Message}"); }
+
+            // Legacy fallback — preserved verbatim for back-compat.
             try
             {
                 switch ((unit ?? "").ToLowerInvariant())
@@ -623,19 +669,104 @@ namespace StingTools.BOQ
             foreach (var it in boq.AllItems)
                 it.SnapshotRef = label;
 
+            // P1: compute canonical checksum BEFORE writing so it can be
+            // serialised into the snapshot file's audit trail and used by
+            // the server to detect duplicate pushes.
+            string checksum = BoqSnapshotHasher.ComputeChecksum(boq);
+
             try
             {
                 string tmp = path + ".tmp";
                 File.WriteAllText(tmp, JsonConvert.SerializeObject(boq, _jsonSettings));
                 if (File.Exists(path)) File.Replace(tmp, path, path + ".bak");
                 else File.Move(tmp, path);
-                StingLog.Info($"BOQ snapshot saved: {Path.GetFileName(path)} ({boq.AllItems.Count} items)");
+
+                // Sidecar meta — checksum + future sync state. Lives next
+                // to the snapshot json so it survives independently of any
+                // server round-trip.
+                WriteSnapshotMetaSidecar(path, checksum, label, snapshotType);
+
+                StingLog.Info($"BOQ snapshot saved: {Path.GetFileName(path)} ({boq.AllItems.Count} items, checksum={Shorten(checksum)})");
             }
             catch (Exception ex) { StingLog.Error("BOQ snapshot save", ex); throw; }
 
             PruneSnapshots(doc);
+
+            // P1: fire-and-forget server push. Failures fall through to
+            // "Pending" state in the sidecar and the background sync
+            // scheduler retries. Snapshot save success is independent of
+            // network availability.
+            TryPushSnapshotAsync(doc, boq, checksum, label, path);
+
             return path;
         }
+
+        // P1 — async push wrapper. Non-blocking, swallows exceptions, and
+        // updates the sidecar with the resulting SyncState.
+        private static void TryPushSnapshotAsync(Document doc, BOQDocument boq,
+            string checksum, string label, string snapshotPath)
+        {
+            try
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var result = await BoqSyncCoordinator.PushSnapshotAsync(doc, boq, checksum, label);
+                        UpdateSnapshotMetaSidecar(snapshotPath, result);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"TryPushSnapshotAsync: {ex.Message}");
+                    }
+                });
+            }
+            catch (Exception ex) { StingLog.Warn($"TryPushSnapshotAsync schedule: {ex.Message}"); }
+        }
+
+        // Sidecar file format: <snapshot.json>.meta.json carrying
+        // { checksum, label, type, savedUtc, syncState, serverBaselineId, syncDetail }.
+        private static void WriteSnapshotMetaSidecar(string snapshotPath, string checksum,
+            string label, string snapshotType)
+        {
+            try
+            {
+                string metaPath = snapshotPath + ".meta.json";
+                var meta = new
+                {
+                    checksum,
+                    label,
+                    type = snapshotType,
+                    savedUtc = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
+                    syncState = "Local",
+                    serverBaselineId = (string)null,
+                    syncDetail = ""
+                };
+                File.WriteAllText(metaPath, JsonConvert.SerializeObject(meta, _jsonSettings));
+            }
+            catch (Exception ex) { StingLog.Warn($"WriteSnapshotMetaSidecar: {ex.Message}"); }
+        }
+
+        private static void UpdateSnapshotMetaSidecar(string snapshotPath, BoqSyncResult result)
+        {
+            try
+            {
+                string metaPath = snapshotPath + ".meta.json";
+                if (!File.Exists(metaPath)) return;
+                var existing = JObject.Parse(File.ReadAllText(metaPath));
+                existing["syncState"] = result?.SyncState ?? "Pending";
+                existing["serverBaselineId"] = result?.ServerBaselineId?.ToString();
+                existing["syncDetail"] = result?.Detail ?? "";
+                existing["linesCreated"] = result?.LinesCreated ?? 0;
+                existing["linesUpdated"] = result?.LinesUpdated ?? 0;
+                existing["lastSyncedUtc"] = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
+                File.WriteAllText(metaPath, existing.ToString(Formatting.Indented));
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateSnapshotMetaSidecar: {ex.Message}"); }
+        }
+
+        private static string Shorten(string s)
+            => string.IsNullOrEmpty(s) ? "" : (s.Length <= 8 ? s : s.Substring(0, 8));
 
         /// <summary>Load a snapshot JSON. Returns null on any failure.</summary>
         internal static BOQDocument LoadSnapshot(string path)
@@ -702,9 +833,32 @@ namespace StingTools.BOQ
                         }
                         catch (Exception ex) { StingLog.Warn($"ListSnapshots parse {Path.GetFileName(f)}: {ex.Message}"); }
 
+                        // P1: enrich with sidecar meta (checksum, sync state)
+                        // when available. Sidecar is best-effort — missing
+                        // sidecar leaves the new fields at their defaults.
+                        string checksum = "";
+                        Guid? serverBaselineId = null;
+                        string syncState = "Local";
+                        try
+                        {
+                            string metaPath = f + ".meta.json";
+                            if (File.Exists(metaPath))
+                            {
+                                var m = JObject.Parse(File.ReadAllText(metaPath));
+                                checksum = m.Value<string>("checksum") ?? "";
+                                syncState = m.Value<string>("syncState") ?? "Local";
+                                string srvId = m.Value<string>("serverBaselineId");
+                                if (Guid.TryParse(srvId, out Guid g)) serverBaselineId = g;
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"ListSnapshots meta {Path.GetFileName(f)}: {ex.Message}"); }
+
                         list.Add(new BOQSnapshotMeta
                         {
-                            Path = f, Label = label, Type = type, Date = dt, GrandTotalUGX = total
+                            Path = f, Label = label, Type = type, Date = dt, GrandTotalUGX = total,
+                            Checksum = checksum,
+                            ServerBaselineId = serverBaselineId,
+                            SyncState = syncState
                         });
                     }
                     catch (Exception ex) { StingLog.Warn($"ListSnapshots inner: {ex.Message}"); }
@@ -1387,8 +1541,25 @@ namespace StingTools.BOQ
             }
         }
 
-        private static string DeriveNrm2Section(string catName, string disc)
+        private static string DeriveNrm2Section(Document doc, Element el, string catName, string disc)
         {
+            // P0 refactor — first consult the data-driven TakeoffRuleRegistry
+            // so a QS can author section overrides in
+            // STING_TAKEOFF_RULES.json / takeoff_rules.json without code
+            // changes. Fall back to the legacy hard-coded map when no rule
+            // matches.
+            try
+            {
+                if (doc != null)
+                {
+                    string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "";
+                    var rule = TakeoffRuleRegistry.Get(doc).Match(catName, disc, prod);
+                    if (rule != null && !string.IsNullOrEmpty(rule.Nrm2Section))
+                        return rule.Nrm2Section;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DeriveNrm2Section rule lookup: {ex.Message}"); }
+
             if (string.IsNullOrEmpty(catName)) return "99";
             string lower = catName.ToLowerInvariant();
             // Hardcoded mapping covering the common Revit categories. QS can override via

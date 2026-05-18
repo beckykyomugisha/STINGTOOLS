@@ -98,6 +98,58 @@
       "required": false
     },
     {
+      "param_name": "ASS_CST_UNIT_RATE_NR",
+      "guid": "b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41",
+      "description": "Currency-neutral unit rate (Phase 184 / P0.2). Currency carried by ASS_CST_CURRENCY_TXT.",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "ASS_CST_CURRENCY_TXT",
+      "guid": "b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42",
+      "description": "ISO 4217 currency code (GBP / UGX / USD / EUR) of ASS_CST_UNIT_RATE_NR.",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_CST_FX_TO_BASE_NR",
+      "guid": "b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43",
+      "description": "FX rate to project base currency at write time. Stamped by the migration command.",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "ASS_CST_FX_DATE_DT",
+      "guid": "b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44",
+      "description": "ISO 8601 date the FX rate was fixed.",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_CST_AS_OF_DT",
+      "guid": "b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45",
+      "description": "Pricing reference date for inflation indexing.",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_CST_STALE_BOOL",
+      "guid": "b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46",
+      "description": "Set by StingCostStaleMarker IUpdater when geometry / material / type changes invalidate the last-costed line item (Phase 184 / P2).",
+      "binding": "universal",
+      "required": false,
+      "data_type": "YesNo"
+    },
+    {
+      "param_name": "ASS_CST_STALE_REASON_TXT",
+      "guid": "b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47",
+      "description": "Reason the cost line was flagged stale (Geometry / Material / Type / Rate).",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ASS_INST_DETAIL_NUM_TXT",
       "guid": "73f74429-76da-4ae8-ae90-66884bad8a06",
       "description": "Installation detail number",

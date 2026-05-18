@@ -1553,6 +1553,16 @@ namespace StingTools.Core
                 case "BOQSnapshotSave":        return new BOQ.BOQSnapshotSaveCommand();
                 case "BOQSnapshotCompare":     return new BOQ.BOQSnapshotCompareCommand();
                 case "BOQExportProfessional":  return new BOQ.BOQProfessionalExportCommand();
+                case "BOQPrepForExport":       return new BOQ.BOQPrepForExportCommand();
+
+                // Phase 184 — Cost management (P2)
+                case "Cost_ValidateAll":        return new Commands.Cost.CostValidateAllCommand();
+                case "Cost_ClearStale":         return new Commands.Cost.CostClearStaleCommand();
+                case "Cost_RunWorkflow":        return new Commands.Cost.CostRunWorkflowCommand();
+                case "Cost_ToggleStaleMarker":  return new Commands.Cost.CostToggleStaleMarkerCommand();
+                case "Cost_ReloadRules":        return new Commands.Cost.CostReloadRulesCommand();
+                case "Cost_MigrateCurrencyParams": return new Commands.Cost.CostMigrateCurrencyParamsCommand();
+                case "Cost_MigrateESEntities":     return new Commands.Cost.CostMigrateESEntitiesCommand();
                 case "BatchFamilyParams": return new Temp.BatchAddFamilyParamsCommand();
                 case "FamilyParamProcessor": return new Temp.FamilyParameterProcessorCommand();
 
