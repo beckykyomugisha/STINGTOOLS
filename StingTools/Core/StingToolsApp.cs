@@ -77,6 +77,7 @@ namespace StingTools.Core
                 RegisterDockablePanel(application);
                 RegisterElectricalPanel(application);
                 RegisterPlumbingPanel(application);
+                RegisterHvacPanel(application);
 
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
@@ -1469,6 +1470,32 @@ namespace StingTools.Core
             }
         }
 
+        // ── Phase 180 — STING HVAC Center registration ──────────────────
+        private void RegisterHvacPanel(UIControlledApplication application)
+        {
+            try
+            {
+                StingTools.UI.StingHvacCommandHandler.Initialise(application);
+                var provider = new StingTools.UI.StingHvacPanelProvider();
+                application.RegisterDockablePane(
+                    StingTools.UI.StingHvacPanelProvider.PaneId,
+                    "❄ STING HVAC",
+                    provider);
+
+                const string tabName = "STING Tools";
+                string asmPath = AssemblyPath;
+                var hvacPanel = application.CreateRibbonPanel(tabName, "❄ HVAC");
+                AddButton(hvacPanel, "btnToggleHvac", "STING\nHVAC",
+                    asmPath, typeof(ToggleHvacPanelCommand).FullName,
+                    "Show/hide the STING HVAC Center dockable panel.");
+                StingLog.Info("HVAC dockable panel registered successfully");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Failed to register HVAC dockable panel", ex);
+            }
+        }
+
         /* Ribbon panels removed — all commands now accessible via the dockable panel.
            Original panels: Select (22 cmds), Docs (17 cmds), Tags (28 cmds),
            Organise (32 cmds), Temp (64 cmds). */
@@ -1861,6 +1888,39 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Error("Toggle Plumbing panel failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Phase 180 — toggle the STING HVAC Center dockable panel.
+    /// Sibling to <see cref="ToggleElectricalPanelCommand"/> and
+    /// <see cref="TogglePlumbingPanelCommand"/>.
+    /// </summary>
+    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.ReadOnly)]
+    public class ToggleHvacPanelCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var pane = ParameterHelpers.GetApp(commandData)
+                    .GetDockablePane(StingTools.UI.StingHvacPanelProvider.PaneId);
+                if (pane == null)
+                {
+                    TaskDialog.Show("STING HVAC",
+                        "HVAC panel not found. Restart Revit to register it.");
+                    return Result.Failed;
+                }
+                if (pane.IsShown()) pane.Hide(); else pane.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Toggle HVAC panel failed", ex);
                 message = ex.Message;
                 return Result.Failed;
             }
