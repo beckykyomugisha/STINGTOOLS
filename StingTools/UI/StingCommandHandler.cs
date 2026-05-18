@@ -3327,6 +3327,10 @@ namespace StingTools.UI
                     case "Evm_Calculate":               RunCommand<Commands.Cost.EvmCalculateCommand>(app); break;
                     case "Evm_ImportActuals":           RunCommand<Commands.Cost.EvmImportActualsCommand>(app); break;
                     case "Evm_ExportReport":            RunCommand<Commands.Cost.EvmExportReportCommand>(app); break;
+
+                    // Phase 184h — P6 multi-standard
+                    case "Cost_SetMeasurementStandard": RunCommand<Commands.Cost.CostSetMeasurementStandardCommand>(app); break;
+                    case "Cost_StandardInspect":        RunCommand<Commands.Cost.CostStandardInspectCommand>(app); break;
                     case "BuildingCodeSeed":        RunCommand<Core.BuildingCodeSeedCommand>(app); break;
                     case "PrjVolumeCodeAuto":       RunCommand<Core.ProjectVolumeCodeAutoPopulateCommand>(app); break;
                     case "FederationReview":        RunCommand<Core.FederationCoordinationReviewCommand>(app); break;

@@ -1579,6 +1579,10 @@ namespace StingTools.Core
                 case "Evm_Calculate":              return new Commands.Cost.EvmCalculateCommand();
                 case "Evm_ImportActuals":          return new Commands.Cost.EvmImportActualsCommand();
                 case "Evm_ExportReport":           return new Commands.Cost.EvmExportReportCommand();
+
+                // Phase 184h — P6 multi-standard take-off
+                case "Cost_SetMeasurementStandard": return new Commands.Cost.CostSetMeasurementStandardCommand();
+                case "Cost_StandardInspect":        return new Commands.Cost.CostStandardInspectCommand();
                 case "BatchFamilyParams": return new Temp.BatchAddFamilyParamsCommand();
                 case "FamilyParamProcessor": return new Temp.FamilyParameterProcessorCommand();
 
