@@ -81,18 +81,34 @@ namespace StingTools.BOQ.Rates
             try
             {
                 var ovr = StingCostRateOverrideSchema.Read(req.Element);
-                if (ovr == null || ovr.RateGbp <= 0) return null;
+                if (ovr == null || ovr.Rate <= 0) return null;
+
+                // v2 schema honoured — waste + overhead + profit applied
+                // to the base rate so the QS sees one fully-loaded number.
+                double loadedRate = ovr.Rate;
+                if (ovr.WastePercent > 0)
+                    loadedRate *= 1.0 + ovr.WastePercent / 100.0;
+                if (ovr.OverheadPercent > 0)
+                    loadedRate *= 1.0 + ovr.OverheadPercent / 100.0;
+                if (ovr.ProfitPercent > 0)
+                    loadedRate *= 1.0 + ovr.ProfitPercent / 100.0;
+
+                string provenance = string.IsNullOrEmpty(ovr.Note)
+                    ? $"ES override by {ovr.StampedBy}"
+                    : $"ES override: {ovr.Note}";
+                if (ovr.WastePercent > 0 || ovr.OverheadPercent > 0 || ovr.ProfitPercent > 0)
+                    provenance += $" (+{ovr.WastePercent:0.#}% waste, +{ovr.OverheadPercent:0.#}% OH, +{ovr.ProfitPercent:0.#}% profit)";
+                if (ovr.IsLocked)
+                    provenance += $" [LOCKED by {ovr.LockedByUser}]";
 
                 return new RateLookup
                 {
-                    UnitRate = ovr.RateGbp,
-                    CurrencyCode = "GBP",
+                    UnitRate = loadedRate,
+                    CurrencyCode = string.IsNullOrEmpty(ovr.Currency) ? "GBP" : ovr.Currency,
                     Unit = string.IsNullOrEmpty(ovr.Unit) ? "each" : ovr.Unit,
                     SourceId = Id,
                     Confidence = 95,
-                    Provenance = string.IsNullOrEmpty(ovr.Note)
-                        ? $"ES override by {ovr.StampedBy}"
-                        : $"ES override: {ovr.Note}",
+                    Provenance = provenance,
                     MatchedKey = req.Element.UniqueId
                 };
             }

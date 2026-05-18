@@ -765,6 +765,15 @@ namespace StingTools.BIMManager
                 catList.Add(el);
             }
 
+            // Phase 184 / P3 — route through the pluggable rate provider
+            // registry so 4D and 5D consume the same rate source the BOQ
+            // engine uses. Live BOQ overrides still win at the top of
+            // the chain; the registry covers everything below.
+            double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+            double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
+            var rateRegistry = StingTools.BOQ.Rates.RateProviderRegistry.Get(
+                doc, costRates, new Dictionary<string, string>(), ugxPerUsd, ugxPerGbp);
+
             foreach (var kv in byCategory.OrderBy(x => x.Key))
             {
                 string cat = kv.Key;
@@ -778,17 +787,38 @@ namespace StingTools.BIMManager
                     rate = bqVal.rate;
                     unit = bqVal.unit;
                 }
-                else if (costRates != null && costRates.TryGetValue(cat, out var crVal))
+                else
                 {
-                    rate = crVal.rate;
-                    unit = crVal.unit;
+                    // Phase 184 / P3 — single rate source for 4D + 5D + BOQ.
+                    var lookup = rateRegistry.Resolve(new StingTools.BOQ.Rates.RateRequest
+                    {
+                        CategoryName = cat,
+                        Discipline = TagConfig.DiscMap.TryGetValue(cat, out var d) ? d : "X",
+                        CurrencyCode = "UGX",
+                        AsOf = DateTime.UtcNow,
+                        // No representative element here; the param-override
+                        // + ES providers will skip but CSV / COBie / default
+                        // providers still resolve.
+                        Element = elems.FirstOrDefault()
+                    });
+                    if (lookup != null && lookup.UnitRate > 0)
+                    {
+                        rate = lookup.UnitRate;
+                        unit = lookup.Unit;
+                    }
+                    else if (costRates != null && costRates.TryGetValue(cat, out var crVal))
+                    {
+                        // Final fallback — caller-supplied custom rates.
+                        rate = crVal.rate;
+                        unit = crVal.unit;
+                    }
+                    else if (DefaultCostRates.TryGetValue(cat, out var dcrVal))
+                    {
+                        rate = dcrVal.ratePerUnit;
+                        unit = dcrVal.unit;
+                    }
+                    else continue;
                 }
-                else if (DefaultCostRates.TryGetValue(cat, out var dcrVal))
-                {
-                    rate = dcrVal.ratePerUnit;
-                    unit = dcrVal.unit;
-                }
-                else continue;
 
                 // Extract actual measured quantity based on unit type instead of just counting elements.
                 // For area-based items (m²), sum actual element areas; for linear items (m), sum lengths;

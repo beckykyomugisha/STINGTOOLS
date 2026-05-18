@@ -2,6 +2,61 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 184b — Cost management P0.1 + P0.2 + P2 + P3)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Second commit of Phase 184. Implements the remaining work from `docs/COST_MANAGEMENT_IMPLEMENTATION_PLAN.md` (P0.1 = ES schema v2, P0.2 = currency-neutral params + migration, P2 = IUpdater + validators + workflow presets, P3 = 4D/5D rate-engine unification). Built without `dotnet build` verification (Linux sandbox).
+
+##### P0.1 — Extensible Storage schema v2
+
+- `StingCostRateOverrideSchema.cs` extended with a second schema GUID (`E1A7B2C4-1011-1243-8411-F6E5D4C3B2B2`) carrying 7 new fields: `Currency` (ISO 4217), `WastePercent`, `OverheadPercent`, `ProfitPercent`, `DayworksCode`, `LockedByUser`, `LockedUntilUtcTicks`.
+- `Read` tries v2 first, falls back to v1 — every project that opened the v1 schema continues to work.
+- `Write` always v2; deletes any orphan v1 entity so the element doesn't carry stale data in two schemas.
+- `Override.IsLocked` derived property — `true` when `LockedUntilUtcTicks > now`. Future P5.1 work uses this to prevent edits to rows on issued payment certs.
+- `ExtensibleStorageRateProvider` (P0) updated to honour the new fields — base rate × (1 + waste%) × (1 + OH%) × (1 + profit%); provenance string surfaces the loaded-rate breakdown + lock state.
+
+##### P0.2 — Currency-neutral shared parameters
+
+- 7 new params added to `ParamRegistry.cs` + `PARAMETER_REGISTRY.json` (UUIDv5 in cost namespace `b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d40`):
+  - `ASS_CST_UNIT_RATE_NR`, `ASS_CST_CURRENCY_TXT`, `ASS_CST_FX_TO_BASE_NR`, `ASS_CST_FX_DATE_DT`, `ASS_CST_AS_OF_DT` — replace currency-baked legacy params
+  - `ASS_CST_STALE_BOOL`, `ASS_CST_STALE_REASON_TXT` — drive the P2 stale-cost detection
+- New command `Cost_MigrateCurrencyParams` (`Commands/Cost/CostCommands.cs`) — one-time migration that copies legacy `CST_UNIT_RATE_UGX` → neutral params with `CurrencyCode="UGX"` + current FX rate stamped. Idempotent (skips elements where neutral rate is already set).
+- Legacy `CST_UNIT_RATE_UGX` / `_USD` params stay bound — derivation logic in BOQ export still reads them so existing schedules don't break.
+
+##### P2 — Automation engine
+
+**New files:**
+
+| Path | Lines | Role |
+|------|-------|------|
+| `StingTools/Core/StingCostStaleMarker.cs` | ~230 | IUpdater (UpdaterGuid `B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D50`). Triggers on `GetChangeTypeGeometry()` + `GetChangeTypeElementAddition()` on the same multi-category filter the auto-tagger uses. Marks `ASS_CST_STALE_BOOL = 1` + writes a reason string (`Geometry` / `New`). 20-element-per-trigger cap + LRU eviction at 10 000 entries (mirrors `StingStaleMarker`). Workshared-safe (`WorksharingUtils.GetCheckoutStatus` gate). Only marks previously-costed elements (skips uncosted geometry). |
+| `StingTools/Core/Validation/Cost/CostValidators.cs` | ~290 | 5 validators + `CostValidatorChain.RunAll`: `MissingMaterialValidator` (cost-bearing element with no material → "COST.MAT.MISSING"), `UntypedCategoryValidator` (no takeoff rule matched → "COST.RULE.MISSING"), `UnpricedProdValidator` (no provider returned a non-zero rate → "COST.RATE.UNPRICED" grouped by category), `ZeroQuantityValidator` (rule evaluates to zero quantity → "COST.QTY.ZERO" Error severity), `StaleCostValidator` (counts `ASS_CST_STALE_BOOL == 1`, breakdown by reason → "COST.STALE"). |
+| `StingTools/Commands/Cost/CostCommands.cs` | ~325 | 6 IExternalCommands: `Cost_ValidateAll` (runs the chain, opens TaskDialog with "Select affected" command-link), `Cost_ClearStale` (resets the bool + reason params under a manual transaction; resets the LRU set), `Cost_RunWorkflow` (discovers `WORKFLOW_BOQ_*.json` presets, picker, hands off to `WorkflowEngine.ExecutePreset`), `Cost_ToggleStaleMarker` (toggles the IUpdater), `Cost_ReloadRules` (invalidates `RateProviderRegistry` + `TakeoffRuleRegistry` caches), `Cost_MigrateCurrencyParams` (P0.2 migration). |
+| `StingTools/Data/WORKFLOW_BOQ_FullRefresh.json` | 6 steps | Reload rules → validate (halt on error) → BOQ rebuild → snapshot → clear stale → export. `rollback_on_failure: true`. |
+| `StingTools/Data/WORKFLOW_BOQ_QuickValuation.json` | 5 steps | Lightweight monthly cycle: reload → rebuild → snapshot Interim → refresh cash-flow → export. |
+| `StingTools/Data/WORKFLOW_BOQ_TenderPack.json` | 8 steps | RIBA Stage 4: reload → validate (strict gate) → prep-for-export → final rebuild → Tender snapshot → clear stale → professional xlsx → drawings register. `rollback_on_failure: true`, `rollback_on_optional_failure: true`. |
+
+**Edited files:**
+
+- `StingTools/Core/StingToolsApp.cs` — `StingCostStaleMarker.Register(application)` in `OnStartup`; `.Unregister()` in `OnShutdown`.
+- `StingTools/Core/WorkflowEngine.cs` — `ResolveCommand` switch gains 7 new tags (`Cost_ValidateAll`, `Cost_ClearStale`, `Cost_RunWorkflow`, `Cost_ToggleStaleMarker`, `Cost_ReloadRules`, `Cost_MigrateCurrencyParams`, `BOQPrepForExport`). `BOQPrepForExport` was previously only on `StingCommandHandler` — now reachable from preset JSON too.
+- `StingTools/UI/StingCommandHandler.cs` — 6 new dispatch cases for the cost commands.
+
+##### P3 — 4D/5D rate-engine unification
+
+- `Scheduling4DEngine.GenerateCostEstimate` (in `BIMManager/SchedulingCommands.cs`) now consults `RateProviderRegistry` *after* the live BOQ override, *before* the caller's custom-rates dictionary and the hard-coded `DefaultCostRates`. The same rate the BOQ engine writes to a line is the rate the 4D / 5D / cash-flow surface sees — no more parallel cost tables.
+- `DefaultCostRates` retained as the lowest-priority fallback (and still consulted by `DefaultRateProvider` from P0). Deleting the table outright is deferred until all callers route exclusively through the registry.
+- Tag-pipeline cost write-back (gated on `WRITE_COST_ON_TAG=true` config flag) intentionally deferred — landing it together with the IUpdater would risk feedback loops (IUpdater fires → stale flag set → pipeline rewrites cost → IUpdater fires again).
+
+##### Caveats
+
+1. Built without `dotnet build` verification.
+2. The 7 new cost shared parameters in `PARAMETER_REGISTRY.json` need to be loaded via `LoadSharedParams` before `Cost_MigrateCurrencyParams` will find them on elements. Add to the standard project-setup workflow.
+3. ES schema v2 read-time migration is *implicit* — v1 entities are read transparently; the v1 data is overwritten by `Write` once the QS edits the override (delete-and-replace). A bulk "migrate all v1 entities now" command is deferred.
+4. `Cost_RunWorkflow` UI presents at most 4 presets (TaskDialog command-link limit). If more `WORKFLOW_BOQ_*.json` presets land, a richer picker UI is needed.
+5. The cost IUpdater is *disabled by default*. Users opt in via `Cost_ToggleStaleMarker` — same pattern as `StingAutoTagger` / `StingStaleMarker`. Performance impact on bulk paste is bounded by the 20-element-per-trigger guard.
+
+---
+
 #### Completed (Phase 184 — Cost management foundations: P0 + P1)
 
 Branch: `claude/revit-api-cost-management-qH8Vv`. Implements phases P0

@@ -192,6 +192,35 @@ namespace StingTools.Core
         public const string VIEW_TOKEN_MASK = "STING_VIEW_TOKEN_MASK_TXT";
         public const string VIEW_TOKEN_MASK_GUID = "F4A5B6C7-D8E9-4F0A-1B2C-3D4E5F6A7B8E";
 
+        // ── Cost management — currency-neutral parameters (Phase 184 / P0.2) ─
+        //
+        // Replace the UGX-/USD-locked legacy params with currency-neutral
+        // storage. Legacy params (ASS_CST_UNIT_PRICE_UGX_NR etc.) remain
+        // bound for backwards-compat; the migration command
+        // `Cost_MigrateCurrencyParams` copies UGX values to the neutral
+        // params with CurrencyCode="UGX" + FX-at-date populated from the
+        // project's current FX rate. GUIDs UUIDv5 in the cost namespace
+        // b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d40.
+        public const string CST_UNIT_RATE_NR     = "ASS_CST_UNIT_RATE_NR";
+        public const string CST_UNIT_RATE_NR_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D41";
+        public const string CST_CURRENCY_TXT     = "ASS_CST_CURRENCY_TXT";
+        public const string CST_CURRENCY_TXT_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D42";
+        public const string CST_FX_TO_BASE_NR    = "ASS_CST_FX_TO_BASE_NR";
+        public const string CST_FX_TO_BASE_NR_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D43";
+        public const string CST_FX_DATE_DT       = "ASS_CST_FX_DATE_DT";
+        public const string CST_FX_DATE_DT_GUID  = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D44";
+        public const string CST_AS_OF_DT         = "ASS_CST_AS_OF_DT";
+        public const string CST_AS_OF_DT_GUID    = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D45";
+
+        // P2 — stale-cost detection (mirrors STING_STALE_BOOL for cost).
+        // Set by StingCostStaleMarker IUpdater when geometry / material /
+        // type changes invalidate the last-costed line item. Cleared by
+        // `Cost_ClearStale` after a successful BOQ_Build.
+        public const string CST_STALE_BOOL       = "ASS_CST_STALE_BOOL";
+        public const string CST_STALE_BOOL_GUID  = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D46";
+        public const string CST_STALE_REASON_TXT = "ASS_CST_STALE_REASON_TXT";
+        public const string CST_STALE_REASON_TXT_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D47";
+
         // ── Phase 175 — Symbol system parameters ─────────────────────────
         public const string SYMBOL_ID                 = "STING_SYMBOL_ID";
         public const string SYMBOL_ID_GUID            = "A4B5C6D7-E8F9-4A0B-1C2D-3E4F5A6B7C8D";

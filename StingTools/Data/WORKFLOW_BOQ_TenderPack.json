@@ -1,0 +1,49 @@
+{
+  "name": "BOQ — Tender pack production",
+  "description": "RIBA Stage 4 tender pack: clean validation gate, full BOQ build, snapshot labelled 'Tender', sheet register export, professional xlsx export with preambles, drawings register. Validation errors halt the workflow so the tender doesn't ship with broken rows.",
+  "rollback_on_failure": true,
+  "rollback_on_optional_failure": true,
+  "steps": [
+    {
+      "commandTag": "Cost_ReloadRules",
+      "label": "Reload rules + rates from disk",
+      "optional": true
+    },
+    {
+      "commandTag": "Cost_ValidateAll",
+      "label": "Run cost validators — must be clean",
+      "optional": false
+    },
+    {
+      "commandTag": "BOQPrepForExport",
+      "label": "Pre-export validation + normalisation",
+      "optional": false
+    },
+    {
+      "commandTag": "BOQRefresh",
+      "label": "Final BOQ rebuild",
+      "optional": false,
+      "timeoutSeconds": 900
+    },
+    {
+      "commandTag": "BOQSnapshotSave",
+      "label": "Save Tender snapshot (with checksum + server baseline)",
+      "optional": false
+    },
+    {
+      "commandTag": "Cost_ClearStale",
+      "label": "Clear stale-cost flags",
+      "optional": true
+    },
+    {
+      "commandTag": "BOQExportProfessional",
+      "label": "Export professional BOQ xlsx (preambles + narratives)",
+      "optional": false
+    },
+    {
+      "commandTag": "DrawingRegister",
+      "label": "Export drawings register",
+      "optional": true
+    }
+  ]
+}
