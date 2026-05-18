@@ -233,8 +233,8 @@ namespace StingTools.Core.Fabrication
             try
             {
                 if (!fs.IsActive) { fs.Activate(); doc.Regenerate(); }
-                XYZ point = (member.Location as LocationPoint)?.Point
-                         ?? (member.Location as LocationCurve)?.Curve?.GetEndPoint(0)
+                XYZ point = (r.Member?.Location as LocationPoint)?.Point
+                         ?? (r.Member?.Location as LocationCurve)?.Curve?.GetEndPoint(0)
                          ?? XYZ.Zero;
                 var inst = doc.Create.NewFamilyInstance(point, fs, view);
 
@@ -698,99 +698,45 @@ namespace StingTools.Core.Fabrication
 
         private static FamilySymbol ResolveFamilySymbol(Document doc, SymbolEntry entry, FabricationResult result)
         {
-            // Tier 1: seed family — CSV names like STING_FAM_PIPE_ELBOW_90_BW.rfa
-            // Check already-loaded families first (fast), then load from Families/ISO6412/ on disk.
-            string csvFamName = Path.GetFileNameWithoutExtension(entry.FamilyFile);
-            var fs = FindLoadedFamily(doc, csvFamName);
-            if (fs != null) { ValidateFamilyTemplate(fs, result); return fs; }
-
-            string seedPath = Path.Combine(StingToolsApp.DataPath ?? "", "..", "Families", "ISO6412", entry.FamilyFile);
-            fs = TryLoadFamilyFromPath(doc, seedPath, result);
-            if (fs != null) return fs;
-
-            // Tier 2: JSON-generated family — SymbolLibraryCreator writes ISO6412_<CODE>.rfa
-            // to <project>/_BIM_COORD/Families/Symbols/ISO6412/ (see SymbolLibraryCommands.cs).
-            // The CSV SymbolCode (e.g. ELBOW_90_BW) maps to id ISO6412_ELBOW_90_BW in the JSON,
-            // so the generated filename is always "ISO6412_" + SymbolCode + ".rfa".
-            string jsonFamName = "ISO6412_" + entry.SymbolCode;
-            string jsonFamFile = jsonFamName + ".rfa";
-            fs = FindLoadedFamily(doc, jsonFamName);
-            if (fs != null) { ValidateFamilyTemplate(fs, result); return fs; }
-
-            string generatedPath = ResolveGeneratedFamilyPath(doc, jsonFamFile);
-            if (!string.IsNullOrEmpty(generatedPath))
-            {
-                fs = TryLoadFamilyFromPath(doc, generatedPath, result);
-                if (fs != null) return fs;
-            }
-
-            string reportName = $"{csvFamName} / {jsonFamName}";
-            if (_missingFamiliesLogged.Add(csvFamName))
-                StingLog.Warn($"IsoSymbolPlacer: family not found -> {reportName}. " +
-                    "Run 'Create ISO 6412 Symbols' from the Symbols batch or place a seed .rfa " +
-                    $"named '{entry.FamilyFile}' in Families/ISO6412/.");
-            try { result?.MissingFamilies?.Add(csvFamName); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            return null;
-        }
-
-        /// <summary>Searches already-loaded FamilySymbols in the document for an exact family name match.</summary>
-        private static FamilySymbol FindLoadedFamily(Document doc, string familyName)
-        {
+            string famName = Path.GetFileNameWithoutExtension(entry.FamilyFile);
             try
             {
                 foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)))
                 {
                     if (el is FamilySymbol fs &&
-                        string.Equals(fs.FamilyName, familyName, StringComparison.OrdinalIgnoreCase))
-                        return fs;
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"IsoSymbolPlacer.FindLoadedFamily: {ex.Message}"); }
-            return null;
-        }
-
-        /// <summary>Loads a family from an absolute path and returns its first FamilySymbol. Returns null when
-        /// the file doesn't exist or the load fails.</summary>
-        private static FamilySymbol TryLoadFamilyFromPath(Document doc, string path, FabricationResult result)
-        {
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
-            try
-            {
-                Family f;
-                if (doc.LoadFamily(path, out f) && f != null)
-                {
-                    foreach (ElementId sid in f.GetFamilySymbolIds())
+                        string.Equals(fs.FamilyName, famName, StringComparison.OrdinalIgnoreCase))
                     {
-                        if (doc.GetElement(sid) is FamilySymbol fs)
+                        ValidateFamilyTemplate(fs, result);
+                        return fs;
+                    }
+                }
+                // Try lazy load from families folder
+                string familyPath = Path.Combine(StingToolsApp.DataPath ?? "", "..", "Families", "ISO6412", entry.FamilyFile);
+                if (File.Exists(familyPath))
+                {
+                    Family f;
+                    if (doc.LoadFamily(familyPath, out f) && f != null)
+                    {
+                        foreach (ElementId sid in f.GetFamilySymbolIds())
                         {
-                            ValidateFamilyTemplate(fs, result);
-                            return fs;
+                            if (doc.GetElement(sid) is FamilySymbol fs)
+                            {
+                                ValidateFamilyTemplate(fs, result);
+                                return fs;
+                            }
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                result?.Warnings?.Add($"IsoSymbolPlacer.TryLoadFamilyFromPath {Path.GetFileName(path)}: {ex.Message}");
+                result.Warnings.Add($"IsoSymbolPlacer.ResolveFamilySymbol {famName}: {ex.Message}");
             }
-            return null;
-        }
 
-        /// <summary>Returns the full path where SymbolLibraryCreator would have saved a generated family,
-        /// i.e. &lt;project&gt;/_BIM_COORD/Families/Symbols/ISO6412/&lt;filename&gt;. Returns empty string when
-        /// the document path is unavailable (cloud models, unsaved documents).</summary>
-        private static string ResolveGeneratedFamilyPath(Document doc, string familyFile)
-        {
-            try
-            {
-                string projPath = doc?.PathName;
-                if (string.IsNullOrEmpty(projPath)) return "";
-                string projDir = Path.GetDirectoryName(projPath);
-                if (string.IsNullOrEmpty(projDir)) return "";
-                return Path.Combine(projDir, "_BIM_COORD", "Families", "Symbols", "ISO6412", familyFile);
-            }
-            catch (Exception ex) { StingLog.Warn($"IsoSymbolPlacer.ResolveGeneratedFamilyPath: {ex.Message}"); }
-            return "";
+            if (_missingFamiliesLogged.Add(famName))
+                StingLog.Warn($"IsoSymbolPlacer: family not found -> {famName}");
+            try { result?.MissingFamilies?.Add(famName); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            return null;
         }
 
         // Process-static dedup so the per-family warning only fires once
@@ -940,82 +886,14 @@ namespace StingTools.Core.Fabrication
 
         private static double MmToFt(double mm) => mm / 304.8;
 
-        // ─── Pre-flight report ─────────────────────────────────────────
-
-        /// <summary>
-        /// Pre-flight check called by GenerateFabPackageCommand BEFORE the
-        /// package is generated. Returns a report describing how many of the
-        /// 188 catalogue entries have a matching .rfa on disk so the user
-        /// knows up-front what placement coverage to expect.
-        /// </summary>
-        public static MissingFamilyReport GetMissingFamilyReport()
-        {
-            EnsureIndexLoaded();
-            var report = new MissingFamilyReport();
-            if (_index == null) return report;
-
-            string familyDir = "";
-            try
-            {
-                familyDir = Path.GetFullPath(
-                    Path.Combine(StingToolsApp.DataPath ?? "", "..", "Families", "ISO6412"));
-            }
-            catch (Exception ex) { StingLog.Warn($"GetMissingFamilyReport dir: {ex.Message}"); }
-
-            var uniqueFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var e in _index)
-                if (!string.IsNullOrEmpty(e.FamilyFile)) uniqueFiles.Add(e.FamilyFile);
-
-            report.Total = uniqueFiles.Count;
-            foreach (var file in uniqueFiles)
-            {
-                string fullPath = string.IsNullOrEmpty(familyDir)
-                    ? "" : Path.Combine(familyDir, file);
-                if (!string.IsNullOrEmpty(fullPath) && File.Exists(fullPath))
-                    report.Present.Add(file);
-                else
-                    report.Missing.Add(file);
-            }
-            return report;
-        }
-
-        // ─── General MEP view support ──────────────────────────────────
-
-        /// <summary>
-        /// Returns true when the placer can legally call
-        /// <c>doc.Create.NewFamilyInstance(point, fs, view)</c> for a Detail
-        /// Item symbol on the given view. Acceptable view types: Section,
-        /// Elevation, Detail, DraftingView, and floor/ceiling Plans when the
-        /// family is a Detail Item or Generic Annotation.
-        /// </summary>
         public static bool CanPlaceOnView(View view)
         {
-            if (view == null || view.IsTemplate) return false;
-            switch (view.ViewType)
-            {
-                case ViewType.Section:
-                case ViewType.Elevation:
-                case ViewType.Detail:
-                case ViewType.DraftingView:
-                case ViewType.FloorPlan:
-                case ViewType.CeilingPlan:
-                case ViewType.EngineeringPlan:
-                    return true;
-                default:
-                    return false;
-            }
+            if (view == null) return false;
+            var t = view.ViewType;
+            return t == ViewType.FloorPlan || t == ViewType.CeilingPlan ||
+                   t == ViewType.Elevation || t == ViewType.Section ||
+                   t == ViewType.Detail    || t == ViewType.DraftingView ||
+                   t == ViewType.ThreeD;
         }
-    }
-
-    /// <summary>Pre-flight report from <see cref="IsoSymbolPlacer.GetMissingFamilyReport"/>.</summary>
-    public sealed class MissingFamilyReport
-    {
-        public int Total { get; set; }
-        public List<string> Present { get; } = new List<string>();
-        public List<string> Missing { get; } = new List<string>();
-        public int PresentCount => Present.Count;
-        public int MissingCount => Missing.Count;
-        public string Summary =>
-            $"{PresentCount} of {Total} symbol families present on disk; {MissingCount} missing — placement will be partial.";
     }
 }

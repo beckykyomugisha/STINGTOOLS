@@ -220,7 +220,7 @@ namespace StingTools.Commands.Placement
                         catch (Exception ex3)
                         {
                             failed++;
-                            StingLog.Warn($"LightingGrid place at room {plan.Room.Id}: {ex2.Message}");
+                            StingLog.Warn($"LightingGrid place at room {plan.Room.Id}: {ex3.Message}");
                         }
                     }
                 }

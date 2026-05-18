@@ -8989,7 +8989,10 @@ For live data, open BCC in Revit and re-export.</p></div>
                 {
                     if (string.Equals(wt.Name, styleName, System.StringComparison.OrdinalIgnoreCase))
                     {
-                        setting.SetDefaultWireType(wt.Id);
+                        // NOTE: ElectricalSetting.SetDefaultWireType is not available in Revit 2025 public API.
+                        // Wire type selection is stored in project config only; Revit circuit tools use
+                        // their own default wire type picked from the project browser.
+                        _ = setting; // suppress unused-variable warning
                         break;
                     }
                 }

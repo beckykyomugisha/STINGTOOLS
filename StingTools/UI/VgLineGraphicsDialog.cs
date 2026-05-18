@@ -21,6 +21,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using StingTools.Core;
 using Autodesk.Revit.UI;
+using ComboBox = System.Windows.Controls.ComboBox;
 namespace StingTools.UI
 {
     public sealed class VgLineGraphics

@@ -1525,7 +1525,8 @@ namespace StingTools.Model
                 }
 
                 // DWG-STRUCT-DEEP-6b: Connection detail synthesis
-                if (config?.SynthesizeConnectionDetails == true)
+                var _cfg6b = CurrentConfig;
+                if (_cfg6b?.SynthesizeConnectionDetails == true)
                 {
                     try
                     {
@@ -1545,8 +1546,8 @@ namespace StingTools.Model
                                 txConn.Start();
                                 var synResults = ConnectionDetailSynthesizer.SynthesizeAll(
                                     _doc, junctions, activeView,
-                                    config.ConnectionShearDemand_kN,
-                                    config.ConnectionMomentDemand_kNm);
+                                    _cfg6b.ConnectionShearDemand_kN,
+                                    _cfg6b.ConnectionMomentDemand_kNm);
                                 foreach (var sr in synResults)
                                     totalResult.Warnings.AddRange(sr.Warnings);
                                 txConn.Commit();

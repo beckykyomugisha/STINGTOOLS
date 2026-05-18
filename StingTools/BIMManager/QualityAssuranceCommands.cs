@@ -13,6 +13,7 @@ using StingTools.UI;
 using Newtonsoft.Json.Linq;
 using System.Text.RegularExpressions;
 using Autodesk.Revit.DB.Architecture;
+using RegexGroup = System.Text.RegularExpressions.Group;
 
 namespace StingTools.BIMManager
 {

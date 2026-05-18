@@ -301,6 +301,7 @@ namespace StingTools.Core.Placement
                 bool cancelled = false;
                 foreach (var room in rooms)
                 {
+                    string roomName = room?.Name ?? "";
                     // PC-13 — per-room state so dependent rules see predecessors.
                     var roomState = new RoomState();
                     foreach (var rule in ordered)
@@ -516,6 +517,7 @@ namespace StingTools.Core.Placement
         {
             string roomKey = $"{room.Id}::{SafeRoomName(room)}";
             int alreadyInRoom = result.CountsByRoom.ContainsKey(roomKey) ? result.CountsByRoom[roomKey] : 0;
+            var diagRoom = result.Diag(rule.MergeKey);
 
             var placedPoints = new List<XYZ>(); // for spacing scoring
 

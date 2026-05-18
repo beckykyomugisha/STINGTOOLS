@@ -443,7 +443,12 @@ namespace StingTools.Core.Drawing
                             ViewStylePackApplier.ApplyWorksetVisibility(doc, template, pack, r);
                             break;
                         case "underlay":
-                            ApplyUnderlay(doc, template, pack.Underlay, r);
+                            // pack.Underlay is stored as a string (level name); wrap in PackUnderlay for the applier.
+                            ApplyUnderlay(doc, template,
+                                string.IsNullOrEmpty(pack.Underlay)
+                                    ? null
+                                    : new PackUnderlay { LevelName = pack.Underlay },
+                                r);
                             break;
                         case "background":
                         case "displayOptions":

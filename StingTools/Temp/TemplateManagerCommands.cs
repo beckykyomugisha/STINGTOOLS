@@ -2686,9 +2686,9 @@ namespace StingTools.Temp
             {
                 try { ctx.App.Application.SharedParametersFilename = originalSpfPath ?? ""; }
                 catch (Exception ex2) { StingLog.Warn($"Restore SharedParametersFilename: {ex2.Message}"); }
-                StingLog.Error("Failed to open shared parameter file", ex2);
+                StingLog.Error("Failed to open shared parameter file", ex);
                 TaskDialog.Show("Batch Add Family Params",
-                    $"Error opening parameter file: {ex2.Message}");
+                    $"Error opening parameter file: {ex.Message}");
                 return Result.Failed;
             }
 

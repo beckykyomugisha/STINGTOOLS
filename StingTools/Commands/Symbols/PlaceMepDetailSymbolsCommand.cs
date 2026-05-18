@@ -50,7 +50,7 @@ namespace StingTools.Commands.Symbols
                 ids = selIds.Where(id =>
                 {
                     var el = doc.GetElement(id);
-                    return el?.Category != null && IsMepCategory(el.Category.Id.IntegerValue);
+                    return el?.Category != null && IsMepCategory((int)el.Category.Id.Value);
                 }).ToList();
                 scopeLabel = $"selection ({ids.Count} MEP elements)";
             }
@@ -77,8 +77,8 @@ namespace StingTools.Commands.Symbols
             var opts = ShowOptionsDialog();
             if (opts == null) return Result.Cancelled;
 
-            StingLog.Info($"PlaceMepDetailSymbols: scope={scopeLabel}, standard={opts.Standard}, " +
-                          $"colorScheme={opts.ColorScheme}, mode={opts.PlacementMode}");
+            StingLog.Info($"PlaceMepDetailSymbols: scope={scopeLabel}, standard={opts.StandardFilter}, " +
+                          $"colorScheme={opts.ColorScheme}");
 
             MepSymbolPlacementResult result;
             try
@@ -198,10 +198,10 @@ namespace StingTools.Commands.Symbols
 
             return new MepSymbolPlacementOptions
             {
-                Standard       = standard,
+                StandardFilter = standard,
                 ColorScheme    = colorScheme,
-                PlacementMode  = MepSymbolPlacementMode.Replace,
-                Overwrite      = true,
+                
+                Replace = true,
             };
         }
 
@@ -212,14 +212,14 @@ namespace StingTools.Commands.Symbols
 
             var td = new TaskDialog("STING — MEP Detail Symbol Placement Complete")
             {
-                MainInstruction = result.Succeeded
-                    ? $"Placed {result.SymbolsPlaced} symbols"
+                MainInstruction = result.Placed >= 0
+                    ? $"Placed {result.Placed} symbols"
                     : "Placement completed with errors",
                 MainContent =
                     $"Scope      : {scopeLabel}\n" +
-                    $"Placed     : {result.SymbolsPlaced}\n" +
+                    $"Placed     : {result.Placed}\n" +
                     $"Skipped    : {result.Skipped}\n" +
-                    $"Failed     : {result.Failed}\n" +
+                    $"Failed     : {result.Unmatched}\n" +
                     $"Warnings   : {result.Warnings?.Count ?? 0}\n\n" +
                     (result.Warnings?.Count > 0
                         ? "First warning: " + result.Warnings[0] + "\n(See StingTools.log for full list)"
@@ -278,10 +278,10 @@ namespace StingTools.Commands.Symbols
 
             var opts = new MepSymbolPlacementOptions
             {
-                Standard      = "Corporate",
+                StandardFilter = "Corporate",
                 ColorScheme   = SymbolColorScheme.CIBSE,
-                PlacementMode = MepSymbolPlacementMode.Replace,
-                Overwrite     = true,
+                
+                Replace = true,
             };
 
             int totalPlaced  = 0;
@@ -308,8 +308,8 @@ namespace StingTools.Commands.Symbols
                     try
                     {
                         var res = MepSymbolEngine.PlaceSymbols(doc, v, ids, opts);
-                        totalPlaced  += res.SymbolsPlaced;
-                        totalFailed  += res.Failed;
+                        totalPlaced  += res.Placed;
+                        totalFailed  += res.Unmatched;
                         if (res.Warnings != null) allWarnings.AddRange(res.Warnings);
                     }
                     catch (Exception ex)

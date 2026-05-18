@@ -401,6 +401,9 @@ namespace StingTools.Core.Placement
         /// <summary>Maintenance clearance zone in mm around the placed fixture (used in clash/space validation).</summary>
         public double MaintenanceClearance { get; set; } = 0.0;
 
+        /// <summary>BS 7671 Table 4 cable derating advisory: warn when this many or more same-category fixtures are bundled within 300 mm. 0 = no advisory.</summary>
+        public int CableBundleAdvisoryCount { get; set; } = 0;
+
         // ── Reporting ───────────────────────────────────────────────
 
         /// <summary>Rule priority (0..100); higher wins. Ties broken by candidate score.</summary>
@@ -525,6 +528,7 @@ namespace StingTools.Core.Placement
                 RequiresCOBieFields     = this.RequiresCOBieFields,
                 RequiresIfcMapping      = this.RequiresIfcMapping,
                 MaintenanceClearance    = this.MaintenanceClearance,
+                CableBundleAdvisoryCount = this.CableBundleAdvisoryCount,
             };
         }
 
