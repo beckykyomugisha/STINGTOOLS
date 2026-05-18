@@ -50,4 +50,5 @@ public sealed record IfcIngestResult(
     TimeSpan Duration,
     string? Warnings,
     string  Source = "ifc",             // "archicad" | "ifc" — set from AC_Pset detection
-    bool    HasQuantitySets = false);   // true if at least one IIfcElementQuantity found
+    bool    HasQuantitySets = false,    // true if at least one IIfcElementQuantity found
+    double  UnitScaleToMm = 1000.0);   // Gap 5: metres→mm default; multiplier: value_in_file × UnitScaleToMm = value_in_mm

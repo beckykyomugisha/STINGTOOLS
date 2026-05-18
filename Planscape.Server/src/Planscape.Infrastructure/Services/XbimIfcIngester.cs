@@ -5,6 +5,7 @@ using Xbim.Common;
 using Xbim.Common.Step21;
 using Xbim.Ifc;
 using Xbim.Ifc4.Interfaces;
+using Xbim.Ifc4.MeasureResource;
 
 namespace Planscape.Infrastructure.Services;
 
@@ -67,6 +68,10 @@ public class XbimIfcIngester : IIfcIngester
             XbimSchemaVersion.Ifc4x3 => "IFC4X3",
             _                        => model.SchemaVersion.ToString(),
         };
+
+        // Gap 5: Extract IfcUnitAssignment to determine length unit scale.
+        // This lets downstream services apply unit normalization without re-parsing.
+        double unitScaleToMm = ExtractUnitScaleToMm(model);
 
         // Pre-build cached maps so we don't repeatedly traverse inverse
         // relationships on every element. Both build in O(N) total.
@@ -249,7 +254,8 @@ public class XbimIfcIngester : IIfcIngester
             Duration: sw.Elapsed,
             Warnings: warnings.Count > 0 ? string.Join("; ", warnings) : null,
             Source: source,
-            HasQuantitySets: hasQuantities));
+            HasQuantitySets: hasQuantities,
+            UnitScaleToMm: unitScaleToMm));
     }
 
     /// <summary>
@@ -402,6 +408,48 @@ public class XbimIfcIngester : IIfcIngester
             }
         }
         return result;
+    }
+
+    // ── Gap 5: Unit scale extraction ─────────────────────────────────────────
+
+    /// <summary>
+    /// Reads IIfcProject.UnitsInContext and returns a multiplier such that
+    /// value_in_file × unitScaleToMm = value_in_mm.
+    /// Defaults to 1000.0 (metres → mm) when the unit context is absent.
+    /// Mirrors XbimIfcGeometryExtractor.ResolveScaleToMm so both extractors
+    /// agree on the same scale factor.
+    /// </summary>
+    private static double ExtractUnitScaleToMm(IModel model)
+    {
+        try
+        {
+            var project = model.Instances.OfType<IIfcProject>().FirstOrDefault();
+            if (project?.UnitsInContext == null) return 1000.0;
+
+            foreach (var unit in project.UnitsInContext.Units.OfType<IIfcSIUnit>())
+            {
+                if (unit.UnitType != IfcUnitEnum.LENGTHUNIT) continue;
+                return unit.Prefix switch
+                {
+                    IfcSIPrefix.MILLI => 1.0,
+                    IfcSIPrefix.CENTI => 10.0,
+                    IfcSIPrefix.DECI  => 100.0,
+                    _                 => 1000.0,
+                };
+            }
+
+            foreach (var unit in project.UnitsInContext.Units.OfType<IIfcConversionBasedUnit>())
+            {
+                if (unit.UnitType != IfcUnitEnum.LENGTHUNIT) continue;
+                var factor = unit.ConversionFactor?.ValueComponent?.Value;
+                if (factor != null && double.TryParse(factor.ToString(),
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out double f) && f > 0)
+                    return f * 1000.0;
+            }
+        }
+        catch { }
+        return 1000.0;
     }
 
     /// <summary>

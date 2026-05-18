@@ -1,4 +1,4 @@
-# v5.1 | 20260517 | BIM Template binding_coverage_matrix (+10: ASS_ITEM_CODE/SYSTEMS/TERM/TRACE, HVC_DCT_INSULATION, BLE_CBL_TRAY dims, MEC_SYS, PLM_SYS — Phase 179 alignment)
+# v5.2 | 20260517 | BIM Template binding_coverage_matrix (consolidated 3 truncated WARN_*_W aliases into canonical WARN_BLE_*_WIDTH_MM forms — Phase 180 alignment)
 Parameter_Name,Air Terminals,Cable Tray Fittings,Cable Trays,Casework,Ceilings,Communication Devices,Conduit Fittings,Conduits,Curtain Panels,Curtain Wall Mullions,Data Devices,Doors,Duct Accessories,Duct Fittings,Ducts,Electrical Circuits,Electrical Equipment,Electrical Fixtures,Fire Alarm Devices,Flex Ducts,Floors,Furniture,Generic Models,Lighting Devices,Lighting Fixtures,Materials,Mechanical Equipment,Nurse Call Devices,Pipe Accessories,Pipe Fittings,Pipes,Plumbing Equipment,Plumbing Fixtures,Project Information,Ramps,Roofs,Rooms,Security Devices,Specialty Equipment,Sprinklers,Stairs,Structural Columns,Structural Foundations,Structural Framing,Telephone Devices,Walls,Windows
 ASS_CAT_TXT,1,0,1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,0,0,0,1,1,1
 ASS_CRITICALITY_RATING_NR,1,0,1,1,0,1,0,1,0,0,1,0,0,0,0,0,1,1,0,0,0,1,1,0,1,0,1,1,0,0,0,1,1,0,0,0,0,1,1,1,0,0,0,0,1,0,0
@@ -1418,9 +1418,6 @@ TAG_WARN_SEVERITY_FILTER_TXT,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
 TAG_WARN_VISIBLE_BOOL,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
 VIEW_COLOR_SCHEME_TXT,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
 VIEW_DISC_FILTER_TXT,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
-WARN_CORR_W,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
-WARN_PARK_W,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
-WARN_STAIR_W,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
 WARN_SHT_DISC_MISSING,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
 WARN_SHT_MULTI_DISC_MEP,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
 WARN_SHT_NAMING_ARCH,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1

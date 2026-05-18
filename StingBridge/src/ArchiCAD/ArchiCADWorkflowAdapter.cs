@@ -17,8 +17,10 @@
 
 using System;
 using System.IO;
+using System.Threading;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using StingBridge.IFC;
 using StingTools.Core;
 
 namespace StingBridge.ArchiCAD
@@ -43,12 +45,25 @@ namespace StingBridge.ArchiCAD
                     if (link.IsAvailable())
                     {
                         StingLog.Info("ArchiCADWorkflowAdapter: ArchiCAD Live Link reachable — using fast path.");
+
+                        // Start the drop-folder watcher BEFORE triggering the export so
+                        // we cannot miss the file arriving.  Wait up to 60 s for the
+                        // FileArrived event instead of using a fixed sleep — large models
+                        // take longer than 2 s to write.
+                        using var arrived = new ManualResetEventSlim(false);
+                        using var watcher = new IfcDropWatcher(dropFolder);
+                        watcher.FileArrived += (_, _) => arrived.Set();
+                        watcher.Start();
+
                         bool exported = link.TriggerPartialExport(dropFolder);
                         if (exported)
                         {
-                            // Give ArchiCAD 2 s to write the file before the watcher picks it up.
-                            System.Threading.Thread.Sleep(2_000);
+                            bool received = arrived.Wait(TimeSpan.FromSeconds(60));
+                            if (!received)
+                                StingLog.Warn("ArchiCADWorkflowAdapter: timed out waiting for IFC export from ArchiCAD (60 s). " +
+                                              "The file may still arrive — the drop-folder watcher will pick it up automatically.");
                         }
+
                         return new SyncResult
                         {
                             Success       = true,

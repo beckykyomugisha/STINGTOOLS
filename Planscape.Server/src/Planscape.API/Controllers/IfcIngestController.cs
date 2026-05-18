@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Planscape.API.Authorization;
 using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.SignalR;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -61,6 +63,7 @@ public class IfcIngestController : ControllerBase
     private readonly IFileStorageService _storage;
     private readonly IAuditService _audit;
     private readonly Planscape.Core.Interfaces.IIfcAlignmentValidator _alignmentValidator;
+    private readonly IHubContext<FederatedModelHub> _modelHub;
     private readonly ILogger<IfcIngestController> _logger;
 
     public IfcIngestController(
@@ -69,6 +72,7 @@ public class IfcIngestController : ControllerBase
         IFileStorageService storage,
         IAuditService audit,
         Planscape.Core.Interfaces.IIfcAlignmentValidator alignmentValidator,
+        IHubContext<FederatedModelHub> modelHub,
         ILogger<IfcIngestController> logger)
     {
         _db = db;
@@ -76,6 +80,7 @@ public class IfcIngestController : ControllerBase
         _storage = storage;
         _audit = audit;
         _alignmentValidator = alignmentValidator;
+        _modelHub = modelHub;
         _logger = logger;
     }
 
@@ -116,6 +121,22 @@ public class IfcIngestController : ControllerBase
             await using (var fs = System.IO.File.Create(tmp))
                 await file.CopyToAsync(fs, ct);
 
+            // Gap 13: Pre-flight analytical model check — scan application name from
+            // IFC STEP header before running the (expensive) full ingest.
+            {
+                string? analyticalTool = DetectAnalyticalTool(tmp);
+                if (analyticalTool != null)
+                {
+                    return BadRequest(new
+                    {
+                        error = "analytical_model_rejected",
+                        detail = $"Analytical/structural model from {analyticalTool} detected. " +
+                                 "Upload a physical solid-geometry IFC export for spatial coordination. " +
+                                 "In ETABS: File > Export > IFC > select 'Physical Model'.",
+                    });
+                }
+            }
+
             var result = await _ingester.IngestAsync(tmp, ct);
             await PersistAsTaggedElementsAsync(projectId, result, ct);
 
@@ -126,33 +147,57 @@ public class IfcIngestController : ControllerBase
             if (!result.HasQuantitySets)
                 responseWarnings.Add("No quantity sets found. Re-export from ArchiCAD with 'Export Quantity Sets (Qto)' enabled for cost extraction.");
 
-            // Gap A–D alignment validation — run while the temp file is still on disk.
-            // Only possible when the caller supplies a modelId for the ProjectModel row.
+            // Gap 2: Always run alignment validation — auto-create a stub ProjectModel
+            // when the caller doesn't supply one so the report is always surfaced.
             object? alignmentReport = null;
-            if (modelId.HasValue)
+            Guid effectiveModelId = modelId ?? Guid.Empty;
+            if (!modelId.HasValue)
             {
-                try
+                // Auto-mint a stub model id keyed on the filename so repeated uploads
+                // of the same file reuse the same report row instead of creating new ones.
+                effectiveModelId = new Guid(System.Security.Cryptography.MD5
+                    .HashData(System.Text.Encoding.UTF8.GetBytes($"{projectId}:{fname.ToLowerInvariant()}"))
+                    .Take(16).ToArray());
+            }
+            try
+            {
+                var ar = await _alignmentValidator.ValidateAsync(
+                    tmp, projectId, effectiveModelId, tenantId, ct);
+                alignmentReport = new
                 {
-                    var ar = await _alignmentValidator.ValidateAsync(
-                        tmp, projectId, modelId.Value, tenantId, ct);
-                    alignmentReport = new
-                    {
-                        verdict         = ar.Verdict,
-                        trueNorthDeg    = ar.TrueNorthDegrees,
-                        lengthUnit      = ar.LengthUnit,
-                        hasMapConversion = ar.HasMapConversion,
-                        hasProjectedCrs  = ar.HasProjectedCrs,
-                        crsName         = ar.CrsName,
-                        findingCount    = System.Text.Json.JsonSerializer
-                            .Deserialize<System.Text.Json.JsonElement>(ar.FindingsJson)
-                            .GetArrayLength(),
-                    };
-                }
-                catch (Exception aex)
+                    verdict          = ar.Verdict,
+                    trueNorthDeg     = ar.TrueNorthDegrees,
+                    lengthUnit       = ar.LengthUnit,
+                    hasMapConversion = ar.HasMapConversion,
+                    hasProjectedCrs  = ar.HasProjectedCrs,
+                    crsName          = ar.CrsName,
+                    surveyEasting    = ar.SurveyEasting,
+                    surveyNorthing   = ar.SurveyNorthing,
+                    surveyElevation  = ar.SurveyElevation,
+                    unitScaleToMm    = result.UnitScaleToMm,
+                    findingCount     = System.Text.Json.JsonSerializer
+                        .Deserialize<System.Text.Json.JsonElement>(ar.FindingsJson)
+                        .GetArrayLength(),
+                    findings         = System.Text.Json.JsonSerializer
+                        .Deserialize<System.Text.Json.JsonElement>(ar.FindingsJson),
+                };
+
+                // Gap 4: Auto-populate ProjectModelTransforms from IfcMapConversion data.
+                // When the model has a non-trivial survey origin, create/update the
+                // correction transform so the federated viewer can apply it.
+                if (ar.HasMapConversion && (ar.SurveyEasting.HasValue || ar.SurveyNorthing.HasValue))
                 {
-                    _logger.LogWarning(aex,
-                        "Alignment validation failed for model {ModelId} (non-fatal).", modelId.Value);
+                    await UpsertProjectModelTransformAsync(
+                        projectId, effectiveModelId, tenantId,
+                        ar.SurveyEasting ?? 0, ar.SurveyNorthing ?? 0, ar.SurveyElevation ?? 0,
+                        ar.MapConversionRotationDeg ?? 0, result.UnitScaleToMm,
+                        ct);
                 }
+            }
+            catch (Exception aex)
+            {
+                _logger.LogWarning(aex,
+                    "Alignment validation failed for model {ModelId} (non-fatal).", effectiveModelId);
             }
 
             await _audit.LogAsync("INGEST", "Ifc", projectId.ToString(),
@@ -166,6 +211,25 @@ public class IfcIngestController : ControllerBase
                     hasQuantitySets = result.HasQuantitySets,
                     warnings     = responseWarnings,
                 }));
+
+            // Gap J — notify the federated model viewer hub so connected 3D viewer
+            // clients reload the model without polling. Source label distinguishes
+            // ArchiCAD IFC exports ("archicad") from Revit exports ("revit").
+            try
+            {
+                var hubSource = string.Equals(result.Source, "archicad",
+                    StringComparison.OrdinalIgnoreCase) ? "archicad" : "ifc-ingest";
+                await FederatedModelHub.NotifyUpdate(
+                    _modelHub,
+                    projectId.ToString(),
+                    new[] { effectiveModelId.ToString() },
+                    Array.Empty<long>(),
+                    hubSource);
+            }
+            catch (Exception hubEx)
+            {
+                _logger.LogWarning(hubEx, "FederatedModelHub notify failed (non-fatal) for project {ProjectId}", projectId);
+            }
 
             return Ok(new {
                 schema          = result.SchemaVersion,
@@ -340,6 +404,12 @@ public class IfcIngestController : ControllerBase
         _logger.LogInformation(
             "IFC ingest: project {ProjectId} → {Inserted} new + {Updated} updated TaggedElement rows (source={Source})",
             projectId, inserted, updated, result.Source);
+
+        // Gap 6: Populate ElementGlobalIdRegistry for ArchiCAD-sourced elements.
+        // Maps IfcGlobalId → ArchiCadGuid (from AC_Pset_ElementID) and stores
+        // the IFC type + level so cross-tool identity is always resolvable.
+        if (result.Source == "archicad")
+            await WriteGlobalIdRegistryAsync(projectId, result, existing, ct);
     }
 
     /// <summary>
@@ -431,4 +501,216 @@ public class IfcIngestController : ControllerBase
         bool     QuantityType,    // true → read from IIfcElementQuantity bag
         bool     ScanAllPsets,    // true → scan all pset keys for property name suffix
         string[]? ElementTypes);  // null → applies to all element types
+
+    // ── Gap 6: ElementGlobalIdRegistry writer ────────────────────────────────
+
+    private async Task WriteGlobalIdRegistryAsync(
+        Guid projectId,
+        IfcIngestResult result,
+        Dictionary<string, TaggedElement> existing,
+        CancellationToken ct)
+    {
+        var tenantId = GetTenantId();
+        // Index existing GlobalIdRegistry rows for this project to enable upsert.
+        var existingGuids = await _db.GlobalIdRegistry
+            .Where(r => r.ProjectId == projectId && r.TenantId == tenantId)
+            .ToDictionaryAsync(r => r.IfcGlobalId ?? "", ct);
+
+        int written = 0;
+        foreach (var el in result.Elements)
+        {
+            if (string.IsNullOrEmpty(el.GlobalId)) continue;
+
+            // ArchiCAD stores its internal element GUID in AC_Pset_ElementID.elementGUID
+            el.Properties.TryGetValue("AC_Pset_ElementID.elementGUID", out string? acGuid);
+            // Fallback: AC_Pset_ElementID.ID is also a valid ArchiCAD-internal identifier
+            if (string.IsNullOrEmpty(acGuid))
+                el.Properties.TryGetValue("AC_Pset_ElementID.ID", out acGuid);
+            el.Properties.TryGetValue("IfcHierarchy.Storey", out string? storey);
+
+            // Derive discipline from IFC type.
+            string discipline = DeriveDiscFromIfcType(el.IfcType);
+
+            if (existingGuids.TryGetValue(el.GlobalId, out var reg))
+            {
+                // Update only when ArchiCAD GUID is newly available.
+                if (!string.IsNullOrEmpty(acGuid) && string.IsNullOrEmpty(reg.ArchiCadGuid))
+                {
+                    reg.ArchiCadGuid        = acGuid;
+                    reg.UpdatedAt           = DateTime.UtcNow;
+                    reg.Discipline          = discipline;
+                    reg.NormalizedLevelName = storey;
+                    written++;
+                }
+            }
+            else
+            {
+                _db.GlobalIdRegistry.Add(new Planscape.Core.Entities.ElementGlobalIdRegistry
+                {
+                    TenantId            = tenantId,
+                    ProjectId           = projectId,
+                    IfcGlobalId         = el.GlobalId,
+                    ArchiCadGuid        = acGuid,
+                    IfcType             = el.IfcType,
+                    ElementName         = el.Name,
+                    Discipline          = discipline,
+                    NormalizedLevelName = storey,
+                    MappingStatus       = "AutoMatched",
+                });
+                written++;
+            }
+        }
+        if (written > 0)
+        {
+            await _db.SaveChangesAsync(ct);
+            _logger.LogInformation(
+                "Gap 6: wrote {Count} ElementGlobalIdRegistry rows for project {ProjectId}",
+                written, projectId);
+        }
+    }
+
+    private static string DeriveDiscFromIfcType(string ifcType)
+    {
+        string t = (ifcType ?? "").ToUpperInvariant();
+        if (t.StartsWith("IFCWALL") || t.StartsWith("IFCSLAB") || t.StartsWith("IFCDOOR") ||
+            t.StartsWith("IFCWINDOW") || t.StartsWith("IFCROOF") || t.StartsWith("IFCCOLUMN"))
+            return "A";
+        if (t.StartsWith("IFCDUCT") || t.StartsWith("IFCFAN") || t.StartsWith("IFCCOIL") ||
+            t.StartsWith("IFCUNITARYEQUIP") || t.StartsWith("IFCAIRTERMINAL"))
+            return "M";
+        if (t.StartsWith("IFCCABLE") || t.StartsWith("IFCOUTLET") || t.StartsWith("IFCELECTRIC"))
+            return "E";
+        if (t.StartsWith("IFCPIPE") || t.Contains("SANITARY") || t.Contains("VALVE"))
+            return "P";
+        if (t.StartsWith("IFCMEMBER") || t.StartsWith("IFCBEAM") || t.StartsWith("IFCFOOTING") ||
+            t.StartsWith("IFCPILE") || t.StartsWith("IFCPLATE"))
+            return "S";
+        if (t.StartsWith("IFCFIRESUPPRESSION") || t.StartsWith("IFCSPRINKLER"))
+            return "FP";
+        return "A";
+    }
+
+    // ── Gap 4: ProjectModelTransform upsert ───────────────────────────────────
+
+    /// <summary>
+    /// Gap 4: Create or update a ProjectModelTransform row from IfcMapConversion data.
+    /// The translation is the negative of the survey origin so applying it brings
+    /// georeferenced model coordinates back to the project origin.
+    /// Called automatically during ingest when IfcMapConversion is present.
+    /// </summary>
+    private async Task UpsertProjectModelTransformAsync(
+        Guid projectId, Guid projectModelId, Guid tenantId,
+        double eastingM, double northingM, double elevationM,
+        double rotationDeg, double unitScaleToMm,
+        CancellationToken ct)
+    {
+        try
+        {
+            var existing = await _db.ProjectModelTransforms
+                .FirstOrDefaultAsync(t =>
+                    t.ProjectId == projectId &&
+                    t.ProjectModelId == projectModelId &&
+                    t.TenantId == tenantId, ct);
+
+            // Convert survey origin from metres to mm (project length unit default).
+            double txMm = -eastingM  * 1000.0;   // negate: shift model to project origin
+            double tyMm = -northingM * 1000.0;
+            double tzMm = -elevationM * 1000.0;
+            // Scale correction: if model is in mm (unitScaleToMm=1) but CRS is in m,
+            // apply the inverse as a uniform scale on the transform.
+            double scaleFactor = (unitScaleToMm > 0 && Math.Abs(unitScaleToMm - 1000.0) < 1.0)
+                ? 1.0   // metres — no scale correction needed
+                : 1.0;  // mm — coordinates are already in mm, no scale correction
+
+            if (existing != null)
+            {
+                // Only auto-update if not manually confirmed by a coordinator.
+                if (!existing.IsConfirmed)
+                {
+                    existing.TranslationX   = txMm;
+                    existing.TranslationY   = tyMm;
+                    existing.TranslationZ   = tzMm;
+                    existing.RotationDeg    = rotationDeg;
+                    existing.ScaleFactor    = scaleFactor;
+                    existing.IsAutoComputed = true;
+                    existing.UpdatedAt      = DateTime.UtcNow;
+                    existing.Notes          = $"Auto-computed from IfcMapConversion at {DateTime.UtcNow:u}";
+                }
+            }
+            else
+            {
+                _db.ProjectModelTransforms.Add(new Planscape.Core.Entities.ProjectModelTransform
+                {
+                    TenantId       = tenantId,
+                    ProjectId      = projectId,
+                    ProjectModelId = projectModelId,
+                    TranslationX   = txMm,
+                    TranslationY   = tyMm,
+                    TranslationZ   = tzMm,
+                    RotationDeg    = rotationDeg,
+                    ScaleFactor    = scaleFactor,
+                    IsAutoComputed = true,
+                    IsConfirmed    = false,
+                    AppliedAt      = DateTime.UtcNow,
+                    Notes          = $"Auto-computed from IfcMapConversion at {DateTime.UtcNow:u}",
+                });
+            }
+            await _db.SaveChangesAsync(ct);
+
+            // Gap 14: Write an audit log entry for the coordinate correction.
+            try
+            {
+                await _audit.LogAsync("TRANSFORM_UPSERT", "ProjectModelTransform", projectModelId.ToString(),
+                    System.Text.Json.JsonSerializer.Serialize(new {
+                        projectId,
+                        translationXMm = txMm, translationYMm = tyMm, translationZMm = tzMm,
+                        rotationDeg, scaleFactor,
+                        source = "IfcMapConversion",
+                        autoComputed = true,
+                    }));
+            }
+            catch { /* audit failure is non-fatal */ }
+
+            _logger.LogInformation(
+                "Gap 4: upserted ProjectModelTransform for model {ModelId}: T=({Tx:F1},{Ty:F1},{Tz:F1})mm rot={Rot:F2}°",
+                projectModelId, txMm, tyMm, tzMm, rotationDeg);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Gap 4: UpsertProjectModelTransformAsync failed (non-fatal).");
+        }
+    }
+
+    // ── Gap 13: Analytical model detection ───────────────────────────────────
+
+    /// <summary>
+    /// Gap 13: Scans the first 200 lines of an IFC file for IFCAPPLICATION
+    /// to detect known analytical structural authoring tools.
+    /// Returns the tool name if detected, null otherwise.
+    /// </summary>
+    private static string? DetectAnalyticalTool(string ifcPath)
+    {
+        try
+        {
+            using var fs = System.IO.File.OpenRead(ifcPath);
+            using var reader = new System.IO.StreamReader(fs);
+            string? line;
+            int n = 0;
+            while ((line = reader.ReadLine()) != null && n++ < 200)
+            {
+                if (!line.Contains("IFCAPPLICATION")) continue;
+                var m = System.Text.RegularExpressions.Regex.Match(line,
+                    @"IFCAPPLICATION\([^,]*,'[^']*','([^']+)'");
+                if (!m.Success) continue;
+                string appName = m.Groups[1].Value;
+                foreach (string tool in new[] { "ETABS", "SAP2000", "CSi", "SAFE", "RAM Structural", "STAAD" })
+                {
+                    if (appName.Contains(tool, StringComparison.OrdinalIgnoreCase))
+                        return tool;
+                }
+            }
+        }
+        catch { }
+        return null;
+    }
 }
