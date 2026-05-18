@@ -56,35 +56,600 @@
     </span>
     <span class="session-pill" id="sessionPill"><span class="dot"></span>Live</span>
 
-// Guard: token must be present before any authenticated request is made.
-// Without this check the Authorization header becomes "Bearer null" which
-// the server rejects with 401 but the error message is confusing.
-if (!token) {
-  status("Not signed in — please open this viewer from the Planscape dashboard.");
-} else if (!projectId || !modelId) {
-  status("Missing project / model id.");
-} else {
-  status("Initialising scene…");
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x1a1a1a);
-  // Hemisphere provides ambient fill; directional gives depth and shadows.
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x404060, 0.8));
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
-  dirLight.position.set(1, 2, 1.5);
-  scene.add(dirLight);
+    <nav class="toolbar">
+      <div class="toolbar-group">
+        <button class="tbtn" id="btnMeasure" title="Measure">📐 Measure <span class="caret">▾</span></button>
+      </div>
+      <div class="toolbar-group">
+        <button class="tbtn" id="btnSection" title="Section">✂ Section <span class="caret">▾</span></button>
+      </div>
+      <div class="toolbar-group">
+        <button class="tbtn" id="btnView" title="View mode">👁 View <span class="caret">▾</span></button>
+      </div>
+      <div class="toolbar-group">
+        <button class="tbtn" id="btnIssues" title="Issues">🚩 Issues <span class="caret">▾</span></button>
+      </div>
+      <div class="toolbar-group">
+        <button class="tbtn" id="btnMarkup" title="Markup">✏ Markup <span class="caret">▾</span></button>
+      </div>
 
-  const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.01, 10000);
-  camera.position.set(10, 10, 10);
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(innerWidth, innerHeight);
-  document.body.appendChild(renderer.domElement);
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  window.addEventListener("resize", () => {
-    camera.aspect = innerWidth / innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth, innerHeight);
+      <div class="toolbar-group">
+        <button class="tbtn" id="btnClashes" title="Open clash tray">⚠ <span id="clashBadge" class="badge muted">0</span></button>
+        <button class="tbtn" id="btnIssueBadge" title="Open issue tray">🚩 <span id="issueBadge" class="badge warn muted">0</span></button>
+        <button class="tbtn" id="btnNotifs" title="Notifications">🔔 <span id="notifBadge" class="badge muted">0</span></button>
+        <button class="tbtn" id="btnSettings" title="Settings">⚙</button>
+        <button class="tbtn" id="btnHelp" title="Keyboard shortcuts">?</button>
+        <span class="user-chip" id="userChip">SD</span>
+        <button class="tbtn" id="btnToggleRight" title="Toggle right panel">›</button>
+      </div>
+    </nav>
+  </header>
+
+  <!-- LEFT PANEL -->
+  <aside class="left-panel">
+
+    <section class="panel-section open">
+      <div class="panel-section-header">
+        <span class="chev">▶</span>Models &amp; Disciplines
+        <span class="add-btn" title="Upload model">+</span>
+      </div>
+      <div class="panel-section-body">
+        <div class="disc-chips" id="discChips"></div>
+        <div id="modelsList"></div>
+      </div>
+    </section>
+
+    <section class="panel-section closed">
+      <div class="panel-section-header">
+        <span class="chev">▶</span>Model tree
+        <span class="count" id="treeCount"></span>
+      </div>
+      <div class="panel-section-body">
+        <input class="tree-search" id="treeSearch" placeholder="Search elements…" />
+        <div id="modelTree"></div>
+      </div>
+    </section>
+
+    <section class="panel-section closed">
+      <div class="panel-section-header">
+        <span class="chev">▶</span>Saved views
+        <span class="add-btn" id="btnAddView" title="Save current view">+</span>
+      </div>
+      <div class="panel-section-body">
+        <div id="savedViewsList"></div>
+        <button class="btn ghost full" id="btnPresent" style="margin-top:8px">▶ Present mode</button>
+      </div>
+    </section>
+
+    <section class="panel-section closed">
+      <div class="panel-section-header">
+        <span class="chev">▶</span>Session history
+      </div>
+      <div class="panel-section-body">
+        <div id="sessionHistory"></div>
+      </div>
+    </section>
+
+  </aside>
+
+  <!-- CENTER -->
+  <div class="center">
+    <div class="viewport-wrap" id="viewerCanvas">
+
+      <!-- Boot loader -->
+      <div class="boot-loader" id="bootLoader">
+        <div class="spinner"></div>
+        <div class="msg">Loading model</div>
+        <div class="pct" id="loadingProgress">0%</div>
+      </div>
+
+      <!-- Section control card -->
+      <div class="section-card" id="sectionCard" style="display:none">
+        <div class="head">SECTION PLANES <button class="close" id="sectionClose">✕</button></div>
+        <div class="body">
+          <div class="actions">
+            <button class="btn sm subtle" id="sectionAddX">+ Plane X</button>
+            <button class="btn sm subtle" id="sectionAddY">+ Plane Y</button>
+            <button class="btn sm subtle" id="sectionAddZ">+ Plane Z</button>
+            <button class="btn sm danger" id="sectionClear">Clear</button>
+          </div>
+        </div>
+      </div>
+
+<!-- Selection toolbar — appears when one or more elements are selected -->
+      <div class="selection-toolbar" id="selectionToolbar" style="display:none">
+        <span class="sel-count" id="selCount">0 selected</span>
+        <button class="sel-btn" id="selFit"        title="Fit camera (F)">🎯 Fit</button>
+        <button class="sel-btn" id="selIsolate"    title="Isolate selection (I)">◎ Isolate</button>
+        <button class="sel-btn" id="selHide"       title="Hide selection (H)">⊘ Hide</button>
+        <button class="sel-btn" id="selShowAll"    title="Show all (A)">⊙ Show all</button>
+        <button class="sel-btn" id="selGhost"      title="Ghost others (G)">👻 Ghost</button>
+        <button class="sel-btn primary" id="selIssue" title="Create issue from selection">🚩 Issue</button>
+        <button class="sel-btn close" id="selClose" title="Clear selection (Esc)">✕</button>
+      </div>
+
+      <!-- Coordinate readout -->
+      <div class="coord-readout" id="coordReadout">
+        <span class="x">X</span> 0.00m  <span class="y">Y</span> 0.00m  <span class="z">Z</span> 0.00m
+      </div>
+
+      <!-- Level selector -->
+      <div class="level-strip" id="levelStrip"></div>
+
+      <!-- Nav controls — Orbit / Pan / Walk / Pivot / Fit + walk-speed wheel -->
+      <div class="nav-controls" id="navControls">
+        <button class="nav-btn active" data-mode="orbit" title="Orbit mode (O) — drag to rotate" aria-label="Orbit mode">◯ Orbit</button>
+        <button class="nav-btn" data-mode="pan"  title="Pan mode — drag to translate"             aria-label="Pan mode">↖ Pan</button>
+        <button class="nav-btn" data-mode="walk" title="Walk mode (W) — first-person navigation"  aria-label="Walk mode">🚶 Walk</button>
+        <button class="nav-btn" data-mode="pivot" title="Pivot mode — orbit around selection"     aria-label="Pivot mode">⊕ Pivot</button>
+        <button class="nav-btn" data-mode="fit"  title="Fit selection or model (F)"               aria-label="Fit camera">⌖ Fit</button>
+        <button class="nav-btn" data-mode="home"  title="Default eye view — reset to opening camera position"  aria-label="Default eye view">⌂ Home</button>
+        <button class="nav-btn" data-mode="level" title="Level camera — make view horizontal (remove tilt)"     aria-label="Level camera">— Level</button>
+        <span class="speed-wrap" id="walkSpeedWrap" title="Walk speed — scroll wheel or +/− buttons">
+          <span class="lbl">SPD</span>
+          <button id="walkSpeedDown" aria-label="Decrease walk speed" title="Decrease walk speed">−</button>
+          <span class="val" id="walkSpeedVal" aria-live="polite">1.0×</span>
+          <button id="walkSpeedUp"   aria-label="Increase walk speed" title="Increase walk speed">+</button>
+        </span>
+      </div>
+
+      <!-- Minimap -->
+      <div class="minimap" id="minimap">
+        <button class="minimap-toggle" id="minimapToggle" title="Collapse">▢</button>
+        <canvas id="minimapCanvas"></canvas>
+      </div>
+
+      <!-- Toast tray -->
+      <div class="toasts" id="toasts"></div>
+
+      <!-- Pin hover tooltip (U1) -->
+      <div class="pin-tooltip" id="pinTooltip"></div>
+
+      <!-- Capture FAB (Slice 4b) — floating circular button bottom-left of
+           viewport, clear of joystick area. Opens the capture modal. Hidden
+           until the model has loaded so the empty-state isn't visually noisy. -->
+      <button class="photo-fab" id="photoFab" title="Capture site photo (P)" aria-label="Capture site photo">
+        <span class="glyph">📷</span>
+        <span class="lbl">Capture</span>
+      </button>
+
+      <!-- Help overlay -->
+      <div class="help-overlay">
+        <div class="help-card">
+          <h2>Keyboard shortcuts</h2>
+          <table>
+            <tr><td colspan="2" style="font-weight:600;color:var(--accent);padding-top:6px">Selection &amp; visibility</td></tr>
+            <tr><td>Click</td><td>Select element (replaces selection)</td></tr>
+            <tr><td>Ctrl/⌘+Click</td><td>Toggle in multi-selection</td></tr>
+            <tr><td>Shift+Click</td><td>Range-select within tree group</td></tr>
+            <tr><td>Esc</td><td>Clear selection / close modal</td></tr>
+            <tr><td>F</td><td>Fit camera to selection (or model)</td></tr>
+            <tr><td>H</td><td>Hide selection</td></tr>
+            <tr><td>I</td><td>Isolate selection (hide everything else)</td></tr>
+            <tr><td>A</td><td>Show all elements</td></tr>
+            <tr><td>G</td><td>Toggle ghosted view</td></tr>
+            <tr><td colspan="2" style="font-weight:600;color:var(--accent);padding-top:8px">Navigation</td></tr>
+            <tr><td>O / W</td><td>Orbit / Walk mode</td></tr>
+            <tr><td>Wheel (Walk)</td><td>Move forward / backward</td></tr>
+            <tr><td>Shift+Wheel (Walk)</td><td>Adjust walk speed (coarse)</td></tr>
+            <tr><td>+ / − (Walk)</td><td>Walk speed via on-screen widget</td></tr>
+            <tr><td>Space</td><td>Reset camera</td></tr>
+            <tr><td>1–7</td><td>Jump to level</td></tr>
+            <tr><td colspan="2" style="font-weight:600;color:var(--accent);padding-top:8px">Coordination</td></tr>
+            <tr><td>Right-click row</td><td>Clash / issue context menu</td></tr>
+            <tr><td>Double-click row</td><td>Zoom + isolate (clash) · open comments (issue)</td></tr>
+            <tr><td>Shift+I</td><td>Create new issue from selection</td></tr>
+            <tr><td>M</td><td>Measure tool</td></tr>
+            <tr><td>Ctrl+S</td><td>Save current view</td></tr>
+          </table>
+          <button class="btn ghost close-help">Close</button>
+        </div>
+      </div>
+
+      <!-- Bottom panel sits over the viewport (z-index 30) -->
+      <div class="bottom-panel" id="bottomPanel">
+        <!-- Drag handle: hover anywhere on the top 6px to grab + resize the
+             whole tray vertically. Doubles as a visual "you can pull this"
+             affordance via the orange grip glyph in the centre. -->
+        <div class="bottom-resize" id="bottomResize" title="Drag to resize · double-click to reset">
+          <span class="grip"></span>
+        </div>
+        <div class="bottom-tabs">
+          <button class="btab active" data-tab="clashes">Clashes <span class="count" id="clashesTotal">0</span></button>
+          <button class="btab" data-tab="issues">Issues <span class="count" id="issuesTotal">0</span></button>
+          <button class="btab" data-tab="timeline">Timeline</button>
+          <div class="right">
+            <button class="bottom-collapse" id="bottomExpand" title="Expand to 60% of viewport">⛶</button>
+            <button class="bottom-collapse" id="bottomCollapse" title="Collapse">▾</button>
+          </div>
+        </div>
+
+        <div class="filter-row" id="fr-clashes">
+          <!-- X1 — status and type are independent axes. R12 — pill
+               counts are uniformly TOTALS across the whole list; the
+               post-filter "showing N of M" lives in a separate label
+               so the semantics are unambiguous. -->
+          <div id="clashStatusFilters" style="display:flex;gap:4px;align-items:center">
+            <span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-right:2px">Status</span>
+            <button class="filter-btn active" data-status="any">Any</button>
+            <button class="filter-btn" data-status="NEW">New <span id="clashesNew">0</span></button>
+            <button class="filter-btn" data-status="OPEN">Open <span id="clashesOpen">0</span></button>
+            <button class="filter-btn" data-status="RESOLVED">Resolved <span id="clashesResolved">0</span></button>
+          </div>
+          <span class="sep"></span>
+          <div id="clashTypeFilters" style="display:flex;gap:4px;align-items:center">
+            <span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-right:2px">Type</span>
+            <button class="filter-btn active" data-type="any">Any</button>
+            <button class="filter-btn" data-type="HARD">Hard</button>
+            <button class="filter-btn" data-type="SOFT">Soft</button>
+          </div>
+          <span class="sep"></span>
+          <span id="clashesShowing" style="font-size:11px;color:var(--text-secondary);font-family:var(--font-mono)"></span>
+          <div class="right">
+            <button class="btn sm subtle" id="btnExportCsv">Export CSV</button>
+            <button class="btn sm" id="btnRunDetect">Run clash detection</button>
+          </div>
+        </div>
+
+        <div class="filter-row" id="fr-issues" style="display:none">
+          <div id="issueFilters" style="display:flex;gap:6px">
+            <button class="filter-btn active" data-f="all">All</button>
+            <button class="filter-btn" data-f="mine">Mine <span id="issuesMine">0</span></button>
+            <button class="filter-btn" data-f="overdue">Overdue <span id="issuesOverdue">0</span></button>
+          </div>
+          <div class="right">
+            <button class="btn sm subtle" id="btnExportIssues">Export</button>
+            <button class="btn sm" id="btnNewIssue">+ Create issue</button>
+          </div>
+        </div>
+
+        <div class="filter-row" id="fr-timeline" style="display:none">
+          <span style="color:var(--text-muted);font-size:11px">Coordination progress trend (mock data — wire to /workflows/trend)</span>
+        </div>
+
+        <div class="bottom-body">
+          <div id="bp-clashes" class="bottom-pane active"><div id="clashesBody"></div></div>
+          <div id="bp-issues"  class="bottom-pane">         <div id="issuesBody"></div></div>
+          <div id="bp-timeline" class="bottom-pane" style="padding:12px">
+            <canvas id="timelineCanvas" style="width:100%;height:160px;border-radius:6px"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <aside class="right-panel">
+    <div class="tab-bar">
+      <button class="tab active" data-tab="properties">Properties</button>
+      <button class="tab" data-tab="clashes">Clashes <span class="count" id="rightTabClashesCount"></span></button>
+      <button class="tab" data-tab="issues">Issues <span class="count" id="rightTabIssuesCount"></span></button>
+      <button class="tab" data-tab="photos">Photos <span class="count" id="rightTabPhotosCount"></span></button>
+      <button class="tab" data-tab="comments">Comments <span class="count" id="rightTabCommentsCount"></span></button>
+      <button class="tab" data-tab="activity">Activity</button>
+    </div>
+    <div id="pane-properties" class="tab-pane active"></div>
+    <div id="pane-clashes"    class="tab-pane"></div>
+    <div id="pane-issues"     class="tab-pane"></div>
+    <div id="pane-photos"     class="tab-pane">
+      <div class="empty-state"><span class="glyph">📷</span>No site photos yet</div>
+    </div>
+    <div id="pane-comments"   class="tab-pane">
+      <div class="empty-state"><span class="glyph">💬</span>No comments yet</div>
+    </div>
+    <div id="pane-activity"   class="tab-pane">
+      <div class="empty-state"><span class="glyph">🕓</span>Select an issue to see its activity</div>
+    </div>
+  </aside>
+</div>
+
+<!-- ─────────────────────── Issue creation modal (BCC parity) ─────────────────── -->
+<div class="modal-backdrop" id="issueModal">
+  <div class="modal">
+    <div class="head"><h2>Create issue</h2><button class="close" id="imClose">✕</button></div>
+    <div class="body">
+      <label>Title</label>
+      <input id="imTitle" placeholder="Short summary" />
+
+      <label>Priority</label>
+      <div class="choice-group" id="imPriority">
+        <div class="choice" data-v="CRITICAL">Critical</div>
+        <div class="choice active" data-v="HIGH">High</div>
+        <div class="choice" data-v="MEDIUM">Medium</div>
+        <div class="choice" data-v="LOW">Low</div>
+      </div>
+
+      <label>Type <span class="hint">(matches BCC palette)</span></label>
+      <div class="choice-group" id="imType">
+        <div class="choice active" data-v="RFI" title="Request For Information">RFI</div>
+        <div class="choice" data-v="NCR" title="Non-Conformance Report">NCR</div>
+        <div class="choice" data-v="SI" title="Site Instruction">SI</div>
+        <div class="choice" data-v="TQ" title="Technical Query">TQ</div>
+        <div class="choice" data-v="DESIGN" title="Design issue">DESIGN</div>
+        <div class="choice" data-v="SAFETY" title="Health &amp; Safety">SAFETY</div>
+        <div class="choice" data-v="CLASH" title="Clash / Coordination">CLASH</div>
+        <div class="choice" data-v="COMMENT" title="General comment">Comment</div>
+      </div>
+
+      <label>Status</label>
+      <div class="choice-group" id="imStatus">
+        <div class="choice active" data-v="OPEN">Open</div>
+        <div class="choice" data-v="IN_PROGRESS">In progress</div>
+        <div class="choice" data-v="RESOLVED">Resolved</div>
+        <div class="choice" data-v="CLOSED">Closed</div>
+      </div>
+
+      <label>Discipline <span class="hint">(ISO 19650 single-letter)</span></label>
+      <select id="imDiscipline">
+        <option value="">— Auto-detect —</option>
+        <option value="A">A — Architectural</option>
+        <option value="S">S — Structural</option>
+        <option value="M">M — Mechanical / HVAC</option>
+        <option value="E">E — Electrical</option>
+        <option value="P">P — Plumbing / Public Health</option>
+        <option value="FP">FP — Fire Protection</option>
+        <option value="LV">LV — Low Voltage / Comms</option>
+        <option value="G">G — General / Other</option>
+        <option value="Z">Z — Unspecified</option>
+      </select>
+
+      <label>Linked elements</label>
+      <div class="linked-elements" id="imLinked"></div>
+
+      <div class="row-2">
+        <div>
+          <label>Assignee</label>
+          <select id="imAssignee"></select>
+        </div>
+        <div>
+          <label>Due date</label>
+          <input id="imDue" type="date" />
+        </div>
+      </div>
+
+      <label>Notify / Watchers <span class="hint">(receive every status change &amp; comment)</span></label>
+      <div class="watcher-picker">
+        <select id="imWatchersSelect">
+          <option value="">— Add a watcher —</option>
+        </select>
+        <div class="watcher-chips" id="imWatcherChips"></div>
+      </div>
+
+      <label>Description</label>
+      <textarea id="imDesc" placeholder="Describe the issue, expected resolution, and any standards references"></textarea>
+
+      <label>Initial comment <span class="hint">(optional — posted as the first comment after creation)</span></label>
+      <textarea id="imInitialComment" rows="2" placeholder="@mention teammates by typing their name…"></textarea>
+
+      <label>Screenshot</label>
+      <button class="btn ghost" id="imScreenshotBtn">📷 Capture current view</button>
+      <div class="screenshot-preview" id="imScreenshot"></div>
+
+      <label>Attachments</label>
+      <input id="imAttachInput" type="file" multiple style="display:none" />
+      <div id="imAttachDrop" class="attachment-drop" tabindex="0"
+           role="button" aria-label="Drop files here or click to browse">
+        <button class="btn ghost" id="imAttachBtn" type="button">📎 Add files (photos, PDFs, drawings)</button>
+        <div class="hint">…or drop files anywhere in this box</div>
+      </div>
+      <div class="attachment-list" id="imAttachList"></div>
+    </div>
+    <div class="foot">
+      <button class="btn subtle" id="imCancel">Cancel</button>
+      <button class="btn" id="imSubmit">Create issue →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────── Site-photo capture modal (Slice 4b) ─────────────────── -->
+<div class="modal-backdrop photo-modal" id="photoCaptureModal">
+  <div class="modal">
+    <div class="head"><h2>Capture site photo</h2><button class="close" id="pcClose">✕</button></div>
+    <div class="body">
+      <label>Reason <span class="hint">(drives default audience &amp; auto-issue routing)</span></label>
+      <div class="choice-group reason-group" id="pcReason">
+        <div class="choice reason-chip rc-progress"  data-v="Progress"  title="Progress photo — auto-routes to PendingReview">📈 Progress</div>
+        <div class="choice reason-chip rc-issue"     data-v="Issue"     title="Issue — auto-creates RFI">⚠ Issue</div>
+        <div class="choice reason-chip rc-defect"    data-v="Defect"    title="Defect — auto-creates NCR">🔧 Defect</div>
+        <div class="choice reason-chip rc-safety"    data-v="Safety"    title="Safety — auto-creates SAFETY high-priority issue">🦺 Safety</div>
+        <div class="choice reason-chip rc-asbuilt"   data-v="AsBuilt"   title="As-built record — auto-routes to PendingReview">📐 As-built</div>
+        <div class="choice reason-chip rc-reference" data-v="Reference" title="Reference — internal only">🗂 Reference</div>
+      </div>
+
+      <label>Photo</label>
+      <input id="pcFileInput" type="file" accept="image/*" capture="environment" style="display:none" />
+      <div id="pcDrop" class="attachment-drop" tabindex="0"
+           role="button" aria-label="Tap to pick / take a photo, or drop a file here">
+        <button class="btn ghost" id="pcPickBtn" type="button">📷 Take photo / pick file</button>
+        <div class="hint">JPEG / PNG · max 25 MB · drop a file here or use the camera on mobile</div>
+      </div>
+      <div id="pcPreview" class="photo-preview"></div>
+
+      <label>Caption <span class="hint">(optional at capture; required to approve)</span></label>
+      <textarea id="pcCaption" rows="2" placeholder="Short note describing what's in shot"></textarea>
+
+      <div class="row-2">
+        <div>
+          <label>Level</label>
+          <input id="pcLevel" placeholder="e.g. L02" />
+        </div>
+        <div>
+          <label>Zone</label>
+          <input id="pcZone" placeholder="e.g. Z01" />
+        </div>
+      </div>
+
+      <div class="anchor-strip" id="pcAnchorStrip">
+        <span class="lbl">Anchor</span>
+        <span class="pill" id="pcAnchorElement">Element: —</span>
+        <span class="pill" id="pcAnchorPoint">3D point: —</span>
+        <span class="pill" id="pcAnchorModel">Model: —</span>
+      </div>
+    </div>
+    <div class="foot">
+      <button class="btn subtle" id="pcCancel">Cancel</button>
+      <button class="btn" id="pcSubmit">Capture →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────── Site-photo review queue modal (PM/Admin/Owner) ──────────── -->
+<div class="modal-backdrop photo-modal" id="photoReviewModal">
+  <div class="modal">
+    <div class="head"><h2>Photo review queue</h2><button class="close" id="prClose">✕</button></div>
+    <div class="body">
+      <div class="review-toolbar">
+        <span id="prCountLabel" class="hint">Loading…</span>
+        <div class="right">
+          <button class="btn sm subtle" id="prRefresh">↻ Refresh</button>
+          <button class="btn sm subtle" id="prSelectAll">Select all</button>
+          <button class="btn sm subtle" id="prSelectNone">Clear</button>
+        </div>
+      </div>
+      <div id="prList" class="review-list">
+        <div class="inline-loader"><span class="dot-spin"></span>Loading pending photos…</div>
+      </div>
+    </div>
+    <div class="foot foot-bulk">
+      <input id="prBulkCaption" placeholder="Shared caption for selected photos (≥ 3 chars to approve)" />
+      <button class="btn subtle" id="prBulkCancel">Close</button>
+      <button class="btn" id="prBulkApprove">✓ Approve selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────── Generic toolbar dropdowns ─────────────────────── -->
+<div class="menu" id="menuMeasure">
+  <div class="menu-item" id="mPP">📍 Point to point</div>
+  <div class="menu-item" id="mArea">▱ Area</div>
+  <div class="menu-item" id="mAngle">∠ Angle</div>
+  <div class="menu-sep"></div>
+  <div class="menu-item danger" id="mClear">Clear all measurements</div>
+</div>
+<div class="menu" id="menuSection">
+  <div class="menu-item" id="sX">▤ Plane X</div>
+  <div class="menu-item" id="sY">▥ Plane Y</div>
+  <div class="menu-item" id="sZ">▦ Plane Z</div>
+  <div class="menu-item" id="sFree">↗ Free plane</div>
+  <div class="menu-item" id="sBox">⊟ Section box</div>
+  <div class="menu-sep"></div>
+  <div class="menu-item danger" id="sClr">Clear all sections</div>
+</div>
+<div class="menu" id="menuView">
+  <div class="menu-item" id="vShaded">● Shaded</div>
+  <div class="menu-item" id="vWire">▦ Wireframe</div>
+  <div class="menu-item" id="vXray">◌ X-Ray</div>
+  <div class="menu-item" id="vGhost">◑ Ghosted</div>
+  <div class="menu-sep"></div>
+  <div class="menu-item" id="vEdges">┃ Edge overlay</div>
+  <div class="menu-item" id="vCaps">▤ Section caps</div>
+  <div class="menu-item" id="vCoords">⌖ Coordinates readout</div>
+  <div class="menu-item" id="vExplode">⊕ Exploded view</div>
+  <div class="menu-sep"></div>
+  <div class="menu-item" id="vTop">⬆ Top</div>
+  <div class="menu-item" id="vFront">⬛ Front</div>
+  <div class="menu-item" id="vSide">▶ Side</div>
+  <div class="menu-item" id="vIso">◆ Iso</div>
+  <div class="menu-sep"></div>
+  <div class="menu-item" id="vBmSave">⭐ Save bookmark 1</div>
+  <div class="menu-item" id="vBmRestore">↺ Restore bookmark 1</div>
+</div>
+<div class="menu" id="menuIssues">
+  <div class="menu-item" id="iCreate">＋ Create issue</div>
+  <div class="menu-item" id="iMine">👤 My issues</div>
+  <div class="menu-item" id="iAll">📋 All issues</div>
+</div>
+<div class="menu" id="menuMarkup">
+  <div class="menu-item" id="mkDraw">✎ Draw</div>
+  <div class="menu-item" id="mkArrow">→ Arrow</div>
+  <div class="menu-item" id="mkText">T Text</div>
+  <div class="menu-sep"></div>
+  <div class="menu-item" id="mkScreenshot">📷 Screenshot</div>
+  <div class="menu-item" id="mkShare">🔗 Share view link</div>
+</div>
+
+<!-- Settings popover (was a no-op TaskDialog) -->
+<div class="settings-menu" id="settingsMenu">
+  <div class="row">
+    <label>API server</label>
+    <input id="settingApiBase" type="text" placeholder="https://api.planscape.app" />
+    <small style="opacity:0.6;font-size:10px;display:block;margin-top:2px">
+      Override the API host for LAN / staging / on-prem deployments.
+    </small>
+  </div>
+  <div class="sep"></div>
+  <div class="row">
+    <label>Tenant ID</label>
+    <input id="settingTenant" type="text" placeholder="(default)" />
+  </div>
+  <div class="sep"></div>
+  <div class="row">
+    <label>Theme</label>
+    <select id="settingTheme">
+      <option value="dark">Dark (default)</option>
+      <option value="light">Light</option>
+      <option value="contrast">High contrast</option>
+    </select>
+  </div>
+  <div class="sep"></div>
+  <div class="row">
+    <label>Walk eye-height (metres above floor)</label>
+    <input id="settingEyeHeight" type="number" step="0.05" min="0.6" max="2.4" placeholder="1.70" />
+    <small style="opacity:0.6;font-size:10px;display:block;margin-top:2px">
+      Default 1.70 m. Children's facilities use 1.20–1.40 m;
+      site-walk inspections often use 1.60–1.80 m. Range: 0.6–2.4 m.
+    </small>
+  </div>
+  <div class="sep"></div>
+  <div class="row">
+    <label>Default walk speed</label>
+    <input id="settingWalkSpeed" type="number" step="0.1" min="0.1" max="8" placeholder="1.0" />
+    <small style="opacity:0.6;font-size:10px;display:block;margin-top:2px">
+      Multiplier on the model-scaled base speed. 1.0 ≈ human walk; 4.0 ≈ jog through a hospital wing.
+    </small>
+  </div>
+  <div class="actions">
+    <button class="btn subtle" id="settingsCancel">Close</button>
+    <button class="btn" id="settingsSave">Save &amp; reload</button>
+  </div>
+</div>
+
+<!-- ─────────────────────── Legacy DOM kept hidden so original code can still find it ─────────────────────── -->
+<div style="display:none">
+  <div id="loading"><div id="loadingProgress2">0%</div></div>
+  <div id="elementChip"></div>
+  <div id="statusChip"></div>
+  <div id="sectionSlider"><input type="range" min="0" max="100" value="100" id="sectionRange" /></div>
+  <button id="toolHome"></button><button id="toolPick"></button>
+  <button id="toolMeasure"></button><button id="toolSection"></button><button id="toolPin"></button>
+</div>
+
+<!-- ─────────────────────── three.js dependencies ─────────────────────── -->
+<script src="./three.min.js"></script>
+<script src="./GLTFLoader.js"></script>
+<script src="./OrbitControls.js"></script>
+<script src="./DRACOLoader.js" onerror="window.__noDraco=1"></script>
+<script src="./MeshoptDecoder.js" onerror="window.__noMeshopt=1"></script>
+
+<!-- ─────────────────────── Original viewer engine (RN bridge + Three.js core) ─────────────────────── -->
+<script>
+(() => {
+  'use strict';
+
+  const bridge = {
+    send(type, payload) {
+      const msg = JSON.stringify({ type, payload });
+      if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(msg);
+      else console.log('[viewer→rn]', msg);
+    }
+  };
+  window.addEventListener('message', (ev) => {
+    try { handleCommand(JSON.parse(ev.data)); }
+    catch (err) { console.warn('[viewer] bad command:', ev.data, err); }
+  });
+  document.addEventListener('message', (ev) => {
+    try { handleCommand(JSON.parse(ev.data)); } catch (err) {}
   });
 
   if (typeof THREE === 'undefined') {
@@ -95,68 +660,75 @@ if (!token) {
     return;
   }
 
-  const authHeader = { Authorization: "Bearer " + token };
+  // ── Scene setup ─────────────────────────────────────────────────────
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x111318);
 
-  status("Fetching metadata…");
-  let meta;
-  try {
-    const res = await fetch(`/api/projects/${projectId}/models/${modelId}`,
-      { headers: authHeader });
-    if (res.status === 401) {
-      status("Session expired — please sign in again from the Planscape dashboard.");
-      throw null; // skip model load
-    }
-    if (!res.ok) throw new Error(await res.text());
-    meta = await res.json();
-  } catch (e) {
-    if (e) status("Metadata fetch failed: " + e.message);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x404060, 0.9));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.7);
+  dir.position.set(5, 10, 3); scene.add(dir);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.15));
+
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 10000);
+  camera.position.set(10, 10, 10);
+
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true, alpha: false,
+    // C1 — required so coordination-viewer.js can call toDataURL() for the
+    // issue-modal screenshot capture. Without this flag the back buffer is
+    // cleared after every frame and toDataURL returns a blank image.
+    preserveDrawingBuffer: true
+  });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.localClippingEnabled = true;
+  // The renderer canvas lives inside the new viewport-wrap, NOT directly on body.
+  const host = document.getElementById('viewerCanvas') || document.body;
+  host.appendChild(renderer.domElement);
+  function sizeRenderer() {
+    const w = host.clientWidth || window.innerWidth;
+    const h = host.clientHeight || window.innerHeight;
+    camera.aspect = w / Math.max(1, h);
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h, false);
   }
+  sizeRenderer();
 
-  if (meta) {
-    status("Downloading model…");
-    // Pass the JWT via Authorization header rather than ?access_token=
-    // — keeps tokens out of URL bars, nginx access logs and browser
-    // history, and avoids relying on a path-specific allowlist on the
-    // server's JwtBearerEvents.OnMessageReceived handler.
-    const fileUrl = `/api/projects/${projectId}/models/${modelId}/file`;
-    const loader = new GLTFLoader();
-    // setRequestHeader() is the documented GLTFLoader API for custom headers.
-    // Assigning loader.requestHeader directly (property) is non-standard and
-    // silently ignored in some three.js builds.
-    loader.setRequestHeader(authHeader);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = 0.08;
+
+  const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
+  renderer.clippingPlanes = [];
+
+  const pinGroup = new THREE.Group(); pinGroup.renderOrder = 999; scene.add(pinGroup);
+  const measureGroup = new THREE.Group(); scene.add(measureGroup);
+
+  let modelRoot = null;
+  let modelBounds = new THREE.Box3();
+  let elementMap = null;
+  let pinMeta = new Map();
+  let measurePoints = [];
+  let activeTool = 'pick';
+  let lastPickEl = null;
+  let pressTimer = null;
+
+  function loadModel(url) {
+    const loader = new THREE.GLTFLoader();
+    try {
+      const v = window.STING_VIEWER;
+      if (v && v.dracoLoader && loader.setDRACOLoader) loader.setDRACOLoader(v.dracoLoader);
+      if (v && v.meshoptDecoder && loader.setMeshoptDecoder) loader.setMeshoptDecoder(v.meshoptDecoder);
+    } catch (_) {}
     loader.load(
       url,
       (gltf) => {
         if (modelRoot) scene.remove(modelRoot);
         modelRoot = gltf.scene;
-        // ── Z-up normalisation (Revit GLB exports are Z-up; glTF spec is Y-up) ──
-        // Detect Z-up: the model's Z span is the smallest (it's the floor-to-ceiling axis).
-        // Rotate the root -90° around X so Y becomes up. This keeps camera.up=(0,1,0)
-        // which is what OrbitControls expects — without this, mouse-up orbits sideways
-        // instead of pitching forward.
-        const tmpBox = new THREE.Box3().setFromObject(modelRoot);
-        const ts = tmpBox.getSize(new THREE.Vector3());
-        if (ts.z <= ts.x && ts.z <= ts.y) {
-          modelRoot.rotation.x = -Math.PI / 2;
-          modelRoot.updateMatrixWorld(true);
-        }
-
-        // ── Origin recentre (Revit survey/shared coordinates) ──────────
-        // Revit exports real-world coordinates (e.g. X=52 396 m). At that
-        // distance from origin, floating-point precision breaks clipping
-        // planes and OrbitControls zoom. Translate the model root so its
-        // bounding-box centre sits at (0,0,0) before adding to the scene.
-        const centreBox = new THREE.Box3().setFromObject(modelRoot);
-        const centreOffset = centreBox.getCenter(new THREE.Vector3()).negate();
-        modelRoot.position.add(centreOffset);
-        modelRoot.updateMatrixWorld(true);
-
         assignElementIds(modelRoot);
         scene.add(modelRoot);
         modelBounds.setFromObject(modelRoot);
         fitCamera();
-        const bootEl = document.getElementById('bootLoader');
-        if (bootEl) bootEl.style.display = 'none';
+        const loader = document.getElementById('bootLoader');
+        if (loader) loader.style.display = 'none';
         bridge.send('loaded', {
           elementCount: countMeshes(modelRoot),
           bounds: bbToArray(modelBounds)
@@ -171,8 +743,8 @@ if (!token) {
       },
       (err) => {
         console.error('[viewer] load fail', err);
-        const bootEl = document.getElementById('bootLoader');
-        if (bootEl) bootEl.querySelector('.msg').textContent = 'Failed to load model';
+        const loader = document.getElementById('bootLoader');
+        if (loader) loader.querySelector('.msg').textContent = 'Failed to load model';
       }
     );
   }
@@ -185,74 +757,43 @@ if (!token) {
     });
   }
 
-  // ── PCA: find the long horizontal axis of the building footprint ───
-  // Samples up to 40k vertex positions in the XZ plane (after Y-up
-  // normalisation) and returns a unit vector along the longest axis.
-  function pcaLongAxis(group) {
-    const positions = [];
-    const tmp = new THREE.Vector3();
-    group.traverse(obj => {
-      if (!obj.isMesh || !obj.geometry || !obj.geometry.attributes.position) return;
-      const pos = obj.geometry.attributes.position;
-      const step = Math.max(1, Math.floor(pos.count / (40000 / Math.max(1, positions.length / 2 + 1))));
-      for (let i = 0; i < pos.count; i += step) {
-        tmp.fromBufferAttribute(pos, i).applyMatrix4(obj.matrixWorld);
-        positions.push(tmp.x, tmp.z);
-      }
-    });
-    if (positions.length < 4) return null;
-    const n = positions.length / 2;
-    let mx = 0, mz = 0;
-    for (let i = 0; i < positions.length; i += 2) { mx += positions[i]; mz += positions[i + 1]; }
-    mx /= n; mz /= n;
-    let cxx = 0, cxz = 0, czz = 0;
-    for (let i = 0; i < positions.length; i += 2) {
-      const dx = positions[i] - mx, dz = positions[i + 1] - mz;
-      cxx += dx * dx; cxz += dx * dz; czz += dz * dz;
-    }
-    // 2×2 symmetric matrix eigenvalue: largest eigenvector
-    const trace = cxx + czz, det = cxx * czz - cxz * cxz;
-    const disc = Math.sqrt(Math.max(0, trace * trace / 4 - det));
-    const l1 = trace / 2 + disc;
-    const vx = l1 - czz, vz = cxz;
-    const len = Math.hypot(vx, vz);
-    return len < 1e-9 ? null : new THREE.Vector3(vx / len, 0, vz / len);
-  }
-
   function fitCamera() {
     if (modelBounds.isEmpty()) return;
     const size = modelBounds.getSize(new THREE.Vector3());
     const centre = modelBounds.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
     const dist = maxDim * 1.8;
-
-    // Scale clipping planes and orbit limits to actual model size so
-    // zoom-in / zoom-out / scroll wheel all work at any building scale.
-    camera.near = maxDim * 0.001;
-    camera.far  = maxDim * 200;
-    camera.updateProjectionMatrix();
-
-    controls.minDistance = maxDim * 0.02;
-    controls.maxDistance = maxDim * 50;
-    controls.zoomSpeed   = 1.2;
-
-    // After Z-up normalisation the model is always Y-up.
-    camera.up.set(0, 1, 0);
-
-    // Use PCA to find true long axis; place camera perpendicular to it.
-    const pca = modelRoot ? pcaLongAxis(modelRoot) : null;
-    if (pca) {
-      // Perpendicular to long axis in XZ plane
-      const perpX =  pca.z;
-      const perpZ = -pca.x;
-      camera.position.copy(centre).add(
-        new THREE.Vector3(perpX * dist * 0.85, dist * 0.55, perpZ * dist * 0.85));
-    } else {
-      // Fallback: AABB-based orientation
-      if (size.x >= size.z) {
-        camera.position.copy(centre).add(new THREE.Vector3(0, dist * 0.55, dist * 0.85));
+    // Sync camera.up to the model's dominant vertical axis so OrbitControls
+    // rotates correctly. Revit GLBs are often Z-up (the axis with the
+    // smallest horizontal span), while spec glTF/GLB is Y-up. Without this,
+    // dragging up on the canvas orbits sideways instead of overhead.
+    const ax = Math.abs(size.x), ay = Math.abs(size.y), az = Math.abs(size.z);
+    if (az <= ax && az <= ay) {
+      // Z-up model (Revit). Place camera perpendicular to the longest
+      // horizontal axis so that axis fills the screen width.
+      camera.up.set(0, 0, 1);
+      if (ax >= ay) {
+        // Long axis is X → view from south (Y-) so X reads left-right.
+        camera.position.copy(centre).add(new THREE.Vector3(0, -dist * 0.8, dist * 0.6));
       } else {
-        camera.position.copy(centre).add(new THREE.Vector3(dist * 0.85, dist * 0.55, 0));
+        // Long axis is Y → view from west (X-) so Y reads left-right.
+        camera.position.copy(centre).add(new THREE.Vector3(-dist * 0.8, 0, dist * 0.6));
+      }
+    } else if (ay <= ax && ay <= az) {
+      // Y-up model. Same logic for horizontal axes X and Z.
+      camera.up.set(0, 1, 0);
+      if (ax >= az) {
+        camera.position.copy(centre).add(new THREE.Vector3(0, dist * 0.6, -dist * 0.8));
+      } else {
+        camera.position.copy(centre).add(new THREE.Vector3(-dist * 0.8, dist * 0.6, 0));
+      }
+    } else {
+      // X-up model. Horizontal axes are Y and Z.
+      camera.up.set(1, 0, 0);
+      if (ay >= az) {
+        camera.position.copy(centre).add(new THREE.Vector3(dist * 0.6, 0, -dist * 0.8));
+      } else {
+        camera.position.copy(centre).add(new THREE.Vector3(dist * 0.6, -dist * 0.8, 0));
       }
     }
     controls.target.copy(centre);
@@ -263,6 +804,39 @@ if (!token) {
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   let pointerDown = { x: 0, y: 0, t: 0 };
+
+  // ── Pick snap — vertex / edge-midpoint / face-center ──────────────────
+  // 'none' = use raw hit.point. Others snap to nearest of the hit triangle.
+  let pickSnap = 'none';
+  function snapHitPoint(hit) {
+    if (!hit || !hit.face || !hit.object || !hit.object.geometry) return hit.point;
+    const g = hit.object.geometry;
+    const pos = g.attributes && g.attributes.position;
+    if (!pos) return hit.point;
+    const a = new THREE.Vector3().fromBufferAttribute(pos, hit.face.a);
+    const b = new THREE.Vector3().fromBufferAttribute(pos, hit.face.b);
+    const c = new THREE.Vector3().fromBufferAttribute(pos, hit.face.c);
+    hit.object.localToWorld(a); hit.object.localToWorld(b); hit.object.localToWorld(c);
+    if (pickSnap === 'face') return new THREE.Vector3().add(a).add(b).add(c).multiplyScalar(1 / 3);
+    if (pickSnap === 'vertex') {
+      // Closest of three triangle vertices.
+      const da = hit.point.distanceToSquared(a);
+      const db = hit.point.distanceToSquared(b);
+      const dc = hit.point.distanceToSquared(c);
+      return da <= db && da <= dc ? a : (db <= dc ? b : c);
+    }
+    if (pickSnap === 'midpoint') {
+      // Closest midpoint of the three triangle edges.
+      const mab = a.clone().add(b).multiplyScalar(0.5);
+      const mbc = b.clone().add(c).multiplyScalar(0.5);
+      const mca = c.clone().add(a).multiplyScalar(0.5);
+      const d1 = hit.point.distanceToSquared(mab);
+      const d2 = hit.point.distanceToSquared(mbc);
+      const d3 = hit.point.distanceToSquared(mca);
+      return d1 <= d2 && d1 <= d3 ? mab : (d2 <= d3 ? mbc : mca);
+    }
+    return hit.point;
+  }
 
   renderer.domElement.addEventListener('pointerdown', (e) => {
     pointerDown = { x: e.clientX, y: e.clientY, t: Date.now() };
@@ -278,13 +852,51 @@ if (!token) {
     const hits = raycast();
     if (hits.length === 0) return;
     const hit = hits[0];
+    // Snap the hit point if a snap mode is active. Pin meshes (sprites) and
+    // hits without face data fall back to raw hit.point.
+    if (hit.face && !pinMeta.has(hit.object.uuid)) {
+      const snapped = snapHitPoint(hit);
+      if (snapped && snapped !== hit.point) hit.point = snapped;
+    }
 
     if (longPress) { emitPlaceIssue(hit); return; }
     if (activeTool === 'pick')         emitPick(hit);
     else if (activeTool === 'measure') addMeasurePoint(hit);
     else if (activeTool === 'pin')     emitPlaceIssue(hit);
+    else if (activeTool === 'clearance') addClearancePick(hit);
+    else if (activeTool === 'cumPath') addCumulativePickHit(hit);
     else                                emitPick(hit);
   });
+
+  // ── Clearance pick — collects two element targets, emits min-distance ─
+  // Stores the picked mesh (NOT the hit point) so the math runs against the
+  // mesh's full bounds — typical use case: "what's the gap between this duct
+  // and that beam?" not "between these two surface dabs".
+  let clearancePicks = [];
+  function addClearancePick(hit) {
+    if (pinMeta.has(hit.object.uuid)) return;
+    if (!hit.object || !hit.object.isMesh) return;
+    clearancePicks.push(hit.object);
+    if (clearancePicks.length === 2) {
+      const x = window.STING_VIEWER_EXTRAS;
+      if (x && typeof x.computeClearance === 'function') {
+        const r = x.computeClearance(clearancePicks[0], clearancePicks[1]);
+        if (r) bridge.send('measureClearance', r);
+      }
+      clearancePicks = [];
+    } else {
+      bridge.send('measureClearancePending', { count: clearancePicks.length });
+    }
+  }
+
+  // ── Cumulative-path pick — forwarded to extras for polyline accumulation.
+  function addCumulativePickHit(hit) {
+    if (pinMeta.has(hit.object.uuid)) return;
+    const x = window.STING_VIEWER_EXTRAS;
+    if (x && typeof x.addCumulativePoint === 'function') {
+      x.addCumulativePoint(hit.point.toArray());
+    }
+  }
 
   function setPointer(ev) {
     const rect = renderer.domElement.getBoundingClientRect();
@@ -305,8 +917,41 @@ if (!token) {
     const guid = hit.object.userData.elementGuid;
     lastPickEl = guid;
     const meta = elementMap && elementMap[guid] ? elementMap[guid] : null;
-    bridge.send('pick', { guid, point: hit.point.toArray(), name: hit.object.name, meta });
+    const ifc = extractIfcUserData(hit.object);
+    bridge.send('pick', {
+      guid, point: hit.point.toArray(), name: hit.object.name, meta, ifc,
+      // Pass snap mode along so the host UI can label the readout
+      // ("vertex", "midpoint", "face center", or "surface").
+      snap: pickSnap,
+    });
     highlight(hit.object);
+  }
+
+  // ── IFC userData extraction ───────────────────────────────────────────
+  // GLB exporters (IfcOpenShell, RvtToGlb, GraphisoftIFC export) commonly
+  // attach IFC properties under one of these keys; we surface whichever
+  // shape we find so the host doesn't need to peek into model internals.
+  function extractIfcUserData(mesh) {
+    if (!mesh || !mesh.userData) return null;
+    const ud = mesh.userData;
+    const root = ud.ifc || ud.IFC || ud.ifcProperties || ud.IfcProperties || null;
+    // Some exporters bury props under userData.extras / userData.attributes.
+    const extras = ud.extras || ud.attributes || {};
+    if (!root && !extras.ifcType && !extras.GlobalId && !extras.psets && !ud.IfcType) return null;
+    return {
+      type:    root?.type    ?? root?.IfcType ?? extras.ifcType ?? ud.IfcType ?? null,
+      globalId: root?.globalId ?? root?.GlobalId ?? extras.GlobalId ?? ud.GlobalId ?? null,
+      name:    root?.name    ?? ud.name ?? mesh.name ?? null,
+      objectType: root?.objectType ?? root?.ObjectType ?? extras.ObjectType ?? null,
+      tag:     root?.tag     ?? root?.Tag ?? extras.Tag ?? null,
+      // Property sets: keep the raw object so callers can render any shape.
+      psets:   root?.psets   ?? root?.PropertySets ?? extras.psets ?? null,
+      // Common high-value lookups — flatten so a coordinator can read them
+      // without traversing pset → quantities.
+      material: root?.material ?? extras.Material ?? null,
+      level:    root?.level    ?? ud.level   ?? extras.Level ?? null,
+      system:   root?.system   ?? ud.system  ?? extras.System ?? null,
+    };
   }
   function emitPlaceIssue(hit) {
     const guid = hit.object.userData.elementGuid;
@@ -392,7 +1037,90 @@ if (!token) {
       case 'clearPins':        clearPins(); break;
       case 'setDiscipline':    setDisciplineVisible(cmd.payload.discipline, cmd.payload.visible); break;
       case 'setBackground':    scene.background = new THREE.Color(cmd.payload.color || 0x111318); break;
+      // ── Compliance heatmap ──────────────────────────────────────────────
+      case 'setHeatmap':       setComplianceHeatmap(cmd.payload); break;
+      case 'clearHeatmap':     clearComplianceHeatmap(); break;
+      // ── BCF viewpoints ──────────────────────────────────────────────────
+      case 'saveViewpoint':    bridge.send('viewpoint', captureViewpoint(cmd.payload)); break;
+      case 'loadViewpoint':    restoreViewpoint(cmd.payload); break;
     }
+  }
+
+  // ── Compliance heatmap ────────────────────────────────────────────────────
+  // payload: { elements: [{ guid, isComplete, disc }], mode: 'rag'|'disc' }
+  const _origMaterials = new Map(); // guid → original material
+
+  function setComplianceHeatmap(payload) {
+    if (!modelRoot || !elementMap) return;
+    const { elements = [], mode = 'rag' } = payload || {};
+    const ragByGuid = new Map(elements.map(e => [e.guid, e]));
+
+    const C_GREEN  = new THREE.Color(0x27ae60);
+    const C_AMBER  = new THREE.Color(0xf39c12);
+    const C_RED    = new THREE.Color(0xe74c3c);
+    const C_GREY   = new THREE.Color(0x888888);
+    const DISC_COLORS = {
+      A:'#3498db', M:'#e67e22', E:'#f1c40f', P:'#2ecc71',
+      S:'#9b59b6', FP:'#e74c3c', LV:'#1abc9c', G:'#95a5a6',
+    };
+
+    modelRoot.traverse(obj => {
+      if (!obj.isMesh) return;
+      const guid = obj.userData.elementGuid;
+      if (!guid) return;
+      const info = ragByGuid.get(guid);
+      if (!info) return;
+
+      // Save original material once
+      if (!_origMaterials.has(guid)) _origMaterials.set(guid, obj.material);
+
+      let color;
+      if (mode === 'disc') {
+        color = new THREE.Color(DISC_COLORS[info.disc] || '#888');
+      } else {
+        color = info.isComplete ? C_GREEN : (info.disc ? C_AMBER : C_RED);
+      }
+      const mat = new THREE.MeshLambertMaterial({ color });
+      obj.material = mat;
+    });
+  }
+
+  function clearComplianceHeatmap() {
+    if (!modelRoot) return;
+    modelRoot.traverse(obj => {
+      if (!obj.isMesh) return;
+      const guid = obj.userData.elementGuid;
+      if (guid && _origMaterials.has(guid)) {
+        obj.material = _origMaterials.get(guid);
+        _origMaterials.delete(guid);
+      }
+    });
+  }
+
+  // ── BCF viewpoint capture / restore ──────────────────────────────────────
+  function captureViewpoint(meta) {
+    const eye = camera.position.toArray();
+    const look = controls.target.toArray();
+    const up  = camera.up.toArray();
+    const dir = new THREE.Vector3().subVectors(controls.target, camera.position).normalize().toArray();
+    const selected = highlightedMesh ? [highlightedMesh.userData.elementGuid].filter(Boolean) : [];
+    return {
+      ...(meta || {}),
+      camera: { eye, look, up, dir, fov: camera.fov },
+      selectedGuids: selected,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  function restoreViewpoint(vp) {
+    if (!vp || !vp.camera) return;
+    const { eye, look, up, fov } = vp.camera;
+    if (fov) camera.fov = fov;
+    camera.updateProjectionMatrix();
+    controls.target.set(...look);
+    camera.position.set(...eye);
+    camera.up.set(...up);
+    controls.update();
   }
 
   function setTool(t) {
@@ -473,13 +1201,56 @@ if (!token) {
     const p = (cmd && cmd.payload) || {};
     if (x) {
       switch (cmd.type) {
-        case 'loadFederation':    return x.loadFederation(p.sources || []);
-        case 'setSectionPlane':   return x.setSectionPlane(p);
-        case 'setWalkthrough':    return x.setWalkthrough(!!p.enabled);
-        case 'startArea':         return x.startArea();
-        case 'addAreaPoint':      return p.point ? x.addAreaPoint(p.point) : undefined;
-        case 'finishArea':        return x.finishArea();
-        case 'measureVolume':     return x.measureSelectionVolume();
+        case 'loadFederation':        return x.loadFederation(p.sources || []);
+        case 'setSectionPlane':        return x.setSectionPlane(p);
+        case 'addSectionPlaneAxis':    return x.addSectionPlaneAxis(p.axis, p.offset);
+        case 'updateSectionPlane':     return x.updateSectionPlane(p.id, p.offset);
+        case 'removeSectionPlane':     return x.removeSectionPlane(p.id);
+        case 'clearSectionPlanes':     return x.clearSectionPlanes();
+        case 'setSectionBox':          return x.setSectionBox(p);
+        case 'updateSectionBoxFace':   return x.updateSectionBoxFace(p.faceIndex, p.offsetMm);
+        case 'clearSectionBox':        return x.clearSectionBox();
+        case 'setModelVisible':        return x.setModelVisible(p.label, p.visible);
+        case 'setExplodeFactor':       return x.setExplodeFactor(p.factor ?? 0);
+        case 'startMarkup':            return x.startMarkup(p.mode || null);
+        case 'clearMarkup':            return x.clearMarkup();
+        case 'setWalkthrough':         return x.setWalkthrough(!!p.enabled);
+        case 'startArea':              return x.startArea();
+        case 'addAreaPoint':           return p.point ? x.addAreaPoint(p.point) : undefined;
+        case 'finishArea':             return x.finishArea();
+        case 'measureVolume':          return x.measureSelectionVolume();
+        case 'setModelOpacity':        return x.setModelOpacity(p.label, p.opacity);
+        case 'setModelSolo':           return x.setModelSolo(p.label ?? null);
+        case 'setIsolatedGuids':       return x.setIsolatedGuids(p.guids || null);
+        case 'clearIsolation':         return x.clearIsolation();
+        case 'setCameraPreset':        return x.setCameraPreset(p.preset || 'iso');
+        case 'saveCameraBookmark':     return x.saveCameraBookmark(p.slot);
+        case 'restoreCameraBookmark':  return x.restoreCameraBookmark(p.slot);
+        case 'setRenderMode':          return x.setRenderMode(p.mode || 'shaded');
+        case 'setEdgeOverlay':         return x.setEdgeOverlay(!!p.enabled);
+        case 'setSectionCaps':         return x.setSectionCaps(!!p.enabled);
+        case 'setCoordReadout':        return x.setCoordReadout(!!p.enabled);
+        case 'startCumulativeMeasure': return x.startCumulativeMeasure();
+        case 'addCumulativePoint':     return p.point ? x.addCumulativePoint(p.point) : undefined;
+        case 'finishCumulativeMeasure':return x.finishCumulativeMeasure();
+        case 'clearCumulativeMeasure': return x.clearCumulativeMeasure();
+        case 'captureViewState': {
+          const s = x.captureViewState();
+          if (s) window.STING_VIEWER.bridge.send('viewState', s);
+          return;
+        }
+        case 'restoreViewState':       return x.restoreViewState(p);
+        case 'clearClearance':         return x.clearClearance();
+        case 'setPhotoSphere':         return x.setPhotoSphere(p.url, p);
+        case 'clearPhotoSphere':       return x.clearPhotoSphere();
+        case 'setPresenceCursor':      return x.setPresenceCursor(p.userId, p);
+        case 'removePresenceCursor':   return x.removePresenceCursor(p.userId);
+        case 'clearPresenceCursors':   return x.clearPresenceCursors();
+        case 'getCameraState': {
+          const s = x.getCameraState();
+          if (s) window.STING_VIEWER.bridge.send('cameraState', s);
+          return;
+        }
       }
     }
     return _origHandle(cmd);
