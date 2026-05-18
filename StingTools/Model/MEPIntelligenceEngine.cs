@@ -63,33 +63,67 @@ namespace StingTools.Model
             {
                 if (_overridesLoaded) return _overrides;
                 _overridesLoaded = true;
+                var map = new Dictionary<FittingType, FittingLossData>();
                 try
                 {
+                    // 1. Corporate baseline from Data/STING_FITTING_LOSSES.json.
                     string path = StingTools.Core.StingToolsApp.FindDataFile("STING_FITTING_LOSSES.json");
-                    if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path)) return _overrides;
-                    var jt = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText(path));
-                    var fittings = jt["fittings"] as Newtonsoft.Json.Linq.JArray;
-                    if (fittings == null) return _overrides;
-                    var map = new Dictionary<FittingType, FittingLossData>();
-                    foreach (var t in fittings)
+                    if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
+                        ApplyOverlay(path, map);
+
+                    // 2. Project override (Phase 182, gap A7) at
+                    //    <project>/_BIM_COORD/fitting_losses.json. The project
+                    //    override is merged on top of corporate so a project
+                    //    can rewrite a single fitting (e.g. a custom Trox damper)
+                    //    without redeclaring all 31 baseline entries.
+                    try
                     {
-                        var o = t as Newtonsoft.Json.Linq.JObject; if (o == null) continue;
-                        string idStr = (string)o["id"]; if (string.IsNullOrEmpty(idStr)) continue;
-                        if (!Enum.TryParse<FittingType>(idStr, out var ft)) continue;
-                        map[ft] = new FittingLossData
+                        var doc = StingTools.UI.StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                        if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                         {
-                            Type         = ft,
-                            Kv           = (double?)o["kv"]           ?? 1.0,
-                            EquivLengthM = (double?)o["equivLengthM"] ?? 2.0,
-                            Standard     = (string)o["standard"]      ?? "JSON"
-                        };
+                            string projDir = System.IO.Path.GetDirectoryName(doc.PathName);
+                            if (!string.IsNullOrEmpty(projDir))
+                            {
+                                string projPath = System.IO.Path.Combine(projDir, "_BIM_COORD", "fitting_losses.json");
+                                if (System.IO.File.Exists(projPath)) ApplyOverlay(projPath, map);
+                            }
+                        }
                     }
-                    _overrides = map;
-                    StingLog.Info($"FittingLossCalculator: {map.Count} entries overlaid from STING_FITTING_LOSSES.json");
+                    catch (Exception exP) { StingLog.Warn($"FittingLossCalculator project overlay: {exP.Message}"); }
+
+                    if (map.Count > 0)
+                    {
+                        _overrides = map;
+                        StingLog.Info($"FittingLossCalculator: {map.Count} entries overlaid from JSON (corporate + project).");
+                    }
                 }
                 catch (Exception ex) { StingLog.Warn($"FittingLossCalculator overlay load: {ex.Message}"); }
                 return _overrides;
             }
+        }
+
+        private static void ApplyOverlay(string path, Dictionary<FittingType, FittingLossData> map)
+        {
+            try
+            {
+                var jt = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText(path));
+                var fittings = jt["fittings"] as Newtonsoft.Json.Linq.JArray;
+                if (fittings == null) return;
+                foreach (var t in fittings)
+                {
+                    var o = t as Newtonsoft.Json.Linq.JObject; if (o == null) continue;
+                    string idStr = (string)o["id"]; if (string.IsNullOrEmpty(idStr)) continue;
+                    if (!Enum.TryParse<FittingType>(idStr, out var ft)) continue;
+                    map[ft] = new FittingLossData
+                    {
+                        Type         = ft,
+                        Kv           = (double?)o["kv"]           ?? 1.0,
+                        EquivLengthM = (double?)o["equivLengthM"] ?? 2.0,
+                        Standard     = (string)o["standard"]      ?? "JSON"
+                    };
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"FittingLossCalculator ApplyOverlay {path}: {ex.Message}"); }
         }
 
         private static readonly Dictionary<FittingType, FittingLossData> _fittings =

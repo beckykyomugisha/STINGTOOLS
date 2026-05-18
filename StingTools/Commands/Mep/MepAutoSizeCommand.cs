@@ -122,12 +122,34 @@ namespace StingTools.Commands.Mep
             }
             catch (Exception ex) { StingLog.Warn($"PipeSize registry fallback: {ex.Message}"); }
 
+            // Phase 182 — scope (gap D3).
+            string scope = "Project";
+            try { scope = StingTools.UI.StingHvacCommandHandler.CurrentScope ?? "Project"; } catch { }
+
             var res = new MepSizeResult { Discipline = "Pipe" };
             List<Element> pipes;
             try
             {
-                pipes = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_PipeCurves)
-                    .WhereElementIsNotElementType().ToList();
+                if (scope == "Selection")
+                {
+                    var ids = ctx.UIDoc?.Selection?.GetElementIds();
+                    pipes = (ids == null) ? new List<Element>() : ids
+                        .Select(id => doc.GetElement(id))
+                        .Where(e => e != null && e.Category != null
+                                 && (BuiltInCategory)e.Category.Id.Value == BuiltInCategory.OST_PipeCurves)
+                        .ToList();
+                }
+                else if (scope == "ActiveView" && doc.ActiveView != null)
+                {
+                    pipes = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                        .OfCategory(BuiltInCategory.OST_PipeCurves)
+                        .WhereElementIsNotElementType().ToList();
+                }
+                else
+                {
+                    pipes = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_PipeCurves)
+                        .WhereElementIsNotElementType().ToList();
+                }
             }
             catch (Exception ex) { message = ex.Message; return Result.Failed; }
             res.Inspected = pipes.Count;
@@ -166,7 +188,14 @@ namespace StingTools.Commands.Mep
                 }
             }
         Done:
-            ShowResult(res, $"Pipe (target ≤ {maxVelMs:F2} m/s, registry bore table, {boreTable.Length} sizes)");
+            ShowResult(res, $"Pipe · scope={scope} · target ≤ {maxVelMs:F2} m/s · {boreTable.Length} sizes");
+            try
+            {
+                StingTools.UI.StingHvacPanel.Instance?.PushRunRow(
+                    $"Auto-size Pipe ({scope})",
+                    res.Resized > 0 ? "⬤" : (res.Skipped > 0 ? "⬡" : "✗"));
+            }
+            catch (Exception ex) { StingLog.Warn($"HvacPanel push: {ex.Message}"); }
             return Result.Succeeded;
         }
 
@@ -237,34 +266,68 @@ namespace StingTools.Commands.Mep
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
-            // Phase 181 — read targets from STING_MEP_SIZING_RULES.json.
-            // We default to the "branch" role for now (matches the historic 6 m/s
-            // ceiling). A future enhancement reads segment role per element
-            // (HVC_SEGMENT_ROLE_TXT) so mains can use 8 m/s while runouts cap at 4.5.
-            double maxVelMs       = DuctMaxVelMsFallback;
-            double maxAspect      = MaxAspectFallback;
-            double defaultAspect  = DefaultAspectFallback;
+            // Phase 181/182 — read targets from STING_MEP_SIZING_RULES.json
+            // and resolve role per-element via HvacSegmentRoleDetector.
+            // The role registry carries main / branch / runout / OA / exhaust /
+            // kitchen / smoke; we detect each duct's role on first encounter,
+            // cache it back on HVC_SEGMENT_ROLE_TXT, and pick targets per duct.
             double[] sizeTable    = MepSizeTables.DuctStandardMm;
-            string  ruleSource    = "fallback";
+            double defaultAspect  = DefaultAspectFallback;
+            MepSizingRules rules  = null;
             try
             {
-                var rules = MepSizingRegistry.Get(doc);
-                var role  = rules.GetDuctRole("branch");
-                if (role != null && role.MaxVelocityMs > 0)
-                {
-                    maxVelMs  = role.MaxVelocityMs;
-                    maxAspect = role.AspectMax > 0 ? role.AspectMax : MaxAspectFallback;
-                    ruleSource = string.IsNullOrEmpty(role.Source) ? "registry" : role.Source;
-                }
+                rules = MepSizingRegistry.Get(doc);
                 if (rules.DuctDefaultAspect > 0) defaultAspect = rules.DuctDefaultAspect;
                 sizeTable = MepSizeTables.DuctSizesFor(doc);
             }
             catch (Exception ex) { StingLog.Warn($"DuctSize registry fallback: {ex.Message}"); }
 
+            // Phase 182 — scope enforcement (gap D3). Header radio drives:
+            //   "Selection"   → currently-selected duct ids only
+            //   "ActiveView"  → ducts owned by ctx.UIDoc.ActiveView
+            //   "Project"     → everything (historic behaviour)
+            string scope = "Project";
+            try { scope = StingTools.UI.StingHvacCommandHandler.CurrentScope ?? "Project"; } catch { }
+
             var res = new MepSizeResult { Discipline = "Duct" };
-            var ducts = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_DuctCurves)
-                .WhereElementIsNotElementType().ToList();
+            List<Element> ducts;
+            try
+            {
+                if (scope == "Selection")
+                {
+                    var ids = ctx.UIDoc?.Selection?.GetElementIds();
+                    ducts = (ids == null) ? new List<Element>() : ids
+                        .Select(id => doc.GetElement(id))
+                        .Where(e => e != null && e.Category != null
+                                 && (BuiltInCategory)e.Category.Id.Value == BuiltInCategory.OST_DuctCurves)
+                        .ToList();
+                }
+                else if (scope == "ActiveView" && doc.ActiveView != null)
+                {
+                    ducts = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                        .OfCategory(BuiltInCategory.OST_DuctCurves)
+                        .WhereElementIsNotElementType().ToList();
+                }
+                else
+                {
+                    ducts = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_DuctCurves)
+                        .WhereElementIsNotElementType().ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DuctSize scope filter ({scope}) fallback to Project: {ex.Message}");
+                ducts = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_DuctCurves)
+                    .WhereElementIsNotElementType().ToList();
+            }
             res.Inspected = ducts.Count;
+
+            // For the result panel — most-recent role lookup keeps the
+            // subtitle informative without enumerating every role.
+            string lastRoleId = "branch";
+            string lastRoleSrc = "registry";
+            double lastMaxVel = DuctMaxVelMsFallback;
+            double lastMaxAsp = MaxAspectFallback;
 
             using (var tx = new Transaction(doc, "STING Auto-size ducts"))
             {
@@ -275,6 +338,24 @@ namespace StingTools.Commands.Mep
                     {
                         try
                         {
+                            // Per-element role lookup (Phase 182, gap D5).
+                            string roleId = StingTools.Core.Mep.HvacSegmentRoleDetector.DetectRole(doc, d);
+                            double maxVelMs  = DuctMaxVelMsFallback;
+                            double maxAspect = MaxAspectFallback;
+                            string roleSrc   = "fallback";
+                            if (rules != null)
+                            {
+                                var role = rules.GetDuctRole(roleId);
+                                if (role != null && role.MaxVelocityMs > 0)
+                                {
+                                    maxVelMs  = role.MaxVelocityMs;
+                                    maxAspect = role.AspectMax > 0 ? role.AspectMax : MaxAspectFallback;
+                                    roleSrc   = string.IsNullOrEmpty(role.Source) ? "registry" : role.Source;
+                                }
+                            }
+                            lastRoleId = roleId; lastRoleSrc = roleSrc;
+                            lastMaxVel = maxVelMs; lastMaxAsp = maxAspect;
+
                             // Flow in CFM or L/s depending on doc units;
                             // HVC_FLOW_LS preferred v4 param.
                             double flowLs = ReadDouble(d, "HVC_FLOW_LS");
@@ -303,12 +384,22 @@ namespace StingTools.Commands.Mep
                             widthMm  = MepSizeTables.RoundUpTo(widthMm,  sizeTable);
                             heightMm = MepSizeTables.RoundUpTo(heightMm, sizeTable);
 
+                            // Audit trail (Phase 182, gap D4) — capture previous
+                            // dims before write so the panel + drift detector
+                            // can show what changed.
+                            string prevSize = SnapshotDuctSize(d);
+
                             bool wrote = false;
                             if (WriteSize(d, "Width",  widthMm))  wrote = true;
                             if (WriteSize(d, "Height", heightMm)) wrote = true;
                             if (!wrote && WriteSize(d, "Diameter",
                                 MepSizeTables.RoundUpTo(diaMm, sizeTable))) wrote = true;
-                            if (wrote) res.Resized++; else res.Skipped++;
+                            if (wrote)
+                            {
+                                res.Resized++;
+                                StampSizingAudit(d, prevSize, $"{widthMm:F0}x{heightMm:F0}", roleId, roleSrc);
+                            }
+                            else res.Skipped++;
                         }
                         catch (Exception ex2)
                         {
@@ -325,8 +416,49 @@ namespace StingTools.Commands.Mep
                 }
             }
         Done:
-            ShowResult(res, $"Duct (target ≤ {maxVelMs:F1} m/s · aspect ≤ {maxAspect:F1}:1 · {sizeTable.Length} sizes · {ruleSource})");
+            ShowResult(res, $"Duct · scope={scope} · last role={lastRoleId} (≤ {lastMaxVel:F1} m/s, aspect ≤ {lastMaxAsp:F1}:1) · {sizeTable.Length} sizes · {lastRoleSrc}");
+            // Phase 182 — push a workflow row to the HVAC panel (gap D9).
+            try
+            {
+                StingTools.UI.StingHvacPanel.Instance?.PushRunRow(
+                    $"Auto-size Duct ({scope})",
+                    res.Resized > 0 ? "⬤" : (res.Skipped > 0 ? "⬡" : "✗"));
+            }
+            catch (Exception ex) { StingLog.Warn($"HvacPanel push: {ex.Message}"); }
             return Result.Succeeded;
+        }
+
+        // ── Phase 182 audit-trail helpers (gap D4) ──────────────────────
+        // Best-effort: shared parameter bindings may not exist on every
+        // project. SetString is no-op if read-only / unbound, so callers
+        // never fail because of missing params.
+
+        private static string SnapshotDuctSize(Element d)
+        {
+            try
+            {
+                double w = ReadDouble(d, "Width")  * 304.8;
+                double h = ReadDouble(d, "Height") * 304.8;
+                double dia = ReadDouble(d, "Diameter") * 304.8;
+                if (w > 0 && h > 0) return $"{w:F0}x{h:F0}";
+                if (dia > 0)        return $"Ø{dia:F0}";
+            }
+            catch (Exception ex) { StingLog.Warn($"SnapshotDuctSize {d.Id}: {ex.Message}"); }
+            return "";
+        }
+
+        private static void StampSizingAudit(Element el, string previous, string current, string roleId, string ruleSrc)
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(previous))
+                    ParameterHelpers.SetString(el, "HVC_SIZE_PREV_TXT", previous, overwrite: true);
+                ParameterHelpers.SetString(el, "HVC_SIZE_MODIFIED_DT",
+                    DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"), overwrite: true);
+                ParameterHelpers.SetString(el, "HVC_SIZE_RULE_ID_TXT",
+                    string.IsNullOrEmpty(roleId) ? ruleSrc : $"{roleId}|{ruleSrc}", overwrite: true);
+            }
+            catch (Exception ex) { StingLog.Warn($"StampSizingAudit {el.Id}: {ex.Message}"); }
         }
 
         private static double ReadDouble(Element el, string param)
@@ -405,9 +537,38 @@ namespace StingTools.Commands.Mep
             }
             catch (Exception ex) { StingLog.Warn($"ConduitSize registry fallback: {ex.Message}"); }
 
+            // Phase 182 — scope (gap D3).
+            string scope = "Project";
+            try { scope = StingTools.UI.StingHvacCommandHandler.CurrentScope ?? "Project"; } catch { }
+
             var res = new MepSizeResult { Discipline = "Conduit" };
-            var conduits = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Conduit)
-                .WhereElementIsNotElementType().ToList();
+            List<Element> conduits;
+            try
+            {
+                if (scope == "Selection")
+                {
+                    var ids = ctx.UIDoc?.Selection?.GetElementIds();
+                    conduits = (ids == null) ? new List<Element>() : ids
+                        .Select(id => doc.GetElement(id))
+                        .Where(e => e != null && e.Category != null
+                                 && (BuiltInCategory)e.Category.Id.Value == BuiltInCategory.OST_Conduit)
+                        .ToList();
+                }
+                else if (scope == "ActiveView" && doc.ActiveView != null)
+                {
+                    conduits = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                        .OfCategory(BuiltInCategory.OST_Conduit)
+                        .WhereElementIsNotElementType().ToList();
+                }
+                else
+                {
+                    conduits = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Conduit)
+                        .WhereElementIsNotElementType().ToList();
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Conduit scope filter ({scope}) fallback: {ex.Message}");
+                conduits = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Conduit)
+                    .WhereElementIsNotElementType().ToList(); }
             res.Inspected = conduits.Count;
 
             using (var tx = new Transaction(doc, "STING Auto-size conduits"))
@@ -442,7 +603,14 @@ namespace StingTools.Commands.Mep
                 }
             }
         Done:
-            ShowResult(res, $"Conduit (fill ≤ {maxFillPct:F0}% per BS 7671 522.8 / NEC Ch 9 Table 1)");
+            ShowResult(res, $"Conduit · scope={scope} · fill ≤ {maxFillPct:F0}% per BS 7671 522.8 / NEC Ch 9 Table 1");
+            try
+            {
+                StingTools.UI.StingHvacPanel.Instance?.PushRunRow(
+                    $"Auto-size Conduit ({scope})",
+                    res.Resized > 0 ? "⬤" : (res.Skipped > 0 ? "⬡" : "✗"));
+            }
+            catch (Exception ex) { StingLog.Warn($"HvacPanel push: {ex.Message}"); }
             return Result.Succeeded;
         }
         private static double Read(Element el, string param)

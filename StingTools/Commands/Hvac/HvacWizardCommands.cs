@@ -82,19 +82,71 @@ namespace StingTools.Commands.Hvac
                 };
                 if (go.Show() != TaskDialogResult.Yes) return Result.Cancelled;
 
-                // Post the native command. AnalyzeHeatingAndCoolingLoads has
-                // been a public PostableCommand since Revit 2015.
+                // Post the native command. The enum name + internal command id
+                // moved between Revit versions:
+                //   - 2020-2024:  PostableCommand.AnalyzeHeatingAndCoolingLoads
+                //   - 2025:        ID_HEATING_AND_COOLING_LOADS (string id only,
+                //                  the enum constant was removed)
+                //   - 2026:        either form may resolve.
+                // Reflection over PostableCommand names + a string-id fallback
+                // keeps STING source compiling against any of those Revit APIs.
+                RevitCommandId postId = null;
+
                 try
                 {
-                    var id = RevitCommandId.LookupPostableCommandId(
-                        PostableCommand.AnalyzeHeatingAndCoolingLoads);
-                    if (id == null)
+                    Type enumType = typeof(PostableCommand);
+                    foreach (string candidate in new[]
                     {
-                        message = "Revit did not expose PostableCommand.AnalyzeHeatingAndCoolingLoads.";
-                        return Result.Failed;
+                        "AnalyzeHeatingAndCoolingLoads",
+                        "HeatingAndCoolingLoads",
+                        "AnalyzeLoads"
+                    })
+                    {
+                        if (!Enum.IsDefined(enumType, candidate)) continue;
+                        var enumVal = (PostableCommand)Enum.Parse(enumType, candidate);
+                        postId = RevitCommandId.LookupPostableCommandId(enumVal);
+                        if (postId != null) break;
                     }
-                    app.PostCommand(id);
-                    StingLog.Info("HvacRunLoadsCommand posted AnalyzeHeatingAndCoolingLoads.");
+                }
+                catch (Exception lookupEx) { StingLog.Warn($"PostableCommand enum lookup: {lookupEx.Message}"); }
+
+                if (postId == null)
+                {
+                    foreach (string idStr in new[]
+                    {
+                        "ID_HEATING_AND_COOLING_LOADS",
+                        "ID_HEATING_AND_COOLING_LOADS_DIALOG",
+                        "ID_ANALYZE_HEATING_AND_COOLING_LOADS"
+                    })
+                    {
+                        try
+                        {
+                            postId = RevitCommandId.LookupCommandId(idStr);
+                            if (postId != null) break;
+                        }
+                        catch { /* try next */ }
+                    }
+                }
+
+                if (postId == null)
+                {
+                    var td = new TaskDialog("STING HVAC — Run loads")
+                    {
+                        MainInstruction = "Heating & Cooling Loads not exposed by this Revit build",
+                        MainContent =
+                            "STING couldn't resolve a postable command id for the Loads engine. " +
+                            "Open Revit → Analyze ribbon → Heating and Cooling Loads manually. " +
+                            "Results land on each MEP Space's Design Heating Load / Design Cooling Load.",
+                        CommonButtons = TaskDialogCommonButtons.Close
+                    };
+                    td.Show();
+                    return Result.Cancelled;
+                }
+
+                try
+                {
+                    app.PostCommand(postId);
+                    StingLog.Info("HvacRunLoadsCommand posted heating-and-cooling-loads command.");
                 }
                 catch (Exception postEx)
                 {

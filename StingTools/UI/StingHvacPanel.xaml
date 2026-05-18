@@ -450,6 +450,9 @@
                                 <TextBlock Text="Edits to this grid live in &lt;project&gt;/_BIM_COORD/mep_sizing_rules.json"
                                            FontSize="9" Margin="0,3" Opacity="0.7"/>
                                 <StackPanel Orientation="Horizontal" Margin="0,3">
+                                    <Button Style="{StaticResource HvacPrimaryBtn}" Content="💾 Save to project"
+                                            Tag="Hvac_SaveRules" Click="Cmd_Click"
+                                            ToolTip="Write the edited grid to &lt;project&gt;/_BIM_COORD/mep_sizing_rules.json and reload the registry"/>
                                     <Button Style="{StaticResource HvacActionBtn}" Content="Reload rules"
                                             Tag="Hvac_ReloadRules" Click="Cmd_Click"
                                             ToolTip="Re-read STING_MEP_SIZING_RULES.json + project override from disk"/>

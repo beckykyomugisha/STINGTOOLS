@@ -4563,3 +4563,86 @@ header-level radio so every action respects it without re-prompting.
 3. `MepAutoSizePipeCommand` defaults to the `"chw"` service for every pipe (matches the historic 2.5 m/s safety margin). Per-service detection from system abbreviation lands next.
 4. `HvacExportGbxmlCommand` uses reflection to set `ExportEnergyModelType = SpatialElement` because the enum identifier moved between Revit 2024 and 2026. The call is best-effort — if the property is missing, the export still runs with whatever default the active Revit version uses.
 5. `HvacRunLoadsCommand` posts the native Revit dialog rather than running the loads engine headlessly — the public Revit API does not expose the engine directly. The user still has to click Calculate in the native dialog.
+
+#### Completed (Phase 182 — HVAC gap closure: strategy / scope / role / audit / workflows)
+
+**Scope**: closes 10 of the 11 gaps flagged in the post-Phase-181 review. Two
+build errors that surfaced on Windows are also fixed.
+
+**Build fixes**:
+
+1. `StingHvacCommandHandler.cs:182` — `StingCommandHandler.Instance` does
+   not exist. Fallback dispatch now uses the public static
+   `StingDockPanel.DispatchCommand(tag)` which raises the unified panel's
+   `ExternalEvent`. No behavioural change.
+2. `HvacWizardCommands.cs:90` — `PostableCommand.AnalyzeHeatingAndCoolingLoads`
+   was removed in Revit 2025 (same pattern as `PostableCommand.EditFamily`).
+   Lookup now goes via reflection over `PostableCommand` enum names
+   (`AnalyzeHeatingAndCoolingLoads`, `HeatingAndCoolingLoads`,
+   `AnalyzeLoads`) with a string-id fallback chain
+   (`ID_HEATING_AND_COOLING_LOADS`, `ID_HEATING_AND_COOLING_LOADS_DIALOG`,
+   `ID_ANALYZE_HEATING_AND_COOLING_LOADS`). Source compiles against
+   Revit 2024 / 2025 / 2026.
+
+**Gap closures**:
+
+| Gap | Where | Change |
+|---|---|---|
+| D2 — sizing strategy radio actually dispatches | `StingHvacCommandHandler.Hvac_AutoSizeDuct` | `switch` on `CurrentSizingStrategyId`: `equal_friction` → `DuctEqualFrictionCommand`; `static_regain` → `DuctStaticRegainCommand`; `velocity` / `constant_pressure` → `MepAutoSizeDuctCommand`. |
+| D3 — scope radio enforced | `MepAutoSizePipe/Duct/Conduit` | Each command reads `StingHvacCommandHandler.CurrentScope` and filters its `FilteredElementCollector` accordingly: `Selection` (uidoc selection ids), `ActiveView` (per-view collector), `Project` (historic). Falls back to project on any error. |
+| D5 — per-element segment-role detection | new `Core/Mep/HvacSegmentRoleDetector.cs` (~180 lines) | Walks connector graph: source-equipment depth 0 → `main`, depth 1 → `branch`, depth ≥ 2 or terminal-adjacent → `runout`. Result cached on `HVC_SEGMENT_ROLE_TXT` so subsequent runs are O(1). Wired into `MepAutoSizeDuctCommand` — every duct now gets its own velocity / aspect ceiling instead of one project-wide default. |
+| D9 — panel live refresh | `StingHvacPanel.PushRunRow(name, statusDot)` thread-safe via Dispatcher | Every sizing run (pipe / duct / conduit), every reload, every save inserts a row at the top of the RPRT WorkflowGrid with a status dot + timestamp. Capped at 100 rows. The panel stops feeling read-only. |
+| D7 — HVAC workflow presets | three new JSONs under `Data/` | `WORKFLOW_HVACDesign.json` (7-step design pass), `WORKFLOW_HVACCommissioning.json` (7-step CIBSE TM39 commissioning), `WORKFLOW_DuctSpoolProduction.json` (8-step fab handover pack). Auto-discovered by `WorkflowEngine.AppendUserPresets`. |
+| D1 / A6 — save edited rules to JSON | new `Commands/Hvac/HvacSaveRulesCommand.cs` + `StingHvacPanel.SaveSizingRolesToProjectOverride` + 💾 Save button on CALCS tab | Serialises the in-grid sizing roles back to `<project>/_BIM_COORD/mep_sizing_rules.json` (merging into existing override), then calls `MepSizingRegistry.Reload()` so the next sizing run honours the edits. |
+| D4 — sizing audit trail | `MepAutoSizeDuctCommand.StampSizingAudit` + `SnapshotDuctSize` helpers | Per-element writes of `HVC_SIZE_PREV_TXT` (old WxH or Ø), `HVC_SIZE_MODIFIED_DT` (ISO 8601 UTC), `HVC_SIZE_RULE_ID_TXT` (role + source). Best-effort: skipped silently if the shared params aren't bound. Unlocks drift detection + undo. |
+| A7 — project override for fitting losses | `FittingLossCalculator.ApplyOverlay` helper | Loader now layers `<project>/_BIM_COORD/fitting_losses.json` over the corporate baseline (same pattern as `MepSizingRegistry`). Projects can override one fitting (proprietary Trox damper, e.g.) without restating the whole 31-entry table. |
+| B9 — Reload re-seeds CALCS grid | `StingHvacCommandHandler.Hvac_ReloadRules` | After `MepSizingRegistry.Reload()`, calls `StingHvacPanel.Instance.RefreshSizingRoles()` so the visible grid actually changes. Adds a WorkflowGrid row marking the reload. |
+
+**Not closed in this phase (deferred)**:
+
+- **A8** — `HardyCrossCommand` uses `HardyCrossSolver` (pipe-loop networks),
+  not `MEPBalancingEngine` (HVAC branch balance). The new `Document`-aware
+  `BalanceSystem` overload is exposed for future internal callers but no
+  user-facing command currently routes through it. Promoting
+  `HardyCrossSolver` defaults (`DefaultMaxIterations = 60`,
+  `DefaultToleranceRel = 0.001`) to the registry is a separate refactor.
+- **A2** — Per-pipe service detection (chw vs hws vs refrigerant) from
+  `MEPSystem.SystemAbbreviation`. Data path is ready; per-element classifier
+  lands next.
+- **A3 / D10** — Pressure-class enforcement against the active DW/144
+  class. Currently surfaced in the result-panel subtitle only.
+- **D8** — `StingHvacStaleMarker` `IUpdater` for flagging stale duct sizes
+  on flow change. Skipped for now to keep IUpdater overhead bounded; a
+  manual `Hvac_DetectStaleSizes` command is the lighter-weight alternative.
+- **C2 / C3 / C5 / C8** — BIM Coordination Center HVAC tab,
+  generalising `PressureRegimeValidator` beyond healthcare,
+  `Planscape.Server` HVAC controller, HVAC plant carbon report — each
+  large enough to warrant its own phase.
+
+**New files**:
+
+| File | Lines | Purpose |
+|---|---|---|
+| `StingTools/Core/Mep/HvacSegmentRoleDetector.cs` | ~180 | Connector-graph walker that classifies a duct as main / branch / runout. Caches result on `HVC_SEGMENT_ROLE_TXT`. |
+| `StingTools/Commands/Hvac/HvacSaveRulesCommand.cs` | ~70 | Writes the in-grid sizing rules to the project override JSON and reloads the registry. |
+| `StingTools/Data/WORKFLOW_HVACDesign.json` | — | 7-step design pass. |
+| `StingTools/Data/WORKFLOW_HVACCommissioning.json` | — | 7-step CIBSE TM39 commissioning sequence. |
+| `StingTools/Data/WORKFLOW_DuctSpoolProduction.json` | — | 8-step fabrication hand-off pack. |
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Commands/Mep/MepAutoSizeCommand.cs` | D3 (scope enforcement on three commands), D4 (audit-trail helpers), D5 (per-duct role detection wired into duct sizer), D9 (push panel row at completion). |
+| `StingTools/Model/MEPIntelligenceEngine.cs` | A7 (project override layered over corporate baseline in `FittingLossCalculator.Overrides()`). |
+| `StingTools/UI/StingHvacCommandHandler.cs` | D2 (strategy dispatch in `Hvac_AutoSizeDuct`), B9 (Reload also calls `RefreshSizingRoles` + pushes panel row), D1 wiring (`Hvac_SaveRules` tag), build fix #1. |
+| `StingTools/UI/StingHvacPanel.xaml.cs` | New methods: `PushRunRow`, `RefreshSizingRoles`, `SaveSizingRolesToProjectOverride`. |
+| `StingTools/UI/StingHvacPanel.xaml` | 💾 Save button on CALCS tab. |
+| `StingTools/Commands/Hvac/HvacWizardCommands.cs` | Build fix #2 — reflection-based `PostableCommand` lookup with `RevitCommandId.LookupCommandId` fallback. |
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit.
+2. `HVC_SEGMENT_ROLE_TXT`, `HVC_SIZE_PREV_TXT`, `HVC_SIZE_MODIFIED_DT` and `HVC_SIZE_RULE_ID_TXT` must be bound as shared parameters on `OST_DuctCurves` for the cache + audit trail to land. `ParameterHelpers.SetString` is no-op when read-only / unbound so older project templates degrade gracefully — the registry-driven sizing still works, only the trail is lost.
+3. `HvacSegmentRoleDetector` walks the connector graph defensively (max-depth 12, seen-set to avoid cycles). Disconnected ducts return `branch` (the safe default). A future enhancement would surface "orphan" ducts as a separate `Hvac_DetectOrphanDucts` audit.
+4. The Save → project-override path only touches the `duct.roles` block; pipe services / pressure classes / standard sizes / gauge breakpoints are unchanged on disk. Editing those still requires hand-editing the JSON.
