@@ -79,7 +79,7 @@ namespace StingTools.Commands.Interop
                             continue;
 
                         // Read the current Revit-side IfcGUID.
-                        string? revitIfcGuid = ReadRevitIfcGuid(el);
+                        string revitIfcGuid = ReadRevitIfcGuid(el);
                         if (string.IsNullOrEmpty(revitIfcGuid))
                         {
                             skippedNotExported++;
@@ -159,7 +159,7 @@ namespace StingTools.Commands.Interop
 
         // ── Helpers ──────────────────────────────────────────────────────────
 
-        private static string? ReadRevitIfcGuid(Element el)
+        private static string ReadRevitIfcGuid(Element el)
         {
             foreach (string name in IfcGuidParamNames)
             {

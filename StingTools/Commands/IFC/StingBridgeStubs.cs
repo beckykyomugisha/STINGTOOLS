@@ -157,7 +157,7 @@ namespace StingBridge.IFC
     /// </summary>
     public sealed class IfcDropWatcher : IDisposable
     {
-        public event EventHandler<IfcFileArrivedEventArgs>? FileArrived;
+        public event EventHandler<IfcFileArrivedEventArgs> FileArrived;
 
         private readonly FileSystemWatcher _fsw;
         private bool _disposed;

@@ -1391,6 +1391,17 @@ namespace StingTools.Tags
 
             return (placed, skipped, collisions);
         }
+
+        private static Box2D EstimateTagBoxFallback(IndependentTag tag, View view, double tagWidth, double tagHeight)
+        {
+            try
+            {
+                var pos = tag.TagHeadPosition;
+                if (pos == null) return new Box2D(0, 0, 0, 0);
+                return Box2D.EstimateTag(pos, tagWidth, tagHeight);
+            }
+            catch { return new Box2D(0, 0, 0, 0); }
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -1752,16 +1763,6 @@ namespace StingTools.Tags
             }
         }
 
-        private static Box2D EstimateTagBoxFallback(IndependentTag tag, View view, double tagWidth, double tagHeight)
-        {
-            try
-            {
-                var pos = tag.TagHeadPosition;
-                if (pos == null) return new Box2D(0, 0, 0, 0);
-                return Box2D.EstimateTag(pos, tagWidth, tagHeight);
-            }
-            catch { return new Box2D(0, 0, 0, 0); }
-        }
     }
 
     // ════════════════════════════════════════════════════════════════════
