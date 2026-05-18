@@ -10,6 +10,7 @@ using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.UI;
+using System.Threading;
 
 namespace StingTools.Core
 {
@@ -495,10 +496,10 @@ namespace StingTools.Core
                     _cachedHasStale = staleCollector.Any(e =>
                         {
                             try { var p = e.LookupParameter(ParamRegistry.STALE); return p != null && p.AsInteger() == 1; }
-                            catch (Exception ex) { StingLog.Warn($"Stale check element {e?.Id}: {ex.Message}"); return false; }
+                            catch (Exception ex2) { StingLog.Warn($"Stale check element {e?.Id}: {ex2.Message}"); return false; }
                         });
                 }
-                catch (Exception ex) { StingLog.Warn($"Stale element check failed: {ex.Message}"); _cachedHasStale = false; }
+                catch (Exception ex2) { StingLog.Warn($"Stale element check failed: {ex2.Message}"); _cachedHasStale = false; }
                 return _cachedHasStale.Value;
             }
 
@@ -508,7 +509,7 @@ namespace StingTools.Core
             {
                 if (_cachedCompliancePct.HasValue) return _cachedCompliancePct.Value;
                 try { var cs = ComplianceScan.Scan(doc); _cachedCompliancePct = cs?.CompliancePercent ?? 0; }
-                catch (Exception ex) { StingLog.Warn($"Compliance scan failed: {ex.Message}"); _cachedCompliancePct = 0; }
+                catch (Exception ex2) { StingLog.Warn($"Compliance scan failed: {ex2.Message}"); _cachedCompliancePct = 0; }
                 return _cachedCompliancePct.Value;
             }
 
@@ -657,7 +658,7 @@ namespace StingTools.Core
                                 int warnCount = doc.GetWarnings()?.Count ?? 0;
                                 if (warnCount == 0) { RecordSkip("no warnings"); continue; }
                             }
-                            catch (Exception ex) { StingLog.Warn($"has_warnings check: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"has_warnings check: {ex2.Message}"); }
                         }
                         if (cond == "has_critical_warnings")
                         {
@@ -667,7 +668,7 @@ namespace StingTools.Core
                                 int critical = warnReport.BySeverity.GetValueOrDefault(WarningSeverity.Critical);
                                 if (critical == 0) { RecordSkip("no critical warnings"); continue; }
                             }
-                            catch (Exception ex) { StingLog.Warn($"has_critical_warnings check: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"has_critical_warnings check: {ex2.Message}"); }
                         }
                         if (cond == "has_open_issues")
                         {
@@ -681,7 +682,7 @@ namespace StingTools.Core
                                 int openCount = issuesArr.Count(i => (string)i["status"] == "OPEN");
                                 if (openCount == 0) { RecordSkip("no open issues"); continue; }
                             }
-                            catch (Exception ex) { StingLog.Warn($"has_open_issues check: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"has_open_issues check: {ex2.Message}"); }
                         }
                         // Phase 75: has_overdue_issues — skip if no SLA-breaching issues
                         if (cond == "has_overdue_issues")
@@ -691,7 +692,7 @@ namespace StingTools.Core
                                 bool hasOverdue = EvaluateSingleCondition(doc, "has_overdue_issues", cachedCompliancePct, cachedHasStale);
                                 if (!hasOverdue) { RecordSkip("no overdue issues"); continue; }
                             }
-                            catch (Exception ex) { StingLog.Warn($"has_overdue_issues check: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"has_overdue_issues check: {ex2.Message}"); }
                         }
 
                         // HIGH-04: has_untagged and has_placeholders share a single collector pass
@@ -713,7 +714,7 @@ namespace StingTools.Core
                                     if (hasUntagged && hasPlaceholders) break; // both found — early exit
                                 }
                             }
-                            catch (Exception ex) { StingLog.Warn($"{cond} condition check: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"{cond} condition check: {ex2.Message}"); }
                             if (cond == "has_untagged" && !hasUntagged) { RecordSkip("no untagged elements"); continue; }
                             if (cond == "has_placeholders" && !hasPlaceholders) { RecordSkip("no placeholder tokens"); continue; }
                         }
@@ -726,7 +727,7 @@ namespace StingTools.Core
                                 if (containerPct >= 95)
                                 { RecordSkip($"containers {containerPct:F0}% complete"); continue; }
                             }
-                            catch (Exception ex) { StingLog.Warn($"has_container_gaps check: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"has_container_gaps check: {ex2.Message}"); }
                         }
                         if (cond == "compliance_above_90")
                         {
@@ -800,7 +801,7 @@ namespace StingTools.Core
                                 int warnCount = doc.GetWarnings()?.Count ?? 0;
                                 if (warnCount == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no warnings)"); continue; }
                             }
-                            catch (Exception ex) { StingLog.Warn($"has_warnings check: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"has_warnings check: {ex2.Message}"); }
                         }
                         if (step.Condition == "has_critical_warnings")
                         {
@@ -810,7 +811,7 @@ namespace StingTools.Core
                                 int critical = warnReport.BySeverity.GetValueOrDefault(WarningSeverity.Critical);
                                 if (critical == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no critical warnings)"); continue; }
                             }
-                            catch (Exception ex) { StingLog.Warn($"has_critical_warnings check: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"has_critical_warnings check: {ex2.Message}"); }
                         }
                         if (step.Condition == "has_open_issues")
                         {
@@ -823,7 +824,7 @@ namespace StingTools.Core
                                 int openCount = raw.Split(new[] { "\"OPEN\"" }, StringSplitOptions.None).Length - 1;
                                 if (openCount == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no open issues)"); continue; }
                             }
-                            catch (Exception ex) { StingLog.Warn($"has_open_issues check: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"has_open_issues check: {ex2.Message}"); }
                         }
 
                         if (step.Condition == "has_untagged")
@@ -837,7 +838,7 @@ namespace StingTools.Core
                                     coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
                                 hasUntagged = coll.Any(e => string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)));
                             }
-                            catch (Exception ex) { StingLog.Warn($"has_untagged condition check: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"has_untagged condition check: {ex2.Message}"); }
                             if (!hasUntagged) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no untagged elements)"); continue; }
                         }
                     }
@@ -865,7 +866,7 @@ namespace StingTools.Core
                                 int spatial = warnReport.ByCategory.GetValueOrDefault(WarningCategory.Spatial);
                                 if (spatial == 0) { RecordSkip("no spatial warnings"); continue; }
                             }
-                            catch (Exception ex) { StingLog.Warn($"has_spatial_warnings check: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"has_spatial_warnings check: {ex2.Message}"); }
                         }
                         if (cond68 == "has_mep_warnings")
                         {
@@ -875,7 +876,7 @@ namespace StingTools.Core
                                 int mep = warnReport.ByCategory.GetValueOrDefault(WarningCategory.MEP);
                                 if (mep == 0) { RecordSkip("no MEP warnings"); continue; }
                             }
-                            catch (Exception ex) { StingLog.Warn($"has_mep_warnings check: {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"has_mep_warnings check: {ex2.Message}"); }
                         }
                         if (cond68 == "tag_compliance_below_threshold")
                         {
@@ -1055,7 +1056,7 @@ namespace StingTools.Core
                             break;
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
                         sw.Stop();
 
@@ -1207,12 +1208,12 @@ namespace StingTools.Core
                     // R4-C WF-GAP-04: Record trend snapshot after workflow, not just on document open
                     ComplianceTrendTracker.RecordSnapshot(doc, scan);
                 }
-                catch (Exception ex) { StingLog.Warn($"Post-workflow compliance scan failed: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Post-workflow compliance scan failed: {ex2.Message}"); }
 
                 // Phase 39: Capture username from environment for audit trail
                 string userName = "";
                 try { userName = Environment.UserName ?? ""; }
-                catch (Exception ex) { StingLog.Warn($"Username capture: {ex.Message}"); }
+                catch (Exception ex3) { StingLog.Warn($"Username capture: {ex3.Message}"); }
 
                 var record = new WorkflowRunRecord
                 {

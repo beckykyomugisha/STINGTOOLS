@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139 G — Linked-model clearance check.
 //
 // Inspects RevitLinkInstances in the host document and reports whether
@@ -8,6 +9,7 @@
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
+using System.Linq;
 
 namespace StingTools.Core.Placement
 {

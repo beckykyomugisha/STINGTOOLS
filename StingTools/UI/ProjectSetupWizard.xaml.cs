@@ -18,6 +18,9 @@ using TaskDialogResult = Autodesk.Revit.UI.TaskDialogResult;
 // The wizard reads BoundingBoxXYZ.Transform (Revit) for scope-box rotation
 // math; alias the bare name to the Revit type so existing code resolves.
 using Transform = Autodesk.Revit.DB.Transform;
+using System.Text.RegularExpressions;
+using Autodesk.Revit.UI;
+using Grid = System.Windows.Controls.Grid;
 
 namespace StingTools.UI
 {
@@ -112,12 +115,6 @@ namespace StingTools.UI
             {
                 StingTools.Core.StingLog.Warn($"LstRegionPresets_SelectionChanged: {ex.Message}");
             }
-        }
-
-        private void RenumberLevelRows()
-        {
-            for (int i = 0; i < LevelRows.Count; i++)
-                LevelRows[i].Index = i + 1;
         }
 
         private void RenumberLevelRows()

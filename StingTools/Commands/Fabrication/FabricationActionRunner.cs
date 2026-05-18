@@ -230,7 +230,7 @@ namespace StingTools.Commands.Fabrication
                     if (doc.GetElement(res.SheetIds[0]) is ViewSheet sheet)
                         uidoc.ActiveView = sheet;
                 }
-                catch (Exception ex) { StingLog.Warn($"GenerateFabPackage open sheet failed: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"GenerateFabPackage open sheet failed: {ex2.Message}"); }
             }
             return $"{res.AssemblyIds.Count} assemblies, {res.SheetIds.Count} sheets, {res.FailedCount} failed.";
         }

@@ -4,6 +4,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
@@ -2585,7 +2586,7 @@ namespace StingTools.BIMManager
                     if (widParam != null && widParam.HasValue) nomWidth = Math.Round(widParam.AsDouble() * 304.8, 0).ToString();
                     if (htParam != null && htParam.HasValue) nomHeight = Math.Round(htParam.AsDouble() * 304.8, 0).ToString();
                 }
-                catch (Exception ex) { StingLog.Warn($"Dimension extraction: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Dimension extraction: {ex2.Message}"); }
 
                 // Derive sustainability/code/accessibility from STING params
                 string sustainability = ParameterHelpers.GetString(fs, "PER_CARBON_FOOTPRINT_KG_NR");
@@ -2709,7 +2710,7 @@ namespace StingTools.BIMManager
                             }
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"Phase install date lookup failed: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"Phase install date lookup failed: {ex2.Message}"); }
                 }
                 string warrantyStart = ParameterHelpers.GetString(el, "COM_WARRANTY_START_TXT");
                 // Phase 40: If warranty start is empty, derive from installation date
@@ -2943,7 +2944,7 @@ namespace StingTools.BIMManager
                             if (mat.ThermalAssetId != ElementId.InvalidElementId)
                                 thermal = "Thermal";
                         }
-                        catch (Exception ex) { StingLog.Warn($"Thermal asset check failed: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Thermal asset check failed: {ex2.Message}"); }
                         fireRating = ParameterHelpers.GetString(wallType, "RGL_FIRE_RATING_TXT");
                     }
                     layerProps.Add($"{layerName} ({layer.Width * 304.8:F0}mm{(thermal.Length > 0 ? ", " + thermal : "")})");
@@ -3020,7 +3021,7 @@ namespace StingTools.BIMManager
                             else if (dirStr == "In") connDirection = "Return";
                             else if (dirStr == "Bidirectional") connDirection = "Bidirectional";
                         }
-                        catch (Exception ex) { StingLog.Warn($"Connector direction lookup failed: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Connector direction lookup failed: {ex2.Message}"); }
                         string connType = conn.Domain.ToString();
                         if (connType.Contains("Hvac")) connType = "HVAC";
                         else if (connType.Contains("Piping")) connType = "Piping";
@@ -3134,7 +3135,7 @@ namespace StingTools.BIMManager
                     if (thermalId != ElementId.InvalidElementId)
                         thermalStr = "Thermal asset present";
                 }
-                catch (Exception ex) { StingLog.Warn($"Thermal asset lookup for impact failed: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Thermal asset lookup for impact failed: {ex2.Message}"); }
                 if (string.IsNullOrEmpty(thermalStr)) continue;
                 impactSeen.Add(impactName);
                 impacts.Add(new Dictionary<string, string>
@@ -3900,7 +3901,7 @@ namespace StingTools.BIMManager
                     File.WriteAllText(Path.Combine(dataPath, "project_bep.json"),
                         validationBep.ToString(Formatting.Indented));
                 }
-                catch (Exception ex) { StingLog.Warn($"BEP validation file: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"BEP validation file: {ex2.Message}"); }
             }
 
             // Auto-register exports in CDE document register
@@ -10523,7 +10524,7 @@ namespace StingTools.BIMManager
                                     weekRuns++;
                             }
                         }
-                        catch (Exception ex) { StingLog.Warn($"Skip malformed workflow log line: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Skip malformed workflow log line: {ex2.Message}"); }
                     }
                     report.AppendLine($"\nWorkflow executions (total): {workflowRuns}");
                     report.AppendLine($"Workflow executions (7-day): {weekRuns}");

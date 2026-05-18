@@ -1,3 +1,4 @@
+using StingTools.Core.Validation;
 using System;
 // Healthcare Pack H-25 — flags PET / NM rooms whose RAD_LEAD_MM_NR
 // was derived from kV (NCRP 147) without the 511 keV correction.

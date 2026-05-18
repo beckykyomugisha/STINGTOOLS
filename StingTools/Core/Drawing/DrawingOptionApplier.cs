@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager option-scope step.
 //
 // Phase 175 — runs as a late step inside DrawingTypePresentation.Apply.
@@ -11,6 +12,7 @@ using System;
 using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.Core.DesignOptions;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Drawing
 {

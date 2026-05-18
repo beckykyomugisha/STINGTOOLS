@@ -73,7 +73,7 @@ namespace StingTools.Commands.Mep
             foreach (var fi in sleeves)
             {
                 try { issues.Add(BuildIssue(doc, fi)); }
-                catch (Exception ex)
+                catch (Exception ex2)
                 { StingLog.Warn($"Sleeve BCF build {fi?.Id}: {ex.Message}"); }
             }
 

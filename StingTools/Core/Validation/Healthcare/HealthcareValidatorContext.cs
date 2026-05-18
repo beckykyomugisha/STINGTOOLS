@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Healthcare Pack — shared context built once per validator chain run so
 // the 8+ healthcare validators that iterate Rooms / clinical FF&E don't
 // each re-run their own FilteredElementCollector + LookupParameter pass.

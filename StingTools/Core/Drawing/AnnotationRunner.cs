@@ -21,6 +21,15 @@ using StingTools.Core;
 
 namespace StingTools.Core.Drawing
 {
+    public sealed class AnnotationResult
+    {
+        public int TagsPlaced      { get; set; }
+        public int DimsPlaced      { get; set; }
+        public int DecorativePlaced { get; set; }
+        public int SpotsPlaced     { get; set; }
+        public List<string> Warnings { get; } = new List<string>();
+    }
+
     public sealed class AnnotationRunStats
     {
         public int DimsCreated      { get; set; }

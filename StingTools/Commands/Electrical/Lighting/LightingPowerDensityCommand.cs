@@ -106,7 +106,7 @@ namespace StingTools.Commands.Electrical.Lighting
                             else if (status == "WARNING") view.SetElementOverrides(r.Id, ogsAmber);
                             else if (status == "FAIL")    view.SetElementOverrides(r.Id, ogsRed);
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                     }
                     rows.Add(new LpdRow
                     {

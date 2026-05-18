@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Symbol-standard resolver (Phase 175)
 //
 // Six-level inheritance chain:
@@ -12,6 +13,7 @@ using System;
 using System.IO;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json.Linq;
+using StingTools.Core.Drawing;
 
 namespace StingTools.Core.Symbols
 {

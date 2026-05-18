@@ -12,6 +12,7 @@ using System.Linq;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using StingTools.Core;
+using Autodesk.Revit.DB;
 
 namespace Planscape.Docs.Templates
 {

@@ -31,6 +31,8 @@ using Grid     = System.Windows.Controls.Grid;
 using TextBox  = System.Windows.Controls.TextBox;
 using ComboBox = System.Windows.Controls.ComboBox;
 using CheckBox = System.Windows.Controls.CheckBox;
+using Color = System.Windows.Media.Color;
+using Grid = System.Windows.Controls.Grid;
 
 namespace StingTools.UI
 {

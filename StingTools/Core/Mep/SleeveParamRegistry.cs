@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 — Sleeve parameter registry (shared by SleeveEngine,
 // AutoSleevePlacementCommand, ExportSleeveBcfCommand).
 //

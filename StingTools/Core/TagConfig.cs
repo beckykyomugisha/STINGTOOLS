@@ -2,11 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using StingTools.Core.Drawing;
+using Newtonsoft.Json.Linq;
+using System.Collections.Concurrent;
 
 namespace StingTools.Core
 {
@@ -1886,7 +1889,7 @@ namespace StingTools.Core
                         if (slaDict != null)
                             foreach (var kvp in slaDict) SLAThresholdsHours[kvp.Key.ToUpper()] = kvp.Value;
                     }
-                    catch (Exception ex) { StingLog.Warn($"TagConfig: failed to parse SLA_THRESHOLDS: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"TagConfig: failed to parse SLA_THRESHOLDS: {ex2.Message}"); }
                 }
 
                 // GAP-FIX: Auto-save warning baseline settings
@@ -1930,7 +1933,7 @@ namespace StingTools.Core
                             if (smDict.TryGetValue("Gap", out double mg)) SheetMarginGapMm = mg;
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"TagConfig: failed to parse SHEET_MARGINS: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Warn($"TagConfig: failed to parse SHEET_MARGINS: {ex2.Message}"); }
                 }
 
                 ConfigSource = path;
@@ -4220,7 +4223,7 @@ namespace StingTools.Core
                         IsCategoryVisible(view, BuiltInCategory.OST_FireAlarmDevices))
                         detected.Add("FP");
                 }
-                catch (Exception ex) { StingLog.Warn($"Visibility check failed — return all: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Visibility check failed — return all: {ex2.Message}"); }
             }
 
             // If still no disciplines detected, tag everything
@@ -6651,7 +6654,7 @@ namespace StingTools.Core
                     // can short-circuit when nothing has changed.
                     ParameterHelpers.SetString(el, LAST_PARA_PARAM, paraContainer ?? "", overwrite: true);
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     StingLog.Warn("WriteTag7All paragraph clear pass failed: " + ex.Message);
                 }

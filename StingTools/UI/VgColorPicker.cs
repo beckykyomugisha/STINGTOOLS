@@ -10,7 +10,6 @@
 // Lives in StingTools.UI alongside the other editor-only helpers.
 
 using System;
-using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;

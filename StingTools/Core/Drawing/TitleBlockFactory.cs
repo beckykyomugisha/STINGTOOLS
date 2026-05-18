@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager · Phase 170 — Title-block factory
 //
 // The engine that mints .rfa title-block families from a JSON spec.
@@ -33,9 +34,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using System.Collections.Concurrent;
 
 namespace StingTools.Core.Drawing
 {

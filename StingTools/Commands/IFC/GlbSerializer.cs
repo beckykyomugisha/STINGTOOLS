@@ -9,6 +9,8 @@ using System.IO;
 using System.Text;
 using Newtonsoft.Json;
 using StingTools.Core.Clash;
+using Autodesk.Revit.DB;
+using System.Linq;
 
 namespace StingTools.Commands.IFC
 {

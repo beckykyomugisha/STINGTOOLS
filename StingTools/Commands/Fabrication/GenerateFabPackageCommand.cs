@@ -59,6 +59,10 @@ namespace StingTools.Commands.Fabrication
         /// <summary>Controls how ISO 6412 symbols are placed on shop drawings.</summary>
         public static PlacementMode SymbolPlacementMode { get; set; } = PlacementMode.Replace;
 
+        public static bool PlaceISOPipe       { get; set; } = true;
+        public static bool PlaceISODuct       { get; set; } = true;
+        public static bool PlaceISOElectrical { get; set; } = true;
+
         /// <summary>ISO symbol placement strategy.</summary>
         public enum PlacementMode
         {
@@ -118,6 +122,43 @@ namespace StingTools.Commands.Fabrication
             }
             StingLog.Info($"GenerateFabPackage: collected {ids.Count} element(s) via {scopeLabelUsed} scope.");
 
+            // ── ISO symbol pre-flight check ────────────────────────────
+            // Run BEFORE the (potentially slow) fabrication engine so the
+            // user sees the coverage gap immediately and can abort or
+            // acknowledge before committing to a full package generation.
+            if (FabricationOptions.PlaceISO6412Symbols)
+            {
+                try
+                {
+                    var preflight = IsoSymbolPlacer.GetMissingFamilyReport();
+                    if (preflight.MissingCount > 0)
+                    {
+                        StingLog.Warn($"ISO symbol pre-flight: {preflight.Summary}");
+                        var td = new TaskDialog("STING v4 — ISO 6412 Symbol Pre-flight")
+                        {
+                            MainInstruction = $"{preflight.MissingCount} of {preflight.Total} ISO 6412 symbol families are missing",
+                            MainContent =
+                                preflight.Summary + "\n\n" +
+                                "Symbol placement will silently skip members whose family is absent. " +
+                                "The fabrication package will still be generated.\n\n" +
+                                "To fix: author the missing families per Families/ISO6412/README.md, " +
+                                "or run 'Load ISO Symbol Library' once the bundle is available.",
+                            CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel,
+                            DefaultButton  = TaskDialogResult.Ok,
+                        };
+                        if (preflight.MissingCount == preflight.Total)
+                        {
+                            td.MainInstruction = "No ISO 6412 symbol families found on disk";
+                            td.MainContent = "Zero of the 188 catalogue families are present — all symbol placement will be skipped.\n\n" +
+                                "Author or load the symbol library first, then regenerate the package.";
+                        }
+                        var preRes = td.Show();
+                        if (preRes == TaskDialogResult.Cancel) return Result.Cancelled;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ISO symbol pre-flight: {ex.Message}"); }
+            }
+
             // Shop-drawing composition is now configured up front via the
             // Fabrication Workspace (Configure… button on the Title Block
             // strip) or the dock panel's Configure… button — both
@@ -174,7 +215,7 @@ namespace StingTools.Commands.Fabrication
                     var sheet = doc.GetElement(res.SheetIds[0]) as ViewSheet;
                     if (sheet != null) uidoc.ActiveView = sheet;
                 }
-                catch (Exception ex) { StingLog.Warn($"GenerateFabPackage open sheet failed: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"GenerateFabPackage open sheet failed: {ex2.Message}"); }
             }
 
             return Result.Succeeded;

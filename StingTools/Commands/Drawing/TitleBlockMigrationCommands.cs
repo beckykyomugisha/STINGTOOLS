@@ -267,7 +267,7 @@ namespace StingTools.Commands.Drawing
                         if (ok) return FindLoadedFamily(doc, name);
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     StingLog.Warn($"LoadFamilyFromDisk '{name}': {ex.Message}");
                 }

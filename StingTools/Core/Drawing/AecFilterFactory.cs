@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — AEC/FM Filter Factory
 //
 // Converts an AecFilterDefinition into a live ParameterFilterElement.

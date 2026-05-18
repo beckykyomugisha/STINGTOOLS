@@ -13,10 +13,90 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Newtonsoft.Json;
 
 namespace StingTools.Core.Symbols
 {
+    /// <summary>
+    /// Project-level symbol size configuration.
+    /// Stored at &lt;project&gt;/_BIM_COORD/symbol_size_config.json.
+    /// The generator applies these overrides before scaling any geometry:
+    ///   1. Per-symbol id override (most specific, wins)
+    ///   2. Per-category override
+    ///   3. Global multiplier applied to every symbol's default symbolSize
+    /// All three can be combined.  Example:
+    ///   { "globalMultiplier": 1.2, "categoryOverrides": { "Duct Fittings": 10.0 } }
+    /// means "all symbols 20% larger, but duct fitting symbols specifically 10 mm".
+    /// </summary>
+    public sealed class SymbolSizeConfig
+    {
+        /// <summary>Multiply every symbol's default symbolSize by this value. Default 1.0 = no change.</summary>
+        [JsonProperty("globalMultiplier")]
+        public double GlobalMultiplier { get; set; } = 1.0;
+
+        /// <summary>
+        /// Override the symbolSize (mm) for an entire category.
+        /// Key = category string as it appears in the JSON (e.g. "Pipe Fittings", "Valves", "Duct Fittings").
+        /// Value = desired symbol size in mm.  Overrides globalMultiplier for this category.
+        /// </summary>
+        [JsonProperty("categoryOverrides")]
+        public Dictionary<string, double> CategoryOverrides { get; set; }
+            = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Override the symbolSize (mm) for a specific symbol id.
+        /// Takes priority over both categoryOverrides and globalMultiplier.
+        /// </summary>
+        [JsonProperty("symbolOverrides")]
+        public Dictionary<string, double> SymbolOverrides { get; set; }
+            = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Returns the effective symbolSize (mm) for a given definition,
+        /// applying the three-tier override chain.
+        /// </summary>
+        public double Resolve(SymbolDefinition def)
+        {
+            if (def == null) return 6.0;
+            double baseSize = def.SymbolSize > 0 ? def.SymbolSize : 6.0;
+
+            // Tier 1 — per-symbol id
+            if (!string.IsNullOrEmpty(def.Id) && SymbolOverrides.TryGetValue(def.Id, out var symSize) && symSize > 0)
+                return symSize;
+
+            // Tier 2 — per-category
+            if (!string.IsNullOrEmpty(def.Category) && CategoryOverrides.TryGetValue(def.Category, out var catSize) && catSize > 0)
+                return catSize;
+
+            // Tier 3 — global multiplier
+            return baseSize * (GlobalMultiplier > 0 ? GlobalMultiplier : 1.0);
+        }
+
+        /// <summary>Load from path; returns default config (no overrides) on any failure.</summary>
+        public static SymbolSizeConfig LoadOrDefault(string jsonPath)
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(jsonPath) && File.Exists(jsonPath))
+                    return JsonConvert.DeserializeObject<SymbolSizeConfig>(File.ReadAllText(jsonPath))
+                           ?? new SymbolSizeConfig();
+            }
+            catch { }
+            return new SymbolSizeConfig();
+        }
+
+        public void Save(string jsonPath)
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(jsonPath));
+                File.WriteAllText(jsonPath, JsonConvert.SerializeObject(this, Formatting.Indented));
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"SymbolSizeConfig.Save: {ex.Message}"); }
+        }
+    }
+
     public sealed class SymbolLibrary
     {
         [JsonProperty("version")]  public string Version { get; set; } = "1.0";
@@ -111,6 +191,18 @@ namespace StingTools.Core.Symbols
         /// </summary>
         [JsonProperty("protectExisting", NullValueHandling = NullValueHandling.Ignore)]
         public bool ProtectExisting { get; set; } = false;
+
+        /// <summary>
+        /// Geometry authoring status.
+        ///   "draft"    — geometry is approximate; a hand-drafted seed family in
+        ///                Families/ISO6412/ should replace this when available.
+        ///   "reviewed" — geometry has been checked against the cited standard.
+        ///   "final"    — seed .rfa committed to Families/ISO6412/; JSON is
+        ///                reference-only.
+        /// Omitting this field is treated the same as "draft".
+        /// </summary>
+        [JsonProperty("status", NullValueHandling = NullValueHandling.Ignore)]
+        public string Status { get; set; } = "draft";
 
         /// <summary>
         /// Optional path to a pre-built .rfa the builder augments rather

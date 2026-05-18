@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — base class for auto-drop engines.
 //
 // Shared behaviour for AutoConduitDrop / AutoPipeDrop / AutoDuctDrop:

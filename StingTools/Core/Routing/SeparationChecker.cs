@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — BS EN 50174-2 service separation checker.
 //
 // For a candidate drop (from→to) on a given service (ELC_PWR,

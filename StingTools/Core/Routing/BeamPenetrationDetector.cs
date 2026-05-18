@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — BeamPenetrationDetector.
 //
 // Detects MEP runs that cross structural framing (beams) and stamps
@@ -35,6 +36,7 @@ using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
+using System.Linq;
 
 namespace StingTools.Core.Routing
 {
@@ -68,7 +70,7 @@ namespace StingTools.Core.Routing
             foreach (var id in memberIds)
             {
                 MEPCurve curve = null;
-                try { curve = doc.GetElement(id) as MEPCurve; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { curve = doc.GetElement(id) as MEPCurve; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                 if (curve == null) continue;
 
                 LocationCurve loc = curve.Location as LocationCurve;
@@ -130,7 +132,7 @@ namespace StingTools.Core.Routing
                         ParameterHelpers.SetString(curve, "STING_PENETRATION_REF_TXT",
                             $"BEM:{beam.Id.Value}@{rec.FireRating}#{flag}", overwrite: true);
                     }
-                    catch (Exception ex) { StingLog.Warn($"BeamPenetrationDetector stamp: {ex.Message}"); }
+                    catch (Exception ex3) { StingLog.Warn($"BeamPenetrationDetector stamp: {ex3.Message}"); }
                 }
             }
 

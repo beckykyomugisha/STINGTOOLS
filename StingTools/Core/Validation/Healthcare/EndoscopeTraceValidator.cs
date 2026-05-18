@@ -1,8 +1,10 @@
+using StingTools.Core.Validation;
 using System;
 // Healthcare Pack H-26 — HTM 01-06 endoscope traceability validator.
 using Autodesk.Revit.DB;
 using System.Collections.Generic;
 using System.Linq;
+using Autodesk.Revit.DB.Architecture;
 
 namespace StingTools.Core.Validation.Healthcare
 {

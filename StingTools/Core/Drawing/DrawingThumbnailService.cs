@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager
 //
 // DrawingThumbnailService renders live sheet thumbnails for the
@@ -24,6 +25,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Media.Imaging;
+using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 
