@@ -1,3 +1,4 @@
+#nullable enable
 // Pack 10 — Extensible Storage schema builder.
 //
 // STING has about a dozen state variables stored as hidden shared parameters
