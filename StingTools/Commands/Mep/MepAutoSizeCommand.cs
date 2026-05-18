@@ -109,7 +109,7 @@ namespace StingTools.Commands.Mep
                         catch (Exception ex3)
                         {
                             res.Skipped++;
-                            res.Warnings.Add($"size {p.Id}: {ex2.Message}");
+                            res.Warnings.Add($"size {p.Id}: {ex3.Message}");
                         }
                     }
                     tx.Commit();
