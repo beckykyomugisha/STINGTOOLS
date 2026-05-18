@@ -1119,6 +1119,10 @@ app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHub<Planscape.Infrastructure.SignalR.CrdtHub>("/hubs/crdt");
 // HC-22 — Healthcare real-time hub (pressure cascade, MGPS alarms, anti-ligature alerts).
 app.MapHub<Planscape.Infrastructure.SignalR.HealthcareHub>("/hubs/healthcare");
+// Gap H — ArchiCAD live-push hub (ElementAdded/Changed/Deleted fan-out to web/mobile/desktop).
+app.MapHub<Planscape.Infrastructure.SignalR.ArchiCADHub>("/hubs/archicad");
+// Gap H — Federated model viewer hub (ModelUpdated events after IFC ingest / auto-align).
+app.MapHub<Planscape.Infrastructure.SignalR.FederatedModelHub>("/hubs/model");
 
 // ── Database schema + seed ──
 {
