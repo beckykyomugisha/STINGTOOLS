@@ -18,6 +18,7 @@ using Newtonsoft.Json.Linq;
 using StingTools.UI;
 using StingTools.BIMManager;
 using StingTools.Core.Clash;
+using StingTools.Mcp;
 using Planscape.PluginSync;
 using StingTools.Core.Drawing;
 using StingTools.Core.Validation;
@@ -220,6 +221,7 @@ namespace StingTools.Core
                 }
                 catch (Exception syncEx) { StingLog.Warn($"SyncScheduler start failed: {syncEx.Message}"); }
 
+                StingMcpServer.StartIfConfigured();
                 StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;
             }
@@ -1216,6 +1218,7 @@ namespace StingTools.Core
             UI.ThemeManager.ClearTarget(); // H-02: Prevent memory leak from static WPF reference
             try { Planscape.Docs.Workflow.AuditLog.Shutdown(); }
             catch (Exception ex) { StingLog.Warn($"AuditLog shutdown: {ex.Message}"); }
+            StingMcpServer.Stop();
             StingLog.Shutdown();
             return Result.Succeeded;
         }
