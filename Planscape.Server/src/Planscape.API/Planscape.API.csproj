@@ -67,4 +67,26 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <!-- Sync the desktop coordination viewer from the canonical source the
+       React Native WebView already loads (Planscape/assets/viewer/). The
+       wwwroot copy had previously drifted to a stale snapshot and lost
+       features (setSectionBox, startMarkup, NotificationHub, ...). This
+       target re-copies the four runtime files on every build so the two
+       surfaces can't get out of sync again. coordination-viewer.css and
+       three.min.js + loader stubs are left as-is. -->
+  <ItemGroup>
+    <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\viewer.html" />
+    <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\coordination-viewer.js" />
+    <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\viewer-extras.js" />
+    <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\signalr-shim.js" />
+  </ItemGroup>
+  <Target Name="SyncCoordinationViewer" BeforeTargets="Build"
+          Inputs="@(ViewerSourceFiles)"
+          Outputs="@(ViewerSourceFiles->'$(MSBuildThisFileDirectory)wwwroot\%(Filename)%(Extension)')">
+    <Copy SourceFiles="@(ViewerSourceFiles)"
+          DestinationFolder="$(MSBuildThisFileDirectory)wwwroot"
+          SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="SyncCoordinationViewer: copied @(ViewerSourceFiles->Count()) viewer files into wwwroot/." />
+  </Target>
 </Project>
