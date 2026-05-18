@@ -983,7 +983,7 @@ public sealed class PlanscapeServerClient : IDisposable
             var resp = await PostJsonAsync($"/api/projects/{projectId}/boq/baselines", baselinePayload);
             if (!resp.ok) { LastError = resp.body; return null; }
             var obj = JObject.Parse(resp.body);
-            string idStr = obj.Value<string>("id") ?? obj.Value<string>("Id");
+            string? idStr = obj.Value<string>("id") ?? obj.Value<string>("Id");
             if (Guid.TryParse(idStr, out Guid id)) return id;
             LastError = "Server response had no parseable baseline id.";
             return null;

@@ -29,7 +29,7 @@ using StingTools.Core;
 using StingTools.Core.Storage;
 using StingTools.Core.Validation;
 using StingTools.Core.Validation.Cost;
-using StingTools.UI;
+using StingTools.Select;
 
 namespace StingTools.Commands.Cost
 {
