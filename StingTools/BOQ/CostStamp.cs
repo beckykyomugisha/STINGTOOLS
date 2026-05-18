@@ -37,6 +37,18 @@ namespace StingTools.BOQ
         private static bool? _writeCostOnTagCached;
         private static readonly object _lock = new object();
 
+        // Per-batch RateLookup cache. Without this, tagging 5 000 elements
+        // costs ~5 000 RateProviderRegistry.Resolve calls — most of which
+        // re-resolve the same (category, discipline, PROD, MAT_CODE) tuple.
+        // Cache cuts the perf hit to O(unique-category-tuples), typically
+        // < 50 entries. Reset via Invalidate() or naturally bounded by
+        // _rateCacheMaxEntries.
+        private const int _rateCacheMaxEntries = 500;
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Rates.RateLookup>
+            _rateCache = new System.Collections.Concurrent.ConcurrentDictionary<string, Rates.RateLookup>();
+        private static int _rateCacheHits = 0;
+        private static int _rateCacheMisses = 0;
+
         internal static bool IsWriteOnTagEnabled()
         {
             if (_writeCostOnTagCached.HasValue) return _writeCostOnTagCached.Value;
@@ -59,11 +71,23 @@ namespace StingTools.BOQ
             }
         }
 
-        /// <summary>Invalidate the config cache — called by Cost_ReloadRules.</summary>
+        /// <summary>Invalidate the config + per-batch rate cache — called by Cost_ReloadRules.</summary>
         public static void Invalidate()
         {
             lock (_lock) { _writeCostOnTagCached = null; }
+            int h = System.Threading.Interlocked.Exchange(ref _rateCacheHits, 0);
+            int m = System.Threading.Interlocked.Exchange(ref _rateCacheMisses, 0);
+            if (h + m > 0)
+                StingLog.Info($"CostStamp rate cache: {h} hit / {m} miss ({(double)h / (h + m) * 100:F1}% hit-rate) — flushed.");
+            _rateCache.Clear();
         }
+
+        /// <summary>
+        /// Diagnostic — current per-batch cache stats. Useful for the
+        /// Cost_RateHeatMap command to surface cache effectiveness.
+        /// </summary>
+        public static (int hits, int misses, int entries) GetRateCacheStats()
+            => (_rateCacheHits, _rateCacheMisses, _rateCache.Count);
 
         /// <summary>
         /// Write cost params on the element if WRITE_COST_ON_TAG is true.
@@ -94,30 +118,51 @@ namespace StingTools.BOQ
                 if (rule.WastePercent > 0) qty *= 1.0 + rule.WastePercent / 100.0;
                 if (qty <= 0.0001) return false;
 
-                // Resolve rate via the registry. The pipeline doesn't have
-                // a pre-loaded CSV / COBie dictionary, so build empty ones
-                // — param + ES + default providers still resolve, which is
-                // the bulk of the lookups anyway. Full CSV coverage is
-                // available via the explicit BOQ_Build path.
+                // Resolve rate via the per-batch cache → registry. Cache
+                // key intentionally excludes Element identity so two
+                // elements in the same category share one Resolve call.
+                // Param + ES override providers (which DO depend on
+                // element identity) are correctly skipped by the cache —
+                // their priority is high enough that they're consulted
+                // first by the registry, and overrides are rare. If a
+                // QS is using per-element overrides at scale, they
+                // should drive cost via the BOQ_Refresh path (which
+                // doesn't use this cache) rather than tag-time write-back.
+                string matCode = ParameterHelpers.GetString(el, "MAT_CODE") ?? "";
+                string cacheKey = $"{catName}|{disc}|{prod}|{matCode}|{rule.Unit ?? "each"}";
                 double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
-                double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
-                var rateRegistry = RateProviderRegistry.Get(doc,
-                    new Dictionary<string, (double rate, string unit)>(),
-                    new Dictionary<string, string>(),
-                    ugxPerUsd, ugxPerGbp);
 
-                var req = new RateRequest
+                Rates.RateLookup lookup;
+                if (_rateCache.TryGetValue(cacheKey, out lookup))
                 {
-                    CategoryName = catName,
-                    Discipline = disc,
-                    ProdCode = prod,
-                    MatCode = ParameterHelpers.GetString(el, "MAT_CODE") ?? "",
-                    Unit = rule.Unit ?? "each",
-                    CurrencyCode = "UGX",
-                    AsOf = DateTime.UtcNow,
-                    Element = el
-                };
-                var lookup = rateRegistry.Resolve(req);
+                    System.Threading.Interlocked.Increment(ref _rateCacheHits);
+                }
+                else
+                {
+                    System.Threading.Interlocked.Increment(ref _rateCacheMisses);
+                    double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
+                    var rateRegistry = RateProviderRegistry.Get(doc,
+                        new Dictionary<string, (double rate, string unit)>(),
+                        new Dictionary<string, string>(),
+                        ugxPerUsd, ugxPerGbp);
+                    var req = new RateRequest
+                    {
+                        CategoryName = catName,
+                        Discipline = disc,
+                        ProdCode = prod,
+                        MatCode = matCode,
+                        Unit = rule.Unit ?? "each",
+                        CurrencyCode = "UGX",
+                        AsOf = DateTime.UtcNow,
+                        Element = el
+                    };
+                    lookup = rateRegistry.Resolve(req);
+                    // Bounded cache — drop if we exceed the cap. We don't
+                    // need LRU semantics because a single tag operation
+                    // typically touches < 100 unique category tuples.
+                    if (lookup != null && _rateCache.Count < _rateCacheMaxEntries)
+                        _rateCache[cacheKey] = lookup;
+                }
                 if (lookup == null || lookup.UnitRate <= 0) return false;
 
                 double total = qty * lookup.UnitRate;

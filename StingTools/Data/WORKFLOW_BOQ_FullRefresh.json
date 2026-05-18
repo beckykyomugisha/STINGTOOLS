@@ -5,6 +5,11 @@
   "rollback_on_optional_failure": false,
   "steps": [
     {
+      "commandTag": "Cost_MigrateESEntities",
+      "label": "Migrate any v1 Extensible Storage cost overrides to v2 (one-shot)",
+      "optional": true
+    },
+    {
       "commandTag": "Cost_ReloadRules",
       "label": "Reload take-off rules + rate provider caches",
       "optional": true

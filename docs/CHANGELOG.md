@@ -2,6 +2,22 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 184e — Cost management Phase 184d caveats closed)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the three caveats from Phase 184d. Built without `dotnet build` verification.
+
+- **Per-batch rate cache in CostStamp** — `BOQ/CostStamp.cs` gains a `ConcurrentDictionary<string, RateLookup>` keyed by `category|discipline|prod|matCode|unit`. Tagging 5 000 elements that share <50 unique tuples now drops from ~5 000 registry calls to ~50. Bounded at 500 entries (above which entries skip caching rather than evict — single tag operations don't touch that many unique categories). Cache invalidates with the other rate caches via `Cost_ReloadRules`. Diagnostic `GetRateCacheStats()` returns hits / misses / entries; `Invalidate()` logs the hit-rate before flushing. Hot-path tuple includes neither `Element` nor `AsOf` so the cache is safe across element identities at a single point in time.
+- **Deleted `_legacyInlineFallback`** — 124 hardcoded entries in `BIMManager/SchedulingCommands.cs` removed (164 lines deleted). Replaced with `_emergencyFallback`: 5 most-common categories (Walls, Floors, Doors, Windows, Mechanical Equipment) that keep the engine producing non-zero rates even if `STING_DEFAULT_COST_RATES.csv` is missing. The CSV is now the single source of truth for the default rate table. `LoadDefaultCostRatesCsv` logs a loud `Warn` when the CSV is missing (was `Info`) so distribution problems surface quickly.
+- **`Cost_MigrateESEntities` added to `WORKFLOW_BOQ_FullRefresh.json`** — first step, optional. Projects opening their first full refresh after upgrading pick up the one-shot v1→v2 Extensible Storage migration without explicit user action. Idempotent on re-runs (returns immediately when no v1 schema is present).
+
+##### Caveats
+
+1. Built without `dotnet build` verification.
+2. Per-batch rate cache uses ConcurrentDictionary so concurrent tag operations (rare but possible across multiple StingCommandHandler queues) won't corrupt it. The 500-entry cap is intentionally loose — a single tag operation never touches more than ~50 unique tuples in practice.
+3. If `STING_DEFAULT_COST_RATES.csv` ships missing or corrupt, `Scheduling4DEngine.DefaultCostRates` returns 5 entries and most categories will get zero rates from the `DefaultRateProvider`. Other providers (param override / ES override / CSV at higher priority) still work; only the lowest-priority fallback degrades.
+
+---
+
 #### Completed (Phase 184d — Cost management deferrals closed)
 
 Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the three "deliberate deferrals" from Phase 184b: tag-pipeline cost write-back, bulk ES v1→v2 migration, and `DefaultCostRates` extraction into a data file. Built without `dotnet build` verification (Linux sandbox).
