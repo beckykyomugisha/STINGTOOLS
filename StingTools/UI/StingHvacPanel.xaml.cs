@@ -71,13 +71,11 @@ namespace StingTools.UI
 
         private void SeedSizingRolesFromRegistry()
         {
-            // Load JSON via the registry so the panel reflects whatever ships with the build.
-            // Document-aware load happens later when a project is open; here we use the
-            // baseline only.
             try
             {
                 var rules = StingTools.Core.Mep.MepSizingRegistry.Get(null);
                 SizingRoleRows.Clear();
+                StandardSizeRows.Clear();
                 foreach (var r in rules.DuctRoles)
                 {
                     SizingRoleRows.Add(new SizingRoleRow
@@ -95,6 +93,88 @@ namespace StingTools.UI
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Registry seed failed: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Phase 182 — drop a row in the RPRT WorkflowGrid showing the most
+        /// recent run, status dot and timestamp. Called by sizing / balancing /
+        /// schedule commands so the panel stops feeling read-only (gap D9).
+        /// Thread-safe via the Dispatcher.
+        /// </summary>
+        public void PushRunRow(string name, string statusDot)
+        {
+            try
+            {
+                Action act = () =>
+                {
+                    int next = WorkflowRows.Count + 1;
+                    WorkflowRows.Insert(0, new HvacWorkflowRunRow
+                    {
+                        Number    = "#" + next,
+                        Name      = name ?? "",
+                        StatusDot = statusDot ?? "•",
+                        Timestamp = DateTime.Now.ToString("HH:mm:ss")
+                    });
+                    // Cap log length so a long session doesn't keep growing.
+                    while (WorkflowRows.Count > 100) WorkflowRows.RemoveAt(WorkflowRows.Count - 1);
+                };
+                if (Dispatcher?.CheckAccess() == true) act();
+                else Dispatcher?.Invoke(act);
+            }
+            catch (Exception ex) { StingLog.Warn($"PushRunRow: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Phase 182 — re-seed the CALCS DataGrid after Hvac_ReloadRules fires
+        /// (gap B9). Without this, "Reload rules" was a no-op visually.
+        /// </summary>
+        public void RefreshSizingRoles() => SeedSizingRolesFromRegistry();
+
+        /// <summary>
+        /// Phase 182 — serialise the current sizing-role grid to the project
+        /// override JSON (gap D1 / A6). Returns the path written, or null
+        /// on failure. The grid stays the source of truth; the registry
+        /// reload then re-reads from disk so future commands honour the edits.
+        /// </summary>
+        public string SaveSizingRolesToProjectOverride(string projectFolder)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(projectFolder)) return null;
+                string dir = System.IO.Path.Combine(projectFolder, "_BIM_COORD");
+                if (!System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
+                string path = System.IO.Path.Combine(dir, "mep_sizing_rules.json");
+
+                var existing = System.IO.File.Exists(path)
+                    ? Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText(path))
+                    : new Newtonsoft.Json.Linq.JObject();
+
+                var duct = existing["duct"] as Newtonsoft.Json.Linq.JObject;
+                if (duct == null) { duct = new Newtonsoft.Json.Linq.JObject(); existing["duct"] = duct; }
+
+                var roles = new Newtonsoft.Json.Linq.JArray();
+                foreach (var r in SizingRoleRows)
+                {
+                    string id = (r.Role ?? "").Trim().ToLowerInvariant();
+                    if (id.Contains(" ")) id = id.Split(' ')[0];
+                    roles.Add(new Newtonsoft.Json.Linq.JObject
+                    {
+                        ["id"]                = id,
+                        ["label"]             = r.Role,
+                        ["maxVelocityMs"]     = r.MaxVelocityMs,
+                        ["maxFrictionPaPerM"] = r.FrictionPaPerM,
+                        ["aspectMax"]         = r.AspectMax,
+                        ["source"]            = r.Source ?? "project override"
+                    });
+                }
+                duct["roles"] = roles;
+
+                System.IO.File.WriteAllText(path, existing.ToString(Newtonsoft.Json.Formatting.Indented));
+                StingTools.Core.Mep.MepSizingRegistry.Reload();
+                StingLog.Info($"SaveSizingRolesToProjectOverride wrote {path}");
+                return path;
+            }
+            catch (Exception ex) { StingLog.Error("SaveSizingRolesToProjectOverride", ex); return null; }
         }
 
         // ── Click dispatch ──────────────────────────────────────────────

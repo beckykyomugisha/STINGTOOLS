@@ -450,6 +450,9 @@
                                 <TextBlock Text="Edits to this grid live in &lt;project&gt;/_BIM_COORD/mep_sizing_rules.json"
                                            FontSize="9" Margin="0,3" Opacity="0.7"/>
                                 <StackPanel Orientation="Horizontal" Margin="0,3">
+                                    <Button Style="{StaticResource HvacPrimaryBtn}" Content="💾 Save to project"
+                                            Tag="Hvac_SaveRules" Click="Cmd_Click"
+                                            ToolTip="Write the edited grid to &lt;project&gt;/_BIM_COORD/mep_sizing_rules.json and reload the registry"/>
                                     <Button Style="{StaticResource HvacActionBtn}" Content="Reload rules"
                                             Tag="Hvac_ReloadRules" Click="Cmd_Click"
                                             ToolTip="Re-read STING_MEP_SIZING_RULES.json + project override from disk"/>
@@ -848,10 +851,14 @@
                         <WrapPanel Margin="0,6,0,0">
                             <Button Style="{StaticResource HvacPrimaryBtn}" Content="Equipment schedule"
                                     Tag="Hvac_EquipmentSchedule" Click="Cmd_Click" ToolTip="Generate / refresh mechanical equipment schedule"/>
-                            <Button Style="{StaticResource HvacActionBtn}" Content="Diversity report"
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Detect stale sizes"
+                                    Tag="Hvac_DetectStaleSizes" Click="Cmd_Click" ToolTip="Walk ducts + flag those whose size diverges &gt;20% from the registry target (Phase 183)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Pressure-class audit"
+                                    Tag="Hvac_PressureClassAudit" Click="Cmd_Click" ToolTip="Verify each duct's estimated ΔP against the active DW/144 class (Phase 183)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Plant carbon"
+                                    Tag="Hvac_CarbonReport" Click="Cmd_Click" ToolTip="Embodied carbon (CIBSE TM65) + refrigerant GWP (IPCC AR6) per mechanical equipment (Phase 183)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Diversity"
                                     Tag="Mep_SystemAnalyse" Click="Cmd_Click" ToolTip="System-level diversity report"/>
-                            <Button Style="{StaticResource HvacActionBtn}" Content="Carbon"
-                                    Tag="V6Carbon" Click="Cmd_Click" ToolTip="EN 15978 A1–A3 carbon for HVAC plant"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="PDF pack"
                                     Tag="DocPackage" Click="Cmd_Click" ToolTip="Bundle HVAC drawings into a PDF pack"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Push to API"

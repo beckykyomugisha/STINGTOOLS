@@ -102,7 +102,24 @@ namespace StingTools.UI
                     // ── CALCS tab ──────────────────────────────────────────
                     case "Hvac_AutoSizeDuct":
                     case "Mep_AutoSizeDuct":
-                        Run<StingTools.Commands.Mep.MepAutoSizeDuctCommand>(app); break;
+                        // Phase 182 — strategy radio actually dispatches (gap D2).
+                        // The CALCS tab's "Auto-size" button respects the header
+                        // strategy radio rather than always calling MepAutoSizeDuct.
+                        switch ((CurrentSizingStrategyId ?? "velocity").ToLowerInvariant())
+                        {
+                            case "equal_friction":
+                                Run<StingTools.Commands.StandardsExt.DuctEqualFrictionCommand>(app); break;
+                            case "static_regain":
+                                Run<StingTools.Commands.MepDesign.DuctStaticRegainCommand>(app); break;
+                            case "constant_pressure":
+                                // No dedicated command yet; fall through to velocity sizing
+                                // and stamp the chosen strategy in the audit trail.
+                                Run<StingTools.Commands.Mep.MepAutoSizeDuctCommand>(app); break;
+                            case "velocity":
+                            default:
+                                Run<StingTools.Commands.Mep.MepAutoSizeDuctCommand>(app); break;
+                        }
+                        break;
                     case "Hvac_DuctFriction":
                         Run<StingTools.Commands.Routing.CalcDuctFrictionCommand>(app); break;
                     case "Hvac_StaticRegain":
@@ -118,6 +135,18 @@ namespace StingTools.UI
                     case "Hvac_RunAllValidators":
                     case "Validation_RunAll":
                         Run<StingTools.Commands.Validation.RunAllValidatorsCommand>(app); break;
+                    case "Hvac_SaveRules":
+                        // Phase 182 — gap D1/A6
+                        Run<StingTools.Commands.Hvac.HvacSaveRulesCommand>(app); break;
+                    case "Hvac_DetectStaleSizes":
+                        // Phase 183 — gap D8 (manual scan, no IUpdater overhead)
+                        Run<StingTools.Commands.Hvac.HvacDetectStaleSizesCommand>(app); break;
+                    case "Hvac_PressureClassAudit":
+                        // Phase 183 — gap A3/D10 (pressure-class enforcement)
+                        Run<StingTools.Commands.Hvac.HvacPressureClassAuditCommand>(app); break;
+                    case "Hvac_CarbonReport":
+                        // Phase 183 — gap C8 (HVAC plant + refrigerant carbon)
+                        Run<StingTools.Commands.Hvac.HvacCarbonReportCommand>(app); break;
 
                     // ── DUCT tab ───────────────────────────────────────────
                     case "Hvac_CreateDuctTypes":
@@ -168,8 +197,13 @@ namespace StingTools.UI
 
                     // ── RPRT tab ───────────────────────────────────────────
                     case "Hvac_ReloadRules":
+                        // Phase 182 — Reload also re-seeds the CALCS grid (gap B9).
                         StingTools.Core.Mep.MepSizingRegistry.Reload();
-                        TaskDialog.Show("STING HVAC", "MEP sizing rules reloaded from JSON.");
+                        try { StingTools.UI.StingHvacPanel.Instance?.RefreshSizingRoles(); }
+                        catch (Exception ex) { StingLog.Warn($"RefreshSizingRoles: {ex.Message}"); }
+                        try { StingTools.UI.StingHvacPanel.Instance?.PushRunRow("Reload sizing rules", "⬤"); }
+                        catch (Exception ex) { StingLog.Warn($"PushRunRow: {ex.Message}"); }
+                        TaskDialog.Show("STING HVAC", "MEP sizing rules reloaded — CALCS grid refreshed.");
                         break;
                     case "Hvac_OpenSettings":
                         OpenSettings();
@@ -179,7 +213,14 @@ namespace StingTools.UI
                     default:
                         try
                         {
-                            StingCommandHandler.Instance?.SetCommand(tag);
+                            // The main panel exposes a static dispatch surface
+                            // (StingDockPanel.DispatchCommand) that owns the
+                            // ExternalEvent for the unified handler. Routing
+                            // unknown tags there avoids duplicating the 500+
+                            // case switch this dispatcher would otherwise need.
+                            bool ok = StingDockPanel.DispatchCommand(tag);
+                            if (!ok)
+                                StingLog.Warn($"Hvac fallback dispatch '{tag}' refused by main handler.");
                         }
                         catch (Exception ex)
                         {
