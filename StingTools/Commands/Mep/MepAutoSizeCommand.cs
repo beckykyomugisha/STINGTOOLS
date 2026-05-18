@@ -107,17 +107,16 @@ namespace StingTools.Commands.Mep
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
-            // Phase 181 — pull velocity target + bore table from STING_MEP_SIZING_RULES.json.
-            // Per-service velocity (chw / hws / dcw / dhw / refrigerant / steam / gas) reads
-            // from rules.GetPipeService(serviceId); for now we default to the "chw" entry
-            // which carries the lowest velocity, matching the historic 2.5 m/s safety margin.
-            double maxVelMs = PipeMaxVelMsFallback;
+            // Phase 181 / 183 — pull velocity target + bore table from
+            // STING_MEP_SIZING_RULES.json. Phase 183 (gap A2) detects the
+            // pipe's service per-element via MEPSystem abbreviation →
+            // STING_MEP_SERVICE_MAP.json and reads the velocity from the
+            // matched PipeService entry rather than always using "chw".
             double[] boreTable = MepSizeTables.PipeStandardBoreMm;
+            MepSizingRules rules = null;
             try
             {
-                var rules = MepSizingRegistry.Get(doc);
-                var svc = rules.GetPipeService("chw");
-                if (svc != null && svc.MaxVelocityMs > 0) maxVelMs = svc.MaxVelocityMs;
+                rules = MepSizingRegistry.Get(doc);
                 boreTable = MepSizeTables.PipeBoresFor(doc);
             }
             catch (Exception ex) { StingLog.Warn($"PipeSize registry fallback: {ex.Message}"); }
@@ -163,6 +162,21 @@ namespace StingTools.Commands.Mep
                     {
                         try
                         {
+                            // Per-pipe service lookup (Phase 183, gap A2).
+                            string serviceId = StingTools.Core.Mep.PipeServiceDetector
+                                .DetectServiceId(doc, p);
+                            double maxVelMs = PipeMaxVelMsFallback;
+                            string svcLabel = serviceId;
+                            if (rules != null)
+                            {
+                                var svc = rules.GetPipeService(serviceId);
+                                if (svc != null && svc.MaxVelocityMs > 0)
+                                {
+                                    maxVelMs = svc.MaxVelocityMs;
+                                    svcLabel = string.IsNullOrEmpty(svc.Label) ? serviceId : svc.Label;
+                                }
+                            }
+
                             double flowLs = ReadDouble(p, "PLM_FLOW_LS");
                             if (flowLs <= 0) { res.Skipped++; continue; }
                             double flowM3s = flowLs * 1e-3;
@@ -170,6 +184,16 @@ namespace StingTools.Commands.Mep
                             double area = flowM3s / maxVelMs;
                             double diaMm = Math.Sqrt(4.0 * area / Math.PI) * 1000.0;
                             double standard = MepSizeTables.RoundUpTo(diaMm, boreTable);
+
+                            // Audit (Phase 183) — stamp the detected service so
+                            // the panel + drift detector can see what rule fired.
+                            try
+                            {
+                                ParameterHelpers.SetString(p, "HVC_PIPE_SERVICE_TXT",
+                                    serviceId, overwrite: true);
+                            }
+                            catch (Exception exP) { StingLog.Warn($"HVC_PIPE_SERVICE stamp {p.Id}: {exP.Message}"); }
+
                             if (WriteSize(p, "Diameter", standard)) res.Resized++;
                             else res.Skipped++;
                         }
@@ -188,7 +212,7 @@ namespace StingTools.Commands.Mep
                 }
             }
         Done:
-            ShowResult(res, $"Pipe · scope={scope} · target ≤ {maxVelMs:F2} m/s · {boreTable.Length} sizes");
+            ShowResult(res, $"Pipe · scope={scope} · per-service velocity (chw/hws/dcw/dhw/refrig/steam/gas) · {boreTable.Length} sizes");
             try
             {
                 StingTools.UI.StingHvacPanel.Instance?.PushRunRow(
@@ -398,6 +422,18 @@ namespace StingTools.Commands.Mep
                             {
                                 res.Resized++;
                                 StampSizingAudit(d, prevSize, $"{widthMm:F0}x{heightMm:F0}", roleId, roleSrc);
+
+                                // Phase 183 (gap A3/D10) — stamp the active
+                                // pressure class so the audit command can
+                                // re-verify each duct against its design class.
+                                try
+                                {
+                                    string pclass = StingTools.UI.StingHvacCommandHandler.CurrentPressureClassId
+                                                    ?? "low";
+                                    ParameterHelpers.SetString(d, "HVC_PRESSURE_CLASS_TXT",
+                                        pclass, overwrite: true);
+                                }
+                                catch (Exception exPc) { StingLog.Warn($"PressureClass stamp {d.Id}: {exPc.Message}"); }
                             }
                             else res.Skipped++;
                         }

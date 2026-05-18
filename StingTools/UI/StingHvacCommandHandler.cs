@@ -138,6 +138,15 @@ namespace StingTools.UI
                     case "Hvac_SaveRules":
                         // Phase 182 — gap D1/A6
                         Run<StingTools.Commands.Hvac.HvacSaveRulesCommand>(app); break;
+                    case "Hvac_DetectStaleSizes":
+                        // Phase 183 — gap D8 (manual scan, no IUpdater overhead)
+                        Run<StingTools.Commands.Hvac.HvacDetectStaleSizesCommand>(app); break;
+                    case "Hvac_PressureClassAudit":
+                        // Phase 183 — gap A3/D10 (pressure-class enforcement)
+                        Run<StingTools.Commands.Hvac.HvacPressureClassAuditCommand>(app); break;
+                    case "Hvac_CarbonReport":
+                        // Phase 183 — gap C8 (HVAC plant + refrigerant carbon)
+                        Run<StingTools.Commands.Hvac.HvacCarbonReportCommand>(app); break;
 
                     // ── DUCT tab ───────────────────────────────────────────
                     case "Hvac_CreateDuctTypes":

@@ -4646,3 +4646,50 @@ build errors that surfaced on Windows are also fixed.
 2. `HVC_SEGMENT_ROLE_TXT`, `HVC_SIZE_PREV_TXT`, `HVC_SIZE_MODIFIED_DT` and `HVC_SIZE_RULE_ID_TXT` must be bound as shared parameters on `OST_DuctCurves` for the cache + audit trail to land. `ParameterHelpers.SetString` is no-op when read-only / unbound so older project templates degrade gracefully — the registry-driven sizing still works, only the trail is lost.
 3. `HvacSegmentRoleDetector` walks the connector graph defensively (max-depth 12, seen-set to avoid cycles). Disconnected ducts return `branch` (the safe default). A future enhancement would surface "orphan" ducts as a separate `Hvac_DetectOrphanDucts` audit.
 4. The Save → project-override path only touches the `duct.roles` block; pipe services / pressure classes / standard sizes / gauge breakpoints are unchanged on disk. Editing those still requires hand-editing the JSON.
+
+#### Completed (Phase 183 — Deferred-list closure: services, stale scan, pressure-class audit, plant carbon, profile-driven pressure regime, BIM Center HVAC tab)
+
+**Scope**: closes the five "deferred (own phase)" items from the Phase 182
+summary plus one cleanup (BIM Coordination Center HVAC tab).
+
+**Gap closures**:
+
+| Gap | Where | Change |
+|---|---|---|
+| A2 — per-pipe-service detection | new `Core/Mep/PipeServiceDetector.cs` + `Data/STING_MEP_SERVICE_MAP.json` (31 patterns) | Reads `MEPSystem.SystemAbbreviation` / `RBS_DUCT_PIPE_SYSTEM_ABBREVIATION_PARAM` and matches against a JSON pattern list (CHWS, CHW, HWS, DCW, DHW, COND, RG, RL, STM, NG, …) to resolve a `PipeService.Id`. `MepAutoSizePipeCommand` now consults this per element — chilled water gets sized at 1.5 m/s, DHW at 1.0, refrigerant gas at 15. Stamps `HVC_PIPE_SERVICE_TXT` on each sized pipe. Cached per-document; project override at `<project>/_BIM_COORD/mep_service_map.json`. |
+| D8 — manual stale-size scan | new `Commands/Hvac/HvacDetectStaleSizesCommand.cs` | Walks ducts in scope, recomputes the would-be size given current flow + role + registry rules, flags ducts whose area diverges > 20% by stamping `HVC_SIZE_STALE_BOOL = 1`. Avoids the IUpdater overhead of a passive marker — a user-invoked command with a clear cost model. Reports per-role breakdown + worst offenders + pushes an issue row to the HVAC panel. Surfaced as a button on the RPRT tab. |
+| A3 / D10 — pressure-class enforcement | sizer stamp + new `Commands/Hvac/HvacPressureClassAuditCommand.cs` | `MepAutoSizeDuctCommand` stamps `HVC_PRESSURE_CLASS_TXT` per duct with the active class id. The new audit command estimates per-duct ΔP (½ρv² + Darcy friction over duct length) using the panel's air-density setting and compares to the class max (DW/144 A=500 / B=1000 / C=2500 / D=7500 Pa). Reports worst offender + over-class count; pushes issue row. Surfaced as a button on the RPRT tab. |
+| C8 — HVAC plant + refrigerant carbon | new `Commands/Hvac/HvacCarbonReportCommand.cs` | Walks `OST_MechanicalEquipment` in scope. Classifies (Chiller / Boiler / AHU / FCU / VRF / HeatPump / Fan / CoolingTower / Generic) by family + product code, multiplies capacity (kW) by CIBSE TM65 embodied-carbon defaults, adds refrigerant charge × IPCC AR6 GWP (R32, R290, R410A, R134A, R1234yf, etc.). Reports A1-A3 + B7 + combined total + breakdown by class + top 15 offenders. Project override at `Data/STING_HVAC_CARBON_FACTORS.json` (auto-loaded). |
+| C3 — profile-driven pressure regime | new `Data/STING_PRESSURE_REGIMES.json` + `Core/Validation/Mep/GeneralPressureRegimeValidator.cs` | Sibling to the healthcare validator. Loads four profiles from JSON: `healthcare-htm03-01` (mirrors historic rules), `gmp-annex1` (EU GMP Annex 1 2022 Grade A/B/C/D), `iso-14644-cleanroom` (ISO classes 5-8 commercial cleanroom), `bs-en-12128-lab` (BSL-1/2/3/4 containment). Activated per project via `PRJ_ORG_PRESSURE_PROFILE_TXT`. Emits the same `ValidationResult` shape so `RunAllValidatorsCommand` aggregates it transparently. Coexists with the healthcare validator — a hospital cleanroom can run both. |
+| C2 — BIM Coordination Center HVAC tab | new `UI/HvacTab.cs` (thin wrapper) + three small edits to `BIMCoordinationCenter.cs` | 16th BCC tab gated on `PRJ_ORG_DISCIPLINES_TXT` containing "Mechanical" / "HVAC" / "MEP". Read-only mirror of the live STING HVAC panel: header chips (region / pressure class / strategy / scope), KPI strip (duct / pipe / equipment counts + stale count), recent workflow runs + active issues, quick-action buttons. Follows the same wrapper pattern as `SitePhotosTab.cs` so `BIMCoordinationCenter.cs` doesn't grow another 1000-line tab body. |
+
+**New files**:
+
+| File | Purpose |
+|---|---|
+| `StingTools/Core/Mep/PipeServiceDetector.cs` | Pipe service classifier — `MEPSystem.Abbreviation` → `PipeService.Id`. |
+| `StingTools/Data/STING_MEP_SERVICE_MAP.json` | 31 abbreviation patterns mapping to 11 service ids. |
+| `StingTools/Commands/Hvac/HvacDetectStaleSizesCommand.cs` | D8 — manual stale-size scan. |
+| `StingTools/Commands/Hvac/HvacPressureClassAuditCommand.cs` | A3/D10 — pressure-class verification. |
+| `StingTools/Commands/Hvac/HvacCarbonReportCommand.cs` | C8 — plant + refrigerant carbon. |
+| `StingTools/Core/Validation/Mep/GeneralPressureRegimeValidator.cs` | C3 — profile-driven cascade validator + registry. |
+| `StingTools/Data/STING_PRESSURE_REGIMES.json` | C3 — 4 profiles × 14 room-class entries. |
+| `StingTools/UI/HvacTab.cs` | C2 — BCC tab wrapper. |
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Commands/Mep/MepAutoSizeCommand.cs` | Per-pipe service detection wired (A2) + pressure-class stamp on sized ducts (A3) + new helpers. |
+| `StingTools/UI/StingHvacCommandHandler.cs` | Three new tag handlers (`Hvac_DetectStaleSizes`, `Hvac_PressureClassAudit`, `Hvac_CarbonReport`). |
+| `StingTools/UI/StingHvacPanel.xaml` | RPRT tab gains Detect-stale / Pressure-class / Plant-carbon buttons. |
+| `StingTools/UI/BIMCoordinationCenter.cs` | TabHvac constant + nav-list gate + tab dispatcher → HvacTab.BuildTab(this). |
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit.
+2. CLAUDE.md previously described the type as `CommandExecutionContext`; the actual class is `StingCommandContext`. New files use the correct name.
+3. `HvacPressureClassAuditCommand` uses a simplified ½ρv² + Darcy estimate, not coupled fitting losses. For the full system pressure drop run `Mep_PressureDrop` (`DetailedPressureDropEngine.AnalyseModel`).
+4. `HvacCarbonReportCommand` factors are CIBSE TM65 + IPCC AR6 *defaults*; manufacturer EPDs (Daikin, Trane, etc.) should override via `Data/STING_HVAC_CARBON_FACTORS.json`.
+5. `GeneralPressureRegimeValidator` is not yet auto-discovered by `RunAllValidatorsCommand` — call sites that want it must instantiate it explicitly. Wiring it into the unified validator chain is a one-line follow-up (additive, no engine changes).
+6. The BIM Coordination Center HVAC tab is read-only — all editable work happens on the STING HVAC dock panel (the quick-action buttons forward through `StingDockPanel.DispatchCommand`).

@@ -1,0 +1,81 @@
+{
+  "_schema": "STING_PRESSURE_REGIMES",
+  "_version": "1.0",
+  "_notes": [
+    "Profile-driven pressure-cascade + ACH validator. Generalises the",
+    "healthcare-only PressureRegimeValidator so commercial cleanroom,",
+    "GMP, BSL containment-lab, and laboratory projects can use the",
+    "same engine.",
+    "",
+    "Active profile is selected via project parameter PRJ_ORG_PRESSURE_PROFILE_TXT.",
+    "If unset, only the healthcare profile runs (preserving Phase 174 behaviour).",
+    "",
+    "Each room class entry maps a value of CLN_ROOM_CLASS_TXT (or the profile-",
+    "specific equivalent param) to its required pressure regime + Δp + ACH.",
+    "GeneralPressureRegimeValidator emits ValidationResult rows matching the",
+    "healthcare validator's shape so the same RunAllValidators report surface works."
+  ],
+
+  "profiles": {
+    "healthcare-htm03-01": {
+      "label": "Healthcare — HTM 03-01 / ASHRAE 170",
+      "classParam": "CLN_ROOM_CLASS_TXT",
+      "deltaParam": "CLN_PRESS_DELTA_DESIGN_PA_NR",
+      "regimeParam": "CLN_PRESS_REGIME_TXT",
+      "achParam":   "HVC_AIR_CHANGES_PER_HR",
+      "_note": "Aliases the historic healthcare validator; left here so users can see the shape.",
+      "classes": [
+        { "id": "OR1",          "regime": "POS", "deltaPa": 15, "minAch": 20, "notes": "Operating room class 1" },
+        { "id": "OR2",          "regime": "POS", "deltaPa": 10, "minAch": 15 },
+        { "id": "AIIR",         "regime": "NEG", "deltaPa": 12, "minAch": 12, "notes": "Airborne infection isolation" },
+        { "id": "PE",           "regime": "POS", "deltaPa": 12, "minAch": 12, "notes": "Protective environment" },
+        { "id": "Cleanroom-iso7","regime":"POS", "deltaPa": 15, "minAch": 60, "notes": "ISO 14644 class 7 in HC context" }
+      ]
+    },
+
+    "gmp-annex1": {
+      "label": "Pharma — EU GMP Annex 1 (2022)",
+      "classParam": "CLN_ROOM_CLASS_TXT",
+      "deltaParam": "CLN_PRESS_DELTA_DESIGN_PA_NR",
+      "regimeParam": "CLN_PRESS_REGIME_TXT",
+      "achParam":   "HVC_AIR_CHANGES_PER_HR",
+      "_standard": "EU GMP Annex 1 (Aug 2022)",
+      "classes": [
+        { "id": "Grade-A",  "regime": "POS", "deltaPa": 15, "minAch": 240, "notes": "Critical zone, unidirectional flow" },
+        { "id": "Grade-B",  "regime": "POS", "deltaPa": 10, "minAch": 40 },
+        { "id": "Grade-C",  "regime": "POS", "deltaPa": 10, "minAch": 20 },
+        { "id": "Grade-D",  "regime": "POS", "deltaPa": 10, "minAch": 10 }
+      ]
+    },
+
+    "iso-14644-cleanroom": {
+      "label": "Commercial cleanroom — ISO 14644-4",
+      "classParam": "CLN_ROOM_CLASS_TXT",
+      "deltaParam": "CLN_PRESS_DELTA_DESIGN_PA_NR",
+      "regimeParam": "CLN_PRESS_REGIME_TXT",
+      "achParam":   "HVC_AIR_CHANGES_PER_HR",
+      "_standard": "ISO 14644-4:2022 (cleanroom design)",
+      "classes": [
+        { "id": "ISO-5",  "regime": "POS", "deltaPa": 15, "minAch": 240 },
+        { "id": "ISO-6",  "regime": "POS", "deltaPa": 15, "minAch": 90 },
+        { "id": "ISO-7",  "regime": "POS", "deltaPa": 12, "minAch": 60 },
+        { "id": "ISO-8",  "regime": "POS", "deltaPa": 10, "minAch": 20 }
+      ]
+    },
+
+    "bs-en-12128-lab": {
+      "label": "Laboratory — BS EN 12128 / BSL containment",
+      "classParam": "CLN_ROOM_CLASS_TXT",
+      "deltaParam": "CLN_PRESS_DELTA_DESIGN_PA_NR",
+      "regimeParam": "CLN_PRESS_REGIME_TXT",
+      "achParam":   "HVC_AIR_CHANGES_PER_HR",
+      "_standard": "BS EN 12128 + ACDP / WHO BSL framework",
+      "classes": [
+        { "id": "BSL-1",  "regime": "EITHER", "deltaPa": 0,  "minAch": 6 },
+        { "id": "BSL-2",  "regime": "NEG",    "deltaPa": 10, "minAch": 10 },
+        { "id": "BSL-3",  "regime": "NEG",    "deltaPa": 25, "minAch": 12 },
+        { "id": "BSL-4",  "regime": "NEG",    "deltaPa": 50, "minAch": 20 }
+      ]
+    }
+  }
+}

@@ -95,6 +95,11 @@ namespace StingTools.UI
         // Slice 4a — Site Photos review surface (14th tab). See UI/SitePhotosTab.cs.
         private const string TabSitePhotos     = "SITE PHOTOS";
 
+        // Phase 183 — HVAC project status mirror (read-only). See UI/HvacTab.cs.
+        // Gated on PRJ_ORG_DISCIPLINES_TXT containing "Mechanical" so non-MEP
+        // projects don't get a dead tab.
+        private const string TabHvac           = "HVAC";
+
         // ── Data ──
         internal CoordData _data;
         private ContentControl _contentArea;
@@ -529,7 +534,7 @@ namespace StingTools.UI
         // Layout-only tabs (PLATFORM, 4D/5D, DELIVERABLES, PERMISSIONS, COORD LOG, TEAM, MEETINGS) are cached.
         private static readonly HashSet<string> _liveDataTabs = new HashSet<string>(StringComparer.Ordinal)
             { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabWorkflows, TabQA,
-              TabSitePhotos, TabHealthcare };
+              TabSitePhotos, TabHealthcare, TabHvac };
 
         /// <summary>Result action tag returned to the command handler.</summary>
         public string ResultAction { get; set; }
@@ -1358,6 +1363,22 @@ namespace StingTools.UI
                 TabMeetings, TabProjectMembers, TabCoordLog, TabSitePhotos
             };
             if (isHealthcare) tabsList.Add(TabHealthcare);
+
+            // Phase 183 — HVAC tab gated on PRJ_ORG_DISCIPLINES_TXT.
+            bool isHvac = false;
+            try
+            {
+                var dp = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document
+                    ?.ProjectInformation?.LookupParameter("PRJ_ORG_DISCIPLINES_TXT");
+                if (dp?.HasValue == true && dp.StorageType == StorageType.String)
+                {
+                    string discs = (dp.AsString() ?? "").ToUpperInvariant();
+                    isHvac = discs.Contains("MECH") || discs.Contains("HVAC") || discs.Contains("MEP");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"HVAC discipline detect: {ex.Message}"); }
+            if (isHvac) tabsList.Add(TabHvac);
+
             string[] tabs = tabsList.ToArray();
             int memberCount = _data.Roles.Count + _data.TeamMembers.Count;
             var badgesList = new System.Collections.Generic.List<string> {
@@ -1492,6 +1513,7 @@ namespace StingTools.UI
                     TabCoordLog       => BuildCoordLogTab(),
                     TabSitePhotos     => BuildSitePhotosTab(),
                     TabHealthcare     => BuildHealthcareTab(),
+                    TabHvac           => HvacTab.BuildTab(this),
                     _               => new TextBlock { Text = $"Unknown tab: {tabName}" }
                 };
                 _tabCache[tabName] = tabContent;
