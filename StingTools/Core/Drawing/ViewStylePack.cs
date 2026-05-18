@@ -57,7 +57,6 @@ namespace StingTools.Core.Drawing
         [JsonProperty("hatchPalette")]    public string HatchPalette { get; set; }
 
         // ── Phase 137 managed-template fields ───────────────────────
-            string.Equals(TemplateMode, "managed", System.StringComparison.OrdinalIgnoreCase);
 
         // ── Phase 135 TokenProfile tag fields ───────────────────────
 
