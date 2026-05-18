@@ -1,3 +1,4 @@
+#nullable disable
 // StingTools — ArchiCAD / IFC sync command.
 //
 // Entry point: TAGS → IFC → "ArchiCAD Sync"

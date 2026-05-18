@@ -235,31 +235,14 @@ namespace StingTools.BIMManager
                 }
 
                 // Survey point position via its coordinate system (feet → mm)
-                // TODO-VERIFY-API: BasePoint.GetCoordinateSystem() — available on BasePoint in Revit 2025.
-                if (surveyPoint != null)
-                {
-                    try
-                    {
-                        var sp = surveyPoint.GetCoordinateSystem();
-                        easting  = sp.Origin.X * FeetToMm;
-                        northing = sp.Origin.Y * FeetToMm;
-                    }
-                    catch { /* survey point may not be set */ }
-                }
+                // NOTE: BasePoint.GetCoordinateSystem() is not available in Revit 2025 public API.
+                // Easting/northing will remain null until a supported API is identified.
+                // if (surveyPoint != null) { ... surveyPoint.GetCoordinateSystem() ... }
 
                 // Project base point coordinate system (feet → mm)
                 double? pbpX = null, pbpY = null, pbpZ = null;
-                if (projectBasePoint != null)
-                {
-                    try
-                    {
-                        var pbpCs = projectBasePoint.GetCoordinateSystem();
-                        pbpX = pbpCs.Origin.X * FeetToMm;
-                        pbpY = pbpCs.Origin.Y * FeetToMm;
-                        pbpZ = pbpCs.Origin.Z * FeetToMm;
-                    }
-                    catch { /* base point may not be accessible */ }
-                }
+                // NOTE: BasePoint.GetCoordinateSystem() is not available in Revit 2025 public API.
+                // pbpX/pbpY/pbpZ will remain null until a supported API is identified.
 
                 var sidecar = new
                 {

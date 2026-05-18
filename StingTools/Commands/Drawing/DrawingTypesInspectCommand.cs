@@ -239,7 +239,7 @@ namespace StingTools.Commands.Drawing
                     try
                     {
                         var result = StingTools.Core.Drawing.TitleBlockParamApplier.Apply(
-                            doc, sheet, dt, tokens: null, options: dryRun);
+                            doc, sheet, dt, tokens: null);
                         totalDeclared += result.ParametersDeclared;
                         foreach (var m in result.ParametersMissing)
                             allMissing.Add(m);

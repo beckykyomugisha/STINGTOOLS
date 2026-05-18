@@ -363,9 +363,8 @@ namespace StingTools.Core
                 if (sp == null) { result.Warnings.Add("CreatePlanRectangle: could not create sketch plane"); return 0; }
 
                 // CurvesInPlanViews → only visible in plan/RCP views
-                FamilyElementVisibilityType? vtVis = setViewTypeVis
-                    ? FamilyElementVisibilityType.Plan
-                    : (FamilyElementVisibilityType?)null;
+                // NOTE: FamilyElementVisibilityType.Plan not available in Revit 2025; view-type isolation skipped.
+                FamilyElementVisibilityType? vtVis = (FamilyElementVisibilityType?)null;
 
                 return CreateRectangleCurves(famDoc, sp,
                     new XYZ(-halfW, -halfD, 0), new XYZ(halfW, -halfD, 0),
@@ -391,9 +390,8 @@ namespace StingTools.Core
                 if (sp == null) { result.Warnings.Add("CreateElevationRectangle: could not create sketch plane"); return 0; }
 
                 // CurvesInFrontBack → only visible in front/back elevation views
-                FamilyElementVisibilityType? vtVis = setViewTypeVis
-                    ? FamilyElementVisibilityType.FrontBack
-                    : (FamilyElementVisibilityType?)null;
+                // NOTE: FamilyElementVisibilityType.FrontBack not available in Revit 2025; view-type isolation skipped.
+                FamilyElementVisibilityType? vtVis = (FamilyElementVisibilityType?)null;
 
                 return CreateRectangleCurves(famDoc, sp,
                     new XYZ(-halfW, 0, 0),       new XYZ(halfW, 0, 0),
@@ -419,9 +417,8 @@ namespace StingTools.Core
                 if (sp == null) { result.Warnings.Add("CreateSideElevationRectangle: could not create sketch plane"); return 0; }
 
                 // CurvesInLeftRight → only visible in left/right elevation views
-                FamilyElementVisibilityType? vtVis = setViewTypeVis
-                    ? FamilyElementVisibilityType.LeftRight
-                    : (FamilyElementVisibilityType?)null;
+                // NOTE: FamilyElementVisibilityType.LeftRight not available in Revit 2025; view-type isolation skipped.
+                FamilyElementVisibilityType? vtVis = (FamilyElementVisibilityType?)null;
 
                 // In YZ plane: Y axis = horizontal, Z axis = vertical; X always 0
                 return CreateRectangleCurves(famDoc, sp,
@@ -579,9 +576,8 @@ namespace StingTools.Core
                 return;
             }
 
-            FamilyElementVisibilityType? vtVis = setViewTypeVis
-                ? FamilyElementVisibilityType.Plan
-                : (FamilyElementVisibilityType?)null;
+            // NOTE: FamilyElementVisibilityType.Plan not available in Revit 2025; view-type isolation skipped.
+            FamilyElementVisibilityType? vtVis = (FamilyElementVisibilityType?)null;
 
             string catKey = bic.ToString();
 
@@ -731,9 +727,8 @@ namespace StingTools.Core
                 return;
             }
 
-            FamilyElementVisibilityType? vtVis = setViewTypeVis
-                ? FamilyElementVisibilityType.FrontBack
-                : (FamilyElementVisibilityType?)null;
+            // NOTE: FamilyElementVisibilityType.FrontBack not available in Revit 2025; view-type isolation skipped.
+            FamilyElementVisibilityType? vtVis = (FamilyElementVisibilityType?)null;
 
             string catKey  = bic.ToString();
             double centerZ = heightFt / 2.0;
@@ -1163,7 +1158,7 @@ namespace StingTools.Core
                 if (sp == null) return false;
 
                 FamilyElementVisibilityType? vtVis = setViewTypeVis
-                    ? FamilyElementVisibilityType.Plan
+                    ? (FamilyElementVisibilityType?)null // NOTE: Plan/FrontBack/LeftRight not in Revit 2025; view-type isolation skipped
                     : (FamilyElementVisibilityType?)null;
 
                 int count = 0;
@@ -1256,7 +1251,7 @@ namespace StingTools.Core
                 if (sp == null) { result.Warnings.Add("CreateSchematicPlanSymbol: no sketch plane"); return; }
 
                 FamilyElementVisibilityType? vtVis = setViewTypeVis
-                    ? FamilyElementVisibilityType.Plan
+                    ? (FamilyElementVisibilityType?)null // NOTE: Plan/FrontBack/LeftRight not in Revit 2025; view-type isolation skipped
                     : (FamilyElementVisibilityType?)null;
 
                 int curves = 0;
@@ -1421,9 +1416,8 @@ namespace StingTools.Core
             Document famDoc, FamilyManager fm, ConnectorElement conn, int n,
             HashSet<string> existing, FamilySymbolAuthorResult result)
         {
-            // TODO-VERIFY-API: CONNECTOR_RADIUS available in Revit 2025+; RBS_CONNECTOR_DIAMETER fallback.
-            Parameter elemRadiusParam = conn.get_Parameter(BuiltInParameter.CONNECTOR_RADIUS)
-                ?? conn.get_Parameter(BuiltInParameter.RBS_CONNECTOR_DIAMETER);
+            // NOTE: RBS_CONNECTOR_DIAMETER not in Revit 2025 BuiltInParameter; use CONNECTOR_RADIUS only.
+            Parameter elemRadiusParam = conn.get_Parameter(BuiltInParameter.CONNECTOR_RADIUS);
             if (elemRadiusParam == null || elemRadiusParam.IsReadOnly) return;
 
             string pName = $"STING_CONN_{n}_RADIUS_MM";
@@ -1457,9 +1451,9 @@ namespace StingTools.Core
             Document famDoc, FamilyManager fm, ConnectorElement conn, int n,
             HashSet<string> existing, FamilySymbolAuthorResult result)
         {
-            // TODO-VERIFY-API: CONNECTOR_WIDTH_PARAM / CONNECTOR_HEIGHT_PARAM in Revit 2025+
-            Parameter widthP  = conn.get_Parameter(BuiltInParameter.CONNECTOR_WIDTH_PARAM);
-            Parameter heightP = conn.get_Parameter(BuiltInParameter.CONNECTOR_HEIGHT_PARAM);
+            // NOTE: CONNECTOR_WIDTH_PARAM / CONNECTOR_HEIGHT_PARAM not in Revit 2025 BuiltInParameter; use named param lookup.
+            Parameter widthP  = conn.LookupParameter("Width") ?? conn.LookupParameter("width");
+            Parameter heightP = conn.LookupParameter("Height") ?? conn.LookupParameter("height");
 
             if (widthP != null && !widthP.IsReadOnly)
             {
@@ -1709,7 +1703,7 @@ namespace StingTools.Core
             {
                 var cat = famDoc.OwnerFamily?.FamilyCategory;
                 if (cat == null) return false;
-                var bic = (BuiltInCategory)cat.Id.IntegerValue;
+                var bic = (BuiltInCategory)(int)cat.Id.Value;
                 return bic == BuiltInCategory.OST_DuctCurves
                     || bic == BuiltInCategory.OST_PipeCurves
                     || bic == BuiltInCategory.OST_Conduit
@@ -1876,17 +1870,21 @@ namespace StingTools.Core
         {
             try
             {
-                // TODO-VERIFY-API: FamilyCreate.NewSymbolicCurve returns ModelCurve in Revit 2014+.
-                ModelCurve mc = famDoc.FamilyCreate.NewSymbolicCurve(geom, sp);
+                // NOTE: NewSymbolicCurve returns SymbolicCurve (subtype of ModelCurve) in Revit 2025.
+                var mc = famDoc.FamilyCreate.NewSymbolicCurve(geom, sp) as ModelCurve;
                 if (mc == null) return 0;
 
                 if (subcat != null)
-                    try { mc.Subcategory = subcat; }
+                    try
+                    {
+                        // In Revit 2025, ModelCurve.Subcategory is GraphicsStyle, not Category.
+                        var gs = subcat.GetGraphicsStyle(GraphicsStyleType.Projection);
+                        if (gs != null) mc.Subcategory = gs;
+                    }
                     catch (Exception ex) { result.Warnings.Add($"Set Subcategory: {ex.Message}"); }
 
-                if (visParam != null)
-                    try { mc.VisibilityParam = visParam; }
-                    catch (Exception ex) { result.Warnings.Add($"Set VisibilityParam: {ex.Message}"); }
+                // NOTE: ModelCurve.VisibilityParam does not exist in Revit 2025; LOD visibility set via SetVisibility.
+                // if (visParam != null) mc.VisibilityParam = visParam;
 
                 // Phase 175+: restrict which view type this curve appears in.
                 // CurvesInPlanViews  → only plan/RCP cut views
@@ -1927,7 +1925,8 @@ namespace StingTools.Core
             {
                 var fp = FindFamilyParam(fm, name);
                 if (fp == null || fm.CurrentType == null) return fallbackFt;
-                double v = fm.CurrentType.AsDouble(fp);
+                double? vNullable = fm.CurrentType.AsDouble(fp);
+                double v = vNullable ?? fallbackFt;
                 return v > 0 ? v : fallbackFt;
             }
             catch { return fallbackFt; }

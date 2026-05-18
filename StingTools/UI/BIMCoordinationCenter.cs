@@ -8118,8 +8118,8 @@ namespace StingTools.UI
                 }
 
                 var groups = Newtonsoft.Json.JsonConvert.DeserializeObject<
-                    List<Docs.Workflow.DistributionGroup>>(System.IO.File.ReadAllText(groupsPath))
-                    ?? new List<Docs.Workflow.DistributionGroup>();
+                    List<Planscape.Docs.Workflow.DistributionGroup>>(System.IO.File.ReadAllText(groupsPath))
+                    ?? new List<Planscape.Docs.Workflow.DistributionGroup>();
 
                 if (groups.Count == 0)
                 {
