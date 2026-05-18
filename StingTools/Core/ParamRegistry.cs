@@ -221,6 +221,24 @@ namespace StingTools.Core
         public const string CST_STALE_REASON_TXT = "ASS_CST_STALE_REASON_TXT";
         public const string CST_STALE_REASON_TXT_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D47";
 
+        // Phase 184g / P5.1 — payment certificate params
+        public const string PMT_PCT_COMPLETE_NR  = "ASS_PMT_PCT_COMPLETE_NR";
+        public const string PMT_PCT_COMPLETE_NR_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D50";
+        public const string PMT_CERT_NO_NR       = "ASS_PMT_CERT_NO_NR";
+        public const string PMT_CERT_NO_NR_GUID  = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D51";
+        public const string PMT_CERT_DATE_DT     = "ASS_PMT_CERT_DATE_DT";
+        public const string PMT_CERT_DATE_DT_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D52";
+        public const string PMT_LAST_VALUED_DT   = "ASS_PMT_LAST_VALUED_DT";
+        public const string PMT_LAST_VALUED_DT_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D53";
+
+        // Phase 184g / P5.2 — variation tracking
+        public const string VAR_NO_TXT           = "ASS_VAR_NO_TXT";
+        public const string VAR_NO_TXT_GUID      = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D60";
+        public const string VAR_INSTRUCTION_DT   = "ASS_VAR_INSTRUCTION_DT";
+        public const string VAR_INSTRUCTION_DT_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D61";
+        public const string VAR_VALUATION_NR     = "ASS_VAR_VALUATION_NR";
+        public const string VAR_VALUATION_NR_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D62";
+
         // ── Phase 175 — Symbol system parameters ─────────────────────────
         public const string SYMBOL_ID                 = "STING_SYMBOL_ID";
         public const string SYMBOL_ID_GUID            = "A4B5C6D7-E8F9-4A0B-1C2D-3E4F5A6B7C8D";

@@ -1568,6 +1568,17 @@ namespace StingTools.Core
                 case "CostPlan_Create":            return new Commands.Cost.CostPlanCreateCommand();
                 case "CostPlan_Compare":           return new Commands.Cost.CostPlanCompareCommand();
                 case "CostPlan_Export":            return new Commands.Cost.CostPlanExportCommand();
+
+                // Phase 184g — P5.1 payment certs / P5.2 variations / P5.3 EVM
+                case "PaymentCert_Issue":          return new Commands.Cost.PaymentCertIssueCommand();
+                case "PaymentCert_Approve":        return new Commands.Cost.PaymentCertApproveCommand();
+                case "PaymentCert_Register":       return new Commands.Cost.PaymentCertRegisterCommand();
+                case "Variation_FromDiff":         return new Commands.Cost.VariationFromDiffCommand();
+                case "Variation_BuildStarRate":    return new Commands.Cost.VariationBuildStarRateCommand();
+                case "Variation_ExportRegister":   return new Commands.Cost.VariationExportRegisterCommand();
+                case "Evm_Calculate":              return new Commands.Cost.EvmCalculateCommand();
+                case "Evm_ImportActuals":          return new Commands.Cost.EvmImportActualsCommand();
+                case "Evm_ExportReport":           return new Commands.Cost.EvmExportReportCommand();
                 case "BatchFamilyParams": return new Temp.BatchAddFamilyParamsCommand();
                 case "FamilyParamProcessor": return new Temp.FamilyParameterProcessorCommand();
 
