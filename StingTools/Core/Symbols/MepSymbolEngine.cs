@@ -574,7 +574,7 @@ namespace StingTools.Core.Symbols
                     continue;
                 // Discipline/category filter.
                 if (!string.IsNullOrEmpty(opts.DisciplineFilter) &&
-                    !entry.Category.IndexOf(opts.DisciplineFilter, StringComparison.OrdinalIgnoreCase) >= 0)
+                    entry.Category.IndexOf(opts.DisciplineFilter, StringComparison.OrdinalIgnoreCase) < 0)
                     continue;
                 // Token match.
                 if (entry.Tokens.Length == 0) continue;

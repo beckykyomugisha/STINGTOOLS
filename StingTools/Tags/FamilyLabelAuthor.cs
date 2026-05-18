@@ -47,6 +47,7 @@ namespace StingTools.Tags
             public Application App { get; set; }
             public string SharedParamFile { get; set; }
             public bool PreserveHandEdits { get; set; }
+            public bool PreserveHandWarnings { get; set; }
             public string FamilyName { get; set; }
         }
 

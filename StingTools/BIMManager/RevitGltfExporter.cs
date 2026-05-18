@@ -226,8 +226,13 @@ namespace StingTools.BIMManager
                     try
                     {
                         var pos = projectLocation.GetProjectPosition(XYZ.Zero);
-                        latitude      = pos.Latitude  * (180.0 / Math.PI);
-                        longitude     = pos.Longitude * (180.0 / Math.PI);
+                        // Latitude/Longitude moved to SiteLocation in Revit 2025+ API.
+                        var site = doc.SiteLocation;
+                        if (site != null)
+                        {
+                            latitude  = site.Latitude  * (180.0 / Math.PI);
+                            longitude = site.Longitude * (180.0 / Math.PI);
+                        }
                         northAngleDeg = pos.Angle     * (180.0 / Math.PI);
                         elevation     = pos.Elevation * FeetToMm;
                     }

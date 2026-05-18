@@ -17,6 +17,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Symbols;
+using StingTools.UI;
 
 namespace StingTools.Commands.Symbols
 {
