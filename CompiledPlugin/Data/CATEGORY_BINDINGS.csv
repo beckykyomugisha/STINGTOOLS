@@ -1,4 +1,4 @@
-# v3.0 | 20260313 | BIM Template category_bindings
+# v3.1 | 20260517 | BIM Template category_bindings (+134: ASS_ITEM_CODE/SYSTEMS/TERM/TRACE, HVC_DCT_INSULATION, BLE_CBL_TRAY dims, MEC_SYS, PLM_SYS — Phase 179 alignment)
 Parameter_Name,Revit_Category,Binding_Type,Is_Shared
 ASS_CAT_TXT,Air Terminals,Type,True
 ASS_CAT_TXT,Cable Trays,Type,True
@@ -462,20 +462,6 @@ ASS_PRODCT_COD_TXT,Plumbing Equipment,Type,True
 ASS_PRODCT_COD_TXT,Plumbing Fixtures,Type,True
 ASS_PRODCT_COD_TXT,Specialty Equipment,Type,True
 ASS_PRODCT_COD_TXT,Sprinklers,Type,True
-ASS_RM_COD_TXT,Air Terminals,Type,True
-ASS_RM_COD_TXT,Cable Trays,Type,True
-ASS_RM_COD_TXT,Casework,Type,True
-ASS_RM_COD_TXT,Conduits,Type,True
-ASS_RM_COD_TXT,Electrical Equipment,Type,True
-ASS_RM_COD_TXT,Electrical Fixtures,Type,True
-ASS_RM_COD_TXT,Furniture,Type,True
-ASS_RM_COD_TXT,Generic Models,Type,True
-ASS_RM_COD_TXT,Lighting Fixtures,Type,True
-ASS_RM_COD_TXT,Mechanical Equipment,Type,True
-ASS_RM_COD_TXT,Plumbing Equipment,Type,True
-ASS_RM_COD_TXT,Plumbing Fixtures,Type,True
-ASS_RM_COD_TXT,Specialty Equipment,Type,True
-ASS_RM_COD_TXT,Sprinklers,Type,True
 ASS_ROOM_AREA_SQ_M,Generic Models,Type,True
 ASS_ROOM_FUNCTION_USE_TXT,Generic Models,Type,True
 ASS_ROOM_VOLUME_CU_M,Generic Models,Type,True
@@ -900,7 +886,6 @@ BLE_ROOF_TYPE_TXT,Roofs,Type,True
 BLE_ROOF_WATERPROOFING_SYSTEM_TXT,Generic Models,Type,True
 BLE_ROOF_WATERPROOFING_SYSTEM_TXT,Roofs,Type,True
 BLE_ROOM_NAME_TXT,Rooms,Type,True
-BLE_ROOM_NUM_TXT,Rooms,Type,True
 BLE_STAIR_GOING_MM,Generic Models,Type,True
 BLE_STAIR_GOING_MM,Stairs,Type,True
 BLE_STAIR_HANDRAIL_HEIGHT_MM,Generic Models,Type,True
@@ -6245,20 +6230,15 @@ PRJ_DWG_SUPERSEDES_TXT,Generic Models,Type,True
 PRJ_GRID_REF_TXT,Generic Models,Type,True
 PRJ_ISO_STD_TXT,Generic Models,Type,True
 PRJ_NAME_TXT,Generic Models,Type,True
-PRJ_NR_TXT,Generic Models,Type,True
 PRJ_PHASE_TXT,Generic Models,Type,True
 PRJ_TB_APVD_BY_TXT,Generic Models,Type,True
 PRJ_TB_CHECKED_BY_TXT,Generic Models,Type,True
 PRJ_TB_CLIENT_ADDRESS_TXT,Generic Models,Type,True
-PRJ_TB_CLIENT_NAME_TXT,Generic Models,Type,True
-PRJ_TB_CONSULTANT_ADDRESS_TXT,Generic Models,Type,True
-PRJ_TB_CONSULTANT_NAME_TXT,Generic Models,Type,True
 PRJ_TB_CONTRACTOR_ADDRESS_TXT,Generic Models,Type,True
 PRJ_TB_CONTRACTOR_NAME_TXT,Generic Models,Type,True
 PRJ_TB_DATE_APVD_TXT,Generic Models,Type,True
 PRJ_TB_DATE_CHECKED_TXT,Generic Models,Type,True
 PRJ_TB_DATE_DRAWN_TXT,Generic Models,Type,True
-PRJ_TB_DESIGN_STAGE_TXT,Generic Models,Type,True
 PRJ_TB_DISCIPLINE_TXT,Generic Models,Type,True
 PRJ_TB_DRAWN_BY_TXT,Generic Models,Type,True
 PRJ_TB_MEP_CONSULTANTS_NAME_TXT,Generic Models,Type,True
@@ -7299,6 +7279,29 @@ ELC_CDT_MAT_TXT,Conduit Fittings,Type,True
 ELC_CDT_INSTALL_METHOD_TXT,Conduits,Type,True
 ELC_CDT_INSTALL_METHOD_TXT,Conduit Fittings,Type,True
 ELC_CDT_CBL_FILL_PCT,Conduits,Type,True
+ELC_CDT_BEND_ANGLE_DEG,Conduits,Type,True
+ELC_CDT_BEND_ANGLE_DEG,Conduit Fittings,Type,True
+ELC_CDT_BEND_COUNT_NR,Conduits,Type,True
+ELC_CDT_RUN_LENGTH_M,Conduits,Type,True
+ELC_CDT_CABLE_COUNT_NR,Conduits,Type,True
+ELC_CIRCUIT_GROUP_TXT,Electrical Equipment,Instance,True
+ELC_CIRCUIT_GROUP_TXT,Electrical Fixtures,Instance,True
+ELC_CIRCUIT_GROUP_TXT,Lighting Fixtures,Instance,True
+ELC_CIRCUIT_GROUP_TXT,Lighting Devices,Instance,True
+ELC_CIRCUIT_GROUP_TXT,Fire Alarm Devices,Instance,True
+ELC_CIRCUIT_GROUP_TXT,Communication Devices,Instance,True
+ELC_CIRCUIT_GROUP_TXT,Data Devices,Instance,True
+ELC_PNL_CIRCUIT_GROUP_TXT,Electrical Equipment,Type,True
+STING_WALL_ROUTING_FLAG,Walls,Type,True
+STING_SLAB_ROUTING_FLAG,Floors,Type,True
+STING_PENETRATION_REF_TXT,Conduits,Instance,True
+STING_PENETRATION_REF_TXT,Pipes,Instance,True
+STING_PENETRATION_REF_TXT,Ducts,Instance,True
+STING_PENETRATION_FIRE_RATING_TXT,Conduits,Instance,True
+STING_PENETRATION_FIRE_RATING_TXT,Pipes,Instance,True
+STING_PENETRATION_FIRE_RATING_TXT,Ducts,Instance,True
+STING_FIRE_RATING_TXT,Walls,Type,True
+STING_FIRE_RATING_TXT,Floors,Type,True
 ELC_CDT_TAG_01_TXT,Conduits,Type,True
 ELC_CDT_TAG_01_TXT,Conduit Fittings,Type,True
 ELC_CDT_TAG_02_TXT,Conduits,Type,True
@@ -7705,36 +7708,36 @@ ELC_PWR_SPARE_02_TXT,Lighting Fixtures,Type,True
 ELC_PWR_SPARE_02_TXT,Cable Trays,Type,True
 ELC_PWR_SPARE_02_TXT,Conduits,Type,True
 ELC_PWR_SPARE_02_TXT,Generic Models,Type,True
-ELE_FIX_TAG_1_TXT,Air Terminals,Type,True
-ELE_FIX_TAG_1_TXT,Cable Trays,Type,True
-ELE_FIX_TAG_1_TXT,Casework,Type,True
-ELE_FIX_TAG_1_TXT,Conduit Fittings,Type,True
-ELE_FIX_TAG_1_TXT,Conduits,Type,True
-ELE_FIX_TAG_1_TXT,Electrical Equipment,Type,True
-ELE_FIX_TAG_1_TXT,Electrical Fixtures,Type,True
-ELE_FIX_TAG_1_TXT,Furniture,Type,True
-ELE_FIX_TAG_1_TXT,Generic Models,Type,True
-ELE_FIX_TAG_1_TXT,Lighting Fixtures,Type,True
-ELE_FIX_TAG_1_TXT,Mechanical Equipment,Type,True
-ELE_FIX_TAG_1_TXT,Plumbing Equipment,Type,True
-ELE_FIX_TAG_1_TXT,Plumbing Fixtures,Type,True
-ELE_FIX_TAG_1_TXT,Specialty Equipment,Type,True
-ELE_FIX_TAG_1_TXT,Sprinklers,Type,True
-ELE_FIX_TAG_2_TXT,Air Terminals,Type,True
-ELE_FIX_TAG_2_TXT,Cable Trays,Type,True
-ELE_FIX_TAG_2_TXT,Casework,Type,True
-ELE_FIX_TAG_2_TXT,Conduit Fittings,Type,True
-ELE_FIX_TAG_2_TXT,Conduits,Type,True
-ELE_FIX_TAG_2_TXT,Electrical Equipment,Type,True
-ELE_FIX_TAG_2_TXT,Electrical Fixtures,Type,True
-ELE_FIX_TAG_2_TXT,Furniture,Type,True
-ELE_FIX_TAG_2_TXT,Generic Models,Type,True
-ELE_FIX_TAG_2_TXT,Lighting Fixtures,Type,True
-ELE_FIX_TAG_2_TXT,Mechanical Equipment,Type,True
-ELE_FIX_TAG_2_TXT,Plumbing Equipment,Type,True
-ELE_FIX_TAG_2_TXT,Plumbing Fixtures,Type,True
-ELE_FIX_TAG_2_TXT,Specialty Equipment,Type,True
-ELE_FIX_TAG_2_TXT,Sprinklers,Type,True
+ELC_FIX_TAG_1_TXT,Air Terminals,Type,True
+ELC_FIX_TAG_1_TXT,Cable Trays,Type,True
+ELC_FIX_TAG_1_TXT,Casework,Type,True
+ELC_FIX_TAG_1_TXT,Conduit Fittings,Type,True
+ELC_FIX_TAG_1_TXT,Conduits,Type,True
+ELC_FIX_TAG_1_TXT,Electrical Equipment,Type,True
+ELC_FIX_TAG_1_TXT,Electrical Fixtures,Type,True
+ELC_FIX_TAG_1_TXT,Furniture,Type,True
+ELC_FIX_TAG_1_TXT,Generic Models,Type,True
+ELC_FIX_TAG_1_TXT,Lighting Fixtures,Type,True
+ELC_FIX_TAG_1_TXT,Mechanical Equipment,Type,True
+ELC_FIX_TAG_1_TXT,Plumbing Equipment,Type,True
+ELC_FIX_TAG_1_TXT,Plumbing Fixtures,Type,True
+ELC_FIX_TAG_1_TXT,Specialty Equipment,Type,True
+ELC_FIX_TAG_1_TXT,Sprinklers,Type,True
+ELC_FIX_TAG_2_TXT,Air Terminals,Type,True
+ELC_FIX_TAG_2_TXT,Cable Trays,Type,True
+ELC_FIX_TAG_2_TXT,Casework,Type,True
+ELC_FIX_TAG_2_TXT,Conduit Fittings,Type,True
+ELC_FIX_TAG_2_TXT,Conduits,Type,True
+ELC_FIX_TAG_2_TXT,Electrical Equipment,Type,True
+ELC_FIX_TAG_2_TXT,Electrical Fixtures,Type,True
+ELC_FIX_TAG_2_TXT,Furniture,Type,True
+ELC_FIX_TAG_2_TXT,Generic Models,Type,True
+ELC_FIX_TAG_2_TXT,Lighting Fixtures,Type,True
+ELC_FIX_TAG_2_TXT,Mechanical Equipment,Type,True
+ELC_FIX_TAG_2_TXT,Plumbing Equipment,Type,True
+ELC_FIX_TAG_2_TXT,Plumbing Fixtures,Type,True
+ELC_FIX_TAG_2_TXT,Specialty Equipment,Type,True
+ELC_FIX_TAG_2_TXT,Sprinklers,Type,True
 FLS_DEV_TAG_01_TXT,Air Terminals,Type,True
 FLS_DEV_TAG_01_TXT,Cable Trays,Type,True
 FLS_DEV_TAG_01_TXT,Casework,Type,True
@@ -7966,10 +7969,8 @@ RGL_SETBACK_FRONT_M,Generic Models,Type,True
 RGL_SETBACK_FRONT_MIN_M,Generic Models,Type,True
 RGL_TOTAL_FLOOR_AREA_SQ_M,Generic Models,Type,True
 RGL_WINDOW_AREA_SQ_M,Generic Models,Type,True
-ASS_RM_COD_TXT,Rooms,Type,True
 ASS_LVL_COD_TXT,Ceilings,Type,True
 ASS_MANUFACTURER_TXT,Ceilings,Type,True
-ASS_RM_COD_TXT,Ceilings,Type,True
 BLE_ELE_AREA_SQ_M,Ceilings,Type,True
 FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Ceilings,Type,True
 ASS_ID_TXT,Structural Foundations,Type,True
@@ -7995,7 +7996,6 @@ PRJ_COMMENTS_TXT,Structural Foundations,Type,True
 ASS_LVL_COD_TXT,Doors,Type,True
 ASS_MANUFACTURER_TXT,Doors,Type,True
 ASS_MODEL_NR_TXT,Doors,Type,True
-ASS_RM_COD_TXT,Doors,Type,True
 FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Doors,Type,True
 CST_S_EAR_EXCAVATION_METHOD_TXT,Structural Foundations,Type,True
 CST_S_EAR_SOIL_TYPE_TXT,Structural Foundations,Type,True
@@ -8061,7 +8061,6 @@ FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Walls,Type,True
 ASS_LVL_COD_TXT,Windows,Type,True
 ASS_MANUFACTURER_TXT,Windows,Type,True
 ASS_MODEL_NR_TXT,Windows,Type,True
-ASS_RM_COD_TXT,Windows,Type,True
 MAT_SPECIFICATIONS,Generic Models,Instance,True
 ELC_CKT_NR,Electrical Circuits,Type,True
 ELC_CKT_IDENTIFICATION_TXT,Electrical Circuits,Type,True
@@ -8085,10 +8084,7 @@ ELC_CBL_LENGTH_M,Electrical Equipment,Type,True
 PRJ_AREA_NAME_TXT,Electrical Equipment,Type,True
 BLE_RAMP_SLOPE_PCT,Rooms,Type,True
 BLE_RAMP_WIDTH_MM,Rooms,Type,True
-BLE_ROOM_NUM_TXT,Air Terminals,Type,True
-BLE_ROOM_NUM_TXT,Ceilings,Type,True
 ELC_PNL_CKT_SOURCE_NAME_TXT,Electrical Circuits,Type,True
-BLE_ROOM_NUM_TXT,Doors,Type,True
 ASS_MANUFACTURER_TXT,Pipe Accessories,Type,True
 ASS_ID_TXT,Fire Alarm Devices,Type,True
 ASS_LOC_TXT,Fire Alarm Devices,Type,True
@@ -8096,11 +8092,7 @@ ASS_LVL_COD_TXT,Fire Alarm Devices,Type,True
 ASS_MANUFACTURER_TXT,Fire Alarm Devices,Type,True
 ASS_MODEL_NR_TXT,Fire Alarm Devices,Type,True
 ASS_TAG_1_TXT,Fire Alarm Devices,Type,True
-BLE_ROOM_NUM_TXT,Fire Alarm Devices,Type,True
-BLE_ROOM_NUM_TXT,Lighting Fixtures,Type,True
-BLE_ROOM_NUM_TXT,Plumbing Fixtures,Type,True
 ASS_MODEL_NR_TXT,Pipe Accessories,Type,True
-BLE_ROOM_NUM_TXT,Windows,Type,True
 COM_BMS_RANGE_TXT,Mechanical Equipment,Type,True
 ASS_SYSTEM_TYPE_TXT,Ducts,Type,True
 FLS_SFTY_DEV_TYPE_TXT,Fire Alarm Devices,Type,True
@@ -8690,7 +8682,6 @@ ASS_PMT_PRO_PO_NR_TXT,Communication Devices,Type,True
 ASS_PMT_PRO_SUPPLIER_TXT,Communication Devices,Type,True
 ASS_PMT_QTY_ORDERED_NR,Communication Devices,Type,True
 ASS_PRODCT_COD_TXT,Communication Devices,Type,True
-ASS_RM_COD_TXT,Communication Devices,Type,True
 ASS_ROOM_AREA_SQ_M,Communication Devices,Type,True
 ASS_ROOM_FUNCTION_USE_TXT,Communication Devices,Type,True
 ASS_ROOM_VOLUME_CU_M,Communication Devices,Type,True
@@ -8798,7 +8789,6 @@ ASS_PMT_PRO_PO_NR_TXT,Telephone Devices,Type,True
 ASS_PMT_PRO_SUPPLIER_TXT,Telephone Devices,Type,True
 ASS_PMT_QTY_ORDERED_NR,Telephone Devices,Type,True
 ASS_PRODCT_COD_TXT,Telephone Devices,Type,True
-ASS_RM_COD_TXT,Telephone Devices,Type,True
 ASS_ROOM_AREA_SQ_M,Telephone Devices,Type,True
 ASS_ROOM_FUNCTION_USE_TXT,Telephone Devices,Type,True
 ASS_ROOM_VOLUME_CU_M,Telephone Devices,Type,True
@@ -8905,7 +8895,6 @@ ASS_PMT_PRO_PO_NR_TXT,Data Devices,Type,True
 ASS_PMT_PRO_SUPPLIER_TXT,Data Devices,Type,True
 ASS_PMT_QTY_ORDERED_NR,Data Devices,Type,True
 ASS_PRODCT_COD_TXT,Data Devices,Type,True
-ASS_RM_COD_TXT,Data Devices,Type,True
 ASS_ROOM_AREA_SQ_M,Data Devices,Type,True
 ASS_ROOM_FUNCTION_USE_TXT,Data Devices,Type,True
 ASS_ROOM_VOLUME_CU_M,Data Devices,Type,True
@@ -9010,7 +8999,6 @@ ASS_PMT_PRO_PO_NR_TXT,Security Devices,Type,True
 ASS_PMT_PRO_SUPPLIER_TXT,Security Devices,Type,True
 ASS_PMT_QTY_ORDERED_NR,Security Devices,Type,True
 ASS_PRODCT_COD_TXT,Security Devices,Type,True
-ASS_RM_COD_TXT,Security Devices,Type,True
 ASS_ROOM_AREA_SQ_M,Security Devices,Type,True
 ASS_ROOM_FUNCTION_USE_TXT,Security Devices,Type,True
 ASS_ROOM_VOLUME_CU_M,Security Devices,Type,True
@@ -9115,7 +9103,6 @@ ASS_PMT_PRO_PO_NR_TXT,Nurse Call Devices,Type,True
 ASS_PMT_PRO_SUPPLIER_TXT,Nurse Call Devices,Type,True
 ASS_PMT_QTY_ORDERED_NR,Nurse Call Devices,Type,True
 ASS_PRODCT_COD_TXT,Nurse Call Devices,Type,True
-ASS_RM_COD_TXT,Nurse Call Devices,Type,True
 ASS_ROOM_AREA_SQ_M,Nurse Call Devices,Type,True
 ASS_ROOM_FUNCTION_USE_TXT,Nurse Call Devices,Type,True
 ASS_ROOM_VOLUME_CU_M,Nurse Call Devices,Type,True
@@ -9735,7 +9722,6 @@ HVC_EQP_TAG_03_TXT,Duct Fittings,Type,True
 ASS_SYSTEM_TYPE_TXT,Duct Fittings,Type,True
 PRJ_NAME_TXT,Project Information,Type,True
 PRJ_TB_DATE_APVD_TXT,Project Information,Type,True
-PRJ_TB_DESIGN_STAGE_TXT,Project Information,Type,True
 PRJ_ISO_STD_TXT,Project Information,Type,True
 PRJ_ADDRESS_TXT,Project Information,Type,True
 PRJ_TB_CHECKED_BY_TXT,Project Information,Type,True
@@ -9744,7 +9730,6 @@ PRJ_TB_DATE_CHECKED_TXT,Project Information,Type,True
 PRJ_DRAWING_TITLE_TXT,Project Information,Type,True
 PRJ_DRAWING_SCALE_TXT,Project Information,Type,True
 PRJ_TB_REVISION_DATE_TXT,Project Information,Type,True
-PRJ_TB_CONSULTANT_ADDRESS_TXT,Project Information,Type,True
 PRJ_DWG_ISSUE_PURPOSE_TXT,Project Information,Type,True
 PRJ_TB_DISCIPLINE_TXT,Project Information,Type,True
 PRJ_GRID_REF_TXT,Project Information,Type,True
@@ -9753,7 +9738,6 @@ PRJ_TB_CONTRACTOR_NAME_TXT,Project Information,Type,True
 PRJ_COMMENTS_TXT,Project Information,Type,True
 PRJ_TB_REVISION_DESCRIPTION_TXT,Project Information,Type,True
 PRJ_TB_DRAWN_BY_TXT,Project Information,Type,True
-PRJ_TB_CLIENT_NAME_TXT,Project Information,Type,True
 PRJ_DRAWING_NR_TXT,Project Information,Type,True
 PRJ_TB_CONTRACTOR_ADDRESS_TXT,Project Information,Type,True
 PRJ_DWG_SUITABILITY_COD_TXT,Project Information,Type,True
@@ -9762,13 +9746,11 @@ PRJ_DWG_SUPERSEDES_TXT,Project Information,Type,True
 PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT,Project Information,Type,True
 PRJ_TB_DATE_DRAWN_TXT,Project Information,Type,True
 PRJ_ADDRESS_2_TXT,Project Information,Type,True
-PRJ_TB_CONSULTANT_NAME_TXT,Project Information,Type,True
 PRJ_TB_CLIENT_ADDRESS_TXT,Project Information,Type,True
 PRJ_TB_TOTAL_NO_SHEETS_TXT,Project Information,Type,True
 PRJ_PHASE_TXT,Project Information,Type,True
 PRJ_TB_SHEET_NR_TXT,Project Information,Type,True
 PRJ_TB_PAPER_SZ_TXT,Project Information,Type,True
-PRJ_NR_TXT,Project Information,Type,True
 PRJ_TB_MEP_CONSULTANTS_NAME_TXT,Project Information,Type,True
 ASS_DESIGN_LTG_LVL_LUX_NR,Project Information,Type,True
 ASS_DESIGN_OCCUPANCY_INT,Project Information,Type,True
@@ -10895,9 +10877,7 @@ CST_TOTAL_EQUIPMENT_COST,Columns,Type,True
 ASS_LVL_COD_TXT,Columns,Type,True
 ASS_MANUFACTURER_TXT,Columns,Type,True
 ASS_MODEL_NR_TXT,Columns,Type,True
-ASS_RM_COD_TXT,Columns,Type,True
 FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Columns,Type,True
-BLE_ROOM_NUM_TXT,Columns,Type,True
 BLE_FACADE_TYPE_TXT,Columns,Type,True
 BLE_CEILING_TYPE_CLASSIFICATION_TXT,Columns,Type,True
 BLE_FACADE_INS_BOOL,Columns,Type,True
@@ -11188,9 +11168,7 @@ CST_TOTAL_EQUIPMENT_COST,Curtain Systems,Type,True
 ASS_LVL_COD_TXT,Curtain Systems,Type,True
 ASS_MANUFACTURER_TXT,Curtain Systems,Type,True
 ASS_MODEL_NR_TXT,Curtain Systems,Type,True
-ASS_RM_COD_TXT,Curtain Systems,Type,True
 FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Curtain Systems,Type,True
-BLE_ROOM_NUM_TXT,Curtain Systems,Type,True
 BLE_FACADE_TYPE_TXT,Curtain Systems,Type,True
 BLE_CEILING_TYPE_CLASSIFICATION_TXT,Curtain Systems,Type,True
 BLE_FACADE_INS_BOOL,Curtain Systems,Type,True
@@ -11481,9 +11459,7 @@ CST_TOTAL_EQUIPMENT_COST,Flex Pipes,Type,True
 ASS_LVL_COD_TXT,Flex Pipes,Type,True
 ASS_MANUFACTURER_TXT,Flex Pipes,Type,True
 ASS_MODEL_NR_TXT,Flex Pipes,Type,True
-ASS_RM_COD_TXT,Flex Pipes,Type,True
 FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Flex Pipes,Type,True
-BLE_ROOM_NUM_TXT,Flex Pipes,Type,True
 BLE_FACADE_TYPE_TXT,Flex Pipes,Type,True
 BLE_CEILING_TYPE_CLASSIFICATION_TXT,Flex Pipes,Type,True
 BLE_FACADE_INS_BOOL,Flex Pipes,Type,True
@@ -11774,9 +11750,7 @@ CST_TOTAL_EQUIPMENT_COST,Furniture Systems,Type,True
 ASS_LVL_COD_TXT,Furniture Systems,Type,True
 ASS_MANUFACTURER_TXT,Furniture Systems,Type,True
 ASS_MODEL_NR_TXT,Furniture Systems,Type,True
-ASS_RM_COD_TXT,Furniture Systems,Type,True
 FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Furniture Systems,Type,True
-BLE_ROOM_NUM_TXT,Furniture Systems,Type,True
 BLE_FACADE_TYPE_TXT,Furniture Systems,Type,True
 BLE_CEILING_TYPE_CLASSIFICATION_TXT,Furniture Systems,Type,True
 BLE_FACADE_INS_BOOL,Furniture Systems,Type,True
@@ -12067,9 +12041,7 @@ CST_TOTAL_EQUIPMENT_COST,Medical Equipment,Type,True
 ASS_LVL_COD_TXT,Medical Equipment,Type,True
 ASS_MANUFACTURER_TXT,Medical Equipment,Type,True
 ASS_MODEL_NR_TXT,Medical Equipment,Type,True
-ASS_RM_COD_TXT,Medical Equipment,Type,True
 FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Medical Equipment,Type,True
-BLE_ROOM_NUM_TXT,Medical Equipment,Type,True
 BLE_FACADE_TYPE_TXT,Medical Equipment,Type,True
 BLE_CEILING_TYPE_CLASSIFICATION_TXT,Medical Equipment,Type,True
 BLE_FACADE_INS_BOOL,Medical Equipment,Type,True
@@ -12360,9 +12332,7 @@ CST_TOTAL_EQUIPMENT_COST,Plumbing Equipment,Type,True
 ASS_LVL_COD_TXT,Plumbing Equipment,Type,True
 ASS_MANUFACTURER_TXT,Plumbing Equipment,Type,True
 ASS_MODEL_NR_TXT,Plumbing Equipment,Type,True
-ASS_RM_COD_TXT,Plumbing Equipment,Type,True
 FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Plumbing Equipment,Type,True
-BLE_ROOM_NUM_TXT,Plumbing Equipment,Type,True
 BLE_FACADE_TYPE_TXT,Plumbing Equipment,Type,True
 BLE_CEILING_TYPE_CLASSIFICATION_TXT,Plumbing Equipment,Type,True
 BLE_FACADE_INS_BOOL,Plumbing Equipment,Type,True
@@ -12653,9 +12623,7 @@ CST_TOTAL_EQUIPMENT_COST,Railings,Type,True
 ASS_LVL_COD_TXT,Railings,Type,True
 ASS_MANUFACTURER_TXT,Railings,Type,True
 ASS_MODEL_NR_TXT,Railings,Type,True
-ASS_RM_COD_TXT,Railings,Type,True
 FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Railings,Type,True
-BLE_ROOM_NUM_TXT,Railings,Type,True
 BLE_FACADE_TYPE_TXT,Railings,Type,True
 BLE_CEILING_TYPE_CLASSIFICATION_TXT,Railings,Type,True
 BLE_FACADE_INS_BOOL,Railings,Type,True
@@ -15915,12 +15883,6 @@ PRJ_TB_LAST_SYNC_BY_TXT,Generic Models,Type,True
 PRJ_TB_LAST_SYNC_BY_TXT,Project Information,Type,True
 PRJ_TB_LOCK_BOOL,Generic Models,Type,True
 PRJ_TB_LOCK_BOOL,Project Information,Type,True
-PRJ_TB_SHOW_KEYPLAN_BOOL,Generic Models,Type,True
-PRJ_TB_SHOW_KEYPLAN_BOOL,Project Information,Type,True
-PRJ_TB_SHOW_SCALEBAR_BOOL,Generic Models,Type,True
-PRJ_TB_SHOW_SCALEBAR_BOOL,Project Information,Type,True
-PRJ_TB_SHOW_NORTHARROW_BOOL,Generic Models,Type,True
-PRJ_TB_SHOW_NORTHARROW_BOOL,Project Information,Type,True
 PRJ_TB_SHOW_DISCBAND_BOOL,Generic Models,Type,True
 PRJ_TB_SHOW_DISCBAND_BOOL,Project Information,Type,True
 PRJ_TB_SCALE_OVERRIDE_TXT,Generic Models,Type,True
@@ -15941,3 +15903,362 @@ PRJ_TB_LAST_TRANSMITTAL_DATE_TXT,Generic Models,Type,True
 PRJ_TB_LAST_TRANSMITTAL_DATE_TXT,Project Information,Type,True
 PRJ_TB_NOTES_LEGEND_REF_TXT,Generic Models,Type,True
 PRJ_TB_NOTES_LEGEND_REF_TXT,Project Information,Type,True
+ELC_PNL_AIC_RATING_KA,Electrical Equipment,Instance,True
+ELC_FEEDER_CSA_MM2,Electrical Equipment,Instance,True
+ELC_FEEDER_RATING_A,Electrical Equipment,Instance,True
+ELC_EMERG_COVERED_BOOL,Rooms,Instance,True
+ELC_LPD_W_PER_M2,Rooms,Instance,True
+ELC_LPD_LIMIT_W_PER_M2,Rooms,Instance,True
+ELC_LPD_STATUS_TXT,Rooms,Instance,True
+ELC_ARC_FLASH_IE_CAL_CM2,Electrical Equipment,Instance,True
+ELC_ARC_FLASH_BOUNDARY_MM,Electrical Equipment,Instance,True
+ELC_ARC_FLASH_PPE_CAT,Electrical Equipment,Instance,True
+ELC_ARC_FLASH_WORK_DIST_MM,Electrical Equipment,Instance,True
+ELC_ARC_FLASH_LABEL_TXT,Electrical Equipment,Instance,True
+ELC_SEL_COORD_VERIFIED_BOOL,Electrical Equipment,Instance,True
+ELC_BUSBAR_CSA_MM2,Electrical Equipment,Instance,True
+ELC_BUSBAR_CSA_MM2,Cable Trays,Instance,True
+ELC_BUSBAR_RATING_A,Electrical Equipment,Instance,True
+ELC_BUSBAR_RATING_A,Cable Trays,Instance,True
+ELC_BUSBAR_FILL_PCT,Cable Trays,Instance,True
+ELC_CONDUIT_ROUTE_TXT,Conduits,Instance,True
+ELC_PHOTO_LUX_CALC,Rooms,Instance,True
+ELC_PHOTO_UGR_CALC,Rooms,Instance,True
+ELC_PHOTO_FILE_PATH_TXT,Lighting Fixtures,Type,True
+ELC_PHOTO_LUMENS_NR,Lighting Fixtures,Type,True
+ELC_PHOTO_WATTS_NR,Lighting Fixtures,Type,True
+ELC_PHOTO_EFFICACY_LM_W,Lighting Fixtures,Type,True
+ELC_PHOTO_BEAM_ANGLE_DEG,Lighting Fixtures,Type,True
+ELC_PHOTO_CCT_K,Lighting Fixtures,Type,True
+ELC_PHOTO_CRI_NR,Lighting Fixtures,Type,True
+ELC_PHOTO_SYMMETRY_TXT,Lighting Fixtures,Type,True
+ELC_PHOTO_LUX_DIALUX_NR,Rooms,Instance,True
+ELC_PHOTO_LUX_ELUMTOOLS_NR,Rooms,Instance,True
+ELC_PHOTO_LUX_RELUX_NR,Rooms,Instance,True
+ELC_PHOTO_UNIFORMITY_NR,Rooms,Instance,True
+ELC_PHOTO_LAST_ENGINE_TXT,Rooms,Instance,True
+ELC_PHOTO_LAST_CALC_DATE_TXT,Rooms,Instance,True
+STING_SEED_FAMILY_TXT,Lighting Fixtures,Instance,True
+STING_SEED_FAMILY_TXT,Electrical Fixtures,Instance,True
+STING_SEED_FAMILY_TXT,Electrical Equipment,Instance,True
+STING_SEED_FAMILY_TXT,Fire Alarm Devices,Instance,True
+STING_SEED_FAMILY_TXT,Sprinklers,Instance,True
+STING_SEED_FAMILY_TXT,Plumbing Fixtures,Instance,True
+STING_SEED_FAMILY_TXT,Air Terminals,Instance,True
+STING_SEED_FAMILY_TXT,Mechanical Equipment,Instance,True
+STING_SEED_FAMILY_TXT,Communication Devices,Instance,True
+STING_SEED_FAMILY_TXT,Data Devices,Instance,True
+STING_SEED_FAMILY_TXT,Security Devices,Instance,True
+STING_SEED_FAMILY_TXT,Specialty Equipment,Instance,True
+STING_SEED_FAMILY_TXT,Generic Models,Instance,True
+STING_DESIGN_REF_TXT,Lighting Fixtures,Instance,True
+STING_DESIGN_REF_TXT,Electrical Fixtures,Instance,True
+STING_DESIGN_REF_TXT,Electrical Equipment,Instance,True
+STING_DESIGN_REF_TXT,Fire Alarm Devices,Instance,True
+STING_DESIGN_REF_TXT,Sprinklers,Instance,True
+STING_DESIGN_REF_TXT,Plumbing Fixtures,Instance,True
+STING_DESIGN_REF_TXT,Air Terminals,Instance,True
+STING_DESIGN_REF_TXT,Mechanical Equipment,Instance,True
+STING_DESIGN_REF_TXT,Communication Devices,Instance,True
+STING_DESIGN_REF_TXT,Data Devices,Instance,True
+STING_DESIGN_REF_TXT,Security Devices,Instance,True
+STING_DESIGN_REF_TXT,Specialty Equipment,Instance,True
+STING_DESIGN_REF_TXT,Generic Models,Instance,True
+STING_SWAP_HISTORY_TXT,Lighting Fixtures,Instance,True
+STING_SWAP_HISTORY_TXT,Electrical Fixtures,Instance,True
+STING_SWAP_HISTORY_TXT,Electrical Equipment,Instance,True
+STING_SWAP_HISTORY_TXT,Fire Alarm Devices,Instance,True
+STING_SWAP_HISTORY_TXT,Sprinklers,Instance,True
+STING_SWAP_HISTORY_TXT,Plumbing Fixtures,Instance,True
+STING_SWAP_HISTORY_TXT,Air Terminals,Instance,True
+STING_SWAP_HISTORY_TXT,Mechanical Equipment,Instance,True
+STING_SWAP_HISTORY_TXT,Communication Devices,Instance,True
+STING_SWAP_HISTORY_TXT,Data Devices,Instance,True
+STING_SWAP_HISTORY_TXT,Security Devices,Instance,True
+STING_SWAP_HISTORY_TXT,Specialty Equipment,Instance,True
+STING_SWAP_HISTORY_TXT,Generic Models,Instance,True
+ELC_JB_TYPE_TXT,Electrical Equipment,Instance,True
+ELC_JB_SIZE_MM,Electrical Equipment,Instance,True
+ELC_JB_AUTO_PLACED_BOOL,Electrical Equipment,Instance,True
+ELC_JB_REASON_TXT,Electrical Equipment,Instance,True
+ELC_CDT_BREAKPOINT_TXT,Conduits,Instance,True
+ELC_CDT_BREAKPOINT_TXT,Conduit Fittings,Instance,True
+CEQ_CATEGORY_TXT,Specialty Equipment,Instance,True
+CEQ_CATEGORY_TXT,Mechanical Equipment,Instance,True
+CEQ_CLINICAL_BOOL,Specialty Equipment,Instance,True
+CEQ_CLINICAL_BOOL,Mechanical Equipment,Instance,True
+CEQ_DECON_METHOD_TXT,Specialty Equipment,Instance,True
+CEQ_DECON_METHOD_TXT,Mechanical Equipment,Instance,True
+CEQ_ENDO_AER_REF_TXT,Specialty Equipment,Instance,True
+CEQ_ENDO_AER_REF_TXT,Mechanical Equipment,Instance,True
+CEQ_ENDO_CYCLE_COUNT_INT,Specialty Equipment,Instance,True
+CEQ_ENDO_CYCLE_COUNT_INT,Mechanical Equipment,Instance,True
+CEQ_ENDO_LAST_REPRO_DT,Specialty Equipment,Instance,True
+CEQ_ENDO_LAST_REPRO_DT,Mechanical Equipment,Instance,True
+CEQ_ENDO_SCOPE_ID_TXT,Specialty Equipment,Instance,True
+CEQ_ENDO_SCOPE_ID_TXT,Mechanical Equipment,Instance,True
+CEQ_GMDN_CODE_TXT,Specialty Equipment,Instance,True
+CEQ_GMDN_CODE_TXT,Mechanical Equipment,Instance,True
+CEQ_INFECT_TIER_TXT,Specialty Equipment,Instance,True
+CEQ_INFECT_TIER_TXT,Mechanical Equipment,Instance,True
+CEQ_SFG20_REF_TXT,Specialty Equipment,Instance,True
+CEQ_SFG20_REF_TXT,Mechanical Equipment,Instance,True
+CEQ_UMDNS_CODE_TXT,Specialty Equipment,Instance,True
+CEQ_UMDNS_CODE_TXT,Mechanical Equipment,Instance,True
+CLN_ADB_CODE_TXT,Rooms,Instance,True
+CLN_ANTERM_LINKED_ID_TXT,Rooms,Instance,True
+CLN_BARI_DESIGN_KG_NR,Rooms,Instance,True
+CLN_DEFLECTION_LIMIT_MM_NR,Rooms,Instance,True
+CLN_EQUIP_WEIGHT_KG_NR,Rooms,Instance,True
+CLN_FGI_REF_TXT,Rooms,Instance,True
+CLN_FLOOR_LOAD_KN_M2_NR,Rooms,Instance,True
+CLN_HBN_REF_TXT,Rooms,Instance,True
+CLN_HOIST_TRACK_BOOL,Rooms,Instance,True
+CLN_HTM_REF_TXT,Rooms,Instance,True
+CLN_INFECT_CLASS_TXT,Rooms,Instance,True
+CLN_LIGATURE_RES_BOOL,Rooms,Instance,True
+CLN_LIG_RISK_LVL_TXT,Rooms,Instance,True
+CLN_MRI_ZONE_INT,Rooms,Instance,True
+CLN_NOISE_NR_NR,Rooms,Instance,True
+CLN_NURSECALL_TYPE_TXT,Rooms,Instance,True
+CLN_OCC_VISITOR_INT,Rooms,Instance,True
+CLN_PRESS_DELTA_DESIGN_PA_NR,Rooms,Instance,True
+CLN_PRESS_REGIME_TXT,Rooms,Instance,True
+CLN_PRIVACY_LVL_TXT,Rooms,Instance,True
+CLN_RAD_CONTROLLED_BOOL,Rooms,Instance,True
+CLN_RF_SHIELD_BOOL,Rooms,Instance,True
+CLN_ROOM_CLASS_TXT,Rooms,Instance,True
+CLN_RT60_TARGET_S_NR,Rooms,Instance,True
+CLN_STRUCT_SIGN_OFF_DT,Rooms,Instance,True
+CLN_STRUCT_SIGN_OFF_TXT,Rooms,Instance,True
+CLN_TRANSPORT_PATH_TXT,Rooms,Instance,True
+CLN_VIB_VM_NR,Rooms,Instance,True
+CLN_WASTE_BIN_BIM_ID_TXT,Rooms,Instance,True
+CLN_WASTE_CLASS_TXT,Rooms,Instance,True
+CLN_WASTE_ROUTE_TXT,Rooms,Instance,True
+HEALTH_SCORE_DATE_TXT,Project Information,Instance,True
+HEALTH_SCORE_LAST_NR,Project Information,Instance,True
+MNT_CAL_LAST_DT,Specialty Equipment,Instance,True
+MNT_CAL_LAST_DT,Mechanical Equipment,Instance,True
+MNT_CAL_LAST_DT,Electrical Equipment,Instance,True
+MNT_CAL_NEXT_DT,Specialty Equipment,Instance,True
+MNT_CAL_NEXT_DT,Mechanical Equipment,Instance,True
+MNT_CAL_NEXT_DT,Electrical Equipment,Instance,True
+PLM_AUG_CARE_BOOL,Plumbing Fixtures,Instance,True
+PLM_AUG_CARE_BOOL,Pipes,Type,True
+PLM_DEAD_LEG_M_NR,Plumbing Fixtures,Instance,True
+PLM_DEAD_LEG_M_NR,Pipes,Type,True
+PLM_FLUSH_LOG_REF_TXT,Plumbing Fixtures,Instance,True
+PLM_FLUSH_LOG_REF_TXT,Pipes,Type,True
+PLM_POU_FILTER_BOOL,Plumbing Fixtures,Instance,True
+PLM_POU_FILTER_BOOL,Pipes,Type,True
+PLM_RO_LOOP_BOOL,Plumbing Fixtures,Instance,True
+PLM_RO_LOOP_BOOL,Pipes,Type,True
+PLM_SENTINEL_BOOL,Plumbing Fixtures,Instance,True
+PLM_SENTINEL_BOOL,Pipes,Type,True
+PLM_TMV_TYPE_TXT,Plumbing Fixtures,Instance,True
+PLM_TMV_TYPE_TXT,Pipes,Type,True
+PRJ_ORG_CLIENT_NAME_TXT,Project Information,Instance,True
+PRJ_ORG_COMPANY_ADDRESS_TXT,Project Information,Instance,True
+PRJ_ORG_COMPANY_NAME_TXT,Project Information,Instance,True
+PRJ_ORG_COORD_SYSTEM_TXT,Project Information,Instance,True
+PRJ_ORG_GROUND_LEVEL_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_AE_ELEC_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_AE_MGAS_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_AE_VENT_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_AE_WATER_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_AHJ_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_AREA_M2_NR,Project Information,Instance,True
+PRJ_ORG_HEALTH_BEDS_INT,Project Information,Instance,True
+PRJ_ORG_HEALTH_CODE_BASE_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_FACILITY_TYPE_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_HTM_REGION_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_ICU_INT,Project Information,Instance,True
+PRJ_ORG_HEALTH_IHFG_BOOL,Project Information,Instance,True
+PRJ_ORG_HEALTH_OR_INT,Project Information,Instance,True
+PRJ_ORG_HEALTH_PACK_PROFILE_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_QE_TXT,Project Information,Instance,True
+PRJ_ORG_PHASE_TXT,Project Information,Instance,True
+PRJ_ORG_PROJECT_ADDRESS_TXT,Project Information,Instance,True
+PRJ_ORG_PROJECT_CODE_TXT,Project Information,Instance,True
+PRJ_ORG_PROJECT_NAME_TXT,Project Information,Instance,True
+PRJ_ORG_PROJECT_NORTH_TXT,Project Information,Instance,True
+PRJ_ORG_PROJECT_NUMBER_TXT,Project Information,Instance,True
+PRJ_ORG_RIBA_STAGE_TXT,Project Information,Instance,True
+PRJ_ORG_SECURITY_CLASS_TXT,Project Information,Instance,True
+PRJ_ORG_UNICLASS_CO_TXT,Project Information,Instance,True
+PRJ_TB_MEP_CONSULTANTS_ADDRESS_TXT,Title Blocks,Instance,True
+PRJ_TB_MEP_CONSULTANTS_ADDRESS_TXT,Project Information,Instance,True
+PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT,Title Blocks,Instance,True
+PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT,Project Information,Instance,True
+RAD_BARRIER_TYPE_TXT,Rooms,Instance,True
+RAD_BARRIER_TYPE_TXT,Specialty Equipment,Instance,True
+RAD_DOSE_DESIGN_GOAL_TXT,Rooms,Instance,True
+RAD_DOSE_DESIGN_GOAL_TXT,Specialty Equipment,Instance,True
+RAD_LEAD_MM_NR,Rooms,Instance,True
+RAD_LEAD_MM_NR,Specialty Equipment,Instance,True
+RAD_OCC_FACTOR_NR,Rooms,Instance,True
+RAD_OCC_FACTOR_NR,Specialty Equipment,Instance,True
+RAD_QE_DT,Rooms,Instance,True
+RAD_QE_DT,Specialty Equipment,Instance,True
+RAD_QE_NAME_TXT,Rooms,Instance,True
+RAD_QE_NAME_TXT,Specialty Equipment,Instance,True
+RAD_USE_FACTOR_NR,Rooms,Instance,True
+RAD_USE_FACTOR_NR,Specialty Equipment,Instance,True
+RAD_WORKLOAD_MAWK_NR,Rooms,Instance,True
+RAD_WORKLOAD_MAWK_NR,Specialty Equipment,Instance,True
+STING_AUTHORISED_BY_TXT,Project Information,Instance,True
+STING_AUTHORISED_DATE_TXT,Project Information,Instance,True
+STING_BOX_LOCATION_ID,Project Information,Instance,True
+STING_FEDERATION_STATUS_TXT,Project Information,Instance,True
+STING_LOIN_LOD_TXT,Project Information,Instance,True
+STING_NOGGIN_REQUIRED,Generic Models,Instance,True
+STING_SHEET_BIM_MODE_TXT,Sheets,Instance,True
+STING_SHEET_FULL_REF_TXT,Sheets,Instance,True
+STING_SHEET_LEVEL_TXT,Sheets,Instance,True
+STING_SHEET_OF_TOTAL_TXT,Sheets,Instance,True
+STING_SHEET_ORIG_TXT,Sheets,Instance,True
+STING_SHEET_PROJECT_TXT,Sheets,Instance,True
+STING_SHEET_ROLE_TXT,Sheets,Instance,True
+STING_SHEET_SEQUENCE_INT,Sheets,Instance,True
+STING_SHEET_SEQ_TXT,Sheets,Instance,True
+STING_SHEET_TYPE_TXT,Sheets,Instance,True
+STING_SHEET_VOLUME_TXT,Sheets,Instance,True
+STING_SUITABILITY_DESC_TXT,Project Information,Instance,True
+ELC_CDT_PENETRATION_COUNT_NR,Conduits,Instance,True
+ELC_CDT_PENETRATION_COUNT_NR,Pipes,Instance,True
+ELC_CDT_PENETRATION_COUNT_NR,Ducts,Instance,True
+ASS_ITEM_CODE_TXT,Air Terminals,Type,True
+ASS_ITEM_CODE_TXT,Cable Trays,Type,True
+ASS_ITEM_CODE_TXT,Casework,Type,True
+ASS_ITEM_CODE_TXT,Ceilings,Type,True
+ASS_ITEM_CODE_TXT,Columns,Type,True
+ASS_ITEM_CODE_TXT,Communication Devices,Type,True
+ASS_ITEM_CODE_TXT,Conduits,Type,True
+ASS_ITEM_CODE_TXT,Curtain Panels,Type,True
+ASS_ITEM_CODE_TXT,Curtain Systems,Type,True
+ASS_ITEM_CODE_TXT,Curtain Wall Mullions,Type,True
+ASS_ITEM_CODE_TXT,Data Devices,Type,True
+ASS_ITEM_CODE_TXT,Doors,Type,True
+ASS_ITEM_CODE_TXT,Duct Accessories,Type,True
+ASS_ITEM_CODE_TXT,Duct Fittings,Type,True
+ASS_ITEM_CODE_TXT,Ducts,Type,True
+ASS_ITEM_CODE_TXT,Electrical Equipment,Type,True
+ASS_ITEM_CODE_TXT,Electrical Fixtures,Type,True
+ASS_ITEM_CODE_TXT,Flex Ducts,Type,True
+ASS_ITEM_CODE_TXT,Flex Pipes,Type,True
+ASS_ITEM_CODE_TXT,Floors,Type,True
+ASS_ITEM_CODE_TXT,Furniture,Type,True
+ASS_ITEM_CODE_TXT,Furniture Systems,Type,True
+ASS_ITEM_CODE_TXT,Generic Models,Type,True
+ASS_ITEM_CODE_TXT,Lighting Fixtures,Type,True
+ASS_ITEM_CODE_TXT,Mechanical Equipment,Type,True
+ASS_ITEM_CODE_TXT,Medical Equipment,Type,True
+ASS_ITEM_CODE_TXT,Nurse Call Devices,Type,True
+ASS_ITEM_CODE_TXT,Pipe Accessories,Type,True
+ASS_ITEM_CODE_TXT,Pipe Fittings,Type,True
+ASS_ITEM_CODE_TXT,Pipes,Type,True
+ASS_ITEM_CODE_TXT,Plumbing Equipment,Type,True
+ASS_ITEM_CODE_TXT,Plumbing Fixtures,Type,True
+ASS_ITEM_CODE_TXT,Railings,Type,True
+ASS_ITEM_CODE_TXT,Ramps,Type,True
+ASS_ITEM_CODE_TXT,Roofs,Type,True
+ASS_ITEM_CODE_TXT,Rooms,Type,True
+ASS_ITEM_CODE_TXT,Security Devices,Type,True
+ASS_ITEM_CODE_TXT,Specialty Equipment,Type,True
+ASS_ITEM_CODE_TXT,Sprinklers,Type,True
+ASS_ITEM_CODE_TXT,Stairs,Type,True
+ASS_ITEM_CODE_TXT,Telephone Devices,Type,True
+ASS_ITEM_CODE_TXT,Walls,Type,True
+ASS_ITEM_CODE_TXT,Windows,Type,True
+ASS_SYSTEMS_TXT,Air Terminals,Type,True
+ASS_SYSTEMS_TXT,Cable Trays,Type,True
+ASS_SYSTEMS_TXT,Casework,Type,True
+ASS_SYSTEMS_TXT,Ceilings,Type,True
+ASS_SYSTEMS_TXT,Columns,Type,True
+ASS_SYSTEMS_TXT,Communication Devices,Type,True
+ASS_SYSTEMS_TXT,Conduits,Type,True
+ASS_SYSTEMS_TXT,Curtain Panels,Type,True
+ASS_SYSTEMS_TXT,Curtain Systems,Type,True
+ASS_SYSTEMS_TXT,Curtain Wall Mullions,Type,True
+ASS_SYSTEMS_TXT,Data Devices,Type,True
+ASS_SYSTEMS_TXT,Doors,Type,True
+ASS_SYSTEMS_TXT,Duct Accessories,Type,True
+ASS_SYSTEMS_TXT,Duct Fittings,Type,True
+ASS_SYSTEMS_TXT,Ducts,Type,True
+ASS_SYSTEMS_TXT,Electrical Equipment,Type,True
+ASS_SYSTEMS_TXT,Electrical Fixtures,Type,True
+ASS_SYSTEMS_TXT,Flex Ducts,Type,True
+ASS_SYSTEMS_TXT,Flex Pipes,Type,True
+ASS_SYSTEMS_TXT,Floors,Type,True
+ASS_SYSTEMS_TXT,Furniture,Type,True
+ASS_SYSTEMS_TXT,Furniture Systems,Type,True
+ASS_SYSTEMS_TXT,Generic Models,Type,True
+ASS_SYSTEMS_TXT,Lighting Fixtures,Type,True
+ASS_SYSTEMS_TXT,Mechanical Equipment,Type,True
+ASS_SYSTEMS_TXT,Medical Equipment,Type,True
+ASS_SYSTEMS_TXT,Nurse Call Devices,Type,True
+ASS_SYSTEMS_TXT,Pipe Accessories,Type,True
+ASS_SYSTEMS_TXT,Pipe Fittings,Type,True
+ASS_SYSTEMS_TXT,Pipes,Type,True
+ASS_SYSTEMS_TXT,Plumbing Equipment,Type,True
+ASS_SYSTEMS_TXT,Plumbing Fixtures,Type,True
+ASS_SYSTEMS_TXT,Railings,Type,True
+ASS_SYSTEMS_TXT,Ramps,Type,True
+ASS_SYSTEMS_TXT,Roofs,Type,True
+ASS_SYSTEMS_TXT,Rooms,Type,True
+ASS_SYSTEMS_TXT,Security Devices,Type,True
+ASS_SYSTEMS_TXT,Specialty Equipment,Type,True
+ASS_SYSTEMS_TXT,Sprinklers,Type,True
+ASS_SYSTEMS_TXT,Stairs,Type,True
+ASS_SYSTEMS_TXT,Telephone Devices,Type,True
+ASS_SYSTEMS_TXT,Walls,Type,True
+ASS_SYSTEMS_TXT,Windows,Type,True
+ASS_TERM_CAPPED_BOOL,Cable Trays,Instance,True
+ASS_TERM_CAPPED_BOOL,Conduits,Instance,True
+ASS_TERM_CAPPED_BOOL,Duct Accessories,Instance,True
+ASS_TERM_CAPPED_BOOL,Duct Fittings,Instance,True
+ASS_TERM_CAPPED_BOOL,Ducts,Instance,True
+ASS_TERM_CAPPED_BOOL,Generic Models,Instance,True
+ASS_TERM_CAPPED_BOOL,Pipe Accessories,Instance,True
+ASS_TERM_CAPPED_BOOL,Pipe Fittings,Instance,True
+ASS_TERM_CAPPED_BOOL,Pipes,Instance,True
+ASS_TERM_REASON_TXT,Cable Trays,Instance,True
+ASS_TERM_REASON_TXT,Conduits,Instance,True
+ASS_TERM_REASON_TXT,Duct Accessories,Instance,True
+ASS_TERM_REASON_TXT,Duct Fittings,Instance,True
+ASS_TERM_REASON_TXT,Ducts,Instance,True
+ASS_TERM_REASON_TXT,Generic Models,Instance,True
+ASS_TERM_REASON_TXT,Pipe Accessories,Instance,True
+ASS_TERM_REASON_TXT,Pipe Fittings,Instance,True
+ASS_TERM_REASON_TXT,Pipes,Instance,True
+ASS_TRACE_SEQ_NR,Cable Trays,Instance,True
+ASS_TRACE_SEQ_NR,Conduits,Instance,True
+ASS_TRACE_SEQ_NR,Duct Accessories,Instance,True
+ASS_TRACE_SEQ_NR,Duct Fittings,Instance,True
+ASS_TRACE_SEQ_NR,Ducts,Instance,True
+ASS_TRACE_SEQ_NR,Generic Models,Instance,True
+ASS_TRACE_SEQ_NR,Pipe Accessories,Instance,True
+ASS_TRACE_SEQ_NR,Pipe Fittings,Instance,True
+ASS_TRACE_SEQ_NR,Pipes,Instance,True
+HVC_DCT_INSULATION_THK_MM,Air Terminals,Type,True
+HVC_DCT_INSULATION_THK_MM,Duct Accessories,Type,True
+HVC_DCT_INSULATION_THK_MM,Duct Fittings,Type,True
+HVC_DCT_INSULATION_THK_MM,Ducts,Type,True
+HVC_DCT_INSULATION_THK_MM,Flex Ducts,Type,True
+HVC_DCT_INSULATION_THK_MM,Generic Models,Type,True
+MEC_SYS_TXT,Air Terminals,Instance,True
+MEC_SYS_TXT,Duct Accessories,Instance,True
+MEC_SYS_TXT,Duct Fittings,Instance,True
+MEC_SYS_TXT,Ducts,Instance,True
+MEC_SYS_TXT,Generic Models,Instance,True
+MEC_SYS_TXT,Mechanical Equipment,Instance,True
+BLE_CBL_TRAY_WIDTH_MM,Cable Trays,Type,True
+BLE_CBL_TRAY_DEPTH_MM,Cable Trays,Type,True
+PLM_SYS_TXT,Generic Models,Instance,True
+PLM_SYS_TXT,Pipe Accessories,Instance,True
+PLM_SYS_TXT,Pipe Fittings,Instance,True
+PLM_SYS_TXT,Pipes,Instance,True
+PLM_SYS_TXT,Plumbing Equipment,Instance,True
+PLM_SYS_TXT,Plumbing Fixtures,Instance,True
+PLM_SYS_TXT,Sprinklers,Instance,True
