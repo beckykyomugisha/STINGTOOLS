@@ -39,7 +39,9 @@ namespace StingTools.Core
     {
         public static string AssemblyPath { get; private set; }
         public static string DataPath { get; private set; }
+#pragma warning disable CS0649 // Reserved for Phase 175 SLD sync updater wiring
         private static UpdaterId _sldUpdaterId = null;
+#pragma warning restore CS0649
         private static StingBridge.IFC.IfcDropWatcher? _activeIfcDropWatcher;
 
         public Result OnStartup(UIControlledApplication application)

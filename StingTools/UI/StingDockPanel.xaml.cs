@@ -2068,7 +2068,6 @@ namespace StingTools.UI
         // ════════════════════════════════════════════════════════════════════════
 
         private bool _cmdBarHasFocus;
-        private System.Threading.CancellationTokenSource _suggestionCts;
 
         private void CommandBar_GotFocus(object sender, RoutedEventArgs e)
         {
