@@ -12,10 +12,10 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "LAMP_TYPE", "type": "Text", "shared": true },
-        { "name": "WATTAGE", "type": "Text", "shared": true },
-        { "name": "LUMEN_OUTPUT", "type": "Text", "shared": true },
-        { "name": "EMERGENCY", "type": "YesNo", "shared": true }
+        { "name": "LAMP_TYPE", "type": "Text", "shared": true, "instance": false },
+        { "name": "WATTAGE", "type": "Text", "shared": true, "instance": false },
+        { "name": "LUMEN_OUTPUT", "type": "Text", "shared": true, "instance": false },
+        { "name": "EMERGENCY", "type": "YesNo", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
@@ -36,8 +36,8 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "LAMP_TYPE", "type": "Text", "shared": true },
-        { "name": "WATTAGE", "type": "Text", "shared": true }
+        { "name": "LAMP_TYPE", "type": "Text", "shared": true, "instance": false },
+        { "name": "WATTAGE", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -61,8 +61,8 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "LAMP_TYPE", "type": "Text", "shared": true },
-        { "name": "WATTAGE", "type": "Text", "shared": true }
+        { "name": "LAMP_TYPE", "type": "Text", "shared": true, "instance": false },
+        { "name": "WATTAGE", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
@@ -89,7 +89,7 @@
       "symbolSize": 4.5,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "WATTAGE", "type": "Text", "shared": true }
+        { "name": "WATTAGE", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "filledRegions": [
@@ -113,7 +113,7 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "DROP_HEIGHT_MM", "type": "Text", "shared": true }
+        { "name": "DROP_HEIGHT_MM", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [
@@ -133,8 +133,8 @@
       "symbolSize": 10.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "TRACK_LENGTH_MM", "type": "Text", "shared": true },
-        { "name": "HEAD_COUNT", "type": "Integer", "shared": true }
+        { "name": "TRACK_LENGTH_MM", "type": "Text", "shared": true, "instance": false },
+        { "name": "HEAD_COUNT", "type": "Integer", "shared": true, "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -161,8 +161,8 @@
       "symbolSize": 12.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "LENGTH_MM", "type": "Text", "shared": true, "default": "1200" },
-        { "name": "WATTAGE", "type": "Text", "shared": true, "default": "36" }
+        { "name": "LENGTH_MM", "type": "Text", "shared": true, "default": "1200", "instance": false },
+        { "name": "WATTAGE", "type": "Text", "shared": true, "default": "36", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -185,7 +185,7 @@
       "symbolSize": 12.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "LENGTH_MM", "type": "Text", "shared": true, "default": "1200" }
+        { "name": "LENGTH_MM", "type": "Text", "shared": true, "default": "1200", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -209,8 +209,8 @@
       "symbolSize": 10.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "LENGTH_MM", "type": "Text", "shared": true },
-        { "name": "WATTS_PER_M", "type": "Text", "shared": true }
+        { "name": "LENGTH_MM", "type": "Text", "shared": true, "instance": false },
+        { "name": "WATTS_PER_M", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -233,8 +233,8 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "BATTERY_RUNTIME_MIN", "type": "Text", "shared": true, "default": "180" },
-        { "name": "EMERGENCY", "type": "YesNo", "shared": true, "default": "true" }
+        { "name": "BATTERY_RUNTIME_MIN", "type": "Text", "shared": true, "default": "180", "instance": false },
+        { "name": "EMERGENCY", "type": "YesNo", "shared": true, "default": "true", "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0.05, "r": 0.45, "startDeg": 0, "endDeg": 360 } ],
@@ -256,7 +256,7 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "EMERGENCY", "type": "YesNo", "shared": true, "default": "true" }
+        { "name": "EMERGENCY", "type": "YesNo", "shared": true, "default": "true", "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.45, "startDeg": 0, "endDeg": 360 } ],
@@ -274,7 +274,7 @@
       "symbolSize": 5.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "DIRECTION", "type": "Text", "shared": true, "default": "Right" }
+        { "name": "DIRECTION", "type": "Text", "shared": true, "default": "Right", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -299,7 +299,7 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "BEAM_ANGLE", "type": "Text", "shared": true }
+        { "name": "BEAM_ANGLE", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [
@@ -344,8 +344,8 @@
       "symbolSize": 5.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "WATTAGE", "type": "Text", "shared": true },
-        { "name": "IP_RATING", "type": "Text", "shared": true, "default": "IP65" }
+        { "name": "WATTAGE", "type": "Text", "shared": true, "instance": false },
+        { "name": "IP_RATING", "type": "Text", "shared": true, "default": "IP65", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -370,7 +370,7 @@
       "symbolSize": 2.5,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "HEIGHT_MM", "type": "Text", "shared": true, "default": "800" }
+        { "name": "HEIGHT_MM", "type": "Text", "shared": true, "default": "800", "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.3, "startDeg": 0, "endDeg": 360 } ],
@@ -391,7 +391,7 @@
       "symbolSize": 4.5,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "COLUMN_HEIGHT_M", "type": "Text", "shared": true, "default": "6" }
+        { "name": "COLUMN_HEIGHT_M", "type": "Text", "shared": true, "default": "6", "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 } ],
@@ -416,7 +416,7 @@
       "symbolSize": 6.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "LUMEN_OUTPUT", "type": "Text", "shared": true, "default": "20000" }
+        { "name": "LUMEN_OUTPUT", "type": "Text", "shared": true, "default": "20000", "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
@@ -439,7 +439,7 @@
       "symbolSize": 5.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "LUMEN_OUTPUT", "type": "Text", "shared": true }
+        { "name": "LUMEN_OUTPUT", "type": "Text", "shared": true, "instance": false }
       ],
       "geometry": {
         "arcs": [ { "cx": 0, "cy": 0, "r": 0.45, "startDeg": 0, "endDeg": 360 } ],
@@ -460,7 +460,7 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "IK_RATING", "type": "Text", "shared": true, "default": "IK10" }
+        { "name": "IK_RATING", "type": "Text", "shared": true, "default": "IK10", "instance": false }
       ],
       "geometry": {
         "arcs": [
@@ -480,7 +480,7 @@
       "symbolSize": 8.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "IP_RATING", "type": "Text", "shared": true, "default": "IP65" }
+        { "name": "IP_RATING", "type": "Text", "shared": true, "default": "IP65", "instance": false }
       ],
       "geometry": {
         "lines": [
@@ -527,7 +527,7 @@
       "symbolSize": 4.0,
       "parameters": [
         { "name": "CIRCUIT_REF", "type": "Text", "shared": true },
-        { "name": "SENSOR_TYPE", "type": "Text", "shared": true, "default": "PIR" }
+        { "name": "SENSOR_TYPE", "type": "Text", "shared": true, "default": "PIR", "instance": false }
       ],
       "geometry": {
         "arcs": [
