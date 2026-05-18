@@ -54,7 +54,7 @@ namespace StingTools.BIMManager
         // on Create / BulkCreate / LogMinutes / AddActionItem / UpdateAction.
         public event EventHandler<RealtimeEvent>? MeetingCreated;
         public event EventHandler<RealtimeEvent>? MeetingUpdated;
-        // Gap N — federated model changed (IFC upload, auto-align, ArchiCAD push).
+        // Gap N — federated model changed (IFC upload, auto-align, GLB delta).
         // The BCC model-health panel should refresh its element count + coherence score
         // when this fires. Data.Source tells the UI which tool triggered the change.
         public event EventHandler<RealtimeEvent>? ModelUpdated;
@@ -202,7 +202,7 @@ namespace StingTools.BIMManager
             // GAP-FIX-SIGNALR — meeting events from MeetingsController.
             c.On<object>("MeetingCreated",      p => Raise(MeetingCreated,      p, "meeting"));
             c.On<object>("MeetingUpdated",      p => Raise(MeetingUpdated,      p, "meeting"));
-            // Gap N — federated model updated (IFC ingest, ArchiCAD push, auto-align).
+            // Gap N — federated model updated (IFC ingest, GLB delta, auto-align).
             // Fired by FederatedModelHub when geometry or coordinate frame changes.
             c.On<object>("ModelUpdated",        p => Raise(ModelUpdated,        p, "model"));
             // RevisionCreated subscription removed — the channel was orphaned;

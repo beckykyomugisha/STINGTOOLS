@@ -476,9 +476,7 @@ namespace StingTools.UI
                     case "SldAnnotate_Clear":      RunCommand<Commands.Symbols.SldAnnotationClearCommand>(app); break;
                     case "SldAnnotate_Audit":      RunCommand<Commands.Symbols.SldAnnotationAuditCommand>(app); break;
 
-                    // ── StingBridge: ArchiCAD / IFC workflows ──
-                    case "IFC_ArchiCADSync":      RunCommand<Commands.IFC.ArchiCADSyncCommand>(app); break;
-                    case "IFC_DropImport":         RunCommand<Commands.IFC.IfcDropImportCommand>(app); break;
+                    // ── IFC ingestion (any IFC source: ArchiCAD, Tekla, Bentley, Solibri export) ──
                     case "IFC_PushModel":          RunCommand<Commands.IFC.IFC_PushModelCommand>(app); break;
                     case "ArchiCadIfcImport":      RunCommand<Commands.Interop.ArchiCadIfcImportCommand>(app); break;
                     case "IFC_StabilizeGuids":     RunCommand<Commands.Interop.StabilizeIfcGuidsCommand>(app); break;
