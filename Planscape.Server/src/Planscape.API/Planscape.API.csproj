@@ -72,12 +72,19 @@
        React Native WebView already loads (Planscape/assets/viewer/). The
        wwwroot copy had previously drifted to a stale snapshot and lost
        features (setSectionBox, startMarkup, NotificationHub, ...). This
-       target re-copies the four runtime files on every build so the two
-       surfaces can't get out of sync again. coordination-viewer.css and
-       three.min.js + loader stubs are left as-is. -->
+       target re-copies the runtime files on every build so the two
+       surfaces can't get out of sync again.
+
+       Not handled here: three.min.js + GLTFLoader/OrbitControls/DRACOLoader
+       /MeshoptDecoder stubs. Those are outputs of build.mjs (npm install &&
+       npm run build in Planscape/assets/viewer/) and the dist/ folder is
+       gitignored, so there's nothing to sync from. The wwwroot copies are
+       the canonical build artefacts — to refresh them, run the viewer
+       build pipeline and check the new dist/ files in by hand. -->
   <ItemGroup>
     <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\viewer.html" />
     <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\coordination-viewer.js" />
+    <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\coordination-viewer.css" />
     <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\viewer-extras.js" />
     <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\signalr-shim.js" />
   </ItemGroup>
