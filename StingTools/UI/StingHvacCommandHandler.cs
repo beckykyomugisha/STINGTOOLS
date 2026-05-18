@@ -138,6 +138,15 @@ namespace StingTools.UI
                     case "Hvac_SaveRules":
                         // Phase 182 — gap D1/A6
                         Run<StingTools.Commands.Hvac.HvacSaveRulesCommand>(app); break;
+                    case "Hvac_RefreshPanel":
+                        // Phase 188 — Tier 2 / G1: re-seed every grid from the
+                        // active document. Read-only.
+                        Run<StingTools.Commands.Hvac.HvacRefreshPanelCommand>(app); break;
+                    case "Hvac_ScrapeEquipmentParams":
+                        // Phase 188 — Tier 2 / F2: stamp HVC_CAPACITY_KW +
+                        // HVC_REFRIGERANT_TYPE_TXT on mechanical equipment so
+                        // HvacCarbonReportCommand has something to read.
+                        Run<StingTools.Commands.Hvac.HvacScrapeEquipmentParamsCommand>(app); break;
                     case "Hvac_ResetDefaults":
                         // Phase 188 — Fix G4: button on CALCS tab was an orphan.
                         // Reload the registry from corporate baseline + re-seed

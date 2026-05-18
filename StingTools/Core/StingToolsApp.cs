@@ -644,6 +644,14 @@ namespace StingTools.Core
                     StingLog.Warn($"AUTO_RUN_WORKFLOW_ON_OPEN check failed: {arwEx.Message}");
                 }
 
+                // Phase 188 (Tier 2) — auto-populate the HVAC panel if it is open.
+                // Cheap no-op when the panel hasn't been shown yet (Instance is null).
+                try
+                {
+                    StingTools.UI.StingHvacPanel.Instance?.RefreshFromDoc(e.Document);
+                }
+                catch (Exception hvEx) { StingLog.Warn($"HVAC panel auto-refresh: {hvEx.Message}"); }
+
 // Phase 77: Consume any pending workflow presets from WorkflowScheduler triggers
                 // (document-open, compliance-fall, SLA-violation, warning-threshold triggers)
                 try
