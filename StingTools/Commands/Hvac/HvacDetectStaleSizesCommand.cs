@@ -21,6 +21,7 @@ using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using StingTools.Commands.Mep;   // MepSizeTables (Phase 184)
 using StingTools.Core;
 using StingTools.Core.Mep;
 using StingTools.UI;

@@ -103,9 +103,12 @@ namespace StingTools.Commands.Hvac
                         double dynamicPa = 0.5 * airDensity * velMs * velMs;
 
                         // Length-based friction estimate (very rough, but
-                        // gives us something to bound the system drop):
-                        double lengthM = (d is MEPCurve mc && mc.LocationCurve is LocationCurve lc)
-                            ? lc.Curve.Length * 0.3048 : 0;
+                        // gives us something to bound the system drop).
+                        // MEPCurve inherits Location from Element; cast to
+                        // LocationCurve to get the curve length.
+                        double lengthM = 0;
+                        if (d is MEPCurve mc && mc.Location is LocationCurve lc && lc.Curve != null)
+                            lengthM = lc.Curve.Length * 0.3048;
                         // Hydraulic diameter for friction:
                         double dh = (w > 0 && h > 0)
                             ? 2.0 * w * h / (w + h) * 1e-3

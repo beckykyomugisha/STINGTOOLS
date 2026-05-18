@@ -1370,7 +1370,7 @@ namespace StingTools.UI
             {
                 var dp = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document
                     ?.ProjectInformation?.LookupParameter("PRJ_ORG_DISCIPLINES_TXT");
-                if (dp?.HasValue == true && dp.StorageType == StorageType.String)
+                if (dp?.HasValue == true && dp.StorageType == Autodesk.Revit.DB.StorageType.String)
                 {
                     string discs = (dp.AsString() ?? "").ToUpperInvariant();
                     isHvac = discs.Contains("MECH") || discs.Contains("HVAC") || discs.Contains("MEP");
