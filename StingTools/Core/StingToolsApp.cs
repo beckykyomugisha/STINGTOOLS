@@ -1,3 +1,4 @@
+#nullable enable annotations
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -39,8 +40,13 @@ namespace StingTools.Core
     {
         public static string AssemblyPath { get; private set; }
         public static string DataPath { get; private set; }
+#pragma warning disable CS0649 // Reserved for Phase 175 SLD sync updater wiring
         private static UpdaterId _sldUpdaterId = null;
-        private static StingBridge.IFC.IfcDropWatcher? _activeIfcDropWatcher;
+#pragma warning restore CS0649
+        // Phase 184 — _activeIfcDropWatcher field removed alongside the Gap 9
+        // auto-start block (Document-open IFC drop hot path). IfcDropWatcher
+        // remains available in Commands/IFC/StingBridgeStubs.cs for any
+        // command that wants to start a watcher explicitly.
 
         public Result OnStartup(UIControlledApplication application)
         {
@@ -642,38 +648,11 @@ namespace StingTools.Core
                     StingLog.Warn($"AUTO_RUN_WORKFLOW_ON_OPEN check failed: {arwEx.Message}");
                 }
 
-                // Gap 9: Auto-start IfcDropWatcher if an _ifc_drop folder exists
-                // adjacent to the project file. This ensures the drop-folder hot path
-                // is always live when the user opens a project, without requiring manual
-                // activation via a command.
-                try
-                {
-                    string docPath9 = e.Document?.PathName;
-                    if (!string.IsNullOrEmpty(docPath9))
-                    {
-                        string projectDir9 = System.IO.Path.GetDirectoryName(docPath9);
-                        if (!string.IsNullOrEmpty(projectDir9))
-                        {
-                            string dropFolder9 = System.IO.Path.Combine(projectDir9, "_ifc_drop");
-                            if (System.IO.Directory.Exists(dropFolder9) && _activeIfcDropWatcher == null)
-                            {
-                                var watcher9 = new StingBridge.IFC.IfcDropWatcher(dropFolder9);
-                                watcher9.FileArrived += (_, wArgs) =>
-                                {
-                                    StingLog.Info($"IfcDropWatcher (auto): IFC arrived → {wArgs.FilePath}");
-                                    // Queue import on the Revit external event so we run on the API thread.
-                                    var handler = new StingBridge.IFC.DropFolderImportEventHandler(e.Document, wArgs.FilePath);
-                                    var ev = Autodesk.Revit.UI.ExternalEvent.Create(handler);
-                                    ev.Raise();
-                                };
-                                watcher9.Start();
-                                _activeIfcDropWatcher = watcher9;
-                                StingLog.Info($"Gap 9: IfcDropWatcher auto-started on {dropFolder9}");
-                            }
-                        }
-                    }
-                }
-                catch (Exception w9Ex) { StingLog.Warn($"Gap 9 IfcDropWatcher auto-start: {w9Ex.Message}"); }
+                // Phase 184 — Gap 9 IfcDropWatcher auto-start block removed.
+                // The Document-open hot path was deactivated alongside the
+                // _activeIfcDropWatcher field. Commands that need a drop-folder
+                // watcher should instantiate StingBridge.IFC.IfcDropWatcher
+                // directly and manage its lifetime themselves.
 
                 // Phase 77: Consume any pending workflow presets from WorkflowScheduler triggers
                 // (document-open, compliance-fall, SLA-violation, warning-threshold triggers)
@@ -1191,7 +1170,9 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"SyncScheduler stop: {ex.Message}"); }
 
-            try { _activeIfcDropWatcher?.Dispose(); _activeIfcDropWatcher = null; } catch { }
+            // Phase 184 — _activeIfcDropWatcher Dispose removed alongside the
+            // Gap 9 auto-start block. The IfcDropWatcher class itself remains
+            // available in Commands/IFC/StingBridgeStubs.cs.
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
             StingTag7NarrativeUpdater.Unregister();

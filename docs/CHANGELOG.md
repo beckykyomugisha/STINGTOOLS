@@ -4793,3 +4793,60 @@ instance/type parameters instead of degrading silently.
 1. Built without `dotnet build` verification (Linux sandbox).
 2. `ParameterHelpers.SetString` honours each parameter's Instance vs Type binding semantics — writing to a Type-bound parameter from a code path that holds an `Element` (instance) goes through `Element.LookupParameter`, which finds the type's parameter automatically. Writing to an Instance-bound parameter from a Type code path won't work; the HVAC commands all hold instances so this hazard doesn't arise.
 3. The Revit shared-parameter file (`MR_PARAMETERS.txt`) plus this binding CSV together form the "load shared parameters" pipeline run by `LoadSharedParamsCommand` (`Tags/LoadSharedParamsCommand.cs`). Projects opened before Phase 184/185 need to re-run `LoadSharedParams` to bind the new params.
+
+#### Completed (Phase 186 — integrate local edits from claude/fix-errors-7HSLJ)
+
+**Scope**: integrate three legitimate edits the user had pending on a
+sibling branch (`origin/claude/fix-errors-7HSLJ`) that were blocking
+a `git pull` of the HVAC branch. The pull failed because the user had
+uncommitted modifications to two files; by landing those edits cleanly
+in this branch the next pull will fast-forward.
+
+**Integrated changes**:
+
+1. `#nullable enable annotations` pragma added to
+   `Commands/IFC/StingBridgeStubs.cs` and `Core/StingToolsApp.cs`.
+   Opt-in C# 8 nullable-reference annotations — harmless, additive.
+
+2. `_activeIfcDropWatcher` field + Gap 9 IFC drop-folder auto-start
+   block + Dispose call removed from `StingToolsApp.cs`. The
+   Document-open hot path was deactivated. The `IfcDropWatcher` class
+   itself remains available in `Commands/IFC/StingBridgeStubs.cs` for
+   any command that wants to start a watcher explicitly.
+
+3. `_sldUpdaterId` field declaration now wrapped in
+   `#pragma warning disable/restore CS0649` since it's reserved for
+   Phase 175 SLD sync updater wiring (assignment lands later).
+
+**Not integrated**: unresolved merge-conflict markers
+(`<<<<<<< HEAD` / `=======` / `>>>>>>>` referencing
+`origin/claude/review-model-collaboration-3ZiRc`) were physically
+present in the sibling branch's `StingToolsApp.cs` and would not have
+compiled there. They are NOT brought across — this branch resolves the
+conflict in the obvious direction (keep the SLD pragma, drop the
+IfcDropWatcher field).
+
+**Build errors carried over from Phase 184**:
+
+The CS0117 errors that re-appeared in the user's screenshot
+(`StingCommandHandler.Instance`, `PostableCommand.AnalyzeHeatingAndCoolingLoads`)
+were already fixed in Phase 181/184. The sibling branch
+`claude/fix-errors-7HSLJ` simply hadn't picked up those fixes yet —
+they arrive automatically with the next pull of this branch via the
+`ResolveLoadsCommandId()` reflection helper (zero compile-time
+references to the missing enum member) and the
+`StingDockPanel.DispatchCommand` fallback dispatch (zero references to
+the missing `Instance` property). `grep` of the entire repo confirms
+no non-comment references to either broken API remain.
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Commands/IFC/StingBridgeStubs.cs` | +`#nullable enable annotations` |
+| `StingTools/Core/StingToolsApp.cs` | +`#nullable enable annotations`, `_sldUpdaterId` wrapped in CS0649 pragmas, `_activeIfcDropWatcher` field + Gap 9 block + Dispose call removed |
+| `docs/CHANGELOG.md` | this entry |
+
+**Caveat**:
+
+1. Built without `dotnet build` verification (Linux sandbox). The user's pull command should now succeed and the resulting build should be clean.
