@@ -4,6 +4,7 @@
 // are already baked in by the exporter.
 using System;
 using System.Collections.Generic;
+using Autodesk.Revit.DB;
 
 namespace StingTools.Core.Clash
 {

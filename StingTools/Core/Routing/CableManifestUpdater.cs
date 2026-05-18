@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Cable Manifest IUpdater.
 //
 // Watches conduit and cable-tray elements for deletion or geometry change

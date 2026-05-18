@@ -1,0 +1,89 @@
+# This is a Revit shared parameter file.
+# Do not edit manually.
+# ──────────────────────────────────────────────────────────────────────────────
+# STING ISO 6412 Symbol Family — Shared Parameter Contract
+# Version : 1.0   Date : 2026-05-17
+# ──────────────────────────────────────────────────────────────────────────────
+# PURPOSE
+#   Load this file into every ISO 6412 Detail Item family in this folder
+#   (Family Editor → Manage → Shared Parameters → Browse…).
+#   Bind all parameters listed below as INSTANCE parameters.
+#   A family that carries these parameters unlocks:
+#     • Scale-aware linework (Symbol Scale)
+#     • Idempotent re-placement (STING_PLACED_BY_SYMBOL_PLACER_BOOL)
+#     • Audit trail and undo (STING_PLACER_ASSY_ID_TXT, …MEMBER_ID…, …SYMBOL_CODE…)
+#     • Finalization gate checked by BuildSeedFamiliesCommand
+#       (STING_FINALIZATION_CHECKLIST)
+#   Missing parameters are logged as warnings; placement continues but
+#   features degrade (duplicates may accumulate on re-run, scale will not
+#   auto-adjust).
+#
+# BINDING INSTRUCTIONS
+#   1.  Open the .rfa in the Family Editor.
+#   2.  Manage → Shared Parameters → Browse… → select this file.
+#   3.  For each parameter in Group 1 (STING - ISO 6412 Symbols):
+#         Add → check "Instance" → OK.
+#   4.  Do NOT bind as Type parameters — the placer writes per-instance.
+#   5.  Save and reload into the target project.
+#
+# FINALIZATION GATE
+#   Set STING_FINALIZATION_CHECKLIST = 1 only after:
+#     □  Detail linework centred at origin and passes 1:25 + 1:50 plot test
+#     □  Symbol Scale parameter present and controlling linework size formula
+#     □  All placement-stamp parameters added as instance shared params
+#     □  Family loads into a blank project without warnings
+#     □  Family name matches CSV family_filename column exactly (inc. case)
+#   Families with STING_FINALIZATION_CHECKLIST = 0 (or absent) are flagged
+#   by BuildSeedFamiliesCommand as incomplete and excluded from bundle exports.
+# ──────────────────────────────────────────────────────────────────────────────
+*META	VERSION	MINVERSION
+META	2	1
+*GROUP	ID	NAME
+GROUP	1	STING - ISO 6412 Symbols
+*PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE	HIDEWHENNOVALUE
+PARAM	d4e7f3a1-8b2c-4d5e-9f0a-1b2c3d4e5f6a	Symbol Scale	INTEGER		1	1	View scale denominator (50 for 1:50). Controls linework size formulae. Default 50. Written by IsoSymbolPlacer.PlaceSymbols() at placement time.	1	0
+PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d	STING_PLACED_BY_SYMBOL_PLACER_BOOL	INTEGER		1	1	Set to 1 by IsoSymbolPlacer after successful placement. Required for NewOnly idempotency checks and Replace-mode purge. Set to 0 in family template.	1	0
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e	STING_PLACER_ASSY_ID_TXT	TEXT		1	1	ElementId of the owning AssemblyInstance as a string. Written by placer. Used in audit CSV and undo bundle.	1	0
+PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f	STING_PLACER_MEMBER_ID_TXT	TEXT		1	1	ElementId of the source MEP member (pipe / duct / conduit / fitting). Key for NewOnly duplicate detection.	1	0
+PARAM	d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a	STING_PLACER_SYMBOL_CODE_TXT	TEXT		1	1	CSV symbol_code that resolved to this family (e.g. ELBOW_90_BW). Surfaced in the fabrication result dialog and audit trail.	1	0
+PARAM	e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b	STING_ISO_SYMBOL_SCALE_IN	NUMBER		1	1	STING-namespaced mirror of Symbol Scale as a Double. Use in linework formulae where Integer parameters cannot be referenced directly in some formula contexts.	1	0
+PARAM	f6a7b8c9-d0e1-4f2a-3b4c-5d6e7f8a9b0c	STING_FINALIZATION_CHECKLIST	INTEGER		1	1	Author sets to 1 when all checklist items in README.md are complete. BuildSeedFamiliesCommand rejects families where this equals 0.	1	0
+# ──────────────────────────────────────────────────────────────────────────────
+# LINEWORK SIZE FORMULA PATTERN
+#   Add a Length family parameter named e.g. "Detail Line Length" and set
+#   its formula to:
+#
+#     Detail Line Length = STING_ISO_SYMBOL_SCALE_IN / 50 * 8 mm
+#
+#   This keeps plotted size constant at 8 mm at 1:50, 8 mm at 1:25, etc.
+#   Replace 8 mm with the appropriate dimension for each line segment.
+#   The Integer parameter "Symbol Scale" cannot be used directly in formulae
+#   in older Family template versions — use the NUMBER mirror instead.
+#
+#   Alternative pattern (Revit 2025+, Integer formula support):
+#
+#     Detail Line Length = Symbol Scale / 50 * 8 mm
+#
+# SCALE TIER CONVENTION
+#   Symbol Scale value  → Plotted size target
+#   ─────────────────────────────────────────
+#   ≤ 25                → 6 mm  (large-scale detail)
+#   26 – 50             → 8 mm  (standard spool / section)
+#   51 – 100            → 6 mm  (reduced for medium drawings)
+#   > 100               → 4 mm  (diagram / small scale)
+#
+#   IsoSymbolPlacer sets Symbol Scale = view.Scale at placement.
+#   For a DraftingView (SLD / diagram) the placer uses scale = 1 so
+#   families intended for SLD drafting views must author at scale = 1.
+# ──────────────────────────────────────────────────────────────────────────────
+# PARAMETER GROUP SUMMARY
+#
+# GROUP 1  —  STING - ISO 6412 Symbols
+#   Symbol Scale                         INTEGER  default=50  (controls sizing)
+#   STING_PLACED_BY_SYMBOL_PLACER_BOOL   INTEGER  default=0   (idempotency)
+#   STING_PLACER_ASSY_ID_TXT             TEXT     default=""  (audit)
+#   STING_PLACER_MEMBER_ID_TXT           TEXT     default=""  (audit / dup check)
+#   STING_PLACER_SYMBOL_CODE_TXT         TEXT     default=""  (audit)
+#   STING_ISO_SYMBOL_SCALE_IN            NUMBER   default=50  (formula mirror)
+#   STING_FINALIZATION_CHECKLIST         INTEGER  default=0   (gate)
+# ──────────────────────────────────────────────────────────────────────────────

@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139.25 — silently dismiss the predictable Revit failures that
 // the placement engine knowingly produces during a Place run:
 //

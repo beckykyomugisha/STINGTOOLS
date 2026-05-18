@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
@@ -2079,7 +2080,7 @@ namespace StingTools.Core
             string existingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
             bool statusNeedsWrite = string.IsNullOrEmpty(existingStatus)
                 || overwrite
-                || TagConfig.TagConfig.AutoCorrectStatusFromPhase;
+                || TagConfig.AutoCorrectStatusFromPhase;
             if (statusNeedsWrite)
             {
                 // Use cached phase data when available (batch), fall back to uncached (single element)
@@ -2087,7 +2088,7 @@ namespace StingTools.Core
                     ? PhaseAutoDetect.DetectStatusCached(doc, el, ctx.CachedPhases, ctx.LastPhaseId)
                     : PhaseAutoDetect.DetectStatus(doc, el);
                 if (string.IsNullOrEmpty(status)) status = ctx.DefaultStatus;
-                bool forceWrite = overwrite || TagConfig.TagConfig.AutoCorrectStatusFromPhase;
+                bool forceWrite = overwrite || TagConfig.AutoCorrectStatusFromPhase;
                 if (forceWrite)
                 {
                     if (ParameterHelpers.SetString(el, ParamRegistry.STATUS, status, overwrite: true))
@@ -2547,7 +2548,7 @@ namespace StingTools.Core
                         written += SetIfEmptyInt(el, ParamRegistry.DEPT,
                             dept.AsString() ?? "");
                 }
-                catch (Exception ex) { StingLog.Warn($"Room department mapping failed: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"Room department mapping failed: {ex2.Message}"); }
             }
 
             // ── Dimensional parameters (BLE_ schedule fields) ──────────────────
@@ -3996,7 +3997,7 @@ namespace StingTools.Core
                             if (TokenParamMap.TryGetValue(kvp.Key, out string paramName))
                             {
                                 try { ParameterHelpers.SetString(el, paramName, kvp.Value, overwrite: true); }
-                                catch (Exception lockEx)
+                                catch (Exception lockEx2)
                                 {
                                     StingLog.Warn($"TagPipeline: failed to restore locked token {kvp.Key} on {el.Id}: {lockEx.Message}");
                                 }

@@ -1,3 +1,4 @@
+using System;
 // StingTools — Drawing Template Manager · Week 2
 //
 // ViewStylePack factors the graphic-override payload out of
@@ -146,15 +147,6 @@ namespace StingTools.Core.Drawing
         public System.Collections.Generic.Dictionary<string, bool> CategoryTag7Sections { get; set; }
     }
 
-    /// <summary>Serialisable view range specification for managed templates.</summary>
-    public sealed class PackViewRange
-    {
-        [JsonProperty("topOffset")]    public double TopOffset { get; set; }
-        [JsonProperty("cutOffset")]    public double CutOffset { get; set; }
-        [JsonProperty("bottomOffset")] public double BottomOffset { get; set; }
-        [JsonProperty("viewDepth")]    public double ViewDepth { get; set; }
-    }
-
     public sealed class StyleFilterRule
     {
         [JsonProperty("filterName")]          public string FilterName { get; set; }
@@ -181,5 +173,28 @@ namespace StingTools.Core.Drawing
     {
         [JsonProperty("version")] public int Version { get; set; } = 1;
         [JsonProperty("viewStylePacks")] public List<ViewStylePack> Packs { get; set; } = new List<ViewStylePack>();
+    }
+
+    /// <summary>
+    /// Underlay settings carried by a <see cref="ViewStylePack"/>: which level
+    /// and whether to show it above or below.
+    /// </summary>
+    public sealed class PackUnderlay
+    {
+        [JsonProperty("levelName")]   public string LevelName   { get; set; }
+        [JsonProperty("orientation")] public string Orientation { get; set; } = "LookingDown";
+    }
+
+    /// <summary>
+    /// View-range offsets (in mm) carried by a <see cref="ViewStylePack"/>.
+    /// All values are optional; only the supplied offsets are written to the
+    /// view template's PlanViewRange.
+    /// </summary>
+    public sealed class PackViewRange
+    {
+        [JsonProperty("topOffsetMm",    NullValueHandling = NullValueHandling.Ignore)] public double? TopOffsetMm    { get; set; }
+        [JsonProperty("cutOffsetMm",    NullValueHandling = NullValueHandling.Ignore)] public double? CutOffsetMm    { get; set; }
+        [JsonProperty("bottomOffsetMm", NullValueHandling = NullValueHandling.Ignore)] public double? BottomOffsetMm { get; set; }
+        [JsonProperty("viewDepthMm",    NullValueHandling = NullValueHandling.Ignore)] public double? ViewDepthMm    { get; set; }
     }
 }

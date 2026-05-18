@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using StingTools.Commands.Electrical.VoltageDrop;
+using StingTools.Core;
 
 namespace StingTools.Commands.Electrical.CableSizer
 {

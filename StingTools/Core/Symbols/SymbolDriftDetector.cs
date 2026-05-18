@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — drift detector (Phase 175)
 //
 // Compares each STING symbol tag's stamped standard against the standard

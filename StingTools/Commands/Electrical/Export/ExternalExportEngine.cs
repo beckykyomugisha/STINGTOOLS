@@ -8,6 +8,7 @@ using Autodesk.Revit.DB.Electrical;
 using StingTools.Commands.Electrical.ArcFlash;
 using StingTools.Commands.Electrical.FaultCurrent;
 using StingTools.Core;
+using Autodesk.Revit.UI;
 
 namespace StingTools.Commands.Electrical.Export
 {
@@ -407,7 +408,7 @@ namespace StingTools.Commands.Electrical.Export
                     if (v.StartsWith("C")) return "C";
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
             return "A";
         }
     }

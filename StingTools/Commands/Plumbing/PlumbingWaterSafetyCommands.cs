@@ -225,7 +225,7 @@ namespace StingTools.Commands.Plumbing
                         fixtureCount, dhwPipeCount, tankCount, highRisk, mediumRisk);
                     File.WriteAllText(outputPath, txt, Encoding.UTF8);
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     StingLog.Warn("PlumbLegionellaReport txt write: " + ex.Message);
                     outputPath = null;

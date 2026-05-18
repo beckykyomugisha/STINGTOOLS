@@ -1,6 +1,24 @@
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Media;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using Button     = System.Windows.Controls.Button;
+using ComboBox   = System.Windows.Controls.ComboBox;
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
-using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
+using Grid       = System.Windows.Controls.Grid;
+using TextBox    = System.Windows.Controls.TextBox;
+using Visibility = System.Windows.Visibility;
+using SelectionChangedEventArgs = System.Windows.Controls.SelectionChangedEventArgs;
 using StingTools.Core;
+using Autodesk.Revit.DB.Architecture;
+using Grid = System.Windows.Controls.Grid;
 namespace StingTools.UI
 {
     /// <summary>

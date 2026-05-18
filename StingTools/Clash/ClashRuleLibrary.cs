@@ -1,3 +1,4 @@
+using StingTools.Core;
 // ClashRuleLibrary.cs — JSON-editable rules that supplement the built-in rule set.
 using System;
 using System.Collections.Generic;

@@ -119,7 +119,7 @@ namespace StingTools.Commands.Routing
                         DrawPreview(doc, view, res);
                     tx.Commit();
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
                     StingLog.Error("PlaceHangersCommand transaction", ex);

@@ -187,8 +187,8 @@ namespace StingTools.Docs
             }
             finally
             {
-                try { master?.Close(false); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                try { acad?.Quit(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { master?.Close(false); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
+                try { acad?.Quit(); } catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); }
                 if (acad != null && Marshal.IsComObject(acad))
                     Marshal.FinalReleaseComObject(acad);
             }

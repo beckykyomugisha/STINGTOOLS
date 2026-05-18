@@ -103,7 +103,7 @@ namespace StingTools.Commands.Routing
                                 var line = Line.CreateBound(path.Points[i], path.Points[i + 1]);
                                 doc.Create.NewDetailCurve(view, line);
                             }
-                            catch (Exception ex)
+                            catch (Exception ex2)
                             {
                                 StingLog.Warn($"GenerateLayoutCommand: DetailCurve draw failed at seg {i}: {ex.Message}");
                             }
@@ -111,7 +111,7 @@ namespace StingTools.Commands.Routing
                     }
                     tx.Commit();
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
                     StingLog.Error("GenerateLayoutCommand: transaction failed", ex);

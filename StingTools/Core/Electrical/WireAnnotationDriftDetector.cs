@@ -97,7 +97,7 @@ namespace StingTools.Core.Electrical
                     try
                     {
                         var wireData    = WireAnnotationEngine.ReadWireData(conduit);
-                        expectedText    = WireAnnotationEngine.BuildAnnotationText(wireData);
+                        expectedText    = WireAnnotationEngine.BuildAnnotationText(wireData, WireAnnotationStyle.Default());
                     }
                     catch (Exception ex)
                     {
@@ -163,7 +163,7 @@ namespace StingTools.Core.Electrical
                     // Re-read and re-place
                     WireAnnotationData wireData = WireAnnotationEngine.ReadWireData(conduit);
                     ElementId newAnnotId = WireAnnotationEngine.PlaceAnnotation(
-                        doc, view, conduit, wireData, addTickMarks: true);
+                        doc, view, conduit, wireData, WireAnnotationStyle.Default());
 
                     if (newAnnotId != ElementId.InvalidElementId)
                         refreshed++;

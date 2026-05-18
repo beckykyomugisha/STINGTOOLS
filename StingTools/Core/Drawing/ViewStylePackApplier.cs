@@ -36,6 +36,9 @@ namespace StingTools.Core.Drawing
 
     public static class ViewStylePackApplier
     {
+        public static void InvalidateCache(Document doc) { /* Pack registry is doc-scoped; no separate cache needed. */ }
+        public static void ReadCategoryOverrides(Document doc, View view, ViewStylePack pack) { /* No-op stub. */ }
+
         public static PackApplyResult Apply(Document doc, View view, ViewStylePack pack)
         {
             var r = new PackApplyResult();

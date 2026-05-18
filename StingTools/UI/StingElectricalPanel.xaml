@@ -982,6 +982,88 @@
                                         Tag="SLD_UpdateRiser" Click="Cmd_Click"/>
                             </StackPanel>
                         </Expander>
+
+                        <!-- INLINE ANNOTATIONS expander -->
+                        <Expander Header="INLINE ANNOTATIONS" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Place data labels directly on SLD elements. Stamps are tracked so they update when parameters change."
+                                           FontSize="9" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,6"/>
+
+                                <!-- Master -->
+                                <Button Content="▶ Annotate All (full set)" Margin="0,0,0,4"
+                                        Style="{StaticResource ElecPrimaryBtn}"
+                                        Tag="SldAnnotate_All" Click="Cmd_Click"
+                                        ToolTip="Place cable / rating / voltage / load / fault / diversity annotations on every SLD element in the active view"/>
+
+                                <!-- Format selector -->
+                                <TextBlock Text="Annotation format" Style="{StaticResource ElecLabel}"/>
+                                <WrapPanel Margin="0,0,0,6">
+                                    <Button Content="Compact" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Format_Compact" Click="Cmd_Click"
+                                            ToolTip="4mm² / 32A / B32 — concise inline label"/>
+                                    <Button Content="Full" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Format_Full" Click="Cmd_Click"
+                                            ToolTip="Cable: 4 mm² | Rating: 32 A | Breaker: B32 — verbose with field labels"/>
+                                    <Button Content="Reference" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Format_Reference" Click="Cmd_Click"
+                                            ToolTip="DB-L1.3 — panel + circuit ref only"/>
+                                </WrapPanel>
+
+                                <!-- Per-field row 1 -->
+                                <TextBlock Text="Per-field annotations" Style="{StaticResource ElecLabel}"/>
+                                <UniformGrid Columns="3" Margin="0,0,0,4">
+                                    <Button Content="Voltage" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Voltage" Click="Cmd_Click"
+                                            ToolTip="ELC_CIR_VOLTAGE_TXT — e.g. 230 V"/>
+                                    <Button Content="Current" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Current" Click="Cmd_Click"
+                                            ToolTip="ELC_CIR_DESIGN_CURRENT_TXT — e.g. 16 A"/>
+                                    <Button Content="Fault kA" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Fault" Click="Cmd_Click"
+                                            ToolTip="ELC_CIR_FAULT_LEVEL_TXT — e.g. 3.2 kA"/>
+                                </UniformGrid>
+                                <UniformGrid Columns="3" Margin="0,0,0,4">
+                                    <Button Content="Cable CSA" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Cable" Click="Cmd_Click"
+                                            ToolTip="ELC_CABLE_CSA_TXT — e.g. 4 mm²"/>
+                                    <Button Content="Phase" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Phase" Click="Cmd_Click"
+                                            ToolTip="Phase conductor annotation from circuit data"/>
+                                    <Button Content="Load W" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Load" Click="Cmd_Click"
+                                            ToolTip="ELC_CIR_DESIGN_LOAD_TXT — e.g. 3680 W"/>
+                                </UniformGrid>
+                                <UniformGrid Columns="3" Margin="0,0,0,4">
+                                    <Button Content="Reference" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Reference" Click="Cmd_Click"
+                                            ToolTip="ELC_PNL_NAME_TXT + ELC_CIR_REF_TXT — e.g. DB-L1.3"/>
+                                    <Button Content="Impedance" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Impedance" Click="Cmd_Click"
+                                            ToolTip="ELC_CIR_ZS_TXT — loop impedance Zs"/>
+                                    <Button Content="Diversity" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Diversity" Click="Cmd_Click"
+                                            ToolTip="ELC_CIR_DIVERSITY_FACTOR_TXT — e.g. 0.65"/>
+                                </UniformGrid>
+
+                                <!-- Management row -->
+                                <TextBlock Text="Manage annotations" Style="{StaticResource ElecLabel}"/>
+                                <WrapPanel Margin="0,0,0,2">
+                                    <Button Content="Update from calcs" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_UpdateCalcs" Click="Cmd_Click"
+                                            ToolTip="Re-read ELC_* parameters and refresh all existing annotation TextNotes in place"/>
+                                    <Button Content="Toggle visible" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Toggle" Click="Cmd_Click"
+                                            ToolTip="Show / hide all STING SLD annotations in the active view"/>
+                                    <Button Content="Clear all" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Clear" Click="Cmd_Click"
+                                            ToolTip="Delete all STING SLD annotation TextNotes from the active view"/>
+                                    <Button Content="Audit" Style="{StaticResource ElecActionBtn}"
+                                            Tag="SldAnnotate_Audit" Click="Cmd_Click"
+                                            ToolTip="Report which elements have annotations, which are missing, and which have stale data"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Expander>
+
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

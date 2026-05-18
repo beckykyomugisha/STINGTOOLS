@@ -435,7 +435,7 @@ namespace StingTools.Commands.Drawing
                         if (fam != null) return fam;  // already-loaded short-circuit
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     StingLog.Warn($"LoadFamilyFromDisk '{name}': {ex.Message}");
                 }
@@ -661,7 +661,7 @@ namespace StingTools.Commands.Drawing
                 }
                 finally
                 {
-                    try { famDoc.Close(false); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    try { famDoc.Close(false); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                 }
             }
             catch (Exception ex)

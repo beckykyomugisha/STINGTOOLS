@@ -353,17 +353,17 @@ namespace StingTools.Commands.Lightning
                         {
                             BoundingBoxUV bb;
                             try { bb = face.GetBoundingBox(); }
-                            catch (Exception ex) { StingLog.Warn($"face bbox: {ex.Message}"); continue; }
+                            catch (Exception ex2) { StingLog.Warn($"face bbox: {ex2.Message}"); continue; }
                             if (bb == null) continue;
 
                             UV centerUV = new UV(0.5 * (bb.Min.U + bb.Max.U), 0.5 * (bb.Min.V + bb.Max.V));
                             XYZ n;
                             try { n = face.ComputeNormal(centerUV); }
-                            catch (Exception ex) { StingLog.Warn($"face normal: {ex.Message}"); continue; }
+                            catch (Exception ex3) { StingLog.Warn($"face normal: {ex3.Message}"); continue; }
                             if (n.Z < 0.5) continue;
 
                             double area;
-                            try { area = face.Area; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); area = 0; }
+                            try { area = face.Area; } catch (Exception ex4) { StingLog.Warn($"Suppressed: {ex4.Message}"); area = 0; }
                             double uvArea = (bb.Max.U - bb.Min.U) * (bb.Max.V - bb.Min.V);
                             if (area < 1e-6 || uvArea < 1e-9) continue;
                             double scale = Math.Sqrt(area / uvArea); // world-units per uv-unit
@@ -378,7 +378,7 @@ namespace StingTools.Commands.Lightning
                                     var uv = new UV(u, v);
                                     XYZ p;
                                     try { p = face.Evaluate(uv); }
-                                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
+                                    catch (Exception ex5) { StingLog.Warn($"Suppressed: {ex5.Message}"); continue; }
                                     if (p == null) continue;
                                     yielded++;
                                     yield return p;

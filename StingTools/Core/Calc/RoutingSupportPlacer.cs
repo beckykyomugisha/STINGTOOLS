@@ -32,6 +32,8 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
+using StingTools.Core.Placement;
+using StingTools.Core;
 
 namespace StingTools.Core.Calc
 {
@@ -152,7 +154,7 @@ namespace StingTools.Core.Calc
                     r.PlacedSupportIds.Add(fi.Id);
                     r.SupportsPlaced++;
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     r.Warnings.Add($"RoutingSupportPlacer NewFamilyInstance @ ({c.Point.X:F2},{c.Point.Y:F2}): {ex.Message}");
                 }

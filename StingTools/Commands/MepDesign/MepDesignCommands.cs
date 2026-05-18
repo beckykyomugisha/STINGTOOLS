@@ -71,7 +71,7 @@ namespace StingTools.Commands.MepDesign
                             }
                             else skipped++;
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
                             skipped++;
                             warnings.Add($"circuit {el?.Id}: {ex.Message}");
@@ -422,7 +422,7 @@ namespace StingTools.Commands.MepDesign
             using (var tx = new Transaction(doc, "STING MEP-A-12 balance apply"))
             {
                 try { tx.Start(); }
-                catch (Exception ex) { MepPanel.Build("MEP-A-12 Balance apply", "tx failed").AddSection("").Text(ex.Message).Show(); return Result.Failed; }
+                catch (Exception ex2) { MepPanel.Build("MEP-A-12 Balance apply", "tx failed").AddSection("").Text(ex2.Message).Show(); return Result.Failed; }
                 try
                 {
                     foreach (var b in branches)
@@ -446,11 +446,11 @@ namespace StingTools.Commands.MepDesign
                                 else skipped++;
                             }
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; }
+                        catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); skipped++; }
                     }
                     tx.Commit();
                 }
-                catch (Exception ex)
+                catch (Exception ex3)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
                     StingLog.Warn($"BalanceApply commit: {ex.Message}");

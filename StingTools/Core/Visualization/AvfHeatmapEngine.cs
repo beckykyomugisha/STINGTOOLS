@@ -29,6 +29,7 @@ using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Analysis;
+using StingTools.Core;
 
 namespace StingTools.Core.Visualization
 {

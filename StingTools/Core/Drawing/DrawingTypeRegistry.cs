@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager
 //
 // DrawingTypeRegistry is the single access point for resolved Drawing

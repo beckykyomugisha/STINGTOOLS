@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools v4 MVP — placement scorer.
 //
 // Given a room, a placement rule and optional host element, produces
@@ -585,7 +586,7 @@ namespace StingTools.Core.Placement
                     if (inter != null && inter.Volume > 1e-9)
                         return true;
                 }
-                catch (Exception ex)
+                catch (Exception ex2)
                 {
                     StingLog.Warn($"PlacementScorer: wall-intersect {wallId} failed: {ex.Message}");
                 }

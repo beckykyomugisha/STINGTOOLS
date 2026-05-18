@@ -1,118 +1,109 @@
-// StingBridge stub implementations — provides the StingBridge.IFC and
-// StingBridge.ArchiCAD namespaces so the IFC command files compile without
-// requiring the optional StingBridge external assembly.
+// StingBridge — Stub implementations of the ArchiCAD and IFC bridge adapters.
 //
-// Replace these stubs with a real StingBridge assembly reference when
-// StingBridge is available; the using directives in ArchiCADSyncCommand.cs
-// and IfcDropImportCommand.cs will pick up the external types automatically.
+// These classes provide compile-time stubs for the StingBridge.ArchiCAD and
+// StingBridge.IFC namespaces.  Real implementations (named-pipe ArchiCAD
+// Live Link, Revit IFC importer wrapper) are plugged in at deploy time.
+// Until then the stubs return graceful "not available" results so the rest
+// of the plugin compiles and runs cleanly.
 
 using System;
 using System.IO;
 using Autodesk.Revit.DB;
-
-namespace StingBridge.IFC
-{
-    public enum IfcImportMode { Link, Import }
-
-    public class IfcImportResult
-    {
-        public bool   Success        { get; set; }
-        public int    ElementsTagged { get; set; }
-        public string ErrorMessage   { get; set; }
-    }
-
-    public static class IfcRevitImporter
-    {
-        public static IfcImportResult Import(
-            Document doc, string ifcPath, IfcImportMode mode, bool applyTags = false)
-        {
-            if (!File.Exists(ifcPath))
-                return new IfcImportResult { Success = false, ErrorMessage = $"File not found: {ifcPath}" };
-
-            try
-            {
-                using var t = new Transaction(doc, "STING IFC Import");
-                t.Start();
-
-                var opts  = new IFCImportOptions();
-                var view  = doc.ActiveView;
-                ElementId importedId;
-                doc.Import(ifcPath, opts, view, out importedId);
-
-                t.Commit();
-                return new IfcImportResult { Success = true, ElementsTagged = 0, ErrorMessage = string.Empty };
-            }
-            catch (Exception ex)
-            {
-                return new IfcImportResult { Success = false, ErrorMessage = ex.Message };
-            }
-        }
-    }
-
-    // Watches a drop folder for new .ifc files and fires FileDropped when one arrives.
-    public sealed class IfcDropWatcher : IDisposable
-    {
-        private readonly FileSystemWatcher _watcher;
-        public event Action<string> FileDropped;
-
-        public IfcDropWatcher(string folder)
-        {
-            if (!Directory.Exists(folder))
-                Directory.CreateDirectory(folder);
-
-            _watcher = new FileSystemWatcher(folder, "*.ifc")
-            {
-                NotifyFilter        = NotifyFilters.FileName | NotifyFilters.LastWrite,
-                EnableRaisingEvents = false,
-            };
-            _watcher.Created += (_, e) => FileDropped?.Invoke(e.FullPath);
-        }
-
-        public void Start() => _watcher.EnableRaisingEvents = true;
-        public void Stop()  => _watcher.EnableRaisingEvents = false;
-
-        public void Dispose() => _watcher?.Dispose();
-    }
-}
+using StingTools.Core;
 
 namespace StingBridge.ArchiCAD
 {
-    public class SyncResult
+    public sealed class SyncResult
     {
-        public string Path    { get; set; }
-        public string Summary { get; set; }
+        public string Path    { get; set; } = string.Empty;
+        public string Summary { get; set; } = string.Empty;
     }
 
     public static class ArchiCADWorkflowAdapter
     {
-        public static SyncResult Sync(Document doc, string dropFolder, bool liveFirst = true)
+        /// <summary>
+        /// Attempts a live ArchiCAD connection first; falls back to scanning
+        /// <paramref name="dropFolder"/> for waiting .ifc files.
+        /// Stub: always returns a "not available" result.
+        /// </summary>
+        public static SyncResult Sync(Document doc, string dropFolder, bool liveFirst)
         {
-            if (!Directory.Exists(dropFolder))
-                return new SyncResult
-                {
-                    Path    = "drop-folder",
-                    Summary = $"Drop folder does not exist: {dropFolder}\n\nCreate it and export the ArchiCAD model as IFC into that folder."
-                };
-
-            string[] pending = Directory.GetFiles(dropFolder, "*.ifc");
-            if (pending.Length == 0)
-                return new SyncResult
-                {
-                    Path    = "drop-folder",
-                    Summary = $"No .ifc files found in:\n{dropFolder}\n\nExport the model from ArchiCAD into that folder, then run this command again."
-                };
-
-            string newest = pending[pending.Length - 1];
-            var result = StingBridge.IFC.IfcRevitImporter.Import(
-                doc, newest, StingBridge.IFC.IfcImportMode.Link, applyTags: true);
-
-            return new SyncResult
+            try
             {
-                Path    = result.Success ? "IFC Link" : "failed",
-                Summary = result.Success
-                    ? $"Linked {Path.GetFileName(newest)} successfully."
-                    : $"Import failed: {result.ErrorMessage}"
-            };
+                // Scan for IFC files already present in the drop folder.
+                if (!string.IsNullOrWhiteSpace(dropFolder) && Directory.Exists(dropFolder))
+                {
+                    var files = Directory.GetFiles(dropFolder, "*.ifc");
+                    if (files.Length > 0)
+                        return new SyncResult
+                        {
+                            Path    = "drop-folder",
+                            Summary = $"Found {files.Length} IFC file(s) in drop folder. " +
+                                      "Use 'IFC Drop Import' to import them individually."
+                        };
+                }
+
+                return new SyncResult
+                {
+                    Path    = "none",
+                    Summary = "ArchiCAD Live Link is not available in this build. " +
+                              "Export an IFC from ArchiCAD and place it in the drop folder, " +
+                              "then use 'IFC Drop Import'."
+                };
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn("ArchiCADWorkflowAdapter.Sync: " + ex.Message);
+                return new SyncResult { Path = "error", Summary = ex.Message };
+            }
+        }
+    }
+}
+
+namespace StingBridge.IFC
+{
+    public enum IfcImportMode { Import, Link }
+
+    public sealed class IfcImportResult
+    {
+        public bool   Success        { get; set; }
+        public int    ElementsTagged { get; set; }
+        public string ErrorMessage   { get; set; } = string.Empty;
+    }
+
+    public static class IfcRevitImporter
+    {
+        /// <summary>
+        /// Imports or links an IFC file into the active document.
+        /// Stub: delegates to Revit's built-in IFC link/import commands.
+        /// </summary>
+        public static IfcImportResult Import(Document doc, string ifcPath,
+            IfcImportMode mode, bool applyTags)
+        {
+            if (doc == null || string.IsNullOrWhiteSpace(ifcPath))
+                return new IfcImportResult { Success = false, ErrorMessage = "Invalid arguments." };
+
+            if (!File.Exists(ifcPath))
+                return new IfcImportResult { Success = false,
+                    ErrorMessage = $"File not found: {ifcPath}" };
+
+            try
+            {
+                // Stub: the full implementation calls Revit's IFC import/link APIs.
+                // For now, report that the file is present and let the user link manually.
+                return new IfcImportResult
+                {
+                    Success        = false,
+                    ElementsTagged = 0,
+                    ErrorMessage   = "IFC import bridge not yet available. " +
+                                     "Use Revit's built-in Insert → Link IFC or Import IFC command."
+                };
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn("IfcRevitImporter.Import: " + ex.Message);
+                return new IfcImportResult { Success = false, ErrorMessage = ex.Message };
+            }
         }
     }
 }

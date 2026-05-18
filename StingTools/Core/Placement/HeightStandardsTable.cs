@@ -1,3 +1,4 @@
+using StingTools.Core;
 // Phase 139 — Height standards lookup table.
 //
 // Loaded once from Data/Placement/STING_HEIGHT_STANDARDS.json (alongside

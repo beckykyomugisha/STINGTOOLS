@@ -1,3 +1,4 @@
+using StingTools.Core;
 // StingTools — Drawing Template Manager · INT-06 fix
 //
 // DrawingTokenContext is the single source of truth for the token
@@ -17,6 +18,7 @@
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
+using System.Linq;
 
 namespace StingTools.Core.Drawing
 {

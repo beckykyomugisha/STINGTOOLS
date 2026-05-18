@@ -1,3 +1,4 @@
+using System;
 // DWG-CURVE-01: Curved wall support from DWG arc segments.
 //
 // The Phase 142 wall pipeline rejects arc segments — only straight lines convert.
