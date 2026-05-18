@@ -29,6 +29,7 @@ using StingTools.Core;
 using StingTools.Core.Storage;
 using StingTools.Core.Validation;
 using StingTools.Core.Validation.Cost;
+using StingTools.UI;
 
 namespace StingTools.Commands.Cost
 {
@@ -196,25 +197,33 @@ namespace StingTools.Commands.Cost
                     return Result.Cancelled;
                 }
 
-                var td = new TaskDialog("STING — Run cost workflow")
+                // Replaced the 4-link TaskDialog cap with StingListPicker
+                // so the picker scales as more BOQ workflow presets are
+                // authored. Each item's Tag holds the preset summary so
+                // we can round-trip the file path without re-parsing.
+                var items = presets.Select(p => new StingListPicker.ListItem
                 {
-                    MainInstruction = "Pick a cost workflow preset",
-                    AllowCancellation = true
-                };
-                for (int i = 0; i < presets.Count && i < 4; i++)
-                {
-                    td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1 + i,
-                        presets[i].Name ?? Path.GetFileNameWithoutExtension(presets[i].Path),
-                        presets[i].Description ?? "");
-                }
-                var picked = td.Show();
-                int idx = (int)picked - (int)TaskDialogCommandLinkId.CommandLink1;
-                if (idx < 0 || idx >= presets.Count) return Result.Cancelled;
+                    Label = p.Name ?? Path.GetFileNameWithoutExtension(p.Path),
+                    Detail = string.IsNullOrEmpty(p.Description)
+                        ? Path.GetFileName(p.Path)
+                        : p.Description,
+                    Tag = p
+                }).ToList();
 
-                var preset = LoadPreset(presets[idx].Path);
+                var picked = StingListPicker.Show(
+                    "STING — Run cost workflow",
+                    "Pick a BOQ workflow preset to execute.",
+                    items,
+                    allowMultiSelect: false);
+
+                if (picked == null || picked.Count == 0) return Result.Cancelled;
+                var chosen = picked[0].Tag as PresetSummary;
+                if (chosen == null) return Result.Cancelled;
+
+                var preset = LoadPreset(chosen.Path);
                 if (preset == null)
                 {
-                    message = $"Failed to load preset: {presets[idx].Path}";
+                    message = $"Failed to load preset: {chosen.Path}";
                     return Result.Failed;
                 }
                 return WorkflowEngine.ExecutePreset(preset, commandData, elements);

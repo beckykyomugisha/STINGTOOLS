@@ -2,6 +2,17 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 184c — Cost management follow-ups)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes two caveats called out at the end of Phase 184b.
+
+- `StingTools/Data/MR_PARAMETERS.txt` — appended the 7 cost shared parameters (`ASS_CST_UNIT_RATE_NR`, `ASS_CST_CURRENCY_TXT`, `ASS_CST_FX_TO_BASE_NR`, `ASS_CST_FX_DATE_DT`, `ASS_CST_AS_OF_DT`, `ASS_CST_STALE_BOOL`, `ASS_CST_STALE_REASON_TXT`) so `LoadSharedParamsCommand` binds them automatically on the next project setup run. GUIDs match `ParamRegistry.cs` + `PARAMETER_REGISTRY.json`. File encoding (UTF-16 LE + BOM + tab-separated) preserved via a Python helper.
+- `StingTools/Commands/Cost/CostCommands.cs` — `Cost_RunWorkflow` swapped from `TaskDialog.AddCommandLink` (cap of 4 visible options) to `StingListPicker` with search + filter. Each item carries the preset summary on its `Tag` so the file path round-trips without re-parsing. Now scales to N workflow presets.
+
+Cost IUpdater (`StingCostStaleMarker`) opt-in default deliberately retained — same pattern as `StingAutoTagger` / `StingStaleMarker`. Users enable via `Cost_ToggleStaleMarker`.
+
+---
+
 #### Completed (Phase 184b — Cost management P0.1 + P0.2 + P2 + P3)
 
 Branch: `claude/revit-api-cost-management-qH8Vv`. Second commit of Phase 184. Implements the remaining work from `docs/COST_MANAGEMENT_IMPLEMENTATION_PLAN.md` (P0.1 = ES schema v2, P0.2 = currency-neutral params + migration, P2 = IUpdater + validators + workflow presets, P3 = 4D/5D rate-engine unification). Built without `dotnet build` verification (Linux sandbox).
