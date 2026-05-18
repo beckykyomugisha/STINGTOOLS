@@ -76,11 +76,13 @@
        surfaces can't get out of sync again.
 
        Not handled here: three.min.js + GLTFLoader/OrbitControls/DRACOLoader
-       /MeshoptDecoder stubs. Those are outputs of build.mjs (npm install &&
-       npm run build in Planscape/assets/viewer/) and the dist/ folder is
-       gitignored, so there's nothing to sync from. The wwwroot copies are
-       the canonical build artefacts — to refresh them, run the viewer
-       build pipeline and check the new dist/ files in by hand. -->
+       /MeshoptDecoder stubs. Those are outputs of build.mjs and the dist/
+       folder is gitignored, so there's nothing in source for MSBuild to
+       copy from. To refresh them after a three.js upgrade:
+         cd Planscape/assets/viewer
+         npm install
+         npm run sync-wwwroot   # builds dist/ + copies the 5 files into wwwroot
+       Then commit the updated wwwroot/three.min.js + stubs. -->
   <ItemGroup>
     <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\viewer.html" />
     <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\coordination-viewer.js" />
