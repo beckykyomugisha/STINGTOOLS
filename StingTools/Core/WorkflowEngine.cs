@@ -1563,6 +1563,11 @@ namespace StingTools.Core
                 case "Cost_ReloadRules":        return new Commands.Cost.CostReloadRulesCommand();
                 case "Cost_MigrateCurrencyParams": return new Commands.Cost.CostMigrateCurrencyParamsCommand();
                 case "Cost_MigrateESEntities":     return new Commands.Cost.CostMigrateESEntitiesCommand();
+
+                // Phase 184f — P4 NRM1 cost plan
+                case "CostPlan_Create":            return new Commands.Cost.CostPlanCreateCommand();
+                case "CostPlan_Compare":           return new Commands.Cost.CostPlanCompareCommand();
+                case "CostPlan_Export":            return new Commands.Cost.CostPlanExportCommand();
                 case "BatchFamilyParams": return new Temp.BatchAddFamilyParamsCommand();
                 case "FamilyParamProcessor": return new Temp.FamilyParameterProcessorCommand();
 

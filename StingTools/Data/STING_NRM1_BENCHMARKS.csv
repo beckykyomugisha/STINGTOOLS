@@ -1,0 +1,134 @@
+# STING_NRM1_BENCHMARKS.csv — Phase 184f / P4.
+#
+# Elemental cost-plan benchmarks per RIBA 1-3 estimating.
+# Rates are GBP per m² GIFA at the most-likely value with low/high bands.
+# Source: indicative figures derived from BCIS All-In TPI Q1-2026 + RIBA
+# Plan of Work cost-plan templates. Customise per project by adding rows
+# to <project>/_BIM_COORD/nrm1_benchmarks.csv (overrides by
+# BuildingType + ElementCode).
+#
+# Building types covered:
+#   office_cat_A         — open-plan office shell to BCO Cat A
+#   office_cat_B         — fitted-out office, Cat B
+#   residential_apartment — apartment / mansion block
+#   school_secondary     — secondary school, DfE GDB rates
+#   healthcare_acute     — acute hospital ward, HBN baseline
+#   warehouse_logistics  — shed / distribution, low-spec MEP
+#
+# Columns: BuildingType,ElementCode,ElementName,Unit,LowRate,LikelyRate,HighRate,Source
+BuildingType,ElementCode,ElementName,Unit,LowRate,LikelyRate,HighRate,Source
+office_cat_A,1,Substructure,m² GIFA,80,110,160,BCIS Q1-2026
+office_cat_A,2.1,Frame,m² GIFA,180,230,290,BCIS Q1-2026
+office_cat_A,2.2,Upper floors,m² GIFA,90,120,160,BCIS Q1-2026
+office_cat_A,2.3,Roof,m² GIFA,55,75,105,BCIS Q1-2026
+office_cat_A,2.4,Stairs and ramps,m² GIFA,25,35,55,BCIS Q1-2026
+office_cat_A,2.5,External walls,m² GIFA,200,270,360,BCIS Q1-2026
+office_cat_A,2.6,Windows and external doors,m² GIFA,55,75,105,BCIS Q1-2026
+office_cat_A,2.7,Internal walls and partitions,m² GIFA,40,55,75,BCIS Q1-2026
+office_cat_A,2.8,Internal doors,m² GIFA,15,22,30,BCIS Q1-2026
+office_cat_A,3.1,Wall finishes,m² GIFA,25,35,50,BCIS Q1-2026
+office_cat_A,3.2,Floor finishes,m² GIFA,35,50,70,BCIS Q1-2026
+office_cat_A,3.3,Ceiling finishes,m² GIFA,30,45,65,BCIS Q1-2026
+office_cat_A,4,"Fittings, furnishings and equipment",m² GIFA,15,25,40,BCIS Q1-2026
+office_cat_A,5.1,Sanitary installations,m² GIFA,20,30,45,BCIS Q1-2026
+office_cat_A,5.3,Disposal installations,m² GIFA,15,22,35,BCIS Q1-2026
+office_cat_A,5.4,Water installations,m² GIFA,18,28,42,BCIS Q1-2026
+office_cat_A,5.5,Heat source,m² GIFA,25,40,60,BCIS Q1-2026
+office_cat_A,5.6,Space heating and air conditioning,m² GIFA,140,180,240,BCIS Q1-2026
+office_cat_A,5.7,Ventilation,m² GIFA,55,75,100,BCIS Q1-2026
+office_cat_A,5.8,Electrical installations,m² GIFA,110,150,200,BCIS Q1-2026
+office_cat_A,5.10,Lift and conveyor installations,m² GIFA,35,50,75,BCIS Q1-2026
+office_cat_A,5.11,Fire and lightning protection,m² GIFA,18,28,42,BCIS Q1-2026
+office_cat_A,5.12,Communications and security,m² GIFA,25,40,60,BCIS Q1-2026
+office_cat_A,5.14,Builder's work in connection,m² GIFA,8,12,18,BCIS Q1-2026
+office_cat_A,5.15,Testing and commissioning,m² GIFA,6,10,15,BCIS Q1-2026
+office_cat_A,8,External works,m² GIFA,50,75,120,BCIS Q1-2026
+office_cat_A,9,Main contractor's preliminaries,m² GIFA,90,130,180,BCIS Q1-2026
+office_cat_A,10,Main contractor's overheads and profit,m² GIFA,55,80,110,BCIS Q1-2026
+office_cat_A,11,Project and design team fees,m² GIFA,90,130,180,BCIS Q1-2026
+office_cat_A,13,Risk allowances,m² GIFA,40,75,140,BCIS Q1-2026
+office_cat_B,1,Substructure,m² GIFA,80,110,160,BCIS Q1-2026
+office_cat_B,2.1,Frame,m² GIFA,180,230,290,BCIS Q1-2026
+office_cat_B,2.2,Upper floors,m² GIFA,90,120,160,BCIS Q1-2026
+office_cat_B,2.3,Roof,m² GIFA,55,75,105,BCIS Q1-2026
+office_cat_B,2.5,External walls,m² GIFA,200,270,360,BCIS Q1-2026
+office_cat_B,2.6,Windows and external doors,m² GIFA,55,75,105,BCIS Q1-2026
+office_cat_B,2.7,Internal walls and partitions,m² GIFA,55,80,110,BCIS Q1-2026
+office_cat_B,2.8,Internal doors,m² GIFA,20,28,40,BCIS Q1-2026
+office_cat_B,3.1,Wall finishes,m² GIFA,45,65,90,BCIS Q1-2026
+office_cat_B,3.2,Floor finishes,m² GIFA,55,80,110,BCIS Q1-2026
+office_cat_B,3.3,Ceiling finishes,m² GIFA,40,60,85,BCIS Q1-2026
+office_cat_B,4,"Fittings, furnishings and equipment",m² GIFA,80,130,220,BCIS Q1-2026
+office_cat_B,5.6,Space heating and air conditioning,m² GIFA,140,180,240,BCIS Q1-2026
+office_cat_B,5.7,Ventilation,m² GIFA,55,75,100,BCIS Q1-2026
+office_cat_B,5.8,Electrical installations,m² GIFA,130,180,250,BCIS Q1-2026
+office_cat_B,5.12,Communications and security,m² GIFA,60,95,140,BCIS Q1-2026
+office_cat_B,9,Main contractor's preliminaries,m² GIFA,110,150,210,BCIS Q1-2026
+office_cat_B,10,Main contractor's overheads and profit,m² GIFA,65,95,130,BCIS Q1-2026
+office_cat_B,11,Project and design team fees,m² GIFA,110,160,220,BCIS Q1-2026
+office_cat_B,13,Risk allowances,m² GIFA,50,90,170,BCIS Q1-2026
+residential_apartment,1,Substructure,m² GIFA,90,130,200,BCIS Q1-2026
+residential_apartment,2.1,Frame,m² GIFA,140,180,240,BCIS Q1-2026
+residential_apartment,2.2,Upper floors,m² GIFA,100,140,190,BCIS Q1-2026
+residential_apartment,2.3,Roof,m² GIFA,50,70,100,BCIS Q1-2026
+residential_apartment,2.5,External walls,m² GIFA,180,250,340,BCIS Q1-2026
+residential_apartment,2.6,Windows and external doors,m² GIFA,60,85,120,BCIS Q1-2026
+residential_apartment,2.7,Internal walls and partitions,m² GIFA,70,100,140,BCIS Q1-2026
+residential_apartment,2.8,Internal doors,m² GIFA,25,38,55,BCIS Q1-2026
+residential_apartment,3.1,Wall finishes,m² GIFA,35,55,80,BCIS Q1-2026
+residential_apartment,3.2,Floor finishes,m² GIFA,50,75,110,BCIS Q1-2026
+residential_apartment,3.3,Ceiling finishes,m² GIFA,25,40,60,BCIS Q1-2026
+residential_apartment,4,"Fittings, furnishings and equipment",m² GIFA,40,65,110,BCIS Q1-2026
+residential_apartment,5.1,Sanitary installations,m² GIFA,55,80,120,BCIS Q1-2026
+residential_apartment,5.4,Water installations,m² GIFA,35,55,80,BCIS Q1-2026
+residential_apartment,5.5,Heat source,m² GIFA,45,70,110,BCIS Q1-2026
+residential_apartment,5.6,Space heating and air conditioning,m² GIFA,55,85,130,BCIS Q1-2026
+residential_apartment,5.8,Electrical installations,m² GIFA,75,110,160,BCIS Q1-2026
+residential_apartment,5.10,Lift and conveyor installations,m² GIFA,55,80,120,BCIS Q1-2026
+residential_apartment,8,External works,m² GIFA,40,65,110,BCIS Q1-2026
+residential_apartment,9,Main contractor's preliminaries,m² GIFA,85,120,170,BCIS Q1-2026
+residential_apartment,10,Main contractor's overheads and profit,m² GIFA,50,75,105,BCIS Q1-2026
+residential_apartment,11,Project and design team fees,m² GIFA,80,120,170,BCIS Q1-2026
+residential_apartment,13,Risk allowances,m² GIFA,45,85,160,BCIS Q1-2026
+school_secondary,1,Substructure,m² GIFA,100,140,200,DfE GDB 2024
+school_secondary,2.1,Frame,m² GIFA,150,200,270,DfE GDB 2024
+school_secondary,2.2,Upper floors,m² GIFA,80,110,150,DfE GDB 2024
+school_secondary,2.3,Roof,m² GIFA,60,85,115,DfE GDB 2024
+school_secondary,2.5,External walls,m² GIFA,160,220,300,DfE GDB 2024
+school_secondary,2.6,Windows and external doors,m² GIFA,50,70,100,DfE GDB 2024
+school_secondary,2.7,Internal walls and partitions,m² GIFA,60,85,120,DfE GDB 2024
+school_secondary,3.1,Wall finishes,m² GIFA,30,45,65,DfE GDB 2024
+school_secondary,3.2,Floor finishes,m² GIFA,40,60,85,DfE GDB 2024
+school_secondary,5.6,Space heating and air conditioning,m² GIFA,90,130,180,DfE GDB 2024
+school_secondary,5.7,Ventilation,m² GIFA,65,95,140,DfE GDB 2024
+school_secondary,5.8,Electrical installations,m² GIFA,95,135,190,DfE GDB 2024
+school_secondary,9,Main contractor's preliminaries,m² GIFA,95,135,190,DfE GDB 2024
+school_secondary,11,Project and design team fees,m² GIFA,100,140,200,DfE GDB 2024
+school_secondary,13,Risk allowances,m² GIFA,50,95,180,DfE GDB 2024
+healthcare_acute,1,Substructure,m² GIFA,120,170,250,HBN baseline 2024
+healthcare_acute,2.1,Frame,m² GIFA,200,270,360,HBN baseline 2024
+healthcare_acute,2.5,External walls,m² GIFA,240,330,440,HBN baseline 2024
+healthcare_acute,2.7,Internal walls and partitions,m² GIFA,120,170,240,HBN baseline 2024
+healthcare_acute,5.1,Sanitary installations,m² GIFA,70,100,150,HBN baseline 2024
+healthcare_acute,5.4,Water installations,m² GIFA,55,85,130,HBN baseline 2024
+healthcare_acute,5.5,Heat source,m² GIFA,80,120,180,HBN baseline 2024
+healthcare_acute,5.6,Space heating and air conditioning,m² GIFA,240,330,460,HBN baseline 2024
+healthcare_acute,5.7,Ventilation,m² GIFA,150,210,300,HBN baseline 2024
+healthcare_acute,5.8,Electrical installations,m² GIFA,180,250,350,HBN baseline 2024
+healthcare_acute,5.11,Fire and lightning protection,m² GIFA,45,70,110,HBN baseline 2024
+healthcare_acute,5.12,Communications and security,m² GIFA,55,90,140,HBN baseline 2024
+healthcare_acute,5.13,Special installations,m² GIFA,120,200,330,HBN baseline 2024
+healthcare_acute,9,Main contractor's preliminaries,m² GIFA,130,180,250,HBN baseline 2024
+healthcare_acute,11,Project and design team fees,m² GIFA,150,210,290,HBN baseline 2024
+healthcare_acute,13,Risk allowances,m² GIFA,80,150,280,HBN baseline 2024
+warehouse_logistics,1,Substructure,m² GIFA,60,85,120,BCIS Q1-2026
+warehouse_logistics,2.1,Frame,m² GIFA,100,140,190,BCIS Q1-2026
+warehouse_logistics,2.3,Roof,m² GIFA,80,110,150,BCIS Q1-2026
+warehouse_logistics,2.5,External walls,m² GIFA,90,130,180,BCIS Q1-2026
+warehouse_logistics,3.2,Floor finishes,m² GIFA,40,60,85,BCIS Q1-2026
+warehouse_logistics,5.8,Electrical installations,m² GIFA,55,80,115,BCIS Q1-2026
+warehouse_logistics,5.11,Fire and lightning protection,m² GIFA,25,40,65,BCIS Q1-2026
+warehouse_logistics,8,External works,m² GIFA,40,65,100,BCIS Q1-2026
+warehouse_logistics,9,Main contractor's preliminaries,m² GIFA,55,80,115,BCIS Q1-2026
+warehouse_logistics,11,Project and design team fees,m² GIFA,55,80,110,BCIS Q1-2026
+warehouse_logistics,13,Risk allowances,m² GIFA,35,65,120,BCIS Q1-2026

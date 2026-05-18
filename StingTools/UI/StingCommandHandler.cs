@@ -3311,6 +3311,11 @@ namespace StingTools.UI
                     case "Cost_ReloadRules":            RunCommand<Commands.Cost.CostReloadRulesCommand>(app); break;
                     case "Cost_MigrateCurrencyParams":  RunCommand<Commands.Cost.CostMigrateCurrencyParamsCommand>(app); break;
                     case "Cost_MigrateESEntities":      RunCommand<Commands.Cost.CostMigrateESEntitiesCommand>(app); break;
+
+                    // Phase 184f — P4 NRM1 cost plan
+                    case "CostPlan_Create":             RunCommand<Commands.Cost.CostPlanCreateCommand>(app); break;
+                    case "CostPlan_Compare":            RunCommand<Commands.Cost.CostPlanCompareCommand>(app); break;
+                    case "CostPlan_Export":             RunCommand<Commands.Cost.CostPlanExportCommand>(app); break;
                     case "BuildingCodeSeed":        RunCommand<Core.BuildingCodeSeedCommand>(app); break;
                     case "PrjVolumeCodeAuto":       RunCommand<Core.ProjectVolumeCodeAutoPopulateCommand>(app); break;
                     case "FederationReview":        RunCommand<Core.FederationCoordinationReviewCommand>(app); break;
