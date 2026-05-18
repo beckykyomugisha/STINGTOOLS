@@ -128,6 +128,56 @@ namespace StingTools.UI.Plumbing
                     case "Plumb_CommPack":
                         Run<StingTools.Commands.Plumbing.PlumbCommPackCommand>(app); break;
 
+                    // ── Plan-level symbol placement (STING_PLUMBING_SYMBOLS.json) ──
+                    case "PlumbSym_WC":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceWCCommand>(app); break;
+                    case "PlumbSym_Urinal":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceUrinalCommand>(app); break;
+                    case "PlumbSym_Bidet":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceBidetCommand>(app); break;
+                    case "PlumbSym_WHB":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceWHBCommand>(app); break;
+                    case "PlumbSym_VanityBasin":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceVanityBasinCommand>(app); break;
+                    case "PlumbSym_Bath":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceBathCommand>(app); break;
+                    case "PlumbSym_Shower":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceShowerCommand>(app); break;
+                    case "PlumbSym_SingleSink":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceSingleSinkCommand>(app); break;
+                    case "PlumbSym_DoubleSink":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceDoubleSinkCommand>(app); break;
+                    case "PlumbSym_CleanersSink":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceCleanersSinkCommand>(app); break;
+                    case "PlumbSym_FloorDrainRound":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceFloorDrainRoundCommand>(app); break;
+                    case "PlumbSym_FloorDrainSquare":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceFloorDrainSquareCommand>(app); break;
+                    case "PlumbSym_Gulley":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceGulleyCommand>(app); break;
+                    case "PlumbSym_GateValve":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceGateValveCommand>(app); break;
+                    case "PlumbSym_GlobeValve":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceGlobeValveCommand>(app); break;
+                    case "PlumbSym_BallValve":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceBallValveCommand>(app); break;
+                    case "PlumbSym_ButterflyValve":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceButterflyValveCommand>(app); break;
+                    case "PlumbSym_CheckValve":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceCheckValveCommand>(app); break;
+                    case "PlumbSym_PRV":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlacePRVCommand>(app); break;
+                    case "PlumbSym_Strainer":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceStrainerCommand>(app); break;
+                    case "PlumbSym_FlexConn":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceFlexConnCommand>(app); break;
+                    case "PlumbSym_HWCDirect":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceHWCDirectCommand>(app); break;
+                    case "PlumbSym_HWCIndirect":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.PlaceHWCIndirectCommand>(app); break;
+                    case "PlumbSym_BrowseAll":
+                        Run<StingTools.Commands.Symbols.PlumbingSymbolCommands.BrowsePlumbingSymbolsCommand>(app); break;
+
                     default:
                         StingLog.Warn($"StingPlumbingCommandHandler: unknown tag '{tag}'");
                         break;

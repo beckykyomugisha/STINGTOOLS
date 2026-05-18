@@ -85,7 +85,8 @@ namespace StingTools.Core.Symbols
             Document hostDoc,
             string jsonPath,
             string outputFolder,
-            bool loadIntoProject)
+            bool loadIntoProject,
+            SymbolSizeConfig sizeConfig = null)
         {
             var result = new SymbolCreationResult();
             if (!File.Exists(jsonPath))
@@ -139,6 +140,17 @@ namespace StingTools.Core.Symbols
                     result.Failed++;
                     result.Errors.Add("Symbol with empty id skipped.");
                     continue;
+                }
+
+                // Apply project-level size config (global multiplier / category / per-symbol override).
+                if (sizeConfig != null)
+                {
+                    double effective = sizeConfig.Resolve(def);
+                    if (Math.Abs(effective - def.SymbolSize) > 0.01)
+                    {
+                        StingLog.Info($"[SizeOverride] {def.Id}: {def.SymbolSize:F1}mm → {effective:F1}mm");
+                        def.SymbolSize = effective;
+                    }
                 }
 
                 var rfaPath = Path.Combine(outputFolder, def.Id + ".rfa");
@@ -205,6 +217,11 @@ namespace StingTools.Core.Symbols
                 result.Errors.Add($"{def.Id}: NewFamilyDocument returned null.");
                 return null;
             }
+
+            // Warn when generating from draft geometry — a hand-drafted seed .rfa is preferred.
+            if (string.Equals(def.Status, "draft", StringComparison.OrdinalIgnoreCase))
+                result.Warnings.Add($"[DRAFT] {def.Id}: using approximate JSON geometry. " +
+                    $"For accurate proportions place a hand-drafted '{def.Id}.rfa' in Families/ISO6412/");
 
             try
             {

@@ -21,6 +21,12 @@ namespace StingTools.Core.Fabrication
         // Title-block family names per discipline. Stub families live
         // under Families/AssemblyTitleBlocks/ — see S5.15 for the
         // parameter list each family must expose.
+        //
+        // Electrical resolution uses a two-step alias: prefer the bespoke
+        // STING_TB_ASSEMBLY_ELEC (cable/glanding/IP-rating cells) when it is
+        // loaded in the project; fall back to STING_TB_ASSEMBLY_COND so
+        // electrical spool sheets always render correctly even before the
+        // bespoke family is authored.
         private static readonly Dictionary<string, string> TitleBlockByDiscipline =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -28,9 +34,18 @@ namespace StingTools.Core.Fabrication
             { "Plumbing",   "STING_TB_ASSEMBLY_PIPE" },
             { "Duct",       "STING_TB_ASSEMBLY_DUCT" },
             { "HVAC",       "STING_TB_ASSEMBLY_DUCT" },
-            { "Electrical", "STING_TB_ASSEMBLY_COND" },
+            { "Electrical", "STING_TB_ASSEMBLY_ELEC" },  // alias → STING_TB_ASSEMBLY_COND when absent
             { "Hanger",     "STING_TB_ASSEMBLY_HANGER" },
             { "Generic",    "STING_TB_ASSEMBLY_PIPE" }
+        };
+
+        // Fallback chain for disciplines that have an alias title block.
+        // Key = preferred family name; Value = fallback family name.
+        private static readonly Dictionary<string, string> TitleBlockFallback =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "STING_TB_ASSEMBLY_ELEC",   "STING_TB_ASSEMBLY_COND" },
+            { "STING_TB_ASSEMBLY_HANGER", "STING_TB_ASSEMBLY_PIPE" },
         };
 
         // Discipline code used when assembling the SP-{disc}-{sys}-{lvl}-{seq}
@@ -290,23 +305,49 @@ namespace StingTools.Core.Fabrication
                 var col = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_TitleBlocks)
                     .OfClass(typeof(FamilySymbol));
+
+                // Build a lookup once so we can do O(1) checks per candidate.
+                var loaded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var el in col)
+                    if (el is FamilySymbol fs) loaded.Add(fs.FamilyName);
+
+                // Walk the alias/fallback chain (e.g. ELEC → COND → first).
+                string candidate = familyName;
+                while (!string.IsNullOrEmpty(candidate))
                 {
-                    if (el is FamilySymbol fs && string.Equals(fs.FamilyName, familyName, StringComparison.OrdinalIgnoreCase))
-                        return fs.Id;
+                    if (loaded.Contains(candidate))
+                    {
+                        // Found — return the first FamilySymbol for this family.
+                        foreach (var el in col)
+                        {
+                            if (el is FamilySymbol fs &&
+                                string.Equals(fs.FamilyName, candidate, StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (!string.Equals(candidate, familyName, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    string aliasMsg = $"Title block '{familyName}' not loaded; using alias '{candidate}'.";
+                                    StingLog.Info("ShopDrawingComposer: " + aliasMsg);
+                                    result?.Warnings.Add(aliasMsg);
+                                }
+                                return fs.Id;
+                            }
+                        }
+                    }
+                    // Try the next step in the fallback chain.
+                    TitleBlockFallback.TryGetValue(candidate, out candidate);
                 }
-                // Last-resort fallback: first available title block. Warn
-                // loudly — populated cells (spool / weight / FAB_LOC / BOM
-                // rev) may land on parameters this family doesn't carry.
+
+                // Last-resort: first available title block in project.
                 foreach (var el in col)
                 {
                     if (el is FamilySymbol fs)
                     {
                         string actualFamily = fs.FamilyName;
-                        string msg = $"Title block '{familyName}' not loaded; falling back to '{actualFamily}'. Populated fab cells may be silently dropped.";
+                        string msg = $"Title block '{familyName}' (and all aliases) not loaded; " +
+                                     $"falling back to '{actualFamily}'. " +
+                                     "Populated fab cells may be silently dropped.";
                         StingLog.Warn("ShopDrawingComposer: " + msg);
                         result?.Warnings.Add(msg);
-                        // Gap-6: record the discipline-dict fallback (sheet not yet created).
                         result?.TitleBlockFallbacks.Add((-1L, "(from discipline dict) " + familyName, actualFamily));
                         return fs.Id;
                     }
