@@ -3331,6 +3331,10 @@ namespace StingTools.UI
                     // Phase 184h — P6 multi-standard
                     case "Cost_SetMeasurementStandard": RunCommand<Commands.Cost.CostSetMeasurementStandardCommand>(app); break;
                     case "Cost_StandardInspect":        RunCommand<Commands.Cost.CostStandardInspectCommand>(app); break;
+
+                    // Phase 184j — P8 IFC Qto + ICMS3
+                    case "Cost_StampIfcQuantities":     RunCommand<Commands.Cost.CostStampIfcQuantitiesCommand>(app); break;
+                    case "Cost_ExportIcms3Report":      RunCommand<Commands.Cost.CostExportIcms3ReportCommand>(app); break;
                     case "BuildingCodeSeed":        RunCommand<Core.BuildingCodeSeedCommand>(app); break;
                     case "PrjVolumeCodeAuto":       RunCommand<Core.ProjectVolumeCodeAutoPopulateCommand>(app); break;
                     case "FederationReview":        RunCommand<Core.FederationCoordinationReviewCommand>(app); break;

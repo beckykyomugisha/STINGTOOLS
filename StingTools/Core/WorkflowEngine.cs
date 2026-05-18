@@ -1583,6 +1583,10 @@ namespace StingTools.Core
                 // Phase 184h — P6 multi-standard take-off
                 case "Cost_SetMeasurementStandard": return new Commands.Cost.CostSetMeasurementStandardCommand();
                 case "Cost_StandardInspect":        return new Commands.Cost.CostStandardInspectCommand();
+
+                // Phase 184j — P8 IFC Qto + ICMS3
+                case "Cost_StampIfcQuantities":     return new Commands.Cost.CostStampIfcQuantitiesCommand();
+                case "Cost_ExportIcms3Report":      return new Commands.Cost.CostExportIcms3ReportCommand();
                 case "BatchFamilyParams": return new Temp.BatchAddFamilyParamsCommand();
                 case "FamilyParamProcessor": return new Temp.FamilyParameterProcessorCommand();
 
