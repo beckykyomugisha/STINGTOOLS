@@ -915,6 +915,76 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return false; }
     }
 
+    // ── BOQ Baseline (P1 of Cost Management Implementation Plan) ──────────────
+    //
+    //  Three new endpoints wire the plugin's BOQSnapshot save flow into the
+    //  server's BoqBaseline + QuantityLine domain model:
+    //
+    //    CreateBoqBaselineAsync   → POST /api/projects/{id}/boq/baselines
+    //    UpsertBoqLinesAsync      → POST /api/projects/{id}/boq/baselines/{bid}/lines
+    //    GetBoqBaselinesAsync     → GET  /api/projects/{id}/boq/baselines
+    //
+    //  Called by BoqSyncCoordinator on every SaveSnapshot.
+
+    /// <summary>
+    /// Create a baseline shell. Returns the server-assigned baseline id
+    /// on success, null on failure (LastError carries the detail).
+    /// </summary>
+    public async Task<Guid?> CreateBoqBaselineAsync(Guid projectId, object baselinePayload)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/boq/baselines", baselinePayload);
+            if (!resp.ok) { LastError = resp.body; return null; }
+            var obj = JObject.Parse(resp.body);
+            string idStr = obj.Value<string>("id") ?? obj.Value<string>("Id");
+            if (Guid.TryParse(idStr, out Guid id)) return id;
+            LastError = "Server response had no parseable baseline id.";
+            return null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    /// <summary>
+    /// Upsert quantity lines onto a baseline. The server-side handler
+    /// keys on IfcGlobalId (Revit UniqueId in our case) and returns
+    /// counts of created vs updated rows.
+    /// </summary>
+    public async Task<(bool ok, int created, int updated)> UpsertBoqLinesAsync(
+        Guid projectId, Guid baselineId, IEnumerable<object> lines)
+    {
+        if (!await EnsureAuthenticatedAsync()) return (false, 0, 0);
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/boq/baselines/{baselineId}/lines",
+                lines);
+            if (!resp.ok) { LastError = resp.body; return (false, 0, 0); }
+            var obj = JObject.Parse(resp.body);
+            int created = obj.Value<int?>("created") ?? 0;
+            int updated = obj.Value<int?>("updated") ?? 0;
+            return (true, created, updated);
+        }
+        catch (Exception ex) { LastError = ex.Message; return (false, 0, 0); }
+    }
+
+    /// <summary>
+    /// List baselines for a project — used to surface server state in
+    /// the BOQ panel alongside the local snapshot list.
+    /// </summary>
+    public async Task<JArray?> GetBoqBaselinesAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/boq/baselines");
+            if (!resp.ok) { LastError = resp.body; return null; }
+            return JArray.Parse(resp.body);
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
     // ── P6 Live Link (feature gap 6) ──────────────────────────────────────────
 
     /// <summary>Saves P6 connection settings via POST /api/projects/{id}/p6/configure.</summary>

@@ -2,6 +2,96 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 184 — Cost management foundations: P0 + P1)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Implements phases P0
+and P1 of `docs/COST_MANAGEMENT_IMPLEMENTATION_PLAN.md`. Closes
+flexibility gaps F-1 / F-3 (rate engine + take-off rules now data-driven)
+and integration gaps I-1 / I-7 (plugin snapshots reach the server with
+checksums). Built without `dotnet build` verification (Linux sandbox).
+
+##### P0 — Pluggable rate engine + data-driven take-off rules
+
+**New files:**
+
+| Path | Lines | Role |
+|------|-------|------|
+| `StingTools/BOQ/Rates/IRateProvider.cs` | ~95 | Interface + `RateRequest` / `RateLookup` DTOs |
+| `StingTools/BOQ/Rates/RateProviders.cs` | ~265 | 5 concrete providers preserving legacy fallback order: `ParameterOverrideRateProvider` (priority 100), `ExtensibleStorageRateProvider` (95), `CsvRateProvider` (90/85/80), `CobieRateProvider` (75), `DefaultRateProvider` (60). New providers (BCIS, Spon's, project rate card) slot in without editing existing code. |
+| `StingTools/BOQ/Rates/RateProviderRegistry.cs` | ~175 | Composition root. Per-document cache. Currency adapter normalises UGX/USD/GBP to the requested currency via project FX. `ResolveAll` diagnostic surface drives the rate-source heat-map. |
+| `StingTools/BOQ/Takeoff/TakeoffRule.cs` | ~225 | POCO + `TakeoffRuleRegistry` loader. Corporate baseline + `<project>/_BIM_COORD/takeoff_rules.json` override. First-match-wins. Rule fields: `matchCategory`/`matchDiscipline`/`matchProdCode` + `unit` + `quantitySource` (`HOST_AREA_COMPUTED` / `CURVE_ELEM_LENGTH` / `LookupParameter:Weight` / `LocationCurve` / `literal:1.0` / any `BuiltInParameter` name) + `unitConversion` (`ft2_to_m2` / `ft3_to_m3` / `ft_to_m` / `none`) + `wastePercent` + `nrm2Section` + `description`. |
+| `StingTools/Data/STING_TAKEOFF_RULES.json` | 30 rules | Seed encoding the historic if/switch logic from `DeriveQuantity` + `DeriveNrm2Section` so behaviour is preserved on day one. Rules cover walls, curtain walls, floors, slabs, roofs, ceilings, foundations, columns, framing, beams, doors, windows, stairs, ramps, furniture, casework, ducts, pipes, mechanical equipment, plumbing fixtures, sanitary, conduits, cable tray, electrical equipment, lighting, fire/safety, security, structural steel, rebar (+5% waste). |
+
+**Edited files:**
+
+- `StingTools/BOQ/BOQCostManager.cs` — `ResolveRate` delegates to
+  `RateProviderRegistry`; legacy `RateSource` labels mapped from
+  provider ids so heat-maps + existing schedules keep working.
+  `DeriveQuantity` consults the takeoff registry first, only honouring
+  the matched rule when its declared unit aligns with the caller's
+  requested unit (normalised — `m²` ↔ `m2`, `lin-m` ↔ `m`, etc.);
+  falls back to legacy logic otherwise. `DeriveNrm2Section` signature
+  widened to `(doc, el, catName, disc)`; consults registry first,
+  falls back to the hard-coded map.
+
+##### P1 — Server snapshot sync with checksums
+
+**New files:**
+
+| Path | Lines | Role |
+|------|-------|------|
+| `StingTools/BOQ/Sync/BoqSnapshotHasher.cs` | ~110 | Canonical SHA-256 of a normalised `BOQDocument` projection. Excludes wall-clock fields, sorts sections + items deterministically, formats numbers with invariant culture + fixed precision. Lower-case hex digest matches the server's `BoqBaseline.Checksum` convention. |
+| `StingTools/BOQ/Sync/BoqSyncCoordinator.cs` | ~190 | Orchestrates snapshot → server push. Resolves project id via `PlanscapeServerClient.LoadConnectionSettings`; POSTs a baseline, then upserts lines in chunks of 200. Maps plugin snapshot types (DD / Stage / Weekly / Manual / Live / Handover) to canonical `BoqBaseline.Kind` ("Tender" / "Interim" / "Final"). Maps `BOQRowSource` to `LineKind` ("Measured" / "Manual" / "ProvisionalSum"). Returns `BoqSyncResult` carrying server baseline id, sync state and line counts. |
+
+**Edited files:**
+
+- `StingTools/BOQ/BOQModels.cs` — `BOQSnapshotMeta` gains `Checksum`,
+  `ServerBaselineId`, `SyncState` ("Local" / "Pending" / "Synced" /
+  "Conflict" / "Disabled").
+- `StingTools/BOQ/BOQCostManager.cs` — `SaveSnapshot` computes
+  checksum before write, writes a `<snapshot>.meta.json` sidecar, and
+  fires `_ = Task.Run(...)` to push to the server without blocking
+  save. `ListSnapshots` enriches each `BOQSnapshotMeta` from the
+  sidecar so the BOQ panel can show "Synced — baseline {id}" or
+  "Pending — offline".
+- `StingTools/BIMManager/PlanscapeServerClient.cs` — new methods:
+  `CreateBoqBaselineAsync(projectId, payload) → Guid?` (POST
+  `/api/projects/{id}/boq/baselines`),
+  `UpsertBoqLinesAsync(projectId, baselineId, lines) → (ok, created,
+  updated)` (POST `/baselines/{bid}/lines`),
+  `GetBoqBaselinesAsync(projectId) → JArray` (GET). All preserve the
+  existing `LastError` + `EnsureAuthenticatedAsync` pattern.
+
+##### What's still deferred
+
+- `StingCostRateOverrideSchema` extension to carry `WastePercent` /
+  `OverheadPercent` / `ProfitPercent` / `DayworksCode` / `LockedByUser`
+  needs its own focused commit — the Extensible Storage GUID change
+  requires a read-time migration. P0 provider stub reads the v1 schema
+  and treats `RateGbp` only.
+- Currency-neutral shared parameters (`ASS_CST_UNIT_RATE_NR` etc.) are
+  not added in this commit — needs a parameter-registry version bump
+  + a one-time migration command from `_UGX_NR` → neutral.
+- `WORKFLOW_BOQ_*.json` presets, IUpdater stale detection, validators
+  and 4D/5D unification land in P2 + P3.
+- Mobile / payment certs / variations / EVM land in P4 → P8.
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox). New code
+   targets Revit 2025/2026/2027 API surface.
+2. The push is fire-and-forget via `Task.Run`. The sidecar
+   `.meta.json` carries the final sync state once the task completes.
+   UI panels should re-read the sidecar to show live state.
+3. Behaviour is preserved when no take-off rule matches (legacy
+   fallback) and when the rule's unit disagrees with the caller's
+   unit (legacy fallback). Existing demo projects should produce
+   identical BOQ output after this commit.
+4. Server-side `BoqController` endpoints already exist; no server
+   changes required.
+
+---
+
 #### Completed (Phase 183 — Model collaboration: Gaps H–N)
 
 Branch: `claude/review-archicad-revit-workflows-04E6q`. Third-pass review of the full collaboration layer, uncovering seven more gaps and fixing them all.
