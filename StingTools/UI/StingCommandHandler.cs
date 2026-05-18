@@ -447,6 +447,32 @@ namespace StingTools.UI
                     // ── Phase 180: Compound symbol factory ──
                     case "Symbols_CreateCompound": RunCommand<Commands.Symbols.CreateCompoundSymbolsCommand>(app); break;
 
+                    // ── Equipment / fixture browse-and-place (plan-level) ──
+                    case "Equip_PlaceElec":    RunCommand<Commands.Symbols.PlaceElecFixtureCommand>(app); break;
+                    case "Equip_PlacePlumb":   RunCommand<Commands.Symbols.PlacePlumbingFixtureCommand>(app); break;
+                    case "Equip_PlaceHvac":    RunCommand<Commands.Symbols.PlaceHvacEquipmentCommand>(app); break;
+                    case "Equip_PlaceLight":   RunCommand<Commands.Symbols.PlaceLightingFixtureCommand>(app); break;
+                    case "Equip_PlaceFP":      RunCommand<Commands.Symbols.PlaceFpDeviceCommand>(app); break;
+                    case "Equip_PlacePipeAcc": RunCommand<Commands.Symbols.PlacePipeAccessoryCommand>(app); break;
+                    case "Equip_BrowseAll":    RunCommand<Commands.Symbols.BrowseAllEquipmentSymbolsCommand>(app); break;
+
+                    // ── SLD inline annotations ──
+                    case "SldAnnotate_All":        RunCommand<Commands.Symbols.SldAnnotateAllCommand>(app); break;
+                    case "SldAnnotate_Voltage":    RunCommand<Commands.Symbols.SldAnnotateVoltageCommand>(app); break;
+                    case "SldAnnotate_Current":    RunCommand<Commands.Symbols.SldAnnotateCurrentCommand>(app); break;
+                    case "SldAnnotate_Fault":      RunCommand<Commands.Symbols.SldAnnotateFaultCommand>(app); break;
+                    case "SldAnnotate_Cable":      RunCommand<Commands.Symbols.SldAnnotateCableCommand>(app); break;
+                    case "SldAnnotate_Phase":      RunCommand<Commands.Symbols.SldAnnotatePhaseCommand>(app); break;
+                    case "SldAnnotate_Load":       RunCommand<Commands.Symbols.SldAnnotateLoadCommand>(app); break;
+                    case "SldAnnotate_Reference":  RunCommand<Commands.Symbols.SldAnnotateReferenceCommand>(app); break;
+                    case "SldAnnotate_Impedance":  RunCommand<Commands.Symbols.SldAnnotateImpedanceCommand>(app); break;
+                    case "SldAnnotate_Diversity":  RunCommand<Commands.Symbols.SldAnnotateDiversityCommand>(app); break;
+                    case "SldAnnotate_Format":     RunCommand<Commands.Symbols.SldAnnotationFormatCommand>(app); break;
+                    case "SldAnnotate_UpdateCalcs":RunCommand<Commands.Symbols.SldUpdateFromCalcsCommand>(app); break;
+                    case "SldAnnotate_Toggle":     RunCommand<Commands.Symbols.SldAnnotationToggleCommand>(app); break;
+                    case "SldAnnotate_Clear":      RunCommand<Commands.Symbols.SldAnnotationClearCommand>(app); break;
+                    case "SldAnnotate_Audit":      RunCommand<Commands.Symbols.SldAnnotationAuditCommand>(app); break;
+
                     // ── StingBridge: ArchiCAD / IFC workflows ──
                     case "IFC_ArchiCADSync":  RunCommand<Commands.IFC.ArchiCADSyncCommand>(app); break;
                     case "IFC_DropImport":    RunCommand<Commands.IFC.IfcDropImportCommand>(app); break;
