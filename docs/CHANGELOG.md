@@ -2,6 +2,39 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 184d — Cost management deferrals closed)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the three "deliberate deferrals" from Phase 184b: tag-pipeline cost write-back, bulk ES v1→v2 migration, and `DefaultCostRates` extraction into a data file. Built without `dotnet build` verification (Linux sandbox).
+
+##### Tag-pipeline cost write-back (P3.1)
+
+- New file `StingTools/BOQ/CostStamp.cs` — opt-in cost write-back helper.
+  - `IsWriteOnTagEnabled()` reads `WRITE_COST_ON_TAG` from `project_config.json` (default `0` = off). Cached for the batch; `Invalidate()` clears.
+  - `WriteIfEnabled(doc, el)` resolves quantity via `TakeoffRuleRegistry`, rate via `RateProviderRegistry`, computes `qty × rate`, writes neutral params (`ASS_CST_UNIT_RATE_NR` / `_CURRENCY_TXT` / `_FX_TO_BASE_NR` / `_FX_DATE_DT` / `_AS_OF_DT`) + legacy mirrors (`CST_UNIT_RATE_UGX` / `CST_QTY_MEASURED` / `CST_RATE_SOURCE` / `CST_MODELED_TOTAL_UGX`). Failure-tolerant.
+- `Core/ParameterHelpers.cs` — `TagPipelineHelper.RunFullPipeline` calls `StingTools.BOQ.CostStamp.WriteIfEnabled(doc, el)` as its terminal step (after design-option params, before `return true`). No feedback-loop risk because `StingCostStaleMarker` listens for geometry / addition only, not parameter writes — a settled-tick gate isn't needed.
+- `Commands/Cost/CostCommands.cs` — `Cost_ReloadRules` also clears the `CostStamp` config cache so toggling `WRITE_COST_ON_TAG` mid-session takes effect on the next tag operation.
+
+##### Bulk ES v1→v2 migration (Cost_MigrateESEntities)
+
+- New command `CostMigrateESEntitiesCommand` in `Commands/Cost/CostCommands.cs`. Walks every element with a v1 `StingCostRateOverrideSchema` entity, re-writes via v2 (which auto-deletes the v1 entity). Idempotent: elements with no v1 entity are skipped; elements that already carry a v2 entity have their orphan v1 deleted and the counter records them as "Already v2".
+- Returns immediately with a clean message when the v1 schema isn't present in the document at all (no overrides ever written).
+- Wired into `WorkflowEngine.ResolveCommand` and `StingCommandHandler` dispatch under tag `Cost_MigrateESEntities`.
+
+##### DefaultCostRates → CSV (Phase 184d)
+
+- New file `StingTools/Data/STING_DEFAULT_COST_RATES.csv` — 124 default rate entries extracted from the historic hardcoded dictionary. Columns: `Category,RatePerUnit_UGX,Unit,Description`. Comment lines (leading `#`) supported.
+- `BIMManager/SchedulingCommands.cs` — `Scheduling4DEngine.DefaultCostRates` converted from a `readonly` field initialiser to a lazy-loaded property backed by `LoadDefaultCostRatesCsv()`. CSV entries override an embedded `_legacyInlineFallback` dictionary (kept as defensive backup if the CSV is missing). All 6 existing callers (in `GenerateCostEstimate`, the template exporter, `BOQ.Rates.DefaultRateProvider`) work unchanged because the access surface is identical.
+- `Scheduling4DEngine.InvalidateDefaultCostRates()` added; `Cost_ReloadRules` now clears this cache alongside the rate-provider, take-off and CostStamp caches so an edited CSV picks up without restarting Revit.
+
+##### Caveats
+
+1. Built without `dotnet build` verification.
+2. `WRITE_COST_ON_TAG` defaults to off. Power users enable in `project_config.json` (`"WRITE_COST_ON_TAG": 1`). When on, every tag operation does a per-element rate + qty lookup — measurable cost on bulk tag operations (>5000 elements). The 20-element-per-trigger cap on the IUpdater doesn't apply here because this runs in the user-initiated tag command, not the auto-tagger.
+3. `Cost_MigrateESEntities` is one-shot — once run on a project, subsequent runs are no-ops. Safe to include in `WORKFLOW_BOQ_FullRefresh.json` as an optional first step on the next sprint.
+4. The 124 inline fallback entries remain in `SchedulingCommands.cs` (as `_legacyInlineFallback`). A future commit can delete them entirely once the CSV ships with every plugin distribution and the no-CSV defensive path is verified unused.
+
+---
+
 #### Completed (Phase 184c — Cost management follow-ups)
 
 Branch: `claude/revit-api-cost-management-qH8Vv`. Closes two caveats called out at the end of Phase 184b.

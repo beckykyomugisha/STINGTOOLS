@@ -305,7 +305,11 @@ namespace StingTools.Commands.Cost
         {
             RateProviderRegistry.Invalidate();
             TakeoffRuleRegistry.Invalidate();
-            TaskDialog.Show("STING Cost", "Rate provider + take-off rule caches cleared. The next BOQ build will reload from disk.");
+            StingTools.BOQ.CostStamp.Invalidate();
+            StingTools.BIMManager.Scheduling4DEngine.InvalidateDefaultCostRates();
+            TaskDialog.Show("STING Cost",
+                "Rate provider + take-off rule + default-cost-rates caches cleared (and CostStamp config). " +
+                "The next BOQ build will reload from disk.");
             return Result.Succeeded;
         }
     }
@@ -379,6 +383,115 @@ namespace StingTools.Commands.Cost
             catch (Exception ex)
             {
                 StingLog.Error("Cost_MigrateCurrencyParams", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    //  Cost_MigrateESEntities — Bulk-migrate v1 Extensible Storage cost
+    //  overrides to v2. Each v1 entity is read, re-written via the v2
+    //  schema (which auto-deletes the v1 entity), and counted. Idempotent
+    //  — elements that already have a v2 entity are skipped; elements
+    //  with no v1 entity are skipped.
+    //
+    //  Currently the v1→v2 migration is lazy: Read() consults v2 first
+    //  and falls back to v1; Write() always emits v2. This command does
+    //  the same work eagerly so a project can be guaranteed v2-only,
+    //  enabling future cleanup of the v1 read path.
+    // ──────────────────────────────────────────────────────────────────
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CostMigrateESEntitiesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                if (doc == null) { message = "No active document."; return Result.Failed; }
+
+                int migrated = 0, skipped = 0, errors = 0;
+
+                // Schema lookups. If v1 was never loaded into this Revit
+                // session there's nothing to migrate — return immediately.
+                var v1 = Autodesk.Revit.DB.ExtensibleStorage.Schema.Lookup(
+                    StingCostRateOverrideSchema.SchemaGuid);
+                if (v1 == null)
+                {
+                    TaskDialog.Show("STING Cost — migration",
+                        "No v1 Extensible Storage schema present in this document. " +
+                        "Either no overrides exist, or all are already v2.");
+                    return Result.Succeeded;
+                }
+
+                using (var t = new Transaction(doc, "STING Cost — migrate v1 ES entities to v2"))
+                {
+                    t.Start();
+                    var col = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                    foreach (Element el in col)
+                    {
+                        try
+                        {
+                            // Direct v1 lookup — don't go through Read()
+                            // which prefers v2 and would mask the v1
+                            // entity from the count.
+                            var entityV1 = el.GetEntity(v1);
+                            if (entityV1 == null || !entityV1.IsValid()) continue;
+
+                            // Read v1 fields directly.
+                            double rate = entityV1.Get<double>("RateGbp");
+                            string unit = entityV1.Get<string>("Unit") ?? "";
+                            string note = entityV1.Get<string>("Note") ?? "";
+                            // StampedUtcTicks and StampedBy are re-stamped
+                            // by Write() — we accept that as part of the
+                            // migration audit trail.
+
+                            // Idempotent skip if v2 entity already exists
+                            // (shouldn't happen because Write() deletes v1,
+                            // but defensive).
+                            var v2 = Autodesk.Revit.DB.ExtensibleStorage.Schema.Lookup(
+                                StingCostRateOverrideSchema.SchemaGuidV2);
+                            if (v2 != null)
+                            {
+                                var existingV2 = el.GetEntity(v2);
+                                if (existingV2 != null && existingV2.IsValid())
+                                {
+                                    // Stale v1 alongside an existing v2 —
+                                    // delete the v1 orphan and skip the write.
+                                    el.DeleteEntity(v1);
+                                    skipped++;
+                                    continue;
+                                }
+                            }
+
+                            // Re-write as v2. This deletes the v1 entity
+                            // as a side-effect of the Write() implementation.
+                            bool ok = StingCostRateOverrideSchema.Write(
+                                el, rate, unit, "GBP", note,
+                                wastePercent: 0, overheadPercent: 0, profitPercent: 0,
+                                dayworksCode: "", lockedByUser: "", lockedUntilUtcTicks: 0);
+                            if (ok) migrated++;
+                            else errors++;
+                        }
+                        catch (Exception ex)
+                        {
+                            errors++;
+                            StingLog.Warn($"Cost_MigrateESEntities {el?.Id}: {ex.Message}");
+                        }
+                    }
+                    t.Commit();
+                }
+
+                TaskDialog.Show("STING Cost — migration",
+                    $"v1 → v2 Extensible Storage migration complete.\n\n" +
+                    $"Migrated:  {migrated}\nAlready v2 (orphan v1 deleted):  {skipped}\nErrors:  {errors}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Cost_MigrateESEntities", ex);
                 message = ex.Message;
                 return Result.Failed;
             }

@@ -103,8 +103,91 @@ namespace StingTools.BIMManager
             ["HANDOVER"]            = (980, "Handover — Snagging & Defects", 21)
         };
 
-        // ── Default Unit Cost Rates (GBP per unit, approximate) ──
-        internal static readonly Dictionary<string, (double ratePerUnit, string unit, string description)> DefaultCostRates =
+        // ── Default Unit Cost Rates ──
+        //
+        // Phase 184d: data moved out of the C# initializer into
+        // Data/STING_DEFAULT_COST_RATES.csv so a QS can edit the baseline
+        // without a code rebuild. DefaultCostRates is now a lazy-loaded
+        // view over the CSV. All existing callers (line 736/815/909 in
+        // GenerateCostEstimate, line 1593 in the template exporter, and
+        // BOQ.Rates.DefaultRateProvider) continue to work unchanged.
+        //
+        // A small built-in fallback covers the case where the CSV is
+        // missing — defensive only; the CSV is shipped with the plugin.
+        private static Dictionary<string, (double ratePerUnit, string unit, string description)> _defaultCostRatesCache;
+        private static readonly object _defaultCostRatesLock = new object();
+
+        internal static Dictionary<string, (double ratePerUnit, string unit, string description)> DefaultCostRates
+        {
+            get
+            {
+                if (_defaultCostRatesCache != null) return _defaultCostRatesCache;
+                lock (_defaultCostRatesLock)
+                {
+                    if (_defaultCostRatesCache != null) return _defaultCostRatesCache;
+                    _defaultCostRatesCache = LoadDefaultCostRatesCsv();
+                    return _defaultCostRatesCache;
+                }
+            }
+        }
+
+        /// <summary>Force a reload from disk — called by Cost_ReloadRules.</summary>
+        internal static void InvalidateDefaultCostRates()
+        {
+            lock (_defaultCostRatesLock) { _defaultCostRatesCache = null; }
+        }
+
+        private static Dictionary<string, (double ratePerUnit, string unit, string description)> LoadDefaultCostRatesCsv()
+        {
+            // Start from the inline fallback so a missing / partial CSV
+            // still produces a complete rate table. CSV entries override
+            // inline ones — letting the QS edit any rate by adding a row
+            // without re-shipping the plugin.
+            var rates = new Dictionary<string, (double, string, string)>(
+                _legacyInlineFallback, StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string path = StingToolsApp.FindDataFile("STING_DEFAULT_COST_RATES.csv");
+                if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path))
+                {
+                    StingLog.Info($"Scheduling4DEngine.LoadDefaultCostRatesCsv: STING_DEFAULT_COST_RATES.csv not found; using {rates.Count} inline fallback entries.");
+                    return rates;
+                }
+                bool headerSeen = false;
+                foreach (string raw in System.IO.File.ReadAllLines(path))
+                {
+                    if (string.IsNullOrWhiteSpace(raw)) continue;
+                    string line = raw.TrimStart();
+                    if (line.StartsWith("#")) continue;
+                    var cols = StingToolsApp.ParseCsvLine(raw);
+                    if (cols == null || cols.Length < 3) continue;
+                    if (!headerSeen)
+                    {
+                        // First non-comment line is the header.
+                        headerSeen = true;
+                        if (cols[0].Equals("Category", StringComparison.OrdinalIgnoreCase)) continue;
+                    }
+                    string cat = cols[0].Trim();
+                    if (!double.TryParse(cols[1], System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out double rate))
+                        continue;
+                    string unit = cols[2].Trim();
+                    string desc = cols.Length > 3 ? cols[3].Trim() : cat;
+                    rates[cat] = (rate, unit, desc);
+                }
+                StingLog.Info($"Scheduling4DEngine.LoadDefaultCostRatesCsv: merged CSV → {rates.Count} default cost rates ({System.IO.Path.GetFileName(path)} + inline).");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Scheduling4DEngine.LoadDefaultCostRatesCsv: {ex.Message}");
+            }
+            return rates;
+        }
+
+        // Retained for back-compat — a tiny inline dict the unit tests
+        // can reference. The full data lives in
+        // Data/STING_DEFAULT_COST_RATES.csv.
+        private static readonly Dictionary<string, (double, string, string)> _legacyInlineFallback =
             new Dictionary<string, (double, string, string)>
         {
             // ── Structure ──────────────────────────────────────────────

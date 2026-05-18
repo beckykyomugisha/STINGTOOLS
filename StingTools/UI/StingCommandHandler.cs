@@ -3310,6 +3310,7 @@ namespace StingTools.UI
                     case "Cost_ToggleStaleMarker":      RunCommand<Commands.Cost.CostToggleStaleMarkerCommand>(app); break;
                     case "Cost_ReloadRules":            RunCommand<Commands.Cost.CostReloadRulesCommand>(app); break;
                     case "Cost_MigrateCurrencyParams":  RunCommand<Commands.Cost.CostMigrateCurrencyParamsCommand>(app); break;
+                    case "Cost_MigrateESEntities":      RunCommand<Commands.Cost.CostMigrateESEntitiesCommand>(app); break;
                     case "BuildingCodeSeed":        RunCommand<Core.BuildingCodeSeedCommand>(app); break;
                     case "PrjVolumeCodeAuto":       RunCommand<Core.ProjectVolumeCodeAutoPopulateCommand>(app); break;
                     case "FederationReview":        RunCommand<Core.FederationCoordinationReviewCommand>(app); break;

@@ -1562,6 +1562,7 @@ namespace StingTools.Core
                 case "Cost_ToggleStaleMarker":  return new Commands.Cost.CostToggleStaleMarkerCommand();
                 case "Cost_ReloadRules":        return new Commands.Cost.CostReloadRulesCommand();
                 case "Cost_MigrateCurrencyParams": return new Commands.Cost.CostMigrateCurrencyParamsCommand();
+                case "Cost_MigrateESEntities":     return new Commands.Cost.CostMigrateESEntitiesCommand();
                 case "BatchFamilyParams": return new Temp.BatchAddFamilyParamsCommand();
                 case "FamilyParamProcessor": return new Temp.FamilyParameterProcessorCommand();
 

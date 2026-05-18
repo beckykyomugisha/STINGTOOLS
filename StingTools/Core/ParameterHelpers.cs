@@ -4196,6 +4196,15 @@ namespace StingTools.Core
                     ParameterHelpers.GetString(el, ParamRegistry.FUNC),
                     ParameterHelpers.GetString(el, ParamRegistry.PROD));
 
+                // Phase 184d / P3.1 — Opt-in cost write-back. Off by
+                // default; turn on via project_config.json
+                // WRITE_COST_ON_TAG=1. Safe to call unconditionally —
+                // CostStamp returns immediately when the flag is unset.
+                // No feedback-loop risk: StingCostStaleMarker IUpdater
+                // only listens for geometry + element addition changes,
+                // not parameter writes.
+                StingTools.BOQ.CostStamp.WriteIfEnabled(doc, el);
+
                 return true;
             }
             catch (Exception ex)
