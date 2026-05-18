@@ -897,6 +897,51 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return false; }
     }
 
+    /// <summary>
+    /// Phase 188 (Tier 3) — push an HVAC snapshot to
+    /// POST /api/projects/{projectId}/hvac/snapshots.
+    /// Used after sizing / balancing / drift / loads / carbon runs so
+    /// the mobile HVAC dashboard reflects the current model state.
+    ///
+    /// <paramref name="snapshot"/> shape:
+    ///   { kind, inspected, pass, warn, fail, totalKw, worstValue, rag, payloadJson }
+    /// where kind ∈ { "loads" | "balance" | "drift" | "carbon" | "sizing" }.
+    /// </summary>
+    public async Task<Guid?> PushHvacSnapshotAsync(Guid projectId, object snapshot)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/hvac/snapshots", snapshot);
+            if (!resp.ok) return null;
+            try
+            {
+                var j = Newtonsoft.Json.Linq.JObject.Parse(resp.body ?? "");
+                if (Guid.TryParse((string?)j["id"], out var g)) return g;
+            }
+            catch { /* server returned non-JSON */ }
+            return Guid.Empty;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    /// <summary>
+    /// Phase 188 (Tier 3) — read the HVAC dashboard aggregator.
+    /// Mirrors GetDashboardAsync; consumed by future plugin-side widgets
+    /// that want to surface server-side aggregates back into the panel.
+    /// </summary>
+    public async Task<Newtonsoft.Json.Linq.JObject?> GetHvacDashboardAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/hvac/dashboard");
+            if (!resp.ok || string.IsNullOrEmpty(resp.body)) return null;
+            return Newtonsoft.Json.Linq.JObject.Parse(resp.body);
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
     // ── BOQ Snapshot (feature gap 3) ──────────────────────────────────────────
 
     /// <summary>

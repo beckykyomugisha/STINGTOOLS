@@ -147,6 +147,11 @@ namespace StingTools.UI
                         // HVC_REFRIGERANT_TYPE_TXT on mechanical equipment so
                         // HvacCarbonReportCommand has something to read.
                         Run<StingTools.Commands.Hvac.HvacScrapeEquipmentParamsCommand>(app); break;
+                    case "Hvac_PushSnapshot":
+                        // Phase 188 — Tier 3: push panel state (drift / loads /
+                        // sizing) to /api/projects/{id}/hvac/snapshots so the
+                        // mobile dashboard reflects current model state.
+                        Run<StingTools.Commands.Hvac.HvacPushSnapshotCommand>(app); break;
                     case "Hvac_ResetDefaults":
                         // Phase 188 — Fix G4: button on CALCS tab was an orphan.
                         // Reload the registry from corporate baseline + re-seed

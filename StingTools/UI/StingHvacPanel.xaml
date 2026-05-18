@@ -872,7 +872,7 @@
                             <Button Style="{StaticResource HvacActionBtn}" Content="PDF pack"
                                     Tag="DocPackage" Click="Cmd_Click" ToolTip="Bundle HVAC drawings into a PDF pack"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Push to API"
-                                    Tag="PlatformSync" Click="Cmd_Click" ToolTip="Push results to Planscape server"/>
+                                    Tag="Hvac_PushSnapshot" Click="Cmd_Click" ToolTip="Push panel state (drift / loads / sizing) to /api/projects/{id}/hvac/snapshots — mobile HVAC dashboard reads these (Phase 188 / Tier 3)"/>
                             <Button Style="{StaticResource HvacWarnBtn}" Content="Reload rules"
                                     Tag="Hvac_ReloadRules" Click="Cmd_Click" ToolTip="Re-read STING_MEP_SIZING_RULES.json"/>
                         </WrapPanel>
