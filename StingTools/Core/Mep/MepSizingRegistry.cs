@@ -90,7 +90,7 @@ namespace StingTools.Core.Mep
     public class NcTarget
     {
         public string SpaceType { get; set; } = "";
-        public int NcTarget { get; set; }
+        public int Target { get; set; }
     }
 
     /// <summary>
@@ -388,7 +388,7 @@ namespace StingTools.Core.Mep
                     rules.NcTargets.Add(new NcTarget
                     {
                         SpaceType = (string)t["spaceType"] ?? "",
-                        NcTarget  = (int?)t["ncTarget"] ?? 35
+                        Target    = (int?)t["ncTarget"] ?? 35
                     });
                 }
             }
