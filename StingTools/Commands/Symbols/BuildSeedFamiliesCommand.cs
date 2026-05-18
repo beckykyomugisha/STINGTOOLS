@@ -467,18 +467,25 @@ namespace StingTools.Commands.Symbols
                     {
                         var mgr = fdoc.FamilyManager;
                         var p = mgr?.get_Parameter(GATE_PARAM);
+                        var currentType = mgr?.CurrentType;
                         if (p == null)
                         {
                             // No gate param at all — treat as not finalized; note authoring step.
                             reason = $"'{GATE_PARAM}' parameter not present in family";
                         }
-                        else if (p.StorageType == StorageType.Integer && p.AsInteger() == 1)
+                        else if (p.StorageType == StorageType.Integer && currentType != null
+                                 && (currentType.AsInteger(p) ?? 0) == 1)
                         {
                             gateOk = true;
                         }
                         else
                         {
-                            reason = $"'{GATE_PARAM}' is {(p.StorageType == StorageType.Integer ? p.AsInteger().ToString() : p.AsString())} — author must set to 1";
+                            string current = currentType == null
+                                ? "<no current type>"
+                                : (p.StorageType == StorageType.Integer
+                                    ? (currentType.AsInteger(p)?.ToString() ?? "<null>")
+                                    : (currentType.AsString(p) ?? "<null>"));
+                            reason = $"'{GATE_PARAM}' is {current} — author must set to 1";
                         }
 
                         // Extra check for penetration seeds: verify Mark
@@ -489,8 +496,11 @@ namespace StingTools.Commands.Symbols
                             try
                             {
                                 var markP = mgr?.get_Parameter("Mark");
-                                if (markP == null || string.IsNullOrEmpty(markP.AsValueString())
-                                    || !markP.IsFormula)
+                                string markValue = (markP != null && currentType != null)
+                                    ? currentType.AsValueString(markP)
+                                    : null;
+                                if (markP == null || string.IsNullOrEmpty(markValue)
+                                    || !markP.IsDeterminedByFormula)
                                 {
                                     gateOk = false;
                                     reason = "Penetration seed: Mark formula '= PEN_CONTROL_NUMBER_TXT' not wired in Family Editor";

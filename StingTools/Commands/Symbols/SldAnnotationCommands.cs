@@ -406,7 +406,7 @@ namespace StingTools.Commands.Symbols
     {
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
             View view = ctx.UIDoc.ActiveView;
             if (!IsSchematicView(view))
@@ -466,7 +466,7 @@ namespace StingTools.Commands.Symbols
         private static Result AnnotateSingle(ExternalCommandData cd,
             SldAnnotationEngine.AnnotKind kind, string label)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
             var elements = SldAnnotationEngine.CollectAnnotatableElements(
                 ctx.Doc, ctx.UIDoc.ActiveView);
@@ -503,7 +503,7 @@ namespace StingTools.Commands.Symbols
     {
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
             var elements = SldAnnotationEngine.CollectAnnotatableElements(
                 ctx.Doc, ctx.UIDoc.ActiveView);
@@ -536,7 +536,7 @@ namespace StingTools.Commands.Symbols
     {
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
             var elements = SldAnnotationEngine.CollectAnnotatableElements(
                 ctx.Doc, ctx.UIDoc.ActiveView);
@@ -570,7 +570,7 @@ namespace StingTools.Commands.Symbols
     {
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
             var elements = SldAnnotationEngine.CollectAnnotatableElements(
                 ctx.Doc, ctx.UIDoc.ActiveView);
@@ -603,7 +603,7 @@ namespace StingTools.Commands.Symbols
     {
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
             var elements = SldAnnotationEngine.CollectAnnotatableElements(
                 ctx.Doc, ctx.UIDoc.ActiveView);
@@ -636,7 +636,7 @@ namespace StingTools.Commands.Symbols
     {
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
             var elements = SldAnnotationEngine.CollectAnnotatableElements(
                 ctx.Doc, ctx.UIDoc.ActiveView);
@@ -669,7 +669,7 @@ namespace StingTools.Commands.Symbols
     {
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
             var elements = SldAnnotationEngine.CollectAnnotatableElements(
                 ctx.Doc, ctx.UIDoc.ActiveView);
@@ -702,7 +702,7 @@ namespace StingTools.Commands.Symbols
     {
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
             var elements = SldAnnotationEngine.CollectAnnotatableElements(
                 ctx.Doc, ctx.UIDoc.ActiveView);
@@ -735,7 +735,7 @@ namespace StingTools.Commands.Symbols
     {
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
 
             var current = SldAnnotationEngine.CurrentFormat;
@@ -776,7 +776,7 @@ namespace StingTools.Commands.Symbols
     {
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
 
             var view = ctx.UIDoc.ActiveView;
@@ -810,7 +810,7 @@ namespace StingTools.Commands.Symbols
     {
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
 
             var view = ctx.UIDoc.ActiveView;
@@ -854,7 +854,7 @@ namespace StingTools.Commands.Symbols
     {
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
 
             var view = ctx.UIDoc.ActiveView;
@@ -893,7 +893,7 @@ namespace StingTools.Commands.Symbols
     {
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
 
             var view = ctx.UIDoc.ActiveView;
@@ -933,7 +933,7 @@ namespace StingTools.Commands.Symbols
     {
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
             var elements = SldAnnotationEngine.CollectAnnotatableElements(
                 ctx.Doc, ctx.UIDoc.ActiveView);

@@ -36,6 +36,7 @@ using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using StingTools.Core;
 using StingTools.Core.Symbols;
+using StingTools.Select;
 using StingTools.UI;
 
 namespace StingTools.Commands.Symbols
@@ -69,8 +70,8 @@ namespace StingTools.Commands.Symbols
                         : (sym.Status == "draft" ? " [draft]" : "");
                     string cat = string.IsNullOrEmpty(sym.Category) ? ""
                         : $"  [{sym.Category}]";
-                    string desc = string.IsNullOrEmpty(sym.Description)
-                        ? sym.Id : sym.Description;
+                    string desc = string.IsNullOrEmpty(sym.Name)
+                        ? sym.Id : sym.Name;
                     list.Add($"{sym.Id}{cat}  —  {desc}{status}");
                 }
             }
@@ -102,8 +103,8 @@ namespace StingTools.Commands.Symbols
                         string status = sym.Status == "draft" ? " [draft]" : "";
                         string cat = string.IsNullOrEmpty(sym.Category)
                             ? label : sym.Category;
-                        string desc = string.IsNullOrEmpty(sym.Description)
-                            ? sym.Id : sym.Description;
+                        string desc = string.IsNullOrEmpty(sym.Name)
+                            ? sym.Id : sym.Name;
                         list.Add($"{sym.Id}  [{cat}]  —  {desc}{status}");
                     }
                 }
@@ -334,7 +335,7 @@ namespace StingTools.Commands.Symbols
         private const string JsonFile = "STING_ELEC_SYMBOLS.json";
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
 
             var items = EquipmentSymbolEngine.LoadDisplayList(JsonFile, "Electrical");
@@ -382,7 +383,7 @@ namespace StingTools.Commands.Symbols
         private const string JsonFile = "STING_PLUMBING_SYMBOLS.json";
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
 
             var items = EquipmentSymbolEngine.LoadDisplayList(JsonFile);
@@ -425,7 +426,7 @@ namespace StingTools.Commands.Symbols
         private const string JsonFile = "STING_MEP_SYMBOLS.json";
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
 
             var items = EquipmentSymbolEngine.LoadDisplayList(JsonFile);
@@ -468,7 +469,7 @@ namespace StingTools.Commands.Symbols
         private const string JsonFile = "STING_LIGHTING_SYMBOLS.json";
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
 
             var items = EquipmentSymbolEngine.LoadDisplayList(JsonFile);
@@ -511,7 +512,7 @@ namespace StingTools.Commands.Symbols
         private const string JsonFile = "STING_FP_SYMBOLS.json";
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
 
             var items = EquipmentSymbolEngine.LoadDisplayList(JsonFile);
@@ -563,7 +564,7 @@ namespace StingTools.Commands.Symbols
 
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
 
             var items = EquipmentSymbolEngine.LoadDisplayListMulti(Sources);
@@ -634,7 +635,7 @@ namespace StingTools.Commands.Symbols
         private const string JsonFile = "STING_PIPE_ACCESSORIES.json";
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            var ctx = new CommandExecutionContext(cd);
+            var ctx = ParameterHelpers.GetContext(cd);
             if (ctx == null) return Result.Failed;
 
             var items = EquipmentSymbolEngine.LoadDisplayList(JsonFile);
