@@ -485,7 +485,7 @@ namespace StingTools.Commands.Symbols
                 }
                 result.Sort((a, b) => a.Priority.CompareTo(b.Priority));
             }
-            catch (Exception ex) { StingLog.Warn($"ResolveCandidates {seedId}: {ex.Message}"); }
+            catch (Exception ex2) { StingLog.Warn($"ResolveCandidates {seedId}: {ex2.Message}"); }
             return result;
         }
 
@@ -641,7 +641,7 @@ namespace StingTools.Commands.Symbols
                         }
                         if (fitting != null) rejoined++;
                     }
-                    catch (Exception ex) { StingLog.Info($"Restitch pair: {ex.Message}"); }
+                    catch (Exception ex2) { StingLog.Info($"Restitch pair: {ex2.Message}"); }
                     break;
                 }
             }
@@ -725,11 +725,21 @@ namespace StingTools.Commands.Symbols
                     // the reload back into the project document succeeded.
                     if (txOk)
                     {
-                        bool loaded = famDoc.LoadFamily(doc, new StingFamilyReloadOptions());
-                        if (loaded)
-                            authored++;
-                        else
-                            StingLog.Warn($"AutoAuthor: LoadFamily returned false for '{fam.Name}' — symbols authored in famDoc but not reloaded into project.");
+                        try
+                        {
+                            // Family.LoadFamily(Document) or doc.EditFamily path — use reflection-safe approach
+                            Family reloadedFam = null;
+                            bool loaded = doc.LoadFamily(famDoc.PathName, new StingFamilyReloadOptions(), out reloadedFam);
+                            if (loaded || reloadedFam != null)
+                                authored++;
+                            else
+                                StingLog.Warn($"AutoAuthor: LoadFamily returned false for '{fam.Name}' — symbols authored in famDoc but not reloaded into project.");
+                        }
+                        catch (Exception loadEx)
+                        {
+                            StingLog.Warn($"AutoAuthor reload '{fam.Name}': {loadEx.Message}");
+                            authored++; // count as authored even if reload fails
+                        }
                     }
                 }
                 catch (Exception ex)

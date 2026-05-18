@@ -163,7 +163,7 @@ namespace StingTools.Core.Plumbing
                 }
                 catch (Exception ex2)
                 {
-                    r.Warnings.Add($"BuildDfuMap pipe {p.Id}: {ex.Message}");
+                    r.Warnings.Add($"BuildDfuMap pipe {p.Id}: {ex2.Message}");
                 }
             }
             return r;

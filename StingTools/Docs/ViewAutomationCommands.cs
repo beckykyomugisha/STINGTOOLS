@@ -519,7 +519,7 @@ namespace StingTools.Docs
                             }
                             catch (Exception ex2)
                             {
-                                StingLog.Warn($"Copy filter to '{target.Name}': {ex.Message}");
+                                StingLog.Warn($"Copy filter to '{target.Name}': {ex2.Message}");
                             }
                         }
 

@@ -702,7 +702,7 @@ namespace StingTools.Docs
                         }
                         catch (Exception ex2)
                         {
-                            StingLog.Warn($"Could not duplicate view '{view.Name}': {ex.Message}");
+                            StingLog.Warn($"Could not duplicate view '{view.Name}': {ex2.Message}");
                             continue;
                         }
                     }
@@ -726,7 +726,7 @@ namespace StingTools.Docs
                         }
                         catch (Exception ex2)
                         {
-                            StingLog.Warn($"Could not place viewport for '{view.Name}' on cloned sheet: {ex.Message}");
+                            StingLog.Warn($"Could not place viewport for '{view.Name}' on cloned sheet: {ex2.Message}");
                         }
                     }
                 }
@@ -748,7 +748,7 @@ namespace StingTools.Docs
                     }
                     catch (Exception ex2)
                     {
-                        StingLog.Warn($"Could not copy schedule to cloned sheet: {ex.Message}");
+                        StingLog.Warn($"Could not copy schedule to cloned sheet: {ex2.Message}");
                     }
                 }
             }

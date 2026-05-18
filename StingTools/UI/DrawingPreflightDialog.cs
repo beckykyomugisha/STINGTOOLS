@@ -40,9 +40,7 @@ using Color     = System.Windows.Media.Color;
 using Colors    = System.Windows.Media.Colors;
 using Rectangle = System.Windows.Shapes.Rectangle;
 using Grid      = System.Windows.Controls.Grid;
-using StingTools.Core.Validation;
-using Color = System.Windows.Media.Color;
-using Grid = System.Windows.Controls.Grid;
+using ValidationSeverity = StingTools.Core.Drawing.ValidationSeverity;
 
 namespace StingTools.UI
 {

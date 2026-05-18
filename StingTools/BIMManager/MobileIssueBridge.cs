@@ -120,7 +120,7 @@ namespace StingTools.BIMManager
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn($"MobileIssueBridge.Push failed for {localIssue.Value<string>("id")}: {ex.Message}");
+                    StingLog.Warn($"MobileIssueBridge.Push failed for {localIssue.Value<string>("id")}: {ex2.Message}");
                 }
             }
 

@@ -1,3 +1,4 @@
+#nullable enable
 // Gap 2 / Phase 121 — Extensible Storage facade.
 //
 // One stop for every STING read-site that wants to honour ES-first,

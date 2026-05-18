@@ -437,7 +437,7 @@ namespace StingTools.Commands.Drawing
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn($"LoadFamilyFromDisk '{name}': {ex.Message}");
+                    StingLog.Warn($"LoadFamilyFromDisk '{name}': {ex2.Message}");
                 }
             }
             return null;
@@ -664,9 +664,9 @@ namespace StingTools.Commands.Drawing
                     try { famDoc.Close(false); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex2)
             {
-                StingLog.Warn($"ReadSlotBoundsFromTitleBlock (ref planes): {ex.Message}");
+                StingLog.Warn($"ReadSlotBoundsFromTitleBlock (ref planes): {ex2.Message}");
             }
             return result;
         }

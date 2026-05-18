@@ -18,7 +18,6 @@ using StingTools.Core;
 using Color      = System.Windows.Media.Color;
 using Ellipse    = System.Windows.Shapes.Ellipse;
 using Visibility = System.Windows.Visibility;
-using Color = System.Windows.Media.Color;
 
 namespace StingTools.UI
 {

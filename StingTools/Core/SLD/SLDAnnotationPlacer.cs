@@ -28,6 +28,7 @@ namespace StingTools.Core.SLD
     public static class SLDAnnotationPlacer
     {
         private const double MmPerFoot = 304.8;
+        private const double symSizeMm = 5.0; // default circuit symbol radius in mm
         private static double Mm(double mm) => mm / MmPerFoot;
 
         /// <summary>

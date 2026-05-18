@@ -86,7 +86,7 @@ namespace StingTools.Commands.Electrical
                     catch (Exception ex2) { StingLog.Warn($"Breaker compute: {ex2.Message}"); }
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"BreakerSizer.Compute: {ex.Message}"); }
+            catch (Exception ex2) { StingLog.Warn($"BreakerSizer.Compute: {ex2.Message}"); }
             return list;
         }
     }

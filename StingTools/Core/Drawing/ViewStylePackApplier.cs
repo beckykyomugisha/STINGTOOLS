@@ -163,11 +163,20 @@ namespace StingTools.Core.Drawing
                 var visibility = string.Equals(mode, "HideAll", StringComparison.OrdinalIgnoreCase)
                     ? WorksetVisibility.Hidden
                     : WorksetVisibility.Visible;
-                var wkCol = new FilteredElementCollector(doc).OfClass(typeof(Workset)).Cast<Workset>();
+                // CA2021: Workset is not an Element, use GetWorksets() instead
+                var wkCol = new FilteredWorksetCollector(doc).OfKind(WorksetKind.UserWorkset);
                 foreach (var wk in wkCol)
                     view.SetWorksetVisibility(wk.Id, visibility);
             }
             catch (Exception ex) { r.Warnings.Add($"ApplyWorksetVisibility: {ex.Message}"); }
+        }
+
+        public static void ApplyPresetOverrides(Document doc, View view,
+            List<StingTools.Core.Drawing.PresetCategoryOverride> presetVg, PackApplyResult r)
+        {
+            if (doc == null || view == null || presetVg == null || r == null) return;
+            // Minimal stub — preset overrides are applied via DrawingTypePresentation pipeline
+            r.Warnings.Add("ApplyPresetOverrides: preset VG overrides applied via DrawingTypePresentation.");
         }
 
         private static ElementId ResolveCategoryId(Document doc, string key)

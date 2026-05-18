@@ -738,9 +738,24 @@ namespace StingTools.Core
         {
             lock (_roomCacheLock)
             {
+                // Skip invalidation while in a batch session so the cache
+                // stays warm across many per-element calls in the same batch.
+                if (_inBatchSession) return;
                 _roomCacheDocKey = null;
                 _roomCacheIndex = null;
             }
+        }
+
+        private static bool _inBatchSession = false;
+
+        public static void BeginBatchSession()
+        {
+            lock (_roomCacheLock) { _inBatchSession = true; }
+        }
+
+        public static void EndBatchSession()
+        {
+            lock (_roomCacheLock) { _inBatchSession = false; }
         }
 
         /// <summary>
@@ -4040,7 +4055,7 @@ namespace StingTools.Core
                                 try { ParameterHelpers.SetString(el, paramName, kvp.Value, overwrite: true); }
                                 catch (Exception lockEx2)
                                 {
-                                    StingLog.Warn($"TagPipeline: failed to restore locked token {kvp.Key} on {el.Id}: {lockEx.Message}");
+                                    StingLog.Warn($"TagPipeline: failed to restore locked token {kvp.Key} on {el.Id}: {lockEx2.Message}");
                                 }
                             }
                         }

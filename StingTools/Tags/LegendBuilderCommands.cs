@@ -132,7 +132,7 @@ namespace StingTools.Tags
                         try { doc.Delete(existingElements); }
                         catch (Exception ex2)
                         {
-                            StingLog.Warn($"Batch delete legend elements: {ex.Message}");
+                            StingLog.Warn($"Batch delete legend elements: {ex2.Message}");
                             foreach (var eid in existingElements)
                             {
                                 try { doc.Delete(eid); }

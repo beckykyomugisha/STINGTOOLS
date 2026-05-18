@@ -157,24 +157,24 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                                 {
                                     CircuitWizardEngine.RecalculateCircuit(proposal, PendingOptions, null);
                                 }
-                                catch (Exception ex2) { StingLog.Warn($"RecalculateCircuit post-create: {ex2.Message}"); }
+                                catch (Exception exRecalc) { StingLog.Warn($"RecalculateCircuit post-create: {exRecalc.Message}"); }
                             }
 
                             tx.Commit();
                             created++;
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
-                            StingLog.Error($"Create circuit {proposal.ProposedLabel}: {ex.Message}", ex);
-                            failed.Add($"{proposal.ProposedLabel}: {ex.Message}");
-                            try { if (tx.HasStarted()) tx.RollBack(); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
+                            StingLog.Error($"Create circuit {proposal.ProposedLabel}: {ex2.Message}", ex2);
+                            failed.Add($"{proposal.ProposedLabel}: {ex2.Message}");
+                            try { if (tx.HasStarted()) tx.RollBack(); } catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); }
                         }
                     }
                 }
                 tg.Assimilate();
             }
 
-            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
             string failTail = failed.Count == 0
                 ? ""
                 : "\n\nFailed:\n  " + string.Join("\n  ", failed.Take(8))

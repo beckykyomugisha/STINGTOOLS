@@ -888,8 +888,8 @@ namespace StingTools.Tags
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn($"Tag3D link '{link?.Name}': {ex.Message}");
-                    result.Warnings.Add($"Linked file '{link?.Name}' skipped: {ex.Message}");
+                    StingLog.Warn($"Tag3D link '{link?.Name}': {ex2.Message}");
+                    result.Warnings.Add($"Linked file '{link?.Name}' skipped: {ex2.Message}");
                 }
             }
         }

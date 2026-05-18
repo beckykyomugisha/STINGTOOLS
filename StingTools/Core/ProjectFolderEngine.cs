@@ -696,7 +696,7 @@ namespace StingTools.Core
                         }
                     }
                 }
-                catch (Exception ex) { rep.Warnings.Add($"Briefcase scan: {ex.Message}"); }
+                catch (Exception ex2) { rep.Warnings.Add($"Briefcase scan: {ex2.Message}"); }
 
                 // 3. Move legacy STING_Exports / STING_Project — route by extension
                 foreach (string legacyName in new[] { "STING_Exports", "STING_Project" })

@@ -133,6 +133,9 @@ namespace StingTools.Core.Placement
         /// <summary>Side constraint (LEFT / RIGHT / EITHER / FRONT / BACK / HINGE_SIDE / LATCH_SIDE).</summary>
         public string SideConstraint { get; set; } = "EITHER";
 
+        /// <summary>Material specification string written to PLM_PPE_MAT_TXT / HVC_DCT_MAT_TXT on placed elements.</summary>
+        public string Material { get; set; } = "";
+
         // ── Spacing & cap ───────────────────────────────────────────
 
         /// <summary>Minimum centre-to-centre spacing in millimetres between fixtures placed by this rule within the same room.</summary>

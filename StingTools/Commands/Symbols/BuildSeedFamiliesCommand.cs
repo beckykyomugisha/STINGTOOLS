@@ -674,7 +674,7 @@ namespace StingTools.Commands.Symbols
                             }
                             finally { try { fdoc.Close(false); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); } }
                         }
-                        catch (Exception ex) { warnings.Add($"Connector audit: '{id}' — open family failed: {ex.Message}"); continue; }
+                        catch (Exception ex2) { warnings.Add($"Connector audit: '{id}' — open family failed: {ex2.Message}"); continue; }
 
                         if (actual < declared)
                         {

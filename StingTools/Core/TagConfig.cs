@@ -455,6 +455,8 @@ namespace StingTools.Core
             _locCodesSet = null;  // F-08
             _zoneCodesSet = null; // F-08
             _tokenValidationCache.Clear(); // Phase 78: Clear memoized validation results
+            _validFuncsCsvLoaded = false;  // Force reload of CSV-derived func codes
+            EnsureValidFuncsLoaded();
         }
 
         /// <summary>
@@ -1965,8 +1967,7 @@ namespace StingTools.Core
 
                 ConfigSource = path;
                 // Reload CSV-derived lookup tables so project-specific additions survive config reload
-                _validFuncsCsvLoaded = false;
-                EnsureValidFuncsLoaded();
+                // Note: _validFuncsCsvLoaded/EnsureValidFuncsLoaded live in ISO19650Validator; use InvalidateValidatorCaches.
                 _csvProdRulesLoaded = false;
                 ISO19650Validator.InvalidateValidatorCaches(); // PERF-01: clear cached code sets after config reload
                 try { BIMManager.ExcelLinkEngine.InvalidateValidationCache(); } // DI-02: clear Excel validation caches on config reload
@@ -2055,8 +2056,8 @@ namespace StingTools.Core
             AutoTaggerStaleMarker = null;
             AutoCorrectStatusFromPhase = false;
             // Reload FUNC/SYS matrix from CSV so custom project additions aren't lost on reset
-            _validFuncsCsvLoaded = false;
-            EnsureValidFuncsLoaded();
+            // Note: _validFuncsCsvLoaded/EnsureValidFuncsLoaded live in ISO19650Validator; use InvalidateValidatorCaches.
+            ISO19650Validator.InvalidateValidatorCaches();
             // Load PROD code rules from CSV (lazy — invalidate so next GetFamilyAwareProdCode call reloads)
             _csvProdRulesLoaded = false;
             // Load category warnings and paragraph containers from LABEL_DEFINITIONS
@@ -6683,7 +6684,7 @@ namespace StingTools.Core
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn("WriteTag7All paragraph clear pass failed: " + ex.Message);
+                    StingLog.Warn("WriteTag7All paragraph clear pass failed: " + ex2.Message);
                 }
             }
 
