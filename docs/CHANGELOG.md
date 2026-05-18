@@ -4509,3 +4509,57 @@ header-level radio so every action respects it without re-prompting.
 3. `Hvac_RunLoads` and `Hvac_ExportGbxml` route to TaskDialog stubs pointing at Revit's native Analyze ribbon. A first-class Loads + gbXML wizard is the Phase 181 follow-up.
 4. The EQPT / SYS / SpoolGrid / DriftGrid / WorkflowGrid `ObservableCollection`s start empty — populated when a command run pushes data back (handler pattern; mirrors how `StingElectricalPanel.PanelRows` is filled by `BuildPanelScheduleCommand`).
 5. PaneGuid `D7E8F9A0-B1C2-3D4E-5F60-1A2B3C4D5E6F` must remain stable from this point so users' Revit `UIState.dat` re-locates the panel between sessions.
+
+#### Completed (Phase 181 — HVAC engine refactor + real Loads / gbXML wizards)
+
+**Scope**: closes the two caveats that shipped with the Phase 180 HVAC Center.
+
+1. Sizing engines (`MepAutoSizeDuctCommand`, `MepAutoSizePipeCommand`,
+   `MepAutoSizeConduitCommand`) now read velocity / aspect / fill / standard-size
+   tables from `MepSizingRegistry.Get(doc)` instead of `private const` literals.
+   Hardcoded values become `*Fallback` constants used only when the registry
+   load fails. Result panel subtitle now shows the active target + source so
+   the rule provenance is visible.
+2. `MEPBalancingEngine.BalanceSystem` damping `0.7`, tolerance `1.0`, iteration
+   cap `100`, and `0.01` flow floor → registry-driven via a new
+   `Document`-aware overload `BalanceSystem(Document doc, branches, totalPressurePa)`
+   that reads from `MepSizingRegistry.Get(doc).Balancing` and forwards to the
+   canonical signature. Existing parameterless callers still work via the
+   original signature with widened defaults (the explicit `dampingFactor` and
+   `minBranchFlowLs` arguments default to the historic `0.7` / `0.01`).
+3. `FittingLossCalculator` consults `Data/STING_FITTING_LOSSES.json` first via
+   a lazy thread-safe overlay; missing types fall back to the existing hardcoded
+   26-entry dictionary. JSON entries shadow the baseline — designers can override
+   K-values for proprietary fittings without recompiling.
+4. `Hvac_RunLoads` is a real `IExternalCommand` that pre-flights the model
+   (warns when no MEP Spaces are placed), confirms with the user, then posts
+   `PostableCommand.AnalyzeHeatingAndCoolingLoads` so Revit's native loads
+   engine runs against the energy analytical model.
+5. `Hvac_ExportGbxml` is a real `IExternalCommand` that verifies the active
+   view is 3D, resolves the output folder via `OutputLocationHelper`, sets
+   `ExportEnergyModelType = SpatialElement` defensively via reflection
+   (enum availability varies by Revit version), and calls `Document.Export`
+   with `GBXMLExportOptions`. Hand-off target: IES VE, TRACE 3D Plus, Carrier HAP, EnergyPlus.
+
+**New files**:
+
+| File | Purpose |
+|---|---|
+| `StingTools/Commands/Hvac/HvacWizardCommands.cs` | `HvacRunLoadsCommand` + `HvacExportGbxmlCommand` real implementations |
+| `StingTools/Data/STING_FITTING_LOSSES.json` | 31-entry fitting-loss table (CIBSE Guide C / DW/144 / ASHRAE) loaded as an overlay over the hardcoded dictionary |
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Commands/Mep/MepAutoSizeCommand.cs` | `MepSizeTables.DuctSizesFor(doc)` / `PipeBoresFor(doc)` registry-aware helpers; all three commands consume `MepSizingRegistry`; hardcoded constants renamed `*Fallback`; result-panel subtitles surface active rule source |
+| `StingTools/Model/MEPIntelligenceEngine.cs` | `FittingLossCalculator` gains JSON-overlay path with `Lazy<>`-equivalent thread-safe init; `MEPBalancingEngine.BalanceSystem` gains `Document`-aware overload + explicit `dampingFactor` / `minBranchFlowLs` parameters; damping `0.7` and floor `0.01` no longer magic numbers in the inner loop |
+| `StingTools/UI/StingHvacCommandHandler.cs` | `Hvac_RunLoads` and `Hvac_ExportGbxml` switch from TaskDialog stubs to `Run<HvacRunLoadsCommand>()` / `Run<HvacExportGbxmlCommand>()` |
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.
+2. `MepAutoSizeDuctCommand` still uses the `"branch"` role as the project-wide default for every duct in the active scope. Per-element segment-role detection (HVC_SEGMENT_ROLE_TXT reads → role lookup) lands in a follow-up phase; this phase wires the data path.
+3. `MepAutoSizePipeCommand` defaults to the `"chw"` service for every pipe (matches the historic 2.5 m/s safety margin). Per-service detection from system abbreviation lands next.
+4. `HvacExportGbxmlCommand` uses reflection to set `ExportEnergyModelType = SpatialElement` because the enum identifier moved between Revit 2024 and 2026. The call is best-effort — if the property is missing, the export still runs with whatever default the active Revit version uses.
+5. `HvacRunLoadsCommand` posts the native Revit dialog rather than running the loads engine headlessly — the public Revit API does not expose the engine directly. The user still has to click Calculate in the native dialog.

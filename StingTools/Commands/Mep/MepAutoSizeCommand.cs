@@ -26,25 +26,26 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Mep;
 using StingTools.UI;
 
 namespace StingTools.Commands.Mep
 {
     internal static class MepSizeTables
     {
-        // Pipe standard bores (mm) per BS EN 10255 / BS EN 10216 (DN).
+        // Hardcoded fallbacks — used only when STING_MEP_SIZING_RULES.json
+        // is missing or fails to parse. Phase 181 routes every consumer
+        // through MepSizingRegistry so projects can override per region.
+
         public static readonly double[] PipeStandardBoreMm =
         { 6, 8, 10, 15, 20, 25, 32, 40, 50, 65, 80, 100, 125, 150, 200, 250, 300, 350, 400, 450, 500, 600 };
 
-        // Standard rectangular duct widths/heights (mm) per SMACNA.
         public static readonly double[] DuctStandardMm =
         { 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 700, 800, 900, 1000, 1200, 1400, 1600, 1800, 2000 };
 
-        // Standard conduit trade sizes (mm) per BS EN 61386.
         public static readonly double[] ConduitStandardMm =
         { 16, 20, 25, 32, 40, 50, 63, 75, 100 };
 
-        // Standard cable tray widths (mm) per BS EN 61537.
         public static readonly double[] CableTrayStandardMm =
         { 50, 75, 100, 150, 200, 300, 450, 600, 750, 900 };
 
@@ -52,6 +53,35 @@ namespace StingTools.Commands.Mep
         {
             foreach (var t in table) if (t >= targetMm) return t;
             return table[table.Length - 1];
+        }
+
+        // ── Registry-aware lookups (Phase 181) ───────────────────────────
+        // Each returns the project-scoped table from STING_MEP_SIZING_RULES.json
+        // for the active region, falling back to the hardcoded array above
+        // when the registry is unavailable or returns an empty list.
+
+        public static double[] DuctSizesFor(Document doc)
+        {
+            try
+            {
+                var rules = MepSizingRegistry.Get(doc);
+                var arr = rules.DuctSizesForRegion(rules.DuctDefaultRegion);
+                if (arr != null && arr.Length > 0) return arr;
+            }
+            catch (Exception ex) { StingLog.Warn($"DuctSizesFor fallback: {ex.Message}"); }
+            return DuctStandardMm;
+        }
+
+        public static double[] PipeBoresFor(Document doc)
+        {
+            try
+            {
+                var rules = MepSizingRegistry.Get(doc);
+                var arr = rules.PipeBoresForRegion(rules.PipeDefaultRegion);
+                if (arr != null && arr.Length > 0) return arr;
+            }
+            catch (Exception ex) { StingLog.Warn($"PipeBoresFor fallback: {ex.Message}"); }
+            return PipeStandardBoreMm;
         }
     }
 
@@ -69,13 +99,28 @@ namespace StingTools.Commands.Mep
     public class MepAutoSizePipeCommand : IExternalCommand
     {
         private const double MmToFt = 1.0 / 304.8;
-        private const double PipeMaxVelMs = 2.5;
+        private const double PipeMaxVelMsFallback = 2.5;
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
+
+            // Phase 181 — pull velocity target + bore table from STING_MEP_SIZING_RULES.json.
+            // Per-service velocity (chw / hws / dcw / dhw / refrigerant / steam / gas) reads
+            // from rules.GetPipeService(serviceId); for now we default to the "chw" entry
+            // which carries the lowest velocity, matching the historic 2.5 m/s safety margin.
+            double maxVelMs = PipeMaxVelMsFallback;
+            double[] boreTable = MepSizeTables.PipeStandardBoreMm;
+            try
+            {
+                var rules = MepSizingRegistry.Get(doc);
+                var svc = rules.GetPipeService("chw");
+                if (svc != null && svc.MaxVelocityMs > 0) maxVelMs = svc.MaxVelocityMs;
+                boreTable = MepSizeTables.PipeBoresFor(doc);
+            }
+            catch (Exception ex) { StingLog.Warn($"PipeSize registry fallback: {ex.Message}"); }
 
             var res = new MepSizeResult { Discipline = "Pipe" };
             List<Element> pipes;
@@ -100,16 +145,16 @@ namespace StingTools.Commands.Mep
                             if (flowLs <= 0) { res.Skipped++; continue; }
                             double flowM3s = flowLs * 1e-3;
                             // A = q / v → d = sqrt(4A/π)
-                            double area = flowM3s / PipeMaxVelMs;
+                            double area = flowM3s / maxVelMs;
                             double diaMm = Math.Sqrt(4.0 * area / Math.PI) * 1000.0;
-                            double standard = MepSizeTables.RoundUpTo(diaMm, MepSizeTables.PipeStandardBoreMm);
+                            double standard = MepSizeTables.RoundUpTo(diaMm, boreTable);
                             if (WriteSize(p, "Diameter", standard)) res.Resized++;
                             else res.Skipped++;
                         }
                         catch (Exception ex3)
                         {
                             res.Skipped++;
-                            res.Warnings.Add($"size {p.Id}: {ex.Message}");
+                            res.Warnings.Add($"size {p.Id}: {ex3.Message}");
                         }
                     }
                     tx.Commit();
@@ -117,11 +162,11 @@ namespace StingTools.Commands.Mep
                 catch (Exception ex3)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
-                    res.Warnings.Add($"Pipe sizing fatal: {ex.Message}");
+                    res.Warnings.Add($"Pipe sizing fatal: {ex3.Message}");
                 }
             }
         Done:
-            ShowResult(res, "Pipe (target ≤ 2.5 m/s, BS EN 10255 bore table)");
+            ShowResult(res, $"Pipe (target ≤ {maxVelMs:F2} m/s, registry bore table, {boreTable.Length} sizes)");
             return Result.Succeeded;
         }
 
@@ -182,15 +227,39 @@ namespace StingTools.Commands.Mep
     public class MepAutoSizeDuctCommand : IExternalCommand
     {
         private const double MmToFt = 1.0 / 304.8;
-        private const double DuctMaxVelMs = 6.0;
-        private const double MinAspect = 1.0;
-        private const double MaxAspect = 3.0;
+        private const double DuctMaxVelMsFallback = 6.0;
+        private const double MaxAspectFallback = 3.0;
+        private const double DefaultAspectFallback = 1.5;
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
+
+            // Phase 181 — read targets from STING_MEP_SIZING_RULES.json.
+            // We default to the "branch" role for now (matches the historic 6 m/s
+            // ceiling). A future enhancement reads segment role per element
+            // (HVC_SEGMENT_ROLE_TXT) so mains can use 8 m/s while runouts cap at 4.5.
+            double maxVelMs       = DuctMaxVelMsFallback;
+            double maxAspect      = MaxAspectFallback;
+            double defaultAspect  = DefaultAspectFallback;
+            double[] sizeTable    = MepSizeTables.DuctStandardMm;
+            string  ruleSource    = "fallback";
+            try
+            {
+                var rules = MepSizingRegistry.Get(doc);
+                var role  = rules.GetDuctRole("branch");
+                if (role != null && role.MaxVelocityMs > 0)
+                {
+                    maxVelMs  = role.MaxVelocityMs;
+                    maxAspect = role.AspectMax > 0 ? role.AspectMax : MaxAspectFallback;
+                    ruleSource = string.IsNullOrEmpty(role.Source) ? "registry" : role.Source;
+                }
+                if (rules.DuctDefaultAspect > 0) defaultAspect = rules.DuctDefaultAspect;
+                sizeTable = MepSizeTables.DuctSizesFor(doc);
+            }
+            catch (Exception ex) { StingLog.Warn($"DuctSize registry fallback: {ex.Message}"); }
 
             var res = new MepSizeResult { Discipline = "Duct" };
             var ducts = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_DuctCurves)
@@ -219,32 +288,32 @@ namespace StingTools.Commands.Mep
                             double flowM3s = flowLs * 1e-3;
 
                             // Area = q / v
-                            double area = flowM3s / DuctMaxVelMs;
+                            double area = flowM3s / maxVelMs;
 
                             // Round-duct equivalent:
                             double diaMm = Math.Sqrt(4.0 * area / Math.PI) * 1000.0;
-                            // Rectangular with aspect 1:1.5 default
-                            double widthMm = Math.Sqrt(area * 1.5) * 1000.0;
-                            double heightMm = widthMm / 1.5;
+                            // Rectangular with configured aspect default
+                            double widthMm = Math.Sqrt(area * defaultAspect) * 1000.0;
+                            double heightMm = widthMm / defaultAspect;
                             // Clamp aspect
-                            if (widthMm / heightMm > MaxAspect)
+                            if (widthMm / heightMm > maxAspect)
                             {
-                                heightMm = widthMm / MaxAspect;
+                                heightMm = widthMm / maxAspect;
                             }
-                            widthMm  = MepSizeTables.RoundUpTo(widthMm,  MepSizeTables.DuctStandardMm);
-                            heightMm = MepSizeTables.RoundUpTo(heightMm, MepSizeTables.DuctStandardMm);
+                            widthMm  = MepSizeTables.RoundUpTo(widthMm,  sizeTable);
+                            heightMm = MepSizeTables.RoundUpTo(heightMm, sizeTable);
 
                             bool wrote = false;
                             if (WriteSize(d, "Width",  widthMm))  wrote = true;
                             if (WriteSize(d, "Height", heightMm)) wrote = true;
                             if (!wrote && WriteSize(d, "Diameter",
-                                MepSizeTables.RoundUpTo(diaMm, MepSizeTables.DuctStandardMm))) wrote = true;
+                                MepSizeTables.RoundUpTo(diaMm, sizeTable))) wrote = true;
                             if (wrote) res.Resized++; else res.Skipped++;
                         }
                         catch (Exception ex2)
                         {
                             res.Skipped++;
-                            res.Warnings.Add($"size {d.Id}: {ex.Message}");
+                            res.Warnings.Add($"size {d.Id}: {ex2.Message}");
                         }
                     }
                     tx.Commit();
@@ -256,7 +325,7 @@ namespace StingTools.Commands.Mep
                 }
             }
         Done:
-            ShowResult(res, "Duct (target ≤ 6 m/s, aspect ≤ 3:1, SMACNA standard sizes)");
+            ShowResult(res, $"Duct (target ≤ {maxVelMs:F1} m/s · aspect ≤ {maxAspect:F1}:1 · {sizeTable.Length} sizes · {ruleSource})");
             return Result.Succeeded;
         }
 
@@ -319,13 +388,22 @@ namespace StingTools.Commands.Mep
     public class MepAutoSizeConduitCommand : IExternalCommand
     {
         private const double MmToFt = 1.0 / 304.8;
-        private const double MaxFillPct = 45.0; // BS 7671 522.8 single circuit
+        private const double MaxFillPctFallback = 45.0; // BS 7671 522.8 single circuit
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
+
+            // Phase 181 — fill limit from STING_MEP_SIZING_RULES.json (conduit.maxFillPct).
+            double maxFillPct = MaxFillPctFallback;
+            try
+            {
+                var rules = MepSizingRegistry.Get(doc);
+                if (rules.ConduitMaxFillPct > 0) maxFillPct = rules.ConduitMaxFillPct;
+            }
+            catch (Exception ex) { StingLog.Warn($"ConduitSize registry fallback: {ex.Message}"); }
 
             var res = new MepSizeResult { Discipline = "Conduit" };
             var conduits = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Conduit)
@@ -344,7 +422,7 @@ namespace StingTools.Commands.Mep
                             double totalCableAreaMm2 = Read(c, "ELC_CBL_TOTAL_AREA_MM2");
                             if (totalCableAreaMm2 <= 0) { res.Skipped++; continue; }
                             // Required bore = sqrt(4 * A / (π * fill))
-                            double diaMm = Math.Sqrt(4.0 * totalCableAreaMm2 / (Math.PI * MaxFillPct / 100.0));
+                            double diaMm = Math.Sqrt(4.0 * totalCableAreaMm2 / (Math.PI * maxFillPct / 100.0));
                             double std = MepSizeTables.RoundUpTo(diaMm, MepSizeTables.ConduitStandardMm);
                             if (WriteDouble(c, "Diameter", std * MmToFt)) res.Resized++;
                             else res.Skipped++;
@@ -352,7 +430,7 @@ namespace StingTools.Commands.Mep
                         catch (Exception ex2)
                         {
                             res.Skipped++;
-                            res.Warnings.Add($"size {c.Id}: {ex.Message}");
+                            res.Warnings.Add($"size {c.Id}: {ex2.Message}");
                         }
                     }
                     tx.Commit();
@@ -364,7 +442,7 @@ namespace StingTools.Commands.Mep
                 }
             }
         Done:
-            ShowResult(res, "Conduit (BS 7671 522.8 single circuit fill ≤ 45%)");
+            ShowResult(res, $"Conduit (fill ≤ {maxFillPct:F0}% per BS 7671 522.8 / NEC Ch 9 Table 1)");
             return Result.Succeeded;
         }
         private static double Read(Element el, string param)

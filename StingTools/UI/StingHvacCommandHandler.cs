@@ -139,18 +139,11 @@ namespace StingTools.UI
                         Run<StingTools.Commands.Routing.PlaceHangersCommand>(app); break;
 
                     // ── LOADS tab — heating + cooling + gbXML ──────────────
-                    // No native STING command yet; route to Revit's built-in dialog
-                    // via a one-shot TaskDialog hint until the Loads Wizard ships.
+                    // Phase 181: real commands; Phase 180 TaskDialog stubs replaced.
                     case "Hvac_RunLoads":
-                        TaskDialog.Show("STING HVAC — Loads",
-                            "Heating and Cooling Loads wizard ships in a follow-up phase. " +
-                            "For now use Revit Analyze ribbon → Heating and Cooling Loads.");
-                        break;
+                        Run<StingTools.Commands.Hvac.HvacRunLoadsCommand>(app); break;
                     case "Hvac_ExportGbxml":
-                        TaskDialog.Show("STING HVAC — gbXML",
-                            "Use File → Export → gbXML for the active 3D view. " +
-                            "Wizard wrapper with zone + envelope audit ships next phase.");
-                        break;
+                        Run<StingTools.Commands.Hvac.HvacExportGbxmlCommand>(app); break;
                     case "Hvac_AuditEnvelope":
                         Run<StingTools.Temp.MEPSpaceAnalysisCommand>(app); break;
 

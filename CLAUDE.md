@@ -1966,8 +1966,8 @@ Edit either JSON in a text editor and click **RPRT → Reload rules** to pick up
 ### Caveats
 
 1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.
-2. The HVAC engines (`MepAutoSizeDuctCommand`, `MEPBalancingEngine`, fitting-loss dictionary in `MEPIntelligenceEngine`) still read hardcoded constants. The JSON registry is in place; switching engines to `MepSizingRegistry.Get(doc)` lookups is the next phase's refactor.
-3. `Hvac_RunLoads` / `Hvac_ExportGbxml` currently route to TaskDialog stubs pointing at Revit's native Analyze ribbon. A first-class Heating-and-Cooling-Loads + gbXML wizard is the Phase 181 follow-up.
+2. Phase 181 wired the sizing engines (`MepAutoSizeDuctCommand`, `MepAutoSizePipeCommand`, `MepAutoSizeConduitCommand`), the balancing engine (`MEPBalancingEngine.BalanceSystem` with a new `Document`-aware overload) and the fitting-loss dictionary (`FittingLossCalculator` with a JSON-overlay path) through `MepSizingRegistry`. Hardcoded constants remain as `*Fallback` safety nets only. Per-element segment-role / pipe-service detection (rather than the project-wide `branch` / `chw` defaults) is still pending — the data path is in place.
+3. `Hvac_RunLoads` (`Commands/Hvac/HvacRunLoadsCommand`) posts `PostableCommand.AnalyzeHeatingAndCoolingLoads` after an MEP-Spaces pre-flight. `Hvac_ExportGbxml` (`Commands/Hvac/HvacExportGbxmlCommand`) calls `Document.Export` with `GBXMLExportOptions` after a 3D-view check. Both are real, no TaskDialog stubs.
 4. The EQPT / SYS / SpoolGrid / DriftGrid / WorkflowGrid `ObservableCollection`s start empty — commands push rows back into the panel singleton (`StingHvacPanel.Instance`) on completion (same pattern `StingElectricalPanel` uses).
 5. PaneGuid `D7E8F9A0-B1C2-3D4E-5F60-1A2B3C4D5E6F` is stable from this point so users' Revit `UIState.dat` re-locates the panel between sessions.
 
