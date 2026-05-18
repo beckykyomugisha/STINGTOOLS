@@ -822,12 +822,6 @@ namespace StingTools.Core
         /// <summary>Shared-parameter GUID for HANDOVER_MODE_CUSTOM_BOOL.</summary>
         public const string MODE_CUSTOM_GUID = "C3A4B5D6-E7F8-4A9B-0C1D-2E3F4A5B6C7D";
 
-        // GUIDs for the three HANDOVER_MODE_*_BOOL pattern-selector params. Must match
-        // the rows in MR_PARAMETERS.txt so the project-info binding resolves the same
-        // shared parameter that LoadSharedParamsCommand creates. Lost in a merge, restored.
-        public const string MODE_HANDOVER_GUID = "a8f3c1d2-4e56-7890-abcd-ef1234567801";
-        public const string MODE_DC_GUID       = "a8f3c1d2-4e56-7890-abcd-ef1234567802";
-        public const string MODE_CUSTOM_GUID   = "a8f3c1d2-4e56-7890-abcd-ef1234567803";
 
         // ── Warning threshold definitions (v5.5) ─────────────────────────
         // Loaded from warning_thresholds section of PARAMETER_REGISTRY.json.

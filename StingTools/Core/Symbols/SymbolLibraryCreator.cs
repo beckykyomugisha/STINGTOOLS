@@ -87,6 +87,7 @@ namespace StingTools.Core.Symbols
             string jsonPath,
             string outputFolder,
             bool loadIntoProject,
+            bool rebuildMode = false,
             SymbolSizeConfig sizeConfig = null)
         {
             var result = new SymbolCreationResult();

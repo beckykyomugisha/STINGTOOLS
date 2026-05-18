@@ -74,6 +74,11 @@ namespace StingTools.Commands.Fabrication
         /// </summary>
         public static StingTools.UI.ShopDrawingOptions ShopDrawing { get; set; }
 
+        /// <summary>Per-discipline ISO 6412 symbol placement toggles.</summary>
+        public static bool PlaceISOPipe       { get; set; } = true;
+        public static bool PlaceISODuct       { get; set; } = true;
+        public static bool PlaceISOElectrical { get; set; } = true;
+
         /// <summary>Controls how ISO 6412 symbols are placed on shop drawings.</summary>
         public static PlacementMode SymbolPlacementMode { get; set; } = PlacementMode.Replace;
 
