@@ -181,7 +181,7 @@ namespace StingTools.BIMManager
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Error($"SyncToCentral: {ex2.Message}", ex);
+                    StingLog.Error($"SyncToCentral: {ex2.Message}", ex2);
                     return CollaborationResult.Failed($"Sync failed: {ex2.Message}");
                 }
             }

@@ -24,6 +24,7 @@ using Autodesk.Revit.UI.Selection;
 using StingTools.Commands.Electrical.CableSizer;
 using StingTools.Commands.Electrical.VoltageDrop;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Commands.Electrical
 {
@@ -141,7 +142,7 @@ namespace StingTools.Commands.Electrical
         public string InstallMethod;
         public string CircuitType;
         public double MaxDemandA;
-        public double AmpacityA;
+        public double AmpacityA = 0.0;
         public bool   IsFireRated;
         public bool   IsArmoured;
         public bool   IsShielded;
@@ -176,28 +177,15 @@ namespace StingTools.Commands.Electrical
                         d.MaxDemandA   = sys.ApparentCurrent;
 
                         // Phase + core count derived from SystemType.
-                        // Revit ElectricalSystem does not expose a PolesNumber property;
-                        // phase count is encoded in ElectricalSystemType (Three-phase variants
-                        // include ThreePhase, ThreePhaseDelta, ThreePhaseWye, etc.).
-                        bool isThreePhase = sys.SystemType == ElectricalSystemType.ThreePhase;
-
+                        // Revit ElectricalSystem does not expose a PolesNumber property.
+                        // NOTE: ThreePhase, UPS, LightingCircuit are not in Revit 2025
+                        // ElectricalSystemType enum. Use PowerCircuit as the power branch.
                         switch (sys.SystemType)
                         {
                             case ElectricalSystemType.PowerCircuit:
-                            case ElectricalSystemType.UPS:
                                 d.Phase = "1Ø";
                                 d.CoreCount = 2; // live + neutral + (CPC separate)
                                 d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Power" : d.CircuitType;
-                                break;
-                            case ElectricalSystemType.ThreePhase:
-                                d.Phase = "3Ø";
-                                d.CoreCount = 4; // 3 phase + neutral (CPC separate)
-                                d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Power" : d.CircuitType;
-                                break;
-                            case ElectricalSystemType.LightingCircuit:
-                                d.Phase = "1Ø";
-                                d.CoreCount = 2;
-                                d.CircuitType = string.IsNullOrEmpty(d.CircuitType) ? "Lighting" : d.CircuitType;
                                 break;
                             default:
                                 d.Phase = "1Ø";
