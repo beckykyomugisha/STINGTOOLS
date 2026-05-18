@@ -14,6 +14,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;
 using StingTools.UI;
 
 namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
@@ -33,7 +34,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_WC_WALL", Const.JsonFile)
                       ?? EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_WC_CLOSE_COUPLED", Const.JsonFile);
                 if (fs == null) { msg = "WC symbol family not found."; return Result.Failed; }
@@ -54,7 +55,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_URINAL_WALL", Const.JsonFile);
                 if (fs == null) { msg = "Urinal symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_URINAL_WALL", "Place Urinal");
@@ -74,7 +75,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_BIDET", Const.JsonFile);
                 if (fs == null) { msg = "Bidet symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_BIDET", "Place Bidet");
@@ -94,7 +95,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_WHB", Const.JsonFile);
                 if (fs == null) { msg = "Wash-hand basin symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_WHB", "Place Wash-Hand Basin");
@@ -114,7 +115,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_VANITY_BASIN", Const.JsonFile);
                 if (fs == null) { msg = "Vanity basin symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_VANITY_BASIN", "Place Vanity Basin");
@@ -134,7 +135,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_BATH", Const.JsonFile);
                 if (fs == null) { msg = "Bath symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_BATH", "Place Bath");
@@ -154,7 +155,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_SHOWER_TRAY", Const.JsonFile);
                 if (fs == null) { msg = "Shower tray symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_SHOWER_TRAY", "Place Shower Tray");
@@ -176,7 +177,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_SINK_SINGLE", Const.JsonFile);
                 if (fs == null) { msg = "Single sink symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_SINK_SINGLE", "Place Single Sink");
@@ -196,7 +197,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_SINK_DOUBLE", Const.JsonFile);
                 if (fs == null) { msg = "Double sink symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_SINK_DOUBLE", "Place Double Sink");
@@ -216,7 +217,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_CLEANERS_SINK", Const.JsonFile);
                 if (fs == null) { msg = "Cleaner's sink symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_CLEANERS_SINK", "Place Cleaner's Sink");
@@ -238,7 +239,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_FLOOR_DRAIN_RND", Const.JsonFile);
                 if (fs == null) { msg = "Floor drain (round) symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_FLOOR_DRAIN_RND", "Place Floor Drain (Round)");
@@ -258,7 +259,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_FLOOR_DRAIN_SQ", Const.JsonFile);
                 if (fs == null) { msg = "Floor drain (square) symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_FLOOR_DRAIN_SQ", "Place Floor Drain (Square)");
@@ -278,7 +279,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_GULLEY", Const.JsonFile);
                 if (fs == null) { msg = "Gulley symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_GULLEY", "Place Yard Gulley");
@@ -300,7 +301,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_GATE_VALVE", Const.JsonFile);
                 if (fs == null) { msg = "Gate valve symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_GATE_VALVE", "Place Gate Valve");
@@ -320,7 +321,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_GLOBE_VALVE", Const.JsonFile);
                 if (fs == null) { msg = "Globe valve symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_GLOBE_VALVE", "Place Globe Valve");
@@ -340,7 +341,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_BALL_VALVE", Const.JsonFile);
                 if (fs == null) { msg = "Ball valve symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_BALL_VALVE", "Place Ball Valve");
@@ -360,7 +361,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_BUTTERFLY_VALVE", Const.JsonFile);
                 if (fs == null) { msg = "Butterfly valve symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_BUTTERFLY_VALVE", "Place Butterfly Valve");
@@ -380,7 +381,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_CHECK_VALVE", Const.JsonFile);
                 if (fs == null) { msg = "Check valve symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_CHECK_VALVE", "Place Check Valve");
@@ -400,7 +401,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_PRESSURE_REDUCING", Const.JsonFile);
                 if (fs == null) { msg = "PRV symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_PRESSURE_REDUCING", "Place PRV");
@@ -420,7 +421,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_STRAINER", Const.JsonFile);
                 if (fs == null) { msg = "Y-strainer symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_STRAINER", "Place Y-Strainer");
@@ -440,7 +441,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_FLEXIBLE_CONN", Const.JsonFile);
                 if (fs == null) { msg = "Flexible connector symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_FLEXIBLE_CONN", "Place Flexible Connector");
@@ -462,7 +463,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_HWC_DIRECT", Const.JsonFile);
                 if (fs == null) { msg = "Hot water cylinder (direct) symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_HWC_DIRECT", "Place HWC (Direct)");
@@ -482,7 +483,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var fs = EquipmentSymbolEngine.ResolveFamilySymbol(ctx.Doc, "PLM_HWC_INDIRECT", Const.JsonFile);
                 if (fs == null) { msg = "Hot water cylinder (indirect) symbol family not found."; return Result.Failed; }
                 int n = EquipmentSymbolEngine.PlaceAtPickPoints(ctx.Doc, ctx.UIDoc, fs, "PLM_HWC_INDIRECT", "Place HWC (Indirect)");
@@ -504,7 +505,7 @@ namespace StingTools.Commands.Symbols.PlumbingSymbolCommands
         {
             try
             {
-                var ctx = new CommandExecutionContext(d);
+                var ctx = ParameterHelpers.GetContext(d);
                 var items = EquipmentSymbolEngine.LoadDisplayList(Const.JsonFile, "Plumbing");
                 if (items.Count == 0)
                 {

@@ -735,7 +735,7 @@ namespace StingTools.Model
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn($"PlaceWarnings sub-transaction: {ex.Message}");
+                    StingLog.Warn($"PlaceWarnings sub-transaction: {ex2.Message}");
                     if (tx.HasStarted()) tx.RollBack();
                 }
             }

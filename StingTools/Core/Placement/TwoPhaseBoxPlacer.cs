@@ -142,7 +142,7 @@ namespace StingTools.Core.Placement
                         }
                         catch (Exception ex2)
                         {
-                            result?.Warnings.Add($"TwoPhase.PlaceFirstFix {rule.MergeKey} in room {room.Id}: {ex.Message}");
+                            result?.Warnings.Add($"TwoPhase.PlaceFirstFix {rule.MergeKey} in room {room.Id}: {ex2.Message}");
                             if (result != null) result.SkippedCount++;
                         }
                     }
@@ -250,7 +250,7 @@ namespace StingTools.Core.Placement
                         }
                         catch (Exception ex2)
                         {
-                            result?.Warnings.Add($"TwoPhase.PlaceSecondFix {rule.MergeKey}: {ex.Message}");
+                            result?.Warnings.Add($"TwoPhase.PlaceSecondFix {rule.MergeKey}: {ex2.Message}");
                             if (result != null) result.SkippedCount++;
                         }
                     }

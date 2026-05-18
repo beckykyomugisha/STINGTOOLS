@@ -13,6 +13,7 @@ using StingTools.UI;
 using Newtonsoft.Json.Linq;
 using System.Text.RegularExpressions;
 using Autodesk.Revit.DB.Architecture;
+using RegexGroup = System.Text.RegularExpressions.Group;
 
 namespace StingTools.BIMManager
 {
@@ -147,7 +148,7 @@ namespace StingTools.BIMManager
             result.Metrics.Add(new HealthMetric("In-Place Families", inPlaceScore, 5, $"{inPlace} in-place families"));
 
             // 10. Groups (weight 5)
-            var groups = new FilteredElementCollector(doc).OfClass(typeof(Group)).GetElementCount();
+            var groups = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Group)).GetElementCount();
             int groupScore = groups <= 5 ? 100 : Math.Max(0, 100 - (groups - 5) * 3);
             result.Metrics.Add(new HealthMetric("Groups", groupScore, 5, $"{groups} groups"));
 

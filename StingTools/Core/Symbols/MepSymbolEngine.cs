@@ -57,6 +57,7 @@ using System.IO;
 using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.Core;
+using StingTools.Core.Fabrication;
 
 namespace StingTools.Core.Symbols
 {
@@ -123,6 +124,21 @@ namespace StingTools.Core.Symbols
 
     // ── Placement options ────────────────────────────────────────────────
 
+    /// <summary>
+    /// Controls idempotency / overwrite semantics for MEP symbol placement.
+    /// Maps onto the legacy NewOnly / Replace flag pair so existing callers
+    /// keep working.
+    /// </summary>
+    public enum MepSymbolPlacementMode
+    {
+        /// <summary>Skip members that already have a placer-stamped symbol.</summary>
+        NewOnly,
+        /// <summary>Purge existing placer-stamped symbols before re-placing.</summary>
+        Replace,
+        /// <summary>Place symbols and keep any existing annotations.</summary>
+        Additive,
+    }
+
     public sealed class MepSymbolPlacementOptions
     {
         /// <summary>Which colour scheme to apply to placed instances.</summary>
@@ -131,17 +147,45 @@ namespace StingTools.Core.Symbols
         /// <summary>Override colour for all symbols (overrides scheme).</summary>
         public RgbColor ColorOverride { get; set; } = null;
 
+        private MepSymbolPlacementMode _placementMode = MepSymbolPlacementMode.NewOnly;
+        /// <summary>Idempotency / overwrite mode. Setting this updates
+        /// <see cref="NewOnly"/> and <see cref="Replace"/> for legacy callers.</summary>
+        public MepSymbolPlacementMode PlacementMode
+        {
+            get => _placementMode;
+            set
+            {
+                _placementMode = value;
+                NewOnly = value == MepSymbolPlacementMode.NewOnly;
+                Replace = value == MepSymbolPlacementMode.Replace;
+            }
+        }
+
         /// <summary>Skip members that already have a placer-stamped symbol.</summary>
         public bool NewOnly { get; set; } = true;
 
         /// <summary>Purge previously stamped symbols before re-placing.</summary>
         public bool Replace { get; set; } = false;
 
+        /// <summary>Alias for <see cref="Replace"/>.</summary>
+        public bool Overwrite
+        {
+            get => Replace;
+            set => Replace = value;
+        }
+
         /// <summary>Discipline filter (e.g. "Pipe", "Duct", "Electrical"). Null = all.</summary>
         public string DisciplineFilter { get; set; } = null;
 
         /// <summary>Standard filter (e.g. "ISO6412", "IEC60617"). Null = all.</summary>
         public string StandardFilter { get; set; } = null;
+
+        /// <summary>Alias for <see cref="StandardFilter"/> used by command wrappers.</summary>
+        public string Standard
+        {
+            get => StandardFilter;
+            set => StandardFilter = value;
+        }
 
         /// <summary>Target paper-space symbol size override in mm. 0 = use catalogue default.</summary>
         public double PaperSizeMmOverride { get; set; } = 0.0;
@@ -155,9 +199,16 @@ namespace StingTools.Core.Symbols
         public int Skipped         { get; set; }
         public int Unmatched       { get; set; }
         public int MissingFamilies { get; set; }
+        public int Failed          { get; set; }
         public List<string> Warnings { get; } = new List<string>();
         public List<string> MissingFamilyNames { get; } = new List<string>();
         public string Summary => $"Placed {Placed} symbols; {Unmatched} unmatched; {MissingFamilies} families missing.";
+
+        /// <summary>Alias for <see cref="Placed"/> used by command wrappers.</summary>
+        public int SymbolsPlaced => Placed;
+
+        /// <summary>True when at least one symbol placed and no hard failures occurred.</summary>
+        public bool Succeeded => Failed == 0 && MissingFamilies == 0;
     }
 
     // ── Engine ──────────────────────────────────────────────────────────
@@ -573,7 +624,7 @@ namespace StingTools.Core.Symbols
                     continue;
                 // Discipline/category filter.
                 if (!string.IsNullOrEmpty(opts.DisciplineFilter) &&
-                    !entry.Category.IndexOf(opts.DisciplineFilter, StringComparison.OrdinalIgnoreCase) >= 0)
+                    entry.Category.IndexOf(opts.DisciplineFilter, StringComparison.OrdinalIgnoreCase) < 0)
                     continue;
                 // Token match.
                 if (entry.Tokens.Length == 0) continue;

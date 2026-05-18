@@ -281,7 +281,7 @@ namespace StingTools.Core.Placement
                 try { tx.Start(); }
                 catch (Exception ex2)
                 {
-                    result.Warnings.Add($"Transaction start failed: {ex.Message}");
+                    result.Warnings.Add($"Transaction start failed: {ex2.Message}");
                     return result;
                 }
             }
@@ -366,7 +366,7 @@ namespace StingTools.Core.Placement
                         }
                         catch (Exception ex2)
                         {
-                            result.Warnings.Add($"Room {room.Id} / {rule.MergeKey}: {ex.Message}");
+                            result.Warnings.Add($"Room {room.Id} / {rule.MergeKey}: {ex2.Message}");
                             result.SkippedCount++;
                         }
                     }
@@ -519,7 +519,6 @@ namespace StingTools.Core.Placement
         {
             string roomKey = $"{room.Id}::{SafeRoomName(room)}";
             int alreadyInRoom = result.CountsByRoom.ContainsKey(roomKey) ? result.CountsByRoom[roomKey] : 0;
-
             // Phase 139.27 — per-rule diagnostic entry for this room+rule pair.
             var diagRoom = result.Diag(rule.MergeKey);
 
@@ -681,7 +680,7 @@ namespace StingTools.Core.Placement
                 catch (Exception ex2)
                 {
                     result.SkippedCount++;
-                    result.Warnings.Add($"Place {rule.CategoryFilter} in {SafeRoomName(room)}: {ex.Message}");
+                    result.Warnings.Add($"Place {rule.CategoryFilter} in {SafeRoomName(room)}: {ex2.Message}");
                 }
             }
         }
@@ -1717,7 +1716,7 @@ namespace StingTools.Core.Placement
                     catch (Exception ex2)
                     {
                         failed++;
-                        StingLog.Warn($"AutoJoinMepConnectors {aid.Value}->{tid.Value}: {ex.Message}");
+                        StingLog.Warn($"AutoJoinMepConnectors {aid.Value}->{tid.Value}: {ex2.Message}");
                     }
                 }
             }

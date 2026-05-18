@@ -141,22 +141,6 @@ namespace StingTools.Core
         }
     }
 
-    public class FullGeometrySyncJob : IIdlingJob
-    {
-        public string Name => "FullGeometrySync";
-        public int Priority => 5;
-        public int BudgetMs => 200;
-        public bool Execute(UIApplication uiApp) { return true; }
-    }
-
-    public class StaleWarningPromotionJob : IIdlingJob
-    {
-        public string Name => "StaleWarningPromotion";
-        public int Priority => 4;
-        public int BudgetMs => 100;
-        public bool Execute(UIApplication uiApp) { return true; }
-    }
-
     /// <summary>
     /// Single-shot job that pushes accumulated dirty-element geometry to the
     /// Planscape federated-model endpoint. Runs once per enqueue on the next

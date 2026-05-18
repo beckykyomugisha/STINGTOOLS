@@ -85,7 +85,7 @@ namespace StingTools.Core.Plumbing
                     }
                     catch (Exception ex2)
                     {
-                        r.Warnings.Add($"writeBack pipe {pipe.Id}: {ex.Message}");
+                        r.Warnings.Add($"writeBack pipe {pipe.Id}: {ex2.Message}");
                     }
                 }
             }

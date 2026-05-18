@@ -579,7 +579,7 @@ namespace StingTools.Core.Drawing
                 catch (Exception ex2)
                 {
                     seq = 0;
-                    StingTools.Core.StingLog.Warn($"SheetSequenceStore.Next: {ex.Message}");
+                    StingTools.Core.StingLog.Warn($"SheetSequenceStore.Next: {ex2.Message}");
                 }
                 if (!used)
                 {

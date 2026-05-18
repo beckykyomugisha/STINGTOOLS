@@ -118,7 +118,7 @@ namespace StingTools.Commands.Placement
                 try { gr = calc.Compute(room, rule); }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn($"LightingGrid Compute room {room?.Id}: {ex.Message}");
+                    StingLog.Warn($"LightingGrid Compute room {room?.Id}: {ex2.Message}");
                     continue;
                 }
 
@@ -220,7 +220,7 @@ namespace StingTools.Commands.Placement
                         catch (Exception ex3)
                         {
                             failed++;
-                            StingLog.Warn($"LightingGrid place at room {plan.Room.Id}: {ex.Message}");
+                            StingLog.Warn($"LightingGrid place at room {plan.Room.Id}: {ex3.Message}");
                         }
                     }
                 }

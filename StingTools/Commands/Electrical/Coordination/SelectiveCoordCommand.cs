@@ -61,7 +61,7 @@ namespace StingTools.Commands.Electrical.Coordination
                     dlg.ShowDialog();
                 });
             }
-            catch (Exception ex) { StingLog.Warn($"OpenSelectiveCoordDialog: {ex.Message}"); }
+            catch (Exception ex2) { StingLog.Warn($"OpenSelectiveCoordDialog: {ex2.Message}"); }
 
             return Result.Succeeded;
         }
