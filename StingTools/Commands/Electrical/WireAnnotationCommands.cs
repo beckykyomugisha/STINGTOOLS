@@ -306,6 +306,7 @@ namespace StingTools.Commands.Electrical
         internal const double MmPerFt   = 304.8;
         private const string MarkerTxt  = "STING_WIRE_ANNOT";
         private const string TickMarker = "STING_WIRE_TICK";
+        private const string TickStyle  = "Wire Ticks";
 
         private static string MarkerFor(string uniqueId) =>
             string.IsNullOrEmpty(uniqueId) ? MarkerTxt : MarkerTxt + "|" + uniqueId;
@@ -486,7 +487,7 @@ namespace StingTools.Commands.Electrical
             }
             catch { }
 
-            double fill = fill2 > 0 ? fill2 : ReadNumParam(conduit, "ELC_CDT_CBL_FILL_PCT");
+            fill = fill2 > 0 ? fill2 : (fill > 0 ? fill : ReadNumParam(conduit, "ELC_CDT_CBL_FILL_PCT"));
 
             return new WireAnnotationData(
                 phase, cores, csa,

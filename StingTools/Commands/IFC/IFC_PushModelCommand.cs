@@ -105,7 +105,7 @@ namespace StingTools.Commands.IFC
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Error("IFC_PushModel background task", ex);
+                    StingLog.Error("IFC_PushModel background task", ex2);
                 }
             });
 

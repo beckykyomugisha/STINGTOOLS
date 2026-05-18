@@ -344,5 +344,6 @@ namespace StingTools.Core.Drawing
             }
             catch { return null; }
         }
+
     }
 }

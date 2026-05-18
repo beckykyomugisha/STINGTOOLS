@@ -707,27 +707,6 @@ namespace StingTools.Core
         // TTL-based room index expiry could fire mid-loop if the build takes
         // longer than 30 s. BeginBatchSession / EndBatchSession bracket the
         // run so the cache is held for the duration regardless of wall time.
-        private static int _batchSessionDepth;
-
-        /// <summary>
-        /// Pin the room-index cache for the duration of a batch operation.
-        /// Calls are reference-counted — every <c>BeginBatchSession</c>
-        /// must be paired with a matching <c>EndBatchSession</c>.
-        /// </summary>
-        public static void BeginBatchSession()
-        {
-            System.Threading.Interlocked.Increment(ref _batchSessionDepth);
-        }
-
-        /// <summary>
-        /// Release one batch-session pin. When the count drops to zero the
-        /// cache is allowed to expire normally via its TTL.
-        /// </summary>
-        public static void EndBatchSession()
-        {
-            if (_batchSessionDepth > 0)
-                System.Threading.Interlocked.Decrement(ref _batchSessionDepth);
-        }
 
         /// <summary>
         /// Invalidate the cached room index — called by
@@ -738,9 +717,24 @@ namespace StingTools.Core
         {
             lock (_roomCacheLock)
             {
+                // Skip invalidation while in a batch session so the cache
+                // stays warm across many per-element calls in the same batch.
+                if (_inBatchSession) return;
                 _roomCacheDocKey = null;
                 _roomCacheIndex = null;
             }
+        }
+
+        private static bool _inBatchSession = false;
+
+        public static void BeginBatchSession()
+        {
+            lock (_roomCacheLock) { _inBatchSession = true; }
+        }
+
+        public static void EndBatchSession()
+        {
+            lock (_roomCacheLock) { _inBatchSession = false; }
         }
 
         /// <summary>
@@ -1082,19 +1076,6 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"Grid reference detection failed: {ex.Message}"); return null; }
         }
 
-        private static volatile bool _batchSessionActive;
-
-        /// <summary>
-        /// Marks the start of a batch tagging session so the room-index TTL
-        /// is not applied mid-loop. Call <see cref="EndBatchSession"/> when done.
-        /// </summary>
-        public static void BeginBatchSession() => _batchSessionActive = true;
-
-        /// <summary>
-        /// Ends the batch session started by <see cref="BeginBatchSession"/>,
-        /// allowing the room-index TTL to expire normally between commands.
-        /// </summary>
-        public static void EndBatchSession() => _batchSessionActive = false;
     }
 
     /// <summary>
@@ -4040,7 +4021,7 @@ namespace StingTools.Core
                                 try { ParameterHelpers.SetString(el, paramName, kvp.Value, overwrite: true); }
                                 catch (Exception lockEx2)
                                 {
-                                    StingLog.Warn($"TagPipeline: failed to restore locked token {kvp.Key} on {el.Id}: {lockEx.Message}");
+                                    StingLog.Warn($"TagPipeline: failed to restore locked token {kvp.Key} on {el.Id}: {lockEx2.Message}");
                                 }
                             }
                         }

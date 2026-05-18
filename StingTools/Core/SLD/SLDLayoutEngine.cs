@@ -113,7 +113,7 @@ namespace StingTools.Core.SLD
 
                 if (node.IsPanel && node.Children.Count > 0)
                 {
-                    double busY = pos.Y - busOff;
+                    double busY = pos.Y - symHalf; // busOff replaced with symHalf (symbol half-height)
                     var busFrom = new XYZ(pos.X - Mm(10), busY, 0);
                     var busTo   = new XYZ(pos.X + Mm(10) + node.Children.Count * Mm(opts.SymbolSpacingMm), busY, 0);
                     layout.BusbarSegments.Add((busFrom, busTo));

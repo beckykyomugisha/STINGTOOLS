@@ -1928,9 +1928,9 @@ namespace StingTools.UI
                         }
                         catch (Exception ex2)
                         {
-                            StingLog.Warn($"SelectByElementGuid: {ex.Message}");
+                            StingLog.Warn($"SelectByElementGuid: {ex2.Message}");
                             Autodesk.Revit.UI.TaskDialog.Show("Site Photos",
-                                $"Could not select element: {ex.Message}");
+                                $"Could not select element: {ex2.Message}");
                         }
                         break;
                     }
@@ -2295,7 +2295,7 @@ namespace StingTools.UI
                             }
                             catch (Exception ex2)
                             {
-                                StingTools.Core.StingLog.Warn($"CreateFolders: {ex.Message}");
+                                StingTools.Core.StingLog.Warn($"CreateFolders: {ex2.Message}");
                                 // Fall back to legacy direct creation
                                 int created = Core.ProjectFolderEngine.CreateFolderStructure(cfDoc);
                                 Autodesk.Revit.UI.TaskDialog.Show("STING Folder Structure",
@@ -2566,8 +2566,8 @@ namespace StingTools.UI
                         }
                         catch (Exception ex2)
                         {
-                            StingLog.Error($"Data export failed: {ex.Message}", ex);
-                            TaskDialog.Show("STING Export", $"Export failed: {ex.Message}");
+                            StingLog.Error($"Data export failed: {ex2.Message}", ex2);
+                            TaskDialog.Show("STING Export", $"Export failed: {ex2.Message}");
                         }
                         break;
                     }

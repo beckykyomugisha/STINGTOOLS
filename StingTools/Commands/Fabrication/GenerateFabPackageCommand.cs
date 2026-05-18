@@ -73,31 +73,6 @@ namespace StingTools.Commands.Fabrication
         /// SP-{disc}-{sys}-{lvl}-{seq} sheet numbering).
         /// </summary>
         public static StingTools.UI.ShopDrawingOptions ShopDrawing { get; set; }
-
-        /// <summary>Per-discipline ISO 6412 symbol placement toggles.</summary>
-        public static bool PlaceISOPipe       { get; set; } = true;
-        public static bool PlaceISODuct       { get; set; } = true;
-        public static bool PlaceISOElectrical { get; set; } = true;
-
-        /// <summary>Controls how ISO 6412 symbols are placed on shop drawings.</summary>
-        public static PlacementMode SymbolPlacementMode { get; set; } = PlacementMode.Replace;
-
-        public static bool PlaceISOPipe       { get; set; } = true;
-        public static bool PlaceISODuct       { get; set; } = true;
-        public static bool PlaceISOElectrical { get; set; } = true;
-
-        /// <summary>ISO symbol placement strategy.</summary>
-        public enum PlacementMode
-        {
-            /// <summary>Skip all symbol placement.</summary>
-            Off,
-            /// <summary>Place symbols; delete any pre-existing symbols on the same member first.</summary>
-            Replace,
-            /// <summary>Only place symbols on members that have no existing annotation.</summary>
-            NewOnly,
-            /// <summary>Place symbols AND keep existing annotations.</summary>
-            Additive,
-        }
     }
 
     [Transaction(TransactionMode.Manual)]

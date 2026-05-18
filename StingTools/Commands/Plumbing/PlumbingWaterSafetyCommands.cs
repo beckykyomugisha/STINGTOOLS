@@ -227,7 +227,7 @@ namespace StingTools.Commands.Plumbing
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn("PlumbLegionellaReport txt write: " + ex.Message);
+                    StingLog.Warn("PlumbLegionellaReport txt write: " + ex2.Message);
                     outputPath = null;
                 }
             }

@@ -623,7 +623,7 @@ namespace StingTools.Core.SLD
                             try { TextNote.Create(doc, view.Id, mid, "E", tnt); }
                             catch (Exception ex2)
                             {
-                                StingLog.Warn($"DrawEmergencyFeedNotation E label: {ex.Message}");
+                                StingLog.Warn($"DrawEmergencyFeedNotation E label: {ex2.Message}");
                             }
                         }
                     }
@@ -710,7 +710,7 @@ namespace StingTools.Core.SLD
                             try { TextNote.Create(doc, view.Id, mid, "BC/NOP", tnt); }
                             catch (Exception ex2)
                             {
-                                StingLog.Warn($"DrawBusCouplerNotation TextNote: {ex.Message}");
+                                StingLog.Warn($"DrawBusCouplerNotation TextNote: {ex2.Message}");
                             }
                         }
                     }

@@ -278,17 +278,14 @@ namespace StingTools.Core.Drawing
         private static Dictionary<string, bool> PackSectionVisibilityDefault(ViewStylePack pack)
         {
             if (pack?.CategoryTag7Sections == null || pack.CategoryTag7Sections.Count == 0) return null;
-            var union = new HashSet<char>();
-            foreach (var v in pack.CategoryTag7Sections.Values)
-            {
-                if (string.IsNullOrEmpty(v)) continue;
-                foreach (var c in v.ToUpperInvariant()) if (c >= 'A' && c <= 'F') union.Add(c);
-            }
-            if (union.Count == 0) return null;
+            // CategoryTag7Sections: key = section letter ("A".."F"), value = visible flag.
             var map = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-            // Every section A..F is explicit: present in union -> visible, absent -> hidden.
-            for (char c = 'A'; c <= 'F'; c++) map[c.ToString()] = union.Contains(c);
-            return map;
+            for (char c = 'A'; c <= 'F'; c++)
+            {
+                string key = c.ToString();
+                map[key] = pack.CategoryTag7Sections.TryGetValue(key, out bool vis) && vis;
+            }
+            return map.Values.Any(v => v) ? map : null;
         }
 
         // Phase 177 — merge profile + pack per-category depth maps. Profile

@@ -93,14 +93,6 @@ namespace StingTools.Core.Placement
         }
 
         /// <summary>
-        /// Per-(room, rule) lighting grid results accumulated during scoring.
-        /// Key is "{roomId}::{ruleId}". FixturePlacementEngine reads this after
-        /// the full room loop to stamp noggin requirements onto placed instances.
-        /// </summary>
-        public Dictionary<string, LightingGridResult> GridResults { get; }
-            = new Dictionary<string, LightingGridResult>(StringComparer.OrdinalIgnoreCase);
-
-        /// <summary>
         /// Lazy-initialised BS EN 12464-1 lux calculator. Shared across
         /// all rules scored in a single session so the classifier CSV
         /// and lux-target table parse only once.
@@ -596,7 +588,7 @@ namespace StingTools.Core.Placement
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn($"PlacementScorer: wall-intersect {wallId} failed: {ex.Message}");
+                    StingLog.Warn($"PlacementScorer: wall-intersect {wallId} failed: {ex2.Message}");
                 }
             }
             return false;

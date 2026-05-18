@@ -133,6 +133,9 @@ namespace StingTools.Core.Placement
         /// <summary>Side constraint (LEFT / RIGHT / EITHER / FRONT / BACK / HINGE_SIDE / LATCH_SIDE).</summary>
         public string SideConstraint { get; set; } = "EITHER";
 
+        /// <summary>Material specification string written to PLM_PPE_MAT_TXT / HVC_DCT_MAT_TXT on placed elements.</summary>
+        public string Material { get; set; } = "";
+
         // ── Spacing & cap ───────────────────────────────────────────
 
         /// <summary>Minimum centre-to-centre spacing in millimetres between fixtures placed by this rule within the same room.</summary>
@@ -221,35 +224,17 @@ namespace StingTools.Core.Placement
 
         // ── Coverage / routing ──────────────────────────────────────
 
-        /// <summary>Detection / coverage radius in millimetres (smoke detectors, beams, etc.).</summary>
-        public double CoverageRadiusMm { get; set; } = 0.0;
-
-        /// <summary>Maximum centre-to-centre spacing allowed by the applicable standard (mm).</summary>
-        public double MaxSpacingMm { get; set; } = 0.0;
-
         /// <summary>Minimum clearance from wall face in millimetres.</summary>
         public double WallClearanceMm { get; set; } = 0.0;
 
         /// <summary>Minimum clearance from any obstruction in millimetres.</summary>
         public double ObstructionClearanceMm { get; set; } = 0.0;
 
-        /// <summary>When true the engine guarantees coverage of every point in the room polygon.</summary>
-        public bool GuaranteeCoverage { get; set; } = false;
-
-        /// <summary>Routing mode — CHASE / SURFACE / CONDUIT / TRUNKING / NONE.</summary>
-        public string RoutingMode { get; set; } = "";
-
-        /// <summary>Lateral inset from the anchor face along the route normal (mm).</summary>
-        public double RouteOffsetMm { get; set; } = 0.0;
-
         /// <summary>Wall face to route on — INTERIOR / EXTERIOR / THROUGH / AUTO.</summary>
         public string RouteFace { get; set; } = "";
 
         /// <summary>Minimum bend radius for conduit / cable routing (mm).</summary>
         public double RouteMinBendRadiusMm { get; set; } = 0.0;
-
-        /// <summary>Revit category string for created route segments — PIPE / CONDUIT / DUCT / CABLE_TRAY.</summary>
-        public string RouteSegmentCategory { get; set; } = "";
 
         // ── Glazing / fenestration ───────────────────────────────────
 
@@ -313,12 +298,6 @@ namespace StingTools.Core.Placement
 
         // ── Two-phase / construction sequence ────────────────────────
 
-        /// <summary>When true the fixture requires a two-phase placement (first fix + second fix).</summary>
-        public bool TwoPhaseEnabled { get; set; } = false;
-
-        /// <summary>Phase name for first-fix / construction-phase placement.</summary>
-        public string ConstructionPhase { get; set; } = "";
-
         /// <summary>Phase name for second-fix / completion-phase placement.</summary>
         public string CompletionPhase { get; set; } = "";
 
@@ -329,12 +308,6 @@ namespace StingTools.Core.Placement
         public string BoxLocationIdParam { get; set; } = "";
 
         // ── Cluster / gang ───────────────────────────────────────────
-
-        /// <summary>When true this rule is a member of a modular cluster (ganged sockets, multi-socket strips).</summary>
-        public bool IsClusterMember { get; set; } = false;
-
-        /// <summary>Cluster group identifier — all rules sharing this id form one gang.</summary>
-        public string ClusterGroupId { get; set; } = "";
 
         /// <summary>Slot index within the cluster gang (0-based).</summary>
         public int ClusterSlotIndex { get; set; } = 0;
@@ -377,21 +350,6 @@ namespace StingTools.Core.Placement
         public string HeightStandardRef { get; set; } = "";
 
         // ── Density extensions ───────────────────────────────────────
-
-        /// <summary>Density rule: 1 fixture per N pupils (education / BB101).</summary>
-        public double PerPupil { get; set; } = 0.0;
-
-        /// <summary>Density rule: 1 fixture per N toilet cubicles (BS 6465-1).</summary>
-        public double PerToiletCubicle { get; set; } = 0.0;
-
-        /// <summary>Density rule: 1 fixture per N beds (healthcare / HTM).</summary>
-        public double PerBed { get; set; } = 0.0;
-
-        /// <summary>Density rule: 1 fixture per N workstations (offices / BCO Guide).</summary>
-        public double PerWorkstation { get; set; } = 0.0;
-
-        /// <summary>Parameter name on the Room element that holds the occupancy count override.</summary>
-        public string OccupancyParamName { get; set; } = "";
 
         /// <summary>Name of the building-type lookup table for occupancy-based density rules.</summary>
         public string BuildingTypeTable { get; set; } = "";
@@ -448,9 +406,6 @@ namespace StingTools.Core.Placement
         /// <summary>Mounting context identifier — SURFACE / FLUSH / CHASED / PENDANT / TRACK.</summary>
         public string MountingContext { get; set; } = "";
 
-        /// <summary>Material specification for the fixture or route segment (e.g. "COPPER", "UPVC", "STEEL").</summary>
-        public string Material { get; set; } = "";
-
         /// <summary>Eurocode 2 / BS EN 1992-1-1 exposure class for concrete cover calculations (XC1 / XC2 / XS1 etc.).</summary>
         public string ExposureClass { get; set; } = "";
 
@@ -458,9 +413,6 @@ namespace StingTools.Core.Placement
         public bool EmitSupports { get; set; } = false;
 
         // ── Source / metadata ────────────────────────────────────────
-
-        /// <summary>Source discipline / standards pack that contributed this rule (e.g. "ELECTRICAL_BS7671").</summary>
-        public string SourcePack { get; set; } = "";
 
         // ── Reporting ───────────────────────────────────────────────
 

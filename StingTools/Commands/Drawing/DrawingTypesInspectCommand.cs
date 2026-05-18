@@ -20,7 +20,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Drawing;
-using StingTools.Core.Validation;
+using ValidationSeverity = StingTools.Core.Drawing.ValidationSeverity;
 
 namespace StingTools.Commands.Drawing
 {

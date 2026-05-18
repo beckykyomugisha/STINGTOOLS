@@ -17,6 +17,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Symbols;
+using StingTools.UI;
 
 namespace StingTools.Commands.Symbols
 {
@@ -50,7 +51,7 @@ namespace StingTools.Commands.Symbols
                 ids = selIds.Where(id =>
                 {
                     var el = doc.GetElement(id);
-                    return el?.Category != null && IsMepCategory(el.Category.Id.IntegerValue);
+                    return el?.Category != null && IsMepCategory((int)el.Category.Id.Value);
                 }).ToList();
                 scopeLabel = $"selection ({ids.Count} MEP elements)";
             }

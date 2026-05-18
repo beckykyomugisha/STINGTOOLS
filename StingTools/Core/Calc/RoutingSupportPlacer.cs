@@ -156,7 +156,7 @@ namespace StingTools.Core.Calc
                 }
                 catch (Exception ex2)
                 {
-                    r.Warnings.Add($"RoutingSupportPlacer NewFamilyInstance @ ({c.Point.X:F2},{c.Point.Y:F2}): {ex.Message}");
+                    r.Warnings.Add($"RoutingSupportPlacer NewFamilyInstance @ ({c.Point.X:F2},{c.Point.Y:F2}): {ex2.Message}");
                 }
             }
 

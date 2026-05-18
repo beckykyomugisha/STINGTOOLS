@@ -104,7 +104,7 @@ namespace StingTools.Commands.Electrical
                 tx.Commit();
             }
             StingElectricalCommandHandler.LastConduitFills = results;
-            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
             string worstStr = string.IsNullOrEmpty(worstName) ? "—" : $"{worstName} ({worstFill:0.0}%)";
             TaskDialog.Show("STING Conduit Fill",
                 $"Checked {results.Count} containment element(s). Passing: {passed}. Failing: {failed}.\nWorst: {worstStr}.");

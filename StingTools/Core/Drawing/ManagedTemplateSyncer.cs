@@ -358,7 +358,7 @@ namespace StingTools.Core.Drawing
                 try { newView.Name = templateName + "_(2)"; }
                 catch (Exception ex2)
                 {
-                    result.Warnings.Add($"ManagedTemplateSyncer: rename failed — {ex.Message}");
+                    result.Warnings.Add($"ManagedTemplateSyncer: rename failed — {ex2.Message}");
                     return ElementId.InvalidElementId;
                 }
             }
@@ -443,7 +443,12 @@ namespace StingTools.Core.Drawing
                             ViewStylePackApplier.ApplyWorksetVisibility(doc, template, pack, r);
                             break;
                         case "underlay":
-                            ApplyUnderlay(doc, template, pack.Underlay, r);
+                            // pack.Underlay is stored as a string (level name); wrap in PackUnderlay for the applier.
+                            ApplyUnderlay(doc, template,
+                                string.IsNullOrEmpty(pack.Underlay)
+                                    ? null
+                                    : new PackUnderlay { LevelName = pack.Underlay },
+                                r);
                             break;
                         case "background":
                         case "displayOptions":

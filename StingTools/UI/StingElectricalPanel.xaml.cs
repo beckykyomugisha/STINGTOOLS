@@ -234,7 +234,7 @@ namespace StingTools.UI
                 string tag = ((LpdStandard?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "ASHRAE_90_1_2019";
                 StingElectricalCommandHandler.CurrentLpdStandard = tag;
                 if (LpdCustomRow != null)
-                    LpdCustomRow.Visibility = tag == "Custom" ? Visibility.Visible : Visibility.Collapsed;
+                    LpdCustomRow.Visibility = tag == "Custom" ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
                 StingElectricalCommandHandler.CurrentLpdCustomLimit = ParseDouble(LpdCustomLimit?.Text, 0);
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }

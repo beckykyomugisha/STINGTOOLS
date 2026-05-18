@@ -1,3 +1,4 @@
+#nullable enable annotations
 // StingBridgeStubs.cs — Compile-time stubs for StingBridge types.
 //
 // StingBridge is a standalone executable (not a referenced library).

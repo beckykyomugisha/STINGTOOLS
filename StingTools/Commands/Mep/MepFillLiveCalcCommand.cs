@@ -65,7 +65,7 @@ namespace StingTools.Commands.Mep
                         catch (Exception ex2)
                         {
                             skipped++;
-                            warnings.Add($"cdt {el?.Id}: {ex.Message}");
+                            warnings.Add($"cdt {el?.Id}: {ex2.Message}");
                         }
                     }
                     // Cable tray
@@ -87,7 +87,7 @@ namespace StingTools.Commands.Mep
                         catch (Exception ex2)
                         {
                             skipped++;
-                            warnings.Add($"tray {el?.Id}: {ex.Message}");
+                            warnings.Add($"tray {el?.Id}: {ex2.Message}");
                         }
                     }
                     tx.Commit();

@@ -172,7 +172,7 @@ namespace StingTools.Commands.Electrical.Routing
                 }
                 tx.Commit();
             }
-            try { manifest.Save(doc); } catch (Exception ex) { StingLog.Warn($"Manifest save: {ex.Message}"); }
+            try { manifest.Save(doc); } catch (Exception ex2) { StingLog.Warn($"Manifest save: {ex2.Message}"); }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             // Wave F1 — junction box auto-placement. Runs BEFORE slab
@@ -244,7 +244,7 @@ namespace StingTools.Commands.Electrical.Routing
                     }
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"JunctionBoxAutoPlacer: {ex.Message}"); }
+            catch (Exception ex2) { StingLog.Warn($"JunctionBoxAutoPlacer: {ex2.Message}"); }
 
             // Phase Wave D — slab-penetration detection. Walks every
             // newly-created conduit, finds floor crossings, stamps
@@ -291,7 +291,7 @@ namespace StingTools.Commands.Electrical.Routing
                     }
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"SlabPenetrationDetector: {ex.Message}"); }
+            catch (Exception ex2) { StingLog.Warn($"SlabPenetrationDetector: {ex2.Message}"); }
 
             TaskDialog.Show("STING Auto-Route",
                 $"Routed {routed} of {unrouted.Count} cable(s).\n" +

@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Placement;
+using StingTools.Select;
 
 // Autodesk.Revit.UI ships TextBox + ComboBox types that collide with
 // System.Windows.Controls equivalents used by the WPF dockable panel.
@@ -2068,7 +2069,6 @@ namespace StingTools.UI
         // ════════════════════════════════════════════════════════════════════════
 
         private bool _cmdBarHasFocus;
-        private System.Threading.CancellationTokenSource _suggestionCts;
 
         private void CommandBar_GotFocus(object sender, RoutedEventArgs e)
         {

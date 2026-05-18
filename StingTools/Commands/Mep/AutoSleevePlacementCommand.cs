@@ -113,13 +113,13 @@ namespace StingTools.Commands.Mep
                                     catch (Exception ex2)
                                     {
                                         result.Skipped++;
-                                        result.Warnings.Add($"NewFamilyInstance {mep.Id}: {ex.Message}");
+                                        result.Warnings.Add($"NewFamilyInstance {mep.Id}: {ex2.Message}");
                                     }
                                 }
                             }
                             catch (Exception ex2)
                             {
-                                result.Warnings.Add($"intersect {mep.Id}: {ex.Message}");
+                                result.Warnings.Add($"intersect {mep.Id}: {ex2.Message}");
                             }
                         }
                         tx.Commit();

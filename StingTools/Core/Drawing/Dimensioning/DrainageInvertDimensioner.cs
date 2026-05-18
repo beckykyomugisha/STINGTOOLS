@@ -204,9 +204,9 @@ namespace StingTools.Core.Drawing.Dimensioning
                 }
                 if (sd != null) result.SpotsPlaced++;
             }
-            catch (Exception ex)
+            catch (Exception ex2)
             {
-                result.Warnings.Add($"NewSpotElevation pipe {pipe.Id}: {ex.Message}");
+                result.Warnings.Add($"NewSpotElevation pipe {pipe.Id}: {ex2.Message}");
             }
         }
     }

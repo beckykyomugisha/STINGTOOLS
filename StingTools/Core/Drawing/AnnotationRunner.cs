@@ -78,27 +78,6 @@ namespace StingTools.Core.Drawing
             return Apply(doc, view, drawingType, options);
         }
 
-            bool dense = !pack.DenseUntilScale.HasValue || view.Scale <= pack.DenseUntilScale.Value;
-
-#pragma warning disable CS0618 // legacy AutoXxx flags are folded into Rules at load time; readers still consult them for backward compat
-            try { if (!opts.SkipAutoDim && pack.AutoDimGrids)  DimGrids(doc, view, pack, new AnnotationRunStats()); } catch (Exception ex) { result.Warnings.Add("AutoDimGrids: " + ex.Message); }
-            try { if (!opts.SkipAutoDim && pack.AutoDimLevels) DimLevels(doc, view, pack, new AnnotationRunStats()); } catch (Exception ex) { result.Warnings.Add("AutoDimLevels: " + ex.Message); }
-
-            if (dense && !opts.SkipAutoTag)
-            {
-                var dtId = DrawingTypeStamper.Read(view);
-                if (!string.IsNullOrEmpty(dtId))
-                    dt = DrawingTypeRegistry.Get(doc, dtId);
-            }
-#pragma warning restore CS0618
-
-            if (dt == null) dt = new DrawingType();
-            // Caller-supplied pack wins: overlay it onto the resolved DT's Annotation.
-            if (annotation != null) dt.Annotation = annotation;
-
-            return Apply(doc, view, dt, options);
-        }
-
         /// <summary>
         /// Run the annotation pass defined by drawingType.Annotation
         /// against the given view. The caller is responsible for an
