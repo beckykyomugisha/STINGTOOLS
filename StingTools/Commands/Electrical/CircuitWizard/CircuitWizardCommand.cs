@@ -157,7 +157,7 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                                 {
                                     CircuitWizardEngine.RecalculateCircuit(proposal, PendingOptions, null);
                                 }
-                                catch (Exception ex2) { StingLog.Warn($"RecalculateCircuit post-create: {ex2.Message}"); }
+                                catch (Exception exRecalc) { StingLog.Warn($"RecalculateCircuit post-create: {exRecalc.Message}"); }
                             }
 
                             tx.Commit();

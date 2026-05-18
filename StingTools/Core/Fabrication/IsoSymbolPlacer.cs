@@ -885,5 +885,15 @@ namespace StingTools.Core.Fabrication
         }
 
         private static double MmToFt(double mm) => mm / 304.8;
+
+        public static bool CanPlaceOnView(View view)
+        {
+            if (view == null) return false;
+            var t = view.ViewType;
+            return t == ViewType.FloorPlan || t == ViewType.CeilingPlan ||
+                   t == ViewType.Elevation || t == ViewType.Section ||
+                   t == ViewType.Detail    || t == ViewType.DraftingView ||
+                   t == ViewType.ThreeD;
+        }
     }
 }

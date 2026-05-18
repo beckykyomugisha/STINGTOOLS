@@ -711,6 +711,9 @@ namespace StingTools.Core
         {
             lock (_roomCacheLock)
             {
+                // Skip invalidation while in a batch session so the cache
+                // stays warm across many per-element calls in the same batch.
+                if (_inBatchSession) return;
                 _roomCacheDocKey = null;
                 _roomCacheIndex = null;
             }
