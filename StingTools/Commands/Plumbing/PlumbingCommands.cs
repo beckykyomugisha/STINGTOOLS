@@ -77,13 +77,14 @@ namespace StingTools.Commands.Plumbing
             var panel = StingResultPanel.Create("Auto-Size Drainage");
             panel.SetSubtitle($"Code: {sizing.CodeUsed} · {dfuMap.PipesTagged} pipes tagged from {dfuMap.FixturesScanned} fixtures");
             panel.AddSection("SUMMARY")
-                 .Metric("Pipes analysed",   sizing.PipesAnalysed.ToString())
-                 .Metric("Upsize required",  sizing.PipesUpsized.ToString())
-                 .Metric("Slope insufficient", sizing.PipesSlopeInsufficient.ToString())
-                 .Metric("Velocity < 0.7 m/s", sizing.PipesSelfCleansingFailed.ToString())
-                 .Metric("Pipes written",    sizing.PipesWritten.ToString())
-                 .Metric("Vent records",     vents.Count.ToString())
-                 .Metric("Stacks flagged",   stackReport.StacksFlagged.ToString());
+                 .Metric("Pipes analysed",        sizing.PipesAnalysed.ToString())
+                 .Metric("Upsize required",       sizing.PipesUpsized.ToString())
+                 .Metric("Slope insufficient",    sizing.PipesSlopeInsufficient.ToString())
+                 .Metric("Velocity < 0.7 m/s",    sizing.PipesSelfCleansingFailed.ToString())
+                 .Metric("Shared-params written", sizing.PipesWritten.ToString())
+                 .Metric("Pipes resized in model",sizing.PipesResized.ToString())
+                 .Metric("Vent records",          vents.Count.ToString())
+                 .Metric("Stacks flagged",        stackReport.StacksFlagged.ToString());
 
             if (sizing.Results.Any())
             {

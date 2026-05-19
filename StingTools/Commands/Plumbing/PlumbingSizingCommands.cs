@@ -103,7 +103,8 @@ namespace StingTools.Commands.Plumbing
                  .Metric("Velocity exceedances",r.PipesVelocityFailed.ToString())
                  .Metric("Pressure-drop failed",r.PipesDpFailed.ToString())
                  .Metric("Upsize required",    r.PipesUpsized.ToString())
-                 .Metric("Pipes written",      r.PipesWritten.ToString());
+                 .Metric("Shared-params written", r.PipesWritten.ToString())
+                 .Metric("Pipes resized in model", r.PipesResized.ToString());
 
             if (r.Results.Any())
             {
@@ -148,7 +149,8 @@ namespace StingTools.Commands.Plumbing
                  .Metric("Upsize required",   sizing.PipesUpsized.ToString())
                  .Metric("Slope insufficient",sizing.PipesSlopeInsufficient.ToString())
                  .Metric("Self-cleansing fail",sizing.PipesSelfCleansingFailed.ToString())
-                 .Metric("Pipes written",     sizing.PipesWritten.ToString());
+                 .Metric("Shared-params written",  sizing.PipesWritten.ToString())
+                 .Metric("Pipes resized in model", sizing.PipesResized.ToString());
             if (sizing.Results.Any())
             {
                 panel.AddSection("PIPE SIZING (first 30)");
