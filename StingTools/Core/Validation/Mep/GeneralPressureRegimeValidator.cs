@@ -144,7 +144,7 @@ namespace StingTools.Core.Validation.Mep
             string profileId = "";
             try
             {
-                var p = doc.ProjectInformation?.LookupParameter("PRJ_ORG_PRESSURE_PROFILE_TXT");
+                var p = doc.ProjectInformation?.LookupParameter(ParamRegistry.PRJ_ORG_PRESSURE_PROFILE_TXT);
                 if (p?.HasValue == true && p.StorageType == StorageType.String)
                     profileId = (p.AsString() ?? "").Trim();
             }

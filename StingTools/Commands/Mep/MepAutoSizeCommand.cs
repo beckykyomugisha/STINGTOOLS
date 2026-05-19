@@ -189,7 +189,7 @@ namespace StingTools.Commands.Mep
                             // the panel + drift detector can see what rule fired.
                             try
                             {
-                                ParameterHelpers.SetString(p, "HVC_PIPE_SERVICE_TXT",
+                                ParameterHelpers.SetString(p, ParamRegistry.HVC_PIPE_SERVICE_TXT,
                                     serviceId, overwrite: true);
                             }
                             catch (Exception exP) { StingLog.Warn($"HVC_PIPE_SERVICE stamp {p.Id}: {exP.Message}"); }
@@ -430,7 +430,7 @@ namespace StingTools.Commands.Mep
                                 {
                                     string pclass = StingTools.UI.StingHvacCommandHandler.CurrentPressureClassId
                                                     ?? "low";
-                                    ParameterHelpers.SetString(d, "HVC_PRESSURE_CLASS_TXT",
+                                    ParameterHelpers.SetString(d, ParamRegistry.HVC_PRESSURE_CLASS_TXT,
                                         pclass, overwrite: true);
                                 }
                                 catch (Exception exPc) { StingLog.Warn($"PressureClass stamp {d.Id}: {exPc.Message}"); }
@@ -488,10 +488,10 @@ namespace StingTools.Commands.Mep
             try
             {
                 if (!string.IsNullOrEmpty(previous))
-                    ParameterHelpers.SetString(el, "HVC_SIZE_PREV_TXT", previous, overwrite: true);
-                ParameterHelpers.SetString(el, "HVC_SIZE_MODIFIED_DT",
+                    ParameterHelpers.SetString(el, ParamRegistry.HVC_SIZE_PREV_TXT, previous, overwrite: true);
+                ParameterHelpers.SetString(el, ParamRegistry.HVC_SIZE_MODIFIED_DT,
                     DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"), overwrite: true);
-                ParameterHelpers.SetString(el, "HVC_SIZE_RULE_ID_TXT",
+                ParameterHelpers.SetString(el, ParamRegistry.HVC_SIZE_RULE_ID_TXT,
                     string.IsNullOrEmpty(roleId) ? ruleSrc : $"{roleId}|{ruleSrc}", overwrite: true);
             }
             catch (Exception ex) { StingLog.Warn($"StampSizingAudit {el.Id}: {ex.Message}"); }
