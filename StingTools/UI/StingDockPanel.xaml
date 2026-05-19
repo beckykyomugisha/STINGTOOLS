@@ -2519,7 +2519,8 @@
                                 </WrapPanel>
                                 <TextBlock Text="Enhanced Structural Algorithms" FontSize="9" Foreground="#1565C0" FontWeight="Bold" Margin="0,4,0,2"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Auto-Size All" Tag="StrAutoSizeAll" Click="Cmd_Click" ToolTip="Auto-size all structural elements per EC2/EC3/EC7" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Auto-Size Report" Tag="StrAutoSizeAll" Click="Cmd_Click" ToolTip="Report-only: lists recommended sections per EC2/EC3/EC7 without changing the model"/>
+                                    <Button Style="{StaticResource GreenBtn}"  Content="★★ Auto-Size + Apply" Tag="StrAutoSizeApply" Click="Cmd_Click" ToolTip="Preview-and-apply: walks beams / columns / foundations, swaps each FamilySymbol via ChangeTypeId to the recommended section, stamps STR_*_SECTION_TXT" FontWeight="Bold"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Grid Optimize" Tag="StrGridOptimize" Click="Cmd_Click" ToolTip="Genetic algorithm column grid optimization"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Carbon Opt" Tag="StrCarbonOptimize" Click="Cmd_Click" ToolTip="Embodied carbon minimization per structural element"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="BBS Export" Tag="StrBarBending" Click="Cmd_Click" ToolTip="Bar bending schedule export per BS 8666"/>

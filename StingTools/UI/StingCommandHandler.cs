@@ -1822,6 +1822,7 @@ namespace StingTools.UI
 
                     // ── Enhanced Structural Algorithms ──
                     case "StrAutoSizeAll": RunCommand<Model.StrAutoSizeAllCommand>(app); break;
+                    case "StrAutoSizeApply": RunCommand<Model.StrAutoSizeApplyCommand>(app); break;
                     case "StrGridOptimize": RunCommand<Model.StrGridOptimizeCommand>(app); break;
                     case "StrCarbonOptimize": RunCommand<Model.StrCarbonOptimizeCommand>(app); break;
                     case "StrBarBending": RunCommand<Model.StrGenerateBarBendingCommand>(app); break;

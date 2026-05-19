@@ -374,7 +374,10 @@
                         <WrapPanel>
                             <Button Content="Design Vents" Style="{StaticResource PlumbActionBtn}"
                                     Tag="Plumb_VentDesign" Click="Cmd_Click"
-                                    ToolTip="BS EN 12056-2 Annex B vent sizing per drain DU."/>
+                                    ToolTip="BS EN 12056-2 Annex B vent sizing per drain DU (design report only — does NOT create pipework)."/>
+                            <Button Content="▶ Create Vents" Style="{StaticResource PlumbPrimaryBtn}"
+                                    Tag="Plumb_CreateVents" Click="Cmd_Click"
+                                    ToolTip="Close the design → model loop: take the VentDesigner output and actually create vent pipe + AAV instances. Preview shown before commit."/>
                             <Button Content="Trap &amp; Vent Audit" Style="{StaticResource PlumbActionBtn}"
                                     Tag="Plumbing_TrapVentAudit" Click="Cmd_Click"
                                     ToolTip="Audit trap type + seal depth + max branch length + vent DN."/>

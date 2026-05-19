@@ -528,6 +528,7 @@ namespace StingTools.UI
             try
             {
                 var r = LastCableSizeResult;
+                var input = CurrentCableSizeInput;
                 if (r == null || r.RecommendedCsaMm2 <= 0)
                 {
                     TaskDialog.Show("STING Electrical",
@@ -541,21 +542,89 @@ namespace StingTools.UI
                         "Select an ElectricalSystem or panel circuit before applying.");
                     return;
                 }
-                int updated = 0;
+                int circuits = 0, wireWrites = 0, ratingWrites = 0, stingStamps = 0;
                 using (var tx = new Transaction(doc, "STING Apply Cable Size"))
                 {
                     tx.Start();
                     foreach (var id in sel)
                     {
                         if (!(doc.GetElement(id) is ElectricalSystem sys)) continue;
-                        var p = sys.LookupParameter("Wire Size");
-                        if (p == null) continue;
-                        try { p.Set(r.CsaLabel); updated++; }
-                        catch (Exception ex) { StingLog.Warn($"Apply wire size on system {id}: {ex.Message}"); }
+                        circuits++;
+
+                        // 1. Native wire size — prefer the BuiltInParameter (locale-safe).
+                        try
+                        {
+                            var p = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM)
+                                  ?? sys.LookupParameter("Wire Size");
+                            if (p != null && !p.IsReadOnly)
+                            {
+                                p.Set(r.CsaLabel);
+                                wireWrites++;
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Wire size on system {id}: {ex.Message}"); }
+
+                        // 2. Native breaker rating (amperes, stored as double). Matches the
+                        // pattern used by BreakerSizerCommand so the apply path is consistent.
+                        if (r.ProposedBreakerA > 0)
+                        {
+                            try
+                            {
+                                var p = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_RATING_PARAM);
+                                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double)
+                                {
+                                    p.Set((double)r.ProposedBreakerA);
+                                    ratingWrites++;
+                                }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"Breaker rating on system {id}: {ex.Message}"); }
+                        }
+
+                        // 3. STING shared-param stamps so the calc result is visible to
+                        // schedules / BOQ / paragraph builders without re-reading the
+                        // native param. All param names below already exist in
+                        // MR_PARAMETERS.txt — direct literals because ParamRegistry only
+                        // exposes a subset of them as constants.
+                        try
+                        {
+                            ParameterHelpers.SetString(sys, ParamRegistry.ELC_CKT_CSA_MM2,
+                                $"{r.RecommendedCsaMm2:0.#}", overwrite: true);
+                            ParameterHelpers.SetString(sys, ParamRegistry.ELC_CKT_VD_PCT,
+                                $"{r.ActualVoltDropPct:0.00}", overwrite: true);
+                            if (r.ProposedBreakerA > 0)
+                                ParameterHelpers.SetString(sys, "ELC_CKT_BRK_RATING_A",
+                                    $"{r.ProposedBreakerA}", overwrite: true);
+                            if (r.DesignCurrentA > 0)
+                                ParameterHelpers.SetString(sys, "ELC_CBL_AMPACITY_A",
+                                    $"{r.DesignCurrentA:0.0}", overwrite: true);
+                            if (input != null)
+                            {
+                                if (!string.IsNullOrEmpty(input.InstallMethod))
+                                    ParameterHelpers.SetString(sys, "ELC_CBL_INSTALL_METHOD_TXT",
+                                        input.InstallMethod, overwrite: true);
+                                if (!string.IsNullOrEmpty(input.Insulation))
+                                    ParameterHelpers.SetString(sys, "ELC_CBL_INS_TYPE_TXT",
+                                        input.Insulation, overwrite: true);
+                                if (input.LengthM > 0)
+                                    ParameterHelpers.SetString(sys, "ELC_CKT_LENGTH_M",
+                                        $"{input.LengthM:0.0}", overwrite: true);
+                            }
+                            stingStamps++;
+                        }
+                        catch (Exception ex) { StingLog.Warn($"STING stamps on system {id}: {ex.Message}"); }
                     }
                     tx.Commit();
                 }
-                TaskDialog.Show("STING Electrical", $"Applied {r.CsaLabel} to {updated} circuit(s).");
+                try { StingTools.Core.ComplianceScan.InvalidateCache(); }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+
+                TaskDialog.Show("STING Electrical",
+                    $"Cable size applied to {circuits} circuit(s).\n\n" +
+                    $"• Wire size written: {wireWrites}\n" +
+                    $"• Breaker rating written: {ratingWrites}\n" +
+                    $"• STING params stamped: {stingStamps}\n\n" +
+                    $"Recommendation: {r.CsaLabel} @ {r.ProposedBreakerA}A " +
+                    $"(VD {r.ActualVoltDropPct:0.00}%)");
             }
             catch (Exception ex) { StingLog.Warn($"ApplyCableSize: {ex.Message}"); }
         }
