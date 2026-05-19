@@ -42,6 +42,10 @@ namespace StingTools.Core.Drawing
                 var key = DocKey(doc);
                 if (_cache.ContainsKey(key)) _cache.Remove(key);
             }
+            // Phase 183 — snapshot + diff so Inspect / SyncStyles can
+            // surface pack edits to the user. See LiveProfileSync.
+            try { LiveProfileSync.OnRegistryReloaded(doc); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"ViewStylePackRegistry.Reload sync: {ex.Message}"); }
         }
 
         public static ViewStylePackLibrary GetLibrary(Document doc)

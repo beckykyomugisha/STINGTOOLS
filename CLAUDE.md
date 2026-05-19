@@ -411,6 +411,169 @@ clash + insulation), `corp-standard-plan` (19 — phase + fire-rated walls
    project before the filter can be created — the factory warns + skips
    gracefully rather than failing the whole batch.
 
+### Phase 182 — Drawing Type / Style Pack alignment audit
+
+Closed the alignment gaps surfaced by the drawing-types/style-packs
+consistency audit on branch `claude/review-drawing-types-styles-WKpW1`.
+
+**STING_VIEW_STYLE_PACKS.json — 11 packs added** (11 → 22 total):
+
+| Pack | Extends | Purpose |
+|---|---|---|
+| `corp-demolition-phase` | `corp-standard-plan` | Demolition drawings — existing halftoned, demolished bold red dashed, new construction hidden. Phase filter `Show Demo + New`. |
+| `corp-healthcare-clinical` | `corp-standard-plan` | Generic clinical plan / RCP / equipment. Bedhead/pendant/scrub/anti-lig fittings + BS 8300 access in NHS-blue palette. `templateMode=managed`. |
+| `corp-healthcare-mgs` | `corp-coordination` | HTM 02-01 medical gas. O2 white, N2O blue, AIR-4/7, VAC yellow, AGSS purple. Manifolds + AVSUs + terminal units. |
+| `corp-healthcare-pressure` | `corp-standard-plan` | HTM 03-01 ventilation pressure cascade. Positive blue, negative red, neutral grey, isolation cubicle purple. |
+| `corp-healthcare-ees` | `corp-coordination` | HTM 06-01 / NFPA 99 essential services. Type A red, Type B orange, Type C yellow, generator/UPS/IPS/ATS highlighted. |
+| `corp-healthcare-fire` | `corp-standard-plan` | HTM 05-02 / BS 9999 fire compartmentation. 30/60/90/120-min walls colour-coded, smoke barriers green dashed. |
+| `corp-healthcare-shielding` | `corp-standard-plan` | NCRP 147 / IPEM 75 radiation shielding. Lead-mm walls magenta, controlled/supervised zones, MRI Zone II/III/IV (5G line). |
+| `corp-healthcare-ligature` | `corp-standard-plan` | Mental health anti-ligature. Compliant fittings purple, non-compliant red, observation lines from staff base. |
+| `corp-healthcare-water` | `corp-coordination` | HTM 04-01 water safety / Legionella. DCW/DHW/DHWR, TMV, dead-leg risk, augmented-care outlets, temperature sensors. |
+| `pres-burgund-green` | `corp-presentation-rich` | Client-facing presentation — burgundy walls + dark-green topo on cream, hand-rendered hatch. |
+| `pres-interior-sage` | `corp-presentation-rich` | Interior elevation presentation — sage walls, warm-wood casework, soft ambient palette, suppressed grids/dimensions. |
+
+All 8 healthcare packs ship with `templateMode: "managed"` and explicit
+`managedFields` whitelists (scale / detailLevel / discipline / visualStyle /
+phaseFilter / vgOverrides / filters — clinical also adds tagColorScheme /
+defaultTagStyle) so Phase 137's `ManagedTemplateSyncer` mints + maintains
+matching `STING:{packId}:{ViewType}` templates and pack-level
+filterRules / vgOverrides drift gets surfaced + healed automatically.
+
+**STING_DRAWING_TYPES.json fixes**:
+
+- `arch-screed-buildup-A3-1to10` — `titleBlockFamily` corrected from
+  `STING_TB_SHEET_A1` to `STING_TB_SHEET_A3` (paper-size / family
+  mismatch).
+- `elec-riser-A2-1to100` — `purpose` corrected from `Plan` to `Section`
+  (slot viewType was already `Section`; purpose intent now matches).
+- `clar-markup-A1` + `clar-rfi-A3` — `purpose` aligned to
+  `Clarification` and explicitly bound to `corp-clarification` (was
+  falling through purpose-based routing without an own pack id).
+- All 22 healthcare drawing types — `titleBlockParams` populated with
+  the corporate 11-cell set (`Client Name`, `Project Code`,
+  `Originator`, `Company Name`, `Company Address`, `Appointing Party`,
+  `Lead Appointed Party`, `Discipline=Healthcare`, `Suitability=S2`,
+  `Sheet Status=WIP`, `Revision=P01`). Previously all empty, so
+  healthcare sheets shipped without corporate metadata stamping.
+
+**DrawingDriftDetector — CROP_DRIFT detection added**
+(`StingTools/Core/Drawing/DrawingDriftDetector.cs`):
+
+- New `AppendCropDrift` method fires when a profile's
+  `crop.scopeBoxName` is set (kind=`ScopeBox` or `ScopeBoxOrBbox`) and
+  the view's bound `VIEWER_VOLUME_OF_INTEREST_CROP` doesn't match.
+- ScopeBox kind reports drift even when scope box missing from
+  document (view will fail to crop); ScopeBoxOrBbox demotes to
+  Suppressed (bbox fallback) when scope box absent.
+- TightBbox / RoomBoundary / None are not comparable post-hoc and are
+  left alone.
+
+**Final state**: 0 missing pack references, 0 orphaned packs (every
+pack now reachable via either an explicit `viewStylePackId` binding or
+the `STING_VIEW_STYLE_PACKS.json` `routing[]` purpose-based fallback),
+0 healthcare types with empty `titleBlockParams`. 50 of 90 drawing
+types now carry an explicit pack id; the remaining 40 rely on
+purpose-based routing fallback (intentional — keeps the JSON DRY).
+
+### Caveats (Phase 182)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The 11 new packs reference view templates and filter names that
+   projects must supply (e.g. `STING - Healthcare Clinical`, `Fire
+   Wall - 60 min`). The validator surfaces missing assets as Warnings,
+   not Errors, so the JSON ships usable on a stock project.
+3. Filter rule inheritance through pack `extends` chains is NOT
+   cascaded — only the root `corp-base` and `corp-clarification`
+   define filterRules in the corporate baseline; child packs either
+   redeclare or inherit nothing. Phase 166 wires `inheritDefaults:
+   true` for individual rules but full pack-chain inheritance of the
+   filter list itself stays an explicit per-pack opt-in.
+
+### Phase 183 — Closing the Phase 182 deferred items
+
+Three gaps the Phase 182 caveats flagged are now closed.
+
+**LiveProfileSync — registry-reload diff**
+(`StingTools/Core/Drawing/LiveProfileSync.cs`):
+
+- Per-document snapshot of SHA-256 hashes for every DrawingType +
+  ViewStylePack id. `OnRegistryReloaded(doc)` (called automatically
+  by `DrawingTypeRegistry.Reload` and `ViewStylePackRegistry.Reload`)
+  computes the new snapshot, diffs against the prior, and stages the
+  changed id set for the document.
+- `GetChangedProfileIds(doc)` / `GetChangedPackIds(doc)` /
+  `GetAffectedViewIds(doc)` — read-only accessors used by the
+  Inspect + SyncStyles commands. Pack-change set is expanded to the
+  profile ids that reference each changed pack, so editing
+  `corp-coordination` flags every profile bound to it.
+- `ConsumeStagedDiff(doc)` clears the staged set after SyncStyles
+  has re-applied every affected view. Document close invalidates the
+  cache via `LiveProfileSync.InvalidateCache(doc)` wired into
+  `StingToolsApp.OnDocumentClosing`.
+- `DrawingSyncStylesCommand` merges `LiveProfileSync.GetAffectedViewIds`
+  into the drift-report set so an on-disk pack/profile edit
+  re-applies even when the live view VG state hasn't drifted yet.
+- `DrawingTypesInspectCommand` surfaces "X profile(s) + Y pack(s)
+  edited since last load — Z view(s) affected" as a one-liner in the
+  Inspect dialog.
+
+**VG + filter drift detection**
+(`StingTools/Core/Drawing/DrawingDriftDetector.cs`):
+
+- New `AppendVgAndFilterDrift` compares the live view's per-category
+  `OverrideGraphicSettings` (halftone / projection line weight / cut
+  line weight / transparency) and per-filter attachment + visibility +
+  overrides against the resolved pack's `VgOverrides` + `Filters`.
+- Guarded to non-managed packs only — managed packs already get
+  template-level checksum drift via `AppendManagedTemplateDrift`, and
+  double-detecting would surface every view that uses the managed
+  template as drifted on every pack edit.
+- Output is intentionally coarse: one drift entry per category /
+  filter, listing the first mismatching attribute. SyncStyles
+  re-applies the pack and heals.
+
+**Bbox-derived crop drift via stamp + diff**
+(`DrawingTypeStamper.cs` + `DrawingCropApplier.cs` +
+`DrawingDriftDetector.cs`):
+
+- Two new shared parameters: `STING_CROP_KIND_TXT` (text) +
+  `STING_CROP_MARGIN_MM_TXT` (text — decimal as string, no new
+  storage-type handling needed). Both declared in `MR_PARAMETERS.txt`
+  with stable GUIDs and mirrored in `MR_PARAMETERS.csv`.
+- `DrawingTypeStamper.StampCrop(el, kind, marginMm)` /
+  `ReadCrop(el)` — symmetric write + read helpers; no-op when the
+  shared parameters aren't bound on the project (graceful
+  degradation, no functional regression on unmigrated projects).
+- `DrawingCropApplier.Apply` calls `StampCrop` after every successful
+  crop write so the view carries its as-of-apply kind + margin.
+- `AppendCropDrift` extended: for `TightBbox` / `RoomBoundary` /
+  `ScopeBoxOrBbox` profiles, compares the stamped kind + margin to
+  the profile's current values. Margin tolerance is 1 mm. Catches
+  profile edits like "marginMm: 150 → 300" that the view hasn't
+  been re-cropped to honour.
+
+**Final state**: the Phase 182 caveats 1 (IUpdater for live profile
+changes — closed by LiveProfileSync), 3 (bbox-derived crop drift —
+closed by stamp + diff), and the VG/filter drift gap implicit in the
+Phase 137 caveats are all closed. The Inspect command's headline
+now reports both live-disk edits and live-view drift in one summary.
+
+### Caveats (Phase 183)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `LiveProfileSync` snapshots are in-memory; closing and reopening a
+   document loses the "X profiles changed since last load" state.
+   The user runs SyncStyles once after a session-spanning edit; the
+   drift detector also still picks up the same views via the
+   conventional VG / filter / crop comparison.
+3. `StampCrop` requires the two new shared parameters to be bound on
+   the project. On pre-Phase-183 projects the stamp is a no-op and
+   the bbox-derived crop drift check silently doesn't fire — no
+   regression vs. Phase 182 behaviour.
+4. VG drift reports one mismatching attribute per category. A
+   category with three mismatches (halftone + weight + transparency)
+   surfaces as one report entry, healed in one re-apply.
+
 ## Template Engine v1.1 (Phase 112)
 
 **Status**: S01–S18 landed on `claude/implement-template-engine-COd9n`

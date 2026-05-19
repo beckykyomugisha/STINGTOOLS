@@ -298,6 +298,10 @@ namespace StingTools.Core
                 // element in the next.
                 try { Drawing.DrawingTypeRegistry.Reload(e.Document); }
                 catch (Exception ex) { StingLog.Warn($"DocumentClosing DrawingTypeRegistry.Reload: {ex.Message}"); }
+                // Phase 183 — drop the LiveProfileSync snapshot + staged
+                // diff for this document so the next session starts clean.
+                try { Drawing.LiveProfileSync.InvalidateCache(e.Document); }
+                catch (Exception ex) { StingLog.Warn($"DocumentClosing LiveProfileSync.InvalidateCache: {ex.Message}"); }
                 StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, workset, level, and drawing-type caches");
             }
             catch (Exception ex)

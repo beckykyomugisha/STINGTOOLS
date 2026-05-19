@@ -2855,6 +2855,8 @@ Views,STING_DRAWING_TYPE_ID_TXT,c1d2e3f4-a5b6-4c7d-8e9f-a0b1c2d3e4f5,TEXT,STING_
 Views,STING_STYLE_LOCKED_BOOL,d2e3f4a5-b6c7-4d8e-9f0a-b1c2d3e4f5a6,YESNO,STING_DRAWING,Instance,Style-locked flag: prevents SyncStyles from overwriting [Phase 113],False,,,MULTI,1,0
 Views,STING_PACK_ID_TXT,e3f4a5b6-c7d8-4e9f-a0b1-c2d3e4f5a6b7,TEXT,STING_DRAWING,Instance,ViewStylePack registry id stamped on managed view templates [Phase 137],False,,,MULTI,1,0
 Views,STING_PACK_CHECKSUM_TXT,f4a5b6c7-d8e9-4f0a-b1c2-d3e4f5a6b7c8,TEXT,STING_DRAWING,Instance,SHA-256 checksum of ViewStylePack JSON for drift detection [Phase 137],False,,,MULTI,1,0
+Views,STING_CROP_KIND_TXT,b6c7d8e9-f0a1-4b2c-3d4e-5f6a7b8c9d01,TEXT,STING_DRAWING,Instance,Crop kind stamped onto views for drift detection [Phase 183],False,,,MULTI,1,0
+Views,STING_CROP_MARGIN_MM_TXT,c7d8e9f0-a1b2-4c3d-4e5f-6a7b8c9d0e12,TEXT,STING_DRAWING,Instance,Crop margin (mm, as string) stamped onto views for drift detection [Phase 183],False,,,MULTI,1,0
 Views,STING_CDE_STATE_TXT,a5b6c7d8-e9f0-4a1b-c2d3-e4f5a6b7c8d9,TEXT,STING_DRAWING,Instance,CDE state stamp for ISO 19650-2 document lifecycle [Phase 141],False,,,MULTI,1,0
 Medical Equipment,CLN_EQP_TAG,c1a00001-0000-4c1a-0000-000000000001,TEXT,CLN_CLINICAL,Instance,Clinical equipment ISO 19650 tag container,False,,,MULTI,1,0
 Rooms,CLN_ROOM_TAG,c1a00001-0000-4c1a-0000-000000000002,TEXT,CLN_CLINICAL,Instance,Clinical room ISO 19650 tag container,False,,,MULTI,1,0
