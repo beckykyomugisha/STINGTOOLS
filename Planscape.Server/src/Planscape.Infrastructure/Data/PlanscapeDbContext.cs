@@ -1394,6 +1394,9 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(x => new { x.ProjectId, x.Reference }).IsUnique();
             e.Property(x => x.Reference).HasMaxLength(40).IsRequired();
             e.Property(x => x.Kind).HasMaxLength(20);
+            // Phase 184q — contract family.
+            e.Property(x => x.ContractForm).HasMaxLength(32).HasDefaultValue("JCT2024");
+            e.HasIndex(x => new { x.ProjectId, x.ContractForm });
             e.Property(x => x.Title).HasMaxLength(400);
             e.Property(x => x.Description).HasMaxLength(4000);
             e.Property(x => x.InstructionRef).HasMaxLength(200);

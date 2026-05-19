@@ -41,6 +41,32 @@ namespace StingTools.Core.Variation
     }
 
     /// <summary>
+    /// Phase 184q — contract family the variation lives under. Distinct
+    /// from <see cref="VariationKind"/> (the *contractual route* the
+    /// change came through) so the liability map can match precisely.
+    /// Distinct from <see cref="StingTools.Core.PaymentCert.ContractForm"/>
+    /// (which lives in the payment-cert namespace and covers a narrower
+    /// set) — namespace-qualified to avoid collisions.
+    ///
+    /// JCT 2024 vs JCT 2016 are kept separate because the variation clauses
+    /// shifted (e.g. 5.1 ↔ 5.1.1). FIDIC Red / Yellow / Silver split because
+    /// the design-risk allocation differs sharply (Red = employer design,
+    /// Yellow = contractor design, Silver = EPC). GC/Works retained for legacy
+    /// UK public-sector projects.
+    /// </summary>
+    public enum VariationContractForm
+    {
+        JCT2024,
+        JCT2016,
+        NEC4,
+        FIDIC2017Red,
+        FIDIC2017Yellow,
+        FIDIC2017Silver,
+        GCWorks,
+        Bespoke
+    }
+
+    /// <summary>
     /// Phase 184o — *why* the variation arose. Drives liability, EOT
     /// entitlement, insurance recovery and month-end pattern analysis.
     /// Distinct from <see cref="VariationKind"/> (the contractual route).
@@ -108,6 +134,15 @@ namespace StingTools.Core.Variation
         public string Number { get; set; } = "";
 
         public string ContractRef { get; set; } = "";
+
+        /// <summary>
+        /// Phase 184q — contract family. Drives precise liability-map
+        /// lookup (e.g. FIDIC2017Yellow routes ErrorOmission → Contractor;
+        /// JCT2024 routes the same reason → Designer). Defaults to JCT2024
+        /// — UK QS commonest case — until the user picks during minting.
+        /// </summary>
+        public VariationContractForm ContractForm { get; set; } = VariationContractForm.JCT2024;
+
         public VariationKind Kind { get; set; } = VariationKind.Instruction;
         public VariationStatus Status { get; set; } = VariationStatus.Draft;
 

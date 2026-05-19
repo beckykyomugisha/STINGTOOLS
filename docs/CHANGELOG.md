@@ -2,6 +2,40 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 184q — Phase 184p caveats closed)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the two actionable caveats from Phase 184p. Caveat #1 (no `dotnet build` / Expo runtime verification on the Linux sandbox) is a standing environmental constraint.
+
+##### Caveat #2 — Contract form distinct from Kind
+
+Previously the liability-map lookup used `VariationKind.ToString()` (`Instruction` / `CompensationEvent` / etc.) as the contract-family key, which conflated the *route* a change came through with the *contract family* it sits under. FIDIC Yellow and Silver in particular couldn't be expressed because their `Kind = "EngineerInstruction"` matched FIDIC Red's defaults.
+
+Resolution:
+- New enum `VariationContractForm` in `Core/Variation/VariationModels.cs` with 8 values: JCT2024 / JCT2016 / NEC4 / FIDIC2017Red / FIDIC2017Yellow / FIDIC2017Silver / GCWorks / Bespoke. Namespace-qualified to avoid collision with the existing `StingTools.Core.PaymentCert.ContractForm`.
+- `VariationInstruction` gains a `ContractForm` field defaulting to JCT2024 (UK QS commonest case).
+- `VariationEngine.FromDiff` takes the new field as an optional parameter.
+- `Variation_FromDiff` picker now asks for contract form *first*, then kind, then reason, then liability. Each picker shows a plain-English `Detail` column to disambiguate.
+- `VariationLiabilityMap.Resolve` now consumes `vo.ContractForm.ToString()` directly — so FIDIC Yellow's `ErrorOmission → Contractor` rule (the contractor owns the design under Yellow Book) is applied correctly, while a JCT 2024 project gets `ErrorOmission → Designer`.
+- VO Register CSV gains a `ContractForm` column.
+- Mobile detail surfaces the contract form alongside kind + status, e.g. "EngineerInstruction · Approved · FIDIC 2017 Yellow".
+
+Server:
+- `BoqVariation.ContractForm` (string, default `JCT2024`), DbContext property + `(ProjectId, ContractForm)` index for dashboards.
+- New migration `20260518000002_AddVariationContractForm.cs` (hand-written; existing rows default to JCT2024 so legacy data is unchanged).
+- `BoqController` GET-list / GET-detail / POST-CreateVariation all surface and accept the new field.
+
+##### Caveat #3 — Per-period EOT redistribution
+
+Previously the cash-flow JSON only reported the EOT-adjusted *completion date* in the header — the per-period curve still ended at the baseline completion. Now `GenerateCashFlow` emits a parallel `monthly_eot_adjusted` array alongside the existing `monthly` array when approved EOT > 0. Same normalised-sigmoid distribution spread over the longer EOT-adjusted duration, same grand total. The QS sees both curves side by side; downstream chart tools can render a baseline-vs-adjusted S-curve.
+
+Full per-task EOT redistribution (re-cost-loading individual activities) remains out of scope for the Revit plugin — it requires P6 / MSP round-trip and lives in the programme tool. What's reported here is the right approximation for cash-flow forecasting at the QS level.
+
+##### Caveats
+
+1. Built without `dotnet build` / Expo runtime verification (Linux sandbox) — standing.
+
+---
+
 #### Completed (Phase 184p — Phase 184o caveats closed)
 
 Branch: `claude/revit-api-cost-management-qH8Vv`. Closes three of the four caveats from Phase 184o. Caveat #1 (no `dotnet build` / Expo runtime verification on Linux sandbox) is a standing constraint of this environment and is left documented.

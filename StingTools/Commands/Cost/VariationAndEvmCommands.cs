@@ -87,7 +87,27 @@ namespace StingTools.Commands.Cost
                     return Result.Cancelled;
                 }
 
-                // Pick kind (contractual route).
+                // Pick contract family (Phase 184q — distinct from Kind so
+                // the liability map can match precisely on JCT2024 vs
+                // FIDIC2017Yellow etc.).
+                var formItems = new List<StingListPicker.ListItem>
+                {
+                    new StingListPicker.ListItem { Label = "JCT 2024",                Detail = "Standard Building Contract 2024 ed.",              Tag = VariationContractForm.JCT2024 },
+                    new StingListPicker.ListItem { Label = "JCT 2016",                Detail = "Legacy SBC 2016 ed. (clauses 5.1 split)",          Tag = VariationContractForm.JCT2016 },
+                    new StingListPicker.ListItem { Label = "NEC4 ECC",                Detail = "Engineering and Construction Contract — Option A-F", Tag = VariationContractForm.NEC4 },
+                    new StingListPicker.ListItem { Label = "FIDIC 2017 Red",          Detail = "Conditions of Contract — employer-design",        Tag = VariationContractForm.FIDIC2017Red },
+                    new StingListPicker.ListItem { Label = "FIDIC 2017 Yellow",       Detail = "Plant + Design-Build — contractor-design",        Tag = VariationContractForm.FIDIC2017Yellow },
+                    new StingListPicker.ListItem { Label = "FIDIC 2017 Silver",       Detail = "EPC / Turnkey — contractor owns nearly everything", Tag = VariationContractForm.FIDIC2017Silver },
+                    new StingListPicker.ListItem { Label = "GC/Works",                Detail = "Legacy UK public-sector forms",                    Tag = VariationContractForm.GCWorks },
+                    new StingListPicker.ListItem { Label = "Bespoke",                 Detail = "Project-specific bespoke contract",                Tag = VariationContractForm.Bespoke },
+                };
+                var formPicked = StingListPicker.Show("STING — Contract form",
+                    "Pick the contract family. Drives liability defaults and clause references.",
+                    formItems, allowMultiSelect: false);
+                VariationContractForm contractForm = (formPicked != null && formPicked.Count > 0 &&
+                    formPicked[0].Tag is VariationContractForm cf) ? cf : VariationContractForm.JCT2024;
+
+                // Pick kind (contractual route — i.e. how the change is being routed).
                 var kindItems = new List<StingListPicker.ListItem>
                 {
                     new StingListPicker.ListItem { Label = "Architect's / engineer's instruction", Tag = VariationKind.Instruction },
@@ -96,7 +116,7 @@ namespace StingTools.Commands.Cost
                     new StingListPicker.ListItem { Label = "Contractor claim", Tag = VariationKind.ContractorClaim }
                 };
                 var kindPicked = StingListPicker.Show("STING — Variation kind",
-                    "Pick the contractual category of this variation.",
+                    "Pick the contractual route — how this change is being issued under the form.",
                     kindItems, allowMultiSelect: false);
                 VariationKind kind = (kindPicked != null && kindPicked.Count > 0 &&
                     kindPicked[0].Tag is VariationKind k) ? k : VariationKind.Instruction;
@@ -125,13 +145,12 @@ namespace StingTools.Commands.Cost
                     reasonPicked[0].Tag is VariationReason r) ? r : VariationReason.Other;
 
                 // Suggest liability — consult the config-driven contract
-                // map first (Phase 184p), then fall back to the C# code
-                // default so a project that doesn't ship a custom JSON
-                // still gets a reasonable answer.
+                // map (Phase 184q now passes the precise contract form,
+                // not Kind.ToString(), so FIDIC Yellow / Silver carry
+                // their contractor-design defaults correctly).
                 VariationLiability codeDefault = SuggestLiability(reason);
-                string contractForm = kind.ToString();
                 VariationLiability suggested = VariationLiabilityMap
-                    .Get(doc).Resolve(contractForm, reason, codeDefault);
+                    .Get(doc).Resolve(contractForm.ToString(), reason, codeDefault);
                 var liabilityItems = new List<StingListPicker.ListItem>
                 {
                     new StingListPicker.ListItem { Label = "Employer / client",   Detail = "Employer absorbs cost",                       Tag = VariationLiability.Employer },
@@ -148,11 +167,13 @@ namespace StingTools.Commands.Cost
 
                 string contractRef = doc.ProjectInformation?.Number ?? "DEFAULT";
                 var vo = VariationEngine.FromDiff(diff, contractRef, kind,
-                    reason, liability, reasonDetail: "", eotDays: 0);
+                    reason, liability, reasonDetail: "", eotDays: 0,
+                    contractForm: contractForm);
                 string path = VariationEngine.Save(doc, vo);
 
                 TaskDialog.Show("STING — Variation minted",
                     $"{vo.Number}  ({vo.Kind}, {vo.Status})\n\n" +
+                    $"Contract:     {vo.ContractForm}\n" +
                     $"Reason:       {vo.Reason}\n" +
                     $"Liability:    {vo.Liability}\n" +
                     $"Items:        {vo.Items.Count}\n" +
@@ -276,12 +297,13 @@ namespace StingTools.Commands.Cost
                     // added so month-end pattern analysis can pivot by reason ("60% of
                     // VOs are design errors → review the design") and the QS can
                     // reconcile EOT entitlement against the programme.
-                    sw.WriteLine("Contract,Number,Kind,Reason,Liability,EotDays,Status,InstructionDate,ApprovalDate,Items,Currency,TotalValue,IssuedBy,ApprovedBy,ReasonDetail");
+                    sw.WriteLine("Contract,ContractForm,Number,Kind,Reason,Liability,EotDays,Status,InstructionDate,ApprovalDate,Items,Currency,TotalValue,IssuedBy,ApprovedBy,ReasonDetail");
                     foreach (var v in vos)
                     {
                         sw.WriteLine(string.Join(",", new[]
                         {
                             Q(v.ContractRef),
+                            v.ContractForm.ToString(),
                             v.Number,
                             v.Kind.ToString(),
                             v.Reason.ToString(),
@@ -594,10 +616,13 @@ namespace StingTools.Commands.Cost
                     }
                     var reason = (reasonPicked[0].Tag is VariationReason r) ? r : VariationReason.Other;
 
-                    // Liability picker, pre-suggested from the map.
+                    // Liability picker, pre-suggested from the map. Use
+                    // the precise contract form (Phase 184q); legacy VOs
+                    // that haven't been touched default to JCT2024 which
+                    // is the safest UK QS assumption.
                     var codeDefault = SuggestLiabilityShared(reason);
                     var suggested = VariationLiabilityMap.Get(doc)
-                        .Resolve(vo.Kind.ToString(), reason, codeDefault);
+                        .Resolve(vo.ContractForm.ToString(), reason, codeDefault);
                     var liabilityItems = BuildLiabilityItems();
                     var liabilityPicked = StingListPicker.Show(
                         $"STING — Liability for {vo.Number}",

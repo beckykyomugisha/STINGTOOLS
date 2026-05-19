@@ -1013,6 +1013,56 @@ namespace StingTools.BIMManager
                 }
             }
 
+            // Phase 184q / caveat #4 closure — when approved EOT > 0,
+            // emit a parallel monthly_eot_adjusted curve that spreads
+            // the same grand total across the longer EOT-adjusted
+            // duration. Uses the same normalised-sigmoid distribution
+            // so the curve shape is comparable to the baseline. The QS
+            // sees both curves side by side; full per-task EOT
+            // redistribution still requires P6 / MSP round-trip and is
+            // out of scope for the Revit plugin.
+            if (eotDays > 0 && grandTotal > 0)
+            {
+                DateTime adjustedEnd = projEnd.AddDays(eotDays);
+                int eotMonths = Math.Max(1, (int)Math.Ceiling((adjustedEnd - projStart).TotalDays / 30.0));
+                var eotMonthly = new JArray();
+                double eotCumulative = 0;
+                double eotPrevSCurve = 0;
+                for (int m = 0; m < eotMonths; m++)
+                {
+                    double t = (double)(m + 1) / eotMonths;
+                    double rawSig = 1.0 / (1.0 + Math.Exp(-10 * (t - 0.5)));
+                    double sCurve = (rawSig - sigAt0) / sigRange;
+                    double monthlySpend = grandTotal * (sCurve - eotPrevSCurve);
+                    if (monthlySpend < 0) monthlySpend = 0;
+                    eotPrevSCurve = sCurve;
+                    eotCumulative += monthlySpend;
+
+                    DateTime monthStart = projStart.AddMonths(m);
+                    eotMonthly.Add(new JObject
+                    {
+                        ["month"] = monthStart.ToString("yyyy-MM"),
+                        ["month_name"] = monthStart.ToString("MMM yyyy"),
+                        ["planned_spend"] = Math.Round(monthlySpend, 2),
+                        ["cumulative"] = Math.Round(eotCumulative, 2),
+                        ["percent_complete"] = Math.Round(eotCumulative / grandTotal * 100, 1)
+                    });
+                }
+                // Same last-month fix as the baseline curve.
+                if (eotMonthly.Count > 0 && Math.Abs(eotCumulative - grandTotal) > 0.01)
+                {
+                    var lastM = (JObject)eotMonthly[eotMonthly.Count - 1];
+                    double lastSpend = (double)(lastM["planned_spend"] ?? 0) + (grandTotal - eotCumulative);
+                    if (lastSpend >= 0)
+                    {
+                        lastM["planned_spend"] = Math.Round(lastSpend, 2);
+                        lastM["cumulative"] = Math.Round(grandTotal, 2);
+                        lastM["percent_complete"] = 100.0;
+                    }
+                }
+                cashFlow["monthly_eot_adjusted"] = eotMonthly;
+            }
+
             cashFlow["monthly"] = monthly;
             cashFlow["total_months"] = totalMonths;
             cashFlow["grand_total"] = Math.Round(grandTotal, 2);

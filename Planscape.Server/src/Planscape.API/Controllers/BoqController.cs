@@ -305,6 +305,8 @@ public class BoqController : ControllerBase
                 v.Status, v.NetValue, v.Currency,
                 // Phase 184o — reason + liability surface in the mobile list.
                 v.Reason, v.Liability, v.EotDays,
+                // Phase 184q — contract family.
+                v.ContractForm,
                 v.BimIssueId, v.SubmittedAt, v.ApprovedAt, v.ApprovedBy,
                 v.CreatedAt, v.CreatedBy
             })
@@ -338,6 +340,8 @@ public class BoqController : ControllerBase
             Liability  = req.Liability ?? "Employer",
             ReasonDetail = req.ReasonDetail,
             EotDays    = req.EotDays ?? 0,
+            // Phase 184q
+            ContractForm = req.ContractForm ?? "JCT2024",
             CreatedBy  = User.Identity?.Name,
         };
         _db.BoqVariations.Add(variation);
@@ -391,6 +395,8 @@ public class BoqController : ControllerBase
             v.Id,
             number = v.Reference,
             kind = v.Kind,
+            // Phase 184q — contract family.
+            contractForm = v.ContractForm,
             // Phase 184o — reason / liability / EOT routed back to mobile detail.
             reason = v.Reason,
             liability = v.Liability,
@@ -748,7 +754,9 @@ public record CreateVariationRequest(
     string? Reason,
     string? Liability,
     string? ReasonDetail,
-    int? EotDays);
+    int? EotDays,
+    // Phase 184q
+    string? ContractForm);
 
 public record UpdateStatusRequest(string Status);
 

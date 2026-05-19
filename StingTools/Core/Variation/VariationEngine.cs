@@ -43,12 +43,14 @@ namespace StingTools.Core.Variation
             VariationReason reason = VariationReason.Other,
             VariationLiability liability = VariationLiability.Employer,
             string reasonDetail = "",
-            int eotDays = 0)
+            int eotDays = 0,
+            VariationContractForm contractForm = VariationContractForm.JCT2024)
         {
             if (diff == null) throw new ArgumentNullException(nameof(diff));
             var vo = new VariationInstruction
             {
                 ContractRef = contractRef ?? "",
+                ContractForm = contractForm,
                 Kind = kind,
                 Reason = reason,
                 Liability = liability,

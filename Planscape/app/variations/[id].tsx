@@ -42,6 +42,8 @@ interface Variation {
   liability?: string;
   reasonDetail?: string;
   eotDays?: number;
+  // Phase 184q — contract family (JCT2024 / NEC4 / FIDIC2017Yellow / ...).
+  contractForm?: string;
 }
 
 export default function VariationDetail() {
@@ -105,7 +107,10 @@ export default function VariationDetail() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 14 }}>
       <Text style={styles.number}>{v.number}</Text>
-      <Text style={styles.kind}>{v.kind} · {v.status}</Text>
+      <Text style={styles.kind}>
+        {v.kind} · {v.status}
+        {v.contractForm ? ` · ${prettifyContractForm(v.contractForm)}` : ""}
+      </Text>
 
       <View style={styles.card}>
         <Text style={styles.title}>{v.title}</Text>
@@ -222,6 +227,21 @@ export default function VariationDetail() {
 // Phase 184o — shared with the list screen. "DesignChange" → "Design Change".
 function prettifyReason(reason: string): string {
   return reason.replace(/([A-Z])/g, " $1").trim();
+}
+
+// Phase 184q — humanise contract-form enum values.
+function prettifyContractForm(form: string): string {
+  switch (form) {
+    case "JCT2024":         return "JCT 2024";
+    case "JCT2016":         return "JCT 2016";
+    case "NEC4":            return "NEC4";
+    case "FIDIC2017Red":    return "FIDIC 2017 Red";
+    case "FIDIC2017Yellow": return "FIDIC 2017 Yellow";
+    case "FIDIC2017Silver": return "FIDIC 2017 Silver";
+    case "GCWorks":         return "GC/Works";
+    case "Bespoke":         return "Bespoke";
+    default:                return form;
+  }
 }
 
 const detailStyles = StyleSheet.create({

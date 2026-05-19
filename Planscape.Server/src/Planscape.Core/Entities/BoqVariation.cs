@@ -28,6 +28,14 @@ public class BoqVariation : ITenantScoped
     /// <summary>"VO" (variation order), "AI" (architect's instruction), "EI", "CE", "RFI".</summary>
     public string Kind { get; set; } = "VO";
 
+    /// <summary>
+    /// Phase 184q — contract family (JCT2024 / NEC4 / FIDIC2017Red /
+    /// FIDIC2017Yellow / FIDIC2017Silver / GCWorks / Bespoke). Drives
+    /// precise liability-map lookup; distinct from Kind which is the
+    /// contractual route.
+    /// </summary>
+    public string ContractForm { get; set; } = "JCT2024";
+
     public string Title { get; set; } = "";
 
     /// <summary>Narrative — what is being changed and why.</summary>
