@@ -163,7 +163,7 @@ namespace StingTools.Commands.SLD
     [Regeneration(RegenerationOption.Manual)]
     public class SLDRiserDiagramCommand : IExternalCommand
     {
-        private const string RiserDrawingTypeId = "elec-riser-A3-1to100";
+        private const string RiserDrawingTypeId = "elec-riser-A3-1to200";
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {

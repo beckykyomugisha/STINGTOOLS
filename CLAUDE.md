@@ -920,12 +920,55 @@ A2 profiles can override via project-scoped `drawing_types.json`.
 ### Caveats (Phase 184g)
 
 1. Built without `dotnet build` verification (Linux sandbox).
-2. Scales of the migrated profiles were left unchanged (e.g.
-   `health-bedhead-elev-A3-1to20` still uses 1:20). A3 is roughly
-   half the printable area of A2; production teams may need to
-   re-scale views or accept tighter crop margins on the A3 sheets.
-   The corporate baseline keeps the original scale so the
-   pack-routing fallback remains unambiguous.
+
+### Phase 184h — A3 scale rebalancing
+
+A3 has roughly half the printable area of A2, so the 4 model-view
+profiles migrated in Phase 184g had their scales halved (denominator
+doubled) to keep their content fitting on the smaller sheet. IDs and
+names updated in lockstep so the convention "id encodes scale" stays
+true.
+
+| Phase 184g (A2 scale on A3 paper) | Phase 184h (A3 scale on A3 paper) |
+|---|---|
+| `elec-riser-A3-1to100` | `elec-riser-A3-1to200` |
+| `health-mortuary-pln-A3-1to50` | `health-mortuary-pln-A3-1to100` |
+| `health-bedhead-elev-A3-1to20` | `health-bedhead-elev-A3-1to50` |
+| `health-or-ceiling-A3-1to20` | `health-or-ceiling-A3-1to50` |
+
+Profiles unchanged: schedules (`door-schedule-A3`,
+`arch-window-schedule-A3`, `plumb-pressure-schedule-A3`,
+`health-rds-A3`), legends (`legend-A3`), schematics
+(`plumb-vent-riser-A3-NTS`) — none rely on a model-view scale.
+
+**Per-profile field updates** (4 profiles):
+
+- `id`: scale suffix renamed (e.g. `-1to20` → `-1to50`)
+- `scale`: numeric value doubled (e.g. 20 → 50)
+- `name` / `description`: scale text rewritten (e.g. "A3 @ 1:100" → "A3 @ 1:200")
+
+**Cross-reference updates**:
+
+- `STING_DRAWING_TYPES.json`: 8 routing rules pointing at the renamed IDs updated
+- `DrawingTypeRegistry.cs`: built-in `elec-riser` fallback entry +
+  2 routing rules updated; name and scale corrected to "1:200" / 200
+- `SLDRiserDiagramCommand.cs`: `RiserDrawingTypeId` constant updated
+  to `elec-riser-A3-1to200`
+
+**Final A3 scale distribution** (14 A3 profiles):
+
+| Scale | Count | Profiles |
+|---|---|---|
+| 1:10  | 1 | screed build-up detail |
+| 1:20  | 2 | arch detail, struct rebar detail |
+| 1:50  | 4 | RFI, bedhead, OR ceiling, struct rebar |
+| 1:100 | 4 | door / window schedule, legend, mortuary plan |
+| 1:200 | 1 | elec riser |
+| NA / NTS | 2 | RDS, vent riser |
+
+### Caveats (Phase 184h)
+
+1. Built without `dotnet build` verification (Linux sandbox).
 
 ## Template Engine v1.1 (Phase 112)
 
