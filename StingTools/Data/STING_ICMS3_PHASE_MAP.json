@@ -1,0 +1,65 @@
+{
+  "_comment": "STING_ICMS3_PHASE_MAP.json — Phase 184l. Multi-language keyword → ICMS3 group code dictionary consumed by Icms3Standard.ClassifyRow. Each entry matches if the phase name (case-insensitive) contains ANY of the listed keywords. First match wins (per-language sets evaluated in the order the entries appear). Project overrides go in <project>/_BIM_COORD/icms3_phase_map.json with the same shape.",
+  "version": "1.0",
+  "groups": [
+    {
+      "code": "04",
+      "label": "End-of-life",
+      "trigger": "demolished",
+      "_note": "Triggered when PHASE_DEMOLISHED is set AND the demolition phase name matches one of these keywords.",
+      "keywords": {
+        "en": ["demolition", "demolish", "end-of-life", "end of life", "decommission", "disposal", "deconstruction"],
+        "de": ["abbruch", "abriss", "rückbau", "entsorgung", "stilllegung"],
+        "fr": ["démolition", "demolition", "déconstruction", "fin de vie", "mise hors service"],
+        "es": ["demolición", "demolicion", "desmantelamiento", "fin de vida", "desmontaje"],
+        "it": ["demolizione", "smantellamento", "fine vita", "dismissione"],
+        "pt": ["demolição", "demolicao", "desativação", "fim de vida"],
+        "nl": ["sloop", "demontage", "ontmanteling", "einde levensduur"],
+        "sv": ["rivning", "demontering", "avveckling"],
+        "da": ["nedrivning", "demontering", "afvikling"],
+        "zh": ["拆除", "拆毁", "退役"],
+        "ja": ["解体", "撤去", "廃止"]
+      }
+    },
+    {
+      "code": "03",
+      "label": "Operation",
+      "trigger": "created-or-demolished",
+      "_note": "Triggered when PHASE_CREATED matches operation keywords, OR PHASE_DEMOLISHED is set with a non-demolition phase name (indicating element replacement during operation cycle).",
+      "keywords": {
+        "en": ["operation", "operational", "maintenance", "in-use", "in use", "facilities management", "fm"],
+        "de": ["betrieb", "betriebsphase", "wartung", "instandhaltung", "nutzung"],
+        "fr": ["opération", "operation", "exploitation", "maintenance", "utilisation"],
+        "es": ["operación", "operacion", "explotación", "mantenimiento", "uso"],
+        "it": ["operazione", "esercizio", "manutenzione", "utilizzo"],
+        "pt": ["operação", "operacao", "manutenção", "uso"],
+        "nl": ["bedrijfsvoering", "onderhoud", "gebruik"],
+        "sv": ["drift", "underhåll", "användning"],
+        "da": ["drift", "vedligeholdelse", "brug"],
+        "zh": ["运营", "运维", "维护", "使用"],
+        "ja": ["運用", "保守", "維持", "使用"]
+      }
+    },
+    {
+      "code": "01",
+      "label": "Acquisition",
+      "trigger": "created",
+      "_note": "Triggered when PHASE_CREATED matches acquisition / pre-construction keywords. Elements created in 'Existing' phases also bucket here (legacy / asset acquisition).",
+      "keywords": {
+        "en": ["existing", "acquisition", "site preparation", "site prep", "enabling", "pre-construction", "preconstruction", "pre construction", "feasibility"],
+        "de": ["bestehend", "vorhanden", "erwerb", "baugrundvorbereitung", "vorbereitende"],
+        "fr": ["existant", "acquisition", "préparation du site", "preliminaires", "préliminaires"],
+        "es": ["existente", "adquisición", "preparación del sitio", "preliminares"],
+        "it": ["esistente", "acquisizione", "preparazione del sito", "preliminari"],
+        "pt": ["existente", "aquisição", "preparação do local", "preliminares"],
+        "nl": ["bestaand", "verwerving", "voorbereiding"],
+        "sv": ["befintlig", "förvärv", "förberedande"],
+        "da": ["eksisterende", "erhvervelse", "forberedende"],
+        "zh": ["现有", "购置", "场地准备", "前期"],
+        "ja": ["既存", "取得", "敷地準備", "事前"]
+      }
+    }
+  ],
+  "default_code": "02",
+  "default_label": "Construction"
+}
