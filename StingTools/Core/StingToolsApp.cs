@@ -1448,24 +1448,43 @@ namespace StingTools.Core
         {
             try
             {
+                StingLog.Info("RegisterHvacPanel: starting…");
                 StingTools.UI.StingHvacCommandHandler.Initialise(application);
+                StingLog.Info("RegisterHvacPanel: command handler initialised");
                 var provider = new StingTools.UI.StingHvacPanelProvider();
                 application.RegisterDockablePane(
                     StingTools.UI.StingHvacPanelProvider.PaneId,
                     "❄ STING HVAC",
                     provider);
+                StingLog.Info($"RegisterHvacPanel: dockable pane registered " +
+                    $"(GUID={StingTools.UI.StingHvacPanelProvider.PaneGuid})");
 
                 const string tabName = "STING Tools";
                 string asmPath = AssemblyPath;
                 var hvacPanel = application.CreateRibbonPanel(tabName, "❄ HVAC");
+                StingLog.Info("RegisterHvacPanel: ribbon panel '❄ HVAC' created");
                 AddButton(hvacPanel, "btnToggleHvac", "STING\nHVAC",
                     asmPath, typeof(ToggleHvacPanelCommand).FullName,
                     "Show/hide the STING HVAC Center dockable panel.");
-                StingLog.Info("HVAC dockable panel registered successfully");
+                StingLog.Info("HVAC dockable panel registered successfully — " +
+                    "look for '❄ HVAC' panel on the right side of the STING Tools tab " +
+                    "(may be collapsed to a chevron if the Revit window is narrow).");
             }
             catch (Exception ex)
             {
+                // Make this loud — TaskDialog so the user sees it, not just a log line.
                 StingLog.Error("Failed to register HVAC dockable panel", ex);
+                try
+                {
+                    Autodesk.Revit.UI.TaskDialog.Show(
+                        "STING — HVAC panel registration failed",
+                        $"The STING HVAC ribbon panel did not register:\n\n" +
+                        $"{ex.GetType().Name}: {ex.Message}\n\n" +
+                        $"Stack:\n{ex.StackTrace}\n\n" +
+                        $"See StingTools.log for full details. " +
+                        $"STING Electrical + STING Plumbing should still work.");
+                }
+                catch { /* TaskDialog may be unavailable at OnStartup time */ }
             }
         }
 
