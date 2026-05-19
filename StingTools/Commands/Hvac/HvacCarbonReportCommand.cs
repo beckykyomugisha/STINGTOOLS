@@ -104,7 +104,7 @@ namespace StingTools.Commands.Hvac
                     try
                     {
                         string klass = ClassifyEquipment(e);
-                        double kw = ReadDouble(e, "HVC_CAPACITY_KW");
+                        double kw = ReadDouble(e, ParamRegistry.HVC_CAPACITY_KW);
                         if (kw <= 0) kw = ReadDouble(e, "ELC_LOAD_KW");
                         if (kw <= 0) continue;
 
@@ -113,8 +113,8 @@ namespace StingTools.Commands.Hvac
                         double embodied = kw * factor;
                         totalEmbodied += embodied;
 
-                        double refrigKg  = ReadDouble(e, "HVC_REFRIGERANT_KG_NR");
-                        string refrigType = ParameterHelpers.GetString(e, "HVC_REFRIGERANT_TYPE_TXT") ?? "";
+                        double refrigKg  = ReadDouble(e, ParamRegistry.HVC_REFRIGERANT_KG_NR);
+                        string refrigType = ParameterHelpers.GetString(e, ParamRegistry.HVC_REFRIGERANT_TYPE_TXT) ?? "";
                         double gwp = _refrigerantGwp.TryGetValue(refrigType, out var g) ? g : 0;
                         double refrigCo2 = refrigKg * gwp;
                         totalRefrigerant += refrigCo2;
