@@ -123,6 +123,13 @@ namespace StingTools.Core.Drawing
                 var key = DocKey(doc);
                 if (_cache.ContainsKey(key)) _cache.Remove(key);
             }
+            // Phase 183 — snapshot + diff the new library against the
+            // previous load so Inspect / SyncStyles can surface "X
+            // profiles changed since last reload" without the user
+            // remembering what they edited. Safe outside the lock (it
+            // reloads via GetLibrary internally).
+            try { LiveProfileSync.OnRegistryReloaded(doc); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"DrawingTypeRegistry.Reload sync: {ex.Message}"); }
         }
 
         public static DrawingTypeLibrary GetLibrary(Document doc)

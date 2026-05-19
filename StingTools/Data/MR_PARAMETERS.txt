@@ -3094,6 +3094,8 @@ PARAM	c1d2e3f4-a5b6-4c7d-8e9f-a0b1c2d3e4f5	STING_DRAWING_TYPE_ID_TXT	TEXT		27	1	
 PARAM	d2e3f4a5-b6c7-4d8e-9f0a-b1c2d3e4f5a6	STING_STYLE_LOCKED_BOOL	YESNO		27	1	Style-locked flag: prevents SyncStyles from overwriting [Phase 113]	1
 PARAM	e3f4a5b6-c7d8-4e9f-a0b1-c2d3e4f5a6b7	STING_PACK_ID_TXT	TEXT		27	1	ViewStylePack registry id stamped on managed view templates [Phase 137]	1
 PARAM	f4a5b6c7-d8e9-4f0a-b1c2-d3e4f5a6b7c8	STING_PACK_CHECKSUM_TXT	TEXT		27	1	SHA-256 checksum of ViewStylePack JSON for drift detection [Phase 137]	1
+PARAM	b6c7d8e9-f0a1-4b2c-3d4e-5f6a7b8c9d01	STING_CROP_KIND_TXT	TEXT		27	1	Crop kind stamped onto views for drift detection [Phase 183]	1
+PARAM	c7d8e9f0-a1b2-4c3d-4e5f-6a7b8c9d0e12	STING_CROP_MARGIN_MM_TXT	TEXT		27	1	Crop margin (mm, as string) stamped onto views for drift detection [Phase 183]	1
 PARAM	a5b6c7d8-e9f0-4a1b-c2d3-e4f5a6b7c8d9	STING_CDE_STATE_TXT	TEXT		27	1	CDE state stamp for ISO 19650-2 document lifecycle [Phase 141]	1
 PARAM	c1a00001-0000-4c1a-0000-000000000001	CLN_EQP_TAG	TEXT		28	1	Clinical equipment ISO 19650 tag container	1
 PARAM	c1a00001-0000-4c1a-0000-000000000002	CLN_ROOM_TAG	TEXT		28	1	Clinical room ISO 19650 tag container	1
