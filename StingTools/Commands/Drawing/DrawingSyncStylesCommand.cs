@@ -35,12 +35,42 @@ namespace StingTools.Commands.Drawing
                 var doc = data?.Application?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No document open."; return Result.Failed; }
 
+                // Phase 183 — pick up views affected by on-disk profile /
+                // pack edits even when no drift would have shown up in
+                // the live VG state yet. LiveProfileSync stages the
+                // changed-id set whenever the registries are reloaded.
+                var liveAffected = LiveProfileSync.GetAffectedViewIds(doc);
+
                 var reports = DrawingDriftDetector.Scan(doc);
-                if (reports.Count == 0)
+                if (reports.Count == 0 && liveAffected.Count == 0)
                 {
                     TaskDialog.Show("STING — Sync Styles",
                         "Every stamped view is already in sync with its Drawing Type.");
                     return Result.Succeeded;
+                }
+
+                // Merge LiveProfileSync-affected views into the report
+                // set so the resync pass picks them up. Build synthetic
+                // DriftReports for views that didn't appear in the live
+                // scan but whose profile / pack source has changed.
+                if (liveAffected.Count > 0)
+                {
+                    var existing = new HashSet<long>(reports.Select(r => r.ViewId?.Value ?? -1L));
+                    foreach (var vid in liveAffected)
+                    {
+                        if (existing.Contains(vid.Value)) continue;
+                        if (!(doc.GetElement(vid) is View vv) || vv.IsTemplate) continue;
+                        var stampedId = DrawingTypeStamper.Read(vv);
+                        if (string.IsNullOrEmpty(stampedId)) continue;
+                        var synth = new DriftReport
+                        {
+                            ViewId = vid,
+                            ViewName = vv.Name,
+                            DrawingTypeId = stampedId,
+                        };
+                        synth.Drifts.Add("PROFILE_RELOADED: profile or pack edited since last load");
+                        reports.Add(synth);
+                    }
                 }
 
                 var confirm = new TaskDialog("STING — Sync Styles")
@@ -70,6 +100,11 @@ namespace StingTools.Commands.Drawing
                     }
                     tx.Commit();
                 }
+
+                // Phase 183 — clear the staged diff now that every
+                // affected view has been re-applied; next Inspect /
+                // SyncStyles starts from a fresh baseline.
+                LiveProfileSync.ConsumeStagedDiff(doc);
 
                 var sb = new StringBuilder();
                 sb.AppendLine($"Re-synced {resynced} of {reports.Count} drifted view(s).");

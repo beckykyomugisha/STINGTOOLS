@@ -75,6 +75,22 @@ namespace StingTools.Commands.Drawing
                 int infos    = reports.Sum(r => r.Issues.Count(i => i.Severity == ValidationSeverity.Info));
                 sb.AppendLine($"Validation: {errors} error(s), {warnings} warning(s), {infos} info");
 
+                // Phase 183 — LiveProfileSync staged-diff summary. Shows
+                // pack / profile edits since last load even when the live
+                // views haven't drifted yet (e.g. a pack VG edit that
+                // hasn't been re-applied to existing views).
+                try
+                {
+                    var changedProfiles = LiveProfileSync.GetChangedProfileIds(doc);
+                    var changedPacks = LiveProfileSync.GetChangedPackIds(doc);
+                    var affected = LiveProfileSync.GetAffectedViewIds(doc);
+                    if (changedProfiles.Count > 0 || changedPacks.Count > 0)
+                    {
+                        sb.AppendLine($"Live sync:  {changedProfiles.Count} profile(s) + {changedPacks.Count} pack(s) edited since last load — {affected.Count} view(s) affected. Run 'Sync Styles' to re-apply.");
+                    }
+                }
+                catch (Exception lx) { sb.AppendLine($"Live sync scan failed: {lx.Message}"); }
+
                 // Drift summary (Week 4) — per-view check against profile
                 try
                 {
