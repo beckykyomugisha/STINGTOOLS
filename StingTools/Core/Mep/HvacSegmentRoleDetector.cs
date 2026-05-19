@@ -36,7 +36,7 @@ namespace StingTools.Core.Mep
         public const string RoleBranch = "branch";
         public const string RoleRunout = "runout";
 
-        private const string SegmentRoleParam = "HVC_SEGMENT_ROLE_TXT";
+        private const string SegmentRoleParam = ParamRegistry.HVC_SEGMENT_ROLE_TXT;
         private const int MaxTraversal = 12;     // safety guard for cyclic graphs
 
         /// <summary>

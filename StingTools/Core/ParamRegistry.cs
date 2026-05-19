@@ -239,6 +239,33 @@ namespace StingTools.Core
         public const string VAR_VALUATION_NR     = "ASS_VAR_VALUATION_NR";
         public const string VAR_VALUATION_NR_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D62";
 
+        // ── Phase 182–183 — HVAC sizing-registry audit-trail params ──────
+        // Set by MepAutoSizeCommand / HvacSegmentRoleDetector /
+        // HvacDetectStaleSizesCommand / HvacCarbonReportCommand. GUIDs
+        // match MR_PARAMETERS.txt + MR_PARAMETERS.csv + PARAMETER_REGISTRY.json.
+        public const string HVC_SEGMENT_ROLE_TXT      = "HVC_SEGMENT_ROLE_TXT";
+        public const string HVC_SEGMENT_ROLE_TXT_GUID = "5BF0485F-08DD-53D1-9CC5-D956305D42E0";
+        public const string HVC_SIZE_PREV_TXT         = "HVC_SIZE_PREV_TXT";
+        public const string HVC_SIZE_PREV_TXT_GUID    = "B4385937-438E-5D5F-8CE0-F13C2A94A63D";
+        public const string HVC_SIZE_MODIFIED_DT      = "HVC_SIZE_MODIFIED_DT";
+        public const string HVC_SIZE_MODIFIED_DT_GUID = "B485412F-0A10-5CF7-9A49-DD2AE6199442";
+        public const string HVC_SIZE_RULE_ID_TXT      = "HVC_SIZE_RULE_ID_TXT";
+        public const string HVC_SIZE_RULE_ID_TXT_GUID = "B02AE4EA-C9A0-5424-9E20-7D4406352260";
+        public const string HVC_PIPE_SERVICE_TXT      = "HVC_PIPE_SERVICE_TXT";
+        public const string HVC_PIPE_SERVICE_TXT_GUID = "97E69122-4E43-5B88-9C82-6EAF586DDC07";
+        public const string HVC_PRESSURE_CLASS_TXT      = "HVC_PRESSURE_CLASS_TXT";
+        public const string HVC_PRESSURE_CLASS_TXT_GUID = "61D432D6-77FE-5811-972F-0B28493D3DE7";
+        public const string HVC_SIZE_STALE_BOOL       = "HVC_SIZE_STALE_BOOL";
+        public const string HVC_SIZE_STALE_BOOL_GUID  = "ECBC8E8A-3466-53DD-92C9-A28D15EBF43D";
+        public const string HVC_REFRIGERANT_KG_NR     = "HVC_REFRIGERANT_KG_NR";
+        public const string HVC_REFRIGERANT_KG_NR_GUID = "B99D07D1-6ECA-50CF-B983-B6FE2442BC8C";
+        public const string HVC_REFRIGERANT_TYPE_TXT     = "HVC_REFRIGERANT_TYPE_TXT";
+        public const string HVC_REFRIGERANT_TYPE_TXT_GUID = "10D87A6E-B7D8-5058-81A9-BC62394D9BAD";
+        public const string HVC_CAPACITY_KW           = "HVC_CAPACITY_KW";
+        public const string HVC_CAPACITY_KW_GUID      = "397EE526-7AF0-5516-A2A1-48DB5A42F249";
+        public const string PRJ_ORG_PRESSURE_PROFILE_TXT      = "PRJ_ORG_PRESSURE_PROFILE_TXT";
+        public const string PRJ_ORG_PRESSURE_PROFILE_TXT_GUID = "8B3BFDCF-AAB3-5944-A451-E4766BFAF8CE";
+
         // ── Phase 175 — Symbol system parameters ─────────────────────────
         public const string SYMBOL_ID                 = "STING_SYMBOL_ID";
         public const string SYMBOL_ID_GUID            = "A4B5C6D7-E8F9-4A0B-1C2D-3E4F5A6B7C8D";

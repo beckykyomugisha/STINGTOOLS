@@ -192,7 +192,7 @@ namespace StingTools.UI
                     .WhereElementIsNotElementType();
                 foreach (Element d in ducts)
                 {
-                    var p = d.LookupParameter("HVC_SIZE_STALE_BOOL");
+                    var p = d.LookupParameter(ParamRegistry.HVC_SIZE_STALE_BOOL);
                     if (p != null && p.HasValue
                         && p.StorageType == StorageType.Integer && p.AsInteger() == 1)
                         n++;
