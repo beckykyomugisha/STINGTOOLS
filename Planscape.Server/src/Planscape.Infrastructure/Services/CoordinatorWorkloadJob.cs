@@ -39,8 +39,9 @@ public class CoordinatorWorkloadJob
             .Distinct()
             .ToListAsync(ct);
 
+        int coordinatorCount = coordinators.Count;
         _log.LogInformation("CoordinatorWorkloadJob: {Count} coordinators for week {Monday}",
-            coordinators.Count, monday);
+            coordinatorCount, monday);
 
         foreach (var c in coordinators)
         {
