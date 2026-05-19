@@ -2902,6 +2902,87 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Cash Flow" Tag="CashFlow5D" Click="Cmd_Click"
                                             ToolTip="Generate S-curve cash flow from 4D schedule + 5D cost"/>
                                 </WrapPanel>
+
+                                <!-- Phase 184 / P2 — Cost automation engine -->
+                                <TextBlock Style="{StaticResource SubLabel}" Text="COST — AUTOMATION (P2)"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Run Cost Workflow" Tag="Cost_RunWorkflow" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="Pick and run a WORKFLOW_BOQ_*.json preset (Full Refresh / Quick Valuation / Tender Pack)"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Validate Cost" Tag="Cost_ValidateAll" Click="Cmd_Click"
+                                            ToolTip="Run the 5-validator chain (missing material / untyped category / unpriced PROD / zero qty / stale)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Clear Stale" Tag="Cost_ClearStale" Click="Cmd_Click"
+                                            ToolTip="Reset ASS_CST_STALE_BOOL on every element after a successful BOQ build"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Stale Marker Toggle" Tag="Cost_ToggleStaleMarker" Click="Cmd_Click"
+                                            ToolTip="Enable/disable the StingCostStaleMarker IUpdater that flags BOQ rows as stale on geometry change"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Reload Rules" Tag="Cost_ReloadRules" Click="Cmd_Click"
+                                            ToolTip="Invalidate the rate provider / take-off rule / ICMS3 phase / CostStamp / default-rates caches"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Migrate UGX → Neutral" Tag="Cost_MigrateCurrencyParams" Click="Cmd_Click"
+                                            ToolTip="One-shot: copy legacy CST_UNIT_RATE_UGX into currency-neutral ASS_CST_UNIT_RATE_NR / CURRENCY_TXT / FX params"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Migrate ES v1 → v2" Tag="Cost_MigrateESEntities" Click="Cmd_Click"
+                                            ToolTip="Bulk-migrate v1 Extensible Storage cost overrides to v2 (waste / OH / profit / dayworks / lock)"/>
+                                </WrapPanel>
+
+                                <!-- Phase 184f / P4 — NRM1 elemental cost plan -->
+                                <TextBlock Style="{StaticResource SubLabel}" Text="COST PLAN — NRM1 (P4 / RIBA 1-3)"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ New Cost Plan" Tag="CostPlan_Create" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="Mint a £/m² GIFA elemental cost plan — pick building type + GIFA, get a PERT 3-point estimate"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Compare vs BOQ" Tag="CostPlan_Compare" Click="Cmd_Click"
+                                            ToolTip="Variance report — NRM1 cost plan vs live BOQ totals, RAG-coded per element"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export Cost Plan" Tag="CostPlan_Export" Click="Cmd_Click"
+                                            ToolTip="Export the active cost plan to xlsx (full NRM1 breakdown + totals)"/>
+                                </WrapPanel>
+
+                                <!-- Phase 184g / P5.1 — Payment certificates -->
+                                <TextBlock Style="{StaticResource SubLabel}" Text="PAYMENT CERTS (P5.1 / JCT / NEC4 / FIDIC)"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Issue Cert" Tag="PaymentCert_Issue" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="Build a draft interim payment cert from current BOQ + weighted % complete. Retention auto-halves at threshold."/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Approve Cert" Tag="PaymentCert_Approve" Click="Cmd_Click"
+                                            ToolTip="Advance the cert state machine — Draft → Issued, or Issued → Agreed"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Cert Register" Tag="PaymentCert_Register" Click="Cmd_Click"
+                                            ToolTip="Export a CSV register of every cert (gross / retention / payable / signers / cumulative)"/>
+                                </WrapPanel>
+
+                                <!-- Phase 184g / P5.2 — Variations + star rates -->
+                                <TextBlock Style="{StaticResource SubLabel}" Text="VARIATIONS + STAR RATES (P5.2)"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Variation from Diff" Tag="Variation_FromDiff" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="Mint a draft VO from a BOQSnapshotDiff (pick baseline A + revised B). Numbered VO-AI / VO-CE / VO-EI / VO-CC."/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Star Rate Build-Up" Tag="Variation_BuildStarRate" Click="Cmd_Click"
+                                            ToolTip="Author a star rate from first principles — labour + plant + materials + OH + profit"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="VO Register" Tag="Variation_ExportRegister" Click="Cmd_Click"
+                                            ToolTip="Export all variations to CSV (number / status / instruction date / value / signers)"/>
+                                </WrapPanel>
+
+                                <!-- Phase 184g / P5.3 — Earned Value Management -->
+                                <TextBlock Style="{StaticResource SubLabel}" Text="EVM (P5.3 / PMI)"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Calculate EVM" Tag="Evm_Calculate" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="Compute BCWS / BCWP / ACWP + CV / SV / CPI / SPI / EAC / ETC / VAC / TCPI with Green/Amber/Red health gates"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Import Actuals" Tag="Evm_ImportActuals" Click="Cmd_Click"
+                                            ToolTip="Sum the latest actuals CSV (Date, Section, Amount) under _bim_manager/actuals/"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="EVM S-Curve" Tag="Evm_ExportReport" Click="Cmd_Click"
+                                            ToolTip="Export S-curve CSV of every EVM period"/>
+                                </WrapPanel>
+
+                                <!-- Phase 184h / P6 — Multi-standard take-off -->
+                                <TextBlock Style="{StaticResource SubLabel}" Text="MEASUREMENT STANDARD (P6)"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Set Standard" Tag="Cost_SetMeasurementStandard" Click="Cmd_Click"
+                                            ToolTip="Pick the active measurement standard — NRM2 / CESMM4 / POMI / ICMS3 / MMHW"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Standard Preview" Tag="Cost_StandardInspect" Click="Cmd_Click"
+                                            ToolTip="Diagnostic preview — how each standard classifies + units common categories"/>
+                                </WrapPanel>
+
+                                <!-- Phase 184j / P8 — IFC4 Qto + ICMS3 -->
+                                <TextBlock Style="{StaticResource SubLabel}" Text="IFC + ICMS3 (P8)"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Stamp IFC Qto" Tag="Cost_StampIfcQuantities" Click="Cmd_Click"
+                                            ToolTip="Populate IFC4 Qto_*BaseQuantities + Pset_StingCost on every BOQ element so Cost-X / CostOS / Candy / Bluebeam Revu read cost direct from IFC"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ ICMS3 Report" Tag="Cost_ExportIcms3Report" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="Export ICMS3 cost + carbon ledger — £ + kgCO₂e + £/kgCO₂e per ICMS group 01/02/03/04"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 

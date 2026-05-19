@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "node build.mjs",
     "sync-wwwroot": "node build.mjs && node sync-wwwroot.mjs",
+    "upload-sourcemaps": "node build.mjs && node upload-sourcemaps.mjs",
     "preview": "vite preview",
     "check": "node --check coordination-viewer.js && node --check signalr-shim.js && node --check viewer-extras.js"
   },

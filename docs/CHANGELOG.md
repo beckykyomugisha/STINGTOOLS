@@ -2,6 +2,32 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 184m — Cost management UI surfacing)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Surfaces every command added in P0 → P8 + caveat-closure commits as clickable buttons / tiles. Previously the commands were dispatch-wired but had no UI affordances — a user opening the dock panel or mobile app saw no new buttons.
+
+**Dock panel (`UI/StingDockPanel.xaml`)** — 7 new sub-sections appended after the existing 5D COST ESTIMATION WrapPanel:
+
+- **COST — AUTOMATION (P2)** — 7 buttons: Run Cost Workflow, Validate Cost, Clear Stale, Stale Marker Toggle, Reload Rules, Migrate UGX → Neutral, Migrate ES v1 → v2.
+- **COST PLAN — NRM1 (P4)** — 3 buttons: New Cost Plan, Compare vs BOQ, Export Cost Plan.
+- **PAYMENT CERTS (P5.1)** — 3 buttons: Issue Cert, Approve Cert, Cert Register.
+- **VARIATIONS + STAR RATES (P5.2)** — 3 buttons: Variation from Diff, Star Rate Build-Up, VO Register.
+- **EVM (P5.3)** — 3 buttons: Calculate EVM, Import Actuals, EVM S-Curve.
+- **MEASUREMENT STANDARD (P6)** — 2 buttons: Set Standard, Standard Preview.
+- **IFC + ICMS3 (P8)** — 2 buttons: Stamp IFC Qto, ICMS3 Report.
+
+23 buttons total. ★-marked headline buttons get the GreenBtn style with bold weight to lead the eye. All `Tag` values match the dispatch cases already wired into `StingCommandHandler`, so no code-behind changes needed.
+
+**Mobile cost-dashboard (`Planscape/app/(tabs)/cost-dashboard.tsx`)** — new `CostQuickNav` block above the summary cards. Two tiles route to `/variations` and `/payment-certs` via Expo Router. Closes the previous gap where the variation / payment-cert screens existed but couldn't be reached from the tab bar.
+
+##### Caveats
+
+1. Built without Revit / Expo runtime verification (Linux sandbox).
+2. The dock panel layout puts the new sections inside the same `Border` as the existing 5D COST ESTIMATION group. On very narrow panel widths the WrapPanels will wrap aggressively — visually acceptable but may need a future restructuring into its own collapsible `Border` per phase. Deferred.
+3. Mobile quick-nav tiles use emojis as icons (📃 📝). A follow-up commit can swap to `@expo/vector-icons` Feather / MaterialCommunityIcons glyphs for consistency with the rest of the app.
+
+---
+
 #### Completed (Phase 184l — Cost management Phase 184k caveats closed)
 
 Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the three caveats from Phase 184k.
