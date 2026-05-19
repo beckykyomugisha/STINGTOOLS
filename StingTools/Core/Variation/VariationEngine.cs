@@ -39,13 +39,21 @@ namespace StingTools.Core.Variation
         /// use the delta rate × current quantity.
         /// </summary>
         public static VariationInstruction FromDiff(BOQSnapshotDiff diff, string contractRef,
-            VariationKind kind = VariationKind.Instruction)
+            VariationKind kind = VariationKind.Instruction,
+            VariationReason reason = VariationReason.Other,
+            VariationLiability liability = VariationLiability.Employer,
+            string reasonDetail = "",
+            int eotDays = 0)
         {
             if (diff == null) throw new ArgumentNullException(nameof(diff));
             var vo = new VariationInstruction
             {
                 ContractRef = contractRef ?? "",
                 Kind = kind,
+                Reason = reason,
+                Liability = liability,
+                ReasonDetail = reasonDetail ?? "",
+                EotDays = eotDays,
                 Status = VariationStatus.Draft,
                 Title = $"Variation from diff {diff.LabelA} → {diff.LabelB}",
                 Description =

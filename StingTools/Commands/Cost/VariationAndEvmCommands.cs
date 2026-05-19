@@ -87,7 +87,7 @@ namespace StingTools.Commands.Cost
                     return Result.Cancelled;
                 }
 
-                // Pick kind.
+                // Pick kind (contractual route).
                 var kindItems = new List<StingListPicker.ListItem>
                 {
                     new StingListPicker.ListItem { Label = "Architect's / engineer's instruction", Tag = VariationKind.Instruction },
@@ -101,12 +101,54 @@ namespace StingTools.Commands.Cost
                 VariationKind kind = (kindPicked != null && kindPicked.Count > 0 &&
                     kindPicked[0].Tag is VariationKind k) ? k : VariationKind.Instruction;
 
+                // Phase 184o — pick reason (why) + liability (who pays).
+                // Drives EOT, insurance routing, month-end reporting.
+                var reasonItems = new List<StingListPicker.ListItem>
+                {
+                    new StingListPicker.ListItem { Label = "Design change",        Detail = "Designer-initiated change to drawings / specs", Tag = VariationReason.DesignChange },
+                    new StingListPicker.ListItem { Label = "Client request",       Detail = "Employer-initiated scope or quality change",     Tag = VariationReason.ClientRequest },
+                    new StingListPicker.ListItem { Label = "Site condition",       Detail = "Unforeseen ground / existing-fabric condition",   Tag = VariationReason.SiteCondition },
+                    new StingListPicker.ListItem { Label = "Statutory change",     Detail = "Change in law, permit, building control",         Tag = VariationReason.StatutoryChange },
+                    new StingListPicker.ListItem { Label = "Error / omission",     Detail = "Error in tender docs — designer or contractor",   Tag = VariationReason.ErrorOmission },
+                    new StingListPicker.ListItem { Label = "Contractor proposal",  Detail = "Value-engineering proposal accepted by employer", Tag = VariationReason.ContractorProposal },
+                    new StingListPicker.ListItem { Label = "Scope addition",       Detail = "New scope added to contract",                     Tag = VariationReason.ScopeAddition },
+                    new StingListPicker.ListItem { Label = "Scope omission",       Detail = "Scope removed from contract",                     Tag = VariationReason.ScopeOmission },
+                    new StingListPicker.ListItem { Label = "Specification",        Detail = "Material / spec substitution",                    Tag = VariationReason.Specification },
+                    new StingListPicker.ListItem { Label = "Quality",              Detail = "Quality-driven enhancement / rework",             Tag = VariationReason.Quality },
+                    new StingListPicker.ListItem { Label = "Programme change",     Detail = "Acceleration / deceleration / re-sequencing",     Tag = VariationReason.ProgrammeChange },
+                    new StingListPicker.ListItem { Label = "Other",                Detail = "Bespoke / non-standard cause",                    Tag = VariationReason.Other }
+                };
+                var reasonPicked = StingListPicker.Show("STING — Variation reason",
+                    "Why did this variation arise? Drives EOT entitlement, insurance routing and month-end reporting.",
+                    reasonItems, allowMultiSelect: false);
+                VariationReason reason = (reasonPicked != null && reasonPicked.Count > 0 &&
+                    reasonPicked[0].Tag is VariationReason r) ? r : VariationReason.Other;
+
+                // Suggest liability from the reason but let the QS override.
+                VariationLiability suggested = SuggestLiability(reason);
+                var liabilityItems = new List<StingListPicker.ListItem>
+                {
+                    new StingListPicker.ListItem { Label = "Employer / client",   Detail = "Employer absorbs cost",                       Tag = VariationLiability.Employer },
+                    new StingListPicker.ListItem { Label = "Contractor",          Detail = "Contractor absorbs cost",                     Tag = VariationLiability.Contractor },
+                    new StingListPicker.ListItem { Label = "Designer",            Detail = "Routed via designer's PI insurance",          Tag = VariationLiability.Designer },
+                    new StingListPicker.ListItem { Label = "Shared",              Detail = "Proportionate split by agreement",            Tag = VariationLiability.Shared },
+                    new StingListPicker.ListItem { Label = "Force majeure",       Detail = "Unforeseen — typically employer + insurance", Tag = VariationLiability.ForceMajeure },
+                };
+                var liabilityPicked = StingListPicker.Show("STING — Liability",
+                    $"Who pays for this variation? Suggested from reason: {suggested}.",
+                    liabilityItems, allowMultiSelect: false);
+                VariationLiability liability = (liabilityPicked != null && liabilityPicked.Count > 0 &&
+                    liabilityPicked[0].Tag is VariationLiability l) ? l : suggested;
+
                 string contractRef = doc.ProjectInformation?.Number ?? "DEFAULT";
-                var vo = VariationEngine.FromDiff(diff, contractRef, kind);
+                var vo = VariationEngine.FromDiff(diff, contractRef, kind,
+                    reason, liability, reasonDetail: "", eotDays: 0);
                 string path = VariationEngine.Save(doc, vo);
 
                 TaskDialog.Show("STING — Variation minted",
                     $"{vo.Number}  ({vo.Kind}, {vo.Status})\n\n" +
+                    $"Reason:       {vo.Reason}\n" +
+                    $"Liability:    {vo.Liability}\n" +
                     $"Items:        {vo.Items.Count}\n" +
                     $"Total value:  {vo.Currency} {vo.TotalValue:N2}\n\n" +
                     $"Path: {Path.GetFileName(path)}");
@@ -117,6 +159,28 @@ namespace StingTools.Commands.Cost
                 StingLog.Error("Variation_FromDiff", ex);
                 message = ex.Message;
                 return Result.Failed;
+            }
+        }
+
+        // Default liability suggestion per reason. The picker still lets
+        // the QS override — this just front-loads the common case so
+        // they can hit Enter on the typical assignment.
+        private static VariationLiability SuggestLiability(VariationReason reason)
+        {
+            switch (reason)
+            {
+                case VariationReason.DesignChange:
+                case VariationReason.ErrorOmission:        return VariationLiability.Designer;
+                case VariationReason.ClientRequest:
+                case VariationReason.ScopeAddition:
+                case VariationReason.ScopeOmission:
+                case VariationReason.Specification:
+                case VariationReason.Quality:              return VariationLiability.Employer;
+                case VariationReason.SiteCondition:
+                case VariationReason.StatutoryChange:      return VariationLiability.Employer;
+                case VariationReason.ContractorProposal:   return VariationLiability.Shared;
+                case VariationReason.ProgrammeChange:      return VariationLiability.Employer;
+                default:                                    return VariationLiability.Employer;
             }
         }
     }
@@ -202,7 +266,11 @@ namespace StingTools.Commands.Cost
                     $"variation_register_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 using (var sw = new StreamWriter(outPath))
                 {
-                    sw.WriteLine("Contract,Number,Kind,Status,InstructionDate,ApprovalDate,Items,Currency,TotalValue,IssuedBy,ApprovedBy");
+                    // Phase 184o — Reason / Liability / EotDays / ReasonDetail columns
+                    // added so month-end pattern analysis can pivot by reason ("60% of
+                    // VOs are design errors → review the design") and the QS can
+                    // reconcile EOT entitlement against the programme.
+                    sw.WriteLine("Contract,Number,Kind,Reason,Liability,EotDays,Status,InstructionDate,ApprovalDate,Items,Currency,TotalValue,IssuedBy,ApprovedBy,ReasonDetail");
                     foreach (var v in vos)
                     {
                         sw.WriteLine(string.Join(",", new[]
@@ -210,6 +278,9 @@ namespace StingTools.Commands.Cost
                             Q(v.ContractRef),
                             v.Number,
                             v.Kind.ToString(),
+                            v.Reason.ToString(),
+                            v.Liability.ToString(),
+                            v.EotDays.ToString(CultureInfo.InvariantCulture),
                             v.Status.ToString(),
                             v.InstructionDate.ToString("yyyy-MM-dd"),
                             v.ApprovalDate?.ToString("yyyy-MM-dd") ?? "",
@@ -217,7 +288,8 @@ namespace StingTools.Commands.Cost
                             v.Currency,
                             v.TotalValue.ToString("F2", CultureInfo.InvariantCulture),
                             Q(v.IssuedBy),
-                            Q(v.ApprovedBy)
+                            Q(v.ApprovedBy),
+                            Q(v.ReasonDetail)
                         }));
                     }
                 }

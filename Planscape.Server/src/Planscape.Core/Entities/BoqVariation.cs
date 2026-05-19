@@ -47,6 +47,27 @@ public class BoqVariation : ITenantScoped
     /// <summary>Status: Draft / Submitted / Reviewed / Approved / Rejected / Incorporated.</summary>
     public string Status { get; set; } = "Draft";
 
+    /// <summary>
+    /// Phase 184o — *why* the variation arose. Distinct from
+    /// <see cref="Kind"/> (the contractual route). Values:
+    /// DesignChange / ClientRequest / SiteCondition / StatutoryChange /
+    /// ErrorOmission / ContractorProposal / ScopeAddition / ScopeOmission /
+    /// Specification / Quality / ProgrammeChange / Other.
+    /// </summary>
+    public string Reason { get; set; } = "Other";
+
+    /// <summary>
+    /// Who pays. Values: Employer / Contractor / Designer / Shared /
+    /// ForceMajeure. Mirrors the plugin VariationLiability enum.
+    /// </summary>
+    public string Liability { get; set; } = "Employer";
+
+    /// <summary>Free-text rationale captured at submission.</summary>
+    public string? ReasonDetail { get; set; }
+
+    /// <summary>EOT entitlement in calendar days; 0 = no time impact.</summary>
+    public int EotDays { get; set; } = 0;
+
     public DateTime? SubmittedAt { get; set; }
     public string? SubmittedBy { get; set; }
     public DateTime? ApprovedAt { get; set; }

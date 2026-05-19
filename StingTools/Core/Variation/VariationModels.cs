@@ -41,6 +41,61 @@ namespace StingTools.Core.Variation
     }
 
     /// <summary>
+    /// Phase 184o — *why* the variation arose. Drives liability, EOT
+    /// entitlement, insurance recovery and month-end pattern analysis.
+    /// Distinct from <see cref="VariationKind"/> (the contractual route).
+    ///
+    /// Mapping to common contract clauses (informational only — the QS
+    /// confirms before approval):
+    ///   DesignChange       → JCT 2.16 / NEC4 60.1(1)  / FIDIC 13.1
+    ///   ClientRequest      → JCT 5.1.1 / NEC4 60.1(1) / FIDIC 13.1
+    ///   SiteCondition      → JCT 2.29 / NEC4 60.1(12) / FIDIC 4.12
+    ///   StatutoryChange    → JCT 2.17 / NEC4 60.1(5)  / FIDIC 13.6/13.7
+    ///   ErrorOmission      → JCT 2.16 / NEC4 60.1(1)  / FIDIC 1.9
+    ///   ContractorProposal → JCT 5.1.2 / NEC4 16      / FIDIC 13.2 VE
+    ///   ScopeAddition      → JCT 5.1.1 / NEC4 60.1(1) / FIDIC 13.1
+    ///   ScopeOmission      → JCT 5.1.1 / NEC4 60.1(1) / FIDIC 13.1
+    ///   Specification      → JCT 2.16 / NEC4 60.1(1)  / FIDIC 13.1
+    ///   Quality            → JCT 2.16 / NEC4 60.1(1)  / FIDIC 13.1
+    ///   ProgrammeChange    → JCT 2.16 / NEC4 60.1(2)  / FIDIC 8.4
+    ///   Other              → bespoke / non-standard cause
+    /// </summary>
+    public enum VariationReason
+    {
+        DesignChange,
+        ClientRequest,
+        SiteCondition,
+        StatutoryChange,
+        ErrorOmission,
+        ContractorProposal,
+        ScopeAddition,
+        ScopeOmission,
+        Specification,
+        Quality,
+        ProgrammeChange,
+        Other
+    }
+
+    /// <summary>
+    /// Phase 184o — who pays. Drives cost recovery (PI insurance,
+    /// risk-allowance drawdown, employer liability). Informational at
+    /// the model layer; final assignment requires QS + legal sign-off.
+    /// </summary>
+    public enum VariationLiability
+    {
+        /// <summary>Employer / client absorbs the cost.</summary>
+        Employer,
+        /// <summary>Contractor absorbs the cost.</summary>
+        Contractor,
+        /// <summary>Designer / consultant — typically routed via PI insurance.</summary>
+        Designer,
+        /// <summary>Cost shared by agreement / mechanism (proportionate split).</summary>
+        Shared,
+        /// <summary>Force majeure / unforeseen — typically employer with insurance route.</summary>
+        ForceMajeure
+    }
+
+    /// <summary>
     /// One variation instruction. Items are individual measured lines
     /// that price the change — typically minted from a BOQSnapshotDiff
     /// cluster.
@@ -55,6 +110,21 @@ namespace StingTools.Core.Variation
         public string ContractRef { get; set; } = "";
         public VariationKind Kind { get; set; } = VariationKind.Instruction;
         public VariationStatus Status { get; set; } = VariationStatus.Draft;
+
+        /// <summary>
+        /// Why the variation arose (Phase 184o). Defaults to
+        /// <see cref="VariationReason.Other"/> until the QS confirms.
+        /// </summary>
+        public VariationReason Reason { get; set; } = VariationReason.Other;
+
+        /// <summary>Who pays. Defaults to Employer until QS reviews.</summary>
+        public VariationLiability Liability { get; set; } = VariationLiability.Employer;
+
+        /// <summary>Free-text rationale captured at submission.</summary>
+        public string ReasonDetail { get; set; } = "";
+
+        /// <summary>EOT entitlement in calendar days; 0 = no time impact.</summary>
+        public int EotDays { get; set; } = 0;
 
         public string Title { get; set; } = "";
         public string Description { get; set; } = "";

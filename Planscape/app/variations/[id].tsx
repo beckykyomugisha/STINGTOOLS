@@ -37,6 +37,11 @@ interface Variation {
   approvalDate?: string;
   approvedBy?: string;
   issuedBy?: string;
+  // Phase 184o — reason / liability / EOT
+  reason?: string;
+  liability?: string;
+  reasonDetail?: string;
+  eotDays?: number;
 }
 
 export default function VariationDetail() {
@@ -118,6 +123,35 @@ export default function VariationDetail() {
         </Text>
       </View>
 
+      {/* Phase 184o — reason / liability / EOT card. Surfaces why this VO
+          arose and who pays, so the reviewer can sense-check before
+          approving. Free-text rationale shown below if supplied. */}
+      {(v.reason || v.liability || v.eotDays) && (
+        <View style={styles.card}>
+          <Text style={styles.cardLabel}>Reason · Liability · Time impact</Text>
+          <View style={detailStyles.badgeRow}>
+            {v.reason && (
+              <View style={[detailStyles.badge, { backgroundColor: "#1c70d8" }]}>
+                <Text style={detailStyles.badgeText}>{prettifyReason(v.reason)}</Text>
+              </View>
+            )}
+            {v.liability && (
+              <View style={[detailStyles.badge, { backgroundColor: "#4b5563" }]}>
+                <Text style={detailStyles.badgeText}>Pays: {v.liability}</Text>
+              </View>
+            )}
+            {v.eotDays && v.eotDays > 0 ? (
+              <View style={[detailStyles.badge, { backgroundColor: "#dc2626" }]}>
+                <Text style={detailStyles.badgeText}>+{v.eotDays}d EOT</Text>
+              </View>
+            ) : null}
+          </View>
+          {v.reasonDetail ? (
+            <Text style={[styles.body, { marginTop: 8 }]}>{v.reasonDetail}</Text>
+          ) : null}
+        </View>
+      )}
+
       <Text style={styles.sectionLabel}>Items ({v.items.length})</Text>
       {v.items.map((it, idx) => (
         <View key={idx} style={styles.item}>
@@ -184,6 +218,17 @@ export default function VariationDetail() {
     </ScrollView>
   );
 }
+
+// Phase 184o — shared with the list screen. "DesignChange" → "Design Change".
+function prettifyReason(reason: string): string {
+  return reason.replace(/([A-Z])/g, " $1").trim();
+}
+
+const detailStyles = StyleSheet.create({
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, marginRight: 6, marginBottom: 4 },
+  badgeText: { color: "white", fontSize: 11, fontWeight: "600" },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f6f7f9" },

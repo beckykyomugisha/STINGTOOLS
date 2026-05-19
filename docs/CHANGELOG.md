@@ -2,6 +2,36 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 184o — Variation reason taxonomy)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Adds the *why* dimension to variations alongside the existing *contractual route* (`VariationKind`). Drives liability, EOT entitlement, insurance recovery and month-end pattern analysis.
+
+**Plugin (`Core/Variation/VariationModels.cs`, `VariationEngine.cs`)** — two new enums:
+
+- `VariationReason` — 12 values: `DesignChange` / `ClientRequest` / `SiteCondition` / `StatutoryChange` / `ErrorOmission` / `ContractorProposal` / `ScopeAddition` / `ScopeOmission` / `Specification` / `Quality` / `ProgrammeChange` / `Other`. Doc comments map each to JCT 2024 / NEC4 / FIDIC 2017 clauses for QS reference.
+- `VariationLiability` — 5 values: `Employer` / `Contractor` / `Designer` / `Shared` / `ForceMajeure`.
+
+`VariationInstruction` gains `Reason`, `Liability`, `ReasonDetail` (free text), `EotDays` (calendar-day EOT entitlement). `FromDiff` overload accepts the new fields.
+
+**Picker (`Commands/Cost/VariationAndEvmCommands.cs`)** — `Variation_FromDiff` now prompts for kind → reason → liability sequentially via `StingListPicker`. Reason picker shows each option's plain-English meaning. Liability picker pre-selects a sensible default from the reason (`DesignChange` → `Designer` / PI insurance route; `ClientRequest` → `Employer`; `ContractorProposal` → `Shared`; etc.) — QS overrides via the picker if needed. Final TaskDialog summary surfaces reason + liability.
+
+**Register CSV** — `Variation_ExportRegister` adds `Reason`, `Liability`, `EotDays`, `ReasonDetail` columns. Month-end QS reports can pivot variations by reason ("60% of VOs are design errors → review the design") and reconcile EOT entitlement against the programme.
+
+**Server (`Planscape.Core/Entities/BoqVariation.cs`, `BoqController.cs`, EF migration)** — entity gains `Reason` / `Liability` (both `nvarchar(32)` with default values), `ReasonDetail` (`nvarchar(4000)?`), `EotDays` (`int`, default 0). Two new indexes — `(ProjectId, Reason)` and `(ProjectId, Liability)` — drive the upcoming reason-pivot dashboards.
+
+New migration `20260518000001_AddVariationReason.cs` (hand-written, matches existing convention with sane defaults so legacy rows pick up `Other` / `Employer` automatically). Controller GET / detail / POST endpoints all surface the new fields.
+
+**Mobile (`Planscape/app/variations/index.tsx`, `[id].tsx`)** — list rows now carry colour-coded reason badges (violet for designer-attributed, red for errors, green for client, amber for unforeseen, etc.), a liability "Pays:" chip, and a red `+Nd EOT` badge when EOT > 0. Detail screen shows a dedicated "Reason · Liability · Time impact" card with the free-text rationale below.
+
+##### Caveats
+
+1. Built without `dotnet build` / Expo runtime verification (Linux sandbox).
+2. Run `dotnet ef database update` against the dev DB to apply `AddVariationReason`. Existing rows default to `Other` / `Employer` / `EotDays = 0` — QS should walk through legacy variations and re-classify before relying on reason-pivot reports.
+3. Reason→liability suggestions are conservative defaults — the QS still confirms. Some contracts route `ErrorOmission` to `Contractor` (e.g., performance specifications); the picker accepts override either way.
+4. The EOT field is captured but not yet wired into the 4D scheduling pipeline — a future commit can roll EOT-day totals into `Scheduling4DEngine` for an EOT-adjusted programme view.
+
+---
+
 #### Completed (Phase 184n — Cost management consolidated inside BOQ Cost Manager)
 
 Branch: `claude/revit-api-cost-management-qH8Vv`. Moves the 23 cost-management commands surfaced in Phase 184m out of fragmented dock-panel sub-sections and into a single "Actions" tab inside the BOQ Cost Manager window. The dock panel keeps one entry point that launches the manager.

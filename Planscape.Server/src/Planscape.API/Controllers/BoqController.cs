@@ -303,6 +303,8 @@ public class BoqController : ControllerBase
             {
                 v.Id, v.Reference, v.Title, v.Description, v.Kind,
                 v.Status, v.NetValue, v.Currency,
+                // Phase 184o — reason + liability surface in the mobile list.
+                v.Reason, v.Liability, v.EotDays,
                 v.BimIssueId, v.SubmittedAt, v.ApprovedAt, v.ApprovedBy,
                 v.CreatedAt, v.CreatedBy
             })
@@ -331,6 +333,11 @@ public class BoqController : ControllerBase
             NetValue   = req.NetValue,
             Currency   = req.Currency ?? "GBP",
             BimIssueId = req.BimIssueId,
+            // Phase 184o — reason + liability + EOT carried in from the plugin.
+            Reason     = req.Reason ?? "Other",
+            Liability  = req.Liability ?? "Employer",
+            ReasonDetail = req.ReasonDetail,
+            EotDays    = req.EotDays ?? 0,
             CreatedBy  = User.Identity?.Name,
         };
         _db.BoqVariations.Add(variation);
@@ -384,6 +391,11 @@ public class BoqController : ControllerBase
             v.Id,
             number = v.Reference,
             kind = v.Kind,
+            // Phase 184o — reason / liability / EOT routed back to mobile detail.
+            reason = v.Reason,
+            liability = v.Liability,
+            reasonDetail = v.ReasonDetail,
+            eotDays = v.EotDays,
             status = v.Status,
             title = v.Title,
             description = v.Description,
@@ -731,7 +743,12 @@ public record CreateVariationRequest(
     string? Kind,
     decimal NetValue,
     string? Currency,
-    Guid? BimIssueId);
+    Guid? BimIssueId,
+    // Phase 184o
+    string? Reason,
+    string? Liability,
+    string? ReasonDetail,
+    int? EotDays);
 
 public record UpdateStatusRequest(string Status);
 
