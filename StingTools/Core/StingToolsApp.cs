@@ -1350,6 +1350,15 @@ namespace StingTools.Core
 
         private void RegisterDockablePanel(UIControlledApplication application)
         {
+            // ── Phase 188 hardening — create the "STING Tools" ribbon tab
+            // BEFORE the main registration body so that even if dockable-pane
+            // registration throws (e.g. a missing XAML StaticResource), the
+            // sibling panel registrations (Electrical, Plumbing, HVAC) can
+            // still find the tab and add their ribbon panels successfully.
+            const string tabName = "STING Tools";
+            try { application.CreateRibbonTab(tabName); }
+            catch (Exception tabEx) { StingLog.Info($"CreateRibbonTab('{tabName}'): {tabEx.Message} (may already exist)"); }
+
             try
             {
                 // Initialise the external event handler for panel button dispatching
@@ -1362,9 +1371,6 @@ namespace StingTools.Core
                     "STING Tools",
                     provider);
 
-                // Create a minimal ribbon tab with just a toggle button
-                const string tabName = "STING Tools";
-                application.CreateRibbonTab(tabName);
                 string asmPath = AssemblyPath;
 
                 // STING Hub — quick-launch panel (added FIRST so it sits at the
