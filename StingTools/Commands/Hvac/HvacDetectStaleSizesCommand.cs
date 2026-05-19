@@ -123,7 +123,7 @@ namespace StingTools.Commands.Hvac
                             {
                                 // Overwrite=true so the flag can flip both ways
                                 // (stale↔fresh) across successive scans.
-                                ParameterHelpers.SetInt(d, "HVC_SIZE_STALE_BOOL", isStale ? 1 : 0, overwrite: true);
+                                ParameterHelpers.SetInt(d, ParamRegistry.HVC_SIZE_STALE_BOOL, isStale ? 1 : 0, overwrite: true);
                             }
                             catch (Exception exP) { StingLog.Warn($"Stale stamp {d.Id}: {exP.Message}"); }
 

@@ -150,6 +150,58 @@
       "required": false
     },
     {
+      "param_name": "ASS_PMT_PCT_COMPLETE_NR",
+      "guid": "b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50",
+      "description": "Per-element percent complete (0-100) driving payment certificate valuation (Phase 184g / P5).",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
+      "param_name": "ASS_PMT_CERT_NO_NR",
+      "guid": "b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51",
+      "description": "Payment certificate number this line item was last valued in (Phase 184g / P5).",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Integer"
+    },
+    {
+      "param_name": "ASS_PMT_CERT_DATE_DT",
+      "guid": "b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d52",
+      "description": "ISO 8601 date of the payment certificate valuation (Phase 184g / P5).",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_PMT_LAST_VALUED_DT",
+      "guid": "b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d53",
+      "description": "ISO 8601 timestamp the line item was last valued by PaymentCertEngine (Phase 184g / P5).",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_VAR_NO_TXT",
+      "guid": "b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d60",
+      "description": "Variation / change-order number this element was instructed under (Phase 184g / P5).",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_VAR_INSTRUCTION_DT",
+      "guid": "b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d61",
+      "description": "ISO 8601 date the variation instruction was issued (Phase 184g / P5).",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_VAR_VALUATION_NR",
+      "guid": "b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62",
+      "description": "Variation valuation amount in project base currency (Phase 184g / P5).",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Number"
+    },
+    {
       "param_name": "ASS_INST_DETAIL_NUM_TXT",
       "guid": "73f74429-76da-4ae8-ae90-66884bad8a06",
       "description": "Installation detail number",
