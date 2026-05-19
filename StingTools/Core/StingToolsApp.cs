@@ -1440,10 +1440,61 @@ namespace StingTools.Core
 
         private void RegisterDockablePanel(UIControlledApplication application)
         {
+            // ── Phase 188 hardening — create the "STING Tools" ribbon tab
+            // BEFORE the main registration body so that even if dockable-pane
+            // registration throws (e.g. a missing XAML StaticResource), the
+            // sibling panel registrations (Electrical, Plumbing, HVAC) can
+            // still find the tab and add their ribbon panels successfully.
+            const string tabName = "STING Tools";
+            bool tabCreated = false;
+            try
+            {
+                application.CreateRibbonTab(tabName);
+                tabCreated = true;
+                StingLog.Info($"CreateRibbonTab('{tabName}'): created OK");
+            }
+            catch (Exception tabEx)
+            {
+                // Most common cause is "Argument: Ribbon tab name already
+                // exists" which is fine — the tab is there, we just can't
+                // re-create. Anything else is a real failure.
+                if (tabEx.Message.IndexOf("already", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    tabCreated = true;
+                    StingLog.Info($"CreateRibbonTab('{tabName}'): tab already exists, reusing");
+                }
+                else
+                {
+                    StingLog.Warn($"CreateRibbonTab('{tabName}'): {tabEx.GetType().Name}: {tabEx.Message}");
+                }
+            }
+
+            // ── Last-resort fallback: drop a toggle button into the standard
+            // "Add-Ins" tab if our custom tab failed to create AND it doesn't
+            // already exist. The user's report — "ribbon panels missing but
+            // dockables work" — means the custom tab is broken on their setup,
+            // so a guaranteed-visible button on a built-in tab is the safety net.
+            if (!tabCreated)
+            {
+                try
+                {
+                    var addinsPanel = application.CreateRibbonPanel("STING Tools (fallback)");
+                    AddButton(addinsPanel, "btnTogglePanelFallback", "STING\nPanel",
+                        AssemblyPath, typeof(ToggleDockPanelCommand).FullName,
+                        "Show/hide the STING Tools dockable panel (fallback on Add-Ins tab — custom 'STING Tools' tab failed to create).");
+                    AddButton(addinsPanel, "btnToggleHvacFallback", "STING\nHVAC",
+                        AssemblyPath, typeof(ToggleHvacPanelCommand).FullName,
+                        "Show/hide the STING HVAC Center dockable panel (fallback).");
+                    StingLog.Info("Add-Ins fallback panel registered with STING Panel + STING HVAC toggle buttons.");
+                }
+                catch (Exception fbEx) { StingLog.Warn($"Add-Ins fallback: {fbEx.Message}"); }
+            }
+
             try
             {
                 // Initialise the external event handler for panel button dispatching
                 StingDockPanel.Initialise(application);
+                StingLog.Info("RegisterDockablePanel: external event handler initialised");
 
                 // Register the dockable pane with Revit
                 var provider = new StingDockPanelProvider();
@@ -1451,28 +1502,39 @@ namespace StingTools.Core
                     StingDockPanelProvider.PaneId,
                     "STING Tools",
                     provider);
+                StingLog.Info("RegisterDockablePanel: dockable pane registered");
 
-                // Create a minimal ribbon tab with just a toggle button
-                const string tabName = "STING Tools";
-                application.CreateRibbonTab(tabName);
                 string asmPath = AssemblyPath;
 
                 // STING Hub — quick-launch panel (added FIRST so it sits at the
                 // left end of the tab). 9 small stacked buttons with runtime-
                 // drawn letter icons; no image files on disk.
-                RibbonPanel hubPanel = application.CreateRibbonPanel(tabName, "STING Hub");
-                BuildHubPanel(hubPanel);
+                RibbonPanel hubPanel = null;
+                try { hubPanel = application.CreateRibbonPanel(tabName, "STING Hub"); }
+                catch (Exception hpEx) { StingLog.Error($"CreateRibbonPanel('STING Hub') failed: {hpEx.Message}", hpEx); }
+                if (hubPanel != null)
+                {
+                    try { BuildHubPanel(hubPanel); StingLog.Info("STING Hub panel populated"); }
+                    catch (Exception bhEx) { StingLog.Error("BuildHubPanel failed", bhEx); }
+                }
 
-                var togglePanel = application.CreateRibbonPanel(tabName, "Panel");
-                AddButton(togglePanel, "btnTogglePanel", "STING\nPanel",
-                    asmPath, typeof(ToggleDockPanelCommand).FullName,
-                    "Show/hide the STING Tools dockable panel");
-                // Belt-and-braces: drop the HVAC toggle into this same panel
-                // alongside STING Panel, so the user has a guaranteed-visible
-                // entry point regardless of standalone-panel registration state.
-                AddButton(togglePanel, "btnTogglePanelHvac", "STING\nHVAC",
-                    asmPath, typeof(ToggleHvacPanelCommand).FullName,
-                    "Show/hide the STING HVAC Center dockable panel (backup entry — see also '❄ HVAC' panel + STING Hub 'HVAC Panel' tile)");
+                RibbonPanel togglePanel = null;
+                try { togglePanel = application.CreateRibbonPanel(tabName, "Panel"); }
+                catch (Exception tpEx) { StingLog.Error($"CreateRibbonPanel('Panel') failed: {tpEx.Message}", tpEx); }
+                if (togglePanel != null)
+                {
+                    try
+                    {
+                        AddButton(togglePanel, "btnTogglePanel", "STING\nPanel",
+                            asmPath, typeof(ToggleDockPanelCommand).FullName,
+                            "Show/hide the STING Tools dockable panel");
+                        AddButton(togglePanel, "btnTogglePanelHvac", "STING\nHVAC",
+                            asmPath, typeof(ToggleHvacPanelCommand).FullName,
+                            "Show/hide the STING HVAC Center dockable panel (backup entry — see also 'STING HVAC' panel + STING Hub 'HVAC Panel' tile)");
+                        StingLog.Info("Panel ribbon panel populated (STING Panel + STING HVAC)");
+                    }
+                    catch (Exception abEx) { StingLog.Error("Panel AddButton failed", abEx); }
+                }
 
                 StingLog.Info("Dockable panel registered successfully (Panel + HVAC backup button)");
             }
