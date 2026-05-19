@@ -92,6 +92,21 @@
             <Setter Property="Margin" Value="0,3,0,1"/>
             <Setter Property="Opacity" Value="0.7"/>
         </Style>
+
+        <!--
+            ButtonWrap — referenced 5× in the HEALTHCARE tab (~line 5172+)
+            but was never defined. Missing key causes BAML parse-time
+            StaticResourceExtension failure during dockable-pane
+            registration, which then cascades: CreateRibbonTab() is
+            never reached, so all sibling panel registrations
+            (Electrical, Plumbing, HVAC) fail with "Unexpected tab".
+            This minimal WrapPanel style restores the cascade.
+            (Fix introduced as part of Phase 188 HVAC visibility work.)
+        -->
+        <Style x:Key="ButtonWrap" TargetType="WrapPanel">
+            <Setter Property="Orientation" Value="Horizontal"/>
+            <Setter Property="Margin" Value="0,2,0,4"/>
+        </Style>
     </Page.Resources>
 
     <Grid>
