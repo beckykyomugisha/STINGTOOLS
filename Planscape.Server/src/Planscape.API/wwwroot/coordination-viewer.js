@@ -145,16 +145,20 @@
           Object.assign({ signal: controller.signal }, opts, { headers }));
         if (res.status === 401 && !authChallenged) {
           authChallenged = true;
-          // U8 — toast immediately, then redirect to /login after a short
-          // grace window so the user sees what happened. Embedders pass
-          // ?embed=1 to keep the viewer mounted and re-auth themselves.
+          // U8 — toast immediately, then redirect to the dashboard's login
+          // overlay (/index.html shows it automatically when there's no
+          // token in localStorage). Stash the viewer URL in sessionStorage
+          // so a future dashboard-side `?next=` handler can pick it up.
+          // Embedders pass ?embed=1 to keep the viewer mounted and
+          // re-auth themselves.
           toast('Sign-in expired — redirecting to login…', 'error');
           if (typeof localStorage !== 'undefined') {
             try { localStorage.removeItem('planscape_token'); } catch (_) {}
           }
           if (!embedMode) {
-            const next = encodeURIComponent(location.pathname + location.search);
-            setTimeout(() => { location.href = `${apiBase}/login?next=${next}`; }, 1500);
+            const next = location.pathname + location.search;
+            try { sessionStorage.setItem('planscape_post_login_next', next); } catch (_) {}
+            setTimeout(() => { location.href = `${apiBase}/index.html`; }, 1500);
           }
         }
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -304,8 +308,12 @@
             toast('Sign-in expired — redirecting to login…', 'error');
             try { localStorage.removeItem('planscape_token'); } catch (_) {}
             if (!embedMode) {
-              const next = encodeURIComponent(location.pathname + location.search);
-              setTimeout(() => { location.href = `${apiBase}/login?next=${next}`; }, 1500);
+              // Same target as the api() helper above: dashboard's login
+              // overlay at /index.html (the bare /login path is a SPA hash,
+              // not a static page).
+              const next = location.pathname + location.search;
+              try { sessionStorage.setItem('planscape_post_login_next', next); } catch (_) {}
+              setTimeout(() => { location.href = `${apiBase}/index.html`; }, 1500);
             }
             return;
           }
