@@ -44,14 +44,15 @@ public class CdeContainersController : ControllerBase
 
         // Build tree in memory — the set is bounded by the number of folders
         // a team creates (typically < 200) so recursion is safe.
-        var byParent = all.GroupBy(c => c.ParentContainerId)
-                          .ToDictionary(g => g.Key, g => g.ToList());
+        // Use ILookup instead of Dictionary because Dictionary<Guid?,…> trips
+        // the `where TKey : notnull` constraint introduced with nullable
+        // reference types; ILookup has no such constraint and gracefully
+        // returns an empty sequence for missing keys.
+        var byParent = all.ToLookup(c => c.ParentContainerId);
 
-        static object BuildNode(CdeContainer c, Dictionary<Guid?, List<CdeContainer>> map)
+        static object BuildNode(CdeContainer c, ILookup<Guid?, CdeContainer> map)
         {
-            var children = map.TryGetValue(c.Id, out var ch)
-                ? ch.Select(child => BuildNode(child, map)).ToList()
-                : new List<object>();
+            var children = map[c.Id].Select(child => BuildNode(child, map)).ToList();
             return new
             {
                 c.Id, c.Name, c.ParentContainerId, c.ContainerType,
@@ -61,9 +62,7 @@ public class CdeContainersController : ControllerBase
             };
         }
 
-        var roots = byParent.TryGetValue(null, out var rootList)
-            ? rootList.Select(r => BuildNode(r, byParent)).ToList()
-            : new List<object>();
+        var roots = byParent[null].Select(r => BuildNode(r, byParent)).ToList();
 
         return Ok(new { projectId, count = all.Count, tree = roots });
     }
