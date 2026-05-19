@@ -58,11 +58,23 @@ The runtime contract is unchanged: `dist/three.min.js` still defines
 `window.THREE` with the same class shape, so neither `viewer.html`
 nor `viewer-extras.js` needed code changes.
 
+## Docker / CI integration
+
+The `Planscape.Server/docker/Dockerfile` now has a dedicated
+`viewer` stage (Node 20-alpine) that runs `npm ci && npm run build`
+and stages the resulting `dist/` over `wwwroot/` before the dotnet
+publish step. The MSBuild `SyncCoordinationViewer` target is gated on
+`PlanscapeServeDist=true` so the in-tree sources don't overwrite the
+minified bundle inside the container.
+
+Local dev is unchanged — `PlanscapeServeDist` is unset by default, so
+`dotnet build` still syncs source → wwwroot every build. Pass
+`--build-arg PLANSCAPE_SERVE_DIST=false` to `docker build` if you
+need to ship raw sources in the image (e.g. to attach a debugger
+against unminified line numbers).
+
 ## Deferred / not done
 
-- **CI integration.** Server's `wwwroot/viewer/` is currently served
-  from the in-tree source. A follow-up changes the docker image to
-  `npm run build` + copy `dist/` instead.
 - **Source-map upload.** Build emits `.map` files; uploading them to
   Sentry / Honeycomb for production stack traces is a separate hook.
 
