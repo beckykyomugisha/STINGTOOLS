@@ -12,6 +12,7 @@ using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Select;
 using StingTools.Core.Mep;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
@@ -1149,6 +1150,50 @@ namespace StingTools.Tags
     }
 
     // ════════════════════════════════════════════════════════════════
+    //  Shared dispatch helper — keeps the three NLP selection branches
+    //  (Quick / Browse / Suggestions) in lock-step. Tags that route via
+    //  WorkflowEngine run inline; tags handled by StingCommandHandler's
+    //  direct-dispatch switch (Validate, FixDuplicates, ApplyTagStyle, …)
+    //  go through StingDockPanel.DispatchCommand so the user always sees
+    //  the chosen command actually fire.
+    // ════════════════════════════════════════════════════════════════
+    internal static class NlpDispatcher
+    {
+        internal static bool Run(string cmdTag, ExternalCommandData commandData, ElementSet elements)
+        {
+            if (string.IsNullOrWhiteSpace(cmdTag)) return false;
+
+            try
+            {
+                var cmd = WorkflowEngine.ResolveCommandPublic(cmdTag);
+                if (cmd != null)
+                {
+                    string refMsg = "";
+                    cmd.Execute(commandData, ref refMsg, elements);
+                    StingLog.Info($"NLP dispatch (workflow): {cmdTag}");
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"NLP dispatch resolve failed for '{cmdTag}': {ex.Message}");
+            }
+
+            // Fall back to the dock-panel's external-event dispatcher so
+            // direct-dispatch tags reach StingCommandHandler.Execute().
+            if (StingDockPanel.DispatchCommand(cmdTag))
+            {
+                StingLog.Info($"NLP dispatch (dock panel): {cmdTag}");
+                return true;
+            }
+
+            TaskDialog.Show("STING",
+                $"Command '{cmdTag}' could not be dispatched.\nOpen the STING dockable panel and run it from there.");
+            return false;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
     //  COMMAND 1: NLP Command Processor
     // ════════════════════════════════════════════════════════════════
     [Transaction(TransactionMode.ReadOnly)]
@@ -1197,30 +1242,19 @@ namespace StingTools.Tags
                     {
                         new StingListPicker.ListItem { Label = "TagAndCombine", Detail = "One-click tag and combine pipeline" },
                         new StingListPicker.ListItem { Label = "BatchTag", Detail = "Tag all elements in project" },
-                        new StingListPicker.ListItem { Label = "Validate", Detail = "Validate tag completeness" },
+                        new StingListPicker.ListItem { Label = "ValidateTags", Detail = "Validate tag completeness" },
                         new StingListPicker.ListItem { Label = "FullAutoPopulate", Detail = "Full auto-populate pipeline" },
                         new StingListPicker.ListItem { Label = "MasterSetup", Detail = "One-click full project setup" },
-                        new StingListPicker.ListItem { Label = "CompletenessDash", Detail = "Tag completeness dashboard" },
+                        new StingListPicker.ListItem { Label = "CompletenessDashboard", Detail = "Tag completeness dashboard" },
                         new StingListPicker.ListItem { Label = "PreTagAudit", Detail = "Dry-run tag prediction audit" },
                         new StingListPicker.ListItem { Label = "FixDuplicates", Detail = "Find and fix duplicate tags" },
-                        new StingListPicker.ListItem { Label = "CobieExport", Detail = "Export COBie data" },
+                        new StingListPicker.ListItem { Label = "COBieExport", Detail = "Export COBie data" },
                         new StingListPicker.ListItem { Label = "StandardsDashboard", Detail = "Standards compliance dashboard" },
                     };
                     var quickSel = StingListPicker.Show("Quick Commands",
                         "Select a command to execute:", quickItems);
                     if (quickSel != null && quickSel.Count > 0)
-                    {
-                        string cmdTag = quickSel[0].Label;
-                        var cmd = WorkflowEngine.ResolveCommandPublic(cmdTag);
-                        if (cmd != null)
-                        {
-                            string refMsg = "";
-                            cmd.Execute(commandData, ref refMsg, elements);
-                            StingLog.Info($"NLP quick command executed: {cmdTag}");
-                        }
-                        else
-                            TaskDialog.Show("STING", $"Command '{cmdTag}' not found in workflow engine.");
-                    }
+                        NlpDispatcher.Run(quickSel[0].Label, commandData, elements);
                     return Result.Succeeded;
                 }
 
@@ -1236,18 +1270,7 @@ namespace StingTools.Tags
                     var browseSel = StingListPicker.Show("All STING Commands",
                         "Select a command to execute:", allItems);
                     if (browseSel != null && browseSel.Count > 0)
-                    {
-                        string cmdTag = browseSel[0].Label;
-                        var cmd = WorkflowEngine.ResolveCommandPublic(cmdTag);
-                        if (cmd != null)
-                        {
-                            string refMsg = "";
-                            cmd.Execute(commandData, ref refMsg, elements);
-                            StingLog.Info($"NLP browse command executed: {cmdTag}");
-                        }
-                        else
-                            TaskDialog.Show("STING", $"Command '{cmdTag}' is not directly executable from here.\nUse the STING dockable panel instead.");
-                    }
+                        NlpDispatcher.Run(browseSel[0].Label, commandData, elements);
                     return Result.Succeeded;
                 }
 
@@ -1311,12 +1334,11 @@ namespace StingTools.Tags
                 var _ctx = ParameterHelpers.GetContext(commandData);
                 if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 var doc = _ctx.Doc;
-                var report = new System.Text.StringBuilder();
-                report.AppendLine("═══ SMART COMMAND SUGGESTIONS ═══\n");
-                report.AppendLine("Based on current model state:\n");
 
-                // Analyze model state and suggest commands
-                var suggestions = new List<(string Priority, string Command, string Reason)>();
+                // Each suggestion carries the display label, the canonical
+                // command tag (so selection actually runs something), and the
+                // contextual reason shown to the user.
+                var suggestions = new List<(string Priority, string Label, string CommandTag, string Reason)>();
 
                 // Check if parameters are loaded
                 int stingParams = 0;
@@ -1328,7 +1350,7 @@ namespace StingTools.Tags
                 }
 
                 if (stingParams < 10)
-                    suggestions.Add(("HIGH", "Load Parameters", "STING parameters not loaded — required before tagging"));
+                    suggestions.Add(("HIGH", "Load Parameters", "LoadSharedParams", "STING parameters not loaded — required before tagging"));
 
                 // Check tagged vs untagged
                 // PERF: Use ElementMulticategoryFilter instead of LINQ .Where() on entire model
@@ -1347,10 +1369,10 @@ namespace StingTools.Tags
                 }
 
                 if (untagged > 0 && stingParams >= 10)
-                    suggestions.Add(("HIGH", "Tag & Combine", $"{untagged} untagged elements found"));
+                    suggestions.Add(("HIGH", "Tag & Combine", "TagAndCombine", $"{untagged} untagged elements found"));
 
                 if (tagged > 0)
-                    suggestions.Add(("MEDIUM", "Validate Tags", $"Validate {tagged} existing tags for ISO 19650 compliance"));
+                    suggestions.Add(("MEDIUM", "Validate Tags", "ValidateTags", $"Validate {tagged} existing tags for ISO 19650 compliance"));
 
                 // Check for views without templates
                 var viewsNoTemplate = new FilteredElementCollector(doc)
@@ -1360,25 +1382,47 @@ namespace StingTools.Tags
                     .Count();
 
                 if (viewsNoTemplate > 5)
-                    suggestions.Add(("MEDIUM", "Auto-Assign Templates", $"{viewsNoTemplate} views without templates"));
+                    suggestions.Add(("MEDIUM", "Auto-Assign Templates", "AutoAssignTemplates", $"{viewsNoTemplate} views without templates"));
 
                 // Check warnings
                 int warningCount = doc.GetWarnings().Count;
                 if (warningCount > 50)
-                    suggestions.Add(("MEDIUM", "Model Health Check", $"{warningCount} warnings in model"));
+                    suggestions.Add(("MEDIUM", "Model Health Check", "ModelHealthDashboard", $"{warningCount} warnings in model"));
 
                 // Always suggest
-                suggestions.Add(("LOW", "Standards Dashboard", "Run full compliance check"));
-                suggestions.Add(("LOW", "Quantity Takeoff", "Generate quantity report"));
+                suggestions.Add(("LOW", "Standards Dashboard", "StandardsDashboard", "Run full compliance check"));
+                suggestions.Add(("LOW", "Quantity Takeoff", "MeasuredQuantities", "Generate quantity report"));
 
-                foreach (var (priority, command, reason) in suggestions.OrderBy(s => s.Priority))
-                    report.AppendLine($"  [{priority}] {command}: {reason}");
+                // Sort HIGH → MEDIUM → LOW.
+                int Rank(string p) => p == "HIGH" ? 0 : p == "MEDIUM" ? 1 : 2;
+                var ordered = suggestions.OrderBy(s => Rank(s.Priority)).ToList();
 
-                report.AppendLine($"\nModel state: {taggable.Count} taggable elements ({tagged} tagged, {untagged} untagged)");
-                report.AppendLine($"STING parameters: {stingParams} bound");
+                string header = $"Model state: {taggable.Count} taggable ({tagged} tagged, {untagged} untagged) — "
+                              + $"{stingParams} STING parameters bound.\n"
+                              + "Select a suggestion to run it:";
 
-                TaskDialog.Show("Command Suggestions", report.ToString());
-                StingLog.Info($"Suggestions: {suggestions.Count} recommendations");
+                var items = ordered
+                    .Select(s => new StingListPicker.ListItem
+                    {
+                        Label  = $"[{s.Priority}] {s.Label}",
+                        Detail = $"{s.Reason}  →  {s.CommandTag}"
+                    })
+                    .ToList();
+
+                var picked = StingListPicker.Show("Smart Command Suggestions", header, items);
+                StingLog.Info($"Suggestions: {ordered.Count} recommendations offered");
+
+                if (picked != null && picked.Count > 0)
+                {
+                    // Map the chosen list-picker row back to its CommandTag by
+                    // index — labels carry the priority prefix so direct lookup
+                    // by label would re-parse the bracketed token.
+                    int idx = items.FindIndex(i => ReferenceEquals(i, picked[0]));
+                    if (idx < 0) idx = items.FindIndex(i => i.Label == picked[0].Label);
+                    if (idx >= 0 && idx < ordered.Count)
+                        NlpDispatcher.Run(ordered[idx].CommandTag, commandData, elements);
+                }
+
                 return Result.Succeeded;
             }
             catch (Exception ex)
