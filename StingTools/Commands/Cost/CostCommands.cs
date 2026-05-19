@@ -307,6 +307,7 @@ namespace StingTools.Commands.Cost
             TakeoffRuleRegistry.Invalidate();
             StingTools.BOQ.CostStamp.Invalidate();
             StingTools.BIMManager.Scheduling4DEngine.InvalidateDefaultCostRates();
+            StingTools.BOQ.MeasurementStandard.Icms3PhaseMap.Invalidate();
 
             // P8 — register external rate providers lazily. The default
             // chain (param / ES / CSV / COBie / scheduled) is built by

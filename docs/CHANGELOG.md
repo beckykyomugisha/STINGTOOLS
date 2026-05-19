@@ -2,6 +2,25 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 184l — Cost management Phase 184k caveats closed)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the three caveats from Phase 184k.
+
+**S3 / persistent-volume signature storage.** The signature persistence in `BoqController.SignPaymentCert` now goes through the existing `Planscape.Core.Interfaces.IFileStorageService` (injected via DI) rather than `System.IO.File.WriteAllBytesAsync` to a hard-coded relative path. The same call works against `LocalFileStorageService` in dev and `S3FileStorageService` in production (MinIO / S3) without controller-level branching — production deployments just toggle the storage provider in `appsettings.json`. `SaveScopedAsync` returns a tenant-prefixed `t_{tenantId}/{projectId}/signatures/cert_{certId}_{action}_{ts}.png` path which is what the existing download / presign endpoints expect.
+
+**Config-driven ICMS3 phase → group map.** New file `Data/STING_ICMS3_PHASE_MAP.json` carries an 11-language keyword dictionary (EN / DE / FR / ES / IT / PT / NL / SV / DA / ZH / JA) mapping phase-name substrings to ICMS3 group codes 01 / 02 / 03 / 04. New loader `BOQ/MeasurementStandard/Icms3PhaseMap.cs` reads the corporate baseline + `<project>/_BIM_COORD/icms3_phase_map.json` override. `Icms3Standard.ClassifyRow` now consults the map; cache invalidated by `Cost_ReloadRules`. Replaces the previous English-only hard-coded keyword chain. Project overrides win by group code (`code` field) and entries are evaluated in JSON order so 04 End-of-life always beats a generic "operation" keyword on a demolition phase name.
+
+**npm install automation.** `Planscape/package.json` gains an `ensure-deps` script that checks whether `node_modules/.package-lock.json` is older than `package.json` and runs `npm install --no-audit --prefer-offline` if so. Wired as `prestart` / `preandroid` / `preios` / `preweb` so `npm start` (or any platform target) automatically picks up missing deps. No-op when deps are already in sync. Closes the "forgot to npm install after pulling" trap for the `react-native-signature-canvas` dep landed in Phase 184k.
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `IFileStorageService` is registered in `Program.cs` already (existing wiring used by ModelDerivativeJob, IfcTessellationJob etc.) — no additional DI registration needed.
+3. The 11-language ICMS3 keyword set is a reasonable baseline but unlikely exhaustive — project overrides handle the long tail. Add languages by extending the `keywords` object in the project override JSON.
+4. `ensure-deps` uses `--prefer-offline` so a clean clone with a populated `~/.npm` cache stays fast (~1s no-op). First-ever install on a cold machine still takes the usual ~30-60s.
+
+---
+
 #### Completed (Phase 184k — Cost management P4–P8 caveats closed)
 
 Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the four caveats from Phase 184f-j: server endpoints, IFC Qto shared params, ICMS3 phase refinement, and the signature pad. Built without `dotnet build` verification (Linux sandbox).

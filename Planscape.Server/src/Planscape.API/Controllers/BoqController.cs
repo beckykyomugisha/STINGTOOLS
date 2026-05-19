@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 
 namespace Planscape.API.Controllers;
@@ -13,11 +14,16 @@ public class BoqController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly ILogger<BoqController> _logger;
+    private readonly IFileStorageService _storage;
 
-    public BoqController(PlanscapeDbContext db, ILogger<BoqController> logger)
+    public BoqController(
+        PlanscapeDbContext db,
+        ILogger<BoqController> logger,
+        IFileStorageService storage)
     {
         _db = db;
         _logger = logger;
+        _storage = storage;
     }
 
     private Guid GetTenantId() =>
@@ -493,25 +499,25 @@ public class BoqController : ControllerBase
         var signer = string.IsNullOrEmpty(req.SignerName) ? User.Identity?.Name ?? "" : req.SignerName!;
 
         // Signature PNG handling — if the client supplied a graphical
-        // signature, persist its bytes to a per-tenant disk path and
-        // store the relative path in Note alongside any rationale. The
-        // PNG is base64-decoded once on receive so a 200 KB signature
-        // doesn't bloat the database.
+        // signature, persist it via IFileStorageService so the same
+        // call works against the local filesystem in dev + S3 / MinIO
+        // in production without controller-level branching.
+        // SaveScopedAsync returns a tenant-prefixed storage path
+        // (t_{tenantId}/{projectId}/signatures/...) which is what the
+        // download / presign endpoints expect.
         string? signaturePath = null;
         if (!string.IsNullOrEmpty(req.SignaturePngBase64))
         {
             try
             {
                 byte[] pngBytes = Convert.FromBase64String(req.SignaturePngBase64);
-                string dir = System.IO.Path.Combine("storage", "signatures",
-                    tenantId.ToString("N"), c.Id.ToString("N"));
-                System.IO.Directory.CreateDirectory(dir);
-                string fileName = $"{action}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.png";
-                string filePath = System.IO.Path.Combine(dir, fileName);
-                await System.IO.File.WriteAllBytesAsync(filePath, pngBytes);
-                signaturePath = filePath;
-                _logger.LogInformation("Payment cert {Id} signature persisted to {Path} ({Bytes} bytes)",
-                    c.Id, filePath, pngBytes.Length);
+                string fileName = $"signatures/cert_{c.Id:N}_{action}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.png";
+                using var ms = new System.IO.MemoryStream(pngBytes);
+                signaturePath = await _storage.SaveScopedAsync(
+                    tenantId, c.ProjectId, fileName, ms);
+                _logger.LogInformation(
+                    "Payment cert {Id} signature persisted to {Path} ({Bytes} bytes) via {StorageType}",
+                    c.Id, signaturePath, pngBytes.Length, _storage.GetType().Name);
             }
             catch (Exception ex)
             {

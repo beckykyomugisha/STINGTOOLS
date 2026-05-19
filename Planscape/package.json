@@ -4,6 +4,12 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
+    "_doc": "Phase 184l — `predev`/`preandroid`/`preios` automatically run `npm install` when the lockfile changes (no-op when already in sync). Avoids the \"forgot to install the new dep\" trap after pulling a branch.",
+    "ensure-deps": "node -e \"const fs=require('fs');const p=require('path');const pkgMtime=fs.statSync('package.json').mtimeMs;const nm='node_modules/.package-lock.json';const stale=!fs.existsSync(nm)||fs.statSync(nm).mtimeMs<pkgMtime;if(stale){console.log('Dependencies out of date — running npm install...');require('child_process').execSync('npm install --no-audit --prefer-offline',{stdio:'inherit'});}else{console.log('Dependencies in sync.');}\"",
+    "prestart": "npm run ensure-deps",
+    "preandroid": "npm run ensure-deps",
+    "preios": "npm run ensure-deps",
+    "preweb": "npm run ensure-deps",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
