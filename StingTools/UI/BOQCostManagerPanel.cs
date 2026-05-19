@@ -529,6 +529,8 @@ namespace StingTools.UI
                      "Author a star rate from first principles — labour + plant + materials + OH + profit", false),
                     ("VO Register",          "Variation_ExportRegister",
                      "Export all variations to CSV (number / status / value / signers)", false),
+                    ("Reclassify Legacy",    "Variation_ReclassifyLegacy",
+                     "Walk legacy variations still on default Other / Employer and set their reason + liability via multi-select picker (Phase 184p)", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("EARNED VALUE MGMT (P5.3)",

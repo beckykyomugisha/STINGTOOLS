@@ -1576,6 +1576,8 @@ namespace StingTools.Core
                 case "Variation_FromDiff":         return new Commands.Cost.VariationFromDiffCommand();
                 case "Variation_BuildStarRate":    return new Commands.Cost.VariationBuildStarRateCommand();
                 case "Variation_ExportRegister":   return new Commands.Cost.VariationExportRegisterCommand();
+                // Phase 184p — reclassify legacy default-Other variations
+                case "Variation_ReclassifyLegacy": return new Commands.Cost.VariationReclassifyLegacyCommand();
                 case "Evm_Calculate":              return new Commands.Cost.EvmCalculateCommand();
                 case "Evm_ImportActuals":          return new Commands.Cost.EvmImportActualsCommand();
                 case "Evm_ExportReport":           return new Commands.Cost.EvmExportReportCommand();

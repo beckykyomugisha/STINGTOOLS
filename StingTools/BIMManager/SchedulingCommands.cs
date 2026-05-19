@@ -884,7 +884,61 @@ namespace StingTools.BIMManager
         /// <summary>
         /// Generate S-curve cash flow by distributing cost across 4D schedule timeline.
         /// </summary>
+        /// <summary>
+        /// Phase 184p / caveat #4 — sum the EOT days from approved
+        /// variations under <project>/_bim_manager/variations/. Returns
+        /// total calendar-day EOT entitlement that the 4D programme
+        /// should absorb. Reads JSON sidecars directly to avoid a
+        /// circular reference back into the Variation namespace.
+        /// </summary>
+        internal static int GetApprovedEotDays(Document doc)
+        {
+            if (doc == null) return 0;
+            try
+            {
+                string dir = System.IO.Path.Combine(
+                    BIMManagerEngine.GetBIMManagerDir(doc), "variations");
+                if (!System.IO.Directory.Exists(dir)) return 0;
+                int total = 0;
+                foreach (string file in System.IO.Directory.EnumerateFiles(dir, "*.json"))
+                {
+                    try
+                    {
+                        var obj = JObject.Parse(System.IO.File.ReadAllText(file));
+                        string status = obj.Value<string>("Status") ?? "";
+                        // Only honour approved + incorporated VOs.
+                        if (!string.Equals(status, "Approved", StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals(status, "Incorporated", StringComparison.OrdinalIgnoreCase))
+                            continue;
+                        int eot = obj.Value<int?>("EotDays") ?? 0;
+                        if (eot > 0) total += eot;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"GetApprovedEotDays {System.IO.Path.GetFileName(file)}: {ex.Message}");
+                    }
+                }
+                return total;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetApprovedEotDays: {ex.Message}");
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Convenience — apply approved EOT days to a baseline project
+        /// completion date. Used by the cash-flow generator to surface
+        /// both the baseline and EOT-adjusted completion side by side.
+        /// </summary>
+        internal static DateTime ApplyEotToCompletion(DateTime baselineCompletion, Document doc)
+            => baselineCompletion.AddDays(GetApprovedEotDays(doc));
+
         internal static JObject GenerateCashFlow(JObject schedule4D, JObject costEstimate)
+            => GenerateCashFlow(schedule4D, costEstimate, doc: null);
+
+        internal static JObject GenerateCashFlow(JObject schedule4D, JObject costEstimate, Document doc)
         {
             var cashFlow = new JObject();
             cashFlow["generated_date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
@@ -894,6 +948,20 @@ namespace StingTools.BIMManager
             DateTime.TryParse(schedule4D["project_end"]?.ToString(), out DateTime projEnd);
             if (projStart == DateTime.MinValue) projStart = DateTime.Now;
             if (projEnd == DateTime.MinValue) projEnd = projStart.AddMonths(12);
+
+            // Phase 184p / caveat #4 — surface approved-EOT impact on
+            // the cashflow header. Doesn't redistribute the existing
+            // curve (that requires per-task EOT allocation, which lives
+            // in the programme tool); just reports the adjusted
+            // completion so a QS can sanity-check.
+            int eotDays = doc != null ? GetApprovedEotDays(doc) : 0;
+            if (eotDays > 0)
+            {
+                cashFlow["eot_days_total"] = eotDays;
+                cashFlow["completion_baseline"] = projEnd.ToString("yyyy-MM-dd");
+                cashFlow["completion_eot_adjusted"] =
+                    projEnd.AddDays(eotDays).ToString("yyyy-MM-dd");
+            }
 
             double grandTotal = (double)(costEstimate["grand_total"] ?? 0);
             if (grandTotal <= 0) grandTotal = 0;
@@ -1657,7 +1725,7 @@ namespace StingTools.BIMManager
                 return Result.Failed;
             }
 
-            var cashFlow = Scheduling4DEngine.GenerateCashFlow(schedule, estimate);
+            var cashFlow = Scheduling4DEngine.GenerateCashFlow(schedule, estimate, doc);
 
             // Save
             string cashFlowPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "cash_flow_5d.json");

@@ -2,6 +2,41 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 184p — Phase 184o caveats closed)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes three of the four caveats from Phase 184o. Caveat #1 (no `dotnet build` / Expo runtime verification on Linux sandbox) is a standing constraint of this environment and is left documented.
+
+##### Caveat #2 — Legacy variation re-classification
+
+New file `Commands/Cost/VariationAndEvmCommands.cs::VariationReclassifyLegacyCommand`. Walks every saved variation whose `Reason == Other` AND `Liability == Employer` (the migration defaults) and lets the QS bulk-pick which ones to walk via `StingListPicker` (multi-select). Each picked VO opens the same reason picker + liability picker used by `Variation_FromDiff`, so the UI affordances are identical to the new-VO path.
+
+Wired into `WorkflowEngine.ResolveCommand`, `StingCommandHandler.Cmd_Click`, and the BOQ Cost Manager → Actions tab → VARIATIONS card as a fourth button "Reclassify Legacy".
+
+##### Caveat #3 — Config-driven liability map
+
+Hard-coded `SuggestLiability` table was reasonable as a default but couldn't reflect contract-specific risk allocation (e.g. FIDIC Yellow Book routes `ErrorOmission` → `Contractor` because the contractor owns the design, while JCT 2024 routes it → `Designer` via PI). New:
+
+- `Data/STING_VARIATION_LIABILITY_MAP.json` — corporate baseline with rules for JCT 2024, NEC4, FIDIC 2017 Red / Yellow / Silver. Yellow + Silver carry their contractor-design defaults; Red and JCT2024 keep the standard pattern. `default|...` keys act as last-resort fallback.
+- `Core/Variation/VariationLiabilityMap.cs` — per-document registry + loader + project override at `<project>/_BIM_COORD/variation_liability_map.json`.
+- `Variation_FromDiff` consults the map: `Resolve(contractForm, reason, codeDefault)` returns map entry → default-key entry → C# default in priority order. QS still confirms via picker.
+
+##### Caveat #4 — EOT days surfaced in 4D cash-flow
+
+`Scheduling4DEngine` gains:
+
+- `GetApprovedEotDays(doc)` — sums `EotDays` across every variation JSON sidecar whose `Status` is `Approved` or `Incorporated`. JSON-direct read avoids a circular dependency between the schedule namespace and the variation namespace.
+- `ApplyEotToCompletion(baselineCompletion, doc)` — convenience helper for QS code that wants the EOT-adjusted date directly.
+- `GenerateCashFlow` gains a `doc`-aware overload; the no-doc overload is preserved for back-compat callers. When `doc` is supplied and approved EOT > 0, the cash-flow JSON gains three new keys at the top level: `eot_days_total`, `completion_baseline`, `completion_eot_adjusted`. Surfaces the impact without redistributing the per-period curve (per-task EOT allocation requires the external programme tool).
+- `CashFlow5DCommand` updated to pass `doc` through.
+
+##### Caveats
+
+1. Built without `dotnet build` / Expo runtime verification (Linux sandbox) — standing.
+2. The contract-form key in the liability map uses `VariationKind.ToString()` (`Instruction` / `CompensationEvent` / `EngineerInstruction` / `ContractorClaim`) rather than the contract family (`JCT2024` / `NEC4` / `FIDIC2017Red`). The JSON `rules` section uses contract-family keys for clarity, but the runtime lookup currently maps Kind → map-key 1:1 only for `NEC4` (CompensationEvent maps to "NEC4"). A future commit can split contract-family and contract-form into distinct fields on `VariationInstruction` so the map can match precisely; today the `default|...` fallback handles the gap.
+3. EOT adjustment is reported in the cash-flow header but doesn't redistribute the per-period revenue curve. Full per-task EOT redistribution requires Primavera P6 / MS Project round-trip — staged for the planned 4D scheduler integration commit.
+
+---
+
 #### Completed (Phase 184o — Variation reason taxonomy)
 
 Branch: `claude/revit-api-cost-management-qH8Vv`. Adds the *why* dimension to variations alongside the existing *contractual route* (`VariationKind`). Drives liability, EOT entitlement, insurance recovery and month-end pattern analysis.

@@ -124,8 +124,14 @@ namespace StingTools.Commands.Cost
                 VariationReason reason = (reasonPicked != null && reasonPicked.Count > 0 &&
                     reasonPicked[0].Tag is VariationReason r) ? r : VariationReason.Other;
 
-                // Suggest liability from the reason but let the QS override.
-                VariationLiability suggested = SuggestLiability(reason);
+                // Suggest liability — consult the config-driven contract
+                // map first (Phase 184p), then fall back to the C# code
+                // default so a project that doesn't ship a custom JSON
+                // still gets a reasonable answer.
+                VariationLiability codeDefault = SuggestLiability(reason);
+                string contractForm = kind.ToString();
+                VariationLiability suggested = VariationLiabilityMap
+                    .Get(doc).Resolve(contractForm, reason, codeDefault);
                 var liabilityItems = new List<StingListPicker.ListItem>
                 {
                     new StingListPicker.ListItem { Label = "Employer / client",   Detail = "Employer absorbs cost",                       Tag = VariationLiability.Employer },
@@ -514,6 +520,156 @@ namespace StingTools.Commands.Cost
                 StingLog.Error("Evm_ExportReport", ex);
                 message = ex.Message;
                 return Result.Failed;
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    //  Variation_ReclassifyLegacy — Phase 184p / caveat #2 closure.
+    //
+    //  Walks every saved variation with Reason == Other AND
+    //  Liability == Employer (the migration defaults) and lets the QS
+    //  pick the correct reason + liability for each one via the
+    //  existing StingListPicker flow. The Variation_FromDiff picker is
+    //  reused so the QS sees the same affordances either way.
+    // ──────────────────────────────────────────────────────────────────
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class VariationReclassifyLegacyCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                if (doc == null) { message = "No active document."; return Result.Failed; }
+
+                var paths = VariationEngine.ListVariations(doc);
+                var legacy = paths
+                    .Select(VariationEngine.Load)
+                    .Where(v => v != null
+                        && v.Reason == VariationReason.Other
+                        && v.Liability == VariationLiability.Employer)
+                    .OrderBy(v => v.ContractRef).ThenBy(v => v.Number)
+                    .ToList();
+
+                if (legacy.Count == 0)
+                {
+                    TaskDialog.Show("STING — Reclassify legacy variations",
+                        "Nothing to reclassify. Every variation has a non-default reason / liability assigned.");
+                    return Result.Succeeded;
+                }
+
+                // Multi-select picker — QS chooses which legacy VOs to walk.
+                var items = legacy.Select(v => new StingListPicker.ListItem
+                {
+                    Label = $"{v.Number}  ({v.Kind}, {v.Currency} {v.TotalValue:N0})",
+                    Detail = v.Title,
+                    Tag = v
+                }).ToList();
+
+                var picked = StingListPicker.Show("STING — Reclassify legacy variations",
+                    $"{legacy.Count} variation(s) still on the default Other / Employer. " +
+                    "Pick which to reclassify (multi-select).",
+                    items, allowMultiSelect: true);
+                if (picked == null || picked.Count == 0) return Result.Cancelled;
+
+                int reclassified = 0;
+                int skipped = 0;
+                foreach (var li in picked)
+                {
+                    if (!(li.Tag is VariationInstruction vo)) { skipped++; continue; }
+
+                    // Reason picker per-variation.
+                    var reasonItems = BuildReasonItems();
+                    var reasonPicked = StingListPicker.Show(
+                        $"STING — Reason for {vo.Number}",
+                        $"{vo.Title}\n\nWhy did this variation arise?",
+                        reasonItems, allowMultiSelect: false);
+                    if (reasonPicked == null || reasonPicked.Count == 0)
+                    {
+                        skipped++;
+                        continue;
+                    }
+                    var reason = (reasonPicked[0].Tag is VariationReason r) ? r : VariationReason.Other;
+
+                    // Liability picker, pre-suggested from the map.
+                    var codeDefault = SuggestLiabilityShared(reason);
+                    var suggested = VariationLiabilityMap.Get(doc)
+                        .Resolve(vo.Kind.ToString(), reason, codeDefault);
+                    var liabilityItems = BuildLiabilityItems();
+                    var liabilityPicked = StingListPicker.Show(
+                        $"STING — Liability for {vo.Number}",
+                        $"Who pays? Suggested: {suggested}.",
+                        liabilityItems, allowMultiSelect: false);
+                    var liability = (liabilityPicked != null && liabilityPicked.Count > 0
+                        && liabilityPicked[0].Tag is VariationLiability lib)
+                            ? lib : suggested;
+
+                    vo.Reason = reason;
+                    vo.Liability = liability;
+                    VariationEngine.Save(doc, vo);
+                    reclassified++;
+                }
+
+                TaskDialog.Show("STING — Reclassification complete",
+                    $"Reclassified: {reclassified}\nSkipped (no reason picked): {skipped}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Variation_ReclassifyLegacy", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        // Mirrors VariationFromDiffCommand's reason picker so the two
+        // entry points present identical options to the QS.
+        private static List<StingListPicker.ListItem> BuildReasonItems() => new List<StingListPicker.ListItem>
+        {
+            new() { Label = "Design change",        Detail = "Designer-initiated change to drawings / specs",   Tag = VariationReason.DesignChange },
+            new() { Label = "Client request",       Detail = "Employer-initiated scope or quality change",       Tag = VariationReason.ClientRequest },
+            new() { Label = "Site condition",       Detail = "Unforeseen ground / existing-fabric condition",    Tag = VariationReason.SiteCondition },
+            new() { Label = "Statutory change",     Detail = "Change in law, permit, building control",          Tag = VariationReason.StatutoryChange },
+            new() { Label = "Error / omission",     Detail = "Error in tender docs — designer or contractor",    Tag = VariationReason.ErrorOmission },
+            new() { Label = "Contractor proposal",  Detail = "Value-engineering proposal accepted by employer",  Tag = VariationReason.ContractorProposal },
+            new() { Label = "Scope addition",       Detail = "New scope added to contract",                      Tag = VariationReason.ScopeAddition },
+            new() { Label = "Scope omission",       Detail = "Scope removed from contract",                      Tag = VariationReason.ScopeOmission },
+            new() { Label = "Specification",        Detail = "Material / spec substitution",                     Tag = VariationReason.Specification },
+            new() { Label = "Quality",              Detail = "Quality-driven enhancement / rework",              Tag = VariationReason.Quality },
+            new() { Label = "Programme change",     Detail = "Acceleration / deceleration / re-sequencing",      Tag = VariationReason.ProgrammeChange },
+            new() { Label = "Other",                Detail = "Bespoke / non-standard cause",                     Tag = VariationReason.Other },
+        };
+
+        private static List<StingListPicker.ListItem> BuildLiabilityItems() => new List<StingListPicker.ListItem>
+        {
+            new() { Label = "Employer / client",   Detail = "Employer absorbs cost",                       Tag = VariationLiability.Employer },
+            new() { Label = "Contractor",          Detail = "Contractor absorbs cost",                     Tag = VariationLiability.Contractor },
+            new() { Label = "Designer",            Detail = "Routed via designer's PI insurance",          Tag = VariationLiability.Designer },
+            new() { Label = "Shared",              Detail = "Proportionate split by agreement",            Tag = VariationLiability.Shared },
+            new() { Label = "Force majeure",       Detail = "Unforeseen — typically employer + insurance", Tag = VariationLiability.ForceMajeure },
+        };
+
+        // Duplicates VariationFromDiffCommand.SuggestLiability so this
+        // command stays self-contained when the other one isn't used.
+        private static VariationLiability SuggestLiabilityShared(VariationReason reason)
+        {
+            switch (reason)
+            {
+                case VariationReason.DesignChange:
+                case VariationReason.ErrorOmission:        return VariationLiability.Designer;
+                case VariationReason.ClientRequest:
+                case VariationReason.ScopeAddition:
+                case VariationReason.ScopeOmission:
+                case VariationReason.Specification:
+                case VariationReason.Quality:              return VariationLiability.Employer;
+                case VariationReason.SiteCondition:
+                case VariationReason.StatutoryChange:      return VariationLiability.Employer;
+                case VariationReason.ContractorProposal:   return VariationLiability.Shared;
+                case VariationReason.ProgrammeChange:      return VariationLiability.Employer;
+                default:                                    return VariationLiability.Employer;
             }
         }
     }
