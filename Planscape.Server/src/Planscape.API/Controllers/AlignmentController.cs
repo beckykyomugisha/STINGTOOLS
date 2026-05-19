@@ -68,7 +68,9 @@ public class AlignmentController : ControllerBase
         [FromServices] IAutoAlignService autoAlign,
         CancellationToken ct)
     {
-        var result = await autoAlign.ComputeAsync(projectId, _tenant.TenantId, modelId, ct);
+        // ComputeAsync's 4th parameter is the optional IHubContext for broadcasting
+        // progress events; AutoAlign from this endpoint doesn't broadcast, so pass null.
+        var result = await autoAlign.ComputeAsync(projectId, _tenant.TenantId, modelId, null, ct);
         return result.Success ? Ok(result) : BadRequest(new { result.Message });
     }
 }

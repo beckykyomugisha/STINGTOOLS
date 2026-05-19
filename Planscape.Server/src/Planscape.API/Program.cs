@@ -17,6 +17,9 @@ using Prometheus;
 using StackExchange.Redis;
 using RedisRateLimiting;
 using RedisRateLimiting.AspNetCore;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Metrics;
 
 var builder = WebApplication.CreateBuilder(args);
 
