@@ -27,6 +27,16 @@ namespace StingTools.UI
     /// Unified 6-tab layout: SELECT, ORGANISE, DOCS, TEMP, CREATE, VIEW.
     /// All button clicks dispatched via IExternalEventHandler for thread safety.
     ///
+    /// ━━ HVAC FENCE ━━
+    /// This panel must NOT carry an HVAC top-level tab. HVAC lives on its own
+    /// dockable surface: <see cref="StingHvacPanel"/> (registered by
+    /// <see cref="Core.StingToolsApp"/> Phase 180, toggled by
+    /// <see cref="Core.ToggleHvacPanelCommand"/>). Do not add tabHvac /
+    /// BuildHvacTab / HvacContent fields or a TabItem Header="HVAC" — the
+    /// dock-panel-vs-panel separation is intentional and was the precedent
+    /// that fixed the duplicate-Categories revert loop.
+    /// ━━━━━━━━━━━━━━━━━
+    ///
     /// CRASH FIX: Implements lazy tab content loading to prevent WPF stack overflow.
     /// The full visual tree (493 buttons, 652 StaticResources) would exhaust the
     /// 1MB thread stack during the recursive Measure/Arrange layout pass.

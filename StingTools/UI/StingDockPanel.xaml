@@ -231,7 +231,19 @@
             </StackPanel>
         </Border>
 
-        <!-- Tab control -->
+        <!-- Tab control —
+             ━━ HVAC FENCE ━━
+             Do NOT add a top-level <TabItem Header="HVAC"> here. HVAC has its own
+             dedicated dockable panel (StingHvacPanel — see UI/StingHvacPanel.xaml,
+             registered by Core/StingToolsApp.cs Phase 180), toggled from the
+             "❄ HVAC" ribbon panel via ToggleHvacPanelCommand. Mixing the two
+             surfaces is what created the original duplicate-Categories loop —
+             keep HVAC ON its own pane.
+             If you need HVAC actions reachable from this panel, raise a button
+             tagged "ToggleHvacPanel" or "Hvac_*" that the StingCommandHandler
+             switch forwards to the dockable HVAC panel; do NOT embed HVAC
+             content here.
+             ━━━━━━━━━━━━━━━━━ -->
         <TabControl Grid.Row="1" x:Name="tabMain" SelectionChanged="TabMain_SelectionChanged" Background="{DynamicResource PrimaryBg}">
             <TabControl.Resources>
                 <Style TargetType="TabItem">
