@@ -726,6 +726,65 @@ discipline values, 0 missing pack references, 0 orphaned packs.
    which is a non-size-specific name. The family is assumed to ship
    in both A1 and A2 flavours; verify before merge if not.
 
+### Phase 184e — 100% field-level completeness sweep
+
+Audit pass surfaced six secondary fields with low population (e.g.
+`description` at 14%, `viewportTypeName` at 28%, `sectionMarker` on
+only 8/90 profiles). Each gap traced to omitted defaults rather than
+broken schema. Every drawing type in `STING_DRAWING_TYPES.json` now
+has all 19 audit fields populated.
+
+**Fields synthesised/defaulted across the 90 profiles**:
+
+| Field | Filled | Default applied |
+|---|---|---|
+| `description` | 77 | `"{Discipline} {purpose} on {paperSize} at 1:{scale}"` |
+| `viewportTypeName` | 65 | `"STING - Standard Viewport"` |
+| `isoNaming` | 59 | `{ volume:"01", type:"DR", role:<by discipline>, suitability:"S2", revision:"P01" }` |
+| `phase` | 50 | `"*"` (wildcard, per POCO default) |
+| `orientation` | 43 | `"Landscape"` (Portrait for Schedule purposes + A4) |
+| `viewTemplateName` | 36 | `"STING - {Discipline} {purpose}"` |
+| `titleBlockParams` | 11 | Corporate 11-cell set on remaining Detail/Spool/Schedule/Legend profiles |
+| `slots` | 4 | Single full-bleed slot for Schedule / Schematic profiles |
+| `scale` | 3 | `"NA"` sentinel for 3D presentation views |
+| `detailLevel` | 3 | `"Medium"` for Schedule / Legend |
+| `sectionMarker` | 2 | `{ family:"STING_ELEV_MARK"\|"STING_SECTION_MARK", markPrefix:"E"\|"S", bubbleStyle:"Filled", farClipMm:3000 }` for the 2 Section/Elevation profiles that were missing markers (`elec-riser-A2-1to100`, `health-bedhead-elev-A2-1to20`) |
+| `annotation` | 1 | Empty rules + tagFamilies (`plumb-drainage-schematic-A1`) |
+
+**Final tally (programmatically verified)**:
+
+| Check | 90 / 90 |
+|---|---|
+| id / name / origin / purpose | ✓ 100% |
+| description | ✓ 100% |
+| discipline / phase / paperSize / orientation | ✓ 100% |
+| titleBlockFamily / scale / detailLevel | ✓ 100% |
+| viewTemplateName / viewportTypeName | ✓ 100% |
+| sheetNumberPattern / sheetNamePattern | ✓ 100% |
+| crop.kind / slots / annotation / titleBlockParams | ✓ 100% |
+| isoNaming | ✓ 100% |
+| sectionMarker (where required) | ✓ 100% |
+
+And the 22 packs:
+
+| Check | 22 / 22 |
+|---|---|
+| id / name / description / extends / origin | ✓ 100% |
+| vgOverrides | ✓ 100% |
+| managed packs declare vgOverrides + filters | ✓ 100% |
+| pack references resolve | ✓ 100% |
+| no orphaned packs | ✓ 100% |
+
+### Caveats (Phase 184e)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The defaults are corporate baseline values; project teams will
+   override `viewTemplateName` (to match their actual `.rvt` template
+   names), `viewportTypeName` (to match their loaded viewport
+   types), and `isoNaming.volume` / `revision` per project. The
+   validator surfaces missing assets as Warnings (not Errors) so the
+   JSON ships usable on a stock project.
+
 ## Template Engine v1.1 (Phase 112)
 
 **Status**: S01–S18 landed on `claude/implement-template-engine-COd9n`

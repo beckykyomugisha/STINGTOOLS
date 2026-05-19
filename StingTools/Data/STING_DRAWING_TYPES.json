@@ -155,7 +155,8 @@
         "role": "A",
         "suitability": "S2",
         "revision": "P01"
-      }
+      },
+      "description": "Architectural plan on A1 at 1:100."
     },
     {
       "id": "arch-rcp-A1-1to100",
@@ -290,7 +291,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Architectural rcp on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "arch-section-A1-1to50",
@@ -426,7 +438,11 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Architectural section on A1 at 1:50.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "phase": "*"
     },
     {
       "id": "arch-elev-A1-1to100",
@@ -577,7 +593,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Architectural elevation on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "arch-detail-A3-1to20",
@@ -716,6 +743,30 @@
             "enabled": true
           }
         ]
+      },
+      "description": "Architectural detail on A3 at 1:20.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*",
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -810,7 +861,11 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Structural plan on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "phase": "*"
     },
     {
       "id": "struct-section-A1-1to50",
@@ -898,7 +953,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Structural section on A1 at 1:50.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "S",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "mep-plan-A1-1to100",
@@ -1026,7 +1092,11 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Mechanical plan on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "phase": "*"
     },
     {
       "id": "mep-coord-A1-1to50",
@@ -1136,7 +1206,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Mechanical coordination on A1 at 1:50.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "M",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "pipe-spool-A1-1to50",
@@ -1266,7 +1347,11 @@
         "role": "P",
         "suitability": "A",
         "revision": "C01"
-      }
+      },
+      "description": "Plumbing spool on A1 at 1:50.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "phase": "*"
     },
     {
       "id": "duct-spool-A1-1to50",
@@ -1373,6 +1458,30 @@
             "enabled": true
           }
         ]
+      },
+      "description": "Mechanical spool on A1 at 1:50.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "M",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*",
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Mechanical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -1467,7 +1576,24 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Electrical section on A2 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "sectionMarker": {
+        "family": "STING_SECTION_MARK",
+        "markPrefix": "S",
+        "bubbleStyle": "Filled",
+        "farClipMm": 3000.0
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "door-schedule-A2",
@@ -1496,6 +1622,32 @@
       ],
       "annotation": {
         "rules": []
+      },
+      "description": "Architectural schedule on A2 at 1:100.",
+      "orientation": "Portrait",
+      "viewportTypeName": "STING - Standard Viewport",
+      "viewTemplateName": "STING - Architectural Schedule",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*",
+      "detailLevel": "Medium",
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -1564,7 +1716,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Multi-Discipline plan on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "Z",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "legend-A2",
@@ -1593,6 +1756,32 @@
       ],
       "annotation": {
         "rules": []
+      },
+      "description": "Multi-Discipline legend on A2 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "viewTemplateName": "STING - Multi-Discipline Legend",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "Z",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*",
+      "detailLevel": "Medium",
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Multi-Discipline",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -1663,7 +1852,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Architectural plan on A1 at 1:500.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "arch-roof-A1-1to100",
@@ -1742,7 +1942,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Architectural plan on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "arch-floor-finishes-A1-1to100",
@@ -1824,7 +2035,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Architectural plan on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "arch-fire-strategy-A1-1to100",
@@ -1902,7 +2124,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Architectural plan on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "arch-accessibility-A1-1to100",
@@ -1990,7 +2223,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Architectural plan on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "arch-interior-elev-A1-1to50",
@@ -2141,7 +2385,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Architectural elevation on A1 at 1:50.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "arch-window-schedule-A2",
@@ -2170,6 +2425,32 @@
       ],
       "annotation": {
         "rules": []
+      },
+      "description": "Architectural schedule on A2 at 1:100.",
+      "orientation": "Portrait",
+      "viewportTypeName": "STING - Standard Viewport",
+      "viewTemplateName": "STING - Architectural Schedule",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*",
+      "detailLevel": "Medium",
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -2256,7 +2537,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Structural plan on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "S",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "struct-rebar-detail-A3-1to20",
@@ -2310,6 +2602,30 @@
             "enabled": true
           }
         ]
+      },
+      "description": "Structural detail on A3 at 1:20.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "S",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*",
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Structural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -2431,7 +2747,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Mechanical plan on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "M",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "mep-plantroom-A1-1to50",
@@ -2557,7 +2884,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Mechanical plan on A1 at 1:50.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "M",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "elec-power-A1-1to100",
@@ -2662,7 +3000,11 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Electrical plan on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "phase": "*"
     },
     {
       "id": "elec-lighting-A1-1to100",
@@ -2760,7 +3102,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Electrical plan on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "elec-fire-alarm-A1-1to100",
@@ -2857,7 +3210,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Electrical plan on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "plumb-drainage-A1-1to100",
@@ -2947,7 +3311,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Plumbing plan on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "P",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "fm-asset-location-A1-1to100",
@@ -3026,7 +3401,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Multi-Discipline plan on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "Z",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "coord-clash-A1-1to50",
@@ -3152,7 +3538,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Multi-Discipline coordination on A1 at 1:50.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "Z",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "pres-3d-axon-A1",
@@ -3225,7 +3622,10 @@
         "role": "A",
         "suitability": "S1",
         "revision": "P01"
-      }
+      },
+      "description": "Multi-Discipline 3d on A1 at 1:100.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "phase": "*"
     },
     {
       "id": "pres-perspective-A1",
@@ -3282,7 +3682,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Architectural 3d on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "pres-exterior-elev-A1",
@@ -3350,7 +3761,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Architectural elevation on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "pres-render-board-A1",
@@ -3422,7 +3844,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Architectural 3d on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "pres-context-site-A1",
@@ -3499,7 +3932,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Architectural plan on A1 at 1:500.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "clar-markup-A1",
@@ -3574,7 +4018,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Architectural clarification on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "clar-rfi-A3",
@@ -3654,7 +4109,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Multi-Discipline clarification on A3 at 1:50.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "Z",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "clar-design-intent-A1",
@@ -3741,7 +4207,18 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Architectural plan on A1 at 1:100.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "arch-setting-out-A1-1to50",
@@ -3756,7 +4233,7 @@
       "titleBlockFamily": "STING_TB_SHEET_A1",
       "scale": 50,
       "detailLevel": "Fine",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-SP-{seq:D4}",
       "sheetNamePattern": "Setting Out Plan — Level {lvl}",
@@ -3834,6 +4311,14 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
+      },
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
     {
@@ -3849,7 +4334,7 @@
       "titleBlockFamily": "STING_TB_SHEET_A1",
       "scale": 50,
       "detailLevel": "Fine",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-PL-{seq:D4}",
       "sheetNamePattern": "Partition Layout — Level {lvl}",
@@ -3925,6 +4410,14 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
+      },
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
     {
@@ -3940,7 +4433,7 @@
       "titleBlockFamily": "STING_TB_SHEET_A1",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-demolition-phase",
       "sheetNumberPattern": "{disc}-{lvl}-DP-{seq:D4}",
       "sheetNamePattern": "Demolition Plan — Level {lvl}",
@@ -4006,6 +4499,14 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
+      },
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
     {
@@ -4021,7 +4522,7 @@
       "titleBlockFamily": "STING_TB_SHEET_A1",
       "scale": 50,
       "detailLevel": "Fine",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-SL-{seq:D4}",
       "sheetNamePattern": "Sanitary Layout — Level {lvl}",
@@ -4092,6 +4593,14 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
+      },
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
     {
@@ -4107,7 +4616,7 @@
       "titleBlockFamily": "STING_TB_SHEET_A1",
       "scale": 50,
       "detailLevel": "Fine",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-RF-{seq:D4}",
       "sheetNamePattern": "Raised Access Floor — Level {lvl}",
@@ -4173,6 +4682,14 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
+      },
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
     {
@@ -4188,7 +4705,7 @@
       "titleBlockFamily": "STING_TB_SHEET_A3",
       "scale": 10,
       "detailLevel": "Fine",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Architectural Detail",
       "viewStylePackId": "corp-standard-detail",
       "sheetNumberPattern": "{disc}-DT-FL-{seq:D4}",
       "sheetNamePattern": "Floor Build-Up Detail",
@@ -4248,6 +4765,27 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -4263,7 +4801,7 @@
       "titleBlockFamily": "STING_TB_SHEET_A1",
       "scale": 200,
       "detailLevel": "Coarse",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-AP-{seq:D4}",
       "sheetNamePattern": "Area Plan — Level {lvl}",
@@ -4341,6 +4879,14 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
+      },
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
     {
@@ -4356,7 +4902,7 @@
       "titleBlockFamily": "STING_TB_SHEET_A1",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-presentation-rich",
       "sheetNumberPattern": "{disc}-{lvl}-PR-{seq:D4}",
       "sheetNamePattern": "Presentation Floor Plan — Level {lvl}",
@@ -4429,6 +4975,14 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
+      },
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
     {
@@ -4554,6 +5108,14 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
+      },
+      "description": "Multi-Discipline plan on A1 at 1:100.",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "Z",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
     {
@@ -4649,6 +5211,15 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
+      },
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "M",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
     {
@@ -4768,6 +5339,15 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
+      },
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "M",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
     {
@@ -4883,6 +5463,15 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
+      },
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "M",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
     {
@@ -4896,8 +5485,8 @@
       "orientation": "Landscape",
       "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
       "detailLevel": "Coarse",
-      "viewTemplateName": null,
-      "viewportTypeName": null,
+      "viewTemplateName": "STING - Multi-Discipline 3D View",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "pres-burgund-green",
       "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
       "sheetNamePattern": "Presentation — {discipline} Exterior 3D",
@@ -5022,7 +5611,16 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Multi-Discipline 3d on A1 at NA.",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "Z",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "scale": "NA"
     },
     {
       "id": "pres-3d-interior-cutaway-A1",
@@ -5036,8 +5634,8 @@
       "orientation": "Landscape",
       "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
       "detailLevel": "Coarse",
-      "viewTemplateName": null,
-      "viewportTypeName": null,
+      "viewTemplateName": "STING - Multi-Discipline 3D View",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "pres-interior-sage",
       "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
       "sheetNamePattern": "Presentation — {discipline} Interior Cut-Away",
@@ -5162,7 +5760,15 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "Z",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "scale": "NA"
     },
     {
       "id": "pres-composite-A1",
@@ -5330,7 +5936,17 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "viewportTypeName": "STING - Standard Viewport",
+      "viewTemplateName": "STING - Multi-Discipline 3D View",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "Z",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "scale": "NA"
     },
     {
       "id": "elec-spool-A1-1to50",
@@ -5461,6 +6077,23 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "description": "Electrical spool on A1 at 1:50.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "phase": "*",
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -5611,7 +6244,11 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Electrical coordination on A1 at 1:50.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "phase": "*"
     },
     {
       "id": "health-rds-A2",
@@ -5625,7 +6262,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": "NA",
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Schedule",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "{disc}-RDS-{lvl}-{seq:D4}",
@@ -5635,7 +6272,17 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Schedule",
+          "viewType": "Schedule",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -5662,7 +6309,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "One per clinical room: plan, elev, equipment list, services, finishes, sign-off"
+      "_description": "One per clinical room: plan, elev, equipment list, services, finishes, sign-off",
+      "description": "Healthcare schedule on A2 at NA."
     },
     {
       "id": "health-eqp-pln-A1-1to50",
@@ -5676,7 +6324,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 50,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "{disc}-EQP-{lvl}-{seq:D3}",
@@ -5723,7 +6371,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "FF&E callouts, pendant + bedhead positions, scrub/AED/PTS"
+      "_description": "FF&E callouts, pendant + bedhead positions, scrub/AED/PTS",
+      "description": "Healthcare plan on A1 at 1:50."
     },
     {
       "id": "health-mep-coord-A1-1to50",
@@ -5737,7 +6386,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 50,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Mechanical Coordination",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "{disc}-COO-{lvl}-{seq:D3}",
@@ -5784,7 +6433,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "Combined MEP coordination with radiation-shielding overlay"
+      "_description": "Combined MEP coordination with radiation-shielding overlay",
+      "description": "Mechanical coordination on A1 at 1:50."
     },
     {
       "id": "health-medgas-pln-A1-1to100",
@@ -5798,7 +6448,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Medical Gas Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-mgs",
       "sheetNumberPattern": "MG-LAY-{lvl}-{seq:D3}",
@@ -5845,7 +6495,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "MGPS pipe layout per HTM 02-01"
+      "_description": "MGPS pipe layout per HTM 02-01",
+      "description": "Medical Gas plan on A1 at 1:100."
     },
     {
       "id": "health-medgas-schem-A1",
@@ -5859,7 +6510,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": "NA",
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Medical Gas Schematic",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-mgs",
       "sheetNumberPattern": "MG-SCH-{seq:D3}",
@@ -5869,7 +6520,17 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Schematic",
+          "viewType": "Section",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -5896,7 +6557,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "Manifold → riser → ZVB → AAP → terminal-unit schematic"
+      "_description": "Manifold → riser → ZVB → AAP → terminal-unit schematic",
+      "description": "Medical Gas schematic on A1 at NA."
     },
     {
       "id": "health-pressure-pln-A1-1to100",
@@ -5910,7 +6572,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-pressure",
       "sheetNumberPattern": "H-PRS-{lvl}-{seq:D3}",
@@ -5957,7 +6619,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "Δp arrows, AIIR/PE/anteroom cascade per HTM 03-01"
+      "_description": "Δp arrows, AIIR/PE/anteroom cascade per HTM 03-01",
+      "description": "Healthcare plan on A1 at 1:100."
     },
     {
       "id": "health-ess-power-riser-A1",
@@ -5971,7 +6634,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": "NA",
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Electrical Schematic",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-ees",
       "sheetNumberPattern": "E-EES-{seq:D3}",
@@ -5981,7 +6644,17 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Schematic",
+          "viewType": "Section",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -6008,7 +6681,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "EES single-line with LS/CR/EQ branches + ATS, NFPA 99 / HTM 06-01"
+      "_description": "EES single-line with LS/CR/EQ branches + ATS, NFPA 99 / HTM 06-01",
+      "description": "Electrical schematic on A1 at NA."
     },
     {
       "id": "health-ips-pln-A1-1to50",
@@ -6022,7 +6696,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 50,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Electrical Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-ees",
       "sheetNumberPattern": "E-IPS-{lvl}-{seq:D3}",
@@ -6069,7 +6743,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "Isolated power systems for OR / ICU per NEC 517"
+      "_description": "Isolated power systems for OR / ICU per NEC 517",
+      "description": "Electrical plan on A1 at 1:50."
     },
     {
       "id": "health-decon-flow-A1-1to50",
@@ -6083,7 +6758,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 50,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-DEC-{lvl}-{seq:D3}",
@@ -6130,7 +6805,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "HSDU dirty / clean / sterile flow per HBN 13"
+      "_description": "HSDU dirty / clean / sterile flow per HBN 13",
+      "description": "Healthcare plan on A1 at 1:50."
     },
     {
       "id": "health-mortuary-pln-A2-1to50",
@@ -6144,7 +6820,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 50,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-MOR-{lvl}-{seq:D3}",
@@ -6191,7 +6867,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "Mortuary / post-mortem suite per HBN 16"
+      "_description": "Mortuary / post-mortem suite per HBN 16",
+      "description": "Healthcare plan on A2 at 1:50."
     },
     {
       "id": "health-fire-comp-A1-1to100",
@@ -6205,7 +6882,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Architectural Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-fire",
       "sheetNumberPattern": "A-FIR-{lvl}-{seq:D3}",
@@ -6252,7 +6929,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "HTM 05-02 / BS 9999 compartmentation + PHE refuges"
+      "_description": "HTM 05-02 / BS 9999 compartmentation + PHE refuges",
+      "description": "Architectural plan on A1 at 1:100."
     },
     {
       "id": "health-rad-shield-A1-1to50",
@@ -6266,7 +6944,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 50,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Radiation Protection Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "RP-SHD-{lvl}-{seq:D3}",
@@ -6313,7 +6991,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "mm Pb callouts on walls/doors/windows per NCRP 147"
+      "_description": "mm Pb callouts on walls/doors/windows per NCRP 147",
+      "description": "Radiation Protection plan on A1 at 1:50."
     },
     {
       "id": "health-mri-zoning-A1-1to50",
@@ -6327,7 +7006,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 50,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Radiation Protection Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "RP-MRI-{lvl}-{seq:D3}",
@@ -6374,7 +7053,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "Z1..Z4 zoning + 5-Gauss boundary"
+      "_description": "Z1..Z4 zoning + 5-Gauss boundary",
+      "description": "Radiation Protection plan on A1 at 1:50."
     },
     {
       "id": "health-ligature-pln-A1-1to50",
@@ -6388,7 +7068,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 50,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-ligature",
       "sheetNumberPattern": "H-LIG-{lvl}-{seq:D3}",
@@ -6435,7 +7115,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "Ligature risk bands + observation LOS per HBN 03-01"
+      "_description": "Ligature risk bands + observation LOS per HBN 03-01",
+      "description": "Healthcare plan on A1 at 1:50."
     },
     {
       "id": "health-bedhead-elev-A2-1to20",
@@ -6449,7 +7130,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 20,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Elevation",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-BHD-{lvl}-{seq:D3}",
@@ -6496,7 +7177,14 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "Bedhead trunking elevations with services schedule"
+      "_description": "Bedhead trunking elevations with services schedule",
+      "description": "Healthcare elevation on A2 at 1:20.",
+      "sectionMarker": {
+        "family": "STING_ELEV_MARK",
+        "markPrefix": "E",
+        "bubbleStyle": "Filled",
+        "farClipMm": 3000.0
+      }
     },
     {
       "id": "health-or-ceiling-A2-1to20",
@@ -6510,7 +7198,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 20,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Reflected Ceiling Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-RCP-{lvl}-{seq:D3}",
@@ -6557,7 +7245,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "Pendant/boom/light/laminar canopy reflected ceiling"
+      "_description": "Pendant/boom/light/laminar canopy reflected ceiling",
+      "description": "Healthcare rcp on A2 at 1:20."
     },
     {
       "id": "health-water-safety-A1-1to100",
@@ -6571,7 +7260,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Plumbing Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-water",
       "sheetNumberPattern": "P-HWS-{lvl}-{seq:D3}",
@@ -6618,7 +7307,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "TMV3 / aug-care / sentinel / RO-loop per HTM 04-01"
+      "_description": "TMV3 / aug-care / sentinel / RO-loop per HTM 04-01",
+      "description": "Plumbing plan on A1 at 1:100."
     },
     {
       "id": "health-acoustic-A1-1to100",
@@ -6632,7 +7322,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Architectural Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "A-ACO-{lvl}-{seq:D3}",
@@ -6679,7 +7369,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "NR rating + Rw bands + private/sensitive zones"
+      "_description": "NR rating + Rw bands + private/sensitive zones",
+      "description": "Architectural plan on A1 at 1:100."
     },
     {
       "id": "health-struct-loads-A1-1to100",
@@ -6693,7 +7384,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Structural Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "S-IMG-{lvl}-{seq:D3}",
@@ -6740,7 +7431,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "MRI / CT / Linac point loads + slab edge stiffening"
+      "_description": "MRI / CT / Linac point loads + slab edge stiffening",
+      "description": "Structural plan on A1 at 1:100."
     },
     {
       "id": "health-rtls-coverage-A1-1to100",
@@ -6754,7 +7446,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-RTL-{lvl}-{seq:D3}",
@@ -6801,7 +7493,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "RTLS / RFID reader coverage with dead-zone overlay"
+      "_description": "RTLS / RFID reader coverage with dead-zone overlay",
+      "description": "Healthcare plan on A1 at 1:100."
     },
     {
       "id": "health-waste-flow-A1-1to100",
@@ -6815,7 +7508,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-WST-{lvl}-{seq:D3}",
@@ -6862,7 +7555,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "Clinical / cytotoxic / sharps / general flows segregated"
+      "_description": "Clinical / cytotoxic / sharps / general flows segregated",
+      "description": "Healthcare plan on A1 at 1:100."
     },
     {
       "id": "health-nuclear-medicine-A1",
@@ -6876,7 +7570,7 @@
       "titleBlockFamily": "STING - Healthcare Title Block",
       "scale": "NA",
       "detailLevel": "Medium",
-      "viewTemplateName": "",
+      "viewTemplateName": "STING - Radiation Protection Schematic",
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "RP-NM-{seq:D3}",
@@ -6886,7 +7580,17 @@
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Schematic",
+          "viewType": "Section",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -6913,7 +7617,8 @@
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
       },
-      "_description": "Hot lab / dispensing / waiting / imaging zoning"
+      "_description": "Hot lab / dispensing / waiting / imaging zoning",
+      "description": "Radiation Protection schematic on A1 at NA."
     },
     {
       "id": "plumb-dcw-schematic-A1-NTS",
@@ -6963,7 +7668,17 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Plumbing schematic on A1 at 1:1.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "P",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "plumb-dhw-schematic-A1-NTS",
@@ -7013,7 +7728,17 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Plumbing schematic on A1 at 1:1.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "P",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "plumb-lthw-schematic-A1-NTS",
@@ -7063,7 +7788,17 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Plumbing schematic on A1 at 1:1.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "P",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "plumb-ag-drainage-A1-1to100",
@@ -7114,7 +7849,17 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Plumbing plan on A1 at 1:100.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "P",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "plumb-rwd-layout-A1-1to100",
@@ -7165,7 +7910,17 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Plumbing plan on A1 at 1:100.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "P",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "plumb-suds-A1-1to500",
@@ -7216,7 +7971,17 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Plumbing plan on A1 at 1:500.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "P",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "plumb-vent-riser-A2-NTS",
@@ -7266,7 +8031,17 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Plumbing schematic on A2 at 1:1.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "P",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "plumb-pressure-schedule-A2",
@@ -7303,6 +8078,29 @@
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
+      },
+      "description": "Plumbing schedule on A2 at 1:1.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "P",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*",
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Plumbing",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -7354,7 +8152,17 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
-      }
+      },
+      "description": "Plumbing plan on A1 at 1:50.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "P",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
     },
     {
       "id": "plumb-drainage-schematic-A1",
@@ -7382,7 +8190,34 @@
           "w": 0.9,
           "h": 0.85
         }
-      ]
+      ],
+      "description": "Plumbing schedule on A1 at 1:50.",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "P",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "annotation": {
+        "autoTag": false,
+        "autoDimension": false,
+        "rules": [],
+        "tagFamilies": {}
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Plumbing",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      }
     },
     {
       "id": "penetration-register-A1",
@@ -7420,6 +8255,28 @@
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0
+      },
+      "description": "Multi-Discipline schedule on A1 at 1:1.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "Z",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Multi-Discipline",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     }
   ],
