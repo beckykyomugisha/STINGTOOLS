@@ -411,6 +411,88 @@ clash + insulation), `corp-standard-plan` (19 — phase + fire-rated walls
    project before the filter can be created — the factory warns + skips
    gracefully rather than failing the whole batch.
 
+### Phase 182 — Drawing Type / Style Pack alignment audit
+
+Closed the alignment gaps surfaced by the drawing-types/style-packs
+consistency audit on branch `claude/review-drawing-types-styles-WKpW1`.
+
+**STING_VIEW_STYLE_PACKS.json — 11 packs added** (11 → 22 total):
+
+| Pack | Extends | Purpose |
+|---|---|---|
+| `corp-demolition-phase` | `corp-standard-plan` | Demolition drawings — existing halftoned, demolished bold red dashed, new construction hidden. Phase filter `Show Demo + New`. |
+| `corp-healthcare-clinical` | `corp-standard-plan` | Generic clinical plan / RCP / equipment. Bedhead/pendant/scrub/anti-lig fittings + BS 8300 access in NHS-blue palette. `templateMode=managed`. |
+| `corp-healthcare-mgs` | `corp-coordination` | HTM 02-01 medical gas. O2 white, N2O blue, AIR-4/7, VAC yellow, AGSS purple. Manifolds + AVSUs + terminal units. |
+| `corp-healthcare-pressure` | `corp-standard-plan` | HTM 03-01 ventilation pressure cascade. Positive blue, negative red, neutral grey, isolation cubicle purple. |
+| `corp-healthcare-ees` | `corp-coordination` | HTM 06-01 / NFPA 99 essential services. Type A red, Type B orange, Type C yellow, generator/UPS/IPS/ATS highlighted. |
+| `corp-healthcare-fire` | `corp-standard-plan` | HTM 05-02 / BS 9999 fire compartmentation. 30/60/90/120-min walls colour-coded, smoke barriers green dashed. |
+| `corp-healthcare-shielding` | `corp-standard-plan` | NCRP 147 / IPEM 75 radiation shielding. Lead-mm walls magenta, controlled/supervised zones, MRI Zone II/III/IV (5G line). |
+| `corp-healthcare-ligature` | `corp-standard-plan` | Mental health anti-ligature. Compliant fittings purple, non-compliant red, observation lines from staff base. |
+| `corp-healthcare-water` | `corp-coordination` | HTM 04-01 water safety / Legionella. DCW/DHW/DHWR, TMV, dead-leg risk, augmented-care outlets, temperature sensors. |
+| `pres-burgund-green` | `corp-presentation-rich` | Client-facing presentation — burgundy walls + dark-green topo on cream, hand-rendered hatch. |
+| `pres-interior-sage` | `corp-presentation-rich` | Interior elevation presentation — sage walls, warm-wood casework, soft ambient palette, suppressed grids/dimensions. |
+
+All 8 healthcare packs ship with `templateMode: "managed"` and explicit
+`managedFields` whitelists (scale / detailLevel / discipline / visualStyle /
+phaseFilter / vgOverrides / filters — clinical also adds tagColorScheme /
+defaultTagStyle) so Phase 137's `ManagedTemplateSyncer` mints + maintains
+matching `STING:{packId}:{ViewType}` templates and pack-level
+filterRules / vgOverrides drift gets surfaced + healed automatically.
+
+**STING_DRAWING_TYPES.json fixes**:
+
+- `arch-screed-buildup-A3-1to10` — `titleBlockFamily` corrected from
+  `STING_TB_SHEET_A1` to `STING_TB_SHEET_A3` (paper-size / family
+  mismatch).
+- `elec-riser-A2-1to100` — `purpose` corrected from `Plan` to `Section`
+  (slot viewType was already `Section`; purpose intent now matches).
+- `clar-markup-A1` + `clar-rfi-A3` — `purpose` aligned to
+  `Clarification` and explicitly bound to `corp-clarification` (was
+  falling through purpose-based routing without an own pack id).
+- All 22 healthcare drawing types — `titleBlockParams` populated with
+  the corporate 11-cell set (`Client Name`, `Project Code`,
+  `Originator`, `Company Name`, `Company Address`, `Appointing Party`,
+  `Lead Appointed Party`, `Discipline=Healthcare`, `Suitability=S2`,
+  `Sheet Status=WIP`, `Revision=P01`). Previously all empty, so
+  healthcare sheets shipped without corporate metadata stamping.
+
+**DrawingDriftDetector — CROP_DRIFT detection added**
+(`StingTools/Core/Drawing/DrawingDriftDetector.cs`):
+
+- New `AppendCropDrift` method fires when a profile's
+  `crop.scopeBoxName` is set (kind=`ScopeBox` or `ScopeBoxOrBbox`) and
+  the view's bound `VIEWER_VOLUME_OF_INTEREST_CROP` doesn't match.
+- ScopeBox kind reports drift even when scope box missing from
+  document (view will fail to crop); ScopeBoxOrBbox demotes to
+  Suppressed (bbox fallback) when scope box absent.
+- TightBbox / RoomBoundary / None are not comparable post-hoc and are
+  left alone.
+
+**Final state**: 0 missing pack references, 0 orphaned packs (every
+pack now reachable via either an explicit `viewStylePackId` binding or
+the `STING_VIEW_STYLE_PACKS.json` `routing[]` purpose-based fallback),
+0 healthcare types with empty `titleBlockParams`. 50 of 90 drawing
+types now carry an explicit pack id; the remaining 40 rely on
+purpose-based routing fallback (intentional — keeps the JSON DRY).
+
+### Caveats (Phase 182)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The 11 new packs reference view templates and filter names that
+   projects must supply (e.g. `STING - Healthcare Clinical`, `Fire
+   Wall - 60 min`). The validator surfaces missing assets as Warnings,
+   not Errors, so the JSON ships usable on a stock project.
+3. CROP_DRIFT only detects scope-box mismatches; bbox-derived crops
+   (TightBbox / RoomBoundary) are recomputed at apply time and remain
+   unmonitored — deferred until a stamp + diff strategy lands for live
+   crop regions.
+4. Filter rule inheritance through pack `extends` chains is NOT
+   cascaded — only the root `corp-base` and `corp-clarification`
+   define filterRules in the corporate baseline; child packs either
+   redeclare or inherit nothing. Phase 166 wires `inheritDefaults:
+   true` for individual rules but full pack-chain inheritance of the
+   filter list itself stays an explicit per-pack opt-in.
+
 ## Template Engine v1.1 (Phase 112)
 
 **Status**: S01–S18 landed on `claude/implement-template-engine-COd9n`

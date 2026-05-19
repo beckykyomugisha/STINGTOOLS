@@ -275,6 +275,328 @@
         "Furniture":          { "projColor": "#9E9E9E" },
         "Topography":         { "projColor": "#BDBDBD" }
       }
+    },
+    {
+      "id": "corp-demolition-phase",
+      "name": "Demolition Phase",
+      "description": "Demolition drawings. Existing-to-remain halftoned, demolished elements bold red dashed, new construction hidden.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "viewTemplate": "STING - Demolition Plan",
+      "detailLevel": "Medium",
+      "scaleHint": "1:100",
+      "colorScheme": "Monochrome",
+      "phaseFilter": "Show Demo + New",
+      "filterRules": [
+        { "name": "Existing - Halftone", "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1, "cutColor": "#808080", "cutWeight": 1, "transparency": 0 },
+        { "name": "Demolished - Red",    "visible": true, "halftone": false, "projColor": "#C00000", "projWeight": 4, "cutColor": "#C00000", "cutWeight": 4, "transparency": 0, "projLinePattern": "Dash" },
+        { "name": "New Construction",    "visible": false }
+      ],
+      "vgOverrides": {
+        "Walls":     { "halftone": true,  "projWeight": 2 },
+        "Doors":     { "halftone": true,  "projWeight": 1 },
+        "Windows":   { "halftone": true,  "projWeight": 1 },
+        "Floors":    { "halftone": true,  "projWeight": 1 },
+        "Furniture": { "visible": false },
+        "Casework":  { "visible": false }
+      }
+    },
+    {
+      "id": "corp-healthcare-clinical",
+      "name": "Healthcare Clinical",
+      "description": "Generic clinical plan / RCP / equipment. Beds, scrub stations, pendants, medical FF&E and BS 8300 access shown in healthcare blue with NHS room data palette.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare Clinical",
+      "detailLevel": "Fine",
+      "scaleHint": "1:50",
+      "colorScheme": "Discipline",
+      "templateMode": "managed",
+      "managedFields": ["scale", "detailLevel", "discipline", "visualStyle", "phaseFilter", "tagColorScheme", "defaultTagStyle", "vgOverrides", "filters"],
+      "filterRules": [
+        { "name": "Clinical Equipment",     "visible": true, "projColor": "#0066CC", "projWeight": 3, "cutColor": "#0066CC", "cutWeight": 3 },
+        { "name": "Bedhead Service Units",  "visible": true, "projColor": "#0066CC", "projWeight": 4 },
+        { "name": "Pendants - Ceiling",     "visible": true, "projColor": "#1976D2", "projWeight": 3 },
+        { "name": "Anti-Ligature Fittings", "visible": true, "projColor": "#7B1FA2", "projWeight": 3 },
+        { "name": "Scrub Stations",         "visible": true, "projColor": "#0288D1", "projWeight": 3 },
+        { "name": "Accessible Routes",      "visible": true, "projColor": "#43A047", "projWeight": 2, "transparency": 50 },
+        { "name": "Room Department - Acute",     "visible": true, "projColor": "#FFCDD2", "transparency": 70 },
+        { "name": "Room Department - Outpatient","visible": true, "projColor": "#C8E6C9", "transparency": 70 },
+        { "name": "Room Department - Diagnostic","visible": true, "projColor": "#BBDEFB", "transparency": 70 }
+      ],
+      "vgOverrides": {
+        "Specialty Equipment":  { "visible": true, "projColor": "#0066CC", "projWeight": 3 },
+        "Medical Equipment":    { "visible": true, "projColor": "#0066CC", "projWeight": 3 },
+        "Rooms":                { "visible": true, "projColor": "#1976D2", "projWeight": 1, "transparency": 60 },
+        "Furniture":            { "visible": true, "projColor": "#5E35B1", "projWeight": 1 },
+        "Plumbing Fixtures":    { "visible": true, "halftone": false, "projColor": "#2E7D32", "projWeight": 2 },
+        "Casework":             { "visible": true, "projColor": "#37474F", "projWeight": 2 }
+      }
+    },
+    {
+      "id": "corp-healthcare-mgs",
+      "name": "Healthcare Medical Gas",
+      "description": "HTM 02-01 medical gas pipeline distribution. O2 white, N2O blue, AIR-4 black/white, AIR-7 black/white, VAC yellow, AGSS purple/yellow. Manifolds, area valve service units, terminal units highlighted.",
+      "extends": "corp-coordination",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare MGPS",
+      "detailLevel": "Fine",
+      "scaleHint": "1:50",
+      "colorScheme": "MedicalGas",
+      "templateMode": "managed",
+      "managedFields": ["scale", "detailLevel", "discipline", "visualStyle", "phaseFilter", "vgOverrides", "filters"],
+      "filterRules": [
+        { "name": "MGPS - Oxygen (O2)",          "visible": true, "projColor": "#FFFFFF", "projWeight": 4, "cutColor": "#FFFFFF", "cutWeight": 4 },
+        { "name": "MGPS - Nitrous Oxide (N2O)",  "visible": true, "projColor": "#0066CC", "projWeight": 4 },
+        { "name": "MGPS - Medical Air (AIR-4)",  "visible": true, "projColor": "#000000", "projWeight": 4 },
+        { "name": "MGPS - Surgical Air (AIR-7)", "visible": true, "projColor": "#404040", "projWeight": 4, "projLinePattern": "Dash" },
+        { "name": "MGPS - Vacuum (VAC)",         "visible": true, "projColor": "#FFD600", "projWeight": 4 },
+        { "name": "MGPS - AGSS",                 "visible": true, "projColor": "#7B1FA2", "projWeight": 4, "projLinePattern": "Dash Dot" },
+        { "name": "MGPS - Entonox",              "visible": true, "projColor": "#0288D1", "projWeight": 3 },
+        { "name": "MGPS - CO2",                  "visible": true, "projColor": "#2E7D32", "projWeight": 3 },
+        { "name": "MGPS - Manifold",             "visible": true, "projColor": "#C00000", "projWeight": 5 },
+        { "name": "MGPS - AVSU / Area Valve",    "visible": true, "projColor": "#C00000", "projWeight": 4 },
+        { "name": "MGPS - Terminal Unit",        "visible": true, "projColor": "#FF6600", "projWeight": 3 }
+      ],
+      "vgOverrides": {
+        "Pipes":             { "projWeight": 4 },
+        "Pipe Fittings":     { "projWeight": 3 },
+        "Pipe Accessories":  { "projWeight": 3, "projColor": "#C00000" },
+        "Mechanical Equipment": { "projColor": "#0066CC", "projWeight": 3 },
+        "Walls":             { "halftone": true, "projColor": "#808080", "projWeight": 1 }
+      }
+    },
+    {
+      "id": "corp-healthcare-pressure",
+      "name": "Healthcare Pressure Regime",
+      "description": "HTM 03-01 / SHTM 03-01 ventilation pressure cascades. Positive zones blue, negative red, neutral grey, with door arrows showing flow direction.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare Pressure",
+      "detailLevel": "Medium",
+      "scaleHint": "1:100",
+      "colorScheme": "Pressure",
+      "templateMode": "managed",
+      "managedFields": ["scale", "detailLevel", "discipline", "visualStyle", "vgOverrides", "filters"],
+      "filterRules": [
+        { "name": "Pressure - Positive (+15 Pa)", "visible": true, "projColor": "#1976D2", "projWeight": 1, "transparency": 50 },
+        { "name": "Pressure - Positive (+5 Pa)",  "visible": true, "projColor": "#64B5F6", "projWeight": 1, "transparency": 50 },
+        { "name": "Pressure - Neutral",           "visible": true, "projColor": "#BDBDBD", "projWeight": 1, "transparency": 70 },
+        { "name": "Pressure - Negative (-5 Pa)",  "visible": true, "projColor": "#EF5350", "projWeight": 1, "transparency": 50 },
+        { "name": "Pressure - Negative (-15 Pa)", "visible": true, "projColor": "#C00000", "projWeight": 1, "transparency": 50 },
+        { "name": "Pressure - Isolation Cubicle", "visible": true, "projColor": "#7B1FA2", "projWeight": 3 }
+      ],
+      "vgOverrides": {
+        "Rooms":          { "visible": true, "projWeight": 1, "transparency": 0 },
+        "Doors":          { "visible": true, "projColor": "#000000", "projWeight": 3 },
+        "Air Terminals":  { "visible": true, "projColor": "#1976D2", "projWeight": 2 },
+        "Ducts":          { "visible": false },
+        "Pipes":          { "visible": false }
+      }
+    },
+    {
+      "id": "corp-healthcare-ees",
+      "name": "Healthcare Essential Electrical Services",
+      "description": "HTM 06-01 / NFPA 99 / NFPA 110 essential electrical services. Type A (life safety, <0.5s) red, Type B (critical, <15s) orange, Type C (equipment, <40s) yellow, normal supply grey.",
+      "extends": "corp-coordination",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare EES",
+      "detailLevel": "Fine",
+      "scaleHint": "1:100",
+      "colorScheme": "ElectricalSupply",
+      "templateMode": "managed",
+      "managedFields": ["scale", "detailLevel", "discipline", "visualStyle", "vgOverrides", "filters"],
+      "filterRules": [
+        { "name": "EES - Type A (Life Safety)",     "visible": true, "projColor": "#C00000", "projWeight": 5 },
+        { "name": "EES - Type B (Critical)",        "visible": true, "projColor": "#F57F17", "projWeight": 4 },
+        { "name": "EES - Type C (Equipment)",       "visible": true, "projColor": "#FFD600", "projWeight": 3 },
+        { "name": "EES - Normal Supply",            "visible": true, "projColor": "#808080", "projWeight": 2 },
+        { "name": "EES - Generator",                "visible": true, "projColor": "#C00000", "projWeight": 6 },
+        { "name": "EES - UPS",                      "visible": true, "projColor": "#7B1FA2", "projWeight": 5 },
+        { "name": "EES - IPS / Isolated Power",     "visible": true, "projColor": "#1976D2", "projWeight": 4 },
+        { "name": "EES - Transfer Switch (ATS)",    "visible": true, "projColor": "#C00000", "projWeight": 4 }
+      ],
+      "vgOverrides": {
+        "Electrical Equipment":  { "projColor": "#F57F17", "projWeight": 3 },
+        "Electrical Fixtures":   { "projColor": "#F57F17", "projWeight": 2 },
+        "Conduits":              { "projColor": "#F57F17", "projWeight": 2 },
+        "Cable Trays":           { "projColor": "#F57F17", "projWeight": 2 },
+        "Walls":                 { "halftone": true, "projColor": "#808080", "projWeight": 1 }
+      }
+    },
+    {
+      "id": "corp-healthcare-fire",
+      "name": "Healthcare Fire Strategy",
+      "description": "HTM 05-02 / BS 9999 fire compartmentation. 30/60/90/120-min fire-rated walls colour-coded; smoke barriers green dashed; sub-compartments solid red.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare Fire",
+      "detailLevel": "Medium",
+      "scaleHint": "1:100",
+      "colorScheme": "FireRating",
+      "templateMode": "managed",
+      "managedFields": ["scale", "detailLevel", "discipline", "visualStyle", "vgOverrides", "filters"],
+      "filterRules": [
+        { "name": "Fire Wall - 120 min", "visible": true, "projColor": "#7B1FA2", "projWeight": 6, "cutColor": "#7B1FA2", "cutWeight": 6 },
+        { "name": "Fire Wall - 90 min",  "visible": true, "projColor": "#C00000", "projWeight": 5, "cutColor": "#C00000", "cutWeight": 5 },
+        { "name": "Fire Wall - 60 min",  "visible": true, "projColor": "#F57F17", "projWeight": 4, "cutColor": "#F57F17", "cutWeight": 4 },
+        { "name": "Fire Wall - 30 min",  "visible": true, "projColor": "#FFD600", "projWeight": 3, "cutColor": "#FFD600", "cutWeight": 3 },
+        { "name": "Smoke Barrier",       "visible": true, "projColor": "#43A047", "projWeight": 3, "projLinePattern": "Dash" },
+        { "name": "Sub-Compartment",     "visible": true, "projColor": "#C00000", "projWeight": 2, "transparency": 70 },
+        { "name": "Means of Escape",     "visible": true, "projColor": "#43A047", "projWeight": 2 },
+        { "name": "Fire Door",           "visible": true, "projColor": "#C00000", "projWeight": 4 }
+      ],
+      "vgOverrides": {
+        "Walls":            { "visible": true, "projWeight": 2 },
+        "Doors":            { "visible": true, "projColor": "#000000", "projWeight": 2 },
+        "Furniture":        { "visible": false },
+        "Casework":         { "visible": false },
+        "Fire Alarm Devices": { "visible": true, "projColor": "#C00000", "projWeight": 3 },
+        "Sprinklers":       { "visible": true, "projColor": "#C00000", "projWeight": 2 }
+      }
+    },
+    {
+      "id": "corp-healthcare-shielding",
+      "name": "Healthcare Radiation Shielding",
+      "description": "NCRP 147 / IPEM 75 / IAEA SRS 47 radiation shielding. Lead-equivalent walls bold magenta, controlled/supervised zones colour-banded, dose monitoring positions marked.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare Shielding",
+      "detailLevel": "Fine",
+      "scaleHint": "1:50",
+      "colorScheme": "Radiation",
+      "templateMode": "managed",
+      "managedFields": ["scale", "detailLevel", "discipline", "visualStyle", "vgOverrides", "filters"],
+      "filterRules": [
+        { "name": "Shielding - Lead 1.0 mm",  "visible": true, "projColor": "#880E4F", "projWeight": 4, "cutColor": "#880E4F", "cutWeight": 4 },
+        { "name": "Shielding - Lead 2.0 mm",  "visible": true, "projColor": "#AD1457", "projWeight": 5, "cutColor": "#AD1457", "cutWeight": 5 },
+        { "name": "Shielding - Lead 2.5 mm",  "visible": true, "projColor": "#C2185B", "projWeight": 6, "cutColor": "#C2185B", "cutWeight": 6 },
+        { "name": "Shielding - Concrete",     "visible": true, "projColor": "#5D4037", "projWeight": 6, "cutColor": "#5D4037", "cutWeight": 6 },
+        { "name": "Shielding - Borated Poly", "visible": true, "projColor": "#00897B", "projWeight": 4 },
+        { "name": "Zone - Controlled",        "visible": true, "projColor": "#FFD600", "projWeight": 1, "transparency": 60 },
+        { "name": "Zone - Supervised",        "visible": true, "projColor": "#FFEB3B", "projWeight": 1, "transparency": 75 },
+        { "name": "MRI Zone IV (5G Line)",    "visible": true, "projColor": "#7B1FA2", "projWeight": 4 },
+        { "name": "MRI Zone III",             "visible": true, "projColor": "#9C27B0", "projWeight": 2, "transparency": 50 },
+        { "name": "MRI Zone II",              "visible": true, "projColor": "#CE93D8", "projWeight": 1, "transparency": 70 }
+      ],
+      "vgOverrides": {
+        "Walls":            { "projWeight": 3 },
+        "Doors":            { "visible": true, "projColor": "#880E4F", "projWeight": 3 },
+        "Specialty Equipment": { "visible": true, "projColor": "#880E4F", "projWeight": 4 },
+        "Furniture":        { "visible": false }
+      }
+    },
+    {
+      "id": "corp-healthcare-ligature",
+      "name": "Healthcare Anti-Ligature",
+      "description": "Mental health / dementia / paediatric anti-ligature audit drawings. Ligature-resistant fittings highlighted purple, anti-bind doors magenta, observation lines from staff base shown.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare Anti-Ligature",
+      "detailLevel": "Fine",
+      "scaleHint": "1:50",
+      "colorScheme": "AntiLigature",
+      "templateMode": "managed",
+      "managedFields": ["scale", "detailLevel", "discipline", "visualStyle", "vgOverrides", "filters"],
+      "filterRules": [
+        { "name": "Anti-Ligature - Compliant",     "visible": true, "projColor": "#7B1FA2", "projWeight": 3 },
+        { "name": "Anti-Ligature - Non-Compliant", "visible": true, "projColor": "#C00000", "projWeight": 5 },
+        { "name": "Anti-Bind Door",                "visible": true, "projColor": "#AD1457", "projWeight": 4 },
+        { "name": "Observation - Direct",          "visible": true, "projColor": "#43A047", "projWeight": 2, "transparency": 30 },
+        { "name": "Observation - Indirect",        "visible": true, "projColor": "#FBC02D", "projWeight": 2, "transparency": 30 },
+        { "name": "Observation - None",            "visible": true, "projColor": "#C00000", "projWeight": 2, "transparency": 30 },
+        { "name": "Anti-Ligature Sanitary",        "visible": true, "projColor": "#7B1FA2", "projWeight": 3 },
+        { "name": "Anti-Ligature Bedroom",         "visible": true, "projColor": "#9C27B0", "projWeight": 2, "transparency": 60 }
+      ],
+      "vgOverrides": {
+        "Doors":             { "visible": true, "projColor": "#000000", "projWeight": 3 },
+        "Plumbing Fixtures": { "visible": true, "projColor": "#7B1FA2", "projWeight": 3 },
+        "Lighting Fixtures": { "visible": true, "projColor": "#7B1FA2", "projWeight": 2 },
+        "Casework":          { "visible": true, "projColor": "#7B1FA2", "projWeight": 2 },
+        "Furniture":         { "visible": true, "projColor": "#9E9E9E", "projWeight": 1 },
+        "Windows":           { "visible": true, "projColor": "#7B1FA2", "projWeight": 2 }
+      }
+    },
+    {
+      "id": "corp-healthcare-water",
+      "name": "Healthcare Water Safety",
+      "description": "HTM 04-01 water safety / Legionella control. DCW blue, DHW red, DHWR yellow, dead-leg risk magenta, TMV mixed-water green, temp-monitor sensors highlighted.",
+      "extends": "corp-coordination",
+      "origin": "corporate",
+      "viewTemplate": "STING - Healthcare Water",
+      "detailLevel": "Fine",
+      "scaleHint": "1:100",
+      "colorScheme": "WaterSafety",
+      "templateMode": "managed",
+      "managedFields": ["scale", "detailLevel", "discipline", "visualStyle", "vgOverrides", "filters"],
+      "filterRules": [
+        { "name": "Water - DCW (Cold)",            "visible": true, "projColor": "#0066CC", "projWeight": 4 },
+        { "name": "Water - DHW (Hot Flow)",        "visible": true, "projColor": "#C00000", "projWeight": 4 },
+        { "name": "Water - DHWR (Hot Return)",     "visible": true, "projColor": "#FFD600", "projWeight": 4 },
+        { "name": "Water - TMV Mixed",             "visible": true, "projColor": "#2E7D32", "projWeight": 3 },
+        { "name": "Water - Dead Leg (Risk)",       "visible": true, "projColor": "#AD1457", "projWeight": 5, "projLinePattern": "Dash" },
+        { "name": "Water - Outlet (Augmented Care)","visible": true, "projColor": "#7B1FA2", "projWeight": 4 },
+        { "name": "Water - Temperature Sensor",    "visible": true, "projColor": "#FF6600", "projWeight": 3 },
+        { "name": "Water - Calorifier",            "visible": true, "projColor": "#C00000", "projWeight": 5 }
+      ],
+      "vgOverrides": {
+        "Pipes":              { "projWeight": 4 },
+        "Pipe Fittings":      { "projWeight": 3 },
+        "Pipe Accessories":   { "projWeight": 3 },
+        "Plumbing Fixtures":  { "visible": true, "projColor": "#0066CC", "projWeight": 3 },
+        "Mechanical Equipment": { "visible": true, "projColor": "#C00000", "projWeight": 3 },
+        "Walls":              { "halftone": true, "projColor": "#808080", "projWeight": 1 }
+      }
+    },
+    {
+      "id": "pres-burgund-green",
+      "name": "Presentation — Burgundy / Green",
+      "description": "Client-facing presentation pack. Burgundy walls + dark-green topo on cream paper. Hand-rendered hatch palette.",
+      "extends": "corp-presentation-rich",
+      "origin": "corporate",
+      "viewTemplate": "STING - Presentation Burgundy",
+      "detailLevel": "Medium",
+      "scaleHint": "1:100",
+      "colorScheme": "PresentationRich",
+      "appearance": {
+        "textStyleName": "STING - 3.0mm Presentation",
+        "hatchPalette": "Hand-rendered"
+      },
+      "vgOverrides": {
+        "Walls":              { "projColor": "#5D1A2D", "cutColor": "#5D1A2D", "projWeight": 6, "cutWeight": 6 },
+        "Structural Columns": { "projColor": "#5D1A2D", "projWeight": 6 },
+        "Floors":             { "halftone": false, "projColor": "#F5E6D3", "projWeight": 1 },
+        "Rooms":              { "visible": true, "projColor": "#F5E6D3", "transparency": 40 },
+        "Topography":         { "visible": true, "projColor": "#2E5D3A", "projWeight": 1, "transparency": 20 },
+        "Furniture":          { "visible": true, "projColor": "#8D6E63", "projWeight": 1 },
+        "Curtain Panels":     { "projColor": "#5D1A2D", "projWeight": 2 }
+      }
+    },
+    {
+      "id": "pres-interior-sage",
+      "name": "Presentation — Interior Sage",
+      "description": "Interior elevation presentation. Sage walls, warm wood casework, soft ambient palette. Suppressed grids/dimensions.",
+      "extends": "corp-presentation-rich",
+      "origin": "corporate",
+      "viewTemplate": "STING - Presentation Interior",
+      "detailLevel": "Medium",
+      "scaleHint": "1:50",
+      "colorScheme": "PresentationRich",
+      "appearance": {
+        "textStyleName": "STING - 2.5mm Presentation"
+      },
+      "vgOverrides": {
+        "Walls":              { "projColor": "#7A8B6E", "cutColor": "#7A8B6E", "projWeight": 4, "cutWeight": 4 },
+        "Casework":           { "visible": true, "projColor": "#A0826D", "projWeight": 3 },
+        "Furniture":          { "visible": true, "projColor": "#8B6F47", "projWeight": 2 },
+        "Floors":             { "projColor": "#E8DCC4", "projWeight": 1 },
+        "Lighting Fixtures":  { "visible": true, "projColor": "#FFA726", "projWeight": 2 },
+        "Plumbing Fixtures":  { "visible": true, "projColor": "#90A4AE", "projWeight": 2 },
+        "Doors":              { "visible": true, "projColor": "#5D4037", "projWeight": 2 },
+        "Windows":             { "visible": true, "projColor": "#A0826D", "projWeight": 2 },
+        "Grids":              { "visible": false },
+        "Dimensions":         { "visible": false }
+      }
     }
   ],
   "routing": [

@@ -12,6 +12,9 @@
 //   TITLEBLOCK_SPEC_DRIFT   title-block family on sheet doesn't match profile
 //                           family, or STING_TB_SPEC_HASH_TXT is absent /
 //                           mismatched (Gap 5)
+//   CROP_DRIFT              view's VIEWER_VOLUME_OF_INTEREST_CROP doesn't
+//                           match profile.crop.scopeBoxName (only fires
+//                           when the profile names a scope box)
 //
 // Consumed by the SyncStyles command (which re-applies the profile
 // on drifted views) and surfaced in the Inspect command output so
@@ -190,9 +193,69 @@ namespace StingTools.Core.Drawing
                 // would write. SyncStyles re-runs Apply and heals.
                 AppendOptionScopeDrift(doc, v, dt, report);
 
+                // Crop drift — when the profile names a scope box, compare
+                // the view's bound VIEWER_VOLUME_OF_INTEREST_CROP to that
+                // scope box. ScopeBoxOrBbox is only flagged when a scope
+                // box was specified AND it exists in the document. Other
+                // crop kinds (TightBbox / RoomBoundary / None) are derived
+                // at apply time and not comparable post-hoc.
+                AppendCropDrift(doc, v, dt, report);
+
                 if (report.Drifts.Count > 0 || report.Suppressed.Count > 0) reports.Add(report);
             }
             return reports;
+        }
+
+        // CROP_DRIFT — only meaningful when the profile names a scope box
+        // (kind=ScopeBox or kind=ScopeBoxOrBbox + scopeBoxName set). For
+        // bbox-derived crops the live region is recomputed at apply-time
+        // and there is no stable expected value to diff against.
+        private static void AppendCropDrift(Document doc, View v, DrawingType dt, DriftReport report)
+        {
+            try
+            {
+                var crop = dt?.Crop;
+                if (crop == null) return;
+                var kind = (crop.Kind ?? "").Trim();
+                if (string.IsNullOrEmpty(crop.ScopeBoxName)) return;
+                if (!string.Equals(kind, "ScopeBox", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(kind, "ScopeBoxOrBbox", StringComparison.OrdinalIgnoreCase)) return;
+
+                var p = v.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
+                if (p == null) return;
+
+                ElementId actualId = p.AsElementId() ?? ElementId.InvalidElementId;
+                string actualName = actualId == ElementId.InvalidElementId
+                    ? "(none)"
+                    : doc.GetElement(actualId)?.Name ?? actualId.ToString();
+
+                if (!string.Equals(actualName, crop.ScopeBoxName, StringComparison.OrdinalIgnoreCase))
+                {
+                    // For ScopeBoxOrBbox the profile permits a bbox fallback
+                    // only when the named scope box doesn't exist. Resolve
+                    // the named scope box; if it exists but is not bound,
+                    // that's drift. If it doesn't exist, suppress as info.
+                    var resolved = new FilteredElementCollector(doc)
+                        .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                        .WhereElementIsNotElementType()
+                        .FirstOrDefault(e => string.Equals(e.Name, crop.ScopeBoxName, StringComparison.OrdinalIgnoreCase));
+                    if (resolved == null)
+                    {
+                        if (string.Equals(kind, "ScopeBoxOrBbox", StringComparison.OrdinalIgnoreCase))
+                            report.Suppressed.Add($"CROP_INFO: scope box '{crop.ScopeBoxName}' not in document — bbox fallback in use");
+                        else
+                            report.Drifts.Add($"CROP: scope box '{crop.ScopeBoxName}' not in document — view will fail to crop");
+                    }
+                    else
+                    {
+                        report.Drifts.Add($"CROP: scope box '{actualName}' vs profile '{crop.ScopeBoxName}'");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"AppendCropDrift({v?.Id}): {ex.Message}");
+            }
         }
 
         // Phase 175 — drift between profile.OptionScope and view's actual
