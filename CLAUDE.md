@@ -785,6 +785,89 @@ And the 22 packs:
    validator surfaces missing assets as Warnings (not Errors) so the
    JSON ships usable on a stock project.
 
+### Phase 184f — Filter refs resolve + healthcare TB naming aligned
+
+Closed the last two deployment caveats from Phase 184d/e.
+
+**70/70 pack filter references now resolve** (`STING_AEC_FILTERS.json`):
+
+The 8 healthcare packs + `corp-base` + `corp-demolition-phase` + 
+`corp-clarification` referenced 75 filter names by pretty-name 
+convention (`MGPS - Oxygen (O2)`, `Fire Wall - 60 min`, 
+`Anti-Ligature - Compliant`). The AEC filter library uses the 
+`STING - <Domain>: <Type>` naming convention. Two changes:
+
+- **54 references remapped** to existing library entries (e.g.
+  `MGPS - Oxygen (O2)` → `STING - MGS: O2`, `Fire Wall - 60 min` →
+  `STING - Arch: Fire 60 min Walls`, `Pressure - Negative (-5 Pa)` →
+  `STING - Clin: Pressure Negative`, `EES - Type A (Life Safety)` →
+  `STING - EES: Life Safety`).
+- **24 new filter definitions added** to `STING_AEC_FILTERS.json`
+  (filter count 265 → 289) covering: Out of Scope, RFI Query, Design
+  Intent, Bedhead/Pendant/Scrub/Accessible Routes, Room Department ×
+  3, MGPS Manifold/Terminal Unit/Entonox, EES Generator/ATS,
+  Shielding Lead 1mm/Borated Poly, Water Dead Leg/Temp
+  Sensor/Calorifier, Anti-Bind Door, Observation Direct/Indirect/None.
+  Each new filter keys off documented healthcare shared parameters
+  (`MGS_GAS_TYPE_TXT`, `LIG_AREA_OBS_LOS_TXT`, `RAD_LEAD_MM_NR`,
+  `CLN_ROOM_CLASS_TXT`, etc.) with sensible categories + inline
+  override defaults that the pack's per-rule overrides layer on top
+  of (Phase 166 `inheritDefaults` pattern).
+
+The pack inline-override styling is preserved verbatim — only the
+filter-name LOOKUP key changed. Visual identity is intact; the
+`ViewStylePackApplier` now finds a real `ParameterFilterElement`
+to attach to the view (via `AecFilterRegistry.LazyCreate`) instead
+of warning "filter not in document".
+
+**Healthcare title block naming standardised** (`STING_DRAWING_TYPES.json`):
+
+All 22 healthcare drawing types now use size-suffixed title-block
+family names matching the corporate convention:
+
+- A1 profiles (18) → `"STING - Healthcare Title Block A1"`
+- A2 profiles (4)  → `"STING - Healthcare Title Block A2"`
+
+Previously all 22 referenced the non-size-specific
+`"STING - Healthcare Title Block"`, which forced the
+`TitleBlockRouter` to fall back to "first available" matching on a
+stock project. The split mirrors the `STING_TB_SHEET_A1` /
+`STING_TB_SHEET_A2` corporate baseline; projects with a single
+multi-size healthcare family can override via project-scoped
+`drawing_types.json`.
+
+**Final integrity** (programmatically verified):
+
+| Check | Result |
+|---|---|
+| Drawing types | 90 |
+| Routing rules | 101 |
+| Style packs | 22 |
+| AEC filters | 289 |
+| Pack filter refs resolved | ✓ 70/70 |
+| Healthcare TB ↔ paper size aligned | ✓ |
+| All other Phase 184e checks (17 fields) | ✓ 90/90 |
+
+### Caveats (Phase 184f)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The 24 new filter definitions use sensible category + rule
+   defaults but assume the documented healthcare shared parameters
+   (`MGS_GAS_TYPE_TXT`, `LIG_AREA_OBS_LOS_TXT`, `RAD_LEAD_MM_NR`,
+   `CLN_ROOM_CLASS_TXT`, `MGS_TU_BS5682_BOOL`, `RAD_BARRIER_TYPE_TXT`,
+   `PLM_DEAD_LEG_BOOL`, `LIG_PRODUCT_RATING_TXT`) are bound on the
+   project. The `AecFilterFactory` warns + skips gracefully when a
+   referenced shared param isn't bound, so the JSON ships usable on
+   a stock project — projects bind the params via `LoadSharedParams`
+   on first use.
+3. Some pack→library remappings collapse fine-grained pack categories
+   to coarser library entries (e.g. `Pressure - Positive (+15 Pa)` and
+   `Pressure - Positive (+5 Pa)` both map to `STING - Clin: Pressure
+   Positive`; `Fire Door` maps to `STING - Arch: FD60 Doors`).
+   Pack-side `transparency` / `projColor` overrides still differentiate
+   the visual outcome on the view; projects that need separate filters
+   per band can fork the library entry.
+
 ## Template Engine v1.1 (Phase 112)
 
 **Status**: S01–S18 landed on `claude/implement-template-engine-COd9n`

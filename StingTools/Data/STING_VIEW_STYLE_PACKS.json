@@ -19,7 +19,7 @@
       },
       "filterRules": [
         {
-          "name": "Existing - Halftone",
+          "name": "STING - Phase: Existing",
           "visible": true,
           "halftone": true,
           "projColor": "#808080",
@@ -29,7 +29,7 @@
           "transparency": 0
         },
         {
-          "name": "Demolished - Red",
+          "name": "STING - Phase: Demolished",
           "visible": true,
           "halftone": true,
           "projColor": "#C00000",
@@ -39,7 +39,7 @@
           "transparency": 30
         },
         {
-          "name": "New Construction",
+          "name": "STING - Phase: New Construction",
           "visible": true,
           "halftone": false,
           "projColor": "#000000",
@@ -49,7 +49,7 @@
           "transparency": 0
         },
         {
-          "name": "Temporary Works",
+          "name": "STING - Phase: Temporary",
           "visible": true,
           "halftone": true,
           "projColor": "#FF6600",
@@ -683,7 +683,7 @@
       "phaseFilter": "Show Demo + New",
       "filterRules": [
         {
-          "name": "Existing - Halftone",
+          "name": "STING - Phase: Existing",
           "visible": true,
           "halftone": true,
           "projColor": "#808080",
@@ -693,7 +693,7 @@
           "transparency": 0
         },
         {
-          "name": "Demolished - Red",
+          "name": "STING - Phase: Demolished",
           "visible": true,
           "halftone": false,
           "projColor": "#C00000",
@@ -704,7 +704,7 @@
           "projLinePattern": "Dash"
         },
         {
-          "name": "New Construction",
+          "name": "STING - Phase: New Construction",
           "visible": false
         }
       ],
@@ -757,7 +757,7 @@
       ],
       "filterRules": [
         {
-          "name": "Clinical Equipment",
+          "name": "STING - CEQ: Clinical Asset",
           "visible": true,
           "projColor": "#0066CC",
           "projWeight": 3,
@@ -777,7 +777,7 @@
           "projWeight": 3
         },
         {
-          "name": "Anti-Ligature Fittings",
+          "name": "STING - Lig: LOW Risk",
           "visible": true,
           "projColor": "#7B1FA2",
           "projWeight": 3
@@ -873,7 +873,7 @@
       ],
       "filterRules": [
         {
-          "name": "MGPS - Oxygen (O2)",
+          "name": "STING - MGS: O2",
           "visible": true,
           "projColor": "#FFFFFF",
           "projWeight": 4,
@@ -881,32 +881,32 @@
           "cutWeight": 4
         },
         {
-          "name": "MGPS - Nitrous Oxide (N2O)",
+          "name": "STING - MGS: N2O",
           "visible": true,
           "projColor": "#0066CC",
           "projWeight": 4
         },
         {
-          "name": "MGPS - Medical Air (AIR-4)",
+          "name": "STING - MGS: MA4",
           "visible": true,
           "projColor": "#000000",
           "projWeight": 4
         },
         {
-          "name": "MGPS - Surgical Air (AIR-7)",
+          "name": "STING - MGS: MA7",
           "visible": true,
           "projColor": "#404040",
           "projWeight": 4,
           "projLinePattern": "Dash"
         },
         {
-          "name": "MGPS - Vacuum (VAC)",
+          "name": "STING - MGS: VAC",
           "visible": true,
           "projColor": "#FFD600",
           "projWeight": 4
         },
         {
-          "name": "MGPS - AGSS",
+          "name": "STING - MGS: AGS",
           "visible": true,
           "projColor": "#7B1FA2",
           "projWeight": 4,
@@ -919,7 +919,7 @@
           "projWeight": 3
         },
         {
-          "name": "MGPS - CO2",
+          "name": "STING - MGS: CO2",
           "visible": true,
           "projColor": "#2E7D32",
           "projWeight": 3
@@ -931,7 +931,7 @@
           "projWeight": 5
         },
         {
-          "name": "MGPS - AVSU / Area Valve",
+          "name": "STING - MGS: Zone Valve Box",
           "visible": true,
           "projColor": "#C00000",
           "projWeight": 4
@@ -988,42 +988,42 @@
       ],
       "filterRules": [
         {
-          "name": "Pressure - Positive (+15 Pa)",
+          "name": "STING - Clin: Pressure Positive",
           "visible": true,
           "projColor": "#1976D2",
           "projWeight": 1,
           "transparency": 50
         },
         {
-          "name": "Pressure - Positive (+5 Pa)",
+          "name": "STING - Clin: Pressure Positive",
           "visible": true,
           "projColor": "#64B5F6",
           "projWeight": 1,
           "transparency": 50
         },
         {
-          "name": "Pressure - Neutral",
+          "name": "STING - Clin: Pressure Neutral",
           "visible": true,
           "projColor": "#BDBDBD",
           "projWeight": 1,
           "transparency": 70
         },
         {
-          "name": "Pressure - Negative (-5 Pa)",
+          "name": "STING - Clin: Pressure Negative",
           "visible": true,
           "projColor": "#EF5350",
           "projWeight": 1,
           "transparency": 50
         },
         {
-          "name": "Pressure - Negative (-15 Pa)",
+          "name": "STING - Clin: Pressure Negative",
           "visible": true,
           "projColor": "#C00000",
           "projWeight": 1,
           "transparency": 50
         },
         {
-          "name": "Pressure - Isolation Cubicle",
+          "name": "STING - Clin: AIIR",
           "visible": true,
           "projColor": "#7B1FA2",
           "projWeight": 3
@@ -1076,25 +1076,25 @@
       ],
       "filterRules": [
         {
-          "name": "EES - Type A (Life Safety)",
+          "name": "STING - EES: Life Safety",
           "visible": true,
           "projColor": "#C00000",
           "projWeight": 5
         },
         {
-          "name": "EES - Type B (Critical)",
+          "name": "STING - EES: Critical",
           "visible": true,
           "projColor": "#F57F17",
           "projWeight": 4
         },
         {
-          "name": "EES - Type C (Equipment)",
+          "name": "STING - EES: Equipment",
           "visible": true,
           "projColor": "#FFD600",
           "projWeight": 3
         },
         {
-          "name": "EES - Normal Supply",
+          "name": "STING - EES: Normal",
           "visible": true,
           "projColor": "#808080",
           "projWeight": 2
@@ -1106,13 +1106,13 @@
           "projWeight": 6
         },
         {
-          "name": "EES - UPS",
+          "name": "STING - Elec: UPS",
           "visible": true,
           "projColor": "#7B1FA2",
           "projWeight": 5
         },
         {
-          "name": "EES - IPS / Isolated Power",
+          "name": "STING - EES: Isolated Power",
           "visible": true,
           "projColor": "#1976D2",
           "projWeight": 4
@@ -1171,7 +1171,7 @@
       ],
       "filterRules": [
         {
-          "name": "Fire Wall - 120 min",
+          "name": "STING - Arch: Fire 120 min Walls",
           "visible": true,
           "projColor": "#7B1FA2",
           "projWeight": 6,
@@ -1179,7 +1179,7 @@
           "cutWeight": 6
         },
         {
-          "name": "Fire Wall - 90 min",
+          "name": "STING - Arch: Fire 90 min Walls",
           "visible": true,
           "projColor": "#C00000",
           "projWeight": 5,
@@ -1187,7 +1187,7 @@
           "cutWeight": 5
         },
         {
-          "name": "Fire Wall - 60 min",
+          "name": "STING - Arch: Fire 60 min Walls",
           "visible": true,
           "projColor": "#F57F17",
           "projWeight": 4,
@@ -1195,7 +1195,7 @@
           "cutWeight": 4
         },
         {
-          "name": "Fire Wall - 30 min",
+          "name": "STING - Arch: Fire 30 min Walls",
           "visible": true,
           "projColor": "#FFD600",
           "projWeight": 3,
@@ -1203,27 +1203,27 @@
           "cutWeight": 3
         },
         {
-          "name": "Smoke Barrier",
+          "name": "STING - Fire: Smoke Compartments",
           "visible": true,
           "projColor": "#43A047",
           "projWeight": 3,
           "projLinePattern": "Dash"
         },
         {
-          "name": "Sub-Compartment",
+          "name": "STING - Fire: Compartment Tagged",
           "visible": true,
           "projColor": "#C00000",
           "projWeight": 2,
           "transparency": 70
         },
         {
-          "name": "Means of Escape",
+          "name": "STING - Fire: Primary Escape Route",
           "visible": true,
           "projColor": "#43A047",
           "projWeight": 2
         },
         {
-          "name": "Fire Door",
+          "name": "STING - Arch: FD60 Doors",
           "visible": true,
           "projColor": "#C00000",
           "projWeight": 4
@@ -1288,7 +1288,7 @@
           "cutWeight": 4
         },
         {
-          "name": "Shielding - Lead 2.0 mm",
+          "name": "STING - Rad: Primary Barrier",
           "visible": true,
           "projColor": "#AD1457",
           "projWeight": 5,
@@ -1296,7 +1296,7 @@
           "cutWeight": 5
         },
         {
-          "name": "Shielding - Lead 2.5 mm",
+          "name": "STING - Rad: Primary Barrier",
           "visible": true,
           "projColor": "#C2185B",
           "projWeight": 6,
@@ -1304,7 +1304,7 @@
           "cutWeight": 6
         },
         {
-          "name": "Shielding - Concrete",
+          "name": "STING - Rad: Secondary Barrier",
           "visible": true,
           "projColor": "#5D4037",
           "projWeight": 6,
@@ -1318,34 +1318,34 @@
           "projWeight": 4
         },
         {
-          "name": "Zone - Controlled",
+          "name": "STING - Rad: Controlled Area",
           "visible": true,
           "projColor": "#FFD600",
           "projWeight": 1,
           "transparency": 60
         },
         {
-          "name": "Zone - Supervised",
+          "name": "STING - Rad: Uncontrolled (1 mGy/yr)",
           "visible": true,
           "projColor": "#FFEB3B",
           "projWeight": 1,
           "transparency": 75
         },
         {
-          "name": "MRI Zone IV (5G Line)",
+          "name": "STING - Rad: MRI Zone 4",
           "visible": true,
           "projColor": "#7B1FA2",
           "projWeight": 4
         },
         {
-          "name": "MRI Zone III",
+          "name": "STING - Rad: MRI Zone 3",
           "visible": true,
           "projColor": "#9C27B0",
           "projWeight": 2,
           "transparency": 50
         },
         {
-          "name": "MRI Zone II",
+          "name": "STING - Rad: MRI Zone 2",
           "visible": true,
           "projColor": "#CE93D8",
           "projWeight": 1,
@@ -1394,13 +1394,13 @@
       ],
       "filterRules": [
         {
-          "name": "Anti-Ligature - Compliant",
+          "name": "STING - Lig: LOW Risk",
           "visible": true,
           "projColor": "#7B1FA2",
           "projWeight": 3
         },
         {
-          "name": "Anti-Ligature - Non-Compliant",
+          "name": "STING - Lig: HIGH Risk",
           "visible": true,
           "projColor": "#C00000",
           "projWeight": 5
@@ -1433,13 +1433,13 @@
           "transparency": 30
         },
         {
-          "name": "Anti-Ligature Sanitary",
+          "name": "STING - Lig: MED Risk",
           "visible": true,
           "projColor": "#7B1FA2",
           "projWeight": 3
         },
         {
-          "name": "Anti-Ligature Bedroom",
+          "name": "STING - Lig: MED Risk",
           "visible": true,
           "projColor": "#9C27B0",
           "projWeight": 2,
@@ -1502,25 +1502,25 @@
       ],
       "filterRules": [
         {
-          "name": "Water - DCW (Cold)",
+          "name": "STING - Plumb: Domestic Cold Water (DCW)",
           "visible": true,
           "projColor": "#0066CC",
           "projWeight": 4
         },
         {
-          "name": "Water - DHW (Hot Flow)",
+          "name": "STING - Plumb: Domestic Hot Water Supply (DHWS)",
           "visible": true,
           "projColor": "#C00000",
           "projWeight": 4
         },
         {
-          "name": "Water - DHWR (Hot Return)",
+          "name": "STING - Plumb: DHW Return",
           "visible": true,
           "projColor": "#FFD600",
           "projWeight": 4
         },
         {
-          "name": "Water - TMV Mixed",
+          "name": "STING - PLM: TMV3 (Augmented Care)",
           "visible": true,
           "projColor": "#2E7D32",
           "projWeight": 3
@@ -1533,7 +1533,7 @@
           "projLinePattern": "Dash"
         },
         {
-          "name": "Water - Outlet (Augmented Care)",
+          "name": "STING - PLM: Augmented Care Outlet",
           "visible": true,
           "projColor": "#7B1FA2",
           "projWeight": 4
