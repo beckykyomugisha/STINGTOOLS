@@ -922,7 +922,29 @@ app.UseHttpsRedirection();
 // Placed before auth so assets load without a token; the JS handles login
 // against /api/auth/login via fetch.
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
+{
+    // Phase 186 — every viewer/dashboard surface file is HTML or JS that
+    // reads a recent feature flag; aggressive browser caching has caused
+    // multiple "the old viewer surfaces" tickets where the wwwroot copy
+    // was updated but the user's browser served a stale viewer.html /
+    // coordination-viewer.js from disk. Force revalidation on every
+    // request — the files are tiny (≤ 130 KB minified) and round-trip
+    // cheaper than asking every user to hard-refresh.
+    OnPrepareResponse = ctx =>
+    {
+        var name = ctx.File.Name;
+        if (name.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
+         || name == "coordination-viewer.js"
+         || name == "viewer-extras.js"
+         || name == "signalr-shim.js"
+         || name == "coordination-viewer.css")
+        {
+            ctx.Context.Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
+            ctx.Context.Response.Headers["Pragma"]        = "no-cache";
+        }
+    },
+});
 
 // SEC-EA-07 — security response headers (HSTS / nosniff / frame-deny /
 // CSP / Referrer-Policy / Permissions-Policy). Inserted early so even
