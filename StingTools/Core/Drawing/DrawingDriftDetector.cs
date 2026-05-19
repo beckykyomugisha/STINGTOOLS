@@ -301,9 +301,10 @@ namespace StingTools.Core.Drawing
         // detecting would surface every view that uses the managed
         // template as drifted whenever a managed field is edited.
         //
-        // Per-field detail is intentionally coarse: a single drift
-        // entry per category / filter, listing the first mismatching
-        // attribute. SyncStyles re-applies the pack and heals.
+        // Phase 184 — one drift entry per category / filter, listing
+        // ALL mismatching attributes joined with semicolons so a single
+        // re-apply heals every difference at once. (Phase 183 reported
+        // only the first mismatch per category, masking the rest.)
         private static void AppendVgAndFilterDrift(Document doc, View v, DrawingType dt, DriftReport report)
         {
             try
@@ -327,21 +328,21 @@ namespace StingTools.Core.Drawing
                         var expected = kv.Value;
                         if (expected == null) continue;
 
-                        string mismatch = null;
+                        var mismatches = new List<string>(4);
                         if (expected.Halftone.HasValue && ogs.Halftone != expected.Halftone.Value)
-                            mismatch = $"halftone {ogs.Halftone} vs {expected.Halftone.Value}";
-                        else if (expected.ProjectionLineWeight.HasValue
+                            mismatches.Add($"halftone {ogs.Halftone} vs {expected.Halftone.Value}");
+                        if (expected.ProjectionLineWeight.HasValue
                             && ogs.ProjectionLineWeight != expected.ProjectionLineWeight.Value)
-                            mismatch = $"projWeight {ogs.ProjectionLineWeight} vs {expected.ProjectionLineWeight.Value}";
-                        else if (expected.CutLineWeight.HasValue
+                            mismatches.Add($"projWeight {ogs.ProjectionLineWeight} vs {expected.ProjectionLineWeight.Value}");
+                        if (expected.CutLineWeight.HasValue
                             && ogs.CutLineWeight != expected.CutLineWeight.Value)
-                            mismatch = $"cutWeight {ogs.CutLineWeight} vs {expected.CutLineWeight.Value}";
-                        else if (expected.Transparency.HasValue
+                            mismatches.Add($"cutWeight {ogs.CutLineWeight} vs {expected.CutLineWeight.Value}");
+                        if (expected.Transparency.HasValue
                             && ogs.Transparency != Clamp01(expected.Transparency.Value))
-                            mismatch = $"transparency {ogs.Transparency} vs {expected.Transparency.Value}";
+                            mismatches.Add($"transparency {ogs.Transparency} vs {expected.Transparency.Value}");
 
-                        if (mismatch != null)
-                            report.Drifts.Add($"VG_OVERRIDE: '{kv.Key}' {mismatch}");
+                        if (mismatches.Count > 0)
+                            report.Drifts.Add($"VG_OVERRIDE: '{kv.Key}' " + string.Join("; ", mismatches));
                     }
                 }
 
@@ -372,30 +373,32 @@ namespace StingTools.Core.Drawing
                             continue;
                         }
 
+                        var mismatches = new List<string>(4);
                         bool actualVisible;
                         try { actualVisible = v.GetFilterVisibility(filter.Id); }
                         catch { continue; }
                         if (actualVisible != rule.Visible)
-                        {
-                            report.Drifts.Add($"FILTER: '{rule.FilterName}' visible={actualVisible} vs {rule.Visible}");
-                            continue;
-                        }
+                            mismatches.Add($"visible={actualVisible} vs {rule.Visible}");
 
                         OverrideGraphicSettings fogs;
-                        try { fogs = v.GetFilterOverrides(filter.Id); } catch { continue; }
-                        if (fogs == null) continue;
+                        try { fogs = v.GetFilterOverrides(filter.Id); } catch { fogs = null; }
+                        if (fogs != null)
+                        {
+                            if (fogs.Halftone != rule.Halftone)
+                                mismatches.Add($"halftone {fogs.Halftone} vs {rule.Halftone}");
+                            if (rule.ProjectionLineWeight.HasValue
+                                && fogs.ProjectionLineWeight != rule.ProjectionLineWeight.Value)
+                                mismatches.Add($"projWeight {fogs.ProjectionLineWeight} vs {rule.ProjectionLineWeight.Value}");
+                            if (rule.CutLineWeight.HasValue
+                                && fogs.CutLineWeight != rule.CutLineWeight.Value)
+                                mismatches.Add($"cutWeight {fogs.CutLineWeight} vs {rule.CutLineWeight.Value}");
+                            if (rule.Transparency.HasValue
+                                && fogs.Transparency != Clamp01(rule.Transparency.Value))
+                                mismatches.Add($"transparency {fogs.Transparency} vs {rule.Transparency.Value}");
+                        }
 
-                        if (fogs.Halftone != rule.Halftone)
-                        {
-                            report.Drifts.Add($"FILTER: '{rule.FilterName}' halftone {fogs.Halftone} vs {rule.Halftone}");
-                            continue;
-                        }
-                        if (rule.ProjectionLineWeight.HasValue
-                            && fogs.ProjectionLineWeight != rule.ProjectionLineWeight.Value)
-                        {
-                            report.Drifts.Add($"FILTER: '{rule.FilterName}' projWeight {fogs.ProjectionLineWeight} vs {rule.ProjectionLineWeight.Value}");
-                            continue;
-                        }
+                        if (mismatches.Count > 0)
+                            report.Drifts.Add($"FILTER: '{rule.FilterName}' " + string.Join("; ", mismatches));
                     }
                 }
             }

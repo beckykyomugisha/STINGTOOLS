@@ -128,17 +128,54 @@ namespace StingTools.Core.Drawing
         /// Phase 183 — stamp crop kind + margin onto a view so
         /// <see cref="DrawingDriftDetector"/> can spot bbox-derived crops
         /// that have fallen behind the profile's current crop settings.
-        /// Margin is rounded to 2dp and serialised as a string so the
-        /// param can stay a simple text shared parameter. Returns true
-        /// when both writes succeeded (or were no-op idempotent rewrites).
+        ///
+        /// Phase 184 — primary surface is Extensible Storage via
+        /// <see cref="StingTools.Core.Storage.StingViewCropSchema"/>; the
+        /// shared parameters are written as a secondary surface when bound.
+        /// This removes the LoadSharedParams dependency — pre-migration
+        /// projects now get full crop-drift support via ES alone.
+        ///
+        /// Margin is rounded to 2dp on the shared-param mirror so the param
+        /// can stay a simple text shared parameter. Returns true when either
+        /// surface accepted the write.
         /// </summary>
         public static bool StampCrop(Element el, string cropKind, double marginMm)
         {
             if (el == null) return false;
             if (!IsEditable(el)) return false;
-            bool any = false;
+
+            // Phase 184c — explicit transaction-state check. Both
+            // Extensible Storage writes and shared-parameter writes
+            // require an active Revit transaction. Throwing-and-catching
+            // works today (the caller's transaction wraps every code
+            // path that reaches here), but documenting the contract
+            // here means a future caller that forgets to open one gets
+            // a clear log line instead of a swallowed exception. Returns
+            // false without side effects when no transaction is active.
             try
             {
+                if (el.Document != null && !el.Document.IsModifiable)
+                {
+                    StingTools.Core.StingLog.Warn(
+                        $"DrawingTypeStamper.StampCrop({el.Id}): document not modifiable — call must run inside a Transaction.");
+                    return false;
+                }
+            }
+            catch { /* IsModifiable can throw on closed docs; treat as not-modifiable */ return false; }
+
+            bool wroteEs = false;
+            bool wroteParam = false;
+            try
+            {
+                // Primary surface: Extensible Storage (views only).
+                if (el is View view && !view.IsTemplate)
+                {
+                    wroteEs = StingTools.Core.Storage.StingViewCropSchema.Write(view, cropKind ?? string.Empty, marginMm);
+                }
+
+                // Secondary surface: shared parameters, when bound. Allows
+                // schedule / filter / Dynamo consumers to read the stamp
+                // without dipping into ES.
                 var pk = el.LookupParameter(PARAM_CROP_KIND);
                 if (pk != null && !pk.IsReadOnly && pk.StorageType == StorageType.String)
                 {
@@ -146,7 +183,7 @@ namespace StingTools.Core.Drawing
                     var desired = cropKind ?? string.Empty;
                     if (!string.Equals(current, desired, StringComparison.Ordinal))
                         pk.Set(desired);
-                    any = true;
+                    wroteParam = true;
                 }
                 var pm = el.LookupParameter(PARAM_CROP_MARGIN_MM);
                 if (pm != null && !pm.IsReadOnly && pm.StorageType == StorageType.String)
@@ -155,7 +192,7 @@ namespace StingTools.Core.Drawing
                     var current = pm.AsString();
                     if (!string.Equals(current, desired, StringComparison.Ordinal))
                         pm.Set(desired);
-                    any = true;
+                    wroteParam = true;
                 }
             }
             catch (Exception ex)
@@ -164,19 +201,30 @@ namespace StingTools.Core.Drawing
                     $"DrawingTypeStamper.StampCrop({el.Id}, '{cropKind}', {marginMm}): {ex.Message}");
                 return false;
             }
-            return any;
+            return wroteEs || wroteParam;
         }
 
         /// <summary>
         /// Read the (kind, marginMm) pair stamped by <see cref="StampCrop"/>.
-        /// Returns (null, null) when either parameter is missing — caller
-        /// treats that as "no stamp; can't diff" rather than as drift.
+        /// Prefers Extensible Storage (Phase 184); falls back to the shared
+        /// parameters when ES is empty (legacy / non-view elements).
+        /// Returns (null, null) when neither surface carries a stamp —
+        /// caller treats that as "no stamp; can't diff" rather than drift.
         /// </summary>
         public static (string Kind, double? MarginMm) ReadCrop(Element el)
         {
             if (el == null) return (null, null);
             try
             {
+                // Primary: Extensible Storage.
+                if (el is View view && !view.IsTemplate)
+                {
+                    var stamp = StingTools.Core.Storage.StingViewCropSchema.Read(view);
+                    if (stamp != null && !string.IsNullOrEmpty(stamp.Kind))
+                        return (stamp.Kind, stamp.MarginMm);
+                }
+
+                // Fallback: shared parameters.
                 string kind = null;
                 double? margin = null;
                 var pk = el.LookupParameter(PARAM_CROP_KIND);

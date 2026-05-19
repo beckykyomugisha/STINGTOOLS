@@ -561,18 +561,170 @@ now reports both live-disk edits and live-view drift in one summary.
 ### Caveats (Phase 183)
 
 1. Built without `dotnet build` verification (Linux sandbox).
-2. `LiveProfileSync` snapshots are in-memory; closing and reopening a
-   document loses the "X profiles changed since last load" state.
-   The user runs SyncStyles once after a session-spanning edit; the
-   drift detector also still picks up the same views via the
-   conventional VG / filter / crop comparison.
-3. `StampCrop` requires the two new shared parameters to be bound on
-   the project. On pre-Phase-183 projects the stamp is a no-op and
-   the bbox-derived crop drift check silently doesn't fire — no
-   regression vs. Phase 182 behaviour.
-4. VG drift reports one mismatching attribute per category. A
-   category with three mismatches (halftone + weight + transparency)
-   surfaces as one report entry, healed in one re-apply.
+
+### Phase 184 — Closing the Phase 183 caveats
+
+The three Phase 183 caveats (in-memory-only LiveProfileSync, shared-
+param dependency on crop stamps, single-mismatch VG drift reporting)
+are now all closed.
+
+**LiveProfileSync disk persistence** (`Core/Drawing/LiveProfileSync.cs`):
+
+- Snapshot file at `<project>/_BIM_COORD/.sting_live_profile_sync.json`
+  (hidden filename so it doesn't clutter pickers) carries the SHA-256
+  hashes of every DrawingType + ViewStylePack id between sessions.
+- On the first `OnRegistryReloaded(doc)` of a new session, the
+  in-memory prior is empty, so `LoadDiskSnapshot(doc)` hydrates the
+  pre-edit baseline from disk. The diff then correctly surfaces every
+  on-disk edit the user made while Revit was closed.
+- After every diff computation the new snapshot is written back to
+  disk via `SaveDiskSnapshot`, so the chain stays unbroken across
+  arbitrary numbers of sessions / edits.
+- File I/O is performed outside the dictionary lock so a slow disk
+  doesn't block the registry-reload pipeline.
+
+**Crop stamp via Extensible Storage** (`Core/Storage/StingViewCropSchema.cs`):
+
+- New ES schema `StingViewCropSchema` (`E1A7B2C4-1011-1244-8411-F6E5D4C3B2CC`)
+  with three fields: `Kind` (string), `MarginMm` (double),
+  `StampedUtcTicks` (long).
+- `DrawingTypeStamper.StampCrop` now writes to ES as the primary
+  surface; the shared parameters (`STING_CROP_KIND_TXT`,
+  `STING_CROP_MARGIN_MM_TXT`) are still written as a secondary surface
+  when bound so schedules / filters / Dynamo consumers keep working.
+- `DrawingTypeStamper.ReadCrop` prefers ES; falls back to the shared
+  params for legacy stamped views.
+- Removes the `LoadSharedParams` dependency — pre-Phase-183 projects
+  now get full crop-drift coverage with no migration step.
+
+**VG drift — all mismatches per category** (`DrawingDriftDetector.AppendVgAndFilterDrift`):
+
+- The Phase 183 implementation walked the field list with `if/else if`
+  and stopped at the first mismatch, hiding the rest until SyncStyles
+  re-applied. Refactored to collect every mismatch into a list and
+  emit one drift entry per category / filter joining all of them with
+  `; ` — e.g.
+  `VG_OVERRIDE: 'Walls' halftone False vs True; projWeight 5 vs 6; transparency 0 vs 50`.
+- Filter-rule drift gets the same treatment (visibility + halftone +
+  projection weight + cut weight + transparency all rolled into one
+  entry per filter).
+- SyncStyles still heals everything in a single pack re-apply —
+  Phase 184 is purely a reporting fix.
+
+### Phase 184c — Save-As snapshot migration + transaction guard
+
+The Phase 184 caveats covering Save-As snapshot loss and the implicit
+transaction requirement on `StampCrop` are now closed.
+
+**Save-As snapshot migration** (`Core/StingToolsApp.cs`):
+
+- New event subscriptions: `DocumentSavingAs` (captures the
+  destination path before save) and `DocumentSavedAs` (copies the
+  snapshot once the save succeeds).
+- `_savingAsPaths` ConcurrentDictionary keyed by document hash holds
+  the `(oldPath, newPath)` pair between the two events, so concurrent
+  Save As of multiple open projects can't cross-pollute.
+- `MigrateLiveProfileSyncSnapshot(oldRvt, newRvt)` copies
+  `<oldDir>/_BIM_COORD/.sting_live_profile_sync.json` to the new
+  `_BIM_COORD/` directory beside the saved-as path. Won't clobber an
+  existing snapshot in the destination (treats Save As over an
+  existing STING-touched project as "destination wins").
+- Cross-session profile-drift detection now keeps working after Save
+  As without the user having to repeat a registry reload.
+
+**Transaction-state guard on `StampCrop`**
+(`Core/Drawing/DrawingTypeStamper.cs`):
+
+- Early check on `el.Document.IsModifiable` — when no Revit
+  transaction is active, log a warning and return `false` instead of
+  letting the ES `SetEntity` / shared-param `Set` throw. Makes the
+  caller contract explicit and eliminates the throw-and-catch
+  overhead on the (currently-impossible) path where a caller forgets
+  to wrap.
+- All in-tree callers (`DrawingCropApplier.Apply` →
+  `DrawingTypePresentation.Apply`) already run inside a transaction,
+  so this is a defensive guard, not a behavioural change.
+
+### Caveats (Phase 184c)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `DocumentSavingAs` requires the Revit API to expose
+   `DocumentSavingAsEventArgs.PathName` — true for Revit 2025/2026/2027
+   per the addin manifest. Older Revit versions would need a different
+   pattern; STING's `net8.0-windows` target rules them out anyway.
+
+### Phase 184d — Final alignment + completeness sweep
+
+Post-Phase-184c audit surfaced four remaining configuration gaps;
+all are now closed in `STING_DRAWING_TYPES.json`.
+
+**Schema fix — `crop.mode` → `crop.kind` (23 entries)**
+
+The 22 healthcare profiles (plus `plumb-drainage-schematic-A1`) declared
+`"crop": { "mode": "ScopeBoxOrBbox", ... }`. The `DrawingCropStrategy`
+POCO marks the JSON field as `[JsonProperty("kind")]`, so the `mode`
+key was silently ignored and the deserialiser fell back to the
+default value (`"ScopeBoxOrBbox"`). Result: functionally correct but
+inconsistent with the schema, and any author writing `"mode":
+"TightBbox"` would have been silently overridden. Renamed all 23 to
+`"kind"`.
+
+**Slot defaults on 18 view-purpose profiles**
+
+Every healthcare drawing type (`health-eqp-pln-*`, `health-medgas-pln-*`,
+`health-pressure-pln-*`, etc.) plus `health-mep-coord-A1-1to50` shipped
+with `"slots": []`. View-creation pipelines (`DrawingProducer`,
+`SheetManager.PlaceFromProfile`) iterate slot definitions to place
+views; empty slots mean no view ever lands on the sheet. Added a
+single full-bleed slot per profile (label `Main {Purpose}`, viewType
+matching the profile purpose, `normX=0.03 normY=0.05 normW=0.94
+normH=0.90`, `required=true`). Profiles that want multi-view layouts
+(key plan inset, legend, notes) override the default in their JSON.
+
+**titleBlockParams on 54 non-Schedule profiles**
+
+`arch-rcp-A1-1to100`, `arch-section-A1-1to50`, `arch-elev-A1-1to100`,
+`struct-plan-A1-1to100`, `mep-plan-A1-1to100`, `mep-coord-A1-1to50`,
+`elec-riser-A2-1to100`, `handover-A1`, all `arch-site-A1-1to500` …
+through every Plan / RCP / Section / Elevation / Coordination / 3D /
+Clarification profile that lacked the corporate metadata binding. All
+54 now carry the 11-cell corporate set (Client Name / Project Code /
+Originator / Company Name / Company Address / Appointing Party / Lead
+Appointed Party / Discipline / Suitability=S2 / Sheet Status=WIP /
+Revision=P01) with the `Discipline` value mapped from the profile's
+discipline code (A → Architectural, S → Structural, M → Mechanical,
+E → Electrical, P/Plumbing → Plumbing, H/Healthcare → Healthcare,
+MG → Medical Gas, RP → Radiation Protection, FP → Fire Protection,
+LV → Comms / LV, G → Civil, `*` → Multi-Discipline). Spool / Schedule
+/ Legend / Detail profiles are intentionally excluded — they have
+their own metadata conventions.
+
+**Discipline value normalised (1 entry)**
+
+`plumb-drainage-schematic-A1` declared `"discipline": "Public Health"`
+which isn't in the canonical list (A / S / M / E / P / Plumbing / FP /
+LV / G / H / MG / RP / Healthcare / *). Normalised to `"Plumbing"` to
+match every other plumb-* profile and the routing-table convention.
+
+**Final tally** (programmatically verified): 0 missing `crop.kind`,
+0 stray `crop.mode`, 0 empty-slot view-purpose profiles, 0 missing
+`titleBlockParams` on view-purpose profiles, 0 non-canonical
+discipline values, 0 missing pack references, 0 orphaned packs.
+
+### Caveats (Phase 184d)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The default slot layout added to the 18 healthcare profiles is a
+   single full-bleed view. Projects that want multi-view healthcare
+   sheets (e.g. RDS-style "plan + elev + equipment list + signatures"
+   panels) need to override the slot array via project-scoped
+   `_BIM_COORD/drawing_types.json`. The shipped layout is correct
+   for the dominant "one plan per sheet" use case.
+3. The 4 healthcare A2 drawing types (`health-rds-A2`,
+   `health-mortuary-pln-A2-1to50`, `health-bedhead-elev-A2-1to20`,
+   `health-or-ceiling-A2-1to20`) use `STING - Healthcare Title Block`
+   which is a non-size-specific name. The family is assumed to ship
+   in both A1 and A2 flavours; verify before merge if not.
 
 ## Template Engine v1.1 (Phase 112)
 

@@ -277,6 +277,19 @@
             "enabled": true
           }
         ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -400,6 +413,19 @@
         "role": "A",
         "suitability": "S2",
         "revision": "P01"
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -538,6 +564,19 @@
             "enabled": true
           }
         ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -758,6 +797,19 @@
         "role": "S",
         "suitability": "S2",
         "revision": "P01"
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Structural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -833,6 +885,19 @@
             "enabled": true
           }
         ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Structural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -948,6 +1013,19 @@
         "role": "M",
         "suitability": "S2",
         "revision": "P01"
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Mechanical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -1045,6 +1123,19 @@
       },
       "print": {
         "halftoneLinks": true
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Mechanical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -1363,6 +1454,19 @@
             "enabled": true
           }
         ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -1447,6 +1551,19 @@
       ],
       "annotation": {
         "rules": []
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Multi-Discipline",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -1533,6 +1650,19 @@
             "enabled": true
           }
         ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -1599,6 +1729,19 @@
             "enabled": true
           }
         ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -1668,6 +1811,19 @@
             "enabled": true
           }
         ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -1733,6 +1889,19 @@
             "enabled": true
           }
         ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -1808,6 +1977,19 @@
             "enabled": true
           }
         ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -1946,6 +2128,19 @@
             "enabled": true
           }
         ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -2048,6 +2243,19 @@
             "enabled": true
           }
         ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Structural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -2210,6 +2418,19 @@
             "enabled": true
           }
         ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Mechanical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -2323,6 +2544,19 @@
             "enabled": true
           }
         ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Mechanical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -2415,6 +2649,19 @@
         "role": "E",
         "suitability": "S2",
         "revision": "P01"
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -2500,6 +2747,19 @@
             "enabled": true
           }
         ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -2584,6 +2844,19 @@
             "enabled": true
           }
         ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -2661,6 +2934,19 @@
             "enabled": true
           }
         ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Plumbing",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -2727,6 +3013,19 @@
       },
       "print": {
         "halftoneLinks": true
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Multi-Discipline",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -2840,6 +3139,19 @@
       },
       "print": {
         "halftoneLinks": true
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Multi-Discipline",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -2957,6 +3269,19 @@
         "colourScheme": "PresentationRich",
         "halftoneLinks": false,
         "lineWeightScale": 0.7
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -3012,6 +3337,19 @@
         "colourScheme": "PresentationMono",
         "halftoneLinks": true,
         "lineWeightScale": 0.9
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -3071,6 +3409,19 @@
         "colourScheme": "PresentationRich",
         "halftoneLinks": false,
         "lineWeightScale": 0.7
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -3135,6 +3486,19 @@
         "colourScheme": "PresentationRich",
         "halftoneLinks": true,
         "lineWeightScale": 0.8
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -3197,6 +3561,19 @@
       "print": {
         "colourScheme": "ClarificationRed",
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -3264,6 +3641,19 @@
       "print": {
         "colourScheme": "ClarificationRed",
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Multi-Discipline",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -3338,6 +3728,19 @@
         "colourScheme": "PresentationRich",
         "halftoneLinks": false,
         "lineWeightScale": 0.8
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -3418,6 +3821,19 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -3496,6 +3912,19 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -3564,6 +3993,19 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -3637,6 +4079,19 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -3705,6 +4160,19 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -3860,6 +4328,19 @@
         "colourScheme": "PresentationRich",
         "lineWeightScale": 0.9,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -3935,6 +4416,19 @@
         "colourScheme": "PresentationRich",
         "lineWeightScale": 0.8,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -4047,7 +4541,20 @@
           "normW": 0.37,
           "normH": 0.9
         }
-      ]
+      ],
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Multi-Discipline",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      }
     },
     {
       "id": "mep-plan-presentation",
@@ -4129,6 +4636,19 @@
         "colourScheme": "PresentationRich",
         "halftoneLinks": true,
         "lineWeightScale": 0.8
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Mechanical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -4235,6 +4755,19 @@
         "colourScheme": "Monochrome",
         "halftoneLinks": false,
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Mechanical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -4337,6 +4870,19 @@
         "colourScheme": "Monochrome",
         "halftoneLinks": false,
         "lineWeightScale": 1.1
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Mechanical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -4463,6 +5009,19 @@
         "colourScheme": "PresentationRich",
         "halftoneLinks": true,
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Multi-Discipline",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -4590,6 +5149,19 @@
         "colourScheme": "PresentationRich",
         "halftoneLinks": true,
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Multi-Discipline",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -4745,6 +5317,19 @@
         "colourScheme": "PresentationRich",
         "halftoneLinks": true,
         "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Multi-Discipline",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -5013,6 +5598,19 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
       }
     },
     {
@@ -5033,7 +5631,7 @@
       "sheetNumberPattern": "{disc}-RDS-{lvl}-{seq:D4}",
       "sheetNamePattern": "Room Data Sheet — {room}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
@@ -5084,11 +5682,21 @@
       "sheetNumberPattern": "{disc}-EQP-{lvl}-{seq:D3}",
       "sheetNamePattern": "Clinical Equipment Plan — Level {lvl}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -5135,11 +5743,21 @@
       "sheetNumberPattern": "{disc}-COO-{lvl}-{seq:D3}",
       "sheetNamePattern": "MEP Coordination + Shielding — {lvl}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Coordination",
+          "viewType": "Coordination",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -5186,11 +5804,21 @@
       "sheetNumberPattern": "MG-LAY-{lvl}-{seq:D3}",
       "sheetNamePattern": "Medical Gas Layout — Level {lvl}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -5237,7 +5865,7 @@
       "sheetNumberPattern": "MG-SCH-{seq:D3}",
       "sheetNamePattern": "Medical Gas Schematic — {gas}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
@@ -5288,11 +5916,21 @@
       "sheetNumberPattern": "H-PRS-{lvl}-{seq:D3}",
       "sheetNamePattern": "Pressure Regime Plan — Level {lvl}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -5339,7 +5977,7 @@
       "sheetNumberPattern": "E-EES-{seq:D3}",
       "sheetNamePattern": "Essential Power Single-Line — {area}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
@@ -5390,11 +6028,21 @@
       "sheetNumberPattern": "E-IPS-{lvl}-{seq:D3}",
       "sheetNamePattern": "IPS Plan — {lvl}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -5441,11 +6089,21 @@
       "sheetNumberPattern": "H-DEC-{lvl}-{seq:D3}",
       "sheetNamePattern": "Decon Flow Plan — {lvl}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -5492,11 +6150,21 @@
       "sheetNumberPattern": "H-MOR-{lvl}-{seq:D3}",
       "sheetNamePattern": "Mortuary Plan — {lvl}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -5543,11 +6211,21 @@
       "sheetNumberPattern": "A-FIR-{lvl}-{seq:D3}",
       "sheetNamePattern": "Fire Compartment + PHE — Level {lvl}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -5594,11 +6272,21 @@
       "sheetNumberPattern": "RP-SHD-{lvl}-{seq:D3}",
       "sheetNamePattern": "Radiation Shielding — {lvl}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -5645,11 +6333,21 @@
       "sheetNumberPattern": "RP-MRI-{lvl}-{seq:D3}",
       "sheetNamePattern": "MRI Zoning — {area}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -5696,11 +6394,21 @@
       "sheetNumberPattern": "H-LIG-{lvl}-{seq:D3}",
       "sheetNamePattern": "Anti-Ligature Plan — {lvl}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -5747,11 +6455,21 @@
       "sheetNumberPattern": "H-BHD-{lvl}-{seq:D3}",
       "sheetNamePattern": "Bedhead Elevations — {area}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Elevation",
+          "viewType": "Elevation",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -5798,11 +6516,21 @@
       "sheetNumberPattern": "H-RCP-{lvl}-{seq:D3}",
       "sheetNamePattern": "OR Ceiling RCP — {area}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main RCP",
+          "viewType": "RCP",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -5849,11 +6577,21 @@
       "sheetNumberPattern": "P-HWS-{lvl}-{seq:D3}",
       "sheetNamePattern": "Water Safety Plan — {lvl}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -5900,11 +6638,21 @@
       "sheetNumberPattern": "A-ACO-{lvl}-{seq:D3}",
       "sheetNamePattern": "Acoustic Strategy — Level {lvl}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -5951,11 +6699,21 @@
       "sheetNumberPattern": "S-IMG-{lvl}-{seq:D3}",
       "sheetNamePattern": "Equipment Loads — Level {lvl}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -6002,11 +6760,21 @@
       "sheetNumberPattern": "H-RTL-{lvl}-{seq:D3}",
       "sheetNamePattern": "RTLS Coverage — Level {lvl}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -6053,11 +6821,21 @@
       "sheetNumberPattern": "H-WST-{lvl}-{seq:D3}",
       "sheetNamePattern": "Waste Flow — Level {lvl}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
-      "slots": [],
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
       "annotation": {
         "autoDimension": false,
         "autoTag": true,
@@ -6104,7 +6882,7 @@
       "sheetNumberPattern": "RP-NM-{seq:D3}",
       "sheetNamePattern": "Nuclear Medicine — {area}",
       "crop": {
-        "mode": "ScopeBoxOrBbox",
+        "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
       "tokenProfile": "default",
@@ -6152,10 +6930,40 @@
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-DCW-{seq:D3}",
       "sheetNamePattern": "DCW SCHEMATIC",
-      "crop": { "kind": "None" },
-      "slots": [ { "label": "Main", "viewType": "Drafting", "normX": 0.03, "normY": 0.05, "normW": 0.94, "normH": 0.9, "required": true } ],
-      "annotation": { "rules": [] },
-      "print": { "colourScheme": "ByDiscipline", "lineWeightScale": 1.0 }
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Drafting",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "ByDiscipline",
+        "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Plumbing",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      }
     },
     {
       "id": "plumb-dhw-schematic-A1-NTS",
@@ -6172,10 +6980,40 @@
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-DHW-{seq:D3}",
       "sheetNamePattern": "DHW SCHEMATIC",
-      "crop": { "kind": "None" },
-      "slots": [ { "label": "Main", "viewType": "Drafting", "normX": 0.03, "normY": 0.05, "normW": 0.94, "normH": 0.9, "required": true } ],
-      "annotation": { "rules": [] },
-      "print": { "colourScheme": "ByDiscipline", "lineWeightScale": 1.0 }
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Drafting",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "ByDiscipline",
+        "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Plumbing",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      }
     },
     {
       "id": "plumb-lthw-schematic-A1-NTS",
@@ -6192,10 +7030,40 @@
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-LTHW-{seq:D3}",
       "sheetNamePattern": "LTHW SCHEMATIC",
-      "crop": { "kind": "None" },
-      "slots": [ { "label": "Main", "viewType": "Drafting", "normX": 0.03, "normY": 0.05, "normW": 0.94, "normH": 0.9, "required": true } ],
-      "annotation": { "rules": [] },
-      "print": { "colourScheme": "ByDiscipline", "lineWeightScale": 1.0 }
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Drafting",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "ByDiscipline",
+        "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Plumbing",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      }
     },
     {
       "id": "plumb-ag-drainage-A1-1to100",
@@ -6212,10 +7080,41 @@
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-AG-{lvl}-{seq:D3}",
       "sheetNamePattern": "ABOVE-GROUND DRAINAGE — {lvl}",
-      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 150 },
-      "slots": [ { "label": "Main", "viewType": "Plan", "normX": 0.03, "normY": 0.05, "normW": 0.94, "normH": 0.9, "required": true } ],
-      "annotation": { "rules": [] },
-      "print": { "colourScheme": "ByDiscipline", "lineWeightScale": 1.0 }
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "ByDiscipline",
+        "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Plumbing",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      }
     },
     {
       "id": "plumb-rwd-layout-A1-1to100",
@@ -6232,10 +7131,41 @@
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-RWD-{lvl}-{seq:D3}",
       "sheetNamePattern": "RAINWATER DRAINAGE — {lvl}",
-      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 150 },
-      "slots": [ { "label": "Main", "viewType": "Plan", "normX": 0.03, "normY": 0.05, "normW": 0.94, "normH": 0.9, "required": true } ],
-      "annotation": { "rules": [] },
-      "print": { "colourScheme": "ByDiscipline", "lineWeightScale": 1.0 }
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "ByDiscipline",
+        "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Plumbing",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      }
     },
     {
       "id": "plumb-suds-A1-1to500",
@@ -6252,10 +7182,41 @@
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-SUDS-{seq:D3}",
       "sheetNamePattern": "SUDS / SURFACE WATER",
-      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 200 },
-      "slots": [ { "label": "Main", "viewType": "Plan", "normX": 0.03, "normY": 0.05, "normW": 0.94, "normH": 0.9, "required": true } ],
-      "annotation": { "rules": [] },
-      "print": { "colourScheme": "ByDiscipline", "lineWeightScale": 1.0 }
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 200
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "ByDiscipline",
+        "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Plumbing",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      }
     },
     {
       "id": "plumb-vent-riser-A2-NTS",
@@ -6272,10 +7233,40 @@
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-VENT-{seq:D3}",
       "sheetNamePattern": "DRAINAGE VENT RISER",
-      "crop": { "kind": "None" },
-      "slots": [ { "label": "Main", "viewType": "Drafting", "normX": 0.03, "normY": 0.05, "normW": 0.94, "normH": 0.9, "required": true } ],
-      "annotation": { "rules": [] },
-      "print": { "colourScheme": "ByDiscipline", "lineWeightScale": 1.0 }
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Drafting",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "ByDiscipline",
+        "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Plumbing",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      }
     },
     {
       "id": "plumb-pressure-schedule-A2",
@@ -6292,10 +7283,27 @@
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-PRV-{seq:D3}",
       "sheetNamePattern": "PRESSURE ZONE / PRV SCHEDULE",
-      "crop": { "kind": "None" },
-      "slots": [ { "label": "Main", "viewType": "Schedule", "normX": 0.03, "normY": 0.05, "normW": 0.94, "normH": 0.9, "required": true } ],
-      "annotation": { "rules": [] },
-      "print": { "colourScheme": "BlackAndWhite", "lineWeightScale": 1.0 }
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Schedule",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      }
     },
     {
       "id": "plumb-water-treatment-A1-1to50",
@@ -6312,16 +7320,47 @@
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-WTR-{seq:D3}",
       "sheetNamePattern": "WATER TREATMENT / PLANTROOM",
-      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 150 },
-      "slots": [ { "label": "Main", "viewType": "Plan", "normX": 0.03, "normY": 0.05, "normW": 0.94, "normH": 0.9, "required": true } ],
-      "annotation": { "rules": [] },
-      "print": { "colourScheme": "ByDiscipline", "lineWeightScale": 1.0 }
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "ByDiscipline",
+        "lineWeightScale": 1.0
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Plumbing",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      }
     },
     {
       "id": "plumb-drainage-schematic-A1",
       "name": "Plumbing — Drainage Schematic Riser",
       "purpose": "Schedule",
-      "discipline": "Public Health",
+      "discipline": "Plumbing",
       "phase": "*",
       "paperSize": "A1",
       "titleBlockFamily": "STING - A1 Title Block",
@@ -6332,10 +7371,17 @@
       "viewportTypeName": "Title w Line",
       "sheetNumberPattern": "PH-SCHEM-{seq:D2}",
       "sheetNamePattern": "Drainage Schematic Riser — {lvl}",
-      "crop": { "mode": "None" },
+      "crop": {
+        "kind": "None"
+      },
       "origin": "corporate",
       "slots": [
-        { "x": 0.05, "y": 0.05, "w": 0.90, "h": 0.85 }
+        {
+          "x": 0.05,
+          "y": 0.05,
+          "w": 0.9,
+          "h": 0.85
+        }
       ]
     },
     {
@@ -6354,12 +7400,27 @@
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "FP-PEN-{seq:D3}",
       "sheetNamePattern": "PENETRATION REGISTER",
-      "crop": { "kind": "None" },
+      "crop": {
+        "kind": "None"
+      },
       "slots": [
-        { "label": "Main", "viewType": "Schedule", "normX": 0.02, "normY": 0.05, "normW": 0.96, "normH": 0.90, "required": true }
+        {
+          "label": "Main",
+          "viewType": "Schedule",
+          "normX": 0.02,
+          "normY": 0.05,
+          "normW": 0.96,
+          "normH": 0.9,
+          "required": true
+        }
       ],
-      "annotation": { "rules": [] },
-      "print": { "colourScheme": "BlackAndWhite", "lineWeightScale": 1.0 }
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0
+      }
     }
   ],
   "routing": [
@@ -6881,16 +7942,71 @@
       "docType": "NUCLEAR_MEDICINE",
       "drawingTypeId": "health-nuclear-medicine-A1"
     },
-    { "discipline": "Plumbing", "phase": "*", "docType": "DCW_SCHEMATIC",     "drawingTypeId": "plumb-dcw-schematic-A1-NTS" },
-    { "discipline": "Plumbing", "phase": "*", "docType": "DHW_SCHEMATIC",     "drawingTypeId": "plumb-dhw-schematic-A1-NTS" },
-    { "discipline": "Plumbing", "phase": "*", "docType": "LTHW_SCHEMATIC",    "drawingTypeId": "plumb-lthw-schematic-A1-NTS" },
-    { "discipline": "Plumbing", "phase": "*", "docType": "AG_DRAINAGE",       "drawingTypeId": "plumb-ag-drainage-A1-1to100" },
-    { "discipline": "Plumbing", "phase": "*", "docType": "RWD_LAYOUT",        "drawingTypeId": "plumb-rwd-layout-A1-1to100" },
-    { "discipline": "Plumbing", "phase": "*", "docType": "SUDS",              "drawingTypeId": "plumb-suds-A1-1to500" },
-    { "discipline": "Plumbing", "phase": "*", "docType": "VENT_RISER",        "drawingTypeId": "plumb-vent-riser-A2-NTS" },
-    { "discipline": "Plumbing", "phase": "*", "docType": "PRESSURE_SCHEDULE", "drawingTypeId": "plumb-pressure-schedule-A2" },
-    { "discipline": "Plumbing", "phase": "*", "docType": "WATER_TREATMENT",   "drawingTypeId": "plumb-water-treatment-A1-1to50" },
-    { "discipline": "Public Health", "phase": "*", "docType": "DRAINAGE_SCHEMATIC", "drawingTypeId": "plumb-drainage-schematic-A1" },
-    { "discipline": "*",       "phase": "*", "docType": "PENETRATION_REGISTER", "drawingTypeId": "penetration-register-A1" }
+    {
+      "discipline": "Plumbing",
+      "phase": "*",
+      "docType": "DCW_SCHEMATIC",
+      "drawingTypeId": "plumb-dcw-schematic-A1-NTS"
+    },
+    {
+      "discipline": "Plumbing",
+      "phase": "*",
+      "docType": "DHW_SCHEMATIC",
+      "drawingTypeId": "plumb-dhw-schematic-A1-NTS"
+    },
+    {
+      "discipline": "Plumbing",
+      "phase": "*",
+      "docType": "LTHW_SCHEMATIC",
+      "drawingTypeId": "plumb-lthw-schematic-A1-NTS"
+    },
+    {
+      "discipline": "Plumbing",
+      "phase": "*",
+      "docType": "AG_DRAINAGE",
+      "drawingTypeId": "plumb-ag-drainage-A1-1to100"
+    },
+    {
+      "discipline": "Plumbing",
+      "phase": "*",
+      "docType": "RWD_LAYOUT",
+      "drawingTypeId": "plumb-rwd-layout-A1-1to100"
+    },
+    {
+      "discipline": "Plumbing",
+      "phase": "*",
+      "docType": "SUDS",
+      "drawingTypeId": "plumb-suds-A1-1to500"
+    },
+    {
+      "discipline": "Plumbing",
+      "phase": "*",
+      "docType": "VENT_RISER",
+      "drawingTypeId": "plumb-vent-riser-A2-NTS"
+    },
+    {
+      "discipline": "Plumbing",
+      "phase": "*",
+      "docType": "PRESSURE_SCHEDULE",
+      "drawingTypeId": "plumb-pressure-schedule-A2"
+    },
+    {
+      "discipline": "Plumbing",
+      "phase": "*",
+      "docType": "WATER_TREATMENT",
+      "drawingTypeId": "plumb-water-treatment-A1-1to50"
+    },
+    {
+      "discipline": "Plumbing",
+      "phase": "*",
+      "docType": "DRAINAGE_SCHEMATIC",
+      "drawingTypeId": "plumb-drainage-schematic-A1"
+    },
+    {
+      "discipline": "*",
+      "phase": "*",
+      "docType": "PENETRATION_REGISTER",
+      "drawingTypeId": "penetration-register-A1"
+    }
   ]
 }
