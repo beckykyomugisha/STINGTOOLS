@@ -52,6 +52,20 @@ REPLACE_PLAN = {
     'STING - Electrical Equipment Tag':           {'T6': 'CBN_OPERATIONAL_T6', 'T7': 'ELC_PANEL_T7'},
     'STING - Plumbing Equipment Tag':             {'T7': 'PLM_PRESSURE_T7'},
     'STING - MEP Fabrication Pipework Tag':       {'T7': 'PLM_PRESSURE_T7'},
+    # Phase 182-183 — duct sizing audit trail
+    'STING - Duct Tag':                           {'T7': 'HVC_DUCT_AUDIT_T7'},
+    'STING - Flex Duct Tag':                      {'T7': 'HVC_DUCT_AUDIT_T7'},
+    'STING - Duct Fitting Tag':                   {'T7': 'HVC_DUCT_AUDIT_T7'},
+    'STING - Duct Accessory Tag':                 {'T7': 'HVC_DUCT_AUDIT_T7'},
+    'STING - Duct Insulation Tag':                {'T7': 'HVC_DUCT_AUDIT_T7'},
+    'STING - Air Terminal Tag':                   {'T7': 'HVC_DUCT_AUDIT_T7'},
+    # Phase 183 — pipe service-detect audit trail
+    'STING - Pipe Tag':                           {'T7': 'HVC_PIPE_AUDIT_T7'},
+    'STING - Flex Pipe Tag':                      {'T7': 'HVC_PIPE_AUDIT_T7'},
+    'STING - Pipe Fitting Tag':                   {'T7': 'HVC_PIPE_AUDIT_T7'},
+    'STING - Pipe Accessory Tag':                 {'T7': 'HVC_PIPE_AUDIT_T7'},
+    'STING - Pipe Insulation Tag':                {'T7': 'HVC_PIPE_AUDIT_T7'},
+    'STING - Plumbing Fixture Tag':               {'T7': 'HVC_PIPE_AUDIT_T7'},
     'STING - Door Tag':                           {'T7': 'ARC_DOOR_WIN_T7'},
     'STING - Window Tag':                         {'T7': 'ARC_DOOR_WIN_T7'},
     'STING - Curtain Panel Tag':                  {'T7': 'ARC_DOOR_WIN_T7'},
@@ -102,9 +116,27 @@ DEFAULT_ROWS = {
         ('COMM_OPERATIVE_TXT',   'by',    '',       0, '✓', 'Commissioning - Operative',  'BOLD',   'BLUE',   '2.0'),
     ],
     'T5': [
-        ('CST_UG_PRICE_UGX',     '',      'UGX',    0, '',  'Cost - UG Price',            'NOM',    'PURPLE', '2.0'),
-        ('CST_INTL_PRICE_USD',   '/ ',    'USD',    0, '',  'Cost - Intl Price',          'NOM',    'PURPLE', '2.0'),
-        ('CST_QUOTE_REF_TXT',    'Quote:', '',      0, '✓', 'Cost - Quote Ref',           'NOM',    'PURPLE', '2.0'),
+        ('CST_UG_PRICE_UGX',          '',         'UGX',   0, '',  'Cost - UG Price',              'NOM',    'PURPLE', '2.0'),
+        ('CST_INTL_PRICE_USD',        '/ ',       'USD',   0, '',  'Cost - Intl Price',            'NOM',    'PURPLE', '2.0'),
+        ('CST_QUOTE_REF_TXT',         'Quote:',   '',      0, '✓', 'Cost - Quote Ref',             'NOM',    'PURPLE', '2.0'),
+        # Phase 184 P0.2 — currency-neutral cost (replaces UGX-locked legacy)
+        ('ASS_CST_UNIT_RATE_NR',      'Rate:',    '',      0, '',  'Cost - Unit Rate (neutral)',   'NOM',    'PURPLE', '2.0'),
+        ('ASS_CST_CURRENCY_TXT',      ' ',        '',      0, '',  'Cost - Currency Code',         'NOM',    'PURPLE', '2.0'),
+        ('ASS_CST_FX_TO_BASE_NR',     'FX:',      '',      0, '',  'Cost - FX to Base',            'NOM',    'PURPLE', '2.0'),
+        ('ASS_CST_FX_DATE_DT',        ' FX date:','',      0, '',  'Cost - FX Date',               'NOM',    'PURPLE', '2.0'),
+        ('ASS_CST_AS_OF_DT',          ' As of:',  '',      0, '✓', 'Cost - As-of Date',            'NOM',    'PURPLE', '2.0'),
+        # Phase 184 P2 — cost-stale detection
+        ('ASS_CST_STALE_BOOL',        'Stale:',   '',      0, '',  'Cost - Stale Flag',            'BOLD',   'ORANGE', '2.0'),
+        ('ASS_CST_STALE_REASON_TXT',  ' - ',      '',      0, '✓', 'Cost - Stale Reason',          'NOM',    'ORANGE', '2.0'),
+        # Phase 184g P5 — payment certificates
+        ('ASS_PMT_PCT_COMPLETE_NR',   'Cmpl:',    '%',     0, '',  'Payment - % Complete',         'BOLD',   'GREEN',  '2.0'),
+        ('ASS_PMT_CERT_NO_NR',        ' Cert#:',  '',      0, '',  'Payment - Cert No',            'NOM',    'GREEN',  '2.0'),
+        ('ASS_PMT_CERT_DATE_DT',      ' Certified:','',    0, '',  'Payment - Cert Date',          'NOM',    'GREEN',  '2.0'),
+        ('ASS_PMT_LAST_VALUED_DT',    ' Valued:', '',      0, '✓', 'Payment - Last Valued',        'NOM',    'GREEN',  '2.0'),
+        # Phase 184g P5 — variations
+        ('ASS_VAR_NO_TXT',            'Var:',     '',      0, '',  'Variation - Number',           'BOLD',   'RED',    '2.0'),
+        ('ASS_VAR_INSTRUCTION_DT',    ' Instr:',  '',      0, '',  'Variation - Instr Date',       'NOM',    'RED',    '2.0'),
+        ('ASS_VAR_VALUATION_NR',      ' Val:',    '',      0, '✓', 'Variation - Valuation',        'NOM',    'RED',    '2.0'),
     ],
     'T6': [
         ('CBN_A1_A3_KG_CO2E',    'A1-A3:', 'kgCO₂e',0, '',  'Carbon - Product A1-A3',     'ITALIC', 'GREEN',  '2.0'),
@@ -149,7 +181,33 @@ REPLACE_SETS = {
     'HVC_REFRIG_T7': ('T7', [
         ('HVC_REFRIGERANT_CHARGE_KG_NR','R-chg:','kg',1,'',  'Refrigerant Charge',      'BOLD','ORANGE','2.0'),
         ('HVC_FACTORY_FLASH_TEST_DATE_TXT','Flash:','',0,'', 'Flash Test Date',         'BOLD','ORANGE','2.0'),
-        ('HVC_FACTORY_QR_TXT',          'QR:',  '',  0, '✓', 'Factory QR',              'BOLD','ORANGE','2.0'),
+        ('HVC_FACTORY_QR_TXT',          'QR:',  '',  0, '', 'Factory QR',              'BOLD','ORANGE','2.0'),
+        # Phase 183 — refrigerant + capacity audit
+        ('HVC_CAPACITY_KW',             'Cap:', 'kW',1, '',  'Design Capacity',         'BOLD','BLUE',  '2.0'),
+        ('HVC_REFRIGERANT_TYPE_TXT',    ' R:',  '',  0, '',  'Refrigerant Type',        'NOM', 'BLUE',  '2.0'),
+        ('HVC_REFRIGERANT_KG_NR',       ' ',    'kg',1, '',  'Refrigerant Mass',        'NOM', 'BLUE',  '2.0'),
+        # Phase 182-183 — sizing audit trail
+        ('HVC_SIZE_STALE_BOOL',         'StaleSize:','',0,'','Sizing Stale Flag',        'BOLD','ORANGE','2.0'),
+        ('HVC_SIZE_MODIFIED_DT',        ' Sized:','', 0, '', 'Last Sized',              'NOM', 'ORANGE','2.0'),
+        ('HVC_SIZE_PREV_TXT',           ' Prev:','',  0, '', 'Previous Size',           'NOM', 'GREY',  '2.0'),
+        ('HVC_SIZE_RULE_ID_TXT',        ' Rule:','',  0, '✓','Sizing Rule',             'ITALIC','GREY','2.0'),
+    ]),
+    # Phase 182-183 — Duct sizing audit-trail tier (new)
+    'HVC_DUCT_AUDIT_T7': ('T7', [
+        ('HVC_SEGMENT_ROLE_TXT',        'Role:','',   0, '',  'Duct Segment Role',       'BOLD','BLUE',  '2.0'),
+        ('HVC_PRESSURE_CLASS_TXT',      ' PrClass:','',0, '', 'DW/144 Pressure Class',   'NOM', 'BLUE',  '2.0'),
+        ('HVC_SIZE_STALE_BOOL',         ' StaleSize:','',0,'','Sizing Stale Flag',       'BOLD','ORANGE','2.0'),
+        ('HVC_SIZE_MODIFIED_DT',        ' Sized:','', 0, '', 'Last Sized',              'NOM', 'ORANGE','2.0'),
+        ('HVC_SIZE_PREV_TXT',           ' Prev:','',  0, '', 'Previous Size',           'NOM', 'GREY',  '2.0'),
+        ('HVC_SIZE_RULE_ID_TXT',        ' Rule:','',  0, '✓','Sizing Rule',             'ITALIC','GREY','2.0'),
+    ]),
+    # Phase 183 — Pipe service-detect audit-trail tier (new)
+    'HVC_PIPE_AUDIT_T7': ('T7', [
+        ('HVC_PIPE_SERVICE_TXT',        'Svc:', '',   0, '',  'Pipe Service Detected',   'BOLD','BLUE',  '2.0'),
+        ('HVC_SIZE_STALE_BOOL',         ' StaleSize:','',0,'','Sizing Stale Flag',       'BOLD','ORANGE','2.0'),
+        ('HVC_SIZE_MODIFIED_DT',        ' Sized:','', 0, '', 'Last Sized',              'NOM', 'ORANGE','2.0'),
+        ('HVC_SIZE_PREV_TXT',           ' Prev:','',  0, '', 'Previous Size',           'NOM', 'GREY',  '2.0'),
+        ('HVC_SIZE_RULE_ID_TXT',        ' Rule:','',  0, '✓','Sizing Rule',             'ITALIC','GREY','2.0'),
     ]),
     'ELC_PANEL_T7': ('T7', [
         ('ELC_PANEL_SCHEDULE_REF_TXT',  'PS:',  '',  0, '',  'Panel Schedule',          'BOLD','ORANGE','2.0'),

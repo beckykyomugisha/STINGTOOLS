@@ -5870,3 +5870,170 @@ SLV_SLEEVE_PARAMS,SLV_FIRESTOP_PRODUCT_TXT,1927f0e9-ce4c-52bb-a27f-a8a9a4cebc1f,
 SLV_SLEEVE_PARAMS,SLV_TESTED_TO_TXT,0a2943a3-036b-55ae-89ee-01055824fad8,TEXT,Instance,Fire test standard,Generic Models,0a2943a3-036b-55ae-89ee-01055824fad8
 SLV_SLEEVE_PARAMS,SLV_STATUS_TXT,91403abb-2a37-5571-9435-d68bc6cacec1,TEXT,Instance,Sleeve status,Generic Models,91403abb-2a37-5571-9435-d68bc6cacec1
 SLV_SLEEVE_PARAMS,SLV_INSPECTION_DATE_TXT,53b14c0e-eef5-5415-85d1-ebe2aeb53cd7,TEXT,Instance,Last inspection date,Generic Models,53b14c0e-eef5-5415-85d1-ebe2aeb53cd7
+# Phase 184 P0.2 + P5 — currency-neutral cost / payment cert / variation params
+CST_PROC,ASS_CST_UNIT_RATE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41,NUMBER,Type,Currency-neutral unit rate,Casework,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41
+CST_PROC,ASS_CST_UNIT_RATE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41,NUMBER,Type,Currency-neutral unit rate,Electrical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41
+CST_PROC,ASS_CST_UNIT_RATE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41,NUMBER,Type,Currency-neutral unit rate,Furniture,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41
+CST_PROC,ASS_CST_UNIT_RATE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41,NUMBER,Type,Currency-neutral unit rate,Generic Models,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41
+CST_PROC,ASS_CST_UNIT_RATE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41,NUMBER,Type,Currency-neutral unit rate,Mechanical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41
+CST_PROC,ASS_CST_UNIT_RATE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41,NUMBER,Type,Currency-neutral unit rate,Plumbing Fixtures,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41
+CST_PROC,ASS_CST_UNIT_RATE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41,NUMBER,Type,Currency-neutral unit rate,Specialty Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41
+CST_PROC,ASS_CST_CURRENCY_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42,TEXT,Type,ISO 4217 currency code,Casework,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42
+CST_PROC,ASS_CST_CURRENCY_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42,TEXT,Type,ISO 4217 currency code,Electrical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42
+CST_PROC,ASS_CST_CURRENCY_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42,TEXT,Type,ISO 4217 currency code,Furniture,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42
+CST_PROC,ASS_CST_CURRENCY_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42,TEXT,Type,ISO 4217 currency code,Generic Models,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42
+CST_PROC,ASS_CST_CURRENCY_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42,TEXT,Type,ISO 4217 currency code,Mechanical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42
+CST_PROC,ASS_CST_CURRENCY_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42,TEXT,Type,ISO 4217 currency code,Plumbing Fixtures,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42
+CST_PROC,ASS_CST_CURRENCY_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42,TEXT,Type,ISO 4217 currency code,Specialty Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42
+CST_PROC,ASS_CST_FX_TO_BASE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43,NUMBER,Type,FX rate to project base currency,Casework,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43
+CST_PROC,ASS_CST_FX_TO_BASE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43,NUMBER,Type,FX rate to project base currency,Electrical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43
+CST_PROC,ASS_CST_FX_TO_BASE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43,NUMBER,Type,FX rate to project base currency,Furniture,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43
+CST_PROC,ASS_CST_FX_TO_BASE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43,NUMBER,Type,FX rate to project base currency,Generic Models,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43
+CST_PROC,ASS_CST_FX_TO_BASE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43,NUMBER,Type,FX rate to project base currency,Mechanical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43
+CST_PROC,ASS_CST_FX_TO_BASE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43,NUMBER,Type,FX rate to project base currency,Plumbing Fixtures,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43
+CST_PROC,ASS_CST_FX_TO_BASE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43,NUMBER,Type,FX rate to project base currency,Specialty Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43
+CST_PROC,ASS_CST_FX_DATE_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44,TEXT,Type,ISO 8601 FX rate fixing date,Casework,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44
+CST_PROC,ASS_CST_FX_DATE_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44,TEXT,Type,ISO 8601 FX rate fixing date,Electrical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44
+CST_PROC,ASS_CST_FX_DATE_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44,TEXT,Type,ISO 8601 FX rate fixing date,Furniture,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44
+CST_PROC,ASS_CST_FX_DATE_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44,TEXT,Type,ISO 8601 FX rate fixing date,Generic Models,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44
+CST_PROC,ASS_CST_FX_DATE_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44,TEXT,Type,ISO 8601 FX rate fixing date,Mechanical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44
+CST_PROC,ASS_CST_FX_DATE_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44,TEXT,Type,ISO 8601 FX rate fixing date,Plumbing Fixtures,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44
+CST_PROC,ASS_CST_FX_DATE_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44,TEXT,Type,ISO 8601 FX rate fixing date,Specialty Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44
+CST_PROC,ASS_CST_AS_OF_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45,TEXT,Type,Pricing reference date,Casework,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45
+CST_PROC,ASS_CST_AS_OF_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45,TEXT,Type,Pricing reference date,Electrical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45
+CST_PROC,ASS_CST_AS_OF_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45,TEXT,Type,Pricing reference date,Furniture,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45
+CST_PROC,ASS_CST_AS_OF_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45,TEXT,Type,Pricing reference date,Generic Models,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45
+CST_PROC,ASS_CST_AS_OF_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45,TEXT,Type,Pricing reference date,Mechanical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45
+CST_PROC,ASS_CST_AS_OF_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45,TEXT,Type,Pricing reference date,Plumbing Fixtures,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45
+CST_PROC,ASS_CST_AS_OF_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45,TEXT,Type,Pricing reference date,Specialty Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45
+CST_PROC,ASS_CST_STALE_BOOL,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46,YESNO,Type,Cost-stale flag,Casework,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46
+CST_PROC,ASS_CST_STALE_BOOL,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46,YESNO,Type,Cost-stale flag,Electrical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46
+CST_PROC,ASS_CST_STALE_BOOL,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46,YESNO,Type,Cost-stale flag,Furniture,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46
+CST_PROC,ASS_CST_STALE_BOOL,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46,YESNO,Type,Cost-stale flag,Generic Models,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46
+CST_PROC,ASS_CST_STALE_BOOL,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46,YESNO,Type,Cost-stale flag,Mechanical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46
+CST_PROC,ASS_CST_STALE_BOOL,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46,YESNO,Type,Cost-stale flag,Plumbing Fixtures,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46
+CST_PROC,ASS_CST_STALE_BOOL,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46,YESNO,Type,Cost-stale flag,Specialty Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46
+CST_PROC,ASS_CST_STALE_REASON_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47,TEXT,Type,Stale reason,Casework,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47
+CST_PROC,ASS_CST_STALE_REASON_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47,TEXT,Type,Stale reason,Electrical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47
+CST_PROC,ASS_CST_STALE_REASON_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47,TEXT,Type,Stale reason,Furniture,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47
+CST_PROC,ASS_CST_STALE_REASON_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47,TEXT,Type,Stale reason,Generic Models,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47
+CST_PROC,ASS_CST_STALE_REASON_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47,TEXT,Type,Stale reason,Mechanical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47
+CST_PROC,ASS_CST_STALE_REASON_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47,TEXT,Type,Stale reason,Plumbing Fixtures,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47
+CST_PROC,ASS_CST_STALE_REASON_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47,TEXT,Type,Stale reason,Specialty Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47
+CST_PROC,ASS_PMT_PCT_COMPLETE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50,NUMBER,Type,Per-element % complete,Casework,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50
+CST_PROC,ASS_PMT_PCT_COMPLETE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50,NUMBER,Type,Per-element % complete,Electrical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50
+CST_PROC,ASS_PMT_PCT_COMPLETE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50,NUMBER,Type,Per-element % complete,Furniture,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50
+CST_PROC,ASS_PMT_PCT_COMPLETE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50,NUMBER,Type,Per-element % complete,Generic Models,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50
+CST_PROC,ASS_PMT_PCT_COMPLETE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50,NUMBER,Type,Per-element % complete,Mechanical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50
+CST_PROC,ASS_PMT_PCT_COMPLETE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50,NUMBER,Type,Per-element % complete,Plumbing Fixtures,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50
+CST_PROC,ASS_PMT_PCT_COMPLETE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50,NUMBER,Type,Per-element % complete,Specialty Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50
+CST_PROC,ASS_PMT_CERT_NO_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51,INTEGER,Type,Payment certificate number,Casework,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51
+CST_PROC,ASS_PMT_CERT_NO_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51,INTEGER,Type,Payment certificate number,Electrical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51
+CST_PROC,ASS_PMT_CERT_NO_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51,INTEGER,Type,Payment certificate number,Furniture,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51
+CST_PROC,ASS_PMT_CERT_NO_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51,INTEGER,Type,Payment certificate number,Generic Models,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51
+CST_PROC,ASS_PMT_CERT_NO_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51,INTEGER,Type,Payment certificate number,Mechanical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51
+CST_PROC,ASS_PMT_CERT_NO_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51,INTEGER,Type,Payment certificate number,Plumbing Fixtures,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51
+CST_PROC,ASS_PMT_CERT_NO_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51,INTEGER,Type,Payment certificate number,Specialty Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51
+CST_PROC,ASS_PMT_CERT_DATE_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d52,TEXT,Type,Payment cert valuation date,Casework,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d52
+CST_PROC,ASS_PMT_CERT_DATE_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d52,TEXT,Type,Payment cert valuation date,Electrical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d52
+CST_PROC,ASS_PMT_CERT_DATE_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d52,TEXT,Type,Payment cert valuation date,Furniture,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d52
+CST_PROC,ASS_PMT_CERT_DATE_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d52,TEXT,Type,Payment cert valuation date,Generic Models,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d52
+CST_PROC,ASS_PMT_CERT_DATE_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d52,TEXT,Type,Payment cert valuation date,Mechanical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d52
+CST_PROC,ASS_PMT_CERT_DATE_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d52,TEXT,Type,Payment cert valuation date,Plumbing Fixtures,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d52
+CST_PROC,ASS_PMT_CERT_DATE_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d52,TEXT,Type,Payment cert valuation date,Specialty Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d52
+CST_PROC,ASS_PMT_LAST_VALUED_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d53,TEXT,Type,Last valuation timestamp,Casework,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d53
+CST_PROC,ASS_PMT_LAST_VALUED_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d53,TEXT,Type,Last valuation timestamp,Electrical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d53
+CST_PROC,ASS_PMT_LAST_VALUED_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d53,TEXT,Type,Last valuation timestamp,Furniture,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d53
+CST_PROC,ASS_PMT_LAST_VALUED_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d53,TEXT,Type,Last valuation timestamp,Generic Models,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d53
+CST_PROC,ASS_PMT_LAST_VALUED_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d53,TEXT,Type,Last valuation timestamp,Mechanical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d53
+CST_PROC,ASS_PMT_LAST_VALUED_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d53,TEXT,Type,Last valuation timestamp,Plumbing Fixtures,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d53
+CST_PROC,ASS_PMT_LAST_VALUED_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d53,TEXT,Type,Last valuation timestamp,Specialty Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d53
+CST_PROC,ASS_VAR_NO_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d60,TEXT,Type,Variation / change-order number,Casework,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d60
+CST_PROC,ASS_VAR_NO_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d60,TEXT,Type,Variation / change-order number,Electrical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d60
+CST_PROC,ASS_VAR_NO_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d60,TEXT,Type,Variation / change-order number,Furniture,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d60
+CST_PROC,ASS_VAR_NO_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d60,TEXT,Type,Variation / change-order number,Generic Models,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d60
+CST_PROC,ASS_VAR_NO_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d60,TEXT,Type,Variation / change-order number,Mechanical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d60
+CST_PROC,ASS_VAR_NO_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d60,TEXT,Type,Variation / change-order number,Plumbing Fixtures,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d60
+CST_PROC,ASS_VAR_NO_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d60,TEXT,Type,Variation / change-order number,Specialty Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d60
+CST_PROC,ASS_VAR_INSTRUCTION_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d61,TEXT,Type,Variation instruction date,Casework,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d61
+CST_PROC,ASS_VAR_INSTRUCTION_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d61,TEXT,Type,Variation instruction date,Electrical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d61
+CST_PROC,ASS_VAR_INSTRUCTION_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d61,TEXT,Type,Variation instruction date,Furniture,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d61
+CST_PROC,ASS_VAR_INSTRUCTION_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d61,TEXT,Type,Variation instruction date,Generic Models,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d61
+CST_PROC,ASS_VAR_INSTRUCTION_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d61,TEXT,Type,Variation instruction date,Mechanical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d61
+CST_PROC,ASS_VAR_INSTRUCTION_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d61,TEXT,Type,Variation instruction date,Plumbing Fixtures,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d61
+CST_PROC,ASS_VAR_INSTRUCTION_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d61,TEXT,Type,Variation instruction date,Specialty Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d61
+CST_PROC,ASS_VAR_VALUATION_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62,NUMBER,Type,Variation valuation,Casework,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62
+CST_PROC,ASS_VAR_VALUATION_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62,NUMBER,Type,Variation valuation,Electrical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62
+CST_PROC,ASS_VAR_VALUATION_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62,NUMBER,Type,Variation valuation,Furniture,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62
+CST_PROC,ASS_VAR_VALUATION_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62,NUMBER,Type,Variation valuation,Generic Models,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62
+CST_PROC,ASS_VAR_VALUATION_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62,NUMBER,Type,Variation valuation,Mechanical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62
+CST_PROC,ASS_VAR_VALUATION_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62,NUMBER,Type,Variation valuation,Plumbing Fixtures,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62
+CST_PROC,ASS_VAR_VALUATION_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62,NUMBER,Type,Variation valuation,Specialty Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62
+# Phase 182-183 — HVAC sizing-registry audit-trail + refrigerant/capacity params
+HVC_SYSTEMS,HVC_SEGMENT_ROLE_TXT,5bf0485f-08dd-53d1-9cc5-d956305d42e0,TEXT,Type,Duct segment role,Air Terminals,5bf0485f-08dd-53d1-9cc5-d956305d42e0
+HVC_SYSTEMS,HVC_SEGMENT_ROLE_TXT,5bf0485f-08dd-53d1-9cc5-d956305d42e0,TEXT,Type,Duct segment role,Duct Accessories,5bf0485f-08dd-53d1-9cc5-d956305d42e0
+HVC_SYSTEMS,HVC_SEGMENT_ROLE_TXT,5bf0485f-08dd-53d1-9cc5-d956305d42e0,TEXT,Type,Duct segment role,Duct Fittings,5bf0485f-08dd-53d1-9cc5-d956305d42e0
+HVC_SYSTEMS,HVC_SEGMENT_ROLE_TXT,5bf0485f-08dd-53d1-9cc5-d956305d42e0,TEXT,Type,Duct segment role,Ducts,5bf0485f-08dd-53d1-9cc5-d956305d42e0
+HVC_SYSTEMS,HVC_SEGMENT_ROLE_TXT,5bf0485f-08dd-53d1-9cc5-d956305d42e0,TEXT,Type,Duct segment role,Flex Ducts,5bf0485f-08dd-53d1-9cc5-d956305d42e0
+HVC_SYSTEMS,HVC_SIZE_PREV_TXT,b4385937-438e-5d5f-8ce0-f13c2a94a63d,TEXT,Type,Previous size (audit trail),Air Terminals,b4385937-438e-5d5f-8ce0-f13c2a94a63d
+HVC_SYSTEMS,HVC_SIZE_PREV_TXT,b4385937-438e-5d5f-8ce0-f13c2a94a63d,TEXT,Type,Previous size (audit trail),Duct Accessories,b4385937-438e-5d5f-8ce0-f13c2a94a63d
+HVC_SYSTEMS,HVC_SIZE_PREV_TXT,b4385937-438e-5d5f-8ce0-f13c2a94a63d,TEXT,Type,Previous size (audit trail),Duct Fittings,b4385937-438e-5d5f-8ce0-f13c2a94a63d
+HVC_SYSTEMS,HVC_SIZE_PREV_TXT,b4385937-438e-5d5f-8ce0-f13c2a94a63d,TEXT,Type,Previous size (audit trail),Ducts,b4385937-438e-5d5f-8ce0-f13c2a94a63d
+HVC_SYSTEMS,HVC_SIZE_PREV_TXT,b4385937-438e-5d5f-8ce0-f13c2a94a63d,TEXT,Type,Previous size (audit trail),Flex Ducts,b4385937-438e-5d5f-8ce0-f13c2a94a63d
+HVC_SYSTEMS,HVC_SIZE_PREV_TXT,b4385937-438e-5d5f-8ce0-f13c2a94a63d,TEXT,Type,Previous size (audit trail),Flex Pipes,b4385937-438e-5d5f-8ce0-f13c2a94a63d
+HVC_SYSTEMS,HVC_SIZE_PREV_TXT,b4385937-438e-5d5f-8ce0-f13c2a94a63d,TEXT,Type,Previous size (audit trail),Pipe Accessories,b4385937-438e-5d5f-8ce0-f13c2a94a63d
+HVC_SYSTEMS,HVC_SIZE_PREV_TXT,b4385937-438e-5d5f-8ce0-f13c2a94a63d,TEXT,Type,Previous size (audit trail),Pipe Fittings,b4385937-438e-5d5f-8ce0-f13c2a94a63d
+HVC_SYSTEMS,HVC_SIZE_PREV_TXT,b4385937-438e-5d5f-8ce0-f13c2a94a63d,TEXT,Type,Previous size (audit trail),Pipes,b4385937-438e-5d5f-8ce0-f13c2a94a63d
+HVC_SYSTEMS,HVC_SIZE_PREV_TXT,b4385937-438e-5d5f-8ce0-f13c2a94a63d,TEXT,Type,Previous size (audit trail),Plumbing Equipment,b4385937-438e-5d5f-8ce0-f13c2a94a63d
+HVC_SYSTEMS,HVC_SIZE_PREV_TXT,b4385937-438e-5d5f-8ce0-f13c2a94a63d,TEXT,Type,Previous size (audit trail),Plumbing Fixtures,b4385937-438e-5d5f-8ce0-f13c2a94a63d
+HVC_SYSTEMS,HVC_SIZE_PREV_TXT,b4385937-438e-5d5f-8ce0-f13c2a94a63d,TEXT,Type,Previous size (audit trail),Mechanical Equipment,b4385937-438e-5d5f-8ce0-f13c2a94a63d
+HVC_SYSTEMS,HVC_SIZE_MODIFIED_DT,b485412f-0a10-5cf7-9a49-dd2ae6199442,TEXT,Type,Last auto-sizing timestamp,Air Terminals,b485412f-0a10-5cf7-9a49-dd2ae6199442
+HVC_SYSTEMS,HVC_SIZE_MODIFIED_DT,b485412f-0a10-5cf7-9a49-dd2ae6199442,TEXT,Type,Last auto-sizing timestamp,Duct Accessories,b485412f-0a10-5cf7-9a49-dd2ae6199442
+HVC_SYSTEMS,HVC_SIZE_MODIFIED_DT,b485412f-0a10-5cf7-9a49-dd2ae6199442,TEXT,Type,Last auto-sizing timestamp,Duct Fittings,b485412f-0a10-5cf7-9a49-dd2ae6199442
+HVC_SYSTEMS,HVC_SIZE_MODIFIED_DT,b485412f-0a10-5cf7-9a49-dd2ae6199442,TEXT,Type,Last auto-sizing timestamp,Ducts,b485412f-0a10-5cf7-9a49-dd2ae6199442
+HVC_SYSTEMS,HVC_SIZE_MODIFIED_DT,b485412f-0a10-5cf7-9a49-dd2ae6199442,TEXT,Type,Last auto-sizing timestamp,Flex Ducts,b485412f-0a10-5cf7-9a49-dd2ae6199442
+HVC_SYSTEMS,HVC_SIZE_MODIFIED_DT,b485412f-0a10-5cf7-9a49-dd2ae6199442,TEXT,Type,Last auto-sizing timestamp,Flex Pipes,b485412f-0a10-5cf7-9a49-dd2ae6199442
+HVC_SYSTEMS,HVC_SIZE_MODIFIED_DT,b485412f-0a10-5cf7-9a49-dd2ae6199442,TEXT,Type,Last auto-sizing timestamp,Pipe Accessories,b485412f-0a10-5cf7-9a49-dd2ae6199442
+HVC_SYSTEMS,HVC_SIZE_MODIFIED_DT,b485412f-0a10-5cf7-9a49-dd2ae6199442,TEXT,Type,Last auto-sizing timestamp,Pipe Fittings,b485412f-0a10-5cf7-9a49-dd2ae6199442
+HVC_SYSTEMS,HVC_SIZE_MODIFIED_DT,b485412f-0a10-5cf7-9a49-dd2ae6199442,TEXT,Type,Last auto-sizing timestamp,Pipes,b485412f-0a10-5cf7-9a49-dd2ae6199442
+HVC_SYSTEMS,HVC_SIZE_MODIFIED_DT,b485412f-0a10-5cf7-9a49-dd2ae6199442,TEXT,Type,Last auto-sizing timestamp,Plumbing Equipment,b485412f-0a10-5cf7-9a49-dd2ae6199442
+HVC_SYSTEMS,HVC_SIZE_MODIFIED_DT,b485412f-0a10-5cf7-9a49-dd2ae6199442,TEXT,Type,Last auto-sizing timestamp,Plumbing Fixtures,b485412f-0a10-5cf7-9a49-dd2ae6199442
+HVC_SYSTEMS,HVC_SIZE_MODIFIED_DT,b485412f-0a10-5cf7-9a49-dd2ae6199442,TEXT,Type,Last auto-sizing timestamp,Mechanical Equipment,b485412f-0a10-5cf7-9a49-dd2ae6199442
+HVC_SYSTEMS,HVC_SIZE_RULE_ID_TXT,b02ae4ea-c9a0-5424-9e20-7d4406352260,TEXT,Type,Sizing rule + source,Air Terminals,b02ae4ea-c9a0-5424-9e20-7d4406352260
+HVC_SYSTEMS,HVC_SIZE_RULE_ID_TXT,b02ae4ea-c9a0-5424-9e20-7d4406352260,TEXT,Type,Sizing rule + source,Duct Accessories,b02ae4ea-c9a0-5424-9e20-7d4406352260
+HVC_SYSTEMS,HVC_SIZE_RULE_ID_TXT,b02ae4ea-c9a0-5424-9e20-7d4406352260,TEXT,Type,Sizing rule + source,Duct Fittings,b02ae4ea-c9a0-5424-9e20-7d4406352260
+HVC_SYSTEMS,HVC_SIZE_RULE_ID_TXT,b02ae4ea-c9a0-5424-9e20-7d4406352260,TEXT,Type,Sizing rule + source,Ducts,b02ae4ea-c9a0-5424-9e20-7d4406352260
+HVC_SYSTEMS,HVC_SIZE_RULE_ID_TXT,b02ae4ea-c9a0-5424-9e20-7d4406352260,TEXT,Type,Sizing rule + source,Flex Ducts,b02ae4ea-c9a0-5424-9e20-7d4406352260
+HVC_SYSTEMS,HVC_SIZE_RULE_ID_TXT,b02ae4ea-c9a0-5424-9e20-7d4406352260,TEXT,Type,Sizing rule + source,Flex Pipes,b02ae4ea-c9a0-5424-9e20-7d4406352260
+HVC_SYSTEMS,HVC_SIZE_RULE_ID_TXT,b02ae4ea-c9a0-5424-9e20-7d4406352260,TEXT,Type,Sizing rule + source,Pipe Accessories,b02ae4ea-c9a0-5424-9e20-7d4406352260
+HVC_SYSTEMS,HVC_SIZE_RULE_ID_TXT,b02ae4ea-c9a0-5424-9e20-7d4406352260,TEXT,Type,Sizing rule + source,Pipe Fittings,b02ae4ea-c9a0-5424-9e20-7d4406352260
+HVC_SYSTEMS,HVC_SIZE_RULE_ID_TXT,b02ae4ea-c9a0-5424-9e20-7d4406352260,TEXT,Type,Sizing rule + source,Pipes,b02ae4ea-c9a0-5424-9e20-7d4406352260
+HVC_SYSTEMS,HVC_SIZE_RULE_ID_TXT,b02ae4ea-c9a0-5424-9e20-7d4406352260,TEXT,Type,Sizing rule + source,Plumbing Equipment,b02ae4ea-c9a0-5424-9e20-7d4406352260
+HVC_SYSTEMS,HVC_SIZE_RULE_ID_TXT,b02ae4ea-c9a0-5424-9e20-7d4406352260,TEXT,Type,Sizing rule + source,Plumbing Fixtures,b02ae4ea-c9a0-5424-9e20-7d4406352260
+HVC_SYSTEMS,HVC_SIZE_RULE_ID_TXT,b02ae4ea-c9a0-5424-9e20-7d4406352260,TEXT,Type,Sizing rule + source,Mechanical Equipment,b02ae4ea-c9a0-5424-9e20-7d4406352260
+HVC_SYSTEMS,HVC_PIPE_SERVICE_TXT,97e69122-4e43-5b88-9c82-6eaf586ddc07,TEXT,Type,Pipe service detected,Flex Pipes,97e69122-4e43-5b88-9c82-6eaf586ddc07
+HVC_SYSTEMS,HVC_PIPE_SERVICE_TXT,97e69122-4e43-5b88-9c82-6eaf586ddc07,TEXT,Type,Pipe service detected,Pipe Accessories,97e69122-4e43-5b88-9c82-6eaf586ddc07
+HVC_SYSTEMS,HVC_PIPE_SERVICE_TXT,97e69122-4e43-5b88-9c82-6eaf586ddc07,TEXT,Type,Pipe service detected,Pipe Fittings,97e69122-4e43-5b88-9c82-6eaf586ddc07
+HVC_SYSTEMS,HVC_PIPE_SERVICE_TXT,97e69122-4e43-5b88-9c82-6eaf586ddc07,TEXT,Type,Pipe service detected,Pipes,97e69122-4e43-5b88-9c82-6eaf586ddc07
+HVC_SYSTEMS,HVC_PIPE_SERVICE_TXT,97e69122-4e43-5b88-9c82-6eaf586ddc07,TEXT,Type,Pipe service detected,Plumbing Equipment,97e69122-4e43-5b88-9c82-6eaf586ddc07
+HVC_SYSTEMS,HVC_PIPE_SERVICE_TXT,97e69122-4e43-5b88-9c82-6eaf586ddc07,TEXT,Type,Pipe service detected,Plumbing Fixtures,97e69122-4e43-5b88-9c82-6eaf586ddc07
+HVC_SYSTEMS,HVC_PRESSURE_CLASS_TXT,61d432d6-77fe-5811-972f-0b28493d3de7,TEXT,Type,DW/144 pressure class,Air Terminals,61d432d6-77fe-5811-972f-0b28493d3de7
+HVC_SYSTEMS,HVC_PRESSURE_CLASS_TXT,61d432d6-77fe-5811-972f-0b28493d3de7,TEXT,Type,DW/144 pressure class,Duct Accessories,61d432d6-77fe-5811-972f-0b28493d3de7
+HVC_SYSTEMS,HVC_PRESSURE_CLASS_TXT,61d432d6-77fe-5811-972f-0b28493d3de7,TEXT,Type,DW/144 pressure class,Duct Fittings,61d432d6-77fe-5811-972f-0b28493d3de7
+HVC_SYSTEMS,HVC_PRESSURE_CLASS_TXT,61d432d6-77fe-5811-972f-0b28493d3de7,TEXT,Type,DW/144 pressure class,Ducts,61d432d6-77fe-5811-972f-0b28493d3de7
+HVC_SYSTEMS,HVC_PRESSURE_CLASS_TXT,61d432d6-77fe-5811-972f-0b28493d3de7,TEXT,Type,DW/144 pressure class,Flex Ducts,61d432d6-77fe-5811-972f-0b28493d3de7
+HVC_SYSTEMS,HVC_SIZE_STALE_BOOL,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d,TEXT,Type,Sizing stale flag,Air Terminals,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d
+HVC_SYSTEMS,HVC_SIZE_STALE_BOOL,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d,TEXT,Type,Sizing stale flag,Duct Accessories,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d
+HVC_SYSTEMS,HVC_SIZE_STALE_BOOL,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d,TEXT,Type,Sizing stale flag,Duct Fittings,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d
+HVC_SYSTEMS,HVC_SIZE_STALE_BOOL,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d,TEXT,Type,Sizing stale flag,Ducts,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d
+HVC_SYSTEMS,HVC_SIZE_STALE_BOOL,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d,TEXT,Type,Sizing stale flag,Flex Ducts,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d
+HVC_SYSTEMS,HVC_SIZE_STALE_BOOL,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d,TEXT,Type,Sizing stale flag,Flex Pipes,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d
+HVC_SYSTEMS,HVC_SIZE_STALE_BOOL,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d,TEXT,Type,Sizing stale flag,Pipe Accessories,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d
+HVC_SYSTEMS,HVC_SIZE_STALE_BOOL,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d,TEXT,Type,Sizing stale flag,Pipe Fittings,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d
+HVC_SYSTEMS,HVC_SIZE_STALE_BOOL,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d,TEXT,Type,Sizing stale flag,Pipes,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d
+HVC_SYSTEMS,HVC_SIZE_STALE_BOOL,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d,TEXT,Type,Sizing stale flag,Plumbing Equipment,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d
+HVC_SYSTEMS,HVC_SIZE_STALE_BOOL,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d,TEXT,Type,Sizing stale flag,Plumbing Fixtures,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d
+HVC_SYSTEMS,HVC_SIZE_STALE_BOOL,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d,TEXT,Type,Sizing stale flag,Mechanical Equipment,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d
+HVC_SYSTEMS,HVC_REFRIGERANT_KG_NR,b99d07d1-6eca-50cf-b983-b6fe2442bc8c,TEXT,Type,Refrigerant charge mass kg,Mechanical Equipment,b99d07d1-6eca-50cf-b983-b6fe2442bc8c
+HVC_SYSTEMS,HVC_REFRIGERANT_TYPE_TXT,10d87a6e-b7d8-5058-81a9-bc62394d9bad,TEXT,Type,Refrigerant id,Mechanical Equipment,10d87a6e-b7d8-5058-81a9-bc62394d9bad
+HVC_SYSTEMS,HVC_CAPACITY_KW,397ee526-7af0-5516-a2a1-48db5a42f249,TEXT,Type,Equipment design capacity kW,Mechanical Equipment,397ee526-7af0-5516-a2a1-48db5a42f249
