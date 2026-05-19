@@ -1196,7 +1196,22 @@ app.MapHub<Planscape.Infrastructure.SignalR.FederatedModelHub>("/hubs/model");
 
     if (app.Environment.IsDevelopment())
     {
-        await Planscape.API.SeedData.SeedAsync(db, app.Environment);
+        try
+        {
+            await Planscape.API.SeedData.SeedAsync(db, app.Environment);
+        }
+        catch (Exception ex)
+        {
+            // Dev-only seed data is a convenience, not a hard requirement
+            // for the API to boot. A bad seed row (Npgsql redacts the
+            // detail by default, so the inner message is usually "Detail
+            // redacted") used to crash the process and put the api
+            // container into a restart loop. Log and continue so admins
+            // can still sign in and fix data manually.
+            Console.WriteLine($"[SeedData] Skipped — {ex.GetType().Name}: {ex.Message}");
+            if (ex.InnerException is { } inner)
+                Console.WriteLine($"[SeedData] Inner: {inner.GetType().Name}: {inner.Message}");
+        }
     }
 }
 
