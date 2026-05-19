@@ -260,24 +260,36 @@ TAG7: STR_TAG_7_PARA_COL_TXT  •  Category: Structural Columns
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
-12,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-13,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-14,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-15,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-16,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
-17,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-18,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
-19,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-20,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-21,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
+25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
+26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_COLUMNS,Fire rating < 1.0 hr,Building Regs Part B / BS 9999 Table 10,Common,Text,⚠ Warning: Column Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_COLUMNS, """")"
@@ -320,24 +332,36 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Framing
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
-12,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-13,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-14,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-15,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-16,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
-17,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-18,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
-19,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-20,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-21,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
+25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
+26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_BEAMS,Fire rating < 1.0 hr,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Beam Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_BEAMS, """")"
@@ -385,24 +409,36 @@ TAG7: STR_TAG_7_PARA_FDN_TXT  •  Category: Structural Foundations
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
-12,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-13,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-14,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-15,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-16,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
-17,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-18,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
-19,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-20,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-21,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
+25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
+26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_FDN_BEARING_KN_M2,Bearing pressure exceeds soil capacity,BS EN 1997-1 / EC7,Common,Text,⚠ Warning: Foundation Bearing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_BEARING_KN_M2, """")"
@@ -439,24 +475,36 @@ TAG7: STR_TAG_7_PARA_SLAB_TXT  •  Category: Floors (Structural)
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
-12,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-13,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-14,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-15,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-16,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
-17,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-18,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
-19,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-20,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-21,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
+25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
+26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_SLABS,Fire rating < 1.0 hr,Building Regs Part B / BS EN 1992-1-2,Common,Text,⚠ Warning: Slab Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_SLABS, """")"
@@ -489,24 +537,36 @@ TAG7: STR_TAG_7_PARA_WALL_TXT  •  Category: Walls (Structural/Load-bearing)
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
-12,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-13,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-14,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-15,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-16,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
-17,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-18,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
-19,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-20,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-21,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
+25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
+26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_WALLS,Fire rating < 2.0 hr (loadbearing),Building Regs Part B / BS EN 1996-1-2,Common,Text,⚠ Warning: Struct Wall Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_WALLS, """")"
@@ -536,24 +596,36 @@ TAG7: STR_TAG_7_PARA_BRACE_TXT  •  Category: Structural Framing (Bracing)
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
-12,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-13,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-14,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-15,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-16,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
-17,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-18,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
-19,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-20,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-21,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
+25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
+26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_BRACE_SLENDERNESS,Slenderness ratio exceeds 200,BS EN 1993-1-1 / EC3 6.3.1.2,Common,Text,⚠ Warning: Brace Slenderness,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BRACE_SLENDERNESS, """")"
@@ -585,24 +657,36 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T7,STR_BAR_MARK_TXT,Mark:,,0,,Common,Text,Show T7 - Rebar - Bar Mark,"if(TAG_PARA_STATE_7_BOOL, STR_BAR_MARK_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,STR_BEND_SCHEDULE_REF_TXT,BBS:,,0,,Common,Text,Show T7 - Rebar - BBS Ref,"if(TAG_PARA_STATE_7_BOOL, STR_BEND_SCHEDULE_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
-12,T7,STR_CUTTING_LIST_REF_TXT,CL:,,0,✓,Common,Text,Show T7 - Rebar - Cutting List,"if(TAG_PARA_STATE_7_BOOL, STR_CUTTING_LIST_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
-13,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-14,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-15,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-16,T9,ASBUILT_COVER_DEVIATION_MM,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
-17,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-18,T9,HEALTH_SCORE_LAST_NR,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
-19,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-20,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-21,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T7,STR_BAR_MARK_TXT,Mark:,,0,,Common,Text,Show T7 - Rebar - Bar Mark,"if(TAG_PARA_STATE_7_BOOL, STR_BAR_MARK_TXT, """")",BOLD,ORANGE,2.0,None,None
+25,T7,STR_BEND_SCHEDULE_REF_TXT,BBS:,,0,,Common,Text,Show T7 - Rebar - BBS Ref,"if(TAG_PARA_STATE_7_BOOL, STR_BEND_SCHEDULE_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
+26,T7,STR_CUTTING_LIST_REF_TXT,CL:,,0,✓,Common,Text,Show T7 - Rebar - Cutting List,"if(TAG_PARA_STATE_7_BOOL, STR_CUTTING_LIST_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+30,T9,ASBUILT_COVER_DEVIATION_MM,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_RBR_COVER_MM,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, """")"
@@ -634,24 +718,36 @@ TAG7: STR_TAG_7_PARA_CONN_TXT  •  Category: Structural Connections
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T7,STR_WELD_PROCEDURE_REF_TXT,WPS:,,0,,Common,Text,Show T7 - Connection - WPS,"if(TAG_PARA_STATE_7_BOOL, STR_WELD_PROCEDURE_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,STR_BOLT_TORQUE_NM_NR,Tq:,Nm,1,,Common,Text,Show T7 - Connection - Bolt Torque,"if(TAG_PARA_STATE_7_BOOL, STR_BOLT_TORQUE_NM_NR, """")",BOLD,ORANGE,2.0,None,None
-12,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Connection - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-13,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-14,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-15,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-16,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
-17,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-18,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
-19,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-20,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-21,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T7,STR_WELD_PROCEDURE_REF_TXT,WPS:,,0,,Common,Text,Show T7 - Connection - WPS,"if(TAG_PARA_STATE_7_BOOL, STR_WELD_PROCEDURE_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
+25,T7,STR_BOLT_TORQUE_NM_NR,Tq:,Nm,1,,Common,Text,Show T7 - Connection - Bolt Torque,"if(TAG_PARA_STATE_7_BOOL, STR_BOLT_TORQUE_NM_NR, """")",BOLD,ORANGE,2.0,None,None
+26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Connection - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_CONN_CAPACITY_KN,Capacity < applied load,BS EN 1993-1-8 / EC3,Common,Text,⚠ Warning: Connection Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_CONN_CAPACITY_KN, """")"
@@ -679,24 +775,36 @@ TAG7: STR_TAG_7_PARA_COL_TXT  •  Category: Columns (Architectural)
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
-12,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-13,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-14,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-15,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-16,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
-17,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-18,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
-19,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-20,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-21,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
+25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
+26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_ARCH_COLUMNS,Fire rating < 1.0 hr,Building Regs Part B,Common,Text,⚠ Warning: Column Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_ARCH_COLUMNS, """")"
@@ -728,24 +836,36 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Trusses
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
-12,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-13,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-14,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-15,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-16,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
-17,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-18,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
-19,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-20,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-21,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
+25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
+26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_STR_TRUSSES,Fire rating < 1.0 hr,Building Regs Part B,Common,Text,⚠ Warning: Truss Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_STR_TRUSSES, """")"
@@ -770,24 +890,36 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Stiffeners
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
-12,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-13,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-14,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-15,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-16,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
-17,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-18,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
-19,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-20,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-21,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
+25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
+26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_GRADE_STIFFENERS,Stiffener grade not compatible with parent section,BS EN 1993-1-1 / EC3,Common,Text,⚠ Warning: Stiffener Grade,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_GRADE_STIFFENERS, """")"
@@ -814,24 +946,36 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Beam Systems
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
-12,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
-13,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-14,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-15,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-16,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
-17,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-18,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
-19,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-20,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-21,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
+25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
+26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_LOAD_UDL_KN_M_BEAM_SYS,UDL exceeds beam system capacity,BS EN 1993-1-1 / EC3,Common,Text,⚠ Warning: Beam System UDL,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_UDL_KN_M_BEAM_SYS, """")"
@@ -854,24 +998,36 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar Couplers
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T7,STR_BAR_MARK_TXT,Mark:,,0,,Common,Text,Show T7 - Rebar - Bar Mark,"if(TAG_PARA_STATE_7_BOOL, STR_BAR_MARK_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,STR_BEND_SCHEDULE_REF_TXT,BBS:,,0,,Common,Text,Show T7 - Rebar - BBS Ref,"if(TAG_PARA_STATE_7_BOOL, STR_BEND_SCHEDULE_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
-12,T7,STR_CUTTING_LIST_REF_TXT,CL:,,0,✓,Common,Text,Show T7 - Rebar - Cutting List,"if(TAG_PARA_STATE_7_BOOL, STR_CUTTING_LIST_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
-13,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-14,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-15,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-16,T9,ASBUILT_COVER_DEVIATION_MM,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
-17,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-18,T9,HEALTH_SCORE_LAST_NR,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
-19,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-20,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-21,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T7,STR_BAR_MARK_TXT,Mark:,,0,,Common,Text,Show T7 - Rebar - Bar Mark,"if(TAG_PARA_STATE_7_BOOL, STR_BAR_MARK_TXT, """")",BOLD,ORANGE,2.0,None,None
+25,T7,STR_BEND_SCHEDULE_REF_TXT,BBS:,,0,,Common,Text,Show T7 - Rebar - BBS Ref,"if(TAG_PARA_STATE_7_BOOL, STR_BEND_SCHEDULE_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
+26,T7,STR_CUTTING_LIST_REF_TXT,CL:,,0,✓,Common,Text,Show T7 - Rebar - Cutting List,"if(TAG_PARA_STATE_7_BOOL, STR_CUTTING_LIST_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+30,T9,ASBUILT_COVER_DEVIATION_MM,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_REBAR_GRADE_COUPLERS,Coupler grade incompatible with rebar grade,BS 8539 / BS EN 1992-1-1,Common,Text,⚠ Warning: Coupler Grade,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_GRADE_COUPLERS, """")"
@@ -895,24 +1051,36 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Fabric Reinforcement
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T7,STR_BAR_MARK_TXT,Mark:,,0,,Common,Text,Show T7 - Rebar - Bar Mark,"if(TAG_PARA_STATE_7_BOOL, STR_BAR_MARK_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,STR_BEND_SCHEDULE_REF_TXT,BBS:,,0,,Common,Text,Show T7 - Rebar - BBS Ref,"if(TAG_PARA_STATE_7_BOOL, STR_BEND_SCHEDULE_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
-12,T7,STR_CUTTING_LIST_REF_TXT,CL:,,0,✓,Common,Text,Show T7 - Rebar - Cutting List,"if(TAG_PARA_STATE_7_BOOL, STR_CUTTING_LIST_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
-13,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-14,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-15,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-16,T9,ASBUILT_COVER_DEVIATION_MM,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
-17,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-18,T9,HEALTH_SCORE_LAST_NR,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
-19,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-20,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-21,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T7,STR_BAR_MARK_TXT,Mark:,,0,,Common,Text,Show T7 - Rebar - Bar Mark,"if(TAG_PARA_STATE_7_BOOL, STR_BAR_MARK_TXT, """")",BOLD,ORANGE,2.0,None,None
+25,T7,STR_BEND_SCHEDULE_REF_TXT,BBS:,,0,,Common,Text,Show T7 - Rebar - BBS Ref,"if(TAG_PARA_STATE_7_BOOL, STR_BEND_SCHEDULE_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
+26,T7,STR_CUTTING_LIST_REF_TXT,CL:,,0,✓,Common,Text,Show T7 - Rebar - Cutting List,"if(TAG_PARA_STATE_7_BOOL, STR_CUTTING_LIST_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+30,T9,ASBUILT_COVER_DEVIATION_MM,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_REBAR_COVER_MM_FABRIC,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Fabric Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_COVER_MM_FABRIC, """")"
@@ -936,24 +1104,36 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Area Reinforcement
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T7,STR_BAR_MARK_TXT,Mark:,,0,,Common,Text,Show T7 - Rebar - Bar Mark,"if(TAG_PARA_STATE_7_BOOL, STR_BAR_MARK_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,STR_BEND_SCHEDULE_REF_TXT,BBS:,,0,,Common,Text,Show T7 - Rebar - BBS Ref,"if(TAG_PARA_STATE_7_BOOL, STR_BEND_SCHEDULE_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
-12,T7,STR_CUTTING_LIST_REF_TXT,CL:,,0,✓,Common,Text,Show T7 - Rebar - Cutting List,"if(TAG_PARA_STATE_7_BOOL, STR_CUTTING_LIST_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
-13,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-14,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-15,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-16,T9,ASBUILT_COVER_DEVIATION_MM,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
-17,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-18,T9,HEALTH_SCORE_LAST_NR,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
-19,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-20,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-21,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T7,STR_BAR_MARK_TXT,Mark:,,0,,Common,Text,Show T7 - Rebar - Bar Mark,"if(TAG_PARA_STATE_7_BOOL, STR_BAR_MARK_TXT, """")",BOLD,ORANGE,2.0,None,None
+25,T7,STR_BEND_SCHEDULE_REF_TXT,BBS:,,0,,Common,Text,Show T7 - Rebar - BBS Ref,"if(TAG_PARA_STATE_7_BOOL, STR_BEND_SCHEDULE_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
+26,T7,STR_CUTTING_LIST_REF_TXT,CL:,,0,✓,Common,Text,Show T7 - Rebar - Cutting List,"if(TAG_PARA_STATE_7_BOOL, STR_CUTTING_LIST_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+30,T9,ASBUILT_COVER_DEVIATION_MM,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_REBAR_COVER_MM_AREA,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Area Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_COVER_MM_AREA, """")"
@@ -981,24 +1161,36 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Path Reinforcement
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T7,STR_BAR_MARK_TXT,Mark:,,0,,Common,Text,Show T7 - Rebar - Bar Mark,"if(TAG_PARA_STATE_7_BOOL, STR_BAR_MARK_TXT, """")",BOLD,ORANGE,2.0,None,None
-11,T7,STR_BEND_SCHEDULE_REF_TXT,BBS:,,0,,Common,Text,Show T7 - Rebar - BBS Ref,"if(TAG_PARA_STATE_7_BOOL, STR_BEND_SCHEDULE_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
-12,T7,STR_CUTTING_LIST_REF_TXT,CL:,,0,✓,Common,Text,Show T7 - Rebar - Cutting List,"if(TAG_PARA_STATE_7_BOOL, STR_CUTTING_LIST_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
-13,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-14,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-15,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-16,T9,ASBUILT_COVER_DEVIATION_MM,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
-17,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
-18,T9,HEALTH_SCORE_LAST_NR,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
-19,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-20,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-21,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T7,STR_BAR_MARK_TXT,Mark:,,0,,Common,Text,Show T7 - Rebar - Bar Mark,"if(TAG_PARA_STATE_7_BOOL, STR_BAR_MARK_TXT, """")",BOLD,ORANGE,2.0,None,None
+25,T7,STR_BEND_SCHEDULE_REF_TXT,BBS:,,0,,Common,Text,Show T7 - Rebar - BBS Ref,"if(TAG_PARA_STATE_7_BOOL, STR_BEND_SCHEDULE_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
+26,T7,STR_CUTTING_LIST_REF_TXT,CL:,,0,✓,Common,Text,Show T7 - Rebar - Cutting List,"if(TAG_PARA_STATE_7_BOOL, STR_CUTTING_LIST_REF_TXT, """")",BOLD,ORANGE,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+30,T9,ASBUILT_COVER_DEVIATION_MM,ΔCvr:,mm,1,,Common,Text,Show T9 - Cover Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_COVER_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,1,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-24,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_REBAR_COVER_MM_PATH,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Path Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_COVER_MM_PATH, """")"
@@ -1023,18 +1215,30 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Point Loads
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-11,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-12,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-13,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-14,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-15,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+25,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+26,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+27,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+28,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+29,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_LOAD_CASE_MISSING_INT_PT,STR_LOAD_CASE_TXT empty — internal load case not specified,BS EN 1990 / EC0,Common,Text,⚠ Warning: Internal Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_INT_PT, """")"
@@ -1058,18 +1262,30 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Line Loads
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-11,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-12,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-13,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-14,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-15,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+25,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+26,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+27,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+28,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+29,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_LOAD_CASE_MISSING_INT_LN,STR_LOAD_CASE_TXT empty — internal load case not specified,BS EN 1990 / EC0,Common,Text,⚠ Warning: Internal Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_INT_LN, """")"
@@ -1093,18 +1309,30 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Area Loads
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-11,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-12,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-13,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-14,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-15,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+25,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+26,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+27,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+28,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+29,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_LOAD_CASE_MISSING_INT_AR,STR_LOAD_CASE_TXT empty — internal load case not specified,BS EN 1991-1-1 / EC1,Common,Text,⚠ Warning: Internal Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_INT_AR, """")"
@@ -1129,18 +1357,30 @@ TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Members
 4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
-7,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-8,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
-9,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
-10,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
-11,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
-12,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
-13,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
-14,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
-15,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+25,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+26,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+27,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+28,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+29,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-17,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-18,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_ANLYT_NO_HOST,Analytical member has no physical host element,BS EN 1992-1-1 / BS EN 1993-1-1,Common,Text,⚠ Warning: No Physical Host,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_ANLYT_NO_HOST, """")"
@@ -1157,9 +1397,21 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — Structural discipline
 1,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
 2,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
 3,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
+4,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+7,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+10,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+11,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+12,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+13,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+14,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+15,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+16,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+17,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
 4,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
-5,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
-6,T10,ASS_TRACE_SEQ_NR,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_SHT_NAMING_STR,Sheet name does not match ISO 19650 naming convention for structural drawings,ISO 19650-2 / BS EN ISO 7200,Common,Text,⚠ Warning: Sheet Naming Convention,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_NAMING_STR, """")"
@@ -1186,6 +1438,41 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Structural Foundations / Rebar
 1,T3,ELC_LPS_BOND_TYPE_TXT,Bond:,,0,✓,Common,Text,Bonding Method to Steel,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_BOND_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
 2,T3,ELC_LPS_CERT_REF_TXT,Cert:,,0,✓,Common,Text,Continuity Certificate,"if(TAG_PARA_STATE_3_BOOL, ELC_LPS_CERT_REF_TXT, """")",NOM,BLACK,2.0,None,None
 
+1,T4,COMM_STATE_TXT,Comm:,,0,,Common,Text,Show T4 - Commissioning - State,"if(TAG_PARA_STATE_4_BOOL, COMM_STATE_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,COMM_DATE_TXT,on,,0,,Common,Text,Show T4 - Commissioning - Date,"if(TAG_PARA_STATE_4_BOOL, COMM_DATE_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,COMM_OPERATIVE_TXT,by,,0,✓,Common,Text,Show T4 - Commissioning - Operative,"if(TAG_PARA_STATE_4_BOOL, COMM_OPERATIVE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,CST_UG_PRICE_UGX,,UGX,0,,Common,Text,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX, """")",NOM,PURPLE,2.0,None,None
+5,T5,CST_INTL_PRICE_USD,/ ,USD,0,,Common,Text,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD, """")",NOM,PURPLE,2.0,None,None
+6,T5,CST_QUOTE_REF_TXT,Quote:,,0,✓,Common,Text,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T5,ASS_CST_UNIT_RATE_NR,Rate:,,0,,Common,Text,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR, """")",NOM,PURPLE,2.0,None,None
+8,T5,ASS_CST_CURRENCY_TXT, ,,0,,Common,Text,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",NOM,PURPLE,2.0,None,None
+9,T5,ASS_CST_FX_TO_BASE_NR,FX:,,0,,Common,Text,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR, """")",NOM,PURPLE,2.0,None,None
+10,T5,ASS_CST_FX_DATE_DT, FX date:,,0,,Common,Text,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",NOM,PURPLE,2.0,None,None
+11,T5,ASS_CST_AS_OF_DT, As of:,,0,✓,Common,Text,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",NOM,PURPLE,2.0,None,None
+12,T5,ASS_CST_STALE_BOOL,Stale:,,0,,Common,Text,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",BOLD,ORANGE,2.0,None,None
+13,T5,ASS_CST_STALE_REASON_TXT, - ,,0,✓,Common,Text,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",NOM,ORANGE,2.0,None,None
+14,T5,ASS_PMT_PCT_COMPLETE_NR,Cmpl:,%,0,,Common,Text,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR, """")",BOLD,GREEN,2.0,None,None
+15,T5,ASS_PMT_CERT_NO_NR, Cert#:,,0,,Common,Text,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR, """")",NOM,GREEN,2.0,None,None
+16,T5,ASS_PMT_CERT_DATE_DT, Certified:,,0,,Common,Text,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",NOM,GREEN,2.0,None,None
+17,T5,ASS_PMT_LAST_VALUED_DT, Valued:,,0,✓,Common,Text,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",NOM,GREEN,2.0,None,None
+18,T5,ASS_VAR_NO_TXT,Var:,,0,,Common,Text,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",BOLD,RED,2.0,None,None
+19,T5,ASS_VAR_INSTRUCTION_DT, Instr:,,0,,Common,Text,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",NOM,RED,2.0,None,None
+20,T5,ASS_VAR_VALUATION_NR, Val:,,0,✓,Common,Text,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR, """")",NOM,RED,2.0,None,None
+21,T6,CBN_A1_A3_KG_CO2E,A1-A3:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+22,T6,CBN_A4_KG_CO2E,| A4:,kgCO₂e,0,,Common,Text,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E, """")",ITALIC,GREEN,2.0,None,None
+23,T6,CBN_B6_KG_CO2E_YR,| B6:,kgCO₂e/yr,0,✓,Common,Text,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR, """")",ITALIC,GREEN,2.0,None,None
+24,T7,ASS_SPOOL_NR_TXT,Spool:,,0,,Common,Text,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",BOLD,ORANGE,2.0,None,None
+25,T7,ASS_FAB_STATUS_TXT,Fab:,,0,,Common,Text,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",BOLD,ORANGE,2.0,None,None
+26,T7,ASS_QC_INSPECTOR_TXT,QC:,,0,✓,Common,Text,Show T7 - Fabrication - QC Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",BOLD,ORANGE,2.0,None,None
+27,T8,CLASH_TRIAGE_SEVERITY_NR,Sev:,/5,0,,Common,Text,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR, """")",BOLD,RED,2.0,None,None
+28,T8,CLASH_TRIAGE_CATEGORY_TXT,,,0,,Common,Text,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",BOLD,RED,2.0,None,None
+29,T8,CLASH_RESOLUTION_STATUS_TXT,Res:,,0,✓,Common,Text,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",BOLD,RED,2.0,None,None
+30,T9,ASBUILT_DEVIATION_MM,Δ:,mm,0,,Common,Text,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM, """")",ITALIC,GREY,2.0,None,None
+31,T9,ASBUILT_CAPTURE_DATE_TXT,on,,0,,Common,Text,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",ITALIC,GREY,2.0,None,None
+32,T9,HEALTH_SCORE_LAST_NR,Health:,/100,0,✓,Common,Text,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR, """")",ITALIC,GREY,2.0,None,None
+33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
+34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
+35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_ELC_LPS_EARTH_RESISTANCE_HIGH,Foundation earth resistance > 10 ohm — supplement with Type-A rod electrodes,BS EN 62305-3:2011 §5.4.1 + Annex E.5.3,Common,Text,⚠ Warning: Foundation Earth Resistance High,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_EARTH_RESISTANCE_HIGH, """")"
