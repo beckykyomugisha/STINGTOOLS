@@ -68,6 +68,9 @@ namespace StingTools.Commands.Cost
                 var snapB = (pickedB[0].Tag as BOQSnapshotMeta);
                 if (snapA == null || snapB == null) return Result.Cancelled;
 
+                // Sanity-check that both snapshot files exist + parse,
+                // then hand the paths to CompareSnapshots (which takes
+                // string paths, not loaded docs).
                 var docA = BOQCostManager.LoadSnapshot(snapA.Path);
                 var docB = BOQCostManager.LoadSnapshot(snapB.Path);
                 if (docA == null || docB == null)
@@ -76,7 +79,7 @@ namespace StingTools.Commands.Cost
                     return Result.Failed;
                 }
 
-                var diff = BOQCostManager.CompareSnapshots(docA, docB);
+                var diff = BOQCostManager.CompareSnapshots(snapA.Path, snapB.Path);
                 if (diff == null || diff.CategoryDiffs.Count == 0)
                 {
                     TaskDialog.Show("STING Variation",
