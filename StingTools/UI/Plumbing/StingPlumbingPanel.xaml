@@ -1,0 +1,750 @@
+<Page x:Class="StingTools.UI.Plumbing.StingPlumbingPanel"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="STING Plumbing"
+      Background="{DynamicResource PrimaryBg}">
+
+    <Page.Resources>
+        <Style x:Key="PlumbSectionHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,4,0,2"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+        <Style x:Key="PlumbLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Margin" Value="0,2,4,2"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="PlumbActionBtn" TargetType="Button">
+            <Setter Property="MinWidth" Value="64"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Margin" Value="2,1"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style x:Key="PlumbToolBtn" TargetType="Button" BasedOn="{StaticResource PlumbActionBtn}">
+            <Setter Property="MinWidth" Value="30"/>
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+        <Style x:Key="PlumbPrimaryBtn" TargetType="Button" BasedOn="{StaticResource PlumbActionBtn}">
+            <Setter Property="Background" Value="#FF0288D1"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="Height" Value="26"/>
+        </Style>
+        <Style x:Key="PlumbSymBtn" TargetType="Button" BasedOn="{StaticResource PlumbActionBtn}">
+            <Setter Property="MinWidth" Value="80"/>
+            <Setter Property="Margin" Value="2"/>
+        </Style>
+        <Style x:Key="PlumbExpander" TargetType="Expander">
+            <Setter Property="Margin" Value="0,3"/>
+            <Setter Property="Padding" Value="2"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+            <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+        </Style>
+    </Page.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title strip -->
+        <Border Grid.Row="0" Background="{DynamicResource HeaderBg}" Padding="8,4">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="💧 STING PLUMBING" FontWeight="Bold" FontSize="13"
+                           Foreground="{DynamicResource HeaderFg}"/>
+                <TextBlock x:Name="txtPlumbStatus" Text="Ready" FontSize="9" Margin="14,0,0,0"
+                           Foreground="{DynamicResource HeaderFg}" Opacity="0.7"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Project context strip: Standard + Building type + Temperature regime -->
+        <Border Grid.Row="1" Background="{DynamicResource SecondaryBg}" Padding="8,4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Standard:" Style="{StaticResource PlumbLabel}"/>
+                <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbStandard" Margin="0,1" FontSize="10"
+                          SelectionChanged="cmbStandard_SelectionChanged">
+                    <ComboBoxItem Content="BS EN 12056 (UK / EU)" IsSelected="True" Tag="BS_EN_12056"/>
+                    <ComboBoxItem Content="IPC 2021 (US)"             Tag="IPC_2021"/>
+                    <ComboBoxItem Content="UPC 2021 (US)"             Tag="UPC_2021"/>
+                    <ComboBoxItem Content="NCC AU"                    Tag="NCC_AU"/>
+                </ComboBox>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Building:" Style="{StaticResource PlumbLabel}"/>
+                <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbBuilding" Margin="0,1" FontSize="10"
+                          SelectionChanged="cmbBuilding_SelectionChanged">
+                    <ComboBoxItem Content="Office"            IsSelected="True" Tag="Office"/>
+                    <ComboBoxItem Content="Residential"                          Tag="Residential"/>
+                    <ComboBoxItem Content="Healthcare (HTM 04-01)"               Tag="Healthcare"/>
+                    <ComboBoxItem Content="Hospitality / Hotel"                  Tag="Hospitality"/>
+                    <ComboBoxItem Content="Industrial"                           Tag="Industrial"/>
+                    <ComboBoxItem Content="Education"                            Tag="Education"/>
+                </ComboBox>
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Regime:" Style="{StaticResource PlumbLabel}"/>
+                <ComboBox Grid.Row="2" Grid.Column="1" x:Name="cmbRegime" Margin="0,1" FontSize="10"
+                          SelectionChanged="cmbRegime_SelectionChanged">
+                    <ComboBoxItem Content="DCW + DHW + Recirc" IsSelected="True" Tag="DCW_DHW_Recirc"/>
+                    <ComboBoxItem Content="DCW + DHW (no recirc)"                Tag="DCW_DHW"/>
+                    <ComboBoxItem Content="DCW only"                             Tag="DCW"/>
+                    <ComboBoxItem Content="Blended / TMV-led"                    Tag="Blended"/>
+                </ComboBox>
+            </Grid>
+        </Border>
+
+        <TabControl Grid.Row="2" x:Name="tabPlumb" Background="{DynamicResource PrimaryBg}">
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="FontSize" Value="10"/>
+                    <Setter Property="Padding" Value="6,3"/>
+                    <Setter Property="Foreground" Value="{DynamicResource TabFg}"/>
+                    <Setter Property="Background" Value="{DynamicResource TabBg}"/>
+                    <Style.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource TabSelectedFg}"/>
+                            <Setter Property="Background" Value="{DynamicResource TabSelectedBg}"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </TabControl.Resources>
+
+            <!-- ============== TAB 0: SYSTEM ============== -->
+            <TabItem Header="SYSTEM">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="PROJECT &amp; STANDARDS" Style="{StaticResource PlumbSectionHeader}"/>
+                        <WrapPanel Margin="0,2">
+                            <Button Content="⚙ Configure System…" Style="{StaticResource PlumbPrimaryBtn}"
+                                    Tag="Plumb_SaveSystemConfig" Click="Cmd_Click"
+                                    ToolTip="Open the multi-section config dialog: building type → K factor, drainage / supply standard, pipe materials per service, velocity + slope limits."/>
+                            <Button Content="Show Current Config" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_LoadSystemConfig" Click="Cmd_Click"
+                                    ToolTip="Read-only summary of the saved plumbing system config from _BIM_COORD/plumbing_system_config.json."/>
+                        </WrapPanel>
+
+                        <Expander Header="ACTIVE CONFIG SUMMARY" Style="{StaticResource PlumbExpander}" IsExpanded="True">
+                            <Grid Margin="4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/>
+                                    <RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Drainage standard"  Style="{StaticResource PlumbLabel}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="txtCfgDrainageStd"  Style="{StaticResource PlumbLabel}" Text="—"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Supply standard"    Style="{StaticResource PlumbLabel}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtCfgSupplyStd"    Style="{StaticResource PlumbLabel}" Text="—"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Velocity max (m/s)"  Style="{StaticResource PlumbLabel}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="txtCfgVelocityMax"  Style="{StaticResource PlumbLabel}" Text="—"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Min slope (%)"       Style="{StaticResource PlumbLabel}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="txtCfgMinSlope"     Style="{StaticResource PlumbLabel}" Text="—"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="K factor (drainage)" Style="{StaticResource PlumbLabel}"/>
+                                <TextBlock Grid.Row="4" Grid.Column="1" x:Name="txtCfgKFactor"      Style="{StaticResource PlumbLabel}" Text="—"/>
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Pipe material (DCW)" Style="{StaticResource PlumbLabel}"/>
+                                <TextBlock Grid.Row="5" Grid.Column="1" x:Name="txtCfgMatDcw"       Style="{StaticResource PlumbLabel}" Text="—"/>
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="Pipe material (DHW)" Style="{StaticResource PlumbLabel}"/>
+                                <TextBlock Grid.Row="6" Grid.Column="1" x:Name="txtCfgMatDhw"       Style="{StaticResource PlumbLabel}" Text="—"/>
+                            </Grid>
+                        </Expander>
+
+                        <TextBlock Text="WORKFLOWS" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <Button Content="▶ Run Full Plumbing Audit (RAG)" Style="{StaticResource PlumbPrimaryBtn}"
+                                Tag="Plumb_FullAudit" Click="Cmd_Click"
+                                ToolTip="Runs all five compliance domains (Supply / Drainage / Vents / Backflow / HTM 04-01) and produces the RAG dashboard."/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 1: SUPPLY ============== -->
+            <TabItem Header="SUPPLY">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="FIXTURE UNIT SCAN" Style="{StaticResource PlumbSectionHeader}"/>
+                        <WrapPanel Margin="0,2">
+                            <Button Content="🔍" Style="{StaticResource PlumbToolBtn}"
+                                    Tag="Plumb_ScanFixtures" Click="Cmd_Click"
+                                    ToolTip="Walk OST_PlumbingFixtures and write PLM_DRN_DU / PLM_SUP_LU_CW / PLM_SUP_LU_HW / PLM_SUP_WSFU."/>
+                            <Button Content="Scan Fixtures (DU / LU / WSFU)" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_ScanFixtures" Click="Cmd_Click"/>
+                        </WrapPanel>
+                        <TextBox x:Name="txtFixtureFilter" Margin="0,4" FontSize="10"
+                                 ToolTip="Filter fixtures by type / room" TextChanged="txtFixtureFilter_TextChanged"/>
+                        <DataGrid x:Name="FixtureGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                  IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                  FontSize="10" RowHeight="22" Height="160" Margin="0,2">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Type"     Binding="{Binding TypeName}" Width="*"/>
+                                <DataGridTextColumn Header="Qty"      Binding="{Binding Qty}"      Width="40"/>
+                                <DataGridTextColumn Header="DU"       Binding="{Binding DuDisplay}"  Width="44"/>
+                                <DataGridTextColumn Header="LU cw"    Binding="{Binding LuCwDisplay}" Width="48"/>
+                                <DataGridTextColumn Header="LU hw"    Binding="{Binding LuHwDisplay}" Width="48"/>
+                                <DataGridTextColumn Header="WSFU"     Binding="{Binding WsfuDisplay}" Width="48"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <TextBlock x:Name="txtFixtureSummary" Margin="0,2" FontSize="10"
+                                   Text="0 fixture types · 0 fixtures · 0 DU total · 0 LU total"
+                                   Foreground="{DynamicResource PanelFg}" Opacity="0.8"/>
+
+                        <TextBlock Text="COLD + HOT WATER SIZING" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <Expander Header="SIZING OPTIONS" Style="{StaticResource PlumbExpander}">
+                            <Grid Margin="4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Velocity limit (m/s)" Style="{StaticResource PlumbLabel}"/>
+                                <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtSupVelocity" Text="2.0" Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Sizing method"        Style="{StaticResource PlumbLabel}"/>
+                                <ComboBox  Grid.Row="1" Grid.Column="1" x:Name="cmbSupMethod"      Margin="2" FontSize="10">
+                                    <ComboBoxItem Content="Hunter (WSFU)"           IsSelected="True" Tag="Hunter"/>
+                                    <ComboBoxItem Content="BS EN 806-3 (LU)"                          Tag="BSEN806"/>
+                                    <ComboBoxItem Content="DIN 1988 (LU)"                             Tag="DIN1988"/>
+                                </ComboBox>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Min pressure (kPa)"    Style="{StaticResource PlumbLabel}"/>
+                                <TextBox   Grid.Row="2" Grid.Column="1" x:Name="txtSupMinPressure" Text="100" Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Max pressure (kPa)"    Style="{StaticResource PlumbLabel}"/>
+                                <TextBox   Grid.Row="3" Grid.Column="1" x:Name="txtSupMaxPressure" Text="500" Margin="2" FontSize="10"/>
+                            </Grid>
+                        </Expander>
+                        <WrapPanel Margin="0,4">
+                            <Button Content="▶ Size DCW / DHW pipes" Style="{StaticResource PlumbPrimaryBtn}"
+                                    Tag="Plumb_SizeSupply" Click="Cmd_Click"
+                                    ToolTip="Hazen-Williams + Swamee-Jain. Uses BS EN 806-3 LU table or Hunter WSFU per SYSTEM config."/>
+                        </WrapPanel>
+
+                        <TextBlock Text="DHW RECIRCULATION" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <Button Content="Recirc loop + DRV pre-set" Style="{StaticResource PlumbActionBtn}"
+                                Tag="Plumbing_RecircBalance" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                ToolTip="Pipe heat-loss → pump duty + DRV kV pre-sets per branch."/>
+
+                        <TextBlock Text="PRESSURE ANALYSIS" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <WrapPanel>
+                            <Button Content="Pressure Check (per level)" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_PressureCheck" Click="Cmd_Click"
+                                    ToolTip="Static pressure per level against BS 8558 minimums; flags PRV requirements."/>
+                            <Button Content="PRV Schedule (legacy)" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumbing_PRVSchedule" Click="Cmd_Click"
+                                    ToolTip="Pre-existing static PRV scheduler — retained."/>
+                        </WrapPanel>
+                        <Expander Header="PRV REGISTER" Style="{StaticResource PlumbExpander}">
+                            <DataGrid x:Name="PrvGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                      IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      FontSize="10" RowHeight="22" Height="120" Margin="4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Tag"     Binding="{Binding Tag}"      Width="80"/>
+                                    <DataGridTextColumn Header="Loc"     Binding="{Binding Location}" Width="*"/>
+                                    <DataGridTextColumn Header="Set kPa" Binding="{Binding SetKpa}"   Width="64"/>
+                                    <DataGridTextColumn Header="Inlet"   Binding="{Binding InletKpa}" Width="64"/>
+                                    <DataGridTextColumn Header="Status"  Binding="{Binding Status}"   Width="60"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Expander>
+
+                        <TextBlock Text="EXPANSION VESSEL + TMV REGISTER" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <WrapPanel>
+                            <Button Content="Size Expansion Vessel (BS 7074-1)" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_ExpVessel" Click="Cmd_Click"
+                                    ToolTip="DHW expansion vessel sizing with default 200 L / ΔT 50 °C."/>
+                            <Button Content="Build TMV Register" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_TMVRegister" Click="Cmd_Click"
+                                    ToolTip="Scans elements with PLM_TMV_CLASS_TXT set and reports the register."/>
+                        </WrapPanel>
+                        <Expander Header="TMV REGISTER" Style="{StaticResource PlumbExpander}">
+                            <DataGrid x:Name="TmvGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                      IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      FontSize="10" RowHeight="22" Height="120" Margin="4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Tag"      Binding="{Binding Tag}"        Width="80"/>
+                                    <DataGridTextColumn Header="Class"    Binding="{Binding Class}"      Width="60"/>
+                                    <DataGridTextColumn Header="Set °C"   Binding="{Binding SetC}"       Width="60"/>
+                                    <DataGridTextColumn Header="Loc"      Binding="{Binding Location}"   Width="*"/>
+                                    <DataGridTextColumn Header="Status"   Binding="{Binding Status}"     Width="60"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Expander>
+
+                        <TextBlock Text="LEGIONELLA" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <Button Content="Dead-Leg Scan (HSG 274)" Style="{StaticResource PlumbActionBtn}"
+                                Tag="Plumbing_DeadLegScan" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                ToolTip="Flag legs > 5×D or > 5 m on DCW/DHW/blended."/>
+                        <Expander Header="DEAD-LEG RESULTS" Style="{StaticResource PlumbExpander}">
+                            <DataGrid x:Name="DeadLegGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                      IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      FontSize="10" RowHeight="22" Height="120" Margin="4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Pipe"    Binding="{Binding PipeId}"     Width="*"/>
+                                    <DataGridTextColumn Header="Service" Binding="{Binding Service}"    Width="68"/>
+                                    <DataGridTextColumn Header="L (m)"   Binding="{Binding LengthDisplay}" Width="60"/>
+                                    <DataGridTextColumn Header="L/D"     Binding="{Binding LdDisplay}"  Width="48"/>
+                                    <DataGridTextColumn Header="Verdict" Binding="{Binding Verdict}"    Width="64"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 2: DRAINAGE ============== -->
+            <TabItem Header="DRAINAGE">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="FIXTURE UNIT AGGREGATION" Style="{StaticResource PlumbSectionHeader}"/>
+                        <Button Content="🔍 Scan Fixtures (DU)" Style="{StaticResource PlumbActionBtn}"
+                                Tag="Plumb_ScanFixtures" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                ToolTip="Same scanner as SUPPLY tab — reports the DU column for drainage."/>
+
+                        <TextBlock Text="PIPE SIZING" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <Expander Header="DRAINAGE SIZING OPTIONS" Style="{StaticResource PlumbExpander}">
+                            <Grid Margin="4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Min slope (%)"        Style="{StaticResource PlumbLabel}"/>
+                                <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtDrnMinSlope"  Text="1.0" Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Max slope (%)"        Style="{StaticResource PlumbLabel}"/>
+                                <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtDrnMaxSlope"  Text="6.0" Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Self-cleansing (m/s)" Style="{StaticResource PlumbLabel}"/>
+                                <TextBox   Grid.Row="2" Grid.Column="1" x:Name="txtDrnVMin"      Text="0.7" Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Roughness (mm)"       Style="{StaticResource PlumbLabel}"/>
+                                <TextBox   Grid.Row="3" Grid.Column="1" x:Name="txtDrnRoughness"  Text="0.6" Margin="2" FontSize="10"/>
+                            </Grid>
+                        </Expander>
+                        <WrapPanel Margin="0,4">
+                            <Button Content="Size Drainage (preview)" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_SizeDrainage" Click="Cmd_Click"
+                                    ToolTip="DU accumulation → branch / stack DN → slope / self-cleansing audit."/>
+                            <Button Content="▶ Auto-Size Drainage" Style="{StaticResource PlumbPrimaryBtn}"
+                                    Tag="Plumbing_AutoSizeDrainage" Click="Cmd_Click"
+                                    ToolTip="DU → DN → slope correct → vent design → stack capacity (preview / apply)."/>
+                        </WrapPanel>
+
+                        <TextBlock Text="DRAINAGE PIPE GRID" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <DataGrid x:Name="DrainagePipeGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                  IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                  FontSize="10" RowHeight="22" Height="160" Margin="0,2">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Pipe"    Binding="{Binding PipeId}"     Width="*"/>
+                                <DataGridTextColumn Header="DU"      Binding="{Binding DuDisplay}"  Width="48"/>
+                                <DataGridTextColumn Header="DN"      Binding="{Binding DnDisplay}"  Width="48"/>
+                                <DataGridTextColumn Header="Slope %" Binding="{Binding SlopeDisplay}" Width="64"/>
+                                <DataGridTextColumn Header="v (m/s)" Binding="{Binding VelocityDisplay}" Width="64"/>
+                                <DataGridTextColumn Header="Status"  Binding="{Binding Status}"     Width="60"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <TextBlock Text="SLOPE CORRECTION" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <Button Content="Fix Slopes (auto-correct)" Style="{StaticResource PlumbActionBtn}"
+                                Tag="Plumb_FixSlopes" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                ToolTip="Wraps SlopeAutoCorrector with TransactionGroup rollback and preview dialog."/>
+
+                        <TextBlock Text="TRAP &amp; VENT" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <WrapPanel>
+                            <Button Content="Design Vents" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_VentDesign" Click="Cmd_Click"
+                                    ToolTip="BS EN 12056-2 Annex B vent sizing per drain DU."/>
+                            <Button Content="Trap &amp; Vent Audit" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumbing_TrapVentAudit" Click="Cmd_Click"
+                                    ToolTip="Audit trap type + seal depth + max branch length + vent DN."/>
+                        </WrapPanel>
+
+                        <TextBlock Text="STACK CAPACITY" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <Button Content="Stack Capacity (BS EN 12056-2 §6.5)" Style="{StaticResource PlumbActionBtn}"
+                                Tag="Plumbing_StackCapacity" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                ToolTip="Cumulative DU vs Table 11 capacity — flags >70% induced-siphonage risk."/>
+                        <Expander Header="STACK CAPACITY RESULTS" Style="{StaticResource PlumbExpander}">
+                            <DataGrid x:Name="StackGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                      IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      FontSize="10" RowHeight="22" Height="120" Margin="4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Stack" Binding="{Binding StackId}"   Width="*"/>
+                                    <DataGridTextColumn Header="DN"    Binding="{Binding DnDisplay}" Width="48"/>
+                                    <DataGridTextColumn Header="DU"    Binding="{Binding DuDisplay}" Width="60"/>
+                                    <DataGridTextColumn Header="Cap"   Binding="{Binding CapacityDisplay}" Width="64"/>
+                                    <DataGridTextColumn Header="Util%" Binding="{Binding UtilDisplay}" Width="56"/>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}"   Width="60"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Expander>
+
+                        <TextBlock Text="INVERT LEVELS" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <Button Content="Calculate Invert Levels" Style="{StaticResource PlumbActionBtn}"
+                                Tag="Plumb_InvertLevels" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                ToolTip="InvertLevelEngine — US/DS invert + cover depth, optional writeback to PLM_DRN_INV_*."/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 3: ROUTE ============== -->
+            <TabItem Header="ROUTE">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="AUTO-DROP CONNECTIONS" Style="{StaticResource PlumbSectionHeader}"/>
+                        <Expander Header="ROUTING OPTIONS" Style="{StaticResource PlumbExpander}">
+                            <Grid Margin="4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Max search radius (mm)" Style="{StaticResource PlumbLabel}"/>
+                                <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtRtRadius"   Text="3000" Margin="2" FontSize="10"/>
+                                <CheckBox  Grid.Row="1" Grid.Column="1" x:Name="chkRtSnap"     Content="Snap to corridor service band" IsChecked="True" Margin="2"/>
+                                <CheckBox  Grid.Row="2" Grid.Column="1" x:Name="chkRtPreview"  Content="Preview before commit" IsChecked="True" Margin="2"/>
+                            </Grid>
+                        </Expander>
+                        <Button Content="▶ Auto-Route Selected Fixtures" Style="{StaticResource PlumbPrimaryBtn}"
+                                Tag="Plumb_AutoRoute" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                ToolTip="Wraps AutoPipeDrop on the current selection — drops pipework to nearest host within radius."/>
+
+                        <TextBlock Text="SLOPE CORRECTION (QUICK ACCESS)" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <Button Content="Fix Slopes (project-wide)" Style="{StaticResource PlumbActionBtn}"
+                                Tag="Plumb_FixSlopes" Click="Cmd_Click" HorizontalAlignment="Stretch"/>
+
+                        <TextBlock Text="P-TRAP INSERTION" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <Button Content="Insert P-Traps (missing only)" Style="{StaticResource PlumbActionBtn}"
+                                Tag="Plumb_InsertPTraps" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                ToolTip="Walks fixtures lacking a trap and inserts a P-trap family at the drainage connector."/>
+
+                        <TextBlock Text="PENETRATIONS / SLEEVES" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <Button Content="Place Sleeves on Plumbing Pipes" Style="{StaticResource PlumbActionBtn}"
+                                Tag="Plumb_PlaceSleeves" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                ToolTip="Wraps SleeveEngine — places STING_SLEEVE_ROUND/RECT, inherits fire rating, writes IFC PfV."/>
+
+                        <TextBlock Text="HANGERS &amp; SUPPORTS" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <Button Content="Plan Hanger Positions" Style="{StaticResource PlumbActionBtn}"
+                                Tag="Plumb_PlaceHangers" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                ToolTip="BS 5572 / MSS SP-58 hanger spacing + trapeze grouping (planning pass)."/>
+
+                        <Expander Header="SYMBOL PLACEMENT — SANITARY FIXTURES" Style="{StaticResource PlumbExpander}">
+                            <WrapPanel Margin="4">
+                                <Button Content="WC"               Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_WC"          Click="Cmd_Click"/>
+                                <Button Content="Urinal"           Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_Urinal"      Click="Cmd_Click"/>
+                                <Button Content="Bidet"            Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_Bidet"       Click="Cmd_Click"/>
+                                <Button Content="Wash-hand basin"  Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_WHB"         Click="Cmd_Click"/>
+                                <Button Content="Vanity basin"     Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_VanityBasin" Click="Cmd_Click"/>
+                                <Button Content="Bath"             Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_Bath"        Click="Cmd_Click"/>
+                                <Button Content="Shower tray"      Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_Shower"      Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Expander>
+                        <Expander Header="SYMBOL PLACEMENT — SINKS" Style="{StaticResource PlumbExpander}">
+                            <WrapPanel Margin="4">
+                                <Button Content="Single sink"     Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_SingleSink"   Click="Cmd_Click"/>
+                                <Button Content="Double sink"     Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_DoubleSink"   Click="Cmd_Click"/>
+                                <Button Content="Cleaner's sink"  Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_CleanersSink" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Expander>
+                        <Expander Header="SYMBOL PLACEMENT — DRAINAGE POINTS" Style="{StaticResource PlumbExpander}">
+                            <WrapPanel Margin="4">
+                                <Button Content="Floor drain (round)"  Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_FloorDrainRound"  Click="Cmd_Click"/>
+                                <Button Content="Floor drain (square)" Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_FloorDrainSquare" Click="Cmd_Click"/>
+                                <Button Content="Yard gulley"          Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_Gulley"           Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Expander>
+                        <Expander Header="SYMBOL PLACEMENT — VALVES &amp; ACCESSORIES" Style="{StaticResource PlumbExpander}">
+                            <WrapPanel Margin="4">
+                                <Button Content="Gate valve"      Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_GateValve"      Click="Cmd_Click"/>
+                                <Button Content="Globe valve"     Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_GlobeValve"     Click="Cmd_Click"/>
+                                <Button Content="Ball valve"      Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_BallValve"      Click="Cmd_Click"/>
+                                <Button Content="Butterfly valve" Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_ButterflyValve" Click="Cmd_Click"/>
+                                <Button Content="Check valve"     Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_CheckValve"     Click="Cmd_Click"/>
+                                <Button Content="PRV"             Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_PRV"            Click="Cmd_Click"/>
+                                <Button Content="Y-strainer"      Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_Strainer"       Click="Cmd_Click"/>
+                                <Button Content="Flex connector"  Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_FlexConn"       Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Expander>
+                        <Expander Header="SYMBOL PLACEMENT — EQUIPMENT" Style="{StaticResource PlumbExpander}">
+                            <WrapPanel Margin="4">
+                                <Button Content="HWC (direct)"   Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_HWCDirect"   Click="Cmd_Click"/>
+                                <Button Content="HWC (indirect)" Style="{StaticResource PlumbSymBtn}" Tag="PlumbSym_HWCIndirect" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Expander>
+
+                        <TextBlock Text="BROWSE ALL PLUMBING SYMBOLS" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <Button Content="🔍 Browse &amp; Place…" Style="{StaticResource PlumbPrimaryBtn}"
+                                Tag="PlumbSym_BrowseAll" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                ToolTip="Full searchable picker across all 24 plumbing symbols — search by name, subcategory, or BS EN standard."/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 4: STORM ============== -->
+            <TabItem Header="STORM">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="ROOF DRAINAGE" Style="{StaticResource PlumbSectionHeader}"/>
+                        <Expander Header="ROOF DRAINAGE INPUTS" Style="{StaticResource PlumbExpander}">
+                            <Grid Margin="4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Roof area (m²)" Style="{StaticResource PlumbLabel}"/>
+                                <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtRoofArea"  Text="1000" Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Runoff coeff." Style="{StaticResource PlumbLabel}"/>
+                                <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtRunoff"     Text="1.0"  Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Rain intensity (mm/h)" Style="{StaticResource PlumbLabel}"/>
+                                <TextBox   Grid.Row="2" Grid.Column="1" x:Name="txtRainIntensity" Text="75" Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Climate uplift (%)" Style="{StaticResource PlumbLabel}"/>
+                                <TextBox   Grid.Row="3" Grid.Column="1" x:Name="txtClimateUplift" Text="20" Margin="2" FontSize="10"/>
+                            </Grid>
+                        </Expander>
+                        <Button Content="▶ Roof Drainage (BS EN 12056-3)" Style="{StaticResource PlumbPrimaryBtn}"
+                                Tag="Plumb_RoofDrainage" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                ToolTip="Q_r = A · C_r · r · f. Computes outlet DN + count."/>
+
+                        <TextBlock Text="SURFACE WATER &amp; SuDS" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <Button Content="SuDS Attenuation (CIRIA C753)" Style="{StaticResource PlumbActionBtn}"
+                                Tag="Plumb_SuDS" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                ToolTip="Post-dev minus pre-dev runoff over storm duration with climate uplift."/>
+
+                        <TextBlock Text="RAINWATER HARVESTING" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <WrapPanel>
+                            <Button Content="RWH Yield (BS 8515)" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_RWH" Click="Cmd_Click"
+                                    ToolTip="Annual yield + recommended storage volume from roof area + rainfall."/>
+                            <Button Content="RWH / SuDS / Soakaway / Septic (legacy)" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumbing_RainwaterCalc" Click="Cmd_Click"
+                                    ToolTip="Pre-existing combined calculator — retained."/>
+                        </WrapPanel>
+
+                        <TextBlock Text="SOAKAWAY / SEPTIC" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <WrapPanel>
+                            <Button Content="Soakaway (BRE Digest 365)" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_Soakaway" Click="Cmd_Click"
+                                    ToolTip="Catchment + infiltration → soakaway volume."/>
+                            <Button Content="Septic Tank (BS EN 12566-1)" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_SepticTank" Click="Cmd_Click"
+                                    ToolTip="Primary chamber sizing from population equivalent."/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 5: SPECIALTY ============== -->
+            <TabItem Header="SPECIALTY">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="BACKFLOW / CROSS-CONNECTION (BS EN 1717)" Style="{StaticResource PlumbSectionHeader}"/>
+                        <WrapPanel>
+                            <Button Content="Fluid Category Audit" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumbing_BackflowAudit" Click="Cmd_Click"
+                                    ToolTip="Classify pipes Cat 1-5 and recommend SCV/DCV/RPZ/Air-gap."/>
+                            <Button Content="Cross-Connection Scan" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumbing_CrossConnection" Click="Cmd_Click"
+                                    ToolTip="Graph walk potable → non-potable."/>
+                        </WrapPanel>
+                        <Expander Header="BACKFLOW RESULTS" Style="{StaticResource PlumbExpander}">
+                            <DataGrid x:Name="BackflowGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                      IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      FontSize="10" RowHeight="22" Height="120" Margin="4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Pipe"   Binding="{Binding PipeId}"  Width="*"/>
+                                    <DataGridTextColumn Header="Cat"    Binding="{Binding Category}" Width="40"/>
+                                    <DataGridTextColumn Header="Device" Binding="{Binding Device}"  Width="80"/>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}"  Width="60"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Expander>
+
+                        <TextBlock Text="MATERIALS &amp; JOINTING" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <Button Content="Material &amp; Jointing Audit" Style="{StaticResource PlumbActionBtn}"
+                                Tag="Plumbing_MaterialAudit" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                ToolTip="Material × jointing × service compatibility + galvanic-pair walk + WRAS check."/>
+
+                        <TextBlock Text="MED GAS / LAB / POOL" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <TextBlock Text="Med gas (HTM 02-01) lives in the HEALTHCARE tab (Mgas suite). Lab water + pool — future enhancement."
+                                   FontSize="10" Foreground="{DynamicResource PanelFg}" Opacity="0.7"
+                                   FontStyle="Italic" TextWrapping="Wrap" Margin="2,4"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 6: AUDIT ============== -->
+            <TabItem Header="AUDIT">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="FULL AUDIT (RAG DASHBOARD)" Style="{StaticResource PlumbSectionHeader}"/>
+                        <Button Content="▶ Run Full Audit" Style="{StaticResource PlumbPrimaryBtn}"
+                                Tag="Plumb_FullAudit" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                ToolTip="Single dashboard with Supply / Drainage / Vents / Backflow / HTM 04-01 RAG tiles."/>
+
+                        <Expander Header="DOMAIN RAG SUMMARY" Style="{StaticResource PlumbExpander}" IsExpanded="True">
+                            <Grid Margin="4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="60"/>
+                                    <ColumnDefinition Width="60"/>
+                                    <ColumnDefinition Width="60"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="22"/>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/>
+                                    <RowDefinition/><RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Domain"     Style="{StaticResource PlumbLabel}" FontWeight="Bold"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="Red"   Style="{StaticResource PlumbLabel}" FontWeight="Bold" Foreground="#C62828"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="Amber" Style="{StaticResource PlumbLabel}" FontWeight="Bold" Foreground="#EF6C00"/>
+                                <TextBlock Grid.Row="0" Grid.Column="3" Text="Green" Style="{StaticResource PlumbLabel}" FontWeight="Bold" Foreground="#2E7D32"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Supply"     Style="{StaticResource PlumbLabel}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtRagSupplyR" Style="{StaticResource PlumbLabel}" Text="0"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" x:Name="txtRagSupplyA" Style="{StaticResource PlumbLabel}" Text="0"/>
+                                <TextBlock Grid.Row="1" Grid.Column="3" x:Name="txtRagSupplyG" Style="{StaticResource PlumbLabel}" Text="0"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Drainage"   Style="{StaticResource PlumbLabel}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="txtRagDrainR" Style="{StaticResource PlumbLabel}" Text="0"/>
+                                <TextBlock Grid.Row="2" Grid.Column="2" x:Name="txtRagDrainA" Style="{StaticResource PlumbLabel}" Text="0"/>
+                                <TextBlock Grid.Row="2" Grid.Column="3" x:Name="txtRagDrainG" Style="{StaticResource PlumbLabel}" Text="0"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Vents"      Style="{StaticResource PlumbLabel}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="txtRagVentsR" Style="{StaticResource PlumbLabel}" Text="0"/>
+                                <TextBlock Grid.Row="3" Grid.Column="2" x:Name="txtRagVentsA" Style="{StaticResource PlumbLabel}" Text="0"/>
+                                <TextBlock Grid.Row="3" Grid.Column="3" x:Name="txtRagVentsG" Style="{StaticResource PlumbLabel}" Text="0"/>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Backflow"   Style="{StaticResource PlumbLabel}"/>
+                                <TextBlock Grid.Row="4" Grid.Column="1" x:Name="txtRagBfR" Style="{StaticResource PlumbLabel}" Text="0"/>
+                                <TextBlock Grid.Row="4" Grid.Column="2" x:Name="txtRagBfA" Style="{StaticResource PlumbLabel}" Text="0"/>
+                                <TextBlock Grid.Row="4" Grid.Column="3" x:Name="txtRagBfG" Style="{StaticResource PlumbLabel}" Text="0"/>
+
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="HTM 04-01"  Style="{StaticResource PlumbLabel}"/>
+                                <TextBlock Grid.Row="5" Grid.Column="1" x:Name="txtRagHtmR" Style="{StaticResource PlumbLabel}" Text="0"/>
+                                <TextBlock Grid.Row="5" Grid.Column="2" x:Name="txtRagHtmA" Style="{StaticResource PlumbLabel}" Text="0"/>
+                                <TextBlock Grid.Row="5" Grid.Column="3" x:Name="txtRagHtmG" Style="{StaticResource PlumbLabel}" Text="0"/>
+                            </Grid>
+                        </Expander>
+
+                        <TextBlock Text="PER-DOMAIN AUDITS" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <StackPanel>
+                            <Button Content="Trap &amp; Vent Audit"      Style="{StaticResource PlumbActionBtn}" Tag="Plumbing_TrapVentAudit"   Click="Cmd_Click" HorizontalAlignment="Stretch"/>
+                            <Button Content="Stack Capacity"             Style="{StaticResource PlumbActionBtn}" Tag="Plumbing_StackCapacity"   Click="Cmd_Click" HorizontalAlignment="Stretch"/>
+                            <Button Content="Fluid Category Audit"       Style="{StaticResource PlumbActionBtn}" Tag="Plumbing_BackflowAudit"   Click="Cmd_Click" HorizontalAlignment="Stretch"/>
+                            <Button Content="Cross-Connection Scan"      Style="{StaticResource PlumbActionBtn}" Tag="Plumbing_CrossConnection" Click="Cmd_Click" HorizontalAlignment="Stretch"/>
+                            <Button Content="Dead-Leg Scan"              Style="{StaticResource PlumbActionBtn}" Tag="Plumbing_DeadLegScan"     Click="Cmd_Click" HorizontalAlignment="Stretch"/>
+                            <Button Content="Material Audit"             Style="{StaticResource PlumbActionBtn}" Tag="Plumbing_MaterialAudit"   Click="Cmd_Click" HorizontalAlignment="Stretch"/>
+                        </StackPanel>
+
+                        <TextBlock Text="AUDIT FINDINGS" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <DataGrid x:Name="AuditFindingsGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                  IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                  FontSize="10" RowHeight="22" Height="160" Margin="0,2">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Sev"      Binding="{Binding Severity}" Width="50"/>
+                                <DataGridTextColumn Header="Domain"   Binding="{Binding Domain}"   Width="80"/>
+                                <DataGridTextColumn Header="Message"  Binding="{Binding Message}"  Width="*"/>
+                                <DataGridTextColumn Header="Element"  Binding="{Binding ElementRef}" Width="100"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 7: DOCS ============== -->
+            <TabItem Header="DOCS">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="SCHEDULES" Style="{StaticResource PlumbSectionHeader}"/>
+                        <StackPanel>
+                            <Button Content="Pipe Schedule" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_PipeSchedule" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                    ToolTip="Group pipes by system + DN + material with totals."/>
+                            <Button Content="Manhole / Access Chamber Schedule" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_ManholeSchedule" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                    ToolTip="Reads PLM_DRN_INV_* params from manholes / inspection chambers."/>
+                            <Button Content="TMV Register" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_TMVRegister" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                    ToolTip="Cross-listed with the SUPPLY tab."/>
+                        </StackPanel>
+
+                        <Expander Header="MANHOLE / ACCESS CHAMBER GRID" Style="{StaticResource PlumbExpander}">
+                            <DataGrid x:Name="ManholeGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                      IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      FontSize="10" RowHeight="22" Height="120" Margin="4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Tag"      Binding="{Binding Tag}"          Width="80"/>
+                                    <DataGridTextColumn Header="US inv"   Binding="{Binding UsInvDisplay}" Width="64"/>
+                                    <DataGridTextColumn Header="DS inv"   Binding="{Binding DsInvDisplay}" Width="64"/>
+                                    <DataGridTextColumn Header="Cover"    Binding="{Binding CoverDisplay}" Width="64"/>
+                                    <DataGridTextColumn Header="Depth"    Binding="{Binding DepthDisplay}" Width="64"/>
+                                    <DataGridTextColumn Header="Loc"      Binding="{Binding Location}"     Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Expander>
+
+                        <TextBlock Text="BOQ + ISOMETRICS" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <WrapPanel>
+                            <Button Content="Plumbing BOQ" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_BOQ" Click="Cmd_Click"
+                                    ToolTip="Pipes (m) + fittings (nr) + accessories (nr) — full BoQ row dump."/>
+                            <Button Content="Plumbing Isometric (drawing-type)" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_Isometric" Click="Cmd_Click"
+                                    ToolTip="Routes through DrawingTypeRegistry — plumb-drainage-A1-1to100 / plumb-supply-A1-1to100."/>
+                        </WrapPanel>
+                        <Expander Header="BOQ ROWS" Style="{StaticResource PlumbExpander}">
+                            <DataGrid x:Name="BoqGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                                      IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      FontSize="10" RowHeight="22" Height="160" Margin="4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Item"     Binding="{Binding Item}"      Width="*"/>
+                                    <DataGridTextColumn Header="Material" Binding="{Binding Material}"  Width="80"/>
+                                    <DataGridTextColumn Header="DN"       Binding="{Binding Dn}"        Width="48"/>
+                                    <DataGridTextColumn Header="Qty"      Binding="{Binding QtyDisplay}" Width="56"/>
+                                    <DataGridTextColumn Header="Unit"     Binding="{Binding Unit}"      Width="44"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Expander>
+
+                        <TextBlock Text="COMMISSIONING SHELL" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <Button Content="Stage Commissioning Pack" Style="{StaticResource PlumbActionBtn}"
+                                Tag="Plumb_CommPack" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                ToolTip="Plans the commissioning artefact folder under _BIM_COORD/plumbing/commissioning."/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <!-- Status strip at the very bottom — mirrors the Electrical panel pattern -->
+        <Border Grid.Row="3" Background="#FF214060" Padding="10,4">
+            <TextBlock x:Name="txtPlumbFooter"
+                       Text="STING Plumbing — configure SYSTEM tab first · BS EN 12056 default"
+                       Foreground="White" FontSize="11"/>
+        </Border>
+    </Grid>
+</Page>
