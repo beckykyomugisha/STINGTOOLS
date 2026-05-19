@@ -189,6 +189,11 @@ namespace StingTools.UI
             _materialsTab = new TabItem { Header = "Materials",
                 Content = new TextBlock { Text = "Loading…", Margin = new Thickness(14), Foreground = Brushes.Gray } };
             _mainTabs.Items.Add(_materialsTab);
+            // Phase 184n — Actions tab consolidates every cost-management
+            // command from P0 → P8 inline. Replaces the fragmented dock-
+            // panel sub-sections so users have one place to find every
+            // cost workflow.
+            _mainTabs.Items.Add(new TabItem { Header = "Actions", Content = BuildActionsTab() });
 
             // Phase 108j — wrap the main TabControl in a Grid host so
             // ShowTenderSetupInline can stack the tender-setup UI on top,
@@ -443,6 +448,192 @@ namespace StingTools.UI
                 Cursor = Cursors.Hand
             };
             btn.Click += (s, e) => onClick();
+            return btn;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Phase 184n — Actions tab: every P0 → P8 cost command inline.
+        //  Grouped by phase / workflow so a QS finds the right action
+        //  without remembering the global command catalogue.
+        // ══════════════════════════════════════════════════════════════════
+
+        private UIElement BuildActionsTab()
+        {
+            var sp = new StackPanel { Margin = new Thickness(16, 12, 16, 12) };
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = "Cost Management Actions",
+                FontSize = 16, FontWeight = FontWeights.Bold,
+                Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 4)
+            });
+            sp.Children.Add(new TextBlock
+            {
+                Text = "Every cost workflow (P0 → P8) in one place. " +
+                       "Hover for a tooltip describing each action.",
+                FontSize = 11, Foreground = Brushes.Gray,
+                Margin = new Thickness(0, 0, 0, 14)
+            });
+
+            sp.Children.Add(BuildActionGroup("AUTOMATION (P2)",
+                "Run workflows, validate the model and toggle the stale-cost detector.",
+                new[]
+                {
+                    ("★ Run Cost Workflow", "Cost_RunWorkflow",
+                     "Pick and run a WORKFLOW_BOQ_*.json preset (Full Refresh / Quick Valuation / Tender Pack)", true),
+                    ("Validate Cost",        "Cost_ValidateAll",
+                     "Run the 5-validator chain (missing material / untyped category / unpriced PROD / zero qty / stale)", false),
+                    ("Clear Stale Flags",    "Cost_ClearStale",
+                     "Reset ASS_CST_STALE_BOOL on every element after a successful BOQ build", false),
+                    ("Toggle Stale Marker",  "Cost_ToggleStaleMarker",
+                     "Enable/disable the IUpdater that flags BOQ rows as stale on geometry change", false),
+                    ("Reload Rules",         "Cost_ReloadRules",
+                     "Invalidate rate provider / take-off rule / ICMS3 phase / CostStamp / default-rates caches", false),
+                    ("Migrate UGX → Neutral","Cost_MigrateCurrencyParams",
+                     "One-shot: copy legacy CST_UNIT_RATE_UGX into currency-neutral params + FX stamp", false),
+                    ("Migrate ES v1 → v2",   "Cost_MigrateESEntities",
+                     "Bulk-migrate v1 Extensible Storage cost overrides to v2 (waste / OH / profit / lock)", false),
+                }));
+
+            sp.Children.Add(BuildActionGroup("COST PLAN — NRM1 (P4)",
+                "Elemental cost planning for RIBA 1-3 — £/m² GIFA benchmarks per building type.",
+                new[]
+                {
+                    ("★ New Cost Plan",  "CostPlan_Create",
+                     "Mint a PERT 3-point cost plan from a building-type benchmark set", true),
+                    ("Compare vs BOQ",   "CostPlan_Compare",
+                     "Variance report — NRM1 cost plan vs live BOQ totals, RAG-coded per element", false),
+                    ("Export Cost Plan", "CostPlan_Export",
+                     "Export the active cost plan to xlsx (full NRM1 breakdown + totals)", false),
+                }));
+
+            sp.Children.Add(BuildActionGroup("PAYMENT CERTS (P5.1)",
+                "Monthly interim certificates per JCT 2024 / NEC4 / FIDIC 2017.",
+                new[]
+                {
+                    ("★ Issue Cert",     "PaymentCert_Issue",
+                     "Build a draft interim cert from current BOQ + weighted % complete. Retention auto-halves.", true),
+                    ("Approve Cert",     "PaymentCert_Approve",
+                     "Advance the cert state machine — Draft → Issued or Issued → Agreed", false),
+                    ("Cert Register",    "PaymentCert_Register",
+                     "Export CSV register of every cert (gross / retention / payable / signers / cumulative)", false),
+                }));
+
+            sp.Children.Add(BuildActionGroup("VARIATIONS + STAR RATES (P5.2)",
+                "Change-order tracking with auto-mint from snapshot diffs and first-principles star rates.",
+                new[]
+                {
+                    ("★ Variation from Diff","Variation_FromDiff",
+                     "Mint a draft VO from a BOQSnapshotDiff. Numbered VO-AI / VO-CE / VO-EI / VO-CC.", true),
+                    ("Star Rate Build-Up",   "Variation_BuildStarRate",
+                     "Author a star rate from first principles — labour + plant + materials + OH + profit", false),
+                    ("VO Register",          "Variation_ExportRegister",
+                     "Export all variations to CSV (number / status / value / signers)", false),
+                }));
+
+            sp.Children.Add(BuildActionGroup("EARNED VALUE MGMT (P5.3)",
+                "PMI EVM metrics — BCWS / BCWP / ACWP, CPI, SPI, EAC, ETC, VAC, TCPI.",
+                new[]
+                {
+                    ("★ Calculate EVM", "Evm_Calculate",
+                     "Compute every PMI metric with Green/Amber/Red gates at CPI 0.95 / 1.00", true),
+                    ("Import Actuals",  "Evm_ImportActuals",
+                     "Sum the latest actuals CSV under _bim_manager/actuals/", false),
+                    ("Export S-Curve",  "Evm_ExportReport",
+                     "CSV of every EVM period — drives an S-curve in your favourite chart tool", false),
+                }));
+
+            sp.Children.Add(BuildActionGroup("MEASUREMENT STANDARD (P6)",
+                "Switch the active standard. Affects how rows are classified and described.",
+                new[]
+                {
+                    ("Set Standard",     "Cost_SetMeasurementStandard",
+                     "Pick the active standard — NRM2 / CESMM4 / POMI / ICMS3 / MMHW", false),
+                    ("Standard Preview", "Cost_StandardInspect",
+                     "Diagnostic preview — how each standard classifies common categories", false),
+                }));
+
+            sp.Children.Add(BuildActionGroup("IFC + ICMS3 (P8)",
+                "External tool round-trip and cost-plus-carbon ledger.",
+                new[]
+                {
+                    ("Stamp IFC Qto",    "Cost_StampIfcQuantities",
+                     "Populate IFC4 Qto_*BaseQuantities + Pset_StingCost so Cost-X / CostOS / Candy / Bluebeam Revu can read cost direct from IFC", false),
+                    ("★ ICMS3 Report",   "Cost_ExportIcms3Report",
+                     "Export ICMS3 cost + carbon ledger — £ + kgCO₂e + £/kgCO₂e per ICMS group", true),
+                }));
+
+            return new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Content = sp,
+                Padding = new Thickness(0)
+            };
+        }
+
+        /// <summary>
+        /// One titled action-group. Title row + caption + WrapPanel of
+        /// action buttons. Star-marked headlines get the headline style
+        /// (filled GreenBtn-equivalent + bold) to lead the eye.
+        /// </summary>
+        private UIElement BuildActionGroup(string title, string caption,
+            (string label, string tag, string tooltip, bool headline)[] actions)
+        {
+            var card = new Border
+            {
+                Background = Brushes.White,
+                BorderBrush = BorderColor,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(14, 10, 14, 12),
+                Margin = new Thickness(0, 0, 0, 12)
+            };
+            var sp = new StackPanel();
+            sp.Children.Add(new TextBlock
+            {
+                Text = title, FontSize = 12, FontWeight = FontWeights.Bold,
+                Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 2)
+            });
+            sp.Children.Add(new TextBlock
+            {
+                Text = caption, FontSize = 10, Foreground = Brushes.Gray,
+                Margin = new Thickness(0, 0, 0, 10)
+            });
+            var wp = new WrapPanel { Orientation = Orientation.Horizontal };
+            foreach (var (label, tag, tooltip, headline) in actions)
+                wp.Children.Add(BuildActionButton(label, tag, tooltip, headline));
+            sp.Children.Add(wp);
+            card.Child = sp;
+            return card;
+        }
+
+        /// <summary>
+        /// A single inline action button that fires the same dispatch
+        /// path as the dock-panel buttons.
+        /// </summary>
+        private Button BuildActionButton(string label, string tag, string tooltip, bool headline)
+        {
+            var btn = new Button
+            {
+                Content = label,
+                Tag = tag,
+                ToolTip = tooltip,
+                FontSize = 11,
+                FontWeight = headline ? FontWeights.Bold : FontWeights.SemiBold,
+                Padding = new Thickness(10, 5, 10, 5),
+                Margin = new Thickness(0, 0, 6, 6),
+                Cursor = Cursors.Hand,
+                Background = headline
+                    ? new SolidColorBrush(Color.FromRgb(0x0A, 0x7D, 0x2E))      // headline green
+                    : new SolidColorBrush(Color.FromRgb(0xF4, 0xF6, 0xF8)),     // neutral
+                Foreground = headline ? Brushes.White : NavyBrush,
+                BorderBrush = headline
+                    ? new SolidColorBrush(Color.FromRgb(0x07, 0x5C, 0x22))
+                    : BorderColor,
+                BorderThickness = new Thickness(1)
+            };
+            btn.Click += (s, e) => DispatchAction(tag);
             return btn;
         }
 

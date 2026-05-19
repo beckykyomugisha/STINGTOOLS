@@ -2,6 +2,32 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 184n — Cost management consolidated inside BOQ Cost Manager)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Moves the 23 cost-management commands surfaced in Phase 184m out of fragmented dock-panel sub-sections and into a single "Actions" tab inside the BOQ Cost Manager window. The dock panel keeps one entry point that launches the manager.
+
+**`UI/BOQCostManagerPanel.cs`** — new `BuildActionsTab()` + `BuildActionGroup()` + `BuildActionButton()` helpers added. The TabControl that previously had `Bill of Quantities` + `Materials` now has a third `Actions` tab. The tab is a scrollable column of 7 cards, one per phase:
+
+- **AUTOMATION (P2)** — Run Cost Workflow, Validate Cost, Clear Stale Flags, Toggle Stale Marker, Reload Rules, Migrate UGX → Neutral, Migrate ES v1 → v2 (7).
+- **COST PLAN — NRM1 (P4)** — New Cost Plan, Compare vs BOQ, Export Cost Plan (3).
+- **PAYMENT CERTS (P5.1)** — Issue Cert, Approve Cert, Cert Register (3).
+- **VARIATIONS + STAR RATES (P5.2)** — Variation from Diff, Star Rate Build-Up, VO Register (3).
+- **EARNED VALUE MGMT (P5.3)** — Calculate EVM, Import Actuals, Export S-Curve (3).
+- **MEASUREMENT STANDARD (P6)** — Set Standard, Standard Preview (2).
+- **IFC + ICMS3 (P8)** — Stamp IFC Qto, ICMS3 Report (2).
+
+Each card carries a one-line caption explaining the workflow. ★-marked headline buttons get a green pill background + white text + bold weight; the rest get a neutral light-grey background + navy text + semibold weight + 1px border. All buttons fire through `DispatchAction(tag)` so behaviour is identical to the dock-panel path.
+
+**`UI/StingDockPanel.xaml`** — the 7 sub-sections from Phase 184m collapsed back into a single `COST MANAGEMENT (P0 → P8)` group with one `★ Open BOQ Cost Manager` button. The dock panel no longer carries dozens of redundant buttons; everything lives where the QS is already working.
+
+##### Caveats
+
+1. Built without Revit runtime verification (Linux sandbox).
+2. The Actions tab uses inline button colours rather than the existing StaticResource styles (GreenBtn / ActionBtn). The dock panel's resources aren't trivially reachable from a UserControl in a separate Window — using local colour values keeps the manager self-contained. If a future commit pulls the styles into a shared ResourceDictionary, the Actions tab can pick them up with a one-line edit.
+3. Mobile cost-dashboard quick-nav tiles from Phase 184m stay as-is — they're the right surface for the mobile-only Variation / Payment Cert flows.
+
+---
+
 #### Completed (Phase 184m — Cost management UI surfacing)
 
 Branch: `claude/revit-api-cost-management-qH8Vv`. Surfaces every command added in P0 → P8 + caveat-closure commits as clickable buttons / tiles. Previously the commands were dispatch-wired but had no UI affordances — a user opening the dock panel or mobile app saw no new buttons.
