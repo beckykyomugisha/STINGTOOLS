@@ -653,6 +653,79 @@ transaction requirement on `StampCrop` are now closed.
    per the addin manifest. Older Revit versions would need a different
    pattern; STING's `net8.0-windows` target rules them out anyway.
 
+### Phase 184d — Final alignment + completeness sweep
+
+Post-Phase-184c audit surfaced four remaining configuration gaps;
+all are now closed in `STING_DRAWING_TYPES.json`.
+
+**Schema fix — `crop.mode` → `crop.kind` (23 entries)**
+
+The 22 healthcare profiles (plus `plumb-drainage-schematic-A1`) declared
+`"crop": { "mode": "ScopeBoxOrBbox", ... }`. The `DrawingCropStrategy`
+POCO marks the JSON field as `[JsonProperty("kind")]`, so the `mode`
+key was silently ignored and the deserialiser fell back to the
+default value (`"ScopeBoxOrBbox"`). Result: functionally correct but
+inconsistent with the schema, and any author writing `"mode":
+"TightBbox"` would have been silently overridden. Renamed all 23 to
+`"kind"`.
+
+**Slot defaults on 18 view-purpose profiles**
+
+Every healthcare drawing type (`health-eqp-pln-*`, `health-medgas-pln-*`,
+`health-pressure-pln-*`, etc.) plus `health-mep-coord-A1-1to50` shipped
+with `"slots": []`. View-creation pipelines (`DrawingProducer`,
+`SheetManager.PlaceFromProfile`) iterate slot definitions to place
+views; empty slots mean no view ever lands on the sheet. Added a
+single full-bleed slot per profile (label `Main {Purpose}`, viewType
+matching the profile purpose, `normX=0.03 normY=0.05 normW=0.94
+normH=0.90`, `required=true`). Profiles that want multi-view layouts
+(key plan inset, legend, notes) override the default in their JSON.
+
+**titleBlockParams on 54 non-Schedule profiles**
+
+`arch-rcp-A1-1to100`, `arch-section-A1-1to50`, `arch-elev-A1-1to100`,
+`struct-plan-A1-1to100`, `mep-plan-A1-1to100`, `mep-coord-A1-1to50`,
+`elec-riser-A2-1to100`, `handover-A1`, all `arch-site-A1-1to500` …
+through every Plan / RCP / Section / Elevation / Coordination / 3D /
+Clarification profile that lacked the corporate metadata binding. All
+54 now carry the 11-cell corporate set (Client Name / Project Code /
+Originator / Company Name / Company Address / Appointing Party / Lead
+Appointed Party / Discipline / Suitability=S2 / Sheet Status=WIP /
+Revision=P01) with the `Discipline` value mapped from the profile's
+discipline code (A → Architectural, S → Structural, M → Mechanical,
+E → Electrical, P/Plumbing → Plumbing, H/Healthcare → Healthcare,
+MG → Medical Gas, RP → Radiation Protection, FP → Fire Protection,
+LV → Comms / LV, G → Civil, `*` → Multi-Discipline). Spool / Schedule
+/ Legend / Detail profiles are intentionally excluded — they have
+their own metadata conventions.
+
+**Discipline value normalised (1 entry)**
+
+`plumb-drainage-schematic-A1` declared `"discipline": "Public Health"`
+which isn't in the canonical list (A / S / M / E / P / Plumbing / FP /
+LV / G / H / MG / RP / Healthcare / *). Normalised to `"Plumbing"` to
+match every other plumb-* profile and the routing-table convention.
+
+**Final tally** (programmatically verified): 0 missing `crop.kind`,
+0 stray `crop.mode`, 0 empty-slot view-purpose profiles, 0 missing
+`titleBlockParams` on view-purpose profiles, 0 non-canonical
+discipline values, 0 missing pack references, 0 orphaned packs.
+
+### Caveats (Phase 184d)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The default slot layout added to the 18 healthcare profiles is a
+   single full-bleed view. Projects that want multi-view healthcare
+   sheets (e.g. RDS-style "plan + elev + equipment list + signatures"
+   panels) need to override the slot array via project-scoped
+   `_BIM_COORD/drawing_types.json`. The shipped layout is correct
+   for the dominant "one plan per sheet" use case.
+3. The 4 healthcare A2 drawing types (`health-rds-A2`,
+   `health-mortuary-pln-A2-1to50`, `health-bedhead-elev-A2-1to20`,
+   `health-or-ceiling-A2-1to20`) use `STING - Healthcare Title Block`
+   which is a non-size-specific name. The family is assumed to ship
+   in both A1 and A2 flavours; verify before merge if not.
+
 ## Template Engine v1.1 (Phase 112)
 
 **Status**: S01–S18 landed on `claude/implement-template-engine-COd9n`
