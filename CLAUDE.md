@@ -1011,6 +1011,52 @@ references resolve**.
 
 1. Built without `dotnet build` verification (Linux sandbox).
 
+### Phase 184j — `isoNaming` shape + role normalisation
+
+Deep-probe audit caught two more real bugs:
+
+**`isoNaming: true` (boolean) → object on 22 healthcare profiles**
+
+The 22 healthcare profiles shipped from the original healthcare pack
+author carried `"isoNaming": true` — a bool that originally meant
+"use ISO 19650 naming yes/no". But `DrawingType.IsoNaming` is typed
+as the `IsoNaming` POCO class (`Volume` / `Type` / `Role` /
+`Suitability` / `Revision` strings), so Newtonsoft silently set the
+field to null on deserialisation. Phase 184e's synthesis-defaults
+pass also skipped them because `not dt.get('isoNaming')` evaluates
+False against truthy `True`.
+
+Converted all 22 to proper objects with discipline-aware role:
+`{ volume:"01", type:"DR", role:<H/MG/RP from discipline>,
+suitability:"S2", revision:"P01" }`.
+
+**`isoNaming.role` ↔ discipline alignment**
+
+`pres-3d-axon-A1` had `discipline:"*"` but `role:"A"`. For wildcard
+discipline, the canonical ISO 19650-2 role is `"Z"` (multi /
+undefined). Normalised across every profile so `role` always
+matches the discipline-code map (A/S/M/E/P/H/MG/RP/Z).
+
+**Final omnibus (programmatically verified, 11/11 pass)**:
+
+| Check | Result |
+|---|---|
+| Discipline DT ↔ routing orphans | ✓ |
+| Routing target ids resolve | ✓ 101/101 |
+| Pack references resolve | ✓ 22/22 |
+| Pack filter references resolve | ✓ 70/70 |
+| A2 paper-size residue | ✓ 0 |
+| `tokenProfile` as string | ✓ 0 |
+| `isoNaming` shape (dict only) | ✓ 90/90 |
+| `isoNaming.role` ↔ discipline | ✓ 90/90 |
+| Scale ↔ ID encoding | ✓ 90/90 |
+| Paper size ↔ TB family | ✓ 90/90 |
+| Slot bbox geometric sanity | ✓ |
+
+### Caveats (Phase 184j)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+
 ## Template Engine v1.1 (Phase 112)
 
 **Status**: S01–S18 landed on `claude/implement-template-engine-COd9n`

@@ -3770,7 +3770,7 @@
       "isoNaming": {
         "volume": "01",
         "type": "VS",
-        "role": "A",
+        "role": "Z",
         "suitability": "S1",
         "revision": "P01"
       },
@@ -6456,7 +6456,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -6518,7 +6524,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -6580,7 +6592,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "M",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -6642,7 +6660,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "MG",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -6704,7 +6728,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "MG",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -6766,7 +6796,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -6828,7 +6864,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -6890,7 +6932,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -6952,7 +7000,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7014,7 +7068,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7076,7 +7136,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7138,7 +7204,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "RP",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7200,7 +7272,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "RP",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7262,7 +7340,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7324,7 +7408,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7392,7 +7482,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7454,7 +7550,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "P",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7516,7 +7618,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7578,7 +7686,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "S",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7640,7 +7754,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7702,7 +7822,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7764,7 +7890,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "RP",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
