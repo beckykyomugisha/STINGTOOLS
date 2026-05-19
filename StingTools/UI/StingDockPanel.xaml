@@ -4345,7 +4345,16 @@
                             </TabItem>
 
                             <!-- ─── Categories Tab ─── -->
-                            <!-- ORPHAN-FIX: re-instated so unticking categories actually filters tagging. -->
+                            <!-- Single source of truth for which Revit categories the tagging
+                                 pipeline (AutoTag / BatchTag / TagAndCombine / FullAuto /
+                                 SmartPlace / IUpdater) treats as taggable. Checkbox layout —
+                                 Tick = include, Untick = skip. The Exclusions panel is a
+                                 hard override: if a row is ticked there it is always skipped
+                                 even when the Include row is ticked.
+                                 ━ HISTORY ━ This tab used to coexist with a second "Categories"
+                                 sub-tab; both have now been merged here. Do NOT add a second
+                                 TabItem named "Categories" — the "ORPHAN-FIX: re-instated"
+                                 loop only stopped after this consolidation. -->
                             <TabItem Header="Categories">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Margin="4">
@@ -4356,10 +4365,11 @@
                                                 <TextBox x:Name="txtCatSearch" Height="20" FontSize="9" Margin="0,0,0,3"
                                                          ToolTip="Filter both lists by typing part of the category name."
                                                          TextChanged="CatSearch_TextChanged"/>
-                                                <ListBox x:Name="lstTagCategories" Height="160" FontSize="9"
-                                                         SelectionMode="Multiple"
-                                                         SelectionChanged="CatSelection_Changed"
-                                                         ToolTip="Ctrl-click to toggle. Leave unselected to accept the built-in default list."/>
+                                                <Border BorderBrush="#CCC" BorderThickness="1" Height="160">
+                                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                                        <StackPanel x:Name="pnlCatInclude" Margin="2"/>
+                                                    </ScrollViewer>
+                                                </Border>
                                                 <WrapPanel Margin="0,3,0,0">
                                                     <Button Content="All"             Tag="CatAll"   Click="CatQuick_Click" Width="40" Height="22" FontSize="9" Margin="1"/>
                                                     <Button Content="None"            Tag="CatNone"  Click="CatQuick_Click" Width="44" Height="22" FontSize="9" Margin="1"/>
@@ -4375,14 +4385,32 @@
                                         <TextBlock Text="CATEGORY EXCLUSIONS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">
                                             <StackPanel>
-                                                <ListBox x:Name="lstExcludeCategories" Height="90" FontSize="9"
-                                                         SelectionMode="Multiple"
-                                                         SelectionChanged="CatSelection_Changed"
-                                                         ToolTip="Categories selected here are always skipped, even if selected above."/>
+                                                <Border BorderBrush="#CCC" BorderThickness="1" Height="90">
+                                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                                        <StackPanel x:Name="pnlCatExclude" Margin="2"/>
+                                                    </ScrollViewer>
+                                                </Border>
                                             </StackPanel>
                                         </Border>
 
-                                        <TextBlock x:Name="txtCatStatus" Text="0 categories selected · 0 excluded · defaults in use" FontSize="9" Foreground="#666" Margin="0,6,0,0"/>
+                                        <Grid Margin="0,6,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" x:Name="txtCatStatus"
+                                                       Text="0 categories selected · 0 excluded · defaults in use"
+                                                       FontSize="9" Foreground="#666" VerticalAlignment="Center"
+                                                       TextWrapping="Wrap"/>
+                                            <Button Grid.Column="1" Content="Reload" Padding="8,2" Margin="0,0,4,0"
+                                                    Click="ReloadCategoryConfig_Click"
+                                                    ToolTip="Discard unsaved changes and reload from project_config.json"/>
+                                            <Button Grid.Column="2" Content="Save &amp; Apply" Padding="10,2"
+                                                    Background="#E8912D" Foreground="White" FontWeight="Bold"
+                                                    Click="SaveCategoryConfig_Click"
+                                                    ToolTip="Persist current selection to project_config.json (CATEGORY_SKIP) so it survives session restarts"/>
+                                        </Grid>
                                         <TextBlock Text="Applied to tagging pipeline on Combine / Tag &amp; Combine / Stage populate / Full auto / Smart place / Batch tag." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                     </StackPanel>
                                 </ScrollViewer>
@@ -4611,87 +4639,6 @@
 
                                     </StackPanel>
                                 </ScrollViewer>
-                            </TabItem>
-
-                            <!-- ─── Categories Tab ─── -->
-                            <!-- Per-category include/skip selector. Drives TagConfig.CategorySkipList,
-                                 which RunFullPipeline (ParameterHelpers.cs) consults to skip elements
-                                 from AutoTag, BatchTag, TagAndCombine, and the IUpdater auto-tagger. -->
-                            <TabItem Header="Categories">
-                                <DockPanel Margin="4">
-                                    <TextBlock DockPanel.Dock="Top" Text="CATEGORIES TO TAG" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,2"/>
-                                    <TextBlock DockPanel.Dock="Top" Text="Tick categories to include in batch tagging. Untick to skip them in AutoTag, BatchTag, Tag&amp;Combine, and real-time auto-tagging." FontSize="9" Foreground="#666" TextWrapping="Wrap" Margin="0,0,0,6"/>
-
-                                    <!-- Search filter -->
-                                    <Grid DockPanel.Dock="Top" Margin="0,0,0,4">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="44"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Filter:" FontSize="9" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" x:Name="txtCategoryFilter" Height="22" FontSize="10" VerticalContentAlignment="Center"
-                                                 ToolTip="Type to filter the category list (case-insensitive substring match)"
-                                                 TextChanged="CategoryFilter_TextChanged"/>
-                                        <Button Grid.Column="2" Content="✕" Width="22" Height="22" Margin="2,0,0,0"
-                                                Click="ClearCategoryFilter_Click" ToolTip="Clear filter"/>
-                                    </Grid>
-
-                                    <!-- Bulk-toggle action buttons -->
-                                    <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,2">
-                                        <Button Content="Tick All" Padding="6,2" Margin="0,0,2,2" Click="SelectAllCategories_Click"
-                                                ToolTip="Tick every category visible in the current filter"/>
-                                        <Button Content="Untick All" Padding="6,2" Margin="0,0,8,2" Click="SelectNoCategories_Click"
-                                                ToolTip="Untick every category visible in the current filter"/>
-                                        <TextBlock Text="By discipline:" FontSize="9" VerticalAlignment="Center" Margin="0,0,4,0"
-                                                   ToolTip="Tick to include that discipline's categories; untick to exclude them. Multiple disciplines can be active — selections are additive."/>
-                                        <CheckBox Content="M"  Padding="2,0" Margin="0,0,6,2" VerticalAlignment="Center" Tag="M"
-                                                  Checked="DiscCheck_Changed" Unchecked="DiscCheck_Changed"
-                                                  ToolTip="Tick all Mechanical categories (combine with other disciplines for a multi-discipline selection)"/>
-                                        <CheckBox Content="E"  Padding="2,0" Margin="0,0,6,2" VerticalAlignment="Center" Tag="E"
-                                                  Checked="DiscCheck_Changed" Unchecked="DiscCheck_Changed"
-                                                  ToolTip="Tick all Electrical categories"/>
-                                        <CheckBox Content="P"  Padding="2,0" Margin="0,0,6,2" VerticalAlignment="Center" Tag="P"
-                                                  Checked="DiscCheck_Changed" Unchecked="DiscCheck_Changed"
-                                                  ToolTip="Tick all Plumbing categories"/>
-                                        <CheckBox Content="A"  Padding="2,0" Margin="0,0,6,2" VerticalAlignment="Center" Tag="A"
-                                                  Checked="DiscCheck_Changed" Unchecked="DiscCheck_Changed"
-                                                  ToolTip="Tick all Architectural categories"/>
-                                        <CheckBox Content="S"  Padding="2,0" Margin="0,0,6,2" VerticalAlignment="Center" Tag="S"
-                                                  Checked="DiscCheck_Changed" Unchecked="DiscCheck_Changed"
-                                                  ToolTip="Tick all Structural categories"/>
-                                        <CheckBox Content="FP" Padding="2,0" Margin="0,0,6,2" VerticalAlignment="Center" Tag="FP"
-                                                  Checked="DiscCheck_Changed" Unchecked="DiscCheck_Changed"
-                                                  ToolTip="Tick all Fire Protection categories"/>
-                                        <CheckBox Content="LV" Padding="2,0" Margin="0,0,6,2" VerticalAlignment="Center" Tag="LV"
-                                                  Checked="DiscCheck_Changed" Unchecked="DiscCheck_Changed"
-                                                  ToolTip="Tick all Low-Voltage / Comms categories"/>
-                                    </WrapPanel>
-
-                                    <!-- Status + save/reload buttons -->
-                                    <Grid DockPanel.Dock="Bottom" Margin="0,4,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" x:Name="txtCategoryCount" Text="0 of 0 enabled" FontSize="9" Foreground="#666" VerticalAlignment="Center"/>
-                                        <Button Grid.Column="1" x:Name="btnReloadCategorySkip" Content="Reload"
-                                                Padding="8,2" Margin="0,0,4,0" Click="ReloadCategorySkip_Click"
-                                                ToolTip="Discard unsaved changes and reload from project_config.json"/>
-                                        <Button Grid.Column="2" x:Name="btnSaveCategorySkip" Content="Save &amp; Apply"
-                                                Padding="10,2" Click="SaveCategorySkip_Click"
-                                                Background="#E8912D" Foreground="White" FontWeight="Bold"
-                                                ToolTip="Persist to project_config.json (CATEGORY_SKIP) and refresh the tagging caches so the next AutoTag/BatchTag run honours the new selection"/>
-                                    </Grid>
-
-                                    <!-- Scrollable category list with checkboxes -->
-                                    <Border BorderBrush="#CCC" BorderThickness="1" Margin="0,0,0,0">
-                                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                            <StackPanel x:Name="pnlTagCategories" Margin="2"/>
-                                        </ScrollViewer>
-                                    </Border>
-                                </DockPanel>
                             </TabItem>
 
                             <!-- ─── Phase 111-117: Design Automation Roll-up Tab ─── -->
