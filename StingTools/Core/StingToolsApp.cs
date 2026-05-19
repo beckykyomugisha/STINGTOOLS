@@ -1764,6 +1764,7 @@ namespace StingTools.Core
                 ("Tag3D",                "3D Tag",        "T3", DrawingColor.Crimson,      typeof(HubTag3DCommand).FullName),
                 ("CreateTagFamilies",    "Tag Families",  "TF", DrawingColor.DarkCyan,     typeof(HubCreateTagFamiliesCommand).FullName),
                 ("AutoTag",              "Auto Tag",      "AT", DrawingColor.DarkGreen,    typeof(HubAutoTagCommand).FullName),
+                ("ToggleHvacPanel",      "HVAC Panel",    "HV", DrawingColor.LightSeaGreen,typeof(HubHvacPanelCommand).FullName),
             };
 
             var buttons = new List<PushButtonData>(12);
@@ -2058,5 +2059,19 @@ namespace StingTools.Core
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => HubDispatcher.Run("AutoTag", ref message);
+    }
+
+    /// <summary>
+    /// STING Hub button → opens the ❄ STING HVAC dockable panel. Backup
+    /// entry point because the standalone "❄ HVAC" ribbon panel can be
+    /// hidden by Revit's per-user UIState cache; the STING Hub panel is
+    /// always visible.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubHvacPanelCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("ToggleHvacPanel", ref message);
     }
 }
