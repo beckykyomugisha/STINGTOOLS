@@ -33,8 +33,10 @@ public class CoordinatorWorkloadJob
         var weekAgo   = monday.AddDays(-7);
         var tomorrow  = now.AddDays(1);
 
+        // ProjectMember stores the project-scoped role under ProjectRole
+        // (Iso19650Role is the BS 1192 single-letter code — different field).
         var coordinators = await _db.ProjectMembers
-            .Where(m => m.Role == "BimManager" || m.Role == "Coordinator")
+            .Where(m => m.ProjectRole == "BimManager" || m.ProjectRole == "Coordinator")
             .Select(m => new { m.UserId, m.TenantId })
             .Distinct()
             .ToListAsync(ct);

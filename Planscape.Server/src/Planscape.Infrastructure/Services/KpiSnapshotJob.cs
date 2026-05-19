@@ -70,11 +70,16 @@ public class KpiSnapshotJob
             i => i.ProjectId == projectId && i.TenantId == tenantId
               && i.CreatedAt >= weekAgo, ct);
 
+        // ClashRecord.Status is the ClashStatus enum (New, Acknowledged,
+        // Resolved, Closed, Dismissed). "Open" semantically means
+        // New + Acknowledged — anything not yet triaged or already closed.
         var clashesOpen     = await _db.ClashRecords.CountAsync(
-            c => c.ProjectId == projectId && c.TenantId == tenantId && c.Status == "Open", ct);
+            c => c.ProjectId == projectId && c.TenantId == tenantId
+              && (c.Status == ClashStatus.New || c.Status == ClashStatus.Acknowledged), ct);
         var clashesCritical = await _db.ClashRecords.CountAsync(
             c => c.ProjectId == projectId && c.TenantId == tenantId
-              && c.Status == "Open" && (int)c.Severity >= 2, ct);
+              && (c.Status == ClashStatus.New || c.Status == ClashStatus.Acknowledged)
+              && (int)c.Severity >= 2, ct);
 
         var docsTotal     = await _db.Documents.CountAsync(
             d => d.ProjectId == projectId && d.TenantId == tenantId, ct);
