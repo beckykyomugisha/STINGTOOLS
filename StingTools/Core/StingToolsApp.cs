@@ -1397,8 +1397,14 @@ namespace StingTools.Core
                 AddButton(togglePanel, "btnTogglePanel", "STING\nPanel",
                     asmPath, typeof(ToggleDockPanelCommand).FullName,
                     "Show/hide the STING Tools dockable panel");
+                // Belt-and-braces: drop the HVAC toggle into this same panel
+                // alongside STING Panel, so the user has a guaranteed-visible
+                // entry point regardless of standalone-panel registration state.
+                AddButton(togglePanel, "btnTogglePanelHvac", "STING\nHVAC",
+                    asmPath, typeof(ToggleHvacPanelCommand).FullName,
+                    "Show/hide the STING HVAC Center dockable panel (backup entry — see also '❄ HVAC' panel + STING Hub 'HVAC Panel' tile)");
 
-                StingLog.Info("Dockable panel registered successfully");
+                StingLog.Info("Dockable panel registered successfully (Panel + HVAC backup button)");
             }
             catch (Exception ex)
             {
@@ -1474,15 +1480,19 @@ namespace StingTools.Core
                 var provider = new StingTools.UI.StingHvacPanelProvider();
                 application.RegisterDockablePane(
                     StingTools.UI.StingHvacPanelProvider.PaneId,
-                    "❄ STING HVAC",
+                    "STING HVAC",
                     provider);
                 StingLog.Info($"RegisterHvacPanel: dockable pane registered " +
                     $"(GUID={StingTools.UI.StingHvacPanelProvider.PaneGuid})");
 
                 const string tabName = "STING Tools";
                 string asmPath = AssemblyPath;
-                var hvacPanel = application.CreateRibbonPanel(tabName, "❄ HVAC");
-                StingLog.Info("RegisterHvacPanel: ribbon panel '❄ HVAC' created");
+                // Plain-ASCII panel name: the leading snowflake (U+2744) was a
+                // suspect in the "panel doesn't render" investigation. Rename
+                // to "STING HVAC" to be sure Revit isn't dropping the panel
+                // due to unicode-handling weirdness.
+                var hvacPanel = application.CreateRibbonPanel(tabName, "STING HVAC");
+                StingLog.Info("RegisterHvacPanel: ribbon panel 'STING HVAC' created");
                 AddButton(hvacPanel, "btnToggleHvac", "STING\nHVAC",
                     asmPath, typeof(ToggleHvacPanelCommand).FullName,
                     "Show/hide the STING HVAC Center dockable panel.");
