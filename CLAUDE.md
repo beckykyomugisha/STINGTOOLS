@@ -561,18 +561,66 @@ now reports both live-disk edits and live-view drift in one summary.
 ### Caveats (Phase 183)
 
 1. Built without `dotnet build` verification (Linux sandbox).
-2. `LiveProfileSync` snapshots are in-memory; closing and reopening a
-   document loses the "X profiles changed since last load" state.
-   The user runs SyncStyles once after a session-spanning edit; the
-   drift detector also still picks up the same views via the
-   conventional VG / filter / crop comparison.
-3. `StampCrop` requires the two new shared parameters to be bound on
-   the project. On pre-Phase-183 projects the stamp is a no-op and
-   the bbox-derived crop drift check silently doesn't fire — no
-   regression vs. Phase 182 behaviour.
-4. VG drift reports one mismatching attribute per category. A
-   category with three mismatches (halftone + weight + transparency)
-   surfaces as one report entry, healed in one re-apply.
+
+### Phase 184 — Closing the Phase 183 caveats
+
+The three Phase 183 caveats (in-memory-only LiveProfileSync, shared-
+param dependency on crop stamps, single-mismatch VG drift reporting)
+are now all closed.
+
+**LiveProfileSync disk persistence** (`Core/Drawing/LiveProfileSync.cs`):
+
+- Snapshot file at `<project>/_BIM_COORD/.sting_live_profile_sync.json`
+  (hidden filename so it doesn't clutter pickers) carries the SHA-256
+  hashes of every DrawingType + ViewStylePack id between sessions.
+- On the first `OnRegistryReloaded(doc)` of a new session, the
+  in-memory prior is empty, so `LoadDiskSnapshot(doc)` hydrates the
+  pre-edit baseline from disk. The diff then correctly surfaces every
+  on-disk edit the user made while Revit was closed.
+- After every diff computation the new snapshot is written back to
+  disk via `SaveDiskSnapshot`, so the chain stays unbroken across
+  arbitrary numbers of sessions / edits.
+- File I/O is performed outside the dictionary lock so a slow disk
+  doesn't block the registry-reload pipeline.
+
+**Crop stamp via Extensible Storage** (`Core/Storage/StingViewCropSchema.cs`):
+
+- New ES schema `StingViewCropSchema` (`E1A7B2C4-1011-1244-8411-F6E5D4C3B2CC`)
+  with three fields: `Kind` (string), `MarginMm` (double),
+  `StampedUtcTicks` (long).
+- `DrawingTypeStamper.StampCrop` now writes to ES as the primary
+  surface; the shared parameters (`STING_CROP_KIND_TXT`,
+  `STING_CROP_MARGIN_MM_TXT`) are still written as a secondary surface
+  when bound so schedules / filters / Dynamo consumers keep working.
+- `DrawingTypeStamper.ReadCrop` prefers ES; falls back to the shared
+  params for legacy stamped views.
+- Removes the `LoadSharedParams` dependency — pre-Phase-183 projects
+  now get full crop-drift coverage with no migration step.
+
+**VG drift — all mismatches per category** (`DrawingDriftDetector.AppendVgAndFilterDrift`):
+
+- The Phase 183 implementation walked the field list with `if/else if`
+  and stopped at the first mismatch, hiding the rest until SyncStyles
+  re-applied. Refactored to collect every mismatch into a list and
+  emit one drift entry per category / filter joining all of them with
+  `; ` — e.g.
+  `VG_OVERRIDE: 'Walls' halftone False vs True; projWeight 5 vs 6; transparency 0 vs 50`.
+- Filter-rule drift gets the same treatment (visibility + halftone +
+  projection weight + cut weight + transparency all rolled into one
+  entry per filter).
+- SyncStyles still heals everything in a single pack re-apply —
+  Phase 184 is purely a reporting fix.
+
+### Caveats (Phase 184)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The disk snapshot file is per-project. Saving the .rvt as a new
+   filename creates a new `_BIM_COORD/` directory beside the new path
+   and the first reload there sees no prior snapshot — same behaviour
+   as opening a project that's never been touched by STING.
+3. ES writes still require an active transaction; `StampCrop` is
+   called from within `DrawingCropApplier.Apply`, which is wrapped
+   by the caller's `DrawingTypePresentation.Apply` transaction.
 
 ## Template Engine v1.1 (Phase 112)
 

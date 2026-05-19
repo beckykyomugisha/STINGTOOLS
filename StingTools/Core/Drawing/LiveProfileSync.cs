@@ -22,6 +22,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -32,12 +33,22 @@ namespace StingTools.Core.Drawing
 {
     public static class LiveProfileSync
     {
+        // Phase 184 — disk snapshot file, stored alongside the project's
+        // _BIM_COORD/drawing_types.json + view_style_packs.json so it
+        // survives Revit close/reopen. Hidden filename (leading dot) so
+        // it doesn't clutter file pickers.
+        private const string SnapshotFileName = ".sting_live_profile_sync.json";
+
         private sealed class Snapshot
         {
-            public Dictionary<string, string> ProfileChecksums { get; }
+            [JsonProperty("profiles")]
+            public Dictionary<string, string> ProfileChecksums { get; set; }
                 = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            public Dictionary<string, string> PackChecksums { get; }
+            [JsonProperty("packs")]
+            public Dictionary<string, string> PackChecksums { get; set; }
                 = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            [JsonProperty("savedUtc")]
+            public DateTime SavedUtc { get; set; }
         }
 
         private sealed class StagedDiff
@@ -67,8 +78,11 @@ namespace StingTools.Core.Drawing
         /// <summary>
         /// Called by DrawingTypeRegistry.Reload + ViewStylePackRegistry.Reload
         /// AFTER the new library has been loaded. Computes fresh checksums,
-        /// diffs against the previous snapshot, stages the changed ids for
-        /// later consumption by Inspect / SyncStyles. Safe to call from any
+        /// diffs against the previous snapshot (in-memory if present; else
+        /// the disk snapshot from <c>_BIM_COORD/.sting_live_profile_sync.json</c>),
+        /// stages the changed ids for later consumption by Inspect /
+        /// SyncStyles, then persists the new snapshot back to disk so
+        /// cross-session edits stay detectable. Safe to call from any
         /// thread; safe to call when no document is open.
         /// </summary>
         public static void OnRegistryReloaded(Document doc)
@@ -80,7 +94,19 @@ namespace StingTools.Core.Drawing
                 lock (_lock)
                 {
                     var key = DocKey(doc);
-                    _snapshots.TryGetValue(key, out var prior);
+                    // Phase 184 — on first reload per session, fall back to
+                    // the disk snapshot so cross-session edits (Revit
+                    // closed, JSON edited, Revit reopened) are picked up
+                    // on the first registry reload.
+                    Snapshot prior;
+                    if (!_snapshots.TryGetValue(key, out prior))
+                    {
+                        prior = LoadDiskSnapshot(doc);
+                        if (prior != null)
+                            StingTools.Core.StingLog.Info(
+                                $"LiveProfileSync: hydrated cross-session snapshot from disk (saved {prior.SavedUtc:u}).");
+                    }
+
                     if (prior != null)
                     {
                         var diff = ComputeDiff(prior, fresh);
@@ -103,6 +129,11 @@ namespace StingTools.Core.Drawing
                     }
                     _snapshots[key] = fresh;
                 }
+
+                // Persist outside the lock — file I/O can be slow and
+                // the lock only protects the in-memory dictionaries.
+                fresh.SavedUtc = DateTime.UtcNow;
+                SaveDiskSnapshot(doc, fresh);
             }
             catch (Exception ex)
             {
@@ -279,6 +310,72 @@ namespace StingTools.Core.Drawing
             }
 
             return diff;
+        }
+
+        // Phase 184 — disk persistence helpers.
+
+        private static string ResolveSnapshotPath(Document doc)
+        {
+            if (doc == null) return null;
+            try
+            {
+                var projPath = doc.PathName;
+                if (string.IsNullOrEmpty(projPath)) return null;
+                var dir = Path.Combine(Path.GetDirectoryName(projPath), "_BIM_COORD");
+                return Path.Combine(dir, SnapshotFileName);
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"LiveProfileSync.ResolveSnapshotPath: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static Snapshot LoadDiskSnapshot(Document doc)
+        {
+            var path = ResolveSnapshotPath(doc);
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
+            try
+            {
+                var json = File.ReadAllText(path);
+                var snap = JsonConvert.DeserializeObject<Snapshot>(json);
+                if (snap == null) return null;
+                // Defensive — JSON deserialisation may have lost the
+                // OrdinalIgnoreCase comparer; rebuild dictionaries.
+                var rebuilt = new Snapshot
+                {
+                    SavedUtc = snap.SavedUtc,
+                    ProfileChecksums = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+                    PackChecksums    = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+                };
+                if (snap.ProfileChecksums != null)
+                    foreach (var kv in snap.ProfileChecksums) rebuilt.ProfileChecksums[kv.Key] = kv.Value;
+                if (snap.PackChecksums != null)
+                    foreach (var kv in snap.PackChecksums) rebuilt.PackChecksums[kv.Key] = kv.Value;
+                return rebuilt;
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"LiveProfileSync.LoadDiskSnapshot: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static void SaveDiskSnapshot(Document doc, Snapshot snap)
+        {
+            var path = ResolveSnapshotPath(doc);
+            if (string.IsNullOrEmpty(path) || snap == null) return;
+            try
+            {
+                var dir = Path.GetDirectoryName(path);
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                var json = JsonConvert.SerializeObject(snap, Formatting.Indented);
+                File.WriteAllText(path, json);
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"LiveProfileSync.SaveDiskSnapshot: {ex.Message}");
+            }
         }
 
         private static string HashOf(object obj)
