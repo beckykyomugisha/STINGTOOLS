@@ -156,7 +156,12 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "description": "Architectural plan on A1 at 1:100."
+      "description": "Architectural plan on A1 at 1:100.",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "arch-rcp-A1-1to100",
@@ -302,7 +307,12 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "arch-section-A1-1to50",
@@ -442,7 +452,12 @@
       "description": "Architectural section on A1 at 1:50.",
       "orientation": "Landscape",
       "viewportTypeName": "STING - Standard Viewport",
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": true
+      }
     },
     {
       "id": "arch-elev-A1-1to100",
@@ -604,7 +619,12 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "arch-detail-A3-1to20",
@@ -767,6 +787,11 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": true
       }
     },
     {
@@ -865,7 +890,12 @@
       "description": "Structural plan on A1 at 1:100.",
       "orientation": "Landscape",
       "viewportTypeName": "STING - Standard Viewport",
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "struct-section-A1-1to50",
@@ -964,7 +994,12 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": true
+      }
     },
     {
       "id": "mep-plan-A1-1to100",
@@ -1096,7 +1131,12 @@
       "description": "Mechanical plan on A1 at 1:100.",
       "orientation": "Landscape",
       "viewportTypeName": "STING - Standard Viewport",
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "mep-coord-A1-1to50",
@@ -1192,7 +1232,9 @@
         ]
       },
       "print": {
-        "halftoneLinks": true
+        "halftoneLinks": true,
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -1351,7 +1393,12 @@
       "description": "Plumbing spool on A1 at 1:50.",
       "orientation": "Landscape",
       "viewportTypeName": "STING - Standard Viewport",
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "duct-spool-A1-1to50",
@@ -1482,6 +1529,11 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -1593,7 +1645,12 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": true
+      }
     },
     {
       "id": "door-schedule-A2",
@@ -1648,6 +1705,11 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
+      },
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -1727,7 +1789,12 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "legend-A2",
@@ -1782,6 +1849,11 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
+      },
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -1863,7 +1935,12 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "arch-roof-A1-1to100",
@@ -1953,7 +2030,12 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "arch-floor-finishes-A1-1to100",
@@ -2046,7 +2128,12 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "arch-fire-strategy-A1-1to100",
@@ -2135,7 +2222,12 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "arch-accessibility-A1-1to100",
@@ -2234,7 +2326,12 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "arch-interior-elev-A1-1to50",
@@ -2396,7 +2493,12 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "arch-window-schedule-A2",
@@ -2451,6 +2553,11 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
+      },
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -2548,7 +2655,12 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "struct-rebar-detail-A3-1to20",
@@ -2626,6 +2738,11 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": true
       }
     },
     {
@@ -2758,7 +2875,12 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "mep-plantroom-A1-1to50",
@@ -2895,7 +3017,12 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "elec-power-A1-1to100",
@@ -3004,7 +3131,12 @@
       "description": "Electrical plan on A1 at 1:100.",
       "orientation": "Landscape",
       "viewportTypeName": "STING - Standard Viewport",
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "elec-lighting-A1-1to100",
@@ -3113,7 +3245,12 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "elec-fire-alarm-A1-1to100",
@@ -3221,7 +3358,12 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "plumb-drainage-A1-1to100",
@@ -3322,7 +3464,12 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "phase": "*"
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     },
     {
       "id": "fm-asset-location-A1-1to100",
@@ -3387,7 +3534,9 @@
         ]
       },
       "print": {
-        "halftoneLinks": true
+        "halftoneLinks": true,
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -3524,7 +3673,9 @@
         ]
       },
       "print": {
-        "halftoneLinks": true
+        "halftoneLinks": true,
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -4004,7 +4155,8 @@
       },
       "print": {
         "colourScheme": "ClarificationRed",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -4095,7 +4247,8 @@
       },
       "print": {
         "colourScheme": "ClarificationRed",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -6271,7 +6424,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Schedule",
@@ -6307,7 +6459,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "One per clinical room: plan, elev, equipment list, services, finishes, sign-off",
       "description": "Healthcare schedule on A2 at NA."
@@ -6333,7 +6486,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Plan",
@@ -6369,7 +6521,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "FF&E callouts, pendant + bedhead positions, scrub/AED/PTS",
       "description": "Healthcare plan on A1 at 1:50."
@@ -6395,7 +6548,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Coordination",
@@ -6431,7 +6583,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": true
       },
       "_description": "Combined MEP coordination with radiation-shielding overlay",
       "description": "Mechanical coordination on A1 at 1:50."
@@ -6457,7 +6610,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Plan",
@@ -6493,7 +6645,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "MGPS pipe layout per HTM 02-01",
       "description": "Medical Gas plan on A1 at 1:100."
@@ -6519,7 +6672,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Schematic",
@@ -6555,7 +6707,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "Manifold → riser → ZVB → AAP → terminal-unit schematic",
       "description": "Medical Gas schematic on A1 at NA."
@@ -6581,7 +6734,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Plan",
@@ -6617,7 +6769,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "Δp arrows, AIIR/PE/anteroom cascade per HTM 03-01",
       "description": "Healthcare plan on A1 at 1:100."
@@ -6643,7 +6796,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Schematic",
@@ -6679,7 +6831,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "EES single-line with LS/CR/EQ branches + ATS, NFPA 99 / HTM 06-01",
       "description": "Electrical schematic on A1 at NA."
@@ -6705,7 +6858,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Plan",
@@ -6741,7 +6893,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "Isolated power systems for OR / ICU per NEC 517",
       "description": "Electrical plan on A1 at 1:50."
@@ -6767,7 +6920,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Plan",
@@ -6803,7 +6955,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "HSDU dirty / clean / sterile flow per HBN 13",
       "description": "Healthcare plan on A1 at 1:50."
@@ -6829,7 +6982,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Plan",
@@ -6865,7 +7017,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "Mortuary / post-mortem suite per HBN 16",
       "description": "Healthcare plan on A2 at 1:50."
@@ -6891,7 +7044,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Plan",
@@ -6927,7 +7079,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "HTM 05-02 / BS 9999 compartmentation + PHE refuges",
       "description": "Architectural plan on A1 at 1:100."
@@ -6953,7 +7106,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Plan",
@@ -6989,7 +7141,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "mm Pb callouts on walls/doors/windows per NCRP 147",
       "description": "Radiation Protection plan on A1 at 1:50."
@@ -7015,7 +7168,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Plan",
@@ -7051,7 +7203,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "Z1..Z4 zoning + 5-Gauss boundary",
       "description": "Radiation Protection plan on A1 at 1:50."
@@ -7077,7 +7230,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Plan",
@@ -7113,7 +7265,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "Ligature risk bands + observation LOS per HBN 03-01",
       "description": "Healthcare plan on A1 at 1:50."
@@ -7139,7 +7292,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Elevation",
@@ -7175,7 +7327,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "Bedhead trunking elevations with services schedule",
       "description": "Healthcare elevation on A2 at 1:20.",
@@ -7207,7 +7360,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main RCP",
@@ -7243,7 +7395,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "Pendant/boom/light/laminar canopy reflected ceiling",
       "description": "Healthcare rcp on A2 at 1:20."
@@ -7269,7 +7422,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Plan",
@@ -7305,7 +7457,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "TMV3 / aug-care / sentinel / RO-loop per HTM 04-01",
       "description": "Plumbing plan on A1 at 1:100."
@@ -7331,7 +7484,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Plan",
@@ -7367,7 +7519,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "NR rating + Rw bands + private/sensitive zones",
       "description": "Architectural plan on A1 at 1:100."
@@ -7393,7 +7546,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Plan",
@@ -7429,7 +7581,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "MRI / CT / Linac point loads + slab edge stiffening",
       "description": "Structural plan on A1 at 1:100."
@@ -7455,7 +7608,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Plan",
@@ -7491,7 +7643,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "RTLS / RFID reader coverage with dead-zone overlay",
       "description": "Healthcare plan on A1 at 1:100."
@@ -7517,7 +7670,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Plan",
@@ -7553,7 +7705,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "Clinical / cytotoxic / sharps / general flows segregated",
       "description": "Healthcare plan on A1 at 1:100."
@@ -7579,7 +7732,6 @@
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
       },
-      "tokenProfile": "default",
       "slots": [
         {
           "label": "Main Schematic",
@@ -7615,7 +7767,8 @@
       "isoNaming": true,
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "_description": "Hot lab / dispensing / waiting / imaging zoning",
       "description": "Radiation Protection schematic on A1 at NA."
@@ -7654,7 +7807,8 @@
       },
       "print": {
         "colourScheme": "ByDiscipline",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -7714,7 +7868,8 @@
       },
       "print": {
         "colourScheme": "ByDiscipline",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -7774,7 +7929,8 @@
       },
       "print": {
         "colourScheme": "ByDiscipline",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -7835,7 +7991,8 @@
       },
       "print": {
         "colourScheme": "ByDiscipline",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -7896,7 +8053,8 @@
       },
       "print": {
         "colourScheme": "ByDiscipline",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -7957,7 +8115,8 @@
       },
       "print": {
         "colourScheme": "ByDiscipline",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -8017,7 +8176,8 @@
       },
       "print": {
         "colourScheme": "ByDiscipline",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -8077,7 +8237,8 @@
       },
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "description": "Plumbing schedule on A2 at 1:1.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -8138,7 +8299,8 @@
       },
       "print": {
         "colourScheme": "ByDiscipline",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -8217,6 +8379,11 @@
         "Suitability": "S2",
         "Sheet Status": "WIP",
         "Revision": "P01"
+      },
+      "print": {
+        "colourScheme": "BlackAndWhite",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -8254,7 +8421,8 @@
       },
       "print": {
         "colourScheme": "BlackAndWhite",
-        "lineWeightScale": 1.0
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       },
       "description": "Multi-Discipline schedule on A1 at 1:1.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -8282,7 +8450,7 @@
   ],
   "routing": [
     {
-      "discipline": "P",
+      "discipline": "Plumbing",
       "phase": "*",
       "docType": "SPOOL",
       "drawingTypeId": "pipe-spool-A1-1to50"
@@ -8468,13 +8636,13 @@
       "drawingTypeId": "elec-fire-alarm-A1-1to100"
     },
     {
-      "discipline": "P",
+      "discipline": "Plumbing",
       "phase": "*",
       "docType": "DRAINAGE",
       "drawingTypeId": "plumb-drainage-A1-1to100"
     },
     {
-      "discipline": "P",
+      "discipline": "Plumbing",
       "phase": "*",
       "docType": "PLAN",
       "drawingTypeId": "plumb-drainage-A1-1to100"
@@ -8764,7 +8932,7 @@
       "drawingTypeId": "health-or-ceiling-A2-1to20"
     },
     {
-      "discipline": "P",
+      "discipline": "Plumbing",
       "phase": "*",
       "docType": "WATER_SAFETY",
       "drawingTypeId": "health-water-safety-A1-1to100"
