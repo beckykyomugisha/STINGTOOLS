@@ -236,6 +236,7 @@ public class DocumentsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult> GetDocuments(Guid projectId,
         [FromQuery] string? cdeStatus = null, [FromQuery] string? discipline = null,
+        [FromQuery] string? documentType = null,
         [FromQuery] string? search = null,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
@@ -244,6 +245,10 @@ public class DocumentsController : ControllerBase
 
         if (!string.IsNullOrEmpty(cdeStatus)) query = query.Where(d => d.CdeStatus == cdeStatus);
         if (!string.IsNullOrEmpty(discipline)) query = query.Where(d => d.Discipline == discipline);
+        // Phase 186A — filter by ISO 19650 document type (SH=Sheet, DR=Drawing,
+        // SP=Specification, SK=Sketch, etc.) so the viewer's "Link to sheet"
+        // button can list only sheets without paging through other doc types.
+        if (!string.IsNullOrEmpty(documentType)) query = query.Where(d => d.DocumentType == documentType);
         // FIX 20 (mobile Fix 15) — full-text search across FileName, DocumentType, and Description.
         // Uses Contains which maps to LIKE '%...%' on Postgres — index-assisted when a pg_trgm
         // GIN index exists on these columns. Safe for small corpora; add the index before
