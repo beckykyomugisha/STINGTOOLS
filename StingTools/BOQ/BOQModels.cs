@@ -147,6 +147,12 @@ namespace StingTools.BOQ
         public double OverheadPct = 8.0;
         public string Currency = "UGX";
         public double ExchangeRateUgxPerUsd = 3700.0;   // Phase 11E multi-currency
+        /// <summary>
+        /// Measurement standard ID — "nrm2" / "cesmm4" / "pomi" / "icms3" /
+        /// "mmhw". Defaults to NRM2 (UK Building Works). Phase 184h / P6.
+        /// </summary>
+        public string MeasurementStandardId = "nrm2";
+
         public List<BOQSection> Sections = new List<BOQSection>();
 
         public List<BOQLineItem> AllItems => Sections.SelectMany(s => s.Items).ToList();
@@ -220,6 +226,17 @@ namespace StingTools.BOQ
         public string Type;
         public DateTime Date;
         public double GrandTotalUGX;
+
+        // P1: server-sync provenance. Populated by BoqSyncCoordinator
+        // after a successful push. SyncState values:
+        //   "Local"   — never attempted (default)
+        //   "Pending" — push deferred (offline / no config / server error)
+        //   "Synced"  — confirmed on server, ServerBaselineId valid
+        //   "Conflict" — server checksum mismatched local checksum
+        //   "Disabled" — Planscape not configured for this project
+        public string Checksum;
+        public Guid? ServerBaselineId;
+        public string SyncState = "Local";
 
         public string DisplayText
             => $"{Type,-10} {Label} — {Date:dd MMM yyyy} — UGX {GrandTotalUGX:N0}";

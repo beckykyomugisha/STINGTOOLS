@@ -2,6 +2,368 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 184m — Cost management UI surfacing)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Surfaces every command added in P0 → P8 + caveat-closure commits as clickable buttons / tiles. Previously the commands were dispatch-wired but had no UI affordances — a user opening the dock panel or mobile app saw no new buttons.
+
+**Dock panel (`UI/StingDockPanel.xaml`)** — 7 new sub-sections appended after the existing 5D COST ESTIMATION WrapPanel:
+
+- **COST — AUTOMATION (P2)** — 7 buttons: Run Cost Workflow, Validate Cost, Clear Stale, Stale Marker Toggle, Reload Rules, Migrate UGX → Neutral, Migrate ES v1 → v2.
+- **COST PLAN — NRM1 (P4)** — 3 buttons: New Cost Plan, Compare vs BOQ, Export Cost Plan.
+- **PAYMENT CERTS (P5.1)** — 3 buttons: Issue Cert, Approve Cert, Cert Register.
+- **VARIATIONS + STAR RATES (P5.2)** — 3 buttons: Variation from Diff, Star Rate Build-Up, VO Register.
+- **EVM (P5.3)** — 3 buttons: Calculate EVM, Import Actuals, EVM S-Curve.
+- **MEASUREMENT STANDARD (P6)** — 2 buttons: Set Standard, Standard Preview.
+- **IFC + ICMS3 (P8)** — 2 buttons: Stamp IFC Qto, ICMS3 Report.
+
+23 buttons total. ★-marked headline buttons get the GreenBtn style with bold weight to lead the eye. All `Tag` values match the dispatch cases already wired into `StingCommandHandler`, so no code-behind changes needed.
+
+**Mobile cost-dashboard (`Planscape/app/(tabs)/cost-dashboard.tsx`)** — new `CostQuickNav` block above the summary cards. Two tiles route to `/variations` and `/payment-certs` via Expo Router. Closes the previous gap where the variation / payment-cert screens existed but couldn't be reached from the tab bar.
+
+##### Caveats
+
+1. Built without Revit / Expo runtime verification (Linux sandbox).
+2. The dock panel layout puts the new sections inside the same `Border` as the existing 5D COST ESTIMATION group. On very narrow panel widths the WrapPanels will wrap aggressively — visually acceptable but may need a future restructuring into its own collapsible `Border` per phase. Deferred.
+3. Mobile quick-nav tiles use emojis as icons (📃 📝). A follow-up commit can swap to `@expo/vector-icons` Feather / MaterialCommunityIcons glyphs for consistency with the rest of the app.
+
+---
+
+#### Completed (Phase 184l — Cost management Phase 184k caveats closed)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the three caveats from Phase 184k.
+
+**S3 / persistent-volume signature storage.** The signature persistence in `BoqController.SignPaymentCert` now goes through the existing `Planscape.Core.Interfaces.IFileStorageService` (injected via DI) rather than `System.IO.File.WriteAllBytesAsync` to a hard-coded relative path. The same call works against `LocalFileStorageService` in dev and `S3FileStorageService` in production (MinIO / S3) without controller-level branching — production deployments just toggle the storage provider in `appsettings.json`. `SaveScopedAsync` returns a tenant-prefixed `t_{tenantId}/{projectId}/signatures/cert_{certId}_{action}_{ts}.png` path which is what the existing download / presign endpoints expect.
+
+**Config-driven ICMS3 phase → group map.** New file `Data/STING_ICMS3_PHASE_MAP.json` carries an 11-language keyword dictionary (EN / DE / FR / ES / IT / PT / NL / SV / DA / ZH / JA) mapping phase-name substrings to ICMS3 group codes 01 / 02 / 03 / 04. New loader `BOQ/MeasurementStandard/Icms3PhaseMap.cs` reads the corporate baseline + `<project>/_BIM_COORD/icms3_phase_map.json` override. `Icms3Standard.ClassifyRow` now consults the map; cache invalidated by `Cost_ReloadRules`. Replaces the previous English-only hard-coded keyword chain. Project overrides win by group code (`code` field) and entries are evaluated in JSON order so 04 End-of-life always beats a generic "operation" keyword on a demolition phase name.
+
+**npm install automation.** `Planscape/package.json` gains an `ensure-deps` script that checks whether `node_modules/.package-lock.json` is older than `package.json` and runs `npm install --no-audit --prefer-offline` if so. Wired as `prestart` / `preandroid` / `preios` / `preweb` so `npm start` (or any platform target) automatically picks up missing deps. No-op when deps are already in sync. Closes the "forgot to npm install after pulling" trap for the `react-native-signature-canvas` dep landed in Phase 184k.
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `IFileStorageService` is registered in `Program.cs` already (existing wiring used by ModelDerivativeJob, IfcTessellationJob etc.) — no additional DI registration needed.
+3. The 11-language ICMS3 keyword set is a reasonable baseline but unlikely exhaustive — project overrides handle the long tail. Add languages by extending the `keywords` object in the project override JSON.
+4. `ensure-deps` uses `--prefer-offline` so a clean clone with a populated `~/.npm` cache stays fast (~1s no-op). First-ever install on a cold machine still takes the usual ~30-60s.
+
+---
+
+#### Completed (Phase 184k — Cost management P4–P8 caveats closed)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the four caveats from Phase 184f-j: server endpoints, IFC Qto shared params, ICMS3 phase refinement, and the signature pad. Built without `dotnet build` verification (Linux sandbox).
+
+##### Server-side BoqController endpoints
+
+New entity + table:
+- `Planscape.Core/Entities/PaymentCertificate.cs` — server twin of the plugin `Core/PaymentCert.PaymentCertificate`. Carries `CertNumber` / `ContractRef` / `Form` / `Status` / `ValuationDate` / retention bands / VAT / `TotalPayable` / SOV JSON / signer fields.
+- `Planscape.Infrastructure/Data/PlanscapeDbContext.cs` — `PaymentCertificates` `DbSet` + entity config with `(ProjectId, ContractRef, CertNumber)` unique index + project FK.
+- `Migrations/20260518000000_AddPaymentCertificates.cs` — hand-written migration creating the table with the right decimal types (`numeric(18,2)` for money, `numeric(6,3)` for percentages).
+
+New controller routes on `BoqController`:
+- `GET  /boq/variations/{id}` — variation detail with deserialised `items[]` from `LineDeltaJson`. Matches the mobile detail screen's expected shape.
+- `GET  /boq/payment-certs` — list per project.
+- `GET  /boq/payment-certs/{id}` — full cert with deserialised SOV lines.
+- `POST /boq/payment-certs` — plugin push from `PaymentCert_Issue`.
+- `PUT  /boq/payment-certs/{id}/sign` — mobile signature flow. State machine: `Draft → Issued → Agreed | Disputed → Paid`. Validates the transition (e.g. cert must be `Issued` to be `Agreed`).
+
+The mobile screens from Phase 184i now work end-to-end against this server.
+
+##### IFC4 Qto + Pset_StingCost shared params (65 entries)
+
+- `Data/MR_PARAMETERS.txt` — appended 65 PARAM rows: 10 Qto sets covering walls / beams / columns / slabs / doors / windows / spaces / coverings / pipes / ducts (~59 fields) + the 6-field `Pset_StingCost` property set. GUIDs are deterministic UUIDv5-shaped from the param name so re-runs are stable. UTF-16 LE + BOM encoding preserved via Python helper.
+- `Data/PARAMETER_REGISTRY.json` — same 65 entries appended to `support_params` with `data_type` matching the storage (`Number` / `Text` / `YesNo`).
+- Once bound to elements via `LoadSharedParams`, Revit's IFC exporter will surface the values in IFC4 `IfcElementQuantity` / `IfcPropertySet` so external cost tools (Cost-X, CostOS, Candy, Bluebeam Revu) can ingest cost data without re-measuring.
+
+##### ICMS3 lifecycle phase refinement
+
+- `BOQ/MeasurementStandard/MeasurementStandards.cs` — `Icms3Standard.ClassifyRow` now reads `PHASE_DEMOLISHED` and `PHASE_CREATED` on the element to bucket into ICMS3 groups:
+  - `PHASE_DEMOLISHED` set + phase name contains "demolition"/"end-of-life"/"decommission" → `04 End-of-life`
+  - `PHASE_DEMOLISHED` set (any other phase) → `03 Operation`
+  - `PHASE_CREATED` phase name contains "existing"/"acquisition"/"site preparation"/"enabling" → `01 Acquisition`
+  - `PHASE_CREATED` phase name contains "operation"/"maintenance" → `03 Operation`
+  - Default → `02 Construction`
+- Lets the ICMS3 report break cost + carbon down across the whole lifecycle rather than collapsing everything to construction.
+
+##### react-native-signature-canvas integration
+
+- `Planscape/package.json` — adds `react-native-signature-canvas ^4.7.2` (built on top of `react-native-webview`, which is already a dep).
+- `Planscape/app/payment-certs/[id].tsx` — Agree / Dispute now opens a `Modal` containing the signature pad. Captured signature is a base64 PNG; submission POSTs the bytes alongside the signer name + rationale. Cancellation closes the modal without submitting.
+- `Planscape.API/Controllers/BoqController.cs` — `SignPaymentCertRequest` gains `SignaturePngBase64`. The handler decodes the base64, writes the PNG to `storage/signatures/{tenantId}/{certId}/{action}_{timestamp}.png`, and stores the relative path in the `Note` column alongside any rationale.
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. EF migration is hand-written — run `dotnet ef database update` against the dev DB before deploying. Add to `Planscape.Server/docs/PLANSCAPE_DEPLOYMENT.md` deployment checklist.
+3. Signature storage uses a relative `storage/signatures/...` path. Production deployments using a stateless container need to remap this to S3 or persistent volume; current MVP assumes the existing file-system convention used by other Planscape attachments.
+4. `react-native-signature-canvas` requires running `npm install` after pulling the branch. The package is widely used (1M+ weekly downloads) and works on iOS + Android out of the box; web targets need additional Expo Web configuration which isn't shipped.
+5. ICMS3 phase detection assumes English phase names ("existing", "demolition" etc.). Non-English Revit installs need a config-driven phase-name → group code map, deferred.
+
+---
+
+#### Completed (Phase 184f-j — Cost management P4 → P8 — full plan complete)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Implements the remaining five phases of `docs/COST_MANAGEMENT_IMPLEMENTATION_PLAN.md` (P4 → P8). Each phase landed as a separate commit; this entry summarises the whole arc. Built without `dotnet build` verification (Linux sandbox).
+
+**P4 — NRM1 elemental cost plan (Phase 184f)**
+
+- `Core/CostPlan/NrmElement.cs` — NRM1 hierarchy (41 elements / groups per RIBA NRM1 2nd ed.)
+- `Core/CostPlan/CostPlanLine.cs` — PERT 3-point low/likely/high totals
+- `Core/CostPlan/CostPlanRegistry.cs` — CSV loader + project override
+- `Core/CostPlan/CostPlanEngine.cs` — build/save/load + NRM1↔NRM2 variance compare
+- `Commands/Cost/CostPlanCommands.cs` — `CostPlan_Create` / `CostPlan_Compare` / `CostPlan_Export`
+- `Data/STING_NRM1_BENCHMARKS.csv` — 6 building types × ~25 elements (office Cat A/B, residential, school, healthcare, warehouse)
+
+**P5 — Contract administration (Phase 184g)**
+
+- P5.1 payment certificates: `Core/PaymentCert/PaymentCertModels.cs` + `PaymentCertEngine.cs`; supports JCT 2024 / NEC4 / FIDIC 2017 with retention auto-halving, VAT, status machine (Draft → Issued → Disputed | Agreed → Paid).
+- P5.2 variations + star rates: `Core/Variation/VariationModels.cs` + `VariationEngine.cs`; mints VOs from `BOQSnapshotDiff` (NewItem uses RateB, RateRevised uses delta); StarRate carries labour + plant + materials + OH + profit build-up.
+- P5.3 EVM: `Core/Evm/EvmCalculator.cs` — full PMI metrics (CV, SV, CPI, SPI, EAC, ETC, VAC, TCPI) with Green / Amber / Red health gates at CPI 0.95 / 1.00.
+- 9 user commands wired up: `PaymentCert_{Issue,Approve,Register}`, `Variation_{FromDiff,BuildStarRate,ExportRegister}`, `Evm_{Calculate,ImportActuals,ExportReport}`.
+- 7 new shared params: PMT_PCT_COMPLETE_NR, PMT_CERT_NO_NR, PMT_CERT_DATE_DT, PMT_LAST_VALUED_DT, VAR_NO_TXT, VAR_INSTRUCTION_DT, VAR_VALUATION_NR.
+
+**P6 — Multi-standard take-off (Phase 184h)**
+
+- `BOQ/MeasurementStandard/IMeasurementStandard.cs` — strategy interface (PreferredUnit / ClassifyRow / BuildDescription / ApplyDeductions).
+- `MeasurementStandards.cs` — 5 concrete: `Nrm2Standard`, `Cesmm4Standard` (Class A-Z lattice, deducts openings > 0.5 m² from walls), `PomiStandard` (international, broad classes), `Icms3Standard` (cost + carbon ledger), `MmhwStandard` (UK highway works series 100–3000).
+- `BOQDocument.MeasurementStandardId` field defaults to "nrm2" so existing snapshots are unchanged.
+- Commands: `Cost_SetMeasurementStandard` (StingListPicker, persists in `project_config.json`) and `Cost_StandardInspect` (diagnostic preview).
+
+**P7 — Mobile write surface (Phase 184i)**
+
+- `Planscape/app/variations/index.tsx` + `[id].tsx` — list + detail with Approve / Reject / Reviewed actions and rationale field. Status colour-coded.
+- `Planscape/app/payment-certs/index.tsx` + `[id].tsx` — list with payable totals; detail with full SOV breakdown (retention auto-halving, VAT, payable), Agree / Dispute sign-off.
+- Signature is typed-name + auto-date in this MVP; `react-native-signature-canvas` integration is a follow-on commit (needs new dep).
+- Server endpoints expected (handlers land in the existing `BoqController`):
+  - `GET /api/projects/{id}/boq/variations` / `/{id}` + `PUT .../status`
+  - `GET /api/projects/{id}/boq/payment-certs` / `/{id}` + `PUT .../sign`
+
+**P8 — External connectors + IFC Qto + ICMS3 (Phase 184j)**
+
+- `BOQ/Rates/Providers/BcisHttpRateProvider.cs` — generic HTTP rate-book client (priority 50). Hot + disk cache with TTL; fail-soft to last-good. Configurable via `BCIS_BASE_URL` / `BCIS_API_KEY` / `BCIS_TTL_MIN`.
+- `BOQ/Rates/Providers/ProjectRateCardProvider.cs` — reads `<project>/_BIM_COORD/rate_card.json` (priority 87; above CSV's 90 only for project-specific overrides).
+- `RateProviderRegistry.RegisterExternalProvider` — late-bound registration so providers can be enabled per project. `Cost_ReloadRules` re-attaches them after invalidation.
+- `BOQ/IfcQuantitySetWriter.cs` — populates IFC4 Qto_* property sets (Qto_WallBaseQuantities, Qto_BeamBaseQuantities, Qto_SlabBaseQuantities, etc.) + a STING-specific `Pset_StingCost` with UnitRate / Currency / TotalCost / ProvisionalSum / RateSource / NRM2Section so external cost tools (Cost-X, CostOS, Candy, Bluebeam Revu) can ingest cost directly from the IFC export.
+- `Commands/Cost/IfcAndIcmsCommands.cs` — `Cost_StampIfcQuantities` (one-shot bulk stamp inside a transaction) and `Cost_ExportIcms3Report` (CSV with cost £ + carbon kgCO₂e + £/kgCO₂e ratio per ICMS3 group code).
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. Mobile P7 screens compile against the existing `apiFetch` + `useAuthStore` patterns but the corresponding server endpoints (under `/api/projects/{id}/boq/variations` and `/payment-certs`) still need handlers on `BoqController`. The mobile UI is ready; server wiring is a follow-on commit on the Planscape.Server side.
+3. The `BcisHttpRateProvider` HTTP shape is generic — BCIS's real API requires a paid tier and an adapter layer. The provider is shaped to wrap any GET-returns-JSON-with-unitRate price book.
+4. `IfcQuantitySetWriter` writes shared params named `Qto_*.* ` and `Pset_StingCost.*`. These params must be added to `MR_PARAMETERS.txt` + `PARAMETER_REGISTRY.json` before Revit's IFC exporter will surface them in the IFC4 output — staged for a focused follow-up commit because each Qto field is a per-category binding (~60 entries).
+5. ICMS3 grouping is currently coarse (everything → "02 Construction"). Lifecycle phase data (01 Acquisition, 03 Operation, 04 End-of-life) requires per-element phase data not yet captured in the BOQ engine; a follow-on phase reads `PHASE_CREATED` / `PHASE_DEMOLISHED` to refine.
+
+##### What's NOT covered (deliberately out of scope)
+
+- The "P0 → P3" foundations (rate engine, take-off rules, server sync, automation, 4D/5D unification) landed earlier in the same branch (commits 45031a3f / c3125274 / 5b5fcf22 / f11c3e78 / 41b4fd8c / 4ae42266 / 38f76f77). Together with P4 → P8 here, the full implementation plan is delivered.
+- ERP integration (SAP, Oracle), forward FX hedging, Monte-Carlo risk modelling, ASMM / SMM7 standards, BIM Track / Aconex cost-module integration, and ESIGN-compliant signature pad — all out of scope per the implementation-plan §10.
+
+---
+
+#### Completed (Phase 184e — Cost management Phase 184d caveats closed)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the three caveats from Phase 184d. Built without `dotnet build` verification.
+
+- **Per-batch rate cache in CostStamp** — `BOQ/CostStamp.cs` gains a `ConcurrentDictionary<string, RateLookup>` keyed by `category|discipline|prod|matCode|unit`. Tagging 5 000 elements that share <50 unique tuples now drops from ~5 000 registry calls to ~50. Bounded at 500 entries (above which entries skip caching rather than evict — single tag operations don't touch that many unique categories). Cache invalidates with the other rate caches via `Cost_ReloadRules`. Diagnostic `GetRateCacheStats()` returns hits / misses / entries; `Invalidate()` logs the hit-rate before flushing. Hot-path tuple includes neither `Element` nor `AsOf` so the cache is safe across element identities at a single point in time.
+- **Deleted `_legacyInlineFallback`** — 124 hardcoded entries in `BIMManager/SchedulingCommands.cs` removed (164 lines deleted). Replaced with `_emergencyFallback`: 5 most-common categories (Walls, Floors, Doors, Windows, Mechanical Equipment) that keep the engine producing non-zero rates even if `STING_DEFAULT_COST_RATES.csv` is missing. The CSV is now the single source of truth for the default rate table. `LoadDefaultCostRatesCsv` logs a loud `Warn` when the CSV is missing (was `Info`) so distribution problems surface quickly.
+- **`Cost_MigrateESEntities` added to `WORKFLOW_BOQ_FullRefresh.json`** — first step, optional. Projects opening their first full refresh after upgrading pick up the one-shot v1→v2 Extensible Storage migration without explicit user action. Idempotent on re-runs (returns immediately when no v1 schema is present).
+
+##### Caveats
+
+1. Built without `dotnet build` verification.
+2. Per-batch rate cache uses ConcurrentDictionary so concurrent tag operations (rare but possible across multiple StingCommandHandler queues) won't corrupt it. The 500-entry cap is intentionally loose — a single tag operation never touches more than ~50 unique tuples in practice.
+3. If `STING_DEFAULT_COST_RATES.csv` ships missing or corrupt, `Scheduling4DEngine.DefaultCostRates` returns 5 entries and most categories will get zero rates from the `DefaultRateProvider`. Other providers (param override / ES override / CSV at higher priority) still work; only the lowest-priority fallback degrades.
+
+---
+
+#### Completed (Phase 184d — Cost management deferrals closed)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the three "deliberate deferrals" from Phase 184b: tag-pipeline cost write-back, bulk ES v1→v2 migration, and `DefaultCostRates` extraction into a data file. Built without `dotnet build` verification (Linux sandbox).
+
+##### Tag-pipeline cost write-back (P3.1)
+
+- New file `StingTools/BOQ/CostStamp.cs` — opt-in cost write-back helper.
+  - `IsWriteOnTagEnabled()` reads `WRITE_COST_ON_TAG` from `project_config.json` (default `0` = off). Cached for the batch; `Invalidate()` clears.
+  - `WriteIfEnabled(doc, el)` resolves quantity via `TakeoffRuleRegistry`, rate via `RateProviderRegistry`, computes `qty × rate`, writes neutral params (`ASS_CST_UNIT_RATE_NR` / `_CURRENCY_TXT` / `_FX_TO_BASE_NR` / `_FX_DATE_DT` / `_AS_OF_DT`) + legacy mirrors (`CST_UNIT_RATE_UGX` / `CST_QTY_MEASURED` / `CST_RATE_SOURCE` / `CST_MODELED_TOTAL_UGX`). Failure-tolerant.
+- `Core/ParameterHelpers.cs` — `TagPipelineHelper.RunFullPipeline` calls `StingTools.BOQ.CostStamp.WriteIfEnabled(doc, el)` as its terminal step (after design-option params, before `return true`). No feedback-loop risk because `StingCostStaleMarker` listens for geometry / addition only, not parameter writes — a settled-tick gate isn't needed.
+- `Commands/Cost/CostCommands.cs` — `Cost_ReloadRules` also clears the `CostStamp` config cache so toggling `WRITE_COST_ON_TAG` mid-session takes effect on the next tag operation.
+
+##### Bulk ES v1→v2 migration (Cost_MigrateESEntities)
+
+- New command `CostMigrateESEntitiesCommand` in `Commands/Cost/CostCommands.cs`. Walks every element with a v1 `StingCostRateOverrideSchema` entity, re-writes via v2 (which auto-deletes the v1 entity). Idempotent: elements with no v1 entity are skipped; elements that already carry a v2 entity have their orphan v1 deleted and the counter records them as "Already v2".
+- Returns immediately with a clean message when the v1 schema isn't present in the document at all (no overrides ever written).
+- Wired into `WorkflowEngine.ResolveCommand` and `StingCommandHandler` dispatch under tag `Cost_MigrateESEntities`.
+
+##### DefaultCostRates → CSV (Phase 184d)
+
+- New file `StingTools/Data/STING_DEFAULT_COST_RATES.csv` — 124 default rate entries extracted from the historic hardcoded dictionary. Columns: `Category,RatePerUnit_UGX,Unit,Description`. Comment lines (leading `#`) supported.
+- `BIMManager/SchedulingCommands.cs` — `Scheduling4DEngine.DefaultCostRates` converted from a `readonly` field initialiser to a lazy-loaded property backed by `LoadDefaultCostRatesCsv()`. CSV entries override an embedded `_legacyInlineFallback` dictionary (kept as defensive backup if the CSV is missing). All 6 existing callers (in `GenerateCostEstimate`, the template exporter, `BOQ.Rates.DefaultRateProvider`) work unchanged because the access surface is identical.
+- `Scheduling4DEngine.InvalidateDefaultCostRates()` added; `Cost_ReloadRules` now clears this cache alongside the rate-provider, take-off and CostStamp caches so an edited CSV picks up without restarting Revit.
+
+##### Caveats
+
+1. Built without `dotnet build` verification.
+2. `WRITE_COST_ON_TAG` defaults to off. Power users enable in `project_config.json` (`"WRITE_COST_ON_TAG": 1`). When on, every tag operation does a per-element rate + qty lookup — measurable cost on bulk tag operations (>5000 elements). The 20-element-per-trigger cap on the IUpdater doesn't apply here because this runs in the user-initiated tag command, not the auto-tagger.
+3. `Cost_MigrateESEntities` is one-shot — once run on a project, subsequent runs are no-ops. Safe to include in `WORKFLOW_BOQ_FullRefresh.json` as an optional first step on the next sprint.
+4. The 124 inline fallback entries remain in `SchedulingCommands.cs` (as `_legacyInlineFallback`). A future commit can delete them entirely once the CSV ships with every plugin distribution and the no-CSV defensive path is verified unused.
+
+---
+
+#### Completed (Phase 184c — Cost management follow-ups)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes two caveats called out at the end of Phase 184b.
+
+- `StingTools/Data/MR_PARAMETERS.txt` — appended the 7 cost shared parameters (`ASS_CST_UNIT_RATE_NR`, `ASS_CST_CURRENCY_TXT`, `ASS_CST_FX_TO_BASE_NR`, `ASS_CST_FX_DATE_DT`, `ASS_CST_AS_OF_DT`, `ASS_CST_STALE_BOOL`, `ASS_CST_STALE_REASON_TXT`) so `LoadSharedParamsCommand` binds them automatically on the next project setup run. GUIDs match `ParamRegistry.cs` + `PARAMETER_REGISTRY.json`. File encoding (UTF-16 LE + BOM + tab-separated) preserved via a Python helper.
+- `StingTools/Commands/Cost/CostCommands.cs` — `Cost_RunWorkflow` swapped from `TaskDialog.AddCommandLink` (cap of 4 visible options) to `StingListPicker` with search + filter. Each item carries the preset summary on its `Tag` so the file path round-trips without re-parsing. Now scales to N workflow presets.
+
+Cost IUpdater (`StingCostStaleMarker`) opt-in default deliberately retained — same pattern as `StingAutoTagger` / `StingStaleMarker`. Users enable via `Cost_ToggleStaleMarker`.
+
+---
+
+#### Completed (Phase 184b — Cost management P0.1 + P0.2 + P2 + P3)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Second commit of Phase 184. Implements the remaining work from `docs/COST_MANAGEMENT_IMPLEMENTATION_PLAN.md` (P0.1 = ES schema v2, P0.2 = currency-neutral params + migration, P2 = IUpdater + validators + workflow presets, P3 = 4D/5D rate-engine unification). Built without `dotnet build` verification (Linux sandbox).
+
+##### P0.1 — Extensible Storage schema v2
+
+- `StingCostRateOverrideSchema.cs` extended with a second schema GUID (`E1A7B2C4-1011-1243-8411-F6E5D4C3B2B2`) carrying 7 new fields: `Currency` (ISO 4217), `WastePercent`, `OverheadPercent`, `ProfitPercent`, `DayworksCode`, `LockedByUser`, `LockedUntilUtcTicks`.
+- `Read` tries v2 first, falls back to v1 — every project that opened the v1 schema continues to work.
+- `Write` always v2; deletes any orphan v1 entity so the element doesn't carry stale data in two schemas.
+- `Override.IsLocked` derived property — `true` when `LockedUntilUtcTicks > now`. Future P5.1 work uses this to prevent edits to rows on issued payment certs.
+- `ExtensibleStorageRateProvider` (P0) updated to honour the new fields — base rate × (1 + waste%) × (1 + OH%) × (1 + profit%); provenance string surfaces the loaded-rate breakdown + lock state.
+
+##### P0.2 — Currency-neutral shared parameters
+
+- 7 new params added to `ParamRegistry.cs` + `PARAMETER_REGISTRY.json` (UUIDv5 in cost namespace `b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d40`):
+  - `ASS_CST_UNIT_RATE_NR`, `ASS_CST_CURRENCY_TXT`, `ASS_CST_FX_TO_BASE_NR`, `ASS_CST_FX_DATE_DT`, `ASS_CST_AS_OF_DT` — replace currency-baked legacy params
+  - `ASS_CST_STALE_BOOL`, `ASS_CST_STALE_REASON_TXT` — drive the P2 stale-cost detection
+- New command `Cost_MigrateCurrencyParams` (`Commands/Cost/CostCommands.cs`) — one-time migration that copies legacy `CST_UNIT_RATE_UGX` → neutral params with `CurrencyCode="UGX"` + current FX rate stamped. Idempotent (skips elements where neutral rate is already set).
+- Legacy `CST_UNIT_RATE_UGX` / `_USD` params stay bound — derivation logic in BOQ export still reads them so existing schedules don't break.
+
+##### P2 — Automation engine
+
+**New files:**
+
+| Path | Lines | Role |
+|------|-------|------|
+| `StingTools/Core/StingCostStaleMarker.cs` | ~230 | IUpdater (UpdaterGuid `B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D50`). Triggers on `GetChangeTypeGeometry()` + `GetChangeTypeElementAddition()` on the same multi-category filter the auto-tagger uses. Marks `ASS_CST_STALE_BOOL = 1` + writes a reason string (`Geometry` / `New`). 20-element-per-trigger cap + LRU eviction at 10 000 entries (mirrors `StingStaleMarker`). Workshared-safe (`WorksharingUtils.GetCheckoutStatus` gate). Only marks previously-costed elements (skips uncosted geometry). |
+| `StingTools/Core/Validation/Cost/CostValidators.cs` | ~290 | 5 validators + `CostValidatorChain.RunAll`: `MissingMaterialValidator` (cost-bearing element with no material → "COST.MAT.MISSING"), `UntypedCategoryValidator` (no takeoff rule matched → "COST.RULE.MISSING"), `UnpricedProdValidator` (no provider returned a non-zero rate → "COST.RATE.UNPRICED" grouped by category), `ZeroQuantityValidator` (rule evaluates to zero quantity → "COST.QTY.ZERO" Error severity), `StaleCostValidator` (counts `ASS_CST_STALE_BOOL == 1`, breakdown by reason → "COST.STALE"). |
+| `StingTools/Commands/Cost/CostCommands.cs` | ~325 | 6 IExternalCommands: `Cost_ValidateAll` (runs the chain, opens TaskDialog with "Select affected" command-link), `Cost_ClearStale` (resets the bool + reason params under a manual transaction; resets the LRU set), `Cost_RunWorkflow` (discovers `WORKFLOW_BOQ_*.json` presets, picker, hands off to `WorkflowEngine.ExecutePreset`), `Cost_ToggleStaleMarker` (toggles the IUpdater), `Cost_ReloadRules` (invalidates `RateProviderRegistry` + `TakeoffRuleRegistry` caches), `Cost_MigrateCurrencyParams` (P0.2 migration). |
+| `StingTools/Data/WORKFLOW_BOQ_FullRefresh.json` | 6 steps | Reload rules → validate (halt on error) → BOQ rebuild → snapshot → clear stale → export. `rollback_on_failure: true`. |
+| `StingTools/Data/WORKFLOW_BOQ_QuickValuation.json` | 5 steps | Lightweight monthly cycle: reload → rebuild → snapshot Interim → refresh cash-flow → export. |
+| `StingTools/Data/WORKFLOW_BOQ_TenderPack.json` | 8 steps | RIBA Stage 4: reload → validate (strict gate) → prep-for-export → final rebuild → Tender snapshot → clear stale → professional xlsx → drawings register. `rollback_on_failure: true`, `rollback_on_optional_failure: true`. |
+
+**Edited files:**
+
+- `StingTools/Core/StingToolsApp.cs` — `StingCostStaleMarker.Register(application)` in `OnStartup`; `.Unregister()` in `OnShutdown`.
+- `StingTools/Core/WorkflowEngine.cs` — `ResolveCommand` switch gains 7 new tags (`Cost_ValidateAll`, `Cost_ClearStale`, `Cost_RunWorkflow`, `Cost_ToggleStaleMarker`, `Cost_ReloadRules`, `Cost_MigrateCurrencyParams`, `BOQPrepForExport`). `BOQPrepForExport` was previously only on `StingCommandHandler` — now reachable from preset JSON too.
+- `StingTools/UI/StingCommandHandler.cs` — 6 new dispatch cases for the cost commands.
+
+##### P3 — 4D/5D rate-engine unification
+
+- `Scheduling4DEngine.GenerateCostEstimate` (in `BIMManager/SchedulingCommands.cs`) now consults `RateProviderRegistry` *after* the live BOQ override, *before* the caller's custom-rates dictionary and the hard-coded `DefaultCostRates`. The same rate the BOQ engine writes to a line is the rate the 4D / 5D / cash-flow surface sees — no more parallel cost tables.
+- `DefaultCostRates` retained as the lowest-priority fallback (and still consulted by `DefaultRateProvider` from P0). Deleting the table outright is deferred until all callers route exclusively through the registry.
+- Tag-pipeline cost write-back (gated on `WRITE_COST_ON_TAG=true` config flag) intentionally deferred — landing it together with the IUpdater would risk feedback loops (IUpdater fires → stale flag set → pipeline rewrites cost → IUpdater fires again).
+
+##### Caveats
+
+1. Built without `dotnet build` verification.
+2. The 7 new cost shared parameters in `PARAMETER_REGISTRY.json` need to be loaded via `LoadSharedParams` before `Cost_MigrateCurrencyParams` will find them on elements. Add to the standard project-setup workflow.
+3. ES schema v2 read-time migration is *implicit* — v1 entities are read transparently; the v1 data is overwritten by `Write` once the QS edits the override (delete-and-replace). A bulk "migrate all v1 entities now" command is deferred.
+4. `Cost_RunWorkflow` UI presents at most 4 presets (TaskDialog command-link limit). If more `WORKFLOW_BOQ_*.json` presets land, a richer picker UI is needed.
+5. The cost IUpdater is *disabled by default*. Users opt in via `Cost_ToggleStaleMarker` — same pattern as `StingAutoTagger` / `StingStaleMarker`. Performance impact on bulk paste is bounded by the 20-element-per-trigger guard.
+
+---
+
+#### Completed (Phase 184 — Cost management foundations: P0 + P1)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Implements phases P0
+and P1 of `docs/COST_MANAGEMENT_IMPLEMENTATION_PLAN.md`. Closes
+flexibility gaps F-1 / F-3 (rate engine + take-off rules now data-driven)
+and integration gaps I-1 / I-7 (plugin snapshots reach the server with
+checksums). Built without `dotnet build` verification (Linux sandbox).
+
+##### P0 — Pluggable rate engine + data-driven take-off rules
+
+**New files:**
+
+| Path | Lines | Role |
+|------|-------|------|
+| `StingTools/BOQ/Rates/IRateProvider.cs` | ~95 | Interface + `RateRequest` / `RateLookup` DTOs |
+| `StingTools/BOQ/Rates/RateProviders.cs` | ~265 | 5 concrete providers preserving legacy fallback order: `ParameterOverrideRateProvider` (priority 100), `ExtensibleStorageRateProvider` (95), `CsvRateProvider` (90/85/80), `CobieRateProvider` (75), `DefaultRateProvider` (60). New providers (BCIS, Spon's, project rate card) slot in without editing existing code. |
+| `StingTools/BOQ/Rates/RateProviderRegistry.cs` | ~175 | Composition root. Per-document cache. Currency adapter normalises UGX/USD/GBP to the requested currency via project FX. `ResolveAll` diagnostic surface drives the rate-source heat-map. |
+| `StingTools/BOQ/Takeoff/TakeoffRule.cs` | ~225 | POCO + `TakeoffRuleRegistry` loader. Corporate baseline + `<project>/_BIM_COORD/takeoff_rules.json` override. First-match-wins. Rule fields: `matchCategory`/`matchDiscipline`/`matchProdCode` + `unit` + `quantitySource` (`HOST_AREA_COMPUTED` / `CURVE_ELEM_LENGTH` / `LookupParameter:Weight` / `LocationCurve` / `literal:1.0` / any `BuiltInParameter` name) + `unitConversion` (`ft2_to_m2` / `ft3_to_m3` / `ft_to_m` / `none`) + `wastePercent` + `nrm2Section` + `description`. |
+| `StingTools/Data/STING_TAKEOFF_RULES.json` | 30 rules | Seed encoding the historic if/switch logic from `DeriveQuantity` + `DeriveNrm2Section` so behaviour is preserved on day one. Rules cover walls, curtain walls, floors, slabs, roofs, ceilings, foundations, columns, framing, beams, doors, windows, stairs, ramps, furniture, casework, ducts, pipes, mechanical equipment, plumbing fixtures, sanitary, conduits, cable tray, electrical equipment, lighting, fire/safety, security, structural steel, rebar (+5% waste). |
+
+**Edited files:**
+
+- `StingTools/BOQ/BOQCostManager.cs` — `ResolveRate` delegates to
+  `RateProviderRegistry`; legacy `RateSource` labels mapped from
+  provider ids so heat-maps + existing schedules keep working.
+  `DeriveQuantity` consults the takeoff registry first, only honouring
+  the matched rule when its declared unit aligns with the caller's
+  requested unit (normalised — `m²` ↔ `m2`, `lin-m` ↔ `m`, etc.);
+  falls back to legacy logic otherwise. `DeriveNrm2Section` signature
+  widened to `(doc, el, catName, disc)`; consults registry first,
+  falls back to the hard-coded map.
+
+##### P1 — Server snapshot sync with checksums
+
+**New files:**
+
+| Path | Lines | Role |
+|------|-------|------|
+| `StingTools/BOQ/Sync/BoqSnapshotHasher.cs` | ~110 | Canonical SHA-256 of a normalised `BOQDocument` projection. Excludes wall-clock fields, sorts sections + items deterministically, formats numbers with invariant culture + fixed precision. Lower-case hex digest matches the server's `BoqBaseline.Checksum` convention. |
+| `StingTools/BOQ/Sync/BoqSyncCoordinator.cs` | ~190 | Orchestrates snapshot → server push. Resolves project id via `PlanscapeServerClient.LoadConnectionSettings`; POSTs a baseline, then upserts lines in chunks of 200. Maps plugin snapshot types (DD / Stage / Weekly / Manual / Live / Handover) to canonical `BoqBaseline.Kind` ("Tender" / "Interim" / "Final"). Maps `BOQRowSource` to `LineKind` ("Measured" / "Manual" / "ProvisionalSum"). Returns `BoqSyncResult` carrying server baseline id, sync state and line counts. |
+
+**Edited files:**
+
+- `StingTools/BOQ/BOQModels.cs` — `BOQSnapshotMeta` gains `Checksum`,
+  `ServerBaselineId`, `SyncState` ("Local" / "Pending" / "Synced" /
+  "Conflict" / "Disabled").
+- `StingTools/BOQ/BOQCostManager.cs` — `SaveSnapshot` computes
+  checksum before write, writes a `<snapshot>.meta.json` sidecar, and
+  fires `_ = Task.Run(...)` to push to the server without blocking
+  save. `ListSnapshots` enriches each `BOQSnapshotMeta` from the
+  sidecar so the BOQ panel can show "Synced — baseline {id}" or
+  "Pending — offline".
+- `StingTools/BIMManager/PlanscapeServerClient.cs` — new methods:
+  `CreateBoqBaselineAsync(projectId, payload) → Guid?` (POST
+  `/api/projects/{id}/boq/baselines`),
+  `UpsertBoqLinesAsync(projectId, baselineId, lines) → (ok, created,
+  updated)` (POST `/baselines/{bid}/lines`),
+  `GetBoqBaselinesAsync(projectId) → JArray` (GET). All preserve the
+  existing `LastError` + `EnsureAuthenticatedAsync` pattern.
+
+##### What's still deferred
+
+- `StingCostRateOverrideSchema` extension to carry `WastePercent` /
+  `OverheadPercent` / `ProfitPercent` / `DayworksCode` / `LockedByUser`
+  needs its own focused commit — the Extensible Storage GUID change
+  requires a read-time migration. P0 provider stub reads the v1 schema
+  and treats `RateGbp` only.
+- Currency-neutral shared parameters (`ASS_CST_UNIT_RATE_NR` etc.) are
+  not added in this commit — needs a parameter-registry version bump
+  + a one-time migration command from `_UGX_NR` → neutral.
+- `WORKFLOW_BOQ_*.json` presets, IUpdater stale detection, validators
+  and 4D/5D unification land in P2 + P3.
+- Mobile / payment certs / variations / EVM land in P4 → P8.
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox). New code
+   targets Revit 2025/2026/2027 API surface.
+2. The push is fire-and-forget via `Task.Run`. The sidecar
+   `.meta.json` carries the final sync state once the task completes.
+   UI panels should re-read the sidecar to show live state.
+3. Behaviour is preserved when no take-off rule matches (legacy
+   fallback) and when the rule's unit disagrees with the caller's
+   unit (legacy fallback). Existing demo projects should produce
+   identical BOQ output after this commit.
+4. Server-side `BoqController` endpoints already exist; no server
+   changes required.
+
+---
+
 #### Completed (Phase 183 — Model collaboration: Gaps H–N)
 
 Branch: `claude/review-archicad-revit-workflows-04E6q`. Third-pass review of the full collaboration layer, uncovering seven more gaps and fixing them all.

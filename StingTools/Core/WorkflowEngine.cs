@@ -1553,6 +1553,40 @@ namespace StingTools.Core
                 case "BOQSnapshotSave":        return new BOQ.BOQSnapshotSaveCommand();
                 case "BOQSnapshotCompare":     return new BOQ.BOQSnapshotCompareCommand();
                 case "BOQExportProfessional":  return new BOQ.BOQProfessionalExportCommand();
+                case "BOQPrepForExport":       return new BOQ.BOQPrepForExportCommand();
+
+                // Phase 184 — Cost management (P2)
+                case "Cost_ValidateAll":        return new Commands.Cost.CostValidateAllCommand();
+                case "Cost_ClearStale":         return new Commands.Cost.CostClearStaleCommand();
+                case "Cost_RunWorkflow":        return new Commands.Cost.CostRunWorkflowCommand();
+                case "Cost_ToggleStaleMarker":  return new Commands.Cost.CostToggleStaleMarkerCommand();
+                case "Cost_ReloadRules":        return new Commands.Cost.CostReloadRulesCommand();
+                case "Cost_MigrateCurrencyParams": return new Commands.Cost.CostMigrateCurrencyParamsCommand();
+                case "Cost_MigrateESEntities":     return new Commands.Cost.CostMigrateESEntitiesCommand();
+
+                // Phase 184f — P4 NRM1 cost plan
+                case "CostPlan_Create":            return new Commands.Cost.CostPlanCreateCommand();
+                case "CostPlan_Compare":           return new Commands.Cost.CostPlanCompareCommand();
+                case "CostPlan_Export":            return new Commands.Cost.CostPlanExportCommand();
+
+                // Phase 184g — P5.1 payment certs / P5.2 variations / P5.3 EVM
+                case "PaymentCert_Issue":          return new Commands.Cost.PaymentCertIssueCommand();
+                case "PaymentCert_Approve":        return new Commands.Cost.PaymentCertApproveCommand();
+                case "PaymentCert_Register":       return new Commands.Cost.PaymentCertRegisterCommand();
+                case "Variation_FromDiff":         return new Commands.Cost.VariationFromDiffCommand();
+                case "Variation_BuildStarRate":    return new Commands.Cost.VariationBuildStarRateCommand();
+                case "Variation_ExportRegister":   return new Commands.Cost.VariationExportRegisterCommand();
+                case "Evm_Calculate":              return new Commands.Cost.EvmCalculateCommand();
+                case "Evm_ImportActuals":          return new Commands.Cost.EvmImportActualsCommand();
+                case "Evm_ExportReport":           return new Commands.Cost.EvmExportReportCommand();
+
+                // Phase 184h — P6 multi-standard take-off
+                case "Cost_SetMeasurementStandard": return new Commands.Cost.CostSetMeasurementStandardCommand();
+                case "Cost_StandardInspect":        return new Commands.Cost.CostStandardInspectCommand();
+
+                // Phase 184j — P8 IFC Qto + ICMS3
+                case "Cost_StampIfcQuantities":     return new Commands.Cost.CostStampIfcQuantitiesCommand();
+                case "Cost_ExportIcms3Report":      return new Commands.Cost.CostExportIcms3ReportCommand();
                 case "BatchFamilyParams": return new Temp.BatchAddFamilyParamsCommand();
                 case "FamilyParamProcessor": return new Temp.FamilyParameterProcessorCommand();
 

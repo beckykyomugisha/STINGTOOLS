@@ -1,0 +1,34 @@
+{
+  "name": "BOQ — Monthly valuation",
+  "description": "Lightweight monthly cycle for live projects. Rebuild BOQ, snapshot as Interim, export to xlsx + push to server, refresh 4D cash-flow. Does NOT run the full validator chain — assumes a clean baseline.",
+  "rollback_on_failure": true,
+  "rollback_on_optional_failure": false,
+  "steps": [
+    {
+      "commandTag": "Cost_ReloadRules",
+      "label": "Reload rules + rates",
+      "optional": true
+    },
+    {
+      "commandTag": "BOQRefresh",
+      "label": "Rebuild BOQ from model",
+      "optional": false,
+      "timeoutSeconds": 600
+    },
+    {
+      "commandTag": "BOQSnapshotSave",
+      "label": "Save Interim snapshot + push to server",
+      "optional": false
+    },
+    {
+      "commandTag": "CashFlow5D",
+      "label": "Refresh 5D cash-flow projection",
+      "optional": true
+    },
+    {
+      "commandTag": "BOQExport",
+      "label": "Export to xlsx",
+      "optional": false
+    }
+  ]
+}
