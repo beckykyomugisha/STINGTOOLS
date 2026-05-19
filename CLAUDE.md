@@ -611,16 +611,47 @@ are now all closed.
 - SyncStyles still heals everything in a single pack re-apply —
   Phase 184 is purely a reporting fix.
 
-### Caveats (Phase 184)
+### Phase 184c — Save-As snapshot migration + transaction guard
+
+The Phase 184 caveats covering Save-As snapshot loss and the implicit
+transaction requirement on `StampCrop` are now closed.
+
+**Save-As snapshot migration** (`Core/StingToolsApp.cs`):
+
+- New event subscriptions: `DocumentSavingAs` (captures the
+  destination path before save) and `DocumentSavedAs` (copies the
+  snapshot once the save succeeds).
+- `_savingAsPaths` ConcurrentDictionary keyed by document hash holds
+  the `(oldPath, newPath)` pair between the two events, so concurrent
+  Save As of multiple open projects can't cross-pollute.
+- `MigrateLiveProfileSyncSnapshot(oldRvt, newRvt)` copies
+  `<oldDir>/_BIM_COORD/.sting_live_profile_sync.json` to the new
+  `_BIM_COORD/` directory beside the saved-as path. Won't clobber an
+  existing snapshot in the destination (treats Save As over an
+  existing STING-touched project as "destination wins").
+- Cross-session profile-drift detection now keeps working after Save
+  As without the user having to repeat a registry reload.
+
+**Transaction-state guard on `StampCrop`**
+(`Core/Drawing/DrawingTypeStamper.cs`):
+
+- Early check on `el.Document.IsModifiable` — when no Revit
+  transaction is active, log a warning and return `false` instead of
+  letting the ES `SetEntity` / shared-param `Set` throw. Makes the
+  caller contract explicit and eliminates the throw-and-catch
+  overhead on the (currently-impossible) path where a caller forgets
+  to wrap.
+- All in-tree callers (`DrawingCropApplier.Apply` →
+  `DrawingTypePresentation.Apply`) already run inside a transaction,
+  so this is a defensive guard, not a behavioural change.
+
+### Caveats (Phase 184c)
 
 1. Built without `dotnet build` verification (Linux sandbox).
-2. The disk snapshot file is per-project. Saving the .rvt as a new
-   filename creates a new `_BIM_COORD/` directory beside the new path
-   and the first reload there sees no prior snapshot — same behaviour
-   as opening a project that's never been touched by STING.
-3. ES writes still require an active transaction; `StampCrop` is
-   called from within `DrawingCropApplier.Apply`, which is wrapped
-   by the caller's `DrawingTypePresentation.Apply` transaction.
+2. `DocumentSavingAs` requires the Revit API to expose
+   `DocumentSavingAsEventArgs.PathName` — true for Revit 2025/2026/2027
+   per the addin manifest. Older Revit versions would need a different
+   pattern; STING's `net8.0-windows` target rules them out anyway.
 
 ## Template Engine v1.1 (Phase 112)
 

@@ -143,6 +143,26 @@ namespace StingTools.Core.Drawing
         {
             if (el == null) return false;
             if (!IsEditable(el)) return false;
+
+            // Phase 184c — explicit transaction-state check. Both
+            // Extensible Storage writes and shared-parameter writes
+            // require an active Revit transaction. Throwing-and-catching
+            // works today (the caller's transaction wraps every code
+            // path that reaches here), but documenting the contract
+            // here means a future caller that forgets to open one gets
+            // a clear log line instead of a swallowed exception. Returns
+            // false without side effects when no transaction is active.
+            try
+            {
+                if (el.Document != null && !el.Document.IsModifiable)
+                {
+                    StingTools.Core.StingLog.Warn(
+                        $"DrawingTypeStamper.StampCrop({el.Id}): document not modifiable — call must run inside a Transaction.");
+                    return false;
+                }
+            }
+            catch { /* IsModifiable can throw on closed docs; treat as not-modifiable */ return false; }
+
             bool wroteEs = false;
             bool wroteParam = false;
             try

@@ -172,6 +172,15 @@ namespace StingTools.Core
                 // AUTO-SYNC: Queue lightweight compliance sync on document save
                 application.ControlledApplication.DocumentSaved += OnDocumentSaved;
 
+                // Phase 184c — migrate the LiveProfileSync disk snapshot on
+                // File > Save As so cross-session profile-drift detection
+                // keeps working in the copied project. The Saving event
+                // captures the (old, new) path pair before the .rvt moves;
+                // the SavedAs event copies the snapshot once the save
+                // succeeds.
+                application.ControlledApplication.DocumentSavingAs += OnDocumentSavingAs;
+                application.ControlledApplication.DocumentSavedAs += OnDocumentSavedAs;
+
                 // S03b / Phase 91 — Start the Planscape sync scheduler if the plugin has
                 // already authenticated with the server (persisted from a previous session).
                 // Runs on a 5-min timer in-process: on each tick PluginSyncTickBridge builds
@@ -976,6 +985,63 @@ namespace StingTools.Core
         /// handlers (S03c/d: replaced the old _pendingSyncDoc / _pendingSyncTime
         /// dead-code fields with a proper enqueue).
         /// </summary>
+        // Phase 184c — capture (old path → new path) on Save As so the
+        // LiveProfileSync snapshot can be migrated alongside the .rvt.
+        // Keyed by Document identity so concurrent Save As of multiple
+        // open projects doesn't cross-pollute.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, (string OldPath, string NewPath)>
+            _savingAsPaths = new System.Collections.Concurrent.ConcurrentDictionary<int, (string, string)>();
+
+        private static void OnDocumentSavingAs(object sender,
+            Autodesk.Revit.DB.Events.DocumentSavingAsEventArgs e)
+        {
+            try
+            {
+                var doc = e.Document;
+                if (doc == null) return;
+                var oldPath = doc.PathName;
+                var newPath = e.PathName;
+                if (string.IsNullOrEmpty(newPath)) return;
+                if (string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase)) return;
+                _savingAsPaths[doc.GetHashCode()] = (oldPath, newPath);
+            }
+            catch (Exception ex) { StingLog.Warn($"OnDocumentSavingAs: {ex.Message}"); }
+        }
+
+        private static void OnDocumentSavedAs(object sender,
+            Autodesk.Revit.DB.Events.DocumentSavedAsEventArgs e)
+        {
+            try
+            {
+                var doc = e.Document;
+                if (doc == null) return;
+                if (!_savingAsPaths.TryRemove(doc.GetHashCode(), out var paths)) return;
+                if (string.IsNullOrEmpty(paths.OldPath) || string.IsNullOrEmpty(paths.NewPath)) return;
+                MigrateLiveProfileSyncSnapshot(paths.OldPath, paths.NewPath);
+            }
+            catch (Exception ex) { StingLog.Warn($"OnDocumentSavedAs: {ex.Message}"); }
+        }
+
+        private static void MigrateLiveProfileSyncSnapshot(string oldRvt, string newRvt)
+        {
+            try
+            {
+                const string FileName = ".sting_live_profile_sync.json";
+                var oldDir = System.IO.Path.GetDirectoryName(oldRvt);
+                var newDir = System.IO.Path.GetDirectoryName(newRvt);
+                if (string.IsNullOrEmpty(oldDir) || string.IsNullOrEmpty(newDir)) return;
+                var oldFile = System.IO.Path.Combine(oldDir, "_BIM_COORD", FileName);
+                if (!System.IO.File.Exists(oldFile)) return;
+                var newCoord = System.IO.Path.Combine(newDir, "_BIM_COORD");
+                if (!System.IO.Directory.Exists(newCoord)) System.IO.Directory.CreateDirectory(newCoord);
+                var newFile = System.IO.Path.Combine(newCoord, FileName);
+                if (System.IO.File.Exists(newFile)) return; // don't clobber an existing snapshot
+                System.IO.File.Copy(oldFile, newFile, overwrite: false);
+                StingLog.Info($"LiveProfileSync: migrated snapshot from '{oldFile}' to '{newFile}'");
+            }
+            catch (Exception ex) { StingLog.Warn($"MigrateLiveProfileSyncSnapshot: {ex.Message}"); }
+        }
+
         private static void OnDocumentSaved(object sender,
             Autodesk.Revit.DB.Events.DocumentSavedEventArgs e)
         {
