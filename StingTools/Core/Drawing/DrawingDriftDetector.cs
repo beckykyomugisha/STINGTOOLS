@@ -13,8 +13,18 @@
 //                           family, or STING_TB_SPEC_HASH_TXT is absent /
 //                           mismatched (Gap 5)
 //   CROP_DRIFT              view's VIEWER_VOLUME_OF_INTEREST_CROP doesn't
-//                           match profile.crop.scopeBoxName (only fires
-//                           when the profile names a scope box)
+//                           match profile.crop.scopeBoxName, OR the
+//                           Phase 183 STING_CROP_KIND_TXT /
+//                           STING_CROP_MARGIN_MM_TXT stamps disagree with
+//                           the profile's current crop kind / margin
+//                           (for bbox-derived crops)
+//   VG_OVERRIDE_DRIFT       per-category OverrideGraphicSettings on the
+//                           view disagrees with the resolved pack's
+//                           vgOverrides entry (non-managed packs only)
+//   FILTER_DRIFT            pack filter not attached to view, or
+//                           visibility / halftone / projection-weight
+//                           override doesn't match the pack's filterRule
+//                           (non-managed packs only)
 //
 // Consumed by the SyncStyles command (which re-applies the profile
 // on drifted views) and surfaced in the Inspect command output so
@@ -193,23 +203,31 @@ namespace StingTools.Core.Drawing
                 // would write. SyncStyles re-runs Apply and heals.
                 AppendOptionScopeDrift(doc, v, dt, report);
 
-                // Crop drift — when the profile names a scope box, compare
-                // the view's bound VIEWER_VOLUME_OF_INTEREST_CROP to that
-                // scope box. ScopeBoxOrBbox is only flagged when a scope
-                // box was specified AND it exists in the document. Other
-                // crop kinds (TightBbox / RoomBoundary / None) are derived
-                // at apply time and not comparable post-hoc.
+                // Crop drift — scope-box mismatch + (Phase 183)
+                // bbox-derived stamp comparison for TightBbox /
+                // RoomBoundary / ScopeBoxOrBbox-bbox-fallback profiles.
                 AppendCropDrift(doc, v, dt, report);
+
+                // VG / filter drift (non-managed packs only — managed
+                // packs are covered by AppendManagedTemplateDrift's
+                // checksum comparison against the STING:* template).
+                AppendVgAndFilterDrift(doc, v, dt, report);
 
                 if (report.Drifts.Count > 0 || report.Suppressed.Count > 0) reports.Add(report);
             }
             return reports;
         }
 
-        // CROP_DRIFT — only meaningful when the profile names a scope box
-        // (kind=ScopeBox or kind=ScopeBoxOrBbox + scopeBoxName set). For
-        // bbox-derived crops the live region is recomputed at apply-time
-        // and there is no stable expected value to diff against.
+        // CROP_DRIFT — covers two distinct scenarios:
+        //   1. Scope-box crops (kind=ScopeBox / ScopeBoxOrBbox with
+        //      scopeBoxName set) — compare view's bound
+        //      VIEWER_VOLUME_OF_INTEREST_CROP to the named scope box.
+        //   2. Bbox-derived crops (kind=TightBbox / RoomBoundary, or
+        //      ScopeBoxOrBbox falling through to bbox) — compare the
+        //      kind + margin stamped onto the view by DrawingCropApplier
+        //      (Phase 183) to what the profile currently asks for. This
+        //      catches profile edits like "marginMm: 150 → 300" that the
+        //      view hasn't been re-cropped to honour.
         private static void AppendCropDrift(Document doc, View v, DrawingType dt, DriftReport report)
         {
             try
@@ -217,46 +235,195 @@ namespace StingTools.Core.Drawing
                 var crop = dt?.Crop;
                 if (crop == null) return;
                 var kind = (crop.Kind ?? "").Trim();
-                if (string.IsNullOrEmpty(crop.ScopeBoxName)) return;
-                if (!string.Equals(kind, "ScopeBox", StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(kind, "ScopeBoxOrBbox", StringComparison.OrdinalIgnoreCase)) return;
 
-                var p = v.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
-                if (p == null) return;
-
-                ElementId actualId = p.AsElementId() ?? ElementId.InvalidElementId;
-                string actualName = actualId == ElementId.InvalidElementId
-                    ? "(none)"
-                    : doc.GetElement(actualId)?.Name ?? actualId.ToString();
-
-                if (!string.Equals(actualName, crop.ScopeBoxName, StringComparison.OrdinalIgnoreCase))
+                // 1) Scope-box drift
+                if (!string.IsNullOrEmpty(crop.ScopeBoxName)
+                    && (string.Equals(kind, "ScopeBox", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(kind, "ScopeBoxOrBbox", StringComparison.OrdinalIgnoreCase)))
                 {
-                    // For ScopeBoxOrBbox the profile permits a bbox fallback
-                    // only when the named scope box doesn't exist. Resolve
-                    // the named scope box; if it exists but is not bound,
-                    // that's drift. If it doesn't exist, suppress as info.
-                    var resolved = new FilteredElementCollector(doc)
-                        .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
-                        .WhereElementIsNotElementType()
-                        .FirstOrDefault(e => string.Equals(e.Name, crop.ScopeBoxName, StringComparison.OrdinalIgnoreCase));
-                    if (resolved == null)
+                    var p = v.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
+                    if (p != null)
                     {
-                        if (string.Equals(kind, "ScopeBoxOrBbox", StringComparison.OrdinalIgnoreCase))
-                            report.Suppressed.Add($"CROP_INFO: scope box '{crop.ScopeBoxName}' not in document — bbox fallback in use");
-                        else
-                            report.Drifts.Add($"CROP: scope box '{crop.ScopeBoxName}' not in document — view will fail to crop");
-                    }
-                    else
-                    {
-                        report.Drifts.Add($"CROP: scope box '{actualName}' vs profile '{crop.ScopeBoxName}'");
+                        ElementId actualId = p.AsElementId() ?? ElementId.InvalidElementId;
+                        string actualName = actualId == ElementId.InvalidElementId
+                            ? "(none)"
+                            : doc.GetElement(actualId)?.Name ?? actualId.ToString();
+
+                        if (!string.Equals(actualName, crop.ScopeBoxName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var resolved = new FilteredElementCollector(doc)
+                                .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                                .WhereElementIsNotElementType()
+                                .FirstOrDefault(e => string.Equals(e.Name, crop.ScopeBoxName, StringComparison.OrdinalIgnoreCase));
+                            if (resolved == null)
+                            {
+                                if (string.Equals(kind, "ScopeBoxOrBbox", StringComparison.OrdinalIgnoreCase))
+                                    report.Suppressed.Add($"CROP_INFO: scope box '{crop.ScopeBoxName}' not in document — bbox fallback in use");
+                                else
+                                    report.Drifts.Add($"CROP: scope box '{crop.ScopeBoxName}' not in document — view will fail to crop");
+                            }
+                            else
+                            {
+                                report.Drifts.Add($"CROP: scope box '{actualName}' vs profile '{crop.ScopeBoxName}'");
+                            }
+                        }
                     }
                 }
+
+                // 2) Bbox-derived drift via Phase 183 crop stamp. Only
+                // meaningful for kinds where the applier writes a stamp.
+                // ScopeBox is excluded — it's covered above and doesn't
+                // benefit from margin comparison.
+                bool isBboxKind = string.Equals(kind, "TightBbox", StringComparison.OrdinalIgnoreCase)
+                                || string.Equals(kind, "RoomBoundary", StringComparison.OrdinalIgnoreCase)
+                                || string.Equals(kind, "ScopeBoxOrBbox", StringComparison.OrdinalIgnoreCase);
+                if (!isBboxKind) return;
+
+                var (stampedKind, stampedMargin) = DrawingTypeStamper.ReadCrop(v);
+                if (stampedKind == null && !stampedMargin.HasValue) return; // no stamp; nothing to diff
+
+                if (!string.Equals(stampedKind ?? "", kind, StringComparison.OrdinalIgnoreCase))
+                    report.Drifts.Add($"CROP: kind '{stampedKind ?? "(none)"}' vs profile '{kind}'");
+                else if (stampedMargin.HasValue && Math.Abs(stampedMargin.Value - crop.MarginMm) > 1.0)
+                    report.Drifts.Add($"CROP: margin {stampedMargin.Value:0.#}mm vs profile {crop.MarginMm:0.#}mm");
             }
             catch (Exception ex)
             {
                 StingTools.Core.StingLog.Warn($"AppendCropDrift({v?.Id}): {ex.Message}");
             }
         }
+
+        // VG / filter drift — compares the live view's per-category
+        // OverrideGraphicSettings + filter attachments against the
+        // resolved pack's VgOverrides + Filters. Only runs for
+        // non-managed packs; managed packs already get template-level
+        // checksum drift via AppendManagedTemplateDrift, and double-
+        // detecting would surface every view that uses the managed
+        // template as drifted whenever a managed field is edited.
+        //
+        // Per-field detail is intentionally coarse: a single drift
+        // entry per category / filter, listing the first mismatching
+        // attribute. SyncStyles re-applies the pack and heals.
+        private static void AppendVgAndFilterDrift(Document doc, View v, DrawingType dt, DriftReport report)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(dt?.ViewStylePackId)) return;
+                var pack = ViewStylePackRegistry.Get(doc, dt.ViewStylePackId);
+                if (pack == null) return;
+                if (pack.IsManaged) return; // managed mode is covered elsewhere
+
+                // ── VG overrides ──
+                if (pack.VgOverrides != null)
+                {
+                    foreach (var kv in pack.VgOverrides)
+                    {
+                        var catId = ResolveCategoryIdForDrift(doc, kv.Key);
+                        if (catId == ElementId.InvalidElementId) continue;
+
+                        OverrideGraphicSettings ogs;
+                        try { ogs = v.GetCategoryOverrides(catId); } catch { continue; }
+                        if (ogs == null) continue;
+                        var expected = kv.Value;
+                        if (expected == null) continue;
+
+                        string mismatch = null;
+                        if (expected.Halftone.HasValue && ogs.Halftone != expected.Halftone.Value)
+                            mismatch = $"halftone {ogs.Halftone} vs {expected.Halftone.Value}";
+                        else if (expected.ProjectionLineWeight.HasValue
+                            && ogs.ProjectionLineWeight != expected.ProjectionLineWeight.Value)
+                            mismatch = $"projWeight {ogs.ProjectionLineWeight} vs {expected.ProjectionLineWeight.Value}";
+                        else if (expected.CutLineWeight.HasValue
+                            && ogs.CutLineWeight != expected.CutLineWeight.Value)
+                            mismatch = $"cutWeight {ogs.CutLineWeight} vs {expected.CutLineWeight.Value}";
+                        else if (expected.Transparency.HasValue
+                            && ogs.Transparency != Clamp01(expected.Transparency.Value))
+                            mismatch = $"transparency {ogs.Transparency} vs {expected.Transparency.Value}";
+
+                        if (mismatch != null)
+                            report.Drifts.Add($"VG_OVERRIDE: '{kv.Key}' {mismatch}");
+                    }
+                }
+
+                // ── Filter rules ──
+                if (pack.Filters != null && pack.Filters.Count > 0)
+                {
+                    System.Collections.Generic.ICollection<ElementId> attached;
+                    try { attached = v.GetFilters(); } catch { attached = null; }
+                    if (attached == null) return;
+
+                    foreach (var rule in pack.Filters)
+                    {
+                        if (string.IsNullOrWhiteSpace(rule.FilterName)) continue;
+                        var filter = new FilteredElementCollector(doc)
+                            .OfClass(typeof(ParameterFilterElement))
+                            .Cast<ParameterFilterElement>()
+                            .FirstOrDefault(f => string.Equals(f.Name, rule.FilterName, StringComparison.OrdinalIgnoreCase));
+                        if (filter == null)
+                        {
+                            // Filter not in document yet — pack-side issue, not view-side drift.
+                            report.Suppressed.Add($"FILTER_INFO: '{rule.FilterName}' not in document — will lazy-create on apply");
+                            continue;
+                        }
+
+                        if (!attached.Contains(filter.Id))
+                        {
+                            report.Drifts.Add($"FILTER: '{rule.FilterName}' not attached to view");
+                            continue;
+                        }
+
+                        bool actualVisible;
+                        try { actualVisible = v.GetFilterVisibility(filter.Id); }
+                        catch { continue; }
+                        if (actualVisible != rule.Visible)
+                        {
+                            report.Drifts.Add($"FILTER: '{rule.FilterName}' visible={actualVisible} vs {rule.Visible}");
+                            continue;
+                        }
+
+                        OverrideGraphicSettings fogs;
+                        try { fogs = v.GetFilterOverrides(filter.Id); } catch { continue; }
+                        if (fogs == null) continue;
+
+                        if (fogs.Halftone != rule.Halftone)
+                        {
+                            report.Drifts.Add($"FILTER: '{rule.FilterName}' halftone {fogs.Halftone} vs {rule.Halftone}");
+                            continue;
+                        }
+                        if (rule.ProjectionLineWeight.HasValue
+                            && fogs.ProjectionLineWeight != rule.ProjectionLineWeight.Value)
+                        {
+                            report.Drifts.Add($"FILTER: '{rule.FilterName}' projWeight {fogs.ProjectionLineWeight} vs {rule.ProjectionLineWeight.Value}");
+                            continue;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"AppendVgAndFilterDrift({v?.Id}): {ex.Message}");
+            }
+        }
+
+        private static ElementId ResolveCategoryIdForDrift(Document doc, string key)
+        {
+            if (string.IsNullOrWhiteSpace(key)) return ElementId.InvalidElementId;
+            try
+            {
+                if (Enum.TryParse<BuiltInCategory>(key, true, out var bic))
+                {
+                    var c = Category.GetCategory(doc, bic);
+                    if (c != null) return c.Id;
+                }
+                foreach (Category c in doc.Settings.Categories)
+                    if (string.Equals(c.Name, key, StringComparison.OrdinalIgnoreCase))
+                        return c.Id;
+            }
+            catch { }
+            return ElementId.InvalidElementId;
+        }
+
+        private static int Clamp01(int v) => v < 0 ? 0 : v > 100 ? 100 : v;
 
         // Phase 175 — drift between profile.OptionScope and view's actual
         // VIEWER_OPTION_VISIBILITY parameter.

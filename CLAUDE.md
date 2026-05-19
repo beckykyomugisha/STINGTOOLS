@@ -482,16 +482,97 @@ purpose-based routing fallback (intentional — keeps the JSON DRY).
    projects must supply (e.g. `STING - Healthcare Clinical`, `Fire
    Wall - 60 min`). The validator surfaces missing assets as Warnings,
    not Errors, so the JSON ships usable on a stock project.
-3. CROP_DRIFT only detects scope-box mismatches; bbox-derived crops
-   (TightBbox / RoomBoundary) are recomputed at apply time and remain
-   unmonitored — deferred until a stamp + diff strategy lands for live
-   crop regions.
-4. Filter rule inheritance through pack `extends` chains is NOT
+3. Filter rule inheritance through pack `extends` chains is NOT
    cascaded — only the root `corp-base` and `corp-clarification`
    define filterRules in the corporate baseline; child packs either
    redeclare or inherit nothing. Phase 166 wires `inheritDefaults:
    true` for individual rules but full pack-chain inheritance of the
    filter list itself stays an explicit per-pack opt-in.
+
+### Phase 183 — Closing the Phase 182 deferred items
+
+Three gaps the Phase 182 caveats flagged are now closed.
+
+**LiveProfileSync — registry-reload diff**
+(`StingTools/Core/Drawing/LiveProfileSync.cs`):
+
+- Per-document snapshot of SHA-256 hashes for every DrawingType +
+  ViewStylePack id. `OnRegistryReloaded(doc)` (called automatically
+  by `DrawingTypeRegistry.Reload` and `ViewStylePackRegistry.Reload`)
+  computes the new snapshot, diffs against the prior, and stages the
+  changed id set for the document.
+- `GetChangedProfileIds(doc)` / `GetChangedPackIds(doc)` /
+  `GetAffectedViewIds(doc)` — read-only accessors used by the
+  Inspect + SyncStyles commands. Pack-change set is expanded to the
+  profile ids that reference each changed pack, so editing
+  `corp-coordination` flags every profile bound to it.
+- `ConsumeStagedDiff(doc)` clears the staged set after SyncStyles
+  has re-applied every affected view. Document close invalidates the
+  cache via `LiveProfileSync.InvalidateCache(doc)` wired into
+  `StingToolsApp.OnDocumentClosing`.
+- `DrawingSyncStylesCommand` merges `LiveProfileSync.GetAffectedViewIds`
+  into the drift-report set so an on-disk pack/profile edit
+  re-applies even when the live view VG state hasn't drifted yet.
+- `DrawingTypesInspectCommand` surfaces "X profile(s) + Y pack(s)
+  edited since last load — Z view(s) affected" as a one-liner in the
+  Inspect dialog.
+
+**VG + filter drift detection**
+(`StingTools/Core/Drawing/DrawingDriftDetector.cs`):
+
+- New `AppendVgAndFilterDrift` compares the live view's per-category
+  `OverrideGraphicSettings` (halftone / projection line weight / cut
+  line weight / transparency) and per-filter attachment + visibility +
+  overrides against the resolved pack's `VgOverrides` + `Filters`.
+- Guarded to non-managed packs only — managed packs already get
+  template-level checksum drift via `AppendManagedTemplateDrift`, and
+  double-detecting would surface every view that uses the managed
+  template as drifted on every pack edit.
+- Output is intentionally coarse: one drift entry per category /
+  filter, listing the first mismatching attribute. SyncStyles
+  re-applies the pack and heals.
+
+**Bbox-derived crop drift via stamp + diff**
+(`DrawingTypeStamper.cs` + `DrawingCropApplier.cs` +
+`DrawingDriftDetector.cs`):
+
+- Two new shared parameters: `STING_CROP_KIND_TXT` (text) +
+  `STING_CROP_MARGIN_MM_TXT` (text — decimal as string, no new
+  storage-type handling needed). Both declared in `MR_PARAMETERS.txt`
+  with stable GUIDs and mirrored in `MR_PARAMETERS.csv`.
+- `DrawingTypeStamper.StampCrop(el, kind, marginMm)` /
+  `ReadCrop(el)` — symmetric write + read helpers; no-op when the
+  shared parameters aren't bound on the project (graceful
+  degradation, no functional regression on unmigrated projects).
+- `DrawingCropApplier.Apply` calls `StampCrop` after every successful
+  crop write so the view carries its as-of-apply kind + margin.
+- `AppendCropDrift` extended: for `TightBbox` / `RoomBoundary` /
+  `ScopeBoxOrBbox` profiles, compares the stamped kind + margin to
+  the profile's current values. Margin tolerance is 1 mm. Catches
+  profile edits like "marginMm: 150 → 300" that the view hasn't
+  been re-cropped to honour.
+
+**Final state**: the Phase 182 caveats 1 (IUpdater for live profile
+changes — closed by LiveProfileSync), 3 (bbox-derived crop drift —
+closed by stamp + diff), and the VG/filter drift gap implicit in the
+Phase 137 caveats are all closed. The Inspect command's headline
+now reports both live-disk edits and live-view drift in one summary.
+
+### Caveats (Phase 183)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `LiveProfileSync` snapshots are in-memory; closing and reopening a
+   document loses the "X profiles changed since last load" state.
+   The user runs SyncStyles once after a session-spanning edit; the
+   drift detector also still picks up the same views via the
+   conventional VG / filter / crop comparison.
+3. `StampCrop` requires the two new shared parameters to be bound on
+   the project. On pre-Phase-183 projects the stamp is a no-op and
+   the bbox-derived crop drift check silently doesn't fire — no
+   regression vs. Phase 182 behaviour.
+4. VG drift reports one mismatching attribute per category. A
+   category with three mismatches (halftone + weight + transparency)
+   surfaces as one report entry, healed in one re-apply.
 
 ## Template Engine v1.1 (Phase 112)
 
