@@ -1,6 +1,33 @@
-"use strict";(function(){"use strict";function kt(p){const E=Date.now();(function Z(){if(window.STING_VIEWER&&window.STING_VIEWER.scene)return p();if(Date.now()-E>3e4)return St();setTimeout(Z,50)})()}function St(){const p=document.createElement("div");p.style.cssText="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:#111318;color:#E8EAF0;font-family:Inter,sans-serif;padding:32px;text-align:center",p.innerHTML=`
+/* coordination-viewer.js — Corporate-grade BIM coordination layer.
+   Sits on top of the existing Three.js viewer (window.STING_VIEWER) and
+   adds: panel UI wiring, API client, clash + issue management, level
+   selector, minimap, saved views, session history, navigation modes,
+   keyboard shortcuts, and the issue creation modal.
+
+   Loaded after the original viewer bootstraps so STING_VIEWER is ready. */
+
+(function () {
+  'use strict';
+
+  const USE_MOCK_CLASHES = true;   // server endpoint may not exist yet
+
+  // ── Boot guard — wait for STING_VIEWER to be ready ────────────────────
+  // C3: bail with a visible error card after 30s so dependency failures
+  // don't leave the user staring at an infinite spinner.
+  function whenReady(cb) {
+    const start = Date.now();
+    (function poll() {
+      if (window.STING_VIEWER && window.STING_VIEWER.scene) return cb();
+      if (Date.now() - start > 30000) return showBootError();
+      setTimeout(poll, 50);
+    })();
+  }
+  function showBootError() {
+    const div = document.createElement('div');
+    div.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:#111318;color:#E8EAF0;font-family:Inter,sans-serif;padding:32px;text-align:center';
+    div.innerHTML = `
       <div style="max-width:480px">
-        <div style="font-size:32px;color:#EF4444;margin-bottom:12px">\u26A0</div>
+        <div style="font-size:32px;color:#EF4444;margin-bottom:12px">⚠</div>
         <h2 style="margin:0 0 8px;font-size:16px">Viewer failed to start</h2>
         <p style="color:#8892A4;font-size:13px;line-height:1.5">
           Three.js or the GLTF loader could not be loaded from
@@ -10,201 +37,4525 @@
         </p>
         <button onclick="location.reload()"
           style="margin-top:14px;padding:8px 16px;background:#0078D4;color:#fff;border:0;border-radius:6px;cursor:pointer">Retry</button>
-      </div>`,document.body.appendChild(p)}kt(Ct);function Ct(){const p=window.STING_VIEWER,E=window.THREE,Z=new URLSearchParams(location.search),L=Z.get("project")||"",P=Z.get("model")||"",Mt=typeof localStorage<"u"&&localStorage.getItem("planscape_api_base")||"",A=window.__PLANSCAPE_API__||Mt||Z.get("api")||"http://localhost:5000",_=typeof localStorage<"u"&&localStorage.getItem("planscape_token")||"";try{const e=typeof localStorage<"u"&&localStorage.getItem("planscape_theme")||"dark";document.documentElement.dataset.theme=e}catch{}const $t=location.protocol==="file:",Te=!!window.ReactNativeWebView,ve=!$t&&!Te,Xe=Z.get("embed")==="1",c={projectName:"",modelName:"",models:[],issues:[],clashes:[],elementMap:{},members:[{id:"me",name:"You",initials:"YO"},{id:"sd",name:"Sting Davis",initials:"SD"},{id:"se",name:"Sentongo E.",initials:"SE"}],activeDisciplines:new Set,selectedElementGuid:null,selectedElementGuids:new Set,selectedElementMesh:null,selectedClashId:null,selectedIssueId:null,activeLevels:new Set,levelBands:[],activeNav:"orbit",issuesFilter:"all",clashStatusFilter:"any",clashTypeFilter:"any",currentUser:null,bottomTab:"clashes",rightTab:"properties",savedViews:[],history:[],issuePins:new Map,clashPins:new Map,photoPins:new Map,photos:[],photoFilters:{reason:"any",audience:"any"},photoCaptureSeed:{},photoReviewSelected:new Set,elementMaterials:new Map,ghostMode:!1,apiBase:A,projectId:L,modelId:P,token:_};window.__COORD=c;let ge=!1;const It=12e3;async function $(e,t={}){if(!ve)return null;const s=Object.assign({"Content-Type":"application/json"},t.headers||{});_&&(s.Authorization=`Bearer ${_}`);const n=typeof localStorage<"u"&&localStorage.getItem("planscape_tenant")||"";n&&(s["X-Tenant"]=n,c.tenantId=n);const a=new AbortController,o=setTimeout(()=>a.abort(),It);try{const i=await fetch(`${A}${e}`,Object.assign({signal:a.signal},t,{headers:s}));if(i.status===401&&!ge){if(ge=!0,y("Sign-in expired \u2014 redirecting to login\u2026","error"),typeof localStorage<"u")try{localStorage.removeItem("planscape_token")}catch{}if(!Xe){const d=encodeURIComponent(location.pathname+location.search);setTimeout(()=>{location.href=`${A}/login?next=${d}`},1500)}}if(!i.ok)throw new Error(`${i.status} ${i.statusText}`);return(i.headers.get("content-type")||"").includes("application/json")?i.json():i.text()}catch(i){const l=i&&i.name==="AbortError";return console.warn("[coord] api",e,l?"timeout":i.message),null}finally{clearTimeout(o)}}const r=(e,t=document)=>t.querySelector(e),w=(e,t=document)=>Array.from(t.querySelectorAll(e));function f(e,t={},s=[]){const n=document.createElement(e);for(const a in t)a==="class"?n.className=t[a]:a==="html"?n.innerHTML=t[a]:a.startsWith("on")&&typeof t[a]=="function"?n.addEventListener(a.slice(2),t[a]):t[a]!=null&&n.setAttribute(a,t[a]);return(Array.isArray(s)?s:[s]).forEach(a=>{a!=null&&n.appendChild(typeof a=="string"?document.createTextNode(a):a)}),n}function g(e){return String(e??"").replace(/[&<>"]/g,t=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[t])}function y(e,t=""){const s=r("#toasts"),n=f("div",{class:`toast ${t}`},e);s.appendChild(n),setTimeout(()=>{n.style.opacity="0",setTimeout(()=>n.remove(),300)},3500)}function J(e){const t=new Date;c.history.unshift({time:t,label:e,snapshot:Qe()}),c.history.length>50&&c.history.pop(),et()}xt(),Dt(),Wt(),Is(),As(),_s(),ms(),Ds(),Os(),Bs(),Gs(),cs(),os(),Ls(),Cs(),Ms(),$s(),we(null),et(),ie(),G(),Rt().catch(e=>console.error("[coord] bootstrap",e));async function Rt(){if(ve){const n=await $("/api/auth/me");if(n&&(n.id||n.userId)){c.currentUser=n;const a=n.id||n.userId,o=n.displayName||n.name||n.email||"You",i=(o||"YO").split(/[\s@]+/).filter(Boolean).map(l=>l[0]).slice(0,2).join("").toUpperCase();r("#userChip").textContent=i||"YO",r("#userChip").title=o,c.members=[{id:a,name:o,initials:i},...c.members.filter(l=>l.id!=="me")]}}if(ve&&!L){js();return}const e=L?await $(`/api/projects/${L}`):null;e&&e.name&&(c.projectName=e.name,r("#breadcrumbProject").textContent=e.name);const t=L?await $(`/api/projects/${L}/models`):null;c.models=Array.isArray(t)?t:t?.items||[];const s=c.models.find(n=>n.id===P)||c.models[0];if(s&&(c.modelName=s.name||s.fileName||s.id,r("#breadcrumbModel").textContent=c.modelName),jt(),L&&P){const n=await $(`/api/projects/${L}/models/${P}/element-map`);n&&(c.elementMap=n,p&&p.scene&&j({type:"elementMap",payload:{map:n}}))}if(Ht(),Ot(),qe(),L&&P){const n=`${A}/api/projects/${L}/models/${P}/file`,a={};_&&(a.Authorization=`Bearer ${_}`);const o=typeof localStorage<"u"&&localStorage.getItem("planscape_tenant")||c.tenantId;o&&(a["X-Tenant"]=o);const i=new AbortController,l=setTimeout(()=>i.abort(),6e4);try{const d=await fetch(n,{headers:a,cache:"no-store",signal:i.signal});if(d.status===401&&!ge){ge=!0,y("Sign-in expired \u2014 redirecting to login\u2026","error");try{localStorage.removeItem("planscape_token")}catch{}if(!Xe){const m=encodeURIComponent(location.pathname+location.search);setTimeout(()=>{location.href=`${A}/login?next=${m}`},1500)}return}if(!d.ok)throw new Error(`${d.status} ${d.statusText}`);const u=await d.blob(),h=URL.createObjectURL(u);c.lastBlobUrl=h,j({type:"load",payload:{url:h}})}catch(d){const u=d&&d.name==="AbortError";console.warn("[coord] GLB fetch failed",u?"timeout":d.message),y(u?"Model download timed out \u2014 retry?":"Failed to load model file","error"),r("#bootLoader")?.style.setProperty("display","none")}finally{clearTimeout(l)}}await Tt(),await lt(),await ns(),await H()}async function Tt(){if(!L)return;const e=await $(`/api/projects/${L}/members`),t=Array.isArray(e)?e:e?.items||e?.members||[];if(!t.length)return;const s=c.currentUser,n=s&&(s.id||s.userId),o=t.map(i=>{const l=i.userId||i.UserId||i.id||i.Id,d=i.displayName||i.DisplayName||i.email||i.Email||"User",u=i.email||i.Email||"",h=i.iso19650Role||i.Iso19650Role||i.projectRole||i.ProjectRole||"",m=(d||"U").split(/[\s@]+/).filter(Boolean).map(b=>b[0]).slice(0,2).join("").toUpperCase();return{id:l,name:d,email:u,role:h,initials:m}}).sort((i,l)=>i.id===n?-1:l.id===n?1:(i.name||"").localeCompare(l.name||""));c.members=o}function j(e){try{const t=new MessageEvent("message",{data:JSON.stringify(e)});window.dispatchEvent(t)}catch(t){console.warn("host cmd",t)}}function xt(){r("#btnToggleLeft").addEventListener("click",()=>{document.querySelector(".app-shell").classList.toggle("left-collapsed"),Y()}),r("#btnToggleRight").addEventListener("click",()=>{document.querySelector(".app-shell").classList.toggle("right-collapsed"),Y()}),le("#btnMeasure","#menuMeasure",{"#mPP":()=>{We("measure"),y("Measure: pick two points")},"#mArea":()=>{j({type:"startArea"}),y("Area: tap points, double-click to close")},"#mAngle":()=>{We("measure"),y("Angle: pick three points")},"#mClear":()=>{j({type:"clearMeasure"})}}),le("#btnSection","#menuSection",{"#sX":()=>me("x"),"#sY":()=>me("y"),"#sZ":()=>me("z"),"#sFree":()=>me("free"),"#sBox":()=>me("box"),"#sClr":()=>yt()}),le("#btnView","#menuView",{"#vShaded":()=>ae("shaded"),"#vWire":()=>ae("wire"),"#vXray":()=>ae("xray"),"#vGhost":()=>ae("ghost")}),le("#btnIssues","#menuIssues",{"#iCreate":()=>z(),"#iMine":()=>{c.issuesFilter="mine",ne("issues"),D()},"#iAll":()=>{c.issuesFilter="all",ne("issues"),D()}}),le("#btnMarkup","#menuMarkup",{"#mkScreenshot":()=>Ns(),"#mkShare":()=>Hs(),"#mkText":()=>y("Markup: text \u2014 coming next","warn"),"#mkArrow":()=>y("Markup: arrow \u2014 coming next","warn"),"#mkDraw":()=>y("Markup: freehand \u2014 coming next","warn")}),r("#btnClashes").addEventListener("click",()=>ne("clashes")),r("#btnIssueBadge").addEventListener("click",()=>ne("issues")),r("#btnHelp").addEventListener("click",()=>r(".help-overlay").classList.add("open")),r("#btnSettings").addEventListener("click",s=>{s.stopPropagation(),Pt()}),r("#btnNotifs").addEventListener("click",()=>y(`${c.issues.filter(s=>s.status!=="RESOLVED").length} open issues`));const e=r("#brandHome");e&&e.addEventListener("click",s=>{s.preventDefault();const n=A?`${A}/app/projects`:"/app/projects";window.ReactNativeWebView?window.ReactNativeWebView.postMessage(JSON.stringify({type:"navigateHome"})):location.href=n});const t=r("#breadcrumbProject");t&&t.addEventListener("click",s=>{if(s.preventDefault(),!L)return;const n=A?`${A}/app/projects/${L}`:`/app/projects/${L}`;window.ReactNativeWebView?window.ReactNativeWebView.postMessage(JSON.stringify({type:"navigateProject",projectId:L})):location.href=n}),At()}function At(){const e=r("#settingsMenu");if(!e)return;const t=r("#settingApiBase");t&&(t.value=A||"");const s=r("#settingTenant");s&&(s.value=typeof localStorage<"u"&&localStorage.getItem("planscape_tenant")||"");const n=r("#settingTheme");n&&(n.value=typeof localStorage<"u"&&localStorage.getItem("planscape_theme")||"dark");const a=r("#settingEyeHeight");if(a){const i=parseFloat(localStorage.getItem("planscape_eye_height_m"));a.value=!isNaN(i)&&i>0?i:""}const o=r("#settingWalkSpeed");if(o){const i=parseFloat(localStorage.getItem("planscape_walk_speed"));o.value=!isNaN(i)&&i>0?i:""}r("#settingsCancel")?.addEventListener("click",()=>e.classList.remove("open")),r("#settingsSave")?.addEventListener("click",()=>{try{const i=r("#settingApiBase")?.value.trim()||"",l=r("#settingTenant")?.value.trim()||"",d=r("#settingTheme")?.value||"dark",u=parseFloat(r("#settingEyeHeight")?.value||""),h=parseFloat(r("#settingWalkSpeed")?.value||"");i?localStorage.setItem("planscape_api_base",i):localStorage.removeItem("planscape_api_base"),l?localStorage.setItem("planscape_tenant",l):localStorage.removeItem("planscape_tenant"),localStorage.setItem("planscape_theme",d),!isNaN(u)&&u>=.6&&u<=2.4?localStorage.setItem("planscape_eye_height_m",String(u)):r("#settingEyeHeight")?.value===""&&localStorage.removeItem("planscape_eye_height_m"),!isNaN(h)&&h>0&&h<=8&&(localStorage.setItem("planscape_walk_speed",String(h)),window.__walkSpeedMul=h),document.documentElement.dataset.theme=d,y("Settings saved \u2014 reloading\u2026","success"),setTimeout(()=>location.reload(),600)}catch(i){y("Could not save settings: "+(i.message||i),"error")}}),document.addEventListener("click",i=>{e.classList.contains("open")&&(i.target.closest("#settingsMenu")||i.target.closest("#btnSettings")||e.classList.remove("open"))})}function Pt(){const e=r("#settingsMenu");e&&e.classList.toggle("open")}function le(e,t,s){const n=r(e),a=r(t);if(!(!n||!a)){n.addEventListener("click",o=>{o.stopPropagation(),w(".menu.open").forEach(l=>{l!==a&&l.classList.remove("open")}),a.classList.toggle("open");const i=n.getBoundingClientRect();a.style.left=i.left+"px",a.style.top=i.bottom+4+"px"});for(const o in s){const i=r(o,a);i&&i.addEventListener("click",()=>{a.classList.remove("open"),s[o]()})}}}document.addEventListener("click",()=>w(".menu.open").forEach(e=>e.classList.remove("open")));function Dt(){w(".panel-section-header").forEach(e=>{e.addEventListener("click",t=>{t.target.closest(".add-btn")||(e.parentElement.classList.toggle("closed"),e.parentElement.classList.toggle("open"))})})}function Ot(){const e=r("#discChips");e.innerHTML="";const t=c.elementMap&&Object.keys(c.elementMap).length>0;if(e.style.display=t?"":"none",!t)return;const s=new Set;Object.values(c.elementMap).forEach(n=>{n&&n.discipline&&s.add(String(n.discipline).toUpperCase().slice(0,4))}),Array.from(s).sort().forEach(n=>{const a=f("button",{class:"disc-chip","data-disc":n},n);a.addEventListener("click",o=>{if(o.shiftKey)a.classList.toggle("active");else{const l=a.classList.contains("active");w(".disc-chip").forEach(d=>d.classList.remove("active")),l||a.classList.add("active")}const i=w(".disc-chip.active").map(l=>l.dataset.disc);Ke(i)}),e.appendChild(a)})}function Ke(e){c.activeDisciplines=new Set(e);const t=e.length===0;!p.modelRoot||!c.elementMap||p.modelRoot.traverse(s=>{if(!s.isMesh)return;const n=c.elementMap[s.userData.elementGuid],a=n?.discipline?String(n.discipline).toUpperCase().slice(0,4):null;t||a&&e.includes(a)?(s.visible=!0,xe(s)):Bt(s)})}function _t(e){c.elementMaterials.has(e.uuid)||c.elementMaterials.set(e.uuid,{original:e.material,replacement:null})}function Je(e,t){_t(e);const s=c.elementMaterials.get(e.uuid);if(s.replacement&&typeof s.replacement.dispose=="function")try{s.replacement.dispose()}catch{}s.replacement=t,e.material=t}function Bt(e){Je(e,new E.MeshStandardMaterial({color:8947848,transparent:!0,opacity:.12,depthWrite:!1,side:E.DoubleSide}))}function xe(e){const t=c.elementMaterials.get(e.uuid);if(t){if(e.material=t.original,t.replacement&&typeof t.replacement.dispose=="function")try{t.replacement.dispose()}catch{}c.elementMaterials.delete(e.uuid)}}function ce(){if(!p.modelRoot){c.elementMaterials.clear();return}const e=Array.from(c.elementMaterials.keys());p.modelRoot.traverse(t=>{t.isMesh&&c.elementMaterials.has(t.uuid)&&xe(t)}),e.forEach(t=>c.elementMaterials.delete(t))}function jt(){const e=r("#modelsList");if(e.innerHTML="",!c.models.length){e.appendChild(f("div",{class:"empty-state"},"No models uploaded"));return}c.models.forEach(t=>{const s=(t.uploadedBy||"XX").split(/\s+/).map(i=>i[0]).slice(0,2).join("").toUpperCase(),n=Nt(t.uploadedBy||t.id),a=f("div",{class:"model-row"},[f("input",{type:"checkbox",checked:"checked","data-id":t.id}),f("span",{class:"label",title:t.name||t.fileName},t.name||t.fileName||"model"),f("span",{class:"ver"},t.version?`v${t.version}`:""),f("span",{class:"avatar",style:`background:${n}`,title:t.uploadedBy||""},s),f("span",{class:"timestamp"},Pe(t.uploadedAt))]),o=r("input[type=checkbox]",a);o.addEventListener("change",()=>{p.modelRoot&&p.modelRoot.traverse(i=>{i.isMesh&&(i.visible=o.checked)})}),e.appendChild(a)})}function Nt(e){const t=["#3B82F6","#22C55E","#F59E0B","#A855F7","#EC4899","#14B8A6","#F97316"];let s=0;for(let n=0;n<(e||"").length;n++)s=s*31+e.charCodeAt(n)&65535;return t[s%t.length]}function Ht(){const e=r("#modelTree");e.innerHTML="";const t=c.elementMap||{},s=Object.keys(t);if(r("#treeCount").textContent=s.length?`${s.length} elements`:"",!s.length){e.appendChild(f("div",{class:"empty-state"},"No element map"));return}const n={};s.forEach(o=>{const i=t[o]||{},l=i.level||"Unassigned",d=i.discipline||"Other",u=i.system||i.category||"General";n[l]=n[l]||{},n[l][d]=n[l][d]||{},n[l][d][u]=n[l][d][u]||[],n[l][d][u].push({guid:o,name:i.name||i.tag||o.slice(0,8)})});function a(o,i,l,d,u){const h=f("div",{class:"tree-node closed"}),m=f("div",{class:"tree-row"});if(m.appendChild(f("span",{class:"chev"},d?"":"\u25B6")),m.appendChild(f("span",{class:"name"},o)),l!=null&&m.appendChild(f("span",{class:"count"},String(l))),h.appendChild(m),d)m.addEventListener("click",b=>{if(b.ctrlKey||b.metaKey)W(u.guid,"toggle");else if(b.shiftKey&&c.selectedElementGuid){const k=h.parentElement;if(k){const S=w(".tree-node",k).filter(M=>M.querySelector(".chev")?.textContent==="").map(M=>M),I=S.indexOf(h);let R=-1;if(S.forEach((M,C)=>{M._guid===c.selectedElementGuid&&(R=C)}),R>=0){const[M,C]=R<I?[R,I]:[I,R];for(let oe=M;oe<=C;oe++)S[oe]._guid&&W(S[oe]._guid,"add");return}}W(u.guid,"add")}else W(u.guid,"replace")}),h._guid=u.guid;else{const b=f("div",{class:"tree-children"});i.forEach(k=>b.appendChild(k)),h.appendChild(b),m.addEventListener("click",()=>{h.classList.toggle("open"),h.classList.toggle("closed")})}return h}Object.keys(n).sort().forEach(o=>{const i=[];let l=0;Object.keys(n[o]).sort().forEach(d=>{const u=[];let h=0;Object.keys(n[o][d]).sort().forEach(m=>{const b=n[o][d][m],k=200,S=b.slice(0,k).map(I=>a(I.name,[],null,!0,I));if(b.length>k){const I=f("div",{class:"tree-row",style:"color:var(--accent);cursor:pointer;font-style:italic"},`+ ${b.length-k} more \u2014 load all`);I.addEventListener("click",R=>{R.stopPropagation();const M=I.parentElement;b.slice(k).forEach(C=>M.appendChild(a(C.name,[],null,!0,C))),I.remove()}),S.push(I)}u.push(a(m,S,b.length)),h+=b.length}),i.push(a(d,u,h)),l+=h}),e.appendChild(a(o,i,l))}),r("#treeSearch").addEventListener("input",o=>{const i=o.target.value.trim().toLowerCase();w(".tree-node",e).forEach(l=>{const d=l.textContent.toLowerCase(),u=!i||d.includes(i);l.style.display=u?"":"none",i?u&&(l.classList.remove("closed"),l.classList.add("open")):l.querySelector(".tree-children")&&(l.classList.add("closed"),l.classList.remove("open"))})})}function qe(){const e=r("#levelStrip");e.innerHTML="";const t=new Set;Object.values(c.elementMap||{}).forEach(o=>{o&&o.level&&t.add(o.level)});const s=Array.from(t).sort((o,i)=>String(o).localeCompare(String(i),void 0,{numeric:!0})),n=["B1","GF","L01","L02","L03","L04","RF"],a=s.length?s:n;e.appendChild(f("button",{class:"nav-arrow"},"\u25C0")),a.forEach(o=>{const i=f("button",{class:"level-pill","data-lvl":o},o);i.addEventListener("click",l=>{if(l.shiftKey)i.classList.toggle("active");else{const d=i.classList.contains("active");w(".level-pill").forEach(u=>u.classList.remove("active")),d||i.classList.add("active")}Ze()}),e.appendChild(i)}),e.appendChild(f("button",{class:"nav-arrow"},"\u25B6")),Gt(a)}function Gt(e){const t=p.modelBounds;if(!t||t.isEmpty())return;const s=t.min.y,n=t.max.y,a=new Map;if(Object.values(c.elementMap||{}).forEach(l=>{if(!l||!l.level)return;const d=l.levelElevation??l.levelElevationM??l.levelBaseM??l.levelTopM;d==null||isNaN(+d)||(a.has(l.level)||a.set(l.level,[]),a.get(l.level).push(+d))}),a.size>=Math.max(2,e.length-1)){const l=e.map(d=>{const u=(a.get(d)||[]).slice().sort((m,b)=>m-b),h=u.length?u[Math.floor(u.length/2)]:null;return{level:d,base:h}}).filter(d=>d.base!=null).sort((d,u)=>d.base-u.base);if(c.levelBands=l.map((d,u)=>({level:d.level,min:d.base,max:u+1<l.length?l[u+1].base:n})),c.levelBands.length)return}const i=(n-s)/Math.max(1,e.length);c.levelBands=e.map((l,d)=>({level:l,min:s+d*i,max:s+(d+1)*i}))}const Ae=new Map;function Ft(e){const t=Ae.get(e.uuid);if(t!=null)return t;const s=new E.Box3().setFromObject(e),n=(s.min.y+s.max.y)/2;return Ae.set(e.uuid,n),n}function Vt(){Ae.clear()}function Ze(){const e=w(".level-pill.active").map(s=>s.dataset.lvl);if(!e.length){p.renderer.clippingPlanes=[],p.modelRoot&&p.modelRoot.traverse(s=>{s.isMesh&&(s.visible=!0)});return}const t=c.levelBands.filter(s=>e.includes(s.level));!p.modelRoot||!t.length||p.modelRoot.traverse(s=>{if(!s.isMesh)return;const n=Ft(s);s.visible=t.some(a=>n>=a.min-.01&&n<=a.max+.01)})}r("#btnAddView").addEventListener("click",async()=>{const e=await q({title:"Save current view",label:"Name",placeholder:"e.g. Plant room \u2014 main entry",defaultValue:`View ${c.savedViews.length+1}`,minLength:1,maxLength:80,okLabel:"Save view"});e&&(c.savedViews.push({id:"v"+Date.now(),name:e,snapshot:Qe()}),Ut(),J(`Saved view "${e}"`))}),r("#btnPresent").addEventListener("click",()=>zt());function Qe(){return{camPos:p.camera.position.toArray(),camTarget:p.controls.target.toArray(),disciplines:Array.from(c.activeDisciplines),levels:w(".level-pill.active").map(t=>t.dataset.lvl)}}function be(e){e&&(p.camera.position.fromArray(e.camPos),p.controls.target.fromArray(e.camTarget),p.controls.update(),Array.isArray(e.disciplines)&&(w(".disc-chip").forEach(t=>t.classList.toggle("active",e.disciplines.includes(t.dataset.disc))),Ke(e.disciplines)),Array.isArray(e.levels)&&(w(".level-pill").forEach(t=>t.classList.toggle("active",e.levels.includes(t.dataset.lvl))),Ze()))}function Ut(){const e=r("#savedViewsList");e.innerHTML="",c.savedViews.forEach(t=>{const s=f("div",{class:"saved-view"},[f("span",{class:"star"},"\u2605"),f("span",{class:"label"},t.name)]);s.addEventListener("click",()=>{be(t.snapshot),J(`Opened "${t.name}"`)}),e.appendChild(s)})}let Q=null;function zt(){if(!c.savedViews.length)return y("Save some views first","warn");if(Q){clearInterval(Q),Q=null,y("Present mode stopped");return}let e=0;be(c.savedViews[0].snapshot),Q=setInterval(()=>{e=(e+1)%c.savedViews.length,be(c.savedViews[e].snapshot)},5e3),y("Present mode: 5s cycle. Click again to stop.")}function et(){const e=r("#sessionHistory");if(e.innerHTML="",!c.history.length){e.appendChild(f("div",{class:"empty-state"},"No actions yet"));return}c.history.slice(0,20).forEach(t=>{const s=t.time,n=`${s.getHours().toString().padStart(2,"0")}:${s.getMinutes().toString().padStart(2,"0")}  ${t.label}`,a=f("div",{class:"saved-view"},[f("span",{class:"label"},n)]);a.addEventListener("click",()=>be(t.snapshot)),e.appendChild(a)})}function Wt(){w(".tab-bar .tab").forEach(e=>{e.addEventListener("click",()=>{w(".tab-bar .tab").forEach(s=>s.classList.remove("active")),w(".tab-pane").forEach(s=>s.classList.remove("active")),e.classList.add("active");const t=r("#pane-"+e.dataset.tab);t&&t.classList.add("active"),c.rightTab=e.dataset.tab,e.dataset.tab==="clashes"&&nt(),e.dataset.tab==="issues"&&dt(),e.dataset.tab==="photos"&&(H(),B()),e.dataset.tab==="comments"&&ye(),e.dataset.tab==="activity"&&Yt()})})}async function Yt(){const e=r("#pane-activity");if(!e)return;const t=c.selectedIssueId;if(!t){e.innerHTML='<div class="empty-state"><span class="glyph">\u{1F553}</span>Select an issue to see its activity</div>';return}const s=c.issues.find(i=>i.id===t);e.innerHTML=`
-        <div class="prop-section-label">${g(s?.code||t)} activity</div>
+      </div>`;
+    document.body.appendChild(div);
+  }
+  whenReady(initCoordination);
+
+  function initCoordination() {
+    const V = window.STING_VIEWER;
+    const THREE_ = window.THREE;
+    const params = new URLSearchParams(location.search);
+    const projectId = params.get('project') || '';
+    const modelId   = params.get('model')   || '';
+    // U10 — resolve the API base from (in order): explicit window override
+    // for embedders, user-saved Settings popover value (LAN/staging/on-prem),
+    // build-time injected EXPO_PUBLIC_API_BASE, the URL ?api= param for
+    // share-links from another origin, and finally the localhost fallback
+    // so a fresh git-clone still works on dev. The Settings menu writes
+    // `planscape_api_base` and reloads.
+    const storedApi = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_api_base')) || '';
+    const apiBase   = window.__PLANSCAPE_API__
+                   || storedApi
+                   || params.get('api')
+                   || 'http://localhost:5000';
+    const token     = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_token')) || '';
+    // Apply persisted theme on first paint so re-loads don't flash white.
+    try {
+      const t = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_theme')) || 'dark';
+      document.documentElement.dataset.theme = t;
+    } catch (_) {}
+
+    // C2: when the viewer is loaded as a bundled asset inside the React
+    // Native WebView (Asset.fromModule → file://) the host app supplies all
+    // data via the existing bridge — fetching from http://localhost:5000
+    // just spams CORS errors and falls back to mock data even when real
+    // data is on its way through the bridge. Disable the network client
+    // entirely in that case.
+    const isFileScheme  = location.protocol === 'file:';
+    const isWebView     = !!window.ReactNativeWebView;
+    const apiEnabled    = !isFileScheme && !isWebView;
+    // U8 — embedders (e.g., a parent dashboard rendering the viewer in an
+    // iframe) can pass ?embed=1 to suppress the auto-redirect on 401 and
+    // handle re-auth themselves.
+    const embedMode     = params.get('embed') === '1';
+
+    // ── State ───────────────────────────────────────────────────────────
+    const state = {
+      projectName: '',
+      modelName: '',
+      models: [],
+      issues: [],
+      clashes: [],
+      elementMap: {},
+      members: [{ id: 'me', name: 'You', initials: 'YO' },
+                { id: 'sd', name: 'Sting Davis', initials: 'SD' },
+                { id: 'se', name: 'Sentongo E.', initials: 'SE' }],
+      activeDisciplines: new Set(),   // empty = all visible
+      selectedElementGuid: null,      // PRIMARY (last-clicked) — kept for
+                                      // backward-compat with downstream
+                                      // single-element call sites.
+      selectedElementGuids: new Set(),// FULL multi-selection set; supports
+                                      // ctrl/cmd-click toggle, shift-click
+                                      // range, and tree-multi-select.
+      selectedElementMesh: null,
+      selectedClashId: null,
+      selectedIssueId: null,
+      activeLevels: new Set(),
+      levelBands: [],
+      activeNav: 'orbit',
+      issuesFilter: 'all',
+      // X1 — clash filters are now two independent axes.
+      clashStatusFilter: 'any',  // any | NEW | OPEN | RESOLVED
+      clashTypeFilter:   'any',  // any | HARD | SOFT
+      currentUser: null,
+      bottomTab: 'clashes',
+      rightTab: 'properties',
+      savedViews: [],
+      history: [],
+      issuePins: new Map(),    // issueId → mesh
+      clashPins: new Map(),    // clashId → mesh
+      photoPins: new Map(),    // Slice 4b — photoId → mesh
+      photos: [],              // Slice 4b — list of SitePhotoDto rows
+      photoFilters: { reason: 'any', audience: 'any' },
+      photoCaptureSeed: {},
+      photoReviewSelected: new Set(),
+      elementMaterials: new Map(), // mesh.uuid → original material (for ghost / highlight)
+      ghostMode: false,
+      apiBase, projectId, modelId, token
+    };
+    window.__COORD = state;  // debug handle
+
+    // ── API helpers ─────────────────────────────────────────────────────
+    let authChallenged = false;   // toast 401 once per session
+    const API_TIMEOUT_MS = 12000;
+    async function api(path, opts = {}) {
+      if (!apiEnabled) return null;        // C2 — short-circuit on file:// / RN
+      const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      // T1 — multi-tenant: forward the user's selected tenant (if any).
+      const tenantId = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || '';
+      if (tenantId) { headers['X-Tenant'] = tenantId; state.tenantId = tenantId; }
+      // B11 — abort the request after 12s so a hung backend doesn't leave
+      // spinners stuck forever. Each call gets its own controller.
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+      try {
+        const res = await fetch(`${apiBase}${path}`,
+          Object.assign({ signal: controller.signal }, opts, { headers }));
+        if (res.status === 401 && !authChallenged) {
+          authChallenged = true;
+          // U8 — toast immediately, then redirect to /login after a short
+          // grace window so the user sees what happened. Embedders pass
+          // ?embed=1 to keep the viewer mounted and re-auth themselves.
+          toast('Sign-in expired — redirecting to login…', 'error');
+          if (typeof localStorage !== 'undefined') {
+            try { localStorage.removeItem('planscape_token'); } catch (_) {}
+          }
+          if (!embedMode) {
+            const next = encodeURIComponent(location.pathname + location.search);
+            setTimeout(() => { location.href = `${apiBase}/login?next=${next}`; }, 1500);
+          }
+        }
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        const ct = res.headers.get('content-type') || '';
+        return ct.includes('application/json') ? res.json() : res.text();
+      } catch (err) {
+        const aborted = err && err.name === 'AbortError';
+        console.warn('[coord] api', path, aborted ? 'timeout' : err.message);
+        return null;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    // ── DOM helpers ─────────────────────────────────────────────────────
+    const $  = (sel, root = document) => root.querySelector(sel);
+    const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+    function el(tag, attrs = {}, children = []) {
+      const e = document.createElement(tag);
+      for (const k in attrs) {
+        if (k === 'class') e.className = attrs[k];
+        else if (k === 'html') e.innerHTML = attrs[k];
+        else if (k.startsWith('on') && typeof attrs[k] === 'function') e.addEventListener(k.slice(2), attrs[k]);
+        else if (attrs[k] != null) e.setAttribute(k, attrs[k]);
+      }
+      (Array.isArray(children) ? children : [children]).forEach(c => {
+        if (c == null) return;
+        e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+      });
+      return e;
+    }
+    function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' })[c]); }
+
+    function toast(msg, kind = '') {
+      const tray = $('#toasts');
+      const t = el('div', { class: `toast ${kind}` }, msg);
+      tray.appendChild(t);
+      setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3500);
+    }
+
+    function logHistory(label) {
+      const now = new Date();
+      state.history.unshift({ time: now, label, snapshot: captureViewState() });
+      if (state.history.length > 50) state.history.pop();
+      renderHistory();
+    }
+
+    // ── Initial render of static UI bits ───────────────────────────────
+    setupHeader();
+    setupPanelToggles();
+    setupTabs();
+    setupBottomPanel();
+    setupViewportOverlays();
+    setupKeyboardShortcuts();
+    setupModalHandlers();
+    setupNavControls();
+    setupSectionCard();
+    setupHelp();
+    setupHeartbeat();
+    setupSelectionToolbar();
+    setupRowContextMenu();
+    setupPhotoCaptureModal();
+    setupPhotoReviewModal();
+    setupPhotoFab();
+    setupPhotoRealtime();
+    renderProperties(null);
+    renderHistory();
+    updateBadges();
+    updateRightTabCounts();              // X2 — initial empty counts
+
+    // ── Bootstrap data ─────────────────────────────────────────────────
+    bootstrap().catch(e => console.error('[coord] bootstrap', e));
+
+    async function bootstrap() {
+      // L2 / user chip — learn who's logged in so "Mine" filter and avatar
+      // initials are correct in production.
+      if (apiEnabled) {
+        const me = await api('/api/auth/me');
+        if (me && (me.id || me.userId)) {
+          state.currentUser = me;
+          const id = me.id || me.userId;
+          const name = me.displayName || me.name || me.email || 'You';
+          const initials = (name || 'YO').split(/[\s@]+/).filter(Boolean).map(s => s[0]).slice(0, 2).join('').toUpperCase();
+          $('#userChip').textContent = initials || 'YO';
+          $('#userChip').title = name;
+          // Replace the placeholder "me" member with the real one.
+          state.members = [{ id, name, initials }, ...state.members.filter(m => m.id !== 'me')];
+        }
+      }
+      if (apiEnabled && !projectId) {
+        // U5 — no project / model in URL: show empty-state CTA on first paint.
+        showEmptyStateCTA();
+        return;     // nothing else to bootstrap
+      }
+
+      const project = projectId ? await api(`/api/projects/${projectId}`) : null;
+      if (project && project.name) {
+        state.projectName = project.name;
+        $('#breadcrumbProject').textContent = project.name;
+      }
+
+      // List models
+      const modelsRes = projectId ? await api(`/api/projects/${projectId}/models`) : null;
+      state.models = Array.isArray(modelsRes) ? modelsRes : (modelsRes?.items || []);
+      const activeModel = state.models.find(m => m.id === modelId) || state.models[0];
+      if (activeModel) {
+        state.modelName = activeModel.name || activeModel.fileName || activeModel.id;
+        $('#breadcrumbModel').textContent = state.modelName;
+      }
+      renderModels();
+
+      // Element map
+      if (projectId && modelId) {
+        const map = await api(`/api/projects/${projectId}/models/${modelId}/element-map`);
+        if (map) {
+          state.elementMap = map;
+          if (V && V.scene) {
+            // forward to original viewer command so it can populate userData links
+            handleHostCommand({ type: 'elementMap', payload: { map } });
+          }
+        }
+      }
+      buildModelTree();
+      buildDisciplineChips();
+      buildLevelStrip();
+
+      // Load model GLB
+      // B1 — security: never put the JWT in the query string. Fetch the
+      // GLB as a blob with a normal Authorization header, then hand
+      // GLTFLoader a blob URL. This keeps the token out of browser
+      // history, server access logs, and the Referer header.
+      // R3 — wrap in the same AbortController + 401-redirect contract
+      // the api() helper uses, with a longer 60s timeout because GLBs
+      // can be 50-200 MB.
+      if (projectId && modelId) {
+        const fileUrl = `${apiBase}/api/projects/${projectId}/models/${modelId}/file`;
+        const headers = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const tenantId = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || state.tenantId;
+        if (tenantId) headers['X-Tenant'] = tenantId;
+        const ctl = new AbortController();
+        const t = setTimeout(() => ctl.abort(), 60000);
+        try {
+          const res = await fetch(fileUrl, { headers, cache: 'no-store', signal: ctl.signal });
+          if (res.status === 401 && !authChallenged) {
+            authChallenged = true;
+            toast('Sign-in expired — redirecting to login…', 'error');
+            try { localStorage.removeItem('planscape_token'); } catch (_) {}
+            if (!embedMode) {
+              const next = encodeURIComponent(location.pathname + location.search);
+              setTimeout(() => { location.href = `${apiBase}/login?next=${next}`; }, 1500);
+            }
+            return;
+          }
+          if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+          const blob = await res.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          state.lastBlobUrl = blobUrl;
+          handleHostCommand({ type: 'load', payload: { url: blobUrl } });
+        } catch (err) {
+          const aborted = err && err.name === 'AbortError';
+          console.warn('[coord] GLB fetch failed', aborted ? 'timeout' : err.message);
+          toast(aborted ? 'Model download timed out — retry?' : 'Failed to load model file', 'error');
+          $('#bootLoader')?.style.setProperty('display', 'none');
+        } finally {
+          clearTimeout(t);
+        }
+      }
+
+      // Project members — populates assignee + watcher pickers with the
+      // real org/project roster instead of the hardcoded "Sting Davis /
+      // Sentongo E." demo seed. Falls back silently to the seed list when
+      // the endpoint is unavailable (offline, permission denied, etc.).
+      await loadProjectMembers();
+
+      // Issues + clashes + site photos (Slice 4b)
+      await loadIssues();
+      await loadClashes();
+      await loadSitePhotos();
+    }
+
+    async function loadProjectMembers() {
+      if (!projectId) return;
+      const data = await api(`/api/projects/${projectId}/members`);
+      const list = Array.isArray(data) ? data : (data?.items || data?.members || []);
+      if (!list.length) return;     // keep demo seed when API empty/unauth
+      const me = state.currentUser;
+      const meId = me && (me.id || me.userId);
+      const mapped = list.map(m => {
+        const id   = m.userId || m.UserId || m.id || m.Id;
+        const name = m.displayName || m.DisplayName || m.email || m.Email || 'User';
+        const email = m.email || m.Email || '';
+        const role = m.iso19650Role || m.Iso19650Role || m.projectRole || m.ProjectRole || '';
+        const initials = (name || 'U').split(/[\s@]+/).filter(Boolean).map(s => s[0]).slice(0, 2).join('').toUpperCase();
+        return { id, name, email, role, initials };
+      });
+      // Keep "me" pinned at top of the list for ergonomics.
+      const sorted = mapped.sort((a, b) => {
+        if (a.id === meId) return -1;
+        if (b.id === meId) return 1;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+      state.members = sorted;
+    }
+
+    // Forward a command to the original viewer's handleCommand by dispatching
+    // a 'message' event. This is the same path RN uses.
+    function handleHostCommand(cmd) {
+      try {
+        const ev = new MessageEvent('message', { data: JSON.stringify(cmd) });
+        window.dispatchEvent(ev);
+      } catch (e) { console.warn('host cmd', e); }
+    }
+
+    // ── Header ──────────────────────────────────────────────────────────
+    function setupHeader() {
+      $('#btnToggleLeft').addEventListener('click', () => {
+        document.querySelector('.app-shell').classList.toggle('left-collapsed');
+        onResize();
+      });
+      $('#btnToggleRight').addEventListener('click', () => {
+        document.querySelector('.app-shell').classList.toggle('right-collapsed');
+        onResize();
+      });
+
+      // Dropdown menus
+      bindMenu('#btnMeasure', '#menuMeasure', {
+        '#mPP':    () => { setActiveTool('measure'); toast('Measure: pick two points'); },
+        '#mArea':  () => { handleHostCommand({ type: 'startArea' }); toast('Area: tap points, double-click to close'); },
+        '#mAngle': () => { startAngleTool(); },
+        '#mClear': () => { handleHostCommand({ type: 'clearMeasure' }); state.angleTool = false; state.anglePoints = []; }
+      });
+      bindMenu('#btnSection', '#menuSection', {
+        '#sX':    () => openSectionPlane('x'),
+        '#sY':    () => openSectionPlane('y'),
+        '#sZ':    () => openSectionPlane('z'),
+        '#sFree': () => openSectionPlane('free'),
+        '#sBox':  () => openSectionPlane('box'),
+        '#sClr':  () => clearSection()
+      });
+      bindMenu('#btnView', '#menuView', {
+        '#vShaded':    () => setRenderMode('shaded'),
+        '#vWire':      () => setRenderMode('wire'),
+        '#vXray':      () => setRenderMode('xray'),
+        '#vGhost':     () => setRenderMode('ghost'),
+        '#vEdges':     () => toggleEdgeOverlay(),
+        '#vCaps':      () => toggleSectionCaps(),
+        '#vCoords':    () => toggleCoordReadout(),
+        '#vExplode':   () => toggleExplodedView(),
+        '#vTop':       () => setCameraPreset('top'),
+        '#vFront':     () => setCameraPreset('front'),
+        '#vSide':      () => setCameraPreset('right'),
+        '#vIso':       () => setCameraPreset('iso'),
+        '#vBmSave':    () => saveBookmark(1),
+        '#vBmRestore': () => restoreBookmark(1),
+      });
+      bindMenu('#btnIssues', '#menuIssues', {
+        '#iCreate': () => openIssueModal(),
+        '#iMine':   () => { state.issuesFilter = 'mine'; switchBottomTab('issues'); renderIssues(); },
+        '#iAll':    () => { state.issuesFilter = 'all'; switchBottomTab('issues'); renderIssues(); }
+      });
+      bindMenu('#btnMarkup', '#menuMarkup', {
+        '#mkScreenshot': () => takeScreenshot(),
+        '#mkShare':      () => shareCurrentView(),
+        '#mkText':  () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'text'  } }); toast('Markup: click to place text'); },
+        '#mkArrow': () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'arrow' } }); toast('Markup: drag to draw arrow'); },
+        '#mkDraw':  () => { handleHostCommand({ type: 'startMarkup', payload: { mode: 'draw'  } }); toast('Markup: drag to draw freehand'); }
+      });
+
+      $('#btnClashes').addEventListener('click', () => switchBottomTab('clashes'));
+      $('#btnIssueBadge').addEventListener('click', () => switchBottomTab('issues'));
+      $('#btnHelp').addEventListener('click', () => $('.help-overlay').classList.add('open'));
+      $('#btnSettings').addEventListener('click', (e) => { e.stopPropagation(); openSettingsMenu(); });
+      $('#btnNotifs').addEventListener('click', () => toast(`${state.issues.filter(i => i.status !== 'RESOLVED').length} open issues`));
+
+      // ── Navigation: brand and breadcrumb make the viewer feel like part
+      // of the wider Planscape app instead of a leaf page. They link to
+      // the parent shell (the static planscape-site / API "/app" route)
+      // when one is reachable, and otherwise fall back gracefully.
+      const brand = $('#brandHome');
+      if (brand) brand.addEventListener('click', (e) => {
+        e.preventDefault();
+        // Prefer the API host's /app/projects route, else the current
+        // origin's /app/projects, else just /index.html.
+        const target = (apiBase ? `${apiBase}/app/projects` : '/app/projects');
+        if (window.ReactNativeWebView) {
+          // Inside the mobile WebView, post a "navigate home" message and
+          // let the React Native host pop the navigation stack.
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'navigateHome' }));
+        } else {
+          location.href = target;
+        }
+      });
+      const crumb = $('#breadcrumbProject');
+      if (crumb) crumb.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!projectId) return;
+        const target = (apiBase ? `${apiBase}/app/projects/${projectId}` : `/app/projects/${projectId}`);
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'navigateProject', projectId }));
+        } else {
+          location.href = target;
+        }
+      });
+
+      setupSettingsMenu();
+    }
+
+    // ── Settings popover ─────────────────────────────────────────────────
+    // Replaces the previous "TODO" no-op. Persists API base + tenant +
+    // theme to localStorage; reload makes them effective on next bootstrap.
+    function setupSettingsMenu() {
+      const menu = $('#settingsMenu');
+      if (!menu) return;
+      // Hydrate inputs from current config + storage.
+      const api = ($('#settingApiBase')); if (api) api.value = apiBase || '';
+      const tenant = ($('#settingTenant'));
+      if (tenant) tenant.value = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || '';
+      const theme = ($('#settingTheme'));
+      if (theme) theme.value = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_theme')) || 'dark';
+      // Eye height + walk speed hydrate from the same keys viewer-extras +
+      // setupNavControls read at runtime.
+      const eyeH = $('#settingEyeHeight');
+      if (eyeH) {
+        const stored = parseFloat(localStorage.getItem('planscape_eye_height_m'));
+        eyeH.value = !isNaN(stored) && stored > 0 ? stored : '';
+      }
+      const ws = $('#settingWalkSpeed');
+      if (ws) {
+        const stored = parseFloat(localStorage.getItem('planscape_walk_speed'));
+        ws.value = !isNaN(stored) && stored > 0 ? stored : '';
+      }
+
+      $('#settingsCancel')?.addEventListener('click', () => menu.classList.remove('open'));
+      $('#settingsSave')?.addEventListener('click', () => {
+        try {
+          const apiVal    = $('#settingApiBase')?.value.trim() || '';
+          const tenantVal = $('#settingTenant')?.value.trim() || '';
+          const themeVal  = $('#settingTheme')?.value || 'dark';
+          const eyeVal    = parseFloat($('#settingEyeHeight')?.value || '');
+          const wsVal     = parseFloat($('#settingWalkSpeed')?.value || '');
+          if (apiVal)    localStorage.setItem('planscape_api_base', apiVal);
+          else           localStorage.removeItem('planscape_api_base');
+          if (tenantVal) localStorage.setItem('planscape_tenant', tenantVal);
+          else           localStorage.removeItem('planscape_tenant');
+          localStorage.setItem('planscape_theme', themeVal);
+          if (!isNaN(eyeVal) && eyeVal >= 0.6 && eyeVal <= 2.4) {
+            localStorage.setItem('planscape_eye_height_m', String(eyeVal));
+          } else if ($('#settingEyeHeight')?.value === '') {
+            localStorage.removeItem('planscape_eye_height_m');
+          }
+          if (!isNaN(wsVal) && wsVal > 0 && wsVal <= 8) {
+            localStorage.setItem('planscape_walk_speed', String(wsVal));
+            window.__walkSpeedMul = wsVal;
+          }
+          document.documentElement.dataset.theme = themeVal;
+          toast('Settings saved — reloading…', 'success');
+          setTimeout(() => location.reload(), 600);
+        } catch (e) {
+          toast('Could not save settings: ' + (e.message || e), 'error');
+        }
+      });
+      // Close on outside click.
+      document.addEventListener('click', (ev) => {
+        if (!menu.classList.contains('open')) return;
+        if (ev.target.closest('#settingsMenu') || ev.target.closest('#btnSettings')) return;
+        menu.classList.remove('open');
+      });
+    }
+    function openSettingsMenu() {
+      const menu = $('#settingsMenu');
+      if (!menu) return;
+      menu.classList.toggle('open');
+    }
+
+    function bindMenu(triggerSel, menuSel, items) {
+      const trigger = $(triggerSel);
+      const menu    = $(menuSel);
+      if (!trigger || !menu) return;
+      trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        $$('.menu.open').forEach(m => { if (m !== menu) m.classList.remove('open'); });
+        menu.classList.toggle('open');
+        const r = trigger.getBoundingClientRect();
+        menu.style.left = r.left + 'px';
+        menu.style.top  = r.bottom + 4 + 'px';
+      });
+      for (const sel in items) {
+        const it = $(sel, menu);
+        if (it) it.addEventListener('click', () => { menu.classList.remove('open'); items[sel](); });
+      }
+    }
+    document.addEventListener('click', () => $$('.menu.open').forEach(m => m.classList.remove('open')));
+
+    // ── Panel section toggles ───────────────────────────────────────────
+    function setupPanelToggles() {
+      $$('.panel-section-header').forEach(h => {
+        h.addEventListener('click', (e) => {
+          if (e.target.closest('.add-btn')) return;
+          h.parentElement.classList.toggle('closed');
+          h.parentElement.classList.toggle('open');
+        });
+      });
+    }
+
+    // ── Models + discipline chips ──────────────────────────────────────
+    function buildDisciplineChips() {
+      const wrap = $('#discChips');
+      wrap.innerHTML = '';
+      // R10 — without an element-map there's nothing to filter against,
+      // so the chips would be visually present but functionally inert.
+      // Hide them entirely until we have real metas and reveal once the
+      // map arrives (re-called by bootstrap and the boot observer).
+      const haveMap = state.elementMap && Object.keys(state.elementMap).length > 0;
+      wrap.style.display = haveMap ? '' : 'none';
+      if (!haveMap) return;
+      const disciplines = new Set();
+      Object.values(state.elementMap).forEach(m => {
+        if (m && m.discipline) disciplines.add(String(m.discipline).toUpperCase().slice(0, 4));
+      });
+      Array.from(disciplines).sort().forEach(d => {
+        const chip = el('button', { class: 'disc-chip', 'data-disc': d }, d);
+        chip.addEventListener('click', (e) => {
+          if (e.shiftKey) {
+            chip.classList.toggle('active');
+          } else {
+            const wasActive = chip.classList.contains('active');
+            $$('.disc-chip').forEach(c => c.classList.remove('active'));
+            if (!wasActive) chip.classList.add('active');
+          }
+          const active = $$('.disc-chip.active').map(c => c.dataset.disc);
+          applyDisciplineFilter(active);
+        });
+        wrap.appendChild(chip);
+      });
+    }
+
+    function applyDisciplineFilter(active) {
+      state.activeDisciplines = new Set(active);
+      const filterAll = active.length === 0;
+      if (!V.modelRoot || !state.elementMap) return;
+      V.modelRoot.traverse(obj => {
+        if (!obj.isMesh) return;
+        const meta = state.elementMap[obj.userData.elementGuid];
+        const disc = meta?.discipline ? String(meta.discipline).toUpperCase().slice(0, 4) : null;
+        if (filterAll) {
+          obj.visible = true;
+          restoreOriginalMaterial(obj);
+        } else if (disc && active.includes(disc)) {
+          obj.visible = true;
+          restoreOriginalMaterial(obj);
+        } else {
+          ghostMaterial(obj);
+        }
+      });
+    }
+
+    // L5 — track materials we've cloned/replaced so we can dispose them.
+    // Each entry is { original, replacement } so we restore the original
+    // and free the replacement's GPU resources on clear.
+    function rememberOriginal(mesh) {
+      if (!state.elementMaterials.has(mesh.uuid)) {
+        state.elementMaterials.set(mesh.uuid, { original: mesh.material, replacement: null });
+      }
+    }
+    function setReplacement(mesh, mat) {
+      rememberOriginal(mesh);
+      const slot = state.elementMaterials.get(mesh.uuid);
+      // Dispose any previous replacement (avoids GPU leak when the same
+      // mesh gets ghosted then highlighted then ghosted again).
+      if (slot.replacement && typeof slot.replacement.dispose === 'function') {
+        try { slot.replacement.dispose(); } catch (_) {}
+      }
+      slot.replacement = mat;
+      mesh.material = mat;
+    }
+    function ghostMaterial(mesh) {
+      setReplacement(mesh, new THREE_.MeshStandardMaterial({
+        color: 0x888888, transparent: true, opacity: 0.12,
+        depthWrite: false, side: THREE_.DoubleSide
+      }));
+    }
+    function restoreOriginalMaterial(mesh) {
+      const slot = state.elementMaterials.get(mesh.uuid);
+      if (!slot) return;
+      mesh.material = slot.original;
+      if (slot.replacement && typeof slot.replacement.dispose === 'function') {
+        try { slot.replacement.dispose(); } catch (_) {}
+      }
+      state.elementMaterials.delete(mesh.uuid);
+    }
+    // L6 — wipe every active highlight / ghost across the scene. Called
+    // whenever the user focuses a different clash or issue.
+    function clearAllHighlights() {
+      if (!V.modelRoot) { state.elementMaterials.clear(); return; }
+      const ids = Array.from(state.elementMaterials.keys());
+      V.modelRoot.traverse(o => {
+        if (o.isMesh && state.elementMaterials.has(o.uuid)) restoreOriginalMaterial(o);
+      });
+      // Anything left (e.g., disposed mesh) — drop it.
+      ids.forEach(id => state.elementMaterials.delete(id));
+    }
+
+    function renderModels() {
+      const list = $('#modelsList');
+      list.innerHTML = '';
+      if (!state.models.length) {
+        list.appendChild(el('div', { class: 'empty-state' }, 'No models uploaded'));
+        return;
+      }
+      state.models.forEach(m => {
+        const initials = (m.uploadedBy || 'XX').split(/\s+/).map(s => s[0]).slice(0, 2).join('').toUpperCase();
+        const colour = stringHashColour(m.uploadedBy || m.id);
+        const row = el('div', { class: 'model-row' }, [
+          el('input', { type: 'checkbox', checked: 'checked', 'data-id': m.id }),
+          el('span', { class: 'label', title: m.name || m.fileName }, m.name || m.fileName || 'model'),
+          el('span', { class: 'ver' }, m.version ? `v${m.version}` : ''),
+          el('span', { class: 'avatar', style: `background:${colour}`, title: m.uploadedBy || '' }, initials),
+          el('span', { class: 'timestamp' }, relativeTime(m.uploadedAt))
+        ]);
+        const cb = $('input[type=checkbox]', row);
+        cb.addEventListener('change', () => {
+          // Use per-model visibility from extras if available; fall back to full-scene toggle.
+          const label = m.name || m.fileName || '';
+          const extras = window.STING_VIEWER_EXTRAS;
+          if (extras && extras.setModelVisible && label) {
+            extras.setModelVisible(label, cb.checked);
+          } else if (V.modelRoot) {
+            V.modelRoot.traverse(obj => { if (obj.isMesh) obj.visible = cb.checked; });
+          }
+        });
+        list.appendChild(row);
+      });
+    }
+
+    function stringHashColour(s) {
+      const palette = ['#3B82F6', '#22C55E', '#F59E0B', '#A855F7', '#EC4899', '#14B8A6', '#F97316'];
+      let h = 0; for (let i = 0; i < (s || '').length; i++) h = (h * 31 + s.charCodeAt(i)) & 0xffff;
+      return palette[h % palette.length];
+    }
+    function relativeTime(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '';
+      const min = Math.round((Date.now() - d.getTime()) / 60000);
+      if (min < 1) return 'just now';
+      if (min < 60) return `${min}m ago`;
+      const hr = Math.round(min / 60);
+      if (hr < 24) return `${hr}h ago`;
+      const day = Math.round(hr / 24);
+      return `${day}d ago`;
+    }
+
+    // ── Model tree ─────────────────────────────────────────────────────
+    function buildModelTree() {
+      const root = $('#modelTree');
+      root.innerHTML = '';
+      const map = state.elementMap || {};
+      const guids = Object.keys(map);
+      $('#treeCount').textContent = guids.length ? `${guids.length} elements` : '';
+      if (!guids.length) {
+        root.appendChild(el('div', { class: 'empty-state' }, 'No element map'));
+        return;
+      }
+      // Group: Level → Discipline → System → Element
+      const tree = {};
+      guids.forEach(g => {
+        const meta = map[g] || {};
+        const lvl  = meta.level || 'Unassigned';
+        const disc = meta.discipline || 'Other';
+        const sys  = meta.system || meta.category || 'General';
+        tree[lvl] = tree[lvl] || {};
+        tree[lvl][disc] = tree[lvl][disc] || {};
+        tree[lvl][disc][sys] = tree[lvl][disc][sys] || [];
+        tree[lvl][disc][sys].push({ guid: g, name: meta.name || meta.tag || g.slice(0, 8) });
+      });
+
+      function buildNode(label, children, count, leaf, payload) {
+        const node = el('div', { class: 'tree-node closed' });
+        const row = el('div', { class: 'tree-row' });
+        row.appendChild(el('span', { class: 'chev' }, leaf ? '' : '▶'));
+        row.appendChild(el('span', { class: 'name' }, label));
+        if (count != null) row.appendChild(el('span', { class: 'count' }, String(count)));
+        node.appendChild(row);
+        if (!leaf) {
+          const kids = el('div', { class: 'tree-children' });
+          children.forEach(c => kids.appendChild(c));
+          node.appendChild(kids);
+          row.addEventListener('click', () => {
+            node.classList.toggle('open'); node.classList.toggle('closed');
+          });
+        } else {
+          // Ctrl/Cmd-click toggles the leaf in the multi-selection set.
+          // Plain click replaces. Shift-click (range select) is best-effort:
+          // we walk the visible tree-row siblings between this row and the
+          // most recent primary and add them all.
+          row.addEventListener('click', (ev) => {
+            if (ev.ctrlKey || ev.metaKey) {
+              selectElementByGuid(payload.guid, 'toggle');
+            } else if (ev.shiftKey && state.selectedElementGuid) {
+              // Range select within the same parent group of leaves.
+              const parent = node.parentElement;
+              if (parent) {
+                const siblings = $$('.tree-node', parent).filter(n => n.querySelector('.chev')?.textContent === '');
+                const rows = siblings.map(s => s);
+                const startIdx = rows.indexOf(node);
+                // Find the prior primary's row to anchor the range.
+                let anchorIdx = -1;
+                rows.forEach((r, i) => {
+                  if (r._guid === state.selectedElementGuid) anchorIdx = i;
+                });
+                if (anchorIdx >= 0) {
+                  const [a, b] = anchorIdx < startIdx ? [anchorIdx, startIdx] : [startIdx, anchorIdx];
+                  for (let i = a; i <= b; i++) {
+                    if (rows[i]._guid) selectElementByGuid(rows[i]._guid, 'add');
+                  }
+                  return;
+                }
+              }
+              selectElementByGuid(payload.guid, 'add');
+            } else {
+              selectElementByGuid(payload.guid, 'replace');
+            }
+          });
+          node._guid = payload.guid;        // for shift-range lookup
+        }
+        return node;
+      }
+      Object.keys(tree).sort().forEach(lvl => {
+        const lvlChildren = [];
+        let lvlCount = 0;
+        Object.keys(tree[lvl]).sort().forEach(disc => {
+          const discChildren = [];
+          let discCount = 0;
+          Object.keys(tree[lvl][disc]).sort().forEach(sys => {
+            const items = tree[lvl][disc][sys];
+            // U3 — render a deterministic page (200) and surface a "+ N more"
+            // affordance when there's overflow, instead of silently truncating.
+            const PAGE = 200;
+            const visible = items.slice(0, PAGE);
+            const sysKids = visible.map(it => buildNode(it.name, [], null, true, it));
+            if (items.length > PAGE) {
+              const more = el('div', { class: 'tree-row', style: 'color:var(--accent);cursor:pointer;font-style:italic' },
+                `+ ${items.length - PAGE} more — load all`);
+              more.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                const parent = more.parentElement;
+                items.slice(PAGE).forEach(it => parent.appendChild(buildNode(it.name, [], null, true, it)));
+                more.remove();
+              });
+              sysKids.push(more);
+            }
+            discChildren.push(buildNode(sys, sysKids, items.length));
+            discCount += items.length;
+          });
+          lvlChildren.push(buildNode(disc, discChildren, discCount));
+          lvlCount += discCount;
+        });
+        root.appendChild(buildNode(lvl, lvlChildren, lvlCount));
+      });
+
+      // R9 — when the search query is cleared, restore the default
+      // collapsed state instead of leaving every branch expanded.
+      $('#treeSearch').addEventListener('input', (e) => {
+        const q = e.target.value.trim().toLowerCase();
+        $$('.tree-node', root).forEach(n => {
+          const txt = n.textContent.toLowerCase();
+          const match = !q || txt.includes(q);
+          n.style.display = match ? '' : 'none';
+          if (q) {
+            // expand matches so users can see hits in context
+            if (match) { n.classList.remove('closed'); n.classList.add('open'); }
+          } else {
+            // search cleared — collapse non-leaf branches back to default
+            if (n.querySelector('.tree-children')) {
+              n.classList.add('closed'); n.classList.remove('open');
+            }
+          }
+        });
+      });
+    }
+
+    // ── Levels strip ───────────────────────────────────────────────────
+    function buildLevelStrip() {
+      const strip = $('#levelStrip');
+      strip.innerHTML = '';
+      const set = new Set();
+      Object.values(state.elementMap || {}).forEach(m => { if (m && m.level) set.add(m.level); });
+      const arr = Array.from(set).sort((a, b) => {
+        // try natural sort
+        return String(a).localeCompare(String(b), undefined, { numeric: true });
+      });
+      const fallback = ['B1','GF','L01','L02','L03','L04','RF'];
+      const levels = arr.length ? arr : fallback;
+      strip.appendChild(el('button', { class: 'nav-arrow' }, '◀'));
+      levels.forEach(lvl => {
+        const pill = el('button', { class: 'level-pill', 'data-lvl': lvl }, lvl);
+        pill.addEventListener('click', (e) => {
+          if (e.shiftKey) pill.classList.toggle('active');
+          else {
+            const isActive = pill.classList.contains('active');
+            $$('.level-pill').forEach(p => p.classList.remove('active'));
+            if (!isActive) pill.classList.add('active');
+          }
+          applyLevelFilter();
+        });
+        strip.appendChild(pill);
+      });
+      strip.appendChild(el('button', { class: 'nav-arrow' }, '▶'));
+
+      // Compute Y bands from model bounds — fall back to even slices.
+      computeLevelBands(levels);
+    }
+
+    function computeLevelBands(levels) {
+      const b = V.modelBounds;
+      if (!b || b.isEmpty()) return;
+      const min = b.min.y, max = b.max.y;
+      // R8 — prefer real elevations from the element-map when available.
+      // We accept any of these per-element fields (in metres):
+      //   levelElevation | levelElevationM | levelTopM | levelBaseM
+      // For each unique level, take the median of all reported
+      // elevations as the level's base height; band tops are the next
+      // level's base (or modelBounds.max for the topmost).
+      const levelHeights = new Map();
+      Object.values(state.elementMap || {}).forEach(m => {
+        if (!m || !m.level) return;
+        const h = m.levelElevation ?? m.levelElevationM ?? m.levelBaseM ?? m.levelTopM;
+        if (h == null || isNaN(+h)) return;
+        if (!levelHeights.has(m.level)) levelHeights.set(m.level, []);
+        levelHeights.get(m.level).push(+h);
+      });
+      const haveElevations = levelHeights.size >= Math.max(2, levels.length - 1);
+      if (haveElevations) {
+        const sorted = levels.map(lvl => {
+          const samples = (levelHeights.get(lvl) || []).slice().sort((a, b) => a - b);
+          const base = samples.length ? samples[Math.floor(samples.length / 2)] : null;
+          return { level: lvl, base };
+        }).filter(x => x.base != null).sort((a, b) => a.base - b.base);
+        state.levelBands = sorted.map((row, i) => ({
+          level: row.level,
+          min: row.base,
+          max: i + 1 < sorted.length ? sorted[i + 1].base : max
+        }));
+        if (state.levelBands.length) return;
+      }
+      // Fallback: equal slices when no elevation data is supplied.
+      const step = (max - min) / Math.max(1, levels.length);
+      state.levelBands = levels.map((l, i) => ({
+        level: l, min: min + i * step, max: min + (i + 1) * step
+      }));
+    }
+
+    // L7 — cache mesh centroid-Y per mesh.uuid so level filtering is
+    // instant on large models (4k+ elements). The cache is invalidated
+    // when the model is replaced (handled in the boot observer below).
+    const centroidYCache = new Map();
+    function getCentroidY(mesh) {
+      const cached = centroidYCache.get(mesh.uuid);
+      if (cached != null) return cached;
+      const bb = new THREE_.Box3().setFromObject(mesh);
+      const y = (bb.min.y + bb.max.y) / 2;
+      centroidYCache.set(mesh.uuid, y);
+      return y;
+    }
+    function invalidateCentroidCache() { centroidYCache.clear(); }
+
+    function applyLevelFilter() {
+      const active = $$('.level-pill.active').map(p => p.dataset.lvl);
+      if (!active.length) {
+        V.renderer.clippingPlanes = [];
+        if (V.modelRoot) V.modelRoot.traverse(o => { if (o.isMesh) o.visible = true; });
+        return;
+      }
+      const wanted = state.levelBands.filter(b => active.includes(b.level));
+      if (!V.modelRoot || !wanted.length) return;
+      V.modelRoot.traverse(obj => {
+        if (!obj.isMesh) return;
+        const cy = getCentroidY(obj);
+        obj.visible = wanted.some(w => cy >= w.min - 0.01 && cy <= w.max + 0.01);
+      });
+    }
+
+    // ── Saved views ────────────────────────────────────────────────────
+    $('#btnAddView').addEventListener('click', async () => {
+      const name = await promptInline({
+        title: 'Save current view',
+        label: 'Name',
+        placeholder: 'e.g. Plant room — main entry',
+        defaultValue: `View ${state.savedViews.length + 1}`,
+        minLength: 1, maxLength: 80,
+        okLabel: 'Save view',
+      });
+      if (!name) return;
+      state.savedViews.push({ id: 'v' + Date.now(), name, snapshot: captureViewState() });
+      renderSavedViews();
+      logHistory(`Saved view "${name}"`);
+    });
+    $('#btnPresent').addEventListener('click', () => presentMode());
+
+    function captureViewState() {
+      const cam = V.camera;
+      return {
+        camPos: cam.position.toArray(),
+        camTarget: V.controls.target.toArray(),
+        disciplines: Array.from(state.activeDisciplines),
+        levels: $$('.level-pill.active').map(p => p.dataset.lvl)
+      };
+    }
+    function restoreViewState(s) {
+      if (!s) return;
+      V.camera.position.fromArray(s.camPos);
+      V.controls.target.fromArray(s.camTarget);
+      V.controls.update();
+      // B5 — restore the full snapshot, not just camera. Disciplines +
+      // levels are re-applied via the same chip / pill click flow so
+      // visibility + ghost states match exactly.
+      if (Array.isArray(s.disciplines)) {
+        $$('.disc-chip').forEach(c => c.classList.toggle('active', s.disciplines.includes(c.dataset.disc)));
+        applyDisciplineFilter(s.disciplines);
+      }
+      if (Array.isArray(s.levels)) {
+        $$('.level-pill').forEach(p => p.classList.toggle('active', s.levels.includes(p.dataset.lvl)));
+        applyLevelFilter();
+      }
+    }
+    function renderSavedViews() {
+      const list = $('#savedViewsList');
+      list.innerHTML = '';
+      state.savedViews.forEach(v => {
+        const row = el('div', { class: 'saved-view' }, [
+          el('span', { class: 'star' }, '★'),
+          el('span', { class: 'label' }, v.name)
+        ]);
+        row.addEventListener('click', () => { restoreViewState(v.snapshot); logHistory(`Opened "${v.name}"`); });
+        list.appendChild(row);
+      });
+    }
+    let presentTimer = null;
+    function presentMode() {
+      if (!state.savedViews.length) return toast('Save some views first', 'warn');
+      if (presentTimer) {
+        clearInterval(presentTimer); presentTimer = null;
+        toast('Present mode stopped'); return;
+      }
+      let i = 0;
+      restoreViewState(state.savedViews[0].snapshot);
+      presentTimer = setInterval(() => {
+        i = (i + 1) % state.savedViews.length;
+        restoreViewState(state.savedViews[i].snapshot);
+      }, 5000);
+      toast('Present mode: 5s cycle. Click again to stop.');
+    }
+
+    // ── Session history ────────────────────────────────────────────────
+    function renderHistory() {
+      const list = $('#sessionHistory');
+      list.innerHTML = '';
+      if (!state.history.length) {
+        list.appendChild(el('div', { class: 'empty-state' }, 'No actions yet'));
+        return;
+      }
+      state.history.slice(0, 20).forEach(h => {
+        const t = h.time;
+        const lbl = `${t.getHours().toString().padStart(2,'0')}:${t.getMinutes().toString().padStart(2,'0')}  ${h.label}`;
+        const row = el('div', { class: 'saved-view' }, [el('span', { class: 'label' }, lbl)]);
+        row.addEventListener('click', () => restoreViewState(h.snapshot));
+        list.appendChild(row);
+      });
+    }
+
+    // ── Right-panel tabs ───────────────────────────────────────────────
+    function setupTabs() {
+      $$('.tab-bar .tab').forEach(t => {
+        t.addEventListener('click', () => {
+          $$('.tab-bar .tab').forEach(x => x.classList.remove('active'));
+          $$('.tab-pane').forEach(x => x.classList.remove('active'));
+          t.classList.add('active');
+          const pane = $('#pane-' + t.dataset.tab);
+          if (pane) pane.classList.add('active');
+          state.rightTab = t.dataset.tab;
+          if (t.dataset.tab === 'clashes') renderRightClashes();
+          if (t.dataset.tab === 'issues')  renderRightIssues();
+          if (t.dataset.tab === 'photos')  { loadSitePhotos(); renderPhotos(); }
+          if (t.dataset.tab === 'comments') renderComments();
+          if (t.dataset.tab === 'activity') renderActivityTimeline();
+        });
+      });
+    }
+
+    // ── Activity timeline (issue audit trail) ──────────────────────────
+    async function renderActivityTimeline() {
+      const pane = $('#pane-activity');
+      if (!pane) return;
+      const issueId = state.selectedIssueId;
+      if (!issueId) {
+        pane.innerHTML = '<div class="empty-state"><span class="glyph">🕓</span>Select an issue to see its activity</div>';
+        return;
+      }
+      const issue = state.issues.find(i => i.id === issueId);
+      pane.innerHTML = `
+        <div class="prop-section-label">${escapeHtml(issue?.code || issueId)} activity</div>
         <div class="activity-list" id="activityList">
-          <div class="inline-loader"><span class="dot-spin"></span>Loading\u2026</div>
-        </div>`;const n=await $(`/api/projects/${L}/issues/${t}/activity`),a=Array.isArray(n)?n:n?.items||[],o=r("#activityList");if(o){if(!a.length){o.innerHTML='<div class="empty-state">No activity yet</div>';return}o.innerHTML="",a.forEach(i=>{o.appendChild(Xt(i))})}}function Xt(e){const t=e.timestamp||e.Timestamp||e.createdAt||"",s=e.action||e.Action||"",n=e.userName||e.UserName||e.author||"System",a=e.detailsJson||e.DetailsJson||e.details||"",o=typeof a=="string"?Kt(a):a||{},i=f("div",{class:"activity-card"});i.appendChild(f("div",{class:"avatar",style:`background:${qt(n)}`},Jt(n)));const l=f("div",{class:"body"}),d=f("div",{class:"head"});d.appendChild(f("span",{class:"who"},n)),d.appendChild(f("span",{class:"verb"}," "+Zt(s,o))),d.appendChild(f("span",{class:"when",title:t},Pe(t))),l.appendChild(d);const u=Qt(s,o);u&&l.appendChild(f("div",{class:"detail"},u));const h=es(s,o);return h&&l.appendChild(h),i.appendChild(l),i}function Kt(e){if(!e)return{};try{return JSON.parse(e)}catch{return{}}}function Jt(e){return String(e||"?").trim().split(/\s+/).slice(0,2).map(s=>s[0]?.toUpperCase()||"").join("")||"?"}function qt(e){let t=0;for(const s of String(e||""))t=t*31+s.charCodeAt(0)|0;return`hsl(${Math.abs(t)%360} 55% 38%)`}function Pe(e){if(!e)return"";const t=new Date(e);if(isNaN(t.getTime()))return e;const s=Math.round((Date.now()-t.getTime())/1e3);return s<60?s+"s ago":s<3600?Math.round(s/60)+"m ago":s<86400?Math.round(s/3600)+"h ago":s<86400*7?Math.round(s/86400)+"d ago":t.toLocaleDateString()}function Zt(e,t){const s=String(e||"").toUpperCase();return s==="CREATE"?"created the issue":s==="COMMENT"?"commented":s==="ATTACH"||s==="ATTACHMENT_ADD"?"attached a file":s==="ATTACHMENT_DELETE"?"removed an attachment":s==="STATUS"?"changed status":s==="PRIORITY"?"changed priority":s==="ASSIGN"?"changed assignee":s==="RESOLVE"?"marked resolved":s==="CLOSE"?"closed the issue":s==="REOPEN"?"re-opened the issue":s==="UPDATE"?"updated the issue":e||"updated"}function Qt(e,t){if(!t||typeof t!="object")return"";const s=[];for(const n of Object.keys(t)){if(n==="priority"||n==="status"||n==="thumbnailUrl"||n==="fileName")continue;const a=t[n];a&&typeof a=="object"&&"from"in a&&"to"in a?s.push(`${n}: ${a.from} \u2192 ${a.to}`):n==="body"||n==="comment"?s.push(String(a)):typeof a=="string"&&a.length<200&&s.push(`${n}: ${a}`)}return s.join(" \xB7 ")}function es(e,t){if(!t||typeof t!="object")return null;if(t.thumbnailUrl||t.fileName)return t.thumbnailUrl?f("img",{class:"thumb",src:t.thumbnailUrl,alt:t.fileName||"attachment"}):f("span",{class:"chip"},"\u{1F4CE} "+(t.fileName||"attachment"));const s=t.priority?.to||t.priority;if(typeof s=="string")return f("span",{class:"chip priority-"+s.toUpperCase()},s.toUpperCase());const n=t.status?.to||t.status;return typeof n=="string"?f("span",{class:"chip status-"+n.toUpperCase()},n.toUpperCase()):null}function Us(e,t){if(!e)return"";let s="";if(t)try{const n=JSON.parse(t),a=[];for(const o in n){const i=n[o];i&&typeof i=="object"&&"from"in i&&"to"in i?a.push(`${o}: ${i.from} \u2192 ${i.to}`):i&&typeof i=="object"&&"changed"in i?a.push(`${o} updated`):a.push(`${o}: ${i}`)}s=a.length?" \u2014 "+a.join(", "):""}catch{}return`${e}${s}`}let re=new Map,De=null;async function ye(){const e=r("#pane-comments"),t=c.selectedIssueId;if(!t){e.innerHTML=`
+          <div class="inline-loader"><span class="dot-spin"></span>Loading…</div>
+        </div>`;
+      const data = await api(`/api/projects/${projectId}/issues/${issueId}/activity`);
+      const entries = Array.isArray(data) ? data : (data?.items || []);
+      const list = $('#activityList');
+      if (!list) return;
+      if (!entries.length) {
+        list.innerHTML = '<div class="empty-state">No activity yet</div>';
+        return;
+      }
+      list.innerHTML = '';
+      entries.forEach(e => {
+        list.appendChild(renderActivityCard(e));
+      });
+    }
+
+    /** T3-14 — Build a rich activity card. The same JSON shape (action +
+     *  details + userName + timestamp) feeds the BCC desktop and the mobile
+     *  issue-detail screen, so the renderer here is the canonical reference
+     *  for the visual layout. */
+    function renderActivityCard(entry) {
+      const when    = entry.timestamp || entry.Timestamp || entry.createdAt || '';
+      const action  = entry.action || entry.Action || '';
+      const userN   = entry.userName || entry.UserName || entry.author || 'System';
+      const dRaw    = entry.detailsJson || entry.DetailsJson || entry.details || '';
+      const details = (typeof dRaw === 'string') ? safeParse(dRaw) : (dRaw || {});
+
+      const card = el('div', { class: 'activity-card' });
+      card.appendChild(el('div', { class: 'avatar', style: `background:${avatarColor(userN)}` }, initials(userN)));
+
+      const body = el('div', { class: 'body' });
+      const head = el('div', { class: 'head' });
+      head.appendChild(el('span', { class: 'who'  }, userN));
+      head.appendChild(el('span', { class: 'verb' }, ' ' + verbForAction(action, details)));
+      head.appendChild(el('span', { class: 'when', title: when }, relativeTime(when)));
+      body.appendChild(head);
+
+      const inline = inlineDetail(action, details);
+      if (inline) body.appendChild(el('div', { class: 'detail' }, inline));
+
+      // Contextual chip — priority badge / status pill / file thumbnail.
+      const chip = chipForActivity(action, details);
+      if (chip) body.appendChild(chip);
+
+      card.appendChild(body);
+      return card;
+    }
+
+    function safeParse(s) {
+      if (!s) return {};
+      try { return JSON.parse(s); } catch (_) { return {}; }
+    }
+    function initials(name) {
+      const parts = String(name || '?').trim().split(/\s+/).slice(0, 2);
+      return parts.map(p => p[0]?.toUpperCase() || '').join('') || '?';
+    }
+    function avatarColor(name) {
+      // Deterministic hue from the user-name so the same person always
+      // gets the same swatch across cards.
+      let h = 0; for (const ch of String(name || '')) h = (h * 31 + ch.charCodeAt(0)) | 0;
+      return `hsl(${Math.abs(h) % 360} 55% 38%)`;
+    }
+    function relativeTime(iso) {
+      if (!iso) return '';
+      const d = new Date(iso); if (isNaN(d.getTime())) return iso;
+      const s = Math.round((Date.now() - d.getTime()) / 1000);
+      if (s < 60)        return s + 's ago';
+      if (s < 3600)      return Math.round(s / 60) + 'm ago';
+      if (s < 86400)     return Math.round(s / 3600) + 'h ago';
+      if (s < 86400 * 7) return Math.round(s / 86400) + 'd ago';
+      return d.toLocaleDateString();
+    }
+    function verbForAction(action, details) {
+      const a = String(action || '').toUpperCase();
+      if (a === 'CREATE')          return 'created the issue';
+      if (a === 'COMMENT')         return 'commented';
+      if (a === 'ATTACH' || a === 'ATTACHMENT_ADD') return 'attached a file';
+      if (a === 'ATTACHMENT_DELETE') return 'removed an attachment';
+      if (a === 'STATUS')          return 'changed status';
+      if (a === 'PRIORITY')        return 'changed priority';
+      if (a === 'ASSIGN')          return 'changed assignee';
+      if (a === 'RESOLVE')         return 'marked resolved';
+      if (a === 'CLOSE')           return 'closed the issue';
+      if (a === 'REOPEN')          return 're-opened the issue';
+      if (a === 'UPDATE')          return 'updated the issue';
+      return action || 'updated';
+    }
+    function inlineDetail(action, details) {
+      // Render only field-level diffs as inline text; the chip below carries
+      // the visual badge (priority pill, status pill, thumbnail).
+      if (!details || typeof details !== 'object') return '';
+      const parts = [];
+      for (const k of Object.keys(details)) {
+        if (k === 'priority' || k === 'status' || k === 'thumbnailUrl' || k === 'fileName') continue;
+        const v = details[k];
+        if (v && typeof v === 'object' && 'from' in v && 'to' in v) parts.push(`${k}: ${v.from} → ${v.to}`);
+        else if (k === 'body' || k === 'comment') parts.push(String(v));
+        else if (typeof v === 'string' && v.length < 200) parts.push(`${k}: ${v}`);
+      }
+      return parts.join(' · ');
+    }
+    function chipForActivity(action, details) {
+      if (!details || typeof details !== 'object') return null;
+      // Attachment thumbnail — render an inline preview if the server
+      // surfaced a thumbnailUrl. Falls back to a filename chip.
+      if (details.thumbnailUrl || details.fileName) {
+        if (details.thumbnailUrl) {
+          const img = el('img', { class: 'thumb', src: details.thumbnailUrl, alt: details.fileName || 'attachment' });
+          return img;
+        }
+        return el('span', { class: 'chip' }, '📎 ' + (details.fileName || 'attachment'));
+      }
+      // Priority chip on PRIORITY change events.
+      const pri = details.priority?.to || details.priority;
+      if (typeof pri === 'string') return el('span', { class: 'chip priority-' + pri.toUpperCase() }, pri.toUpperCase());
+      // Status chip on STATUS change events.
+      const st  = details.status?.to || details.status;
+      if (typeof st === 'string') return el('span', { class: 'chip status-' + st.toUpperCase() }, st.toUpperCase());
+      return null;
+    }
+
+    function formatActivity(action, detailsJson) {
+      if (!action) return '';
+      let detail = '';
+      if (detailsJson) {
+        try {
+          const obj = JSON.parse(detailsJson);
+          const parts = [];
+          for (const k in obj) {
+            const v = obj[k];
+            if (v && typeof v === 'object' && 'from' in v && 'to' in v) {
+              parts.push(`${k}: ${v.from} → ${v.to}`);
+            } else if (v && typeof v === 'object' && 'changed' in v) {
+              parts.push(`${k} updated`);
+            } else {
+              parts.push(`${k}: ${v}`);
+            }
+          }
+          detail = parts.length ? ' — ' + parts.join(', ') : '';
+        } catch (_) { /* leave detail blank */ }
+      }
+      return `${action}${detail}`;
+    }
+
+    // ── Comments tab (U2) ──────────────────────────────────────────────
+    // When an issue is selected, load its thread; otherwise show a hint.
+    let commentsCache = new Map();        // issueId → comment[]
+    // R4 — keep the pending comment screenshot in module scope, NOT on
+    // the textarea's dataset. Setting a 500 KB base64 string as a DOM
+    // attribute thrashes layout / mutation observers; a closure variable
+    // costs nothing.
+    let pendingAttachment = null;
+    async function renderComments() {
+      const pane = $('#pane-comments');
+      const issueId = state.selectedIssueId;
+      if (!issueId) {
+        pane.innerHTML = `
           <div class="empty-state">
-            <span class="glyph">\u{1F4AC}</span>
+            <span class="glyph">💬</span>
             Select an issue from the bottom tray to view and reply to its thread.
-          </div>`;return}const s=c.issues.find(o=>o.id===t);e.innerHTML=`
-        <div class="prop-section-label">${g(s?.code||t)} comments</div>
+          </div>`;
+        return;
+      }
+      const issue = state.issues.find(i => i.id === issueId);
+      pane.innerHTML = `
+        <div class="prop-section-label">${escapeHtml(issue?.code || issueId)} comments</div>
         <div class="comments-list" id="commentsList">
-          <div class="inline-loader"><span class="dot-spin"></span>Loading\u2026</div>
+          <div class="inline-loader"><span class="dot-spin"></span>Loading…</div>
         </div>
         <div class="comment-compose">
-          <textarea id="commentInput" placeholder="Reply to this issue\u2026 (use @ to mention)"></textarea>
+          <textarea id="commentInput" placeholder="Reply to this issue… (use @ to mention)"></textarea>
           <div class="row">
-            <button class="btn ghost sm" id="commentAttach">\u{1F4F7} Attach view</button>
+            <button class="btn ghost sm" id="commentAttach">📷 Attach view</button>
             <button class="btn sm" id="commentSubmit">Post</button>
           </div>
-        </div>`,r("#commentSubmit").addEventListener("click",()=>ts(t)),r("#commentAttach").addEventListener("click",()=>{De=Ye(p.renderer.domElement,1280,.85);const o=r("#commentInput");o.value=(o.value?o.value+`
+        </div>`;
+      $('#commentSubmit').addEventListener('click', () => postComment(issueId));
+      $('#commentAttach').addEventListener('click', () => {
+        pendingAttachment = downscaleScreenshot(V.renderer.domElement, 1280, 0.85);
+        const ta = $('#commentInput');
+        ta.value = (ta.value ? ta.value + '\n\n' : '') + '[screenshot attached]';
+      });
 
-`:"")+"[screenshot attached]"});const n=r("#commentsList");let a=re.get(t);if(!a){const o=await $(`/api/projects/${L}/issues/${t}/comments`);a=Array.isArray(o)?o:o?.items||[],re.set(t,a)}if(!a.length){n.innerHTML='<div class="empty-state" style="padding:14px"><span style="opacity:.6">No replies yet</span></div>';return}n.innerHTML="",a.forEach(o=>{const i=g(o.authorName||o.author||"Unknown"),l=o.createdAt?new Date(o.createdAt).toLocaleString():"",d=f("div",{class:"comment-item"});d.innerHTML=`
-          <div class="meta"><span class="who">${i}</span><span>${g(l)}</span></div>
-          <div class="body">${g(o.body||o.text||"")}</div>`,n.appendChild(d)})}async function ts(e){const s=(r("#commentInput")?.value||"").trim();if(!s)return;const n={body:s,attachment:De};De=null;const o=await $(`/api/projects/${L}/issues/${e}/comments`,{method:"POST",body:JSON.stringify(n)})||{id:"local-"+Date.now(),body:s,authorName:c.currentUser?.displayName||"You",createdAt:new Date().toISOString()},i=re.get(e)||[];i.push(o),re.set(e,i),ye(),G();const l=r("#commentsList");l&&(l.scrollTop=l.scrollHeight)}function ss(e){const t=e.map(d=>c.elementMap[d]||{});if(!t.length)return{name:"\u2014",count:0,kvs:[]};const s=d=>{const u={};return Object.entries(d||{}).forEach(([h,m])=>{m!=null&&(typeof m=="object"?Object.entries(m).forEach(([b,k])=>{k!=null&&typeof k!="object"&&(u[`${h}.${b}`]=k)}):u[h]=m)}),u},n=t.map(s),a=Object.keys(n[0]||{}),o=[];a.forEach(d=>{const u=n[0][d];n.every(h=>h[d]===u)&&o.push([d,u])});const i=new Set(t.map(d=>d.category||"")),l=new Set(t.map(d=>d.discipline||""));return{count:t.length,kvs:o,categorySummary:i.size===1?[...i][0]:`${i.size} categories`,disciplineSummary:l.size===1?[...l][0]:`${l.size} disciplines`}}function we(e){const t=r("#pane-properties"),s=c.selectedElementGuids;if(s&&s.size>1){const v=[...s],S=ss(v),I=new Set(["name","category","tag","STING_TAG"]),R=S.kvs.filter(([M])=>!I.has(M));t.innerHTML=`
+      const listEl = $('#commentsList');
+      let items = commentsCache.get(issueId);
+      if (!items) {
+        const data = await api(`/api/projects/${projectId}/issues/${issueId}/comments`);
+        items = Array.isArray(data) ? data : (data?.items || []);
+        commentsCache.set(issueId, items);
+      }
+      if (!items.length) {
+        listEl.innerHTML = '<div class="empty-state" style="padding:14px"><span style="opacity:.6">No replies yet</span></div>';
+        return;
+      }
+      listEl.innerHTML = '';
+      items.forEach(c => {
+        const who = escapeHtml(c.authorName || c.author || 'Unknown');
+        const when = c.createdAt ? new Date(c.createdAt).toLocaleString() : '';
+        const item = el('div', { class: 'comment-item' });
+        item.innerHTML = `
+          <div class="meta"><span class="who">${who}</span><span>${escapeHtml(when)}</span></div>
+          <div class="body">${escapeHtml(c.body || c.text || '')}</div>`;
+        listEl.appendChild(item);
+      });
+    }
+
+    async function postComment(issueId) {
+      const ta = $('#commentInput');
+      const body = (ta?.value || '').trim();
+      if (!body) return;
+      const payload = { body, attachment: pendingAttachment };
+      pendingAttachment = null;          // R4 — drop after read
+      const result = await api(`/api/projects/${projectId}/issues/${issueId}/comments`, {
+        method: 'POST', body: JSON.stringify(payload)
+      });
+      const created = result || {
+        id: 'local-' + Date.now(),
+        body,
+        authorName: state.currentUser?.displayName || 'You',
+        createdAt: new Date().toISOString()
+      };
+      const list = commentsCache.get(issueId) || [];
+      list.push(created);
+      commentsCache.set(issueId, list);
+      renderComments();
+      updateRightTabCounts();            // X2
+      // X9 (light) — auto-scroll the freshly rendered list to the bottom
+      // so the new message is visible without manual scrolling.
+      const listEl = $('#commentsList');
+      if (listEl) listEl.scrollTop = listEl.scrollHeight;
+    }
+
+    // ── Properties tab ─────────────────────────────────────────────────
+    // Compute the intersection of property keys across multiple elements,
+    // keeping only entries where the value is identical for every element.
+    // Returns { name, count, kvs: [[k, v], ...] } so the UI can render
+    // a single "common properties" view for batched edits / inspection.
+    function computeCommonProperties(guids) {
+      const arr = guids.map(g => state.elementMap[g] || {});
+      if (!arr.length) return { name: '—', count: 0, kvs: [] };
+      const flatten = (m) => {
+        const out = {};
+        Object.entries(m || {}).forEach(([k, v]) => {
+          if (v == null) return;
+          if (typeof v === 'object') {
+            Object.entries(v).forEach(([kk, vv]) => { if (vv != null && typeof vv !== 'object') out[`${k}.${kk}`] = vv; });
+          } else {
+            out[k] = v;
+          }
+        });
+        return out;
+      };
+      const flats = arr.map(flatten);
+      const keys = Object.keys(flats[0] || {});
+      const common = [];
+      keys.forEach(k => {
+        const v0 = flats[0][k];
+        if (flats.every(f => f[k] === v0)) common.push([k, v0]);
+      });
+      // Surface common category / discipline at the top so the user
+      // immediately sees what they've grabbed.
+      const categories = new Set(arr.map(m => m.category || ''));
+      const disciplines = new Set(arr.map(m => m.discipline || ''));
+      return {
+        count: arr.length,
+        kvs: common,
+        categorySummary: categories.size === 1 ? [...categories][0] : `${categories.size} categories`,
+        disciplineSummary: disciplines.size === 1 ? [...disciplines][0] : `${disciplines.size} disciplines`
+      };
+    }
+
+    function renderProperties(guid) {
+      const pane = $('#pane-properties');
+      // Multi-select branch — show common-properties summary instead of
+      // a single element card, with the multi-aware action stack.
+      const sel = state.selectedElementGuids;
+      if (sel && sel.size > 1) {
+        const guids = [...sel];
+        const c = computeCommonProperties(guids);
+        const RESERVED = new Set(['name','category','tag','STING_TAG']);
+        const rows = c.kvs.filter(([k]) => !RESERVED.has(k));
+        pane.innerHTML = `
           <div class="prop-section-label">Selection</div>
-          <div class="prop-title">${S.count} elements</div>
-          <div class="prop-row"><span class="k">Categories</span><span class="v">${g(S.categorySummary||"\u2014")}</span></div>
-          <div class="prop-row"><span class="k">Disciplines</span><span class="v">${g(S.disciplineSummary||"\u2014")}</span></div>
-          <div class="prop-section-label">Common properties (${R.length})</div>
-          ${R.length?R.map(([M,C])=>`<div class="prop-row"><span class="k">${g(M)}</span><span class="v">${g(String(C))}</span></div>`).join(""):'<div class="prop-row" style="opacity:0.6">No properties shared by every element</div>'}
+          <div class="prop-title">${c.count} elements</div>
+          <div class="prop-row"><span class="k">Categories</span><span class="v">${escapeHtml(c.categorySummary || '—')}</span></div>
+          <div class="prop-row"><span class="k">Disciplines</span><span class="v">${escapeHtml(c.disciplineSummary || '—')}</span></div>
+          <div class="prop-section-label">Common properties (${rows.length})</div>
+          ${rows.length
+            ? rows.map(([k, v]) => `<div class="prop-row"><span class="k">${escapeHtml(k)}</span><span class="v">${escapeHtml(String(v))}</span></div>`).join('')
+            : '<div class="prop-row" style="opacity:0.6">No properties shared by every element</div>'}
           <div class="action-stack">
-            <button class="btn full" id="actMultiCreateIssue">\u{1F6A9} Create issue from selection</button>
-            <button class="btn ghost full" id="actMultiFit">\u{1F3AF} Fit to selection</button>
-            <button class="btn ghost full" id="actMultiIsolate">\u25CE Isolate</button>
-            <button class="btn subtle full" id="actMultiHide">\u2298 Hide</button>
-            <button class="btn subtle full" id="actMultiClear">\u2715 Clear selection</button>
-          </div>`,r("#actMultiCreateIssue",t)?.addEventListener("click",()=>{z({guid:c.selectedElementGuid,meta:c.elementMap[c.selectedElementGuid]||{},multi:v})}),r("#actMultiFit",t)?.addEventListener("click",()=>ke()),r("#actMultiIsolate",t)?.addEventListener("click",()=>Oe()),r("#actMultiHide",t)?.addEventListener("click",()=>_e()),r("#actMultiClear",t)?.addEventListener("click",()=>W(null));return}if(!e){const v=c.issues.filter(C=>C.status!=="RESOLVED").length,S=c.issues.filter(C=>C.slaBreached||C.dueDate&&new Date(C.dueDate)<new Date&&C.status!=="RESOLVED").length,I=Object.values(c.elementMap||{}).filter(C=>C&&C.tag).length,R=Object.keys(c.elementMap||{}).length,M=R?Math.round(100*I/R):0;t.innerHTML=`
+            <button class="btn full" id="actMultiCreateIssue">🚩 Create issue from selection</button>
+            <button class="btn ghost full" id="actMultiFit">🎯 Fit to selection</button>
+            <button class="btn ghost full" id="actMultiIsolate">◎ Isolate</button>
+            <button class="btn subtle full" id="actMultiHide">⊘ Hide</button>
+            <button class="btn subtle full" id="actMultiClear">✕ Clear selection</button>
+          </div>`;
+        $('#actMultiCreateIssue', pane)?.addEventListener('click', () => {
+          openIssueModal({
+            guid: state.selectedElementGuid,
+            meta: state.elementMap[state.selectedElementGuid] || {},
+            multi: guids
+          });
+        });
+        $('#actMultiFit', pane)?.addEventListener('click', () => fitToSelection());
+        $('#actMultiIsolate', pane)?.addEventListener('click', () => isolateSelection());
+        $('#actMultiHide', pane)?.addEventListener('click', () => hideSelection());
+        $('#actMultiClear', pane)?.addEventListener('click', () => selectElementByGuid(null));
+        return;
+      }
+      if (!guid) {
+        const issuesOpen = state.issues.filter(i => i.status !== 'RESOLVED').length;
+        const overdue = state.issues.filter(i => i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED')).length;
+        const tagged = Object.values(state.elementMap || {}).filter(m => m && m.tag).length;
+        const total = Object.keys(state.elementMap || {}).length;
+        const pct = total ? Math.round(100 * tagged / total) : 0;
+        pane.innerHTML = `
           <div class="prop-title">Model overview</div>
           <div class="kpi-grid">
-            <div class="kpi"><div class="v">${R.toLocaleString()}</div><div class="k">Elements</div></div>
-            <div class="kpi ok"><div class="v">${M}%</div><div class="k">Tagged</div></div>
-            <div class="kpi ${c.clashes.length?"crit":""}"><div class="v">${c.clashes.length}</div><div class="k">Clashes</div></div>
-            <div class="kpi ${S?"crit":v?"warn":"ok"}"><div class="v">${v}</div><div class="k">Open issues</div></div>
+            <div class="kpi"><div class="v">${total.toLocaleString()}</div><div class="k">Elements</div></div>
+            <div class="kpi ok"><div class="v">${pct}%</div><div class="k">Tagged</div></div>
+            <div class="kpi ${state.clashes.length ? 'crit' : ''}"><div class="v">${state.clashes.length}</div><div class="k">Clashes</div></div>
+            <div class="kpi ${overdue ? 'crit' : (issuesOpen ? 'warn' : 'ok')}"><div class="v">${issuesOpen}</div><div class="k">Open issues</div></div>
           </div>
           <div class="prop-section-label">Coordination status</div>
-          <div class="prop-row"><span class="k">New clashes</span><span class="v">${c.clashes.filter(C=>C.status==="NEW").length}</span></div>
-          <div class="prop-row"><span class="k">Resolved</span><span class="v">${c.clashes.filter(C=>C.status==="RESOLVED").length}</span></div>
-          <div class="prop-row"><span class="k">Overdue issues</span><span class="v">${S}</span></div>
-          <div class="prop-row"><span class="k">Compliance</span><span class="v">${M}%</span></div>
+          <div class="prop-row"><span class="k">New clashes</span><span class="v">${state.clashes.filter(c => c.status === 'NEW').length}</span></div>
+          <div class="prop-row"><span class="k">Resolved</span><span class="v">${state.clashes.filter(c => c.status === 'RESOLVED').length}</span></div>
+          <div class="prop-row"><span class="k">Overdue issues</span><span class="v">${overdue}</span></div>
+          <div class="prop-row"><span class="k">Compliance</span><span class="v">${pct}%</span></div>
           <div class="prop-section-label">Last updated</div>
-          <div class="prop-row"><span class="k">Model</span><span class="v">${g(c.modelName||"\u2014")}</span></div>
-        `;return}const n=c.elementMap[e]||{},a=n.tag||n.STING_TAG||"",o=[["Discipline",n.discipline],["System",n.system],["Status",n.status],["Level",n.level],["Family",n.family],["Type",n.type],["Mark",n.mark]].filter(([,v])=>v!=null&&v!==""),i=new Set(["name","category","tag","STING_TAG","discipline","system","status","level","family","type","mark","dimensions","performance"]),l=v=>/(_mm|_m|width|height|depth|length|diameter|thickness|area)$/i.test(v),d=v=>/(flow|pressure|capacity|voltage|current|power|temperature|cooling|heating|wattage|kw|lps|cfm|pa)/i.test(v);let u=Object.entries(n.dimensions||{}).filter(([,v])=>v!=null),h=Object.entries(n.performance||{}).filter(([,v])=>v!=null);const m=new Set(u.map(([v])=>v)),b=new Set(h.map(([v])=>v)),k=[];Object.entries(n).forEach(([v,S])=>{if(!(i.has(v)||S==null||typeof S=="object")){if(!u.length&&l(v)){u.push([v,S]),m.add(v);return}if(!h.length&&d(v)){h.push([v,S]),b.add(v);return}!m.has(v)&&!b.has(v)&&k.push([v,S])}}),t.innerHTML=`
+          <div class="prop-row"><span class="k">Model</span><span class="v">${escapeHtml(state.modelName || '—')}</span></div>
+        `;
+        return;
+      }
+      const meta = state.elementMap[guid] || {};
+      const tag = meta.tag || meta.STING_TAG || '';
+      // Polish — accept either nested {dimensions:{}, performance:{}} or
+      // flat keys (width_mm, flow_lps, etc.) coming back from
+      // ModelsController.GetElementMap. Identity / dimension / performance
+      // groups are inferred by suffix if the response is flat.
+      const idCard = [
+        ['Discipline', meta.discipline],
+        ['System',     meta.system],
+        ['Status',     meta.status],
+        ['Level',      meta.level],
+        ['Family',     meta.family],
+        ['Type',       meta.type],
+        ['Mark',       meta.mark]
+      ].filter(([, v]) => v != null && v !== '');
+      const RESERVED = new Set(['name','category','tag','STING_TAG','discipline','system','status','level','family','type','mark','dimensions','performance']);
+      const isDimKey  = k => /(_mm|_m|width|height|depth|length|diameter|thickness|area)$/i.test(k);
+      const isPerfKey = k => /(flow|pressure|capacity|voltage|current|power|temperature|cooling|heating|wattage|kw|lps|cfm|pa)/i.test(k);
+      let dims = Object.entries(meta.dimensions  || {}).filter(([, v]) => v != null);
+      let perfs = Object.entries(meta.performance || {}).filter(([, v]) => v != null);
+      // R11 — accumulate any leftover scalar keys into a generic
+      // "Properties" bucket so sparse element-map responses still show
+      // useful data instead of dropping it.
+      const claimedDims  = new Set(dims.map(([k]) => k));
+      const claimedPerfs = new Set(perfs.map(([k]) => k));
+      const others = [];
+      Object.entries(meta).forEach(([k, v]) => {
+        if (RESERVED.has(k) || v == null || typeof v === 'object') return;
+        if (!dims.length  && isDimKey(k))  { dims.push([k, v]);  claimedDims.add(k); return; }
+        if (!perfs.length && isPerfKey(k)) { perfs.push([k, v]); claimedPerfs.add(k); return; }
+        if (!claimedDims.has(k) && !claimedPerfs.has(k)) others.push([k, v]);
+      });
+
+      pane.innerHTML = `
         <div class="prop-section-label">Element</div>
-        <div class="prop-title">${g(n.name||n.category||"Element")}</div>
-        ${a?`<div class="prop-section-label">STING Tag</div>
-          <div class="prop-row"><span class="v mono">${g(a)}</span>
-            <span class="copy" data-copy="${g(a)}" title="Copy">\u{1F4CB}</span></div>`:""}
-        ${o.length?'<div class="prop-section-label">Identity</div>'+o.map(([v,S])=>`<div class="prop-row"><span class="k">${v}</span><span class="v">${g(S)}</span></div>`).join(""):""}
-        ${u.length?'<div class="prop-section-label">Dimensions</div>'+u.map(([v,S])=>`<div class="prop-row"><span class="k">${v}</span><span class="v">${g(S)}</span></div>`).join(""):""}
-        ${h.length?'<div class="prop-section-label">Performance</div>'+h.map(([v,S])=>`<div class="prop-row"><span class="k">${v}</span><span class="v">${g(S)}</span></div>`).join(""):""}
-        ${k.length?'<div class="prop-section-label">Properties</div>'+k.map(([v,S])=>`<div class="prop-row"><span class="k">${g(v)}</span><span class="v">${g(S)}</span></div>`).join(""):""}
+        <div class="prop-title">${escapeHtml(meta.name || meta.category || 'Element')}</div>
+        ${tag ? `<div class="prop-section-label">STING Tag</div>
+          <div class="prop-row"><span class="v mono">${escapeHtml(tag)}</span>
+            <span class="copy" data-copy="${escapeHtml(tag)}" title="Copy">📋</span></div>` : ''}
+        ${idCard.length ? '<div class="prop-section-label">Identity</div>' +
+          idCard.map(([k, v]) => `<div class="prop-row"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`).join('') : ''}
+        ${dims.length ? '<div class="prop-section-label">Dimensions</div>' +
+          dims.map(([k, v]) => `<div class="prop-row"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`).join('') : ''}
+        ${perfs.length ? '<div class="prop-section-label">Performance</div>' +
+          perfs.map(([k, v]) => `<div class="prop-row"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`).join('') : ''}
+        ${others.length ? '<div class="prop-section-label">Properties</div>' +
+          others.map(([k, v]) => `<div class="prop-row"><span class="k">${escapeHtml(k)}</span><span class="v">${escapeHtml(v)}</span></div>`).join('') : ''}
         <div class="action-stack">
-          <button class="btn full" id="actCreateIssue">\u{1F6A9} Create issue</button>
-          <button class="btn ghost full" id="actFindClashes">\u{1F50D} Find clashes for this</button>
-          <button class="btn subtle full" id="actCopyTag">\u{1F4CB} Copy STING tag</button>
-          <button class="btn subtle full" id="actLinkSheet">\u{1F4CC} Link to sheet</button>
+          <button class="btn full" id="actCreateIssue">🚩 Create issue</button>
+          <button class="btn ghost full" id="actFindClashes">🔍 Find clashes for this</button>
+          <button class="btn subtle full" id="actCopyTag">📋 Copy STING tag</button>
+          <button class="btn subtle full" id="actLinkSheet">📌 Link to sheet</button>
         </div>
-      `,r("#actCreateIssue",t)?.addEventListener("click",()=>z({guid:e,meta:n})),r("#actFindClashes",t)?.addEventListener("click",()=>{ne("clashes"),c.selectedElementGuid=e,ee()}),r("#actCopyTag",t)?.addEventListener("click",()=>F(a)),r("#actLinkSheet",t)?.addEventListener("click",()=>y("Sheet link \u2014 TODO","warn")),w(".copy",t).forEach(v=>v.addEventListener("click",()=>F(v.dataset.copy)))}function q(e){const{title:t,label:s="",placeholder:n="",defaultValue:a="",multiline:o=!1,minLength:i=0,maxLength:l=2e3,okLabel:d="OK",cancelLabel:u="Cancel"}=e||{};return new Promise(h=>{const m=f("div",{class:"modal-backdrop open inline-prompt-bd"}),b=f("div",{class:"modal inline-prompt"}),k=f("div",{class:"head"},[f("h2",{},t||"Enter value"),f("button",{class:"close",title:"Cancel"},"\u2715")]),v=f("div",{class:"body"});s&&v.appendChild(f("label",{},s));const S=o?f("textarea",{rows:"3",placeholder:n}):f("input",{type:"text",placeholder:n});S.value=a||"",v.appendChild(S);const I=f("div",{class:"inline-prompt-counter"},"");v.appendChild(I);const R=f("div",{class:"foot"},[f("button",{class:"btn subtle"},u),f("button",{class:"btn"},d)]);b.appendChild(k),b.appendChild(v),b.appendChild(R),m.appendChild(b),document.body.appendChild(m);const M=r(".btn:not(.subtle)",R),C=r(".btn.subtle",R),oe=r(".close",k);function Et(){const x=(S.value||"").trim().length;I.textContent=`${x} / ${l}${i>0?` (min ${i})`:""}`,I.classList.toggle("warn",i>0&&x<i),M.disabled=i>0&&x<i||x>l}Et(),S.addEventListener("input",Et),S.addEventListener("keydown",x=>{x.key==="Enter"&&(!o||x.ctrlKey||x.metaKey)&&(x.preventDefault(),M.disabled||M.click())});let Lt=!1;function fe(x){Lt||(Lt=!0,m.remove(),h(x))}M.addEventListener("click",()=>fe(S.value)),C.addEventListener("click",()=>fe(null)),oe.addEventListener("click",()=>fe(null)),m.addEventListener("keydown",x=>{x.key==="Escape"&&(x.preventDefault(),fe(null))}),m.addEventListener("click",x=>{x.target===m&&fe(null)}),setTimeout(()=>S.focus(),30)})}function F(e){if(!e)return;const t="Copied: "+e,s="Copy failed",n=()=>{try{const a=document.createElement("textarea");a.value=e,a.setAttribute("readonly",""),a.style.cssText="position:fixed;left:-9999px;top:-9999px;opacity:0",document.body.appendChild(a),a.focus(),a.select();const o=document.execCommand("copy");document.body.removeChild(a),y(o?t:s,o?"success":"error")}catch{y(s,"error")}};navigator.clipboard&&window.isSecureContext?navigator.clipboard.writeText(e).then(()=>y(t,"success"),n):n()}async function ns(){const e=r("#clashesBody");e&&(e.innerHTML='<div class="inline-loader"><span class="dot-spin"></span>Loading clashes\u2026</div>');let t=null;c.clashes=(Array.isArray(t)?t:t?.items||null)||tt(),Ee(),ee(),ie()}function tt(){const e=Object.keys(c.elementMap||{});if(!e.length)return[{id:"CLH-1",type:"HARD",elementA:{guid:"a",name:"AHU-001"},elementB:{guid:"b",name:"Beam-044"},overlap_mm:145,status:"NEW",discPair:"MECH/STR"},{id:"CLH-2",type:"HARD",elementA:{guid:"c",name:"Duct-022"},elementB:{guid:"d",name:"Col-018"},overlap_mm:88,status:"NEW",discPair:"MECH/STR"},{id:"CLH-3",type:"SOFT",elementA:{guid:"e",name:"Pipe-009"},elementB:{guid:"f",name:"Duct-033"},overlap_mm:42,status:"OPEN",discPair:"PLMB/MECH",assignedTo:"Sentongo E."},{id:"CLH-4",type:"HARD",elementA:{guid:"g",name:"AHU-003"},elementB:{guid:"h",name:"Beam-081"},overlap_mm:201,status:"RESOLVED",discPair:"MECH/STR",assignedTo:"Sting Davis"}];const t=()=>e[Math.floor(Math.random()*e.length)],s=()=>{let a=t(),o=t(),i=6;for(;a===o&&i-- >0;)o=t();return[a,o]},n=[];for(let a=1;a<=12;a++){const[o,i]=s();if(o===i)continue;const l=c.elementMap[o]||{},d=c.elementMap[i]||{};n.push({id:`CLH-${String(a).padStart(3,"0")}`,type:a%3===0?"SOFT":"HARD",elementA:{guid:o,name:l.name||o.slice(0,8)},elementB:{guid:i,name:d.name||i.slice(0,8)},overlap_mm:Math.round(20+Math.random()*200),status:a%6===0?"RESOLVED":a%4===0?"OPEN":"NEW",discPair:`${(l.discipline||"MECH").slice(0,4)}/${(d.discipline||"STR").slice(0,4)}`})}return n}function Ee(){const e=p.pinGroup||p.scene;if(c.clashPins.forEach((s,n)=>{e.remove(s),p.pinMeta&&p.pinMeta.delete(s.uuid)}),c.clashPins.clear(),!p.modelRoot)return;const t=p.modelBounds.isEmpty()?1:p.modelBounds.getSize(new E.Vector3).length()*.012;c.clashes.forEach(s=>{if(s.status==="RESOLVED")return;const n=st(s);if(!n)return;const a=s.type==="HARD"?15680580:16096779,o=new E.BoxGeometry(t,t,t),i=new E.EdgesGeometry(o),l=new E.LineBasicMaterial({color:a,depthTest:!1}),d=new E.LineSegments(i,l);d.renderOrder=998,d.position.copy(n),d.userData.clashId=s.id,e.add(d),p.pinMeta&&p.pinMeta.set(d.uuid,{__coord:"clash",clashId:s.id}),c.clashPins.set(s.id,d)})}function st(e){const t=V(e.elementA?.guid),s=V(e.elementB?.guid);if(t&&s){const a=new E.Box3().setFromObject(t),o=new E.Box3().setFromObject(s);return a.union(o).getCenter(new E.Vector3)}return p.modelBounds.isEmpty()?null:p.modelBounds.getCenter(new E.Vector3)}const Le=new Map;function as(){Le.clear(),p.modelRoot&&p.modelRoot.traverse(e=>{e.isMesh&&e.userData.elementGuid&&Le.set(e.userData.elementGuid,e)})}function V(e){if(!e)return null;const t=Le.get(e);if(t)return t;if(!p.modelRoot)return null;let s=null;return p.modelRoot.traverse(n=>{!s&&n.isMesh&&n.userData.elementGuid===e&&(s=n)}),s&&Le.set(e,s),s}function ee(){const e=r("#clashesBody"),t=c.clashStatusFilter,s=c.clashTypeFilter;let n=c.clashes;if(t!=="any"&&(n=n.filter(o=>o.status===t)),s!=="any"&&(n=n.filter(o=>o.type===s)),e.innerHTML=n.length?"":'<div class="empty-state">No clashes match the filter</div>',n.length){const o=f("table",{class:"dtable"});o.innerHTML=`<thead><tr>
+      `;
+      $('#actCreateIssue', pane)?.addEventListener('click', () => openIssueModal({ guid, meta }));
+      $('#actFindClashes', pane)?.addEventListener('click', () => {
+        switchBottomTab('clashes'); state.selectedElementGuid = guid; renderClashes();
+      });
+      $('#actCopyTag', pane)?.addEventListener('click', () => copyText(tag));
+      $('#actLinkSheet', pane)?.addEventListener('click', () => toast('Sheet link — TODO', 'warn'));
+      $$('.copy', pane).forEach(c => c.addEventListener('click', () => copyText(c.dataset.copy)));
+    }
+
+    // U7 — clipboard.writeText is unavailable in non-secure contexts
+    // (file:// inside RN WebView, http:// in older browsers). Fall back
+    // to the historic textarea + execCommand("copy") trick so the Copy
+    // STING Tag / Share view link buttons keep working there too.
+    // ── Inline prompt (replacement for window.prompt) ────────────────
+    // window.prompt is blocked or styled inconsistently across browsers
+    // (mobile WebKit hides it entirely; Chrome's looks like a 1996 Java
+    // applet). This helper renders a small in-app modal that fits the
+    // viewer's design language, supports a multi-line textarea + min/max
+    // length validation, and resolves with the entered string or null.
+    //
+    // opts: { title, label?, placeholder?, defaultValue?, multiline?,
+    //         minLength?, maxLength?, okLabel?, cancelLabel? }
+    // Returns: Promise<string | null>
+    function promptInline(opts) {
+      const {
+        title, label = '', placeholder = '', defaultValue = '',
+        multiline = false, minLength = 0, maxLength = 2000,
+        okLabel = 'OK', cancelLabel = 'Cancel',
+      } = opts || {};
+      return new Promise((resolve) => {
+        const back = el('div', { class: 'modal-backdrop open inline-prompt-bd' });
+        const card = el('div', { class: 'modal inline-prompt' });
+        const head = el('div', { class: 'head' }, [
+          el('h2', {}, title || 'Enter value'),
+          el('button', { class: 'close', title: 'Cancel' }, '✕')
+        ]);
+        const body = el('div', { class: 'body' });
+        if (label) body.appendChild(el('label', {}, label));
+        const input = multiline
+          ? el('textarea', { rows: '3', placeholder })
+          : el('input', { type: 'text', placeholder });
+        input.value = defaultValue || '';
+        body.appendChild(input);
+        const counter = el('div', { class: 'inline-prompt-counter' }, '');
+        body.appendChild(counter);
+        const foot = el('div', { class: 'foot' }, [
+          el('button', { class: 'btn subtle' }, cancelLabel),
+          el('button', { class: 'btn' }, okLabel)
+        ]);
+        card.appendChild(head); card.appendChild(body); card.appendChild(foot);
+        back.appendChild(card);
+        document.body.appendChild(back);
+
+        const okBtn = $('.btn:not(.subtle)', foot);
+        const cancelBtn = $('.btn.subtle', foot);
+        const closeBtn = $('.close', head);
+
+        function paintCounter() {
+          const len = (input.value || '').trim().length;
+          counter.textContent = `${len} / ${maxLength}${minLength > 0 ? ` (min ${minLength})` : ''}`;
+          counter.classList.toggle('warn', minLength > 0 && len < minLength);
+          okBtn.disabled = (minLength > 0 && len < minLength) || len > maxLength;
+        }
+        paintCounter();
+        input.addEventListener('input', paintCounter);
+        // Submit on Enter (single-line) / Ctrl-Enter (multiline).
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && (!multiline || e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            if (!okBtn.disabled) okBtn.click();
+          }
+        });
+
+        let done = false;
+        function close(value) {
+          if (done) return;
+          done = true;
+          back.remove();
+          resolve(value);
+        }
+        okBtn.addEventListener('click', () => close(input.value));
+        cancelBtn.addEventListener('click', () => close(null));
+        closeBtn.addEventListener('click', () => close(null));
+        back.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') { e.preventDefault(); close(null); }
+        });
+        back.addEventListener('click', (e) => {
+          if (e.target === back) close(null);
+        });
+        setTimeout(() => input.focus(), 30);
+      });
+    }
+
+    function copyText(t) {
+      if (!t) return;
+      const okMsg = 'Copied: ' + t;
+      const failMsg = 'Copy failed';
+      const useExecFallback = () => {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = t;
+          ta.setAttribute('readonly', '');
+          ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+          document.body.appendChild(ta);
+          ta.focus(); ta.select();
+          const ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+          toast(ok ? okMsg : failMsg, ok ? 'success' : 'error');
+        } catch (_) { toast(failMsg, 'error'); }
+      };
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(t).then(() => toast(okMsg, 'success'), useExecFallback);
+      } else {
+        useExecFallback();
+      }
+    }
+
+    // ── Clashes ────────────────────────────────────────────────────────
+    async function loadClashes() {
+      // U4 — show inline loader while the request is in flight.
+      const body = $('#clashesBody');
+      if (body) body.innerHTML = '<div class="inline-loader"><span class="dot-spin"></span>Loading clashes…</div>';
+      let data = null;
+      if (!USE_MOCK_CLASHES && projectId) {
+        data = await api(`/api/projects/${projectId}/clashes`);
+      }
+      state.clashes = (Array.isArray(data) ? data : (data?.items || null)) || mockClashes();
+      placeClashPins();
+      renderClashes();
+      updateBadges();
+    }
+
+    function mockClashes() {
+      // Synthesise from element map so positions render somewhere visible.
+      const guids = Object.keys(state.elementMap || {});
+      if (!guids.length) {
+        return [
+          { id: 'CLH-1', type: 'HARD', elementA: { guid: 'a', name: 'AHU-001' }, elementB: { guid: 'b', name: 'Beam-044' }, overlap_mm: 145, status: 'NEW', discPair: 'MECH/STR' },
+          { id: 'CLH-2', type: 'HARD', elementA: { guid: 'c', name: 'Duct-022' }, elementB: { guid: 'd', name: 'Col-018' }, overlap_mm: 88, status: 'NEW', discPair: 'MECH/STR' },
+          { id: 'CLH-3', type: 'SOFT', elementA: { guid: 'e', name: 'Pipe-009' }, elementB: { guid: 'f', name: 'Duct-033' }, overlap_mm: 42, status: 'OPEN', discPair: 'PLMB/MECH', assignedTo: 'Sentongo E.' },
+          { id: 'CLH-4', type: 'HARD', elementA: { guid: 'g', name: 'AHU-003' }, elementB: { guid: 'h', name: 'Beam-081' }, overlap_mm: 201, status: 'RESOLVED', discPair: 'MECH/STR', assignedTo: 'Sting Davis' }
+        ];
+      }
+      const pick = () => guids[Math.floor(Math.random() * guids.length)];
+      const pickPair = () => {
+        // R6 — never clash an element with itself; retry up to a bounded
+        // number of times before giving up (real models have far more
+        // than 2 elements so this almost always succeeds first try).
+        let a = pick(), b = pick(), guard = 6;
+        while (a === b && guard-- > 0) b = pick();
+        return [a, b];
+      };
+      const out = [];
+      for (let i = 1; i <= 12; i++) {
+        const [a, b] = pickPair();
+        if (a === b) continue;
+        const ma = state.elementMap[a] || {}, mb = state.elementMap[b] || {};
+        out.push({
+          id: `CLH-${String(i).padStart(3, '0')}`,
+          type: i % 3 === 0 ? 'SOFT' : 'HARD',
+          elementA: { guid: a, name: ma.name || a.slice(0, 8) },
+          elementB: { guid: b, name: mb.name || b.slice(0, 8) },
+          overlap_mm: Math.round(20 + Math.random() * 200),
+          status: i % 6 === 0 ? 'RESOLVED' : (i % 4 === 0 ? 'OPEN' : 'NEW'),
+          discPair: `${(ma.discipline || 'MECH').slice(0, 4)}/${(mb.discipline || 'STR').slice(0, 4)}`
+        });
+      }
+      return out;
+    }
+
+    function placeClashPins() {
+      // R13 — push into the engine's pinGroup + pinMeta so the engine's
+      // existing raycaster handles pin clicks (single raycast per click,
+      // pinTap event delivered through V.bridge).
+      const host = V.pinGroup || V.scene;
+      state.clashPins.forEach((m, id) => {
+        host.remove(m);
+        if (V.pinMeta) V.pinMeta.delete(m.uuid);
+      });
+      state.clashPins.clear();
+      if (!V.modelRoot) return;
+      const size = V.modelBounds.isEmpty() ? 1 : V.modelBounds.getSize(new THREE_.Vector3()).length() * 0.012;
+      state.clashes.forEach(c => {
+        if (c.status === 'RESOLVED') return;
+        const pos = clashCentroid(c);
+        if (!pos) return;
+        const colour = c.type === 'HARD' ? 0xEF4444 : 0xF59E0B;
+        const geom = new THREE_.BoxGeometry(size, size, size);
+        const edges = new THREE_.EdgesGeometry(geom);
+        const mat = new THREE_.LineBasicMaterial({ color: colour, depthTest: false });
+        const wire = new THREE_.LineSegments(edges, mat);
+        wire.renderOrder = 998;
+        wire.position.copy(pos);
+        wire.userData.clashId = c.id;
+        host.add(wire);
+        if (V.pinMeta) V.pinMeta.set(wire.uuid, { __coord: 'clash', clashId: c.id });
+        state.clashPins.set(c.id, wire);
+      });
+    }
+
+    function clashCentroid(c) {
+      const meshA = findMeshByGuid(c.elementA?.guid);
+      const meshB = findMeshByGuid(c.elementB?.guid);
+      if (meshA && meshB) {
+        const a = new THREE_.Box3().setFromObject(meshA);
+        const b = new THREE_.Box3().setFromObject(meshB);
+        const u = a.union(b);
+        return u.getCenter(new THREE_.Vector3());
+      }
+      // fallback: random within bounds
+      if (V.modelBounds.isEmpty()) return null;
+      const c1 = V.modelBounds.getCenter(new THREE_.Vector3());
+      return c1;
+    }
+
+    // B7 — build a GUID→mesh index once per model load instead of doing
+    // a full traverse on every clash / pin / focus call. Reduces the
+    // 12-clash × 4000-mesh placement cost from ~96k traversals to ~24
+    // hash lookups.
+    const guidIndex = new Map();
+    function rebuildGuidIndex() {
+      guidIndex.clear();
+      if (!V.modelRoot) return;
+      V.modelRoot.traverse(obj => {
+        if (obj.isMesh && obj.userData.elementGuid) {
+          guidIndex.set(obj.userData.elementGuid, obj);
+        }
+      });
+    }
+    function findMeshByGuid(guid) {
+      if (!guid) return null;
+      const cached = guidIndex.get(guid);
+      if (cached) return cached;
+      // Lazy fallback for the rare case where the index was built before
+      // a glTF added meshes (e.g., federation deferred-load).
+      if (!V.modelRoot) return null;
+      let found = null;
+      V.modelRoot.traverse(obj => {
+        if (!found && obj.isMesh && obj.userData.elementGuid === guid) found = obj;
+      });
+      if (found) guidIndex.set(guid, found);
+      return found;
+    }
+
+    function renderClashes() {
+      // Bottom-panel table
+      const body = $('#clashesBody');
+      // X1 — combine the two independent axes; "any" means don't filter
+      // on that axis. Coordinators can now pick e.g. "Hard New".
+      const sf = state.clashStatusFilter, tf = state.clashTypeFilter;
+      let rows = state.clashes;
+      if (sf !== 'any') rows = rows.filter(c => c.status === sf);
+      if (tf !== 'any') rows = rows.filter(c => c.type === tf);
+
+      body.innerHTML = rows.length ? '' : '<div class="empty-state">No clashes match the filter</div>';
+      if (rows.length) {
+        const table = el('table', { class: 'dtable' });
+        table.innerHTML = `<thead><tr>
           <th>#</th><th>Type</th><th>Element A</th><th>Element B</th>
           <th>Disc</th><th>Overlap</th><th>Assigned</th><th>Status</th><th></th>
-        </tr></thead><tbody></tbody>`;const i=r("tbody",o);n.forEach(l=>{const d=f("tr",{"data-id":l.id,"data-kind":"clash"});d._clash=l,d.innerHTML=`
-            <td>${g(l.id)}</td>
-            <td><span class="tag ${l.type==="HARD"?"hard":"soft"}">${l.type}</span></td>
-            <td>${g(l.elementA?.name||"")}</td>
-            <td>${g(l.elementB?.name||"")}</td>
-            <td>${g(l.discPair||"")}</td>
-            <td>${l.type==="HARD"?l.overlap_mm+"mm":l.overlap_mm+"mm clr"}</td>
-            <td>${g(l.assignedTo||"\u2014")}</td>
-            <td><span class="tag ${l.status.toLowerCase()}">${l.status}</span></td>
+        </tr></thead><tbody></tbody>`;
+        const tbody = $('tbody', table);
+        rows.forEach(c => {
+          const tr = el('tr', { 'data-id': c.id, 'data-kind': 'clash' });
+          tr._clash = c;       // setupRowContextMenu reads this
+          tr.innerHTML = `
+            <td>${escapeHtml(c.id)}</td>
+            <td><span class="tag ${c.type === 'HARD' ? 'hard' : 'soft'}">${c.type}</span></td>
+            <td>${escapeHtml(c.elementA?.name || '')}</td>
+            <td>${escapeHtml(c.elementB?.name || '')}</td>
+            <td>${escapeHtml(c.discPair || '')}</td>
+            <td>${c.type === 'HARD' ? c.overlap_mm + 'mm' : c.overlap_mm + 'mm clr'}</td>
+            <td>${escapeHtml(c.assignedTo || '—')}</td>
+            <td><span class="tag ${c.status.toLowerCase()}">${c.status}</span></td>
             <td><div class="row-actions">
               <button class="btn sm subtle" data-act="view">View</button>
-              <button class="btn sm" data-act="issue">\u2192 Issue</button>
+              <button class="btn sm" data-act="issue">→ Issue</button>
             </div></td>
-          `,d.addEventListener("click",u=>{u.target.closest("button")||X(l)}),d.addEventListener("dblclick",u=>{u.target.closest("button")||(X(l),je(l))}),r("button[data-act=view]",d).addEventListener("click",u=>{u.stopPropagation(),X(l)}),r("button[data-act=issue]",d).addEventListener("click",u=>{u.stopPropagation(),z({clash:l})}),i.appendChild(d)}),e.appendChild(o)}const a=r("#clashesShowing");a&&(a.textContent=`Showing ${n.length} of ${c.clashes.length}`),r("#clashesTotal").textContent=c.clashes.length,r("#clashesNew").textContent=c.clashes.filter(o=>o.status==="NEW").length,r("#clashesOpen").textContent=c.clashes.filter(o=>o.status==="OPEN").length,r("#clashesResolved").textContent=c.clashes.filter(o=>o.status==="RESOLVED").length,nt(),G()}function nt(){const e=r("#pane-clashes"),t=c.selectedElementGuid,s=t?c.clashes.filter(n=>n.elementA?.guid===t||n.elementB?.guid===t):c.clashes.slice(0,20);if(!s.length){e.innerHTML='<div class="empty-state"><span class="glyph">\u26A0</span>No clashes</div>';return}e.innerHTML="",e.appendChild(f("div",{class:"prop-section-label"},t?`Clashes (${s.length})`:"Recent clashes")),s.forEach(n=>{const a=f("div",{class:`coord-card ${n.type.toLowerCase()}`,"data-kind":"clash",title:"Click to zoom \xB7 Double-click to isolate \xB7 Right-click for options"});a._clash=n,a.innerHTML=`
-          <div class="head"><span class="tag ${n.type==="HARD"?"hard":"soft"}">${n.type}</span>
-            <span style="color:var(--text-muted);font-size:11px">${n.overlap_mm}mm ${n.type==="HARD"?"overlap":"clearance"}</span></div>
-          <div class="body">${g(n.elementA?.name)}  \u2715  ${g(n.elementB?.name)}</div>
-          <div class="meta">${g(n.discPair||"")} \xB7 ${g(n.status)}</div>
+          `;
+          tr.addEventListener('click', (e) => {
+            if (e.target.closest('button')) return;
+            focusClash(c);
+          });
+          tr.addEventListener('dblclick', (e) => {
+            if (e.target.closest('button')) return;
+            focusClash(c);                         // zoom + isolate the pair
+            isolateClashPair(c);
+          });
+          // B3 — stopPropagation so clicking "→ Issue" doesn't ALSO fire
+          // the row's focusClash and fly the camera away from the modal.
+          $('button[data-act=view]', tr).addEventListener('click', (e) => { e.stopPropagation(); focusClash(c); });
+          $('button[data-act=issue]', tr).addEventListener('click', (e) => { e.stopPropagation(); openIssueModal({ clash: c }); });
+          tbody.appendChild(tr);
+        });
+        body.appendChild(table);
+      }
+      // R12 — uniformly total counts on the per-status pills, plus a
+      // separate "Showing N of M" indicator that respects both axes.
+      const showing = $('#clashesShowing');
+      if (showing) showing.textContent = `Showing ${rows.length} of ${state.clashes.length}`;
+      $('#clashesTotal').textContent = state.clashes.length;
+      $('#clashesNew').textContent = state.clashes.filter(c => c.status === 'NEW').length;
+      $('#clashesOpen').textContent = state.clashes.filter(c => c.status === 'OPEN').length;
+      $('#clashesResolved').textContent = state.clashes.filter(c => c.status === 'RESOLVED').length;
+      renderRightClashes();
+      updateRightTabCounts();
+    }
+
+    function renderRightClashes() {
+      const pane = $('#pane-clashes');
+      const guid = state.selectedElementGuid;
+      const subset = guid ? state.clashes.filter(c => c.elementA?.guid === guid || c.elementB?.guid === guid) : state.clashes.slice(0, 20);
+      if (!subset.length) {
+        pane.innerHTML = '<div class="empty-state"><span class="glyph">⚠</span>No clashes</div>';
+        return;
+      }
+      pane.innerHTML = '';
+      pane.appendChild(el('div', { class: 'prop-section-label' }, guid ? `Clashes (${subset.length})` : 'Recent clashes'));
+      subset.forEach(c => {
+        const card = el('div', {
+          class: `coord-card ${c.type.toLowerCase()}`,
+          'data-kind': 'clash',
+          title: 'Click to zoom · Double-click to isolate · Right-click for options',
+        });
+        card._clash = c;   // delegated context menu in setupRowContextMenu reads this
+        card.innerHTML = `
+          <div class="head"><span class="tag ${c.type === 'HARD' ? 'hard' : 'soft'}">${c.type}</span>
+            <span style="color:var(--text-muted);font-size:11px">${c.overlap_mm}mm ${c.type === 'HARD' ? 'overlap' : 'clearance'}</span></div>
+          <div class="body">${escapeHtml(c.elementA?.name)}  ✕  ${escapeHtml(c.elementB?.name)}</div>
+          <div class="meta">${escapeHtml(c.discPair || '')} · ${escapeHtml(c.status)}</div>
           <div class="actions">
             <button class="btn sm subtle" data-act="view">View in 3D</button>
-            <button class="btn sm" data-act="issue">\u2192 Create issue</button>
+            <button class="btn sm" data-act="issue">→ Create issue</button>
           </div>
-        `,a.addEventListener("click",o=>{o.target.closest("button")||X(n)}),a.addEventListener("dblclick",o=>{o.target.closest("button")||(X(n),je(n))}),r("button[data-act=view]",a).addEventListener("click",o=>{o.stopPropagation(),X(n)}),r("button[data-act=issue]",a).addEventListener("click",o=>{o.stopPropagation(),z({clash:n})}),e.appendChild(a)})}function X(e){c.selectedClashId=e.id,ce();const t=st(e);t&&N(t);const s=V(e.elementA?.guid),n=V(e.elementB?.guid);s&&de(s,15680580),n&&de(n,6333946),J(`Inspected ${e.id}`)}function de(e,t){Je(e,new E.MeshStandardMaterial({color:t,emissive:t,emissiveIntensity:.45}))}let at=0;function N(e){const t=++at,s=p.camera.position.clone(),n=e.clone().add(new E.Vector3(8,6,8)),a=p.controls.target.clone(),o=performance.now(),i=600;function l(){if(t!==at)return;const d=Math.min(1,(performance.now()-o)/i),u=.5-.5*Math.cos(d*Math.PI);p.camera.position.lerpVectors(s,n,u),p.controls.target.lerpVectors(a,e,u),p.controls.update(),d<1&&requestAnimationFrame(l)}requestAnimationFrame(l)}function is(){const e=[];return c.selectedElementGuids.forEach(t=>{const s=V(t);s&&e.push(s)}),e}function ke(){const e=is();if(!e.length)return y("Nothing selected","warn");const t=new E.Box3;if(e.forEach(n=>t.expandByObject(n)),t.isEmpty())return;const s=t.getCenter(new E.Vector3);N(s)}function Oe(){if(!p.modelRoot)return;const e=c.selectedElementGuids;if(!e.size)return y("Nothing selected","warn");p.modelRoot.traverse(t=>{t.isMesh&&(t.visible=e.has(t.userData.elementGuid))}),y(`Isolated ${e.size} element${e.size===1?"":"s"}`)}function _e(){if(!p.modelRoot)return;const e=c.selectedElementGuids;if(!e.size)return y("Nothing selected","warn");p.modelRoot.traverse(t=>{t.isMesh&&e.has(t.userData.elementGuid)&&(t.visible=!1)}),y(`Hid ${e.size} element${e.size===1?"":"s"}`)}function Se(){p.modelRoot&&(p.modelRoot.traverse(e=>{e.isMesh&&(e.visible=!0)}),y("All elements visible"))}function Be(){const e=r("#selectionToolbar");if(!e)return;const t=c.selectedElementGuids.size;if(!t){e.style.display="none";return}e.style.display="flex";const s=r("#selCount");s&&(s.textContent=`${t} selected`)}function je(e){if(!p.modelRoot)return;const t=e.elementA?.guid,s=e.elementB?.guid,n=new Set([t,s].filter(Boolean));n.size&&(p.modelRoot.traverse(a=>{a.isMesh&&(a.visible=n.has(a.userData.elementGuid))}),y(`Isolated clash pair (${n.size})`))}let K=null;function os(){const e=f("div",{class:"row-menu",id:"rowMenu"});document.body.appendChild(e),r("#bottomPanel")?.addEventListener("contextmenu",t=>{const s=t.target.closest("tr[data-kind]");if(!s)return;t.preventDefault();const n=s.dataset.kind;n==="clash"&&s._clash?it(e,s._clash,t.clientX,t.clientY):n==="issue"&&s._issue&&ot(e,s._issue,t.clientX,t.clientY)}),r("#pane-photos")?.addEventListener("contextmenu",t=>{const s=t.target.closest('.photo-card[data-kind="photo"]');!s||!s._photo||(t.preventDefault(),ls(e,s._photo,t.clientX,t.clientY))}),r("#pane-issues")?.addEventListener("contextmenu",t=>{const s=t.target.closest('.coord-card[data-kind="issue"]');!s||!s._issue||(t.preventDefault(),ot(e,s._issue,t.clientX,t.clientY))}),r("#pane-clashes")?.addEventListener("contextmenu",t=>{const s=t.target.closest('.coord-card[data-kind="clash"]');!s||!s._clash||(t.preventDefault(),it(e,s._clash,t.clientX,t.clientY))}),document.addEventListener("click",t=>{K&&!t.target.closest(".row-menu")&&(K.classList.remove("open"),K=null)}),document.addEventListener("keydown",t=>{t.key==="Escape"&&K&&(K.classList.remove("open"),K=null)})}function Ne(e,t,s,n){e.innerHTML="",t.forEach(d=>{if(d==="-"){e.appendChild(f("div",{class:"sep"}));return}const u=f("div",{class:"item"+(d.danger?" danger":"")},[f("span",{class:"glyph"},d.glyph||""),f("span",{},d.label),d.hot?f("span",{class:"hot"},d.hot):null]);u.addEventListener("click",()=>{e.classList.remove("open"),K=null;try{d.run()}catch(h){console.warn("[row-menu]",h)}}),e.appendChild(u)});const a=window.innerWidth,o=window.innerHeight,i=220,l=t.length*32;e.style.left=Math.min(s,a-i-8)+"px",e.style.top=Math.min(n,o-l-8)+"px",e.classList.add("open"),K=e}function it(e,t,s,n){const a=t.elementA?.guid,o=t.elementB?.guid;Ne(e,[{glyph:"\u{1F3AF}",label:"Zoom to clash",run:()=>X(t)},{glyph:"\u25CE",label:"Isolate pair",run:()=>je(t)},{glyph:"\u2298",label:"Hide both",run:()=>{p.modelRoot&&(p.modelRoot.traverse(i=>{i.isMesh&&(i.userData.elementGuid===a||i.userData.elementGuid===o)&&(i.visible=!1)}),y("Hid clash pair"))}},{glyph:"\u2299",label:"Show all",run:()=>Se()},"-",{glyph:"\u{1F6A9}",label:"Create issue from clash",run:()=>z({clash:t})},{glyph:"\u2713",label:"Mark resolved",run:()=>{t.status="RESOLVED",ee(),Ee(),y(`${t.id} marked resolved`,"success")}},"-",{glyph:"\u{1F4CB}",label:"Copy clash ID",run:()=>F(t.id)},{glyph:"\u{1F4E4}",label:"Copy element pair",run:()=>F(`${t.elementA?.name||""}  \u2715  ${t.elementB?.name||""}`)}],s,n)}function ot(e,t,s,n){const a=t.status==="RESOLVED"||t.status==="CLOSED";Ne(e,[{glyph:"\u{1F3AF}",label:"Zoom to issue",run:()=>U(t)},{glyph:"\u25CE",label:"Isolate linked elements",run:()=>{if(!p.modelRoot||!Array.isArray(t.elementGuids))return;const o=new Set(t.elementGuids);p.modelRoot.traverse(i=>{i.isMesh&&(i.visible=o.has(i.userData.elementGuid))}),y(`Isolated ${o.size} linked element${o.size===1?"":"s"}`)}},{glyph:"\u2299",label:"Show all",run:()=>Se()},"-",{glyph:"\u{1F4AC}",label:"Open comments",run:()=>{U(t);const o=w(".tab-bar .tab").find(i=>i.dataset.tab==="comments");o&&o.click()}},{glyph:"\u{1F553}",label:"View activity",run:()=>{U(t);const o=w(".tab-bar .tab").find(i=>i.dataset.tab==="activity");o&&o.click()}},"-",...a?[{glyph:"\u21BA",label:"Re-open issue",run:()=>pe(t.id,{status:"OPEN"})}]:[{glyph:"\u25B6",label:"Mark in-progress",run:()=>pe(t.id,{status:"IN_PROGRESS"})},{glyph:"\u2713",label:"Mark resolved",run:()=>pe(t.id,{status:"RESOLVED"})},{glyph:"\u{1F512}",label:"Close issue",run:()=>pe(t.id,{status:"CLOSED"})}],"-",{glyph:"\u{1F4CB}",label:"Copy issue ID",run:()=>F(t.code||t.id)},{glyph:"\u{1F517}",label:"Copy permalink",run:()=>{const o=`${location.origin}${location.pathname}?project=${L}&model=${P}&issue=${t.id}`;F(o)}}],s,n)}function ls(e,t,s,n){const a=Ve(),o=[{glyph:"\u{1F3AF}",label:"Zoom to photo",run:()=>Me(t)}];t.anchorElementGuid&&o.push({glyph:"\u25CE",label:"Zoom to anchored element",run:()=>{const i=V(t.anchorElementGuid);if(i){const l=new E.Box3().setFromObject(i);N(l.getCenter(new E.Vector3)),de(i,16347926)}else y("Anchored element not in current model","warn")}}),o.push("-"),o.push({glyph:"\u270F",label:"Edit caption",run:async()=>{const i=await q({title:"Edit caption",label:"What does this photo show?",placeholder:"e.g. Riser sleeves cast on Level 02",defaultValue:t.caption||"",multiline:!0,minLength:0,maxLength:2e3,okLabel:"Save caption"});if(i!=null)if(t.audience==="PendingReview"){if(i.trim().length<3){y("Caption \u2265 3 chars to approve","warn");return}const l=await Ge(t.id,i.trim());l&&(Object.assign(t,l),B())}else y("Caption editing for non-pending photos lands in slice 5","warn")}}),a&&(o.push("-"),(t.audience==="PendingReview"||t.audience==="Internal")&&o.push({glyph:"\u2713",label:"Approve",run:async()=>{let i=t.caption||"";if(i.trim().length<3&&(i=await q({title:"Approve photo",label:"Approval caption (visible to client)",placeholder:"Describe what the client should see",defaultValue:i,multiline:!0,minLength:3,maxLength:2e3,okLabel:"Approve & publish"})),!i||i.trim().length<3)return;const l=await Ge(t.id,i);l&&(Object.assign(t,l),B())}}),(t.audience==="PendingReview"||t.audience==="Approved")&&o.push({glyph:"\u2717",label:"Reject",run:async()=>{const i=await q({title:"Reject photo",label:"Reason (shown to the capturer)",placeholder:"e.g. off-topic / poor quality / privacy",defaultValue:"",multiline:!0,minLength:0,maxLength:500,okLabel:"Reject"});if(i===null)return;const l=await Fe(t.id,i);l&&(Object.assign(t,l),B())}}),t.audience==="ClientPortal"&&o.push({glyph:"\u21B6",label:"Withdraw from portal",run:async()=>{if(!confirm("Withdraw this photo from the client portal?"))return;const i=await ft(t.id);i&&(Object.assign(t,i),B())}})),o.push("-"),o.push({glyph:"\u{1F4CB}",label:"Copy photo ID",run:()=>F(t.id)}),o.push({glyph:"\u{1F517}",label:"Copy permalink",run:()=>{const i=`${location.origin}${location.pathname}?project=${L}&model=${P}&photo=${t.id}`;F(i)}}),Ne(e,o,s,n)}function cs(){const e=r("#selectionToolbar");e&&(r("#selFit",e)?.addEventListener("click",()=>ke()),r("#selIsolate",e)?.addEventListener("click",()=>Oe()),r("#selHide",e)?.addEventListener("click",()=>_e()),r("#selShowAll",e)?.addEventListener("click",()=>Se()),r("#selGhost",e)?.addEventListener("click",()=>{c.ghostMode=!c.ghostMode,ae(c.ghostMode?"ghost":"shaded")}),r("#selIssue",e)?.addEventListener("click",()=>{const t=[...c.selectedElementGuids],s=c.selectedElementGuid||t[0];z({guid:s,meta:c.elementMap[s]||{},multi:t})}),r("#selClose",e)?.addEventListener("click",()=>W(null)))}async function lt(){if(!L){c.issues=[],D();return}const e=r("#issuesBody");e&&(e.innerHTML='<div class="inline-loader"><span class="dot-spin"></span>Loading issues\u2026</div>');const t=await $(`/api/projects/${L}/issues`);c.issues=Array.isArray(t)?t:t?.items||[],ue(),D(),ie()}function ue(){const e=p.pinGroup||p.scene;c.issuePins.forEach(n=>{e.remove(n),p.pinMeta&&p.pinMeta.delete(n.uuid)}),c.issuePins.clear();const t=p.modelBounds.isEmpty()?.4:p.modelBounds.getSize(new E.Vector3).length()*.008,s={CRITICAL:15680580,HIGH:16347926,MEDIUM:16096779,LOW:6333946,RESOLVED:2278750};c.issues.forEach(n=>{if(!n.position)return;const a=n.status==="RESOLVED"?s.RESOLVED:s[n.priority]||s.MEDIUM,o=new E.Mesh(new E.SphereGeometry(t,18,18),new E.MeshStandardMaterial({color:a,emissive:a,emissiveIntensity:.6,depthTest:!1}));o.position.set(n.position.x,n.position.y,n.position.z),o.userData.issueId=n.id,o.renderOrder=999,e.add(o),p.pinMeta&&p.pinMeta.set(o.uuid,{__coord:"issue",issueId:n.id,priority:n.priority}),c.issuePins.set(n.id,o)})}c.bulkIssueIds=c.bulkIssueIds||new Set,c.bulkLastIssueId=c.bulkLastIssueId||null;function D(){const e=r("#issuesBody");let t=c.issues;const s=c.currentUser?.id||c.currentUser?.userId||"me";c.issuesFilter==="mine"?t=t.filter(a=>a.assigneeId===s||a.assigneeId==="me"):c.issuesFilter==="overdue"&&(t=t.filter(a=>a.slaBreached||a.dueDate&&new Date(a.dueDate)<new Date&&a.status!=="RESOLVED"));const n=new Set(t.map(a=>a.id));for(const a of[...c.bulkIssueIds])n.has(a)||c.bulkIssueIds.delete(a);if(e.innerHTML=t.length?"":'<div class="empty-state">No issues</div>',t.length){const a=f("table",{class:"dtable"});a.innerHTML=`<thead><tr>
+        `;
+        // R5 — the card's CSS sets cursor:pointer; honour that by wiring
+        // the body to focusClash. Buttons stop propagation so they keep
+        // their distinct actions.
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('button')) return;
+          focusClash(c);
+        });
+        // Double-click → zoom + isolate the clashing pair (mirrors bottom-panel dblclick).
+        card.addEventListener('dblclick', (e) => {
+          if (e.target.closest('button')) return;
+          focusClash(c);
+          isolateClashPair(c);
+        });
+        $('button[data-act=view]', card).addEventListener('click', (e) => { e.stopPropagation(); focusClash(c); });
+        $('button[data-act=issue]', card).addEventListener('click', (e) => { e.stopPropagation(); openIssueModal({ clash: c }); });
+        pane.appendChild(card);
+      });
+    }
+
+    function focusClash(c) {
+      state.selectedClashId = c.id;
+      clearAllHighlights();              // L6
+      const pos = clashCentroid(c);
+      if (pos) flyTo(pos);
+      const a = findMeshByGuid(c.elementA?.guid);
+      const b = findMeshByGuid(c.elementB?.guid);
+      if (a) emissive(a, 0xEF4444);
+      if (b) emissive(b, 0x60A5FA);
+      logHistory(`Inspected ${c.id}`);
+    }
+
+    function emissive(mesh, hex) {
+      setReplacement(mesh, new THREE_.MeshStandardMaterial({
+        color: hex, emissive: hex, emissiveIntensity: 0.45
+      }));
+    }
+
+    // L4 — only one flyTo animation may run at a time. Each new fly bumps
+    // the token; the previous animation sees the bump and bails on its
+    // next frame.
+    let flyToken = 0;
+    function flyTo(pos) {
+      const myToken = ++flyToken;
+      const start = V.camera.position.clone();
+      const targetCam = pos.clone().add(new THREE_.Vector3(8, 6, 8));
+      const startTgt = V.controls.target.clone();
+      const t0 = performance.now();
+      const dur = 600;
+      function step() {
+        if (myToken !== flyToken) return;        // superseded
+        const t = Math.min(1, (performance.now() - t0) / dur);
+        const e = 0.5 - 0.5 * Math.cos(t * Math.PI);
+        V.camera.position.lerpVectors(start, targetCam, e);
+        V.controls.target.lerpVectors(startTgt, pos, e);
+        V.controls.update();
+        if (t < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
+    // ── Selection-aware helpers (used by toolbar + multi-select pane) ──
+    // All operate on `state.selectedElementGuids` so behaviour is the same
+    // whether the user grabbed one element by clicking the canvas or 30
+    // by ctrl/shift-clicking through the model tree.
+    function selectedMeshes() {
+      const out = [];
+      state.selectedElementGuids.forEach(g => {
+        const m = findMeshByGuid(g); if (m) out.push(m);
+      });
+      return out;
+    }
+
+    function fitToSelection() {
+      const meshes = selectedMeshes();
+      if (!meshes.length) return toast('Nothing selected', 'warn');
+      const bb = new THREE_.Box3();
+      meshes.forEach(m => bb.expandByObject(m));
+      if (bb.isEmpty()) return;
+      const c = bb.getCenter(new THREE_.Vector3());
+      flyTo(c);
+    }
+
+    function isolateSelection() {
+      if (!V.modelRoot) return;
+      const set = state.selectedElementGuids;
+      if (!set.size) return toast('Nothing selected', 'warn');
+      V.modelRoot.traverse(o => {
+        if (!o.isMesh) return;
+        o.visible = set.has(o.userData.elementGuid);
+      });
+      toast(`Isolated ${set.size} element${set.size === 1 ? '' : 's'}`);
+    }
+
+    function hideSelection() {
+      if (!V.modelRoot) return;
+      const set = state.selectedElementGuids;
+      if (!set.size) return toast('Nothing selected', 'warn');
+      V.modelRoot.traverse(o => {
+        if (!o.isMesh) return;
+        if (set.has(o.userData.elementGuid)) o.visible = false;
+      });
+      toast(`Hid ${set.size} element${set.size === 1 ? '' : 's'}`);
+    }
+
+    function showAllElements() {
+      if (!V.modelRoot) return;
+      V.modelRoot.traverse(o => { if (o.isMesh) o.visible = true; });
+      toast('All elements visible');
+    }
+
+    function renderSelectionToolbar() {
+      const tb = $('#selectionToolbar');
+      if (!tb) return;
+      const n = state.selectedElementGuids.size;
+      if (!n) { tb.style.display = 'none'; return; }
+      tb.style.display = 'flex';
+      const cnt = $('#selCount');
+      if (cnt) cnt.textContent = `${n} selected`;
+    }
+
+    // Isolate just the two meshes involved in a clash (used by dblclick
+    // on a clash row). Falls back to plain focus when meshes can't be
+    // resolved (e.g. element-map response missed them).
+    function isolateClashPair(c) {
+      if (!V.modelRoot) return;
+      const aGuid = c.elementA?.guid;
+      const bGuid = c.elementB?.guid;
+      const set = new Set([aGuid, bGuid].filter(Boolean));
+      if (!set.size) return;
+      V.modelRoot.traverse(o => {
+        if (!o.isMesh) return;
+        o.visible = set.has(o.userData.elementGuid);
+      });
+      toast(`Isolated clash pair (${set.size})`);
+    }
+
+    // ── Right-click + double-click context menu for clash + issue rows ──
+    // Industry references: BIMcollab Zoom + Solibri Office both expose a
+    // right-click "Zoom · Isolate · Hide · Mark resolved · Copy ID" menu
+    // on coordination rows. We use the same mental model so coordinators
+    // moving from those tools find it without training.
+    let activeRowMenu = null;
+    function setupRowContextMenu() {
+      // Re-usable popover element — kept around at the document root so
+      // it's not affected by the panel's own resize / scroll containers.
+      const menu = el('div', { class: 'row-menu', id: 'rowMenu' });
+      document.body.appendChild(menu);
+
+      // Delegate so dynamically-rendered rows (re-render on filter change)
+      // don't need their own listeners.
+      $('#bottomPanel')?.addEventListener('contextmenu', (e) => {
+        const tr = e.target.closest('tr[data-kind]');
+        if (!tr) return;
+        e.preventDefault();
+        const kind = tr.dataset.kind;
+        if (kind === 'clash' && tr._clash) openClashRowMenu(menu, tr._clash, e.clientX, e.clientY);
+        else if (kind === 'issue' && tr._issue) openIssueRowMenu(menu, tr._issue, e.clientX, e.clientY);
+      });
+      // Slice 4b — photo cards live in the right rail, not the bottom panel.
+      // Mirror the row-menu behaviour for `.photo-card[data-kind=photo]`.
+      $('#pane-photos')?.addEventListener('contextmenu', (e) => {
+        const card = e.target.closest('.photo-card[data-kind="photo"]');
+        if (!card || !card._photo) return;
+        e.preventDefault();
+        openPhotoRowMenu(menu, card._photo, e.clientX, e.clientY);
+      });
+      // Right-panel issue cards — same menu as bottom-panel rows.
+      $('#pane-issues')?.addEventListener('contextmenu', (e) => {
+        const card = e.target.closest('.coord-card[data-kind="issue"]');
+        if (!card || !card._issue) return;
+        e.preventDefault();
+        openIssueRowMenu(menu, card._issue, e.clientX, e.clientY);
+      });
+      // Right-panel clash cards — same menu as bottom-panel rows.
+      $('#pane-clashes')?.addEventListener('contextmenu', (e) => {
+        const card = e.target.closest('.coord-card[data-kind="clash"]');
+        if (!card || !card._clash) return;
+        e.preventDefault();
+        openClashRowMenu(menu, card._clash, e.clientX, e.clientY);
+      });
+      // Click anywhere else to dismiss.
+      document.addEventListener('click', (e) => {
+        if (activeRowMenu && !e.target.closest('.row-menu')) {
+          activeRowMenu.classList.remove('open');
+          activeRowMenu = null;
+        }
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && activeRowMenu) {
+          activeRowMenu.classList.remove('open');
+          activeRowMenu = null;
+        }
+      });
+    }
+
+    function showRowMenuAt(menu, items, x, y) {
+      menu.innerHTML = '';
+      items.forEach(it => {
+        if (it === '-') {
+          menu.appendChild(el('div', { class: 'sep' }));
+          return;
+        }
+        const row = el('div', { class: 'item' + (it.danger ? ' danger' : '') }, [
+          el('span', { class: 'glyph' }, it.glyph || ''),
+          el('span', {}, it.label),
+          it.hot ? el('span', { class: 'hot' }, it.hot) : null
+        ]);
+        row.addEventListener('click', () => {
+          menu.classList.remove('open');
+          activeRowMenu = null;
+          try { it.run(); } catch (err) { console.warn('[row-menu]', err); }
+        });
+        menu.appendChild(row);
+      });
+      // Position with a viewport-edge guard so the menu never clips off-screen.
+      const W = window.innerWidth, H = window.innerHeight;
+      const w = 220, h = items.length * 32;
+      menu.style.left = Math.min(x, W - w - 8) + 'px';
+      menu.style.top  = Math.min(y, H - h - 8) + 'px';
+      menu.classList.add('open');
+      activeRowMenu = menu;
+    }
+
+    function openClashRowMenu(menu, c, x, y) {
+      const aGuid = c.elementA?.guid, bGuid = c.elementB?.guid;
+      showRowMenuAt(menu, [
+        { glyph: '🎯', label: 'Zoom to clash',     run: () => focusClash(c) },
+        { glyph: '◎',  label: 'Isolate pair',      run: () => isolateClashPair(c) },
+        { glyph: '⊘',  label: 'Hide both',         run: () => {
+            if (!V.modelRoot) return;
+            V.modelRoot.traverse(o => { if (o.isMesh && (o.userData.elementGuid === aGuid || o.userData.elementGuid === bGuid)) o.visible = false; });
+            toast('Hid clash pair');
+        }},
+        { glyph: '⊙',  label: 'Show all',          run: () => showAllElements() },
+        '-',
+        { glyph: '🚩', label: 'Create issue from clash', run: () => openIssueModal({ clash: c }) },
+        { glyph: '✓',  label: 'Mark resolved',     run: () => {
+            c.status = 'RESOLVED';
+            renderClashes(); placeClashPins();
+            toast(`${c.id} marked resolved`, 'success');
+        }},
+        '-',
+        { glyph: '📋', label: 'Copy clash ID',     run: () => copyText(c.id) },
+        { glyph: '📤', label: 'Copy element pair', run: () => copyText(`${c.elementA?.name || ''}  ✕  ${c.elementB?.name || ''}`) },
+      ], x, y);
+    }
+
+    function openIssueRowMenu(menu, i, x, y) {
+      const isResolved = i.status === 'RESOLVED' || i.status === 'CLOSED';
+      showRowMenuAt(menu, [
+        { glyph: '🎯', label: 'Zoom to issue',         run: () => focusIssue(i) },
+        { glyph: '◎',  label: 'Isolate linked elements', run: () => {
+            if (!V.modelRoot || !Array.isArray(i.elementGuids)) return;
+            const set = new Set(i.elementGuids);
+            V.modelRoot.traverse(o => {
+              if (!o.isMesh) return;
+              o.visible = set.has(o.userData.elementGuid);
+            });
+            toast(`Isolated ${set.size} linked element${set.size === 1 ? '' : 's'}`);
+        }},
+        { glyph: '⊙',  label: 'Show all',              run: () => showAllElements() },
+        '-',
+        { glyph: '💬', label: 'Open comments',         run: () => {
+            focusIssue(i);
+            const tab = $$('.tab-bar .tab').find(t => t.dataset.tab === 'comments');
+            if (tab) tab.click();
+        }},
+        { glyph: '🕓', label: 'View activity',         run: () => {
+            focusIssue(i);
+            const tab = $$('.tab-bar .tab').find(t => t.dataset.tab === 'activity');
+            if (tab) tab.click();
+        }},
+        '-',
+        ...(isResolved ? [
+          { glyph: '↺', label: 'Re-open issue',        run: () => updateIssue(i.id, { status: 'OPEN' }) },
+        ] : [
+          { glyph: '▶', label: 'Mark in-progress',     run: () => updateIssue(i.id, { status: 'IN_PROGRESS' }) },
+          { glyph: '✓', label: 'Mark resolved',        run: () => updateIssue(i.id, { status: 'RESOLVED' }) },
+          { glyph: '🔒', label: 'Close issue',          run: () => updateIssue(i.id, { status: 'CLOSED' }) },
+        ]),
+        '-',
+        { glyph: '📋', label: 'Copy issue ID',         run: () => copyText(i.code || i.id) },
+        { glyph: '🔗', label: 'Copy permalink',         run: () => {
+            const url = `${location.origin}${location.pathname}?project=${projectId}&model=${modelId}&issue=${i.id}`;
+            copyText(url);
+        }},
+      ], x, y);
+    }
+
+    function openPhotoRowMenu(menu, p, x, y) {
+      const reviewer = isPhotoApprover();
+      const items = [
+        { glyph: '🎯', label: 'Zoom to photo', run: () => focusPhoto(p) },
+      ];
+      if (p.anchorElementGuid) {
+        items.push({ glyph: '◎', label: 'Zoom to anchored element', run: () => {
+          const m = findMeshByGuid(p.anchorElementGuid);
+          if (m) {
+            const bb = new THREE_.Box3().setFromObject(m);
+            flyTo(bb.getCenter(new THREE_.Vector3()));
+            emissive(m, 0xF97316);
+          } else {
+            toast('Anchored element not in current model', 'warn');
+          }
+        }});
+      }
+      items.push('-');
+      items.push({ glyph: '✏', label: 'Edit caption', run: async () => {
+        const cap = await promptInline({
+          title: 'Edit caption',
+          label: 'What does this photo show?',
+          placeholder: 'e.g. Riser sleeves cast on Level 02',
+          defaultValue: p.caption || '',
+          multiline: true, minLength: 0, maxLength: 2000,
+          okLabel: 'Save caption',
+        });
+        if (cap == null) return;
+        // No dedicated patch endpoint yet; an approve(caption) on a
+        // PendingReview photo doubles as caption-set. For other audiences
+        // we surface a notice — the canonical edit path lives on the
+        // server slice 4a (not yet wired into this viewer slice).
+        if (p.audience === 'PendingReview') {
+          if (cap.trim().length < 3) { toast('Caption ≥ 3 chars to approve', 'warn'); return; }
+          const r = await approveSitePhoto(p.id, cap.trim());
+          if (r) { Object.assign(p, r); renderPhotos(); }
+        } else {
+          toast('Caption editing for non-pending photos lands in slice 5', 'warn');
+        }
+      }});
+      if (reviewer) {
+        items.push('-');
+        if (p.audience === 'PendingReview' || p.audience === 'Internal') {
+          items.push({ glyph: '✓', label: 'Approve', run: async () => {
+            let cap = p.caption || '';
+            if (cap.trim().length < 3) {
+              cap = await promptInline({
+                title: 'Approve photo',
+                label: 'Approval caption (visible to client)',
+                placeholder: 'Describe what the client should see',
+                defaultValue: cap,
+                multiline: true, minLength: 3, maxLength: 2000,
+                okLabel: 'Approve & publish',
+              });
+            }
+            if (!cap || cap.trim().length < 3) return;
+            const r = await approveSitePhoto(p.id, cap);
+            if (r) { Object.assign(p, r); renderPhotos(); }
+          }});
+        }
+        if (p.audience === 'PendingReview' || p.audience === 'Approved') {
+          items.push({ glyph: '✗', label: 'Reject', run: async () => {
+            const reason = await promptInline({
+              title: 'Reject photo',
+              label: 'Reason (shown to the capturer)',
+              placeholder: 'e.g. off-topic / poor quality / privacy',
+              defaultValue: '',
+              multiline: true, minLength: 0, maxLength: 500,
+              okLabel: 'Reject',
+            });
+            if (reason === null) return;
+            const r = await rejectSitePhoto(p.id, reason);
+            if (r) { Object.assign(p, r); renderPhotos(); }
+          }});
+        }
+        if (p.audience === 'ClientPortal') {
+          items.push({ glyph: '↶', label: 'Withdraw from portal', run: async () => {
+            if (!confirm('Withdraw this photo from the client portal?')) return;
+            const r = await withdrawSitePhoto(p.id);
+            if (r) { Object.assign(p, r); renderPhotos(); }
+          }});
+        }
+      }
+      items.push('-');
+      items.push({ glyph: '📋', label: 'Copy photo ID', run: () => copyText(p.id) });
+      items.push({ glyph: '🔗', label: 'Copy permalink', run: () => {
+        const url = `${location.origin}${location.pathname}?project=${projectId}&model=${modelId}&photo=${p.id}`;
+        copyText(url);
+      }});
+      showRowMenuAt(menu, items, x, y);
+    }
+
+    function setupSelectionToolbar() {
+      const tb = $('#selectionToolbar');
+      if (!tb) return;
+      $('#selFit', tb)?.addEventListener('click', () => fitToSelection());
+      $('#selIsolate', tb)?.addEventListener('click', () => isolateSelection());
+      $('#selHide', tb)?.addEventListener('click', () => hideSelection());
+      $('#selShowAll', tb)?.addEventListener('click', () => showAllElements());
+      $('#selGhost', tb)?.addEventListener('click', () => {
+        state.ghostMode = !state.ghostMode;
+        setRenderMode(state.ghostMode ? 'ghost' : 'shaded');
+      });
+      $('#selIssue', tb)?.addEventListener('click', () => {
+        const guids = [...state.selectedElementGuids];
+        const primary = state.selectedElementGuid || guids[0];
+        openIssueModal({
+          guid: primary,
+          meta: state.elementMap[primary] || {},
+          multi: guids
+        });
+      });
+      $('#selClose', tb)?.addEventListener('click', () => selectElementByGuid(null));
+    }
+
+    // ── Issues ─────────────────────────────────────────────────────────
+    async function loadIssues() {
+      if (!projectId) { state.issues = []; renderIssues(); return; }
+      // U4 — show inline loader while the request is in flight.
+      const body = $('#issuesBody');
+      if (body) body.innerHTML = '<div class="inline-loader"><span class="dot-spin"></span>Loading issues…</div>';
+      const data = await api(`/api/projects/${projectId}/issues`);
+      state.issues = Array.isArray(data) ? data : (data?.items || []);
+      placeIssuePins();
+      renderIssues();
+      updateBadges();
+    }
+
+    function placeIssuePins() {
+      // R13 — same pinGroup + pinMeta path as placeClashPins.
+      const host = V.pinGroup || V.scene;
+      state.issuePins.forEach(m => {
+        host.remove(m);
+        if (V.pinMeta) V.pinMeta.delete(m.uuid);
+      });
+      state.issuePins.clear();
+      const size = V.modelBounds.isEmpty() ? 0.4 : V.modelBounds.getSize(new THREE_.Vector3()).length() * 0.008;
+      const PRIORITY = { CRITICAL: 0xEF4444, HIGH: 0xF97316, MEDIUM: 0xF59E0B, LOW: 0x60A5FA, RESOLVED: 0x22C55E };
+      state.issues.forEach(i => {
+        if (!i.position) return;
+        const colour = i.status === 'RESOLVED' ? PRIORITY.RESOLVED : (PRIORITY[i.priority] || PRIORITY.MEDIUM);
+        const sphere = new THREE_.Mesh(
+          new THREE_.SphereGeometry(size, 18, 18),
+          new THREE_.MeshStandardMaterial({ color: colour, emissive: colour, emissiveIntensity: 0.6, depthTest: false })
+        );
+        sphere.position.set(i.position.x, i.position.y, i.position.z);
+        sphere.userData.issueId = i.id;
+        sphere.renderOrder = 999;
+        host.add(sphere);
+        if (V.pinMeta) V.pinMeta.set(sphere.uuid, { __coord: 'issue', issueId: i.id, priority: i.priority });
+        state.issuePins.set(i.id, sphere);
+      });
+    }
+
+    // T3-18 — Bulk multi-selection set for the issues grid. Mirrors the
+    // 3D viewer's selectedElementGuids set: ctrl/cmd-click toggles, shift-
+    // click extends a contiguous range, plain click clears + selects one.
+    // Lives outside renderIssues so the set survives re-renders triggered
+    // by filter changes; we prune ids that no longer exist on each render.
+    state.bulkIssueIds = state.bulkIssueIds || new Set();
+    state.bulkLastIssueId = state.bulkLastIssueId || null;
+
+    function renderIssues() {
+      const body = $('#issuesBody');
+      let rows = state.issues;
+      // L2 — match against the real signed-in user id, with 'me' as fallback
+      // for offline / pre-auth state so the placeholder demo data still works.
+      const myId = state.currentUser?.id || state.currentUser?.userId || 'me';
+      if (state.issuesFilter === 'mine') rows = rows.filter(i => i.assigneeId === myId || i.assigneeId === 'me');
+      else if (state.issuesFilter === 'overdue') rows = rows.filter(i => i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED'));
+
+      // Prune stale ids before re-rendering — happens when an issue is
+      // resolved+filtered out under "Mine" / "Overdue" but the bulk set
+      // still references it.
+      const visibleIds = new Set(rows.map(r => r.id));
+      for (const id of [...state.bulkIssueIds]) if (!visibleIds.has(id)) state.bulkIssueIds.delete(id);
+
+      body.innerHTML = rows.length ? '' : '<div class="empty-state">No issues</div>';
+      if (rows.length) {
+        const table = el('table', { class: 'dtable' });
+        table.innerHTML = `<thead><tr>
           <th style="width:24px"><input type="checkbox" class="bulk-check" id="bulkCheckAll" title="Select all visible"></th>
           <th>ID</th><th>Title</th><th>Priority</th><th>Assignee</th>
           <th>Due</th><th>Status</th><th>SLA</th>
-        </tr></thead><tbody></tbody>`;const o=r("tbody",a);t.forEach(l=>{const d=f("tr",{"data-id":l.id,"data-kind":"issue"});d._issue=l;const u=l.priority||"MEDIUM",h=l.slaBreached||l.dueDate&&new Date(l.dueDate)<new Date&&l.status!=="RESOLVED",m=c.bulkIssueIds.has(l.id)?"checked":"";m&&d.classList.add("row-selected"),d.innerHTML=`
-            <td><input type="checkbox" class="bulk-check" data-row-check="${l.id}" ${m}></td>
-            <td>${g(l.code||l.id?.slice(0,8))}</td>
-            <td>${g(l.title||"")}</td>
-            <td><span class="tag ${u}">${u}</span></td>
-            <td>${g(l.assigneeName||"\u2014")}</td>
-            <td>${l.dueDate?new Date(l.dueDate).toLocaleDateString():"\u2014"}</td>
-            <td><span class="tag ${(l.status||"NEW").toLowerCase()}">${l.status||"NEW"}</span></td>
-            <td>${h?'<span class="tag overdue">OVERDUE</span>':"\u2014"}</td>
-          `;const b=d.querySelector("input.bulk-check[data-row-check]");b.addEventListener("click",k=>{k.stopPropagation(),k.shiftKey&&c.bulkLastIssueId?rt(t,c.bulkLastIssueId,l.id,!0):ct(l.id,b.checked),c.bulkLastIssueId=l.id,He(),d.classList.toggle("row-selected",c.bulkIssueIds.has(l.id))}),d.addEventListener("click",k=>{if(!k.target.closest("input.bulk-check")){if(k.metaKey||k.ctrlKey){ct(l.id,!c.bulkIssueIds.has(l.id)),c.bulkLastIssueId=l.id,D();return}if(k.shiftKey&&c.bulkLastIssueId){rt(t,c.bulkLastIssueId,l.id,!0),c.bulkLastIssueId=l.id,D();return}U(l)}}),d.addEventListener("dblclick",()=>{U(l);const k=w(".tab-bar .tab").find(v=>v.dataset.tab==="comments");k&&k.click()}),o.appendChild(d)}),e.appendChild(a);const i=r("#bulkCheckAll",e);i&&(i.checked=t.every(l=>c.bulkIssueIds.has(l.id))&&t.length>0,i.addEventListener("change",()=>{i.checked?t.forEach(l=>c.bulkIssueIds.add(l.id)):t.forEach(l=>c.bulkIssueIds.delete(l.id)),D()})),He()}else He();r("#issuesTotal").textContent=c.issues.length,r("#issuesMine").textContent=c.issues.filter(a=>a.assigneeId===s||a.assigneeId==="me").length,r("#issuesOverdue").textContent=c.issues.filter(a=>a.slaBreached||a.dueDate&&new Date(a.dueDate)<new Date&&a.status!=="RESOLVED").length,dt(),G()}function ct(e,t){t?c.bulkIssueIds.add(e):c.bulkIssueIds.delete(e)}function rt(e,t,s,n){const a=e.map(u=>u.id),o=a.indexOf(t),i=a.indexOf(s);if(o<0||i<0){c.bulkIssueIds.add(s);return}const l=Math.min(o,i),d=Math.max(o,i);n||c.bulkIssueIds.clear();for(let u=l;u<=d;u++)c.bulkIssueIds.add(a[u])}function He(){const e=r("#issuesBody");if(!e)return;let t=e.querySelector(".bulk-footer");const s=c.bulkIssueIds.size;if(s===0){t&&t.remove();return}t||(t=f("div",{class:"bulk-footer"}),e.appendChild(t)),t.innerHTML="",t.appendChild(f("span",{class:"count"},`${s} selected`)),t.appendChild(f("span",{class:"grow"}));const n=f("button",{class:"btn sm subtle"},"Reassign");n.addEventListener("click",()=>ds());const a=f("button",{class:"btn sm"},"Bulk Resolve");a.addEventListener("click",()=>rs());const o=f("button",{class:"btn sm subtle"},"Export CSV");o.addEventListener("click",()=>us());const i=f("button",{class:"btn sm subtle"},"Clear");i.addEventListener("click",()=>{c.bulkIssueIds.clear(),D()}),t.appendChild(n),t.appendChild(a),t.appendChild(o),t.appendChild(i)}async function rs(){const e=[...c.bulkIssueIds];if(!e.length||!confirm(`Mark ${e.length} issue${e.length===1?"":"s"} as RESOLVED?`))return;const t=10;let s=0,n=0;for(let a=0;a<e.length;a+=t){const o=e.slice(a,a+t);await Promise.all(o.map(async i=>{try{await $(`/api/projects/${L}/issues/${i}`,{method:"PUT",body:JSON.stringify({status:"RESOLVED"})});const l=c.issues.findIndex(d=>d.id===i);l>=0&&(c.issues[l].status="RESOLVED"),s++}catch{n++}}))}c.bulkIssueIds.clear(),D(),ue?.(),ie?.(),y(`Resolved ${s}${n?` \xB7 ${n} failed`:""}`,n?"warn":"success")}async function ds(){const e=[...c.bulkIssueIds];if(!e.length)return;const t=prompt(`Reassign ${e.length} issue(s) to (display name or email):`);if(!t)return;const s=10;let n=0,a=0;for(let o=0;o<e.length;o+=s){const i=e.slice(o,o+s);await Promise.all(i.map(async l=>{try{await $(`/api/projects/${L}/issues/${l}`,{method:"PUT",body:JSON.stringify({assignee:t})});const d=c.issues.findIndex(u=>u.id===l);d>=0&&(c.issues[d].assigneeName=t),n++}catch{a++}}))}c.bulkIssueIds.clear(),D(),y(`Reassigned ${n}${a?` \xB7 ${a} failed`:""}`,a?"warn":"success")}function us(){const e=[...c.bulkIssueIds],t=c.issues.filter(l=>e.includes(l.id));if(!t.length)return;const s=["code","title","priority","status","assigneeName","dueDate","createdAt"],n=[s.join(",")].concat(t.map(l=>s.map(d=>ps(l[d])).join(","))).join(`
-`),a=new Blob([n],{type:"text/csv"}),o=URL.createObjectURL(a);f("a",{href:o,download:`issues-${new Date().toISOString().slice(0,10)}.csv`}).click(),setTimeout(()=>URL.revokeObjectURL(o),5e3)}function ps(e){if(e==null)return"";const t=String(e).replace(/"/g,'""');return/[",\n]/.test(t)?`"${t}"`:t}function dt(){const e=r("#pane-issues"),t=c.selectedElementGuid,s=t?c.issues.filter(n=>Array.isArray(n.elementGuids)&&n.elementGuids.includes(t)):c.issues.slice(0,12);if(!s.length){e.innerHTML='<div class="empty-state"><span class="glyph">\u{1F6A9}</span>No issues</div>';return}e.innerHTML="",e.appendChild(f("div",{class:"prop-section-label"},t?`Linked issues (${s.length})`:"Recent issues")),s.forEach(n=>{const a=n.slaBreached||n.dueDate&&new Date(n.dueDate)<new Date&&n.status!=="RESOLVED",o=f("div",{class:`coord-card priority-${n.priority||"MEDIUM"} ${n.status==="RESOLVED"?"resolved":""}`,"data-kind":"issue",title:"Click to zoom \xB7 Double-click to open comments \xB7 Right-click for options"});o._issue=n,o.innerHTML=`
+        </tr></thead><tbody></tbody>`;
+        const tbody = $('tbody', table);
+        rows.forEach(i => {
+          const tr = el('tr', { 'data-id': i.id, 'data-kind': 'issue' });
+          tr._issue = i;       // setupRowContextMenu reads this
+          const priority = i.priority || 'MEDIUM';
+          const overdue = i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED');
+          const checked = state.bulkIssueIds.has(i.id) ? 'checked' : '';
+          if (checked) tr.classList.add('row-selected');
+          tr.innerHTML = `
+            <td><input type="checkbox" class="bulk-check" data-row-check="${i.id}" ${checked}></td>
+            <td>${escapeHtml(i.code || i.id?.slice(0, 8))}</td>
+            <td>${escapeHtml(i.title || '')}</td>
+            <td><span class="tag ${priority}">${priority}</span></td>
+            <td>${escapeHtml(i.assigneeName || '—')}</td>
+            <td>${i.dueDate ? new Date(i.dueDate).toLocaleDateString() : '—'}</td>
+            <td><span class="tag ${(i.status || 'NEW').toLowerCase()}">${i.status || 'NEW'}</span></td>
+            <td>${overdue ? '<span class="tag overdue">OVERDUE</span>' : '—'}</td>
+          `;
+
+          // Checkbox cell — toggle without bubbling to focusIssue. Shift-
+          // click on the checkbox extends the range from bulkLastIssueId.
+          const cb = tr.querySelector('input.bulk-check[data-row-check]');
+          cb.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            if (ev.shiftKey && state.bulkLastIssueId) toggleIssueRange(rows, state.bulkLastIssueId, i.id, true);
+            else toggleIssueBulk(i.id, cb.checked);
+            state.bulkLastIssueId = i.id;
+            renderBulkFooter();
+            // Reflect row selection class without a full re-render.
+            tr.classList.toggle('row-selected', state.bulkIssueIds.has(i.id));
+          });
+
+          tr.addEventListener('click', (e) => {
+            // T3-18 — replicate the viewer's multi-select gesture set on
+            // the row body itself so power users don't have to aim at the
+            // 14-pixel checkbox.
+            if (e.target.closest('input.bulk-check')) return;
+            if (e.metaKey || e.ctrlKey) {
+              toggleIssueBulk(i.id, !state.bulkIssueIds.has(i.id));
+              state.bulkLastIssueId = i.id;
+              renderIssues();
+              return;
+            }
+            if (e.shiftKey && state.bulkLastIssueId) {
+              toggleIssueRange(rows, state.bulkLastIssueId, i.id, true);
+              state.bulkLastIssueId = i.id;
+              renderIssues();
+              return;
+            }
+            focusIssue(i);
+          });
+          tr.addEventListener('dblclick', () => {
+            focusIssue(i);
+            // Also pop the right-rail comments tab so the user can
+            // start replying immediately.
+            const tab = $$('.tab-bar .tab').find(t => t.dataset.tab === 'comments');
+            if (tab) tab.click();
+          });
+          tbody.appendChild(tr);
+        });
+        body.appendChild(table);
+
+        // Header checkbox — toggles every visible row in/out of the set.
+        const headerCb = $('#bulkCheckAll', body);
+        if (headerCb) {
+          headerCb.checked = rows.every(r => state.bulkIssueIds.has(r.id)) && rows.length > 0;
+          headerCb.addEventListener('change', () => {
+            if (headerCb.checked) rows.forEach(r => state.bulkIssueIds.add(r.id));
+            else rows.forEach(r => state.bulkIssueIds.delete(r.id));
+            renderIssues();
+          });
+        }
+
+        renderBulkFooter();
+      } else {
+        // No rows; ensure footer is wiped.
+        renderBulkFooter();
+      }
+      $('#issuesTotal').textContent = state.issues.length;
+      // R1 — match the same myId logic the filter uses, otherwise the
+      // "Mine" badge always shows 0 in production where assigneeId is a
+      // real UUID, never the placeholder "me".
+      $('#issuesMine').textContent = state.issues.filter(i => i.assigneeId === myId || i.assigneeId === 'me').length;
+      $('#issuesOverdue').textContent = state.issues.filter(i => i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED')).length;
+      renderRightIssues();
+      updateRightTabCounts();
+    }
+
+    // T3-18 — toggle a single id in/out of the bulk set.
+    function toggleIssueBulk(id, on) {
+      if (on) state.bulkIssueIds.add(id); else state.bulkIssueIds.delete(id);
+    }
+    // Range-select between two visible row ids, mirroring the viewer's
+    // shift-click extend behaviour. `add` controls add-or-replace.
+    function toggleIssueRange(rows, fromId, toId, add) {
+      const ids = rows.map(r => r.id);
+      const a = ids.indexOf(fromId), b = ids.indexOf(toId);
+      if (a < 0 || b < 0) { state.bulkIssueIds.add(toId); return; }
+      const lo = Math.min(a, b), hi = Math.max(a, b);
+      if (!add) state.bulkIssueIds.clear();
+      for (let k = lo; k <= hi; k++) state.bulkIssueIds.add(ids[k]);
+    }
+    /** Sticky bulk footer with N selected · Reassign · Bulk Resolve · Export CSV. */
+    function renderBulkFooter() {
+      const host = $('#issuesBody'); if (!host) return;
+      let footer = host.querySelector('.bulk-footer');
+      const n = state.bulkIssueIds.size;
+      if (n === 0) { if (footer) footer.remove(); return; }
+      if (!footer) {
+        footer = el('div', { class: 'bulk-footer' });
+        host.appendChild(footer);
+      }
+      footer.innerHTML = '';
+      footer.appendChild(el('span', { class: 'count' }, `${n} selected`));
+      footer.appendChild(el('span', { class: 'grow' }));
+      const btnReassign = el('button', { class: 'btn sm subtle' }, 'Reassign');
+      btnReassign.addEventListener('click', () => bulkReassign());
+      const btnResolve  = el('button', { class: 'btn sm' }, 'Bulk Resolve');
+      btnResolve.addEventListener('click', () => bulkResolve());
+      const btnExport   = el('button', { class: 'btn sm subtle' }, 'Export CSV');
+      btnExport.addEventListener('click', () => bulkExportCsv());
+      const btnClear    = el('button', { class: 'btn sm subtle' }, 'Clear');
+      btnClear.addEventListener('click', () => { state.bulkIssueIds.clear(); renderIssues(); });
+      footer.appendChild(btnReassign);
+      footer.appendChild(btnResolve);
+      footer.appendChild(btnExport);
+      footer.appendChild(btnClear);
+    }
+    /** T3-18 — bulk resolve. Calls updateIssue per row but caps concurrency
+     *  at 10 to spare the server's audit-log writers (each PUT triggers a
+     *  SignalR broadcast and an AuditLog INSERT). */
+    async function bulkResolve() {
+      const ids = [...state.bulkIssueIds];
+      if (!ids.length) return;
+      if (!confirm(`Mark ${ids.length} issue${ids.length === 1 ? '' : 's'} as RESOLVED?`)) return;
+      const CAP = 10;
+      let done = 0, failed = 0;
+      for (let i = 0; i < ids.length; i += CAP) {
+        const chunk = ids.slice(i, i + CAP);
+        await Promise.all(chunk.map(async (id) => {
+          try {
+            await api(`/api/projects/${projectId}/issues/${id}`, {
+              method: 'PUT', body: JSON.stringify({ status: 'RESOLVED' })
+            });
+            const idx = state.issues.findIndex(x => x.id === id);
+            if (idx >= 0) state.issues[idx].status = 'RESOLVED';
+            done++;
+          } catch (_) { failed++; }
+        }));
+      }
+      state.bulkIssueIds.clear();
+      renderIssues(); placeIssuePins?.(); updateBadges?.();
+      toast(`Resolved ${done}${failed ? ` · ${failed} failed` : ''}`, failed ? 'warn' : 'success');
+    }
+    async function bulkReassign() {
+      const ids = [...state.bulkIssueIds];
+      if (!ids.length) return;
+      const who = prompt(`Reassign ${ids.length} issue(s) to (display name or email):`);
+      if (!who) return;
+      const CAP = 10;
+      let done = 0, failed = 0;
+      for (let i = 0; i < ids.length; i += CAP) {
+        const chunk = ids.slice(i, i + CAP);
+        await Promise.all(chunk.map(async (id) => {
+          try {
+            await api(`/api/projects/${projectId}/issues/${id}`, {
+              method: 'PUT', body: JSON.stringify({ assignee: who })
+            });
+            const idx = state.issues.findIndex(x => x.id === id);
+            if (idx >= 0) state.issues[idx].assigneeName = who;
+            done++;
+          } catch (_) { failed++; }
+        }));
+      }
+      state.bulkIssueIds.clear();
+      renderIssues();
+      toast(`Reassigned ${done}${failed ? ` · ${failed} failed` : ''}`, failed ? 'warn' : 'success');
+    }
+    function bulkExportCsv() {
+      const ids = [...state.bulkIssueIds];
+      const rows = state.issues.filter(i => ids.includes(i.id));
+      if (!rows.length) return;
+      const cols = ['code', 'title', 'priority', 'status', 'assigneeName', 'dueDate', 'createdAt'];
+      const csv  = [cols.join(',')].concat(rows.map(r => cols.map(c => csvCell(r[c])).join(','))).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url  = URL.createObjectURL(blob);
+      const a    = el('a', { href: url, download: `issues-${new Date().toISOString().slice(0, 10)}.csv` });
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+    function csvCell(v) {
+      if (v == null) return '';
+      const s = String(v).replace(/"/g, '""');
+      return /[",\n]/.test(s) ? `"${s}"` : s;
+    }
+
+    function renderRightIssues() {
+      const pane = $('#pane-issues');
+      const guid = state.selectedElementGuid;
+      const subset = guid
+        ? state.issues.filter(i => Array.isArray(i.elementGuids) && i.elementGuids.includes(guid))
+        : state.issues.slice(0, 12);
+      if (!subset.length) {
+        pane.innerHTML = '<div class="empty-state"><span class="glyph">🚩</span>No issues</div>';
+        return;
+      }
+      pane.innerHTML = '';
+      pane.appendChild(el('div', { class: 'prop-section-label' }, guid ? `Linked issues (${subset.length})` : 'Recent issues'));
+      subset.forEach(i => {
+        const overdue = i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED');
+        const card = el('div', {
+          class: `coord-card priority-${i.priority || 'MEDIUM'} ${i.status === 'RESOLVED' ? 'resolved' : ''}`,
+          'data-kind': 'issue',
+          title: 'Click to zoom · Double-click to open comments · Right-click for options',
+        });
+        card._issue = i;   // delegated context menu in setupRowContextMenu reads this
+        card.innerHTML = `
           <div class="head">
-            <span class="tag ${(n.status||"NEW").toLowerCase()}">${n.status||"NEW"}</span>
-            <span class="tag ${n.priority||"MEDIUM"}">${n.priority||"MED"}</span>
-            <span style="margin-left:auto;color:var(--text-muted);font-size:11px">${g(n.code||"")}</span>
+            <span class="tag ${(i.status || 'NEW').toLowerCase()}">${i.status || 'NEW'}</span>
+            <span class="tag ${i.priority || 'MEDIUM'}">${i.priority || 'MED'}</span>
+            <span style="margin-left:auto;color:var(--text-muted);font-size:11px">${escapeHtml(i.code || '')}</span>
           </div>
-          <div class="body">${g(n.title||"Untitled")}</div>
-          <div class="meta">Assigned: ${g(n.assigneeName||"\u2014")}${n.dueDate?" \xB7 Due "+new Date(n.dueDate).toLocaleDateString():""}${a?" \xB7 OVERDUE":""}</div>
-          ${n.description?`<div class="meta" style="margin-top:6px">${g(String(n.description).slice(0,200))}</div>`:""}
+          <div class="body">${escapeHtml(i.title || 'Untitled')}</div>
+          <div class="meta">Assigned: ${escapeHtml(i.assigneeName || '—')}${i.dueDate ? ' · Due ' + new Date(i.dueDate).toLocaleDateString() : ''}${overdue ? ' · OVERDUE' : ''}</div>
+          ${i.description ? `<div class="meta" style="margin-top:6px">${escapeHtml(String(i.description).slice(0, 200))}</div>` : ''}
           <div class="actions">
             <button class="btn sm subtle" data-act="view">View</button>
-            ${n.status!=="RESOLVED"?'<button class="btn sm" data-act="resolve">Resolve</button>':""}
+            ${i.status !== 'RESOLVED' ? '<button class="btn sm" data-act="resolve">Resolve</button>' : ''}
           </div>
-        `,o.addEventListener("click",i=>{i.target.closest("button")||U(n)}),o.addEventListener("dblclick",i=>{if(i.target.closest("button"))return;U(n);const l=w(".tab-bar .tab").find(d=>d.dataset.tab==="comments");l&&l.click()}),r("button[data-act=view]",o)?.addEventListener("click",i=>{i.stopPropagation(),U(n)}),r("button[data-act=resolve]",o)?.addEventListener("click",i=>{i.stopPropagation(),pe(n.id,{status:"RESOLVED"})}),e.appendChild(o)})}function U(e){c.selectedIssueId=e.id,ce(),e.position&&N(new E.Vector3(e.position.x,e.position.y,e.position.z)),Array.isArray(e.elementGuids)&&e.elementGuids.forEach(s=>{const n=V(s);n&&de(n,16347926)}),r(".tab-bar .tab[data-tab=issues]")?.click(),c.rightTab==="comments"&&ye(),G(),J(`Inspected ${e.code||e.id}`)}async function pe(e,t){const s=await $(`/api/projects/${L}/issues/${e}`,{method:"PUT",body:JSON.stringify(t)});if(s||s===""){const n=c.issues.findIndex(a=>a.id===e);n>=0&&(c.issues[n]=Object.assign({},c.issues[n],t)),D(),ue(),ie(),y("Issue updated","success")}else y("Update failed","error")}let te=[];function z(e={}){const t=r("#issueModal");t.classList.add("open"),r("#imTitle").value="",r("#imDesc").value="";const s=r("#imInitialComment");s&&(s.value=""),r("#imScreenshot").innerHTML="",r("#imScreenshot").dataset.b64="",te=[];const n=r("#imAttachList");n&&(n.innerHTML=""),w("#imPriority .choice").forEach(m=>m.classList.toggle("active",m.dataset.v==="HIGH")),w("#imType .choice").forEach(m=>m.classList.toggle("active",m.dataset.v==="RFI")),w("#imStatus .choice").forEach(m=>m.classList.toggle("active",m.dataset.v==="OPEN"));const a=r("#imDiscipline");a&&(a.value=e.discipline||"");const o=r("#imLinked");o.innerHTML="";const i=[];if(e.guid&&i.push({guid:e.guid,name:e.meta?.name||e.meta?.tag||e.guid.slice(0,8)}),e.clash){const m=e.clash.elementA,b=e.clash.elementB;m&&i.push({guid:m.guid,name:m.name}),b&&i.push({guid:b.guid,name:b.name}),r("#imTitle").value=`${e.clash.discPair} clash \u2014 ${m?.name} vs ${b?.name}`,w("#imType .choice").forEach(k=>k.classList.toggle("active",k.dataset.v==="CLASH")),a&&e.clash.discPair&&(a.value=(e.clash.discPair.split("-")[0]||"").toUpperCase())}t.dataset.linked=JSON.stringify(i),ht(i);const l=r("#imAssignee");l.innerHTML='<option value="">\u2014 Unassigned \u2014</option>'+c.members.map(m=>`<option value="${m.id}">${g(m.name)}${m.role?" \xB7 "+g(m.role):""}</option>`).join("");const d=r("#imWatchersSelect");d&&(d.innerHTML='<option value="">\u2014 Add a watcher \u2014</option>'+c.members.map(m=>`<option value="${m.id}">${g(m.name)}${m.role?" \xB7 "+g(m.role):""}</option>`).join("")),t.dataset.watchers="[]";const u=r("#imWatcherChips");u&&(u.innerHTML=""),t.dataset.open="1",t.dataset.returnFocus="";const h=document.activeElement;h&&h!==document.body&&(t.dataset.returnFocusId=h.id||""),setTimeout(()=>r("#imTitle")?.focus(),30)}function ut(){const e=r("#imWatcherChips");if(!e)return;const t=JSON.parse(r("#issueModal").dataset.watchers||"[]");e.innerHTML="",t.forEach((s,n)=>{const a=c.members.find(i=>i.id===s);if(!a)return;const o=f("span",{class:"watcher-chip"},[f("span",{class:"initials"},a.initials||""),f("span",{class:"name"}," "+a.name+" "),f("span",{class:"x",title:"Remove"},"\u2715")]);r(".x",o).addEventListener("click",()=>{const i=t.slice();i.splice(n,1),r("#issueModal").dataset.watchers=JSON.stringify(i),ut()}),e.appendChild(o)})}function pt(){const e=r("#imAttachList");e&&(e.innerHTML="",te.forEach((t,s)=>{const n=f("div",{class:"attachment-row"},[f("span",{class:"name"},t.name),f("span",{class:"size"},hs(t.size)),f("span",{class:"x",title:"Remove"},"\u2715")]);r(".x",n).addEventListener("click",()=>{te.splice(s,1),pt()}),e.appendChild(n)}))}function hs(e){if(!e)return"0 B";const t=["B","KB","MB","GB"];let s=0,n=e;for(;n>=1024&&s<t.length-1;)n/=1024,s++;return n.toFixed(n<10&&s>0?1:0)+" "+t[s]}function ht(e){const t=r("#imLinked");t.innerHTML="",e.forEach((s,n)=>{const a=f("div",{class:"linked-element"},[f("span",{class:"dot"}),f("span",{},`${s.name} (${s.guid.slice(0,8)})`),f("span",{class:"x",title:"Remove"},"\u2715")]);r(".x",a).addEventListener("click",()=>{e.splice(n,1),r("#issueModal").dataset.linked=JSON.stringify(e),ht(e)}),t.appendChild(a)})}function ms(){const e=r("#issueModal"),t=()=>{e.classList.remove("open"),e.dataset.open=""};r("#imClose").addEventListener("click",t),r("#imCancel").addEventListener("click",t),e.addEventListener("click",l=>{l.target.id==="issueModal"&&t()}),e.addEventListener("keydown",l=>{if(!e.classList.contains("open"))return;if(l.key==="Escape"){l.preventDefault(),l.stopPropagation(),t();return}if(l.key!=="Tab")return;const d=w('input, textarea, select, button, [tabindex]:not([tabindex="-1"])',e).filter(m=>!m.disabled&&m.offsetParent!==null);if(!d.length)return;const u=d[0],h=d[d.length-1];l.shiftKey&&document.activeElement===u?(l.preventDefault(),h.focus()):!l.shiftKey&&document.activeElement===h&&(l.preventDefault(),u.focus())}),w("#imPriority .choice").forEach(l=>l.addEventListener("click",()=>{w("#imPriority .choice").forEach(d=>d.classList.remove("active")),l.classList.add("active")})),w("#imType .choice").forEach(l=>l.addEventListener("click",()=>{w("#imType .choice").forEach(d=>d.classList.remove("active")),l.classList.add("active")})),w("#imStatus .choice").forEach(l=>l.addEventListener("click",()=>{w("#imStatus .choice").forEach(d=>d.classList.remove("active")),l.classList.add("active")}));const s=r("#imWatchersSelect");s&&s.addEventListener("change",()=>{const l=s.value;if(s.value="",!l)return;const d=JSON.parse(e.dataset.watchers||"[]");d.includes(l)||(d.push(l),e.dataset.watchers=JSON.stringify(d),ut())});const n=r("#imAttachBtn"),a=r("#imAttachInput"),o=r("#imAttachDrop");function i(l){if(l){for(const d of l){if(d.size>50*1024*1024){y(`${d.name} exceeds 50 MB \u2014 skipped`,"warn");continue}te.push(d)}pt()}}n&&a&&(n.addEventListener("click",l=>{l.stopPropagation(),a.click()}),a.addEventListener("change",()=>{i(a.files),a.value=""})),o&&a&&(o.addEventListener("click",()=>a.click()),o.addEventListener("keydown",l=>{(l.key==="Enter"||l.key===" ")&&(l.preventDefault(),a.click())}),["dragenter","dragover"].forEach(l=>{o.addEventListener(l,d=>{d.preventDefault(),d.stopPropagation(),o.classList.add("dragover")})}),["dragleave","drop"].forEach(l=>{o.addEventListener(l,d=>{d.preventDefault(),d.stopPropagation(),o.classList.remove("dragover")})}),o.addEventListener("drop",l=>{const d=l.dataTransfer?.files;i(d)}),["dragover","drop"].forEach(l=>{e.addEventListener(l,d=>{d.preventDefault()})})),r("#imScreenshotBtn").addEventListener("click",()=>{const l=Ye(p.renderer.domElement,1280,.85),d=r("#imScreenshot");d.innerHTML=`<img src="${l}" alt="screenshot"/>`,d.dataset.b64=l}),r("#imSubmit").addEventListener("click",fs)}async function fs(){const e=r("#issueModal"),t=JSON.parse(e.dataset.linked||"[]"),s=JSON.parse(e.dataset.watchers||"[]"),n=r("#imPriority .choice.active")?.dataset.v||"MEDIUM",a=r("#imType .choice.active")?.dataset.v||"RFI",o=r("#imStatus .choice.active")?.dataset.v||"OPEN",i=r("#imDiscipline")?.value||null,l=(r("#imInitialComment")?.value||"").trim(),d={title:r("#imTitle").value.trim(),priority:n,type:a,status:o,discipline:i,elementGuids:t.map(m=>m.guid),linkedElementIds:t.length?JSON.stringify(t.map(m=>m.guid)):null,assigneeUserId:r("#imAssignee").value||null,watcherUserIds:s,dueDate:r("#imDue").value||null,description:r("#imDesc").value,screenshotBase64:r("#imScreenshot").dataset.b64||null,source:"web-viewer",position:T?{x:T.x,y:T.y,z:T.z}:void 0,modelId:c.modelId||P||null,modelElementGuid:t[0]?.guid||null,modelX:T?.x??null,modelY:T?.y??null,modelZ:T?.z??null};if(!d.title)return y("Title required","warn");let u;L&&(u=await $(`/api/projects/${L}/issues`,{method:"POST",body:JSON.stringify(d)}));const h=u||Object.assign({id:"local-"+Date.now(),code:"ISS-LOCAL-"+(c.issues.length+1),status:o,slaBreached:!1},d);if(L&&h.id&&!String(h.id).startsWith("local-")){for(const m of te)try{const b=new FormData;b.append("file",m,m.name);const k=await fetch(`${A}/api/projects/${L}/issues/${h.id}/attachments`,{method:"POST",headers:_?{Authorization:"Bearer "+_}:{},body:b});k.ok||y(`Attachment ${m.name} failed (${k.status})`,"warn")}catch(b){console.warn("[coord] attachment upload failed",m.name,b)}l&&await $(`/api/projects/${L}/issues/${h.id}/comments`,{method:"POST",body:JSON.stringify({body:l,source:"web-viewer"})})}te=[],c.issues.unshift(h),ue(),D(),ie(),e.classList.remove("open"),y(`Issue ${h.code||h.id} created`,"success"),J(`Created ${h.code||"issue"}`)}const vs=["Progress","Issue","Defect","Safety","AsBuilt","Reference"],gs=["Internal","PendingReview","Approved","ClientPortal","Withdrawn"],mt=16498468,Ce=new Map;let se=null,O=null;async function H(e={}){if(!L)return c.photos=[],B(),c.photos;const t=new URLSearchParams,s=Object.assign({},c.photoFilters,e);s.reason&&s.reason!=="any"&&t.set("reason",s.reason),s.audience&&s.audience!=="any"&&t.set("audience",s.audience),c.selectedElementGuid&&t.set("anchorElementGuid",c.selectedElementGuid),t.set("pageSize","200");const n=`/api/projects/${L}/photos${t.toString()?"?"+t.toString():""}`,a=await $(n),o=Array.isArray(a)?a:a?.items||[];return c.photos=o,Ue(),c.rightTab==="photos"&&B(),G(),o}async function bs(e){if(!L)return y("No active project \u2014 cannot capture","error"),null;try{const t={};_&&(t.Authorization="Bearer "+_);const s=typeof localStorage<"u"&&localStorage.getItem("planscape_tenant")||c.tenantId;s&&(t["X-Tenant"]=s);const n=new AbortController,a=setTimeout(()=>n.abort(),6e4),o=await fetch(`${A}/api/projects/${L}/photos/capture`,{method:"POST",headers:t,body:e,signal:n.signal});if(clearTimeout(a),!o.ok){let i=`${o.status} ${o.statusText}`;try{const l=await o.json();l?.error&&(i=l.error+(l.allowed?` (allowed: ${l.allowed.join(", ")})`:""))}catch{}return y(`Capture failed \u2014 ${i}`,"error"),null}return await o.json()}catch(t){const s=t&&t.name==="AbortError";return y(s?"Capture timed out \u2014 retry?":"Capture failed \u2014 "+(t.message||t),"error"),null}}async function Ge(e,t){const s=await $(`/api/projects/${L}/photos/${e}/approve`,{method:"POST",body:JSON.stringify({caption:t||null})});return s&&y("Photo approved","success"),s}async function Fe(e,t){const s=await $(`/api/projects/${L}/photos/${e}/reject`,{method:"POST",body:JSON.stringify({reason:t||null})});return s&&y("Photo rejected","success"),s}async function ft(e){const t=await $(`/api/projects/${L}/photos/${e}/withdraw`,{method:"POST",body:JSON.stringify({})});return t&&y("Photo withdrawn","success"),t}async function ys(e,t){if(!e||!e.length)return null;if(!t||t.trim().length<3)return y("Approval caption must be \u2265 3 chars","warn"),null;const s=await $(`/api/projects/${L}/photos/bulk-approve`,{method:"POST",body:JSON.stringify({photoIds:e,caption:t.trim()})});return s&&y(`Approved ${e.length} photo${e.length===1?"":"s"}`,"success"),s}function Ve(){const e=c.currentUser||{},t=(e.role||e.Role||"").toString();if(t==="Admin"||t==="Owner")return!0;const s=e.id||e.userId;if(!s)return!1;const n=c.members.find(a=>a.id===s);return!!n&&(n.role==="PM"||n.role==="pm")}function Ue(){const e=p.pinGroup||p.scene;if(c.photoPins.forEach(s=>{e.remove(s),p.pinMeta&&p.pinMeta.delete(s.uuid)}),c.photoPins.clear(),!p.modelBounds||p.modelBounds.isEmpty())return;const t=p.modelBounds.getSize(new E.Vector3).length()*.0072;c.photos.forEach(s=>{if(s.modelX==null||s.modelY==null||s.modelZ==null)return;const n=new E.Mesh(new E.SphereGeometry(t,16,16),new E.MeshStandardMaterial({color:mt,emissive:mt,emissiveIntensity:.55,depthTest:!1}));n.position.set(s.modelX,s.modelY,s.modelZ),n.userData.photoId=s.id,n.renderOrder=999,e.add(n),p.pinMeta&&p.pinMeta.set(n.uuid,{__coord:"photo",photoId:s.id,reason:s.reason}),c.photoPins.set(s.id,n)})}function Me(e){if(!e)return;const t=w(".tab-bar .tab").find(s=>s.dataset.tab==="photos");if(t&&t.click(),e.modelX!=null&&e.modelY!=null&&e.modelZ!=null)N(new E.Vector3(e.modelX,e.modelY,e.modelZ));else if(e.anchorElementGuid){const s=V(e.anchorElementGuid);if(s){const n=new E.Box3().setFromObject(s);N(n.getCenter(new E.Vector3))}}setTimeout(()=>{const s=r(`.photo-card[data-id="${e.id}"]`);s&&(s.scrollIntoView({block:"center",behavior:"smooth"}),s.classList.add("focused"),setTimeout(()=>s.classList.remove("focused"),1600))},50),J(`Inspected photo \xB7 ${e.reason||""}`)}function vt(e,t){if(!t)return;const s=Ce.get(e);if(s){t.src=s;return}const n=async()=>{try{const a={};_&&(a.Authorization="Bearer "+_);const o=typeof localStorage<"u"&&localStorage.getItem("planscape_tenant")||c.tenantId;o&&(a["X-Tenant"]=o);const i=await fetch(`${A}/api/projects/${L}/photos/${e}/file`,{headers:a});if(!i.ok)throw new Error(`${i.status}`);const l=await i.blob(),d=URL.createObjectURL(l);Ce.set(e,d),t.src=d}catch{t.style.display="none";const o=t.nextElementSibling;o&&o.classList?.contains("thumb-fallback")&&(o.style.display="flex")}};if(typeof IntersectionObserver=="function"){const a=new IntersectionObserver(o=>{o.some(i=>i.isIntersecting)&&(a.disconnect(),n())});a.observe(t)}else n()}function B(){const e=r("#pane-photos");if(!e)return;const t=c.selectedElementGuid,s=t?c.elementMap[t]||{}:null,n=c.photos.filter(i=>i.audience==="PendingReview").length,a=Ve(),o=t?`${c.photos.length} for selected element`:`${c.photos.length} in project`;e.innerHTML=`
+        `;
+        // R5 — same treatment as the clash cards: card body focuses the
+        // issue, buttons keep their explicit actions.
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('button')) return;
+          focusIssue(i);
+        });
+        // Double-click → zoom + open comments (mirrors bottom-panel dblclick).
+        card.addEventListener('dblclick', (e) => {
+          if (e.target.closest('button')) return;
+          focusIssue(i);
+          const tab = $$('.tab-bar .tab').find(t => t.dataset.tab === 'comments');
+          if (tab) tab.click();
+        });
+        $('button[data-act=view]', card)?.addEventListener('click', (e) => { e.stopPropagation(); focusIssue(i); });
+        $('button[data-act=resolve]', card)?.addEventListener('click', (e) => { e.stopPropagation(); updateIssue(i.id, { status: 'RESOLVED' }); });
+        pane.appendChild(card);
+      });
+    }
+
+    function focusIssue(i) {
+      state.selectedIssueId = i.id;
+      clearAllHighlights();              // L6
+      if (i.position) flyTo(new THREE_.Vector3(i.position.x, i.position.y, i.position.z));
+      if (Array.isArray(i.elementGuids)) {
+        i.elementGuids.forEach(g => {
+          const m = findMeshByGuid(g); if (m) emissive(m, 0xF97316);
+        });
+      }
+      // switch right panel
+      const tab = $('.tab-bar .tab[data-tab=issues]'); tab?.click();
+      // U2 — if Comments tab is active, refresh thread for the new issue.
+      if (state.rightTab === 'comments') renderComments();
+      updateRightTabCounts();            // X2
+      logHistory(`Inspected ${i.code || i.id}`);
+    }
+
+    async function updateIssue(id, patch) {
+      const res = await api(`/api/projects/${projectId}/issues/${id}`, {
+        method: 'PUT', body: JSON.stringify(patch)
+      });
+      if (res || res === '') {
+        const idx = state.issues.findIndex(i => i.id === id);
+        if (idx >= 0) state.issues[idx] = Object.assign({}, state.issues[idx], patch);
+        renderIssues(); placeIssuePins(); updateBadges();
+        toast('Issue updated', 'success');
+      } else {
+        toast('Update failed', 'error');
+      }
+    }
+
+    // ── Issue creation modal ───────────────────────────────────────────
+    // Pending attachments collected before submit so the user can stage
+    // photos / PDFs / drawings without uploading until the issue exists.
+    let pendingIssueAttachments = [];
+    function openIssueModal(seed = {}) {
+      const modal = $('#issueModal');
+      modal.classList.add('open');
+      $('#imTitle').value = '';
+      $('#imDesc').value  = '';
+      const initialEl = $('#imInitialComment'); if (initialEl) initialEl.value = '';
+      $('#imScreenshot').innerHTML = '';
+      $('#imScreenshot').dataset.b64 = '';
+      pendingIssueAttachments = [];
+      const attachListEl = $('#imAttachList'); if (attachListEl) attachListEl.innerHTML = '';
+      // priority + type + status defaults
+      $$('#imPriority .choice').forEach(c => c.classList.toggle('active', c.dataset.v === 'HIGH'));
+      $$('#imType .choice').forEach(c => c.classList.toggle('active', c.dataset.v === 'RFI'));
+      $$('#imStatus .choice').forEach(c => c.classList.toggle('active', c.dataset.v === 'OPEN'));
+      const discEl = $('#imDiscipline'); if (discEl) discEl.value = seed.discipline || '';
+      // linked elements
+      const link = $('#imLinked'); link.innerHTML = '';
+      const linked = [];
+      if (seed.guid) {
+        linked.push({ guid: seed.guid, name: seed.meta?.name || seed.meta?.tag || seed.guid.slice(0, 8) });
+      }
+      if (seed.clash) {
+        const a = seed.clash.elementA, b = seed.clash.elementB;
+        if (a) linked.push({ guid: a.guid, name: a.name });
+        if (b) linked.push({ guid: b.guid, name: b.name });
+        $('#imTitle').value = `${seed.clash.discPair} clash — ${a?.name} vs ${b?.name}`;
+        // For clash issues, pre-select CLASH as the type and pre-fill
+        // discipline from the dominant side of the pair (e.g. "M-S" → M).
+        $$('#imType .choice').forEach(c => c.classList.toggle('active', c.dataset.v === 'CLASH'));
+        if (discEl && seed.clash.discPair) discEl.value = (seed.clash.discPair.split('-')[0] || '').toUpperCase();
+      }
+      modal.dataset.linked = JSON.stringify(linked);
+      renderLinkedElements(linked);
+
+      // assignee + watcher pickers — populated from project members API
+      // (see loadProjectMembers in bootstrap), with the demo-seed members
+      // as fallback so first-time / offline runs aren't empty.
+      const assigneeSel = $('#imAssignee');
+      assigneeSel.innerHTML = '<option value="">— Unassigned —</option>' +
+        state.members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}${m.role ? ' · ' + escapeHtml(m.role) : ''}</option>`).join('');
+
+      const watchSel = $('#imWatchersSelect');
+      if (watchSel) {
+        watchSel.innerHTML = '<option value="">— Add a watcher —</option>' +
+          state.members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}${m.role ? ' · ' + escapeHtml(m.role) : ''}</option>`).join('');
+      }
+      modal.dataset.watchers = '[]';
+      const chips = $('#imWatcherChips'); if (chips) chips.innerHTML = '';
+
+      // B12 — focus the title field so the user can start typing
+      // immediately, and remember the previously focused element so we
+      // can restore it on close.
+      modal.dataset.open = '1';
+      modal.dataset.returnFocus = '';
+      const prev = document.activeElement;
+      if (prev && prev !== document.body) modal.dataset.returnFocusId = prev.id || '';
+      setTimeout(() => $('#imTitle')?.focus(), 30);
+    }
+
+    function renderWatcherChips() {
+      const chips = $('#imWatcherChips');
+      if (!chips) return;
+      const ids = JSON.parse($('#issueModal').dataset.watchers || '[]');
+      chips.innerHTML = '';
+      ids.forEach((id, i) => {
+        const m = state.members.find(x => x.id === id);
+        if (!m) return;
+        const chip = el('span', { class: 'watcher-chip' }, [
+          el('span', { class: 'initials' }, m.initials || ''),
+          el('span', { class: 'name' }, ' ' + m.name + ' '),
+          el('span', { class: 'x', title: 'Remove' }, '✕')
+        ]);
+        $('.x', chip).addEventListener('click', () => {
+          const arr = ids.slice(); arr.splice(i, 1);
+          $('#issueModal').dataset.watchers = JSON.stringify(arr);
+          renderWatcherChips();
+        });
+        chips.appendChild(chip);
+      });
+    }
+
+    function renderAttachmentList() {
+      const list = $('#imAttachList');
+      if (!list) return;
+      list.innerHTML = '';
+      pendingIssueAttachments.forEach((f, i) => {
+        const row = el('div', { class: 'attachment-row' }, [
+          el('span', { class: 'name' }, f.name),
+          el('span', { class: 'size' }, formatBytes(f.size)),
+          el('span', { class: 'x', title: 'Remove' }, '✕')
+        ]);
+        $('.x', row).addEventListener('click', () => {
+          pendingIssueAttachments.splice(i, 1);
+          renderAttachmentList();
+        });
+        list.appendChild(row);
+      });
+    }
+
+    function formatBytes(n) {
+      if (!n) return '0 B';
+      const u = ['B','KB','MB','GB'];
+      let i = 0; let v = n;
+      while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+      return v.toFixed(v < 10 && i > 0 ? 1 : 0) + ' ' + u[i];
+    }
+
+    function renderLinkedElements(arr) {
+      const link = $('#imLinked'); link.innerHTML = '';
+      arr.forEach((it, i) => {
+        const row = el('div', { class: 'linked-element' }, [
+          el('span', { class: 'dot' }),
+          el('span', {}, `${it.name} (${it.guid.slice(0, 8)})`),
+          el('span', { class: 'x', title: 'Remove' }, '✕')
+        ]);
+        $('.x', row).addEventListener('click', () => {
+          arr.splice(i, 1);
+          $('#issueModal').dataset.linked = JSON.stringify(arr);
+          renderLinkedElements(arr);
+        });
+        link.appendChild(row);
+      });
+    }
+
+    function setupModalHandlers() {
+      const modal = $('#issueModal');
+      const closeModal = () => { modal.classList.remove('open'); modal.dataset.open = ''; };
+      $('#imClose').addEventListener('click', closeModal);
+      $('#imCancel').addEventListener('click', closeModal);
+      modal.addEventListener('click', (e) => {
+        if (e.target.id === 'issueModal') closeModal();
+      });
+      // B12 — focus trap + Esc close. The global Esc handler intentionally
+      // skips when the modal is open so dismissing the modal doesn't also
+      // wipe the user's selection / highlights.
+      modal.addEventListener('keydown', (e) => {
+        if (!modal.classList.contains('open')) return;
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeModal(); return; }
+        if (e.key !== 'Tab') return;
+        const focusables = $$('input, textarea, select, button, [tabindex]:not([tabindex="-1"])', modal)
+          .filter(el => !el.disabled && el.offsetParent !== null);
+        if (!focusables.length) return;
+        const first = focusables[0], last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      });
+      $$('#imPriority .choice').forEach(c => c.addEventListener('click', () => {
+        $$('#imPriority .choice').forEach(x => x.classList.remove('active'));
+        c.classList.add('active');
+      }));
+      $$('#imType .choice').forEach(c => c.addEventListener('click', () => {
+        $$('#imType .choice').forEach(x => x.classList.remove('active'));
+        c.classList.add('active');
+      }));
+      $$('#imStatus .choice').forEach(c => c.addEventListener('click', () => {
+        $$('#imStatus .choice').forEach(x => x.classList.remove('active'));
+        c.classList.add('active');
+      }));
+      const watchSel = $('#imWatchersSelect');
+      if (watchSel) {
+        watchSel.addEventListener('change', () => {
+          const id = watchSel.value;
+          watchSel.value = '';
+          if (!id) return;
+          const ids = JSON.parse(modal.dataset.watchers || '[]');
+          if (ids.includes(id)) return;
+          ids.push(id);
+          modal.dataset.watchers = JSON.stringify(ids);
+          renderWatcherChips();
+        });
+      }
+      const attachBtn = $('#imAttachBtn');
+      const attachInput = $('#imAttachInput');
+      const dropZone = $('#imAttachDrop');
+      // Centralise the "stage these files for upload" loop so click-to-browse
+      // and drag-drop hit the exact same path (validation, oversize toast,
+      // empty-input guard).
+      function stageFiles(files) {
+        if (!files) return;
+        for (const f of files) {
+          if (f.size > 50 * 1024 * 1024) {
+            toast(`${f.name} exceeds 50 MB — skipped`, 'warn');
+            continue;
+          }
+          pendingIssueAttachments.push(f);
+        }
+        renderAttachmentList();
+      }
+      if (attachBtn && attachInput) {
+        attachBtn.addEventListener('click', (ev) => {
+          ev.stopPropagation();           // don't double-fire via dropzone
+          attachInput.click();
+        });
+        attachInput.addEventListener('change', () => {
+          stageFiles(attachInput.files);
+          attachInput.value = '';        // allow same file to be re-picked
+        });
+      }
+      // Drag-and-drop dropzone — matches mobile expo-image-picker ergonomics
+      // for desktop users dragging photos out of Finder / Explorer / Slack.
+      if (dropZone && attachInput) {
+        dropZone.addEventListener('click', () => attachInput.click());
+        dropZone.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); attachInput.click(); }
+        });
+        ['dragenter', 'dragover'].forEach(evt => {
+          dropZone.addEventListener(evt, (ev) => {
+            ev.preventDefault(); ev.stopPropagation();
+            dropZone.classList.add('dragover');
+          });
+        });
+        ['dragleave', 'drop'].forEach(evt => {
+          dropZone.addEventListener(evt, (ev) => {
+            ev.preventDefault(); ev.stopPropagation();
+            dropZone.classList.remove('dragover');
+          });
+        });
+        dropZone.addEventListener('drop', (ev) => {
+          const files = ev.dataTransfer?.files;
+          stageFiles(files);
+        });
+        // Suppress browser default of navigating to the dropped file when
+        // the user misses the drop zone — common with folder drags.
+        ['dragover', 'drop'].forEach(evt => {
+          modal.addEventListener(evt, (ev) => { ev.preventDefault(); });
+        });
+      }
+      $('#imScreenshotBtn').addEventListener('click', () => {
+        // B14 — downscale to <= 1280px wide JPEG before posting. A raw 4K
+        // PNG can hit 8-12 MB base64; the issues endpoint and Postgres
+        // bytea column don't enjoy that. JPEG q=0.85 keeps screenshots
+        // legible while staying well under 500 KB.
+        const b64 = downscaleScreenshot(V.renderer.domElement, 1280, 0.85);
+        const wrap = $('#imScreenshot');
+        wrap.innerHTML = `<img src="${b64}" alt="screenshot"/>`;
+        wrap.dataset.b64 = b64;
+      });
+      $('#imSubmit').addEventListener('click', submitIssue);
+    }
+
+    async function submitIssue() {
+      const modal = $('#issueModal');
+      const linked = JSON.parse(modal.dataset.linked || '[]');
+      const watcherIds = JSON.parse(modal.dataset.watchers || '[]');
+      const priority = $('#imPriority .choice.active')?.dataset.v || 'MEDIUM';
+      const type     = $('#imType .choice.active')?.dataset.v || 'RFI';
+      const status   = $('#imStatus .choice.active')?.dataset.v || 'OPEN';
+      const discipline = $('#imDiscipline')?.value || null;
+      const initialComment = ($('#imInitialComment')?.value || '').trim();
+      const payload = {
+        title: $('#imTitle').value.trim(),
+        priority, type, status, discipline,
+        elementGuids: linked.map(l => l.guid),
+        // Match server CreateIssueRequest field names where possible so the
+        // payload is forward-compatible with the typed DTO. The server
+        // accepts both legacy `linkedElementIds` (string) and the camelCase
+        // form below; viewer prefers explicit GUID list for clarity.
+        linkedElementIds: linked.length ? JSON.stringify(linked.map(l => l.guid)) : null,
+        assigneeUserId: $('#imAssignee').value || null,
+        watcherUserIds: watcherIds,
+        dueDate: $('#imDue').value || null,
+        description: $('#imDesc').value,
+        screenshotBase64: $('#imScreenshot').dataset.b64 || null,
+        source: 'web-viewer',
+        // 3D anchor — stamps where in the model the issue was raised so
+        // pins re-render on next load.
+        position: lastClickPoint ? { x: lastClickPoint.x, y: lastClickPoint.y, z: lastClickPoint.z } : undefined,
+        modelId: state.modelId || modelId || null,
+        modelElementGuid: linked[0]?.guid || null,
+        modelX: lastClickPoint?.x ?? null,
+        modelY: lastClickPoint?.y ?? null,
+        modelZ: lastClickPoint?.z ?? null,
+      };
+      if (!payload.title) return toast('Title required', 'warn');
+
+      let result;
+      if (projectId) {
+        result = await api(`/api/projects/${projectId}/issues`, {
+          method: 'POST', body: JSON.stringify(payload)
+        });
+      }
+      const created = result || Object.assign({
+        id: 'local-' + Date.now(),
+        code: 'ISS-LOCAL-' + (state.issues.length + 1),
+        status: status,
+        slaBreached: false
+      }, payload);
+
+      // Upload any attachments + post the initial comment now the issue
+      // exists. Both are best-effort — failures don't unwind the issue.
+      if (projectId && created.id && !String(created.id).startsWith('local-')) {
+        for (const f of pendingIssueAttachments) {
+          try {
+            const fd = new FormData();
+            fd.append('file', f, f.name);
+            const resp = await fetch(`${apiBase}/api/projects/${projectId}/issues/${created.id}/attachments`, {
+              method: 'POST',
+              headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+              body: fd
+            });
+            if (!resp.ok) toast(`Attachment ${f.name} failed (${resp.status})`, 'warn');
+          } catch (e) {
+            console.warn('[coord] attachment upload failed', f.name, e);
+          }
+        }
+        if (initialComment) {
+          await api(`/api/projects/${projectId}/issues/${created.id}/comments`, {
+            method: 'POST',
+            body: JSON.stringify({ body: initialComment, source: 'web-viewer' })
+          });
+        }
+      }
+      pendingIssueAttachments = [];
+
+      state.issues.unshift(created);
+      placeIssuePins(); renderIssues(); updateBadges();
+      modal.classList.remove('open');
+      toast(`Issue ${created.code || created.id} created`, 'success');
+      logHistory(`Created ${created.code || 'issue'}`);
+    }
+
+    // ── Site photos (Slice 4b) ─────────────────────────────────────────
+    // Six-Reason taxonomy from server: Progress / Issue / Defect / Safety /
+    // AsBuilt / Reference. Photos can be filtered by reason + audience and
+    // optionally restricted to the currently-selected element. PM/Admin/Owner
+    // get the bulk-approve reviewer pane.
+    const PHOTO_REASONS = ['Progress','Issue','Defect','Safety','AsBuilt','Reference'];
+    const PHOTO_AUDIENCES = ['Internal','PendingReview','Approved','ClientPortal','Withdrawn'];
+    const PHOTO_PIN_COLOUR = 0xFBBF24;       // gold (matches design lock)
+    const PHOTO_BLOB_CACHE = new Map();      // photoId → object URL (revoked on cleanup)
+
+    // (state.photos / photoFilters / photoPins / photoCaptureSeed /
+    // photoReviewSelected initialised inside the main `state` object above
+    // so updateRightTabCounts can read them on the first paint before this
+    // block has run.)
+    let pendingPhotoFile = null;             // staged file in capture modal
+    let pendingPhotoObjectUrl = null;        // preview url to revoke on close
+
+    // ── API helpers — match the existing loadIssues / loadClashes pattern ──
+    async function loadSitePhotos(filters = {}) {
+      if (!projectId) { state.photos = []; renderPhotos(); return state.photos; }
+      const qs = new URLSearchParams();
+      const merged = Object.assign({}, state.photoFilters, filters);
+      if (merged.reason && merged.reason !== 'any') qs.set('reason', merged.reason);
+      if (merged.audience && merged.audience !== 'any') qs.set('audience', merged.audience);
+      if (state.selectedElementGuid) qs.set('anchorElementGuid', state.selectedElementGuid);
+      qs.set('pageSize', '200');
+      const path = `/api/projects/${projectId}/photos${qs.toString() ? '?' + qs.toString() : ''}`;
+      const data = await api(path);
+      const items = Array.isArray(data) ? data : (data?.items || []);
+      state.photos = items;
+      placePhotoPins();
+      if (state.rightTab === 'photos') renderPhotos();
+      updateRightTabCounts();
+      return items;
+    }
+
+    async function captureSitePhoto(formData) {
+      // Multipart POST — DO NOT set Content-Type; the browser fills the
+      // multipart boundary correctly when omitted. We bypass api() because
+      // it stamps application/json on every call.
+      if (!projectId) { toast('No active project — cannot capture', 'error'); return null; }
+      try {
+        const headers = {};
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+        const tenantId = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || state.tenantId;
+        if (tenantId) headers['X-Tenant'] = tenantId;
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), 60000);  // 60s — phone-camera JPEG can be 5-15 MB
+        const res = await fetch(`${apiBase}/api/projects/${projectId}/photos/capture`, {
+          method: 'POST', headers, body: formData, signal: ctl.signal
+        });
+        clearTimeout(timer);
+        if (!res.ok) {
+          let msg = `${res.status} ${res.statusText}`;
+          try { const err = await res.json(); if (err?.error) msg = err.error + (err.allowed ? ` (allowed: ${err.allowed.join(', ')})` : ''); } catch (_) {}
+          toast(`Capture failed — ${msg}`, 'error');
+          return null;
+        }
+        return await res.json();
+      } catch (e) {
+        const aborted = e && e.name === 'AbortError';
+        toast(aborted ? 'Capture timed out — retry?' : 'Capture failed — ' + (e.message || e), 'error');
+        return null;
+      }
+    }
+
+    async function approveSitePhoto(id, caption) {
+      const r = await api(`/api/projects/${projectId}/photos/${id}/approve`, {
+        method: 'POST', body: JSON.stringify({ caption: caption || null })
+      });
+      if (r) toast('Photo approved', 'success');
+      return r;
+    }
+    async function rejectSitePhoto(id, reason) {
+      const r = await api(`/api/projects/${projectId}/photos/${id}/reject`, {
+        method: 'POST', body: JSON.stringify({ reason: reason || null })
+      });
+      if (r) toast('Photo rejected', 'success');
+      return r;
+    }
+    async function withdrawSitePhoto(id) {
+      const r = await api(`/api/projects/${projectId}/photos/${id}/withdraw`, {
+        method: 'POST', body: JSON.stringify({})
+      });
+      if (r) toast('Photo withdrawn', 'success');
+      return r;
+    }
+    async function bulkApproveSitePhotos(ids, caption) {
+      if (!ids || !ids.length) return null;
+      if (!caption || caption.trim().length < 3) {
+        toast('Approval caption must be ≥ 3 chars', 'warn');
+        return null;
+      }
+      const r = await api(`/api/projects/${projectId}/photos/bulk-approve`, {
+        method: 'POST', body: JSON.stringify({ photoIds: ids, caption: caption.trim() })
+      });
+      if (r) toast(`Approved ${ids.length} photo${ids.length === 1 ? '' : 's'}`, 'success');
+      return r;
+    }
+
+    // Approver gate mirrors server: Admin / Owner / PM (project role).
+    function isPhotoApprover() {
+      const u = state.currentUser || {};
+      const role = (u.role || u.Role || '').toString();
+      if (role === 'Admin' || role === 'Owner') return true;
+      // ProjectMember role check — populated by loadProjectMembers().
+      const myId = u.id || u.userId;
+      if (!myId) return false;
+      const me = state.members.find(m => m.id === myId);
+      return !!me && (me.role === 'PM' || me.role === 'pm');
+    }
+
+    // ── 3D pin handling — mirrors placeIssuePins / placeClashPins ─────
+    function placePhotoPins() {
+      const host = V.pinGroup || V.scene;
+      state.photoPins.forEach(m => {
+        host.remove(m);
+        if (V.pinMeta) V.pinMeta.delete(m.uuid);
+      });
+      state.photoPins.clear();
+      if (!V.modelBounds || V.modelBounds.isEmpty()) return;
+      const size = V.modelBounds.getSize(new THREE_.Vector3()).length() * 0.0072;
+      state.photos.forEach(p => {
+        if (p.modelX == null || p.modelY == null || p.modelZ == null) return;
+        const sphere = new THREE_.Mesh(
+          new THREE_.SphereGeometry(size, 16, 16),
+          new THREE_.MeshStandardMaterial({
+            color: PHOTO_PIN_COLOUR, emissive: PHOTO_PIN_COLOUR,
+            emissiveIntensity: 0.55, depthTest: false
+          })
+        );
+        sphere.position.set(p.modelX, p.modelY, p.modelZ);
+        sphere.userData.photoId = p.id;
+        sphere.renderOrder = 999;
+        host.add(sphere);
+        if (V.pinMeta) V.pinMeta.set(sphere.uuid, { __coord: 'photo', photoId: p.id, reason: p.reason });
+        state.photoPins.set(p.id, sphere);
+      });
+    }
+
+    function focusPhoto(p) {
+      if (!p) return;
+      // Switch to Photos tab + scroll the matching card into view.
+      const tab = $$('.tab-bar .tab').find(t => t.dataset.tab === 'photos');
+      if (tab) tab.click();
+      if (p.modelX != null && p.modelY != null && p.modelZ != null) {
+        flyTo(new THREE_.Vector3(p.modelX, p.modelY, p.modelZ));
+      } else if (p.anchorElementGuid) {
+        const m = findMeshByGuid(p.anchorElementGuid);
+        if (m) {
+          const bb = new THREE_.Box3().setFromObject(m);
+          flyTo(bb.getCenter(new THREE_.Vector3()));
+        }
+      }
+      setTimeout(() => {
+        const card = $(`.photo-card[data-id="${p.id}"]`);
+        if (card) {
+          card.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          card.classList.add('focused');
+          setTimeout(() => card.classList.remove('focused'), 1600);
+        }
+      }, 50);
+      logHistory(`Inspected photo · ${p.reason || ''}`);
+    }
+
+    // Build a thumbnail src — fetches the protected file once via api()
+    // (Authorization header), turns it into a blob URL, caches it. The
+    // alternative (token in query string) was rejected per B1.
+    function ensurePhotoThumbSrc(photoId, imgEl) {
+      if (!imgEl) return;
+      const cached = PHOTO_BLOB_CACHE.get(photoId);
+      if (cached) { imgEl.src = cached; return; }
+      // Lazy-load on first paint so a 50-photo gallery doesn't fetch
+      // every original up-front.
+      const fetcher = async () => {
+        try {
+          const headers = {};
+          if (token) headers['Authorization'] = 'Bearer ' + token;
+          const tenantId = (typeof localStorage !== 'undefined' && localStorage.getItem('planscape_tenant')) || state.tenantId;
+          if (tenantId) headers['X-Tenant'] = tenantId;
+          const res = await fetch(`${apiBase}/api/projects/${projectId}/photos/${photoId}/file`, { headers });
+          if (!res.ok) throw new Error(`${res.status}`);
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          PHOTO_BLOB_CACHE.set(photoId, url);
+          imgEl.src = url;
+        } catch (e) {
+          imgEl.style.display = 'none';
+          const ph = imgEl.nextElementSibling;
+          if (ph && ph.classList?.contains('thumb-fallback')) ph.style.display = 'flex';
+        }
+      };
+      // IntersectionObserver — only kick the fetch when the thumb scrolls
+      // into view. Falls back to immediate fetch if IO is unavailable.
+      if (typeof IntersectionObserver === 'function') {
+        const io = new IntersectionObserver((entries) => {
+          if (entries.some(e => e.isIntersecting)) {
+            io.disconnect();
+            fetcher();
+          }
+        });
+        io.observe(imgEl);
+      } else {
+        fetcher();
+      }
+    }
+
+    // ── Photos right-rail tab ─────────────────────────────────────────
+    function renderPhotos() {
+      const pane = $('#pane-photos');
+      if (!pane) return;
+      const filterEl = state.selectedElementGuid;
+      const elementMeta = filterEl ? (state.elementMap[filterEl] || {}) : null;
+      const pendingCount = state.photos.filter(p => p.audience === 'PendingReview').length;
+      const reviewerVisible = isPhotoApprover();
+      const totalLabel = filterEl ? `${state.photos.length} for selected element` : `${state.photos.length} in project`;
+
+      pane.innerHTML = `
         <div class="prop-section-label">Site photos</div>
-        ${t?`<div class="photo-filter-context">
-          Filtered to <strong>${g(s?.name||s?.tag||t.slice(0,8))}</strong>
-          <button class="btn ghost xs" id="photoClearAnchor" title="Show all project photos">\u2715 Clear</button>
-        </div>`:""}
+        ${filterEl ? `<div class="photo-filter-context">
+          Filtered to <strong>${escapeHtml(elementMeta?.name || elementMeta?.tag || filterEl.slice(0, 8))}</strong>
+          <button class="btn ghost xs" id="photoClearAnchor" title="Show all project photos">✕ Clear</button>
+        </div>` : ''}
         <div class="photo-toolbar">
-          <span class="hint">${g(o)}</span>
+          <span class="hint">${escapeHtml(totalLabel)}</span>
           <div class="right">
-            <button class="btn sm subtle" id="photoRefresh" title="Refresh from server">\u21BB</button>
-            <button class="btn sm" id="photoQuickCapture">\u{1F4F7} Capture</button>
+            <button class="btn sm subtle" id="photoRefresh" title="Refresh from server">↻</button>
+            <button class="btn sm" id="photoQuickCapture">📷 Capture</button>
           </div>
         </div>
-        ${a?`<button class="btn ghost full review-bar" id="photoOpenReview">
-          \u{1F6E1} Review queue <span class="count">${n}</span>
-        </button>`:""}
+        ${reviewerVisible ? `<button class="btn ghost full review-bar" id="photoOpenReview">
+          🛡 Review queue <span class="count">${pendingCount}</span>
+        </button>` : ''}
         <div class="photo-filters">
           <div class="row">
             <span class="lbl">Reason</span>
-            <button class="filter-btn ${c.photoFilters.reason==="any"?"active":""}" data-reason="any">Any</button>
-            ${vs.map(i=>`<button class="filter-btn reason-chip rc-${i.toLowerCase()} ${c.photoFilters.reason===i?"active":""}" data-reason="${i}">${g(i)}</button>`).join("")}
+            <button class="filter-btn ${state.photoFilters.reason === 'any' ? 'active' : ''}" data-reason="any">Any</button>
+            ${PHOTO_REASONS.map(r => `<button class="filter-btn reason-chip rc-${r.toLowerCase()} ${state.photoFilters.reason === r ? 'active' : ''}" data-reason="${r}">${escapeHtml(r)}</button>`).join('')}
           </div>
           <div class="row">
             <span class="lbl">Audience</span>
             <select class="filter-select" id="photoAudienceFilter">
-              <option value="any" ${c.photoFilters.audience==="any"?"selected":""}>Any audience</option>
-              ${gs.map(i=>`<option value="${i}" ${c.photoFilters.audience===i?"selected":""}>${g(i)}</option>`).join("")}
+              <option value="any" ${state.photoFilters.audience === 'any' ? 'selected' : ''}>Any audience</option>
+              ${PHOTO_AUDIENCES.map(a => `<option value="${a}" ${state.photoFilters.audience === a ? 'selected' : ''}>${escapeHtml(a)}</option>`).join('')}
             </select>
           </div>
         </div>
         <div class="photo-list" id="photoList">
-          ${c.photos.length===0?'<div class="empty-state"><span class="glyph">\u{1F4F7}</span>No site photos match these filters</div>':c.photos.map(i=>ws(i,a)).join("")}
+          ${state.photos.length === 0
+            ? '<div class="empty-state"><span class="glyph">📷</span>No site photos match these filters</div>'
+            : state.photos.map(p => renderPhotoCard(p, reviewerVisible)).join('')}
         </div>
-      `,r("#photoRefresh",e)?.addEventListener("click",()=>H()),r("#photoQuickCapture",e)?.addEventListener("click",()=>ze()),r("#photoOpenReview",e)?.addEventListener("click",()=>Ss()),r("#photoClearAnchor",e)?.addEventListener("click",()=>{W(null),H()}),w(".photo-filters .filter-btn",e).forEach(i=>{i.addEventListener("click",()=>{c.photoFilters.reason=i.dataset.reason,H()})}),r("#photoAudienceFilter",e)?.addEventListener("change",i=>{c.photoFilters.audience=i.target.value,H()}),w(".photo-card",e).forEach(i=>{const l=i.dataset.id,d=c.photos.find(h=>h.id===l);if(!d)return;i._photo=d;const u=r("img",i);u&&vt(l,u),i.addEventListener("click",h=>{h.target.closest("button")||Me(d)}),i.addEventListener("dblclick",()=>Me(d)),r("button[data-act=approve]",i)?.addEventListener("click",async h=>{h.stopPropagation();let m=d.caption||"";if(m.trim().length<3&&(m=await q({title:"Approve photo",label:"Approval caption (visible to client)",placeholder:"Describe what the client should see",defaultValue:m,multiline:!0,minLength:3,maxLength:2e3,okLabel:"Approve & publish"})),!m||m.trim().length<3)return;const b=await Ge(l,m);b&&(Object.assign(d,b),B())}),r("button[data-act=reject]",i)?.addEventListener("click",async h=>{h.stopPropagation();const m=await q({title:"Reject photo",label:"Reason (shown to the capturer)",placeholder:"e.g. off-topic / poor quality / privacy",defaultValue:"",multiline:!0,minLength:0,maxLength:500,okLabel:"Reject"});if(m===null)return;const b=await Fe(l,m);b&&(Object.assign(d,b),B())}),r("button[data-act=withdraw]",i)?.addEventListener("click",async h=>{if(h.stopPropagation(),!confirm("Withdraw this photo from the client portal?"))return;const m=await ft(l);m&&(Object.assign(d,m),B())})})}function ws(e,t){const s=e.reason||"Reference",n=e.audience||"Internal",a=e.capturedAt?new Date(e.capturedAt).toLocaleString():"",o=[e.levelCode,e.zoneCode].filter(Boolean).join(" \xB7 ")||"",i=e.caption||"",l=t&&n==="PendingReview",d=t&&(n==="PendingReview"||n==="Approved"),u=t&&n==="ClientPortal";return`
-        <div class="photo-card" data-id="${g(e.id)}" data-kind="photo">
+      `;
+
+      // Wire top toolbar
+      $('#photoRefresh', pane)?.addEventListener('click', () => loadSitePhotos());
+      $('#photoQuickCapture', pane)?.addEventListener('click', () => openPhotoCaptureModal());
+      $('#photoOpenReview', pane)?.addEventListener('click', () => openPhotoReviewModal());
+      $('#photoClearAnchor', pane)?.addEventListener('click', () => {
+        selectElementByGuid(null);
+        loadSitePhotos();
+      });
+
+      // Wire reason chips
+      $$('.photo-filters .filter-btn', pane).forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.photoFilters.reason = btn.dataset.reason;
+          loadSitePhotos();
+        });
+      });
+      $('#photoAudienceFilter', pane)?.addEventListener('change', (e) => {
+        state.photoFilters.audience = e.target.value;
+        loadSitePhotos();
+      });
+
+      // Wire each card
+      $$('.photo-card', pane).forEach(card => {
+        const id = card.dataset.id;
+        const p = state.photos.find(x => x.id === id);
+        if (!p) return;
+        card._photo = p;            // setupRowContextMenu reads this
+        const img = $('img', card);
+        if (img) ensurePhotoThumbSrc(id, img);
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('button')) return;
+          focusPhoto(p);
+        });
+        card.addEventListener('dblclick', () => focusPhoto(p));
+        $('button[data-act=approve]', card)?.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          let cap = p.caption || '';
+          if (cap.trim().length < 3) {
+            cap = await promptInline({
+              title: 'Approve photo',
+              label: 'Approval caption (visible to client)',
+              placeholder: 'Describe what the client should see',
+              defaultValue: cap,
+              multiline: true, minLength: 3, maxLength: 2000,
+              okLabel: 'Approve & publish',
+            });
+          }
+          if (!cap || cap.trim().length < 3) return;
+          const updated = await approveSitePhoto(id, cap);
+          if (updated) { Object.assign(p, updated); renderPhotos(); }
+        });
+        $('button[data-act=reject]', card)?.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const reason = await promptInline({
+            title: 'Reject photo',
+            label: 'Reason (shown to the capturer)',
+            placeholder: 'e.g. off-topic / poor quality / privacy',
+            defaultValue: '',
+            multiline: true, minLength: 0, maxLength: 500,
+            okLabel: 'Reject',
+          });
+          if (reason === null) return;
+          const updated = await rejectSitePhoto(id, reason);
+          if (updated) { Object.assign(p, updated); renderPhotos(); }
+        });
+        $('button[data-act=withdraw]', card)?.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!confirm('Withdraw this photo from the client portal?')) return;
+          const updated = await withdrawSitePhoto(id);
+          if (updated) { Object.assign(p, updated); renderPhotos(); }
+        });
+      });
+    }
+
+    function renderPhotoCard(p, reviewerVisible) {
+      const reason = p.reason || 'Reference';
+      const audience = p.audience || 'Internal';
+      const captured = p.capturedAt ? new Date(p.capturedAt).toLocaleString() : '';
+      const lvlZone = [p.levelCode, p.zoneCode].filter(Boolean).join(' · ') || '';
+      const caption = p.caption || '';
+      const canApprove = reviewerVisible && audience === 'PendingReview';
+      const canReject  = reviewerVisible && (audience === 'PendingReview' || audience === 'Approved');
+      const canWithdraw = reviewerVisible && audience === 'ClientPortal';
+      return `
+        <div class="photo-card" data-id="${escapeHtml(p.id)}" data-kind="photo">
           <div class="thumb">
-            <img alt="${g(i||"Site photo")}" loading="lazy" />
-            <div class="thumb-fallback" style="display:none">\u{1F4F7}</div>
-            <span class="reason-chip rc-${s.toLowerCase()}">${g(s)}</span>
-            <span class="audience-chip aud-${n.toLowerCase()}">${g(n)}</span>
+            <img alt="${escapeHtml(caption || 'Site photo')}" loading="lazy" />
+            <div class="thumb-fallback" style="display:none">📷</div>
+            <span class="reason-chip rc-${reason.toLowerCase()}">${escapeHtml(reason)}</span>
+            <span class="audience-chip aud-${audience.toLowerCase()}">${escapeHtml(audience)}</span>
           </div>
           <div class="meta">
-            <div class="cap">${i?g(i):'<em class="muted">No caption</em>'}</div>
-            <div class="sub">${g(a)}${o?" \xB7 "+g(o):""}</div>
-            ${e.anchorElementGuid?`<div class="sub anchor">\u2693 ${g(c.elementMap[e.anchorElementGuid]?.name||e.anchorElementGuid.slice(0,8))}</div>`:""}
+            <div class="cap">${caption ? escapeHtml(caption) : '<em class="muted">No caption</em>'}</div>
+            <div class="sub">${escapeHtml(captured)}${lvlZone ? ' · ' + escapeHtml(lvlZone) : ''}</div>
+            ${p.anchorElementGuid ? `<div class="sub anchor">⚓ ${escapeHtml((state.elementMap[p.anchorElementGuid]?.name) || p.anchorElementGuid.slice(0, 8))}</div>` : ''}
           </div>
-          ${l||d||u?`<div class="actions">
-            ${l?'<button class="btn xs" data-act="approve">\u2713 Approve</button>':""}
-            ${d?'<button class="btn xs subtle" data-act="reject">\u2717 Reject</button>':""}
-            ${u?'<button class="btn xs subtle" data-act="withdraw">\u21B6 Withdraw</button>':""}
-          </div>`:""}
+          ${(canApprove || canReject || canWithdraw) ? `<div class="actions">
+            ${canApprove ? '<button class="btn xs" data-act="approve">✓ Approve</button>' : ''}
+            ${canReject  ? '<button class="btn xs subtle" data-act="reject">✗ Reject</button>' : ''}
+            ${canWithdraw ? '<button class="btn xs subtle" data-act="withdraw">↶ Withdraw</button>' : ''}
+          </div>` : ''}
         </div>
-      `}function Es(){return c.selectedClashId?"Defect":c.selectedElementGuid?"AsBuilt":"Reference"}function ze(e={}){const t=r("#photoCaptureModal");if(!t)return;if(se=null,O){try{URL.revokeObjectURL(O)}catch{}O=null}r("#pcCaption").value="",r("#pcLevel").value=e.levelCode||"",r("#pcZone").value=e.zoneCode||"",r("#pcPreview").innerHTML="";const s=e.reason||Es();w("#pcReason .choice").forEach(i=>i.classList.toggle("active",i.dataset.v===s));const n=e.guid||c.selectedElementGuid,a=n?c.elementMap[n]||{}:null;r("#pcAnchorElement").textContent="Element: "+(a?.name||a?.tag||(n?n.slice(0,8):"\u2014")),r("#pcAnchorElement").classList.toggle("on",!!n);const o=!!T;r("#pcAnchorPoint").textContent=o?`3D: ${T.x.toFixed(2)}, ${T.y.toFixed(2)}, ${T.z.toFixed(2)}`:"3D point: \u2014",r("#pcAnchorPoint").classList.toggle("on",o),r("#pcAnchorModel").textContent=c.modelName?"Model: "+c.modelName:"Model: \u2014",r("#pcAnchorModel").classList.toggle("on",!!P),c.photoCaptureSeed={guid:n,reason:s},t.classList.add("open")}function he(){const e=r("#photoCaptureModal");if(e&&(e.classList.remove("open"),se=null,O)){try{URL.revokeObjectURL(O)}catch{}O=null}}function Ls(){const e=r("#photoCaptureModal");if(!e)return;r("#pcClose").addEventListener("click",he),r("#pcCancel").addEventListener("click",he),e.addEventListener("click",o=>{o.target.id==="photoCaptureModal"&&he()}),e.addEventListener("keydown",o=>{e.classList.contains("open")&&o.key==="Escape"&&(o.preventDefault(),o.stopPropagation(),he())}),w("#pcReason .choice").forEach(o=>o.addEventListener("click",()=>{w("#pcReason .choice").forEach(i=>i.classList.remove("active")),o.classList.add("active")}));const t=r("#pcDrop"),s=r("#pcFileInput"),n=r("#pcPickBtn");function a(o){if(o){if(o.size>25*1024*1024){y(`${o.name} > 25 MB \u2014 skipped`,"warn");return}if(!o.type||!o.type.startsWith("image/")){y("Only image files accepted","warn");return}if(se=o,O)try{URL.revokeObjectURL(O)}catch{}O=URL.createObjectURL(o),r("#pcPreview").innerHTML=`<img src="${O}" alt="preview" />`}}n?.addEventListener("click",o=>{o.stopPropagation(),s.click()}),s.addEventListener("change",()=>{a(s.files?.[0]),s.value=""}),t.addEventListener("click",()=>s.click()),t.addEventListener("keydown",o=>{(o.key==="Enter"||o.key===" ")&&(o.preventDefault(),s.click())}),["dragenter","dragover"].forEach(o=>t.addEventListener(o,i=>{i.preventDefault(),i.stopPropagation(),t.classList.add("dragover")})),["dragleave","drop"].forEach(o=>t.addEventListener(o,i=>{i.preventDefault(),i.stopPropagation(),t.classList.remove("dragover")})),t.addEventListener("drop",o=>a(o.dataTransfer?.files?.[0])),["dragover","drop"].forEach(o=>e.addEventListener(o,i=>{i.preventDefault()})),r("#pcSubmit").addEventListener("click",ks)}async function ks(){if(!se){y("Pick or capture a photo first","warn");return}const e=r("#pcReason .choice.active")?.dataset.v||"Reference",t=(r("#pcCaption").value||"").trim(),s=(r("#pcLevel").value||"").trim(),n=(r("#pcZone").value||"").trim(),a=c.photoCaptureSeed?.guid||c.selectedElementGuid,o=new FormData;o.append("file",se,se.name||"capture.jpg"),o.append("reason",e),t&&o.append("caption",t),s&&o.append("levelCode",s),n&&o.append("zoneCode",n),a&&o.append("anchorElementGuid",a),P&&o.append("modelId",P),T&&(o.append("modelX",String(T.x)),o.append("modelY",String(T.y)),o.append("modelZ",String(T.z))),o.append("source","web-viewer"),o.append("capturedAt",new Date().toISOString());const i=r("#pcSubmit");i&&(i.disabled=!0,i.textContent="Uploading\u2026");const l=await bs(o);i&&(i.disabled=!1,i.textContent="Capture \u2192"),l&&(c.photos.unshift(l),Ue(),B(),G(),he(),y(`Photo captured \xB7 ${l.reason}${l.audience==="PendingReview"?" \xB7 Pending review":""}`,"success"),J(`Captured ${l.reason} photo`))}function Ss(){const e=r("#photoReviewModal");if(e){if(!Ve()){y("Only PM / Admin / Owner can review photos","warn");return}c.photoReviewSelected.clear(),r("#prBulkCaption").value="",e.classList.add("open"),Ie()}}function $e(){const e=r("#photoReviewModal");e&&(e.classList.remove("open"),c.photoReviewSelected.clear())}async function Ie(){const e=r("#prList"),t=r("#prCountLabel");if(!e||!t)return;e.innerHTML='<div class="inline-loader"><span class="dot-spin"></span>Loading pending photos\u2026</div>';const s=await $(`/api/projects/${L}/photos?audience=PendingReview&pageSize=200`),n=Array.isArray(s)?s:s?.items||[];if(t.textContent=n.length?`${n.length} pending photo${n.length===1?"":"s"}`:"Queue empty",!n.length){e.innerHTML='<div class="empty-state"><span class="glyph">\u2713</span>Nothing pending review</div>';return}e.innerHTML=n.map(a=>`
-        <label class="review-row" data-id="${g(a.id)}">
-          <input type="checkbox" data-id="${g(a.id)}" ${c.photoReviewSelected.has(a.id)?"checked":""} />
-          <div class="thumb"><img alt="" loading="lazy" /><div class="thumb-fallback" style="display:none">\u{1F4F7}</div></div>
+      `;
+    }
+
+    // ── Capture modal ─────────────────────────────────────────────────
+    function inferDefaultReason() {
+      // Auto-pre-select per the brief: element selected → AsBuilt; clash open
+      // → Defect; otherwise Reference.
+      if (state.selectedClashId) return 'Defect';
+      if (state.selectedElementGuid) return 'AsBuilt';
+      return 'Reference';
+    }
+
+    function openPhotoCaptureModal(seed = {}) {
+      const modal = $('#photoCaptureModal');
+      if (!modal) return;
+      pendingPhotoFile = null;
+      if (pendingPhotoObjectUrl) { try { URL.revokeObjectURL(pendingPhotoObjectUrl); } catch (_) {} pendingPhotoObjectUrl = null; }
+      $('#pcCaption').value = '';
+      $('#pcLevel').value   = seed.levelCode || '';
+      $('#pcZone').value    = seed.zoneCode  || '';
+      $('#pcPreview').innerHTML = '';
+      const reason = seed.reason || inferDefaultReason();
+      $$('#pcReason .choice').forEach(c => c.classList.toggle('active', c.dataset.v === reason));
+      // Anchor pills — show what we've captured automatically.
+      const elGuid = seed.guid || state.selectedElementGuid;
+      const elMeta = elGuid ? (state.elementMap[elGuid] || {}) : null;
+      $('#pcAnchorElement').textContent = 'Element: ' + (elMeta?.name || elMeta?.tag || (elGuid ? elGuid.slice(0, 8) : '—'));
+      $('#pcAnchorElement').classList.toggle('on', !!elGuid);
+      const haveXyz = !!lastClickPoint;
+      $('#pcAnchorPoint').textContent = haveXyz
+        ? `3D: ${lastClickPoint.x.toFixed(2)}, ${lastClickPoint.y.toFixed(2)}, ${lastClickPoint.z.toFixed(2)}`
+        : '3D point: —';
+      $('#pcAnchorPoint').classList.toggle('on', haveXyz);
+      $('#pcAnchorModel').textContent = state.modelName ? 'Model: ' + state.modelName : 'Model: —';
+      $('#pcAnchorModel').classList.toggle('on', !!modelId);
+      state.photoCaptureSeed = { guid: elGuid, reason };
+      modal.classList.add('open');
+    }
+    function closePhotoCaptureModal() {
+      const modal = $('#photoCaptureModal');
+      if (!modal) return;
+      modal.classList.remove('open');
+      pendingPhotoFile = null;
+      if (pendingPhotoObjectUrl) { try { URL.revokeObjectURL(pendingPhotoObjectUrl); } catch (_) {} pendingPhotoObjectUrl = null; }
+    }
+
+    function setupPhotoCaptureModal() {
+      const modal = $('#photoCaptureModal');
+      if (!modal) return;
+      $('#pcClose').addEventListener('click', closePhotoCaptureModal);
+      $('#pcCancel').addEventListener('click', closePhotoCaptureModal);
+      modal.addEventListener('click', (e) => { if (e.target.id === 'photoCaptureModal') closePhotoCaptureModal(); });
+      modal.addEventListener('keydown', (e) => {
+        if (!modal.classList.contains('open')) return;
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePhotoCaptureModal(); }
+      });
+
+      // Reason chip toggle
+      $$('#pcReason .choice').forEach(c => c.addEventListener('click', () => {
+        $$('#pcReason .choice').forEach(x => x.classList.remove('active'));
+        c.classList.add('active');
+      }));
+
+      // File picker + drag-drop (same pattern as imAttachDrop)
+      const drop = $('#pcDrop');
+      const input = $('#pcFileInput');
+      const pickBtn = $('#pcPickBtn');
+      function stagePhoto(file) {
+        if (!file) return;
+        if (file.size > 25 * 1024 * 1024) { toast(`${file.name} > 25 MB — skipped`, 'warn'); return; }
+        if (!file.type || !file.type.startsWith('image/')) { toast('Only image files accepted', 'warn'); return; }
+        pendingPhotoFile = file;
+        if (pendingPhotoObjectUrl) { try { URL.revokeObjectURL(pendingPhotoObjectUrl); } catch (_) {} }
+        pendingPhotoObjectUrl = URL.createObjectURL(file);
+        $('#pcPreview').innerHTML = `<img src="${pendingPhotoObjectUrl}" alt="preview" />`;
+      }
+      pickBtn?.addEventListener('click', (ev) => { ev.stopPropagation(); input.click(); });
+      input.addEventListener('change', () => { stagePhoto(input.files?.[0]); input.value = ''; });
+      drop.addEventListener('click', () => input.click());
+      drop.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); input.click(); } });
+      ['dragenter','dragover'].forEach(evt => drop.addEventListener(evt, (ev) => { ev.preventDefault(); ev.stopPropagation(); drop.classList.add('dragover'); }));
+      ['dragleave','drop'].forEach(evt => drop.addEventListener(evt, (ev) => { ev.preventDefault(); ev.stopPropagation(); drop.classList.remove('dragover'); }));
+      drop.addEventListener('drop', (ev) => stagePhoto(ev.dataTransfer?.files?.[0]));
+      ['dragover','drop'].forEach(evt => modal.addEventListener(evt, (ev) => { ev.preventDefault(); }));
+
+      $('#pcSubmit').addEventListener('click', submitPhotoCapture);
+    }
+
+    async function submitPhotoCapture() {
+      if (!pendingPhotoFile) { toast('Pick or capture a photo first', 'warn'); return; }
+      const reason = $('#pcReason .choice.active')?.dataset.v || 'Reference';
+      const caption = ($('#pcCaption').value || '').trim();
+      const level   = ($('#pcLevel').value || '').trim();
+      const zone    = ($('#pcZone').value || '').trim();
+      const elGuid  = state.photoCaptureSeed?.guid || state.selectedElementGuid;
+
+      const fd = new FormData();
+      fd.append('file', pendingPhotoFile, pendingPhotoFile.name || 'capture.jpg');
+      fd.append('reason', reason);
+      if (caption) fd.append('caption', caption);
+      if (level)   fd.append('levelCode', level);
+      if (zone)    fd.append('zoneCode', zone);
+      if (elGuid)  fd.append('anchorElementGuid', elGuid);
+      if (modelId) fd.append('modelId', modelId);
+      if (lastClickPoint) {
+        fd.append('modelX', String(lastClickPoint.x));
+        fd.append('modelY', String(lastClickPoint.y));
+        fd.append('modelZ', String(lastClickPoint.z));
+      }
+      fd.append('source', 'web-viewer');
+      fd.append('capturedAt', new Date().toISOString());
+
+      // Disable button while in flight so the user can't double-submit on
+      // a slow connection.
+      const btn = $('#pcSubmit'); if (btn) { btn.disabled = true; btn.textContent = 'Uploading…'; }
+      const created = await captureSitePhoto(fd);
+      if (btn) { btn.disabled = false; btn.textContent = 'Capture →'; }
+      if (!created) return;
+      // Add to the front of the in-memory list, repaint pin + tab.
+      state.photos.unshift(created);
+      placePhotoPins();
+      renderPhotos();
+      updateRightTabCounts();
+      closePhotoCaptureModal();
+      toast(`Photo captured · ${created.reason}${created.audience === 'PendingReview' ? ' · Pending review' : ''}`, 'success');
+      logHistory(`Captured ${created.reason} photo`);
+    }
+
+    // ── Reviewer mini-pane (PM/Admin/Owner bulk approve) ──────────────
+    function openPhotoReviewModal() {
+      const modal = $('#photoReviewModal');
+      if (!modal) return;
+      if (!isPhotoApprover()) { toast('Only PM / Admin / Owner can review photos', 'warn'); return; }
+      state.photoReviewSelected.clear();
+      $('#prBulkCaption').value = '';
+      modal.classList.add('open');
+      refreshPhotoReviewList();
+    }
+    function closePhotoReviewModal() {
+      const modal = $('#photoReviewModal');
+      if (!modal) return;
+      modal.classList.remove('open');
+      state.photoReviewSelected.clear();
+    }
+
+    async function refreshPhotoReviewList() {
+      const list = $('#prList');
+      const lbl = $('#prCountLabel');
+      if (!list || !lbl) return;
+      list.innerHTML = '<div class="inline-loader"><span class="dot-spin"></span>Loading pending photos…</div>';
+      const data = await api(`/api/projects/${projectId}/photos?audience=PendingReview&pageSize=200`);
+      const items = Array.isArray(data) ? data : (data?.items || []);
+      lbl.textContent = items.length ? `${items.length} pending photo${items.length === 1 ? '' : 's'}` : 'Queue empty';
+      if (!items.length) {
+        list.innerHTML = '<div class="empty-state"><span class="glyph">✓</span>Nothing pending review</div>';
+        return;
+      }
+      list.innerHTML = items.map(p => `
+        <label class="review-row" data-id="${escapeHtml(p.id)}">
+          <input type="checkbox" data-id="${escapeHtml(p.id)}" ${state.photoReviewSelected.has(p.id) ? 'checked' : ''} />
+          <div class="thumb"><img alt="" loading="lazy" /><div class="thumb-fallback" style="display:none">📷</div></div>
           <div class="meta">
-            <div class="cap">${a.caption?g(a.caption):'<em class="muted">No caption</em>'}</div>
+            <div class="cap">${p.caption ? escapeHtml(p.caption) : '<em class="muted">No caption</em>'}</div>
             <div class="sub">
-              <span class="reason-chip rc-${(a.reason||"reference").toLowerCase()}">${g(a.reason||"Reference")}</span>
-              <span class="hint">${g(a.capturedAt?new Date(a.capturedAt).toLocaleString():"")}</span>
-              ${a.levelCode?`<span class="hint">\xB7 ${g(a.levelCode)}</span>`:""}
-              ${a.zoneCode?`<span class="hint">\xB7 ${g(a.zoneCode)}</span>`:""}
+              <span class="reason-chip rc-${(p.reason || 'reference').toLowerCase()}">${escapeHtml(p.reason || 'Reference')}</span>
+              <span class="hint">${escapeHtml(p.capturedAt ? new Date(p.capturedAt).toLocaleString() : '')}</span>
+              ${p.levelCode ? `<span class="hint">· ${escapeHtml(p.levelCode)}</span>` : ''}
+              ${p.zoneCode  ? `<span class="hint">· ${escapeHtml(p.zoneCode)}</span>` : ''}
             </div>
           </div>
-          <button class="btn xs subtle" data-act="reject" data-id="${g(a.id)}" title="Reject">\u2717</button>
+          <button class="btn xs subtle" data-act="reject" data-id="${escapeHtml(p.id)}" title="Reject">✗</button>
         </label>
-      `).join(""),w(".review-row .thumb img",e).forEach((a,o)=>vt(n[o].id,a)),w("input[type=checkbox]",e).forEach(a=>{a.addEventListener("change",()=>{a.checked?c.photoReviewSelected.add(a.dataset.id):c.photoReviewSelected.delete(a.dataset.id)})}),w("button[data-act=reject]",e).forEach(a=>{a.addEventListener("click",async o=>{o.preventDefault(),o.stopPropagation();const i=await q({title:"Reject photo",label:"Reason (shown to the capturer)",placeholder:"e.g. off-topic / poor quality / privacy",defaultValue:"",multiline:!0,minLength:0,maxLength:500,okLabel:"Reject"});i!==null&&(await Fe(a.dataset.id,i),Ie(),H())})})}function Cs(){const e=r("#photoReviewModal");e&&(r("#prClose").addEventListener("click",$e),r("#prBulkCancel").addEventListener("click",$e),e.addEventListener("click",t=>{t.target.id==="photoReviewModal"&&$e()}),e.addEventListener("keydown",t=>{e.classList.contains("open")&&t.key==="Escape"&&(t.preventDefault(),t.stopPropagation(),$e())}),r("#prRefresh").addEventListener("click",Ie),r("#prSelectAll").addEventListener("click",()=>{w("#prList input[type=checkbox]").forEach(t=>{t.checked=!0,c.photoReviewSelected.add(t.dataset.id)})}),r("#prSelectNone").addEventListener("click",()=>{c.photoReviewSelected.clear(),w("#prList input[type=checkbox]").forEach(t=>t.checked=!1)}),r("#prBulkApprove").addEventListener("click",async()=>{const t=Array.from(c.photoReviewSelected);if(!t.length){y("Select at least one photo","warn");return}const s=(r("#prBulkCaption").value||"").trim();if(s.length<3){y("Shared caption must be \u2265 3 chars","warn");return}await ys(t,s)&&(c.photoReviewSelected.clear(),await Ie(),await H())}))}function Ms(){const e=r("#photoFab");e&&(e.addEventListener("click",()=>ze()),e.style.display="none")}function $s(){if(!L)return;const e=()=>H(),t=a=>{a&&a.projectId&&a.projectId!==L||lt()},s=a=>{a&&a.projectId&&a.projectId!==L||c.rightTab==="comments"&&c.selectedIssueId&&a&&a.issueId===c.selectedIssueId&&ye()};window.__planscapePhotoRealtime={onSitePhotoCaptured:e,onSitePhotoApproved:e,refresh:e},window.__planscapeHubBound=window.__planscapeHubBound||new WeakSet;function n(){const a=window.__planscapeHub;!a||typeof a.on!="function"||window.__planscapeHubBound.has(a)||(window.__planscapeHubBound.add(a),a.on("SitePhotoCaptured",e),a.on("SitePhotoApproved",e),a.on("IssueCreated",t),a.on("IssueUpdated",t),a.on("CommentAdded",s))}n(),window.__planscapeRebindHub=n}function Is(){w(".btab").forEach(s=>{s.addEventListener("click",()=>ne(s.dataset.tab))}),r("#bottomCollapse").addEventListener("click",()=>{const s=r("#bottomPanel");s.classList.toggle("collapsed"),s.classList.remove("expanded"),r(".viewport-wrap")?.classList.toggle("bp-collapsed",s.classList.contains("collapsed")),Y()});const e=r("#bottomExpand");e&&e.addEventListener("click",()=>{const s=r("#bottomPanel"),n=r(".viewport-wrap");s.classList.remove("collapsed"),n?.classList.remove("bp-collapsed"),s.classList.toggle("expanded"),s.classList.contains("expanded")&&s.style.removeProperty("height"),n?.classList.toggle("bp-expanded",s.classList.contains("expanded")),e.textContent=s.classList.contains("expanded")?"\u2913":"\u26F6",e.title=s.classList.contains("expanded")?"Restore default height":"Expand to 60% of viewport",Y()});const t=r("#bottomResize");if(t){let s=0,n=0;const a=80,o=()=>Math.max(120,window.innerHeight*.85),i=d=>{const u=s-d.clientY,h=Math.min(o(),Math.max(a,n+u)),m=r("#bottomPanel");m.style.height=h+"px",document.documentElement.style.setProperty("--bottom-panel-height",h+"px")},l=()=>{r("#bottomPanel").classList.remove("resizing"),document.removeEventListener("pointermove",i),document.removeEventListener("pointerup",l),Y()};t.addEventListener("pointerdown",d=>{const u=r("#bottomPanel");u.classList.contains("collapsed")||(u.classList.remove("expanded"),r(".viewport-wrap")?.classList.remove("bp-expanded"),u.classList.add("resizing"),s=d.clientY,n=u.getBoundingClientRect().height,document.addEventListener("pointermove",i),document.addEventListener("pointerup",l,{once:!0}),d.preventDefault())}),t.addEventListener("dblclick",()=>{r("#bottomPanel").style.removeProperty("height"),document.documentElement.style.removeProperty("--bottom-panel-height"),Y()})}r("#btnRunDetect").addEventListener("click",()=>{y("Running clash detection\u2026 (mock)","warn"),setTimeout(()=>{c.clashes=tt(),Ee(),ee(),y("Clash detection complete","success")},1200)}),r("#btnExportCsv").addEventListener("click",Rs),r("#btnExportIssues").addEventListener("click",Ts),r("#btnNewIssue").addEventListener("click",()=>z()),w("#clashStatusFilters .filter-btn").forEach(s=>s.addEventListener("click",()=>{w("#clashStatusFilters .filter-btn").forEach(n=>n.classList.remove("active")),s.classList.add("active"),c.clashStatusFilter=s.dataset.status,ee()})),w("#clashTypeFilters .filter-btn").forEach(s=>s.addEventListener("click",()=>{w("#clashTypeFilters .filter-btn").forEach(n=>n.classList.remove("active")),s.classList.add("active"),c.clashTypeFilter=s.dataset.type,ee()})),w("#issueFilters .filter-btn").forEach(s=>s.addEventListener("click",()=>{w("#issueFilters .filter-btn").forEach(n=>n.classList.remove("active")),s.classList.add("active"),c.issuesFilter=s.dataset.f,D()}))}function ne(e){c.bottomTab=e,w(".btab").forEach(t=>t.classList.toggle("active",t.dataset.tab===e)),w(".bottom-pane").forEach(t=>t.classList.toggle("active",t.id==="bp-"+e)),w("#bottomPanel .filter-row").forEach(t=>t.style.display=t.id==="fr-"+e?"":"none"),e==="timeline"&&xs(),r("#bottomPanel").classList.remove("collapsed"),r(".viewport-wrap")?.classList.remove("bp-collapsed"),Y()}function Rs(){const e=[["ID","Type","Element A","Element B","Disc","Overlap mm","Assigned","Status"]];c.clashes.forEach(t=>e.push([t.id,t.type,t.elementA?.name,t.elementB?.name,t.discPair,t.overlap_mm,t.assignedTo||"",t.status])),gt("clashes.csv",e)}function Ts(){const e=[["ID","Title","Priority","Status","Assignee","Due"]];c.issues.forEach(t=>e.push([t.code||t.id,t.title,t.priority,t.status,t.assigneeName||"",t.dueDate||""])),gt("issues.csv",e)}function gt(e,t){const s="\uFEFF"+t.map(i=>i.map(l=>`"${String(l??"").replace(/"/g,'""')}"`).join(",")).join(`
-`),n=new Blob([s],{type:"text/csv;charset=utf-8"}),a=URL.createObjectURL(n),o=document.createElement("a");o.href=a,o.download=e,o.click(),setTimeout(()=>{try{URL.revokeObjectURL(a)}catch{}},0)}function xs(){const e=r("#timelineCanvas");if(!e)return;const t=e.getContext("2d"),s=e.width=e.clientWidth,n=e.height=e.clientHeight;t.fillStyle="#1C1F26",t.fillRect(0,0,s,n);const a=10,o=Array.from({length:a},(l,d)=>Math.max(0,60-d*5+Math.random()*8)),i=Array.from({length:a},(l,d)=>Math.max(0,18-d*1.4+Math.random()*3));bt(t,o,s,n,"#EF4444",0),bt(t,i,s,n,"#F59E0B",1),t.fillStyle="#8892A4",t.font="11px Inter",t.fillText("Clashes (red) \xB7 Issues (amber)  \u2014 last 10 sessions",10,16)}function bt(e,t,s,n,a){const o=Math.max(...t,1);e.beginPath(),t.forEach((i,l)=>{const d=20+(s-40)*(l/(t.length-1)),u=n-16-(n-40)*(i/o);l===0?e.moveTo(d,u):e.lineTo(d,u)}),e.strokeStyle=a,e.lineWidth=2,e.stroke()}let T=null;function As(){const e=p.renderer.domElement,t=r("#coordReadout"),s=new E.Raycaster,n=new E.Vector2,a=r("#pinTooltip");e.addEventListener("pointermove",l=>{if(!p.modelRoot)return;const d=e.getBoundingClientRect();n.x=(l.clientX-d.left)/d.width*2-1,n.y=-((l.clientY-d.top)/d.height)*2+1,s.setFromCamera(n,p.camera);const u=s.intersectObject(p.modelRoot,!0);if(u.length){const b=u[0].point;t.innerHTML=`<span class="x">X</span> ${b.x.toFixed(2)}m  <span class="y">Y</span> ${b.y.toFixed(2)}m  <span class="z">Z</span> ${b.z.toFixed(2)}m`}const h=[];c.issuePins.forEach(b=>h.push(b)),c.clashPins.forEach(b=>h.push(b)),c.photoPins.forEach(b=>h.push(b));const m=h.length?s.intersectObjects(h,!1):[];if(m.length&&a){const b=m[0].object.userData;let k="";if(b.issueId){const v=c.issues.find(S=>S.id===b.issueId);v&&(k=`<div class="ttitle">${g(v.title||"Issue")}</div>
-              <div class="tmeta">${g(v.code||b.issueId)} \xB7 ${g(v.priority||"MED")} \xB7 ${g(v.status||"NEW")}</div>`)}else if(b.clashId){const v=c.clashes.find(S=>S.id===b.clashId);v&&(k=`<div class="ttitle">${g(v.elementA?.name)} \u2715 ${g(v.elementB?.name)}</div>
-              <div class="tmeta">${g(v.id)} \xB7 ${v.type} \xB7 ${v.overlap_mm}mm \xB7 ${g(v.status)}</div>`)}else if(b.photoId){const v=c.photos.find(S=>S.id===b.photoId);v&&(k=`<div class="ttitle">${g(v.caption||"Site photo")}</div>
-              <div class="tmeta">${g(v.reason||"")} \xB7 ${g(v.audience||"")} \xB7 ${g(v.capturedAt?new Date(v.capturedAt).toLocaleDateString():"")}</div>`)}k?(a.innerHTML=k,a.style.display="block",a.style.left=l.clientX-d.left+14+"px",a.style.top=l.clientY-d.top+14+"px"):a.style.display="none"}else a&&(a.style.display="none")}),e.addEventListener("pointerleave",()=>{a&&(a.style.display="none")});let o=null;e.addEventListener("pointerdown",l=>{o={x:l.clientX,y:l.clientY}}),e.addEventListener("pointerup",l=>{if(!o)return;const d=Math.hypot(l.clientX-o.x,l.clientY-o.y);if(o=null,d>6||!p.modelRoot)return;const u=e.getBoundingClientRect();if(n.x=(l.clientX-u.left)/u.width*2-1,n.y=-((l.clientY-u.top)/u.height)*2+1,s.setFromCamera(n,p.camera),p.pinGroup&&s.intersectObject(p.pinGroup,!0).length)return;const h=s.intersectObject(p.modelRoot,!0);h.length&&(T=h[0].point.clone())}),window.addEventListener("resize",Y),Ps();const i=p.bridge.send;p.bridge.send=function(l,d){if(l==="pick"&&d&&d.guid){const u=d.event||{},h=u.ctrlKey||u.metaKey?"toggle":u.shiftKey?"add":"replace";W(d.guid,h)}if(l==="pinTap"&&d){if(d.__coord==="issue"&&d.issueId){const u=c.issues.find(h=>h.id===d.issueId);u&&U(u)}else if(d.__coord==="clash"&&d.clashId){const u=c.clashes.find(h=>h.id===d.clashId);u&&X(u)}else if(d.__coord==="photo"&&d.photoId){const u=c.photos.find(h=>h.id===d.photoId);u&&Me(u)}}return i.call(p.bridge,l,d)}}function W(e,t="replace"){if(!e){c.selectedElementGuid=null,c.selectedElementGuids.clear(),ce(),we(null),G(),Be();return}if(t==="toggle")if(c.selectedElementGuids.has(e)){if(c.selectedElementGuids.delete(e),c.selectedElementGuid===e){const n=c.selectedElementGuids.values().next();c.selectedElementGuid=n.done?null:n.value}}else c.selectedElementGuids.add(e),c.selectedElementGuid=e;else t==="add"?(c.selectedElementGuids.add(e),c.selectedElementGuid=e):(c.selectedElementGuid=e,c.selectedElementGuids.clear(),c.selectedElementGuids.add(e));ce();let s=null;c.selectedElementGuids.forEach(n=>{const a=V(n);a&&(de(a,16347926),n===c.selectedElementGuid&&(s=new E.Box3().setFromObject(a).getCenter(new E.Vector3)))}),t!=="toggle"&&s&&N(s),we(c.selectedElementGuid),G(),Be(),c.rightTab==="photos"&&H()}function Ps(){const e=r("#minimap"),t=r("#minimapCanvas");if(!t)return;const s=new E.WebGLRenderer({canvas:t,antialias:!1});s.setSize(t.clientWidth,t.clientHeight);const n=new E.OrthographicCamera(-1,1,1,-1,.1,1e3);n.up.set(0,0,1),r("#minimapToggle").addEventListener("click",()=>e.classList.toggle("collapsed"));function a(){if(!p.modelRoot||p.modelBounds.isEmpty())return;const o=p.modelBounds.getCenter(new E.Vector3),i=p.modelBounds.getSize(new E.Vector3),l=Math.max(i.x,i.z)*.55;n.left=-l,n.right=l,n.top=l,n.bottom=-l,n.position.set(o.x,o.y+i.y*4+10,o.z),n.lookAt(o),n.updateProjectionMatrix();try{s.render(p.scene,n)}catch{}}setInterval(a,250),t.addEventListener("click",o=>{const i=t.getBoundingClientRect(),l=(o.clientX-i.left)/i.width*2-1,d=-((o.clientY-i.top)/i.height*2-1),u=p.modelBounds.getCenter(new E.Vector3),h=p.modelBounds.getSize(new E.Vector3),m=new E.Vector3(u.x+l*h.x*.5,p.controls.target.y,u.z-d*h.z*.5);N(m)})}function Ds(){const e=p.controls.mouseButtons?Object.assign({},p.controls.mouseButtons):null;function t(o){o.classList.add("flash"),setTimeout(()=>o.classList.remove("flash"),300)}const s=r("#navControls");w(".nav-btn").forEach(o=>o.addEventListener("click",()=>{const i=o.dataset.mode;if(i==="fit"){c.selectedElementGuids.size?ke():p.modelBounds&&!p.modelBounds.isEmpty()&&N(p.modelBounds.getCenter(new E.Vector3)),t(o);return}if(i==="home"){p.fitCamera&&p.fitCamera(),t(o);return}if(i==="level"){p.levelCamera&&p.levelCamera(),t(o);return}w(".nav-btn").forEach(l=>l.classList.remove("active")),o.classList.add("active"),c.activeNav=i,j({type:"setWalkthrough",payload:{enabled:i==="walk"}}),s&&s.classList.toggle("walking",i==="walk"),p.controls&&p.controls.mouseButtons&&E.MOUSE&&(i==="pan"?(p.controls.mouseButtons.LEFT=E.MOUSE.PAN,p.controls.mouseButtons.RIGHT=E.MOUSE.ROTATE):e&&(p.controls.mouseButtons.LEFT=e.LEFT,p.controls.mouseButtons.MIDDLE=e.MIDDLE,p.controls.mouseButtons.RIGHT=e.RIGHT)),i==="pivot"&&c.selectedElementGuid&&W(c.selectedElementGuid,"replace")})),typeof window.__walkSpeedMul!="number"&&(window.__walkSpeedMul=1);try{const o=parseFloat(localStorage.getItem("planscape_walk_speed"));!isNaN(o)&&o>0&&(window.__walkSpeedMul=o)}catch{}function n(o){const i=r("#walkSpeedVal");i&&(i.textContent=window.__walkSpeedMul.toFixed(2).replace(/\.?0+$/,"")+"\xD7",o&&(i.classList.remove("bumped"),i.offsetWidth,i.classList.add("bumped"),i.addEventListener("animationend",()=>i.classList.remove("bumped"),{once:!0})))}function a(o){const i=window.__walkSpeedMul,l=Math.min(8,Math.max(.1,window.__walkSpeedMul+o));if(window.__walkSpeedMul=Math.round(l*100)/100,window.__walkSpeedMul!==i){try{localStorage.setItem("planscape_walk_speed",String(window.__walkSpeedMul))}catch{}n(!0)}}r("#walkSpeedDown")?.addEventListener("click",o=>{o.stopPropagation(),a(-.25)}),r("#walkSpeedUp")?.addEventListener("click",o=>{o.stopPropagation(),a(.25)}),n(),window.addEventListener("wheel",o=>{if(c.activeNav!=="walk")return;const i=o.target;if(!(i&&/INPUT|TEXTAREA|SELECT/.test(i.tagName))&&!(i&&i.closest&&(i.closest(".left-panel")||i.closest(".right-panel")||i.closest(".bottom-panel")))){if(o.shiftKey){const l=o.deltaY<0?1:-1;a(l*.1)}else{const l=window.STING_VIEWER;if(l&&l.camera&&l.modelBounds){const d=o.deltaY<0?1:-1,u=l.modelBounds.getSize(new E.Vector3).length()*.02*(window.__walkSpeedMul||1),h=new E.Vector3;l.camera.getWorldDirection(h);const m=window.__walkUp;if(m){const b=new E.Vector3(m[0],m[1],m[2]);h.addScaledVector(b,-h.dot(b)),h.lengthSq()>1e-6&&h.normalize()}l.camera.position.addScaledVector(h,d*u)}}o.preventDefault()}},{passive:!1})}function We(e){j({type:"setTool",payload:{tool:e}})}function ae(e){p.modelRoot&&(p.modelRoot.traverse(t=>{if(!t.isMesh)return;t.userData._origMat||(t.userData._origMat=t.material);const s=t.userData._origMat,n=t.material;let a;if(e==="shaded"?a=s:e==="wire"?a=new E.MeshBasicMaterial({color:6333946,wireframe:!0}):e==="xray"?a=new E.MeshStandardMaterial({color:16777215,transparent:!0,opacity:.25,depthWrite:!1}):e==="ghost"?a=new E.MeshStandardMaterial({color:8947848,transparent:!0,opacity:.35,depthWrite:!1}):a=s,n&&n!==s&&n!==a&&typeof n.dispose=="function")try{n.dispose()}catch{}t.material=a}),c.renderMode=e,y("View: "+e))}function Os(){r("#sectionClose").addEventListener("click",()=>r("#sectionCard").style.display="none"),r("#sectionAddX").addEventListener("click",()=>Re("x")),r("#sectionAddY").addEventListener("click",()=>Re("y")),r("#sectionAddZ").addEventListener("click",()=>Re("z")),r("#sectionClear").addEventListener("click",()=>yt())}function me(e){r("#sectionCard").style.display="block",Re(e)}function Re(e){const t={x:[1,0,0],y:[0,1,0],z:[0,0,1],free:[0,1,0]},s=t[e]||t.y;j({type:"setSectionPlane",payload:{enabled:!0,normal:s,offset:.5}})}function yt(){j({type:"setSectionPlane",payload:{enabled:!1}}),r("#sectionCard").style.display="none"}function _s(){document.addEventListener("keydown",e=>{if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;const t=e.key;if(!r("#issueModal")?.classList.contains("open")&&!r("#photoCaptureModal")?.classList.contains("open")&&!r("#photoReviewModal")?.classList.contains("open")){if((t==="p"||t==="P")&&(c.modelName||c.elementMap)){ze(),e.preventDefault();return}if(t==="Escape"){const s=r(".help-overlay");if(s&&s.classList.contains("open")){s.classList.remove("open");return}const n=r("#rowMenu");if(n&&n.classList.contains("open"))return;j({type:"clearHighlight"}),ce(),c.selectedElementGuid=null,c.selectedElementGuids.clear(),c.selectedIssueId=null,we(null),G(),Be()}else if(t==="f"||t==="F")c.selectedElementGuids.size?ke():p.modelBounds&&!p.modelBounds.isEmpty()&&N(p.modelBounds.getCenter(new E.Vector3));else if(t==="h"||t==="H")c.selectedElementGuids.size&&_e();else if(t==="i"||t==="I")e.shiftKey||c.selectedElementGuids.size&&Oe();else if(t==="a"||t==="A")Se();else if(t==="g"||t==="G")c.ghostMode=!c.ghostMode,ae(c.ghostMode?"ghost":"shaded");else if(t==="w"||t==="W")r(".nav-btn[data-mode=walk]")?.click();else if(t==="o"||t==="O")r(".nav-btn[data-mode=orbit]")?.click();else if(t==="m"||t==="M")We("measure");else if(t===" ")j({type:"fit"}),e.preventDefault();else if((e.ctrlKey||e.metaKey)&&(t==="s"||t==="S"))e.preventDefault(),r("#btnAddView").click();else if(e.shiftKey&&(t==="I"||t==="i")){e.preventDefault();const s=c.selectedElementGuid;z(s?{guid:s,meta:c.elementMap?.[s]||{}}:{})}else if(t>="1"&&t<="7"){const n=w(".level-pill")[parseInt(t,10)-1];n&&n.click()}}})}function Bs(){r(".help-overlay .close-help").addEventListener("click",()=>r(".help-overlay").classList.remove("open"))}function js(){if(document.getElementById("noProjectCta"))return;const e=r(".viewport-wrap");if(!e)return;const t=f("div",{class:"no-project-cta",id:"noProjectCta"});t.innerHTML=`
+      `).join('');
+      // Lazy thumbs
+      $$('.review-row .thumb img', list).forEach((img, i) => ensurePhotoThumbSrc(items[i].id, img));
+      // Checkbox bind
+      $$('input[type=checkbox]', list).forEach(cb => {
+        cb.addEventListener('change', () => {
+          if (cb.checked) state.photoReviewSelected.add(cb.dataset.id);
+          else state.photoReviewSelected.delete(cb.dataset.id);
+        });
+      });
+      // Per-row reject
+      $$('button[data-act=reject]', list).forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault(); e.stopPropagation();
+          const reason = await promptInline({
+            title: 'Reject photo',
+            label: 'Reason (shown to the capturer)',
+            placeholder: 'e.g. off-topic / poor quality / privacy',
+            defaultValue: '',
+            multiline: true, minLength: 0, maxLength: 500,
+            okLabel: 'Reject',
+          });
+          if (reason === null) return;
+          await rejectSitePhoto(btn.dataset.id, reason);
+          refreshPhotoReviewList();
+          loadSitePhotos();
+        });
+      });
+    }
+
+    function setupPhotoReviewModal() {
+      const modal = $('#photoReviewModal');
+      if (!modal) return;
+      $('#prClose').addEventListener('click', closePhotoReviewModal);
+      $('#prBulkCancel').addEventListener('click', closePhotoReviewModal);
+      modal.addEventListener('click', (e) => { if (e.target.id === 'photoReviewModal') closePhotoReviewModal(); });
+      modal.addEventListener('keydown', (e) => {
+        if (!modal.classList.contains('open')) return;
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePhotoReviewModal(); }
+      });
+      $('#prRefresh').addEventListener('click', refreshPhotoReviewList);
+      $('#prSelectAll').addEventListener('click', () => {
+        $$('#prList input[type=checkbox]').forEach(cb => {
+          cb.checked = true;
+          state.photoReviewSelected.add(cb.dataset.id);
+        });
+      });
+      $('#prSelectNone').addEventListener('click', () => {
+        state.photoReviewSelected.clear();
+        $$('#prList input[type=checkbox]').forEach(cb => cb.checked = false);
+      });
+      $('#prBulkApprove').addEventListener('click', async () => {
+        const ids = Array.from(state.photoReviewSelected);
+        if (!ids.length) { toast('Select at least one photo', 'warn'); return; }
+        const cap = ($('#prBulkCaption').value || '').trim();
+        if (cap.length < 3) { toast('Shared caption must be ≥ 3 chars', 'warn'); return; }
+        const r = await bulkApproveSitePhotos(ids, cap);
+        if (r) {
+          state.photoReviewSelected.clear();
+          await refreshPhotoReviewList();
+          await loadSitePhotos();
+        }
+      });
+    }
+
+    // ── Capture FAB wiring ────────────────────────────────────────────
+    function setupPhotoFab() {
+      const fab = $('#photoFab');
+      if (!fab) return;
+      fab.addEventListener('click', () => openPhotoCaptureModal());
+      // Hide until model is loaded so we don't tease the user with a button
+      // they can't anchor properly. Re-enabled by the boot observer below.
+      fab.style.display = 'none';
+    }
+
+    // SignalR-style live update hook. The signalr-shim.js loaded from
+    // viewer.html mounts window.__planscapeHub before this runs; this
+    // function binds the hub events to local state refreshers. When the
+    // shim is missing (CDN unreachable / running inside RN WebView /
+    // file:// scheme), the periodic loaders keep working as a fallback.
+    function setupPhotoRealtime() {
+      if (!projectId) return;
+      const refreshPhotos = () => loadSitePhotos();
+      const refreshIssues = (payload) => {
+        // Only refetch when the event is for the active project.
+        if (payload && payload.projectId && payload.projectId !== projectId) return;
+        loadIssues();
+      };
+      const refreshComments = (payload) => {
+        if (payload && payload.projectId && payload.projectId !== projectId) return;
+        // Comments thread is loaded on demand when the right-rail tab
+        // is opened; only repaint if the user is currently looking at
+        // the affected issue's comments.
+        if (state.rightTab === 'comments' && state.selectedIssueId &&
+            payload && payload.issueId === state.selectedIssueId) {
+          renderComments();
+        }
+      };
+
+      // Public hook so external host harnesses (or test suites) can
+      // simulate a refresh without a real hub event.
+      window.__planscapePhotoRealtime = {
+        onSitePhotoCaptured: refreshPhotos,
+        onSitePhotoApproved: refreshPhotos,
+        refresh: refreshPhotos,
+      };
+
+      // Bind to the shim if it's already mounted, OR register a
+      // rebind callback that the shim will call once the CDN script
+      // arrives. The "bound" tracker lives on window so a second
+      // setupPhotoRealtime() invocation (page reload, hot-reload)
+      // doesn't re-register every handler against the same hub
+      // singleton — closure-scoped tracking would reset to empty on
+      // each call and produce duplicates.
+      window.__planscapeHubBound = window.__planscapeHubBound || new WeakSet();
+      function bindHub() {
+        const hub = window.__planscapeHub;
+        if (!hub || typeof hub.on !== 'function') return;
+        if (window.__planscapeHubBound.has(hub)) return;
+        window.__planscapeHubBound.add(hub);
+        hub.on('SitePhotoCaptured', refreshPhotos);
+        hub.on('SitePhotoApproved', refreshPhotos);
+        hub.on('IssueCreated', refreshIssues);
+        hub.on('IssueUpdated', refreshIssues);
+        hub.on('CommentAdded',  refreshComments);
+      }
+      bindHub();
+      window.__planscapeRebindHub = bindHub;
+    }
+
+    // ── Bottom panel ───────────────────────────────────────────────────
+    function setupBottomPanel() {
+      $$('.btab').forEach(t => {
+        t.addEventListener('click', () => switchBottomTab(t.dataset.tab));
+      });
+      $('#bottomCollapse').addEventListener('click', () => {
+        const bp = $('#bottomPanel');
+        bp.classList.toggle('collapsed');
+        bp.classList.remove('expanded');
+        $('.viewport-wrap')?.classList.toggle('bp-collapsed', bp.classList.contains('collapsed'));
+        onResize();
+      });
+
+      // ── Expand button (max state — toggles 60vh) ─────────────────────
+      const expandBtn = $('#bottomExpand');
+      if (expandBtn) {
+        expandBtn.addEventListener('click', () => {
+          const bp = $('#bottomPanel');
+          const wrap = $('.viewport-wrap');
+          bp.classList.remove('collapsed');
+          wrap?.classList.remove('bp-collapsed');
+          bp.classList.toggle('expanded');
+          // Clear any inline height the resize-drag set so the .expanded
+          // CSS class wins; toggling expanded back off restores the
+          // CSS-variable-driven default height.
+          if (bp.classList.contains('expanded')) {
+            bp.style.removeProperty('height');
+          }
+          // Mirror .expanded onto the viewport-wrap so the floating
+          // overlays (level strip, nav controls, coord readout, minimap)
+          // shift up to clear the 60vh tray instead of being covered.
+          // Without this they end up trapped underneath because their
+          // `bottom: calc(var(--bottom-panel-height) + …)` was computed
+          // against the default 220 px var.
+          wrap?.classList.toggle('bp-expanded', bp.classList.contains('expanded'));
+          expandBtn.textContent = bp.classList.contains('expanded') ? '⤓' : '⛶';
+          expandBtn.title = bp.classList.contains('expanded')
+            ? 'Restore default height'
+            : 'Expand to 60% of viewport';
+          onResize();
+        });
+      }
+
+      // ── Drag-to-resize on the top edge ───────────────────────────────
+      // We change the CSS variable in :root so the floating overlays
+      // (level strip, nav controls, coord readout, minimap) keep their
+      // bottom: calc(var(--bottom-panel-height) + …) offsets aligned.
+      const resizeHandle = $('#bottomResize');
+      if (resizeHandle) {
+        let dragStartY = 0;
+        let dragStartHeight = 0;
+        const minH = 80;
+        const maxH = () => Math.max(120, window.innerHeight * 0.85);
+        const onMove = (ev) => {
+          const dy = dragStartY - ev.clientY;       // up = bigger panel
+          const next = Math.min(maxH(), Math.max(minH, dragStartHeight + dy));
+          const bp = $('#bottomPanel');
+          bp.style.height = next + 'px';
+          // Push the same value into the root var so floating overlays
+          // recompute their bottom: calc(...).
+          document.documentElement.style.setProperty('--bottom-panel-height', next + 'px');
+        };
+        const onUp = () => {
+          $('#bottomPanel').classList.remove('resizing');
+          document.removeEventListener('pointermove', onMove);
+          document.removeEventListener('pointerup', onUp);
+          onResize();                                 // canvas re-fit
+        };
+        resizeHandle.addEventListener('pointerdown', (ev) => {
+          const bp = $('#bottomPanel');
+          if (bp.classList.contains('collapsed')) return;
+          // Drag breaks the .expanded preset — once you've manually
+          // resized, you've "taken over" the height, same as a normal
+          // window drag in any IDE. Drop the mirror class on the
+          // viewport-wrap too so the floating overlays return to their
+          // default --bottom-panel-height-driven offsets.
+          bp.classList.remove('expanded');
+          $('.viewport-wrap')?.classList.remove('bp-expanded');
+          bp.classList.add('resizing');
+          dragStartY = ev.clientY;
+          dragStartHeight = bp.getBoundingClientRect().height;
+          document.addEventListener('pointermove', onMove);
+          document.addEventListener('pointerup', onUp, { once: true });
+          ev.preventDefault();
+        });
+        // Double-click the grip to reset to the CSS-default height.
+        resizeHandle.addEventListener('dblclick', () => {
+          $('#bottomPanel').style.removeProperty('height');
+          document.documentElement.style.removeProperty('--bottom-panel-height');
+          onResize();
+        });
+      }
+      $('#btnRunDetect').addEventListener('click', () => {
+        toast('Running clash detection… (mock)', 'warn');
+        setTimeout(() => { state.clashes = mockClashes(); placeClashPins(); renderClashes(); toast('Clash detection complete', 'success'); }, 1200);
+      });
+      $('#btnExportCsv').addEventListener('click', exportClashesCsv);
+      $('#btnExportIssues').addEventListener('click', exportIssuesCsv);
+      $('#btnNewIssue').addEventListener('click', () => openIssueModal());
+
+      // X1 — bind status + type axes independently.
+      $$('#clashStatusFilters .filter-btn').forEach(b => b.addEventListener('click', () => {
+        $$('#clashStatusFilters .filter-btn').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        state.clashStatusFilter = b.dataset.status;
+        renderClashes();
+      }));
+      $$('#clashTypeFilters .filter-btn').forEach(b => b.addEventListener('click', () => {
+        $$('#clashTypeFilters .filter-btn').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        state.clashTypeFilter = b.dataset.type;
+        renderClashes();
+      }));
+      $$('#issueFilters .filter-btn').forEach(b => b.addEventListener('click', () => {
+        $$('#issueFilters .filter-btn').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        state.issuesFilter = b.dataset.f;
+        renderIssues();
+      }));
+    }
+    function switchBottomTab(name) {
+      state.bottomTab = name;
+      $$('.btab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+      $$('.bottom-pane').forEach(p => p.classList.toggle('active', p.id === 'bp-' + name));
+      $$('#bottomPanel .filter-row').forEach(r => r.style.display = (r.id === 'fr-' + name) ? '' : 'none');
+      if (name === 'timeline') renderTimeline();
+      // B4 — keep the .viewport-wrap.bp-collapsed class in sync with the
+      // actual bottom-panel state, so the level strip / nav controls /
+      // coord readout / minimap don't end up floating mid-air.
+      $('#bottomPanel').classList.remove('collapsed');
+      $('.viewport-wrap')?.classList.remove('bp-collapsed');
+      onResize();
+    }
+
+    function exportClashesCsv() {
+      const rows = [['ID','Type','Element A','Element B','Disc','Overlap mm','Assigned','Status']];
+      state.clashes.forEach(c => rows.push([c.id, c.type, c.elementA?.name, c.elementB?.name, c.discPair, c.overlap_mm, c.assignedTo || '', c.status]));
+      downloadCsv('clashes.csv', rows);
+    }
+    function exportIssuesCsv() {
+      const rows = [['ID','Title','Priority','Status','Assignee','Due']];
+      state.issues.forEach(i => rows.push([i.code || i.id, i.title, i.priority, i.status, i.assigneeName || '', i.dueDate || '']));
+      downloadCsv('issues.csv', rows);
+    }
+    function downloadCsv(name, rows) {
+      // B10 — UTF-8 BOM so Excel renders mm/° and accented assignee names
+      // correctly instead of garbling them as Windows-1252.
+      // B9 — revoke the object URL after the synthetic click so the blob
+      // isn't pinned in memory until the tab closes.
+      const csv = '﻿' + rows.map(r => r.map(x => `"${String(x ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch (_) {} }, 0);
+    }
+
+    function renderTimeline() {
+      const c = $('#timelineCanvas');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const w = c.width = c.clientWidth;
+      const h = c.height = c.clientHeight;
+      ctx.fillStyle = '#1C1F26'; ctx.fillRect(0, 0, w, h);
+      // mock data
+      const sessions = 10;
+      const clashTrend  = Array.from({ length: sessions }, (_, i) => Math.max(0, 60 - i * 5 + Math.random() * 8));
+      const issueTrend  = Array.from({ length: sessions }, (_, i) => Math.max(0, 18 - i * 1.4 + Math.random() * 3));
+      drawSpark(ctx, clashTrend, w, h, '#EF4444', 0);
+      drawSpark(ctx, issueTrend, w, h, '#F59E0B', 1);
+      ctx.fillStyle = '#8892A4'; ctx.font = '11px Inter';
+      ctx.fillText('Clashes (red) · Issues (amber)  — last 10 sessions', 10, 16);
+    }
+    function drawSpark(ctx, data, w, h, colour) {
+      const max = Math.max(...data, 1);
+      ctx.beginPath();
+      data.forEach((v, i) => {
+        const x = 20 + (w - 40) * (i / (data.length - 1));
+        const y = h - 16 - (h - 40) * (v / max);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = colour; ctx.lineWidth = 2; ctx.stroke();
+    }
+
+    // ── Viewport overlays (coords + minimap + level + nav + section) ───
+    let lastClickPoint = null;
+    function setupViewportOverlays() {
+      const dom = V.renderer.domElement;
+      const readout = $('#coordReadout');
+      const ray = new THREE_.Raycaster();
+      const ptr = new THREE_.Vector2();
+      const tooltip = $('#pinTooltip');
+      dom.addEventListener('pointermove', (e) => {
+        if (!V.modelRoot) return;
+        const r = dom.getBoundingClientRect();
+        ptr.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+        ptr.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+        ray.setFromCamera(ptr, V.camera);
+        const hits = ray.intersectObject(V.modelRoot, true);
+        if (hits.length) {
+          const p = hits[0].point;
+          readout.innerHTML = `<span class="x">X</span> ${p.x.toFixed(2)}m  <span class="y">Y</span> ${p.y.toFixed(2)}m  <span class="z">Z</span> ${p.z.toFixed(2)}m`;
+        }
+        // U1 — hover tooltip on issue / clash pins.
+        const pinTargets = [];
+        state.issuePins.forEach(m => pinTargets.push(m));
+        state.clashPins.forEach(m => pinTargets.push(m));
+        state.photoPins.forEach(m => pinTargets.push(m));
+        const pinHits = pinTargets.length ? ray.intersectObjects(pinTargets, false) : [];
+        if (pinHits.length && tooltip) {
+          const u = pinHits[0].object.userData;
+          let html = '';
+          if (u.issueId) {
+            const issue = state.issues.find(x => x.id === u.issueId);
+            if (issue) html = `<div class="ttitle">${escapeHtml(issue.title || 'Issue')}</div>
+              <div class="tmeta">${escapeHtml(issue.code || u.issueId)} · ${escapeHtml(issue.priority || 'MED')} · ${escapeHtml(issue.status || 'NEW')}</div>`;
+          } else if (u.clashId) {
+            const cl = state.clashes.find(x => x.id === u.clashId);
+            if (cl) html = `<div class="ttitle">${escapeHtml(cl.elementA?.name)} ✕ ${escapeHtml(cl.elementB?.name)}</div>
+              <div class="tmeta">${escapeHtml(cl.id)} · ${cl.type} · ${cl.overlap_mm}mm · ${escapeHtml(cl.status)}</div>`;
+          } else if (u.photoId) {
+            const p = state.photos.find(x => x.id === u.photoId);
+            if (p) html = `<div class="ttitle">${escapeHtml(p.caption || 'Site photo')}</div>
+              <div class="tmeta">${escapeHtml(p.reason || '')} · ${escapeHtml(p.audience || '')} · ${escapeHtml(p.capturedAt ? new Date(p.capturedAt).toLocaleDateString() : '')}</div>`;
+          }
+          if (html) {
+            tooltip.innerHTML = html;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (e.clientX - r.left + 14) + 'px';
+            tooltip.style.top  = (e.clientY - r.top  + 14) + 'px';
+          } else {
+            tooltip.style.display = 'none';
+          }
+        } else if (tooltip) {
+          tooltip.style.display = 'none';
+        }
+      });
+      dom.addEventListener('pointerleave', () => { if (tooltip) tooltip.style.display = 'none'; });
+      // L3 — capture the press location at pointer-down, only commit it
+      // to lastClickPoint on pointer-up if the pointer barely moved
+      // (otherwise the user was orbiting / panning).
+      let pressPx = null;
+      dom.addEventListener('pointerdown', (e) => {
+        pressPx = { x: e.clientX, y: e.clientY };
+      });
+      dom.addEventListener('pointerup', (e) => {
+        if (!pressPx) return;
+        const moved = Math.hypot(e.clientX - pressPx.x, e.clientY - pressPx.y);
+        pressPx = null;
+        if (moved > 6) return;                  // drag, not a click
+        if (!V.modelRoot) return;
+        const r = dom.getBoundingClientRect();
+        ptr.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+        ptr.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+        ray.setFromCamera(ptr, V.camera);
+        // R14 — if the click landed on a pin, do NOT update lastClickPoint
+        // from the model surface behind it. Pin hits go through the
+        // engine's pinTap event instead.
+        if (V.pinGroup) {
+          const pinHits = ray.intersectObject(V.pinGroup, true);
+          if (pinHits.length) return;
+        }
+        const hits = ray.intersectObject(V.modelRoot, true);
+        if (hits.length) lastClickPoint = hits[0].point.clone();
+      });
+      // R13 — drop the standalone pin-click raycaster. The engine already
+      // raycasts pinGroup on every click and emits 'pinTap' via the
+      // bridge for any uuid in pinMeta. We listen for it below.
+
+      window.addEventListener('resize', onResize);
+      setupMinimap();
+      // Hook the original 'pick' events through to our properties panel.
+      const origSend = V.bridge.send;
+      V.bridge.send = function (type, payload) {
+        // Angle measurement: intercept picks and collect 3 points.
+        if (type === 'pick' && payload && state.angleTool) {
+          if (payload.point) {
+            state.anglePoints = state.anglePoints || [];
+            state.anglePoints.push(payload.point);
+            const n = state.anglePoints.length;
+            if (n === 1) toast('Angle: now click first arm point');
+            else if (n === 2) toast('Angle: now click second arm point');
+            else if (n >= 3) {
+              const [v, a, b] = state.anglePoints.map(p => ({ x: p[0], y: p[1], z: p[2] }));
+              const ax = a.x-v.x, ay = a.y-v.y, az = a.z-v.z;
+              const bx = b.x-v.x, by = b.y-v.y, bz = b.z-v.z;
+              const dot = ax*bx + ay*by + az*bz;
+              const lenA = Math.sqrt(ax*ax+ay*ay+az*az), lenB = Math.sqrt(bx*bx+by*by+bz*bz);
+              const angle = lenA > 0 && lenB > 0
+                ? Math.acos(Math.max(-1, Math.min(1, dot/(lenA*lenB)))) * 180 / Math.PI
+                : 0;
+              toast(`Angle: ${angle.toFixed(2)}°`, 'info');
+              state.angleTool = false; state.anglePoints = [];
+            }
+          }
+          return origSend.call(V.bridge, type, payload);
+        }
+        if (type === 'pick' && payload && payload.guid) {
+          // Route canvas-picks through the multi-select-aware selector so
+          // clearing happens correctly and the floating selection toolbar
+          // / multi-property pane stay in sync. Ctrl/Cmd-pick toggles into
+          // the existing set; Shift-pick adds; plain pick replaces.
+          const ev = payload.event || {};
+          const mode = (ev.ctrlKey || ev.metaKey) ? 'toggle'
+                     : ev.shiftKey               ? 'add'
+                     : 'replace';
+          selectElementByGuid(payload.guid, mode);
+        }
+        // Live XYZ readout — push values into the coord chip if it's visible.
+        if (type === 'coord' && payload) {
+          const chip = document.getElementById('coordChip');
+          if (chip && chip.style.display !== 'none') {
+            if (payload.hit && payload.point) {
+              const [x, y, z] = payload.point;
+              chip.textContent = `X ${x.toFixed(0)}  Y ${y.toFixed(0)}  Z ${z.toFixed(0)}`;
+            } else if (payload.off !== true) {
+              chip.textContent = 'XYZ —';
+            }
+          }
+        }
+        // R13 — engine emits pinTap for any pin in pinMeta. Coord pins
+        // tagged with __coord = 'issue' / 'clash' route into our focus
+        // handlers; legacy pins (priority-only payload) keep working
+        // for any external embedders.
+        if (type === 'pinTap' && payload) {
+          if (payload.__coord === 'issue' && payload.issueId) {
+            const i = state.issues.find(x => x.id === payload.issueId);
+            if (i) focusIssue(i);
+          } else if (payload.__coord === 'clash' && payload.clashId) {
+            const c = state.clashes.find(x => x.id === payload.clashId);
+            if (c) focusClash(c);
+          } else if (payload.__coord === 'photo' && payload.photoId) {
+            const p = state.photos.find(x => x.id === payload.photoId);
+            if (p) focusPhoto(p);
+          }
+        }
+        return origSend.call(V.bridge, type, payload);
+      };
+    }
+
+    // Multi-select aware selector. mode=
+    //   "replace" → standard click; clear set, set primary to guid
+    //   "toggle"  → Ctrl/Cmd-click; add or remove guid from set
+    //   "add"     → Shift-click / programmatic; ensure guid in set
+    function selectElementByGuid(guid, mode = 'replace') {
+      if (!guid) {
+        state.selectedElementGuid = null;
+        state.selectedElementGuids.clear();
+        clearAllHighlights();
+        renderProperties(null);
+        updateRightTabCounts();
+        renderSelectionToolbar();
+        return;
+      }
+      if (mode === 'toggle') {
+        if (state.selectedElementGuids.has(guid)) {
+          state.selectedElementGuids.delete(guid);
+          if (state.selectedElementGuid === guid) {
+            // Promote any remaining selection to primary, else clear.
+            const it = state.selectedElementGuids.values().next();
+            state.selectedElementGuid = it.done ? null : it.value;
+          }
+        } else {
+          state.selectedElementGuids.add(guid);
+          state.selectedElementGuid = guid;
+        }
+      } else if (mode === 'add') {
+        state.selectedElementGuids.add(guid);
+        state.selectedElementGuid = guid;
+      } else {
+        state.selectedElementGuid = guid;
+        state.selectedElementGuids.clear();
+        state.selectedElementGuids.add(guid);
+      }
+      // Re-paint highlights from scratch so removed elements lose their
+      // emissive material.
+      clearAllHighlights();
+      let lastCentre = null;
+      state.selectedElementGuids.forEach(g => {
+        const m = findMeshByGuid(g);
+        if (m) {
+          emissive(m, 0xF97316);
+          // R-R12 — only fly to the union centre when selection size
+          // changes via tree (mode != toggle). For toggle (incremental),
+          // skip the camera move so the user keeps spatial context.
+          if (g === state.selectedElementGuid) {
+            const bb = new THREE_.Box3().setFromObject(m);
+            lastCentre = bb.getCenter(new THREE_.Vector3());
+          }
+        }
+      });
+      if (mode !== 'toggle' && lastCentre) flyTo(lastCentre);
+      renderProperties(state.selectedElementGuid);
+      updateRightTabCounts();
+      renderSelectionToolbar();
+      // Slice 4b — if Photos tab is active, refetch with the anchor filter
+      // applied so the gallery narrows to photos for the selected element.
+      if (state.rightTab === 'photos') loadSitePhotos();
+    }
+
+    function setupMinimap() {
+      const wrap = $('#minimap');
+      const canvas = $('#minimapCanvas');
+      if (!canvas) return;
+      const renderer = new THREE_.WebGLRenderer({ canvas, antialias: false });
+      renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+      const cam = new THREE_.OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
+      cam.up.set(0, 0, 1);
+
+      $('#minimapToggle').addEventListener('click', () => wrap.classList.toggle('collapsed'));
+
+      function updateMinimap() {
+        if (!V.modelRoot || V.modelBounds.isEmpty()) return;
+        const c = V.modelBounds.getCenter(new THREE_.Vector3());
+        const s = V.modelBounds.getSize(new THREE_.Vector3());
+        const pad = Math.max(s.x, s.z) * 0.55;
+        cam.left = -pad; cam.right = pad; cam.top = pad; cam.bottom = -pad;
+        cam.position.set(c.x, c.y + s.y * 4 + 10, c.z);
+        cam.lookAt(c);
+        cam.updateProjectionMatrix();
+        try { renderer.render(V.scene, cam); } catch (_) {}
+      }
+      setInterval(updateMinimap, 250);
+
+      canvas.addEventListener('click', (e) => {
+        const r = canvas.getBoundingClientRect();
+        const nx = (e.clientX - r.left) / r.width * 2 - 1;
+        const ny = -((e.clientY - r.top) / r.height * 2 - 1);
+        const c = V.modelBounds.getCenter(new THREE_.Vector3());
+        const s = V.modelBounds.getSize(new THREE_.Vector3());
+        const tgt = new THREE_.Vector3(c.x + nx * s.x * 0.5, V.controls.target.y, c.z - ny * s.z * 0.5);
+        flyTo(tgt);
+      });
+    }
+
+    function setupNavControls() {
+      // Capture OrbitControls' default mouse-button bindings so Pan ↔ Orbit
+      // toggling can restore them.
+      const defaultButtons = V.controls.mouseButtons
+        ? Object.assign({}, V.controls.mouseButtons)
+        : null;
+      // Brief visual flash for one-shot nav buttons (home / level / fit).
+      function flashNavBtn(btn) {
+        btn.classList.add('flash');
+        setTimeout(() => btn.classList.remove('flash'), 300);
+      }
+      const navEl = $('#navControls');
+      $$('.nav-btn').forEach(b => b.addEventListener('click', () => {
+        const m = b.dataset.mode;
+        // One-shot actions: fire and return without changing active mode.
+        if (m === 'fit') {
+          if (state.selectedElementGuids.size) fitToSelection();
+          else if (V.modelBounds && !V.modelBounds.isEmpty()) {
+            flyTo(V.modelBounds.getCenter(new THREE_.Vector3()));
+          }
+          flashNavBtn(b);
+          return;
+        }
+        if (m === 'home') {
+          // Reset to the default opening camera position (fitCamera).
+          if (V.fitCamera) V.fitCamera();
+          flashNavBtn(b);
+          return;
+        }
+        if (m === 'level') {
+          // Make the current view horizontal — zero pitch, keep heading.
+          if (V.levelCamera) V.levelCamera();
+          flashNavBtn(b);
+          return;
+        }
+        $$('.nav-btn').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        state.activeNav = m;
+        // Walk mode delegates to viewer-extras' first-person controls.
+        handleHostCommand({ type: 'setWalkthrough', payload: { enabled: m === 'walk' } });
+        // Toggle navControls.walking class so the speed-wheel highlights.
+        if (navEl) navEl.classList.toggle('walking', m === 'walk');
+        // Pan mode rebinds left mouse to PAN; Orbit restores defaults.
+        if (V.controls && V.controls.mouseButtons && THREE_.MOUSE) {
+          if (m === 'pan') {
+            V.controls.mouseButtons.LEFT  = THREE_.MOUSE.PAN;
+            V.controls.mouseButtons.RIGHT = THREE_.MOUSE.ROTATE;
+          } else if (defaultButtons) {
+            V.controls.mouseButtons.LEFT   = defaultButtons.LEFT;
+            V.controls.mouseButtons.MIDDLE = defaultButtons.MIDDLE;
+            V.controls.mouseButtons.RIGHT  = defaultButtons.RIGHT;
+          }
+        }
+        // Pivot = orbit camera around the selected element (or its centre).
+        // Was previously labelled "focus"; we keep the underlying behaviour
+        // and just expose a clearer label.
+        if (m === 'pivot' && state.selectedElementGuid) {
+          selectElementByGuid(state.selectedElementGuid, 'replace');
+        }
+      }));
+
+      // ── Walk-speed widget ─────────────────────────────────────────────
+      // Three input paths into the same multiplier:
+      //   1. +/- buttons in the nav-controls speed-wheel widget
+      //   2. Mouse-wheel scroll while walk mode is active
+      //   3. Settings menu "Default walk speed" persisted in localStorage
+      // viewer-extras.js reads window.__walkSpeedMul on every step.
+      if (typeof window.__walkSpeedMul !== 'number') window.__walkSpeedMul = 1.0;
+      try {
+        const persisted = parseFloat(localStorage.getItem('planscape_walk_speed'));
+        if (!isNaN(persisted) && persisted > 0) window.__walkSpeedMul = persisted;
+      } catch (_) {}
+      function paintSpeed(animate) {
+        const v = $('#walkSpeedVal');
+        if (!v) return;
+        v.textContent = window.__walkSpeedMul.toFixed(2).replace(/\.?0+$/, '') + '×';
+        if (animate) {
+          v.classList.remove('bumped');
+          // Force reflow so the animation restarts even on rapid bumps.
+          void v.offsetWidth;
+          v.classList.add('bumped');
+          v.addEventListener('animationend', () => v.classList.remove('bumped'), { once: true });
+        }
+      }
+      function bumpSpeed(delta) {
+        const prev = window.__walkSpeedMul;
+        const next = Math.min(8, Math.max(0.1, window.__walkSpeedMul + delta));
+        window.__walkSpeedMul = Math.round(next * 100) / 100;
+        if (window.__walkSpeedMul === prev) return; // already at limit, no paint
+        try { localStorage.setItem('planscape_walk_speed', String(window.__walkSpeedMul)); } catch (_) {}
+        paintSpeed(true);
+      }
+      $('#walkSpeedDown')?.addEventListener('click', (e) => { e.stopPropagation(); bumpSpeed(-0.25); });
+      $('#walkSpeedUp')?.addEventListener('click',   (e) => { e.stopPropagation(); bumpSpeed(+0.25); });
+      paintSpeed();
+
+      // Scroll wheel during walk mode:
+      //   • Plain scroll  → move the camera forward/backward along the
+      //     current look direction (one-step nudge sized to model scale).
+      //   • Shift+scroll  → adjust walk speed (the previous behaviour,
+      //     now behind a modifier so plain scroll can navigate freely).
+      // Side-panel content keeps native scroll in both cases.
+      window.addEventListener('wheel', (ev) => {
+        if (state.activeNav !== 'walk') return;
+        const tgt = ev.target;
+        if (tgt && /INPUT|TEXTAREA|SELECT/.test(tgt.tagName)) return;
+        // Scrollable side panes keep native behaviour.
+        if (tgt && tgt.closest && (
+            tgt.closest('.left-panel') ||
+            tgt.closest('.right-panel') ||
+            tgt.closest('.bottom-panel'))) return;
+
+        if (ev.shiftKey) {
+          // Shift+scroll → adjust speed (fine: 10% per notch).
+          const sign = ev.deltaY < 0 ? +1 : -1;
+          bumpSpeed(sign * 0.1);
+        } else {
+          // Plain scroll → step the camera forward/backward, projected
+          // onto the floor plane so movement stays horizontal even when
+          // the camera is pitched up or down (matches WASD behaviour).
+          const V = window.STING_VIEWER;
+          if (V && V.camera && V.modelBounds) {
+            const sign = ev.deltaY < 0 ? 1 : -1;
+            const step = V.modelBounds.getSize(new THREE_.Vector3()).length() * 0.02
+                         * (window.__walkSpeedMul || 1.0);
+            const dir = new THREE_.Vector3();
+            V.camera.getWorldDirection(dir);
+            // Project onto floor plane using the active walk-up axis.
+            const upArr = window.__walkUp;
+            if (upArr) {
+              const up = new THREE_.Vector3(upArr[0], upArr[1], upArr[2]);
+              dir.addScaledVector(up, -dir.dot(up));
+              if (dir.lengthSq() > 1e-6) dir.normalize();
+            }
+            V.camera.position.addScaledVector(dir, sign * step);
+          }
+        }
+        ev.preventDefault();
+      }, { passive: false });
+    }
+
+    function setActiveTool(t) {
+      handleHostCommand({ type: 'setTool', payload: { tool: t } });
+    }
+
+    function setRenderMode(mode) {
+      if (!V.modelRoot) return;
+      // B8 — dispose the previous replacement before swapping in a new
+      // one, otherwise toggling shaded → wire → xray → ghost a few times
+      // leaks N MeshStandardMaterial allocations on the GPU per cycle.
+      V.modelRoot.traverse(o => {
+        if (!o.isMesh) return;
+        if (!o.userData._origMat) o.userData._origMat = o.material;
+        const orig = o.userData._origMat;
+        const prev = o.material;
+        let next;
+        if (mode === 'shaded') next = orig;
+        else if (mode === 'wire')  next = new THREE_.MeshBasicMaterial({ color: 0x60A5FA, wireframe: true });
+        else if (mode === 'xray')  next = new THREE_.MeshStandardMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.25, depthWrite: false });
+        else if (mode === 'ghost') next = new THREE_.MeshStandardMaterial({ color: 0x888888, transparent: true, opacity: 0.35, depthWrite: false });
+        else next = orig;
+        if (prev && prev !== orig && prev !== next && typeof prev.dispose === 'function') {
+          try { prev.dispose(); } catch (_) {}
+        }
+        o.material = next;
+      });
+      state.renderMode = mode;
+      toast('View: ' + mode);
+    }
+
+    // Exploded view — requires a federated model. Toggles between 0 and 1.
+    function toggleExplodedView() {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.setExplodeFactor) { toast('Explode requires a federated model', 'warn'); return; }
+      state.explodeFactor = state.explodeFactor > 0 ? 0 : 1;
+      extras.setExplodeFactor(state.explodeFactor);
+      toast(state.explodeFactor > 0 ? 'Exploded view — click View → Explode to collapse' : 'Exploded view: collapsed');
+    }
+
+    // Edge-silhouette overlay — wireframe-on-shaded for depth perception.
+    function toggleEdgeOverlay() {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.setEdgeOverlay) return;
+      state.edgeOverlay = !state.edgeOverlay;
+      extras.setEdgeOverlay(state.edgeOverlay);
+      toast(state.edgeOverlay ? 'Edge overlay ON' : 'Edge overlay OFF');
+    }
+
+    // Section caps — translucent fill at every clipping plane.
+    function toggleSectionCaps() {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.setSectionCaps) return;
+      state.sectionCaps = !state.sectionCaps;
+      extras.setSectionCaps(state.sectionCaps);
+      toast(state.sectionCaps ? 'Section caps ON' : 'Section caps OFF');
+    }
+
+    // Live XYZ readout — coordinator hovers cursor; coords stream into a chip.
+    function toggleCoordReadout() {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.setCoordReadout) return;
+      state.coordReadout = !state.coordReadout;
+      extras.setCoordReadout(state.coordReadout);
+      let chip = document.getElementById('coordChip');
+      if (!chip) {
+        chip = document.createElement('div');
+        chip.id = 'coordChip';
+        chip.style.cssText = 'position:absolute;right:12px;top:48px;background:rgba(15,18,24,0.85);border:1px solid #2a3140;border-radius:6px;padding:6px 10px;font:11px ui-monospace,monospace;color:#cdd6e3;z-index:60;pointer-events:none;display:none;';
+        chip.textContent = 'XYZ —';
+        (document.getElementById('viewerCanvas') || document.body).appendChild(chip);
+      }
+      chip.style.display = state.coordReadout ? 'block' : 'none';
+      toast(state.coordReadout ? 'Coordinates readout ON' : 'Coordinates readout OFF');
+    }
+
+    // Camera presets — orthogonal + iso through the extras layer so the
+    // walk-mode up-axis fix-up runs consistently.
+    function setCameraPreset(preset) {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.setCameraPreset) return;
+      extras.setCameraPreset(preset);
+      toast('View: ' + preset);
+    }
+
+    // Camera bookmark slots — captured in extras, persisted only in-session.
+    function saveBookmark(slot) {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.saveCameraBookmark) return;
+      extras.saveCameraBookmark(slot);
+      toast(`Bookmark ${slot} saved — View → Restore to recall`);
+    }
+    function restoreBookmark(slot) {
+      const extras = window.STING_VIEWER_EXTRAS;
+      if (!extras || !extras.restoreCameraBookmark) return;
+      extras.restoreCameraBookmark(slot);
+      toast(`Bookmark ${slot} restored`);
+    }
+
+    function setupSectionCard() {
+      $('#sectionClose').addEventListener('click', () => $('#sectionCard').style.display = 'none');
+      $('#sectionAddX').addEventListener('click', () => addSectionPlane('x'));
+      $('#sectionAddY').addEventListener('click', () => addSectionPlane('y'));
+      $('#sectionAddZ').addEventListener('click', () => addSectionPlane('z'));
+      $('#sectionClear').addEventListener('click', () => clearSection());
+    }
+
+    function openSectionPlane(axis) {
+      $('#sectionCard').style.display = 'block';
+      addSectionPlane(axis);
+    }
+    function addSectionPlane(axis) {
+      if (axis === 'box') {
+        // Section box: 6-plane AABB clip. Slight inset so edges are visible.
+        handleHostCommand({ type: 'setSectionBox', payload: { inset: 0 } });
+        toast('Section box active — drag faces in the Section card to adjust');
+        renderSectionCard();
+        return;
+      }
+      handleHostCommand({ type: 'addSectionPlaneAxis', payload: { axis, offset: 0.5 } });
+      renderSectionCard();
+    }
+    function clearSection() {
+      handleHostCommand({ type: 'clearSectionPlanes' });
+      handleHostCommand({ type: 'clearSectionBox' });
+      $('#sectionCard').style.display = 'none';
+      state.sectionPlanes = [];
+    }
+
+    // Render the section card plane list with per-plane offset sliders.
+    function renderSectionCard() {
+      const body = $('#sectionCard .body');
+      if (!body) return;
+      const existing = body.querySelector('.plane-list');
+      if (existing) existing.remove();
+      const planes = (window.STING_VIEWER_EXTRAS?.getSectionPlanes?.() || []);
+      if (!planes.length) return;
+      const list = document.createElement('div');
+      list.className = 'plane-list';
+      list.style.cssText = 'margin-top:8px;display:flex;flex-direction:column;gap:4px;';
+      planes.forEach(p => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted)';
+        row.innerHTML = `<span style="min-width:36px;text-transform:uppercase">${p.axis}</span>
+          <input type="range" min="0" max="100" value="${Math.round((p.offset||0.5)*100)}"
+            style="flex:1;accent-color:var(--accent)" data-id="${p.id}" />
+          <span class="pct">${Math.round((p.offset||0.5)*100)}%</span>
+          <button style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px" data-remove="${p.id}">✕</button>`;
+        const slider = row.querySelector('input[type=range]');
+        slider.addEventListener('input', () => {
+          const off = parseInt(slider.value, 10) / 100;
+          row.querySelector('.pct').textContent = slider.value + '%';
+          handleHostCommand({ type: 'updateSectionPlane', payload: { id: p.id, offset: off } });
+        });
+        row.querySelector(`[data-remove="${p.id}"]`).addEventListener('click', () => {
+          handleHostCommand({ type: 'removeSectionPlane', payload: { id: p.id } });
+          renderSectionCard();
+        });
+        list.appendChild(row);
+      });
+      body.appendChild(list);
+    }
+
+    // ── Angle measurement ──────────────────────────────────────────────
+    function startAngleTool() {
+      state.angleTool = true;
+      state.anglePoints = [];
+      setActiveTool('pick');
+      toast('Angle: click vertex, then first arm point, then second arm point', 'info');
+    }
+
+    // ── Keyboard shortcuts ─────────────────────────────────────────────
+    function setupKeyboardShortcuts() {
+      document.addEventListener('keydown', (e) => {
+        if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+        const k = e.key;
+        // B12 — when the modal is open, its own keydown handler owns Esc
+        // (and Tab) so dismissing it doesn't also wipe the user's
+        // selection / highlights.
+        if ($('#issueModal')?.classList.contains('open')) return;
+        if ($('#photoCaptureModal')?.classList.contains('open')) return;
+        if ($('#photoReviewModal')?.classList.contains('open')) return;
+        // P = open the photo capture modal — fast keyboard shortcut for
+        // coordinators who want to grab a screenshot/upload without
+        // reaching for the FAB.
+        if (k === 'p' || k === 'P') {
+          if (state.modelName || state.elementMap) {
+            openPhotoCaptureModal();
+            e.preventDefault();
+            return;
+          }
+        }
+        if (k === 'Escape') {
+          // R7 — help overlay swallows Esc so closing it doesn't ALSO
+          // wipe the user's selection / highlights.
+          const help = $('.help-overlay');
+          if (help && help.classList.contains('open')) {
+            help.classList.remove('open');
+            return;
+          }
+          // Row-menu (clash/issue right-click popover) also swallows Esc
+          // for the same reason — closing the menu shouldn't also clear
+          // the selection it was opened against.
+          const rowMenu = $('#rowMenu');
+          if (rowMenu && rowMenu.classList.contains('open')) {
+            return;     // setupRowContextMenu's own keydown handler closes it
+          }
+          handleHostCommand({ type: 'clearHighlight' });
+          clearAllHighlights();          // L6
+          state.selectedElementGuid = null;
+          state.selectedElementGuids.clear();
+          state.selectedIssueId = null;
+          renderProperties(null);
+          updateRightTabCounts();        // X2
+          renderSelectionToolbar();
+        } else if (k === 'f' || k === 'F') {
+          // F = fit selection (multi-aware). With nothing selected, fit the
+          // whole model. Matches the new "Fit" button in nav-controls.
+          if (state.selectedElementGuids.size) fitToSelection();
+          else if (V.modelBounds && !V.modelBounds.isEmpty()) {
+            flyTo(V.modelBounds.getCenter(new THREE_.Vector3()));
+          }
+        } else if (k === 'h' || k === 'H') {
+          // H = hide selected. Multi-aware: hides every mesh in the
+          // selection set, not just the primary.
+          if (state.selectedElementGuids.size) hideSelection();
+        } else if (k === 'i' || k === 'I') {
+          // I = isolate selection (multi-aware). Plain `I` is reserved for
+          // isolate; Shift+I (handled below) creates a new issue.
+          if (e.shiftKey) {} else if (state.selectedElementGuids.size) isolateSelection();
+        } else if (k === 'a' || k === 'A') {
+          showAllElements();
+        } else if (k === 'g' || k === 'G') {
+          state.ghostMode = !state.ghostMode;
+          setRenderMode(state.ghostMode ? 'ghost' : 'shaded');
+        } else if (k === 'w' || k === 'W') {
+          $('.nav-btn[data-mode=walk]')?.click();
+        } else if (k === 'o' || k === 'O') {
+          $('.nav-btn[data-mode=orbit]')?.click();
+        } else if (k === 'm' || k === 'M') {
+          setActiveTool('measure');
+        } else if (k === ' ') {
+          handleHostCommand({ type: 'fit' });
+          e.preventDefault();
+        } else if ((e.ctrlKey || e.metaKey) && (k === 's' || k === 'S')) {
+          e.preventDefault(); $('#btnAddView').click();
+        } else if (e.shiftKey && (k === 'I' || k === 'i')) {
+          // Shift+I — create a new issue. The bare 'I' shortcut is already
+          // taken (isolate selected element), so this is the new-issue
+          // variant. Pre-seeds the linked element if one is selected.
+          e.preventDefault();
+          const sel = state.selectedElementGuid;
+          openIssueModal(sel ? { guid: sel, meta: state.elementMap?.[sel] || {} } : {});
+        } else if (k >= '1' && k <= '7') {
+          const pills = $$('.level-pill'); const p = pills[parseInt(k, 10) - 1]; if (p) p.click();
+        }
+      });
+    }
+
+    function setupHelp() {
+      $('.help-overlay .close-help').addEventListener('click', () => $('.help-overlay').classList.remove('open'));
+    }
+
+    // ── Misc helpers ───────────────────────────────────────────────────
+    // U5 — gentle nudge when the viewer is opened without query params.
+    function showEmptyStateCTA() {
+      if (document.getElementById('noProjectCta')) return;
+      const wrap = $('.viewport-wrap'); if (!wrap) return;
+      const cta = el('div', { class: 'no-project-cta', id: 'noProjectCta' });
+      cta.innerHTML = `
         <div class="card">
           <h2>Pick a project to get started</h2>
           <p>The coordination viewer needs a project and model id in the URL.
              Open a project from the dashboard, or append
              <code>?project=&lt;id&gt;&amp;model=&lt;id&gt;</code> to this URL.</p>
           <button class="btn" id="ctaBackToProjects">Open projects list</button>
-        </div>`,e.appendChild(t),r("#ctaBackToProjects",t).addEventListener("click",()=>{location.href=(A||"")+"/projects"});const s=r("#bootLoader");s&&(s.style.display="none")}function Ye(e,t,s){try{const n=e.width,a=e.height;if(!n||!a)return e.toDataURL("image/png");const o=Math.min(1,t/n),i=Math.round(n*o),l=Math.round(a*o),d=document.createElement("canvas");return d.width=i,d.height=l,d.getContext("2d").drawImage(e,0,0,i,l),d.toDataURL("image/jpeg",s||.85)}catch{return e.toDataURL("image/png")}}function Ns(){const e=Ye(p.renderer.domElement,2560,.92),t=document.createElement("a");t.href=e,t.download=`${c.modelName||"view"}-${Date.now()}.jpg`,t.click(),y("Screenshot saved","success")}function Hs(){const e=`${location.origin}${location.pathname}?project=${L}&model=${P}`;F(e)}function Gs(){const e=r("#sessionPill");if(!e)return;function t(a){e.classList.toggle("offline",!a),e.lastChild.nodeValue=a?"Live":"Offline",e.title=a?"Server reachable":"Server unreachable \u2014 retrying\u2026"}if(!ve){e.classList.toggle("offline",!1),e.lastChild.nodeValue=Te?"Bridged":"Local",e.title=Te?"Connected via React Native bridge":"Standalone mode";return}let s=!0;async function n(){try{const a=await fetch(`${A}/health`,{method:"GET",cache:"no-store"});t(a.ok),s=a.ok}catch{t(!1),s=!1}}n(),c.heartbeatTimer=setInterval(n,15e3),window.addEventListener("online",n),window.addEventListener("offline",()=>t(!1)),document.addEventListener("visibilitychange",()=>{document.hidden||n()})}function G(){const e=c.selectedElementGuid,t=e?c.clashes.filter(i=>i.elementA?.guid===e||i.elementB?.guid===e):c.clashes,s=e?c.issues.filter(i=>Array.isArray(i.elementGuids)&&i.elementGuids.includes(e)):c.issues.filter(i=>i.status!=="RESOLVED");let n=0;if(c.selectedIssueId){const i=re.get(c.selectedIssueId);if(i)n=i.length;else{const l=c.issues.find(d=>d.id===c.selectedIssueId);n=l&&(l.commentCount??l.comments_count??l.commentsCount)||0}}const a=(i,l)=>{const d=r("#"+i);d&&(d.textContent=l?`(${l})`:"")};a("rightTabClashesCount",t.length),a("rightTabIssuesCount",s.length),a("rightTabCommentsCount",n);const o=Array.isArray(c.photos)?c.photos:[];a("rightTabPhotosCount",o.length)}function ie(){const e=c.clashes.filter(a=>a.status==="NEW").length,t=c.clashes.length;r("#clashBadge").textContent=t,r("#clashBadge").className="badge"+(e?"":" muted");const s=c.issues.filter(a=>a.status!=="RESOLVED").length;r("#issueBadge").textContent=s,r("#issueBadge").className="badge warn"+(s?"":" muted");const n=c.issues.filter(a=>a.slaBreached||a.dueDate&&new Date(a.dueDate)<new Date&&a.status!=="RESOLVED").length;r("#notifBadge").textContent=n,r("#notifBadge").className=n?"badge":"badge muted"}function Y(){setTimeout(()=>{const e=r(".viewport-wrap");if(!e||!p.renderer)return;const t=e.clientWidth,s=e.clientHeight;p.camera.aspect=Math.max(.001,t/Math.max(1,s)),p.camera.updateProjectionMatrix(),p.renderer.setSize(t,s,!1)},16)}let wt=!1;const Fs=setInterval(()=>{if(!wt&&p.modelRoot&&!p.modelBounds.isEmpty()){wt=!0,r("#bootLoader")?.style.setProperty("display","none"),Vt(),as(),ue(),Ee(),Ue();const e=r("#photoFab");if(e&&(e.style.display=""),qe(),clearInterval(Fs),c.lastBlobUrl){try{URL.revokeObjectURL(c.lastBlobUrl)}catch{}c.lastBlobUrl=null}}},400);window.addEventListener("beforeunload",()=>{if(c.lastBlobUrl)try{URL.revokeObjectURL(c.lastBlobUrl)}catch{}Q&&clearInterval(Q),c.heartbeatTimer&&clearInterval(c.heartbeatTimer);try{Ce.forEach(e=>URL.revokeObjectURL(e)),Ce.clear()}catch{}if(O)try{URL.revokeObjectURL(O)}catch{}}),setTimeout(Y,100)}})();
+        </div>`;
+      wrap.appendChild(cta);
+      $('#ctaBackToProjects', cta).addEventListener('click', () => {
+        location.href = (apiBase || '') + '/projects';
+      });
+      // Hide the boot loader behind it so it doesn't double-spin.
+      const bl = $('#bootLoader'); if (bl) bl.style.display = 'none';
+    }
+
+    // B14 — shared screenshot helper. Source canvas is the live WebGL
+    // canvas; we draw it into a 2D canvas at the target width and emit
+    // JPEG. Returns a data URL.
+    function downscaleScreenshot(srcCanvas, maxWidth, quality) {
+      try {
+        const sw = srcCanvas.width, sh = srcCanvas.height;
+        if (!sw || !sh) return srcCanvas.toDataURL('image/png');
+        const scale = Math.min(1, maxWidth / sw);
+        const tw = Math.round(sw * scale), th = Math.round(sh * scale);
+        const c = document.createElement('canvas');
+        c.width = tw; c.height = th;
+        c.getContext('2d').drawImage(srcCanvas, 0, 0, tw, th);
+        return c.toDataURL('image/jpeg', quality || 0.85);
+      } catch (_) {
+        return srcCanvas.toDataURL('image/png');
+      }
+    }
+
+    function takeScreenshot() {
+      const b64 = downscaleScreenshot(V.renderer.domElement, 2560, 0.92);
+      const a = document.createElement('a');
+      a.href = b64;
+      a.download = `${state.modelName || 'view'}-${Date.now()}.jpg`;
+      a.click();
+      toast('Screenshot saved', 'success');
+    }
+    function shareCurrentView() {
+      // B2 — route through copyText so non-secure contexts (file://, old
+      // WebView) get the textarea + execCommand fallback instead of a
+      // silent no-op + a misleading "copied" toast.
+      const url = `${location.origin}${location.pathname}?project=${projectId}&model=${modelId}`;
+      copyText(url);
+    }
+
+    // ── Connectivity heartbeat (U6) ────────────────────────────────────
+    // Lightweight: ping /health every 15s and toggle the session pill.
+    // SignalR proper would need the full @microsoft/signalr browser bundle;
+    // this gives the coordinator a real "Live / Offline" signal without
+    // pulling in 100KB of dependencies. Browser online/offline events
+    // short-circuit the next ping.
+    function setupHeartbeat() {
+      const pill = $('#sessionPill');
+      if (!pill) return;
+      function setOnline(ok) {
+        pill.classList.toggle('offline', !ok);
+        pill.lastChild.nodeValue = ok ? 'Live' : 'Offline';
+        pill.title = ok ? 'Server reachable' : 'Server unreachable — retrying…';
+      }
+      // If the API is disabled (file://, RN WebView), the host owns
+      // connectivity — show neutral state instead of polling.
+      if (!apiEnabled) {
+        pill.classList.toggle('offline', false);
+        pill.lastChild.nodeValue = isWebView ? 'Bridged' : 'Local';
+        pill.title = isWebView ? 'Connected via React Native bridge' : 'Standalone mode';
+        return;
+      }
+      let alive = true;
+      async function ping() {
+        try {
+          const res = await fetch(`${apiBase}/health`, { method: 'GET', cache: 'no-store' });
+          setOnline(res.ok);
+          alive = res.ok;
+        } catch (_) {
+          setOnline(false);
+          alive = false;
+        }
+      }
+      ping();                                          // immediate
+      // R2 — keep the timer handle on state so the beforeunload cleanup
+      // (which clears state.heartbeatTimer) actually does something.
+      state.heartbeatTimer = setInterval(ping, 15000);  // every 15s
+      window.addEventListener('online',  ping);
+      window.addEventListener('offline', () => setOnline(false));
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) ping(); });
+    }
+
+    // X2 — right-panel tab counts. Numbers reflect what's relevant to
+    // the selected element when one is selected, else the totals.
+    function updateRightTabCounts() {
+      const guid = state.selectedElementGuid;
+      const cl = guid
+        ? state.clashes.filter(c => c.elementA?.guid === guid || c.elementB?.guid === guid)
+        : state.clashes;
+      const is = guid
+        ? state.issues.filter(i => Array.isArray(i.elementGuids) && i.elementGuids.includes(guid))
+        : state.issues.filter(i => i.status !== 'RESOLVED');
+      // R15 — prefer the cached length once loaded; otherwise fall back
+      // to the issue's commentCount field from the API so the badge shows
+      // useful info before the user opens the Comments tab.
+      let cmnt = 0;
+      if (state.selectedIssueId) {
+        const cached = commentsCache.get(state.selectedIssueId);
+        if (cached) cmnt = cached.length;
+        else {
+          const issue = state.issues.find(i => i.id === state.selectedIssueId);
+          cmnt = (issue && (issue.commentCount ?? issue.comments_count ?? issue.commentsCount)) || 0;
+        }
+      }
+      const set = (id, n) => {
+        const e = $('#' + id); if (!e) return;
+        e.textContent = n ? `(${n})` : '';
+      };
+      set('rightTabClashesCount',  cl.length);
+      set('rightTabIssuesCount',   is.length);
+      set('rightTabCommentsCount', cmnt);
+      // Slice 4b — photos count is anchor-aware: when an element is
+      // selected we already filter the request to that anchor server-side
+      // so state.photos.length is the correct number to display.
+      // (state.photos is initialised inside the photo block; guard for the
+      // very first updateRightTabCounts() call at boot which fires before
+      // that mutation has run.)
+      const ph = Array.isArray(state.photos) ? state.photos : [];
+      set('rightTabPhotosCount', ph.length);
+    }
+
+    function updateBadges() {
+      const newClashes = state.clashes.filter(c => c.status === 'NEW').length;
+      const totalClashes = state.clashes.length;
+      $('#clashBadge').textContent = totalClashes;
+      $('#clashBadge').className = 'badge' + (newClashes ? '' : ' muted');
+      const openIssues = state.issues.filter(i => i.status !== 'RESOLVED').length;
+      $('#issueBadge').textContent = openIssues;
+      $('#issueBadge').className = 'badge warn' + (openIssues ? '' : ' muted');
+      const overdue = state.issues.filter(i => i.slaBreached || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'RESOLVED')).length;
+      $('#notifBadge').textContent = overdue;
+      $('#notifBadge').className = overdue ? 'badge' : 'badge muted';
+    }
+
+    function onResize() {
+      // give the layout a tick to settle, then nudge the renderer
+      setTimeout(() => {
+        const wrap = $('.viewport-wrap');
+        if (!wrap || !V.renderer) return;
+        const w = wrap.clientWidth, h = wrap.clientHeight;
+        V.camera.aspect = Math.max(0.001, w / Math.max(1, h));
+        V.camera.updateProjectionMatrix();
+        V.renderer.setSize(w, h, false);
+      }, 16);
+    }
+
+    // ── Hide the boot loader once the scene has a model ───────────────
+    // L1 — only re-run the level / tree / chip builds once, after the
+    // first model load completes; bootstrap() already populated them
+    // from the element-map, but bounds-based bands need real geometry.
+    let bootRan = false;
+    const bootObserver = setInterval(() => {
+      if (bootRan) return;
+      if (V.modelRoot && !V.modelBounds.isEmpty()) {
+        bootRan = true;
+        $('#bootLoader')?.style.setProperty('display', 'none');
+        invalidateCentroidCache();   // L7 — fresh model, fresh cache
+        rebuildGuidIndex();          // B7 — GUID→mesh map for fast lookups
+        placeIssuePins();
+        placeClashPins();
+        placePhotoPins();             // Slice 4b — photo pins after model bounds known
+        const fab = $('#photoFab'); if (fab) fab.style.display = '';
+        buildLevelStrip();           // re-run with real bounds for Y bands
+        clearInterval(bootObserver);
+        // B1 — GLTFLoader has consumed the blob URL, free it now to avoid
+        // pinning the original GLB bytes in memory for the rest of the
+        // session.
+        if (state.lastBlobUrl) {
+          try { URL.revokeObjectURL(state.lastBlobUrl); } catch (_) {}
+          state.lastBlobUrl = null;
+        }
+      }
+    }, 400);
+
+    // B15 — clean up timers and blob URLs on unload.
+    window.addEventListener('beforeunload', () => {
+      if (state.lastBlobUrl) try { URL.revokeObjectURL(state.lastBlobUrl); } catch (_) {}
+      if (presentTimer) clearInterval(presentTimer);
+      if (state.heartbeatTimer) clearInterval(state.heartbeatTimer);
+      // Slice 4b — release photo thumbnail blob URLs + the staged
+      // capture preview if the user closes mid-capture.
+      try { PHOTO_BLOB_CACHE.forEach(u => URL.revokeObjectURL(u)); PHOTO_BLOB_CACHE.clear(); } catch (_) {}
+      if (pendingPhotoObjectUrl) try { URL.revokeObjectURL(pendingPhotoObjectUrl); } catch (_) {}
+    });
+
+    // First paint
+    setTimeout(onResize, 100);
+  }
+})();
