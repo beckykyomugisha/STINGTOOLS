@@ -40,13 +40,26 @@ Total transfer for a cold open: ~500 KB → ~150 KB.
 - File names in `dist/` match the existing `<script src>` tags in
   `viewer.html` so the deploy step is a single `cp -R dist/ <served-path>/`.
 
+## Tree-shaken three.js bundle
+
+`build.mjs` lists the exact Three.js classes the viewer uses (24 core
++ 4 addons) instead of `export * from 'three'`. esbuild treats the
+re-export entry point as a normal ESM source and drops every
+unreferenced export from `dist/three.min.js`. Refresh the list when
+new `THREE.<symbol>` lookups appear in `viewer.html` /
+`viewer-extras.js` / `coordination-viewer.js`:
+
+```bash
+grep -oh 'THREE\.[A-Z][A-Za-z0-9]*' viewer.html viewer-extras.js \
+  coordination-viewer.js | sort -u
+```
+
+The runtime contract is unchanged: `dist/three.min.js` still defines
+`window.THREE` with the same class shape, so neither `viewer.html`
+nor `viewer-extras.js` needed code changes.
+
 ## Deferred / not done
 
-- **Three.js bundling.** Currently kept as external `three.min.js`
-  loaded via `<script>` per the existing pattern. Pulling it into the
-  bundle would let us tree-shake unused Three.js modules (loaders,
-  postprocessing) and save another ~50 KB, but requires changes to
-  `coordination-viewer.js` to use ES imports instead of `window.THREE`.
 - **CI integration.** Server's `wwwroot/viewer/` is currently served
   from the in-tree source. A follow-up changes the docker image to
   `npm run build` + copy `dist/` instead.
