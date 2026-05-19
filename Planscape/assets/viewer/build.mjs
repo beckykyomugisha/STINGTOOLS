@@ -37,18 +37,22 @@ await esbuild.build({
   globalName: 'THREE',
   outfile:    'dist/three.min.js',
   minify:     true,
+  sourcemap:  true,
   target:     'es2020',
-}).then(() => console.log('✓ dist/three.min.js'));
+}).then(() => console.log('✓ dist/three.min.js (+ .map)'));
 
 // ── 2. Minify the three IIFE viewer files (no bundling — they have no imports) ──
+// External source maps so prod stack traces map back to the original
+// line numbers when uploaded to Sentry. See upload-sourcemaps.mjs.
 for (const name of ['coordination-viewer', 'signalr-shim', 'viewer-extras']) {
   await esbuild.build({
     entryPoints: [`${name}.js`],
-    bundle:  false,
-    outfile: `dist/${name}.js`,
-    minify:  true,
-    target:  'es2020',
-  }).then(() => console.log(`✓ dist/${name}.js`));
+    bundle:    false,
+    outfile:   `dist/${name}.js`,
+    minify:    true,
+    sourcemap: true,
+    target:    'es2020',
+  }).then(() => console.log(`✓ dist/${name}.js (+ .map)`));
 }
 
 // ── 3. Copy CSS ────────────────────────────────────────────────────────

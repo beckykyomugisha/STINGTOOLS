@@ -73,10 +73,30 @@ Local dev is unchanged — `PlanscapeServeDist` is unset by default, so
 need to ship raw sources in the image (e.g. to attach a debugger
 against unminified line numbers).
 
-## Deferred / not done
+## Source-map upload
 
-- **Source-map upload.** Build emits `.map` files; uploading them to
-  Sentry / Honeycomb for production stack traces is a separate hook.
+`build.mjs` emits external `.map` files alongside each bundle.
+`upload-sourcemaps.mjs` pushes them to Sentry (default host) so
+production stack traces resolve back to original line numbers.
+
+```bash
+SENTRY_AUTH_TOKEN=<token> \
+SENTRY_ORG=planscape \
+SENTRY_PROJECT=planscape-viewer \
+npm run upload-sourcemaps      # builds dist/ then uploads .map files
+```
+
+When `SENTRY_AUTH_TOKEN` is not set the script no-ops with a friendly
+message so CI pipelines that haven't configured Sentry yet keep
+passing. When the token IS set, missing org/project fails fast.
+
+Release identifier defaults to `viewer-<short git SHA>`; override with
+`SENTRY_RELEASE`. Self-hosted Sentry: set `SENTRY_HOST`. Hard-pin the
+URL prefix (instead of the default `~/` wildcard) with
+`SENTRY_URL_PREFIX=https://planscape.app/`.
+
+Source maps are NOT committed — `dist/` is gitignored. They live only
+in CI artefacts and on Sentry's side.
 
 ## Why opt-in (not enforced)
 
