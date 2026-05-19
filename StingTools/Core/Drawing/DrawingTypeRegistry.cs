@@ -316,11 +316,11 @@ namespace StingTools.Core.Drawing
                 // Fabrication / shop
                 MakeFabSpool("pipe-spool-A1-1to50",    "Pipe Spool A1 1:50",              "P"),
                 MakeFabSpool("duct-spool-A1-1to50",    "Duct Spool A1 1:50",              "M"),
-                MakeBasic("elec-riser-A2-1to100",      "Electrical Riser A2 1:100",       DrawingPurpose.Plan,      "E", 100),
+                MakeBasic("elec-riser-A3-1to100",      "Electrical Riser A3 1:100",       DrawingPurpose.Plan,      "E", 100),
                 // Schedules + handover
-                MakeSchedule("door-schedule-A2",       "Door Schedule A2",                "A"),
+                MakeSchedule("door-schedule-A3",       "Door Schedule A3",                "A"),
                 MakeBasic("handover-A1",               "Handover Sheet A1",               DrawingPurpose.Plan,      "A", 100),
-                MakeBasic("legend-A2",                 "Legend Sheet A2",                 DrawingPurpose.Legend,    "G", 100),
+                MakeBasic("legend-A3",                 "Legend Sheet A3",                 DrawingPurpose.Legend,    "G", 100),
             });
 
             // Routing table — first match wins
@@ -337,9 +337,9 @@ namespace StingTools.Core.Drawing
                 new DrawingRoutingRule { Discipline = "S", DocType = "SECTION", DrawingTypeId = "struct-section-A1-1to50" },
                 new DrawingRoutingRule { Discipline = "M", DocType = "PLAN",    DrawingTypeId = "mep-plan-A1-1to100" },
                 new DrawingRoutingRule { Discipline = "M", DocType = "COORD",   DrawingTypeId = "mep-coord-A1-1to50" },
-                new DrawingRoutingRule { Discipline = "E", DocType = "PLAN",    DrawingTypeId = "elec-riser-A2-1to100" },
-                new DrawingRoutingRule { Discipline = "*", DocType = "SCHEDULE",DrawingTypeId = "door-schedule-A2" },
-                new DrawingRoutingRule { Discipline = "*", DocType = "LEGEND",  DrawingTypeId = "legend-A2" },
+                new DrawingRoutingRule { Discipline = "E", DocType = "PLAN",    DrawingTypeId = "elec-riser-A3-1to100" },
+                new DrawingRoutingRule { Discipline = "*", DocType = "SCHEDULE",DrawingTypeId = "door-schedule-A3" },
+                new DrawingRoutingRule { Discipline = "*", DocType = "LEGEND",  DrawingTypeId = "legend-A3" },
                 new DrawingRoutingRule { Discipline = "*", DocType = "HANDOVER",DrawingTypeId = "handover-A1" },
             });
 

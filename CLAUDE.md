@@ -868,6 +868,65 @@ multi-size healthcare family can override via project-scoped
    the visual outcome on the view; projects that need separate filters
    per band can fork the library entry.
 
+### Phase 184g — A2 paper-size consolidation to A3
+
+The A2 paper size is no longer part of STING's corporate baseline.
+All 10 drawing types that previously used A2 have been migrated to
+A3 with their IDs, names, descriptions, title-block families, and
+routing references updated in lockstep.
+
+**Drawing-type ID renames** (10 total):
+
+| Before | After |
+|---|---|
+| `elec-riser-A2-1to100` | `elec-riser-A3-1to100` |
+| `door-schedule-A2` | `door-schedule-A3` |
+| `legend-A2` | `legend-A3` |
+| `arch-window-schedule-A2` | `arch-window-schedule-A3` |
+| `health-rds-A2` | `health-rds-A3` |
+| `health-mortuary-pln-A2-1to50` | `health-mortuary-pln-A3-1to50` |
+| `health-bedhead-elev-A2-1to20` | `health-bedhead-elev-A3-1to20` |
+| `health-or-ceiling-A2-1to20` | `health-or-ceiling-A3-1to20` |
+| `plumb-vent-riser-A2-NTS` | `plumb-vent-riser-A3-NTS` |
+| `plumb-pressure-schedule-A2` | `plumb-pressure-schedule-A3` |
+
+**Field updates per profile** (across all 10):
+
+- `paperSize`: `"A2"` → `"A3"`
+- `titleBlockFamily`: `STING_TB_SHEET_A2` → `STING_TB_SHEET_A3` (6 corporate); `STING - Healthcare Title Block A2` → `STING - Healthcare Title Block A3` (4 healthcare)
+- `name` / `description` / `sheetNamePattern` text occurrences of "A2" rewritten to "A3"
+
+**Cross-reference updates**:
+
+- `STING_DRAWING_TYPES.json`: 15 routing rules referencing the renamed IDs updated
+- `HEALTHCARE_PACK_PROFILES.json`: 3 healthcare-pack profile references to `health-rds-A2` updated to `health-rds-A3`
+- `StingTools/Core/Drawing/DrawingTypeRegistry.cs`: 3 fallback built-in entries (`elec-riser`, `door-schedule`, `legend`) + 3 fallback routing rules updated
+- `StingTools/Commands/SLD/SLDRiserDiagramCommand.cs`: `RiserDrawingTypeId` constant updated
+
+**Final paper-size distribution** (programmatically verified):
+
+| Size | Count |
+|---|---|
+| A1 | 76 |
+| A3 | 14 |
+| **A2** | **0** ✓ |
+
+A2 remains a valid Revit paper-size string elsewhere in the codebase
+(sheet-size dictionaries, paper-size dropdowns in editors, CDE
+acceptance codes like `A2 — Approved with Comments`) — only the
+drawing-type corporate baseline has dropped it. Projects that need
+A2 profiles can override via project-scoped `drawing_types.json`.
+
+### Caveats (Phase 184g)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. Scales of the migrated profiles were left unchanged (e.g.
+   `health-bedhead-elev-A3-1to20` still uses 1:20). A3 is roughly
+   half the printable area of A2; production teams may need to
+   re-scale views or accept tighter crop margins on the A3 sheets.
+   The corporate baseline keeps the original scale so the
+   pack-routing fallback remains unambiguous.
+
 ## Template Engine v1.1 (Phase 112)
 
 **Status**: S01–S18 landed on `claude/implement-template-engine-COd9n`
