@@ -307,8 +307,48 @@ namespace StingTools.Commands.Cost
             TakeoffRuleRegistry.Invalidate();
             StingTools.BOQ.CostStamp.Invalidate();
             StingTools.BIMManager.Scheduling4DEngine.InvalidateDefaultCostRates();
+
+            // P8 — register external rate providers lazily. The default
+            // chain (param / ES / CSV / COBie / scheduled) is built by
+            // RateProviderRegistry.Get on next call; we then attach any
+            // configured external providers (BCIS, project rate card).
+            try
+            {
+                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                if (doc != null)
+                {
+                    double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+                    double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
+                    var registry = RateProviderRegistry.Get(doc,
+                        new Dictionary<string, (double rate, string unit)>(),
+                        new Dictionary<string, string>(),
+                        ugxPerUsd, ugxPerGbp);
+
+                    // Always attempt project rate card — if rate_card.json
+                    // doesn't exist, the provider quietly stores zero
+                    // entries.
+                    registry.RegisterExternalProvider(
+                        StingTools.BOQ.Rates.Providers.ProjectRateCardProvider.Load(doc));
+
+                    // BCIS HTTP — only if configured.
+                    string bcisUrl = (TagConfig.GetConfigDouble("BCIS_ENABLED", 0.0) > 0)
+                        ? "https://service.bcis.co.uk/api" : "";
+                    if (!string.IsNullOrEmpty(bcisUrl))
+                    {
+                        string cacheDir = System.IO.Path.Combine(
+                            StingTools.BIMManager.BIMManagerEngine.GetBIMManagerDir(doc),
+                            "rate_cache");
+                        registry.RegisterExternalProvider(
+                            new StingTools.BOQ.Rates.Providers.BcisHttpRateProvider(
+                                bcisUrl, apiKey: "", ttlMinutes: 1440, cacheDir: cacheDir));
+                    }
+                }
+            }
+            catch (Exception extEx) { StingLog.Warn($"Cost_ReloadRules external providers: {extEx.Message}"); }
+
             TaskDialog.Show("STING Cost",
                 "Rate provider + take-off rule + default-cost-rates caches cleared (and CostStamp config). " +
+                "External rate providers (project rate card, BCIS HTTP if configured) re-registered. " +
                 "The next BOQ build will reload from disk.");
             return Result.Succeeded;
         }

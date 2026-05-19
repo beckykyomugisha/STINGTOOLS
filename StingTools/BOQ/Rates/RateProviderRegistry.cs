@@ -76,11 +76,29 @@ namespace StingTools.BOQ.Rates
             {
                 new ParameterOverrideRateProvider(),
                 new ExtensibleStorageRateProvider(),
+                // Phase 184j / P8: external + project rate-card providers
+                // are added lazily by RegisterExternalProviders so the
+                // registry doesn't fail when a project hasn't configured
+                // them yet. See Get(doc, ...) below.
                 new CsvRateProvider(csvRates),
                 new CobieRateProvider(cobieCostCodes, csvRates),
                 new DefaultRateProvider()
             };
             return new RateProviderRegistry(providers, ugxPerUsd, ugxPerGbp);
+        }
+
+        /// <summary>
+        /// Inject external providers (BCIS HTTP, Spon's, project rate
+        /// card) after the registry is built. Called from
+        /// Cost_ReloadRules when network providers are configured. The
+        /// providers are sorted into the priority chain on insertion.
+        /// </summary>
+        public void RegisterExternalProvider(IRateProvider provider)
+        {
+            if (provider == null) return;
+            _providers.Add(provider);
+            _providers.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+            StingLog.Info($"RateProviderRegistry: registered {provider.Id} (priority {provider.Priority}).");
         }
 
         /// <summary>

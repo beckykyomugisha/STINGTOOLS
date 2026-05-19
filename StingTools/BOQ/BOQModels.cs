@@ -147,6 +147,12 @@ namespace StingTools.BOQ
         public double OverheadPct = 8.0;
         public string Currency = "UGX";
         public double ExchangeRateUgxPerUsd = 3700.0;   // Phase 11E multi-currency
+        /// <summary>
+        /// Measurement standard ID — "nrm2" / "cesmm4" / "pomi" / "icms3" /
+        /// "mmhw". Defaults to NRM2 (UK Building Works). Phase 184h / P6.
+        /// </summary>
+        public string MeasurementStandardId = "nrm2";
+
         public List<BOQSection> Sections = new List<BOQSection>();
 
         public List<BOQLineItem> AllItems => Sections.SelectMany(s => s.Items).ToList();

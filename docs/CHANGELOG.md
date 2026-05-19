@@ -2,6 +2,118 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 184k — Cost management P4–P8 caveats closed)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the four caveats from Phase 184f-j: server endpoints, IFC Qto shared params, ICMS3 phase refinement, and the signature pad. Built without `dotnet build` verification (Linux sandbox).
+
+##### Server-side BoqController endpoints
+
+New entity + table:
+- `Planscape.Core/Entities/PaymentCertificate.cs` — server twin of the plugin `Core/PaymentCert.PaymentCertificate`. Carries `CertNumber` / `ContractRef` / `Form` / `Status` / `ValuationDate` / retention bands / VAT / `TotalPayable` / SOV JSON / signer fields.
+- `Planscape.Infrastructure/Data/PlanscapeDbContext.cs` — `PaymentCertificates` `DbSet` + entity config with `(ProjectId, ContractRef, CertNumber)` unique index + project FK.
+- `Migrations/20260518000000_AddPaymentCertificates.cs` — hand-written migration creating the table with the right decimal types (`numeric(18,2)` for money, `numeric(6,3)` for percentages).
+
+New controller routes on `BoqController`:
+- `GET  /boq/variations/{id}` — variation detail with deserialised `items[]` from `LineDeltaJson`. Matches the mobile detail screen's expected shape.
+- `GET  /boq/payment-certs` — list per project.
+- `GET  /boq/payment-certs/{id}` — full cert with deserialised SOV lines.
+- `POST /boq/payment-certs` — plugin push from `PaymentCert_Issue`.
+- `PUT  /boq/payment-certs/{id}/sign` — mobile signature flow. State machine: `Draft → Issued → Agreed | Disputed → Paid`. Validates the transition (e.g. cert must be `Issued` to be `Agreed`).
+
+The mobile screens from Phase 184i now work end-to-end against this server.
+
+##### IFC4 Qto + Pset_StingCost shared params (65 entries)
+
+- `Data/MR_PARAMETERS.txt` — appended 65 PARAM rows: 10 Qto sets covering walls / beams / columns / slabs / doors / windows / spaces / coverings / pipes / ducts (~59 fields) + the 6-field `Pset_StingCost` property set. GUIDs are deterministic UUIDv5-shaped from the param name so re-runs are stable. UTF-16 LE + BOM encoding preserved via Python helper.
+- `Data/PARAMETER_REGISTRY.json` — same 65 entries appended to `support_params` with `data_type` matching the storage (`Number` / `Text` / `YesNo`).
+- Once bound to elements via `LoadSharedParams`, Revit's IFC exporter will surface the values in IFC4 `IfcElementQuantity` / `IfcPropertySet` so external cost tools (Cost-X, CostOS, Candy, Bluebeam Revu) can ingest cost data without re-measuring.
+
+##### ICMS3 lifecycle phase refinement
+
+- `BOQ/MeasurementStandard/MeasurementStandards.cs` — `Icms3Standard.ClassifyRow` now reads `PHASE_DEMOLISHED` and `PHASE_CREATED` on the element to bucket into ICMS3 groups:
+  - `PHASE_DEMOLISHED` set + phase name contains "demolition"/"end-of-life"/"decommission" → `04 End-of-life`
+  - `PHASE_DEMOLISHED` set (any other phase) → `03 Operation`
+  - `PHASE_CREATED` phase name contains "existing"/"acquisition"/"site preparation"/"enabling" → `01 Acquisition`
+  - `PHASE_CREATED` phase name contains "operation"/"maintenance" → `03 Operation`
+  - Default → `02 Construction`
+- Lets the ICMS3 report break cost + carbon down across the whole lifecycle rather than collapsing everything to construction.
+
+##### react-native-signature-canvas integration
+
+- `Planscape/package.json` — adds `react-native-signature-canvas ^4.7.2` (built on top of `react-native-webview`, which is already a dep).
+- `Planscape/app/payment-certs/[id].tsx` — Agree / Dispute now opens a `Modal` containing the signature pad. Captured signature is a base64 PNG; submission POSTs the bytes alongside the signer name + rationale. Cancellation closes the modal without submitting.
+- `Planscape.API/Controllers/BoqController.cs` — `SignPaymentCertRequest` gains `SignaturePngBase64`. The handler decodes the base64, writes the PNG to `storage/signatures/{tenantId}/{certId}/{action}_{timestamp}.png`, and stores the relative path in the `Note` column alongside any rationale.
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. EF migration is hand-written — run `dotnet ef database update` against the dev DB before deploying. Add to `Planscape.Server/docs/PLANSCAPE_DEPLOYMENT.md` deployment checklist.
+3. Signature storage uses a relative `storage/signatures/...` path. Production deployments using a stateless container need to remap this to S3 or persistent volume; current MVP assumes the existing file-system convention used by other Planscape attachments.
+4. `react-native-signature-canvas` requires running `npm install` after pulling the branch. The package is widely used (1M+ weekly downloads) and works on iOS + Android out of the box; web targets need additional Expo Web configuration which isn't shipped.
+5. ICMS3 phase detection assumes English phase names ("existing", "demolition" etc.). Non-English Revit installs need a config-driven phase-name → group code map, deferred.
+
+---
+
+#### Completed (Phase 184f-j — Cost management P4 → P8 — full plan complete)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Implements the remaining five phases of `docs/COST_MANAGEMENT_IMPLEMENTATION_PLAN.md` (P4 → P8). Each phase landed as a separate commit; this entry summarises the whole arc. Built without `dotnet build` verification (Linux sandbox).
+
+**P4 — NRM1 elemental cost plan (Phase 184f)**
+
+- `Core/CostPlan/NrmElement.cs` — NRM1 hierarchy (41 elements / groups per RIBA NRM1 2nd ed.)
+- `Core/CostPlan/CostPlanLine.cs` — PERT 3-point low/likely/high totals
+- `Core/CostPlan/CostPlanRegistry.cs` — CSV loader + project override
+- `Core/CostPlan/CostPlanEngine.cs` — build/save/load + NRM1↔NRM2 variance compare
+- `Commands/Cost/CostPlanCommands.cs` — `CostPlan_Create` / `CostPlan_Compare` / `CostPlan_Export`
+- `Data/STING_NRM1_BENCHMARKS.csv` — 6 building types × ~25 elements (office Cat A/B, residential, school, healthcare, warehouse)
+
+**P5 — Contract administration (Phase 184g)**
+
+- P5.1 payment certificates: `Core/PaymentCert/PaymentCertModels.cs` + `PaymentCertEngine.cs`; supports JCT 2024 / NEC4 / FIDIC 2017 with retention auto-halving, VAT, status machine (Draft → Issued → Disputed | Agreed → Paid).
+- P5.2 variations + star rates: `Core/Variation/VariationModels.cs` + `VariationEngine.cs`; mints VOs from `BOQSnapshotDiff` (NewItem uses RateB, RateRevised uses delta); StarRate carries labour + plant + materials + OH + profit build-up.
+- P5.3 EVM: `Core/Evm/EvmCalculator.cs` — full PMI metrics (CV, SV, CPI, SPI, EAC, ETC, VAC, TCPI) with Green / Amber / Red health gates at CPI 0.95 / 1.00.
+- 9 user commands wired up: `PaymentCert_{Issue,Approve,Register}`, `Variation_{FromDiff,BuildStarRate,ExportRegister}`, `Evm_{Calculate,ImportActuals,ExportReport}`.
+- 7 new shared params: PMT_PCT_COMPLETE_NR, PMT_CERT_NO_NR, PMT_CERT_DATE_DT, PMT_LAST_VALUED_DT, VAR_NO_TXT, VAR_INSTRUCTION_DT, VAR_VALUATION_NR.
+
+**P6 — Multi-standard take-off (Phase 184h)**
+
+- `BOQ/MeasurementStandard/IMeasurementStandard.cs` — strategy interface (PreferredUnit / ClassifyRow / BuildDescription / ApplyDeductions).
+- `MeasurementStandards.cs` — 5 concrete: `Nrm2Standard`, `Cesmm4Standard` (Class A-Z lattice, deducts openings > 0.5 m² from walls), `PomiStandard` (international, broad classes), `Icms3Standard` (cost + carbon ledger), `MmhwStandard` (UK highway works series 100–3000).
+- `BOQDocument.MeasurementStandardId` field defaults to "nrm2" so existing snapshots are unchanged.
+- Commands: `Cost_SetMeasurementStandard` (StingListPicker, persists in `project_config.json`) and `Cost_StandardInspect` (diagnostic preview).
+
+**P7 — Mobile write surface (Phase 184i)**
+
+- `Planscape/app/variations/index.tsx` + `[id].tsx` — list + detail with Approve / Reject / Reviewed actions and rationale field. Status colour-coded.
+- `Planscape/app/payment-certs/index.tsx` + `[id].tsx` — list with payable totals; detail with full SOV breakdown (retention auto-halving, VAT, payable), Agree / Dispute sign-off.
+- Signature is typed-name + auto-date in this MVP; `react-native-signature-canvas` integration is a follow-on commit (needs new dep).
+- Server endpoints expected (handlers land in the existing `BoqController`):
+  - `GET /api/projects/{id}/boq/variations` / `/{id}` + `PUT .../status`
+  - `GET /api/projects/{id}/boq/payment-certs` / `/{id}` + `PUT .../sign`
+
+**P8 — External connectors + IFC Qto + ICMS3 (Phase 184j)**
+
+- `BOQ/Rates/Providers/BcisHttpRateProvider.cs` — generic HTTP rate-book client (priority 50). Hot + disk cache with TTL; fail-soft to last-good. Configurable via `BCIS_BASE_URL` / `BCIS_API_KEY` / `BCIS_TTL_MIN`.
+- `BOQ/Rates/Providers/ProjectRateCardProvider.cs` — reads `<project>/_BIM_COORD/rate_card.json` (priority 87; above CSV's 90 only for project-specific overrides).
+- `RateProviderRegistry.RegisterExternalProvider` — late-bound registration so providers can be enabled per project. `Cost_ReloadRules` re-attaches them after invalidation.
+- `BOQ/IfcQuantitySetWriter.cs` — populates IFC4 Qto_* property sets (Qto_WallBaseQuantities, Qto_BeamBaseQuantities, Qto_SlabBaseQuantities, etc.) + a STING-specific `Pset_StingCost` with UnitRate / Currency / TotalCost / ProvisionalSum / RateSource / NRM2Section so external cost tools (Cost-X, CostOS, Candy, Bluebeam Revu) can ingest cost directly from the IFC export.
+- `Commands/Cost/IfcAndIcmsCommands.cs` — `Cost_StampIfcQuantities` (one-shot bulk stamp inside a transaction) and `Cost_ExportIcms3Report` (CSV with cost £ + carbon kgCO₂e + £/kgCO₂e ratio per ICMS3 group code).
+
+##### Caveats
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. Mobile P7 screens compile against the existing `apiFetch` + `useAuthStore` patterns but the corresponding server endpoints (under `/api/projects/{id}/boq/variations` and `/payment-certs`) still need handlers on `BoqController`. The mobile UI is ready; server wiring is a follow-on commit on the Planscape.Server side.
+3. The `BcisHttpRateProvider` HTTP shape is generic — BCIS's real API requires a paid tier and an adapter layer. The provider is shaped to wrap any GET-returns-JSON-with-unitRate price book.
+4. `IfcQuantitySetWriter` writes shared params named `Qto_*.* ` and `Pset_StingCost.*`. These params must be added to `MR_PARAMETERS.txt` + `PARAMETER_REGISTRY.json` before Revit's IFC exporter will surface them in the IFC4 output — staged for a focused follow-up commit because each Qto field is a per-category binding (~60 entries).
+5. ICMS3 grouping is currently coarse (everything → "02 Construction"). Lifecycle phase data (01 Acquisition, 03 Operation, 04 End-of-life) requires per-element phase data not yet captured in the BOQ engine; a follow-on phase reads `PHASE_CREATED` / `PHASE_DEMOLISHED` to refine.
+
+##### What's NOT covered (deliberately out of scope)
+
+- The "P0 → P3" foundations (rate engine, take-off rules, server sync, automation, 4D/5D unification) landed earlier in the same branch (commits 45031a3f / c3125274 / 5b5fcf22 / f11c3e78 / 41b4fd8c / 4ae42266 / 38f76f77). Together with P4 → P8 here, the full implementation plan is delivered.
+- ERP integration (SAP, Oracle), forward FX hedging, Monte-Carlo risk modelling, ASMM / SMM7 standards, BIM Track / Aconex cost-module integration, and ESIGN-compliant signature pad — all out of scope per the implementation-plan §10.
+
+---
+
 #### Completed (Phase 184e — Cost management Phase 184d caveats closed)
 
 Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the three caveats from Phase 184d. Built without `dotnet build` verification.

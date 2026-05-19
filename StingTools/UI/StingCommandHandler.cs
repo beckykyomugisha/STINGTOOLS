@@ -3319,6 +3319,30 @@ namespace StingTools.UI
                     case "Cost_ReloadRules":            RunCommand<Commands.Cost.CostReloadRulesCommand>(app); break;
                     case "Cost_MigrateCurrencyParams":  RunCommand<Commands.Cost.CostMigrateCurrencyParamsCommand>(app); break;
                     case "Cost_MigrateESEntities":      RunCommand<Commands.Cost.CostMigrateESEntitiesCommand>(app); break;
+
+                    // Phase 184f — P4 NRM1 cost plan
+                    case "CostPlan_Create":             RunCommand<Commands.Cost.CostPlanCreateCommand>(app); break;
+                    case "CostPlan_Compare":            RunCommand<Commands.Cost.CostPlanCompareCommand>(app); break;
+                    case "CostPlan_Export":             RunCommand<Commands.Cost.CostPlanExportCommand>(app); break;
+
+                    // Phase 184g — P5 contract administration
+                    case "PaymentCert_Issue":           RunCommand<Commands.Cost.PaymentCertIssueCommand>(app); break;
+                    case "PaymentCert_Approve":         RunCommand<Commands.Cost.PaymentCertApproveCommand>(app); break;
+                    case "PaymentCert_Register":        RunCommand<Commands.Cost.PaymentCertRegisterCommand>(app); break;
+                    case "Variation_FromDiff":          RunCommand<Commands.Cost.VariationFromDiffCommand>(app); break;
+                    case "Variation_BuildStarRate":     RunCommand<Commands.Cost.VariationBuildStarRateCommand>(app); break;
+                    case "Variation_ExportRegister":    RunCommand<Commands.Cost.VariationExportRegisterCommand>(app); break;
+                    case "Evm_Calculate":               RunCommand<Commands.Cost.EvmCalculateCommand>(app); break;
+                    case "Evm_ImportActuals":           RunCommand<Commands.Cost.EvmImportActualsCommand>(app); break;
+                    case "Evm_ExportReport":            RunCommand<Commands.Cost.EvmExportReportCommand>(app); break;
+
+                    // Phase 184h — P6 multi-standard
+                    case "Cost_SetMeasurementStandard": RunCommand<Commands.Cost.CostSetMeasurementStandardCommand>(app); break;
+                    case "Cost_StandardInspect":        RunCommand<Commands.Cost.CostStandardInspectCommand>(app); break;
+
+                    // Phase 184j — P8 IFC Qto + ICMS3
+                    case "Cost_StampIfcQuantities":     RunCommand<Commands.Cost.CostStampIfcQuantitiesCommand>(app); break;
+                    case "Cost_ExportIcms3Report":      RunCommand<Commands.Cost.CostExportIcms3ReportCommand>(app); break;
                     case "BuildingCodeSeed":        RunCommand<Core.BuildingCodeSeedCommand>(app); break;
                     case "PrjVolumeCodeAuto":       RunCommand<Core.ProjectVolumeCodeAutoPopulateCommand>(app); break;
                     case "FederationReview":        RunCommand<Core.FederationCoordinationReviewCommand>(app); break;
