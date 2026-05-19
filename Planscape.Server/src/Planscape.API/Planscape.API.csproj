@@ -67,4 +67,35 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <!-- Sync the desktop coordination viewer from the canonical source the
+       React Native WebView already loads (Planscape/assets/viewer/). The
+       wwwroot copy had previously drifted to a stale snapshot and lost
+       features (setSectionBox, startMarkup, NotificationHub, ...). This
+       target re-copies the runtime files on every build so the two
+       surfaces can't get out of sync again.
+
+       Not handled here: three.min.js + GLTFLoader/OrbitControls/DRACOLoader
+       /MeshoptDecoder stubs. Those are outputs of build.mjs and the dist/
+       folder is gitignored, so there's nothing in source for MSBuild to
+       copy from. To refresh them after a three.js upgrade:
+         cd Planscape/assets/viewer
+         npm install
+         npm run sync-wwwroot   # builds dist/ + copies the 5 files into wwwroot
+       Then commit the updated wwwroot/three.min.js + stubs. -->
+  <ItemGroup>
+    <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\viewer.html" />
+    <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\coordination-viewer.js" />
+    <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\coordination-viewer.css" />
+    <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\viewer-extras.js" />
+    <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\signalr-shim.js" />
+  </ItemGroup>
+  <Target Name="SyncCoordinationViewer" BeforeTargets="Build"
+          Inputs="@(ViewerSourceFiles)"
+          Outputs="@(ViewerSourceFiles->'$(MSBuildThisFileDirectory)wwwroot\%(Filename)%(Extension)')">
+    <Copy SourceFiles="@(ViewerSourceFiles)"
+          DestinationFolder="$(MSBuildThisFileDirectory)wwwroot"
+          SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="SyncCoordinationViewer: copied @(ViewerSourceFiles->Count()) viewer files into wwwroot/." />
+  </Target>
 </Project>
