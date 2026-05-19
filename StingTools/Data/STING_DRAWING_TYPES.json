@@ -8330,7 +8330,7 @@
       "id": "plumb-drainage-schematic-A1",
       "name": "Plumbing — Drainage Schematic Riser",
       "purpose": "Schedule",
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "paperSize": "A1",
       "titleBlockFamily": "STING - A1 Title Block",
@@ -8450,7 +8450,7 @@
   ],
   "routing": [
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "SPOOL",
       "drawingTypeId": "pipe-spool-A1-1to50"
@@ -8636,13 +8636,13 @@
       "drawingTypeId": "elec-fire-alarm-A1-1to100"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "DRAINAGE",
       "drawingTypeId": "plumb-drainage-A1-1to100"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "PLAN",
       "drawingTypeId": "plumb-drainage-A1-1to100"
@@ -8932,7 +8932,7 @@
       "drawingTypeId": "health-or-ceiling-A3-1to50"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "WATER_SAFETY",
       "drawingTypeId": "health-water-safety-A1-1to100"
@@ -8968,61 +8968,61 @@
       "drawingTypeId": "health-nuclear-medicine-A1"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "DCW_SCHEMATIC",
       "drawingTypeId": "plumb-dcw-schematic-A1-NTS"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "DHW_SCHEMATIC",
       "drawingTypeId": "plumb-dhw-schematic-A1-NTS"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "LTHW_SCHEMATIC",
       "drawingTypeId": "plumb-lthw-schematic-A1-NTS"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "AG_DRAINAGE",
       "drawingTypeId": "plumb-ag-drainage-A1-1to100"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "RWD_LAYOUT",
       "drawingTypeId": "plumb-rwd-layout-A1-1to100"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "SUDS",
       "drawingTypeId": "plumb-suds-A1-1to500"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "VENT_RISER",
       "drawingTypeId": "plumb-vent-riser-A3-NTS"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "PRESSURE_SCHEDULE",
       "drawingTypeId": "plumb-pressure-schedule-A3"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "WATER_TREATMENT",
       "drawingTypeId": "plumb-water-treatment-A1-1to50"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "DRAINAGE_SCHEMATIC",
       "drawingTypeId": "plumb-drainage-schematic-A1"

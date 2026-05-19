@@ -970,6 +970,47 @@ Profiles unchanged: schedules (`door-schedule-A3`,
 
 1. Built without `dotnet build` verification (Linux sandbox).
 
+### Phase 184i — discipline-code normalisation (`Plumbing` → `P`)
+
+Post-184h audit caught one real string-equality bug. The
+`DrawingDispatcher.MatchesWildcard` matches discipline values via
+`string.Equals(..., OrdinalIgnoreCase)`, so `"P"` and `"Plumbing"`
+do NOT match. After Phase 184d's `"Public Health"` → `"Plumbing"`
+fix and Phase 184e's routing `"P"` → `"Plumbing"` sweep, every
+plumb-* routing rule used the long form `"Plumbing"` while every
+plumb-* drawing-type declared the short form `"P"` (matching the
+A / S / M / E / H / MG / RP convention). The result: 14 plumb
+routing rules silently couldn't resolve any plumb drawing type.
+
+Normalised everything to the short code `"P"`:
+- 14 routing rules: `"Plumbing"` → `"P"`
+- 1 drawing type (`plumb-drainage-schematic-A1`): `"Plumbing"` → `"P"`
+
+`titleBlockParams.Discipline` cell still reads `"Plumbing"` —
+that's the human-readable display value on the sheet, not a
+routing key, so it stays the long form.
+
+**Omnibus alignment check (programmatically verified, 8/8 pass)**:
+
+| Check | Result |
+|---|---|
+| Discipline values DT ↔ routing | ✓ 0 orphans |
+| Routing target ids resolve | ✓ 101/101 |
+| Pack references resolve | ✓ 22/22 |
+| Pack filter references resolve | ✓ 70/70 |
+| A2 paper-size residue | ✓ 0 |
+| `tokenProfile` as string | ✓ 0 |
+| Scale ↔ ID encoding match | ✓ 90/90 |
+| Paper size ↔ title-block family match | ✓ 90/90 |
+
+Final counts: **90 drawing types · 22 style packs · 101 routing
+rules · 289 AEC filters · 70 pack filter references — all
+references resolve**.
+
+### Caveats (Phase 184i)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+
 ## Template Engine v1.1 (Phase 112)
 
 **Status**: S01–S18 landed on `claude/implement-template-engine-COd9n`
