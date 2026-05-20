@@ -29,18 +29,27 @@ namespace StingTools.Commands.Symbols
     {
         public static readonly (string File, string Folder, string Label)[] AllBatches = new[]
         {
-            ("STING_SLD_SYMBOLS.json",       "SLD/IEC",    "Single Line Diagram (IEC 60617)"),
-            ("STING_SLD_SYMBOLS_IEEE.json",  "SLD/IEEE",   "Single Line Diagram (IEEE 315)"),
-            ("STING_SLD_SYMBOLS_BS.json",    "SLD/BS",     "Single Line Diagram (BS EN 60617)"),
-            ("STING_SLD_SYMBOLS_NFPA.json",  "SLD/NFPA",   "Single Line Diagram (NFPA 70)"),
-            ("STING_SLD_SYMBOLS_CIBSE.json", "SLD/CIBSE",  "Building Services (CIBSE)"),
-            ("STING_LIGHTING_SYMBOLS.json",  "Lighting",   "Lighting"),
-            ("STING_FP_SYMBOLS.json",        "FireProt",   "Fire Protection"),
-            ("STING_MEP_SYMBOLS.json",       "HVAC",       "HVAC / Mechanical"),
-            ("STING_ELEC_SYMBOLS.json",      "Electrical", "Electrical Devices"),
-            ("STING_PLUMBING_SYMBOLS.json",  "Plumbing",   "Plumbing"),
-            ("STING_PIPE_ACCESSORIES.json",  "PipeAcc",    "Pipe Accessories"),
-            ("STING_ISO6412_SYMBOLS.json",   "ISO6412",    "ISO 6412 Piping/Duct/Conduit Spool Symbols"),
+            ("STING_SLD_SYMBOLS.json",             "SLD/IEC",    "Single Line Diagram (IEC 60617)"),
+            ("STING_SLD_SYMBOLS_IEEE.json",        "SLD/IEEE",   "Single Line Diagram (IEEE 315)"),
+            ("STING_SLD_SYMBOLS_BS.json",          "SLD/BS",     "Single Line Diagram (BS EN 60617)"),
+            ("STING_SLD_SYMBOLS_NFPA.json",        "SLD/NFPA",   "Single Line Diagram (NFPA 70)"),
+            ("STING_SLD_SYMBOLS_CIBSE.json",       "SLD/CIBSE",  "Building Services (CIBSE)"),
+            ("STING_LIGHTING_SYMBOLS.json",        "Lighting",   "Lighting"),
+            ("STING_FP_SYMBOLS.json",              "FireProt",   "Fire Protection"),
+            ("STING_MEP_SYMBOLS.json",             "HVAC",       "HVAC / Mechanical"),
+            ("STING_ELEC_SYMBOLS.json",            "Electrical", "Electrical Devices"),
+            ("STING_PLUMBING_SYMBOLS.json",        "Plumbing",   "Plumbing"),
+            ("STING_PIPE_ACCESSORIES.json",        "PipeAcc",    "Pipe Accessories"),
+            ("STING_ISO6412_SYMBOLS.json",         "ISO6412",    "ISO 6412 Piping/Duct/Conduit Spool Symbols"),
+            // ── Phase 188: 8 new corporate-baseline catalogues ────────────────
+            ("STING_WIRE_ANNOTATIONS.json",        "Wire",       "Wire / Cable Annotations (BS EN 60617-2)"),
+            ("STING_EARTHING_SYMBOLS.json",        "Earth",      "Earthing & Bonding (BS 7430, BS EN 62305)"),
+            ("STING_BMS_SYMBOLS.json",             "BMS",        "BMS / DDC Controls (CIBSE Guide H)"),
+            ("STING_TELECOM_SYMBOLS.json",         "Telecom",    "Telecom / Voice / Data / AV (BS EN 50173)"),
+            ("STING_STRUCTURAL_ANNOTATIONS.json",  "Struct",     "Structural Annotations (BS 8666, ISO 2553)"),
+            ("STING_SAFETY_SYMBOLS.json",          "Safety",     "Safety Pictograms (ISO 7010)"),
+            ("STING_GAS_SYMBOLS.json",             "Gas",        "Natural Gas / LPG (IGEM TD/4, BS 6891)"),
+            ("STING_DRAINAGE_ABOVE.json",          "DrainAbove", "Above-Ground Drainage (BS EN 12056)"),
         };
 
         public static string ResolveOutputRoot(Document doc)

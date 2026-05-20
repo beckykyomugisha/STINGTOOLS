@@ -554,12 +554,20 @@ namespace StingTools.Commands.Symbols
     {
         private static readonly (string File, string Label)[] Sources = new[]
         {
-            ("STING_ELEC_SYMBOLS.json",      "Electrical"),
-            ("STING_LIGHTING_SYMBOLS.json",  "Lighting"),
-            ("STING_FP_SYMBOLS.json",        "Fire Protection"),
-            ("STING_MEP_SYMBOLS.json",       "HVAC"),
-            ("STING_PLUMBING_SYMBOLS.json",  "Plumbing"),
-            ("STING_PIPE_ACCESSORIES.json",  "Pipe Accessories"),
+            ("STING_ELEC_SYMBOLS.json",            "Electrical"),
+            ("STING_LIGHTING_SYMBOLS.json",        "Lighting"),
+            ("STING_FP_SYMBOLS.json",              "Fire Protection"),
+            ("STING_MEP_SYMBOLS.json",             "HVAC"),
+            ("STING_PLUMBING_SYMBOLS.json",        "Plumbing"),
+            ("STING_PIPE_ACCESSORIES.json",        "Pipe Accessories"),
+            ("STING_WIRE_ANNOTATIONS.json",        "Wire/Cable Annotations"),
+            ("STING_EARTHING_SYMBOLS.json",        "Earthing & Bonding"),
+            ("STING_BMS_SYMBOLS.json",             "BMS & DDC Controls"),
+            ("STING_TELECOM_SYMBOLS.json",         "Telecom / Voice / Data / AV"),
+            ("STING_STRUCTURAL_ANNOTATIONS.json",  "Structural Annotations"),
+            ("STING_SAFETY_SYMBOLS.json",          "ISO 7010 Safety Pictograms"),
+            ("STING_GAS_SYMBOLS.json",             "Natural Gas / LPG"),
+            ("STING_DRAINAGE_ABOVE.json",          "Above-Ground Drainage"),
         };
 
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
@@ -602,7 +610,37 @@ namespace StingTools.Commands.Symbols
 
         private static string InferJsonFile(string symbolId)
         {
-            // Route by STING id prefix convention
+            // Route by STING id prefix convention. Order matters: more specific
+            // prefixes must come before shorter ambiguous ones (e.g. CDT_DROP
+            // belongs to wire annotations, not conduit fittings).
+            if (symbolId.StartsWith("ISO7010_", StringComparison.OrdinalIgnoreCase))
+                return "STING_SAFETY_SYMBOLS.json";
+            if (symbolId.StartsWith("EARTH_", StringComparison.OrdinalIgnoreCase))
+                return "STING_EARTHING_SYMBOLS.json";
+            if (symbolId.StartsWith("TEL_", StringComparison.OrdinalIgnoreCase))
+                return "STING_TELECOM_SYMBOLS.json";
+            if (symbolId.StartsWith("STR_", StringComparison.OrdinalIgnoreCase))
+                return "STING_STRUCTURAL_ANNOTATIONS.json";
+            if (symbolId.StartsWith("DRN_", StringComparison.OrdinalIgnoreCase))
+                return "STING_DRAINAGE_ABOVE.json";
+            if (symbolId.StartsWith("GAS_", StringComparison.OrdinalIgnoreCase))
+                return "STING_GAS_SYMBOLS.json";
+            if (symbolId.StartsWith("SENS_", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("CTRL_", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("ACT_", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("BMS_", StringComparison.OrdinalIgnoreCase))
+                return "STING_BMS_SYMBOLS.json";
+            if (symbolId.StartsWith("WIRE_", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.Equals("JBOX", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("PULL_BOX", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("CABLE_", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("FAULT_LOOP", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("VOLT_RISE", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("CDT_DROP", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("CDT_RISE", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("BUSWAY", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("CKT_NUMBER", StringComparison.OrdinalIgnoreCase))
+                return "STING_WIRE_ANNOTATIONS.json";
             if (symbolId.StartsWith("ELEC_", StringComparison.OrdinalIgnoreCase) ||
                 symbolId.StartsWith("LTG_", StringComparison.OrdinalIgnoreCase))
                 return "STING_ELEC_SYMBOLS.json";
@@ -614,6 +652,7 @@ namespace StingTools.Commands.Symbols
                 symbolId.StartsWith("FLS_", StringComparison.OrdinalIgnoreCase))
                 return "STING_FP_SYMBOLS.json";
             if (symbolId.StartsWith("HVAC_", StringComparison.OrdinalIgnoreCase) ||
+                symbolId.StartsWith("HVC_", StringComparison.OrdinalIgnoreCase) ||
                 symbolId.StartsWith("MEP_", StringComparison.OrdinalIgnoreCase))
                 return "STING_MEP_SYMBOLS.json";
             if (symbolId.StartsWith("PLM_", StringComparison.OrdinalIgnoreCase) ||

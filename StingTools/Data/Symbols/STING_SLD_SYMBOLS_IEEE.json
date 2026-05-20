@@ -10,24 +10,73 @@
       "discipline": "Electrical",
       "symbolSize": 3.0,
       "parameters": [
-        {"name": "CIRCUIT_REF", "type": "Text",    "shared": true, "default": ""},
-        {"name": "RATING_A",    "type": "Text",    "shared": true, "default": "", "instance": false},
-        {"name": "POLES",       "type": "Integer", "shared": true, "default": 1, "instance": false},
-        {"name": "LABEL",       "type": "Text",    "shared": true, "default": ""}
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        },
+        {
+          "name": "POLES",
+          "type": "Integer",
+          "shared": true,
+          "default": 1,
+          "instance": false
+        },
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        }
       ],
       "geometry": {
         "lines": [
-          {"x1": 0,     "y1":  0.50, "x2": 0,     "y2":  0.22},
-          {"x1": 0,     "y1": -0.50, "x2": 0,     "y2": -0.22},
-          {"x1": 0,     "y1": -0.22, "x2": -0.14, "y2":  0.18}
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.22
+          },
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": -0.22
+          },
+          {
+            "x1": 0,
+            "y1": -0.22,
+            "x2": -0.14,
+            "y2": 0.18
+          }
         ],
         "arcs": [
-          {"cx": 0, "cy": 0.22, "r": 0.05, "startDeg": 0, "endDeg": 360}
+          {
+            "cx": 0,
+            "cy": 0.22,
+            "r": 0.05,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
         "connectionLines": [
-          {"x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5}
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5
+          }
         ]
-      }
+      },
+      "status": "draft"
     },
     {
       "id": "IEEE_SLD_MCCB",
@@ -37,29 +86,104 @@
       "discipline": "Electrical",
       "symbolSize": 4.0,
       "parameters": [
-        {"name": "CIRCUIT_REF",  "type": "Text",    "shared": true, "default": ""},
-        {"name": "RATING_A",     "type": "Text",    "shared": true, "default": "", "instance": false},
-        {"name": "BREAKING_KA",  "type": "Text",    "shared": true, "default": "", "instance": false},
-        {"name": "POLES",        "type": "Integer", "shared": true, "default": 3, "instance": false},
-        {"name": "LABEL",        "type": "Text",    "shared": true, "default": ""}
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        },
+        {
+          "name": "BREAKING_KA",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        },
+        {
+          "name": "POLES",
+          "type": "Integer",
+          "shared": true,
+          "default": 3,
+          "instance": false
+        },
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        }
       ],
       "geometry": {
         "lines": [
-          {"x1":  0,    "y1":  0.50, "x2":  0,    "y2":  0.35},
-          {"x1": -0.25, "y1":  0.35, "x2":  0.25, "y2":  0.35},
-          {"x1": -0.25, "y1":  0.35, "x2": -0.25, "y2": -0.35},
-          {"x1":  0.25, "y1":  0.35, "x2":  0.25, "y2": -0.35},
-          {"x1": -0.25, "y1": -0.35, "x2":  0.25, "y2": -0.35},
-          {"x1":  0,    "y1": -0.35, "x2":  0,    "y2": -0.50},
-          {"x1":  0,    "y1": -0.20, "x2": -0.12, "y2":  0.16}
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.35
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.35,
+            "x2": 0.25,
+            "y2": 0.35
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.35,
+            "x2": -0.25,
+            "y2": -0.35
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.35,
+            "x2": 0.25,
+            "y2": -0.35
+          },
+          {
+            "x1": -0.25,
+            "y1": -0.35,
+            "x2": 0.25,
+            "y2": -0.35
+          },
+          {
+            "x1": 0,
+            "y1": -0.35,
+            "x2": 0,
+            "y2": -0.5
+          },
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": -0.12,
+            "y2": 0.16
+          }
         ],
         "arcs": [
-          {"cx": 0, "cy": 0.20, "r": 0.05, "startDeg": 0, "endDeg": 360}
+          {
+            "cx": 0,
+            "cy": 0.2,
+            "r": 0.05,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
         "connectionLines": [
-          {"x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5}
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5
+          }
         ]
-      }
+      },
+      "status": "draft"
     },
     {
       "id": "IEEE_SLD_ACB",
@@ -69,30 +193,110 @@
       "discipline": "Electrical",
       "symbolSize": 5.0,
       "parameters": [
-        {"name": "CIRCUIT_REF",  "type": "Text",    "shared": true, "default": ""},
-        {"name": "RATING_A",     "type": "Text",    "shared": true, "default": "", "instance": false},
-        {"name": "BREAKING_KA",  "type": "Text",    "shared": true, "default": "", "instance": false},
-        {"name": "POLES",        "type": "Integer", "shared": true, "default": 3, "instance": false},
-        {"name": "LABEL",        "type": "Text",    "shared": true, "default": ""}
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        },
+        {
+          "name": "BREAKING_KA",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        },
+        {
+          "name": "POLES",
+          "type": "Integer",
+          "shared": true,
+          "default": 3,
+          "instance": false
+        },
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        }
       ],
       "geometry": {
         "lines": [
-          {"x1":  0,    "y1":  0.50, "x2":  0,    "y2":  0.38},
-          {"x1": -0.35, "y1":  0.38, "x2":  0.35, "y2":  0.38},
-          {"x1": -0.35, "y1":  0.38, "x2": -0.35, "y2": -0.38},
-          {"x1":  0.35, "y1":  0.38, "x2":  0.35, "y2": -0.38},
-          {"x1": -0.35, "y1": -0.38, "x2":  0.35, "y2": -0.38},
-          {"x1":  0,    "y1": -0.38, "x2":  0,    "y2": -0.50},
-          {"x1":  0,    "y1": -0.22, "x2": -0.15, "y2":  0.20},
-          {"x1": -0.15, "y1":  0.08, "x2":  0.15, "y2":  0.08}
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.38
+          },
+          {
+            "x1": -0.35,
+            "y1": 0.38,
+            "x2": 0.35,
+            "y2": 0.38
+          },
+          {
+            "x1": -0.35,
+            "y1": 0.38,
+            "x2": -0.35,
+            "y2": -0.38
+          },
+          {
+            "x1": 0.35,
+            "y1": 0.38,
+            "x2": 0.35,
+            "y2": -0.38
+          },
+          {
+            "x1": -0.35,
+            "y1": -0.38,
+            "x2": 0.35,
+            "y2": -0.38
+          },
+          {
+            "x1": 0,
+            "y1": -0.38,
+            "x2": 0,
+            "y2": -0.5
+          },
+          {
+            "x1": 0,
+            "y1": -0.22,
+            "x2": -0.15,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.08,
+            "x2": 0.15,
+            "y2": 0.08
+          }
         ],
         "arcs": [
-          {"cx": 0, "cy": 0.22, "r": 0.05, "startDeg": 0, "endDeg": 360}
+          {
+            "cx": 0,
+            "cy": 0.22,
+            "r": 0.05,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
         "connectionLines": [
-          {"x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5}
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5
+          }
         ]
-      }
+      },
+      "status": "draft"
     },
     {
       "id": "IEEE_SLD_FUSE",
@@ -102,24 +306,82 @@
       "discipline": "Electrical",
       "symbolSize": 3.0,
       "parameters": [
-        {"name": "CIRCUIT_REF", "type": "Text", "shared": true, "default": ""},
-        {"name": "RATING_A",    "type": "Text", "shared": true, "default": "", "instance": false},
-        {"name": "FUSE_TYPE",   "type": "Text", "shared": true, "default": "", "instance": false},
-        {"name": "LABEL",       "type": "Text", "shared": true, "default": ""}
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        },
+        {
+          "name": "FUSE_TYPE",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        },
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        }
       ],
       "geometry": {
         "lines": [
-          {"x1":  0,    "y1":  0.50, "x2":  0,    "y2":  0.30},
-          {"x1":  0,    "y1":  0.30, "x2":  0.18, "y2":  0.00},
-          {"x1":  0.18, "y1":  0.00, "x2":  0,    "y2": -0.30},
-          {"x1":  0,    "y1": -0.30, "x2": -0.18, "y2":  0.00},
-          {"x1": -0.18, "y1":  0.00, "x2":  0,    "y2":  0.30},
-          {"x1":  0,    "y1": -0.30, "x2":  0,    "y2": -0.50}
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.3
+          },
+          {
+            "x1": 0,
+            "y1": 0.3,
+            "x2": 0.18,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.18,
+            "y1": 0.0,
+            "x2": 0,
+            "y2": -0.3
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": -0.18,
+            "y2": 0.0
+          },
+          {
+            "x1": -0.18,
+            "y1": 0.0,
+            "x2": 0,
+            "y2": 0.3
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": -0.5
+          }
         ],
         "connectionLines": [
-          {"x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5}
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5
+          }
         ]
-      }
+      },
+      "status": "draft"
     },
     {
       "id": "IEEE_SLD_FUSED_SWITCH",
@@ -129,27 +391,90 @@
       "discipline": "Electrical",
       "symbolSize": 3.5,
       "parameters": [
-        {"name": "CIRCUIT_REF", "type": "Text", "shared": true, "default": ""},
-        {"name": "RATING_A",    "type": "Text", "shared": true, "default": "", "instance": false},
-        {"name": "LABEL",       "type": "Text", "shared": true, "default": ""}
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        },
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        }
       ],
       "geometry": {
         "lines": [
-          {"x1":  0,    "y1":  0.50, "x2":  0,    "y2":  0.30},
-          {"x1":  0,    "y1":  0.30, "x2":  0.15, "y2":  0.10},
-          {"x1":  0.15, "y1":  0.10, "x2":  0,    "y2": -0.10},
-          {"x1":  0,    "y1": -0.10, "x2": -0.15, "y2":  0.10},
-          {"x1": -0.15, "y1":  0.10, "x2":  0,    "y2":  0.30},
-          {"x1":  0,    "y1": -0.10, "x2":  0,    "y2": -0.22},
-          {"x1":  0,    "y1": -0.22, "x2": -0.12, "y2":  0.05}
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.3
+          },
+          {
+            "x1": 0,
+            "y1": 0.3,
+            "x2": 0.15,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.15,
+            "y1": 0.1,
+            "x2": 0,
+            "y2": -0.1
+          },
+          {
+            "x1": 0,
+            "y1": -0.1,
+            "x2": -0.15,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.1,
+            "x2": 0,
+            "y2": 0.3
+          },
+          {
+            "x1": 0,
+            "y1": -0.1,
+            "x2": 0,
+            "y2": -0.22
+          },
+          {
+            "x1": 0,
+            "y1": -0.22,
+            "x2": -0.12,
+            "y2": 0.05
+          }
         ],
         "arcs": [
-          {"cx": 0, "cy": 0.30, "r": 0.04, "startDeg": 0, "endDeg": 360}
+          {
+            "cx": 0,
+            "cy": 0.3,
+            "r": 0.04,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
         "connectionLines": [
-          {"x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5}
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5
+          }
         ]
-      }
+      },
+      "status": "draft"
     },
     {
       "id": "IEEE_SLD_ISOLATOR",
@@ -159,21 +484,64 @@
       "discipline": "Electrical",
       "symbolSize": 3.0,
       "parameters": [
-        {"name": "CIRCUIT_REF", "type": "Text",    "shared": true, "default": ""},
-        {"name": "RATING_A",    "type": "Text",    "shared": true, "default": "", "instance": false},
-        {"name": "POLES",       "type": "Integer", "shared": true, "default": 3, "instance": false},
-        {"name": "LABEL",       "type": "Text",    "shared": true, "default": ""}
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        },
+        {
+          "name": "POLES",
+          "type": "Integer",
+          "shared": true,
+          "default": 3,
+          "instance": false
+        },
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        }
       ],
       "geometry": {
         "lines": [
-          {"x1": 0,     "y1":  0.50, "x2": 0,     "y2":  0.20},
-          {"x1": 0,     "y1": -0.50, "x2": 0,     "y2": -0.20},
-          {"x1": 0,     "y1": -0.20, "x2": -0.20, "y2":  0.16}
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.2
+          },
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": -0.2
+          },
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": -0.2,
+            "y2": 0.16
+          }
         ],
         "connectionLines": [
-          {"x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5}
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5
+          }
         ]
-      }
+      },
+      "status": "draft"
     },
     {
       "id": "IEEE_SLD_RCD",
@@ -183,27 +551,92 @@
       "discipline": "Electrical",
       "symbolSize": 3.0,
       "parameters": [
-        {"name": "CIRCUIT_REF",  "type": "Text",    "shared": true, "default": ""},
-        {"name": "RATING_A",     "type": "Text",    "shared": true, "default": "", "instance": false},
-        {"name": "SENSITIVITY_MA","type": "Text",    "shared": true, "default": "30"},
-        {"name": "POLES",        "type": "Integer", "shared": true, "default": 2, "instance": false},
-        {"name": "LABEL",        "type": "Text",    "shared": true, "default": ""}
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        },
+        {
+          "name": "SENSITIVITY_MA",
+          "type": "Text",
+          "shared": true,
+          "default": "30"
+        },
+        {
+          "name": "POLES",
+          "type": "Integer",
+          "shared": true,
+          "default": 2,
+          "instance": false
+        },
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        }
       ],
       "geometry": {
         "lines": [
-          {"x1": 0,    "y1":  0.50, "x2": 0,    "y2":  0.22},
-          {"x1": 0,    "y1": -0.50, "x2": 0,    "y2": -0.22},
-          {"x1": 0,    "y1": -0.22, "x2": -0.14,"y2":  0.18},
-          {"x1": 0.12, "y1":  0.00, "x2": 0.22, "y2":  0.00}
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.22
+          },
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": -0.22
+          },
+          {
+            "x1": 0,
+            "y1": -0.22,
+            "x2": -0.14,
+            "y2": 0.18
+          },
+          {
+            "x1": 0.12,
+            "y1": 0.0,
+            "x2": 0.22,
+            "y2": 0.0
+          }
         ],
         "arcs": [
-          {"cx": 0,    "cy":  0.22, "r": 0.05,  "startDeg": 0, "endDeg": 360},
-          {"cx": 0.22, "cy":  0.00, "r": 0.08,  "startDeg": 270, "endDeg": 90}
+          {
+            "cx": 0,
+            "cy": 0.22,
+            "r": 0.05,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0.22,
+            "cy": 0.0,
+            "r": 0.08,
+            "startDeg": 270,
+            "endDeg": 90
+          }
         ],
         "connectionLines": [
-          {"x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5}
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5
+          }
         ]
-      }
+      },
+      "status": "draft"
     },
     {
       "id": "IEEE_SLD_CONTACTOR",
@@ -213,25 +646,78 @@
       "discipline": "Electrical",
       "symbolSize": 3.0,
       "parameters": [
-        {"name": "CIRCUIT_REF", "type": "Text", "shared": true, "default": ""},
-        {"name": "RATING_A",    "type": "Text", "shared": true, "default": "", "instance": false},
-        {"name": "LABEL",       "type": "Text", "shared": true, "default": ""}
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        },
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        }
       ],
       "geometry": {
         "lines": [
-          {"x1": 0,     "y1":  0.50, "x2": 0,     "y2":  0.20},
-          {"x1": 0,     "y1": -0.50, "x2": 0,     "y2": -0.20},
-          {"x1": 0,     "y1": -0.20, "x2": -0.18, "y2":  0.16},
-          {"x1": 0.10,  "y1": -0.05, "x2": 0.10,  "y2":  0.05},
-          {"x1": 0.05,  "y1":  0.00, "x2": 0.15,  "y2":  0.00}
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.2
+          },
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": -0.2
+          },
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": -0.18,
+            "y2": 0.16
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.05,
+            "x2": 0.1,
+            "y2": 0.05
+          },
+          {
+            "x1": 0.05,
+            "y1": 0.0,
+            "x2": 0.15,
+            "y2": 0.0
+          }
         ],
         "arcs": [
-          {"cx": 0.10, "cy": 0, "r": 0.08, "startDeg": 0, "endDeg": 360}
+          {
+            "cx": 0.1,
+            "cy": 0,
+            "r": 0.08,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
         "connectionLines": [
-          {"x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5}
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5
+          }
         ]
-      }
+      },
+      "status": "draft"
     },
     {
       "id": "IEEE_SLD_TRANSFORMER",
@@ -241,24 +727,73 @@
       "discipline": "Electrical",
       "symbolSize": 5.0,
       "parameters": [
-        {"name": "LABEL",    "type": "Text", "shared": true, "default": ""},
-        {"name": "RATING_A", "type": "Text", "shared": true, "default": "", "instance": false},
-        {"name": "VOLTAGE_PRI", "type": "Text", "shared": true, "default": ""},
-        {"name": "VOLTAGE_SEC", "type": "Text", "shared": true, "default": ""}
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        },
+        {
+          "name": "VOLTAGE_PRI",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        },
+        {
+          "name": "VOLTAGE_SEC",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        }
       ],
       "geometry": {
         "lines": [
-          {"x1": 0, "y1":  0.50, "x2": 0, "y2":  0.30},
-          {"x1": 0, "y1": -0.30, "x2": 0, "y2": -0.50}
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.3
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": -0.5
+          }
         ],
         "arcs": [
-          {"cx": 0, "cy":  0.15, "r": 0.15, "startDeg": 0, "endDeg": 360},
-          {"cx": 0, "cy": -0.15, "r": 0.15, "startDeg": 0, "endDeg": 360}
+          {
+            "cx": 0,
+            "cy": 0.15,
+            "r": 0.15,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0,
+            "cy": -0.15,
+            "r": 0.15,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
         "connectionLines": [
-          {"x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5}
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5
+          }
         ]
-      }
+      },
+      "status": "draft"
     },
     {
       "id": "IEEE_SLD_MOTOR",
@@ -268,24 +803,63 @@
       "discipline": "Electrical",
       "symbolSize": 4.0,
       "parameters": [
-        {"name": "LABEL",    "type": "Text", "shared": true, "default": ""},
-        {"name": "RATING_A", "type": "Text", "shared": true, "default": "", "instance": false},
-        {"name": "LOAD_KW",  "type": "Text", "shared": true, "default": "", "instance": false}
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        },
+        {
+          "name": "LOAD_KW",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          {"x1": 0, "y1": 0.50, "x2": 0, "y2": 0.30}
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.3
+          }
         ],
         "arcs": [
-          {"cx": 0, "cy": 0, "r": 0.30, "startDeg": 0, "endDeg": 360}
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
         "text": [
-          {"x": 0, "y": -0.02, "value": "M", "heightMm": 2.0}
+          {
+            "x": 0,
+            "y": -0.02,
+            "value": "M",
+            "heightMm": 2.0
+          }
         ],
         "connectionLines": [
-          {"x1": 0, "y1": 0.5, "x2": 0, "y2": 0.3}
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.3
+          }
         ]
-      }
+      },
+      "status": "draft"
     },
     {
       "id": "IEEE_SLD_GENERATOR",
@@ -295,24 +869,63 @@
       "discipline": "Electrical",
       "symbolSize": 4.0,
       "parameters": [
-        {"name": "LABEL",    "type": "Text", "shared": true, "default": ""},
-        {"name": "RATING_A", "type": "Text", "shared": true, "default": "", "instance": false},
-        {"name": "LOAD_KW",  "type": "Text", "shared": true, "default": "", "instance": false}
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        },
+        {
+          "name": "LOAD_KW",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          {"x1": 0, "y1": 0.50, "x2": 0, "y2": 0.30}
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.3
+          }
         ],
         "arcs": [
-          {"cx": 0, "cy": 0, "r": 0.30, "startDeg": 0, "endDeg": 360}
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
         "text": [
-          {"x": 0, "y": -0.02, "value": "G", "heightMm": 2.0}
+          {
+            "x": 0,
+            "y": -0.02,
+            "value": "G",
+            "heightMm": 2.0
+          }
         ],
         "connectionLines": [
-          {"x1": 0, "y1": 0.5, "x2": 0, "y2": 0.3}
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.3
+          }
         ]
-      }
+      },
+      "status": "draft"
     },
     {
       "id": "IEEE_SLD_UPS",
@@ -322,26 +935,94 @@
       "discipline": "Electrical",
       "symbolSize": 4.0,
       "parameters": [
-        {"name": "LABEL",       "type": "Text", "shared": true, "default": ""},
-        {"name": "RATING_A",    "type": "Text", "shared": true, "default": "", "instance": false},
-        {"name": "RUNTIME_MIN", "type": "Text", "shared": true, "default": "", "instance": false}
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        },
+        {
+          "name": "RUNTIME_MIN",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          {"x1":  0,    "y1":  0.50, "x2":  0,    "y2":  0.35},
-          {"x1": -0.30, "y1":  0.35, "x2":  0.30, "y2":  0.35},
-          {"x1": -0.30, "y1":  0.35, "x2": -0.30, "y2": -0.35},
-          {"x1":  0.30, "y1":  0.35, "x2":  0.30, "y2": -0.35},
-          {"x1": -0.30, "y1": -0.35, "x2":  0.30, "y2": -0.35},
-          {"x1":  0,    "y1": -0.35, "x2":  0,    "y2": -0.50},
-          {"x1": -0.12, "y1":  0.10, "x2": -0.06, "y2": -0.10},
-          {"x1": -0.06, "y1": -0.10, "x2":  0.06, "y2":  0.10},
-          {"x1":  0.06, "y1":  0.10, "x2":  0.12, "y2": -0.10}
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.35
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.35,
+            "x2": 0.3,
+            "y2": 0.35
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.35,
+            "x2": -0.3,
+            "y2": -0.35
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.35,
+            "x2": 0.3,
+            "y2": -0.35
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.35,
+            "x2": 0.3,
+            "y2": -0.35
+          },
+          {
+            "x1": 0,
+            "y1": -0.35,
+            "x2": 0,
+            "y2": -0.5
+          },
+          {
+            "x1": -0.12,
+            "y1": 0.1,
+            "x2": -0.06,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.06,
+            "y1": -0.1,
+            "x2": 0.06,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.06,
+            "y1": 0.1,
+            "x2": 0.12,
+            "y2": -0.1
+          }
         ],
         "connectionLines": [
-          {"x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5}
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5
+          }
         ]
-      }
+      },
+      "status": "draft"
     },
     {
       "id": "IEEE_SLD_VSD",
@@ -351,28 +1032,95 @@
       "discipline": "Electrical",
       "symbolSize": 4.0,
       "parameters": [
-        {"name": "LABEL",    "type": "Text", "shared": true, "default": ""},
-        {"name": "RATING_A", "type": "Text", "shared": true, "default": "", "instance": false}
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          {"x1":  0,    "y1":  0.50, "x2":  0,    "y2":  0.35},
-          {"x1": -0.30, "y1":  0.35, "x2":  0.30, "y2":  0.35},
-          {"x1": -0.30, "y1":  0.35, "x2": -0.30, "y2": -0.35},
-          {"x1":  0.30, "y1":  0.35, "x2":  0.30, "y2": -0.35},
-          {"x1": -0.30, "y1": -0.35, "x2":  0.30, "y2": -0.35},
-          {"x1":  0,    "y1": -0.35, "x2":  0,    "y2": -0.50},
-          {"x1": -0.15, "y1": -0.10, "x2": -0.05, "y2":  0.10},
-          {"x1": -0.05, "y1":  0.10, "x2":  0.05, "y2": -0.10},
-          {"x1":  0.05, "y1": -0.10, "x2":  0.15, "y2":  0.10}
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.35
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.35,
+            "x2": 0.3,
+            "y2": 0.35
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.35,
+            "x2": -0.3,
+            "y2": -0.35
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.35,
+            "x2": 0.3,
+            "y2": -0.35
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.35,
+            "x2": 0.3,
+            "y2": -0.35
+          },
+          {
+            "x1": 0,
+            "y1": -0.35,
+            "x2": 0,
+            "y2": -0.5
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.1,
+            "x2": -0.05,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.05,
+            "y1": 0.1,
+            "x2": 0.05,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.05,
+            "y1": -0.1,
+            "x2": 0.15,
+            "y2": 0.1
+          }
         ],
         "text": [
-          {"x": 0.22, "y": 0.20, "value": "Hz", "heightMm": 1.5}
+          {
+            "x": 0.22,
+            "y": 0.2,
+            "value": "Hz",
+            "heightMm": 1.5
+          }
         ],
         "connectionLines": [
-          {"x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5}
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5
+          }
         ]
-      }
+      },
+      "status": "draft"
     },
     {
       "id": "IEEE_SLD_SPD",
@@ -382,26 +1130,93 @@
       "discipline": "Electrical",
       "symbolSize": 3.0,
       "parameters": [
-        {"name": "LABEL",      "type": "Text", "shared": true, "default": ""},
-        {"name": "RATING_A",   "type": "Text", "shared": true, "default": "", "instance": false}
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "",
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          {"x1":  0,    "y1":  0.50, "x2":  0,    "y2":  0.25},
-          {"x1":  0,    "y1":  0.25, "x2":  0.10, "y2":  0.15},
-          {"x1":  0.10, "y1":  0.15, "x2": -0.10, "y2":  0.05},
-          {"x1": -0.10, "y1":  0.05, "x2":  0.10, "y2": -0.05},
-          {"x1":  0.10, "y1": -0.05, "x2": -0.10, "y2": -0.15},
-          {"x1": -0.10, "y1": -0.15, "x2":  0,    "y2": -0.25},
-          {"x1":  0,    "y1": -0.25, "x2":  0,    "y2": -0.35},
-          {"x1": -0.12, "y1": -0.35, "x2":  0.12, "y2": -0.35},
-          {"x1": -0.08, "y1": -0.40, "x2":  0.08, "y2": -0.40},
-          {"x1": -0.04, "y1": -0.45, "x2":  0.04, "y2": -0.45}
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.25
+          },
+          {
+            "x1": 0,
+            "y1": 0.25,
+            "x2": 0.1,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.15,
+            "x2": -0.1,
+            "y2": 0.05
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.05,
+            "x2": 0.1,
+            "y2": -0.05
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.05,
+            "x2": -0.1,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.15,
+            "x2": 0,
+            "y2": -0.25
+          },
+          {
+            "x1": 0,
+            "y1": -0.25,
+            "x2": 0,
+            "y2": -0.35
+          },
+          {
+            "x1": -0.12,
+            "y1": -0.35,
+            "x2": 0.12,
+            "y2": -0.35
+          },
+          {
+            "x1": -0.08,
+            "y1": -0.4,
+            "x2": 0.08,
+            "y2": -0.4
+          },
+          {
+            "x1": -0.04,
+            "y1": -0.45,
+            "x2": 0.04,
+            "y2": -0.45
+          }
         ],
         "connectionLines": [
-          {"x1": 0, "y1": 0.5, "x2": 0, "y2": 0.25}
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.25
+          }
         ]
-      }
+      },
+      "status": "draft"
     },
     {
       "id": "IEEE_SLD_METER",
@@ -411,24 +1226,2274 @@
       "discipline": "Electrical",
       "symbolSize": 3.5,
       "parameters": [
-        {"name": "LABEL",    "type": "Text", "shared": true, "default": ""},
-        {"name": "METER_TYPE","type": "Text", "shared": true, "default": "kWh"}
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": ""
+        },
+        {
+          "name": "METER_TYPE",
+          "type": "Text",
+          "shared": true,
+          "default": "kWh"
+        }
       ],
       "geometry": {
         "lines": [
-          {"x1": 0, "y1":  0.50, "x2": 0, "y2":  0.30},
-          {"x1": 0, "y1": -0.30, "x2": 0, "y2": -0.50}
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": 0.3
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": -0.5
+          }
         ],
         "arcs": [
-          {"cx": 0, "cy": 0, "r": 0.30, "startDeg": 0, "endDeg": 360}
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
         "text": [
-          {"x": 0, "y": -0.02, "value": "Wh", "heightMm": 1.5}
+          {
+            "x": 0,
+            "y": -0.02,
+            "value": "Wh",
+            "heightMm": 1.5
+          }
         ],
         "connectionLines": [
-          {"x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5}
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5
+          }
         ]
-      }
+      },
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_TX_2W",
+      "name": "Two-Winding Transformer",
+      "category": "Transformers",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Transformers",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": -0.35
+          },
+          {
+            "x1": 0,
+            "y1": 0.35,
+            "x2": 0,
+            "y2": 0.5
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.1,
+            "cy": -0.2,
+            "r": 0.07,
+            "startAngle": 0,
+            "endAngle": 180
+          },
+          {
+            "cx": -0.1,
+            "cy": -0.1,
+            "r": 0.07,
+            "startAngle": 0,
+            "endAngle": 180
+          },
+          {
+            "cx": -0.1,
+            "cy": 0,
+            "r": 0.07,
+            "startAngle": 0,
+            "endAngle": 180
+          },
+          {
+            "cx": -0.1,
+            "cy": 0.1,
+            "r": 0.07,
+            "startAngle": 0,
+            "endAngle": 180
+          },
+          {
+            "cx": -0.1,
+            "cy": 0.2,
+            "r": 0.07,
+            "startAngle": 0,
+            "endAngle": 180
+          },
+          {
+            "cx": 0.1,
+            "cy": -0.2,
+            "r": 0.07,
+            "startAngle": 180,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": -0.1,
+            "r": 0.07,
+            "startAngle": 180,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": 0,
+            "r": 0.07,
+            "startAngle": 180,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": 0.1,
+            "r": 0.07,
+            "startAngle": 180,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": 0.2,
+            "r": 0.07,
+            "startAngle": 180,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_TX_AUTO",
+      "name": "Auto-Transformer",
+      "category": "Transformers",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Transformers",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": -0.3
+          },
+          {
+            "x1": 0,
+            "y1": 0.3,
+            "x2": 0,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": -0.2,
+            "r": 0.1,
+            "startAngle": 180,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": -0.1,
+            "r": 0.1,
+            "startAngle": 180,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 180,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0.1,
+            "r": 0.1,
+            "startAngle": 180,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0.2,
+            "r": 0.1,
+            "startAngle": 180,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_TX_CT",
+      "name": "Current Transformer (CT)",
+      "category": "Transformers",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Transformers",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.18,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0.18,
+            "y1": 0.2,
+            "x2": 0.18,
+            "y2": -0.2
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_TX_VT",
+      "name": "Voltage Transformer (VT)",
+      "category": "Transformers",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Transformers",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.18,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_GEN",
+      "name": "Generator (General)",
+      "category": "Generation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Generation",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.15,
+                "y": 0
+              },
+              {
+                "x": 0.15,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": -0.1
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_GEN_DIESEL",
+      "name": "Diesel Generator",
+      "category": "Generation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Generation",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.18,
+            "y1": 0,
+            "x2": 0.18,
+            "y2": 0
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.18,
+                "y": 0
+              },
+              {
+                "x": 0.18,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": -0.18
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_GEN_SOLAR",
+      "name": "Solar PV Array",
+      "category": "Generation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Generation",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.3,
+            "x2": 0.4,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.3,
+            "x2": 0.4,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.3,
+            "x2": -0.4,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.3,
+            "x2": -0.4,
+            "y2": -0.3
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.3,
+            "x2": -0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.3,
+            "x2": 0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.4,
+            "y1": 0,
+            "x2": 0.4,
+            "y2": 0
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.4,
+                "y": 0.1
+              },
+              {
+                "x": -0.2,
+                "y": 0.1
+              },
+              {
+                "x": -0.2,
+                "y": -0.1
+              },
+              {
+                "x": -0.4,
+                "y": -0.1
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_GEN_WIND",
+      "name": "Wind Turbine",
+      "category": "Generation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Generation",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.1
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": 0,
+                "y": 0.1
+              },
+              {
+                "x": -0.3,
+                "y": 0.4
+              },
+              {
+                "x": -0.1,
+                "y": 0.2
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0,
+                "y": 0.1
+              },
+              {
+                "x": 0.3,
+                "y": 0.4
+              },
+              {
+                "x": 0.1,
+                "y": 0.2
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0,
+                "y": 0.1
+              },
+              {
+                "x": 0,
+                "y": 0.5
+              },
+              {
+                "x": 0.1,
+                "y": 0.1
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_UPS",
+      "name": "UPS (Uninterruptible Power Supply)",
+      "category": "Generation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Generation",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.05,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 90,
+            "endAngle": 270
+          },
+          {
+            "cx": 0.05,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 270,
+            "endAngle": 90
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_BATT_BANK",
+      "name": "Battery Bank",
+      "category": "Generation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Generation",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": -0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": -0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": -0.1,
+            "y2": 0.1
+          },
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": 0,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.1,
+            "x2": 0.1,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": 0.1
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_BUSBAR",
+      "name": "Busbar",
+      "category": "Busbars",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Busbars",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0,
+            "style": "Wide Lines"
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_BUSBAR_SECT",
+      "name": "Busbar Section Switch",
+      "category": "Busbars",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Busbars",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.1,
+            "y2": 0,
+            "style": "Wide Lines"
+          },
+          {
+            "x1": 0.1,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0,
+            "style": "Wide Lines"
+          },
+          {
+            "x1": -0.1,
+            "y1": 0,
+            "x2": 0.1,
+            "y2": 0.2
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_BUSBAR_NEUTRAL",
+      "name": "Neutral Busbar",
+      "category": "Busbars",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Busbars",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_BUSBAR_EARTH",
+      "name": "Earth Busbar",
+      "category": "Busbars",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Busbars",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.13,
+            "y1": -0.2,
+            "x2": 0.13,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.06,
+            "y1": -0.3,
+            "x2": 0.06,
+            "y2": -0.3
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_DS",
+      "name": "Disconnect Switch (DS)",
+      "category": "Protection",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.1,
+            "y2": 0
+          },
+          {
+            "x1": 0.1,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.1,
+            "y1": 0,
+            "x2": 0.1,
+            "y2": 0.25
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_FUSE",
+      "name": "Fuse (Diamond)",
+      "category": "Protection",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.2,
+            "y2": 0
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.1
+          },
+          {
+            "x1": 0,
+            "y1": 0.1,
+            "x2": 0.2,
+            "y2": 0
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0,
+            "y2": -0.1
+          },
+          {
+            "x1": 0,
+            "y1": -0.1,
+            "x2": -0.2,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_ATS",
+      "name": "Automatic Transfer Switch (ATS)",
+      "category": "Protection",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.15,
+            "x2": 0.2,
+            "y2": 0.15
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": -0.15,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_MTS",
+      "name": "Manual Transfer Switch (MTS)",
+      "category": "Protection",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.15,
+            "x2": 0.2,
+            "y2": 0.15
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_M_AC",
+      "name": "AC Motor",
+      "category": "Motors",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Motors",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.15,
+            "y1": -0.05,
+            "x2": 0,
+            "y2": 0.1
+          },
+          {
+            "x1": 0,
+            "y1": 0.1,
+            "x2": 0.15,
+            "y2": -0.05
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_M_DC",
+      "name": "DC Motor",
+      "category": "Motors",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Motors",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.15,
+            "y1": 0,
+            "x2": 0.15,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_M_3PHASE",
+      "name": "3-Phase Motor (Squirrel-Cage)",
+      "category": "Motors",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Motors",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.15,
+            "x2": -0.3,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.3,
+            "y2": 0
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.15,
+            "x2": -0.3,
+            "y2": -0.15
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_M_DOL",
+      "name": "DOL Motor Starter",
+      "category": "Motors",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Motors",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": -0.5
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_M_VFD",
+      "name": "VFD / Variable Frequency Drive",
+      "category": "Motors",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Motors",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": -0.1,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": 0,
+            "y2": 0.1
+          },
+          {
+            "x1": 0,
+            "y1": -0.1,
+            "x2": 0.1,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": 0.1
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_CAP_BANK",
+      "name": "Capacitor Bank",
+      "category": "Power Factor",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Power Factor",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0.15,
+            "x2": -0.2,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.15,
+            "x2": -0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.15,
+            "x2": 0,
+            "y2": 0.15
+          },
+          {
+            "x1": 0,
+            "y1": 0.15,
+            "x2": 0,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.15,
+            "x2": 0.2,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.15,
+            "x2": 0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.2,
+            "cy": 0.1,
+            "r": 0.06,
+            "startAngle": 180,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0.1,
+            "r": 0.06,
+            "startAngle": 180,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.2,
+            "cy": 0.1,
+            "r": 0.06,
+            "startAngle": 180,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_REACTOR",
+      "name": "Series Reactor",
+      "category": "Power Factor",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Power Factor",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.2,
+            "y2": 0
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.1,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 180
+          },
+          {
+            "cx": 0.1,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 180
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 180
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_SPD",
+      "name": "Surge Protection Device (SPD)",
+      "category": "Protection",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.2,
+            "y2": 0
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.1
+          },
+          {
+            "x1": 0,
+            "y1": 0.1,
+            "x2": 0.1,
+            "y2": 0
+          },
+          {
+            "x1": 0.1,
+            "y1": 0,
+            "x2": 0,
+            "y2": -0.1
+          },
+          {
+            "x1": 0,
+            "y1": -0.1,
+            "x2": -0.1,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_EARTH_FAULT",
+      "name": "Earth Fault Indicator",
+      "category": "Protection",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.18,
+            "y1": -0.18,
+            "x2": 0.18,
+            "y2": 0.18
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": -0.5
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_DB_PANEL",
+      "name": "Distribution Board / Panel",
+      "category": "Distribution",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Distribution",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": 0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_MOTOR_CTL",
+      "name": "Motor Control Centre (MCC)",
+      "category": "Distribution",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Distribution",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0.3
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_SWBD",
+      "name": "Switchboard",
+      "category": "Distribution",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Distribution",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.3,
+            "x2": 0.4,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.3,
+            "x2": 0.4,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.3,
+            "x2": -0.4,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.3,
+            "x2": -0.4,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_ISOLATOR",
+      "name": "Isolator",
+      "category": "Protection",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.1,
+            "y2": 0
+          },
+          {
+            "x1": 0.1,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.1,
+            "y1": 0,
+            "x2": 0.15,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.1,
+            "x2": -0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.1,
+            "x2": 0.1,
+            "y2": -0.1
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_3PHASE_BUS",
+      "name": "3-Phase Bus",
+      "category": "Busbars",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Busbars",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.15,
+            "x2": 0.5,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.15,
+            "x2": 0.5,
+            "y2": -0.15
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_EARTH_NEUTRAL_BAR",
+      "name": "Earth/Neutral Bar (Combined)",
+      "category": "Busbars",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Busbars",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.13,
+            "y1": -0.2,
+            "x2": 0.13,
+            "y2": -0.2
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_CONTACTOR",
+      "name": "Contactor",
+      "category": "Protection",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.1,
+            "y2": 0
+          },
+          {
+            "x1": 0.1,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.1,
+            "y1": 0,
+            "x2": 0.15,
+            "y2": 0.2
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.1,
+            "cy": 0,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_TIME_RELAY",
+      "name": "Time-Delay Relay",
+      "category": "Protection",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.15,
+            "x2": 0.3,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.15,
+            "x2": 0.3,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.15,
+            "x2": -0.3,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.15,
+            "x2": -0.3,
+            "y2": -0.15
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": -0.15
+          },
+          {
+            "x1": 0,
+            "y1": 0.15,
+            "x2": 0,
+            "y2": 0.3
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 180,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_PV_COMBINER",
+      "name": "PV Combiner / String Inverter",
+      "category": "Generation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Generation",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": -0.05,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.05,
+            "y1": 0.1,
+            "x2": 0.05,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.05,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_EV_CHARGE",
+      "name": "EV Charging Station",
+      "category": "Generation",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Generation",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": -0.3,
+            "x2": 0.2,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.3,
+            "x2": 0.2,
+            "y2": 0.4
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.4,
+            "x2": -0.2,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.4,
+            "x2": -0.2,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": 0,
+            "y2": 0.1
+          },
+          {
+            "x1": 0,
+            "y1": 0.1,
+            "x2": 0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.05,
+            "y1": 0,
+            "x2": 0.05,
+            "y2": 0
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": 0.3
+              },
+              {
+                "x": 0.1,
+                "y": 0.3
+              },
+              {
+                "x": 0,
+                "y": 0.35
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
+    },
+    {
+      "id": "IEEE_ATEX_ZONE",
+      "name": "ATEX Hazardous Area Marker",
+      "category": "Protection",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Protection",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.4,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0.3
+          }
+        ]
+      },
+      "standard": "IEEE/ANSI 315",
+      "status": "draft"
     }
   ]
 }
