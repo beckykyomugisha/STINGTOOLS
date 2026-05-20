@@ -4204,7 +4204,12 @@ namespace StingTools.Model
         public double LiveLoadKPa     { get; set; } = 2.5;  // EC1-1-1 office Cat B
         public double SnowLoadKPa     { get; set; } = 0.6;  // typical UK
         public double WindBasicMps    { get; set; } = 24.0; // EC1-1-4 UK basic vb,0
+        public string WindTerrainCat  { get; set; } = "II"; // EC1-1-4 §4.3.2 — open default
+        public double WindCdir        { get; set; } = 1.0;  // EC1-1-4 §4.2 directional factor
         public double SeismicAgR      { get; set; } = 0.05; // EC8 low-seismicity
+        public string GroundType      { get; set; } = "C";  // EC8 §3.1.2 Table 3.1
+        public double QFactor         { get; set; } = 1.5;  // EC8 §3.2.2.5 behaviour factor (low ductility default)
+        public string ImportanceClass { get; set; } = "II"; // EC8 §4.2.5 (ordinary structure)
         public string CodeFamily      { get; set; } = "EC"; // "EC" or "ASCE"
     }
 
@@ -4234,15 +4239,75 @@ namespace StingTools.Model
         {
             var lc = new LoadCase();
             if (doc?.ProjectInformation == null) return lc;
+            var pi = doc.ProjectInformation;
             try
             {
-                lc.DeadLoadKPa   = ReadDouble(doc.ProjectInformation, "STR_AREA_LOAD_KN_M2", lc.DeadLoadKPa);
-                lc.LiveLoadKPa   = ReadDouble(doc.ProjectInformation, "BLE_LIVE_LOAD_KPA",   lc.LiveLoadKPa);
-                lc.WindBasicMps  = ReadDouble(doc.ProjectInformation, "STR_WIND_BASIC_MPS",  lc.WindBasicMps);
-                lc.SeismicAgR    = ReadDouble(doc.ProjectInformation, "STR_SEISMIC_AGR",     lc.SeismicAgR);
+                // Tier 2 — apply Uganda regional defaults when PRJ_ORG_REGION_TXT
+                // is set on ProjectInformation. These become the baseline
+                // before tier 1 (explicit overrides) takes effect.
+                string region = ReadString(pi, "PRJ_ORG_REGION_TXT");
+                if (!string.IsNullOrEmpty(region))
+                {
+                    var profile = StingTools.Core.UgandaRegionalDefaults.ForRegion(region);
+                    if (profile != null)
+                    {
+                        lc.DeadLoadKPa     = profile.DeadLoadKpa;
+                        lc.LiveLoadKPa     = profile.LiveLoadKpa;
+                        lc.WindBasicMps    = profile.WindBasicMps;
+                        lc.WindTerrainCat  = profile.WindTerrainCat;
+                        lc.WindCdir        = profile.WindCdir;
+                        lc.SeismicAgR      = profile.SeismicAgrG;
+                        lc.GroundType      = profile.GroundType;
+                        lc.QFactor         = profile.QFactor;
+                        lc.ImportanceClass = profile.ImportanceClass;
+                    }
+                }
+
+                // Tier 2.5 — refine the live load by occupancy. PlumbingSystemConfig
+                // already stores the project building type ("Office" / "Healthcare"
+                // / "Industrial" / etc.); reuse it so structural picks the right
+                // EC1-1-1 Cat A-E load instead of the regional default. Plumbing
+                // dependency is one-way (structural reads, plumbing doesn't read
+                // back) so no circular reference.
+                try
+                {
+                    var cfg = StingTools.Core.Plumbing.PlumbingSystemConfig.Load(doc);
+                    if (cfg != null && !string.IsNullOrEmpty(cfg.BuildingType))
+                    {
+                        double occLoad = StingTools.Core.UgandaRegionalDefaults
+                            .LiveLoadFor(cfg.BuildingType);
+                        if (occLoad > 0) lc.LiveLoadKPa = occLoad;
+                    }
+                }
+                catch (Exception exP) { StingLog.Warn($"Occupancy live-load lookup: {exP.Message}"); }
+
+                // Tier 1 — explicit project params override regional defaults.
+                lc.DeadLoadKPa     = ReadDouble(pi, "STR_AREA_LOAD_KN_M2",      lc.DeadLoadKPa);
+                lc.LiveLoadKPa     = ReadDouble(pi, "BLE_LIVE_LOAD_KPA",        lc.LiveLoadKPa);
+                lc.WindBasicMps    = ReadDouble(pi, "STR_WIND_BASIC_MPS",       lc.WindBasicMps);
+                lc.SeismicAgR      = ReadDouble(pi, "STR_SEISMIC_AGR",          lc.SeismicAgR);
+                lc.QFactor         = ReadDouble(pi, "STR_Q_FACTOR_NR",          lc.QFactor);
+                lc.WindCdir        = ReadDouble(pi, "STR_WIND_DIRECTIONAL_NR",  lc.WindCdir);
+                string gt = ReadString(pi, "STR_GROUND_TYPE_TXT");
+                if (!string.IsNullOrEmpty(gt))   lc.GroundType     = gt;
+                string ic = ReadString(pi, "STR_IMPORTANCE_CLASS_TXT");
+                if (!string.IsNullOrEmpty(ic))   lc.ImportanceClass = ic;
+                string tc = ReadString(pi, "STR_WIND_TERRAIN_CAT_TXT");
+                if (!string.IsNullOrEmpty(tc))   lc.WindTerrainCat  = tc;
             }
             catch (Exception ex) { StingLog.Warn($"ProjectLoadCombinationEngine.ForProject: {ex.Message}"); }
             return lc;
+        }
+
+        private static string ReadString(Element el, string paramName)
+        {
+            try
+            {
+                var p = el?.LookupParameter(paramName);
+                if (p == null || !p.HasValue) return "";
+                return p.StorageType == StorageType.String ? (p.AsString() ?? "") : "";
+            }
+            catch { return ""; }
         }
 
         /// <summary>Apply the partial factors for a given combo to produce
@@ -4265,14 +4330,42 @@ namespace StingTools.Model
             };
         }
 
-        /// <summary>EC1-1-4 simplified peak velocity pressure qp(z=10m).
-        /// qp = ½ · ρ · ce · vb²  with ce=2.5, ρ=1.25 kg/m³ — convert to kPa.</summary>
-        public static double WindKPa(LoadCase lc) =>
-            0.5 * 1.25 * 2.5 * lc.WindBasicMps * lc.WindBasicMps / 1000.0;
+        /// <summary>EC1-1-4 peak velocity pressure qp(z=10m) — full formula:
+        ///   qp(z) = ½ · ρ · vb² · ce(z) · cdir²
+        /// ρ = 1.25 kg/m³ standard. ce(z) is taken from the terrain category
+        /// lookup at the reference height z = 10 m (the height at which vb,0
+        /// is defined). cdir defaults to 1.0 unless project-specific
+        /// wind-rose data justifies reduction. Result in kPa.</summary>
+        public static double WindKPa(LoadCase lc)
+        {
+            if (lc == null || lc.WindBasicMps <= 0) return 0;
+            double ce   = StingTools.Core.UgandaRegionalDefaults.WindCe10m(lc.WindTerrainCat);
+            double cdir = lc.WindCdir > 0 ? lc.WindCdir : 1.0;
+            return 0.5 * 1.25 * lc.WindBasicMps * lc.WindBasicMps
+                   * ce * cdir * cdir / 1000.0;
+        }
 
-        /// <summary>EC8 elastic spectrum baseline (Sd,e ≈ 2.5·agR·S, S=1.2 for ground type C).</summary>
-        public static double SeismicKPa(LoadCase lc) =>
-            2.5 * lc.SeismicAgR * 1.2 * 9.81;
+        /// <summary>EC8-1 §3.2.2.2 design spectrum at the plateau (T_B ≤ T ≤ T_C):
+        ///   Sd(T) = ag · S · η · 2.5/q
+        /// where ag = agR · γi. η taken as 1.0 (5% damping). Returns the
+        /// pressure-equivalent of Sd (kPa) — i.e. (Sd as fraction of g) × g
+        /// — for use as the seismic component in the ULS_Seismic load combo.
+        /// Caller multiplies by tributary mass / area when applying as a
+        /// horizontal action; this scalar is the per-mass spectral kPa.</summary>
+        public static double SeismicKPa(LoadCase lc)
+        {
+            if (lc == null || lc.SeismicAgR <= 0) return 0;
+            double s   = StingTools.Core.UgandaRegionalDefaults.GroundFactorS(lc.GroundType);
+            double gi  = StingTools.Core.UgandaRegionalDefaults.ImportanceFactor(lc.ImportanceClass);
+            double q   = lc.QFactor > 0 ? lc.QFactor : 1.5;
+            // ag = agR · γi (m/s² normalised by g) — keep as g-fraction; the
+            // ×9.81 at the end converts to m/s² → kPa/(unit mass) since ρ·g
+            // gives pressure and we want a peak design horizontal acceleration
+            // expressed in pressure-equivalent units for the combo math.
+            double agOverG = lc.SeismicAgR * gi;
+            double sdOverG = agOverG * s * 2.5 / q;
+            return sdOverG * 9.81;
+        }
 
         private static double ReadDouble(Element el, string paramName, double fallback)
         {

@@ -65,6 +65,7 @@ namespace StingTools.UI.Modules
             registry.Register("StrAutoSizeAll",            app => StingCommandHandler.RunCommandPublic<Model.StrAutoSizeAllCommand>(app));
             registry.Register("StrAutoSizeApply",          app => StingCommandHandler.RunCommandPublic<Model.StrAutoSizeApplyCommand>(app));
             registry.Register("StrRCDesign",               app => StingCommandHandler.RunCommandPublic<Model.StrRCDesignCommand>(app));
+            registry.Register("StrSetUgandanDefaults",     app => StingCommandHandler.RunCommandPublic<Commands.Structural.SetUgandanDefaultsCommand>(app));
             registry.Register("StrGridOptimize",           app => StingCommandHandler.RunCommandPublic<Model.StrGridOptimizeCommand>(app));
             registry.Register("StrCarbonOptimize",         app => StingCommandHandler.RunCommandPublic<Model.StrCarbonOptimizeCommand>(app));
             registry.Register("StrBarBending",             app => StingCommandHandler.RunCommandPublic<Model.StrGenerateBarBendingCommand>(app));
