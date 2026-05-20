@@ -19,6 +19,7 @@ namespace StingTools.Core.Plumbing
         public Dictionary<ElementId, bool>   PipeIsStack { get; } = new Dictionary<ElementId, bool>();
         public int FixturesScanned { get; set; }
         public int PipesTagged     { get; set; }
+        public int PipesWritten    { get; set; }  // PLM_DFU_COUNT_INT stamped
         public List<string> Warnings { get; } = new List<string>();
     }
 
@@ -133,7 +134,17 @@ namespace StingTools.Core.Plumbing
             return sum;
         }
 
-        public static DfuMapResult BuildDfuMap(Document doc)
+        public static DfuMapResult BuildDfuMap(Document doc) => BuildDfuMap(doc, writeBack: false);
+
+        /// <summary>
+        /// Walk drainage pipes, accumulate DFU upstream, and (when
+        /// <paramref name="writeBack"/>=true) stamp PLM_DFU_COUNT_INT on each
+        /// pipe so downstream sizers / schedules / paragraph builders don't
+        /// have to re-traverse the connector graph. Caller owns the
+        /// Transaction when writeBack is on. PLM_DFU_COUNT_INT already
+        /// exists in MR_PARAMETERS.txt (Phase 178b).
+        /// </summary>
+        public static DfuMapResult BuildDfuMap(Document doc, bool writeBack)
         {
             var r = new DfuMapResult();
             if (doc == null) return r;
@@ -160,6 +171,22 @@ namespace StingTools.Core.Plumbing
                     r.PipeDfu[p.Id] = dfu;
                     r.PipeIsStack[p.Id] = IsVerticalStack(p);
                     if (dfu > 0.001) r.PipesTagged++;
+
+                    if (writeBack && dfu > 0.001)
+                    {
+                        try
+                        {
+                            var pp = p.LookupParameter("PLM_DFU_COUNT_INT");
+                            if (pp != null && !pp.IsReadOnly)
+                            {
+                                if (pp.StorageType == StorageType.Integer)      pp.Set((int)Math.Round(dfu));
+                                else if (pp.StorageType == StorageType.Double)  pp.Set(dfu);
+                                else if (pp.StorageType == StorageType.String)  pp.Set($"{dfu:F1}");
+                                r.PipesWritten++;
+                            }
+                        }
+                        catch (Exception exW) { r.Warnings.Add($"DFU writeBack pipe {p.Id}: {exW.Message}"); }
+                    }
                 }
                 catch (Exception ex2)
                 {

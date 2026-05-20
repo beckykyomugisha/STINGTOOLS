@@ -55,7 +55,10 @@ namespace StingTools.Commands.Plumbing
             using (var tx = new Transaction(doc, "STING v4 Plumbing AutoSize"))
             {
                 tx.Start();
-                dfuMap = FixtureUnitAggregator.BuildDfuMap(doc);
+                // writeBack=true stamps PLM_DFU_COUNT_INT per pipe (existing param);
+                // downstream sizers + paragraph builders can read it without
+                // re-walking the connector graph.
+                dfuMap = FixtureUnitAggregator.BuildDfuMap(doc, writeBack: !dryRun);
                 sizing = DrainageSizer.AnalyseAndSize(doc, dfuMap.PipeDfu, writeBack: !dryRun, dryRun);
                 tx.Commit();
             }
@@ -109,7 +112,7 @@ namespace StingTools.Commands.Plumbing
         }
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class BackflowAuditCommand : IExternalCommand
     {
@@ -120,10 +123,22 @@ namespace StingTools.Commands.Plumbing
             var classified = BackflowClassifier.ClassifyAll(ctx.Doc);
             var crossConn  = CrossConnectionChecker.Scan(ctx.Doc);
 
+            // Close the calc → model loop: stamp PLM_FLUID_CATEGORY_TXT +
+            // PLM_VLV_BACKFLOW_TYPE_TXT on every classified pipe so schedules
+            // and BOQ paragraph builders see the result without re-running.
+            int stamped = 0;
+            using (var tx = new Transaction(ctx.Doc, "STING Backflow Audit — stamp"))
+            {
+                tx.Start();
+                stamped = BackflowClassifier.WriteBack(ctx.Doc, classified);
+                tx.Commit();
+            }
+
             var panel = StingResultPanel.Create("Backflow Audit (BS EN 1717)");
             panel.AddSection("CATEGORY DISTRIBUTION");
             foreach (var grp in classified.GroupBy(x => x.Category).OrderBy(g => g.Key))
                 panel.Metric($"Category {(int)grp.Key}", grp.Count().ToString());
+            panel.Metric("Params stamped", stamped.ToString());
             if (crossConn.Any())
             {
                 panel.AddSection($"CROSS-CONNECTION FINDINGS ({crossConn.Count})");

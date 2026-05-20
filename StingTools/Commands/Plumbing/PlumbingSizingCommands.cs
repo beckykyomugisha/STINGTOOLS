@@ -137,7 +137,8 @@ namespace StingTools.Commands.Plumbing
             using (var tx = new Transaction(ctx.Doc, "STING Plumbing Size Drainage"))
             {
                 tx.Start();
-                dfuMap = FixtureUnitAggregator.BuildDfuMap(ctx.Doc);
+                // writeBack=true stamps PLM_DFU_COUNT_INT per pipe.
+                dfuMap = FixtureUnitAggregator.BuildDfuMap(ctx.Doc, writeBack: true);
                 sizing = DrainageSizer.AnalyseAndSize(ctx.Doc, dfuMap.PipeDfu, writeBack: true, dryRun: false);
                 tx.Commit();
             }
