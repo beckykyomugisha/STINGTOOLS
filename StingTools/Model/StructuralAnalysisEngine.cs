@@ -4234,15 +4234,44 @@ namespace StingTools.Model
         {
             var lc = new LoadCase();
             if (doc?.ProjectInformation == null) return lc;
+            var pi = doc.ProjectInformation;
             try
             {
-                lc.DeadLoadKPa   = ReadDouble(doc.ProjectInformation, "STR_AREA_LOAD_KN_M2", lc.DeadLoadKPa);
-                lc.LiveLoadKPa   = ReadDouble(doc.ProjectInformation, "BLE_LIVE_LOAD_KPA",   lc.LiveLoadKPa);
-                lc.WindBasicMps  = ReadDouble(doc.ProjectInformation, "STR_WIND_BASIC_MPS",  lc.WindBasicMps);
-                lc.SeismicAgR    = ReadDouble(doc.ProjectInformation, "STR_SEISMIC_AGR",     lc.SeismicAgR);
+                // Tier 2 — apply Uganda regional defaults when PRJ_ORG_REGION_TXT
+                // is set on ProjectInformation. These become the baseline
+                // before tier 1 (explicit overrides) takes effect.
+                string region = ReadString(pi, "PRJ_ORG_REGION_TXT");
+                if (!string.IsNullOrEmpty(region))
+                {
+                    var profile = StingTools.Core.UgandaRegionalDefaults.ForRegion(region);
+                    if (profile != null)
+                    {
+                        lc.DeadLoadKPa   = profile.DeadLoadKpa;
+                        lc.LiveLoadKPa   = profile.LiveLoadKpa;
+                        lc.WindBasicMps  = profile.WindBasicMps;
+                        lc.SeismicAgR    = profile.SeismicAgrG;
+                    }
+                }
+
+                // Tier 1 — explicit project params override regional defaults.
+                lc.DeadLoadKPa   = ReadDouble(pi, "STR_AREA_LOAD_KN_M2", lc.DeadLoadKPa);
+                lc.LiveLoadKPa   = ReadDouble(pi, "BLE_LIVE_LOAD_KPA",   lc.LiveLoadKPa);
+                lc.WindBasicMps  = ReadDouble(pi, "STR_WIND_BASIC_MPS",  lc.WindBasicMps);
+                lc.SeismicAgR    = ReadDouble(pi, "STR_SEISMIC_AGR",     lc.SeismicAgR);
             }
             catch (Exception ex) { StingLog.Warn($"ProjectLoadCombinationEngine.ForProject: {ex.Message}"); }
             return lc;
+        }
+
+        private static string ReadString(Element el, string paramName)
+        {
+            try
+            {
+                var p = el?.LookupParameter(paramName);
+                if (p == null || !p.HasValue) return "";
+                return p.StorageType == StorageType.String ? (p.AsString() ?? "") : "";
+            }
+            catch { return ""; }
         }
 
         /// <summary>Apply the partial factors for a given combo to produce

@@ -2948,6 +2948,12 @@ PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c01	PLM_SUP_QD_LPS	TEXT		6	1	Cold/hot wat
 PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c02	PLM_SUP_VEL_MPS	TEXT		6	1	Supply pipe velocity m/s per BS EN 806-3 / Hunter — WaterSupplySizer [Phase 188]	1
 PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c03	PLM_SUP_DP_PAM	TEXT		6	1	Supply pipe friction pressure drop Pa/m (Hazen-Williams) — WaterSupplySizer [Phase 188]	1
 PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c04	PLM_SUP_DN_REQ_MM	TEXT		6	1	Recommended supply pipe DN mm — WaterSupplySizer [Phase 188]	1
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d01	PRJ_ORG_REGION_TXT	TEXT		13	1	Project regional context (Kampala / Mbarara / Fort Portal / Gulu / Mbale / Jinja / Lira / Kasese / Kabale / Custom) — drives Uganda NBC + East African Rift seismic + EC1 climate defaults [Phase 189]	1
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d02	STR_WIND_BASIC_MPS	TEXT		16	1	Basic wind velocity vb,0 m/s (10-min mean at 10m, terrain Cat II) — EC1-1-4 / Uganda NBC regional [Phase 189]	1
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d03	STR_SEISMIC_AGR	TEXT		16	1	Reference peak ground acceleration agR /g per EC8-1 / Uganda East African Rift hazard [Phase 189]	1
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d04	BLE_LIVE_LOAD_KPA	TEXT		2	1	Design live (variable) load kPa per EC1-1-1 / Uganda NBC by occupancy [Phase 189]	1
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d05	STR_SOIL_BEARING_KPA	TEXT		16	1	Allowable / characteristic soil bearing capacity kPa — Uganda lateritic / volcanic / alluvial regional default [Phase 189]	1
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d06	STR_RAIN_INTENSITY_MMH	TEXT		16	1	Design rainfall intensity mm/h for storm + SuDS sizing — Uganda regional (5-yr return event) [Phase 189]	1
 PARAM	c3d5b6ee-0f2e-7283-9405-162718304a5b	ELC_CDT_PENETRATION_COUNT_NR	TEXT		4	1	Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).	1
 PARAM	c1a2b3c4-d5e6-4f70-8a9b-0c1d2e3f4a5b	ELC_WIRE_CORE_COUNT_INT	INTEGER		4	1	Number of conductors/cores in the wire run (1-4). Drives slash-mark count on wire annotation tag. [BS 7671]	1
 PARAM	d2b3c4d5-e6f7-4081-9b0c-1d2e3f4a5b6c	ELC_WIRE_PHASE_TXT	TEXT		4	1	Phase designation: L1/L2/L3/N/PE/CPC/1P/3P [BS 7671 Appendix 7]	1
