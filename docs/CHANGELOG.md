@@ -5346,10 +5346,10 @@ of the per-family tier rows the CSVs ship.
    Projects on stock Revit may not have all of `OST_NurseCallDevices`
    / `OST_MedicalEquipment` populated — the creator still emits the
    `.rfa` and the family loads, just with no project instances to tag.
-4. HEALTH CSV has no `DesignConstruction` sibling. The mode resolver
-   falls back to the Handover (default) CSV for HEALTH in DC mode,
-   which is the correct behaviour for now (clinical content is
-   stage-independent).
+4. ~~HEALTH CSV has no `DesignConstruction` sibling~~ — **closed** in
+   the CSV header / DC variant follow-up below; the resolver now
+   returns `STING_TAG_CONFIG_v5_0_HEALTH_DesignConstruction.csv`
+   directly in DC mode.
 5. The 76 new `category_labels` entries ship with stub tier_2 / tier_3
    rows tuned per family (e.g. healthcare clinical → `CLN_ROOM_CLASS_TXT`
    + `CLN_PRESS_REGIME_TXT`, LPS → `ELC_LPS_CLASS_TXT` + `ELC_LPS_ZONE_TXT`).
@@ -5417,3 +5417,46 @@ surfaced 4 remaining classes of drift. All closed:
 | `StingTools/Data/MR_PARAMETERS.csv` | mirror of above 46 rows; header bumped v6.4 → v6.5 |
 | `StingTools/Data/LABEL_DEFINITIONS.json` | −10 stale `category_labels` entries; version 5.11 → 5.12 |
 | `StingTools/Data/PARAMETER_REGISTRY.json` | +613 `support_params` entries syncing every TXT param |
+
+**Follow-up — CSV header bump + HEALTH DC variant**:
+
+After the dedup commit a final pass surfaced two cosmetic gaps:
+the 9 tag config CSVs still carried stale metadata headers
+(`SCHEMA_VERSION=5.5,UPDATED=2026-05-17,FAMILIES=142,SYNC=…v5.9(138_categories)`)
+that didn't reflect Phase 187's downstream alignment work, and the
+HEALTH pack had no `_DesignConstruction` sibling so DC-mode projects
+fell back to the Handover CSV silently. Both closed:
+
+15. **CSV header bump 5.5 → 5.6** on all 9 CSVs:
+    - `FAMILIES=N` now correctly reflects the per-CSV unique family
+      count (ARCH=36, GEN=34, MEP=59, STR=22, HEALTH=56). The previous
+      `FAMILIES=142` was a stale combined count.
+    - `UPDATED=2026-05-20` (Phase 187 commit date).
+    - `DISCIPLINE=<ARCH|GEN|MEP|STR>` field added so the schema is
+      self-describing without filename parsing.
+    - `SYNC=LABEL_DEFINITIONS.json_v5.12(204_categories)+
+      PARAMETER_REGISTRY.json_phase187(3163_params)+
+      TagFamilyConfig.TotalFamilyCount=204` records the now-aligned
+      state of the four consumer files.
+    - HEALTH CSV gets a `# Phase 187 SYNC:` comment line listing the
+      backfilled consumer changes (creator + LABEL + MR_PARAMETERS).
+
+16. **HEALTH DC variant minted** —
+    `STING_TAG_CONFIG_v5_0_HEALTH_DesignConstruction.csv`. Family
+    roster identical to the Handover CSV (clinical content is largely
+    stage-independent — same RDS, MGS, anti-ligature, radiation
+    families ship at every RIBA stage). Header tagged
+    `VARIANT=DesignConstruction` so `HandoverModeHelper.GetTagConfigCsv`
+    resolves to it directly in DC mode instead of falling back. Inline
+    comment block guides authors who need to fork per-tier T4-T10
+    differences (e.g. commissioning audit-trail rows on RDS sign-off).
+    Eliminates caveat #4 from the original Phase 187 entry.
+
+**Additional modified files (this follow-up)**:
+
+| File | Change |
+|---|---|
+| `StingTools/Data/STING_TAG_CONFIG_v5_0_{ARCH,GEN,MEP,STR}.csv` | header line bumped to v5.6, FAMILIES corrected, UPDATED + DISCIPLINE + SYNC fields added |
+| `StingTools/Data/STING_TAG_CONFIG_v5_0_{ARCH,GEN,MEP,STR}_DesignConstruction.csv` | same header bump + `VARIANT=DesignConstruction` retained |
+| `StingTools/Data/STING_TAG_CONFIG_v5_0_HEALTH.csv` | header line bumped, Phase 187 SYNC comment inserted |
+| `StingTools/Data/STING_TAG_CONFIG_v5_0_HEALTH_DesignConstruction.csv` | **new file** — DC sibling for the HEALTH pack |
