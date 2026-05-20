@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingPaperSizes</Name>
+    <Definition>Sheet paper-size codes for the Drawing Type registry. ISO A-series (A0..A4), US ANSI series (ANSI-A..ANSI-E), and Architectural series (ARCH-A..ARCH-E). Drives title-block family routing and sheet-creation defaults.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4002-9000-00000000000e</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>ISO 216 (A-series); ANSI/ASME Y14.1 (ANSI series); ANSI/ASME Y14.1M (Architectural series)</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="A0" sentinel="false">
+      <Definition>ISO A0 — 841 × 1189 mm.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="A1" sentinel="false">
+      <Definition>ISO A1 — 594 × 841 mm. STING corporate default for production drawings.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="A2" sentinel="false">
+      <Definition>ISO A2 — 420 × 594 mm. STING corporate default for schedules and risers.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="A3" sentinel="false">
+      <Definition>ISO A3 — 297 × 420 mm. STING corporate default for details and clarification RFIs.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="A4" sentinel="false">
+      <Definition>ISO A4 — 210 × 297 mm. Used for letters, transmittals, technical responses.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ANSI-A" sentinel="false">
+      <Definition>ANSI A — 8.5 × 11 in (216 × 279 mm).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ANSI-B" sentinel="false">
+      <Definition>ANSI B — 11 × 17 in (279 × 432 mm).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ANSI-C" sentinel="false">
+      <Definition>ANSI C — 17 × 22 in (432 × 559 mm).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ANSI-D" sentinel="false">
+      <Definition>ANSI D — 22 × 34 in (559 × 864 mm).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ANSI-E" sentinel="false">
+      <Definition>ANSI E — 34 × 44 in (864 × 1118 mm).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ARCH-D" sentinel="false">
+      <Definition>Architectural D — 24 × 36 in (610 × 914 mm).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ARCH-E" sentinel="false">
+      <Definition>Architectural E — 36 × 48 in (914 × 1219 mm).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>994e5eac382c32c1168b43b748ef38d5c553a66a32ee150abcef8fed554828eb</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

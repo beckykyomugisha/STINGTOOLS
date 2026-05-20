@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingProductCodes</Name>
+    <Definition>Product codes for the seventh segment (PROD) of the STING 8-segment tag. The PROD code names the *kind* of element — AHU, FCU, distribution board, basin, sprinkler, etc. The set is corporate-locked to give STING its proprietary tag grammar; projects extend by adding new codes only through schema-release governance, never inline. Project-specific equipment catalogues (manufacturer / model) are kept out of this enum and ride Pset_ManufacturerTypeInformation natively.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4001-9000-000000000004</IfdGuid>
+    
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>STING tag config v5.0 (Data/STING_TAG_CONFIG_v5_0_*.csv); CIBSE Guide A/B/C product taxonomies; Uniclass 2015 Pr-table cross-reference</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    
+    <Value code="AHU" sentinel="false">
+      <Definition>Air Handling Unit — central station HVAC unit (supply fan, return fan, coils, filters, dampers).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FCU" sentinel="false">
+      <Definition>Fan Coil Unit — terminal unit serving a single zone.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="VAV" sentinel="false">
+      <Definition>Variable Air Volume terminal box.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CAV" sentinel="false">
+      <Definition>Constant Air Volume terminal box.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RAD" sentinel="false">
+      <Definition>Radiator — hydronic / electric heat emitter.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="BOI" sentinel="false">
+      <Definition>Boiler — heating water generator (gas/oil/electric/biomass).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CHL" sentinel="false">
+      <Definition>Chiller — water- or air-cooled chilled water generator.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="PMP" sentinel="false">
+      <Definition>Pump — hydronic / sanitary / process pump.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="GRL" sentinel="false">
+      <Definition>Grille — supply / return / exhaust register.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="DMP" sentinel="false">
+      <Definition>Damper — volume control / fire / smoke / motorised damper.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+
+    
+    <Value code="DB" sentinel="false">
+      <Definition>Distribution Board — final-circuit panel with MCBs / RCDs.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SWB" sentinel="false">
+      <Definition>Switchboard — main / sub-main distribution.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MCC" sentinel="false">
+      <Definition>Motor Control Centre — multi-starter cabinet.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SCK" sentinel="false">
+      <Definition>Socket Outlet — 13A / 16A / commando general-purpose.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SWT" sentinel="false">
+      <Definition>Switch — light switch, grid switch, isolator.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="LFX" sentinel="false">
+      <Definition>Lighting Fixture / luminaire.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="EML" sentinel="false">
+      <Definition>Emergency Light / exit sign.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="UPS" sentinel="false">
+      <Definition>Uninterruptible Power Supply unit.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="GEN" sentinel="false">
+      <Definition>Generator — standby / prime power.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ATS" sentinel="false">
+      <Definition>Automatic Transfer Switch.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+
+    
+    <Value code="WC" sentinel="false">
+      <Definition>Water Closet — toilet pan.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="URN" sentinel="false">
+      <Definition>Urinal.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="LAV" sentinel="false">
+      <Definition>Lavatory / wash basin.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SHR" sentinel="false">
+      <Definition>Shower — fixed-head / handset / wet-room.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="BAT" sentinel="false">
+      <Definition>Bath tub.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SNK" sentinel="false">
+      <Definition>Sink — kitchen / utility / cleaner's / clinical hand-wash.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="TMV" sentinel="false">
+      <Definition>Thermostatic Mixing Valve (TMV2 / TMV3).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="GLY" sentinel="false">
+      <Definition>Gully — floor / yard / channel drain.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RWP" sentinel="false">
+      <Definition>Rainwater Pipe / downpipe.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MAN" sentinel="false">
+      <Definition>Manhole / inspection chamber.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+
+    
+    <Value code="SMD" sentinel="false">
+      <Definition>Smoke Detector.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HTD" sentinel="false">
+      <Definition>Heat Detector.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MCP" sentinel="false">
+      <Definition>Manual Call Point / fire break-glass.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SPK" sentinel="false">
+      <Definition>Sprinkler head.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FEX" sentinel="false">
+      <Definition>Fire Extinguisher.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="AOV" sentinel="false">
+      <Definition>Automatic Opening Vent — smoke shaft / stair pressurisation.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+
+    
+    <Value code="DAT" sentinel="false">
+      <Definition>Data Outlet — RJ45 face-plate.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="WAP" sentinel="false">
+      <Definition>Wireless Access Point.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CAM" sentinel="false">
+      <Definition>CCTV Camera.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ACR" sentinel="false">
+      <Definition>Access Control Reader.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+
+    
+    <Value code="DR" sentinel="false">
+      <Definition>Door.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="WIN" sentinel="false">
+      <Definition>Window.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="WL" sentinel="false">
+      <Definition>Wall — non-load-bearing partition. Use COL / FDN / SLB for structural.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FL" sentinel="false">
+      <Definition>Floor — finish + sub-floor as a single tagged element when not structurally significant.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CL" sentinel="false">
+      <Definition>Ceiling — suspended grid / plasterboard / acoustic ceiling.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RF" sentinel="false">
+      <Definition>Roof — full assembly including covering, insulation, decking.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="STR" sentinel="false">
+      <Definition>Stair — full flight including treads, risers, stringers, landings.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RMP" sentinel="false">
+      <Definition>Ramp — accessibility ramp per BS 8300 / Approved Document M.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HDR" sentinel="false">
+      <Definition>Door / window header — load-transferring lintel above opening.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MUL" sentinel="false">
+      <Definition>Mullion — vertical curtain-wall / glazing framing member.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+
+    
+    <Value code="COL" sentinel="false">
+      <Definition>Structural Column — load-bearing vertical member.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="BM" sentinel="false">
+      <Definition>Structural Beam — load-bearing horizontal member.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SLB" sentinel="false">
+      <Definition>Structural Slab — RC / composite floor or roof slab.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="TRS" sentinel="false">
+      <Definition>Truss — composite framing assembly (steel / timber / hybrid).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="BCG" sentinel="false">
+      <Definition>Bracing — lateral / wind / seismic bracing member.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FDN" sentinel="false">
+      <Definition>Foundation — pad / strip / raft. Pile elements use PIL.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="PIL" sentinel="false">
+      <Definition>Pile — driven / bored / CFA piled foundation member.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RBR" sentinel="false">
+      <Definition>Reinforcement bar / rebar — discrete or assembly per BS 8666.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+
+    
+    <Value code="XX" sentinel="true">
+      <Definition>Unknown / not yet assigned.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="*" sentinel="true">
+      <Definition>Wildcard for routing rules. Never tagged on an element.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>6288d19a4aee2a6f52cab5faa6ed74ed7447a3e139d488985e4a8ff53c729b68</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingSteelGrades</Name>
+    <Definition>Structural steel grades per BS EN 10025 / BS EN 10088. Drives structural design (yield strength, ultimate strength), section selection, embodied-carbon lookup, and Tekla connector handover. Includes both carbon-structural (S275..S690) and stainless (304 / 316) grades.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4004-9000-000000000027</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/cen/en10025/2.0/class/structural-steel-grade</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>BS EN 10025-2:2019 (hot-rolled structural steel); BS EN 10088 (stainless); BS EN 1993 (Eurocode 3 design)</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="S235" sentinel="false">
+      <Definition>S235 — yield strength 235 MPa. Light mild steel.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="S275" sentinel="false">
+      <Definition>S275 — yield 275 MPa. General-purpose structural carbon steel.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="S355" sentinel="false">
+      <Definition>S355 — yield 355 MPa. UK structural-steel default.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="S420" sentinel="false">
+      <Definition>S420 — yield 420 MPa. Higher-strength structural.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="S460" sentinel="false">
+      <Definition>S460 — yield 460 MPa. High-strength structural.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="S550" sentinel="false">
+      <Definition>S550 — yield 550 MPa. Heavy / long-span applications.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="S690" sentinel="false">
+      <Definition>S690 — yield 690 MPa. Very-high-strength steel; specialist welding procedures.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="304" sentinel="false">
+      <Definition>304 (1.4301) — austenitic stainless steel. Architectural + sanitary use.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="316" sentinel="false">
+      <Definition>316 (1.4401) — molybdenum-bearing austenitic; better chloride resistance. Marine / pharmaceutical / healthcare.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="316L" sentinel="false">
+      <Definition>316L (1.4404) — low-carbon 316. Better weldability for thicker sections.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="2205" sentinel="false">
+      <Definition>2205 (1.4462) — duplex stainless. High strength + chloride resistance; food / chemical / desalination.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Q235" sentinel="false">
+      <Definition>Q235 — Chinese GB standard mild steel; approximate S235 equivalent.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Q355" sentinel="false">
+      <Definition>Q355 — Chinese GB standard structural steel; approximate S355 equivalent.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="A36" sentinel="false">
+      <Definition>A36 — US ASTM standard mild structural steel; yield 250 MPa.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="A992" sentinel="false">
+      <Definition>A992 — US ASTM standard wide-flange shapes; yield 345 MPa.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>d7ed11d7dce730fa919b67adec919ee49ba06ff692869a7cf6fa33ea77296f0a</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

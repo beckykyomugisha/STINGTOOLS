@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  EXAMPLE — not a project-ready file.
+
+  Demonstrates what a populated project overlay looks like for
+  StingLevelCodes on the Riverside Acute Hospital ACU block.
+
+  Note: a real project with multiple buildings of different storey
+  counts has one Pset_StingSpatialCodes.LevelCode per IfcBuildingStorey
+  in each building; the enum lists the *union* of all level codes
+  across the project, with cross-building uniqueness disambiguated by
+  the building each storey lives in (via STOREY_LVL_UNIQUE_WITHIN_BUILDING
+  rule, not by cross-building uniqueness).
+-->
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingLevelCodes</Name>
+    <Definition>Project overlay — level codes for the Riverside Acute Hospital campus (5 buildings, max 7 storeys). Reserved storey codes (GF, MZ, RF, PR, XX, *) preserved.</Definition>
+    <IfdGuid>uuid:a1d15c11-9001-4001-9000-000000000002</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>project_template</Scope>
+    <Origin>project</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>Riverside Hospital Project — Information Manager</Maintainer>
+    <StandardsBasis>Riverside Hospital BEP §4.3 (Vertical structure); STING tag grammar v5.0; cross-bound to IfcBuildingStorey via Pset_StingSpatialCodes</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="B2" sentinel="false">
+      <Definition>Basement 2 — plant + bulk medical-gas storage + service tunnels.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="B1" sentinel="false">
+      <Definition>Basement 1 — sterile services + radiotherapy bunkers + linac + MRI suite.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="GF" sentinel="false">
+      <Definition>Ground Floor — A&amp;E + main reception + outpatients arrival.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MZ" sentinel="false">
+      <Definition>Mezzanine — equipment + retail + cafeteria.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="L01" sentinel="false">
+      <Definition>Level 01 — surgical day-care + endoscopy.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="L02" sentinel="false">
+      <Definition>Level 02 — operating theatres + recovery + ICU.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="L03" sentinel="false">
+      <Definition>Level 03 — surgical wards.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="L04" sentinel="false">
+      <Definition>Level 04 — medical wards.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="L05" sentinel="false">
+      <Definition>Level 05 — oncology + chemotherapy day unit.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="L06" sentinel="false">
+      <Definition>Level 06 — maternity (WAC block) / consulting rooms (OPD block).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="L07" sentinel="false">
+      <Definition>Level 07 — paediatrics (WAC block) / private wards (ACU block).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RF" sentinel="false">
+      <Definition>Roof — plant areas + helipad on ACU block.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="PR" sentinel="false">
+      <Definition>Plant Room — separate plant level above roof.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="XX" sentinel="true">
+      <Definition>Unknown / not yet assigned.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="*" sentinel="true">
+      <Definition>Wildcard for routing rules.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+</StingPropertyEnumeration>

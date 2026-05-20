@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1"
+                          version="1.0.0"
+                          schema_version="1">
+
+  <Identity>
+    <Name>StingLocationCodes</Name>
+    <Definition>Location / building codes for the second segment (LOC) of the STING 8-segment tag. This is a PROJECT-SCOPED TEMPLATE — the values shipped here are placeholders that every project replaces with its actual building / site codes via the project-overlay file at &lt;project&gt;/_BIM_COORD/enums/StingLocationCodes.xml. Per-element LOC values must additionally match the LocationCode property of an IfcBuilding in the same IFC project (cross-entity IDS rule).</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4001-9000-000000000005</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>project_template</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape) — template only; values are project-owned</Maintainer>
+    <StandardsBasis>ISO 19650-2 §5.3 spatial structure; STING ParamRegistry.AllLocationCodes; cross-bound to IfcBuilding via Pset_StingSpatialCodes</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="BLD1" sentinel="false">
+      <Definition>PLACEHOLDER — Primary building. Projects replace the code (e.g. MAIN, NORTH, A) and definition with site-specific names.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="BLD2" sentinel="false">
+      <Definition>PLACEHOLDER — Secondary building.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="BLD3" sentinel="false">
+      <Definition>PLACEHOLDER — Tertiary building.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SITE" sentinel="false">
+      <Definition>External works on the project site (not inside any building). Reserved code — projects do not redefine.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="EXT" sentinel="false">
+      <Definition>External to project site (off-site infrastructure, utility tie-ins, neighbouring contexts). Reserved code.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="XX" sentinel="true">
+      <Definition>Unknown / not yet assigned. IDS fails at Stage 3+.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="*" sentinel="true">
+      <Definition>Wildcard for routing rules. Never tagged on an element.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <!-- No CorporateLock — project-scoped templates are not lock-protected; projects edit freely. -->
+
+</StingPropertyEnumeration>

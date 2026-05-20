@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingPipeMaterials</Name>
+    <Definition>Pipe material codes. Drives BS 1710 pipe-identification colour, embodied-carbon lookup (Pset_StingCarbon via IfcMaterial), compatibility with StingPipeServices (e.g. copper for DCW yes, gas no), and HTM 04-01 water-safety material restrictions for healthcare.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4004-9000-000000000022</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/iso/ifcmaterial/4.0/class/pipe-material</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>BS EN 806 + BS 1710 (pipe ID); WRAS approved-products scheme; ICE Database v3.0 (embodied carbon)</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Copper" sentinel="false">
+      <Definition>Copper — BS EN 1057 R220/R250/R290. Standard for DCW/DHW domestic.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="StainlessSteel" sentinel="false">
+      <Definition>Stainless Steel — 304/316 grades for clean / process / medical / corrosive service.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="GalvSteel" sentinel="false">
+      <Definition>Galvanised Steel — BS EN 10255 medium- and heavy-weight. Common for sprinkler / general service.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="BlackSteel" sentinel="false">
+      <Definition>Black Steel — BS EN 10255 / BS EN 10220. Used for gas, heating, steam.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CarbonSteel" sentinel="false">
+      <Definition>Carbon Steel (general grade) — schedule 40 / 80. Process applications.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CastIron" sentinel="false">
+      <Definition>Cast Iron — soil/waste underground per BS EN 877.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="DuctileIron" sentinel="false">
+      <Definition>Ductile Iron — water mains per BS EN 545.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="PEX" sentinel="false">
+      <Definition>PEX — cross-linked polyethylene, BS EN ISO 15875. Underfloor + domestic hot/cold.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="PVCu" sentinel="false">
+      <Definition>uPVC — unplasticised PVC per BS EN 1452. Cold-water service, soil/waste above ground.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CPVC" sentinel="false">
+      <Definition>CPVC — chlorinated PVC per BS EN 15493. Higher temperature than PVCu; some sprinkler use.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HDPE" sentinel="false">
+      <Definition>HDPE — high-density polyethylene per BS EN 12201. Water mains, drainage, syphonic rainwater.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="PP" sentinel="false">
+      <Definition>Polypropylene — BS EN ISO 15874. Hot/cold service, lab waste.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ABS" sentinel="false">
+      <Definition>ABS — acrylonitrile butadiene styrene per BS EN 1455. Waste / overflow / chilled water.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="GRP" sentinel="false">
+      <Definition>GRP — glass-reinforced plastic per BS EN 14364. Large-diameter water / drainage.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Lead" sentinel="false" deprecated="true" replaced_by="Copper">
+      <Definition>Lead — heritage / pre-1970 service pipes. DEPRECATED: lead pipework must be replaced under HTM 04-01 / Water Industry Act; carried in enum for legacy survey records only.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>e291514e1df393b93f5803dda3c792f105a0f82e07c536cb0032fde4c60581f3</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>
