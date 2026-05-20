@@ -3326,3 +3326,4 @@ PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d02	STR_WIND_BASIC_MPS	TEXT		16	1	Basic w
 PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e05	STR_WIND_DIRECTIONAL_NR	TEXT		16	1	EC1-1-4 §4.2 cdir wind directional factor (typically 1.0 unless project-specific wind-rose justifies reduction) [Phase 190]	1
 PARAM	e1f2a3b4-c5d6-4e7f-8091-1a2b3c4d5e0b	STR_WIND_PRESSURE_PA	TEXT		16	1	Wind pressure Pa on element / storey per EC1-1-4 lookup — WindLoadCalculator [Phase 188]	1
 PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e04	STR_WIND_TERRAIN_CAT_TXT	TEXT		16	1	EC1-1-4 §4.3.2 terrain category 0 (sea) / I (lakes) / II (open) / III (suburban) / IV (city) — drives ce(z) exposure factor [Phase 190]	1
+PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e07	WARN_STR_FND_BLACK_COTTON	TEXT		16	1	Warning: Black-cotton / expansive subgrade detected — extend foundation below active zone (~1.5 m), verify BS 1377-2 swelling test, consider raft or stabilised sub-base [HIGH]	1
