@@ -5426,3 +5426,142 @@ no non-comment references to either broken API remain.
 **Caveat**:
 
 1. Built without `dotnet build` verification (Linux sandbox). The user's pull command should now succeed and the resulting build should be clean.
+
+#### Completed (Phase 188 — Symbol library review + comprehensive standards build-out)
+
+User commissioned a full review of the symbol-family system and asked to
+fix all defects and implement all recommendations. The audit found 431
+symbols across 12 catalogues (~40% of the ~900–1000 a comprehensive AEC
+firm needs), most lacking status fields, three SLD regional catalogues
+thinly populated, and 97 ISO 6412 symbols indexed but absent from the
+JSON. The audit's BUG-1 claim (IsoSymbolPlacer naming mismatch) was
+disproved on inspection — `ResolveFamilySymbol` already implements a
+Tier-1/Tier-2 fallback covering both `STING_FAM_*` and `ISO6412_*` names.
+
+This phase closes every other gap. Net: **431 → 791 symbols (+360)**;
+**12 → 20 catalogues**.
+
+**Pass 1 — Schema hygiene**: added `"status": "draft"` to all 267
+symbols across 11 catalogues that previously lacked it. Reformatted
+`STING_SLD_SYMBOLS_{BS,CIBSE,IEEE,NFPA}.json` to `indent=2` to match
+the ISO6412 baseline; geometry coordinates unchanged.
+
+**Pass 2 — ISO 6412 gap fill (+97 symbols, 164 → 261)**: authored
+the symbols listed in `STING_ISO_SYMBOLS_INDEX.csv` but absent from
+`STING_ISO6412_SYMBOLS.json`. Standards followed: ISO 6412 / BS 308 Pt
+3 / BS 1646 (valves) / SMACNA (duct) / BS 4568 (conduit) /
+BS EN 61537 (cable tray) / ISO 2553 + BS EN 22553 (welds) /
+MSS SP-58 (hangers). Coverage:
+
+| Group | Count | Examples |
+|---|---|---|
+| Valves | 19 | Butterfly, diaphragm, pinch, knife, swing/lift/dual check, FCV/PCV/TCV/LCV, MOV/AOV/SOV/HOV, drain, vent, handle, lever |
+| Ductwork | 22 | 45°/90° round elbows, round + rect tees, concentric + rect reducers, rect-to-round transition, offset, 5 damper types (volume/fire/smoke/FSD/backdraft), 3 grilles, 4-way + linear diffusers, register, fan, filter, coil, silencer |
+| Conduit (BS 4568) | 8 | Bush, coupling, gland, LB/LL/LR/T/X inspection bodies |
+| Cable tray | 3 | 45° bend, dropout, end plate |
+| Welds (ISO 2553) | 15 | Butt-field, V-groove, bevel-groove, backing, seam, tack, plug, slot, spot, socket-weld, 5 NDT (RT/UT/PT/MT/VT) |
+| Hangers (MSS SP-58) | 7 | Anchor, clamp, roller, constant-load spring, rigid strut, expansion joint, guide |
+| Penetrations | 4 | Puddle flange, link-seal, slab, wall |
+| Notation | 18 | North arrow, scale bar, grid bubble, section + level heads, 5 notes (general/typ/NIC/NTS/revcloud), 4 dimensions (linear/angular/radial/slope), 4 tags (duct/fitting/hanger/weld) |
+
+After this pass `CSV ↔ JSON` gap = 0.
+
+**Pass 3 — 8 new catalogues (+138 symbols)**:
+
+| File | Standard(s) | Count |
+|---|---|---|
+| `STING_WIRE_ANNOTATIONS.json` | BS EN 60617-2 / BS 7671 | 19 |
+| `STING_EARTHING_SYMBOLS.json` | BS 7430 / BS EN 62305 / BS 7671 | 14 |
+| `STING_BMS_SYMBOLS.json` | CIBSE Guide H / ASHRAE 135 / IEC 14908 / KNX | 23 |
+| `STING_TELECOM_SYMBOLS.json` | BS EN 50173 / BICSI TDMM / BS 5839-8 / BS EN 62676 / BS EN 60839 | 20 |
+| `STING_STRUCTURAL_ANNOTATIONS.json` | BS 8666 / BS EN 10210 / BS EN 1993 / BS EN 1997 / BS 4449 / ISO 2553 | 17 |
+| `STING_SAFETY_SYMBOLS.json` | ISO 7010:2019 | 25 |
+| `STING_GAS_SYMBOLS.json` | IGEM TD/4 / BS 6891 / BS EN 1775 | 10 |
+| `STING_DRAINAGE_ABOVE.json` | BS EN 12056 / BS 5572 | 10 |
+
+Highlights: ISO 7010 F001 portable extinguisher (originally missing),
+all 4 ISO 7010 quadrants (F/E/P/M/W), every wire/cable annotation a
+real drawing needs (home-run, phase ticks, splices, junction box),
+TT/TN-S/TN-C earthing arrangements + LPS down-conductor + air
+termination, BMS sensor/controller/network family, full structural
+section + connection + foundation set.
+
+**Pass 4 — Existing catalogue extensions (+125 symbols)**:
+
+| Catalogue | Before | After | Highlights of additions |
+|---|---|---|---|
+| `STING_ELEC_SYMBOLS.json` | 32 | 62 | Both IEC and ANSI/IEEE resistor + inductor (audit-flagged absence fixed); capacitor IEC + polar; diode/LED/Zener; NPN/PNP transistors; 4 sources; 4 meters; bell, buzzer, antenna, speaker; 6 switch variants |
+| `STING_SLD_SYMBOLS_IEEE.json` | 15 | 53 | Full IEC parity: 4 transformer types, 4 generation types, UPS + battery bank, 4 busbar types, ATS/MTS, 5 motor variants, capacitor bank + reactor, SPD, DB/MCC/switchboard, EV charger, ATEX zone |
+| `STING_MEP_SYMBOLS.json` | 27 | 43 | ASHP, GSHP, water-cooled + air-cooled chillers, cooling tower, MVHR, VRF outdoor/indoor, split AC, CRAC, active + passive chilled beams, radiant panel, UFH manifold, humidifier, dehumidifier |
+| `STING_PLUMBING_SYMBOLS.json` | 24 | 44 | Combi/system/regular boilers, HIU, calorifier, thermal store, CWST, booster set, pressurisation unit, expansion vessel, TMV, RPZ backflow preventer, water meter, softener, RO, hose bib, solar thermal, dual check, deaerator, dirt separator |
+| `STING_FP_SYMBOLS.json` | 28 | 49 | 4 portable extinguishers (CO₂/water/foam/powder), hose reel, dry/wet riser, hydrant, gas suppression nozzle, foam generator, water mist nozzle, VESDA, linear-heat-detection, beam smoke detector, flame detector, duct smoke detector, fusible link, sounder, VAD, smoke vent, fire curtain, hold-open, FAP, suppression control panel |
+
+**Pass 5 — Engine awareness + docs**:
+
+* `SymbolBatchHelper.AllBatches` (`Commands/Symbols/SymbolLibraryCommands.cs`)
+  extended with the 8 new catalogues; `CreateSymbolLibraryCommand` (the
+  "Create All Symbols" entry point) now generates them automatically
+  alongside the existing 12 — no separate user action required.
+* `BrowseAllEquipmentSymbolsCommand.Sources` + `InferJsonFile`
+  (`EquipmentSymbolCommands.cs`) extended with prefix-based id routing
+  so symbols from the 8 new catalogues are reachable from the
+  cross-discipline symbol browser. Prefix ordering reworked so the more
+  specific routes (ISO7010_, EARTH_, TEL_, STR_, DRN_, GAS_, SENS_/CTRL_,
+  WIRE_/JBOX/CABLE_) match before the broader legacy prefixes.
+* `Families/ISO6412/README.md` updated with the dual-naming convention
+  (Tier 1 = `STING_FAM_*` from CSV → seed `.rfa` from this folder;
+  Tier 2 = `ISO6412_*` from JSON → runtime-generated). This makes
+  explicit what the placer code already does and documents how to ship
+  hand-drafted seeds correctly. Current-status table refreshed to 261
+  symbols.
+* `docs/CHANGELOG.md` — this entry.
+
+**Final inventory** (programmatically verified):
+
+| Catalogue | Symbols |
+|---|---|
+| STING_ISO6412_SYMBOLS.json | 261 |
+| STING_ELEC_SYMBOLS.json | 62 |
+| STING_SLD_SYMBOLS.json | 54 |
+| STING_SLD_SYMBOLS_IEEE.json | 53 |
+| STING_FP_SYMBOLS.json | 49 |
+| STING_PLUMBING_SYMBOLS.json | 44 |
+| STING_MEP_SYMBOLS.json | 43 |
+| STING_SAFETY_SYMBOLS.json | 25 |
+| STING_LIGHTING_SYMBOLS.json | 25 |
+| STING_BMS_SYMBOLS.json | 23 |
+| STING_TELECOM_SYMBOLS.json | 20 |
+| STING_PIPE_ACCESSORIES.json | 20 |
+| STING_WIRE_ANNOTATIONS.json | 19 |
+| STING_STRUCTURAL_ANNOTATIONS.json | 17 |
+| STING_SLD_SYMBOLS_BS.json | 15 |
+| STING_SLD_SYMBOLS_CIBSE.json | 14 |
+| STING_EARTHING_SYMBOLS.json | 14 |
+| STING_SLD_SYMBOLS_NFPA.json | 13 |
+| STING_GAS_SYMBOLS.json | 10 |
+| STING_DRAINAGE_ABOVE.json | 10 |
+| **TOTAL** | **791** |
+
+**Caveats (Phase 188)**:
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. Every symbol authored or extended in this phase carries
+   `"status": "draft"`. Geometry follows the listed standards and is
+   internally consistent, but **none of it has been verified inside
+   Revit** against a printed copy of the standard plate. Promote to
+   `"status": "reviewed"` only after that verification, and to
+   `"status": "final"` only after a corresponding hand-drafted seed
+   `.rfa` is committed and tested in a live project.
+3. The thin BS / CIBSE / NFPA SLD catalogues (15 / 14 / 13 symbols)
+   were **not** expanded in this phase. The fallback chain in
+   `STING_SYMBOL_STANDARDS.json` (BS → IEC, NFPA → IEC, CIBSE → IEC)
+   continues to silently substitute IEC equivalents when a regional
+   variant is missing. Bringing each to parity with the 54-symbol IEC
+   IEC catalogue is the next round (~117 symbols total — see Phase 188
+   follow-up tracker in `docs/ROADMAP.md`).
+4. The 8 new catalogues each ship with sensible defaults, but
+   organisations may want to override specific symbols via a
+   project-scoped overlay (none of the loaders implement this yet —
+   the JSON files are read directly from `StingTools/Data/Symbols/`).
+   Adding a project overlay layer matching the Drawing-Type project
+   override mechanism would be the natural follow-up.
