@@ -87,11 +87,21 @@ namespace StingTools.Commands.Structural
                      .Metric("Soil class",             selected.SoilClass)
                      .Metric("Params written",         written.ToString());
                 panel.AddSection("NOTES").Text(selected.Notes);
+                panel.AddSection("⚠ DO NOT USE AS FINAL VALUES")
+                     .Text("These are conservative engineering defaults, NOT verified extracts from Uganda NBC, NEMA hazard maps, or the Department of Meteorology IDF curves.")
+                     .Text("Every project requires:")
+                     .Text("  • Site investigation per BS 5930 — soil bearing depends on geology, depth, and site-specific tests, not the regional default.")
+                     .Text("  • Approved Uganda NEMA earthquake hazard map values — agR here is unstated return period.")
+                     .Text("  • Local met-office IDF curves — rainfall here is approximate 5-yr return.")
+                     .Text("  • EC8 ground type (A-E) and q-factor — not captured by this profile.")
+                     .Text("  • Wind terrain category and direction factor — not captured by this profile.")
+                     .Text("  • A structural engineer's sign-off on every value before design.");
                 panel.AddSection("DOWNSTREAM EFFECTS")
-                     .Text("• Structural Auto-Size + Apply uses STR_SOIL_BEARING_KPA when sizing foundations.")
+                     .Text("• Structural Auto-Size + Apply uses STR_SOIL_BEARING_KPA (project-level) when sizing foundations.")
                      .Text("• Frame / Punching / RC / Wind walkers read all four load fields via ProjectLoadCombinationEngine.")
+                     .Text("• RCDesignOrchestrator also reads PlumbingSystemConfig.BuildingType so live load tracks occupancy (Office 2.5 kPa, Healthcare 2.5, Education 3.0, Retail 4.0, Industrial 5.0).")
                      .Text("• Plumbing storm sizing (PlumbRoofDrainage / PlumbSuDS) reads STR_RAIN_INTENSITY_MMH.")
-                     .Text("• Override individual values by editing the project params directly; they win over the regional baseline.");
+                     .Text("• Override individual values by editing the project params directly; explicit overrides win over the regional baseline.");
                 panel.Show();
                 return Result.Succeeded;
             }

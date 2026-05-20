@@ -346,13 +346,30 @@ namespace StingTools.Model
                 catch (Exception ex) { r.ColumnsSkipped++; r.Warnings.Add($"Col {col.Id.Value}: {ex.Message}"); }
             }
 
+            // Read the project-level soil bearing once per run so each
+            // foundation uses the regional / explicit value written to
+            // ProjectInformation. Falls back to a conservative 150 kPa
+            // when nothing is set.
+            double projectSoilKPa = 150;
+            try
+            {
+                if (doc.ProjectInformation != null)
+                {
+                    double v = TryReadDouble(doc.ProjectInformation, "STR_SOIL_BEARING_KPA", 0);
+                    if (v > 0) projectSoilKPa = v;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Project soil bearing read: {ex.Message}"); }
+
             foreach (var fnd in all.Where(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_StructuralFoundation))
             {
                 r.FoundationsInspected++;
                 try
                 {
                     double axialKN = TryReadDouble(fnd, "STR_COL_AXIAL_KN", 500);
-                    double soilKPa = TryReadDouble(fnd, "STR_SOIL_BEARING_KPA", 150);
+                    // Per-foundation override wins over the project value,
+                    // which in turn beats the hard-coded 150.
+                    double soilKPa = TryReadDouble(fnd, "STR_SOIL_BEARING_KPA", projectSoilKPa);
                     var (w, h, summary) = AutoSizeFoundation(axialKN, soilKPa);
                     // FindOrCreateFoundationType takes (widthMm, depthMm) — pass square pad.
                     var match = factory.FindOrCreateFoundationType(w, w);

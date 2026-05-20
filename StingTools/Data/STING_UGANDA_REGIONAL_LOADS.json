@@ -1,12 +1,31 @@
 {
   "_meta": {
-    "description": "STING Uganda regional load defaults — drives ProjectLoadCombinationEngine and SetUgandanDefaultsCommand. Values are conservative defaults; a structural engineer must verify per project.",
-    "references": [
-      "Uganda National Building Code 2010 (regulatory)",
-      "BS EN 1991-1-4 wind (treated regionally; basic vb,0 estimated from NBC + regional met-office gust data converted to 10-min mean at 10m, terrain Cat II)",
-      "BS EN 1998-1 EC8 seismic (PGA from East African Seismological Working Group + USGS GSHAP hazard map for the East African Rift; western Uganda is on the rift's western branch)",
-      "BS EN 1997-1 EC7 soils (lateritic / red clay common Kampala area; volcanic ferrasols western; alluvial in lake / river valleys)",
-      "Uganda Department of Meteorology IDF curves (5-yr return intensity)"
+    "description": "Conservative regional engineering defaults — NOT verified extracts from a specific published Uganda code or hazard map. Use as a STARTING POINT only; every project requires a proper site investigation, the local authority's approved wind / seismic / soil values, and a structural engineer's sign-off.",
+    "accuracy_caveats": {
+      "wind": "Basic vb,0 (10-min mean at 10m, terrain Cat II) is an engineering estimate from typical East African meteorology — NOT extracted from a published Uganda wind map. Northern values (Gulu / Lira 30 m/s) are on the high side and should be calibrated against actual met-station data when available.",
+      "seismic": "Peak ground acceleration agR/g is plausible for the East African Rift but NOT cited from the Uganda NEMA earthquake risk profile or a peer-reviewed Uganda hazard study. Return period is unstated; treat as approximate 475-year EC8 design hazard. For collapse-prevention design (2475-year) the values may need to be scaled up.",
+      "soil_bearing": "Region-level averages — useless without a site investigation. Kampala has good lateritic on hills and expansive black-cotton clay in valleys (Kololo / Bukoto bottoms etc.); the 150 kPa default applies to the firm-lateritic case only. Same risk in any Ugandan urban valley.",
+      "rainfall": "5-yr return intensity values are typical East African climate norms, NOT extracted from the Uganda Department of Meteorology IDF curves. Use site-specific IDF when available.",
+      "ground_type_q_factor": "EC8 ground type (A-E) and behaviour factor q are NOT captured here. Notes mention soil class loosely. Both must be set per project for any meaningful seismic design force calculation."
+    },
+    "intended_use": [
+      "Quick start when no project-specific load study has been done yet",
+      "Sanity-check baseline against which engineer-supplied values can be compared",
+      "Pre-design exploration of which regions are seismic-critical vs wind-critical"
+    ],
+    "do_not_use_for": [
+      "Final-design seismic forces without consulting Uganda NEMA hazard maps",
+      "Foundation design without a site investigation report",
+      "Storm sizing for return periods other than ~5 years without local IDF curves",
+      "Any claim of code compliance — these are starting points, not certified values"
+    ],
+    "references_to_consult_per_project": [
+      "Uganda National Building Code 2010 (regulatory; STING does not include extracts)",
+      "Uganda NEMA Earthquake Risk Profile / OECD Uganda Disaster Risk Profile 2017",
+      "BS EN 1991-1-4 NA — wind, with terrain category cs/cd and ce(z) per project",
+      "BS EN 1998-1 EC8 — seismic, with ground type S, q-factor and importance class γi",
+      "BS EN 1997-1 EC7 — soils, with site investigation per BS 5930",
+      "Uganda Department of Meteorology IDF curves (project-specific)"
     ],
     "phase": 189,
     "last_updated": "2026-05-21"

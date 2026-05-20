@@ -4253,6 +4253,24 @@ namespace StingTools.Model
                     }
                 }
 
+                // Tier 2.5 — refine the live load by occupancy. PlumbingSystemConfig
+                // already stores the project building type ("Office" / "Healthcare"
+                // / "Industrial" / etc.); reuse it so structural picks the right
+                // EC1-1-1 Cat A-E load instead of the regional default. Plumbing
+                // dependency is one-way (structural reads, plumbing doesn't read
+                // back) so no circular reference.
+                try
+                {
+                    var cfg = StingTools.Core.Plumbing.PlumbingSystemConfig.Load(doc);
+                    if (cfg != null && !string.IsNullOrEmpty(cfg.BuildingType))
+                    {
+                        double occLoad = StingTools.Core.UgandaRegionalDefaults
+                            .LiveLoadFor(cfg.BuildingType);
+                        if (occLoad > 0) lc.LiveLoadKPa = occLoad;
+                    }
+                }
+                catch (Exception exP) { StingLog.Warn($"Occupancy live-load lookup: {exP.Message}"); }
+
                 // Tier 1 — explicit project params override regional defaults.
                 lc.DeadLoadKPa   = ReadDouble(pi, "STR_AREA_LOAD_KN_M2", lc.DeadLoadKPa);
                 lc.LiveLoadKPa   = ReadDouble(pi, "BLE_LIVE_LOAD_KPA",   lc.LiveLoadKPa);
