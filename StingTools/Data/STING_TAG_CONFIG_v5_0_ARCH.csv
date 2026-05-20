@@ -2266,3 +2266,12 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Roofs / Walls / Curtain Wall
 1,HIGH,WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW,Sheet thickness below natural-component minimum (BS EN 62305-3 Tab 3 — typ. 0.5 mm Cu / 0.7 mm Al / 4 mm Steel for puncture resistance),BS EN 62305-3:2011 Tab 3,Common,Text,⚠ Warning: Sheet Thickness Below Min,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW, """")"
 2,HIGH,WARN_ELC_LPS_NO_BONDING,Bonding method to LPS network not specified — natural component is non-functional without continuity,BS EN 62305-3:2011 §5.2.5,Common,Text,⚠ Warning: No Bond to LPS Network,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_BONDING, """")"
 3,CRITICAL,WARN_ELC_LPS_NO_CLASS,LPS class not assigned — required to verify natural-component thickness vs BS EN 62305-3 Tab 3,BS EN 62305-1:2011 §8,Common,Text,⚠ Warning: No LPS Class,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_CLASS, """")"
+
+# ─── Phase 184l: project metadata + drawing-type drift warnings ───────────
+1,HIGH,WARN_PRJ_CLIENT_NAME_MISSING,PRJ_ORG_CLIENT_NAME_TXT empty,ISO 19650-2,*,Text,⚠ Warning: Client Name Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_PRJ_CLIENT_NAME_MISSING, """""""")"
+2,HIGH,WARN_PRJ_CODE_MISSING,PRJ_ORG_PROJECT_CODE_TXT empty,ISO 19650-2,*,Text,⚠ Warning: Project Code Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_PRJ_CODE_MISSING, """""""")"
+3,HIGH,WARN_PRJ_ORIGINATOR_MISSING,PRJ_ORG_ORIGINATOR_CODE_TXT empty,ISO 19650-2,*,Text,⚠ Warning: Originator Code Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_PRJ_ORIGINATOR_MISSING, """""""")"
+4,HIGH,WARN_STING_DRAWING_TYPE_MISSING,STING_DRAWING_TYPE_ID_TXT empty on sheet,STING DTM Phase 113,*,Text,⚠ Warning: DrawingType Not Stamped,"if(TAG_WARN_VISIBLE_BOOL, WARN_STING_DRAWING_TYPE_MISSING, """""""")"
+5,HIGH,WARN_STING_CROP_DRIFT,Crop kind/margin drift from profile,STING DTM Phase 183,*,Text,⚠ Warning: Crop Drifted - Run SyncStyles,"if(TAG_WARN_VISIBLE_BOOL, WARN_STING_CROP_DRIFT, """""""")"
+6,HIGH,WARN_STING_PACK_DRIFT,Pack checksum drift on managed template,STING DTM Phase 137,*,Text,⚠ Warning: Pack Drifted - Run SyncStyles,"if(TAG_WARN_VISIBLE_BOOL, WARN_STING_PACK_DRIFT, """""""")"
+7,MEDIUM,WARN_STING_STYLE_LOCKED_NOTICE,STING_STYLE_LOCKED_BOOL=1,STING DTM,*,Text,⚠ Warning: Style-Locked View,"if(TAG_WARN_VISIBLE_BOOL, WARN_STING_STYLE_LOCKED_NOTICE, """""""")"
