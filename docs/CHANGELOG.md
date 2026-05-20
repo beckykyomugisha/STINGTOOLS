@@ -2,6 +2,97 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 186b — Pset expansion + Path-2 static rule closeout)
+
+Two follow-ups to Phase 186 that turn the substrate from "Tier-1 only,
+60% of declared rules statically enforced" into "Tier-1 + drawing +
+project-org coverage, 100% of declared statically-enforceable rules
+enforced".
+
+**3 new Pset templates** under `shared/ifc/psets/` (raises Pset count
+from 2 → 5):
+
+- `Pset_StingTag7.xml` — 10 properties (`NarrativeFull` + 6 sub-sections
+  A–F + 3 paragraph-state booleans) covering the TAG7 rich narrative
+  surface. 3 rules, all marked `enforced-by="host"` because they're
+  presentation-time contracts (TAG7Builder territory).
+- `Pset_StingDrawing.xml` — 12 properties (`DrawingTypeId`,
+  `StyleLocked`, `CropKind`, `CropMarginMm`, `PackId`, `PackChecksum`,
+  `TokenProfileId`, `TagDepth`, `SegmentMask`, `ColourScheme`,
+  `SheetNumber`, `SheetName`) mirroring the Drawing Template Manager
+  fields STING stamps on every Revit view/sheet. 3 rules
+  (`DRAWING_TYPE_RESOLVABLE` static, two `enforced-by="host"`).
+- `Pset_StingProjectOrg.xml` — 13 properties mirroring the
+  `PRJ_ORG_*` corporate metadata cells (`ProjectCode`, `Phase`,
+  `ClientName`, `CompanyName`, `OriginatorCode`, …). 3 rules
+  (2 static + 1 `enforced-by="host"`).
+
+**6 newly-enforced static rules** in `SpatialChecker`
+(`stingtools-core/python/stingtools_core/spatial/check.py`):
+
+| Rule | Pset | What it catches |
+|---|---|---|
+| `DISC_NOT_EMPTY` | `Pset_StingTags` | Discipline missing or sentinel "XX" at Stage_3+; enum-membership check when EnumRegistry available |
+| `DRAWING_TYPE_RESOLVABLE` | `Pset_StingDrawing` | DrawingTypeId format (`^[a-zA-Z][a-zA-Z0-9\-]+$`) + optional registry-lookup via new `DrawingTypeRegistry` class |
+| `PROJECTORG_PROJECT_CODE_REQUIRED` | `Pset_StingProjectOrg` | ProjectCode missing or not matching `^[A-Z][A-Z0-9\-]{2,5}$` |
+| `PROJECTORG_PHASE_VALID` | `Pset_StingProjectOrg` | Phase value not in `StingRibaStages` enum (when EnumRegistry available) |
+| `BUILDING_LOC_UNIQUE` | `Pset_StingSpatialCodes` | Two or more `IfcBuilding` entities sharing a LocationCode |
+| `STOREY_LVL_UNIQUE_WITHIN_BUILDING` | `Pset_StingSpatialCodes` | Two or more `IfcBuildingStorey` entities sharing a LevelCode within the same `IfcBuilding` |
+
+**Static rule coverage**: 6 → 12 (100% of declared statically-
+enforceable rules; the remaining 8 rules are marked
+`enforced-by="host"` because they are write-time / presentation-time
+contracts a static IFC snapshot can't verify).
+
+**SpatialChecker API additions**:
+
+- `SpatialChecker.__init__(model, stage="Stage_3", enum_registry=None,
+  drawing_type_registry=None)` — gains 3 optional kwargs (stage gating,
+  enum-membership checks, drawing-type registry lookup).
+- `SpatialChecker.check_project_org()` — model-level method for the 2
+  Pset_StingProjectOrg rules.
+- `SpatialChecker.check_spatial_uniqueness()` — model-level method for
+  the 2 spatial-code uniqueness rules.
+- `SpatialChecker.check_all_elements()` — now also walks
+  `IfcAnnotation` entities (so Pset_StingDrawing checks fire) and
+  invokes the new model-level methods.
+- New `DrawingTypeRegistry` class exported from
+  `stingtools_core.spatial` — wraps a set of known DrawingType ids
+  for `DRAWING_TYPE_RESOLVABLE` lookup.
+
+**Tests** (`stingtools-core/python/tests/test_smoke.py`): +8 new tests
+(23 standalone, 27 pytest including tmp_path) covering every newly-
+enforced rule with both positive and negative fixtures, plus a
+stage-gating test (Stage_1 must not fire DISC_NOT_EMPTY even when
+Discipline is "XX").
+
+**Verification status at Phase 186b close**:
+
+| Layer | Status |
+|---|---|
+| 5 Pset XMLs lock-consistent | ✅ `compute_checksums.py --check` exit 0 |
+| 52 enum XMLs SHA-256-locked | ✅ verified drift-free |
+| `stingtools-core` smoke tests | ✅ 23/23 standalone pass, 27/27 pytest pass |
+| 6 new static rules verified | ✅ all 6 fire on negative fixtures, pass on positive |
+| Pset_StingDrawing fires on IfcAnnotation | ✅ verified via new test |
+| Stage gating verified | ✅ DISC_NOT_EMPTY skips at Stage_1, fires at Stage_3 |
+
+**Caveats (Phase 186b)**:
+
+1. The 3 new Psets do NOT yet have matching IDS specs. The 2 IDS
+   files shipped in Phase 186 (`sting-tag-grammar.ids`,
+   `sting-spatial-codes.ids`) cover Pset_StingTags + Pset_StingSpatialCodes
+   only. IDS coverage for Pset_StingDrawing / Tag7 / ProjectOrg is
+   Phase 186c work (estimated 1 day with the IDS-authoring guide).
+2. `DrawingTypeRegistry` is a thin wrapper around a `frozenset[str]`;
+   it doesn't yet load from the shipped `STING_DRAWING_TYPES.json`
+   (which lives in `StingTools/Data/` — different folder tree).
+   Callers building the registry from the Revit-side JSON do so
+   explicitly. A future helper at the python-core level can close
+   this once the JSON is moved to `shared/`.
+3. Built without `dotnet build` verification — these are pure Python
+   substrate changes, no C# affected.
+
 #### Completed (Phase 186 — Bonsai integration foundation; multi-host substrate)
 
 **Scope**: turns STING from a Revit-only plugin into the data-layer

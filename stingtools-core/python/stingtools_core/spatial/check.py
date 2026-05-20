@@ -1,23 +1,36 @@
-"""Cross-entity + cross-element rule checks for Pset_StingTags +
-Pset_StingSpatialCodes — the STING-side closeout for rules IDS v1.0
-can't express directly.
+"""Cross-entity + cross-element rule checks across the 5 STING Psets.
+The STING-side closeout for rules IDS v1.0 can't express directly.
 
-Six checks implemented:
-  - LOC_MATCHES_BUILDING:        element.Location == containing IfcBuilding.LocationCode
-  - LVL_MATCHES_STOREY:          element.Level    == containing IfcBuildingStorey.LevelCode
-  - ZONE_MATCHES_ASSIGNEDZONE:   element.Zone     ∈ {assigned IfcZone.ZoneCode for each Zone the element is in}
-  - SYS_MATCHES_IFCSYSTEM:       when element is member of an IfcSystem, element.System aligns with the system's classification
-  - SEQ_UNIQUE_WITHIN_GROUP:     Sequence is unique within each (Discipline, System, Level) tuple
-  - FULLTAG_CONSISTENT:          when FullTag is set, it equals the dash-joined 8 source segments
+Static checks implemented (12):
 
-Two rules from Pset_StingTags.xml are NOT implemented here because they
-are *behavioural* assertions about the host-side auto-tagger, not
-properties of a static IFC snapshot:
-  - TOKEN_LOCK_HONORED — guarantees the auto-populator won't overwrite locked tokens
-  - TAG_HISTORY_PROVIDED — guarantees PreviousTag + ModifiedAt are updated on retag
-Both ship enforced inside each host plugin's tag-write path (Revit's
-TokenAutoPopulator, the Bonsai add-on's port). See Pset_StingTags.xml
-for the cardinality / Source-Of-Enforcement annotation.
+  Per-element (called via check_element):
+    - DISC_NOT_EMPTY:              Pset_StingTags.Discipline ≠ "XX" at active stage
+    - LOC_MATCHES_BUILDING:        element.Location == containing IfcBuilding.LocationCode
+    - LVL_MATCHES_STOREY:          element.Level    == containing IfcBuildingStorey.LevelCode
+    - ZONE_MATCHES_ASSIGNEDZONE:   element.Zone     ∈ {assigned IfcZone.ZoneCode}
+    - SYS_MATCHES_IFCSYSTEM:       when element is member of an IfcSystem, System aligns
+    - FULLTAG_CONSISTENT:          when FullTag is set, it equals dash-joined segments
+    - DRAWING_TYPE_RESOLVABLE:     Pset_StingDrawing.DrawingTypeId format + registry lookup
+
+  Model-level (called via check_all_elements):
+    - SEQ_UNIQUE_WITHIN_GROUP:     Sequence is unique within (Discipline, System, Level)
+    - BUILDING_LOC_UNIQUE:         each IfcBuilding's LocationCode is unique across project
+    - STOREY_LVL_UNIQUE_WITHIN_BUILDING: each IfcBuildingStorey's LevelCode is unique
+                                          within its containing IfcBuilding
+
+  Project-level (called via check_all_elements):
+    - PROJECTORG_PROJECT_CODE_REQUIRED: Pset_StingProjectOrg.ProjectCode non-empty + format
+    - PROJECTORG_PHASE_VALID:           Pset_StingProjectOrg.Phase ∈ StingRibaStages
+
+Behavioural rules (enforced-by="host" — NOT implemented here):
+  - TOKEN_LOCK_HONORED          (Pset_StingTags) — auto-populator behaviour
+  - TAG_HISTORY_PROVIDED        (Pset_StingTags) — retag-time contract
+  - PROJECTORG_SINGLETON        (Pset_StingProjectOrg) — write-path contract
+  - CROP_KIND_MATCHES_PROFILE   (Pset_StingDrawing) — DrawingDriftDetector territory
+  - PACK_CHECKSUM_MATCHES       (Pset_StingDrawing) — ManagedTemplateSyncer territory
+  - TAG7_NARRATIVE_CONSISTENT   (Pset_StingTag7) — TAG7Builder contract
+  - TAG7_PARAGRAPH_STATE_EXCLUSIVE (Pset_StingTag7) — per-view, not per-IFC
+  - TAG7_TECHNICAL_SPECS_BY_DISCIPLINE (Pset_StingTag7) — LABEL_DEFINITIONS lookup territory
 
 Uses ifcopenshell when available; the API is dependency-aware (importing
 this module does NOT require ifcopenshell — only calling .check_*() does).
@@ -25,8 +38,37 @@ this module does NOT require ifcopenshell — only calling .check_*() does).
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
+
+
+# DrawingType id format: lowercase alphanumeric + dash, 3-60 chars.
+# Example: "arch-plan-A1-1to100", "pres-3d-axon-A1".
+_DRAWING_TYPE_ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9\-]{2,59}$")
+
+# Project code format per Pset_StingProjectOrg rule: 3-6 uppercase
+# alphanumerics (extended to allow digits + a single hyphen for joint
+# ventures, e.g. "AHS-01").
+_PROJECT_CODE_RE = re.compile(r"^[A-Z][A-Z0-9\-]{2,5}$")
+
+
+class DrawingTypeRegistry:
+    """Optional registry of known DrawingType ids — used to enforce
+    DRAWING_TYPE_RESOLVABLE in SpatialChecker. Pass None when no
+    registry is loaded; only the format check fires."""
+
+    def __init__(self, known_ids: Iterable[str]):
+        self._known = frozenset(known_ids)
+
+    def is_known(self, drawing_type_id: str) -> bool:
+        return drawing_type_id in self._known
+
+    def __len__(self) -> int:
+        return len(self._known)
+
+    def __contains__(self, dt_id: str) -> bool:
+        return dt_id in self._known
 
 
 @dataclass(frozen=True)
@@ -43,10 +85,29 @@ class SpatialMismatch:
 class SpatialChecker:
     """Walks an opened ifcopenshell model and reports mismatches."""
 
-    def __init__(self, model: Any):
+    def __init__(
+        self,
+        model: Any,
+        stage: str = "Stage_3",
+        enum_registry: Any = None,
+        drawing_type_registry: Optional["DrawingTypeRegistry"] = None,
+    ):
         """`model` is an ifcopenshell.file.file object. We don't import
-        ifcopenshell here; callers pass the already-opened model."""
+        ifcopenshell here; callers pass the already-opened model.
+
+        Optional context:
+            stage                   — active RIBA stage (controls
+                                      which rules fire). Default Stage_3.
+            enum_registry           — stingtools_core.EnumRegistry for
+                                      enum-membership checks (DISC,
+                                      PROJECTORG_PHASE_VALID).
+            drawing_type_registry   — DrawingTypeRegistry for
+                                      DRAWING_TYPE_RESOLVABLE.
+        """
         self._model = model
+        self._stage = stage
+        self._enum_registry = enum_registry
+        self._drawing_type_registry = drawing_type_registry
 
     # ------------------------------------------------------------------
 
@@ -156,13 +217,82 @@ class SpatialChecker:
     # ------------------------------------------------------------------
 
     def check_element(self, el: Any) -> list[SpatialMismatch]:
-        """Run all three cross-entity rules on a single element."""
+        """Run per-element rules on a single element. Returns a list of
+        mismatches; empty when the element passes all applicable rules."""
         out: list[SpatialMismatch] = []
         tags = self._pset(el, "Pset_StingTags")
+        global_id = getattr(el, "GlobalId", "") or ""
+
+        # Per-Pset_StingDrawing — DRAWING_TYPE_RESOLVABLE.
+        # Applies to any element carrying Pset_StingDrawing (typically
+        # IfcAnnotation), runs independently of Pset_StingTags presence.
+        drawing = self._pset(el, "Pset_StingDrawing")
+        if drawing:
+            dt_id = drawing.get("DrawingTypeId")
+            if dt_id:
+                if not _DRAWING_TYPE_ID_RE.match(str(dt_id)):
+                    out.append(SpatialMismatch(
+                        rule_id="DRAWING_TYPE_RESOLVABLE",
+                        ifc_global_id=global_id,
+                        segment="DrawingTypeId",
+                        element_value=str(dt_id),
+                        expected_values=(),
+                        message=(
+                            f"DrawingTypeId {dt_id!r} doesn't match the "
+                            f"format ^[a-zA-Z][a-zA-Z0-9\\-]+$"
+                        ),
+                    ))
+                elif self._drawing_type_registry is not None and not self._drawing_type_registry.is_known(str(dt_id)):
+                    out.append(SpatialMismatch(
+                        rule_id="DRAWING_TYPE_RESOLVABLE",
+                        ifc_global_id=global_id,
+                        segment="DrawingTypeId",
+                        element_value=str(dt_id),
+                        expected_values=(),
+                        message=(
+                            f"DrawingTypeId {dt_id!r} does not resolve in the "
+                            f"DrawingType registry ({len(self._drawing_type_registry)} known ids)"
+                        ),
+                    ))
+
         if not tags:
             return out
 
-        global_id = getattr(el, "GlobalId", "") or ""
+        # DISC_NOT_EMPTY — Discipline must be set + non-XX at Stage_3+.
+        disc_value = tags.get("Discipline")
+        # Stage gating
+        require_disc_set = self._stage in ("Stage_2", "Stage_3", "Stage_4", "Stage_5", "Stage_6", "Stage_7")
+        forbid_xx = self._stage in ("Stage_3", "Stage_4", "Stage_5", "Stage_6", "Stage_7")
+        if require_disc_set and (not disc_value):
+            out.append(SpatialMismatch(
+                rule_id="DISC_NOT_EMPTY",
+                ifc_global_id=global_id,
+                segment="Discipline",
+                element_value="",
+                expected_values=(),
+                message=f"Discipline is empty at {self._stage}",
+            ))
+        elif forbid_xx and str(disc_value) == "XX":
+            out.append(SpatialMismatch(
+                rule_id="DISC_NOT_EMPTY",
+                ifc_global_id=global_id,
+                segment="Discipline",
+                element_value="XX",
+                expected_values=(),
+                message=f"Discipline is sentinel 'XX' at {self._stage} (must be a real code)",
+            ))
+        elif self._enum_registry is not None and disc_value:
+            # Enum-membership check (uses the live EnumRegistry)
+            disc_enum = self._enum_registry.get("StingDisciplineCodes")
+            if disc_enum is not None and str(disc_value) not in disc_enum:
+                out.append(SpatialMismatch(
+                    rule_id="DISC_NOT_EMPTY",
+                    ifc_global_id=global_id,
+                    segment="Discipline",
+                    element_value=str(disc_value),
+                    expected_values=tuple(sorted(disc_enum.codes(include_sentinels=False))),
+                    message=f"Discipline {disc_value!r} not in StingDisciplineCodes",
+                ))
 
         # 1. LOC
         loc_value = tags.get("Location")
@@ -297,13 +427,164 @@ class SpatialChecker:
         return out
 
     def check_all_elements(self) -> list[SpatialMismatch]:
-        """Walk every IfcElement in the model. Runs per-element checks
-        (LOC / LVL / ZONE / SYS / FullTag) + the model-level
-        SEQ_UNIQUE_WITHIN_GROUP check."""
+        """Walk every IfcElement + IfcAnnotation in the model. Runs the
+        per-element checks (DISC / LOC / LVL / ZONE / SYS / FullTag /
+        DrawingType) + model-level SEQ + spatial-uniqueness checks +
+        project-level org checks."""
         out: list[SpatialMismatch] = []
         for el in self._model.by_type("IfcElement"):
             out.extend(self.check_element(el))
+        # IfcAnnotation isn't an IfcElement subtype in IFC4 — walk separately
+        # so Pset_StingDrawing checks fire on annotation entities too.
+        try:
+            for ann in self._model.by_type("IfcAnnotation"):
+                out.extend(self.check_element(ann))
+        except RuntimeError:
+            pass  # entity type doesn't exist in this schema
         out.extend(self.check_seq_uniqueness())
+        out.extend(self.check_spatial_uniqueness())
+        out.extend(self.check_project_org())
+        return out
+
+    def check_project_org(self) -> list[SpatialMismatch]:
+        """Project-level rules from Pset_StingProjectOrg:
+          - PROJECTORG_PROJECT_CODE_REQUIRED — non-empty + format ^[A-Z][A-Z0-9-]{2,5}$
+          - PROJECTORG_PHASE_VALID — Phase ∈ StingRibaStages (when enum_registry available)
+
+        Returns empty list when no IfcProject carries Pset_StingProjectOrg
+        (rule only fires when the pset is present)."""
+        out: list[SpatialMismatch] = []
+        for project in self._model.by_type("IfcProject"):
+            pset = self._pset(project, "Pset_StingProjectOrg")
+            if not pset:
+                continue
+            global_id = getattr(project, "GlobalId", "") or ""
+
+            # PROJECTORG_PROJECT_CODE_REQUIRED
+            project_code = pset.get("ProjectCode")
+            if not project_code:
+                out.append(SpatialMismatch(
+                    rule_id="PROJECTORG_PROJECT_CODE_REQUIRED",
+                    ifc_global_id=global_id,
+                    segment="ProjectCode",
+                    element_value="",
+                    expected_values=(),
+                    message="Pset_StingProjectOrg.ProjectCode is empty",
+                ))
+            elif not _PROJECT_CODE_RE.match(str(project_code)):
+                out.append(SpatialMismatch(
+                    rule_id="PROJECTORG_PROJECT_CODE_REQUIRED",
+                    ifc_global_id=global_id,
+                    segment="ProjectCode",
+                    element_value=str(project_code),
+                    expected_values=(),
+                    message=(
+                        f"Pset_StingProjectOrg.ProjectCode {project_code!r} doesn't match "
+                        f"expected pattern ^[A-Z][A-Z0-9-]{{2,5}}$ (3-6 chars, uppercase, alphanumeric)"
+                    ),
+                ))
+
+            # PROJECTORG_PHASE_VALID
+            phase = pset.get("Phase")
+            if phase and self._enum_registry is not None:
+                riba_enum = self._enum_registry.get("StingRibaStages")
+                if riba_enum is not None and str(phase) not in riba_enum:
+                    out.append(SpatialMismatch(
+                        rule_id="PROJECTORG_PHASE_VALID",
+                        ifc_global_id=global_id,
+                        segment="Phase",
+                        element_value=str(phase),
+                        expected_values=tuple(sorted(riba_enum.codes(include_sentinels=False))),
+                        message=f"Pset_StingProjectOrg.Phase {phase!r} not in StingRibaStages",
+                    ))
+            elif not phase:
+                # Phase is required per cardinality — but only flag at Stage_2+
+                if self._stage not in ("Stage_0", "Stage_1"):
+                    out.append(SpatialMismatch(
+                        rule_id="PROJECTORG_PHASE_VALID",
+                        ifc_global_id=global_id,
+                        segment="Phase",
+                        element_value="",
+                        expected_values=(),
+                        message=f"Pset_StingProjectOrg.Phase is empty at {self._stage}",
+                    ))
+
+        return out
+
+    def check_spatial_uniqueness(self) -> list[SpatialMismatch]:
+        """Model-level spatial-code uniqueness rules:
+          - BUILDING_LOC_UNIQUE — every IfcBuilding.LocationCode is unique across project
+          - STOREY_LVL_UNIQUE_WITHIN_BUILDING — every IfcBuildingStorey.LevelCode
+            is unique within its containing IfcBuilding
+
+        Both active from Stage_2 per Pset_StingSpatialCodes.xml."""
+        out: list[SpatialMismatch] = []
+
+        # BUILDING_LOC_UNIQUE
+        # Group buildings by LocationCode; any code with > 1 building is a collision.
+        bldg_by_loc: dict[str, list[tuple[str, str]]] = {}
+        for bldg in self._model.by_type("IfcBuilding"):
+            spatial = self._pset(bldg, "Pset_StingSpatialCodes")
+            if not spatial:
+                continue
+            loc = spatial.get("LocationCode")
+            if not loc:
+                continue
+            global_id = getattr(bldg, "GlobalId", "") or ""
+            name = getattr(bldg, "Name", "") or "(unnamed)"
+            bldg_by_loc.setdefault(str(loc), []).append((global_id, name))
+
+        for loc, occupants in bldg_by_loc.items():
+            if len(occupants) > 1:
+                names = [f"{n!r}" for _, n in occupants]
+                for gid, name in occupants:
+                    out.append(SpatialMismatch(
+                        rule_id="BUILDING_LOC_UNIQUE",
+                        ifc_global_id=gid,
+                        segment="LocationCode",
+                        element_value=loc,
+                        expected_values=(),
+                        message=(
+                            f"LocationCode {loc!r} is shared by {len(occupants)} buildings: "
+                            f"{', '.join(names)}"
+                        ),
+                    ))
+
+        # STOREY_LVL_UNIQUE_WITHIN_BUILDING
+        # Walk each building; group its decomposed storeys by LevelCode.
+        for bldg in self._model.by_type("IfcBuilding"):
+            storey_by_lvl: dict[str, list[tuple[str, str]]] = {}
+            bldg_name = getattr(bldg, "Name", "") or getattr(bldg, "GlobalId", "")
+            for rel in getattr(bldg, "IsDecomposedBy", []) or []:
+                for storey in getattr(rel, "RelatedObjects", []) or []:
+                    if not storey.is_a("IfcBuildingStorey"):
+                        continue
+                    spatial = self._pset(storey, "Pset_StingSpatialCodes")
+                    if not spatial:
+                        continue
+                    lvl = spatial.get("LevelCode")
+                    if not lvl:
+                        continue
+                    storey_id = getattr(storey, "GlobalId", "") or ""
+                    storey_name = getattr(storey, "Name", "") or "(unnamed)"
+                    storey_by_lvl.setdefault(str(lvl), []).append((storey_id, storey_name))
+
+            for lvl, occupants in storey_by_lvl.items():
+                if len(occupants) > 1:
+                    names = [f"{n!r}" for _, n in occupants]
+                    for gid, name in occupants:
+                        out.append(SpatialMismatch(
+                            rule_id="STOREY_LVL_UNIQUE_WITHIN_BUILDING",
+                            ifc_global_id=gid,
+                            segment="LevelCode",
+                            element_value=lvl,
+                            expected_values=(),
+                            message=(
+                                f"LevelCode {lvl!r} is shared by {len(occupants)} storeys "
+                                f"in building {bldg_name!r}: {', '.join(names)}"
+                            ),
+                        ))
+
         return out
 
     def check_seq_uniqueness(self) -> list[SpatialMismatch]:
