@@ -246,14 +246,31 @@ public static class SeedData
                 Iso19650Role = "BC",
             });
             var (iso, label) = leadRoles[i % leadRoles.Length];
-            // Seeded "lead" placeholder user for membership counts. We don't
-            // create an AppUser row to keep the demo seed minimal — only the
-            // count is read by the dashboard cards.
+            // Phase 186 — synthetic "lead" placeholder users for the dashboard
+            // member-count cards. Earlier revisions cut the AppUser row to keep
+            // the seed minimal and dropped a Guid.NewGuid() straight into
+            // ProjectMember.UserId — but the FK constraint
+            // FK_ProjectMembers_Users_UserId rejected it on first SaveChanges,
+            // poisoning the whole batch (and skipping every subsequent seed
+            // step that ran in the same transaction). Mint a real AppUser
+            // row so the FK is satisfied; the synthetic users are inert
+            // (random password hash, never logs in).
+            var leadUser = new AppUser
+            {
+                TenantId    = tenant.Id,
+                Email       = $"lead-{iso.ToLower()}-{i}@planscape.demo",
+                DisplayName = label,
+                PasswordHash = "$2a$11$placeholder.placeholder.placeholder.placeholder.plac",
+                Role        = UserRole.Viewer,
+                Iso19650Role = iso,
+                IsActive    = false,    // disabled — never used for sign-in
+            };
+            db.Users.Add(leadUser);
             db.ProjectMembers.Add(new ProjectMember
             {
                 TenantId = tenant.Id,
                 ProjectId = p.Id,
-                UserId = Guid.NewGuid(),
+                UserId = leadUser.Id,
                 ProjectRole = "Contributor",
                 Iso19650Role = iso,
                 InvitedBy = label,
