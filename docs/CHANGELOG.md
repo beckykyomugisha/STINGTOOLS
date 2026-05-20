@@ -5358,3 +5358,62 @@ of the per-family tier rows the CSVs ship.
 6. `MR_PARAMETERS.csv` row count (3052) is lower than `MR_PARAMETERS.txt`
    (3117) — pre-existing condition where the CSV is a subset, not a
    strict mirror. Not introduced by this phase. Out of scope to close.
+
+**Follow-up commit — Phase 187 dedup + full alignment closure**:
+
+After the initial commit a comprehensive audit (creator ↔
+LABEL_DEFINITIONS ↔ MR_PARAMETERS ↔ PARAMETER_REGISTRY ↔ tag CSVs)
+surfaced 4 remaining classes of drift. All closed:
+
+11. **Dedup 10 stale LABEL_DEFINITIONS entries** — 4 plural duplicates
+    (`Curtain Panels`, `Curtain Wall Mullions`, `Railings`,
+    `Structural Connections`) superseded by the singular forms added in
+    the initial commit, plus 6 entries for families the creator never
+    emits (`Analytical Duct Segments`, `Analytical Pipe Segments`,
+    `Area Based Loads`, `MEP Ancillary`, `Temporary Structures`,
+    `Wash`). Total 214 → 204, exactly matching
+    `TagFamilyConfig.TotalFamilyCount`. Version 5.11 → 5.12.
+
+12. **+35 healthcare WARN params** referenced by tag-CSV warning rows
+    but missing from `MR_PARAMETERS.txt`: 14 `WARN_CLN_*` (group 28),
+    7 `WARN_MGS_*` (group 29), 5 `WARN_RAD_*` (group 30), 2
+    `WARN_CEQ_*` (group 31), 1 `WARN_LIG_*` (group 32), 2 `WARN_ELC_*`
+    (group 4), 3 `WARN_FAB_*` (group 15), 2 `WARN_PLM_*` (group 6).
+    UUIDv5 GUIDs in Planscape namespace. Without these, Revit would
+    have silently dropped the calculated-value formulas referencing
+    them at family-author time.
+
+13. **+11 `STING_SLEEVE_*` params** to `MR_PARAMETERS.txt` — they were
+    declared in `PARAMETER_REGISTRY.json` (consumed by the
+    PenetrationRegister / PenetrationSweep workflows) but had no
+    shared-parameter binding entry, so the sleeve sync command had
+    nothing to bind to. Added with group 15 (fabrication) and
+    `RGL_CMPL` CSV group.
+
+14. **+613 params synced into `PARAMETER_REGISTRY.json`
+    `support_params`** — every param in `MR_PARAMETERS.txt` that was
+    not already a registry entry (mostly `WARN_*` thresholds plus
+    `ARCH/STR/HVC TAG_7_PARA_*` paragraph containers). Default binding
+    is `"universal"`; project teams refine in subsequent phases if
+    category-specific binding is needed.
+
+**Final alignment state (programmatically verified)**:
+
+| Check | Result |
+|---|---|
+| Creator family count | 204 |
+| LABEL_DEFINITIONS unique families | 204 |
+| Creator ↔ LABEL gap | **0** |
+| MR_PARAMETERS.txt PARAM rows | 3163 |
+| CSV-referenced params missing from TXT | **0** (was 35) |
+| LABEL-referenced params missing from TXT | **0** |
+| TXT ↔ PARAMETER_REGISTRY gap | **0** (was 578 + 11) |
+
+**Additional modified files (this follow-up)**:
+
+| File | Change |
+|---|---|
+| `StingTools/Data/MR_PARAMETERS.txt` | +35 healthcare WARN + 11 sleeve = +46 PARAM rows |
+| `StingTools/Data/MR_PARAMETERS.csv` | mirror of above 46 rows; header bumped v6.4 → v6.5 |
+| `StingTools/Data/LABEL_DEFINITIONS.json` | −10 stale `category_labels` entries; version 5.11 → 5.12 |
+| `StingTools/Data/PARAMETER_REGISTRY.json` | +613 `support_params` entries syncing every TXT param |

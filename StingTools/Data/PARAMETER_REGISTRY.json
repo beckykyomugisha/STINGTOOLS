@@ -1,6 +1,6 @@
 {
-  "version": "5.12",
-  "description": "STING Tools master parameter registry v5.11 \u2014 Option-3-B + curation passes 1+2 (full sync to MR_PARAMETERS.txt + tag-container moves + warning threshold values + category_enum_map gap-fill). Moved 96 tag-display stubs from support_params into container_groups (1 new ARCH_TAG group + STR_TAG categories extended); set 8 real warning threshold values with UK AEC source citations (BS 8004 / EC7, BS EN 1992-1-1, BS 7671, CIBSE Guide B3 + G, LETI / RIBA 2030 Challenge, BS EN 806-3); marked 376 non-numeric warnings as check_type=presence; added 3 missing Revit categories to category_enum_map (Toposolid, Hardscape, structural sub-categories, etc.). Phase 183: bound 11 HVAC sizing-registry shared params (HVC_SEGMENT_ROLE/SIZE_PREV/SIZE_MODIFIED/SIZE_RULE_ID/PIPE_SERVICE/PRESSURE_CLASS/SIZE_STALE/REFRIGERANT_KG/REFRIGERANT_TYPE/CAPACITY_KW + PRJ_ORG_PRESSURE_PROFILE).",
+  "version": "5.12.1-sync",
+  "description": "STING Tools master parameter registry v5.11 — Option-3-B + curation passes 1+2 (full sync to MR_PARAMETERS.txt + tag-container moves + warning threshold values + category_enum_map gap-fill). Moved 96 tag-display stubs from support_params into container_groups (1 new ARCH_TAG group + STR_TAG categories extended); set 8 real warning threshold values with UK AEC source citations (BS 8004 / EC7, BS EN 1992-1-1, BS 7671, CIBSE Guide B3 + G, LETI / RIBA 2030 Challenge, BS EN 806-3); marked 376 non-numeric warnings as check_type=presence; added 3 missing Revit categories to category_enum_map (Toposolid, Hardscape, structural sub-categories, etc.). Phase 183: bound 11 HVAC sizing-registry shared params (HVC_SEGMENT_ROLE/SIZE_PREV/SIZE_MODIFIED/SIZE_RULE_ID/PIPE_SERVICE/PRESSURE_CLASS/SIZE_STALE/REFRIGERANT_KG/REFRIGERANT_TYPE/CAPACITY_KW + PRJ_ORG_PRESSURE_PROFILE). | Phase 187 sync: support_params backfilled with 613 params present in MR_PARAMETERS.txt that were missing from this registry (mostly WARN_* threshold params + ARCH/STR/HVC TAG_7_PARA_* paragraph containers). Binding defaults to 'universal' — refine in subsequent phase if category-specific binding is needed.",
   "tag_format": {
     "separator": "-",
     "num_pad": 4,
@@ -361,7 +361,7 @@
     {
       "param_name": "HANDOVER_MODE_HANDOVER_BOOL",
       "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567801",
-      "description": "Pattern selector \u2014 Handover / FM T4-T10 payload is live. Paired with HANDOVER_MODE_DC_BOOL; exactly one is true per project.",
+      "description": "Pattern selector — Handover / FM T4-T10 payload is live. Paired with HANDOVER_MODE_DC_BOOL; exactly one is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
       "required": false
@@ -369,7 +369,7 @@
     {
       "param_name": "HANDOVER_MODE_DC_BOOL",
       "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567802",
-      "description": "Pattern selector \u2014 Design & Construction T4-T10 payload is live. Paired with HANDOVER_MODE_HANDOVER_BOOL; exactly one is true per project.",
+      "description": "Pattern selector — Design & Construction T4-T10 payload is live. Paired with HANDOVER_MODE_HANDOVER_BOOL; exactly one is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
       "required": false
@@ -377,7 +377,7 @@
     {
       "param_name": "HANDOVER_MODE_CUSTOM_BOOL",
       "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567803",
-      "description": "Pattern selector \u2014 Custom (user-defined) T4-T10 payload is live. Exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL / HANDOVER_MODE_CUSTOM_BOOL is true per project.",
+      "description": "Pattern selector — Custom (user-defined) T4-T10 payload is live. Exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL / HANDOVER_MODE_CUSTOM_BOOL is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
       "required": false
@@ -1417,7 +1417,7 @@
     {
       "param_name": "TAG_BOX_COLOR_R_INT",
       "guid": "a1b2c3d4-5035-4a01-b001-000000000153",
-      "description": "Tag bounding box fill color \u2014 Red channel (0-255)",
+      "description": "Tag bounding box fill color — Red channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1425,7 +1425,7 @@
     {
       "param_name": "TAG_BOX_COLOR_G_INT",
       "guid": "a1b2c3d4-5036-4a01-b001-000000000154",
-      "description": "Tag bounding box fill color \u2014 Green channel (0-255)",
+      "description": "Tag bounding box fill color — Green channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1433,7 +1433,7 @@
     {
       "param_name": "TAG_BOX_COLOR_B_INT",
       "guid": "a1b2c3d4-5037-4a01-b001-000000000155",
-      "description": "Tag bounding box fill color \u2014 Blue channel (0-255)",
+      "description": "Tag bounding box fill color — Blue channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1463,7 +1463,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_R_INT",
       "guid": "a1b2c3d4-5039-4a01-b001-000000000157",
-      "description": "Tag leader line color \u2014 Red channel (0-255)",
+      "description": "Tag leader line color — Red channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1471,7 +1471,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_G_INT",
       "guid": "a1b2c3d4-503a-4a01-b001-000000000158",
-      "description": "Tag leader line color \u2014 Green channel (0-255)",
+      "description": "Tag leader line color — Green channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1479,7 +1479,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_B_INT",
       "guid": "a1b2c3d4-503b-4a01-b001-000000000159",
-      "description": "Tag leader line color \u2014 Blue channel (0-255)",
+      "description": "Tag leader line color — Blue channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -2037,7 +2037,7 @@
     {
       "param_name": "STING_SLEEVE_PFV_UUID",
       "guid": "cfe809e7-77c4-5f44-a43c-1d770d97abea",
-      "description": "Deterministic UUIDv5 keyed on (host, mep) \u2014 round-trip key for IFC Pset_ProvisionForVoid and BCF topic GUID.",
+      "description": "Deterministic UUIDv5 keyed on (host, mep) — round-trip key for IFC Pset_ProvisionForVoid and BCF topic GUID.",
       "binding": "Instance",
       "required": false,
       "group": "Sleeve"
@@ -2045,7 +2045,7 @@
     {
       "param_name": "STING_SLEEVE_BORE_MM",
       "guid": "5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c13",
-      "description": "Round sleeve bore in millimetres (element OD + 2\u00d7 insulation + 2\u00d7 clearance, clamped to rule minimum).",
+      "description": "Round sleeve bore in millimetres (element OD + 2× insulation + 2× clearance, clamped to rule minimum).",
       "binding": "Instance",
       "required": false,
       "group": "Sleeve"
@@ -2069,7 +2069,7 @@
     {
       "param_name": "STING_SLEEVE_DEPTH_MM",
       "guid": "5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c16",
-      "description": "Sleeve depth in millimetres (host thickness + 2\u00d7 protrusion).",
+      "description": "Sleeve depth in millimetres (host thickness + 2× protrusion).",
       "binding": "Instance",
       "required": false,
       "group": "Sleeve"
@@ -23773,7 +23773,7 @@
     {
       "param_name": "HVC_SEGMENT_ROLE_TXT",
       "guid": "5bf0485f-08dd-53d1-9cc5-d956305d42e0",
-      "description": "Duct segment role classification (main / branch / runout / outdoor_air / exhaust / kitchen / smoke) \u2014 cached by HvacSegmentRoleDetector [Phase 182]",
+      "description": "Duct segment role classification (main / branch / runout / outdoor_air / exhaust / kitchen / smoke) — cached by HvacSegmentRoleDetector [Phase 182]",
       "datatype": "TEXT",
       "group_id": 5,
       "group_name": "HVC_SYSTEMS",
@@ -23785,7 +23785,7 @@
     {
       "param_name": "HVC_SIZE_PREV_TXT",
       "guid": "b4385937-438e-5d5f-8ce0-f13c2a94a63d",
-      "description": "Previous duct size before auto-sizing run, format WxH or \u00d8 (audit trail) [Phase 182]",
+      "description": "Previous duct size before auto-sizing run, format WxH or Ø (audit trail) [Phase 182]",
       "datatype": "TEXT",
       "group_id": 5,
       "group_name": "HVC_SYSTEMS",
@@ -23857,7 +23857,7 @@
     {
       "param_name": "HVC_REFRIGERANT_KG_NR",
       "guid": "b99d07d1-6eca-50cf-b983-b6fe2442bc8c",
-      "description": "Refrigerant charge mass in kilograms (used by HvacCarbonReportCommand \u00d7 GWP) [Phase 183]",
+      "description": "Refrigerant charge mass in kilograms (used by HvacCarbonReportCommand × GWP) [Phase 183]",
       "datatype": "TEXT",
       "group_id": 5,
       "group_name": "HVC_SYSTEMS",
@@ -24421,6 +24421,4297 @@
       "binding": "universal",
       "required": false,
       "data_type": "Text"
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_AREAS_TXT",
+      "guid": "8a5b31e1-940b-5082-9e2c-d9b2f5be03aa",
+      "description": "Areas paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_ASSEMBLIES_TXT",
+      "guid": "e6400856-24c8-5afc-b735-0011a61dfeee",
+      "description": "Assemblies paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_COLUMNS_TXT",
+      "guid": "1c36baa6-8984-5d7a-9c1f-38499f5245f9",
+      "description": "Columns paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_CURTAIN_TXT",
+      "guid": "c15b96fe-3e6b-53b2-b7fc-35f4add8827a",
+      "description": "Architectural TAG7 paragraph container for curtain",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_DETAIL_ITEMS_TXT",
+      "guid": "8779ce89-5460-58e7-b110-88a5d3006486",
+      "description": "Detail Items paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_ENTOURAGE_TXT",
+      "guid": "16ad237a-09d4-5452-a76a-2f12082f84f5",
+      "description": "Entourage paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_FOOD_EQUIP_TXT",
+      "guid": "a7e552b0-3d8c-56bf-9f0a-b51f540a7bf3",
+      "description": "Food Equip paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_HARDSCAPE_TXT",
+      "guid": "ea957763-3fcd-506d-b4cf-28f9d66a43b1",
+      "description": "Hardscape paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_MASS_TXT",
+      "guid": "7191599b-a252-5119-9728-5b535bebee24",
+      "description": "Mass paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_MODEL_GROUPS_TXT",
+      "guid": "913fa8bf-86d8-502c-b416-36860d9eef7d",
+      "description": "Model Groups paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_MULLION_TXT",
+      "guid": "cb0f6308-f648-5977-b5db-fd1b73368e58",
+      "description": "Architectural TAG7 paragraph container for mullion",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_PADS_TXT",
+      "guid": "83056f0d-c97a-5236-b090-d5671203ddf8",
+      "description": "Pads paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_PARTS_TXT",
+      "guid": "2e25c70c-bd0d-5f92-8faf-fe16e9ab3261",
+      "description": "Parts paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_PLANTING_TXT",
+      "guid": "408c1e22-dc39-543d-b2d2-f4220fa0d133",
+      "description": "Planting paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_PROFILES_TXT",
+      "guid": "ba6ac8f4-8290-5168-a787-5443ad26cb50",
+      "description": "Profiles paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_PROPERTY_LINES_TXT",
+      "guid": "f9f03fcc-b30a-51b1-aa95-50931de261f0",
+      "description": "Property Lines paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_PROPERTY_LINE_SEGMENTS_TXT",
+      "guid": "2b05bd61-96fc-5095-a206-68983e25e57d",
+      "description": "Property Line Segments paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_RAILING_TXT",
+      "guid": "6a8fc59d-fca3-50ea-a1e5-0f1bfdbd6721",
+      "description": "Architectural TAG7 paragraph container for railing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_ROADS_TXT",
+      "guid": "4e59c69f-6a7c-561d-a20c-38cadab237fd",
+      "description": "Roads paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_RVT_LINKS_TXT",
+      "guid": "9f9428fe-16d9-583b-a196-95b124340d8b",
+      "description": "Rvt Links paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_SIGNAGE_TXT",
+      "guid": "225fce7a-38ef-5b24-943d-7f952bf03a7b",
+      "description": "Signage paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_SPACES_TXT",
+      "guid": "14222509-31e2-5c33-bbfa-5dcff2d9c5c9",
+      "description": "Spaces paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_TEMP_STRUCT_TXT",
+      "guid": "72f32382-5143-5b68-a118-0d73de853be9",
+      "description": "Temp Struct paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_TOPOSOLID_LINKS_TXT",
+      "guid": "c2997238-45fa-567c-b49b-23578a8ab2c4",
+      "description": "Toposolid Links paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_TOPOSOLID_TXT",
+      "guid": "f5cded24-5b6f-5b60-a284-25a49e7505d6",
+      "description": "Toposolid paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_VERT_CIRC_TXT",
+      "guid": "2c2418c3-dbb1-5d82-b9e6-e7f4bef31164",
+      "description": "Vert Circ paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_WASH_TXT",
+      "guid": "d478b018-e34b-5e07-9e77-6a9199c29a2c",
+      "description": "Wash paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ARCH_TAG_7_PARA_ZONES_TXT",
+      "guid": "fdad7fc4-e306-5a23-bf70-b3779b7bbaf4",
+      "description": "Zones paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_CST_TOTAL_UGX_NR",
+      "guid": "32347c5d-1605-50ab-9c8c-5dc36c0c1765",
+      "description": "Ass Cst Total Ugx Nr [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_EQUIPMENT_TAG_TXT",
+      "guid": "2cebbb9e-70f2-550a-8a85-80cb1aa550d7",
+      "description": "Ass Equipment Tag Txt [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_TAG_1_TXT",
+      "guid": "1eeb577d-342d-5039-97f1-f1dd8d80c8c4",
+      "description": "Ass Tag 1 Txt [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_TAG_2_TXT",
+      "guid": "bf6cb687-478f-459a-8c5d-ece073c24831",
+      "description": "Ass Tag 2 Txt [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_TAG_3_TXT",
+      "guid": "068abd3b-650e-4a7c-ac07-82e556160de0",
+      "description": "Ass Tag 3 Txt [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_TAG_4_TXT",
+      "guid": "9432c6e4-8912-4a0b-bf04-2ee1cf3afadf",
+      "description": "Ass Tag 3 Txt [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_TAG_5_TXT",
+      "guid": "c875d795-d764-4a8b-826a-2677635b15b9",
+      "description": "Ass Tag 3 Txt [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_TAG_6_TXT",
+      "guid": "6fcfc27b-a42d-4f54-92ad-66c875f9be38",
+      "description": "Ass Tag 3 Txt [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_TAG_7A_TXT",
+      "guid": "a1b2c3d4-502b-4a01-b001-000000000143",
+      "description": "TAG7 Section A: Identity Header",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_TAG_7B_TXT",
+      "guid": "a1b2c3d4-502c-4a01-b001-000000000144",
+      "description": "TAG7 Section B: System and Function",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_TAG_7C_TXT",
+      "guid": "a1b2c3d4-502d-4a01-b001-000000000145",
+      "description": "TAG7 Section C: Spatial Context",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_TAG_7D_TXT",
+      "guid": "a1b2c3d4-502e-4a01-b001-000000000146",
+      "description": "TAG7 Section D: Lifecycle and Status",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_TAG_7E_TXT",
+      "guid": "a1b2c3d4-502f-4a01-b001-000000000147",
+      "description": "TAG7 Section E: Technical Specifications",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_TAG_7F_TXT",
+      "guid": "a1b2c3d4-5030-4a01-b001-000000000148",
+      "description": "TAG7 Section F: Classification and Reference",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_TAG_7_PARA_EQUIP_TXT",
+      "guid": "a1b2c3d4-5031-4a01-b001-000000000149",
+      "description": "TAG7 paragraph container for general equipment",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_TAG_7_TXT",
+      "guid": "a1b2c3d4-502a-4a01-b001-000000000142",
+      "description": "TAG7 comprehensive descriptive narrative",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "CEQ_EQP_TAG",
+      "guid": "c724bdf9-9a08-53f9-92f3-a6b33470fc1e",
+      "description": "Clinical specialist equipment ISO 19650 tag container",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "CEQ_TAG_7_PARA_TXT",
+      "guid": "d3e4cf7f-2e40-5d11-aefd-662ceb933060",
+      "description": "Clinical specialist equipment TAG7 rich narrative paragraph container",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "CLN_EQP_TAG",
+      "guid": "c1a00001-0000-4c1a-0000-000000000001",
+      "description": "Clinical equipment ISO 19650 tag container",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "CLN_ROOM_TAG",
+      "guid": "c1a00001-0000-4c1a-0000-000000000002",
+      "description": "Clinical room ISO 19650 tag container",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "CLN_TAG_7_PARA_TXT",
+      "guid": "c1a00001-0000-4c1a-0000-000000000003",
+      "description": "Clinical TAG7 rich narrative paragraph container",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "COMP_MAT_TAG_1_TXT",
+      "guid": "58757592-bbc4-4cfd-8228-c89c89bb0d4a",
+      "description": "Standards compliance tag: code, standard, QA cert, UNBS reference [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "COMP_MAT_TAG_2_TXT",
+      "guid": "6eef14b4-c51c-4918-bd6c-dd05aca45813",
+      "description": "ISO 19650 procurement tag: name, ISO ID, durability, approved vendor [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "COMP_TAG_1_TXT",
+      "guid": "c291d97e-8b21-54eb-b2b8-3240ed41c112",
+      "description": "Compliance tag container",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "COM_DEV_TAG",
+      "guid": "61d0d77d-c061-5d3b-9f64-5f0f8b279eef",
+      "description": "Communications device tag container [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "COM_DEV_TAG_01_TXT",
+      "guid": "7775b009-25a6-43b9-b0ec-31ac063a9183",
+      "description": "BMS/comms device identity + network address + BACnet instance tag [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_CDT_TAG",
+      "guid": "29253d2b-7320-5139-a738-9e6b44b9fd46",
+      "description": "Electrical conduit tag container [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_CDT_TAG_01_TXT",
+      "guid": "f867c60f-1fda-4f3f-a052-cf81268c0600",
+      "description": "Conduit spec tag: size, material, install method [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_CDT_TAG_02_TXT",
+      "guid": "aab93953-601b-4bab-8d52-079193f71524",
+      "description": "Conduit fill + cable ref + installation detail tag [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_CTR_TAG",
+      "guid": "983fe026-ff4f-50a6-9486-f08a54b87f70",
+      "description": "Electrical cable tray tag container [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_CTR_TAG_01_TXT",
+      "guid": "aed9d3de-71ff-4a73-aba3-5bbd16af7526",
+      "description": "Cable tray spec tag: width x depth, material, fill percentage [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_EQP_TAG",
+      "guid": "caaefdb2-cf82-56a1-8167-246ee3982b24",
+      "description": "Electrical equipment tag container [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_EQP_TAG_01_TXT",
+      "guid": "d9441c7a-025c-4034-a7da-dc960df4a57c",
+      "description": "Elec equip power supply tag: voltage, phases, main breaker, fault level [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_EQP_TAG_02_TXT",
+      "guid": "64805f01-8548-44c5-8091-ffcf04d35d7d",
+      "description": "Elec equip load tag: connected load kW, IP rating, upstream panel [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_FIX_TAG_1_TXT",
+      "guid": "5b5c4c6c-c420-4f30-a67e-bdeca6944577",
+      "description": "Elc fix tag 1",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_FIX_TAG_2_TXT",
+      "guid": "6b727a38-f448-4b8e-81fb-a2570637ee57",
+      "description": "Elc fix tag 2",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_LPS_AIRTERM_TAG_TXT",
+      "guid": "e1c5f9d4-1001-5111-9111-100000000001",
+      "description": "LPS air-terminal / finial tag -- full ISO 19650 tag for rod, mesh node, or strike termination [BS EN 62305-3 _5.2]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_LPS_BOND_TAG_TXT",
+      "guid": "e1c5f9d4-1004-5111-9111-100000000004",
+      "description": "LPS equipotential bonding tag -- full tag for bonding conductor or bonding bar [BS EN 62305-3 _6.2]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_LPS_DOWNCOND_TAG_TXT",
+      "guid": "e1c5f9d4-1002-5111-9111-100000000002",
+      "description": "LPS down-conductor tag -- full tag for descent conductors connecting air terminals to earth [BS EN 62305-3 _5.3]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_LPS_EARTH_TAG_TXT",
+      "guid": "e1c5f9d4-1003-5111-9111-100000000003",
+      "description": "LPS earth-electrode tag -- full tag for rod / ring / foundation / mesh earth electrode [BS EN 62305-3 _5.4]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_LPS_SPD_TAG_TXT",
+      "guid": "e1c5f9d4-1005-5111-9111-100000000005",
+      "description": "LPS surge protective device tag -- full tag for SPD Type 1 / 2 / 3 [BS EN 62305-4 / BS EN 61643]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_LPS_TESTCLAMP_TAG_TXT",
+      "guid": "e1c5f9d4-1006-5111-9111-100000000006",
+      "description": "LPS test clamp / inspection point tag -- full tag for clamps allowing earth-resistance test [BS EN 62305-3 _7.2]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_TAG_7_PARA_CIRC_TXT",
+      "guid": "d44883db-4f85-5f9b-a5ca-0611014e55e6",
+      "description": "Electrical TAG7 paragraph container for circ",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_TAG_7_PARA_FIXTURE_TXT",
+      "guid": "26e933e4-83fd-52bc-b28d-d7b21a97c816",
+      "description": "Electrical fixture TAG7 paragraph narrative",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_TAG_7_PARA_LPS_TXT",
+      "guid": "e1c5f9d4-1007-5111-9111-100000000007",
+      "description": "Electrical TAG7 paragraph container for LPS (class, LPZ, down conductors, earth resistance, last test) [STING Phase 176]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELE_FIX_TAG",
+      "guid": "874f037a-66e2-58f3-9d66-b137b4b184cf",
+      "description": "Electrical fixture tag container [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ENV_FAC_TAG_TXT",
+      "guid": "3eda6808-aa94-46d4-bd09-71fa6a26c090",
+      "description": "Facade cladding tag: material, finish, panel size, fixing system [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ENV_ROOF_TAG_TXT",
+      "guid": "9a1ef97d-12f7-419d-93f9-60f3773e55ef",
+      "description": "Roof specification tag: covering, waterproofing, R-value, slope [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ENV_TAG_1_TXT",
+      "guid": "4d354f06-1612-534a-ac8c-73d7a340c6e8",
+      "description": "Environmental tag container",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ENV_WIN_TAG_TXT",
+      "guid": "a204d24a-e981-44b4-bf39-afe03ddfa8dc",
+      "description": "Window performance tag: frame, glazing, U-value, SHGC, VLT [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "EQP_TAG_1_TXT",
+      "guid": "bc22c478-10bb-5ef8-8884-6cf7f6d74111",
+      "description": "Equipment tag container",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "FIN_CEIL_TAG_TXT",
+      "guid": "cfbedb01-9783-403d-a273-2f2e4e215907",
+      "description": "Ceiling finish schedule tag: finish, system, NRC, grid size [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "FIN_FLR_TAG_TXT",
+      "guid": "a2b19e19-d4ad-44b4-97d4-8e80dc981228",
+      "description": "Floor finish schedule tag: finish, thickness, slip resistance, material [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "FIN_TAG_1_TXT",
+      "guid": "81a1ab91-031c-54c0-8e29-8b4d192f9df6",
+      "description": "Finish tag container",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "FIN_WALL_TAG_TXT",
+      "guid": "456cd8aa-e875-458c-b778-7abbe2f0563d",
+      "description": "Wall finish schedule tag: interior, exterior, paint coats, finish type [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "FLS_DEV_TAG",
+      "guid": "7ec98623-d3f0-583b-9552-b09b12736551",
+      "description": "Fire/life safety device tag container [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "FLS_DEV_TAG_01_TXT",
+      "guid": "c611d904-3f4f-45c6-81e6-11f3cc64759d",
+      "description": "Fls Sfty Dev tag",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "FLS_DEV_TAG_02_TXT",
+      "guid": "86a39b3f-6ef2-46d1-a9ab-a0620f1761ac",
+      "description": "Sprinkler hydraulic tag: temp rating, design flow L/min, head type [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "FLS_TAG_7_PARA_DEVICE_TXT",
+      "guid": "c48c8fcc-f3f6-5b91-9f13-3a4ceeb161d2",
+      "description": "Fire safety device TAG7 paragraph narrative",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "GEN_TAG_7_PARA_EQUIP_TXT",
+      "guid": "16514650-c33b-5970-90e4-8340bd528d0a",
+      "description": "General TAG7 paragraph container for equip",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "HVC_DCT_TAG",
+      "guid": "c198faa1-c0c6-5aca-b92c-5e9b021affe7",
+      "description": "HVAC duct tag container [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "HVC_DCT_TAG_01_TXT",
+      "guid": "9751957e-f2c7-4f9a-8f3a-dd432af861f5",
+      "description": "Hvc Dct tag 1",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "HVC_DCT_TAG_02_TXT",
+      "guid": "0a3ab853-91c0-4e01-9c93-68c7fb333a85",
+      "description": "Hvc Dct tag 2",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "HVC_DCT_TAG_03_TXT",
+      "guid": "7ed52b35-4486-428d-b7ee-8f01c0140763",
+      "description": "Hvc Dct tag 3",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "HVC_EQP_TAG",
+      "guid": "6123865a-d82e-5c99-b5cd-bffa452f29b6",
+      "description": "HVAC equipment tag container [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "HVC_EQP_TAG_01_TXT",
+      "guid": "62f66802-8bd6-4861-aad0-f23e5b1905d2",
+      "description": "HVC_EQP_TAG",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "HVC_EQP_TAG_02_TXT",
+      "guid": "c3974615-09ac-46ee-8c69-589df04a35c0",
+      "description": "HVC_EQP_TAG 2",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "HVC_EQP_TAG_03_TXT",
+      "guid": "59605dc9-0029-4704-8dff-cf3bd25b749d",
+      "description": "HVC_EQP_TAG 3",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "HVC_FLX_TAG",
+      "guid": "8ae538e1-f6cb-5271-a357-c390ac7605eb",
+      "description": "HVAC flex duct tag container [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "HVC_FLX_TAG_01_TXT",
+      "guid": "cd984834-8273-4d2c-89c4-dfe33520e2d2",
+      "description": "Flex duct spec tag: material, lining, length [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "HVC_TAG_7_PARA_ANAL_DUCTS_TXT",
+      "guid": "db9572ae-e4ee-58dd-8a77-66d045ca57a5",
+      "description": "Anal Ducts paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ICT_DEV_TAG",
+      "guid": "63eea465-921a-5218-b38e-c15f5793549f",
+      "description": "ICT device tag container [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ICT_DEV_TAG_01_TXT",
+      "guid": "ec3cc840-731f-47f7-943e-465a027fea74",
+      "description": "ICT outlet tag: outlet type + port number + patch panel [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "LIG_FIT_TAG",
+      "guid": "11900001-0000-1190-0000-000000000001",
+      "description": "Anti-ligature fitting ISO 19650 tag container",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "LIG_TAG_7_PARA_TXT",
+      "guid": "11900001-0000-1190-0000-000000000002",
+      "description": "Anti-ligature TAG7 rich narrative paragraph container",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "LTG_FIX_TAG",
+      "guid": "449aa2da-345f-5d91-8f4b-037cc0fd9db3",
+      "description": "Lighting fixture tag container [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "LTG_FIX_TAG_01_TXT",
+      "guid": "647a8916-560f-4c0c-b6ca-f2ee23a97fb0",
+      "description": "Ltg Fix Tag",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "LTG_FIX_TAG_02_TXT",
+      "guid": "7783ce57-766b-4903-8e9f-bde24b706b42",
+      "description": "Ltg Fix Tag",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "LTG_TAG_7_PARA_FIXTURE_TXT",
+      "guid": "1ef1b8bd-0455-5420-aa3c-b2f101c761ba",
+      "description": "Lighting fixture TAG7 paragraph narrative",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "MAT_PERF_TAG_1_TXT",
+      "guid": "cc56b572-0538-4c37-b158-db6dbd51d3de",
+      "description": "Thermal and fire performance tag: U-value, R-value, fire rating [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "MAT_PERF_TAG_2_TXT",
+      "guid": "28487745-251e-4555-bf56-b1d06c933cc5",
+      "description": "Acoustic performance tag: STC, IIC, NRC [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "MAT_PERF_TAG_3_TXT",
+      "guid": "011ce782-1772-4477-bf4e-4a29a95c507a",
+      "description": "Layer build-up tag: layer count, function, material, thickness [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "MAT_TAG_1_TXT",
+      "guid": "6b6c3ada-95bb-4a7b-aa9c-beb47c639928",
+      "description": "Material identity tag: code, category, discipline [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "MAT_TAG_2_TXT",
+      "guid": "0d78850d-45b1-4179-9079-3e3ec525a4ef",
+      "description": "Material specification tag: name, thickness, standard [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "MAT_TAG_3_TXT",
+      "guid": "04883c90-411f-4ab5-b937-2909c54fdf65",
+      "description": "Material procurement tag: name, manufacturer, spec clause [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "MAT_TAG_4_TXT",
+      "guid": "1d5e82d6-e988-4e9d-8be1-e195f2782041",
+      "description": "Material cost tag: code, unit cost UGX, durability [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "MAT_TAG_5_TXT",
+      "guid": "c7efed83-bbd2-4a2e-b79a-292a1cfa3a18",
+      "description": "ISO 23386/23387 property dictionary GUID tag [ISO 23386:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "MAT_TAG_6_TXT",
+      "guid": "d0d35a3a-abea-4898-9deb-4cdca865e8ee",
+      "description": "ISO 22057 EPD environmental data tag: EPD ref, GWP, recycled content [ISO 22057:2022]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "MGS_EQP_TAG",
+      "guid": "4d677001-0000-4d67-0000-000000000001",
+      "description": "Medical gas equipment ISO 19650 tag container",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "MGS_TAG_7_PARA_TXT",
+      "guid": "4d677001-0000-4d67-0000-000000000002",
+      "description": "Medical gas TAG7 rich narrative paragraph container",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "NCL_DEV_TAG",
+      "guid": "1c1a61fc-29d0-57c8-8e74-e8b9b4502126",
+      "description": "Nurse call / low-voltage device tag container [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "NCL_DEV_TAG_01_TXT",
+      "guid": "34b75836-a597-4bc6-b7ee-6713a5caf6a5",
+      "description": "Nurse call device identity + zone + call type tag [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "NCL_TAG_7_PARA_TXT",
+      "guid": "a1b2c3d4-5055-4a01-b001-000000000185",
+      "description": "TAG7 paragraph container for nurse call",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "PERF_TAG_1_TXT",
+      "guid": "6ef7ae26-af91-5a43-9ea7-3a05d5cc2bf0",
+      "description": "Performance tag container",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "PER_TAG_7_PARA_ENV_TXT",
+      "guid": "a1b2c3d4-5057-4a01-b001-000000000187",
+      "description": "TAG7 paragraph container for environment",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "PIP_TAG_7_PARA_PIPE_TXT",
+      "guid": "0a5e974a-3a5d-5847-bbf8-2470f5b70c84",
+      "description": "Pipe system TAG7 paragraph narrative",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "PLM_EQP_TAG",
+      "guid": "37d954b4-c5a7-50c5-8629-2b2957ad440e",
+      "description": "Plumbing equipment tag container [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "PLM_EQP_TAG_01_TXT",
+      "guid": "e4f6bae0-bc3b-42f3-a3c9-ef31a23a80d0",
+      "description": "Plm eqp tag",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "PLM_EQP_TAG_02_TXT",
+      "guid": "4a31aa91-9511-4fa4-8024-632f64b6a2ae",
+      "description": "Plm eqp tag",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "PLM_TAG_7_PARA_ANAL_PIPES_TXT",
+      "guid": "52e0804c-453d-5001-ba9b-6a45be3659fc",
+      "description": "Anal Pipes paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "PLM_TAG_7_PARA_EQUIP_TXT",
+      "guid": "a1b2c3d4-505a-4a01-b001-000000000190",
+      "description": "TAG7 paragraph container for plumbing equipment",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "RAD_EQP_TAG",
+      "guid": "12ad0001-0000-12ad-0000-000000000001",
+      "description": "Radiation protection ISO 19650 tag container",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "RAD_TAG_7_PARA_TXT",
+      "guid": "12ad0001-0000-12ad-0000-000000000002",
+      "description": "Radiation protection TAG7 rich narrative paragraph container",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "RGL_TAG_7_PARA_CMPL_TXT",
+      "guid": "a1b2c3d4-5058-4a01-b001-000000000188",
+      "description": "TAG7 paragraph container for regulatory compliance",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "SEC_DEV_TAG",
+      "guid": "de2cd955-4727-5488-a783-5d9be9942169",
+      "description": "Security device tag container [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "SEC_DEV_TAG_01_TXT",
+      "guid": "e892601e-68a8-4f68-9618-223326a2cac4",
+      "description": "Security device identity + zone + cable reference tag [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "SEC_TAG_7_PARA_TXT",
+      "guid": "a1b2c3d4-5056-4a01-b001-000000000186",
+      "description": "TAG7 paragraph container for security",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "SHT_DISC_TXT",
+      "guid": "7f3fbb8d-36ca-530d-814d-e9b243c2a4dc",
+      "description": "Sheet discipline derived from viewport element majority [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "SHT_FORM_TXT",
+      "guid": "54c318b7-811d-50cc-9ca0-72a18b7ff853",
+      "description": "Sheet document form code DR SP SH M3 [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "SHT_LEVEL_TXT",
+      "guid": "db60894e-8e07-5aff-bcdb-bdaebaceac89",
+      "description": "Sheet level derived from viewport views [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "SHT_NAME_TXT",
+      "guid": "7e579423-afd3-520b-b8d9-fcd250d18d6a",
+      "description": "Sheet Name mapped from Revit native [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "SHT_NUMBER_TXT",
+      "guid": "f213496b-4218-514b-82cd-ce421248d032",
+      "description": "Sheet Number mapped from Revit native [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "SHT_ORIGINATOR_TXT",
+      "guid": "5b5715dc-8579-5556-b527-77e3be6aea5c",
+      "description": "Sheet originator code from Project Info [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "SHT_REV_TXT",
+      "guid": "7542b276-3ab7-5b55-8154-830bd6f20b76",
+      "description": "Sheet revision code from project revision [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "SHT_TAG_1_TXT",
+      "guid": "73019587-020b-5860-bcb1-3dcadeb6f3ac",
+      "description": "Sheet ISO 19650 document code assembled from tokens [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "SHT_TAG_7_TXT",
+      "guid": "a06370b5-d989-533c-b7af-09ba545790fb",
+      "description": "Sheet rich narrative description [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "SLV_TAG",
+      "guid": "fa93b8a1-3383-5c1f-8935-0dadba420f50",
+      "description": "MEP Sleeve discipline tag container [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "SLV_TAG_7_PARA_TXT",
+      "guid": "4529fc89-90fb-56f9-955a-2d54998a294c",
+      "description": "Sleeve paragraph container [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "SPK_TAG_7_PARA_HEAD_TXT",
+      "guid": "64ad7b98-b473-5cad-af29-71fccfc886d4",
+      "description": "Sprinkler head TAG7 paragraph narrative",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STING_CROP_KIND_TXT",
+      "guid": "b6c7d8e9-f0a1-4b2c-3d4e-5f6a7b8c9d01",
+      "description": "Crop kind stamped onto views for drift detection [Phase 183]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STING_CROP_MARGIN_MM_TXT",
+      "guid": "c7d8e9f0-a1b2-4c3d-4e5f-6a7b8c9d0e12",
+      "description": "Crop margin (mm, as string) stamped onto views for drift detection [Phase 183]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_CONC_TAG_TXT",
+      "guid": "04a3dc69-9931-4154-809f-896df5584100",
+      "description": "Concrete specification tag: grade, reinforcement, fck, thickness [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_STEEL_TAG_TXT",
+      "guid": "e4f2fcf1-4764-4f8c-9b8d-e8512834e1aa",
+      "description": "Steel specification tag: grade, section size, fire protection, material [ISO 19650-2:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_1_TXT",
+      "guid": "e51303da-3780-5409-9c41-2b3287b3042f",
+      "description": "Structural tag container",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_ANAL_LINKS_TXT",
+      "guid": "03104508-f49b-5d14-869a-a99844e734e3",
+      "description": "Anal Links paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_ANAL_MEMBERS_TXT",
+      "guid": "f9e543cf-9fa9-5353-9ee2-93ab8e0368be",
+      "description": "Anal Members paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_ANAL_NODES_TXT",
+      "guid": "50977839-1677-51de-9499-080859e6d8a6",
+      "description": "Anal Nodes paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_ANAL_OPENINGS_TXT",
+      "guid": "bab30603-3a26-50f9-9bdf-2f2cbadfda2c",
+      "description": "Anal Openings paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_ANAL_PANELS_TXT",
+      "guid": "d7e5915c-d1da-5c9a-8d85-a9393378e598",
+      "description": "Anal Panels paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_ANLYT_TXT",
+      "guid": "3cbb945a-6689-5c12-9dd4-f615bcd1e992",
+      "description": "Structural TAG7 paragraph container for anlyt",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_AREA_BASED_LOADS_TXT",
+      "guid": "55771bdc-f8ba-5aef-8f88-1e010bb9dcdf",
+      "description": "Area Based Loads paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_AREA_LOADS_TXT",
+      "guid": "898517f4-a3cd-5aee-a352-a3a9ca302ea4",
+      "description": "Area Loads paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_BOLT_TXT",
+      "guid": "f57982c9-adf3-5c7c-b701-8770313f0cb5",
+      "description": "Structural TAG7 paragraph container for bolt connections",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_BRACE_TXT",
+      "guid": "953a1b8c-c997-550d-b855-c0bab6af0976",
+      "description": "Structural TAG7 paragraph container for brace",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_CONN_TXT",
+      "guid": "009e8fcf-4981-524b-8124-169d4a7301dd",
+      "description": "Structural TAG7 paragraph container for conn",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_INT_AREA_LOADS_TXT",
+      "guid": "995ea95d-a820-5388-aeef-fe106eba2c27",
+      "description": "Int Area Loads paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_INT_LINE_LOADS_TXT",
+      "guid": "9e26f728-f92a-53ef-89f2-ec035af7871c",
+      "description": "Int Line Loads paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_INT_POINT_LOADS_TXT",
+      "guid": "23a35117-dcc6-5903-91fe-4a0dea36dcec",
+      "description": "Int Point Loads paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_LINE_LOADS_TXT",
+      "guid": "618bc4cb-6bfa-5470-930e-638fb210a82f",
+      "description": "Line Loads paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_LOAD_TXT",
+      "guid": "3eb369b8-8e69-5ddf-9d08-6d955d75288e",
+      "description": "Structural TAG7 paragraph container for load",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_POINT_LOADS_TXT",
+      "guid": "6112e44d-2429-5211-a0cf-43f3ef083da4",
+      "description": "Point Loads paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_REBAR_TXT",
+      "guid": "ddc05a50-d8a7-5ca5-8576-f80029fc03aa",
+      "description": "Structural TAG7 paragraph container for rebar",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_SLAB_TXT",
+      "guid": "09353894-8a07-50cd-b794-4443ffbac271",
+      "description": "Structural TAG7 paragraph container for slab",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_STR_AREA_REINF_TXT",
+      "guid": "144e26c9-c03c-5d4c-b33b-b284609b6479",
+      "description": "Str Area Reinf paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_STR_BEAM_SYSTEMS_TXT",
+      "guid": "a0645e2c-9c55-598b-82cd-40c98f73c43c",
+      "description": "Str Beam Systems paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_STR_CONNECTIONS_TXT",
+      "guid": "a132d0e7-f955-5eec-9e02-d7d6a226f042",
+      "description": "Str Connections paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_STR_FABRIC_REINF_TXT",
+      "guid": "015d77da-0148-5192-adb6-91786c0e2da3",
+      "description": "Str Fabric Reinf paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_STR_PATH_REINF_TXT",
+      "guid": "85220f29-9434-5dc6-91f7-a2f260df8115",
+      "description": "Str Path Reinf paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_STR_REBAR_COUPLERS_TXT",
+      "guid": "70f0f990-cab2-55d2-9956-800e11d04415",
+      "description": "Str Rebar Couplers paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_STR_REBAR_TXT",
+      "guid": "dc1b44a7-9073-50ea-b01d-2a664db4b7f3",
+      "description": "Str Rebar paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_STR_STIFFENERS_TXT",
+      "guid": "35d4baf6-5faa-521e-b9bf-54b7a84e6b81",
+      "description": "Str Stiffeners paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_STR_TRUSSES_TXT",
+      "guid": "b31d7a3d-2bbc-5bc5-8f98-d7bc8e250634",
+      "description": "Str Trusses paragraph [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_WALL_TXT",
+      "guid": "63ff5128-2b34-57f2-bf52-80fd3437943a",
+      "description": "Structural TAG7 paragraph container for wall",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_WELD_TXT",
+      "guid": "f066ecf4-0c8a-59da-860e-2f00f5873e3d",
+      "description": "Structural TAG7 paragraph container for weld connections",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "STR_TAG_7_PARA_WIRE_TXT",
+      "guid": "8f96bff4-2a76-5aa5-bf5e-c03c837a817f",
+      "description": "Structural TAG7 paragraph container for wire/prestress",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "SUST_MAT_TAG_1_TXT",
+      "guid": "5491e7e3-472a-4b7a-9497-2e5170ce870b",
+      "description": "Sustainability tag: recycled content %, embodied carbon, recyclability [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "SUST_MAT_TAG_2_TXT",
+      "guid": "7f2ca957-dd29-4a9a-835a-c39dbdfed8d9",
+      "description": "Green certification tag: LEED credits, EDGE savings, energy rating [ISO 19650-1:2018]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "SUST_TAG_1_TXT",
+      "guid": "0dda60a9-c4b0-54dd-bca0-9f5a6076d49c",
+      "description": "Sustainability tag container",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ARCH_DETAIL_CODE_MISSING",
+      "guid": "8eed945e-7a01-515c-b563-4b91de010ce5",
+      "description": "Tag warning: arch detail code missing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_COMMISSIONING_SPECIALTY_EQUIP",
+      "guid": "f444250e-ae09-55a2-a94d-04a64fa79ece",
+      "description": "Tag warning: ass commissioning specialty equip",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_CRITICALITY_SPECIALTY_EQUIP",
+      "guid": "5bc5dcb5-b0b7-5a8f-b680-c976fab9961e",
+      "description": "Tag warning: ass criticality specialty equip",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_DESCRIPTION_ENTOURAGE",
+      "guid": "585312a1-e74b-5974-94b2-8d507620d1a5",
+      "description": "Tag warning: ass description entourage",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_DESCRIPTION_GENERIC_MODEL",
+      "guid": "add5b267-80fb-5db5-9111-5b57cd4ceeef",
+      "description": "Tag warning: ass description generic model",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_EXPECTED_LIFE_GENERIC_MODEL",
+      "guid": "474265d9-925f-58a3-a964-c87d3aa66df1",
+      "description": "Tag warning: ass expected life generic model",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_LEAD_TIME_SPECIALTY_EQUIP",
+      "guid": "6b850336-5e56-581a-adf6-41a8ba1284ff",
+      "description": "Tag warning: ass lead time specialty equip",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_MANUFACTURER_GENERIC_MODEL",
+      "guid": "783a2d98-81e8-559f-a696-6313b31ed3c7",
+      "description": "Tag warning: ass manufacturer generic model",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_TIEIN_DEFERRED_DUCT",
+      "guid": "715e6eca-a42a-5822-a0b6-e9a34af9c14f",
+      "description": "Tag warning: ass tiein deferred duct",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_TIEIN_DEFERRED_FIREPIPE",
+      "guid": "3a4b2792-125a-5cac-819e-23a143c775f2",
+      "description": "Tag warning: ass tiein deferred firepipe",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_TIEIN_DEFERRED_GAS",
+      "guid": "a347da5e-3bce-5e4f-bbb9-f8345abc6d48",
+      "description": "Tag warning: ass tiein deferred gas",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_TIEIN_DEFERRED_PIPE",
+      "guid": "afa82275-d1e8-562a-829b-316aff730b50",
+      "description": "Tag warning: ass tiein deferred pipe",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_TIEIN_NO_IFC_REF",
+      "guid": "a602a2b7-3182-5d5a-aea8-fab8339c590a",
+      "description": "Tag warning: tie-in point missing IFC reference",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_TIEIN_NO_PHASE",
+      "guid": "60b8b130-ce5f-53bb-910b-38f65d684909",
+      "description": "Tag warning: tie-in point missing phase information",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_TIEIN_NO_RESPONSIBLE",
+      "guid": "19f79ede-cc77-5e44-bb74-7b40a1b08e56",
+      "description": "Tag warning: tie-in point missing responsible party",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_TIEIN_OPEN_CABLETRAY",
+      "guid": "34262d09-e226-5e79-a71a-277cc611a05d",
+      "description": "Tag warning: ass tiein open cabletray",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_TIEIN_OPEN_CONDUIT",
+      "guid": "85b71199-ede0-528d-9271-c67885c8879c",
+      "description": "Tag warning: ass tiein open conduit",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_TIEIN_OPEN_DUCT",
+      "guid": "29d982b2-546b-5653-9732-ee7632b8581f",
+      "description": "Tag warning: ass tiein open duct",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_TIEIN_OPEN_FIREPIPE",
+      "guid": "339e6664-b576-57e6-8def-35ee57df4b9f",
+      "description": "Tag warning: ass tiein open firepipe",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_TIEIN_OPEN_GAS",
+      "guid": "2b3f5fda-a516-5381-8272-6a3c161d2b9e",
+      "description": "Tag warning: ass tiein open gas",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ASS_TIEIN_OPEN_PIPE",
+      "guid": "81163c33-927e-56e9-8007-c77fc5c3a720",
+      "description": "Tag warning: ass tiein open pipe",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_AV_COVERAGE_AV_DEVICES",
+      "guid": "39c8dea9-3158-5e38-87bf-fcd00f689541",
+      "description": "Tag warning: av coverage av devices",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_AV_POWER_SUPPLY_AV_DEVICES",
+      "guid": "60d88fb3-d222-5028-9608-cfccfde32dea",
+      "description": "Tag warning: av power supply av devices",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_AREA_EFFICIENCY_AREAS",
+      "guid": "ff0d8d86-8bd8-5dc0-be7c-63183bf37da1",
+      "description": "Tag warning: ble area efficiency areas",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_CASEWORK_ACCESSIBLE_CASEWORK",
+      "guid": "181fe276-5ccd-5ce7-b92d-666db1be276c",
+      "description": "Tag warning: ble casework accessible casework",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_CASEWORK_DEPTH_MM_CASEWORK",
+      "guid": "085eb394-475b-55ce-99bf-2f82b73dbd54",
+      "description": "Tag warning: ble casework depth mm casework",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_CASEWORK_FIRE_CASEWORK",
+      "guid": "5a7b93a1-5b31-570a-82b7-dcdada62d2c5",
+      "description": "Tag warning: ble casework fire casework",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_CEILING_HEIGHT_MM_CEILINGS",
+      "guid": "b40dcf56-201f-57ad-a951-bb4018342654",
+      "description": "Tag warning: ble ceiling height mm ceilings",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_CEILING_MATERIAL_ROOF_SOFFITS",
+      "guid": "04aabc50-27d7-5472-a6dc-e0c152045783",
+      "description": "Tag warning: ble ceiling material roof soffits",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_DOOR_HEIGHT_MM_DOORS",
+      "guid": "aa4f745b-2b97-5833-8094-a378dd04d2cf",
+      "description": "Tag warning: ble door height mm doors",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_DOOR_THRESHOLD_DOORS",
+      "guid": "6bbf3aa1-fdb0-5e59-8010-63b42e6f9aa4",
+      "description": "Tag warning: ble door threshold doors",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_DOOR_WIDTH_MM_ACCESSIBILITY",
+      "guid": "959b6a1e-d985-5a01-928e-fdbddd6f18bc",
+      "description": "Tag warning: ble door width mm accessibility",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_ENTOURAGE_LOD_ENTOURAGE",
+      "guid": "709b22a3-d226-5a09-a3fd-7cc5b88d1c0d",
+      "description": "Tag warning: ble entourage lod entourage",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_FASCIA_FIRE_FASCIA",
+      "guid": "956e610a-f82a-5a49-8276-56e0b7a4a95f",
+      "description": "Tag warning: ble fascia fire fascia",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_FLOOR_LOAD_KN_M2_FLOORS",
+      "guid": "cfef6f01-a985-526c-a16a-d6636aa3bf89",
+      "description": "Tag warning: ble floor load kn m2 floors",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_FLOOR_LOAD_KN_M2_SLAB_EDGES",
+      "guid": "95b4e7da-0230-564a-8a31-ab4f7facb6f1",
+      "description": "Tag warning: ble floor load kn m2 slab edges",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_FLOOR_SLIP_RESISTANCE_FLOORS",
+      "guid": "816b9dab-ea66-5494-b125-356d0f20ee48",
+      "description": "Tag warning: ble floor slip resistance floors",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_FOOD_DRAINAGE_FOOD_SERVICE",
+      "guid": "119392d2-28b3-533b-ad5e-3176aeca7c1b",
+      "description": "Tag warning: ble food drainage food service",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_FOOD_VENTILATION_FOOD_SERVICE",
+      "guid": "38818f9f-ba8b-53d4-ad46-e849583cd627",
+      "description": "Tag warning: ble food ventilation food service",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_FURNITURE_CLEARANCE_MM_FURNITURE",
+      "guid": "3f43c673-7fdf-58d9-b8ca-226dc31ec47b",
+      "description": "Tag warning: ble furniture clearance mm furniture",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_FURNITURE_FIRE_FURNITURE",
+      "guid": "a36eb498-62bf-5eb8-8476-f609c1bf454e",
+      "description": "Tag warning: ble furniture fire furniture",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_FURNITURE_FIRE_FURNITURE_SYS",
+      "guid": "a9238e4a-9c12-5f97-9094-037d4ec8635a",
+      "description": "Tag warning: ble furniture fire furniture sys",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_FURNITURE_STABILITY_FURNITURE",
+      "guid": "ed2bf4a8-458a-55b1-be7e-f0f26d9cdc16",
+      "description": "Tag warning: ble furniture stability furniture",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_FURNITURE_SYS_CABLE_FURNITURE_SYS",
+      "guid": "f4923f12-d883-5bc8-a89b-f858a9e710f7",
+      "description": "Tag warning: ble furniture sys cable furniture sys",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_FURNITURE_SYS_CLEARANCE_FURNITURE_SYS",
+      "guid": "c2f77cbc-3c09-5b95-ba55-295837b50846",
+      "description": "Tag warning: ble furniture sys clearance furniture sys",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_GUTTER_FALL_GUTTERS",
+      "guid": "cc4d9741-4e1a-5059-895c-8190a226f2af",
+      "description": "Tag warning: ble gutter fall gutters",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_GUTTER_OVERFLOW_GUTTERS",
+      "guid": "7efd9070-29e3-5a37-80ab-0192809a1460",
+      "description": "Tag warning: ble gutter overflow gutters",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_HEADROOM_MM_NR_ROOMS",
+      "guid": "03b31fc5-d759-5145-8c93-a19457fe9c08",
+      "description": "Tag warning: ble headroom mm nr rooms",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_HEADROOM_MM_NR_VERT_CIRC",
+      "guid": "191bcc2b-d7ba-59f9-9a1c-a2effa72854f",
+      "description": "Tag warning: ble headroom mm nr vert circ",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_MASS_VOLUME_MASS",
+      "guid": "8992b6f1-2eda-583c-9d67-acdf1bba3694",
+      "description": "Tag warning: ble mass volume mass",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_MEDICAL_CLEARANCE_MEDICAL_EQUIP",
+      "guid": "5d13bc03-3bab-51f5-978a-be669c100aa3",
+      "description": "Tag warning: ble medical clearance medical equip",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_MEDICAL_POWER_MEDICAL_EQUIP",
+      "guid": "6ed4164a-7eae-50f9-a912-ee327dc3c0af",
+      "description": "Tag warning: ble medical power medical equip",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_MULLION_DEFLECTION_MULLION",
+      "guid": "f43277cd-b921-5dd3-b393-27b3c26f2292",
+      "description": "Tag warning: ble mullion deflection mullion",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_MULLION_THERMAL_BREAK_MULLION",
+      "guid": "c4627e00-3e88-5289-b0cd-4a7676ffef8d",
+      "description": "Tag warning: ble mullion thermal break mullion",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_PANEL_SIZE_STRUCTURAL_CURTAIN",
+      "guid": "a113ec10-464f-5902-9169-ea75889cf591",
+      "description": "Tag warning: ble panel size structural curtain",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_PARK_BAY_LENGTH_PARKING",
+      "guid": "ea3e45a0-bf98-53ad-a31d-c28fab4e1461",
+      "description": "Tag warning: ble park bay length parking",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_PARK_BAY_WIDTH_PARKING",
+      "guid": "2aa85bec-b342-5b77-a09e-b4d412735554",
+      "description": "Tag warning: ble park bay width parking",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_PARK_BAY_WIDTH_STD_PARKING",
+      "guid": "101cf69b-0652-5264-a682-b320f2067111",
+      "description": "Tag warning: ble park bay width std parking",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_PARK_EV_CHARGING_PARKING",
+      "guid": "c4108a8b-f936-56ba-9df7-ca4f1e37f236",
+      "description": "Tag warning: ble park ev charging parking",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_RAILING_BALUSTER_RAILINGS",
+      "guid": "1dd46fac-aae1-5f48-87c5-d1242669f4e0",
+      "description": "Tag warning: ble railing baluster railings",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_RAILING_GRIP_TOP_RAILS",
+      "guid": "5956fc59-7599-5193-b323-7f36a4ec58f5",
+      "description": "Tag warning: ble railing grip top rails",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_RAILING_HEIGHT_MM_HANDRAILS",
+      "guid": "6a3d7f41-2200-580b-8f7c-8188b49b909e",
+      "description": "Tag warning: ble railing height mm handrails",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_RAILING_HEIGHT_MM_RAILINGS",
+      "guid": "78b3e15c-36d5-584a-aaad-3c86f043d718",
+      "description": "Tag warning: ble railing height mm railings",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_RAILING_HEIGHT_MM_TOP_RAILS",
+      "guid": "eb574b91-ffb4-5ab4-b63c-14c801693556",
+      "description": "Tag warning: ble railing height mm top rails",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_RAILING_INFILL_HANDRAILS",
+      "guid": "67445023-e17e-5dc7-b749-bfdab2393cd6",
+      "description": "Tag warning: ble railing infill handrails",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_RAILING_LOAD_KN_M_RAILINGS",
+      "guid": "06a8807e-1fcd-51fe-9f78-c5550a48acac",
+      "description": "Tag warning: ble railing load kn m railings",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_RAILING_LOAD_KN_M_TOP_RAILS",
+      "guid": "edf9f8d8-0942-5bef-96a0-31f966e298d7",
+      "description": "Tag warning: ble railing load kn m top rails",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_RAMP_HANDRAIL_RAMPS",
+      "guid": "106e1b8b-37cc-5f67-b9f4-051c4c331ffe",
+      "description": "Tag warning: ble ramp handrail ramps",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_RAMP_LENGTH_MM_RAMPS",
+      "guid": "55a8101e-ea2a-57c5-95d5-a08d6db00af1",
+      "description": "Tag warning: ble ramp length mm ramps",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_RAMP_WIDTH_MM_RAMPS",
+      "guid": "d372e1ec-a2ac-5029-8d6f-05c921721cdd",
+      "description": "Tag warning: ble ramp width mm ramps",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_ROOF_DRAINAGE_GUTTERS",
+      "guid": "5f43c28a-8fcc-572e-a220-11ceeac59a10",
+      "description": "Tag warning: ble roof drainage gutters",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_ROOF_DRAINAGE_ROOFS",
+      "guid": "d4eb36e5-a48b-5f84-90f0-8b30b537d3e7",
+      "description": "Tag warning: ble roof drainage roofs",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_ROOF_MATERIAL_FASCIA",
+      "guid": "db464a7f-1286-5da5-9894-25181f8ff1ef",
+      "description": "Tag warning: ble roof material fascia",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_ROOF_SLOPE_DEG_ROOFS",
+      "guid": "2194bb1c-ac86-56fe-9986-02be18d285a3",
+      "description": "Tag warning: ble roof slope deg roofs",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_ROOM_AREA_SQ_M_AREAS",
+      "guid": "bf19c495-03d6-5f6f-a501-ad1ae83b6211",
+      "description": "Tag warning: ble room area sq m areas",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_ROOM_AREA_SQ_M_MASS",
+      "guid": "9b682eb7-6eaa-53c7-b80b-e80c32641ba1",
+      "description": "Tag warning: ble room area sq m mass",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_ROOM_AREA_SQ_M_ROOMS",
+      "guid": "85fb180b-ff74-540c-aa13-435bd85e5ec1",
+      "description": "Tag warning: ble room area sq m rooms",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_ROOM_FIRE_ESCAPE_ROOMS",
+      "guid": "eadb76da-80a8-5a0f-b488-415c15cc9807",
+      "description": "Tag warning: ble room fire escape rooms",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_ROOM_HEIGHT_MM_ROOMS",
+      "guid": "8af5d1dc-18f7-5ed7-adaa-af4d00eba440",
+      "description": "Tag warning: ble room height mm rooms",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_ROOM_OCCUPANCY_SPACES",
+      "guid": "e06ee751-1aab-5525-812b-0872adbbdf22",
+      "description": "Tag warning: ble room occupancy spaces",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_ROOM_VENTILATION_ROOMS",
+      "guid": "e69a0892-73d3-5f15-97f7-7330f74ec211",
+      "description": "Tag warning: ble room ventilation rooms",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_ROOM_VENTILATION_SPACES",
+      "guid": "1213fb5c-d437-5286-b83a-24f5dc44d9dc",
+      "description": "Tag warning: ble room ventilation spaces",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_SIGN_ACCESSIBILITY_SIGNAGE",
+      "guid": "fc7c43f4-e6cf-5fa1-9098-49b8c08c2bc4",
+      "description": "Tag warning: ble sign accessibility signage",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_SIGN_FIRE_EXIT_SIGNAGE",
+      "guid": "23f296ba-b942-5036-9be9-20d5d6302c76",
+      "description": "Tag warning: ble sign fire exit signage",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_SIGN_HEIGHT_MM_SIGNAGE",
+      "guid": "862b3a07-88a5-5fc6-ab0b-6dad9c1a4d1b",
+      "description": "Tag warning: ble sign height mm signage",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_SLAB_EDGE_THERMAL_BRIDGE_SLAB_EDGES",
+      "guid": "efc6c014-1b0c-53f9-8a5f-c0b9e5e86373",
+      "description": "Tag warning: ble slab edge thermal bridge slab edges",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_SOFFIT_VENTILATION_ROOF_SOFFITS",
+      "guid": "4be95fc7-01ea-52a3-a1a2-ac1c7496a63c",
+      "description": "Tag warning: ble soffit ventilation roof soffits",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_STAIR_GOING_MM_STAIRS",
+      "guid": "a092d6a3-d04f-5074-ac4a-ba02c2bd1481",
+      "description": "Tag warning: ble stair going mm stairs",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_STAIR_GOING_MM_STAIR_RUNS",
+      "guid": "e2645df0-7f3e-57ee-8cb0-36113a113a13",
+      "description": "Tag warning: ble stair going mm stair runs",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_STAIR_HEADROOM_MM_STAIRS",
+      "guid": "5b1228a4-4650-59fd-b0b8-5f6065d3ccca",
+      "description": "Tag warning: ble stair headroom mm stairs",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_STAIR_LANDING_LENGTH_LANDINGS",
+      "guid": "3e99357e-d2af-521d-b843-b8426ae11e37",
+      "description": "Tag warning: ble stair landing length landings",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_STAIR_LANDING_SLIP_LANDINGS",
+      "guid": "863f9584-aefb-594d-bcc8-3c69bdaf2105",
+      "description": "Tag warning: ble stair landing slip landings",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_STAIR_NOSING_STAIR_RUNS",
+      "guid": "2bca8d9f-474c-5b2e-9c6c-39a8ef540ad8",
+      "description": "Tag warning: ble stair nosing stair runs",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_STAIR_PITCH_DEG_STAIRS",
+      "guid": "0a3de1d9-9958-5584-bda1-b5699219bf4c",
+      "description": "Tag warning: ble stair pitch deg stairs",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_STAIR_RISER_MM_STAIRS",
+      "guid": "7421ef5f-e93a-507a-824c-e5fc58cdd28f",
+      "description": "Tag warning: ble stair riser mm stairs",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_STAIR_RISER_MM_STAIR_RUNS",
+      "guid": "3df19b61-e966-5c1e-a411-36757decd6b9",
+      "description": "Tag warning: ble stair riser mm stair runs",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_STAIR_SUPPORT_LOAD_STAIR_SUPPORTS",
+      "guid": "9803a22f-08cd-51a5-91c6-33704a9b250d",
+      "description": "Tag warning: ble stair support load stair supports",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_STAIR_WIDTH_MM_LANDINGS",
+      "guid": "35c2e183-c140-5b99-9f6e-2ba54b0bb512",
+      "description": "Tag warning: ble stair width mm landings",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_STAIR_WIDTH_MM_STAIRS",
+      "guid": "f8fb5609-1b1b-54f3-91bb-68952a30aa04",
+      "description": "Tag warning: ble stair width mm stairs",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_STAIR_WIDTH_MM_STAIR_RUNS",
+      "guid": "0c835e9e-a295-5526-a94b-ff2e57e043ee",
+      "description": "Tag warning: ble stair width mm stair runs",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_VERT_CIRC_ACCESSIBILITY_VERT_CIRC",
+      "guid": "bc91a267-58ba-5d75-8ede-5bb06b4a5f59",
+      "description": "Tag warning: ble vert circ accessibility vert circ",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_VERT_CIRC_FIRE_VERT_CIRC",
+      "guid": "07e2de58-1d4b-5744-87fc-e85f221f4586",
+      "description": "Tag warning: ble vert circ fire vert circ",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_WALL_FIRE_WALL_SWEEPS",
+      "guid": "35dcc658-3e2f-5b33-9f8f-f00f502bd5b7",
+      "description": "Tag warning: ble wall fire wall sweeps",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_WALL_SLENDERNESS_RATIO_WALLS",
+      "guid": "4875115d-ffe1-575f-bba2-9784d4d76144",
+      "description": "Tag warning: ble wall slenderness ratio walls",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_WALL_TYPE_WALL_SWEEPS",
+      "guid": "c2fbd907-0b80-5362-8909-6df6200d9b70",
+      "description": "Tag warning: ble wall type wall sweeps",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_WINDOW_SAFETY_GLASS_WINDOWS",
+      "guid": "2d17501b-684c-56d1-8cf8-e8998dde648a",
+      "description": "Tag warning: ble window safety glass windows",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_BLE_WIN_VENT_AREA_WINDOWS",
+      "guid": "c1ed6817-62d4-5d50-87b0-a58c65556413",
+      "description": "Tag warning: ble win vent area windows",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_CEQ_GMDN_MISSING",
+      "guid": "3cfc47f5-93d5-5b0e-adaa-48d61fed97e4",
+      "description": "Warning: Clinical asset missing GMDN classification code [MEDIUM] [COBie healthcare]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_CEQ_IMAGING_STRUCT_LOAD",
+      "guid": "fd323310-5b49-5007-bc47-4061bad379ad",
+      "description": "Warning: Imaging equipment slab load not verified against structural capacity [HIGH] [AISC / BS EN 1991-1-1]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_CLN_ACOUSTIC_STC_LOW",
+      "guid": "4a00bae5-4325-5829-a901-fd75849703ea",
+      "description": "Warning: Clinical room STC below minimum for use class [MEDIUM] [HTM / BB93]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_CLN_AIIR_NOT_NEGATIVE",
+      "guid": "0384fd83-a860-5b94-8006-9bc092bace69",
+      "description": "Warning: AIIR room not under negative pressure [CRITICAL] [HTM 03-01 / CDC]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_CLN_ANTERM_MISSING",
+      "guid": "00455f0c-317c-55e0-9d74-4f721b2ed405",
+      "description": "Warning: AIIR or PE room missing linked anteroom ID [HIGH] [HBN 04-01 / CDC]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_CLN_HEPA_GRADE_INVALID",
+      "guid": "b396a219-baa0-509e-8e13-cb6d3038b964",
+      "description": "Warning: HEPA grade not H13/H14/U15/U16 [HIGH] [BS EN 1822]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_CLN_IOT_STALE",
+      "guid": "d6d730c4-7205-5476-92be-fb655c523290",
+      "description": "Warning: RTLS or IoT tag last seen > staleness threshold [MEDIUM] [ISO 15686-3]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_CLN_MRI_ZONE_UNASSIGNED",
+      "guid": "e1601c32-8c9d-5101-bb90-9b5de4915af1",
+      "description": "Warning: Generic model in MRI suite area has no zone classification [HIGH] [IEC 60601-2-33]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_CLN_OR_LOW_ACH",
+      "guid": "1e7da874-6477-57ef-9a94-bc654a71a993",
+      "description": "Warning: OR-CONV or OR-HYBRID ACH below 20 minimum [HIGH] [HTM 03-01 / ASHRAE 170]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_CLN_OR_ULTRA_LOW_ACH",
+      "guid": "ea06d7ef-e9a1-580c-8583-ed02a00f3e36",
+      "description": "Warning: Ultra-clean OR ACH below 300 minimum [HIGH] [HTM 03-01]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_CLN_PE_NOT_POSITIVE",
+      "guid": "541f6426-66f4-5e92-a533-b51e92464752",
+      "description": "Warning: Protective Environment room not under positive pressure [CRITICAL] [HTM 03-01 / CDC]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_CLN_PRESS_REGIME_INVALID",
+      "guid": "160fde7f-69e8-5a79-adce-8ad38a66d523",
+      "description": "Warning: CLN_PRESS_REGIME_TXT not in (NEG / POS / NEUTRAL) [CRITICAL] [HTM 03-01 / ASHRAE 170]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_CLN_RDS_INCOMPLETE",
+      "guid": "cbbfc12d-36b0-5e86-89ba-87fad928437d",
+      "description": "Warning: Room Data Sheet mandatory parameters incomplete [HIGH] [HBN / HTM]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_CLN_RF_SHIELD_UNSPECIFIED",
+      "guid": "5920b7c7-60c7-53fd-8beb-c5b35407d677",
+      "description": "Warning: MRI Faraday cage panel has no RF shielding method specified [MEDIUM] [IEC 60601-2-33]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_CLN_RTLS_NO_COVERAGE",
+      "guid": "cb1161ef-9b45-503e-9f96-3ecdabf2c4af",
+      "description": "Warning: Clinical space has no RTLS reader within coverage radius [HIGH] [RTLS design standard]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_CLN_WASTE_ROUTE_UNRESOLVED",
+      "guid": "145a7c7c-5f65-567b-9dea-34886fde7853",
+      "description": "Warning: Clinical waste route conflicts with clean corridor [HIGH] [HTM 07-01]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_COM_C_COVERAGE_COMM_DEVICES",
+      "guid": "43f60789-0e0e-5483-a884-1296acc4856f",
+      "description": "Tag warning: com c coverage comm devices",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_COM_C_DATA_RATE_COMM_DEVICES",
+      "guid": "702fc1e3-d6d0-53b2-afad-796b8b605c5e",
+      "description": "Tag warning: com c data rate comm devices",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_COM_C_POWER_SUPPLY_COMM_DEVICES",
+      "guid": "fe812702-9db9-53e9-aa22-d3c2f4764313",
+      "description": "Tag warning: com c power supply comm devices",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_COM_C_PROTOCOL_COMM_DEVICES",
+      "guid": "383b96d7-3f4f-5ee7-bfa7-605a6cc7fb7b",
+      "description": "Tag warning: com c protocol comm devices",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_ATS_TIME_EXCEEDED",
+      "guid": "0135fb93-4b4d-54eb-8c14-db2614fc443f",
+      "description": "Warning: ATS transfer time >10 s for LS/CR branch [CRITICAL] [NFPA 99 §6.4]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_CDT_BEND_RADIUS_CONDUITS",
+      "guid": "1687867f-8c86-57ba-9c38-d2de487b27e4",
+      "description": "Tag warning: elc cdt bend radius conduits",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_CDT_BEND_RADIUS_CONDUIT_FITTINGS",
+      "guid": "09192f00-2d7c-51f3-853b-0fb0dc35fb0e",
+      "description": "Tag warning: elc cdt bend radius conduit fittings",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_CDT_CBL_FILL_PCT_CONDUITS",
+      "guid": "183d5bb0-7b29-531e-9bd9-49d2cc9176f6",
+      "description": "Tag warning: elc cdt cbl fill pct conduits",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_CDT_EARTHING_CONDUITS",
+      "guid": "2d08b318-6e3a-594f-8bd0-0e1011e71aa7",
+      "description": "Tag warning: elc cdt earthing conduits",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_CDT_FIRE_BARRIER_CONDUITS",
+      "guid": "84aa940a-6bb2-5740-8b45-f5081e1d33d7",
+      "description": "Tag warning: elc cdt fire barrier conduits",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_CDT_RUN_LENGTH_CONDUITS",
+      "guid": "577ae79e-fa91-5140-b8c0-e4e612162c91",
+      "description": "Tag warning: elc cdt run length conduits",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_CDT_SZ_CONDUIT_FITTINGS",
+      "guid": "d12a5a14-4651-5593-98c4-59a8a8ee3700",
+      "description": "Tag warning: elc cdt sz conduit fittings",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_CIRCUIT_LOADING_PCT",
+      "guid": "004a7bed-4c98-57b2-b600-610a507943c8",
+      "description": "Tag warning: electrical circuit loading percentage exceeded",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_CIRCUIT_LOAD_ELECTRICAL_FIX",
+      "guid": "c33d004b-09fb-54a3-aee1-74cf927aa206",
+      "description": "Tag warning: elc circuit load electrical fix",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_CONN_IP_CONNECTORS",
+      "guid": "00d4ab26-c770-5664-8c42-43596640df57",
+      "description": "Tag warning: elc conn ip connectors",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_CONN_RATING_CONNECTORS",
+      "guid": "133a7d89-f8c1-515c-9f5d-c4beb96221a3",
+      "description": "Tag warning: elc conn rating connectors",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_CTR_BEND_RADIUS_CABLE_TRAY_FTGS",
+      "guid": "f439db3d-35f3-57af-9cd7-7a2daed4ebe3",
+      "description": "Tag warning: elc ctr bend radius cable tray ftgs",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_CTR_EARTHING_CABLE_TRAYS",
+      "guid": "04c5edc6-fae2-5d23-8cd9-1e0073dc5206",
+      "description": "Tag warning: elc ctr earthing cable trays",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_CTR_FILL_PCT_CABLE_TRAYS",
+      "guid": "bac35a8a-b184-5e4a-93de-111aa09f52c4",
+      "description": "Tag warning: elc ctr fill pct cable trays",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_CTR_FIRE_RATING_CABLE_TRAYS",
+      "guid": "dbdac085-d72a-5552-9340-3effde7a8fc6",
+      "description": "Tag warning: elc ctr fire rating cable trays",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_CTR_LOAD_CABLE_TRAYS",
+      "guid": "99ab89aa-7291-51f9-acb8-d0aba3c8014a",
+      "description": "Tag warning: elc ctr load cable trays",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_CTR_MAT_CABLE_TRAY_FTGS",
+      "guid": "bf71282d-ad17-59c7-9167-c96d47c85bda",
+      "description": "Tag warning: elc ctr mat cable tray ftgs",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_CTR_SEGREGATION_CABLE_TRAYS",
+      "guid": "179ec54a-92a2-57d2-aa2d-767181b9a9fa",
+      "description": "Tag warning: elc ctr segregation cable trays",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_DISCRIMINATION_ELECTRICAL_EQUI",
+      "guid": "21da4580-2be7-5cd3-b349-e9a56eeb0743",
+      "description": "Tag warning: elc discrimination electrical equi",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_EARTH_FAULT_ELECTRICAL_EQUI",
+      "guid": "a5bff84f-3019-5216-9819-e0ab53392e0d",
+      "description": "Tag warning: elc earth fault electrical equi",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_EES_BRANCH_INVALID",
+      "guid": "d87ffad6-15b9-5c11-a46e-c64f9e925c2f",
+      "description": "Warning: EES branch designation not LIFE-SAF / CRIT / EQP-BR / NORMAL [CRITICAL] [NFPA 99]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_EMERGENCY_BATTERY_ELECTRICAL_FIX",
+      "guid": "1872a58d-692f-536a-850c-d274635608d6",
+      "description": "Tag warning: elc emergency battery electrical fix",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_IP_RATING_ELECTRICAL_EQUI",
+      "guid": "9ffa18dd-5062-5513-ac76-dbc57a8d4258",
+      "description": "Tag warning: elc ip rating electrical equi",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_IP_RATING_ELECTRICAL_FIX",
+      "guid": "7fd284e3-9070-56c0-9c01-ce85f0000acc",
+      "description": "Tag warning: elc ip rating electrical fix",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_LABELLING_ELECTRICAL_EQUI",
+      "guid": "b507a65a-3d35-5c3d-beda-a99bd2f8d72d",
+      "description": "Tag warning: elc labelling electrical equi",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW",
+      "guid": "f1d6f0e5-2007-5222-9222-200000000007",
+      "description": "Warning: down-conductor cross-section below class minimum (50 mm2 Cu / 70 mm2 Al / 50 mm2 Steel) [BS EN 62305-3 Tab 6] [HIGH]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_LPS_DOWN_COND_INSUFFICIENT",
+      "guid": "f1d6f0e5-2002-5222-9222-200000000002",
+      "description": "Warning: down-conductor count below class minimum (Class I=4, II=3, III/IV=2) [BS EN 62305-3 Tab 4] [HIGH]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_LPS_EARTH_RESISTANCE_HIGH",
+      "guid": "f1d6f0e5-2003-5222-9222-200000000003",
+      "description": "Warning: earth resistance exceeds 10 ohm -- refit electrodes or supplement ring earth [BS EN 62305-3 _5.4.1] [HIGH]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_LPS_INSPECTION_OVERDUE",
+      "guid": "f1d6f0e5-2006-5222-9222-200000000006",
+      "description": "Warning: inspection interval exceeded (Class I/II=12 mo, III/IV=24 mo) [BS EN 62305-3 _E.7] [MEDIUM]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_LPS_MESH_SIZE_EXCEEDED",
+      "guid": "f1d6f0e5-2009-5222-9222-200000000009",
+      "description": "Warning: air-termination mesh exceeds class limit (I=5x5, II=10x10, III=15x15, IV=20x20 m) [BS EN 62305-3 Tab 2] [HIGH]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_LPS_NO_BONDING",
+      "guid": "f1d6f0e5-2008-5222-9222-200000000008",
+      "description": "Warning: equipotential bonding type not specified (DIRECT / SPD / ISOLATING_SPARK_GAP) [BS EN 62305-3 _6.2] [HIGH]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_LPS_NO_CLASS",
+      "guid": "f1d6f0e5-2001-5222-9222-200000000001",
+      "description": "Warning: LPS class missing -- set ELC_LPS_CLASS_TXT to I / II / III / IV [BS EN 62305-1 _8] [CRITICAL]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_LPS_NO_RISK_ASSESSMENT",
+      "guid": "f1d6f0e5-2004-5222-9222-200000000004",
+      "description": "Warning: BS EN 62305-2 risk assessment reference (R1..R4) not recorded -- class selection cannot be justified [HIGH]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_LPS_NO_ZONE",
+      "guid": "f1d6f0e5-2010-5222-9222-200000000010",
+      "description": "Warning: lightning protection zone (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) not assigned [BS EN 62305-4 _4.1] [MEDIUM]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_LPS_SEPARATION_FAIL",
+      "guid": "f1d6f0e5-2005-5222-9222-200000000005",
+      "description": "Warning: separation distance s = ki.kc.l/km is below computed value -- services may flashover during strike [BS EN 62305-3 _6.3] [HIGH]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_PNL_FEEDER_UNDERSIZED",
+      "guid": "3b9d32fa-f5ad-52af-854c-1ca8470831e6",
+      "description": "Warning: Panel feeder cable undersized for connected load (BS 7671) [CRITICAL]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_PNL_LOAD_BALANCE",
+      "guid": "ac9979b7-bc02-569c-998a-a1e871850651",
+      "description": "Warning: Panel load imbalance >20% across phases (BS 7671) [HIGH]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_PNL_SCHEDULE_MISSING",
+      "guid": "4ff92fea-fbfa-56ee-96c5-7a2bc7a5401f",
+      "description": "Warning: Panel schedule missing or out of date [MEDIUM]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_SHORT_CIRCUIT_ELECTRICAL_EQUI",
+      "guid": "14e0c351-cb3d-58ea-944e-3fb960266dd8",
+      "description": "Tag warning: elc short circuit electrical equi",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_SPARE_CAPACITY_ELECTRICAL_EQUI",
+      "guid": "52a448e6-6c04-5801-a0be-a622702ff8b5",
+      "description": "Tag warning: elc spare capacity electrical equi",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_FIX",
+      "guid": "7b6572d4-6d5c-51f1-82b9-37bb59485727",
+      "description": "Tag warning: elc vlt drop pct electrical fix",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ELC_WIRE_AMPACITY_MISSING",
+      "guid": "807e76fa-c971-5849-831a-b97524ecfcb5",
+      "description": "Tag warning: elc wire ampacity missing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FAB_CONTAINMENT_DIMENSIONS",
+      "guid": "61d33511-2f26-5f25-a2e6-ab2601f45d1a",
+      "description": "Tag warning: fab containment dimensions",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FAB_CONTAINMENT_FILL_RATIO",
+      "guid": "8781ecff-a9c7-5b7d-84db-15a2a7987884",
+      "description": "Tag warning: fab containment fill ratio",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FAB_CONTAINMENT_FIRE_RATING",
+      "guid": "06ccdb83-3605-5426-83c4-2de577da0270",
+      "description": "Tag warning: fab containment fire rating",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FAB_DCT_DIMENSIONS_DUCTWORK",
+      "guid": "7b6bef68-17a0-55e1-8602-b1c44abc3155",
+      "description": "Tag warning: fab dct dimensions ductwork",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FAB_DCT_LEAKAGE_DUCTWORK",
+      "guid": "b5710c4f-d7c2-5722-9595-80e44f90604f",
+      "description": "Tag warning: fab dct leakage ductwork",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FAB_DCT_MATERIAL_DUCTWORK",
+      "guid": "b891438b-5ed3-5c36-9a21-39b83a012614",
+      "description": "Tag warning: fab dct material ductwork",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FAB_HANGER_SEISMIC",
+      "guid": "4cac2309-3239-5263-94b6-2ff04be0f0ce",
+      "description": "Tag warning: fab hanger seismic",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FAB_HANGER_SPACING",
+      "guid": "e1a2c65f-e2e9-53a4-8f88-3d50c15630e8",
+      "description": "Tag warning: fab hanger spacing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FAB_LOC_MISSING",
+      "guid": "8400cf7c-09fa-5d11-b089-44b700e52c16",
+      "description": "Warning: ASS_FAB_STATUS_TXT empty — fabrication location not assigned [HIGH] [ISO 19650-2 / v4 MVP]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FAB_PIPE_DN_PIPEWORK",
+      "guid": "f540ff92-17ed-5fe0-8595-3e44704f5afd",
+      "description": "Tag warning: fab pipe dn pipework",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FAB_PIPE_WALL_PIPEWORK",
+      "guid": "033aea02-4695-53c5-9968-f84b6a4d33d7",
+      "description": "Tag warning: fab pipe wall pipework",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FAB_PIPE_WELD_PIPEWORK",
+      "guid": "14937e93-8d51-52f1-9b53-433e98adf82e",
+      "description": "Tag warning: fab pipe weld pipework",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FAB_QC_INSPECTOR_MISSING",
+      "guid": "14176910-6dac-5103-99b4-638cb35f85e5",
+      "description": "Warning: ASS_QC_INSPECTOR_TXT empty — QC inspector not assigned before fabrication [MEDIUM] [ISO 9001 / v4 MVP]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FAB_SPOOL_NR_MISSING",
+      "guid": "f18091bc-64d0-55be-9086-d97706306f8d",
+      "description": "Warning: ASS_SPOOL_NR_TXT empty — fabricated element has no spool number [HIGH] [ISO 19650-2 / v4 MVP]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FAB_STIFF_SPACING_STIFFENERS",
+      "guid": "801543ca-abe7-5e62-a2e8-a52b43c18173",
+      "description": "Tag warning: fab stiff spacing stiffeners",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FAB_STIFF_TYPE_STIFFENERS",
+      "guid": "3619ee40-c14e-5c47-ae1e-041161eebd90",
+      "description": "Tag warning: fab stiff type stiffeners",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FLS_BATTERY_BACKUP_FIRE_ALARM",
+      "guid": "951e3184-dcd7-5659-835b-33276f6691bc",
+      "description": "Tag warning: fls battery backup fire alarm",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FLS_COVERAGE_FIRE_ALARM",
+      "guid": "86eb9090-51ce-51b9-954b-7eef81d06cae",
+      "description": "Tag warning: fls coverage fire alarm",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FLS_DETECTOR_SENSITIVITY_FIRE_ALARM",
+      "guid": "11ccb1dd-1299-5f34-9421-19cb88390f48",
+      "description": "Tag warning: fls detector sensitivity fire alarm",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FLS_FLOW_RATE_SPRINKLERS",
+      "guid": "3910a19e-9ac7-5bef-90bf-ffd33e31b13d",
+      "description": "Tag warning: fls flow rate sprinklers",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FLS_HEAD_TYPE_SPRINKLERS",
+      "guid": "c77776c6-e167-5207-90e5-a72e074db344",
+      "description": "Tag warning: fls head type sprinklers",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FLS_LOOP_CAPACITY_FIRE_ALARM",
+      "guid": "2d7608db-2980-5933-b117-56ecbb74bae8",
+      "description": "Tag warning: fls loop capacity fire alarm",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FLS_OBSTRUCTION_SPRINKLERS",
+      "guid": "51d3869c-1775-5e74-829f-3ba50c4ac6f7",
+      "description": "Tag warning: fls obstruction sprinklers",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FLS_PROT_EVACUATION_TIME",
+      "guid": "bfd3ccea-50bd-5614-8746-b0bed466706d",
+      "description": "Tag warning: fls prot evacuation time",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FLS_PROT_FIRE_RESISTANCE",
+      "guid": "2f74e67f-db90-5dc5-bbf6-d07f8221646b",
+      "description": "Tag warning: fls prot fire resistance",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FLS_PROT_TRAVEL_DISTANCE",
+      "guid": "2134695f-b96f-5e52-9dd7-33b6184787ce",
+      "description": "Tag warning: fls prot travel distance",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FLS_SOUND_LEVEL_FIRE_ALARM",
+      "guid": "eb369aa4-7d81-598c-aa79-9e61cf622f08",
+      "description": "Tag warning: fls sound level fire alarm",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FLS_SPACING_SPRINKLERS",
+      "guid": "44f53903-4dff-56ff-9d6c-fa232b08bfbb",
+      "description": "Tag warning: fls spacing sprinklers",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_FLS_TEMP_RATING_SPRINKLERS",
+      "guid": "2041fd7c-72c4-51dc-a8e4-6b8fd4842693",
+      "description": "Tag warning: fls temp rating sprinklers",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_GEN_ASSEMBLY_CODE_MISSING",
+      "guid": "013cb39c-8afa-574c-8c6e-f44714f0d268",
+      "description": "Tag warning: gen assembly code missing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_GEN_GROUP_EXCLUDED_MEMBERS",
+      "guid": "6f2dc2fb-20bf-50e9-89f1-90c626749136",
+      "description": "Tag warning: gen group excluded members",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_GEN_LINK_NOT_LOADED",
+      "guid": "8ca04cb3-ee36-575e-923d-3945e2d61677",
+      "description": "Tag warning: gen link not loaded",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_GEN_MATERIAL_SPEC_MISSING",
+      "guid": "3623c2ec-325d-5d47-afad-f8b0b7e2594a",
+      "description": "Tag warning: gen material spec missing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_GEN_NO_EXPECTED_LIFE",
+      "guid": "e4889369-2544-53ad-a57c-dc5006729e70",
+      "description": "Tag warning: gen no expected life",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_GEN_NO_MANUFACTURER",
+      "guid": "6be49d6b-18bc-5e36-a964-08267775302c",
+      "description": "Tag warning: gen no manufacturer",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_GEN_PARTS_HOST_MISSING",
+      "guid": "c023f858-1c91-53e2-bfb5-deb17b6f5690",
+      "description": "Tag warning: gen parts host missing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_GEN_PROFILE_DIM_MISSING",
+      "guid": "6e7d5100-691c-5c3d-bbe9-43e09d8a0713",
+      "description": "Tag warning: gen profile dim missing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_GEN_SPEC_EQUIP_LEAD_TIME",
+      "guid": "4de4d229-c4d3-54b6-986a-9b0825c2476b",
+      "description": "Tag warning: gen spec equip lead time",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_GEN_SPEC_EQUIP_NO_COMMISSION",
+      "guid": "36606690-f2a4-5956-8f00-155167ff39b2",
+      "description": "Tag warning: gen spec equip no commission",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_GEN_SPEC_EQUIP_NO_SYS",
+      "guid": "f82e8802-83ba-5e4d-945c-544dc0f1519b",
+      "description": "Tag warning: gen spec equip no sys",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_GEN_TAG_INCOMPLETE_TXT",
+      "guid": "337bcf83-22ed-5d7c-981a-267ed6c0b073",
+      "description": "Tag warning: gen tag incomplete txt",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_AIRFLOW_CAPACITY_AIR_TERMINALS",
+      "guid": "f02bfa36-58eb-5081-977e-f1216244bb90",
+      "description": "Tag warning: hvc airflow capacity air terminals",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_AIR_CHANGES_PER_HR_SPACES",
+      "guid": "3100ee5e-9ba6-5d15-a17b-ed2cd4bc5235",
+      "description": "Tag warning: hvc air changes per hr spaces",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_BMS_MECHANICAL_EQUIP",
+      "guid": "d13ce417-7116-5a82-94d3-128142a7ce2f",
+      "description": "Tag warning: hvc bms mechanical equip",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_CAPACITY_MECHANICAL_EQUIP",
+      "guid": "9058a3e4-bf7e-555f-ab1f-2c9bb3bc9e15",
+      "description": "Tag warning: hvc capacity mechanical equip",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_CONTROL_TYPE_ZONES",
+      "guid": "fa3b239e-48e4-5c14-9ab5-857c230a9113",
+      "description": "Tag warning: hvc control type zones",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_DCT_PROPERTY_DUCT_ACC",
+      "guid": "e802ab69-7588-59c2-9d7b-b27c289b3a88",
+      "description": "Tag warning: hvc dct property duct acc",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_DUCT_AREA_DUCTS",
+      "guid": "0de7c7f7-fc65-5a9b-957b-0bd53091b25e",
+      "description": "Tag warning: hvc duct area ducts",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_DUCT_CLASS_DUCT_FITTINGS",
+      "guid": "8741c659-9929-53f4-bc75-612acc856e04",
+      "description": "Tag warning: hvc duct class duct fittings",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_DUCT_CLASS_MISMATCH_FITTINGS",
+      "guid": "c8f9a938-cd8e-5305-9ef0-8babc6a18cc2",
+      "description": "Tag warning: hvc duct class mismatch fittings",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_DUCT_VELOCITY_M_S_NR",
+      "guid": "c92d990c-8439-5756-b7aa-9815b3264840",
+      "description": "Tag warning: HVAC duct velocity exceeds CIBSE limit",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_FIRE_DAMPER_RATING_DUCT_ACC",
+      "guid": "797a5418-2198-5d40-b578-ef14c77f944e",
+      "description": "Tag warning: hvc fire damper rating duct acc",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_FIRE_RATING_DUCTS",
+      "guid": "bc96de1d-d091-5e1c-b5db-5e6033a03cc5",
+      "description": "Tag warning: hvc fire rating ducts",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_INSULATION_FLEX_DUCTS",
+      "guid": "1173a62d-d178-5ec2-8a9d-9efee026a097",
+      "description": "Tag warning: hvc insulation flex ducts",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_INSULATION_THK_DUCTS",
+      "guid": "eef27923-c138-5f8b-ae55-6b29d5f37b86",
+      "description": "Tag warning: hvc insulation thk ducts",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_LEAKAGE_CLASS_DUCTS",
+      "guid": "945b6627-1b4a-505f-80db-6a3e01f54ec7",
+      "description": "Tag warning: hvc leakage class ducts",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_LEAKAGE_CLASS_DUCT_ACC",
+      "guid": "f93a36d4-5cba-5b4c-bd3d-38c32724af4c",
+      "description": "Tag warning: hvc leakage class duct acc",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_LENGTH_FLEX_DUCTS",
+      "guid": "f2d0be1d-a0fb-5ff9-af45-26bea01956a6",
+      "description": "Tag warning: hvc length flex ducts",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_LOSS_COEFF_DUCT_FITTINGS",
+      "guid": "3bea9535-5162-585c-88bf-c7fde5b129a3",
+      "description": "Tag warning: hvc loss coeff duct fittings",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_MAINTENANCE_ACCESS_MECH_EQUIP",
+      "guid": "e68296ce-7a0b-55ba-85ff-5fecd557f139",
+      "description": "Tag warning: hvc maintenance access mech equip",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_MOUNTING_HEIGHT_AIR_TERMINALS",
+      "guid": "8e33351f-756b-5df0-be9a-e6ba4ad2910e",
+      "description": "Tag warning: hvc mounting height air terminals",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_NOISE_MECHANICAL_EQUIP",
+      "guid": "c84a0f5e-9d6c-5cc8-8cb5-b849050e66d3",
+      "description": "Tag warning: hvc noise mechanical equip",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_NOISE_NC_AIR_TERMINALS",
+      "guid": "891e1a45-7cd0-58f9-beb6-31eedc69afea",
+      "description": "Tag warning: hvc noise nc air terminals",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_PIPE_PRESSURE_KPA_DUCTS",
+      "guid": "fa19ced6-7d3e-510e-ac52-63ac0215fb45",
+      "description": "Tag warning: hvc pipe pressure kpa ducts",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_PRESSURE_DROP_AIR_TERMINALS",
+      "guid": "7271fe46-570d-53d9-8568-654dbbf3ba24",
+      "description": "Tag warning: hvc pressure drop air terminals",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_PRESSURE_DROP_DUCT_ACC",
+      "guid": "083400fd-9663-5c53-af18-0a1f8d8cf800",
+      "description": "Tag warning: hvc pressure drop duct acc",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_PRESSURE_DROP_FLEX_DUCTS",
+      "guid": "0cc2fd04-a19c-544a-b497-faf2457e1b5c",
+      "description": "Tag warning: hvc pressure drop flex ducts",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_REFRIGERANT_MECHANICAL_EQUIP",
+      "guid": "27891243-80a7-5696-900a-6c6b77f3cdb2",
+      "description": "Tag warning: hvc refrigerant mechanical equip",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_SOUND_LEVEL_DUCTS",
+      "guid": "7b03df03-141b-5e31-ac84-5c786f769dd2",
+      "description": "Tag warning: hvc sound level ducts",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_THROW_DISTANCE_AIR_TERMINALS",
+      "guid": "76876eb1-21c2-5717-bcf8-9c8871677457",
+      "description": "Tag warning: hvc throw distance air terminals",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_VIBRATION_MECHANICAL_EQUIP",
+      "guid": "cad4c3bb-812f-5b2b-a10a-e0f53162a253",
+      "description": "Tag warning: hvc vibration mechanical equip",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_ZONE_AREA_ZONES",
+      "guid": "4c1864ba-2d2a-51f6-adb1-9387ea791424",
+      "description": "Tag warning: hvc zone area zones",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_HVC_ZONE_SENSOR_ZONES",
+      "guid": "50d4c478-bd13-5fb8-936f-dd236a1e7515",
+      "description": "Tag warning: hvc zone sensor zones",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ICT_CABLE_CATEGORY_DATA_DEVICES",
+      "guid": "e7c8bad0-44c7-5e2d-932b-c4f4128b12e9",
+      "description": "Tag warning: ict cable category data devices",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ICT_CABLE_CATEGORY_TELEPHONE",
+      "guid": "055e0efd-86a5-524c-8043-e0feaacc21f6",
+      "description": "Tag warning: ict cable category telephone",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ICT_COVERAGE_DATA_DEVICES",
+      "guid": "a6d38c97-0fc8-5cb8-abbe-dad1f413a99f",
+      "description": "Tag warning: ict coverage data devices",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ICT_COVERAGE_TELEPHONE",
+      "guid": "8f304065-afe3-5aa6-baeb-c16d6d1228d1",
+      "description": "Tag warning: ict coverage telephone",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ICT_DATA_RATE_DATA_DEVICES",
+      "guid": "e0cca304-db5f-561d-ae0a-85a7ee30bd83",
+      "description": "Tag warning: ict data rate data devices",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ICT_OUTLET_TYPE_DATA_DEVICES",
+      "guid": "cb1731bb-f96b-5b61-96dc-b535c5c71d48",
+      "description": "Tag warning: ict outlet type data devices",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_ICT_OUTLET_TYPE_TELEPHONE",
+      "guid": "c3047d8c-2675-5a4b-8470-fcc802437e2c",
+      "description": "Tag warning: ict outlet type telephone",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_INS_ACOUSTIC_DUCT_LINING",
+      "guid": "c3d4a5a8-6153-55b6-9498-13225860c6c9",
+      "description": "Tag warning: ins acoustic duct lining",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_INS_EROSION_DUCT_LINING",
+      "guid": "7ffbcae6-a43f-5cbb-bd76-b8c99599125d",
+      "description": "Tag warning: ins erosion duct lining",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_INS_FIRE_CLASS_DUCT_INS",
+      "guid": "9edd2b98-77b0-5d21-9f1e-e29c6367613b",
+      "description": "Tag warning: ins fire class duct ins",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_INS_FIRE_CLASS_PIPE_INSULATION",
+      "guid": "e0312002-a88e-5ebe-85a2-b42f9849cd94",
+      "description": "Tag warning: ins fire class pipe insulation",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_INS_THICKNESS_DUCT_LINING",
+      "guid": "d8075bdf-e763-529b-8cbe-21181e13d691",
+      "description": "Tag warning: ins thickness duct lining",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_INS_THICKNESS_PIPE_INSULATION",
+      "guid": "8548497b-2a41-5677-b364-0ec6206aecac",
+      "description": "Tag warning: ins thickness pipe insulation",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_INS_VAPOUR_BARRIER_DUCT_INS",
+      "guid": "601639d3-d875-56a6-afae-12289f2e2c67",
+      "description": "Tag warning: ins vapour barrier duct ins",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_INS_VAPOUR_BARRIER_PIPE_INSULATION",
+      "guid": "d6ef0227-59cf-52e6-a013-1a9c13e40b47",
+      "description": "Tag warning: ins vapour barrier pipe insulation",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_LIG_RES_NO_RATING",
+      "guid": "a4b5deca-ac9b-5bc5-ad77-e0983055b76d",
+      "description": "Warning: Anti-ligature room has fitting with no product rating [HIGH] [HBN 03-01]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_LTG_COLOUR_RENDERING_LIGHTING",
+      "guid": "f017af39-f672-51fa-b4f9-3f9bcfecbd09",
+      "description": "Tag warning: ltg colour rendering lighting",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_LTG_COLOUR_TEMP_LIGHTING",
+      "guid": "5507bf85-e612-5dd4-883c-a5a95896964e",
+      "description": "Tag warning: ltg colour temp lighting",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_LTG_CTRL_TYPE_LIGHTING_DEVICES",
+      "guid": "5580099a-19ab-54a4-8404-33f1a92823f6",
+      "description": "Tag warning: ltg ctrl type lighting devices",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_LTG_EFFICACY_LIGHTING_DEVICES",
+      "guid": "58c8118c-867e-5835-b4b8-38f6a8d91961",
+      "description": "Tag warning: ltg efficacy lighting devices",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_LTG_EFFICACY_LM_W_LIGHTING",
+      "guid": "52e436fa-b67e-5f07-8c0b-bd17e79298d5",
+      "description": "Tag warning: ltg efficacy lm w lighting",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_LTG_EMERGENCY_LIGHTING",
+      "guid": "4bcb6e7c-9ed4-51da-bd9e-d4a0672f05d2",
+      "description": "Tag warning: ltg emergency lighting",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_LTG_EMERGENCY_LIGHTING_DEVICES",
+      "guid": "4278ce5a-b2ba-551a-bd27-01dc526e5905",
+      "description": "Tag warning: ltg emergency lighting devices",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_LTG_GLARE_RATING_LIGHTING",
+      "guid": "37f96617-d3cb-5684-9722-081c6044b502",
+      "description": "Tag warning: ltg glare rating lighting",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_LTG_ILLUMINANCE_LIGHTING_DEVICES",
+      "guid": "81b11d96-862b-5f2a-9968-07bd3ce63053",
+      "description": "Tag warning: ltg illuminance lighting devices",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_LTG_POWER_DENSITY_LIGHTING",
+      "guid": "ac944105-6779-5792-bddb-0e4fb5aa2009",
+      "description": "Tag warning: ltg power density lighting",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_MEC_CTRL_CALIBRATION_CTRL_DEV",
+      "guid": "a5354c8b-e69c-5b0a-b6f6-b21989717fab",
+      "description": "Tag warning: mec ctrl calibration ctrl dev",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_MEC_CTRL_FUNCTION_CTRL_DEV",
+      "guid": "9dbec5c0-7b37-5cc9-b5f5-1e9e2ff228f4",
+      "description": "Tag warning: mec ctrl function ctrl dev",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_MEC_CTRL_SIGNAL_CTRL_DEV",
+      "guid": "a8be61bf-debe-555b-b690-d769b7705e3f",
+      "description": "Tag warning: mec ctrl signal ctrl dev",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_MEC_SET_CAPACITY_EQUIP_SETS",
+      "guid": "9e40e81a-0064-5bf3-8f82-e092d467a8c7",
+      "description": "Tag warning: mec set capacity equip sets",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_MEC_SET_REDUNDANCY_EQUIP_SETS",
+      "guid": "559b2818-42fb-55ef-876b-873ee45cd3b9",
+      "description": "Tag warning: mec set redundancy equip sets",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_MGS_FLOW_RATE_LOW",
+      "guid": "5458b359-0d5c-58e8-b2a7-6758a3aa46af",
+      "description": "Warning: Calculated flow rate below NFPA 99 diversity requirement [HIGH] [NFPA 99 §5.1.13]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_MGS_GAS_TYPE_MISSING",
+      "guid": "459dd20d-ed74-5792-8acc-77e635efb89a",
+      "description": "Warning: Terminal unit or pipeline missing gas type [CRITICAL] [BS 5682 / HTM 02-01]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_MGS_NOT_BRAZED",
+      "guid": "45588562-6bb3-55b1-8120-fe7ebffdef25",
+      "description": "Warning: Medical gas pipework must be inert-gas brazed [HIGH] [HTM 02-01]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_MGS_PRESSURE_DROP_HIGH",
+      "guid": "6a90ee96-13a4-506c-94f5-17fe68bb0447",
+      "description": "Warning: Pipeline segment pressure drop exceeds allowable limit [HIGH] [HTM 02-01 / NFPA 99]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_MGS_VERIFY_FAILED",
+      "guid": "837dd978-f34e-5b61-be1d-58fa9b2508a0",
+      "description": "Warning: NFPA 99 §5.1.12 MGPS verification test failed [CRITICAL] [NFPA 99 §5.1.12]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_MGS_ZVB_NO_REF",
+      "guid": "3bde10e2-47fa-5c7f-bfdf-4477d71f30dd",
+      "description": "Warning: Zone Valve Box has no reference code [HIGH] [HTM 02-01]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_NCL_BATTERY_NURSE_CALL",
+      "guid": "b539dc0e-3c9c-5079-be60-6fc8843db4e2",
+      "description": "Tag warning: ncl battery nurse call",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_NCL_RESPONSE_TIME_NURSE_CALL",
+      "guid": "5fcc2ba5-30c7-5820-8867-99a463b629d5",
+      "description": "Tag warning: ncl response time nurse call",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_NCL_ZONE_NURSE_CALL",
+      "guid": "b5de8e3f-940a-53bf-be66-96582b96dbee",
+      "description": "Tag warning: ncl zone nurse call",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_ACOUSTIC_IIC_RATING_FLOORS",
+      "guid": "735b6b5b-2392-5a53-a45d-6af39c4c2d2e",
+      "description": "Tag warning: per acoustic iic rating floors",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_ACOUSTIC_NRC_RATING_CEILINGS",
+      "guid": "3bc3b6a3-f149-5152-9da9-3a519d9c4871",
+      "description": "Tag warning: per acoustic nrc rating ceilings",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_ACOUSTIC_STC_RATING_NR_DOORS",
+      "guid": "3b52704b-e250-5f62-8205-6f3194381f01",
+      "description": "Tag warning: per acoustic stc rating nr doors",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_ACOUSTIC_STC_RATING_NR_WALLS",
+      "guid": "678e9cbc-c377-5b73-8e90-b4a07c0c738f",
+      "description": "Tag warning: per acoustic stc rating nr walls",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_ACOUSTIC_STC_RATING_NR_WINDOWS",
+      "guid": "654bdc23-ad60-551d-99b7-cbbe7eecda53",
+      "description": "Tag warning: per acoustic stc rating nr windows",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_CONDENSATION_RISK_BOOL",
+      "guid": "4183fb0c-fc29-5d9c-ac12-354d2aa0f832",
+      "description": "Tag warning: condensation risk detected (generic)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_CONDENSATION_RISK_BOOL_ROOFS",
+      "guid": "626195f6-1c27-58e8-b1ae-a51ad4bce427",
+      "description": "Tag warning: per condensation risk bool roofs",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_CONDENSATION_RISK_BOOL_WALLS",
+      "guid": "dc19fe3d-62a6-561f-825e-5a8d1c3fbcde",
+      "description": "Tag warning: per condensation risk bool walls",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_EMBODIED_CARBON_KG_CO2_M2",
+      "guid": "8f1233a3-a77a-583b-8e95-0afd66d0a766",
+      "description": "Tag warning: embodied carbon exceeds threshold (generic)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ARCH",
+      "guid": "f2f0b231-ac86-59fd-a1f7-5e7dc0c111a1",
+      "description": "Tag warning: per embodied carbon kg CO2/m2 architectural [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_EMBODIED_CARBON_KG_CO2_M2_FLOORS",
+      "guid": "e7a70e47-f2aa-5dd0-a8d5-10299242aa10",
+      "description": "Tag warning: per embodied carbon kg co2 m2 floors",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ROOFS",
+      "guid": "4e1df487-c6a3-54c7-b5e4-4efae053db05",
+      "description": "Tag warning: per embodied carbon kg co2 m2 roofs",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_EMBODIED_CARBON_KG_CO2_M2_STR",
+      "guid": "c5b25cf0-f6aa-5ba1-9cca-202b7eb10db0",
+      "description": "Tag warning: per embodied carbon kg co2 m2 str",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_EMBODIED_CARBON_KG_CO2_M2_WALLS",
+      "guid": "cc82ad53-d13d-534a-9ba0-432977401608",
+      "description": "Tag warning: per embodied carbon kg co2 m2 walls",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_EMBODIED_CARBON_KG_STR_BEAMS",
+      "guid": "8a2fbb26-0aa3-5237-8cb0-4c02f29958ba",
+      "description": "Tag warning: per embodied carbon kg str beams",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_FIRE_RATING_HR_ARCH_COLUMNS",
+      "guid": "6ebbe970-ed59-5c11-a483-7efbd9621895",
+      "description": "Tag warning: per fire rating hr arch columns",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_FIRE_RATING_HR_NR_CEILINGS",
+      "guid": "f3f3e349-837b-512f-a54b-9b0264a4ebd9",
+      "description": "Tag warning: per fire rating hr nr ceilings",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_FIRE_RATING_HR_NR_DOORS",
+      "guid": "7ec27de1-2c80-586a-abc0-cddae7331f59",
+      "description": "Tag warning: per fire rating hr nr doors",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_FIRE_RATING_HR_NR_FLOORS",
+      "guid": "41b98ae7-0d94-5eca-a514-3dba5479e7fe",
+      "description": "Tag warning: per fire rating hr nr floors",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_FIRE_RATING_HR_NR_ROOFS",
+      "guid": "d1191b8e-6158-5482-ba2c-b3d44e8b39a0",
+      "description": "Tag warning: per fire rating hr nr roofs",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_FIRE_RATING_HR_NR_STAIRS",
+      "guid": "1113d950-1fac-5158-9e64-8317b4da86c5",
+      "description": "Tag warning: per fire rating hr nr stairs",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_FIRE_RATING_HR_NR_STR_BEAMS",
+      "guid": "6489f77c-4367-5483-bca8-2bad54a203b7",
+      "description": "Tag warning: per fire rating hr nr str beams",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_FIRE_RATING_HR_NR_STR_BRACES",
+      "guid": "17b5177a-d20c-5509-b8ed-e41e4e2036ac",
+      "description": "Tag warning: per fire rating hr nr str braces",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_FIRE_RATING_HR_NR_STR_COLUMNS",
+      "guid": "a8384182-46a4-5a80-9050-dff26c588d0c",
+      "description": "Tag warning: per fire rating hr nr str columns",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_FIRE_RATING_HR_NR_STR_SLABS",
+      "guid": "edff6ae4-225d-5854-a69f-c4d76d7b94b6",
+      "description": "Tag warning: per fire rating hr nr str slabs",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_FIRE_RATING_HR_NR_STR_WALLS",
+      "guid": "22865e59-ae16-55d9-bd4f-ecc9455753ee",
+      "description": "Tag warning: per fire rating hr nr str walls",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_FIRE_RATING_HR_NR_WALLS",
+      "guid": "138b465f-a102-5a6f-80ea-4b812dde568e",
+      "description": "Tag warning: per fire rating hr nr walls",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_FIRE_RATING_HR_STAIR_SUPPORTS",
+      "guid": "2cdc6e20-e503-5c87-8ca3-9bc8fe04271d",
+      "description": "Tag warning: per fire rating hr stair supports",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_FIRE_RATING_HR_STR_TRUSSES",
+      "guid": "9c4899d4-c126-5697-addd-f969f5e48c75",
+      "description": "Tag warning: per fire rating hr str trusses",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_SOLAR_G_VALUE_NR_CURTAIN",
+      "guid": "24a6cf84-9a6a-55f9-b64a-09505b56aeca",
+      "description": "Tag warning: per solar g value nr curtain",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_SOLAR_G_VALUE_NR_WINDOWS",
+      "guid": "4c47dc8d-68b9-52a8-9d55-e227815b1095",
+      "description": "Tag warning: per solar g value nr windows",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_SUST_EPD_MATERIALS",
+      "guid": "f78aa9cb-a4c5-50db-bcbb-1e35ac5c128c",
+      "description": "Tag warning: per sust epd materials",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_SUST_RECYCLABILITY_MATERIALS",
+      "guid": "7f8339d2-f99c-5788-83d5-cc51cf546e25",
+      "description": "Tag warning: per sust recyclability materials",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_THERM_U_VALUE_W_M2K_NR_CURTAIN",
+      "guid": "cb90c9a3-1f3d-58b0-b186-57b59e569b49",
+      "description": "Tag warning: per therm u value w m2k nr curtain",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_THERM_U_VALUE_W_M2K_NR_MULLION",
+      "guid": "2f864e94-8746-5711-9756-f066da1d0a5b",
+      "description": "Tag warning: per therm u value w m2k nr mullion",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PER_THERM_U_VALUE_W_M2K_NR_WINDOWS",
+      "guid": "3535afe0-1415-5543-b214-1e2c71aa8736",
+      "description": "Tag warning: per therm u value w m2k nr windows",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_AUG_CARE_NO_FILTER",
+      "guid": "66672d3c-6e12-5bb1-8d1b-dd18ce03cc97",
+      "description": "Warning: Augmented-care outlet missing point-of-use filter [HIGH] [HTM 04-01 Pt C]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_CAPACITY_PLM_EQUIP",
+      "guid": "0a797f2e-49eb-505d-b380-5da8b57ec87e",
+      "description": "Tag warning: plm capacity plm equip",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_CONNECTION_TYPE_PIPE_FITTINGS",
+      "guid": "10352a19-826f-5a16-a951-8bf3530748bf",
+      "description": "Tag warning: plm connection type pipe fittings",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_DEAD_LEG_EXCEEDED",
+      "guid": "e3032fbc-4ddb-5dcb-b703-399527e01c69",
+      "description": "Warning: Sentinel point dead-leg exceeds 1 m [HIGH] [HTM 04-01]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_FIRE_RATING_PIPE_ACC",
+      "guid": "e1daee2e-45da-5974-9a7b-cce8e0495288",
+      "description": "Tag warning: plm fire rating pipe acc",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_FIXTURE_ACCESSIBILITY",
+      "guid": "7ee115b9-2e8b-570f-8d99-4dca319c5588",
+      "description": "Tag warning: plm fixture accessibility",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_FIXTURE_BACKFLOW",
+      "guid": "20e7c620-b3a4-5c83-91cf-fd41aea0ed91",
+      "description": "Tag warning: plm fixture backflow",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_FIXTURE_FLOW_RATE",
+      "guid": "7057aae9-86f5-513e-8ff8-ff8563ea94af",
+      "description": "Tag warning: plm fixture flow rate",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_FIXTURE_WASTE_SIZE",
+      "guid": "ef0a2441-db94-579a-8ad7-1682684f6935",
+      "description": "Tag warning: plm fixture waste size",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_FIXTURE_WATER_EFFICIENCY",
+      "guid": "5b4e9dc3-b1f5-527a-8db9-e1dfed14c5d3",
+      "description": "Tag warning: plm fixture water efficiency",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_GRADIENT_PIPES",
+      "guid": "15a6e7dd-634f-5251-b0c7-be367e4a3a88",
+      "description": "Tag warning: plm gradient pipes",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_HOT_WATER_TEMP_PLM_EQUIP",
+      "guid": "1f3b32de-95a4-5c3f-8680-c10c5ec4f5b8",
+      "description": "Tag warning: plm hot water temp plm equip",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_INSULATION_THK_PIPES",
+      "guid": "02a83cad-80df-59b9-a6d5-7eb367e82898",
+      "description": "Tag warning: plm insulation thk pipes",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_MAINTENANCE_ACCESS_PLM_EQUIP",
+      "guid": "e4125af1-edef-5bd6-b1d1-2a182fdffa1a",
+      "description": "Tag warning: plm maintenance access plm equip",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_MATERIAL_MISMATCH_PIPE_FITTINGS",
+      "guid": "3cf04c8d-10be-5133-91d3-a5603cf562e9",
+      "description": "Tag warning: plm material mismatch pipe fittings",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_NOISE_PIPES",
+      "guid": "54f90aba-e84c-5676-b9d0-a8509bb7df86",
+      "description": "Tag warning: plm noise pipes",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_PIPE_VELOCITY_M_S_NR",
+      "guid": "8cc36388-1f54-5501-ab42-8ca5005fb09f",
+      "description": "Tag warning: plumbing pipe velocity exceeds limit",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_PPE_LENGTH_FLEX_PIPE",
+      "guid": "b98641cd-7a49-50f1-ad5c-5046e8ea3d37",
+      "description": "Tag warning: plm ppe length flex pipe",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_PPE_PSR_RATING_PIPE_FITTINGS",
+      "guid": "7cb9ca14-0590-5917-af71-987ad0731f59",
+      "description": "Tag warning: plm ppe psr rating pipe fittings",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_PPE_SZ_PIPE_ACC",
+      "guid": "7ab7d0e3-0189-56c0-960f-0b31e6a411c3",
+      "description": "Tag warning: plm ppe sz pipe acc",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_PSR_RATING_PIPES",
+      "guid": "d10e2fb5-39bc-5993-8d90-2d4b03efaec7",
+      "description": "Tag warning: plm psr rating pipes",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_PSR_RATING_PIPE_ACC",
+      "guid": "28e94ab5-8285-51c4-be13-36cbe037a6ba",
+      "description": "Tag warning: plm psr rating pipe acc",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_TRAP_SEAL_PIPES",
+      "guid": "6be2465c-8c74-516f-b131-e0effad9f1c6",
+      "description": "Tag warning: plm trap seal pipes",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PLM_VEL_MPS_FLEX_PIPE",
+      "guid": "9b14ab2d-de2a-5f4d-91a7-7fb3b5119a73",
+      "description": "Tag warning: plm vel mps flex pipe",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PROP_CARBON_MATERIALS",
+      "guid": "49ce16f4-fc21-5e30-9bc3-958b117ae699",
+      "description": "Tag warning: prop carbon materials",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PROP_FIRE_RATING_MATERIALS",
+      "guid": "fd10c935-ab61-5bc2-bfcf-041d8961f1a9",
+      "description": "Tag warning: prop fire rating materials",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_PROP_THERMAL_COND_MATERIALS",
+      "guid": "6247774e-afda-512a-baae-6f0f276025ab",
+      "description": "Tag warning: prop thermal cond materials",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_RAD_CONTROLLED_AREA_NOT_SIGNED",
+      "guid": "6e559368-acab-5a14-bc67-5555391112d5",
+      "description": "Warning: Controlled area has no regulatory signage element placed [HIGH] [IRR17 / NCRP]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_RAD_DOOR_NO_INTERLOCKS",
+      "guid": "a1e344bb-2ef4-58b2-a4c2-ffc156fd9bed",
+      "description": "Warning: Radiation-controlled access door missing interlock specification [HIGH] [NCRP 151 / RCR]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_RAD_DOSIMETRY_POST_MISSING",
+      "guid": "27e1d293-a360-5253-b05c-952712c921c9",
+      "description": "Warning: Controlled area boundary has no dosimetry monitoring post [MEDIUM] [IRR17]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_RAD_LEAD_INSUFFICIENT",
+      "guid": "5b02ba28-da6d-5919-8242-f418ddc26fb0",
+      "description": "Warning: Lead-equivalent shielding below minimum 2 mm [HIGH] [NCRP 147]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_RAD_QE_NOT_SIGNED",
+      "guid": "831e0efd-53ea-5647-9423-0d0dee96e5cc",
+      "description": "Warning: Primary barrier missing Qualified Expert sign-off [HIGH] [NCRP 147]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_RGL_STD_AV_DEVICES",
+      "guid": "130093d4-df78-5687-bdbf-e3f6505a7d22",
+      "description": "Tag warning: rgl std av devices",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_RGL_STD_FOOD_SERVICE",
+      "guid": "4ec4ca73-04cd-5b0b-81bb-66b5d1b930a1",
+      "description": "Tag warning: rgl std food service",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_RGL_STD_MEDICAL_EQUIP",
+      "guid": "bfcc4dbb-d63c-596e-a014-8fb0acc79f7a",
+      "description": "Tag warning: rgl std medical equip",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SEC_BATTERY_BACKUP_SECURITY",
+      "guid": "e34be153-105c-5cd9-980d-89682f723880",
+      "description": "Tag warning: sec battery backup security",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SEC_COVERAGE_SECURITY",
+      "guid": "4598e08c-1af8-5726-8576-433282f86690",
+      "description": "Tag warning: sec coverage security",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SEC_DEV_ZONE_SECURITY",
+      "guid": "44f6856b-10a4-5786-bcd5-2c0dec11d002",
+      "description": "Tag warning: sec dev zone security",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SEC_TAMPER_SECURITY",
+      "guid": "296d486f-5158-5d2a-ac75-da5c09150aa0",
+      "description": "Tag warning: sec tamper security",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SHT_DISC_MISMATCH",
+      "guid": "ae00ba3e-96a9-5dac-bee2-b89817614765",
+      "description": "Warning: sheet discipline mismatch between name and content [ISO 19650]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SHT_DISC_MISSING",
+      "guid": "28d4ba6f-2217-5951-9c85-852446b07cd0",
+      "description": "Warning: sheet discipline code missing [ISO 19650]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SHT_MULTI_DISC_MEP",
+      "guid": "404da214-e745-560b-a0ee-184ff5356aa3",
+      "description": "Warning: sheet contains multiple MEP disciplines [ISO 19650]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SHT_NAMING_ARCH",
+      "guid": "bb241f6b-869c-5a5c-81d1-517e05f59f6a",
+      "description": "Warning: architectural sheet naming non-compliant [ISO 19650]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SHT_NAMING_STR",
+      "guid": "ce2a3aba-950d-5a00-b0bd-3691ae912df7",
+      "description": "Warning: structural sheet naming non-compliant [ISO 19650]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SHT_NO_DISC",
+      "guid": "745e3b6f-84a1-537c-af98-6cd0415c0610",
+      "description": "Warning: sheet has no discipline code [ISO 19650]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SHT_NO_LEVEL",
+      "guid": "8033c0d1-0e55-5f56-9d71-af7f7d849900",
+      "description": "Warning: sheet has no level reference [ISO 19650]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SHT_NO_ORIGINATOR",
+      "guid": "9ffd26e3-dfdf-50d6-b0c1-2e377a82b792",
+      "description": "Warning: sheet has no originator code [ISO 19650]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SHT_NO_TAG1",
+      "guid": "7f9ff3af-83eb-5ffc-be71-2056c8959aad",
+      "description": "Warning: sheet primary tag (TAG1) missing [ISO 19650]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SHT_NO_TAG7",
+      "guid": "03d934d7-342d-54b9-8a9d-605f11ff2f3e",
+      "description": "Warning: sheet TAG7 narrative missing [ISO 19650]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SHT_REV_MISSING",
+      "guid": "9d229c53-3e50-580f-8fb2-e9f953255be7",
+      "description": "Warning: sheet revision information missing [ISO 19650]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SHT_TAG1_EMPTY",
+      "guid": "99dfa464-1361-5041-bcfc-f042aa64dd74",
+      "description": "Warning: sheet primary tag (TAG1) is empty [ISO 19650]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SITE_HARDSCAPE_SPEC_MISSING",
+      "guid": "ed5339c7-df6d-5973-aaea-1177a1075af5",
+      "description": "Tag warning: site hardscape spec missing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SITE_LOC_MISSING",
+      "guid": "4e306609-0eea-5da2-b98b-ed4c3f09d785",
+      "description": "Tag warning: site loc missing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SITE_PAD_BEARING_MISSING",
+      "guid": "66e94b3b-105b-59e6-bbda-6484aaa581fc",
+      "description": "Tag warning: site pad bearing missing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SITE_PARKING_WIDTH",
+      "guid": "5d5b2241-44e6-54d3-a2a1-babb82ae6940",
+      "description": "Tag warning: site parking width",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SITE_PLANTING_SPEC_MISSING",
+      "guid": "8ecd5992-2e19-566b-b640-aea8be4a6352",
+      "description": "Tag warning: site planting spec missing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SITE_PROPERTY_AREA_MISSING",
+      "guid": "245948dc-83e7-5448-92da-25a5e9b6629a",
+      "description": "Tag warning: site property area missing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SITE_PROPERTY_BEARING_MISSING",
+      "guid": "2ef82044-69ad-505b-bbb3-3f3f1b4ad22f",
+      "description": "Tag warning: site property bearing missing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SITE_ROAD_GRADIENT",
+      "guid": "c7339c1f-be98-56a4-abc0-cbde47bd9108",
+      "description": "Tag warning: site road gradient",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SITE_ROAD_SPEC_MISSING",
+      "guid": "331a765d-3070-5be5-a98b-3c2bda024c95",
+      "description": "Tag warning: site road spec missing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SITE_TOPOSOLID_LINK_MISSING",
+      "guid": "a30afb6b-986b-569a-84a3-995b47b9579c",
+      "description": "Tag warning: site toposolid link missing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SITE_TOPOSOLID_MATERIAL_MISSING",
+      "guid": "c1b44d33-620d-58ea-84cd-26d51a53bee9",
+      "description": "Tag warning: site toposolid material missing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SLV_NO_FIRESTOP",
+      "guid": "fbbff16e-ad11-554f-a2a3-1ba91250ddfd",
+      "description": "Tag warning: sleeve missing firestop system [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SLV_NO_FIRE_RATING",
+      "guid": "6efed066-5053-591b-95c5-d27ce25ffa11",
+      "description": "Tag warning: sleeve missing fire rating",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SLV_NO_INSPECTION",
+      "guid": "3c5e1027-76c0-54f9-a6dd-0f7fcf654ba7",
+      "description": "Tag warning: sleeve missing inspection record [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SLV_NO_REF",
+      "guid": "bd8e24b9-0cf7-5b1e-8680-5e8d13e4aa56",
+      "description": "Tag warning: sleeve missing reference",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SLV_NO_SEAL",
+      "guid": "dc546eb8-fe7b-534d-97bd-f2958ad7c3ce",
+      "description": "Tag warning: sleeve missing seal",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SLV_NO_SERVICE",
+      "guid": "3dcb019c-4d45-50d4-976a-f7e434824ccd",
+      "description": "Tag warning: sleeve missing service identification [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_SLV_NO_SIZE",
+      "guid": "5c78cafc-d62b-5d50-99de-19cb2dea49de",
+      "description": "Tag warning: sleeve missing size specification [ISO 19650-3:2020]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_ANLYT_LINK_RIGIDITY",
+      "guid": "78214125-72ad-565d-b4c8-31df3e88ad0f",
+      "description": "Tag warning: str anlyt link rigidity",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_ANLYT_NODE_UNCONNECTED",
+      "guid": "fd39e003-f6b2-5cd7-a688-26483aef5637",
+      "description": "Tag warning: str anlyt node unconnected",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_ANLYT_NO_HOST",
+      "guid": "b16714c0-9af1-5a37-aa85-2558117d359d",
+      "description": "Tag warning: str anlyt no host",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_ANLYT_OPENING_OVERSIZED",
+      "guid": "c24aad69-67fc-55e5-8c9b-d59cd845d317",
+      "description": "Tag warning: str anlyt opening oversized",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_ANLYT_PANEL_MATERIAL",
+      "guid": "3fe2407e-2c1c-50ae-97f2-d8e042629e39",
+      "description": "Tag warning: str anlyt panel material",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_BEAM_DEFLECTION_TRUSSES",
+      "guid": "9dc7c4a0-723c-50a1-99ed-f6b369660102",
+      "description": "Tag warning: str beam deflection trusses",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_BEAM_LATERAL_BRACING",
+      "guid": "a66d4fec-bfbb-5103-b5d5-7ffdaab23c53",
+      "description": "Tag warning: str beam lateral bracing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_BEAM_NOTCH",
+      "guid": "f4317776-5507-544f-9d1f-b1915de2ca27",
+      "description": "Warning: Beam notch depth exceeds limit (BS EN 1992-1-1) [HIGH]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_BEAM_PENETRATION_REVIEW",
+      "guid": "2327944e-c87f-5ba2-9b32-06752df7db57",
+      "description": "Warning: Beam penetration requires structural review [HIGH]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_BEAM_WEB_OPENING",
+      "guid": "bcc550dd-e6d4-529b-aea6-599e6e4db75c",
+      "description": "Warning: Beam web opening exceeds code limits (BS EN 1993) [HIGH]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_BOLT_GRADE_MISSING",
+      "guid": "1ae2b9ef-78ab-5c4e-8671-4ef904c66546",
+      "description": "Tag warning: str bolt grade missing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_BRACE_SLENDERNESS",
+      "guid": "b77a1663-6c90-5f79-b2f9-32e252c152eb",
+      "description": "Tag warning: str brace slenderness",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_COL_BASE_PLATE",
+      "guid": "6414b88e-f0d5-561d-822d-bbe696622315",
+      "description": "Tag warning: str col base plate",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_COL_SLENDERNESS",
+      "guid": "673790c6-ae5d-5079-a430-34e88d78f743",
+      "description": "Tag warning: str col slenderness",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_COMPOSITE_SHEAR_STUD",
+      "guid": "21b0fccd-ddeb-5f98-ba39-43b304ea5c8e",
+      "description": "Warning: Composite beam shear-stud count below required (BS EN 1994) [MEDIUM]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_CONN_WELD_SIZE",
+      "guid": "1243eebe-1a3b-54c1-a520-51d92b12068e",
+      "description": "Tag warning: str conn weld size",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_FDN_BEARING_KN_M2",
+      "guid": "f8f7f079-15c9-5799-b518-3abe89470613",
+      "description": "Tag warning: str fdn bearing kn m2",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_FDN_COVER_MM",
+      "guid": "b492c1cf-08e5-5cb9-8d0d-85b9ff20a115",
+      "description": "Tag warning: str fdn cover mm",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_FDN_DEPTH_MM_FROST",
+      "guid": "9ab3ceab-d9f4-5aaa-86a2-b13e115efb20",
+      "description": "Tag warning: str fdn depth mm frost",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_FDN_SETTLEMENT_MM",
+      "guid": "abfa62af-38df-5f2b-af12-74bf2b1468d2",
+      "description": "Tag warning: str fdn settlement mm",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_GRADE_STIFFENERS",
+      "guid": "a257ed9e-1233-51b1-9a8b-2657c7c50d30",
+      "description": "Tag warning: str grade stiffeners",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_LOAD_AXIAL_KN_COLUMNS",
+      "guid": "745b603e-ec4f-54c6-9c84-53269153d3f9",
+      "description": "Tag warning: str load axial kn columns",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_LOAD_CASE_MISSING_AR",
+      "guid": "aba13e22-52b0-5ad9-85e8-2cc0434443d2",
+      "description": "Tag warning: str load case missing ar",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_LOAD_CASE_MISSING_INT_AR",
+      "guid": "40f5c867-afe0-56c1-a16e-8e65560cfbaa",
+      "description": "Tag warning: str load case missing int ar",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_LOAD_CASE_MISSING_INT_LN",
+      "guid": "a2a498bd-17ff-5b19-9d11-bc3dd28e83bc",
+      "description": "Tag warning: str load case missing int ln",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_LOAD_CASE_MISSING_INT_PT",
+      "guid": "80b66ba4-f6a6-5890-b858-8074bacfd2c0",
+      "description": "Tag warning: str load case missing int pt",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_LOAD_CASE_MISSING_LN",
+      "guid": "584b34bb-07ac-58af-8452-4b63c7fd9098",
+      "description": "Tag warning: str load case missing ln",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_LOAD_CASE_MISSING_PT",
+      "guid": "b4338454-a0d8-5b30-a230-b5c4db8acbbf",
+      "description": "Tag warning: str load case missing pt",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_LOAD_UDL_KN_M_BEAM_SYS",
+      "guid": "866cf17f-3003-58d2-9d73-6796aa3ec501",
+      "description": "Tag warning: str load udl kn m beam sys",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_REBAR_COVER_MM_AREA",
+      "guid": "fbc9ace7-46a1-55b5-b48a-4efb14c4b6fc",
+      "description": "Tag warning: str rebar cover mm area",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_REBAR_COVER_MM_FABRIC",
+      "guid": "fc6d84a2-b9cb-5620-bdce-d0bc6009fc9e",
+      "description": "Tag warning: str rebar cover mm fabric",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_REBAR_COVER_MM_PATH",
+      "guid": "fa252ba1-8493-5292-a710-01e3881e902c",
+      "description": "Tag warning: str rebar cover mm path",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_REBAR_GRADE_COUPLERS",
+      "guid": "168b7484-fcef-5c72-8d4d-259068ad4fde",
+      "description": "Tag warning: str rebar grade couplers",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_REBAR_SPACING_MM_AREA",
+      "guid": "dcdab17c-7674-5289-845b-a8d5aed17942",
+      "description": "Tag warning: str rebar spacing mm area",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_SLAB_COVER_MM",
+      "guid": "8ba3c51b-278b-5cb0-b6a4-ff77b1409c3d",
+      "description": "Tag warning: str slab cover mm",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_TRANSFER_BEAM",
+      "guid": "8b849368-d511-5fa7-b097-806f65e001c0",
+      "description": "Warning: Transfer beam requires deflection + vibration check [HIGH]",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_WALL_SLENDERNESS",
+      "guid": "2e46136e-9d46-5cbd-b096-debb2dafb396",
+      "description": "Tag warning: str wall slenderness",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_WELD_SPEC_MISSING",
+      "guid": "e09ac3c7-bc85-59ab-8bda-be0987449a47",
+      "description": "Tag warning: str weld spec missing",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "WARN_STR_WIR_TENSILE_MPA",
+      "guid": "f5569d94-c172-5cde-92d3-5b6e5bfa30bb",
+      "description": "Warning: wire tensile strength MPa",
+      "binding": "universal",
+      "required": false
     }
   ],
   "token_presets": {
@@ -24515,7 +28806,7 @@
           "separator": "-",
           "prefix": "",
           "suffix": "",
-          "description": "Multi-line top \u2014 DISC-LOC-ZONE-LVL (top line of a 2-line tag family layout: place TAG_5 above TAG_6)"
+          "description": "Multi-line top — DISC-LOC-ZONE-LVL (top line of a 2-line tag family layout: place TAG_5 above TAG_6)"
         },
         {
           "param_name": "ASS_TAG_6_TXT",
@@ -24524,7 +28815,7 @@
           "separator": "-",
           "prefix": "",
           "suffix": "",
-          "description": "Multi-line bottom \u2014 SYS-FUNC-PROD-SEQ (bottom line of a 2-line tag family layout: place below TAG_5)"
+          "description": "Multi-line bottom — SYS-FUNC-PROD-SEQ (bottom line of a 2-line tag family layout: place below TAG_5)"
         },
         {
           "param_name": "ASS_TAG_7_TXT",
@@ -24533,7 +28824,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "Comprehensive descriptive narrative \u2014 AI-assembled asset profile with embedded markup tokens for rich rendering"
+          "description": "Comprehensive descriptive narrative — AI-assembled asset profile with embedded markup tokens for rich rendering"
         },
         {
           "param_name": "ASS_TAG_7A_TXT",
@@ -24542,7 +28833,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section A: Identity Header \u2014 asset name, product, manufacturer, model (styled as BOLD in tag families)"
+          "description": "TAG7 Section A: Identity Header — asset name, product, manufacturer, model (styled as BOLD in tag families)"
         },
         {
           "param_name": "ASS_TAG_7B_TXT",
@@ -24551,7 +28842,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section B: System & Function Context \u2014 full system/function descriptions (styled as ITALIC in tag families)"
+          "description": "TAG7 Section B: System & Function Context — full system/function descriptions (styled as ITALIC in tag families)"
         },
         {
           "param_name": "ASS_TAG_7C_TXT",
@@ -24560,7 +28851,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section C: Spatial Context \u2014 room, department, grid reference"
+          "description": "TAG7 Section C: Spatial Context — room, department, grid reference"
         },
         {
           "param_name": "ASS_TAG_7D_TXT",
@@ -24569,7 +28860,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section D: Lifecycle & Status \u2014 status, revision, origin, maintenance"
+          "description": "TAG7 Section D: Lifecycle & Status — status, revision, origin, maintenance"
         },
         {
           "param_name": "ASS_TAG_7E_TXT",
@@ -24578,7 +28869,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section E: Technical Specifications \u2014 discipline-specific MEP/BLE performance data"
+          "description": "TAG7 Section E: Technical Specifications — discipline-specific MEP/BLE performance data"
         },
         {
           "param_name": "ASS_TAG_7F_TXT",
@@ -24587,7 +28878,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section F: Classification & Reference \u2014 Uniformat, OmniClass, keynote, cost, ISO tag"
+          "description": "TAG7 Section F: Classification & Reference — Uniformat, OmniClass, keynote, cost, ISO tag"
         },
         {
           "param_name": "RGL_TAG_7_PARA_CMPL_TXT",
@@ -26469,7 +30760,7 @@
         "key": "TERM_CAPPED",
         "param_name": "ASS_TERM_CAPPED_BOOL",
         "guid": "f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c",
-        "description": "Termination capped/blanked flag (connectivity validator \u2014 open end with intentional cap)",
+        "description": "Termination capped/blanked flag (connectivity validator — open end with intentional cap)",
         "categories": [
           "Pipes",
           "Ducts",
@@ -26514,12 +30805,12 @@
       {
         "key": "ROOM_AREA",
         "param_name": "ASS_ROOM_AREA_SQ_M",
-        "description": "Room area (m\u00b2)"
+        "description": "Room area (m²)"
       },
       {
         "key": "ROOM_VOLUME",
         "param_name": "ASS_ROOM_VOLUME_CU_M",
-        "description": "Room volume (m\u00b3)"
+        "description": "Room volume (m³)"
       },
       {
         "key": "DEPT",
@@ -26645,7 +30936,7 @@
       {
         "key": "ELE_AREA",
         "param_name": "BLE_ELE_AREA_SQ_M",
-        "description": "Element area (m\u00b2)"
+        "description": "Element area (m²)"
       },
       {
         "key": "CEILING_HEIGHT",
@@ -26907,7 +31198,7 @@
       {
         "key": "ELC_PNL_FAULT_KA",
         "param_name": "ELC_PNL_SHORT_CIRCUIT_RATING_KA",
-        "description": "Calculated fault current at panel (kA) \u2014 reuses Phase 175 short-circuit param [STING Phase 178]",
+        "description": "Calculated fault current at panel (kA) — reuses Phase 175 short-circuit param [STING Phase 178]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -26925,7 +31216,7 @@
         "key": "ELC_FEEDER_CSA",
         "param_name": "ELC_FEEDER_CSA_MM2",
         "guid": "f1d6e7c8-1002-5178-9178-100000000002",
-        "description": "Calculated / proposed feeder cable cross-sectional area (mm\u00b2) \u2014 distinct from circuit cable size [STING Phase 178]",
+        "description": "Calculated / proposed feeder cable cross-sectional area (mm²) — distinct from circuit cable size [STING Phase 178]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -26934,7 +31225,7 @@
         "key": "ELC_FEEDER_RATING_A",
         "param_name": "ELC_FEEDER_RATING_A",
         "guid": "f1d6e7c8-1003-5178-9178-100000000003",
-        "description": "Calculated feeder breaker / fuse rating in amperes \u2014 the upstream protective device rating [STING Phase 178]",
+        "description": "Calculated feeder breaker / fuse rating in amperes — the upstream protective device rating [STING Phase 178]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -26942,7 +31233,7 @@
       {
         "key": "ELC_CKT_VD_PCT",
         "param_name": "ELC_VLT_DROP_PCT",
-        "description": "Calculated voltage drop % \u2014 reuses existing Phase 175 param [STING Phase 178]",
+        "description": "Calculated voltage drop % — reuses existing Phase 175 param [STING Phase 178]",
         "categories": [
           "Electrical Circuits"
         ]
@@ -26950,7 +31241,7 @@
       {
         "key": "ELC_CKT_CSA_MM2",
         "param_name": "ELC_CBL_SZ_MM",
-        "description": "Assigned cable CSA \u2014 reuses existing Phase 175 param [STING Phase 178]",
+        "description": "Assigned cable CSA — reuses existing Phase 175 param [STING Phase 178]",
         "categories": [
           "Electrical Circuits",
           "Wires"
@@ -26959,7 +31250,7 @@
       {
         "key": "ELC_CONDUIT_FILL_PCT",
         "param_name": "ELC_CDT_CBL_FILL_PCT",
-        "description": "Calculated conduit fill % \u2014 reuses existing Phase 175 param [STING Phase 178]",
+        "description": "Calculated conduit fill % — reuses existing Phase 175 param [STING Phase 178]",
         "categories": [
           "Conduits"
         ]
@@ -26977,7 +31268,7 @@
         "key": "ELC_LPD_W_M2",
         "param_name": "ELC_LPD_W_PER_M2",
         "guid": "f1d6e7c8-1005-5178-9178-100000000005",
-        "description": "Calculated lighting power density (W/m\u00b2) [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]",
+        "description": "Calculated lighting power density (W/m²) [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]",
         "categories": [
           "Rooms"
         ]
@@ -26986,7 +31277,7 @@
         "key": "ELC_LPD_LIMIT_W_M2",
         "param_name": "ELC_LPD_LIMIT_W_PER_M2",
         "guid": "f1d6e7c8-1006-5178-9178-100000000006",
-        "description": "Standard LPD limit for the room type (W/m\u00b2) [STING Phase 178]",
+        "description": "Standard LPD limit for the room type (W/m²) [STING Phase 178]",
         "categories": [
           "Rooms"
         ]
@@ -27004,7 +31295,7 @@
         "key": "ELC_ARC_FLASH_IE",
         "param_name": "ELC_ARC_FLASH_IE_CAL_CM2",
         "guid": "a2e7f8d9-1001-5179-9179-100000000001",
-        "description": "Calculated incident energy in cal/cm\u00b2 at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]",
+        "description": "Calculated incident energy in cal/cm² at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -27022,7 +31313,7 @@
         "key": "ELC_ARC_FLASH_PPE",
         "param_name": "ELC_ARC_FLASH_PPE_CAT",
         "guid": "a2e7f8d9-1003-5179-9179-100000000003",
-        "description": "NFPA 70E Table 130.5(G) PPE category 0\u20134 (-1 = exceeds Cat 4) [STING Phase 179]",
+        "description": "NFPA 70E Table 130.5(G) PPE category 0–4 (-1 = exceeds Cat 4) [STING Phase 179]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -27058,7 +31349,7 @@
         "key": "ELC_BUSBAR_CSA",
         "param_name": "ELC_BUSBAR_CSA_MM2",
         "guid": "a2e7f8d9-1007-5179-9179-100000000007",
-        "description": "Busbar trunking conductor cross-sectional area (mm\u00b2) [BS EN 60439-1 / STING Phase 179]",
+        "description": "Busbar trunking conductor cross-sectional area (mm²) [BS EN 60439-1 / STING Phase 179]",
         "categories": [
           "Electrical Equipment",
           "Cable Trays"
@@ -29920,7 +34211,7 @@
       {
         "key": "STING_SLEEVE_CREATED_BY",
         "param_name": "STING_SLEEVE_CREATED_BY",
-        "description": "Audit \u2014 placement command"
+        "description": "Audit — placement command"
       }
     ],
     "tier_4_10": [
@@ -29938,7 +34229,7 @@
         "key": "COMM_DATE",
         "param_name": "COMM_DATE_TXT",
         "guid": "5753b5aa-0004-4000-8000-000000000002",
-        "description": "Commissioning date (ISO 8601) \u2014 when state was last stamped",
+        "description": "Commissioning date (ISO 8601) — when state was last stamped",
         "categories": [
           "ALL"
         ],
@@ -29948,7 +34239,7 @@
         "key": "COMM_OPERATIVE",
         "param_name": "COMM_OPERATIVE_TXT",
         "guid": "5753b5aa-0004-4000-8000-000000000003",
-        "description": "Commissioning operative \u2014 name / ID of engineer who stamped the asset",
+        "description": "Commissioning operative — name / ID of engineer who stamped the asset",
         "categories": [
           "ALL"
         ],
@@ -29958,7 +34249,7 @@
         "key": "CST_UG_PRICE",
         "param_name": "CST_UG_PRICE_UGX",
         "guid": "694fcd57-d0c2-5ed3-afca-f225781b3bc8",
-        "description": "Uganda local price (UGX) \u2014 quoted supplier price ex-works",
+        "description": "Uganda local price (UGX) — quoted supplier price ex-works",
         "categories": [
           "ALL"
         ],
@@ -29968,7 +34259,7 @@
         "key": "CST_INTL_PRICE",
         "param_name": "CST_INTL_PRICE_USD",
         "guid": "c40720fa-3e80-5880-86c3-a82f43055fbf",
-        "description": "International price (USD) \u2014 CIF/DAP quote for imported goods",
+        "description": "International price (USD) — CIF/DAP quote for imported goods",
         "categories": [
           "ALL"
         ],
@@ -29978,7 +34269,7 @@
         "key": "CST_QUOTE_REF",
         "param_name": "CST_QUOTE_REF_TXT",
         "guid": "4de58d8f-38e2-584f-b8aa-5a5744a80fcd",
-        "description": "Quote reference \u2014 supplier quote/PO number",
+        "description": "Quote reference — supplier quote/PO number",
         "categories": [
           "ALL"
         ],
@@ -29988,7 +34279,7 @@
         "key": "CBN_A1_A3",
         "param_name": "CBN_A1_A3_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000001",
-        "description": "Product stage carbon A1-A3 (kgCO2e) \u2014 cradle-to-gate embodied",
+        "description": "Product stage carbon A1-A3 (kgCO2e) — cradle-to-gate embodied",
         "categories": [
           "ALL"
         ],
@@ -29998,7 +34289,7 @@
         "key": "CBN_A4",
         "param_name": "CBN_A4_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000002",
-        "description": "Transport stage carbon A4 (kgCO2e) \u2014 factory-to-site haulage",
+        "description": "Transport stage carbon A4 (kgCO2e) — factory-to-site haulage",
         "categories": [
           "ALL"
         ],
@@ -30008,7 +34299,7 @@
         "key": "CBN_B6",
         "param_name": "CBN_B6_KG_CO2E_YR",
         "guid": "5753b5aa-0006-4000-8000-000000000003",
-        "description": "Operational energy carbon B6 (kgCO2e/yr) \u2014 annual in-use emissions",
+        "description": "Operational energy carbon B6 (kgCO2e/yr) — annual in-use emissions",
         "categories": [
           "ALL"
         ],
@@ -30018,7 +34309,7 @@
         "key": "ASS_SPOOL_NR",
         "param_name": "ASS_SPOOL_NR_TXT",
         "guid": "1a4353be-eaaa-5e46-95ee-b64a74667194",
-        "description": "Fabrication spool number \u2014 BS EN ISO 6412 isometric reference",
+        "description": "Fabrication spool number — BS EN ISO 6412 isometric reference",
         "categories": [
           "ALL"
         ],
@@ -30038,7 +34329,7 @@
         "key": "ASS_QC_INSPECTOR",
         "param_name": "ASS_QC_INSPECTOR_TXT",
         "guid": "a028f908-b100-53bc-b21a-1a0a6a03ffac",
-        "description": "QC inspector \u2014 name / ID of signing engineer",
+        "description": "QC inspector — name / ID of signing engineer",
         "categories": [
           "ALL"
         ],
@@ -30048,7 +34339,7 @@
         "key": "CLASH_TRIAGE_SEV",
         "param_name": "CLASH_TRIAGE_SEVERITY_NR",
         "guid": "5753b5aa-0008-4000-8000-000000000001",
-        "description": "Clash triage severity (0-5) \u2014 higher = more blocking",
+        "description": "Clash triage severity (0-5) — higher = more blocking",
         "categories": [
           "ALL"
         ],
@@ -30078,7 +34369,7 @@
         "key": "ASBUILT_DEV",
         "param_name": "ASBUILT_DEVIATION_MM",
         "guid": "5753b5aa-0009-4000-8000-000000000001",
-        "description": "As-built deviation (mm) \u2014 delta vs design position from reality capture",
+        "description": "As-built deviation (mm) — delta vs design position from reality capture",
         "categories": [
           "ALL"
         ],
@@ -30088,7 +34379,7 @@
         "key": "ASBUILT_DATE",
         "param_name": "ASBUILT_CAPTURE_DATE_TXT",
         "guid": "5753b5aa-0009-4000-8000-000000000002",
-        "description": "As-built capture date (ISO 8601) \u2014 when reality-capture snapshot was taken",
+        "description": "As-built capture date (ISO 8601) — when reality-capture snapshot was taken",
         "categories": [
           "ALL"
         ],
@@ -30098,7 +34389,7 @@
         "key": "HEALTH_SCORE",
         "param_name": "HEALTH_SCORE_LAST_NR",
         "guid": "5753b5aa-0009-4000-8000-000000000003",
-        "description": "Model health score (0-100) \u2014 last computed compliance / data quality rating",
+        "description": "Model health score (0-100) — last computed compliance / data quality rating",
         "categories": [
           "ALL"
         ],
@@ -30108,7 +34399,7 @@
         "key": "IFC_PSET_OVERRIDE",
         "param_name": "IFC_PSET_OVERRIDE_TXT",
         "guid": "5753b5aa-000a-4000-8000-000000000001",
-        "description": "IFC PSet override \u2014 custom IFC property set / value mapping for export",
+        "description": "IFC PSet override — custom IFC property set / value mapping for export",
         "categories": [
           "ALL"
         ],
@@ -30118,7 +34409,7 @@
         "key": "ACC_ISSUE_ID",
         "param_name": "ACC_ISSUE_ID_TXT",
         "guid": "5753b5aa-000a-4000-8000-000000000002",
-        "description": "ACC Issue ID \u2014 Autodesk Construction Cloud Issue round-trip reference",
+        "description": "ACC Issue ID — Autodesk Construction Cloud Issue round-trip reference",
         "categories": [
           "ALL"
         ],
@@ -30138,7 +34429,7 @@
         "key": "COMM_WITNESS",
         "param_name": "COMM_WITNESS_TXT",
         "guid": "5753b5aa-0004-4000-8000-000000000010",
-        "description": "Commissioning witness \u2014 name / ID of client/third-party observer",
+        "description": "Commissioning witness — name / ID of client/third-party observer",
         "categories": [
           "ALL"
         ],
@@ -30158,7 +34449,7 @@
         "key": "CST_INSTALL_HRS",
         "param_name": "CST_INSTALL_HRS",
         "guid": "5753b5aa-0005-4000-8000-000000000010",
-        "description": "Installation labour hours (N-G12) \u2014 estimated man-hours for install",
+        "description": "Installation labour hours (N-G12) — estimated man-hours for install",
         "categories": [
           "ALL"
         ],
@@ -30168,7 +34459,7 @@
         "key": "CST_LABOUR_CREW",
         "param_name": "CST_LABOUR_CREW_TXT",
         "guid": "5753b5aa-0005-4000-8000-000000000011",
-        "description": "Labour crew identifier \u2014 crew code assigned to install",
+        "description": "Labour crew identifier — crew code assigned to install",
         "categories": [
           "ALL"
         ],
@@ -30178,7 +34469,7 @@
         "key": "CST_LABOUR_RATE_GBP",
         "param_name": "CST_LABOUR_RATE_GBP",
         "guid": "5753b5aa-0005-4000-8000-000000000012",
-        "description": "Labour rate (GBP/hr) \u2014 override for cost roll-up",
+        "description": "Labour rate (GBP/hr) — override for cost roll-up",
         "categories": [
           "ALL"
         ],
@@ -30188,7 +34479,7 @@
         "key": "CBN_A5",
         "param_name": "CBN_A5_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000010",
-        "description": "Construction stage carbon A5 (kgCO2e) \u2014 site installation emissions",
+        "description": "Construction stage carbon A5 (kgCO2e) — site installation emissions",
         "categories": [
           "ALL"
         ],
@@ -30198,7 +34489,7 @@
         "key": "CBN_C1",
         "param_name": "CBN_C1_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000011",
-        "description": "End-of-life carbon C1 (kgCO2e) \u2014 demolition energy",
+        "description": "End-of-life carbon C1 (kgCO2e) — demolition energy",
         "categories": [
           "ALL"
         ],
@@ -30208,7 +34499,7 @@
         "key": "CBN_C2",
         "param_name": "CBN_C2_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000012",
-        "description": "End-of-life carbon C2 (kgCO2e) \u2014 transport to waste processing",
+        "description": "End-of-life carbon C2 (kgCO2e) — transport to waste processing",
         "categories": [
           "ALL"
         ],
@@ -30218,7 +34509,7 @@
         "key": "CBN_C3_C4",
         "param_name": "CBN_C3_C4_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000013",
-        "description": "End-of-life carbon C3-C4 (kgCO2e) \u2014 waste processing + disposal",
+        "description": "End-of-life carbon C3-C4 (kgCO2e) — waste processing + disposal",
         "categories": [
           "ALL"
         ],
@@ -30228,7 +34519,7 @@
         "key": "CLASH_TRIAGE_SCORE",
         "param_name": "CLASH_TRIAGE_SCORE",
         "guid": "5753b5aa-0008-4000-8000-000000000010",
-        "description": "Clash triage composite score (0-100) \u2014 weighted severity x business impact",
+        "description": "Clash triage composite score (0-100) — weighted severity x business impact",
         "categories": [
           "ALL"
         ],
@@ -30238,7 +34529,7 @@
         "key": "CLASH_RES_ACTION",
         "param_name": "CLASH_RESOLUTION_ACTION_TXT",
         "guid": "5753b5aa-0008-4000-8000-000000000011",
-        "description": "Clash resolution action \u2014 remediation action taken or planned",
+        "description": "Clash resolution action — remediation action taken or planned",
         "categories": [
           "ALL"
         ],
@@ -30622,7 +34913,7 @@
       "guid": "2e3596c7-f913-5c86-9c2b-547f6375ca3c",
       "description": "Room minimum area compliance",
       "threshold": "7.0",
-      "unit": "m\u00b2",
+      "unit": "m²",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -30712,7 +35003,7 @@
       "guid": "cc3fc151-264e-5c9e-88fe-add4e5c4e52f",
       "description": "U-value thermal transmittance check",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -30902,7 +35193,7 @@
       "guid": "18e66013-b783-5748-9389-06897dd57a86",
       "description": "Vertical circulation structural load check",
       "threshold": "5.0",
-      "unit": "kN/m\u00b2",
+      "unit": "kN/m²",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -30932,7 +35223,7 @@
       "guid": "43c8ea79-cafd-5da0-9e6f-e228b85efb39",
       "description": "U-value thermal transmittance check",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -31072,7 +35363,7 @@
       "guid": "573be7bf-3821-5434-b6f6-783e1c83ef87",
       "description": "Fire safety device coverage limit",
       "threshold": "12.0",
-      "unit": "m\u00b2",
+      "unit": "m²",
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal"
@@ -31082,7 +35373,7 @@
       "guid": "9cff654b-b254-4be2-9067-c5bb1fbb2b1b",
       "description": "Sprinkler coverage area limit",
       "threshold": "12.0",
-      "unit": "m\u00b2",
+      "unit": "m²",
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal"
@@ -31212,7 +35503,7 @@
       "guid": "4b0595c4-908f-58fc-821c-b1cacc438418",
       "description": "Space lighting power density limit",
       "threshold": "10",
-      "unit": "W/m\u00b2",
+      "unit": "W/m²",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal"
@@ -31272,7 +35563,7 @@
       "guid": "b8930262-2de1-4ec1-a68b-c7d1ce741b3c",
       "description": "Embodied carbon footprint limit per unit",
       "threshold": "500",
-      "unit": "kgCO\u2082e/m\u00b2",
+      "unit": "kgCO₂e/m²",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal"
@@ -31282,7 +35573,7 @@
       "guid": "05aac695-72d4-4826-be4c-f7f050ff2cba",
       "description": "Floor U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -31292,7 +35583,7 @@
       "guid": "8fad1a00-1d39-4672-87f7-72aa5f3350c2",
       "description": "Roof U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -31302,7 +35593,7 @@
       "guid": "a64d1a09-088f-4e61-9356-8190e9efc50e",
       "description": "Wall U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -31312,7 +35603,7 @@
       "guid": "698beeb9-f4f0-5c0c-a998-dbe92cb657b0",
       "description": "VOC emissions limit for indoor air quality",
       "threshold": "250",
-      "unit": "\u00b5g/m\u00b3",
+      "unit": "µg/m³",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -35863,7 +40154,7 @@
       "guid": "f8f7f079-15c9-5799-b518-3abe89470613",
       "description": "Foundation bearing capacity minimum (warn if allowable bearing falls below this) [BS 8004 / BS EN 1997-1 Eurocode 7]",
       "threshold": "100",
-      "unit": "kN/m\u00b2",
+      "unit": "kN/m²",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "project",
@@ -36208,7 +40499,7 @@
       "guid": "8f1233a3-a77a-583b-8e95-0afd66d0a766",
       "description": "Embodied carbon limit A1-A5, offices (2025 target; 2030 target 350) [LETI Climate Emergency Design Guide / RIBA 2030 Challenge]",
       "threshold": "600",
-      "unit": "kgCO\u2082/m\u00b2",
+      "unit": "kgCO₂/m²",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "project",
