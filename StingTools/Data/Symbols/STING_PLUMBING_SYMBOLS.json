@@ -2118,6 +2118,1338 @@
         "heightMm": 1200
       },
       "status": "draft"
+    },
+    {
+      "id": "PLM_BOILER_COMBI",
+      "name": "Combi Boiler",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.15,
+            "x2": 0.2,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.05,
+            "x2": 0.2,
+            "y2": 0.05
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": -0.2
+              },
+              {
+                "x": 0.1,
+                "y": -0.2
+              },
+              {
+                "x": 0.1,
+                "y": -0.1
+              },
+              {
+                "x": -0.1,
+                "y": -0.1
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_BOILER_SYSTEM",
+      "name": "System Boiler",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.15,
+            "x2": 0.2,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.15,
+            "x2": 0.2,
+            "y2": -0.15
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_BOILER_REGULAR",
+      "name": "Regular Boiler (Heat-Only)",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.15,
+            "x2": 0.2,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.05,
+            "x2": 0.2,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.05,
+            "x2": 0.2,
+            "y2": 0.05
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.15,
+            "x2": 0.2,
+            "y2": 0.15
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_HIU",
+      "name": "Heat Interface Unit (HIU)",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": 0,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_CALORIFIER",
+      "name": "Hot Water Calorifier",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": -0.4,
+            "x2": 0.2,
+            "y2": -0.4
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.4,
+            "x2": 0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.4,
+            "x2": -0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.2,
+            "x2": 0.1,
+            "y2": -0.2
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.3,
+            "r": 0.2,
+            "startAngle": 0,
+            "endAngle": 180
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_THERMAL_STORE",
+      "name": "Thermal Store / Buffer Vessel",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": -0.4,
+            "x2": 0.2,
+            "y2": -0.4
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.4,
+            "x2": 0.2,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.4,
+            "x2": -0.2,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.4,
+            "x2": 0.2,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.2,
+            "x2": 0.1,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": 0,
+            "x2": 0.1,
+            "y2": 0
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": 0.1,
+            "y2": 0.2
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_CWST",
+      "name": "Cold Water Storage Tank",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.25,
+            "y1": -0.05,
+            "x2": 0.25,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": -0.2,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.1,
+            "x2": -0.15,
+            "y2": -0.05
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": -0.1,
+            "y2": -0.05
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_BOOSTER_SET",
+      "name": "Pressure Booster Set",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": -0.2,
+            "cy": 0,
+            "r": 0.15,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.2,
+            "cy": 0,
+            "r": 0.15,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.35,
+            "y2": 0
+          },
+          {
+            "x1": 0.35,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.05,
+            "y1": 0,
+            "x2": 0.05,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_PRESSURISATION_UNIT",
+      "name": "Pressurisation Unit",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.2,
+                "y": 0.1
+              },
+              {
+                "x": -0.1,
+                "y": 0.1
+              },
+              {
+                "x": -0.1,
+                "y": 0.2
+              },
+              {
+                "x": -0.2,
+                "y": 0.2
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_EXPANSION",
+      "name": "Expansion Vessel",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": -0.3,
+            "x2": 0.2,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.3,
+            "x2": 0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.3,
+            "x2": -0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.3,
+            "x2": 0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_TMV",
+      "name": "Thermostatic Mixing Valve (TMV)",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.1,
+            "x2": -0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.1,
+            "x2": -0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": 0.2,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": 0
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.2,
+                "y": 0.1
+              },
+              {
+                "x": 0.2,
+                "y": 0
+              },
+              {
+                "x": -0.2,
+                "y": -0.1
+              }
+            ]
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_BACKFLOW",
+      "name": "Backflow Preventer (RPZ)",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.3,
+            "y2": 0
+          },
+          {
+            "x1": 0.3,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.3,
+                "y": 0.2
+              },
+              {
+                "x": -0.1,
+                "y": 0
+              },
+              {
+                "x": -0.3,
+                "y": -0.2
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0.3,
+                "y": 0.2
+              },
+              {
+                "x": 0.1,
+                "y": 0
+              },
+              {
+                "x": 0.3,
+                "y": -0.2
+              }
+            ]
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": -0.15,
+            "r": 0.08,
+            "startAngle": 0,
+            "endAngle": 180
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_WATER_METER",
+      "name": "Water Meter",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.1,
+            "y1": 0,
+            "x2": 0.1,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.15,
+            "x2": 0,
+            "y2": 0.15
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_WATER_SOFTENER",
+      "name": "Water Softener",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": -0.4,
+            "x2": 0.2,
+            "y2": -0.4
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.4,
+            "x2": 0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.4,
+            "x2": -0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.2,
+            "x2": 0.1,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": 0,
+            "x2": 0.1,
+            "y2": 0
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.3,
+            "r": 0.2,
+            "startAngle": 0,
+            "endAngle": 180
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_RO_SYSTEM",
+      "name": "Reverse Osmosis (RO) System",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": -0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_HOSE_BIB",
+      "name": "Hose Bib / Outside Tap",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.2,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0.2,
+            "x2": 0,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.4,
+            "x2": 0.1,
+            "y2": 0.4
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": -0.3,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_SOLAR_THERMAL",
+      "name": "Solar Thermal Collector",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.2,
+            "x2": 0.4,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.2,
+            "x2": 0.4,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.2,
+            "x2": -0.4,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.2,
+            "x2": -0.4,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": -0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.2,
+            "x2": -0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": 0,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.2,
+            "x2": 0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_DUAL_CHECK",
+      "name": "Dual Check Valve",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.2,
+            "y2": 0
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": 0,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": -0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": 0,
+            "y1": 0.1,
+            "x2": 0.2,
+            "y2": 0
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": -0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": 0,
+            "y1": -0.1,
+            "x2": 0,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": 0.1
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_DEAERATOR",
+      "name": "Deaerator",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": -0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.3,
+            "x2": 0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": 0,
+            "y1": 0.3,
+            "x2": 0,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.05,
+            "y1": 0.4,
+            "x2": 0.05,
+            "y2": 0.4
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
+    },
+    {
+      "id": "PLM_DIRT_SEP",
+      "name": "Dirt / Sediment Separator",
+      "category": "Plumbing Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Plumbing Equipment",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.2,
+            "y2": 0
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.05,
+            "y1": -0.2,
+            "x2": 0,
+            "y2": -0.3
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0.05,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.05,
+            "y1": -0.3,
+            "x2": 0.05,
+            "y2": -0.3
+          }
+        ]
+      },
+      "standard": "CIBSE Guide",
+      "status": "draft"
     }
   ]
 }

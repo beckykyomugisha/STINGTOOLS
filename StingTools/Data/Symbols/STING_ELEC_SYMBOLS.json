@@ -2235,6 +2235,1762 @@
         "heightMm": 85
       },
       "status": "draft"
+    },
+    {
+      "id": "ELEC_R_IEC",
+      "name": "Resistor (IEC)",
+      "category": "Passive Components",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Passive Components",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.2,
+            "y2": 0
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.08,
+            "x2": 0.2,
+            "y2": 0.08
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.08,
+            "x2": 0.2,
+            "y2": -0.08
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.08,
+            "x2": -0.2,
+            "y2": -0.08
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.08,
+            "x2": 0.2,
+            "y2": -0.08
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_R_ANSI",
+      "name": "Resistor (ANSI/IEEE 315)",
+      "category": "Passive Components",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Passive Components",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": -0.25,
+            "y1": 0,
+            "x2": -0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": -0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": 0,
+            "y2": 0.1
+          },
+          {
+            "x1": 0,
+            "y1": 0.1,
+            "x2": 0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.1,
+            "x2": 0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "ANSI/IEEE 315",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_R_VAR",
+      "name": "Variable Resistor / Potentiometer",
+      "category": "Passive Components",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Passive Components",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.2,
+            "y2": 0
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.08,
+            "x2": 0.2,
+            "y2": 0.08
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.08,
+            "x2": 0.2,
+            "y2": -0.08
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.08,
+            "x2": -0.2,
+            "y2": -0.08
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.08,
+            "x2": 0.2,
+            "y2": -0.08
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.25,
+            "x2": 0.25,
+            "y2": -0.25
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": 0.25,
+                "y": -0.25
+              },
+              {
+                "x": 0.15,
+                "y": -0.15
+              },
+              {
+                "x": 0.2,
+                "y": -0.2
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_C_IEC",
+      "name": "Capacitor (IEC)",
+      "category": "Passive Components",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Passive Components",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.05,
+            "y2": 0
+          },
+          {
+            "x1": 0.05,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.05,
+            "y1": -0.2,
+            "x2": -0.05,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.05,
+            "y1": -0.2,
+            "x2": 0.05,
+            "y2": 0.2
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_C_POL",
+      "name": "Polarized Capacitor",
+      "category": "Passive Components",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Passive Components",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.05,
+            "y2": 0
+          },
+          {
+            "x1": 0.05,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.05,
+            "y1": -0.2,
+            "x2": -0.05,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.12,
+            "y1": 0.1,
+            "x2": -0.18,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.13,
+            "x2": -0.15,
+            "y2": 0.07
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0.2,
+            "cy": 0,
+            "r": 0.15,
+            "startAngle": 90,
+            "endAngle": 270
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_L_IEC",
+      "name": "Inductor (IEC)",
+      "category": "Passive Components",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Passive Components",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.08,
+            "x2": 0.25,
+            "y2": 0.08
+          },
+          {
+            "x1": -0.25,
+            "y1": -0.08,
+            "x2": 0.25,
+            "y2": -0.08
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.08,
+            "x2": -0.25,
+            "y2": -0.08
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.08,
+            "x2": 0.25,
+            "y2": -0.08
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.25,
+                "y": 0.08
+              },
+              {
+                "x": 0.25,
+                "y": 0.08
+              },
+              {
+                "x": 0.25,
+                "y": -0.08
+              },
+              {
+                "x": -0.25,
+                "y": -0.08
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_L_ANSI",
+      "name": "Inductor (ANSI/IEEE 315)",
+      "category": "Passive Components",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Passive Components",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.3,
+            "y2": 0
+          },
+          {
+            "x1": 0.3,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.2,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 180
+          },
+          {
+            "cx": -0.05,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 180
+          },
+          {
+            "cx": 0.1,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 180
+          },
+          {
+            "cx": 0.25,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 180
+          }
+        ]
+      },
+      "standard": "ANSI/IEEE 315",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_D_DIODE",
+      "name": "Diode",
+      "category": "Passive Components",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Passive Components",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.1,
+            "y2": 0
+          },
+          {
+            "x1": 0.1,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.15,
+            "x2": 0.1,
+            "y2": 0.15
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": 0.15
+              },
+              {
+                "x": 0.1,
+                "y": 0
+              },
+              {
+                "x": -0.1,
+                "y": -0.15
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_D_LED",
+      "name": "Light-Emitting Diode (LED)",
+      "category": "Passive Components",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Passive Components",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.1,
+            "y2": 0
+          },
+          {
+            "x1": 0.1,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.15,
+            "x2": 0.1,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.18,
+            "y1": 0.2,
+            "x2": 0.3,
+            "y2": 0.35
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.3,
+            "x2": 0.3,
+            "y2": 0.35
+          },
+          {
+            "x1": 0.27,
+            "y1": 0.25,
+            "x2": 0.3,
+            "y2": 0.35
+          },
+          {
+            "x1": 0.05,
+            "y1": 0.2,
+            "x2": 0.2,
+            "y2": 0.35
+          },
+          {
+            "x1": 0.15,
+            "y1": 0.3,
+            "x2": 0.2,
+            "y2": 0.35
+          },
+          {
+            "x1": 0.17,
+            "y1": 0.25,
+            "x2": 0.2,
+            "y2": 0.35
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": 0.15
+              },
+              {
+                "x": 0.1,
+                "y": 0
+              },
+              {
+                "x": -0.1,
+                "y": -0.15
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_D_ZENER",
+      "name": "Zener Diode",
+      "category": "Passive Components",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Passive Components",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.1,
+            "y2": 0
+          },
+          {
+            "x1": 0.1,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0.05,
+            "y1": -0.2,
+            "x2": 0.1,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.15,
+            "x2": 0.1,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.15,
+            "x2": 0.15,
+            "y2": 0.2
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": 0.15
+              },
+              {
+                "x": 0.1,
+                "y": 0
+              },
+              {
+                "x": -0.1,
+                "y": -0.15
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_Q_NPN",
+      "name": "NPN Transistor",
+      "category": "Passive Components",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Passive Components",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": -0.15,
+            "x2": -0.2,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.2,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": 0.5,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.5,
+            "y2": -0.3
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": 0.1,
+                "y": -0.2
+              },
+              {
+                "x": 0.3,
+                "y": -0.3
+              },
+              {
+                "x": 0.2,
+                "y": -0.1
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_Q_PNP",
+      "name": "PNP Transistor",
+      "category": "Passive Components",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Passive Components",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": -0.15,
+            "x2": -0.2,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.2,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": 0.5,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.5,
+            "y2": -0.3
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.2,
+                "y": 0.1
+              },
+              {
+                "x": -0.1,
+                "y": 0.2
+              },
+              {
+                "x": -0.05,
+                "y": 0.1
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_SRC_AC",
+      "name": "AC Voltage Source",
+      "category": "Sources",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Sources",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.15,
+            "cy": 0,
+            "r": 0.07,
+            "startAngle": 180,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.01,
+            "cy": 0,
+            "r": 0.07,
+            "startAngle": 0,
+            "endAngle": 180
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_SRC_DC",
+      "name": "DC Voltage Source",
+      "category": "Sources",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Sources",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.1,
+            "y1": 0,
+            "x2": 0.1,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.1,
+            "x2": 0,
+            "y2": 0.1
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_SRC_BATT",
+      "name": "Battery (Multi-cell)",
+      "category": "Sources",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Sources",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.2,
+            "y2": 0
+          },
+          {
+            "x1": 0.3,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.15,
+            "x2": -0.2,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.08,
+            "x2": -0.1,
+            "y2": 0.08
+          },
+          {
+            "x1": 0,
+            "y1": -0.15,
+            "x2": 0,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.08,
+            "x2": 0.1,
+            "y2": 0.08
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.15,
+            "x2": 0.2,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.08,
+            "x2": 0.3,
+            "y2": 0.08
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_SRC_CURRENT",
+      "name": "Current Source",
+      "category": "Sources",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Sources",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": 0,
+            "y2": 0.15
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.07,
+                "y": 0.15
+              },
+              {
+                "x": 0.07,
+                "y": 0.15
+              },
+              {
+                "x": 0,
+                "y": 0.25
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_MTR_A",
+      "name": "Ammeter",
+      "category": "Meters",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Meters",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": 0,
+            "y2": 0.1
+          },
+          {
+            "x1": 0,
+            "y1": 0.1,
+            "x2": 0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.07,
+            "y1": 0,
+            "x2": 0.07,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_MTR_V",
+      "name": "Voltmeter",
+      "category": "Meters",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Meters",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.1,
+            "y1": 0.1,
+            "x2": 0,
+            "y2": -0.1
+          },
+          {
+            "x1": 0,
+            "y1": -0.1,
+            "x2": 0.1,
+            "y2": 0.1
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_MTR_W",
+      "name": "Wattmeter",
+      "category": "Meters",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Meters",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": -0.1,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.1,
+            "x2": 0,
+            "y2": -0.1
+          },
+          {
+            "x1": 0,
+            "y1": -0.1,
+            "x2": 0.1,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.1,
+            "x2": 0.1,
+            "y2": -0.1
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_MTR_KWH",
+      "name": "Energy Meter (kWh)",
+      "category": "Meters",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Meters",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": -0.1
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_LAMP_IND",
+      "name": "Indicator Lamp",
+      "category": "Indicators",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Indicators",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.2,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.14,
+            "y1": -0.14,
+            "x2": 0.14,
+            "y2": 0.14
+          },
+          {
+            "x1": -0.14,
+            "y1": 0.14,
+            "x2": 0.14,
+            "y2": -0.14
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_BELL",
+      "name": "Bell",
+      "category": "Indicators",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Indicators",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 180
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.25,
+            "y1": 0,
+            "x2": 0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.1,
+            "x2": 0,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_BUZZER",
+      "name": "Buzzer",
+      "category": "Indicators",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Indicators",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 180,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.25,
+            "y1": 0,
+            "x2": 0.25,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_ANTENNA",
+      "name": "Antenna",
+      "category": "Communications",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Communications",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.3
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_SW_DPDT",
+      "name": "Switch — DPDT",
+      "category": "Switches",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Switches",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.15,
+            "x2": -0.2,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.15,
+            "x2": 0.5,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.15,
+            "x2": -0.2,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.15,
+            "x2": 0.5,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.15,
+            "x2": 0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.15,
+            "x2": 0.2,
+            "y2": 0
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.2,
+            "cy": 0.15,
+            "r": 0.02,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.2,
+            "cy": 0.15,
+            "r": 0.02,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.2,
+            "cy": -0.15,
+            "r": 0.02,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.2,
+            "cy": -0.15,
+            "r": 0.02,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_SW_PUSHBUTTON_NC",
+      "name": "Push-Button — Normally Closed",
+      "category": "Switches",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Switches",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.15,
+            "y2": 0
+          },
+          {
+            "x1": 0.15,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.15,
+            "y1": 0,
+            "x2": 0.15,
+            "y2": 0.15
+          },
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": 0,
+            "y2": 0.05
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_SW_PUSHBUTTON_NO",
+      "name": "Push-Button — Normally Open",
+      "category": "Switches",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Switches",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.15,
+            "y2": 0
+          },
+          {
+            "x1": 0.15,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.15,
+            "x2": 0.15,
+            "y2": 0.15
+          },
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": 0,
+            "y2": 0.15
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_SW_LIMIT",
+      "name": "Limit Switch",
+      "category": "Switches",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Switches",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.15,
+            "y2": 0
+          },
+          {
+            "x1": 0.15,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.15,
+            "y1": 0,
+            "x2": 0.15,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.2,
+            "x2": 0.1,
+            "y2": 0.05
+          },
+          {
+            "x1": 0.05,
+            "y1": -0.2,
+            "x2": 0.15,
+            "y2": -0.2
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_SW_THERMAL",
+      "name": "Thermal Switch",
+      "category": "Switches",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Switches",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.15,
+            "y2": 0
+          },
+          {
+            "x1": 0.15,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.15,
+            "y1": 0,
+            "x2": 0.15,
+            "y2": 0.15
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": -0.2,
+            "r": 0.06,
+            "startAngle": 0,
+            "endAngle": 180
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_SW_PROX",
+      "name": "Proximity Switch",
+      "category": "Switches",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Switches",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.15,
+            "y2": 0
+          },
+          {
+            "x1": 0.15,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.15,
+            "y1": 0,
+            "x2": 0.15,
+            "y2": 0.15
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.3,
+            "r": 0.08,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "IEC 60617",
+      "status": "draft"
     }
   ]
 }

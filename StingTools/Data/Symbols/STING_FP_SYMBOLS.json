@@ -1942,6 +1942,1386 @@
         }
       ],
       "status": "draft"
+    },
+    {
+      "id": "FP_EXTINGUISHER_CO2",
+      "name": "Portable Extinguisher — CO₂",
+      "category": "Portable Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Portable Equipment",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.1,
+            "y1": -0.3,
+            "x2": 0.1,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.3,
+            "x2": 0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.3,
+            "x2": -0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": 0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.2,
+            "x2": 0.15,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": -0.15,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.3,
+            "x2": 0.15,
+            "y2": 0.3
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": -0.3
+              },
+              {
+                "x": 0.1,
+                "y": -0.3
+              },
+              {
+                "x": 0.1,
+                "y": 0.1
+              },
+              {
+                "x": -0.1,
+                "y": 0.1
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_EXTINGUISHER_WATER",
+      "name": "Portable Extinguisher — Water",
+      "category": "Portable Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Portable Equipment",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.1,
+            "y1": -0.3,
+            "x2": 0.1,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.3,
+            "x2": 0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.3,
+            "x2": -0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": 0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.2,
+            "x2": 0.15,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": -0.15,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.3,
+            "x2": 0.15,
+            "y2": 0.3
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_EXTINGUISHER_FOAM",
+      "name": "Portable Extinguisher — Foam",
+      "category": "Portable Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Portable Equipment",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.1,
+            "y1": -0.3,
+            "x2": 0.1,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.3,
+            "x2": 0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.3,
+            "x2": -0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": 0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.2,
+            "x2": 0.15,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": -0.15,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.3,
+            "x2": 0.15,
+            "y2": 0.3
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.05,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.05,
+            "cy": -0.05,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.05,
+            "cy": -0.1,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_EXTINGUISHER_POWDER",
+      "name": "Portable Extinguisher — Dry Powder",
+      "category": "Portable Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Portable Equipment",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.1,
+            "y1": -0.3,
+            "x2": 0.1,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.3,
+            "x2": 0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.3,
+            "x2": -0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": 0.1,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.2,
+            "x2": 0.15,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": -0.15,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.3,
+            "x2": 0.15,
+            "y2": 0.3
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.07,
+                "y": -0.2
+              },
+              {
+                "x": 0.07,
+                "y": -0.2
+              },
+              {
+                "x": 0.07,
+                "y": 0
+              },
+              {
+                "x": -0.07,
+                "y": 0
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_HOSE_REEL",
+      "name": "Fire Hose Reel",
+      "category": "Hose Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Hose Equipment",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": -0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.4,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_DRY_RISER",
+      "name": "Dry Riser",
+      "category": "Risers",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Risers",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.15,
+            "x2": 0.15,
+            "y2": -0.15
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.15,
+            "x2": 0.15,
+            "y2": 0.15
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_WET_RISER",
+      "name": "Wet Riser",
+      "category": "Risers",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Risers",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0.3
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.2,
+                "y": 0.05
+              },
+              {
+                "x": 0.2,
+                "y": 0.05
+              },
+              {
+                "x": 0.2,
+                "y": -0.05
+              },
+              {
+                "x": -0.2,
+                "y": -0.05
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_HYDRANT",
+      "name": "Fire Hydrant",
+      "category": "Hydrants",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Hydrants",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.2,
+            "x2": 0.1,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": 0.1,
+            "y2": 0.2
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_GAS_SUPP_NOZZLE",
+      "name": "Gas Suppression Nozzle",
+      "category": "Gas Suppression",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Gas Suppression",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.2,
+            "startAngle": 0,
+            "endAngle": 180
+          }
+        ],
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.1,
+            "x2": 0,
+            "y2": 0.2
+          },
+          {
+            "x1": 0,
+            "y1": 0.2,
+            "x2": 0.1,
+            "y2": 0.1
+          },
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": -0.1,
+            "y2": -0.1
+          },
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": 0.1,
+            "y2": -0.1
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_FOAM_GENERATOR",
+      "name": "Foam Generator",
+      "category": "Special Suppression",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Special Suppression",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": -0.2
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.1,
+            "cy": 0.05,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": -0.05,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": 0.1,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.05,
+            "cy": -0.1,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_WATER_MIST",
+      "name": "Water Mist Nozzle",
+      "category": "Mist Suppression",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Mist Suppression",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.2,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": 0,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.14,
+            "y1": -0.14,
+            "x2": 0.14,
+            "y2": 0.14
+          },
+          {
+            "x1": -0.14,
+            "y1": 0.14,
+            "x2": 0.14,
+            "y2": -0.14
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_DET_VESDA",
+      "name": "VESDA Aspirating Smoke Detector",
+      "category": "Detection",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.1,
+            "cy": 0,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": 0,
+            "r": 0.04,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_DET_LINEAR_HEAT",
+      "name": "Linear Heat Detection Cable",
+      "category": "Detection",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.4,
+            "y1": -0.05,
+            "x2": -0.4,
+            "y2": 0.05
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.05,
+            "x2": -0.2,
+            "y2": 0.05
+          },
+          {
+            "x1": 0,
+            "y1": -0.05,
+            "x2": 0,
+            "y2": 0.05
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.05,
+            "x2": 0.2,
+            "y2": 0.05
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.05,
+            "x2": 0.4,
+            "y2": 0.05
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_DET_BEAM",
+      "name": "Beam Smoke Detector",
+      "category": "Detection",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": -0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": -0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": -0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.1,
+            "x2": 0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_DET_FLAME",
+      "name": "Flame Detector (IR/UV)",
+      "category": "Detection",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.2,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": 0,
+            "y2": 0.2
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_DET_DUCT_SMOKE",
+      "name": "Duct Smoke Detector",
+      "category": "Detection",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Detection",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.1,
+            "x2": 0.5,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.1,
+            "x2": 0.5,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": -0.2,
+            "y2": 0.25
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.1,
+            "x2": 0.2,
+            "y2": 0.25
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.25,
+            "x2": 0.2,
+            "y2": 0.25
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.06,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_DAMPER_FIRE_LINK",
+      "name": "Fire Damper Fusible Link",
+      "category": "Dampers",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Dampers",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.15,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": 0.1,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.1,
+            "x2": 0.1,
+            "y2": -0.1
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_SMOKE_VENT",
+      "name": "Automatic Smoke Vent",
+      "category": "Smoke Control",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Smoke Control",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.2,
+            "x2": -0.2,
+            "y2": 0.2
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.05,
+                "y": 0.4
+              },
+              {
+                "x": 0.05,
+                "y": 0.4
+              },
+              {
+                "x": 0,
+                "y": 0.5
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_FIRE_CURTAIN",
+      "name": "Fire Curtain",
+      "category": "Smoke Control",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Smoke Control",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.1,
+            "x2": 0.5,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.1,
+            "x2": 0.5,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.2,
+            "x2": 0.5,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.3,
+            "x2": 0.5,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.1,
+            "x2": 0.3,
+            "y2": 0.3
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_FIRE_DOOR_HOLD",
+      "name": "Fire Door Hold-Open Device",
+      "category": "Doors",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Doors",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 180,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": -0.05,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 180
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
+    },
+    {
+      "id": "FP_SUPPRESSION_PANEL",
+      "name": "Suppression Release Control Panel",
+      "category": "Control Equipment",
+      "familyType": "GenericAnnotation",
+      "discipline": "FireProtection",
+      "subcategory": "Control Equipment",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": 0,
+            "y1": -0.1,
+            "x2": 0,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": 0.1,
+            "y2": 0.2
+          }
+        ]
+      },
+      "standard": "NFPA 170 / BS 5839",
+      "status": "draft"
     }
   ]
 }
