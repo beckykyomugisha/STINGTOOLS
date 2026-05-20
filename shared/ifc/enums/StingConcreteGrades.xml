@@ -23,74 +23,74 @@
   </IfcMapping>
 
   <Values>
-    <Value code="C12_15" sentinel="false">
+    <Value code="C12_15" sentinel="false" display_form="C12/15">
       <Definition>C12/15 — non-structural blinding / mass fill.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
-    <Value code="C16_20" sentinel="false">
+    <Value code="C16_20" sentinel="false" display_form="C16/20">
       <Definition>C16/20 — light-duty foundations / blinding.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
-    <Value code="C20_25" sentinel="false">
+    <Value code="C20_25" sentinel="false" display_form="C20/25">
       <Definition>C20/25 — low-strength reinforced concrete; some agricultural / domestic.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
-    <Value code="C25_30" sentinel="false">
+    <Value code="C25_30" sentinel="false" display_form="C25/30">
       <Definition>C25/30 — typical reinforced foundations / GF slabs (XC1/XC2 exposure).</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
-    <Value code="C28_35" sentinel="false">
+    <Value code="C28_35" sentinel="false" display_form="C28/35">
       <Definition>C28/35 — standard structural reinforced concrete.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
-    <Value code="C30_37" sentinel="false">
+    <Value code="C30_37" sentinel="false" display_form="C30/37">
       <Definition>C30/37 — UK common structural strength; standard frame / slab.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
-    <Value code="C32_40" sentinel="false">
+    <Value code="C32_40" sentinel="false" display_form="C32/40">
       <Definition>C32/40 — higher-grade frame / slab; XC3/XC4 exposure.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
-    <Value code="C35_45" sentinel="false">
+    <Value code="C35_45" sentinel="false" display_form="C35/45">
       <Definition>C35/45 — high-strength reinforced concrete; columns + post-tension.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
-    <Value code="C40_50" sentinel="false">
+    <Value code="C40_50" sentinel="false" display_form="C40/50">
       <Definition>C40/50 — high-rise columns / heavily-loaded structural.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
-    <Value code="C45_55" sentinel="false">
+    <Value code="C45_55" sentinel="false" display_form="C45/55">
       <Definition>C45/55 — pre-stressed concrete; specialist precast.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
-    <Value code="C50_60" sentinel="false">
+    <Value code="C50_60" sentinel="false" display_form="C50/60">
       <Definition>C50/60 — high-strength precast.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
-    <Value code="C55_67" sentinel="false">
+    <Value code="C55_67" sentinel="false" display_form="C55/67">
       <Definition>C55/67 — specialist high-strength.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
-    <Value code="C60_75" sentinel="false">
+    <Value code="C60_75" sentinel="false" display_form="C60/75">
       <Definition>C60/75 — specialist high-rise columns.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
-    <Value code="C70_85" sentinel="false">
+    <Value code="C70_85" sentinel="false" display_form="C70/85">
       <Definition>C70/85 — bridge / signature-structure specialist concrete.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
-    <Value code="C80_95" sentinel="false">
+    <Value code="C80_95" sentinel="false" display_form="C80/95">
       <Definition>C80/95 — ultra-high-strength specialist.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
-    <Value code="C90_105" sentinel="false">
+    <Value code="C90_105" sentinel="false" display_form="C90/105">
       <Definition>C90/105 — ultra-high-strength; specialist precast + research grade.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
   </Values>
 
   <CorporateLock>
-    <Sha256>14d913c5f3f74d3e68b176255eb9b36b78fcbf88748862ce1555febbda7caa83</Sha256>
+    <Sha256>9b4bf98a37c0210cb2c2f235550647a60cea22c637d64da006cf2ec9d9b287d3</Sha256>
     <LockedAtVersion>5.0.0</LockedAtVersion>
     <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
   </CorporateLock>

@@ -71,6 +71,7 @@
     <xs:attribute name="deprecated" type="xs:boolean" default="false"/>
     <xs:attribute name="deprecated_in_version" type="SemVerType" use="optional"/>
     <xs:attribute name="replaced_by" type="ValueCodeType" use="optional"/>
+    <xs:attribute name="display_form" type="xs:string" use="optional"/>
   </xs:complexType>
 
   <xs:complexType name="CorporateLockType">

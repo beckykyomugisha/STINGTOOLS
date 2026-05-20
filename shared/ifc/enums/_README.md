@@ -27,6 +27,7 @@ shared/ifc/enums/
 ├── StingLocationCodes.xml          Tier 1 — project-scoped template
 ├── StingZoneCodes.xml              Tier 1 — project-scoped template
 ├── StingLevelCodes.xml             Tier 1 — project-scoped template
+├── StingZoneCategoryCodes.xml      Tier 1 — corporate-locked
 ├── StingStatusCodes.xml            Tier 1 — corporate-locked
 ├── StingSuitabilityCodes.xml       Tier 1 — corporate-locked
 ├── StingCDEStates.xml              Tier 1 — corporate-locked
@@ -77,7 +78,7 @@ shared/ifc/enums/
 └── StingTheatreTypes.xml           Tier 5 — corporate-locked
 ```
 
-51 enum files + 1 schema + 1 manifest + this README.
+52 enum files + 1 schema + 1 manifest + this README.
 
 ---
 
