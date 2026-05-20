@@ -5212,3 +5212,208 @@ no non-comment references to either broken API remain.
 **Caveat**:
 
 1. Built without `dotnet build` verification (Linux sandbox). The user's pull command should now succeed and the resulting build should be clean.
+
+#### Completed (Phase 187 — Tag Family Creator ↔ CSV alignment)
+
+**Scope**: close the silent mismatch between the v5 tag configuration
+CSVs (`STING_TAG_CONFIG_v5_0_{ARCH|GEN|MEP|STR|HEALTH}.csv`) and
+`TagFamilyCreatorCommand`. Before this phase the creator's hardcoded
+family list ran on 121 base + 8 + 3 + 4 + 7 = 143 families, while the
+4 mainline CSVs declared 145 unique families and HEALTH declared 56
+more — and almost all the base/variant names mismatched the CSV in
+plural/singular form ("STING - Doors Tag" vs "STING - Door Tag"),
+suffix structure ("STING - Tie-In Pipe Tag" vs "STING - Tie-In Point
+Tag (Pipe — Plumbing & Hydraulic)"), or were absent entirely (3 LPS
+reuse variants, 58 healthcare families). The mismatch was invisible:
+families still got created, but `plansByFamily.TryGetValue(famName)`
+in `AuthorFromPlanIfAvailable` missed for ~40 families, so they
+were silently authored with default T4-T10 visibility params instead
+of the per-family tier rows the CSVs ship.
+
+**Integrated changes**:
+
+1. **Alias-aware plan lookup** — `TagFamilyConfig.CsvFamilyNameCandidates`
+   (`StingTools/Tags/TagFamilyCreatorCommand.cs`) yields plural→singular
+   and parenthetical-disambiguator alternates so
+   `plansByFamily["STING - Doors Tag"]` falls through to
+   `["STING - Door Tag"]` and
+   `plansByFamily["STING - Anti-Ligature (Door) Tag"]` falls through to
+   `["STING - Anti-Ligature Tag"]`. New `TryGetTierPlan` / `ContainsPlanForFamily`
+   helpers wrap dictionary access. Both `TagFamilyCreatorCommand` and
+   `MigrateTagFamiliesCommand` switched to the new helpers — no more
+   exact-only `dict.TryGetValue(famName, ...)` for plan lookup.
+
+2. **`CategoryCsvFamilyKey` override map** — 41 BuiltInCategory →
+   singular CSV family-name pins (Doors → "Door", Walls → "Wall",
+   Pipes → "Pipe", Lighting Fixtures → "Lighting Fixture", …). New
+   families authored on a fresh project now ship with the CSV-aligned
+   name. Existing projects with plural-named .rfa files keep working
+   thanks to the alias-aware lookup.
+
+3. **`VariantSuffixToCsvName` map** — 7 explicit suffix → CSV-name
+   substitutions for the 6 tie-in point families and the "Brace / Truss"
+   structural variant. `GetTieInFamilyName` consults this map first so
+   the file name matches the CSV verbatim.
+
+4. **3 missing LPS reuse families added** to `MepVariantFamilies`:
+   "LPS Generic Component" (OST_GenericModel, from GEN CSV #34),
+   "LPS Foundation Earth (Structural Reuse)" (OST_StructuralFoundation,
+   STR CSV #22), "LPS Natural Air Termination (Architectural Reuse)"
+   (OST_Roofs, ARCH CSV #36).
+
+5. **`HealthcareVariantFamilies` array (58 entries)** — every row from
+   `STING_TAG_CONFIG_v5_0_HEALTH.csv` is now wired into the creator
+   with per-BIC `.rfa` files. "Anti-Ligature" (3 BICs in CSV)
+   disambiguates by category suffix (Door / Lighting Fixture /
+   Plumbing Fixture) to satisfy Revit's single-category tag binding;
+   plan lookup strips the parenthetical to rejoin the CSV name. New
+   Step 5f loop in the build body mirrors the MEP variant loop shape.
+
+6. **HEALTH wired into `HandoverModeHelper.Disciplines`** so the CSV
+   resolver discovers and loads `STING_TAG_CONFIG_v5_0_HEALTH.csv`.
+   `TagConfigCsvReader.Parse` now recognises the `TAG_FAMILY,name,…`
+   row format used by HEALTH and registers each row as a plan-less
+   `TierPlan` declaration (all T4-T10 = `Omit`). Healthcare families
+   resolve through `TryGetTierPlan` even though they carry no per-tier
+   customisation.
+
+7. **`TotalFamilyCount` and stale `137` docstrings** — runtime count
+   updated to `121 + 8 + 3 + 4 + 10 + 58 = 204`. Three top-of-file
+   docstrings (`Tags/TagFamilyCreatorCommand.cs:14`, `:1051`, `:1055`)
+   and two `Core/ParamRegistry.cs` comments switched from the
+   hardcoded `137` to dynamic references to
+   `TagFamilyConfig.TotalFamilyCount`.
+
+8. **Coverage warning in confirm dialog** — when
+   `familiesWithPlan / categories.Count < 0.5`, the dialog now leads
+   with a `⚠ WARNING:` banner telling the user "only X% matched a CSV
+   plan; most families will be authored with DEFAULT visibility params"
+   and points at `CategoryCsvFamilyKey` / `VariantSuffixToCsvName` as
+   the likely culprit. Before this phase the dialog reported the
+   count silently with no qualifier.
+
+9. **`LABEL_DEFINITIONS.json` aligned with the 204-family creator** —
+   added 76 new `category_labels` entries (58 healthcare + 9 LPS + 7
+   ARCH/STR variants + 2 tie-in pipe variants) so every family the
+   creator now produces has a tier_1 / tier_2 / tier_3 + paragraph
+   container declaration. Each entry pins to an existing paragraph
+   container (CLN/CEQ/MGS/LIG/RAD/NCL/LPS/STR/BLE/ARCH) and references
+   only params already present in `MR_PARAMETERS.txt`. Healthcare
+   "Anti-Ligature" disambiguated entries carry a `csv_family_alias`
+   field pointing back at the canonical CSV name. Version bumped
+   5.10 → 5.11.
+
+10. **8 orphan warning params landed in `MR_PARAMETERS.txt` +
+    `MR_PARAMETERS.csv`** — `WARN_STR_BEAM_{NOTCH,PENETRATION_REVIEW,
+    WEB_OPENING}`, `WARN_STR_COMPOSITE_SHEAR_STUD`, `WARN_STR_TRANSFER_BEAM`
+    (group 16, `BLE_STRUCTURE`), and
+    `WARN_ELC_PNL_{FEEDER_UNDERSIZED,LOAD_BALANCE,SCHEDULE_MISSING}`
+    (group 4, `ELC_PWR`). They were already referenced by formula in
+    `LABEL_DEFINITIONS.json` Calculated Value rows but had no
+    shared-parameter entries — Revit would have silently skipped them
+    at family-author time. UUIDv5 GUIDs minted in the Planscape docs
+    namespace `a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a`. CSV header bumped
+    to v6.4. Result: every parameter referenced in `category_labels`
+    (683 unique) now resolves to a `MR_PARAMETERS.txt` entry — zero
+    orphans.
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Tags/TagFamilyCreatorCommand.cs` | +`CategoryCsvFamilyKey` (41 entries), +`VariantSuffixToCsvName` (7 entries), +`HealthcareVariantFamilies` (58 entries), +3 LPS reuse rows in `MepVariantFamilies`, +`CsvFamilyNameCandidates` / `TryGetTierPlan` / `ContainsPlanForFamily` helpers, `GetFamilyName` / `GetTieInFamilyName` rewired to prefer CSV-aligned names, +Step 5f healthcare build loop, +healthcare iteration in already-loaded + on-disk counters, coverage-warning banner in confirm dialog, 4 stale `137` docstrings retired |
+| `StingTools/Commands/TagStudio/MigrateTagFamiliesCommand.cs` | plan lookup switched to `TagFamilyConfig.TryGetTierPlan` so plural-named families still match CSV plans |
+| `StingTools/Core/HandoverModeHelper.cs` | `Disciplines` array extended with `"HEALTH"` so the CSV resolver discovers the healthcare CSV |
+| `StingTools/Core/TagConfigCsvReader.cs` | `Parse` recognises `TAG_FAMILY,name,…` row format used by HEALTH CSV and registers each as a plan-less `TierPlan` |
+| `StingTools/Core/ParamRegistry.cs` | 2 hardcoded `137` comments switched to runtime `TagFamilyConfig.TotalFamilyCount` reference |
+| `StingTools/Data/LABEL_DEFINITIONS.json` | +76 `category_labels` entries (58 healthcare + 9 LPS + 7 ARCH/STR variants + 2 tie-in pipe). Total 138 → 214 categories. Version 5.10 → 5.11 |
+| `StingTools/Data/MR_PARAMETERS.txt` | +8 orphan warning PARAM rows (5 STR_BEAM + 3 ELC_PNL) with UUIDv5 GUIDs |
+| `StingTools/Data/MR_PARAMETERS.csv` | mirror of above 8 PARAM rows; header bumped to v6.4 |
+| `docs/CHANGELOG.md` | this entry |
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. Existing projects with plural-named `.rfa` files (e.g.
+   `STING - Doors Tag.rfa`) will get new singular-named families
+   (`STING - Door Tag.rfa`) created alongside on the next run. The
+   plural-named family stays loaded but orphaned until the user
+   removes it via Project Browser → Families. Plan lookups via
+   `TryGetTierPlan` already work for both forms so there is no
+   functional regression.
+3. The 58 healthcare families assume the documented healthcare
+   `BuiltInCategory` bindings from `STING_TAG_CONFIG_v5_0_HEALTH.csv`.
+   Projects on stock Revit may not have all of `OST_NurseCallDevices`
+   / `OST_MedicalEquipment` populated — the creator still emits the
+   `.rfa` and the family loads, just with no project instances to tag.
+4. HEALTH CSV has no `DesignConstruction` sibling. The mode resolver
+   falls back to the Handover (default) CSV for HEALTH in DC mode,
+   which is the correct behaviour for now (clinical content is
+   stage-independent).
+5. The 76 new `category_labels` entries ship with stub tier_2 / tier_3
+   rows tuned per family (e.g. healthcare clinical → `CLN_ROOM_CLASS_TXT`
+   + `CLN_PRESS_REGIME_TXT`, LPS → `ELC_LPS_CLASS_TXT` + `ELC_LPS_ZONE_TXT`).
+   Designers are expected to expand them per project — the stubs render
+   correctly out of the box and never reference an unbound parameter.
+6. `MR_PARAMETERS.csv` row count (3052) is lower than `MR_PARAMETERS.txt`
+   (3117) — pre-existing condition where the CSV is a subset, not a
+   strict mirror. Not introduced by this phase. Out of scope to close.
+
+**Follow-up commit — Phase 187 dedup + full alignment closure**:
+
+After the initial commit a comprehensive audit (creator ↔
+LABEL_DEFINITIONS ↔ MR_PARAMETERS ↔ PARAMETER_REGISTRY ↔ tag CSVs)
+surfaced 4 remaining classes of drift. All closed:
+
+11. **Dedup 10 stale LABEL_DEFINITIONS entries** — 4 plural duplicates
+    (`Curtain Panels`, `Curtain Wall Mullions`, `Railings`,
+    `Structural Connections`) superseded by the singular forms added in
+    the initial commit, plus 6 entries for families the creator never
+    emits (`Analytical Duct Segments`, `Analytical Pipe Segments`,
+    `Area Based Loads`, `MEP Ancillary`, `Temporary Structures`,
+    `Wash`). Total 214 → 204, exactly matching
+    `TagFamilyConfig.TotalFamilyCount`. Version 5.11 → 5.12.
+
+12. **+35 healthcare WARN params** referenced by tag-CSV warning rows
+    but missing from `MR_PARAMETERS.txt`: 14 `WARN_CLN_*` (group 28),
+    7 `WARN_MGS_*` (group 29), 5 `WARN_RAD_*` (group 30), 2
+    `WARN_CEQ_*` (group 31), 1 `WARN_LIG_*` (group 32), 2 `WARN_ELC_*`
+    (group 4), 3 `WARN_FAB_*` (group 15), 2 `WARN_PLM_*` (group 6).
+    UUIDv5 GUIDs in Planscape namespace. Without these, Revit would
+    have silently dropped the calculated-value formulas referencing
+    them at family-author time.
+
+13. **+11 `STING_SLEEVE_*` params** to `MR_PARAMETERS.txt` — they were
+    declared in `PARAMETER_REGISTRY.json` (consumed by the
+    PenetrationRegister / PenetrationSweep workflows) but had no
+    shared-parameter binding entry, so the sleeve sync command had
+    nothing to bind to. Added with group 15 (fabrication) and
+    `RGL_CMPL` CSV group.
+
+14. **+613 params synced into `PARAMETER_REGISTRY.json`
+    `support_params`** — every param in `MR_PARAMETERS.txt` that was
+    not already a registry entry (mostly `WARN_*` thresholds plus
+    `ARCH/STR/HVC TAG_7_PARA_*` paragraph containers). Default binding
+    is `"universal"`; project teams refine in subsequent phases if
+    category-specific binding is needed.
+
+**Final alignment state (programmatically verified)**:
+
+| Check | Result |
+|---|---|
+| Creator family count | 204 |
+| LABEL_DEFINITIONS unique families | 204 |
+| Creator ↔ LABEL gap | **0** |
+| MR_PARAMETERS.txt PARAM rows | 3163 |
+| CSV-referenced params missing from TXT | **0** (was 35) |
+| LABEL-referenced params missing from TXT | **0** |
+| TXT ↔ PARAMETER_REGISTRY gap | **0** (was 578 + 11) |
+
+**Additional modified files (this follow-up)**:
+
+| File | Change |
+|---|---|
+| `StingTools/Data/MR_PARAMETERS.txt` | +35 healthcare WARN + 11 sleeve = +46 PARAM rows |
+| `StingTools/Data/MR_PARAMETERS.csv` | mirror of above 46 rows; header bumped v6.4 → v6.5 |
+| `StingTools/Data/LABEL_DEFINITIONS.json` | −10 stale `category_labels` entries; version 5.11 → 5.12 |
+| `StingTools/Data/PARAMETER_REGISTRY.json` | +613 `support_params` entries syncing every TXT param |
