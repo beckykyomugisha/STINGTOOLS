@@ -12,10 +12,14 @@ using StingTools.Core;
 namespace StingTools.Tags
 {
     /// <summary>
-    /// Creates and loads STING tag families (.rfa) for all 137 taggable categories
-    /// (121 standard + 8 tie-in point + 3 discipline sheet + 4 structural variant + 1 MEP variant).
+    /// Creates and loads STING tag families (.rfa) for all 149 taggable categories
+    /// (121 standard + 8 tie-in point + 3 discipline sheet + 4 structural variant + 7 MEP variant + 6 virtual category).
     /// Each tag family is created from the appropriate Revit .rft annotation template
     /// and configured with STING shared parameters (ASS_TAG_1_TXT, etc.).
+    ///
+    /// Source of truth: <c>Data/LABEL_DEFINITIONS.json</c> <c>category_labels</c> object —
+    /// every key there must correspond to exactly one family produced by this class,
+    /// enforced at startup by <c>TagFamilyConfig.AssertCatalogueAligned</c>.
     ///
     /// Workflow:
     ///   1. Locate Revit annotation tag templates (.rft) on disk
@@ -406,13 +410,77 @@ namespace StingTools.Tags
             (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Test Clamp / Inspection Point",       "LPS Test Clamp"),
         };
 
+        /// <summary>
+        /// Virtual category tag families — additional .rfa files for LABEL_DEFINITIONS
+        /// keys whose Revit BuiltInCategory either does not exist as a distinct enum
+        /// value or is already mapped to a different display name. Each entry piggybacks
+        /// on a real BIC for the .rft template but emits its own family file so the
+        /// legend builder + display engine can resolve it.
+        /// </summary>
+        public static readonly (BuiltInCategory bic, string template, string display, string suffix)[] VirtualCategoryFamilies =
+        {
+            // ── Analytical MEP segments (no dedicated BuiltInCategory in Revit 2025/2026/2027 enum) ──
+            (BuiltInCategory.OST_AnalyticalMember, "Generic Tag.rft",            "Analytical Duct Segments (MEP)",         "Analytical Duct Segments"),
+            (BuiltInCategory.OST_AnalyticalMember, "Generic Tag.rft",            "Analytical Pipe Segments (MEP)",         "Analytical Pipe Segments"),
+            // ── Area-Based Loads (variant of OST_AreaLoads — load applied over area, not perimeter) ──
+            (BuiltInCategory.OST_AreaLoads,        "Generic Tag.rft",            "Area-Based Loads (variant)",             "Area Based Loads"),
+            // ── MEP Ancillary (generic catch-all for MEP support / framing / containment) ──
+            (BuiltInCategory.OST_GenericModel,     "Generic Model Tag.rft",      "MEP Ancillary (support / framing)",      "MEP Ancillary"),
+            // ── Temporary Structures (scaffold / shoring / hoarding) ──
+            (BuiltInCategory.OST_GenericModel,     "Generic Model Tag.rft",      "Temporary Structures (scaffold/shoring)", "Temporary Structures"),
+            // ── Wash (washroom fixture variant — sink / basin / scrub trough) ──
+            (BuiltInCategory.OST_PlumbingFixtures, "Plumbing Fixture Tag.rft",   "Wash (washroom fixture variant)",        "Wash"),
+        };
+
         /// <summary>Total tag family count including standard categories + all variant arrays.</summary>
         public static int TotalFamilyCount =>
             CategoryTemplateMap.Count +
             TieInPointFamilies.Length +
             DisciplineSheetFamilies.Length +
             StructuralVariantFamilies.Length +
-            MepVariantFamilies.Length;
+            MepVariantFamilies.Length +
+            VirtualCategoryFamilies.Length;
+
+        /// <summary>
+        /// Asserts that every key in <c>LABEL_DEFINITIONS.json</c> <c>category_labels</c>
+        /// is covered by a family this class produces, and vice versa. Returns
+        /// (missingFromCreator, extraInCreator) lists. Both empty == aligned.
+        /// </summary>
+        public static (List<string> missingFromCreator, List<string> extraInCreator) AuditAgainstLabelDefinitions(string dataDir)
+        {
+            var labelPath = System.IO.Path.Combine(dataDir, "LABEL_DEFINITIONS.json");
+            if (!System.IO.File.Exists(labelPath))
+                return (new List<string>(), new List<string>());
+
+            var creatorNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in CategoryTemplateMap)
+                creatorNames.Add(GetFamilyName(kv.Key).Replace($"{FamilyPrefix} - ", "").Replace(" Tag", ""));
+            foreach (var v in TieInPointFamilies)        creatorNames.Add(v.suffix);
+            foreach (var v in DisciplineSheetFamilies)   creatorNames.Add(v.suffix);
+            foreach (var v in StructuralVariantFamilies) creatorNames.Add(v.suffix);
+            foreach (var v in MepVariantFamilies)        creatorNames.Add(v.suffix);
+            foreach (var v in VirtualCategoryFamilies)   creatorNames.Add(v.suffix);
+
+            HashSet<string> labelKeys;
+            try
+            {
+                var json = System.IO.File.ReadAllText(labelPath);
+                var doc = Newtonsoft.Json.Linq.JObject.Parse(json);
+                var cl = doc["category_labels"] as Newtonsoft.Json.Linq.JObject;
+                labelKeys = new HashSet<string>(
+                    cl != null ? cl.Properties().Select(p => p.Name) : System.Linq.Enumerable.Empty<string>(),
+                    System.StringComparer.OrdinalIgnoreCase);
+            }
+            catch (System.Exception ex)
+            {
+                StingLog.Warn($"AuditAgainstLabelDefinitions: failed to parse {labelPath}: {ex.Message}");
+                return (new List<string>(), new List<string>());
+            }
+
+            var missing = labelKeys.Where(k => !creatorNames.Contains(k)).OrderBy(s => s).ToList();
+            var extra   = creatorNames.Where(k => !labelKeys.Contains(k)).OrderBy(s => s).ToList();
+            return (missing, extra);
+        }
 
         /// <summary>Generate tie-in family name from suffix.</summary>
         public static string GetTieInFamilyName(string suffix) => $"{FamilyPrefix} - {suffix} Tag";
@@ -791,11 +859,12 @@ namespace StingTools.Tags
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  Create Tag Families — create all 137 tag families from templates
+    //  Create Tag Families — create all 149 tag families from templates
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Creates STING tag families (.rfa) for all 137 taggable categories (121 base + 8 tie-in point + 3 discipline sheet + 4 structural variant + 1 MEP variant).
+    /// Creates STING tag families (.rfa) for all 149 taggable categories (121 base + 8 tie-in point + 3 discipline sheet + 4 structural variant + 7 MEP variant + 6 virtual category).
+    /// Source of truth: <c>Data/LABEL_DEFINITIONS.json</c> <c>category_labels</c> — verified at startup by <c>TagFamilyConfig.AuditAgainstLabelDefinitions</c>.
     /// Each family is created from the appropriate Revit annotation template,
     /// configured with STING shared parameters, saved, and loaded into the project.
     ///
@@ -926,6 +995,13 @@ namespace StingTools.Tags
                 if (loadedFamilies.Contains(famName))
                     alreadyLoaded++;
             }
+            // Also count virtual category families
+            foreach (var vc in TagFamilyConfig.VirtualCategoryFamilies)
+            {
+                string famName = TagFamilyConfig.GetTieInFamilyName(vc.suffix);
+                if (loadedFamilies.Contains(famName))
+                    alreadyLoaded++;
+            }
 
             // Confirmation dialog
             int toCreate = total - alreadyLoaded;
@@ -966,6 +1042,11 @@ namespace StingTools.Tags
             foreach (var mv in TagFamilyConfig.MepVariantFamilies)
             {
                 if (File.Exists(Path.Combine(outputDirEarly, TagFamilyConfig.GetTieInFamilyFileName(mv.suffix))))
+                    onDisk++;
+            }
+            foreach (var vc in TagFamilyConfig.VirtualCategoryFamilies)
+            {
+                if (File.Exists(Path.Combine(outputDirEarly, TagFamilyConfig.GetTieInFamilyFileName(vc.suffix))))
                     onDisk++;
             }
 
@@ -1599,6 +1680,115 @@ namespace StingTools.Tags
                     failures.Add($"{mv.display}: {ex.Message}");
                     report.AppendLine($"  [FAIL] {mv.display} — {ex.Message}");
                     StingLog.Error($"MEP variant tag family creation failed for {mv.display}", ex);
+                }
+            }
+
+            // ── Step 5f: Create virtual category tag families (LABEL_DEFINITIONS-only) ──
+            report.AppendLine();
+            report.AppendLine("── Virtual Category Families ──");
+            foreach (var vc in TagFamilyConfig.VirtualCategoryFamilies)
+            {
+                string famName = TagFamilyConfig.GetTieInFamilyName(vc.suffix);
+                string fileName = TagFamilyConfig.GetTieInFamilyFileName(vc.suffix);
+
+                if (loadedFamilies.Contains(famName))
+                {
+                    report.AppendLine($"  [SKIP] {vc.display} — already loaded");
+                    continue;
+                }
+
+                string existingRfa = Path.Combine(outputDir, fileName);
+                if (File.Exists(existingRfa))
+                {
+                    if (skipExistingOnDisk)
+                    {
+                        report.AppendLine($"  [SKIP] {vc.display} — .rfa exists on disk, skipped (incremental run)");
+                        continue;
+                    }
+                    try
+                    {
+                        using (Transaction t = new Transaction(doc, "STING Load Virtual Category Tag"))
+                        {
+                            t.Start();
+                            doc.LoadFamily(existingRfa);
+                            t.Commit();
+                        }
+                        loaded++;
+                        report.AppendLine($"  [LOAD] {vc.display} — loaded from existing .rfa");
+                        continue;
+                    }
+                    catch (Exception ex)
+                    {
+                        report.AppendLine($"  [WARN] {vc.display} — existing .rfa failed to load: {ex.Message}");
+                    }
+                }
+
+                string tpl = null;
+                foreach (string templateDir in templateDirs)
+                {
+                    string candidate = Path.Combine(templateDir, vc.template);
+                    if (File.Exists(candidate)) { tpl = candidate; break; }
+                    string metric = Path.Combine(templateDir, "Metric " + vc.template);
+                    if (File.Exists(metric)) { tpl = metric; break; }
+                }
+                if (string.IsNullOrEmpty(tpl))
+                {
+                    string generic = Path.Combine(templateDirs.FirstOrDefault() ?? "", "Generic Tag.rft");
+                    if (File.Exists(generic)) tpl = generic;
+                    else
+                    {
+                        string metricGeneric = Path.Combine(templateDirs.FirstOrDefault() ?? "", "Metric Generic Tag.rft");
+                        if (File.Exists(metricGeneric)) tpl = metricGeneric;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(tpl))
+                {
+                    templateMissing++;
+                    report.AppendLine($"  [MISS] {vc.display} — no template found");
+                    continue;
+                }
+
+                try
+                {
+                    Document famDoc = app.NewFamilyDocument(tpl);
+                    if (famDoc == null)
+                    {
+                        failed++;
+                        report.AppendLine($"  [FAIL] {vc.display} — NewFamilyDocument returned null");
+                        continue;
+                    }
+
+                    var vcParams = TagFamilyConfig.TagParams
+                        .Concat(TagFamilyConfig.VisibilityParamsFor(famName, vc.display))
+                        .Append("ASS_DESCRIPTION_TXT").ToList();
+                    bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, vcParams);
+
+                    AuthorFromPlanIfAvailable(famDoc, famName, plansByMode, plansByFamily,
+                        app, sharedParamFile, preserveHandEdits, report);
+
+                    string savePath = Path.Combine(outputDir, fileName);
+                    var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
+                    famDoc.SaveAs(savePath, saveOpts);
+                    famDoc.Close(false);
+                    created++;
+
+                    using (Transaction t = new Transaction(doc, "STING Load Virtual Category Tag"))
+                    {
+                        t.Start();
+                        doc.LoadFamily(savePath);
+                        t.Commit();
+                    }
+                    loaded++;
+                    string paramStatus = paramsAdded ? "with params" : "no params";
+                    report.AppendLine($"  [OK]   {vc.display} — created and loaded ({paramStatus})");
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    failures.Add($"{vc.display}: {ex.Message}");
+                    report.AppendLine($"  [FAIL] {vc.display} — {ex.Message}");
+                    StingLog.Error($"Virtual category tag family creation failed for {vc.display}", ex);
                 }
             }
 
