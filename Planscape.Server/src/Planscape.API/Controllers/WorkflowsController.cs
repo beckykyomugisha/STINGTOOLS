@@ -89,6 +89,7 @@ public class WorkflowsController : ControllerBase
     /// <summary>
     /// Get workflow execution history.
     /// </summary>
+    [HttpGet]
     [HttpGet("history")]
     public async Task<ActionResult> GetHistory(Guid projectId, [FromQuery] int limit = 50)
     {
