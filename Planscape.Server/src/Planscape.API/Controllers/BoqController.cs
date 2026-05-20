@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
-using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 
 namespace Planscape.API.Controllers;
@@ -14,16 +13,11 @@ public class BoqController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly ILogger<BoqController> _logger;
-    private readonly IFileStorageService _storage;
 
-    public BoqController(
-        PlanscapeDbContext db,
-        ILogger<BoqController> logger,
-        IFileStorageService storage)
+    public BoqController(PlanscapeDbContext db, ILogger<BoqController> logger)
     {
         _db = db;
         _logger = logger;
-        _storage = storage;
     }
 
     private Guid GetTenantId() =>
@@ -360,221 +354,6 @@ public class BoqController : ControllerBase
         return Ok(variation);
     }
 
-    // ── Variation detail (Phase 184k / P7 mobile) ─────────────────────────
-
-    [HttpGet("variations/{id}")]
-    public async Task<ActionResult> GetVariation(Guid projectId, Guid id)
-    {
-        var tenantId = GetTenantId();
-        var v = await _db.BoqVariations
-            .FirstOrDefaultAsync(x => x.Id == id && x.ProjectId == projectId && x.TenantId == tenantId);
-        if (v is null) return NotFound();
-
-        // The mobile detail screen expects an `items` array. The
-        // LineDeltaJson column carries the snapshot at submission.
-        object[]? items = null;
-        if (!string.IsNullOrEmpty(v.LineDeltaJson))
-        {
-            try { items = Newtonsoft.Json.JsonConvert.DeserializeObject<object[]>(v.LineDeltaJson); }
-            catch { items = null; }
-        }
-
-        return Ok(new
-        {
-            v.Id,
-            number = v.Reference,
-            kind = v.Kind,
-            status = v.Status,
-            title = v.Title,
-            description = v.Description,
-            totalValue = v.NetValue,
-            currency = v.Currency,
-            instructionDate = v.SubmittedAt ?? v.CreatedAt,
-            approvalDate = v.ApprovedAt,
-            approvedBy = v.ApprovedBy,
-            issuedBy = v.CreatedBy,
-            items = items ?? Array.Empty<object>()
-        });
-    }
-
-    // ── Payment certificates (Phase 184k / P5.1 + P7 mobile) ──────────────
-
-    [HttpGet("payment-certs")]
-    public async Task<ActionResult> GetPaymentCerts(Guid projectId)
-    {
-        var tenantId = GetTenantId();
-        var certs = await _db.PaymentCertificates
-            .Where(c => c.ProjectId == projectId && c.TenantId == tenantId)
-            .OrderByDescending(c => c.ValuationDate)
-            .Select(c => new
-            {
-                c.Id, c.CertNumber, c.ContractRef, c.Form, c.Status,
-                c.Currency, c.GrossValuation, c.RetentionAmount,
-                c.TotalPayable, c.ValuationDate
-            })
-            .ToListAsync();
-        return Ok(certs);
-    }
-
-    [HttpGet("payment-certs/{id}")]
-    public async Task<ActionResult> GetPaymentCert(Guid projectId, Guid id)
-    {
-        var tenantId = GetTenantId();
-        var c = await _db.PaymentCertificates
-            .FirstOrDefaultAsync(x => x.Id == id && x.ProjectId == projectId && x.TenantId == tenantId);
-        if (c is null) return NotFound();
-
-        object[]? lines = null;
-        if (!string.IsNullOrEmpty(c.SovJson))
-        {
-            try { lines = Newtonsoft.Json.JsonConvert.DeserializeObject<object[]>(c.SovJson); }
-            catch { lines = null; }
-        }
-
-        return Ok(new
-        {
-            c.Id, c.CertNumber, c.ContractRef, c.Form, c.Status,
-            c.Currency, c.ContractorName, c.EmployerName, c.ProjectName,
-            c.GrossValuation, c.EffectiveRetentionPercent, c.RetentionAmount,
-            c.OtherDeductions, c.NetThisCert, c.VatPercent, c.VatAmount,
-            c.TotalPayable, c.ValuationDate,
-            lines = lines ?? Array.Empty<object>(),
-            c.SignedByContractor, c.ContractorSignedDate,
-            c.SignedByEmployer, c.EmployerSignedDate
-        });
-    }
-
-    [HttpPost("payment-certs")]
-    public async Task<ActionResult> CreatePaymentCert(Guid projectId,
-        [FromBody] CreatePaymentCertRequest req)
-    {
-        var tenantId = GetTenantId();
-        var exists = await _db.PaymentCertificates.AnyAsync(c =>
-            c.ProjectId == projectId && c.TenantId == tenantId &&
-            c.ContractRef == req.ContractRef && c.CertNumber == req.CertNumber);
-        if (exists)
-            return Conflict($"Cert #{req.CertNumber} already exists for contract '{req.ContractRef}'.");
-
-        var c = new PaymentCertificate
-        {
-            TenantId = tenantId,
-            ProjectId = projectId,
-            CertNumber = req.CertNumber,
-            ContractRef = req.ContractRef,
-            Form = req.Form ?? "NEC4",
-            Status = "Draft",
-            ValuationDate = req.ValuationDate ?? DateTime.UtcNow,
-            Currency = req.Currency ?? "GBP",
-            ContractorName = req.ContractorName ?? "",
-            EmployerName = req.EmployerName ?? "",
-            ProjectName = req.ProjectName ?? "",
-            RetentionPercent = req.RetentionPercent ?? 3.0m,
-            EffectiveRetentionPercent = req.EffectiveRetentionPercent ?? req.RetentionPercent ?? 3.0m,
-            HalfRetentionAtPercent = req.HalfRetentionAtPercent ?? 100.0m,
-            VatPercent = req.VatPercent ?? 20.0m,
-            GrossValuation = req.GrossValuation,
-            RetentionAmount = req.RetentionAmount,
-            OtherDeductions = req.OtherDeductions,
-            NetThisCert = req.NetThisCert,
-            VatAmount = req.VatAmount,
-            TotalPayable = req.TotalPayable,
-            SovJson = req.SovJson,
-            CreatedBy = User.Identity?.Name
-        };
-        _db.PaymentCertificates.Add(c);
-        await _db.SaveChangesAsync();
-        return Ok(c);
-    }
-
-    [HttpPut("payment-certs/{id}/sign")]
-    public async Task<ActionResult> SignPaymentCert(Guid projectId, Guid id,
-        [FromBody] SignPaymentCertRequest req)
-    {
-        var tenantId = GetTenantId();
-        var c = await _db.PaymentCertificates
-            .FirstOrDefaultAsync(x => x.Id == id && x.ProjectId == projectId && x.TenantId == tenantId);
-        if (c is null) return NotFound();
-
-        var action = (req.Action ?? "").ToLowerInvariant();
-        var signer = string.IsNullOrEmpty(req.SignerName) ? User.Identity?.Name ?? "" : req.SignerName!;
-
-        // Signature PNG handling — if the client supplied a graphical
-        // signature, persist it via IFileStorageService so the same
-        // call works against the local filesystem in dev + S3 / MinIO
-        // in production without controller-level branching.
-        // SaveScopedAsync returns a tenant-prefixed storage path
-        // (t_{tenantId}/{projectId}/signatures/...) which is what the
-        // download / presign endpoints expect.
-        string? signaturePath = null;
-        if (!string.IsNullOrEmpty(req.SignaturePngBase64))
-        {
-            try
-            {
-                byte[] pngBytes = Convert.FromBase64String(req.SignaturePngBase64);
-                string fileName = $"signatures/cert_{c.Id:N}_{action}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.png";
-                using var ms = new System.IO.MemoryStream(pngBytes);
-                signaturePath = await _storage.SaveScopedAsync(
-                    tenantId, c.ProjectId, fileName, ms);
-                _logger.LogInformation(
-                    "Payment cert {Id} signature persisted to {Path} ({Bytes} bytes) via {StorageType}",
-                    c.Id, signaturePath, pngBytes.Length, _storage.GetType().Name);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to persist signature PNG for cert {Id}", c.Id);
-            }
-        }
-
-        // Compose the Note field with rationale + signature path so the
-        // mobile UI's offline-replay path can read both back.
-        string composedNote = string.Join(" | ",
-            new[] {
-                string.IsNullOrEmpty(req.Rationale) ? null : "Rationale: " + req.Rationale,
-                signaturePath == null ? null : "Signature: " + signaturePath
-            }.Where(s => !string.IsNullOrEmpty(s)));
-
-        if (action == "agree")
-        {
-            // Contractor agrees. State: Issued → Agreed.
-            if (c.Status != "Issued") return Conflict($"Cert must be in 'Issued' to be agreed; currently '{c.Status}'.");
-            c.Status = "Agreed";
-            c.SignedByContractor = signer;
-            c.ContractorSignedDate = DateTime.UtcNow;
-            if (!string.IsNullOrEmpty(composedNote)) c.Note = composedNote;
-        }
-        else if (action == "dispute")
-        {
-            // Contractor disputes. State: Issued → Disputed; rationale stored.
-            if (c.Status != "Issued") return Conflict($"Cert must be in 'Issued' to be disputed; currently '{c.Status}'.");
-            c.Status = "Disputed";
-            c.SignedByContractor = signer;
-            c.ContractorSignedDate = DateTime.UtcNow;
-            c.Note = composedNote ?? req.Rationale;
-        }
-        else if (action == "issue")
-        {
-            // Employer issues. State: Draft → Issued.
-            if (c.Status != "Draft") return Conflict($"Cert must be in 'Draft' to be issued; currently '{c.Status}'.");
-            c.Status = "Issued";
-            c.IssuedDate = DateTime.UtcNow;
-            c.SignedByEmployer = signer;
-            c.EmployerSignedDate = DateTime.UtcNow;
-        }
-        else if (action == "pay")
-        {
-            if (c.Status != "Agreed") return Conflict($"Cert must be in 'Agreed' to be paid; currently '{c.Status}'.");
-            c.Status = "Paid";
-        }
-        else
-        {
-            return BadRequest($"Unknown action '{req.Action}'. Allowed: issue, agree, dispute, pay.");
-        }
-
-        c.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
-        return Ok(c);
-    }
-
     // ── Work Packages ─────────────────────────────────────────────────────
 
     [HttpGet("work-packages")]
@@ -734,36 +513,6 @@ public record CreateVariationRequest(
     Guid? BimIssueId);
 
 public record UpdateStatusRequest(string Status);
-
-public record CreatePaymentCertRequest(
-    int CertNumber,
-    string ContractRef,
-    string? Form,
-    DateTime? ValuationDate,
-    string? Currency,
-    string? ContractorName,
-    string? EmployerName,
-    string? ProjectName,
-    decimal? RetentionPercent,
-    decimal? EffectiveRetentionPercent,
-    decimal? HalfRetentionAtPercent,
-    decimal? VatPercent,
-    decimal GrossValuation,
-    decimal RetentionAmount,
-    decimal OtherDeductions,
-    decimal NetThisCert,
-    decimal VatAmount,
-    decimal TotalPayable,
-    string? SovJson);
-
-// SignaturePngBase64: Base64-encoded PNG of the captured signature (from
-// react-native-signature-canvas). Optional — typed-name signing without a
-// graphical signature is still permitted on desktop.
-public record SignPaymentCertRequest(
-    string Action,
-    string? SignerName,
-    string? Rationale,
-    string? SignaturePngBase64);
 
 public record CreateWorkPackageRequest(
     string Code,
