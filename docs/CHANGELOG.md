@@ -106,21 +106,69 @@ Live verification across stages on the same Stage_3-fail fixture:
 
 Test count: 25 standalone, 29 pytest.
 
-**Caveats (Phase 186b)**:
+**Phase 186b2 follow-up (G2 / G3 / G4 closeout)**:
 
-1. The 3 new Psets do NOT yet have matching IDS specs. The 2 IDS
-   files shipped in Phase 186 (`sting-tag-grammar.ids`,
-   `sting-spatial-codes.ids`) cover Pset_StingTags + Pset_StingSpatialCodes
-   only. IDS coverage for Pset_StingDrawing / Tag7 / ProjectOrg is
-   Phase 186c work (estimated 1 day with the IDS-authoring guide).
-2. `DrawingTypeRegistry` is a thin wrapper around a `frozenset[str]`;
-   it doesn't yet load from the shipped `STING_DRAWING_TYPES.json`
-   (which lives in `StingTools/Data/` — different folder tree).
-   Callers building the registry from the Revit-side JSON do so
-   explicitly. A future helper at the python-core level can close
-   this once the JSON is moved to `shared/`.
+The three deferred items from the Phase 186b caveats are now closed.
+
+**G2 — IDS coverage for the 3 new psets** (`shared/ifc/ids/`):
+
+- `sting-drawing.ids` (6 specs) — DrawingTypeId format, CropKind +
+  ColourScheme enum membership, CropMarginMm 0..500 mm, PackChecksum
+  SHA-256 grammar, TagDepth 1..10.
+- `sting-tag7.ids` (7 specs) — length bound on each of the 7
+  narrative parts (NarrativeFull + 6 sub-sections A-F).
+- `sting-project-org.ids` (6 specs) — ProjectCode + OriginatorCode
+  pattern `^[A-Z][A-Z0-9\-]{2,5}$`, Phase StingRibaStages enum,
+  CompanyName + ClientName non-empty length bounds, WorkflowProfile
+  snake_case grammar.
+
+All 3 files pass official ifctester XSD validation. Verified live on
+both positive and negative fixtures: positive passes 19/19 specs;
+negative trips 10 of the 11 catchable specs (the eleventh — empty
+IdentityHeader — passes because the IFC writer drops empty strings,
+so the spec's optional-when-present applicability is correctly
+silent). Total IDS spec count across the substrate: 11 + 7 + 6 + 7
++ 6 = **37 specs** across all 5 psets.
+
+**G3 — `DrawingTypeRegistry.from_json` / `from_jsons`**
+(`stingtools-core/python/stingtools_core/spatial/check.py`):
+
+- `DrawingTypeRegistry.from_json(path)` — load a registry from any
+  `STING_DRAWING_TYPES.json` shape (corporate baseline or project
+  override). Reads `drawingTypes[].id`; raises `ValueError` on
+  malformed JSON or missing `drawingTypes` array.
+- `DrawingTypeRegistry.from_jsons(*paths)` — layered load merging
+  corporate baseline + project overrides; missing paths are skipped
+  silently.
+
+Verified against the live corporate `StingTools/Data/STING_DRAWING_TYPES.json`
+(90 ids).
+
+**G4 — IfcDocumentInformation + IfcDocumentReference walked**
+(`stingtools-core/python/stingtools_core/spatial/check.py`):
+
+`SpatialChecker.check_all_elements` now walks
+`IfcDocumentInformation` and `IfcDocumentReference` alongside
+`IfcAnnotation`, matching the full Pset_StingDrawing
+`<Applicability>` set. Verified with a new test
+(`test_drawing_check_fires_on_document_information`).
+
+**Test count**: 27/27 standalone, 33/33 pytest.
+
+**Caveats (Phase 186b — open list)**:
+
+1. ~~The 3 new Psets do NOT yet have matching IDS specs.~~ Closed
+   (G2 above).
+2. ~~`DrawingTypeRegistry` doesn't load from JSON.~~ Closed
+   (G3 above).
 3. Built without `dotnet build` verification — these are pure Python
    substrate changes, no C# affected.
+4. IDS specs for Tag7/ProjectOrg use `dataType="IFCLABEL"` rather
+   than the Pset XML's declared `IfcText` to match the writer-
+   tolerant convention used in `sting-tag-grammar.ids`. The Pset
+   XML's IfcText declaration remains canonical for STING-side
+   storage; the IDS check is liberal about string-derived types
+   for cross-writer compatibility.
 
 #### Completed (Phase 186 — Bonsai integration foundation; multi-host substrate)
 

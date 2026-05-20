@@ -38,9 +38,11 @@ this module does NOT require ifcopenshell — only calling .check_*() does).
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
-from typing import Any, Iterable, Optional
+from pathlib import Path
+from typing import Any, Iterable, Optional, Union
 
 
 # DrawingType id format: lowercase alphanumeric + dash, 3-60 chars.
@@ -99,6 +101,48 @@ class DrawingTypeRegistry:
 
     def __contains__(self, dt_id: str) -> bool:
         return dt_id in self._known
+
+    @classmethod
+    def from_json(cls, path: Union[str, Path]) -> "DrawingTypeRegistry":
+        """Load a `DrawingTypeRegistry` from `STING_DRAWING_TYPES.json`
+        (the corporate baseline shipped at `StingTools/Data/`) or any
+        project override in the same shape. Reads the
+        `drawingTypes[].id` entries; ignores routing rules.
+
+        Raises FileNotFoundError if the path doesn't exist, and
+        ValueError on malformed JSON or missing `drawingTypes` array.
+        """
+        p = Path(path)
+        if not p.exists():
+            raise FileNotFoundError(f"DrawingType JSON not found: {p}")
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            raise ValueError(f"{p.name}: malformed JSON: {e}") from e
+        entries = data.get("drawingTypes")
+        if not isinstance(entries, list):
+            raise ValueError(
+                f"{p.name}: expected top-level 'drawingTypes' array, "
+                f"got {type(entries).__name__}"
+            )
+        ids = {
+            str(d.get("id")).strip()
+            for d in entries
+            if isinstance(d, dict) and d.get("id")
+        }
+        return cls(ids)
+
+    @classmethod
+    def from_jsons(cls, *paths: Union[str, Path]) -> "DrawingTypeRegistry":
+        """Layered load — corporate baseline + project overrides.
+        Later paths add to (never remove from) the merged id set."""
+        merged: set[str] = set()
+        for p in paths:
+            pth = Path(p)
+            if not pth.exists():
+                continue
+            merged.update(cls.from_json(pth)._known)
+        return cls(merged)
 
 
 @dataclass(frozen=True)
@@ -482,11 +526,16 @@ class SpatialChecker:
             out.extend(self.check_element(el))
         # IfcAnnotation isn't an IfcElement subtype in IFC4 — walk separately
         # so Pset_StingDrawing checks fire on annotation entities too.
-        try:
-            for ann in self._model.by_type("IfcAnnotation"):
-                out.extend(self.check_element(ann))
-        except RuntimeError:
-            pass  # entity type doesn't exist in this schema
+        # Pset_StingDrawing also applies to IfcDocumentInformation and
+        # IfcDocumentReference per its <Applicability>, so walk them as
+        # well — the per-element check is safe on entities lacking
+        # Pset_StingTags (returns the drawing-only mismatches).
+        for extra_class in ("IfcAnnotation", "IfcDocumentInformation", "IfcDocumentReference"):
+            try:
+                for ent in self._model.by_type(extra_class):
+                    out.extend(self.check_element(ent))
+            except RuntimeError:
+                pass  # entity type doesn't exist in this schema
         out.extend(self.check_seq_uniqueness())
         out.extend(self.check_spatial_uniqueness())
         out.extend(self.check_project_org())
