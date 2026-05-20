@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns="https://stingtools.io/schema/ifc/enums/v1"
+           targetNamespace="https://stingtools.io/schema/ifc/enums/v1"
+           elementFormDefault="qualified">
+
+  <xs:annotation>
+    <xs:documentation>
+      XML Schema for STING IFC Property Enumeration files.
+      See _README.md in the same folder for governance, lock protocol,
+      and authoring conventions.
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- root element -->
+  <xs:element name="StingPropertyEnumeration">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Identity" type="IdentityType"/>
+        <xs:element name="Governance" type="GovernanceType"/>
+        <xs:element name="IfcMapping" type="IfcMappingType"/>
+        <xs:element name="Values" type="ValuesType"/>
+        <xs:element name="CorporateLock" type="CorporateLockType" minOccurs="0"/>
+      </xs:sequence>
+      <xs:attribute name="version" type="SemVerType" use="required"/>
+      <xs:attribute name="schema_version" type="xs:positiveInteger" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- types -->
+  <xs:complexType name="IdentityType">
+    <xs:sequence>
+      <xs:element name="Name" type="EnumNameType"/>
+      <xs:element name="Definition" type="xs:string"/>
+      <xs:element name="IfdGuid" type="IfdGuidType"/>
+      <xs:element name="BsddIri" type="xs:anyURI" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="GovernanceType">
+    <xs:sequence>
+      <xs:element name="Scope" type="ScopeType"/>
+      <xs:element name="Origin" type="OriginType"/>
+      <xs:element name="SinceVersion" type="SemVerType"/>
+      <xs:element name="Maintainer" type="xs:string"/>
+      <xs:element name="StandardsBasis" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="IfcMappingType">
+    <xs:sequence>
+      <xs:element name="PrimaryType" type="IfcTypeRefType"/>
+      <xs:element name="UseAsEnumeratedValue" type="xs:boolean"/>
+      <xs:element name="ApplicableIfcVersions" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ValuesType">
+    <xs:sequence>
+      <xs:element name="Value" type="ValueType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ValueType">
+    <xs:sequence>
+      <xs:element name="Definition" type="xs:string"/>
+      <xs:element name="SinceVersion" type="SemVerType"/>
+    </xs:sequence>
+    <xs:attribute name="code" type="ValueCodeType" use="required"/>
+    <xs:attribute name="sentinel" type="xs:boolean" use="required"/>
+    <xs:attribute name="deprecated" type="xs:boolean" default="false"/>
+    <xs:attribute name="deprecated_in_version" type="SemVerType" use="optional"/>
+    <xs:attribute name="replaced_by" type="ValueCodeType" use="optional"/>
+  </xs:complexType>
+
+  <xs:complexType name="CorporateLockType">
+    <xs:sequence>
+      <xs:element name="Sha256" type="xs:string"/>
+      <xs:element name="LockedAtVersion" type="SemVerType"/>
+      <xs:element name="Algorithm" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- restrictions -->
+  <xs:simpleType name="SemVerType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d+\.\d+\.\d+"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="EnumNameType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="Sting[A-Za-z0-9]+(_v\d+)?"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="IfdGuidType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="uuid:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="ScopeType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="corporate"/>
+      <xs:enumeration value="project_template"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="OriginType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="baseline"/>
+      <xs:enumeration value="project"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="IfcTypeRefType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="IfcLabel"/>
+      <xs:enumeration value="IfcIdentifier"/>
+      <xs:enumeration value="IfcText"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="ValueCodeType">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="40"/>
+      <xs:pattern value="[A-Za-z0-9_\-\*]+"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>

@@ -1,0 +1,560 @@
+{
+  "schema_version": 1,
+  "format": "STING IFC PropertyEnumeration manifest",
+  "generated_by": "tools/enums/compute_checksums.py",
+  "generated_for_repo_relative_path": "shared/ifc/enums/",
+  "total_enums": 26,
+  "by_tier": {
+    "tier_1_essentials": 11,
+    "tier_2_drawing": 7,
+    "tier_3_workflow": 8
+  },
+  "enums": [
+    {
+      "name": "StingAssetConditions",
+      "file": "StingAssetConditions.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4003-9000-00000000001a",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/iso/15686/1.0/class/condition",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "ISO 15686-1:2011 service-life planning; BS 8544:2013 maintenance cost forecasting; STING IoT/MaintenanceCommands; Planscape MIM Asset.Condition",
+      "value_count": 7,
+      "sha256": "e94f8a9f1f1f2652f1c2284c7881597075fac260e8b1ba6d4df0c11bbdcdcaed",
+      "canonical_json_length": 553
+    },
+    {
+      "name": "StingCDEStates",
+      "file": "StingCDEStates.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4001-9000-00000000000a",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/buildingsmart/iso-19650/1.0/class/cdestate",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "ISO 19650-1:2018 §10.2 CDE workflow; STING DocumentRecord state machine",
+      "value_count": 4,
+      "sha256": "ff60facac4e83973b2b7bc1466a7c0bba660fde04e765660ddc88f5053526de1",
+      "canonical_json_length": 336
+    },
+    {
+      "name": "StingColorSchemes",
+      "file": "StingColorSchemes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4002-9000-000000000011",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "STING ColorHelper palettes (Select/ColorCommands.cs); STING TagStyleEngine ColorScheme catalogue; STING DrawingType PrintOverride.ColorScheme",
+      "value_count": 11,
+      "sha256": "3cd455064ee876a85e3c870607d7d7b1d48a047ce5fa107eb13cb8fdef98d7df",
+      "canonical_json_length": 870
+    },
+    {
+      "name": "StingCropKinds",
+      "file": "StingCropKinds.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4002-9000-000000000012",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "STING Core.Drawing.DrawingCropStrategy; Phase 184c crop stamp via Extensible Storage; Phase 184d crop.kind schema normalisation",
+      "value_count": 5,
+      "sha256": "cd9910e733c02c97aae6d60d252f472574d1c21d09eb283cc607fe5bec6d9598",
+      "canonical_json_length": 421
+    },
+    {
+      "name": "StingDetailLevels",
+      "file": "StingDetailLevels.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4002-9000-000000000010",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "Revit API ViewDetailLevel enum; STING DrawingType.DetailLevel field",
+      "value_count": 3,
+      "sha256": "32d418c964cafcc4675cf0ca1219d47151173d755334a4a175cb95388b859bf5",
+      "canonical_json_length": 265
+    },
+    {
+      "name": "StingDisciplineCodes",
+      "file": "StingDisciplineCodes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4001-9000-000000000001",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/stingtools/sting-codes/1.0/class/discipline",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "CIBSE Building Services Discipline Taxonomy; Uniclass 2015 (table Co); ISO 19650-2; STING Healthcare Pack (Phases H-1..H-30)",
+      "value_count": 13,
+      "sha256": "d7ff129a18e2778d8b8e4de61910dcda8d6f1b89db7bda965865ed0d355dc79c",
+      "canonical_json_length": 908
+    },
+    {
+      "name": "StingDrawingPurposes",
+      "file": "StingDrawingPurposes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4002-9000-00000000000c",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "STING Drawing Template Manager (Phase 113); Phase 184d–f closed-form drawing-type catalogue",
+      "value_count": 17,
+      "sha256": "fa5366aaf5342e3e7386104073790a31f4897799e9866ab1ec5eb7fa13bd3a73",
+      "canonical_json_length": 1272
+    },
+    {
+      "name": "StingDrawingTiers",
+      "file": "StingDrawingTiers.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4002-9000-00000000000d",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "STING multi-host architecture; introduced when planning BlenderBIM / ArchiCAD / Tekla coordination",
+      "value_count": 3,
+      "sha256": "4414f52fcfd4717c386c199f6df037a4b9e35538bf01b8854512b985f26603e0",
+      "canonical_json_length": 255
+    },
+    {
+      "name": "StingFunctionCodes",
+      "file": "StingFunctionCodes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4001-9000-000000000003",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/stingtools/sting-codes/1.0/class/function",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "CIBSE Guide A/B/C; Uniclass 2015; STING tag config v5.0 (data/TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv); HTM 02-01 / 03-01 / 06-01 for healthcare functions",
+      "value_count": 41,
+      "sha256": "622e5905155e5b2e351781f4be2b68fe18f0812278d877b6ccb9e960bc2f8317",
+      "canonical_json_length": 2798
+    },
+    {
+      "name": "StingIssuePriorities",
+      "file": "StingIssuePriorities.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4003-9000-000000000014",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "STING BimIssue.Priority; Planscape SLA tracking conventions",
+      "value_count": 5,
+      "sha256": "fbc04d06839a6ce0993fcd80155e2b9f15085c697afda1a2b30a44354237b505",
+      "canonical_json_length": 414
+    },
+    {
+      "name": "StingIssueStates",
+      "file": "StingIssueStates.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4003-9000-000000000015",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/buildingsmart/bcf/2.1/class/topicstatus",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "BCF 2.1 topic status; STING BimIssue state machine",
+      "value_count": 8,
+      "sha256": "312d3bc39c9605c29ee6ea178351dc2348170cd72a60e59649d7018b391f5804",
+      "canonical_json_length": 625
+    },
+    {
+      "name": "StingIssueTypes",
+      "file": "StingIssueTypes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4003-9000-000000000013",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/buildingsmart/bcf/2.1/class/topictype",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "BCF 2.1 topic types; ISO 19650 coordination workflow; STING BimIssue catalogue",
+      "value_count": 11,
+      "sha256": "7064f8482cbc67467d9e83ac92e636359a570752bff831b7e9cb2e0f816cde20",
+      "canonical_json_length": 806
+    },
+    {
+      "name": "StingLevelCodes",
+      "file": "StingLevelCodes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "project_template",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4001-9000-000000000007",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "ISO 19650-2 §5.3 spatial structure; STING ParamHelpers.GetLevelCode taxonomy (L## / GF / B# / RF / XX); cross-bound to IfcBuildingStorey via Pset_StingSpatialCodes",
+      "value_count": 19,
+      "sha256": "4d51106b421048d83456b9f9575ae38c15cdf1fb05daaa2220b407ce302fbcda",
+      "canonical_json_length": 1316
+    },
+    {
+      "name": "StingLocationCodes",
+      "file": "StingLocationCodes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "project_template",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4001-9000-000000000005",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "ISO 19650-2 §5.3 spatial structure; STING ParamRegistry.AllLocationCodes; cross-bound to IfcBuilding via Pset_StingSpatialCodes",
+      "value_count": 7,
+      "sha256": "9f1fe104c0e0387afcc03e166a28c8fd7a75c469d0a99bffd10ea5ec036ae23d",
+      "canonical_json_length": 526
+    },
+    {
+      "name": "StingMaintenanceFrequencies",
+      "file": "StingMaintenanceFrequencies.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4003-9000-000000000019",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/sfg20/maintenance/1.0/class/frequency",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "SFG20 maintenance frequency conventions; BS 8210:2020 facilities management; STING COBIE_JOB_TEMPLATES.csv",
+      "value_count": 11,
+      "sha256": "27ebc96a5f91763c3aa9199577aa2f326d35be0365db5c9e44664ea541bd4972",
+      "canonical_json_length": 861
+    },
+    {
+      "name": "StingOrientations",
+      "file": "StingOrientations.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4002-9000-00000000000f",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "STING Drawing Template Manager defaults",
+      "value_count": 2,
+      "sha256": "ae5dbb208966e314eef25d240acdf162980ab8e54164c8e1c98db015f0f9c79d",
+      "canonical_json_length": 202
+    },
+    {
+      "name": "StingPaperSizes",
+      "file": "StingPaperSizes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4002-9000-00000000000e",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "ISO 216 (A-series); ANSI/ASME Y14.1 (ANSI series); ANSI/ASME Y14.1M (Architectural series)",
+      "value_count": 12,
+      "sha256": "994e5eac382c32c1168b43b748ef38d5c553a66a32ee150abcef8fed554828eb",
+      "canonical_json_length": 875
+    },
+    {
+      "name": "StingProductCodes",
+      "file": "StingProductCodes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4001-9000-000000000004",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "STING tag config v5.0 (Data/STING_TAG_CONFIG_v5_0_*.csv); CIBSE Guide A/B/C product taxonomies; Uniclass 2015 Pr-table cross-reference",
+      "value_count": 46,
+      "sha256": "874cdac01c5ab6450d8a3b022844863cc684212386e54a4cc12169f2fc772c0b",
+      "canonical_json_length": 3130
+    },
+    {
+      "name": "StingRevisionTypes",
+      "file": "StingRevisionTypes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4001-9000-00000000000b",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/buildingsmart/iso-19650/1.0/class/revisiontype",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "ISO 19650-2:2018 / BS 1192:2007+A2:2016 §6.3 revision conventions",
+      "value_count": 5,
+      "sha256": "73ccea3e0e06d37696b5064b81c5ab08325d62787e44f9f38ebdca0e1c4917ff",
+      "canonical_json_length": 383
+    },
+    {
+      "name": "StingRibaStages",
+      "file": "StingRibaStages.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4003-9000-000000000016",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/riba/plan-of-work/2020/class/stage",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "RIBA Plan of Work 2020",
+      "value_count": 8,
+      "sha256": "19ae1fd8984681bc9573c33681c3de0c2da3d21b75c25caa71ab2e68254fb34c",
+      "canonical_json_length": 623
+    },
+    {
+      "name": "StingSignoffRoles",
+      "file": "StingSignoffRoles.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4003-9000-000000000018",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/buildingsmart/ifcactor/4.0/class/role",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "IFC4 IfcActorRole enum (extended for healthcare); ISO 19650 appointed-party roles; UK CDM 2015 roles",
+      "value_count": 12,
+      "sha256": "0e96a4d0ec5212e787f12c687beb8fd660ae9ddb4950402315402d153a86ce31",
+      "canonical_json_length": 959
+    },
+    {
+      "name": "StingStatusCodes",
+      "file": "StingStatusCodes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4001-9000-000000000008",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/stingtools/sting-codes/1.0/class/status",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "STING PhaseAutoDetect taxonomy; IFC4 IfcOwnerHistory.State; UK BS 1192 phase conventions",
+      "value_count": 8,
+      "sha256": "97612e07522bef77b047508a7cd9c9c33c988a0cd939782de3f693e5feef8399",
+      "canonical_json_length": 622
+    },
+    {
+      "name": "StingSuitabilityCodes",
+      "file": "StingSuitabilityCodes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4001-9000-000000000009",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/buildingsmart/iso-19650/1.0/class/suitability",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "ISO 19650-2:2018 Annex B / UK Annex; BS EN ISO 19650-1:2018 Table 5",
+      "value_count": 15,
+      "sha256": "e2270bc5d8e83652e3a88112ea43bf29be50d59ae6e9d195eea9b88da42a0fab",
+      "canonical_json_length": 1050
+    },
+    {
+      "name": "StingSystemCodes",
+      "file": "StingSystemCodes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4001-9000-000000000002",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/stingtools/sting-codes/1.0/class/system",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "Uniclass 2015 Ss-table; CIBSE Guide A/B/C; STING tag config v5.0 (data/TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv); STING Healthcare Pack",
+      "value_count": 20,
+      "sha256": "d30b575195b402179963e2d86da5d80531fd920b83fdda4f41b1d5b62b9e1b44",
+      "canonical_json_length": 1390
+    },
+    {
+      "name": "StingWorkflowStates",
+      "file": "StingWorkflowStates.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4003-9000-000000000017",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "STING Docs.Workflow.WorkflowEngine; Template Engine v1.1 (Phase 112)",
+      "value_count": 9,
+      "sha256": "7b6d1a70cd85331b6e72b938971a747827b8f0f00c9ad2801b9895c493f917fb",
+      "canonical_json_length": 707
+    },
+    {
+      "name": "StingZoneCodes",
+      "file": "StingZoneCodes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "project_template",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4001-9000-000000000006",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "ISO 19650-2 §5.3 spatial structure; BS 9999 (fire compartmentation); HTM 03-01 (clinical pressure regimes); CIBSE Guide A (HVAC zoning); cross-bound to IfcZone via Pset_StingSpatialCodes",
+      "value_count": 11,
+      "sha256": "ab7e0bbad37dd6cacbc28594503279064a42aff110bcc9ca2ccc7ea12742a628",
+      "canonical_json_length": 785
+    }
+  ]
+}
