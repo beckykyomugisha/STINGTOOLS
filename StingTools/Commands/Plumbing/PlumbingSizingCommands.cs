@@ -207,7 +207,7 @@ namespace StingTools.Commands.Plumbing
         }
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class PlumbExpVesselCommand : IExternalCommand
     {
@@ -230,7 +230,100 @@ namespace StingTools.Commands.Plumbing
                  .Metric("Vessel volume",          r.VTankL.ToString("F0") + " L")
                  .Metric("Recommended family",     r.RecommendedFamily);
             panel.Show();
+
+            // Close the calc → model loop: offer to place the recommended
+            // vessel FamilyInstance. Mirrors the VentCreationEngine.TryPlaceAav
+            // pattern — looks for a loaded family containing "Expansion Vessel"
+            // or "EV-" in its name and lets the user pick the placement point.
+            var place = new TaskDialog("STING Expansion Vessel — Place?")
+            {
+                MainInstruction = $"Place {r.RecommendedFamily} now?",
+                MainContent = "Pick a point in the active view to place the recommended " +
+                              "expansion vessel FamilyInstance, or cancel to keep the " +
+                              "sizing report only.",
+                CommonButtons = TaskDialogCommonButtons.Cancel,
+                DefaultButton = TaskDialogResult.Cancel
+            };
+            place.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                $"Place {r.RecommendedFamily}");
+            if (place.Show() != TaskDialogResult.CommandLink1)
+                return Result.Succeeded;
+
+            try
+            {
+                var sym = FindExpansionVesselSymbol(ctx.Doc, r.VTankL);
+                if (sym == null)
+                {
+                    TaskDialog.Show("STING Expansion Vessel",
+                        "No expansion vessel family found in the project. " +
+                        "Load a family whose name contains 'Expansion Vessel' or 'EV' and retry.");
+                    return Result.Succeeded;
+                }
+                XYZ pt;
+                try { pt = ctx.UIDoc.Selection.PickPoint("Pick expansion-vessel location"); }
+                catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+
+                Level level = ResolveNearestLevel(ctx.Doc, pt.Z);
+                using (var tx = new Transaction(ctx.Doc, "STING Place Expansion Vessel"))
+                {
+                    tx.Start();
+                    if (!sym.IsActive) sym.Activate();
+                    var fi = ctx.Doc.Create.NewFamilyInstance(pt, sym, level,
+                        Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+                    // Stamp the sizing result on the placed instance so a schedule
+                    // can render the design intent next to the placement.
+                    ParameterHelpers.SetString(fi, "PLM_RECIRC_PUMP_DUTY_LPM", "",  overwrite: false);
+                    ParameterHelpers.SetString(fi, "Comments",
+                        $"STING auto-placed · {r.RecommendedFamily} · sized for {r.SystemVolumeL:F0} L sys @ ΔT {r.DeltaTC:F0}°C", overwrite: false);
+                    tx.Commit();
+                }
+                TaskDialog.Show("STING Expansion Vessel",
+                    $"Placed {sym.Family.Name} : {sym.Name} at {pt.X:F1},{pt.Y:F1},{pt.Z:F1}.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ExpVessel place: {ex.Message}");
+                message = ex.Message;
+                return Result.Failed;
+            }
             return Result.Succeeded;
+        }
+
+        private static FamilySymbol FindExpansionVesselSymbol(Document doc, double vTankL)
+        {
+            // Prefer a symbol whose name includes the recommended litre size;
+            // otherwise pick the first matching expansion-vessel family.
+            string targetSize = $"EV-{(int)vTankL}L";
+            FamilySymbol exact = null, partial = null;
+            foreach (var fs in new FilteredElementCollector(doc)
+                .OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>())
+            {
+                string n = ((fs.Family?.Name ?? "") + " " + (fs.Name ?? "")).ToUpperInvariant();
+                bool isVessel = n.Contains("EXPANSION VESSEL") || n.Contains("EV-")
+                             || (n.StartsWith("EV") && n.Contains("L"));
+                if (!isVessel) continue;
+                if (n.Contains(targetSize.ToUpperInvariant())) { exact = fs; break; }
+                partial = partial ?? fs;
+            }
+            return exact ?? partial;
+        }
+
+        private static Level ResolveNearestLevel(Document doc, double zFt)
+        {
+            try
+            {
+                var levels = new FilteredElementCollector(doc).OfClass(typeof(Level))
+                    .Cast<Level>().OrderBy(l => l.Elevation).ToList();
+                Level best = levels.FirstOrDefault();
+                foreach (var l in levels)
+                {
+                    if (l.Elevation <= zFt) best = l;
+                    else break;
+                }
+                return best;
+            }
+            catch { return null; }
         }
     }
 
