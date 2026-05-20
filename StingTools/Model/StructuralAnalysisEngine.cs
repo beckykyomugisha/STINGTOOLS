@@ -4217,7 +4217,7 @@ namespace StingTools.Model
         SLS_Characteristic,     // G + Q
     }
 
-    internal static class LoadCombinationEngine
+    internal static class ProjectLoadCombinationEngine
     {
         // EC partial factors — BS EN 1990 Table A1.2(B)
         private const double GammaG = 1.35;
@@ -4241,7 +4241,7 @@ namespace StingTools.Model
                 lc.WindBasicMps  = ReadDouble(doc.ProjectInformation, "STR_WIND_BASIC_MPS",  lc.WindBasicMps);
                 lc.SeismicAgR    = ReadDouble(doc.ProjectInformation, "STR_SEISMIC_AGR",     lc.SeismicAgR);
             }
-            catch (Exception ex) { StingLog.Warn($"LoadCombinationEngine.ForProject: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"ProjectLoadCombinationEngine.ForProject: {ex.Message}"); }
             return lc;
         }
 
@@ -4307,8 +4307,8 @@ namespace StingTools.Model
             if (doc == null) return (0, 0);
             try
             {
-                var lc = LoadCombinationEngine.ForProject(doc);
-                double udlKPa = LoadCombinationEngine.Factor(lc, LoadComboKind.ULS_GravityPersistent);
+                var lc = ProjectLoadCombinationEngine.ForProject(doc);
+                double udlKPa = ProjectLoadCombinationEngine.Factor(lc, LoadComboKind.ULS_GravityPersistent);
 
                 var columns = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_StructuralColumns)
@@ -4400,8 +4400,8 @@ namespace StingTools.Model
             if (doc == null) return (0, 0);
             try
             {
-                var lc = LoadCombinationEngine.ForProject(doc);
-                double pPa = LoadCombinationEngine.WindKPa(lc) * 1000.0;
+                var lc = ProjectLoadCombinationEngine.ForProject(doc);
+                double pPa = ProjectLoadCombinationEngine.WindKPa(lc) * 1000.0;
                 string pstr = $"{pPa:F0}";
 
                 var targets = new List<Element>();
@@ -4451,8 +4451,8 @@ namespace StingTools.Model
             if (doc == null) return (0, 0);
             try
             {
-                var lc = LoadCombinationEngine.ForProject(doc);
-                double wKPa = LoadCombinationEngine.Factor(lc, LoadComboKind.ULS_GravityPersistent);
+                var lc = ProjectLoadCombinationEngine.ForProject(doc);
+                double wKPa = ProjectLoadCombinationEngine.Factor(lc, LoadComboKind.ULS_GravityPersistent);
 
                 foreach (var beam in new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_StructuralFraming)
@@ -4567,10 +4567,10 @@ namespace StingTools.Model
             if (doc == null) return (0, 0, "No document");
             try
             {
-                var lc = LoadCombinationEngine.ForProject(doc);
+                var lc = ProjectLoadCombinationEngine.ForProject(doc);
                 // Convert kPa → kN/m on a 3 m tributary width — keeps the
                 // FrameMember.UdlKNPerM units the solver expects.
-                double udl = LoadCombinationEngine.Factor(lc, LoadComboKind.ULS_GravityPersistent) * 3.0;
+                double udl = ProjectLoadCombinationEngine.Factor(lc, LoadComboKind.ULS_GravityPersistent) * 3.0;
 
                 var (nodes, members) = DirectStiffnessMethod.BuildFromRevitModel(
                     doc, liveLoadKNPerM: lc.LiveLoadKPa * 3.0,
