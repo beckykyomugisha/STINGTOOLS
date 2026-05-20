@@ -488,6 +488,79 @@ namespace StingTools.Model
                 $"(span={spanMm / 1000:F1}m, t={thicknessMm}mm) → {(result.Pass ? "OK" : "FAIL")}";
             return result;
         }
+
+        /// <summary>
+        /// Walks every beam + floor in the model, calls CheckBeamDeflection /
+        /// CheckSlabDeflection with size/load heuristics, and stamps
+        /// STR_BEAM_DEFLECTION_LIM_TXT / STR_SLAB_DEFLECTION_LIMIT_TXT
+        /// (both existing params) with the verdict string. Caller owns the
+        /// Transaction. Returns (beamsStamped, slabsStamped).
+        /// </summary>
+        public static (int Beams, int Slabs) AnalyseModel(
+            Document doc, double liveLoadKPa = 2.5, double deadLoadKPa = 4.0)
+        {
+            int beamsStamped = 0, slabsStamped = 0;
+            if (doc == null) return (0, 0);
+            try
+            {
+                foreach (var beam in new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                    .WhereElementIsNotElementType())
+                {
+                    try
+                    {
+                        var loc = beam.Location as LocationCurve;
+                        if (loc?.Curve == null) continue;
+                        double spanMm = loc.Curve.Length * Units.FeetToMm;
+                        if (spanMm < 500) continue;
+                        double h = spanMm / 20.0;
+                        double b = h * 0.5;
+                        var type = doc.GetElement(beam.GetTypeId());
+                        var mat = (type?.get_Parameter(BuiltInParameter.STRUCTURAL_MATERIAL_PARAM)
+                                   ?.AsValueString() ?? "").ToUpperInvariant();
+                        bool isSteel = mat.Contains("STEEL") || mat.Contains("S275") || mat.Contains("S355");
+                        double udl = (liveLoadKPa + deadLoadKPa) * 3.0; // 3m tributary
+                        var r = CheckBeamDeflection(spanMm, h, b, udl, isSteel);
+                        string verdict = r.Pass
+                            ? $"L/{r.LimitMm > 0 ? spanMm / r.LimitMm : 0:F0} OK"
+                            : $"L/{r.LimitMm > 0 ? spanMm / r.LimitMm : 0:F0} FAIL ({r.CalculatedMm:F1}mm)";
+                        if (StingTools.Core.ParameterHelpers.SetString(beam,
+                                "STR_BEAM_DEFLECTION_LIM_TXT", verdict, overwrite: true))
+                            beamsStamped++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"DeflectionChecker beam {beam.Id}: {ex.Message}"); }
+                }
+
+                foreach (var slab in new FilteredElementCollector(doc)
+                    .OfClass(typeof(Floor))
+                    .WhereElementIsNotElementType().Cast<Floor>())
+                {
+                    try
+                    {
+                        var bb = slab.get_BoundingBox(null);
+                        if (bb == null) continue;
+                        double xMm = (bb.Max.X - bb.Min.X) * Units.FeetToMm;
+                        double yMm = (bb.Max.Y - bb.Min.Y) * Units.FeetToMm;
+                        double spanMm = Math.Min(xMm, yMm);   // short span governs
+                        if (spanMm < 500) continue;
+                        bool twoWay = (Math.Max(xMm, yMm) / spanMm) <= 2.0;
+                        double tMm = 200;
+                        var tP = slab.get_Parameter(BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM);
+                        if (tP != null) tMm = tP.AsDouble() * Units.FeetToMm;
+                        var r = CheckSlabDeflection(spanMm, tMm, liveLoadKPa + deadLoadKPa, twoWay);
+                        string verdict = r.Pass
+                            ? $"L/d={r.Ratio:F1} OK"
+                            : $"L/d={r.Ratio:F1} FAIL";
+                        if (StingTools.Core.ParameterHelpers.SetString(slab,
+                                "STR_SLAB_DEFLECTION_LIMIT_TXT", verdict, overwrite: true))
+                            slabsStamped++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"DeflectionChecker slab {slab.Id}: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Error("DeflectionChecker.AnalyseModel", ex); }
+            return (beamsStamped, slabsStamped);
+        }
     }
 
 
@@ -1722,6 +1795,30 @@ namespace StingTools.Model
             int maxCols = colsByLevel.Values.Max();
             int minCols = colsByLevel.Values.Min();
             return (double)minCols / maxCols >= 0.8;
+        }
+
+        /// <summary>
+        /// Close the calc → model loop: stamp STR_SYSTEM_CLASS_TXT (new
+        /// Phase 188 param) onto ProjectInformation so reports / BOQ /
+        /// title-block tokens can read the classified structural system
+        /// without re-running the classifier. Returns 1 if written, 0 if
+        /// already set or write failed. Caller owns the Transaction.
+        /// </summary>
+        public static int WriteBack(Document doc, StructuralSystemResult result)
+        {
+            if (doc?.ProjectInformation == null || result == null) return 0;
+            try
+            {
+                string label = $"{result.SystemType} ({result.MaterialType})";
+                if (StingTools.Core.ParameterHelpers.SetString(doc.ProjectInformation,
+                        "STR_SYSTEM_CLASS_TXT", label, overwrite: true))
+                    return 1;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"StructuralSystemClassifier.WriteBack: {ex.Message}");
+            }
+            return 0;
         }
     }
 
@@ -3497,6 +3594,34 @@ namespace StingTools.Model
 
             return result;
         }
+
+        /// <summary>
+        /// Close the calc → model loop: stamp STR_ROBUST_STATUS_TXT (new
+        /// Phase 188 param) on every column the checker assessed. Caller
+        /// owns the Transaction. Returns the number of columns stamped.
+        /// </summary>
+        public static int WriteBack(Document doc, ProgressiveCollapseResult result)
+        {
+            int written = 0;
+            if (doc == null || result?.ColumnResults == null) return 0;
+            foreach (var (colId, status, affected) in result.ColumnResults)
+            {
+                try
+                {
+                    var el = doc.GetElement(colId);
+                    if (el == null) continue;
+                    string label = $"{status} (affects {affected})";
+                    if (StingTools.Core.ParameterHelpers.SetString(el, "STR_ROBUST_STATUS_TXT",
+                            label, overwrite: true))
+                        written++;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"ProgressiveCollapse.WriteBack {colId.Value}: {ex.Message}");
+                }
+            }
+            return written;
+        }
     }
 
 
@@ -3658,6 +3783,87 @@ namespace StingTools.Model
                 $"converged={result.Converged}";
 
             return result;
+        }
+
+        /// <summary>
+        /// Close the calc → model loop: walk every Change in the result, find
+        /// or create a FamilySymbol matching the recommended section name via
+        /// the existing StructuralTypeFactory, and swap each beam's type via
+        /// Element.ChangeTypeId. Also stamps STR_BEAM_SECTION_TXT (existing
+        /// param). Caller owns the Transaction. Returns (typesSwapped, sectionsStamped).
+        /// </summary>
+        public static (int Swapped, int Stamped) Apply(Document doc, AutoSizingResult result)
+        {
+            int swapped = 0, stamped = 0;
+            if (doc == null || result?.Changes == null) return (0, 0);
+            var factory = new StructuralTypeFactory(doc);
+            foreach (var change in result.Changes)
+            {
+                try
+                {
+                    var beam = doc.GetElement(change.MemberId);
+                    if (beam == null) continue;
+
+                    // Parse the recommended "WxD" form (RC beam) or use the
+                    // section designation directly (steel). For RC we use
+                    // the factory; for steel we look up the FamilySymbol by
+                    // designation suffix.
+                    ElementId targetTypeId = ElementId.InvalidElementId;
+                    if (change.NewSize.Contains("x"))
+                    {
+                        // RC: parse "WxD"
+                        var parts = change.NewSize.Split('x');
+                        if (parts.Length == 2
+                            && double.TryParse(parts[0].Trim(), out double w)
+                            && double.TryParse(parts[1].Trim(), out double d))
+                        {
+                            var match = factory.FindOrCreateBeamType(d, w);
+                            if (match.Success) targetTypeId = match.TypeId;
+                        }
+                    }
+                    else
+                    {
+                        // Steel: find FamilySymbol whose name contains the designation
+                        // (e.g. "UB 305x165x40").
+                        targetTypeId = FindSymbolByName(doc, change.NewSize);
+                    }
+                    if (targetTypeId == null || targetTypeId == ElementId.InvalidElementId) continue;
+                    if (beam.GetTypeId() != targetTypeId)
+                    {
+                        if (doc.GetElement(targetTypeId) is FamilySymbol fs && !fs.IsActive)
+                            fs.Activate();
+                        beam.ChangeTypeId(targetTypeId);
+                        swapped++;
+                    }
+                    if (StingTools.Core.ParameterHelpers.SetString(beam, "STR_BEAM_SECTION_TXT",
+                            change.NewSize, overwrite: true))
+                        stamped++;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"AutoMemberSizer.Apply {change.MemberId.Value}: {ex.Message}");
+                }
+            }
+            return (swapped, stamped);
+        }
+
+        private static ElementId FindSymbolByName(Document doc, string designation)
+        {
+            if (string.IsNullOrEmpty(designation)) return ElementId.InvalidElementId;
+            string needle = designation.Trim().ToUpperInvariant();
+            try
+            {
+                foreach (var fs in new FilteredElementCollector(doc)
+                    .OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>())
+                {
+                    string combined = ((fs.Family?.Name ?? "") + " " + (fs.Name ?? ""))
+                        .ToUpperInvariant();
+                    if (combined.Contains(needle)) return fs.Id;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"FindSymbolByName {designation}: {ex.Message}"); }
+            return ElementId.InvalidElementId;
         }
     }
 
@@ -3895,6 +4101,78 @@ namespace StingTools.Model
             }
 
             return results;
+        }
+
+        /// <summary>
+        /// Closes the calc → model loop: walks columns + beams + slabs, runs
+        /// the EC2-1-2 tabulated checks, and stamps PER_FIRE_RATING_HR
+        /// (existing param) with the achieved rating in hours per element.
+        /// Caller owns the Transaction. Returns counts.
+        /// </summary>
+        public static (int Cols, int Beams, int Slabs) WriteBack(
+            Document doc, int requiredRatingMinutes = 60, double defaultCoverMm = 30)
+        {
+            int cs = 0, bs = 0, ss = 0;
+            if (doc == null) return (0, 0, 0);
+            try
+            {
+                foreach (var col in new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralColumns)
+                    .WhereElementIsNotElementType())
+                {
+                    try
+                    {
+                        var t = doc.GetElement(col.GetTypeId());
+                        double w = 300, d = 300;
+                        if (t != null)
+                        {
+                            var wP = t.get_Parameter(BuiltInParameter.GENERIC_WIDTH);
+                            var dP = t.get_Parameter(BuiltInParameter.GENERIC_DEPTH);
+                            if (wP != null) w = wP.AsDouble() * Units.FeetToMm;
+                            if (dP != null) d = dP.AsDouble() * Units.FeetToMm;
+                        }
+                        var r = CheckColumn(w, d, defaultCoverMm, requiredRatingMinutes);
+                        if (StingTools.Core.ParameterHelpers.SetString(col, "PER_FIRE_RATING_HR",
+                                $"{r.AchievedMinutes / 60.0:F1}", overwrite: true)) cs++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"FireRes col {col.Id}: {ex.Message}"); }
+                }
+                foreach (var beam in new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                    .WhereElementIsNotElementType())
+                {
+                    try
+                    {
+                        var t = doc.GetElement(beam.GetTypeId());
+                        double w = 200;
+                        if (t != null)
+                        {
+                            var wP = t.get_Parameter(BuiltInParameter.GENERIC_WIDTH);
+                            if (wP != null) w = wP.AsDouble() * Units.FeetToMm;
+                        }
+                        var r = CheckBeam(w, defaultCoverMm, requiredRatingMinutes);
+                        if (StingTools.Core.ParameterHelpers.SetString(beam, "PER_FIRE_RATING_HR",
+                                $"{r.AchievedMinutes / 60.0:F1}", overwrite: true)) bs++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"FireRes beam {beam.Id}: {ex.Message}"); }
+                }
+                foreach (var slab in new FilteredElementCollector(doc)
+                    .OfClass(typeof(Floor)).WhereElementIsNotElementType().Cast<Floor>())
+                {
+                    try
+                    {
+                        double tk = 200;
+                        var tP = slab.get_Parameter(BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM);
+                        if (tP != null) tk = tP.AsDouble() * Units.FeetToMm;
+                        var r = CheckSlab(tk, defaultCoverMm, requiredRatingMinutes);
+                        if (StingTools.Core.ParameterHelpers.SetString(slab, "PER_FIRE_RATING_HR",
+                                $"{r.AchievedMinutes / 60.0:F1}", overwrite: true)) ss++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"FireRes slab {slab.Id}: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Error("FireResistanceCalculator.WriteBack", ex); }
+            return (cs, bs, ss);
         }
     }
 }

@@ -1360,7 +1360,7 @@ namespace StingTools.Model
     /// Auto-classifies the structural system type (frame, braced, shear wall, dual, flat slab).
     /// Analyzes element counts, ratios, regularity, and connectivity.
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StrClassifySystemCommand : IExternalCommand
     {
@@ -1374,6 +1374,19 @@ namespace StingTools.Model
             {
                 var engine = new StructuralModelingEngine(uidoc.Document);
                 var result = engine.ClassifyStructuralSystem();
+                // Close the calc → model loop: stamp STR_SYSTEM_CLASS_TXT on
+                // ProjectInformation so reports / BOQ / title-block tokens see
+                // the classified system without re-running.
+                try
+                {
+                    using (var tx = new Transaction(uidoc.Document, "STING Stamp Structural System"))
+                    {
+                        tx.Start();
+                        StructuralSystemClassifier.WriteBack(uidoc.Document, result);
+                        tx.Commit();
+                    }
+                }
+                catch (Exception exTx) { StingLog.Warn($"SystemClass stamp: {exTx.Message}"); }
 
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine($"Structural System Type: {result.SystemType}");
@@ -1413,7 +1426,7 @@ namespace StingTools.Model
     /// Runs serviceability deflection checks on all beams in the model.
     /// Reports pass/fail with utilisation ratios per EC2/EC3.
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StrDeflectionCheckCommand : IExternalCommand
     {
@@ -1442,10 +1455,29 @@ namespace StingTools.Model
                 int passing = results.Count(r => r.Result.Pass);
                 int failing = results.Count(r => !r.Result.Pass);
 
+                // Close the calc → model loop: walk beams + slabs via the new
+                // DeflectionChecker.AnalyseModel, stamping STR_BEAM_DEFLECTION_LIM_TXT
+                // and STR_SLAB_DEFLECTION_LIMIT_TXT (both existing). Runs in a
+                // separate transaction so the report stays available even if
+                // the stamp pass fails.
+                int beamsStamped = 0, slabsStamped = 0;
+                try
+                {
+                    using (var tx = new Transaction(uidoc.Document, "STING Stamp Deflection"))
+                    {
+                        tx.Start();
+                        (beamsStamped, slabsStamped) = DeflectionChecker.AnalyseModel(uidoc.Document);
+                        tx.Commit();
+                    }
+                }
+                catch (Exception exTx) { StingLog.Warn($"Deflection stamp: {exTx.Message}"); }
+
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine($"Deflection Check: {results.Count} beams");
                 sb.AppendLine($"  ✓ Passing: {passing}");
                 sb.AppendLine($"  ✗ Failing: {failing}");
+                sb.AppendLine($"  STR_BEAM_DEFLECTION_LIM_TXT stamped: {beamsStamped}");
+                sb.AppendLine($"  STR_SLAB_DEFLECTION_LIMIT_TXT stamped: {slabsStamped}");
                 sb.AppendLine();
 
                 if (failing > 0)
@@ -1998,7 +2030,7 @@ namespace StingTools.Model
     // PROGRESSIVE COLLAPSE / ROBUSTNESS CHECK
     // ══════════════════════════════════════════════════════════════════
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StrProgressiveCollapseCommand : IExternalCommand
     {
@@ -2012,12 +2044,27 @@ namespace StingTools.Model
             {
                 var result = ProgressiveCollapseChecker.CheckRobustness(uidoc.Document);
 
+                // Close the calc → model loop: stamp STR_ROBUST_STATUS_TXT
+                // (new Phase 188 param) on each assessed column.
+                int stamped = 0;
+                try
+                {
+                    using (var tx = new Transaction(uidoc.Document, "STING Stamp Robustness"))
+                    {
+                        tx.Start();
+                        stamped = ProgressiveCollapseChecker.WriteBack(uidoc.Document, result);
+                        tx.Commit();
+                    }
+                }
+                catch (Exception exTx) { StingLog.Warn($"Robustness stamp: {exTx.Message}"); }
+
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine($"Progressive Collapse / Robustness Check");
                 sb.AppendLine($"Result: {(result.IsRobust ? "ROBUST ✓" : "NOT ROBUST ✗")}");
                 sb.AppendLine($"Robustness class: {result.RobustnessClass}");
                 sb.AppendLine($"Redundancy ratio: {result.RedundancyRatio:P0}");
                 sb.AppendLine($"Critical columns: {result.CriticalColumnCount}");
+                sb.AppendLine($"STR_ROBUST_STATUS_TXT stamped on {stamped} column(s).");
                 sb.AppendLine();
 
                 var critical = result.ColumnResults.Where(c => !c.Status.StartsWith("OK")).Take(10);
@@ -2048,7 +2095,7 @@ namespace StingTools.Model
     // AUTO MEMBER SIZING
     // ══════════════════════════════════════════════════════════════════
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StrAutoSizeCommand : IExternalCommand
     {
@@ -2062,10 +2109,44 @@ namespace StingTools.Model
             {
                 var result = AutoMemberSizer.AutoSizeAllMembers(uidoc.Document);
 
+                // Close the calc → model loop: previously the AutoSize command
+                // listed recommended changes but never applied them. Apply now
+                // performs ChangeTypeId per Change via StructuralTypeFactory.
+                // Asks the user before mutating geometry — many callers ran
+                // this for the report only.
+                int swapped = 0, stamped = 0;
+                if (result.Changes.Count > 0)
+                {
+                    var ok = new TaskDialog("STING Auto-Size — apply?")
+                    {
+                        MainInstruction = $"Apply {result.Changes.Count} section change(s)?",
+                        MainContent = "Will swap each beam's FamilySymbol to the recommended " +
+                                      "section via ChangeTypeId and stamp STR_BEAM_SECTION_TXT. " +
+                                      "Cancel to keep the report only.",
+                        CommonButtons = TaskDialogCommonButtons.Cancel,
+                        DefaultButton = TaskDialogResult.Cancel
+                    };
+                    ok.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Apply changes");
+                    if (ok.Show() == TaskDialogResult.CommandLink1)
+                    {
+                        try
+                        {
+                            using (var tx = new Transaction(uidoc.Document, "STING Apply AutoMember Sizing"))
+                            {
+                                tx.Start();
+                                (swapped, stamped) = AutoMemberSizer.Apply(uidoc.Document, result);
+                                tx.Commit();
+                            }
+                        }
+                        catch (Exception exTx) { StingLog.Warn($"AutoMemberSizer.Apply: {exTx.Message}"); }
+                    }
+                }
+
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine($"Auto Member Sizing — Iterative Convergence");
                 sb.AppendLine($"Iterations: {result.IterationsUsed}, Converged: {result.Converged}");
                 sb.AppendLine($"Members to resize: {result.MembersResized}");
+                sb.AppendLine($"FamilySymbol swapped: {swapped} · STR_BEAM_SECTION_TXT stamped: {stamped}");
                 sb.AppendLine($"Avg utilisation: {result.AverageUtilisation:F2}");
                 sb.AppendLine($"Max utilisation: {result.MaxUtilisation:F2}");
                 sb.AppendLine();
@@ -2096,7 +2177,7 @@ namespace StingTools.Model
     // FIRE RESISTANCE CHECK
     // ══════════════════════════════════════════════════════════════════
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StrFireResistanceCommand : IExternalCommand
     {
@@ -2131,11 +2212,29 @@ namespace StingTools.Model
                 int passing = results.Count(r => r.Pass);
                 int failing = results.Count(r => !r.Pass);
 
+                // Close the calc → model loop: walk elements again and stamp
+                // PER_FIRE_RATING_HR (existing param) with the achieved rating
+                // in hours. Runs in a separate transaction so the report is
+                // emitted even if the stamp pass fails.
+                int colsStamped = 0, beamsStamped = 0, slabsStamped = 0;
+                try
+                {
+                    using (var tx = new Transaction(uidoc.Document, "STING Stamp Fire Rating"))
+                    {
+                        tx.Start();
+                        (colsStamped, beamsStamped, slabsStamped) =
+                            FireResistanceCalculator.WriteBack(uidoc.Document, rating);
+                        tx.Commit();
+                    }
+                }
+                catch (Exception exTx) { StingLog.Warn($"FireRes stamp: {exTx.Message}"); }
+
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine($"Fire Resistance Check — R{rating}");
                 sb.AppendLine($"Total elements: {results.Count}");
                 sb.AppendLine($"✓ Passing: {passing}");
                 sb.AppendLine($"✗ Failing: {failing}");
+                sb.AppendLine($"PER_FIRE_RATING_HR stamped: {colsStamped} cols + {beamsStamped} beams + {slabsStamped} slabs");
                 sb.AppendLine();
 
                 var byType = results.GroupBy(r => r.ElementType);

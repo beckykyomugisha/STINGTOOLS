@@ -22055,6 +22055,30 @@
       "curated": true
     },
     {
+      "param_name": "STR_ROBUST_STATUS_TXT",
+      "guid": "d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e07",
+      "description": "Progressive-collapse robustness status per GSA / EC1-1-7 -- ProgressiveCollapseChecker [Phase 188]",
+      "datatype": "TEXT",
+      "group_id": 16,
+      "group_name": "STR_FRAMING",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Structural",
+      "curated": true
+    },
+    {
+      "param_name": "STR_SYSTEM_CLASS_TXT",
+      "guid": "d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e08",
+      "description": "Auto-classified structural system -- StructuralSystemClassifier [Phase 188]",
+      "datatype": "TEXT",
+      "group_id": 16,
+      "group_name": "STR_FRAMING",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Structural",
+      "curated": true
+    },
+    {
       "param_name": "PLM_PRJ_PLUMBING_CODE_TXT",
       "guid": "98ab6e19-8d12-53c0-b388-8705f9413373",
       "description": "Project plumbing-code toggle BS-UK / IPC-US / UPC-US [Phase 178b]",
