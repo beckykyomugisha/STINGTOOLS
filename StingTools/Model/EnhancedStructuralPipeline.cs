@@ -383,6 +383,14 @@ namespace StingTools.Model
                     "(4) the regional bearing default is already derated — site investigation must confirm.");
             }
 
+            // Phase 190 — stamp WARN_STR_FND_BLACK_COTTON + propagate the
+            // STR_BLACK_COTTON_RISK_BOOL onto every foundation so tags,
+            // schedules and TAG7 paragraphs surface the warning on drawings,
+            // not just inside the sizing result panel.
+            const string BlackCottonWarnText =
+                "⚠ Black-cotton subgrade — extend below active zone (~1.5 m), " +
+                "verify BS 1377-2 swelling test, consider raft / stabilised sub-base";
+
             foreach (var fnd in all.Where(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_StructuralFoundation))
             {
                 r.FoundationsInspected++;
@@ -410,6 +418,23 @@ namespace StingTools.Model
                         // close the loop for the user.
                     }
                     else if (apply) r.FoundationsSkipped++;
+
+                    // Phase 190 — propagate the project-level black-cotton flag
+                    // onto every foundation so tag formulas (if(TAG_WARN_VISIBLE_BOOL,
+                    // WARN_STR_FND_BLACK_COTTON, "")), schedules and TAG7 paragraphs
+                    // surface the warning on drawings, not just in the result panel.
+                    if (apply && projectBlackCotton)
+                    {
+                        try
+                        {
+                            ParameterHelpers.SetString(fnd, "WARN_STR_FND_BLACK_COTTON",
+                                BlackCottonWarnText, overwrite: true);
+                            var bp = fnd.LookupParameter("STR_BLACK_COTTON_RISK_BOOL");
+                            if (bp != null && !bp.IsReadOnly && bp.StorageType == StorageType.Integer)
+                                bp.Set(1);
+                        }
+                        catch (Exception exW) { StingLog.Warn($"Black-cotton stamp {fnd.Id.Value}: {exW.Message}"); }
+                    }
                 }
                 catch (Exception ex) { r.FoundationsSkipped++; r.Warnings.Add($"Fnd {fnd.Id.Value}: {ex.Message}"); }
             }
