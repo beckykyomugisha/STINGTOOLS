@@ -6,14 +6,13 @@
 
   <info>
     <title>STING — 8-segment tag grammar</title>
+    <copyright>Planscape Limited, 2026</copyright>
+    <version>1.0.0</version>
     <description>IDS encoding of the STING tag grammar: validates the 8 segments of Pset_StingTags (Discipline / Location / Zone / Level / System / Function / Product / Sequence) against the corresponding enumerations + the format rules declared in Pset_StingTags.xml. Stage-gated — DISC/LOC/LVL required from Stage 2; ZONE/SYS/SEQ from Stage 3; FUNC/PROD from Stage 4. Use sting-spatial-codes.ids for the cross-entity relationships between tag tokens and the spatial structure.</description>
     <author>info@stingtools.io</author>
     <date>2026-05-20</date>
     <purpose>STING tag-grammar validation — values, formats, sentinel handling</purpose>
     <milestone>Stage_2_Concept_through_Stage_4_TechnicalDesign</milestone>
-    <copyright>Planscape Limited, 2026</copyright>
-    <version>1.0.0</version>
-    <ifcVersion>IFC4 IFC4X3</ifcVersion>
   </info>
 
   <specifications>
@@ -23,11 +22,10 @@
          ============================================================ -->
     <specification name="Discipline_required_and_enumerated"
                    identifier="10-DISC"
-                   minOccurs="1" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
       <applicability minOccurs="1" maxOccurs="unbounded">
         <entity>
-          <name><simpleValue>IFCELEMENT</simpleValue></name>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
         </entity>
       </applicability>
       <requirements>
@@ -61,11 +59,10 @@
          ============================================================ -->
     <specification name="Location_required_pattern_only"
                    identifier="11-LOC"
-                   minOccurs="1" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
       <applicability minOccurs="1" maxOccurs="unbounded">
         <entity>
-          <name><simpleValue>IFCELEMENT</simpleValue></name>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
         </entity>
       </applicability>
       <requirements>
@@ -90,11 +87,10 @@
          ============================================================ -->
     <specification name="Level_required_pattern_only"
                    identifier="12-LVL"
-                   minOccurs="1" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
       <applicability minOccurs="1" maxOccurs="unbounded">
         <entity>
-          <name><simpleValue>IFCELEMENT</simpleValue></name>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
         </entity>
       </applicability>
       <requirements>
@@ -118,11 +114,10 @@
          ============================================================ -->
     <specification name="Zone_pattern_when_present"
                    identifier="13-ZONE"
-                   minOccurs="0" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
-      <applicability minOccurs="1" maxOccurs="unbounded">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
         <entity>
-          <name><simpleValue>IFCELEMENT</simpleValue></name>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
         </entity>
         <property dataType="IFCLABEL">
           <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
@@ -150,11 +145,10 @@
          ============================================================ -->
     <specification name="System_enumerated_when_present"
                    identifier="14-SYS"
-                   minOccurs="0" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
-      <applicability minOccurs="1" maxOccurs="unbounded">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
         <entity>
-          <name><simpleValue>IFCELEMENT</simpleValue></name>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
         </entity>
         <property dataType="IFCLABEL">
           <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
@@ -200,11 +194,10 @@
          ============================================================ -->
     <specification name="Function_pattern_when_present"
                    identifier="15-FUNC"
-                   minOccurs="0" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
-      <applicability minOccurs="1" maxOccurs="unbounded">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
         <entity>
-          <name><simpleValue>IFCELEMENT</simpleValue></name>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
         </entity>
         <property dataType="IFCLABEL">
           <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
@@ -231,11 +224,10 @@
          ============================================================ -->
     <specification name="Product_pattern_when_present"
                    identifier="16-PROD"
-                   minOccurs="0" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
-      <applicability minOccurs="1" maxOccurs="unbounded">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
         <entity>
-          <name><simpleValue>IFCELEMENT</simpleValue></name>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
         </entity>
         <property dataType="IFCLABEL">
           <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
@@ -262,11 +254,10 @@
          ============================================================ -->
     <specification name="Sequence_4digit_zero_padded"
                    identifier="17-SEQ"
-                   minOccurs="0" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
-      <applicability minOccurs="1" maxOccurs="unbounded">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
         <entity>
-          <name><simpleValue>IFCELEMENT</simpleValue></name>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
         </entity>
         <property dataType="IFCLABEL">
           <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
@@ -295,11 +286,10 @@
          ============================================================ -->
     <specification name="FullTag_matches_8segment_pattern"
                    identifier="18-FULLTAG"
-                   minOccurs="0" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
-      <applicability minOccurs="1" maxOccurs="unbounded">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
         <entity>
-          <name><simpleValue>IFCELEMENT</simpleValue></name>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
         </entity>
         <property dataType="IFCLABEL">
           <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
@@ -327,11 +317,10 @@
          ============================================================ -->
     <specification name="TokenLock_csv_of_segments"
                    identifier="19-TOKENLOCK"
-                   minOccurs="0" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
-      <applicability minOccurs="1" maxOccurs="unbounded">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
         <entity>
-          <name><simpleValue>IFCELEMENT</simpleValue></name>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
         </entity>
         <property dataType="IFCLABEL">
           <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
@@ -357,11 +346,10 @@
          ============================================================ -->
     <specification name="ModifiedAt_iso8601_when_present"
                    identifier="20-MODIFIEDAT"
-                   minOccurs="0" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
-      <applicability minOccurs="1" maxOccurs="unbounded">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
         <entity>
-          <name><simpleValue>IFCELEMENT</simpleValue></name>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
         </entity>
         <property dataType="IFCDATETIME">
           <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>

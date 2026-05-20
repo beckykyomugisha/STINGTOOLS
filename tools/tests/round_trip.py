@@ -73,50 +73,93 @@ def has_ifctester() -> bool:
 # fixture generation — needs ifcopenshell
 # ----------------------------------------------------------------------
 
-def generate_fixture(out_path: Path, verbose: bool = False) -> int:
-    """Mint a tiny valid IFC4 with the STING Psets attached.
+def generate_fixture(out_path: Path, verbose: bool = False, mismatch: bool = False) -> int:
+    """Mint a tiny valid IFC4 with Pset_StingSpatialCodes + Pset_StingTags.
 
-    Schema sketched here for reference — the actual implementation needs
-    ifcopenshell.api.run() calls. Returns 0 on success, 4 on dep miss / failure.
+    When `mismatch=True`, the wall's Pset_StingTags.Location is set to a
+    value that does NOT match the containing IfcBuilding.LocationCode —
+    used for negative-path verification (SpatialChecker should fire
+    LOC_MATCHES_BUILDING).
+
+    Returns 0 on success, 4 on missing ifcopenshell.
     """
     if not has_ifcopenshell():
         print("SKIP: --generate-fixture requires ifcopenshell. Install: pip install ifcopenshell")
         return 4
 
-    # When implementing, the sequence is roughly:
-    #
-    #   import ifcopenshell
-    #   from ifcopenshell.api import run
-    #
-    #   model = run("project.create_file", version="IFC4")
-    #   project = run("root.create_entity", model, ifc_class="IfcProject", name="STING test")
-    #   run("unit.assign_unit", model)
-    #   ctx = run("context.add_context", model, context_type="Model")
-    #
-    #   site     = run("root.create_entity", model, ifc_class="IfcSite",            name="Test Site")
-    #   building = run("root.create_entity", model, ifc_class="IfcBuilding",        name="Test Building")
-    #   storey   = run("root.create_entity", model, ifc_class="IfcBuildingStorey",  name="L01")
-    #   zone     = run("root.create_entity", model, ifc_class="IfcZone",            name="Z01")
-    #   wall     = run("root.create_entity", model, ifc_class="IfcWall",            name="Test Wall")
-    #
-    #   run("aggregate.assign_object", model, relating_object=project,  product=site)
-    #   run("aggregate.assign_object", model, relating_object=site,     product=building)
-    #   run("aggregate.assign_object", model, relating_object=building, product=storey)
-    #   run("spatial.assign_container", model, products=[wall], relating_structure=storey)
-    #   run("group.assign_group", model, products=[wall], group=zone)
-    #
-    #   # Psets
-    #   run("pset.add_pset", model, product=building, name="Pset_StingSpatialCodes")
-    #   run("pset.edit_pset", model, pset=..., properties={"LocationCode": "BLD1"})
-    #   run("pset.add_pset", model, product=storey,   name="Pset_StingSpatialCodes")
-    #   run("pset.edit_pset", model, pset=..., properties={"LevelCode": "L01"})
-    #   run("pset.add_pset", model, product=zone,     name="Pset_StingSpatialCodes")
-    #   run("pset.edit_pset", model, pset=..., properties={"ZoneCode": "Z01", "ZoneCategory": "Clinical"})
-    #   run("pset.add_pset", model, product=wall,     name="Pset_StingTags")
-    #   run("pset.edit_pset", model, pset=..., properties={
-    #       "Discipline": "A", "Location": "BLD1", "Zone": "Z01", "Level": "L01",
-    #       "System": "ARC", "Function": "NLB", "Product": "WL", "Sequence": "0001"
-    #   })
+    import ifcopenshell
+    from ifcopenshell.api import run
+
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # 1. Project + units + context
+    model = run("project.create_file", version="IFC4")
+    project = run("root.create_entity", model, ifc_class="IfcProject", name="STING test project")
+    run("unit.assign_unit", model)
+    run("context.add_context", model, context_type="Model")
+
+    # 2. Spatial hierarchy: Project → Site → Building → Storey
+    site     = run("root.create_entity", model, ifc_class="IfcSite",           name="Test Site")
+    building = run("root.create_entity", model, ifc_class="IfcBuilding",       name="Test Building")
+    storey   = run("root.create_entity", model, ifc_class="IfcBuildingStorey", name="L01")
+
+    run("aggregate.assign_object", model, products=[site],     relating_object=project)
+    run("aggregate.assign_object", model, products=[building], relating_object=site)
+    run("aggregate.assign_object", model, products=[storey],   relating_object=building)
+
+    # 3. Zone (groups, not aggregates) — separately assignable
+    zone = run("root.create_entity", model, ifc_class="IfcZone", name="Z01")
+
+    # 4. One wall, contained in storey, grouped into the zone
+    wall = run("root.create_entity", model, ifc_class="IfcWall", name="Test Wall")
+    run("spatial.assign_container", model, products=[wall], relating_structure=storey)
+    run("group.assign_group", model, products=[wall], group=zone)
+
+    # 5. Pset_StingSpatialCodes on each spatial container
+    pset_b = run("pset.add_pset", model, product=building, name="Pset_StingSpatialCodes")
+    run("pset.edit_pset", model, pset=pset_b, properties={
+        "LocationCode": "BLD1",
+        "HumanName":    "Test Building",
+        "SortOrder":    1,
+    })
+    pset_s = run("pset.add_pset", model, product=storey, name="Pset_StingSpatialCodes")
+    run("pset.edit_pset", model, pset=pset_s, properties={
+        "LevelCode":    "L01",
+        "HumanName":    "Level 01",
+        "SortOrder":    10,
+    })
+    pset_z = run("pset.add_pset", model, product=zone, name="Pset_StingSpatialCodes")
+    run("pset.edit_pset", model, pset=pset_z, properties={
+        "ZoneCode":     "Z01",
+        "ZoneCategory": "Clinical",
+        "HumanName":    "Test Clinical Zone",
+    })
+
+    # 6. Pset_StingTags on the wall
+    wall_loc = "WAC" if mismatch else "BLD1"   # negative fixture flips LOC
+    pset_w = run("pset.add_pset", model, product=wall, name="Pset_StingTags")
+    run("pset.edit_pset", model, pset=pset_w, properties={
+        "Discipline": "A",
+        "Location":   wall_loc,
+        "Zone":       "Z01",
+        "Level":      "L01",
+        "System":     "ARC",
+        "Function":   "NLB",
+        "Product":    "WL",
+        "Sequence":   "0001",
+        "FullTag":    f"A-{wall_loc}-Z01-L01-ARC-NLB-WL-0001",
+    })
+
+    model.write(str(out_path))
+    if verbose:
+        print(f"  wrote {out_path} ({out_path.stat().st_size} bytes)")
+        print(f"  schema:   IFC4")
+        print(f"  entities: 1 building, 1 storey, 1 zone, 1 wall")
+        print(f"  psets:    Pset_StingSpatialCodes ×3, Pset_StingTags ×1")
+        if mismatch:
+            print(f"  ⚠  MISMATCH FIXTURE: wall LOC={wall_loc!r} but building LocationCode='BLD1'")
+    return 0
     #
     #   model.write(str(out_path))
 
@@ -199,6 +242,7 @@ def main(argv: list[str]) -> int:
     p.add_argument("--fixture", default=str(DEFAULT_FIXTURE))
     p.add_argument("--ids", default=str(DEFAULT_IDS), help="Path to IDS file (defaults to sting-spatial-codes.ids; can repeat)", action="append")
     p.add_argument("--generate-fixture", action="store_true")
+    p.add_argument("--mismatch", action="store_true", help="when used with --generate-fixture, mint the negative-fixture variant (LOC ≠ building.LocationCode)")
     p.add_argument("--verbose", action="store_true")
     p.add_argument("--strict", action="store_true", help="exit non-zero on SKIP")
     args = p.parse_args(argv)
@@ -220,7 +264,7 @@ def main(argv: list[str]) -> int:
     print()
 
     if args.generate_fixture:
-        rc = generate_fixture(fixture, args.verbose)
+        rc = generate_fixture(fixture, args.verbose, mismatch=args.mismatch)
         if args.strict and rc == 3:
             return 3
         return rc

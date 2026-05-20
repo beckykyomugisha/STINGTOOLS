@@ -6,14 +6,13 @@
 
   <info>
     <title>STING — Spatial-Codes validation</title>
+    <copyright>Planscape Limited, 2026</copyright>
+    <version>1.0.0</version>
     <description>IDS encoding of the 5 cross-entity validation rules declared in shared/ifc/psets/Pset_StingSpatialCodes.xml. Encodes the LOC / LVL / ZONE tag-token-to-spatial-structure linkage rules so that any IDS validator (BlenderBIM, Solibri, BIM Vision, BIMcollab) can check STING IFC payloads without a STING-specific code path. Two rules (BUILDING_LOC_UNIQUE, STOREY_LVL_UNIQUE_WITHIN_BUILDING) cannot be fully expressed in IDS v1.0 — see sting-spatial-codes-rules.md for the partial encoding + STING-side uniqueness enforcement.</description>
     <author>info@stingtools.io</author>
     <date>2026-05-20</date>
     <purpose>STING Tools spatial-codes validation; ISO 19650-2 §5.3 spatial structure verification</purpose>
     <milestone>Stage_3_SpatialCoordination</milestone>
-    <copyright>Planscape Limited, 2026</copyright>
-    <version>1.0.0</version>
-    <ifcVersion>IFC4 IFC4X3</ifcVersion>
   </info>
 
   <specifications>
@@ -34,11 +33,10 @@
     -->
     <specification name="LOC_value_must_be_enumerated"
                    identifier="01a-LOC-IS-ENUM"
-                   minOccurs="1" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
       <applicability minOccurs="1" maxOccurs="unbounded">
         <entity>
-          <name><simpleValue>IFCELEMENT</simpleValue></name>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
         </entity>
         <property dataType="IFCLABEL">
           <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
@@ -63,11 +61,10 @@
 
     <specification name="Element_must_be_in_a_LOC_tagged_building"
                    identifier="01b-LOC-PARTOF-BUILDING"
-                   minOccurs="1" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
       <applicability minOccurs="1" maxOccurs="unbounded">
         <entity>
-          <name><simpleValue>IFCELEMENT</simpleValue></name>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
         </entity>
         <property dataType="IFCLABEL">
           <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
@@ -76,12 +73,8 @@
       </applicability>
       <requirements>
         <partOf relation="IFCRELCONTAINEDINSPATIALSTRUCTURE" cardinality="required">
-          <name><simpleValue>IFCBUILDING</simpleValue></name>
+          <entity><name><simpleValue>IFCBUILDINGSTOREY</simpleValue></name></entity>
         </partOf>
-        <property dataType="IFCLABEL" cardinality="required">
-          <propertySet><simpleValue>Pset_StingSpatialCodes</simpleValue></propertySet>
-          <baseName><simpleValue>LocationCode</simpleValue></baseName>
-        </property>
       </requirements>
     </specification>
 
@@ -91,11 +84,10 @@
          ============================================================ -->
     <specification name="LVL_value_must_be_enumerated"
                    identifier="02a-LVL-IS-ENUM"
-                   minOccurs="1" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
       <applicability minOccurs="1" maxOccurs="unbounded">
         <entity>
-          <name><simpleValue>IFCELEMENT</simpleValue></name>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
         </entity>
         <property dataType="IFCLABEL">
           <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
@@ -119,11 +111,10 @@
 
     <specification name="Element_must_be_in_a_LVL_tagged_storey"
                    identifier="02b-LVL-PARTOF-STOREY"
-                   minOccurs="1" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
       <applicability minOccurs="1" maxOccurs="unbounded">
         <entity>
-          <name><simpleValue>IFCELEMENT</simpleValue></name>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
         </entity>
         <property dataType="IFCLABEL">
           <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
@@ -132,12 +123,8 @@
       </applicability>
       <requirements>
         <partOf relation="IFCRELCONTAINEDINSPATIALSTRUCTURE" cardinality="required">
-          <name><simpleValue>IFCBUILDINGSTOREY</simpleValue></name>
+          <entity><name><simpleValue>IFCBUILDINGSTOREY</simpleValue></name></entity>
         </partOf>
-        <property dataType="IFCLABEL" cardinality="required">
-          <propertySet><simpleValue>Pset_StingSpatialCodes</simpleValue></propertySet>
-          <baseName><simpleValue>LevelCode</simpleValue></baseName>
-        </property>
       </requirements>
     </specification>
 
@@ -147,11 +134,10 @@
          ============================================================ -->
     <specification name="ZONE_value_must_be_enumerated"
                    identifier="03a-ZONE-IS-ENUM"
-                   minOccurs="1" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
       <applicability minOccurs="1" maxOccurs="unbounded">
         <entity>
-          <name><simpleValue>IFCELEMENT</simpleValue></name>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
         </entity>
         <property dataType="IFCLABEL">
           <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
@@ -175,11 +161,10 @@
 
     <specification name="Element_must_be_assigned_to_a_ZONE_tagged_IfcZone"
                    identifier="03b-ZONE-ASSIGNED"
-                   minOccurs="1" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
       <applicability minOccurs="1" maxOccurs="unbounded">
         <entity>
-          <name><simpleValue>IFCELEMENT</simpleValue></name>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
         </entity>
         <property dataType="IFCLABEL">
           <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
@@ -188,12 +173,8 @@
       </applicability>
       <requirements>
         <partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required">
-          <name><simpleValue>IFCZONE</simpleValue></name>
+          <entity><name><simpleValue>IFCZONE</simpleValue></name></entity>
         </partOf>
-        <property dataType="IFCLABEL" cardinality="required">
-          <propertySet><simpleValue>Pset_StingSpatialCodes</simpleValue></propertySet>
-          <baseName><simpleValue>ZoneCode</simpleValue></baseName>
-        </property>
       </requirements>
     </specification>
 
@@ -210,8 +191,7 @@
     -->
     <specification name="Every_building_has_a_LocationCode"
                    identifier="04-BUILDING-HAS-LOC"
-                   minOccurs="1" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
       <applicability minOccurs="1" maxOccurs="unbounded">
         <entity>
           <name><simpleValue>IFCBUILDING</simpleValue></name>
@@ -240,8 +220,7 @@
     -->
     <specification name="Every_storey_has_a_LevelCode"
                    identifier="05-STOREY-HAS-LVL"
-                   minOccurs="1" maxOccurs="unbounded"
-                   ifcVersion="IFC4 IFC4X3">
+                   ifcVersion="IFC4 IFC4X3_ADD2">
       <applicability minOccurs="1" maxOccurs="unbounded">
         <entity>
           <name><simpleValue>IFCBUILDINGSTOREY</simpleValue></name>
