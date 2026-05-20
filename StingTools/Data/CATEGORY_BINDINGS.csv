@@ -16580,15 +16580,10 @@ PLM_SUP_VEL_MPS,Pipes,Type,Yes
 PLM_SUP_VEL_MPS,Plumbing Equipment,Type,Yes
 PLM_SUP_VEL_MPS,Plumbing Fixtures,Type,Yes
 PRJ_ORG_REGION_TXT,Project Information,Instance,Yes
-STR_BLACK_COTTON_RISK_BOOL,Project Information,Instance,Yes
-STR_BLACK_COTTON_RISK_BOOL,Site,Type,Yes
-STR_BLACK_COTTON_RISK_BOOL,Structural Foundations,Type,Yes
 STR_FRAME_M_KNM,Structural Columns,Type,Yes
 STR_FRAME_M_KNM,Structural Framing,Type,Yes
 STR_GROUND_TYPE_TXT,Project Information,Instance,Yes
 STR_IMPORTANCE_CLASS_TXT,Project Information,Instance,Yes
-STR_PUNCH_UTIL_PCT,Floors,Type,Yes
-STR_PUNCH_UTIL_PCT,Structural Foundations,Type,Yes
 STR_Q_FACTOR_NR,Project Information,Instance,Yes
 STR_Q_FACTOR_NR,Structural Framing,Type,Yes
 STR_RAIN_INTENSITY_MMH,Project Information,Instance,Yes
@@ -16601,8 +16596,6 @@ STR_ROBUST_STATUS_TXT,Structural Columns,Type,Yes
 STR_SEISMIC_AGR,Project Information,Instance,Yes
 STR_SOIL_BEARING_KPA,Project Information,Instance,Yes
 STR_SOIL_BEARING_KPA,Structural Foundations,Type,Yes
-STR_SYSTEM_CLASS_TXT,Project Information,Instance,Yes
-STR_SYSTEM_CLASS_TXT,Structural Framing,Type,Yes
 STR_WIND_BASIC_MPS,Project Information,Instance,Yes
 STR_WIND_DIRECTIONAL_NR,Project Information,Instance,Yes
 STR_WIND_PRESSURE_PA,Floors,Type,Yes
@@ -16613,3 +16606,41 @@ STR_WIND_PRESSURE_PA,Structural Framing,Type,Yes
 STR_WIND_PRESSURE_PA,Walls,Type,Yes
 STR_WIND_TERRAIN_CAT_TXT,Project Information,Instance,Yes
 WARN_STR_FND_BLACK_COTTON,Structural Foundations,Type,Yes
+PLM_RECIRC_DRV_KV,Flex Pipes,Type,Yes
+PLM_RECIRC_DRV_KV,Pipe Accessories,Type,Yes
+PLM_RECIRC_DRV_KV,Pipe Fittings,Type,Yes
+PLM_RECIRC_DRV_KV,Pipes,Type,Yes
+PLM_RECIRC_DRV_KV,Plumbing Equipment,Type,Yes
+PLM_RECIRC_DRV_KV,Plumbing Fixtures,Type,Yes
+PLM_RECIRC_PUMP_DUTY_LPM,Flex Pipes,Type,Yes
+PLM_RECIRC_PUMP_DUTY_LPM,Pipe Accessories,Type,Yes
+PLM_RECIRC_PUMP_DUTY_LPM,Pipe Fittings,Type,Yes
+PLM_RECIRC_PUMP_DUTY_LPM,Pipes,Type,Yes
+PLM_RECIRC_PUMP_DUTY_LPM,Plumbing Equipment,Type,Yes
+PLM_RECIRC_PUMP_DUTY_LPM,Plumbing Fixtures,Type,Yes
+PLM_STACK_CAP_DU,Pipes,Type,Yes
+PLM_STACK_CAP_DU,Pipe Fittings,Type,Yes
+PLM_STACK_CAP_DU,Pipe Accessories,Type,Yes
+PLM_STACK_UTIL_PCT,Pipes,Type,Yes
+PLM_STACK_UTIL_PCT,Pipe Fittings,Type,Yes
+PLM_STACK_UTIL_PCT,Pipe Accessories,Type,Yes
+STR_BEAM_TORSION_KNM,Structural Framing,Type,Yes
+STR_BEAM_TORSION_KNM,Structural Columns,Type,Yes
+STR_CONN_DETAIL_TXT,Structural Framing,Type,Yes
+STR_CONN_DETAIL_TXT,Structural Columns,Type,Yes
+STR_CONN_DETAIL_TXT,Structural Foundations,Type,Yes
+STR_CONN_RATING_KN,Structural Framing,Type,Yes
+STR_CONN_RATING_KN,Structural Columns,Type,Yes
+STR_CONN_RATING_KN,Structural Foundations,Type,Yes
+STR_ECC_CONN_MM,Structural Framing,Type,Yes
+STR_ECC_CONN_MM,Structural Columns,Type,Yes
+STR_FAB_TOLERANCE_MM,Structural Framing,Type,Yes
+STR_FAB_TOLERANCE_MM,Structural Columns,Type,Yes
+ACO_RW_DB,Walls,Type,Yes
+ACO_RW_DB,Floors,Type,Yes
+ACO_RW_DB,Ceilings,Type,Yes
+STR_BLACK_COTTON_RISK_BOOL,Project Information,Instance,Yes
+STR_BLACK_COTTON_RISK_BOOL,Structural Foundations,Type,Yes
+STR_PUNCH_UTIL_PCT,Structural Columns,Type,Yes
+STR_PUNCH_UTIL_PCT,Structural Foundations,Type,Yes
+STR_SYSTEM_CLASS_TXT,Project Information,Instance,Yes
