@@ -125,7 +125,7 @@ if (!token) {
     // silently ignored in some three.js builds.
     loader.setRequestHeader(authHeader);
     loader.load(
-      url,
+      fileUrl,
       (gltf) => {
         if (modelRoot) scene.remove(modelRoot);
         modelRoot = gltf.scene;
