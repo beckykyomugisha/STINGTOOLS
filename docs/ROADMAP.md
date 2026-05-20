@@ -365,14 +365,21 @@ A holistic review of the tagging subsystem was performed covering the full pipel
 
 | GAP-STRUCT-01 | StructuralAnalysisEngine subchecks need per-subcheck phases | `StructuralAnalysisEngine` general — deflection / punching / wind / vibration / SSI / progressive collapse are diffuse single-shot calcs. Each subcheck takes a different parameter set (member type × load case × code combination) so there's no clean one-pass model walker. Each needs its own phase. (Note rescued during merge of `claude/stingtools-bim-research-8Kkwv` into `claude/continue-model-viewer-updates-4GJR4`; previously orphaned in a truncated CHANGELOG.md.) |
 
-#### Open Items — Symbol library (post Phase 188)
+#### Symbol library — Phase 188 closure status
+
+Closed in Phase 188 (this session):
+
+| ID | Gap | Status |
+|---|---|---|
+| ✅ GAP-SYM-01 | BS EN 60617 SLD parity (15 → 52) | **CLOSED** — `STING_SLD_SYMBOLS_BS.json` brought to IEC parity with 37 new symbols (transformers, generation, protection, switches, busbars, motors, meters, ATS, EV charger). |
+| ✅ GAP-SYM-02 | NFPA 70 / NEC US-style parity (13 → 47) | **CLOSED** — `STING_SLD_SYMBOLS_NFPA.json` extended with 34 NEC + NFPA 72 symbols (NEMA receptacles, NFPA 72 alarm devices, NEC panels/busways/breakers). |
+| ✅ GAP-SYM-03 | CIBSE building-services SLD content (14 → 36) | **CLOSED** — `STING_SLD_SYMBOLS_CIBSE.json` extended with 22 mechanical-services symbols (pumps, fans, heat exchangers, tanks, boilers/chillers/heat pumps, AHU/FCU, control valves, sensors). |
+| ✅ GAP-SYM-07 | Symbol coverage audit command | **CLOSED — pre-existing** — `SymbolCoverageAuditCommand` (`Commands/Symbols/SymbolMaintenanceCommands.cs:43`) already wraps `SymbolCoverageAuditor.GenerateCoverageReport`. Phase 188 audit had flagged this as missing; on inspection it is wired and functional. |
+
+Still open (cannot complete in Linux sandbox or out-of-scope for this session):
 
 | ID | Gap | Effort | Why open |
 |---|---|---|---|
-| GAP-SYM-01 | Expand `STING_SLD_SYMBOLS_BS.json` from 15 → ~54 to reach IEC parity (BS EN 60617 SLD set) | 2 days | Currently fallback chain silently substitutes IEC for any missing BS symbol. UK-stock projects deserve real BS variants for client-deliverable drawings. |
-| GAP-SYM-02 | Expand `STING_SLD_SYMBOLS_NFPA.json` from 13 → ~50 (NFPA 70 / IEEE 315 hybrid for US projects) | 2 days | Same fallback issue as GAP-SYM-01. US-jurisdiction projects need genuine NFPA-style symbols. |
-| GAP-SYM-03 | Expand `STING_SLD_SYMBOLS_CIBSE.json` from 14 → ~40 with HVAC + building-services SLD content | 2 days | CIBSE catalogue is the only building-services SLD source; it should cover BMS one-line schematics, BEMS distribution, switchgear in plant rooms. |
-| GAP-SYM-04 | Verify and promote `status: draft` → `status: reviewed` for the 791 symbols by running each in Revit against its standard plate | 6–8 weeks (1 disc/week × 8) | This is the path from "comprehensive draft" to "comprehensive verified". No symbol is `final` without (a) seed `.rfa` committed, (b) Revit-rendered comparison vs standard plate, (c) `STING_FINALIZATION_CHECKLIST` bitmask = 127. |
-| GAP-SYM-05 | Author hand-drafted seed `.rfa` families for the ISO 6412 priority symbols (5 elbows + 5 valves + 5 flanges + butt-weld + tee + cap = 18 families) | 3 days | Currently every ISO 6412 symbol resolves via the runtime generator. Hand-drafted seeds give pixel-perfect standard accuracy and let users hot-fix specific symbols without regenerating the whole pack. |
-| GAP-SYM-06 | Project-scoped overlay layer for symbol catalogues, mirroring the Drawing-Type project override mechanism (`<project>/_BIM_COORD/symbol_overrides.json`) | 1 week | Every symbol catalogue today loads directly from `StingTools/Data/Symbols/`. Organisations want to override specific glyphs (e.g. corporate sub-form of MCB) without forking the corporate baseline. |
-| GAP-SYM-07 | Symbol coverage audit command — `Symbols_CoverageAudit` — that crosses every project category against the catalogue and reports which categories have no symbol coverage | 1 day | The library is now broad, but no programmatic way to ask "does my live project have a tagged element whose category has no STING symbol?". |
+| GAP-SYM-04 | Verify and promote `status: draft` → `status: reviewed` for the 884 symbols by running each in Revit against its standard plate | 6–8 weeks (1 discipline/week × 8) | This is the path from "comprehensive draft" to "comprehensive verified". No symbol is `final` without (a) seed `.rfa` committed, (b) Revit-rendered comparison vs standard plate, (c) `STING_FINALIZATION_CHECKLIST` bitmask = 127. Cannot run in Linux sandbox. |
+| GAP-SYM-05 | Author hand-drafted seed `.rfa` families for the ISO 6412 priority symbols (5 elbows + 5 valves + 5 flanges + butt-weld + tee + cap = 18 families) | 3 days | Currently every ISO 6412 symbol resolves via the runtime generator. Hand-drafted seeds give pixel-perfect standard accuracy and let users hot-fix specific symbols without regenerating the whole pack. Requires Revit family editor. |
+| GAP-SYM-06 | Project-scoped overlay layer for symbol catalogues, mirroring the Drawing-Type project override mechanism (`<project>/_BIM_COORD/symbol_overrides.json`) | 1 week | Every symbol catalogue today loads directly from `StingTools/Data/Symbols/`. Organisations want to override specific glyphs (e.g. corporate sub-form of MCB) without forking the corporate baseline. Touches 5+ catalogue loaders so deferred for a focused refactor session. |
