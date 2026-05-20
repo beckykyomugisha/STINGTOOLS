@@ -1,11 +1,11 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "format": "STING IFC PropertyEnumeration manifest",
   "generated_by": "tools/enums/compute_checksums.py",
   "generated_for_repo_relative_path": "shared/ifc/enums/",
-  "total_enums": 51,
+  "total_enums": 52,
   "by_tier": {
-    "tier_1_essentials": 11,
+    "tier_1_essentials": 12,
     "tier_2_drawing": 7,
     "tier_3_workflow": 8,
     "tier_4_engineering": 14,
@@ -15,6 +15,7 @@
     {
       "name": "StingAcousticNCTargets",
       "file": "StingAcousticNCTargets.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -36,6 +37,7 @@
     {
       "name": "StingAssetConditions",
       "file": "StingAssetConditions.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -57,6 +59,7 @@
     {
       "name": "StingCDEStates",
       "file": "StingCDEStates.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -78,6 +81,7 @@
     {
       "name": "StingCableCategories",
       "file": "StingCableCategories.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -99,6 +103,7 @@
     {
       "name": "StingColorSchemes",
       "file": "StingColorSchemes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -120,6 +125,7 @@
     {
       "name": "StingConcreteGrades",
       "file": "StingConcreteGrades.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -135,12 +141,13 @@
       ],
       "standards_basis": "BS EN 206:2013+A2:2021; BS 8500-1:2015+A2:2019; BS EN 1992 (Eurocode 2)",
       "value_count": 16,
-      "sha256": "14d913c5f3f74d3e68b176255eb9b36b78fcbf88748862ce1555febbda7caa83",
-      "canonical_json_length": 1180
+      "sha256": "9b4bf98a37c0210cb2c2f235550647a60cea22c637d64da006cf2ec9d9b287d3",
+      "canonical_json_length": 1565
     },
     {
       "name": "StingCropKinds",
       "file": "StingCropKinds.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -162,6 +169,7 @@
     {
       "name": "StingDetailLevels",
       "file": "StingDetailLevels.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -183,6 +191,7 @@
     {
       "name": "StingDisciplineCodes",
       "file": "StingDisciplineCodes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -204,6 +213,7 @@
     {
       "name": "StingDrawingPurposes",
       "file": "StingDrawingPurposes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -225,6 +235,7 @@
     {
       "name": "StingDrawingTiers",
       "file": "StingDrawingTiers.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -246,6 +257,7 @@
     {
       "name": "StingDuctMaterials",
       "file": "StingDuctMaterials.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -267,6 +279,7 @@
     {
       "name": "StingEESTypes",
       "file": "StingEESTypes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -288,6 +301,7 @@
     {
       "name": "StingFireRatings",
       "file": "StingFireRatings.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -309,6 +323,7 @@
     {
       "name": "StingFunctionCodes",
       "file": "StingFunctionCodes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -330,6 +345,7 @@
     {
       "name": "StingHBNDepartments",
       "file": "StingHBNDepartments.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -343,7 +359,7 @@
         "IFC4X3",
         "IFC2X3"
       ],
-      "standards_basis": "NHS England Healthcare Building Notes (HBN) full catalogue; CQC department-type classifications",
+      "standards_basis": "NHS England Healthcare Building Notes (HBN) full catalogue; CQC department-type classifications. NOTE: NHS England periodically reorganises its HBN catalogue (renumbering / merging / retiring documents); HBN references in value definitions should be re-verified against the current catalogue before any release that publishes the enum to bSDD. Values marked \"refer to current NHS England HBN catalogue\" are areas where historic HBN reference numbers may have been retired or superseded.",
       "value_count": 22,
       "sha256": "6117b4031c9309dc19bf7a69936f63fe80ef726a828ab1d97e825dab174e58b8",
       "canonical_json_length": 1659
@@ -351,6 +367,7 @@
     {
       "name": "StingHTMWaterRiskZones",
       "file": "StingHTMWaterRiskZones.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -372,6 +389,7 @@
     {
       "name": "StingHVACAirDensities",
       "file": "StingHVACAirDensities.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -393,6 +411,7 @@
     {
       "name": "StingHVACPressureClasses",
       "file": "StingHVACPressureClasses.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -414,6 +433,7 @@
     {
       "name": "StingHVACSizingStrategies",
       "file": "StingHVACSizingStrategies.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -429,12 +449,13 @@
       ],
       "standards_basis": "CIBSE Guide B3 §3.4 duct sizing methods; ASHRAE 90.1 Appendix G",
       "value_count": 4,
-      "sha256": "c284e7a1a9fc1da3b5dd21a911fd7ae3a180a5be49fa6152c25bfff9c047d8ec",
-      "canonical_json_length": 370
+      "sha256": "05faf59b7b642542dbc94db03297bf6d1f9b60b88533db06460504e155986787",
+      "canonical_json_length": 373
     },
     {
       "name": "StingHangerTypes",
       "file": "StingHangerTypes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -456,6 +477,7 @@
     {
       "name": "StingHealthcareFacilityProfiles",
       "file": "StingHealthcareFacilityProfiles.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -477,6 +499,7 @@
     {
       "name": "StingInsulationTypes",
       "file": "StingInsulationTypes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -498,6 +521,7 @@
     {
       "name": "StingIssuePriorities",
       "file": "StingIssuePriorities.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -519,6 +543,7 @@
     {
       "name": "StingIssueStates",
       "file": "StingIssueStates.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -540,6 +565,7 @@
     {
       "name": "StingIssueTypes",
       "file": "StingIssueTypes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -561,6 +587,7 @@
     {
       "name": "StingLevelCodes",
       "file": "StingLevelCodes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "project_template",
@@ -582,6 +609,7 @@
     {
       "name": "StingLigatureRatings",
       "file": "StingLigatureRatings.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -603,6 +631,7 @@
     {
       "name": "StingLocationCodes",
       "file": "StingLocationCodes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "project_template",
@@ -624,6 +653,7 @@
     {
       "name": "StingMGSGasTypes",
       "file": "StingMGSGasTypes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -645,6 +675,7 @@
     {
       "name": "StingMRIZones",
       "file": "StingMRIZones.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -666,6 +697,7 @@
     {
       "name": "StingMaintenanceFrequencies",
       "file": "StingMaintenanceFrequencies.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -687,6 +719,7 @@
     {
       "name": "StingObservationLOS",
       "file": "StingObservationLOS.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -708,6 +741,7 @@
     {
       "name": "StingOrientations",
       "file": "StingOrientations.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -729,6 +763,7 @@
     {
       "name": "StingPaperSizes",
       "file": "StingPaperSizes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -750,6 +785,7 @@
     {
       "name": "StingPipeMaterials",
       "file": "StingPipeMaterials.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -771,6 +807,7 @@
     {
       "name": "StingPipeServices",
       "file": "StingPipeServices.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -792,6 +829,7 @@
     {
       "name": "StingPressureRegimes",
       "file": "StingPressureRegimes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -813,6 +851,7 @@
     {
       "name": "StingProductCodes",
       "file": "StingProductCodes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -827,13 +866,14 @@
         "IFC2X3"
       ],
       "standards_basis": "STING tag config v5.0 (Data/STING_TAG_CONFIG_v5_0_*.csv); CIBSE Guide A/B/C product taxonomies; Uniclass 2015 Pr-table cross-reference",
-      "value_count": 46,
-      "sha256": "874cdac01c5ab6450d8a3b022844863cc684212386e54a4cc12169f2fc772c0b",
-      "canonical_json_length": 3130
+      "value_count": 60,
+      "sha256": "6288d19a4aee2a6f52cab5faa6ed74ed7447a3e139d488985e4a8ff53c729b68",
+      "canonical_json_length": 4064
     },
     {
       "name": "StingRadiationZones",
       "file": "StingRadiationZones.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -855,6 +895,7 @@
     {
       "name": "StingRevisionTypes",
       "file": "StingRevisionTypes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -876,6 +917,7 @@
     {
       "name": "StingRibaStages",
       "file": "StingRibaStages.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -897,6 +939,7 @@
     {
       "name": "StingSignoffRoles",
       "file": "StingSignoffRoles.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -918,6 +961,7 @@
     {
       "name": "StingStatusCodes",
       "file": "StingStatusCodes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -939,6 +983,7 @@
     {
       "name": "StingSteelGrades",
       "file": "StingSteelGrades.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -960,6 +1005,7 @@
     {
       "name": "StingSuitabilityCodes",
       "file": "StingSuitabilityCodes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -973,14 +1019,15 @@
         "IFC4X3",
         "IFC2X3"
       ],
-      "standards_basis": "ISO 19650-2:2018 Annex B / UK Annex; BS EN ISO 19650-1:2018 Table 5",
-      "value_count": 15,
-      "sha256": "e2270bc5d8e83652e3a88112ea43bf29be50d59ae6e9d195eea9b88da42a0fab",
-      "canonical_json_length": 1050
+      "standards_basis": "ISO 19650-2:2018 Annex B / UK Annex; BS EN ISO 19650-1:2018 Table 5. NOTE: codes S5..S7 (PIM / AIM authorisation, AIM update) are NOT in ISO 19650-2 — projects that use those codes must add them via project-overlay enum, not via the corporate baseline.",
+      "value_count": 12,
+      "sha256": "87315858e88cafc1077ec00cfec60c24020a90f9342210ed0de3b15c7c0c9aaa",
+      "canonical_json_length": 852
     },
     {
       "name": "StingSystemCodes",
       "file": "StingSystemCodes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -1002,6 +1049,7 @@
     {
       "name": "StingTheatreTypes",
       "file": "StingTheatreTypes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -1023,6 +1071,7 @@
     {
       "name": "StingWeldTypes",
       "file": "StingWeldTypes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -1044,6 +1093,7 @@
     {
       "name": "StingWorkflowStates",
       "file": "StingWorkflowStates.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
@@ -1063,8 +1113,31 @@
       "canonical_json_length": 707
     },
     {
+      "name": "StingZoneCategoryCodes",
+      "file": "StingZoneCategoryCodes.xml",
+      "kind": "enum",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4006-9000-000000000034",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "BS 9999 (fire); BS 8233 (acoustic); HTM 03-01 (clinical pressure); CIBSE Guide A (HVAC zoning); ISO 19650-2 §5.3 spatial structure conventions",
+      "value_count": 11,
+      "sha256": "61ffbbe2ffcb22d7ff068542ebfc691c24cc419a4fd512308b0e1d0a8b07338b",
+      "canonical_json_length": 832
+    },
+    {
       "name": "StingZoneCodes",
       "file": "StingZoneCodes.xml",
+      "kind": "enum",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "project_template",

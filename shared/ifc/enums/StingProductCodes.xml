@@ -202,12 +202,70 @@
       <Definition>Window.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
+    <Value code="WL" sentinel="false">
+      <Definition>Wall — non-load-bearing partition. Use COL / FDN / SLB for structural.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FL" sentinel="false">
+      <Definition>Floor — finish + sub-floor as a single tagged element when not structurally significant.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CL" sentinel="false">
+      <Definition>Ceiling — suspended grid / plasterboard / acoustic ceiling.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RF" sentinel="false">
+      <Definition>Roof — full assembly including covering, insulation, decking.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="STR" sentinel="false">
+      <Definition>Stair — full flight including treads, risers, stringers, landings.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RMP" sentinel="false">
+      <Definition>Ramp — accessibility ramp per BS 8300 / Approved Document M.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HDR" sentinel="false">
+      <Definition>Door / window header — load-transferring lintel above opening.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MUL" sentinel="false">
+      <Definition>Mullion — vertical curtain-wall / glazing framing member.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+
+    
     <Value code="COL" sentinel="false">
-      <Definition>Structural Column.</Definition>
+      <Definition>Structural Column — load-bearing vertical member.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="BM" sentinel="false">
-      <Definition>Structural Beam.</Definition>
+      <Definition>Structural Beam — load-bearing horizontal member.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SLB" sentinel="false">
+      <Definition>Structural Slab — RC / composite floor or roof slab.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="TRS" sentinel="false">
+      <Definition>Truss — composite framing assembly (steel / timber / hybrid).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="BCG" sentinel="false">
+      <Definition>Bracing — lateral / wind / seismic bracing member.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FDN" sentinel="false">
+      <Definition>Foundation — pad / strip / raft. Pile elements use PIL.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="PIL" sentinel="false">
+      <Definition>Pile — driven / bored / CFA piled foundation member.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RBR" sentinel="false">
+      <Definition>Reinforcement bar / rebar — discrete or assembly per BS 8666.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
 
@@ -223,7 +281,7 @@
   </Values>
 
   <CorporateLock>
-    <Sha256>874cdac01c5ab6450d8a3b022844863cc684212386e54a4cc12169f2fc772c0b</Sha256>
+    <Sha256>6288d19a4aee2a6f52cab5faa6ed74ed7447a3e139d488985e4a8ff53c729b68</Sha256>
     <LockedAtVersion>5.0.0</LockedAtVersion>
     <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
   </CorporateLock>

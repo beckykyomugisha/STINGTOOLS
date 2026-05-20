@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingZoneCategoryCodes</Name>
+    <Definition>Semantic category of an IfcZone, carried as Pset_StingSpatialCodes.ZoneCategory. Disambiguates zones when an element belongs to multiple (e.g. one IfcZone for fire compartmentation, another for acoustic separation, another for clinical pressure). Each category drives a different STING validator pack and different filter / overlay graphic conventions.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4006-9000-000000000034</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>BS 9999 (fire); BS 8233 (acoustic); HTM 03-01 (clinical pressure); CIBSE Guide A (HVAC zoning); ISO 19650-2 §5.3 spatial structure conventions</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Fire" sentinel="false">
+      <Definition>Fire compartmentation zone per BS 9999 / Approved Document B. Boundary walls are fire-rated; doors are FD30/60/90/120.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Smoke" sentinel="false">
+      <Definition>Smoke control zone per BS 7346. Boundaries are smoke-stopped; AOV / pressurisation strategy applies.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Acoustic" sentinel="false">
+      <Definition>Acoustic isolation zone per BS 8233 / Approved Document E. Boundaries carry sound-reduction requirements (Rw).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HVAC" sentinel="false">
+      <Definition>HVAC zoning — a single zone served by one VAV / FCU / AHU branch with common setpoint and schedule.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Clinical" sentinel="false">
+      <Definition>Clinical activity zone — defines clinical use (ward / theatre / imaging / clean-room). Drives pressure regime, MGS provision, observation requirements.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Pressure" sentinel="false">
+      <Definition>Pressure-cascade zone per HTM 03-01. Carries StingPressureRegimes target.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Security" sentinel="false">
+      <Definition>Security / access-control zone. Defines who can enter; drives ACR placement, lock specification.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Radiation" sentinel="false">
+      <Definition>Ionising-radiation controlled / supervised area per NCRP 147 / IRR 2017. Cross-references StingRadiationZones.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MRI" sentinel="false">
+      <Definition>MRI safety zone per ACR. Cross-references StingMRIZones (Zone I-IV).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Building" sentinel="false">
+      <Definition>Generic building zone — wing / department / functional group not classified elsewhere. Use sparingly.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="XX" sentinel="true">
+      <Definition>Unknown / not yet assigned. IDS fails at Stage 3+ for zones whose category is required by the active validator pack.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>61ffbbe2ffcb22d7ff068542ebfc691c24cc419a4fd512308b0e1d0a8b07338b</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

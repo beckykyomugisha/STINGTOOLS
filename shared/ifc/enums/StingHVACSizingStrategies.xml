@@ -22,26 +22,26 @@
   </IfcMapping>
 
   <Values>
-    <Value code="Velocity" sentinel="false">
+    <Value code="velocity" sentinel="false">
       <Definition>Velocity — cap maximum velocity per duct role (main / branch / runout). Simple, common, conservative. STING default for branches.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
-    <Value code="EqualFriction" sentinel="false">
+    <Value code="equal_friction" sentinel="false">
       <Definition>Equal Friction — size every section to the same Pa/m target. Best for trunk + branch systems with symmetric loads.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
-    <Value code="StaticRegain" sentinel="false">
+    <Value code="static_regain" sentinel="false">
       <Definition>Static Regain — recover static pressure at each downstream fitting. Best for long, high-velocity systems with many takeoffs. Requires more iteration.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
-    <Value code="ConstantPressure" sentinel="false">
+    <Value code="constant_pressure" sentinel="false">
       <Definition>Constant Pressure — target total pressure drop across each branch. Used for unequal-length systems where balancing dampers are undesirable.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
   </Values>
 
   <CorporateLock>
-    <Sha256>c284e7a1a9fc1da3b5dd21a911fd7ae3a180a5be49fa6152c25bfff9c047d8ec</Sha256>
+    <Sha256>05faf59b7b642542dbc94db03297bf6d1f9b60b88533db06460504e155986787</Sha256>
     <LockedAtVersion>5.0.0</LockedAtVersion>
     <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
   </CorporateLock>

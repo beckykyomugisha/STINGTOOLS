@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "format": "STING IFC PropertySetTemplate manifest",
+  "generated_by": "tools/enums/compute_checksums.py",
+  "generated_for_repo_relative_path": "shared/ifc/psets/",
+  "total_psets": 2,
+  "psets": [
+    {
+      "name": "Pset_StingSpatialCodes",
+      "file": "Pset_StingSpatialCodes.xml",
+      "kind": "pset",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0002-4001-9000-000000000001",
+      "standards_basis": "ISO 19650-2 §5.3 spatial structure conventions; STING tag grammar v5.0",
+      "template_type": "PSET_OCCURRENCEDRIVEN",
+      "applicability": [
+        "IfcBuilding",
+        "IfcBuildingStorey",
+        "IfcZone",
+        "IfcSite"
+      ],
+      "property_count": 6,
+      "validation_rule_count": 5,
+      "sha256": "af89b7df289412a4a475e4bbde4a979d3172c78a37057f029058d8f2559b6df6",
+      "canonical_json_length": 1398
+    },
+    {
+      "name": "Pset_StingTags",
+      "file": "Pset_StingTags.xml",
+      "kind": "pset",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0002-4001-9000-000000000002",
+      "standards_basis": "STING tag grammar v5.0; ISO 19650-2 §5.3 element identification",
+      "template_type": "PSET_OCCURRENCEDRIVEN",
+      "applicability": [
+        "IfcElement",
+        "IfcSpace",
+        "IfcAnnotation"
+      ],
+      "property_count": 12,
+      "validation_rule_count": 9,
+      "sha256": "9e637efb75372160cecf24b87d4ac89404d59cb9bc631c2ef4875769489b22aa",
+      "canonical_json_length": 2356
+    }
+  ]
+}

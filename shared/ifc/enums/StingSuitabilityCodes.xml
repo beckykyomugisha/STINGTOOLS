@@ -3,7 +3,7 @@
 
   <Identity>
     <Name>StingSuitabilityCodes</Name>
-    <Definition>ISO 19650-2 information-container suitability codes — the standard letter-and-number codes that classify whether a document / model is suitable for coordination (S1), information (S2), review and comment (S3), stage approval (S4), construction (S5), as-built (S6), PIM-to-AIM handover (S7) — and the published-state codes A1..A5 for authorised use. Applied to drawings, sheets, transmittals, deliverables.</Definition>
+    <Definition>ISO 19650-2 information-container suitability codes — the standard letter-and-number codes that classify whether a document / model is at WIP / Shared / Published. S0 (initial), S1 (suitable for coordination), S2 (suitable for information), S3 (suitable for review and comment), S4 (suitable for stage approval), then published codes A1..A5 for authorised use and AR for archived. Applied to drawings, sheets, transmittals, deliverables.</Definition>
     <IfdGuid>uuid:a1d15c11-0001-4001-9000-000000000009</IfdGuid>
     <BsddIri>https://identifier.buildingsmart.org/uri/buildingsmart/iso-19650/1.0/class/suitability</BsddIri>
   </Identity>
@@ -13,7 +13,7 @@
     <Origin>baseline</Origin>
     <SinceVersion>5.0.0</SinceVersion>
     <Maintainer>STING Tools (Planscape)</Maintainer>
-    <StandardsBasis>ISO 19650-2:2018 Annex B / UK Annex; BS EN ISO 19650-1:2018 Table 5</StandardsBasis>
+    <StandardsBasis>ISO 19650-2:2018 Annex B / UK Annex; BS EN ISO 19650-1:2018 Table 5. NOTE: codes S5..S7 (PIM / AIM authorisation, AIM update) are NOT in ISO 19650-2 — projects that use those codes must add them via project-overlay enum, not via the corporate baseline.</StandardsBasis>
   </Governance>
 
   <IfcMapping>
@@ -41,18 +41,6 @@
     </Value>
     <Value code="S4" sentinel="false">
       <Definition>Suitable for Stage Approval — formal client / appointing-party approval gate.</Definition>
-      <SinceVersion>5.0.0</SinceVersion>
-    </Value>
-    <Value code="S5" sentinel="false">
-      <Definition>Suitable for PIM Authorisation — Project Information Model authorised by appointing party.</Definition>
-      <SinceVersion>5.0.0</SinceVersion>
-    </Value>
-    <Value code="S6" sentinel="false">
-      <Definition>Suitable for AIM Authorisation — Asset Information Model authorised. Bridge from PIM to AIM at handover.</Definition>
-      <SinceVersion>5.0.0</SinceVersion>
-    </Value>
-    <Value code="S7" sentinel="false">
-      <Definition>Suitable for AIM Update — change to in-use Asset Information Model.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="A1" sentinel="false">
@@ -86,7 +74,7 @@
   </Values>
 
   <CorporateLock>
-    <Sha256>e2270bc5d8e83652e3a88112ea43bf29be50d59ae6e9d195eea9b88da42a0fab</Sha256>
+    <Sha256>87315858e88cafc1077ec00cfec60c24020a90f9342210ed0de3b15c7c0c9aaa</Sha256>
     <LockedAtVersion>5.0.0</LockedAtVersion>
     <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
   </CorporateLock>

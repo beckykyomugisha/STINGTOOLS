@@ -13,7 +13,7 @@
     <Origin>baseline</Origin>
     <SinceVersion>5.0.0</SinceVersion>
     <Maintainer>STING Tools (Planscape)</Maintainer>
-    <StandardsBasis>NHS England Healthcare Building Notes (HBN) full catalogue; CQC department-type classifications</StandardsBasis>
+    <StandardsBasis>NHS England Healthcare Building Notes (HBN) full catalogue; CQC department-type classifications. NOTE: NHS England periodically reorganises its HBN catalogue (renumbering / merging / retiring documents); HBN references in value definitions should be re-verified against the current catalogue before any release that publishes the enum to bSDD. Values marked "refer to current NHS England HBN catalogue" are areas where historic HBN reference numbers may have been retired or superseded.</StandardsBasis>
   </Governance>
 
   <IfcMapping>
@@ -24,87 +24,87 @@
 
   <Values>
     <Value code="Wards" sentinel="false">
-      <Definition>Inpatient wards (HBN 04-01). Acute / general / step-down ward accommodation.</Definition>
+      <Definition>Inpatient wards (HBN 04-01 Adult in-patient facilities). Acute / general / step-down ward accommodation.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="ICU" sentinel="false">
-      <Definition>Intensive Care Unit (HBN 04-02). Adult critical care.</Definition>
+      <Definition>Intensive Care Unit (HBN 04-02 Critical care areas). Adult critical care.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="Theatres" sentinel="false">
-      <Definition>Operating Department (HBN 26). General + day surgery theatres; recovery; anaesthetic.</Definition>
+      <Definition>Operating Department (HBN 26 Facilities for surgical procedures). General + day surgery theatres; recovery; anaesthetic.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="Imaging" sentinel="false">
-      <Definition>Diagnostic Imaging (HBN 06). X-ray, CT, MRI, ultrasound, fluoroscopy.</Definition>
+      <Definition>Diagnostic Imaging (HBN 06 Diagnostic imaging). X-ray, CT, MRI, ultrasound, fluoroscopy.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="Pathology" sentinel="false">
-      <Definition>Pathology and laboratories (HBN 15). Biochemistry, microbiology, histology, blood-bank.</Definition>
+      <Definition>Pathology and laboratories (refer to current NHS England HBN catalogue for active reference; historically HBN 15). Biochemistry, microbiology, histology, blood-bank.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="Pharmacy" sentinel="false">
-      <Definition>Pharmacy (HBN 14). Dispensing, aseptic compounding, cytotoxic services.</Definition>
+      <Definition>Pharmacy (HBN 14 Pharmacy services). Dispensing, aseptic compounding, cytotoxic services.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="Emergency" sentinel="false">
-      <Definition>Emergency Department (HBN 15-01). A&amp;E majors, minors, resus.</Definition>
+      <Definition>Emergency Department / A&amp;E (refer to current NHS England HBN catalogue; A&amp;E was historically HBN 15 / 22). Majors, minors, resus.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="Outpatients" sentinel="false">
-      <Definition>Outpatients (HBN 12). General / specialty outpatient clinics.</Definition>
+      <Definition>Outpatients (HBN 12 Out-patient department). General / specialty outpatient clinics.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="Mortuary" sentinel="false">
-      <Definition>Mortuary and PM Services (HBN 20). Body store, post-mortem, viewing.</Definition>
+      <Definition>Mortuary and Post-Mortem services (HBN 20 Facilities for mortuary and post-mortem room services). Body store, post-mortem, viewing.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="Endoscopy" sentinel="false">
-      <Definition>Endoscopy (HBN 52). Procedure rooms + endoscope reprocessing.</Definition>
+      <Definition>Endoscopy (refer to current NHS England HBN catalogue — typically covered under day-surgery / out-patient guidance). Procedure rooms + endoscope reprocessing (the latter governed by HTM 01-06).</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="RenalDialysis" sentinel="false">
-      <Definition>Renal Dialysis (HBN 07-01). Haemodialysis + peritoneal dialysis.</Definition>
+      <Definition>Renal Dialysis (HBN 07-01 Satellite dialysis unit). Haemodialysis + peritoneal dialysis.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="Maternity" sentinel="false">
-      <Definition>Maternity (HBN 09). Antenatal, labour-delivery, postnatal.</Definition>
+      <Definition>Maternity (HBN 09-02 Maternity care facilities). Antenatal, labour-delivery, postnatal.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="Neonatal" sentinel="false">
-      <Definition>Neonatal (HBN 09-03). NICU + special care baby unit.</Definition>
+      <Definition>Neonatal (HBN 09-03 Neonatal units). NICU + special care baby unit.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="Paediatrics" sentinel="false">
-      <Definition>Children + young people services (HBN 23). Paediatric wards + outpatients.</Definition>
+      <Definition>Children + young people services (HBN 23 Hospital accommodation for children and young people). Paediatric wards + outpatients.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="MentalHealth" sentinel="false">
-      <Definition>Mental Health (HBN 03-01 / 03-02). Adult acute mental health + older-people mental health.</Definition>
+      <Definition>Mental Health (HBN 03-01 Adult acute mental health units; HBN 03-02 Older people mental health). Acute mental health + older-people mental health.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="DayCare" sentinel="false">
-      <Definition>Day Surgery / Day Care (HBN 52). Same-day-discharge surgical + medical procedures.</Definition>
+      <Definition>Day Surgery / Day Care (refer to current NHS England HBN catalogue — historically HBN 52, now superseded by day-procedure guidance integrated with HBN 26).</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="Rehabilitation" sentinel="false">
-      <Definition>Rehabilitation Services (HBN 02-01). Physiotherapy, OT, hydrotherapy.</Definition>
+      <Definition>Rehabilitation Services (refer to current NHS England HBN catalogue for active reference). Physiotherapy, OT, hydrotherapy.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="HSDU" sentinel="false">
-      <Definition>Hospital Sterile Services / CSSD (HBN 13). Decontamination, sterilisation, packing.</Definition>
+      <Definition>Hospital Sterile Services / CSSD (HBN 13 Sterile services department). Decontamination, sterilisation, packing.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="Decon" sentinel="false">
-      <Definition>Decontamination — chemical / radiation / biological decon facility.</Definition>
+      <Definition>Decontamination — chemical / radiation / biological decon facility. Specific guidance via HTM 01-01 (medical devices) + HTM 04-01 (water) for cleaning regimes.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="Oncology" sentinel="false">
-      <Definition>Oncology (HBN 27). Chemotherapy + radiotherapy delivery suites.</Definition>
+      <Definition>Oncology (HBN 02-01 Cancer treatment facilities). Chemotherapy + radiotherapy delivery suites.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="Cardiology" sentinel="false">
-      <Definition>Cardiology + cath lab (HBN 06-03). Catheterisation, EP, echo.</Definition>
+      <Definition>Cardiology + cath lab (refer to current NHS England HBN catalogue for active reference). Catheterisation, EP, echo.</Definition>
       <SinceVersion>5.0.0</SinceVersion>
     </Value>
     <Value code="Administrative" sentinel="false">

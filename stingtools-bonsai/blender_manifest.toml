@@ -1,0 +1,49 @@
+# Blender Extension manifest — Blender 4.2+ / 5.x extensions system.
+# Docs: https://docs.blender.org/manual/en/latest/advanced/extensions/getting_started.html
+
+schema_version = "1.0.0"
+
+# Extension identity
+id = "stingtools_bonsai"
+version = "0.1.0"
+name = "StingTools for Bonsai"
+tagline = "ISO 19650 tagging + IDS validation + Planscape federation, on top of Bonsai"
+maintainer = "Planscape Limited <info@stingtools.io>"
+type = "add-on"
+website = "https://stingtools.io"
+
+# Discovery
+tags = ["3D View", "Pipeline", "Import-Export"]
+
+# Compatibility
+blender_version_min = "4.2.0"
+# Tested against Blender 5.1 with Bonsai (BlenderBIM) installed.
+
+# Licensing
+license = ["SPDX:MIT"]
+copyright = ["2026 Planscape Limited"]
+
+# Relationship with Bonsai
+# ───────────────────────
+# Bonsai (formerly BlenderBIM) is the IFC layer for Blender.
+# StingTools sits ON TOP of Bonsai:
+#   - Bonsai owns IFC parsing, geometry, ifcopenshell.api mutations.
+#   - StingTools owns ISO 19650 tag grammar, IDS validation against
+#     Pset_Sting*, Planscape federation, audit log.
+# When Bonsai is installed we delegate IFC writes through Bonsai's
+# transaction-aware API. When Bonsai is absent we fall back to direct
+# ifcopenshell.api.run() (degraded but functional).
+
+# Permissions
+[permissions]
+files = "Read enums + project overlay files; write audit log + Planscape sync state."
+network = "Sync tags + raise issues to Planscape Server."
+
+# Build
+[build]
+paths_exclude_pattern = [
+    "__pycache__/",
+    "*.pyc",
+    ".git/",
+    "tests/",
+]

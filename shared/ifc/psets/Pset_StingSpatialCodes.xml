@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<StingPropertySetTemplate xmlns="https://stingtools.io/schema/ifc/psets/v1"
-                         version="1.0.0"
-                         schema_version="1">
+<StingPropertySetTemplate xmlns="https://stingtools.io/schema/ifc/psets/v1" version="1.0.0" schema_version="1">
 
   <Identity>
     <Name>Pset_StingSpatialCodes</Name>
@@ -53,12 +51,11 @@
     </Property>
 
     <Property name="ZoneCategory" cardinality="optional">
-      <Definition>Semantic category of the zone (Fire / Acoustic / Smoke / Clinical / Pressure / HVAC / Security). Disambiguates zones when an element belongs to multiple — e.g. one IfcZone for fire compartmentation + one for acoustic isolation.</Definition>
+      <Definition>Semantic category of the zone (Fire / Smoke / Acoustic / HVAC / Clinical / Pressure / Security / Radiation / MRI / Building). Disambiguates zones when an element belongs to multiple — e.g. one IfcZone for fire compartmentation + one for acoustic isolation.</Definition>
       <DataType>IfcLabel</DataType>
       <Enumeration>StingZoneCategoryCodes</Enumeration>
       <AppliesTo>IfcZone</AppliesTo>
       <SinceVersion>5.0.0</SinceVersion>
-      <Notes>The StingZoneCategoryCodes enumeration is not in the Tier 1-3 enum bundle; it's a Tier 6 (composition/structure) deliverable. For now the property accepts any IfcLabel and IDS rules validate downstream.</Notes>
     </Property>
 
     <Property name="SortOrder" cardinality="optional">
@@ -78,16 +75,7 @@
   </Properties>
 
   <CrossEntityValidationRules>
-    <!--
-      These rules are translated into IDS specifications. Each rule expresses
-      a relationship between the tag carried on an element and the spatial
-      code carried on the containing IfcBuilding / IfcBuildingStorey / IfcZone.
-
-      The IDS author consumes these via the resolver:
-        - applicability facet selects elements with Pset_StingTags set
-        - requirement facet asserts the LOC/LVL/ZONE matches a spatial code
-          on the related entity
-    -->
+    
     <Rule id="LOC_MATCHES_BUILDING">
       <Description>An element's Pset_StingTags.Location must equal the LocationCode of the IfcBuilding the element is contained in (or its IfcSite if no building applies).</Description>
       <ActiveFrom>Stage_3</ActiveFrom>
@@ -126,7 +114,7 @@
   </CrossEntityValidationRules>
 
   <CorporateLock>
-    <Sha256>UNCOMPUTED_Pset_StingSpatialCodes</Sha256>
+    <Sha256>af89b7df289412a4a475e4bbde4a979d3172c78a37057f029058d8f2559b6df6</Sha256>
     <LockedAtVersion>5.0.0</LockedAtVersion>
     <Algorithm>sha256(canonical_json(properties_with_metadata_plus_validation_rules))</Algorithm>
   </CorporateLock>
