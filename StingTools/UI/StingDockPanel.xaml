@@ -92,6 +92,13 @@
             <Setter Property="Margin" Value="0,3,0,1"/>
             <Setter Property="Opacity" Value="0.7"/>
         </Style>
+        <!-- HEALTHCARE tab + ad-hoc button rows use this WrapPanel style. Missing
+             this definition was throwing a 'Provide value on StaticResourceExtension'
+             at XAML parse time, which killed the whole panel during construction. -->
+        <Style x:Key="ButtonWrap" TargetType="WrapPanel">
+            <Setter Property="Orientation" Value="Horizontal"/>
+            <Setter Property="Margin" Value="0,2,0,4"/>
+        </Style>
     </Page.Resources>
 
     <Grid>
