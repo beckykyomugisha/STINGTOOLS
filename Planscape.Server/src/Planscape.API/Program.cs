@@ -440,12 +440,26 @@ builder.Services.AddSingleton<Planscape.Infrastructure.SignalR.IProjectMembershi
                               Planscape.Infrastructure.SignalR.ProjectMembershipNotifier>();
 
 // ── Hangfire background jobs ──
+// Phase 186 — only the api role prepares the Hangfire schema. Both api
+// and worker start simultaneously on a fresh DB, both default to
+// `PrepareSchemaIfNecessary=true`, both race to `CREATE SCHEMA hangfire`
+// — one wins, the other crashes with
+//   23505 duplicate key value violates unique constraint
+//        "pg_namespace_nspname_index"
+// (Postgres DDL doesn't honour Hangfire's advisory-lock serialisation).
+// The api process is the schema steward; the worker waits for it to
+// finish by retrying its first connect.
+var planscapeRoleEarly = (Environment.GetEnvironmentVariable("PLANSCAPE_ROLE") ?? "api").ToLowerInvariant();
 builder.Services.AddHangfire(config => config
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
     .UsePostgreSqlStorage(o => o.UseNpgsqlConnection(
-        builder.Configuration.GetConnectionString("Default"))));
+        builder.Configuration.GetConnectionString("Default")),
+        new Hangfire.PostgreSql.PostgreSqlStorageOptions
+        {
+            PrepareSchemaIfNecessary = planscapeRoleEarly != "worker",
+        }));
 // Phase 178 — Worker-vs-API split. When PLANSCAPE_ROLE = "worker" the
 // process additionally subscribes to the heavy photo-redaction queue
 // (face/plate detect + watermark composition) and gets bigger worker

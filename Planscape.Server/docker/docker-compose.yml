@@ -125,6 +125,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      # Phase 186 — wait for the api container's /health endpoint to
+      # report Healthy. The api container is the Hangfire schema steward;
+      # if worker starts in parallel it will either race CREATE SCHEMA
+      # (23505 duplicate key) or query Hangfire tables that don't exist
+      # yet. Gating on api-healthy means the schema is guaranteed live
+      # by the time worker boots.
+      api:
+        condition: service_healthy
     restart: unless-stopped
     volumes:
       # Worker shares the api's storage volume so background jobs (e.g.
