@@ -3161,6 +3161,39 @@ PARAM	a2b3c4d5-2222-4f06-9601-600000000001	WARN_STING_DRAWING_TYPE_MISSING	TEXT	
 PARAM	a2b3c4d5-2222-4f06-9602-600000000002	WARN_STING_CROP_DRIFT	TEXT		17	1	View warning: STING_CROP_KIND_TXT / MARGIN_MM_TXT differ from profile - run SyncStyles to heal (Phase 183)	1
 PARAM	a2b3c4d5-2222-4f06-9603-600000000003	WARN_STING_PACK_DRIFT	TEXT		17	1	View warning: STING_PACK_CHECKSUM_TXT differs from current pack - managed template needs re-sync (Phase 137)	1
 PARAM	a2b3c4d5-2222-4f06-9604-600000000004	WARN_STING_STYLE_LOCKED_NOTICE	TEXT		17	1	View notice: STING_STYLE_LOCKED_BOOL = 1 - SyncStyles will skip this view (user-frozen)	1
+PARAM	b3c4d5e6-3333-4f01-aa01-100000000010	WARN_CLN_PRESS_REGIME_INVALID	TEXT		17	1	Tag warning: CLN_PRESS_REGIME_TXT not in (NEG/POS/NEUTRAL) - HTM 03-01 / ASHRAE 170 violation	1
+PARAM	b3c4d5e6-3333-4f01-aa02-100000000011	WARN_CLN_AIIR_NOT_NEGATIVE	TEXT		17	1	Tag warning: AIIR room not under negative pressure - HTM 03-01 / CDC violation	1
+PARAM	b3c4d5e6-3333-4f01-aa03-100000000012	WARN_CLN_PE_NOT_POSITIVE	TEXT		17	1	Tag warning: Protective Environment room not under positive pressure - HTM 03-01 / CDC	1
+PARAM	b3c4d5e6-3333-4f01-aa04-100000000013	WARN_CLN_ANTERM_MISSING	TEXT		17	1	Tag warning: AIIR or PE room has no linked anteroom (HBN 04-01 / CDC)	1
+PARAM	b3c4d5e6-3333-4f01-aa05-100000000014	WARN_CLN_OR_LOW_ACH	TEXT		17	1	Tag warning: OR-CONV/HYBRID ACH below HTM 03-01 / ASHRAE 170 minimum (20)	1
+PARAM	b3c4d5e6-3333-4f01-aa06-100000000015	WARN_CLN_OR_ULTRA_LOW_ACH	TEXT		17	1	Tag warning: Ultra-clean OR ACH below HTM 03-01 minimum (300)	1
+PARAM	b3c4d5e6-3333-4f01-aa07-100000000016	WARN_CLN_HEPA_GRADE_INVALID	TEXT		17	1	Tag warning: HEPA grade not H13/H14/U15/U16 (BS EN 1822)	1
+PARAM	b3c4d5e6-3333-4f01-aa08-100000000017	WARN_LIG_RES_NO_RATING	TEXT		17	1	Tag warning: Anti-ligature room has fitting with no LIG_PRODUCT_RATING_TXT (HBN 03-01)	1
+PARAM	b3c4d5e6-3333-4f01-aa09-100000000018	WARN_CLN_IOT_STALE	TEXT		17	1	Tag warning: RTLS / IoT tag last seen beyond staleness threshold (ISO 15686-3)	1
+PARAM	b3c4d5e6-3333-4f01-aa0a-100000000019	WARN_CLN_RDS_INCOMPLETE	TEXT		17	1	Tag warning: Room Data Sheet mandatory parameters incomplete (HBN / HTM)	1
+PARAM	b3c4d5e6-3333-4f01-aa0b-10000000001a	WARN_CLN_RTLS_NO_COVERAGE	TEXT		17	1	Tag warning: Clinical space has no RTLS reader within coverage radius	1
+PARAM	b3c4d5e6-3333-4f01-aa0c-10000000001b	WARN_CLN_WASTE_ROUTE_UNRESOLVED	TEXT		17	1	Tag warning: Clinical waste route conflicts with clean corridor (HTM 07-01)	1
+PARAM	b3c4d5e6-3333-4f01-aa0d-10000000001c	WARN_CLN_ACOUSTIC_STC_LOW	TEXT		17	1	Tag warning: Clinical room STC below minimum for use class (HTM / BB93)	1
+PARAM	b3c4d5e6-3333-4f01-aa0e-10000000001d	WARN_CLN_MRI_ZONE_UNASSIGNED	TEXT		17	1	Tag warning: MRI suite area has no CLN_MRI_ZONE_INT (ACR / IPEM 75)	1
+PARAM	b3c4d5e6-3333-4f01-aa0f-10000000001e	WARN_CLN_RF_SHIELD_UNSPECIFIED	TEXT		17	1	Tag warning: RF shielding required but specification missing	1
+PARAM	b3c4d5e6-3333-4f01-aa10-10000000001f	WARN_CEQ_IMAGING_STRUCT_LOAD	TEXT		17	1	Tag warning: Imaging modality structural load exceeds floor capacity	1
+PARAM	b3c4d5e6-3333-4f02-bb01-200000000010	WARN_MGS_GAS_TYPE_MISSING	TEXT		17	1	Tag warning: terminal unit or pipeline missing MGS_GAS_TYPE_TXT (BS 5682 / HTM 02-01)	1
+PARAM	b3c4d5e6-3333-4f02-bb02-200000000011	WARN_MGS_NOT_BRAZED	TEXT		17	1	Tag warning: medical gas pipework must be inert-gas brazed (HTM 02-01)	1
+PARAM	b3c4d5e6-3333-4f02-bb03-200000000012	WARN_MGS_ZVB_NO_REF	TEXT		17	1	Tag warning: Zone Valve Box has no reference code (HTM 02-01)	1
+PARAM	b3c4d5e6-3333-4f02-bb04-200000000013	WARN_MGS_FLOW_RATE_LOW	TEXT		17	1	Tag warning: calculated flow rate below NFPA 99 §5.1.13 diversity requirement	1
+PARAM	b3c4d5e6-3333-4f02-bb05-200000000014	WARN_MGS_PRESSURE_DROP_HIGH	TEXT		17	1	Tag warning: pipeline segment pressure drop exceeds allowable limit (HTM 02-01 / NFPA 99)	1
+PARAM	b3c4d5e6-3333-4f05-cc01-500000000010	WARN_ELC_EES_BRANCH_INVALID	TEXT		17	1	Tag warning: EES branch designation not LIFE-SAF / CRIT / EQP-BR / NORMAL (NFPA 99)	1
+PARAM	b3c4d5e6-3333-4f05-cc02-500000000011	WARN_ELC_ATS_TIME_EXCEEDED	TEXT		17	1	Tag warning: ATS transfer time >10s for LS/CR branch (NFPA 99 §6.4)	1
+PARAM	b3c4d5e6-3333-4f06-dd01-600000000010	WARN_PLM_DEAD_LEG_EXCEEDED	TEXT		17	1	Tag warning: sentinel point dead-leg exceeds 1m (HTM 04-01)	1
+PARAM	b3c4d5e6-3333-4f06-dd02-600000000011	WARN_PLM_AUG_CARE_NO_FILTER	TEXT		17	1	Tag warning: augmented-care outlet missing point-of-use filter (HTM 04-01 Pt C)	1
+PARAM	b3c4d5e6-3333-4f07-ee01-700000000010	WARN_RAD_LEAD_INSUFFICIENT	TEXT		17	1	Tag warning: lead-equivalent shielding below minimum 2mm (NCRP 147)	1
+PARAM	b3c4d5e6-3333-4f07-ee02-700000000011	WARN_RAD_QE_NOT_SIGNED	TEXT		17	1	Tag warning: primary barrier missing Qualified Expert sign-off (NCRP 147)	1
+PARAM	b3c4d5e6-3333-4f07-ee03-700000000012	WARN_RAD_DOOR_NO_INTERLOCKS	TEXT		17	1	Tag warning: radiation-controlled door missing interlock specification (NCRP 151 / RCR)	1
+PARAM	b3c4d5e6-3333-4f07-ee04-700000000013	WARN_RAD_CONTROLLED_AREA_NOT_SIGNED	TEXT		17	1	Tag warning: controlled area has no regulatory signage element (IRR17 / NCRP)	1
+PARAM	b3c4d5e6-3333-4f07-ee05-700000000014	WARN_RAD_DOSIMETRY_POST_MISSING	TEXT		17	1	Tag warning: controlled area boundary has no dosimetry monitoring post (IRR17)	1
+PARAM	b3c4d5e6-3333-4f0a-ff01-a00000000001	WARN_FAB_QC_INSPECTOR_MISSING	TEXT		17	1	Tag warning: fabrication weld/QC record without inspector reference (ISO 3834 / AWS D1.1)	1
+PARAM	b3c4d5e6-3333-4f0a-ff02-a00000000002	WARN_STR_BEAM_WEB_OPENING	TEXT		17	1	Tag warning: beam web opening not verified against AISC DG2 / SCI P355 capacity reduction	1
+PARAM	b3c4d5e6-3333-4f0a-ff03-a00000000003	WARN_STR_COMPOSITE_SHEAR_STUD	TEXT		17	1	Tag warning: composite beam shear stud spec missing (BS EN 1994-1-1 / AISC 360 §I8)	1
 PARAM	f4a5b6c7-d8e9-4f0a-b1c2-d3e4f5a6b7c8	STING_PACK_CHECKSUM_TXT	TEXT		27	1	SHA-256 checksum of ViewStylePack JSON for drift detection [Phase 137]	1
 PARAM	b6c7d8e9-f0a1-4b2c-3d4e-5f6a7b8c9d01	STING_CROP_KIND_TXT	TEXT		27	1	Crop kind stamped onto views for drift detection [Phase 183]	1
 PARAM	c7d8e9f0-a1b2-4c3d-4e5f-6a7b8c9d0e12	STING_CROP_MARGIN_MM_TXT	TEXT		27	1	Crop margin (mm, as string) stamped onto views for drift detection [Phase 183]	1
