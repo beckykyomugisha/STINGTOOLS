@@ -3117,12 +3117,12 @@ PARAM	a2b3c4d5-2222-4f01-910d-10000000000d	WARN_CLN_NURSECALL_MISSING	TEXT		17	1
 PARAM	a2b3c4d5-2222-4f01-910e-10000000000e	WARN_CLN_HBN_REF_MISSING	TEXT		17	1	Tag warning: clinical room has no CLN_HBN_REF_TXT - HBN reference missing	1
 PARAM	a2b3c4d5-2222-4f02-9201-200000000001	WARN_MGS_PRESSURE_BELOW_CODE	TEXT		17	1	Tag warning: MGS_NOM_PRESS_KPA_NR below HTM 02-01 / NFPA 99 minimum for gas type	1
 PARAM	a2b3c4d5-2222-4f02-9202-200000000002	WARN_MGS_FLOW_MISSING	TEXT		17	1	Tag warning: medical-gas terminal unit has no MGS_DESIGN_FLOW_LPM_NR - flow rating missing	1
-PARAM	a2b3c4d5-2222-4f02-9203-200000000003	WARN_MGS_DIVERSITY_HIGH	TEXT		17	1	Tag warning: MGS_DIVERSITY_PCT_NR exceeds NFPA 99 §5.1.13 diversity assumption for service	1
+PARAM	a2b3c4d5-2222-4f02-9203-200000000003	WARN_MGS_DIVERSITY_HIGH	TEXT		17	1	Tag warning: MGS_DIVERSITY_PCT_NR exceeds NFPA 99 Section 5.1.13 diversity assumption for service	1
 PARAM	a2b3c4d5-2222-4f02-9204-200000000004	WARN_MGS_TU_NOT_BS5682	TEXT		17	1	Tag warning: MGS_TU_BS5682_BOOL = 0 - terminal unit not certified to BS EN ISO 9170-1 / BS 5682	1
 PARAM	a2b3c4d5-2222-4f02-9205-200000000005	WARN_MGS_TU_NOT_INDEXED	TEXT		17	1	Tag warning: MGS_TU_INDEXED_BOOL = 0 - terminal unit gas-specific indexing not verified (NIST)	1
-PARAM	a2b3c4d5-2222-4f02-9206-200000000006	WARN_MGS_VERIFY_FAILED	TEXT		17	1	Tag warning: MGS_VERIFY_PASS_BOOL = 0 - verification per HTM 02-01 §6 / NFPA 99 §5.1.12 not passed	1
-PARAM	a2b3c4d5-2222-4f02-9207-200000000007	WARN_MGS_VERIFY_OVERDUE	TEXT		17	1	Tag warning: MGS_VERIFY_DT older than annual re-verification window (HTM 02-01 §15)	1
-PARAM	a2b3c4d5-2222-4f02-9208-200000000008	WARN_MGS_PIPE_NOT_BRAZED	TEXT		17	1	Tag warning: MGS_PIPE_BRAZED_BOOL = 0 - copper joints not certified brazed per HTM 02-01 §10	1
+PARAM	a2b3c4d5-2222-4f02-9206-200000000006	WARN_MGS_VERIFY_FAILED	TEXT		17	1	Tag warning: MGS_VERIFY_PASS_BOOL = 0 - verification per HTM 02-01 Section 6 / NFPA 99 Section 5.1.12 not passed	1
+PARAM	a2b3c4d5-2222-4f02-9207-200000000007	WARN_MGS_VERIFY_OVERDUE	TEXT		17	1	Tag warning: MGS_VERIFY_DT older than annual re-verification window (HTM 02-01 Section 15)	1
+PARAM	a2b3c4d5-2222-4f02-9208-200000000008	WARN_MGS_PIPE_NOT_BRAZED	TEXT		17	1	Tag warning: MGS_PIPE_BRAZED_BOOL = 0 - copper joints not certified brazed per HTM 02-01 Section 10	1
 PARAM	a2b3c4d5-2222-4f02-9209-200000000009	WARN_MGS_AAP_REF_MISSING	TEXT		17	1	Tag warning: area alarm panel without MGS_AAP_REF_TXT - panel identifier missing	1
 PARAM	a2b3c4d5-2222-4f02-920a-20000000000a	WARN_MGS_ZVB_REF_MISSING	TEXT		17	1	Tag warning: zone valve box without MGS_ZVB_REF_TXT - valve box identifier missing	1
 PARAM	a2b3c4d5-2222-4f03-9301-300000000001	WARN_CEQ_CATEGORY_MISSING	TEXT		17	1	Tag warning: medical equipment without CEQ_CATEGORY_TXT - asset category unassigned	1
@@ -3137,8 +3137,8 @@ PARAM	a2b3c4d5-2222-4f04-9404-400000000004	WARN_PRJ_HEALTH_QE_MISSING	TEXT		17	1
 PARAM	a2b3c4d5-2222-4f04-9405-400000000005	WARN_PRJ_HEALTH_FACILITY_TYPE_MISSING	TEXT		17	1	Title-block warning: healthcare project active but PRJ_ORG_HEALTH_FACILITY_TYPE_TXT empty - facility type unassigned	1
 PARAM	a2b3c4d5-2222-4f05-9501-500000000001	WARN_ELC_PNL_SPARES_LOW	TEXT		17	1	Tag warning: ELC_PNL_SPARE_WAYS_NR < 10% of ELC_PNL_NUM_OF_WAYS_NR - insufficient spares (NHS HTM 06-01 guidance)	1
 PARAM	a2b3c4d5-2222-4f05-9502-500000000002	WARN_ELC_PNL_SCCR_LOW	TEXT		17	1	Tag warning: ELC_PNL_SHORT_CIRCUIT_RATING_KA below incoming fault level (BS 7671 / NFPA 70)	1
-PARAM	a2b3c4d5-2222-4f05-9503-500000000003	WARN_ELC_PNL_AIC_INADEQUATE	TEXT		17	1	Tag warning: ELC_PNL_AIC_RATING_KA below available fault current at panel location (BS 7671 §434 / NFPA 70 §110.9)	1
-PARAM	a2b3c4d5-2222-4f05-9504-500000000004	WARN_ELC_PNL_NO_TVSS	TEXT		17	1	Tag warning: critical or essential panel without surge protective device (TVSS) (BS 7671 §443 / NFPA 70 §285)	1
+PARAM	a2b3c4d5-2222-4f05-9503-500000000003	WARN_ELC_PNL_AIC_INADEQUATE	TEXT		17	1	Tag warning: ELC_PNL_AIC_RATING_KA below available fault current at panel location (BS 7671 Section 434 / NFPA 70 Section 110.9)	1
+PARAM	a2b3c4d5-2222-4f05-9504-500000000004	WARN_ELC_PNL_NO_TVSS	TEXT		17	1	Tag warning: critical or essential panel without surge protective device (TVSS) (BS 7671 Section 443 / NFPA 70 Section 285)	1
 PARAM	a2b3c4d5-2222-4f06-9601-600000000001	WARN_STING_DRAWING_TYPE_MISSING	TEXT		17	1	Sheet warning: STING_DRAWING_TYPE_ID_TXT empty - sheet not bound to a DrawingType profile, automation skipped	1
 PARAM	a2b3c4d5-2222-4f06-9602-600000000002	WARN_STING_CROP_DRIFT	TEXT		17	1	View warning: STING_CROP_KIND_TXT / MARGIN_MM_TXT differ from profile - run SyncStyles to heal (Phase 183)	1
 PARAM	a2b3c4d5-2222-4f06-9603-600000000003	WARN_STING_PACK_DRIFT	TEXT		17	1	View warning: STING_PACK_CHECKSUM_TXT differs from current pack - managed template needs re-sync (Phase 137)	1
@@ -3162,10 +3162,10 @@ PARAM	b3c4d5e6-3333-4f01-aa10-10000000001f	WARN_CEQ_IMAGING_STRUCT_LOAD	TEXT		17
 PARAM	b3c4d5e6-3333-4f02-bb01-200000000010	WARN_MGS_GAS_TYPE_MISSING	TEXT		17	1	Tag warning: terminal unit or pipeline missing MGS_GAS_TYPE_TXT (BS 5682 / HTM 02-01)	1
 PARAM	b3c4d5e6-3333-4f02-bb02-200000000011	WARN_MGS_NOT_BRAZED	TEXT		17	1	Tag warning: medical gas pipework must be inert-gas brazed (HTM 02-01)	1
 PARAM	b3c4d5e6-3333-4f02-bb03-200000000012	WARN_MGS_ZVB_NO_REF	TEXT		17	1	Tag warning: Zone Valve Box has no reference code (HTM 02-01)	1
-PARAM	b3c4d5e6-3333-4f02-bb04-200000000013	WARN_MGS_FLOW_RATE_LOW	TEXT		17	1	Tag warning: calculated flow rate below NFPA 99 §5.1.13 diversity requirement	1
+PARAM	b3c4d5e6-3333-4f02-bb04-200000000013	WARN_MGS_FLOW_RATE_LOW	TEXT		17	1	Tag warning: calculated flow rate below NFPA 99 Section 5.1.13 diversity requirement	1
 PARAM	b3c4d5e6-3333-4f02-bb05-200000000014	WARN_MGS_PRESSURE_DROP_HIGH	TEXT		17	1	Tag warning: pipeline segment pressure drop exceeds allowable limit (HTM 02-01 / NFPA 99)	1
 PARAM	b3c4d5e6-3333-4f05-cc01-500000000010	WARN_ELC_EES_BRANCH_INVALID	TEXT		17	1	Tag warning: EES branch designation not LIFE-SAF / CRIT / EQP-BR / NORMAL (NFPA 99)	1
-PARAM	b3c4d5e6-3333-4f05-cc02-500000000011	WARN_ELC_ATS_TIME_EXCEEDED	TEXT		17	1	Tag warning: ATS transfer time >10s for LS/CR branch (NFPA 99 §6.4)	1
+PARAM	b3c4d5e6-3333-4f05-cc02-500000000011	WARN_ELC_ATS_TIME_EXCEEDED	TEXT		17	1	Tag warning: ATS transfer time >10s for LS/CR branch (NFPA 99 Section 6.4)	1
 PARAM	b3c4d5e6-3333-4f06-dd01-600000000010	WARN_PLM_DEAD_LEG_EXCEEDED	TEXT		17	1	Tag warning: sentinel point dead-leg exceeds 1m (HTM 04-01)	1
 PARAM	b3c4d5e6-3333-4f06-dd02-600000000011	WARN_PLM_AUG_CARE_NO_FILTER	TEXT		17	1	Tag warning: augmented-care outlet missing point-of-use filter (HTM 04-01 Pt C)	1
 PARAM	b3c4d5e6-3333-4f07-ee01-700000000010	WARN_RAD_LEAD_INSUFFICIENT	TEXT		17	1	Tag warning: lead-equivalent shielding below minimum 2mm (NCRP 147)	1
@@ -3175,7 +3175,7 @@ PARAM	b3c4d5e6-3333-4f07-ee04-700000000013	WARN_RAD_CONTROLLED_AREA_NOT_SIGNED	T
 PARAM	b3c4d5e6-3333-4f07-ee05-700000000014	WARN_RAD_DOSIMETRY_POST_MISSING	TEXT		17	1	Tag warning: controlled area boundary has no dosimetry monitoring post (IRR17)	1
 PARAM	b3c4d5e6-3333-4f0a-ff01-a00000000001	WARN_FAB_QC_INSPECTOR_MISSING	TEXT		17	1	Tag warning: fabrication weld/QC record without inspector reference (ISO 3834 / AWS D1.1)	1
 PARAM	b3c4d5e6-3333-4f0a-ff02-a00000000002	WARN_STR_BEAM_WEB_OPENING	TEXT		17	1	Tag warning: beam web opening not verified against AISC DG2 / SCI P355 capacity reduction	1
-PARAM	b3c4d5e6-3333-4f0a-ff03-a00000000003	WARN_STR_COMPOSITE_SHEAR_STUD	TEXT		17	1	Tag warning: composite beam shear stud spec missing (BS EN 1994-1-1 / AISC 360 §I8)	1
+PARAM	b3c4d5e6-3333-4f0a-ff03-a00000000003	WARN_STR_COMPOSITE_SHEAR_STUD	TEXT		17	1	Tag warning: composite beam shear stud spec missing (BS EN 1994-1-1 / AISC 360 Section I8)	1
 PARAM	f4a5b6c7-d8e9-4f0a-b1c2-d3e4f5a6b7c8	STING_PACK_CHECKSUM_TXT	TEXT		27	1	SHA-256 checksum of ViewStylePack JSON for drift detection [Phase 137]	1
 PARAM	b6c7d8e9-f0a1-4b2c-3d4e-5f6a7b8c9d01	STING_CROP_KIND_TXT	TEXT		27	1	Crop kind stamped onto views for drift detection [Phase 183]	1
 PARAM	c7d8e9f0-a1b2-4c3d-4e5f-6a7b8c9d0e12	STING_CROP_MARGIN_MM_TXT	TEXT		27	1	Crop margin (mm, as string) stamped onto views for drift detection [Phase 183]	1
