@@ -1,11 +1,11 @@
-# Phase 185 — Bonsai integration foundation
+# Phase 186 — Bonsai integration foundation
 
 **Branch**: `claude/stingtools-bim-research-8Kkwv`
 **Commits**: `ce79b7d8` · `aa03eca6` · `d8f19ebb` · `0e9c32de` · `ef7bb2a1` · `8b53132a`
 **Lines**: ~13,000 across ~103 new files
 **Status**: substrate ✅ verified · Day-1 scaffold ❓ partly verified · MVP ops ❌ not started
 
-This document captures the architectural narrative behind Phase 185 so
+This document captures the architectural narrative behind Phase 186 so
 future sessions don't have to re-derive it from chat history. If you're
 starting fresh on this work, read this first.
 
@@ -13,7 +13,7 @@ starting fresh on this work, read this first.
 
 ## Summary
 
-Phase 185 turns STING Tools from a Revit-only plugin into the data-layer
+Phase 186 turns STING Tools from a Revit-only plugin into the data-layer
 spine of a multi-host BIM coordination platform. It does this by:
 
 1. **Codifying the data layer** as an IFC4-native substrate (52 enums + 2
@@ -28,7 +28,7 @@ spine of a multi-host BIM coordination platform. It does this by:
 4. **Federating across hosts** via a new Planscape Server IFC-ingest
    endpoint + the `ExternalElementMapping` cross-host identity table.
 
-The end-state Phase 185 enables: an issue raised in Bonsai on an IFC
+The end-state Phase 186 enables: an issue raised in Bonsai on an IFC
 `GlobalId` surfaces in Revit on the matching `ElementId`, validated against
 the same IDS specs, with a single audit-log chain.
 
@@ -333,7 +333,7 @@ ingest endpoint; the server's mapping table is the lookup oracle.
 
 ---
 
-## What's verified vs assumed (Phase 185 close)
+## What's verified vs assumed (Phase 186 close)
 
 | Layer | Verified | Method |
 |---|---|---|
@@ -352,7 +352,7 @@ ingest endpoint; the server's mapping table is the lookup oracle.
 | `round_trip.py` round-trips a real IFC | ❌ | `--generate-fixture` is a TODO |
 | CI workflow runs green in GitHub Actions | ❌ | not pushed |
 
-This is the Phase 185 audit-trail. Path A in the recommendation flips
+This is the Phase 186 audit-trail. Path A in the recommendation flips
 every ❌ to ✅ in roughly 5 working days.
 
 ---
@@ -366,7 +366,7 @@ files, push to GitHub to trigger CI. Write `docs/VERIFIED.md`
 capturing every command + outcome.
 
 **PR to main (after Path A)**
-Branch becomes Phase 185's canonical entry in the project guide.
+Branch becomes Phase 186's canonical entry in the project guide.
 CLAUDE.md gains a new section. Branch closes.
 
 **Path B — MVP build (8 weeks, after PR)**
@@ -379,22 +379,22 @@ Publish `stingtools-core` to TestPyPI. Post to Bonsai Discord + OpenBIM
 forums. Submit 9 healthcare enums to bSDD. Reach out to NHS England
 + buildingSMART UK.
 
-**Phase 186 — Healthcare pack mirror (4 weeks, after MVP)**
+**Phase 187 — Healthcare pack mirror (4 weeks, after MVP)**
 The 5 healthcare Psets (`Pset_StingHealthcareClinical/MGS/Radiation/
 ClinicalEquipment/Ligature`), `sting-healthcare.ids`, port the 16
 healthcare validators from C# to Python.
 
-**Phase 187 — ArchiCAD plugin (12 weeks, after Phase 186)**
+**Phase 188 — ArchiCAD plugin (12 weeks, after Phase 187)**
 Same architecture as Bonsai: `stingtools-archicad/` extension folder,
 ArchiCAD Python connector for the 90% case, optional C++ Add-on for
 dockable palette. Reuses `stingtools-core/python` entirely.
 
-**Phase 188 — Tekla connector (2 weeks, server-side)**
+**Phase 189 — Tekla connector (2 weeks, server-side)**
 Pure server-side worker (Tekla Open API is Windows-only). Tekla
 exports IFC → server-side processor ingests via the existing
 `/api/projects/{id}/ifc/data` endpoint. No new Tekla-side UI.
 
-**Phase 189 — bSDD publication run (1 week)**
+**Phase 190 — bSDD publication run (1 week)**
 After community feedback settles. Publish the 22 STING-owned
 "ready" enums via the bSDD API. Flips status to `posted` then
 `verified`.
@@ -420,7 +420,7 @@ After community feedback settles. Publish the 22 STING-owned
 ## Files that future sessions need to read first
 
 1. **This document** — architectural narrative
-2. `CLAUDE.md` § Phase 185 — project-guide entry (1-paragraph summary + links)
+2. `CLAUDE.md` § Phase 186 — project-guide entry (1-paragraph summary + links)
 3. `shared/ifc/enums/_README.md` — enum format + governance
 4. `shared/ifc/psets/_README.md` — pset format + roadmap
 5. `shared/ifc/bsdd/_README.md` — publication policy + IRI scheme

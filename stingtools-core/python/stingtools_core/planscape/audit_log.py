@@ -21,6 +21,11 @@ from typing import Any, Optional
 
 GENESIS = "GENESIS"
 
+# Bump when the entry shape changes in a backward-incompatible way.
+# Consumers should read entries with schema_version <= their_supported_max
+# and either migrate or reject older versions explicitly.
+SCHEMA_VERSION = 1
+
 
 class AuditLog:
     def __init__(self, path: str | Path):
@@ -57,6 +62,7 @@ class AuditLog:
         """Append a single audit entry. Returns the written entry."""
         prev_sha = self._last_sha()
         entry: dict[str, Any] = {
+            "schema_version": SCHEMA_VERSION,
             "ts_utc": datetime.now(timezone.utc).isoformat(),
             "event": event,
             "actor": actor,

@@ -169,15 +169,15 @@
       <RemediationInstruction>Run STING's BuildTags command to refresh FullTag from source segments.</RemediationInstruction>
     </Rule>
 
-    <Rule id="TOKEN_LOCK_HONORED">
-      <Description>The auto-populator must not modify any segment listed in TokenLock. Violations of this rule indicate a host plugin bug, not user error.</Description>
+    <Rule id="TOKEN_LOCK_HONORED" enforced-by="host">
+      <Description>The auto-populator must not modify any segment listed in TokenLock. Violations of this rule indicate a host plugin bug, not user error. BEHAVIOURAL ASSERTION: this rule cannot be verified from a static IFC snapshot — enforcement lives in each host plugin's tag-write path (Revit's TokenAutoPopulator + the equivalent in the Bonsai add-on). The IDS specification 19-TOKENLOCK in sting-tag-grammar.ids validates the CSV format of the TokenLock value when present, but cannot prove that the auto-populator respected it during a write.</Description>
       <ActiveFrom>Stage_2</ActiveFrom>
       <FailMessage>A locked token was modified by auto-population.</FailMessage>
       <RemediationInstruction>File bug against the host plugin; restore the locked value from PreviousTag.</RemediationInstruction>
     </Rule>
 
-    <Rule id="TAG_HISTORY_PROVIDED">
-      <Description>On retag (any segment change), PreviousTag and ModifiedAt must be updated. Enforces audit-trail completeness.</Description>
+    <Rule id="TAG_HISTORY_PROVIDED" enforced-by="host">
+      <Description>On retag (any segment change), PreviousTag and ModifiedAt must be updated. Enforces audit-trail completeness. BEHAVIOURAL ASSERTION: this rule cannot be verified from a single static IFC snapshot — it describes the host plugin's contract when a retag happens. Enforcement lives in the tag-write path; an audit-log entry pinned via PlanscapeAuditLog records each retag as the canonical evidence.</Description>
       <ActiveFrom>Stage_3</ActiveFrom>
       <FailMessage>Tag changed without updating PreviousTag / ModifiedAt.</FailMessage>
       <RemediationInstruction>Host plugin contract violation. Re-run tag write through the canonical write-path.</RemediationInstruction>

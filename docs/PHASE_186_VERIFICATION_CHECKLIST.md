@@ -1,6 +1,6 @@
-# Phase 185 verification checklist — Path A (1 week, ~5 working days)
+# Phase 186 verification checklist — Path A (1 week, ~5 working days)
 
-Run through this on your dev machine to flip every ❌ in the Phase 185
+Run through this on your dev machine to flip every ❌ in the Phase 186
 verification matrix to ✅. Each item is a copy-paste shell command +
 the success criterion. Tick the box, paste any output that fails into
 `docs/VERIFIED.md` (template at the bottom of this doc).
@@ -307,7 +307,7 @@ git push
 Template:
 
 ```markdown
-# Phase 185 verification log
+# Phase 186 verification log
 
 Run by: <your name>
 Date: <YYYY-MM-DD>
@@ -342,8 +342,8 @@ Environment: <OS, .NET version, Blender version, Bonsai version>
 
 ### 5.3 Open PR to main
 
-- [ ] PR title: `Phase 185 — Bonsai integration foundation`
-- [ ] PR body references `docs/PHASE_185_BONSAI_INTEGRATION.md` and
+- [ ] PR title: `Phase 186 — Bonsai integration foundation`
+- [ ] PR body references `docs/PHASE_186_BONSAI_INTEGRATION.md` and
       `docs/VERIFIED.md`.
 - [ ] Reviewers can run the Day-1 to Day-4 checks independently and
       reproduce.

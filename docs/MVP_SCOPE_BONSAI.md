@@ -1,6 +1,6 @@
 # BlenderBIM / Bonsai MVP scope
 
-Captured from the architectural conversation that produced Phase 185.
+Captured from the architectural conversation that produced Phase 186.
 The MVP is the next major deliverable after Path A verification + PR to
 main.
 
@@ -49,7 +49,7 @@ infrastructure those ops depend on.
   rendering is a separate effort
 - Family creator — Bonsai's Library + Asset Browser fills the role
 - Material commands — use Bonsai's existing material UI
-- Healthcare pack — Phase 186
+- Healthcare pack — Phase 187
 - 4D/5D scheduling — Planscape's web UI already has it
 - COBie export — Planscape server can generate from federated IFC
 - Revisions / transmittals / deliverables — Planscape template engine

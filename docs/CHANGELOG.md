@@ -2,6 +2,129 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 186 — Bonsai integration foundation; multi-host substrate)
+
+**Scope**: turns STING from a Revit-only plugin into the data-layer
+spine of a multi-host BIM coordination platform. Establishes the IFC4
+substrate (52 enums, 2 psets, 2 IDS files, bSDD plan), a dual-language
+Python core, the first non-Revit host plugin (Bonsai add-on), and the
+Planscape Server IFC-ingest endpoint with cross-host element-identity
+mapping.
+
+Substrate (`shared/ifc/`): 52 enum XMLs across 5 tiers (tag grammar /
+drawing engine / workflow / engineering domains / healthcare pack);
+49 corporate-locked with SHA-256 fingerprints + 3 project-template
+overlays for `StingLocationCodes/ZoneCodes/LevelCodes`. 2 Pset
+templates — `Pset_StingTags` (12 properties, 9 cross-entity rules) +
+`Pset_StingSpatialCodes` (6 properties, 5 cross-entity rules). 2 IDS
+files — `sting-tag-grammar.ids` (11 specs) + `sting-spatial-codes.ids`
+(8 specs) — both pass official ifctester XSD validation. bSDD
+publication plan triages all 52 enums across 6 status categories
+(`ready` × 24, `external_already` × 6, `private` × 16,
+`project_scoped` × 3, `skip_external` × 2, `draft` × 1).
+
+Python core (`stingtools-core/python/`): public API
+`EnumRegistry / PsetRegistry / TagGrammar / Tag / SpatialChecker /
+PlanscapeClient / AuditLog / IdsRunner`. Reads the substrate
+programmatically; SHA-256 verification on load; project-overlay
+merge with reserved-sentinel preservation. SpatialChecker enforces
+6 cross-entity rules statically (`LOC_MATCHES_BUILDING`,
+`LVL_MATCHES_STOREY`, `ZONE_MATCHES_ASSIGNEDZONE`,
+`SYS_MATCHES_IFCSYSTEM`, `SEQ_UNIQUE_WITHIN_GROUP`,
+`FULLTAG_CONSISTENT`); 2 behavioural rules (`TOKEN_LOCK_HONORED`,
+`TAG_HISTORY_PROVIDED`) marked `enforced-by="host"` in Pset XML
+since they can't be checked from a static IFC snapshot.
+
+Bonsai add-on (`stingtools-bonsai/`): Blender 4.2+ extension. Day-1
+scaffold ships diagnostic operators (`sting.about`,
+`sting.reload_substrate`, `sting.bonsai_probe`) + `STING_PT_main`
+N-panel + `BonsaiBridge` coexistence layer that delegates IFC
+writes through `ifcopenshell.api.run()` so Bonsai's undo + UI
+refresh hook in. MVP operators (16, ≈8 weeks) deferred to a
+follow-up phase.
+
+Planscape Server: new `IfcController` with
+`POST /api/projects/{id}/ifc/data` (host-agnostic element ingest)
+and `GET /api/projects/{id}/ifc/mappings` (cross-host GUID
+lookup). New `ExternalElementMapping` entity composite-keyed on
+`(ProjectId, IfcGlobalId, Host, HostDocumentGuid)`. `TaggedElement`
+unique constraints converted to filtered uniques (Revit path
+unchanged; non-Revit hosts now path-through). EF migration not yet
+generated — see `docs/PHASE_186_VERIFICATION_CHECKLIST.md § Day 1`.
+
+Tooling: `tools/enums/compute_checksums.py` (SHA-256 drift detector
++ manifest generator, handles both enums and psets),
+`tools/enums/audit_bsdd.py` (publication-plan summary check),
+`tools/converters/sting_to_psd.py` (STING XML → buildingSMART PSD),
+`tools/converters/sting_to_revit_params.py` (STING psets → Revit
+shared-parameter file fragment with deterministic UUID v5 GUIDs),
+`tools/tests/round_trip.py` (IDS round-trip harness with
+`--generate-fixture` producing both positive + negative test
+fixtures via `ifcopenshell.api`).
+
+CI: `.github/workflows/ifc-substrate.yml` — 8 validation steps
+(checksum drift, bSDD audit, XSD validation per enum, IDS XML
+well-formedness, Pset enum references resolve, IfdGuid uniqueness,
+stingtools-core smoke tests, Bonsai add-on py_compile). Triggers
+on push / PR touching `shared/ifc/**` or `tools/enums/**`.
+
+Documentation (`docs/`):
+- `PHASE_186_BONSAI_INTEGRATION.md` — architectural narrative,
+  19 named design decisions, cross-host federation diagram,
+  verification matrix, forward roadmap through Phase 190.
+- `PHASE_186_VERIFICATION_CHECKLIST.md` — Path A as a
+  step-by-step run-book (Days 1–5 with copy-paste commands).
+- `MVP_SCOPE_BONSAI.md` — the 8-week MVP scope captured to disk
+  (success demo, 16 operators, module structure, timeline).
+- `VERIFIED.md` — evidence log: every ❌ → ✅ flip with the
+  command + outcome that proved it.
+- `IDS_AUTHORING_GUIDE.md` — 3 IDS-v1.0 gotchas + authoring
+  conventions surfaced during Phase 186 verification.
+
+**Verification status at Phase 186 close**:
+
+| Layer | Status |
+|---|---|
+| 52 enum XMLs SHA-256-locked | ✅ verified drift-free |
+| 2 Pset XMLs lock-consistent | ✅ verified |
+| bSDD plan summary matches entries | ✅ `audit_bsdd.py` OK |
+| `stingtools-core` smoke tests | ✅ 15/15 pass (8 happy + 7 negative/integrity) |
+| Both IDS files pass official XSD | ✅ verified with ifctester schema |
+| Both IDS files run via ifctester | ✅ 19/19 specs pass on both fixtures |
+| `SpatialChecker` fires on negative fixture | ✅ `LOC_MATCHES_BUILDING` mismatch detected |
+| Bonsai add-on Python compiles | ✅ py_compile clean |
+| `dotnet build Planscape.Server` | ⚠️ pending human run |
+| EF migration generated | ⚠️ pending human run |
+| Bonsai add-on loads in real Blender | ⚠️ pending human run |
+| GitHub Actions runs green | ⚠️ pending push |
+
+**Caveats**:
+
+1. C# IfcController follows existing controller conventions but has
+   never seen `dotnet build`. Most likely place to find a real bug.
+2. EF migration: `dotnet ef migrations add IfcIngestSubstrate` is the
+   next deployment step. Schema diff: 1 new table + 2 new filtered
+   uniques on `TaggedElements`.
+3. bSDD entries all carry `proposed: true`. No actual publication
+   has happened. The 22 "ready" entries carry proposed IRIs that DO
+   NOT resolve in bSDD until status flips to `posted` / `verified`
+   via the future `tools/bsdd/publish.py`.
+4. MVP operators not built. Day-1 ships diagnostic ops only. The 16
+   production operators from `docs/MVP_SCOPE_BONSAI.md` are
+   estimated 8 weeks single-dev.
+5. Healthcare Pset bundle (5 psets) is Phase 187 work; the 11 Tier-5
+   healthcare enumerations shipped this phase but the consuming
+   psets did not.
+6. ArchiCAD (Phase 188) + Tekla connector (Phase 189) are forward
+   roadmap; substrate is host-agnostic so the work is incremental.
+7. CI workflow file exists but only triggers on push. First green
+   run happens once the branch is pushed past the verification
+   checkpoint.
+
+This phase's CLAUDE.md entry is the "Phase 186 — Bonsai integration
+foundation" section; full architectural detail lives in
+`docs/PHASE_186_BONSAI_INTEGRATION.md`.
+
 #### Completed (Phase 184m — Cost management UI surfacing)
 
 Branch: `claude/revit-api-cost-management-qH8Vv`. Surfaces every command added in P0 → P8 + caveat-closure commits as clickable buttons / tiles. Previously the commands were dispatch-wired but had no UI affordances — a user opening the dock panel or mobile app saw no new buttons.

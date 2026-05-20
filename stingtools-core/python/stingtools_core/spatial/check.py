@@ -1,14 +1,23 @@
-"""Cross-entity equality closeout for Pset_StingSpatialCodes rules.
+"""Cross-entity + cross-element rule checks for Pset_StingTags +
+Pset_StingSpatialCodes — the STING-side closeout for rules IDS v1.0
+can't express directly.
 
-IDS v1.0 can verify "element has Pset_StingTags.Location" and "element is
-contained in an IfcBuilding with Pset_StingSpatialCodes.LocationCode" —
-but not "the two values are equal". This module closes that gap by
-walking the IFC graph after IDS validation passes.
-
-Three checks:
+Six checks implemented:
   - LOC_MATCHES_BUILDING:        element.Location == containing IfcBuilding.LocationCode
   - LVL_MATCHES_STOREY:          element.Level    == containing IfcBuildingStorey.LevelCode
   - ZONE_MATCHES_ASSIGNEDZONE:   element.Zone     ∈ {assigned IfcZone.ZoneCode for each Zone the element is in}
+  - SYS_MATCHES_IFCSYSTEM:       when element is member of an IfcSystem, element.System aligns with the system's classification
+  - SEQ_UNIQUE_WITHIN_GROUP:     Sequence is unique within each (Discipline, System, Level) tuple
+  - FULLTAG_CONSISTENT:          when FullTag is set, it equals the dash-joined 8 source segments
+
+Two rules from Pset_StingTags.xml are NOT implemented here because they
+are *behavioural* assertions about the host-side auto-tagger, not
+properties of a static IFC snapshot:
+  - TOKEN_LOCK_HONORED — guarantees the auto-populator won't overwrite locked tokens
+  - TAG_HISTORY_PROVIDED — guarantees PreviousTag + ModifiedAt are updated on retag
+Both ship enforced inside each host plugin's tag-write path (Revit's
+TokenAutoPopulator, the Bonsai add-on's port). See Pset_StingTags.xml
+for the cardinality / Source-Of-Enforcement annotation.
 
 Uses ifcopenshell when available; the API is dependency-aware (importing
 this module does NOT require ifcopenshell — only calling .check_*() does).
@@ -22,9 +31,10 @@ from typing import Any, Optional
 
 @dataclass(frozen=True)
 class SpatialMismatch:
-    rule_id: str           # LOC_MATCHES_BUILDING | LVL_MATCHES_STOREY | ZONE_MATCHES_ASSIGNEDZONE
+    """Generic mismatch result. Used for all 6 checks; `rule_id` distinguishes them."""
+    rule_id: str
     ifc_global_id: str     # the failing element
-    segment: str           # Location | Level | Zone
+    segment: str           # Location | Level | Zone | System | Sequence | FullTag
     element_value: str
     expected_values: tuple[str, ...]  # what would have made it pass
     message: str
@@ -95,6 +105,53 @@ class SpatialChecker:
             if grp and grp.is_a("IfcZone"):
                 zones.append(grp)
         return zones
+
+    def _assigned_systems(self, el: Any) -> list[Any]:
+        """Return the IfcSystem (or IfcDistributionSystem) memberships of an element."""
+        out: list[Any] = []
+        for rel in getattr(el, "HasAssignments", []) or []:
+            if not rel.is_a("IfcRelAssignsToGroup"):
+                continue
+            grp = getattr(rel, "RelatingGroup", None)
+            if grp and grp.is_a("IfcSystem"):
+                out.append(grp)
+        return out
+
+    # System-name → expected STING System token. Keep lower-case keys for
+    # case-insensitive match. Matches the StingSystemCodes enum members.
+    _SYSTEM_NAME_TO_SYS = {
+        "hvac":       "HVAC",
+        "ventilation": "HVAC",
+        "air":        "HVAC",
+        "dcw":        "DCW",
+        "cold water": "DCW",
+        "dhw":        "DHW",
+        "hot water":  "DHW",
+        "hws":        "HWS",
+        "san":        "SAN",
+        "sanitary":   "SAN",
+        "soil":       "SAN",
+        "rwd":        "RWD",
+        "stormwater": "RWD",
+        "gas":        "GAS",
+        "fp":         "FP",
+        "sprinkler":  "FP",
+        "fls":        "FLS",
+        "fire alarm": "FLS",
+        "lv":         "LV",
+        "power":      "LV",
+        "lighting":   "LV",
+        "com":        "COM",
+        "comms":      "COM",
+        "ict":        "ICT",
+        "data":       "ICT",
+        "ncl":        "NCL",
+        "nurse call": "NCL",
+        "sec":        "SEC",
+        "security":   "SEC",
+        "mgs":        "MGS",
+        "medical gas": "MGS",
+    }
 
     # ------------------------------------------------------------------
 
@@ -183,11 +240,114 @@ class SpatialChecker:
                     ),
                 ))
 
+        # 4. SYS_MATCHES_IFCSYSTEM — when element is in an IfcSystem,
+        #    the System token must align with the system's classification.
+        sys_value = tags.get("System")
+        if sys_value and sys_value not in ("XX", "ARC"):
+            systems = self._assigned_systems(el)
+            for system in systems:
+                # Map system name to expected token
+                sys_name = (getattr(system, "Name", "") or "").lower()
+                expected = None
+                for needle, token in self._SYSTEM_NAME_TO_SYS.items():
+                    if needle in sys_name:
+                        expected = token
+                        break
+                if expected and str(sys_value) != expected:
+                    out.append(SpatialMismatch(
+                        rule_id="SYS_MATCHES_IFCSYSTEM",
+                        ifc_global_id=global_id,
+                        segment="System",
+                        element_value=str(sys_value),
+                        expected_values=(expected,),
+                        message=(
+                            f"element SYS {sys_value!r} doesn't align with assigned "
+                            f"IfcSystem {system.Name!r} (expected {expected!r})"
+                        ),
+                    ))
+
+        # 5. FULLTAG_CONSISTENT — if FullTag is stored, verify it matches
+        #    the dash-joined source segments.
+        full_tag = tags.get("FullTag")
+        if full_tag:
+            segments = [
+                tags.get("Discipline") or "",
+                tags.get("Location")   or "",
+                tags.get("Zone")       or "",
+                tags.get("Level")      or "",
+                tags.get("System")     or "",
+                tags.get("Function")   or "",
+                tags.get("Product")    or "",
+                tags.get("Sequence")   or "",
+            ]
+            expected_full = "-".join(str(s) for s in segments)
+            if str(full_tag) != expected_full:
+                out.append(SpatialMismatch(
+                    rule_id="FULLTAG_CONSISTENT",
+                    ifc_global_id=global_id,
+                    segment="FullTag",
+                    element_value=str(full_tag),
+                    expected_values=(expected_full,),
+                    message=(
+                        f"FullTag {full_tag!r} does not match dash-joined "
+                        f"segments {expected_full!r}"
+                    ),
+                ))
+
         return out
 
     def check_all_elements(self) -> list[SpatialMismatch]:
-        """Walk every IfcElement in the model."""
+        """Walk every IfcElement in the model. Runs per-element checks
+        (LOC / LVL / ZONE / SYS / FullTag) + the model-level
+        SEQ_UNIQUE_WITHIN_GROUP check."""
         out: list[SpatialMismatch] = []
         for el in self._model.by_type("IfcElement"):
             out.extend(self.check_element(el))
+        out.extend(self.check_seq_uniqueness())
+        return out
+
+    def check_seq_uniqueness(self) -> list[SpatialMismatch]:
+        """SEQ_UNIQUE_WITHIN_GROUP — within each (Discipline, System,
+        Level) tuple, every element's Sequence must be unique.
+
+        Active from Stage_3 per Pset_StingTags.xml. Reports one
+        SpatialMismatch per duplicate.
+        """
+        out: list[SpatialMismatch] = []
+        # (disc, sys, lvl) -> { seq -> [ifc_global_id, ...] }
+        groups: dict[tuple[str, str, str], dict[str, list[str]]] = {}
+
+        for el in self._model.by_type("IfcElement"):
+            tags = self._pset(el, "Pset_StingTags")
+            if not tags:
+                continue
+            disc = str(tags.get("Discipline") or "")
+            sysv = str(tags.get("System") or "")
+            lvl  = str(tags.get("Level") or "")
+            seq  = str(tags.get("Sequence") or "")
+            if not (disc and sysv and lvl and seq):
+                continue
+            # sentinels skip
+            if disc == "XX" or sysv == "XX" or lvl == "XX" or seq == "0000":
+                continue
+            key = (disc, sysv, lvl)
+            global_id = getattr(el, "GlobalId", "") or ""
+            groups.setdefault(key, {}).setdefault(seq, []).append(global_id)
+
+        for (disc, sysv, lvl), seq_map in groups.items():
+            for seq, global_ids in seq_map.items():
+                if len(global_ids) > 1:
+                    for gid in global_ids:
+                        out.append(SpatialMismatch(
+                            rule_id="SEQ_UNIQUE_WITHIN_GROUP",
+                            ifc_global_id=gid,
+                            segment="Sequence",
+                            element_value=seq,
+                            expected_values=(),
+                            message=(
+                                f"duplicate Sequence {seq!r} in group "
+                                f"(Discipline={disc!r}, System={sysv!r}, Level={lvl!r}); "
+                                f"{len(global_ids)} elements share this SEQ"
+                            ),
+                        ))
         return out

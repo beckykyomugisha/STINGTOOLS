@@ -1,8 +1,8 @@
-# Phase 185 — Verification log
+# Phase 186 — Verification log
 
-Captures the concrete evidence behind each Phase 185 ❌ → ✅ flip from
+Captures the concrete evidence behind each Phase 186 ❌ → ✅ flip from
 the verification matrix in
-`docs/PHASE_185_BONSAI_INTEGRATION.md § What's verified vs assumed`.
+`docs/PHASE_186_BONSAI_INTEGRATION.md § What's verified vs assumed`.
 
 | Run by | Date | Environment |
 |---|---|---|
@@ -11,7 +11,7 @@ the verification matrix in
 The verifications below were performed by an automated agent running in
 this branch's dev sandbox. C# build (Day 1) + Bonsai install (Day 2)
 need a Windows / macOS / desktop-Linux + Blender + .NET 8 SDK and are
-left for human follow-up per `docs/PHASE_185_VERIFICATION_CHECKLIST.md`.
+left for human follow-up per `docs/PHASE_186_VERIFICATION_CHECKLIST.md`.
 
 ---
 
@@ -103,7 +103,7 @@ IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|
     SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)
 ```
 
-This list is the working set for Phase 185. Domain packs (healthcare,
+This list is the working set for Phase 186. Domain packs (healthcare,
 fabrication) will need to extend or override per their applicability
 profiles.
 
@@ -135,7 +135,7 @@ MISMATCH fixture : 1 mismatches  (as expected)
 ```
 
 The pipeline is **exactly** as designed in
-`docs/PHASE_185_BONSAI_INTEGRATION.md § D5`:
+`docs/PHASE_186_BONSAI_INTEGRATION.md § D5`:
 - IDS validates **structure** (containment + property presence + value
   patterns) → both fixtures pass
 - SpatialChecker validates **equality** across the IFC graph → catches
@@ -150,13 +150,13 @@ The pipeline is **exactly** as designed in
 | Push to GitHub | ⚠️ pending PR |
 | GitHub Actions `ifc-substrate.yml` runs green | ⚠️ pending push |
 | `docs/VERIFIED.md` written | ✅ this document |
-| PR `branch → main` titled "Phase 185 — Bonsai integration foundation" | ⚠️ pending |
+| PR `branch → main` titled "Phase 186 — Bonsai integration foundation" | ⚠️ pending |
 
 ---
 
 ## Verification matrix — flipped
 
-The Phase 185 design doc verification matrix gets these updates:
+The Phase 186 design doc verification matrix gets these updates:
 
 | Layer | Pre-this-session | Post-this-session |
 |---|---|---|

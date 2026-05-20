@@ -868,12 +868,12 @@ multi-size healthcare family can override via project-scoped
    the visual outcome on the view; projects that need separate filters
    per band can fork the library entry.
 
-### Phase 185 — Bonsai integration foundation (multi-host substrate)
+### Phase 186 — Bonsai integration foundation (multi-host substrate)
 
 **Status**: Landed on `claude/stingtools-bim-research-8Kkwv` across
 six commits. Substrate is verified drift-free; Day-1 Bonsai scaffold
 + Planscape server endpoint are unit-verified but not end-to-end
-tested. See [`docs/PHASE_185_BONSAI_INTEGRATION.md`](docs/PHASE_185_BONSAI_INTEGRATION.md)
+tested. See [`docs/PHASE_186_BONSAI_INTEGRATION.md`](docs/PHASE_186_BONSAI_INTEGRATION.md)
 for the full architectural narrative + decisions log + verification
 matrix + forward roadmap.
 
@@ -932,7 +932,7 @@ mapping.
   filtered uniques to support both Revit (`RevitElementId > 0`) and
   non-Revit (`UniqueId <> ''`) ingest paths.
 
-**Substrate inventory at Phase 185 close** (programmatically verified):
+**Substrate inventory at Phase 186 close** (programmatically verified):
 
 | Layer | Count | Detail |
 |---|---|---|
@@ -958,7 +958,7 @@ signoff/maintenance/asset); engineering (HVAC pressure/sizing/density
 profiles + MGS gases + pressure regimes + EES + MRI + radiation +
 ligature + observation + HTM water + HBN departments + theatres).
 
-### Caveats (Phase 185)
+### Caveats (Phase 186)
 
 1. **Path-A verification not run** in dev sandbox. The C# IfcController
    compiles in theory (follows existing controller conventions) but
@@ -966,7 +966,7 @@ ligature + observation + HTM water + HBN departments + theatres).
    clean but has never been loaded in actual Blender. The 2 IDS
    files parse as well-formed XML but have never been run through
    `ifctester`. Five working days of local verification (see
-   `docs/PHASE_185_BONSAI_INTEGRATION.md § Forward roadmap → Path A`)
+   `docs/PHASE_186_BONSAI_INTEGRATION.md § Forward roadmap → Path A`)
    flip every ❌ in the verification matrix to ✅.
 2. **EF migration not generated.** `dotnet ef migrations add
    IfcIngestSubstrate` against `Planscape.Server` is the next

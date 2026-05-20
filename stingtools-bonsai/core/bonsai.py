@@ -21,8 +21,11 @@ references are resolved lazily.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any, Optional
+
+logger = logging.getLogger("stingtools_bonsai.core.bonsai")
 
 
 @dataclass(frozen=True)
@@ -228,7 +231,7 @@ class BonsaiBridge:
         except Exception as e:
             # In production this'd log to AuditLog; for the scaffold we
             # surface to the System Console.
-            print(f"[STING/bonsai] add_pset failed: {e}")
+            logger.error("add_pset failed: %s", e, exc_info=True)
             return False
 
     def edit_attribute(self, element: Any, attributes: dict) -> bool:
@@ -249,7 +252,7 @@ class BonsaiBridge:
             )
             return True
         except Exception as e:
-            print(f"[STING/bonsai] edit_attribute failed: {e}")
+            logger.error("edit_attribute failed: %s", e, exc_info=True)
             return False
 
 

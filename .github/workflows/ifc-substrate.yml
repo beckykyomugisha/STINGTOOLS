@@ -184,3 +184,28 @@ jobs:
               sys.exit(1)
           print(f"all {len(seen)} IfdGuids unique across enums + psets")
           PY
+
+      # ---------------------------------------------------------------
+      # 7. stingtools-core smoke tests
+      # ---------------------------------------------------------------
+      - name: stingtools-core smoke tests
+        run: |
+          python3 stingtools-core/python/tests/test_smoke.py
+          # Failures from the standalone runner exit non-zero.
+
+      # ---------------------------------------------------------------
+      # 8. stingtools-bonsai add-on syntax check
+      # ---------------------------------------------------------------
+      - name: Bonsai add-on Python compiles
+        run: |
+          python3 -m py_compile \
+              stingtools-bonsai/__init__.py \
+              stingtools-bonsai/core/__init__.py \
+              stingtools-bonsai/core/bonsai.py \
+              stingtools-bonsai/ops/__init__.py \
+              stingtools-bonsai/ops/about.py \
+              stingtools-bonsai/ops/reload_substrate.py \
+              stingtools-bonsai/ops/bonsai_probe.py \
+              stingtools-bonsai/ui/__init__.py \
+              stingtools-bonsai/ui/panel_main.py
+          echo "all Bonsai add-on Python files compile cleanly"
