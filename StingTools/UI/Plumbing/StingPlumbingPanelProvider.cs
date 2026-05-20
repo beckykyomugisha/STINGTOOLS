@@ -4,9 +4,13 @@ using Autodesk.Revit.UI;
 namespace StingTools.UI.Plumbing
 {
     // IDockablePaneProvider for the STING Plumbing Center panel.
-    // Six tabs: SUPPLY · DRAINAGE · STORM · SPECIALTY · AUDIT · DOCS.
+    // Eight tabs: SYSTEM · SUPPLY · DRAINAGE · ROUTE · STORM · SPECIALTY ·
+    // AUDIT · DOCS. The visual tree lives in StingPlumbingPanel.xaml +
+    // StingPlumbingPanel.xaml.cs (Electrical-grade rebuild — DataGrids,
+    // Expanders, ComboBoxes, project-context strip).
     // Tabbed behind PropertiesPalette so it sits alongside the main
-    // STING panel and the Electrical Center without overlap.
+    // STING panel, the Electrical Center, and the HVAC Center without
+    // overlap.
     public class StingPlumbingPanelProvider : IDockablePaneProvider
     {
         private StingPlumbingPanel _panel;

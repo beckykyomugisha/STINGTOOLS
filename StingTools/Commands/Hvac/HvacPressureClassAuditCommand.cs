@@ -29,7 +29,7 @@ using StingTools.UI;
 
 namespace StingTools.Commands.Hvac
 {
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class HvacPressureClassAuditCommand : IExternalCommand
     {
@@ -72,11 +72,13 @@ namespace StingTools.Commands.Hvac
                     return Result.Cancelled;
                 }
 
-                int pass = 0, fail = 0, skipped = 0;
+                int pass = 0, fail = 0, skipped = 0, stamped = 0;
                 double worstPa = 0;
                 ElementId worstId = null;
                 var details = new List<string>();
 
+                using var tx = new Transaction(doc, "STING HVAC Pressure-class Audit");
+                tx.Start();
                 foreach (var d in ducts)
                 {
                     try
@@ -121,6 +123,21 @@ namespace StingTools.Commands.Hvac
                         double estimatedPa = dynamicPa + frictionPa;
                         if (estimatedPa > worstPa) { worstPa = estimatedPa; worstId = d.Id; }
 
+                        // Close the calc → model loop: stamp HVC_PRESSURE_DROP_PA
+                        // with the estimated ΔP, and HVC_PRESSURE_CLASS_TXT with
+                        // the active class on ducts that haven't been sized yet
+                        // (sized ducts keep their original class).
+                        try
+                        {
+                            if (ParameterHelpers.SetString(d, "HVC_PRESSURE_DROP_PA",
+                                    $"{estimatedPa:F0}", overwrite: true)) stamped++;
+                            string existingClass = ParameterHelpers.GetString(d, "HVC_PRESSURE_CLASS_TXT");
+                            if (string.IsNullOrEmpty(existingClass))
+                                ParameterHelpers.SetString(d, "HVC_PRESSURE_CLASS_TXT",
+                                    pclass.Id ?? "low", overwrite: true);
+                        }
+                        catch (Exception exS) { StingLog.Warn($"PressureAudit stamp {d.Id}: {exS.Message}"); }
+
                         if (estimatedPa > maxPa)
                         {
                             fail++;
@@ -131,14 +148,16 @@ namespace StingTools.Commands.Hvac
                     }
                     catch (Exception ex) { skipped++; StingLog.Warn($"PressureAudit {d.Id}: {ex.Message}"); }
                 }
+                tx.Commit();
 
                 var panel = StingResultPanel.Create("HVAC — Pressure-class Audit");
                 panel.SetSubtitle($"class={pclass.Label} (≤ {maxPa:F0} Pa) · ρ={airDensity:F2} kg/m³ · scope={scope}");
                 panel.AddSection("SUMMARY")
-                     .Metric("Within class", pass.ToString())
-                     .Metric("Over class",   fail.ToString())
-                     .Metric("Skipped",      skipped.ToString())
-                     .Metric("Worst ΔP",     $"{worstPa:F0} Pa" + (worstId != null ? $" (#{worstId.Value})" : ""));
+                     .Metric("Within class",        pass.ToString())
+                     .Metric("Over class",          fail.ToString())
+                     .Metric("Skipped",             skipped.ToString())
+                     .Metric("HVC_PRESSURE_DROP_PA stamped", stamped.ToString())
+                     .Metric("Worst ΔP",            $"{worstPa:F0} Pa" + (worstId != null ? $" (#{worstId.Value})" : ""));
 
                 if (details.Count > 0)
                 {

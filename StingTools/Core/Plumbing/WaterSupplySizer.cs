@@ -7,8 +7,10 @@
 // Hazen-Williams friction loss on the pipe at its current DN. Reports
 // recommended DN if velocity exceeds the configured limit.
 //
-// Pure design-intent — this engine never edits the model geometry. It
-// only writes calculated parameters when writeBack=true.
+// Closes the calc → model loop: when writeBack=true the engine stamps
+// PLM_SUP_* shared params *and* sets the native RBS_PIPE_DIAMETER_PARAM
+// to the recommended bore so schedules, exports and downstream commands
+// see the new size. Matches the MepAutoSizePipeCommand precedent.
 
 using System;
 using System.Collections.Generic;
@@ -46,6 +48,7 @@ namespace StingTools.Core.Plumbing
         public int    PipesVelocityFailed { get; set; }
         public int    PipesDpFailed { get; set; }
         public int    PipesWritten  { get; set; }
+        public int    PipesResized  { get; set; }  // native RBS_PIPE_DIAMETER_PARAM updated
         public List<SupplyPipeResult> Results { get; } = new List<SupplyPipeResult>();
         public List<string> Warnings { get; } = new List<string>();
     }
@@ -94,6 +97,19 @@ namespace StingTools.Core.Plumbing
                         TryWriteDouble(p, ParamRegistry.PLM_SUP_DP,     res.DpPaPerM);
                         TryWriteInt   (p, ParamRegistry.PLM_SUP_DN_REQ, res.RecommendedDnMm);
                         r.PipesWritten++;
+
+                        // Close the calc → model loop: set the native pipe diameter
+                        // so geometry, schedules, exports and downstream commands
+                        // reflect the new bore. Only writes when the recommendation
+                        // differs from the current modelled diameter.
+                        if (res.RecommendedDnMm > 0
+                            && res.RecommendedDnMm != res.CurrentDnMm)
+                        {
+                            if (TryWriteNativeDiameterMm(p, res.RecommendedDnMm))
+                                r.PipesResized++;
+                            else
+                                r.Warnings.Add($"native diameter write skipped on pipe {p.Id} (read-only / constrained)");
+                        }
                     }
                     catch (Exception ex) { r.Warnings.Add($"writeBack pipe {p.Id}: {ex.Message}"); }
                 }
@@ -267,6 +283,29 @@ namespace StingTools.Core.Plumbing
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
+        }
+
+        /// <summary>
+        /// Set the native Revit pipe diameter (RBS_PIPE_DIAMETER_PARAM) to
+        /// the recommended bore in mm. Returns false if the parameter is
+        /// missing, read-only, or rejected by Revit (e.g. fitting constraint).
+        /// </summary>
+        private static bool TryWriteNativeDiameterMm(Pipe pipe, int dnMm)
+        {
+            if (pipe == null || dnMm <= 0) return false;
+            try
+            {
+                var p = pipe.get_Parameter(BuiltInParameter.RBS_PIPE_DIAMETER_PARAM);
+                if (p == null || p.IsReadOnly || p.StorageType != StorageType.Double) return false;
+                double valueFt = dnMm * (1.0 / (FtToM * 1000.0)); // mm → m → ft
+                p.Set(valueFt);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TryWriteNativeDiameterMm pipe={pipe?.Id} dn={dnMm}: {ex.Message}");
+                return false;
+            }
         }
 
         private static void TryWriteDouble(Element el, string name, double v)

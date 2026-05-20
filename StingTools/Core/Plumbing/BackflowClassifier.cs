@@ -114,6 +114,40 @@ namespace StingTools.Core.Plumbing
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return list;
         }
+
+        /// <summary>
+        /// Close the calc → model loop: stamp PLM_FLUID_CATEGORY_TXT (the
+        /// resolved Cat 1-5) and PLM_VLV_BACKFLOW_TYPE_TXT (the recommended
+        /// device code) on every classified element. Caller owns the
+        /// Transaction. Skips Category 1 (potable) since no device is needed.
+        /// Returns the number of elements actually written.
+        /// </summary>
+        public static int WriteBack(Document doc, List<BackflowRisk> classified)
+        {
+            int written = 0;
+            if (doc == null || classified == null) return written;
+            foreach (var r in classified)
+            {
+                if (r?.ElementId == null || r.ElementId == ElementId.InvalidElementId) continue;
+                var el = doc.GetElement(r.ElementId);
+                if (el == null) continue;
+                try
+                {
+                    // PLM_FLUID_CATEGORY_TXT exists in MR_PARAMETERS.txt — stamp the
+                    // resolved category as a one-character string ("1".."5").
+                    bool a = ParameterHelpers.SetString(el, "PLM_FLUID_CATEGORY_TXT",
+                        ((int)r.Category).ToString(), overwrite: true);
+                    // PLM_VLV_BACKFLOW_TYPE_TXT exists — stamp recommended device code
+                    // (CHK-SC / CHK-DC / VLV-RPZ / GAP-AA). Cat 1 maps to "" so it
+                    // remains visible-but-empty.
+                    bool b = ParameterHelpers.SetString(el, "PLM_VLV_BACKFLOW_TYPE_TXT",
+                        r.RecommendedDevice ?? "", overwrite: true);
+                    if (a || b) written++;
+                }
+                catch (Exception ex) { StingLog.Warn($"BackflowClassifier.WriteBack {r.ElementId.Value}: {ex.Message}"); }
+            }
+            return written;
+        }
     }
 
     public static class CrossConnectionChecker

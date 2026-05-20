@@ -102,6 +102,11 @@ namespace StingTools.UI.Plumbing
                     case "Plumb_InvertLevels":
                         Run<StingTools.Commands.Plumbing.PlumbInvertLevelsCommand>(app); break;
 
+                    // Closes the design → model loop for vents: takes the VentDesigner
+                    // requirement list and actually creates pipe + AAV instances.
+                    case "Plumb_CreateVents":
+                        Run<StingTools.Commands.Plumbing.PlumbCreateVentsCommand>(app); break;
+
                     // ── Phase 179e — STORM / AUDIT ──
                     case "Plumb_RWH":
                         Run<StingTools.Commands.Plumbing.PlumbRwhCommand>(app); break;
