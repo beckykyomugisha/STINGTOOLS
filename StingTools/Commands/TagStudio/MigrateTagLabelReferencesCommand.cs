@@ -9,6 +9,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Tags;
+using StingTools.UI;
 
 namespace StingTools.Commands.TagStudio
 {
@@ -693,11 +694,19 @@ namespace StingTools.Commands.TagStudio
             }
         }
 
+        /// <summary>
+        /// Read a FamilyParameter's parameter-group ForgeTypeId. Revit 2025
+        /// exposes this via <c>Definition.GetGroupTypeId()</c> (the legacy
+        /// <c>Definition.ParameterGroup</c> property was deprecated). Falls
+        /// back to <c>GroupTypeId.General</c> when the definition is missing
+        /// or the API call throws — that's the same default
+        /// <c>fm.AddParameter</c> uses elsewhere in STING.
+        /// </summary>
         private static ForgeTypeId SafeGroupTypeId(FamilyParameter fp)
         {
             try
             {
-                ForgeTypeId g = fp.GetGroupTypeId();
+                ForgeTypeId g = fp?.Definition?.GetGroupTypeId();
                 if (g != null) return g;
             }
             catch { }
