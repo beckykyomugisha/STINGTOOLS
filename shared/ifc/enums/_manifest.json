@@ -866,9 +866,9 @@
         "IFC2X3"
       ],
       "standards_basis": "STING tag config v5.0 (Data/STING_TAG_CONFIG_v5_0_*.csv); CIBSE Guide A/B/C product taxonomies; Uniclass 2015 Pr-table cross-reference",
-      "value_count": 46,
-      "sha256": "874cdac01c5ab6450d8a3b022844863cc684212386e54a4cc12169f2fc772c0b",
-      "canonical_json_length": 3130
+      "value_count": 60,
+      "sha256": "6288d19a4aee2a6f52cab5faa6ed74ed7447a3e139d488985e4a8ff53c729b68",
+      "canonical_json_length": 4064
     },
     {
       "name": "StingRadiationZones",

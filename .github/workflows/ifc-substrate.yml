@@ -1,0 +1,186 @@
+name: IFC Substrate Validation
+
+# Runs on every push / PR that touches the IFC substrate. Validates:
+#   - enum + Pset corporate-lock SHA-256 checksums are up to date
+#   - bSDD publication plan summary matches actual entries
+#   - enum XML files conform to _schema.xsd
+#   - IDS files are well-formed XML
+#   - every Pset enum reference resolves
+#
+# Add new checks as the substrate grows.
+
+on:
+  push:
+    paths:
+      - 'shared/ifc/**'
+      - 'tools/enums/**'
+      - '.github/workflows/ifc-substrate.yml'
+  pull_request:
+    paths:
+      - 'shared/ifc/**'
+      - 'tools/enums/**'
+      - '.github/workflows/ifc-substrate.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate IFC substrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install validation deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install lxml
+
+      # ---------------------------------------------------------------
+      # 1. Corporate-lock SHA-256 drift check
+      # ---------------------------------------------------------------
+      - name: Checksum drift (enums + psets)
+        run: python3 tools/enums/compute_checksums.py --check
+
+      # ---------------------------------------------------------------
+      # 2. bSDD publication-plan summary drift check
+      # ---------------------------------------------------------------
+      - name: bSDD plan audit
+        run: python3 tools/enums/audit_bsdd.py
+
+      # ---------------------------------------------------------------
+      # 3. XSD validation of every enum file
+      # ---------------------------------------------------------------
+      - name: Validate enum XML against _schema.xsd
+        run: |
+          python3 <<'PY'
+          from lxml import etree
+          from pathlib import Path
+          import sys
+
+          schema_path = Path("shared/ifc/enums/_schema.xsd")
+          schema_doc = etree.parse(str(schema_path))
+          schema = etree.XMLSchema(schema_doc)
+
+          fails = []
+          for xml in sorted(Path("shared/ifc/enums").glob("*.xml")):
+              try:
+                  doc = etree.parse(str(xml))
+                  schema.assertValid(doc)
+              except etree.DocumentInvalid as e:
+                  fails.append(f"{xml.name}: {e}")
+              except etree.XMLSyntaxError as e:
+                  fails.append(f"{xml.name}: {e}")
+
+          if fails:
+              print("XSD validation failures:")
+              for f in fails:
+                  print(f"  - {f}")
+              sys.exit(1)
+          print(f"all {sum(1 for _ in Path('shared/ifc/enums').glob('*.xml'))} enum files conform to _schema.xsd")
+          PY
+
+      # ---------------------------------------------------------------
+      # 4. IDS files well-formed XML
+      # ---------------------------------------------------------------
+      - name: Validate IDS files are well-formed XML
+        run: |
+          python3 <<'PY'
+          from lxml import etree
+          from pathlib import Path
+          import sys
+
+          fails = []
+          ids_dir = Path("shared/ifc/ids")
+          if not ids_dir.exists():
+              print("no shared/ifc/ids — skipping")
+              sys.exit(0)
+          for ids in sorted(ids_dir.glob("*.ids")):
+              try:
+                  etree.parse(str(ids))
+              except etree.XMLSyntaxError as e:
+                  fails.append(f"{ids.name}: {e}")
+          if fails:
+              print("IDS XML syntax failures:")
+              for f in fails:
+                  print(f"  - {f}")
+              sys.exit(1)
+          print(f"all {sum(1 for _ in ids_dir.glob('*.ids'))} IDS files parse as well-formed XML")
+          PY
+
+      # ---------------------------------------------------------------
+      # 5. Pset enum-reference integrity (every <Enumeration> resolves)
+      # ---------------------------------------------------------------
+      - name: Pset enum references must resolve
+        run: |
+          python3 <<'PY'
+          from xml.etree import ElementTree as ET
+          from pathlib import Path
+          import sys
+
+          ENUM_NS = "https://stingtools.io/schema/ifc/enums/v1"
+          PSET_NS = "https://stingtools.io/schema/ifc/psets/v1"
+
+          enum_names = set()
+          for x in Path("shared/ifc/enums").glob("*.xml"):
+              r = ET.parse(x).getroot()
+              n = r.find(f"{{{ENUM_NS}}}Identity").find(f"{{{ENUM_NS}}}Name").text
+              enum_names.add(n)
+
+          fails = []
+          psets_dir = Path("shared/ifc/psets")
+          for p in psets_dir.glob("*.xml"):
+              root = ET.parse(p).getroot()
+              name = root.find(f"{{{PSET_NS}}}Identity").find(f"{{{PSET_NS}}}Name").text
+              for ref in root.iter(f"{{{PSET_NS}}}Enumeration"):
+                  v = (ref.text or "").strip()
+                  if v and v not in enum_names:
+                      fails.append(f"{name} references missing enum: {v}")
+          if fails:
+              for f in fails:
+                  print(f"  - {f}")
+              sys.exit(1)
+          print(f"all Pset enum references resolve in {len(enum_names)} known enums")
+          PY
+
+      # ---------------------------------------------------------------
+      # 6. IfdGuid uniqueness across enums + psets
+      # ---------------------------------------------------------------
+      - name: IfdGuid uniqueness
+        run: |
+          python3 <<'PY'
+          from xml.etree import ElementTree as ET
+          from pathlib import Path
+          import sys
+
+          ENUM_NS = "https://stingtools.io/schema/ifc/enums/v1"
+          PSET_NS = "https://stingtools.io/schema/ifc/psets/v1"
+          seen = {}
+          fails = []
+
+          for x in Path("shared/ifc/enums").glob("*.xml"):
+              r = ET.parse(x).getroot()
+              g = r.find(f"{{{ENUM_NS}}}Identity").find(f"{{{ENUM_NS}}}IfdGuid").text
+              if g in seen:
+                  fails.append(f"duplicate IfdGuid {g}: {x.name} and {seen[g]}")
+              seen[g] = x.name
+
+          for p in Path("shared/ifc/psets").glob("*.xml"):
+              r = ET.parse(p).getroot()
+              g = r.find(f"{{{PSET_NS}}}Identity").find(f"{{{PSET_NS}}}IfdGuid").text
+              if g in seen:
+                  fails.append(f"duplicate IfdGuid {g}: {p.name} and {seen[g]}")
+              seen[g] = p.name
+
+          if fails:
+              for f in fails:
+                  print(f"  - {f}")
+              sys.exit(1)
+          print(f"all {len(seen)} IfdGuids unique across enums + psets")
+          PY

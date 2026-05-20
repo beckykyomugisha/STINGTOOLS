@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS"
+     xmlns:xs="http://www.w3.org/2001/XMLSchema"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+
+  <info>
+    <title>STING — 8-segment tag grammar</title>
+    <description>IDS encoding of the STING tag grammar: validates the 8 segments of Pset_StingTags (Discipline / Location / Zone / Level / System / Function / Product / Sequence) against the corresponding enumerations + the format rules declared in Pset_StingTags.xml. Stage-gated — DISC/LOC/LVL required from Stage 2; ZONE/SYS/SEQ from Stage 3; FUNC/PROD from Stage 4. Use sting-spatial-codes.ids for the cross-entity relationships between tag tokens and the spatial structure.</description>
+    <author>info@stingtools.io</author>
+    <date>2026-05-20</date>
+    <purpose>STING tag-grammar validation — values, formats, sentinel handling</purpose>
+    <milestone>Stage_2_Concept_through_Stage_4_TechnicalDesign</milestone>
+    <copyright>Planscape Limited, 2026</copyright>
+    <version>1.0.0</version>
+    <ifcVersion>IFC4 IFC4X3</ifcVersion>
+  </info>
+
+  <specifications>
+
+    <!-- ============================================================
+         Discipline segment — required from Stage 2 onward.
+         ============================================================ -->
+    <specification name="Discipline_required_and_enumerated"
+                   identifier="10-DISC"
+                   minOccurs="1" maxOccurs="unbounded"
+                   ifcVersion="IFC4 IFC4X3">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><simpleValue>IFCELEMENT</simpleValue></name>
+        </entity>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Discipline</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="M"/>
+              <xs:enumeration value="E"/>
+              <xs:enumeration value="P"/>
+              <xs:enumeration value="A"/>
+              <xs:enumeration value="S"/>
+              <xs:enumeration value="FP"/>
+              <xs:enumeration value="LV"/>
+              <xs:enumeration value="G"/>
+              <xs:enumeration value="H"/>
+              <xs:enumeration value="MG"/>
+              <xs:enumeration value="RP"/>
+              <xs:enumeration value="XX"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+
+    <!-- ============================================================
+         Location segment — required from Stage 2. Pattern only — the
+         actual enumeration is project-scoped (StingLocationCodes).
+         ============================================================ -->
+    <specification name="Location_required_pattern_only"
+                   identifier="11-LOC"
+                   minOccurs="1" maxOccurs="unbounded"
+                   ifcVersion="IFC4 IFC4X3">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><simpleValue>IFCELEMENT</simpleValue></name>
+        </entity>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Location</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="^[A-Za-z0-9_\-]+$"/>
+              <xs:minLength value="1"/>
+              <xs:maxLength value="20"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+
+    <!-- ============================================================
+         Level segment — required from Stage 2. Pattern only — the
+         actual enumeration is project-scoped (StingLevelCodes).
+         ============================================================ -->
+    <specification name="Level_required_pattern_only"
+                   identifier="12-LVL"
+                   minOccurs="1" maxOccurs="unbounded"
+                   ifcVersion="IFC4 IFC4X3">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><simpleValue>IFCELEMENT</simpleValue></name>
+        </entity>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Level</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="^[A-Za-z0-9_\-]+$"/>
+              <xs:minLength value="1"/>
+              <xs:maxLength value="10"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+
+    <!-- ============================================================
+         Zone segment — required from Stage 3. Pattern only — project-scoped.
+         ============================================================ -->
+    <specification name="Zone_pattern_when_present"
+                   identifier="13-ZONE"
+                   minOccurs="0" maxOccurs="unbounded"
+                   ifcVersion="IFC4 IFC4X3">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><simpleValue>IFCELEMENT</simpleValue></name>
+        </entity>
+        <property dataType="IFCLABEL">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Zone</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Zone</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="^[A-Za-z0-9_\-]+$"/>
+              <xs:minLength value="1"/>
+              <xs:maxLength value="20"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+
+    <!-- ============================================================
+         System segment — required from Stage 3. Corporate enumeration.
+         ============================================================ -->
+    <specification name="System_enumerated_when_present"
+                   identifier="14-SYS"
+                   minOccurs="0" maxOccurs="unbounded"
+                   ifcVersion="IFC4 IFC4X3">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><simpleValue>IFCELEMENT</simpleValue></name>
+        </entity>
+        <property dataType="IFCLABEL">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>System</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>System</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="ARC"/>
+              <xs:enumeration value="COM"/>
+              <xs:enumeration value="DCW"/>
+              <xs:enumeration value="DHW"/>
+              <xs:enumeration value="FLS"/>
+              <xs:enumeration value="FP"/>
+              <xs:enumeration value="GAS"/>
+              <xs:enumeration value="GEN"/>
+              <xs:enumeration value="HVAC"/>
+              <xs:enumeration value="HWS"/>
+              <xs:enumeration value="ICT"/>
+              <xs:enumeration value="LV"/>
+              <xs:enumeration value="MGS"/>
+              <xs:enumeration value="NCL"/>
+              <xs:enumeration value="RWD"/>
+              <xs:enumeration value="SAN"/>
+              <xs:enumeration value="SEC"/>
+              <xs:enumeration value="STR"/>
+              <xs:enumeration value="XX"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+
+    <!-- ============================================================
+         Function segment — required from Stage 4 for MEP. Pattern only;
+         the full enumeration is too large to inline (~40 values).
+         Tools should resolve against StingFunctionCodes for completeness.
+         ============================================================ -->
+    <specification name="Function_pattern_when_present"
+                   identifier="15-FUNC"
+                   minOccurs="0" maxOccurs="unbounded"
+                   ifcVersion="IFC4 IFC4X3">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><simpleValue>IFCELEMENT</simpleValue></name>
+        </entity>
+        <property dataType="IFCLABEL">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Function</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Function</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="^[A-Z]{2,4}$"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+
+    <!-- ============================================================
+         Product segment — required from Stage 4 for tagged elements.
+         Pattern only; StingProductCodes has ~46 values.
+         ============================================================ -->
+    <specification name="Product_pattern_when_present"
+                   identifier="16-PROD"
+                   minOccurs="0" maxOccurs="unbounded"
+                   ifcVersion="IFC4 IFC4X3">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><simpleValue>IFCELEMENT</simpleValue></name>
+        </entity>
+        <property dataType="IFCLABEL">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Product</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Product</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="^[A-Z][A-Z0-9]{0,4}$"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+
+    <!-- ============================================================
+         Sequence segment — zero-padded 4-digit integer required from
+         Stage 3.
+         ============================================================ -->
+    <specification name="Sequence_4digit_zero_padded"
+                   identifier="17-SEQ"
+                   minOccurs="0" maxOccurs="unbounded"
+                   ifcVersion="IFC4 IFC4X3">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><simpleValue>IFCELEMENT</simpleValue></name>
+        </entity>
+        <property dataType="IFCLABEL">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Sequence</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Sequence</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="^\d{4}$"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+
+    <!-- ============================================================
+         FullTag (derived) — must match dash-joined source segments.
+         Per Pset_StingTags rule FULLTAG_CONSISTENT.
+         Active from Stage 2; pattern check only — full equality is
+         closed by STING-side validator (sting-spatial-codes-rules.md).
+         ============================================================ -->
+    <specification name="FullTag_matches_8segment_pattern"
+                   identifier="18-FULLTAG"
+                   minOccurs="0" maxOccurs="unbounded"
+                   ifcVersion="IFC4 IFC4X3">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><simpleValue>IFCELEMENT</simpleValue></name>
+        </entity>
+        <property dataType="IFCLABEL">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>FullTag</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>FullTag</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="^[A-Z]{1,2}-[A-Za-z0-9_\-]+-[A-Za-z0-9_\-]+-[A-Za-z0-9_\-]+-[A-Z]{2,4}-[A-Z]{2,4}-[A-Z][A-Z0-9]{0,4}-\d{4}$"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+
+    <!-- ============================================================
+         TokenLock pattern — comma-separated subset of segment names.
+         Per Pset_StingTags rule TOKEN_LOCK_HONORED (the IDS spec checks
+         format; runtime enforcement of "don't overwrite" is host-side).
+         ============================================================ -->
+    <specification name="TokenLock_csv_of_segments"
+                   identifier="19-TOKENLOCK"
+                   minOccurs="0" maxOccurs="unbounded"
+                   ifcVersion="IFC4 IFC4X3">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><simpleValue>IFCELEMENT</simpleValue></name>
+        </entity>
+        <property dataType="IFCLABEL">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>TokenLock</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>TokenLock</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="^$|^(DISC|LOC|ZONE|LVL|SYS|FUNC|PROD|SEQ)(,(DISC|LOC|ZONE|LVL|SYS|FUNC|PROD|SEQ))*$"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+
+    <!-- ============================================================
+         ModifiedAt — ISO 8601 UTC timestamp when present.
+         ============================================================ -->
+    <specification name="ModifiedAt_iso8601_when_present"
+                   identifier="20-MODIFIEDAT"
+                   minOccurs="0" maxOccurs="unbounded"
+                   ifcVersion="IFC4 IFC4X3">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><simpleValue>IFCELEMENT</simpleValue></name>
+        </entity>
+        <property dataType="IFCDATETIME">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>ModifiedAt</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCDATETIME" cardinality="required">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>ModifiedAt</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+  </specifications>
+
+</ids>

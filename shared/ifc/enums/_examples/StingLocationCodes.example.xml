@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  EXAMPLE — not a project-ready file.
+
+  Demonstrates what a populated project overlay looks like for
+  StingLocationCodes. This example project is a 5-building NHS acute
+  hospital campus: main acute block + women's & children's + outpatients
+  + energy centre + multi-storey car park.
+
+  Real-project overlay path:
+      <project>/_BIM_COORD/enums/StingLocationCodes.xml
+
+  Difference from this example:
+    - Origin should be "project" (not "baseline")
+    - Maintainer should name the project's Information Manager
+    - StandardsBasis should cite the project's BEP and tag-grammar appendix
+-->
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingLocationCodes</Name>
+    <Definition>Project overlay — building / site codes for the Riverside Acute Hospital campus. Replaces the corporate template placeholders (BLD1/BLD2/BLD3); preserves the reserved sentinel codes (SITE, EXT, XX, *).</Definition>
+    <IfdGuid>uuid:a1d15c11-9001-4001-9000-000000000001</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>project_template</Scope>
+    <Origin>project</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>Riverside Hospital Project — Information Manager</Maintainer>
+    <StandardsBasis>Riverside Hospital BEP §4.2 (Spatial structure); STING tag grammar v5.0; cross-bound to IfcBuilding via Pset_StingSpatialCodes</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="ACU" sentinel="false">
+      <Definition>Acute Block — main 7-storey inpatient + theatres + ICU + A&amp;E building.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="WAC" sentinel="false">
+      <Definition>Women's &amp; Children's — 4-storey maternity + paediatrics + neonatal block.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="OPD" sentinel="false">
+      <Definition>Outpatients &amp; Diagnostics — 3-storey clinic + imaging + pathology block.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ENC" sentinel="false">
+      <Definition>Energy Centre — CHP plant + chillers + boilers + main switchroom.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MSCP" sentinel="false">
+      <Definition>Multi-Storey Car Park — staff + visitor parking with covered link bridge.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <!-- Reserved sentinels — NOT redefined by project -->
+    <Value code="SITE" sentinel="false">
+      <Definition>External works on the project site (not inside any building). Reserved code — projects do not redefine.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="EXT" sentinel="false">
+      <Definition>External to project site (off-site infrastructure, utility tie-ins). Reserved code.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="XX" sentinel="true">
+      <Definition>Unknown / not yet assigned.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="*" sentinel="true">
+      <Definition>Wildcard for routing rules.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <!-- No CorporateLock — project-scoped overlay. Overlay-lock recorded in <project>/_BIM_COORD/.sting_overlay_locks.json -->
+
+</StingPropertyEnumeration>

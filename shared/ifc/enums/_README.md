@@ -78,7 +78,7 @@ shared/ifc/enums/
 └── StingTheatreTypes.xml           Tier 5 — corporate-locked
 ```
 
-52 enum files + 1 schema + 1 manifest + this README.
+52 enum files (`Sting*.xml`) plus `_schema.xsd`, `_manifest.json`, and this `_README.md`.
 
 ---
 
@@ -96,6 +96,37 @@ Future tiers (6+) would add e.g. composition / classification system
 mirrors and per-domain extensions (industrial, civil, education).
 
 ---
+
+## Code namespacing — same code, different enum
+
+Every value `code` is interpreted in the context of its enclosing
+enum. The same letter sequence can appear in multiple enums with
+different meanings — this is intentional, not a bug:
+
+| Code | Enum-by-enum meaning |
+|---|---|
+| `XX` | Sentinel "unknown" — present in 10+ enums |
+| `*` | Wildcard for routing rules — present in 6+ enums |
+| `Standard` | "1.20 kg/m³" (`StingHVACAirDensities`) / "clevis hanger" (`StingHangerTypes`) / "general OR theatre" (`StingTheatreTypes`) |
+| `None` | "no crop" / "no fire rating" / "no insulation" / "no observation" — context-dependent |
+| `GEN` | "General miscellaneous" (`StingSystemCodes`, `StingFunctionCodes`) / "Generator" (`StingProductCodes`) |
+| `DCW` / `DHW` | Identical concept reused across `StingFunctionCodes`, `StingSystemCodes`, `StingPipeServices` — intentional alignment |
+
+Rule: there is **no global code namespace**. Tools that present codes
+to users (mobile UI, schedules, BCF reports) MUST disambiguate by
+showing both the enum name and the code (e.g. `StingHangerTypes:Standard`)
+or by adding the enum's `Definition` as tooltip / subtitle.
+
+## `SinceVersion` — what it means
+
+Every value carries a `<SinceVersion>` element matching the STING
+corporate-baseline version when the value was first added. Currently
+all values report `5.0.0` because they all shipped together in the
+initial v5 baseline. The field is a **forward-compatibility hook**:
+in v5.1.0 a new value would carry `<SinceVersion>5.1.0</SinceVersion>`,
+and consumers can filter the enumeration by "values available since
+my project's STING version". Existing values' `SinceVersion` never
+changes — it's an immutable record of when the value first appeared.
 
 ## File format — `StingPropertyEnumeration`
 
