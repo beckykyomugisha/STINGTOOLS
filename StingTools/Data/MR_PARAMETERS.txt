@@ -2946,6 +2946,16 @@ PARAM	d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e03	STR_CONN_DETAIL_TXT	TEXT		16	1	Steel 
 PARAM	d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e04	STR_CONN_RATING_KN	TEXT		16	1	Computed shear / moment capacity (kN or kN·m) of beam-end connection per EC3 — ConnectionDetailingEngine [Phase 187]	1
 PARAM	d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e05	STR_FAB_TOLERANCE_MM	TEXT		16	1	Cumulative geometric tolerance (mm) over assembled member chain per BS EN 1090-2 — FabricationToleranceChecker [Phase 187]	1
 PARAM	d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e06	ACO_RW_DB	TEXT		9	1	Weighted sound reduction index Rw (dB) of partition per BS EN ISO 717-1 — AcousticAnalysisEngine [Phase 187]	1
+PARAM	d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e07	STR_ROBUST_STATUS_TXT	TEXT		16	1	Progressive-collapse robustness status (OK / Critical / Risk-class N) per GSA / EC1-1-7 — ProgressiveCollapseChecker [Phase 188]	1
+PARAM	d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e08	STR_SYSTEM_CLASS_TXT	TEXT		16	1	Auto-classified structural system (Moment frame / Braced frame / Dual / Wall — concrete/steel) — StructuralSystemClassifier [Phase 188]	1
+PARAM	e1f2a3b4-c5d6-4e7f-8091-1a2b3c4d5e09	STR_FRAME_M_KNM	TEXT		16	1	Design moment kNm from frame solve (DirectStiffnessMethod) at the governing end of a member [Phase 188]	1
+PARAM	e1f2a3b4-c5d6-4e7f-8091-1a2b3c4d5e0a	STR_PUNCH_UTIL_PCT	TEXT		16	1	Punching shear utilisation percentage (applied shear ÷ resistance) per EC2 §6.4 — PunchingShearChecker [Phase 188]	1
+PARAM	e1f2a3b4-c5d6-4e7f-8091-1a2b3c4d5e0b	STR_WIND_PRESSURE_PA	TEXT		16	1	Wind pressure Pa on element / storey per EC1-1-4 lookup — WindLoadCalculator [Phase 188]	1
+PARAM	e1f2a3b4-c5d6-4e7f-8091-1a2b3c4d5e0c	STR_REBAR_DETAIL_TXT	TEXT		16	1	Reinforcement detail summary (top/bot count + bar size + links) per EC2 §9 — RCDesignHelper [Phase 188]	1
+PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c01	PLM_SUP_QD_LPS	TEXT		6	1	Cold/hot water supply design flow Qd l/s — WaterSupplySizer [Phase 188]	1
+PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c02	PLM_SUP_VEL_MPS	TEXT		6	1	Supply pipe velocity m/s per BS EN 806-3 / Hunter — WaterSupplySizer [Phase 188]	1
+PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c03	PLM_SUP_DP_PAM	TEXT		6	1	Supply pipe friction pressure drop Pa/m (Hazen-Williams) — WaterSupplySizer [Phase 188]	1
+PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c04	PLM_SUP_DN_REQ_MM	TEXT		6	1	Recommended supply pipe DN mm — WaterSupplySizer [Phase 188]	1
 PARAM	c3d5b6ee-0f2e-7283-9405-162718304a5b	ELC_CDT_PENETRATION_COUNT_NR	TEXT		4	1	Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).	1
 PARAM	c1a2b3c4-d5e6-4f70-8a9b-0c1d2e3f4a5b	ELC_WIRE_CORE_COUNT_INT	INTEGER		4	1	Number of conductors/cores in the wire run (1-4). Drives slash-mark count on wire annotation tag. [BS 7671]	1
 PARAM	d2b3c4d5-e6f7-4081-9b0c-1d2e3f4a5b6c	ELC_WIRE_PHASE_TXT	TEXT		4	1	Phase designation: L1/L2/L3/N/PE/CPC/1P/3P [BS 7671 Appendix 7]	1
