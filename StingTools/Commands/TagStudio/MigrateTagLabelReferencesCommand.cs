@@ -19,6 +19,14 @@ namespace StingTools.Commands.TagStudio
     /// Phase 187 caveat that T1-T3 hand-edited labels can't pick up renamed
     /// parameters under <c>MigrateTagFamilies</c>'s preserve-hand-edits mode.
     ///
+    /// <para><b>Scope picker (Phase 188 follow-up).</b> Before iterating
+    /// families the user picks ALL / RECENT (≤180 days) / CHOOSE from a
+    /// TaskDialog. CHOOSE opens a <see cref="UI.StingListPicker"/> with every
+    /// remap row pre-ticked when its <c>Deprecated_Date</c> is recent. This
+    /// prevents bulk application of every historical consolidation
+    /// (<c>SCHEDULE_FIELD_REMAP.csv</c> ships 119+ rows) against a freshly-
+    /// edited project that doesn't expect them.</para>
+    ///
     /// Per family, in one TransactionGroup:
     ///   1. <c>EditFamily</c> opens the .rfa.
     ///   2. For each <c>OLD → NEW</c> mapping where the family carries the OLD
@@ -29,7 +37,14 @@ namespace StingTools.Commands.TagStudio
     ///      in place).
     ///   3. For each formula that references the OLD name as a token: rewrite
     ///      the formula text via <c>FamilyManager.SetFormula(target, newText)</c>.
-    ///   4. Save + load back into the project.
+    ///   4. <b>Atomic save-then-publish.</b> <c>SaveAs</c> writes to a temp
+    ///      <c>.rfa.sting-migrate-&lt;guid&gt;.tmp</c> alongside the canonical
+    ///      output path. Only after <c>LoadFamily</c> succeeds does the temp
+    ///      get atomically <c>File.Move</c>'d over the canonical .rfa. If
+    ///      anything fails (SaveAs / LoadFamily / unhandled exception), the
+    ///      temp is deleted and the canonical .rfa stays untouched — the
+    ///      project keeps its previous binding. Closes the original Phase 188
+    ///      caveat about TG-rollback leaving a stale .rfa on disk.
     ///
     /// Type-mismatch cases (OLD is text, NEW is number, etc.) are reported
     /// but skipped — the API requires storage-type parity. Add a separate
@@ -46,12 +61,30 @@ namespace StingTools.Commands.TagStudio
             Document doc = uidoc.Document;
             Autodesk.Revit.ApplicationServices.Application app = doc.Application;
 
-            // ── Load remap dictionary ──
-            var remap = LoadRemap(out string remapReport);
-            if (remap.Count == 0)
+            // ── Load remap rows (with metadata) ──
+            var remapRows = LoadRemapRows(out string remapReport);
+            if (remapRows.Count == 0)
             {
                 TaskDialog.Show("Migrate Tag Label References",
                     "No REMAPPED entries found in SCHEDULE_FIELD_REMAP.csv.\n\n" + remapReport);
+                return Result.Cancelled;
+            }
+
+            // ── Let the user scope which mappings to apply ──
+            //
+            // SCHEDULE_FIELD_REMAP.csv may carry well over 100 historical
+            // mappings; applying all of them in one pass against a freshly-
+            // edited project may be more than the user wants. Prompt with
+            // a 3-option dialog and, when "Choose" is picked, open a
+            // multi-select StingListPicker prefilled with all rows ticked.
+            Dictionary<string, string> remap;
+            string scopeLabel;
+            var scopeChoice = ChooseRemapScope(remapRows, out remap, out scopeLabel);
+            if (scopeChoice == ScopeResult.Cancelled) return Result.Cancelled;
+            if (remap.Count == 0)
+            {
+                TaskDialog.Show("Migrate Tag Label References",
+                    "No mappings selected for this run.");
                 return Result.Cancelled;
             }
 
@@ -89,7 +122,8 @@ namespace StingTools.Commands.TagStudio
             var confirm = new TaskDialog("Migrate Tag Label References");
             confirm.MainInstruction = $"Rewrite parameter references in {families.Count} tag families?";
             confirm.MainContent =
-                $"Source remap: SCHEDULE_FIELD_REMAP.csv ({remap.Count} REMAPPED entries)\n" +
+                $"Source remap: SCHEDULE_FIELD_REMAP.csv\n" +
+                $"Scope:       {scopeLabel} ({remap.Count} mappings)\n" +
                 $"Shared params: {Path.GetFileName(sharedParamFile)}\n\n" +
                 "For each family, where the OLD parameter is present and the\n" +
                 "NEW parameter has the same storage type, the underlying\n" +
@@ -326,14 +360,23 @@ namespace StingTools.Commands.TagStudio
                     }
 
                     // ── Save + load back ──
+                    // Atomic save-then-publish: write to a temp .rfa first, only
+                    // move into place once LoadFamily succeeds. This makes the
+                    // operation transactional on disk too — if any later stage
+                    // fails (SaveAs / LoadFamily / unhandled exception), the
+                    // canonical TagFamilies/<name>.rfa is never replaced and
+                    // the project keeps its previous family binding.
                     string outDir = TagFamilyConfig.GetOutputDirectory();
-                    string savePath = Path.Combine(outDir, fam.Name + ".rfa");
+                    string finalPath = Path.Combine(outDir, fam.Name + ".rfa");
+                    string tempPath = Path.Combine(outDir,
+                        fam.Name + ".rfa.sting-migrate-" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".tmp");
                     Directory.CreateDirectory(outDir);
+
                     bool savedOk = false;
                     try
                     {
                         var saveOpts = new SaveAsOptions { OverwriteExistingFile = true, MaximumBackups = 1 };
-                        famDoc.SaveAs(savePath, saveOpts);
+                        famDoc.SaveAs(tempPath, saveOpts);
                         savedOk = true;
                     }
                     catch (Exception saveEx)
@@ -344,24 +387,57 @@ namespace StingTools.Commands.TagStudio
                     famDoc.Close(false);
                     famDoc = null;
 
-                    // SaveAs failure → roll the whole family group back so the
-                    // ReplaceParameter changes from Pass 1 don't leak into the
-                    // project as an inconsistent half-migration.
+                    // SaveAs failure → roll Pass-1 bindings back + clean up temp.
                     if (!savedOk)
                     {
+                        try { if (File.Exists(tempPath)) File.Delete(tempPath); }
+                        catch (Exception delEx) { StingLog.Warn($"{fam.Name}: delete tempPath: {delEx.Message}"); }
                         try { tg.RollBack(); } catch (Exception rbEx) { StingLog.Warn($"{fam.Name}: tg.RollBack after save fail: {rbEx.Message}"); }
                         return result;
                     }
 
-                    if (File.Exists(savePath))
+                    bool loadedOk = false;
+                    using (var loadTx = new Transaction(doc, $"STING Reload {fam.Name}"))
                     {
-                        using (var loadTx = new Transaction(doc, $"STING Reload {fam.Name}"))
+                        loadTx.Start();
+                        try
                         {
-                            loadTx.Start();
-                            try { doc.LoadFamily(savePath, new TagFamilyLoadOptions(), out _); }
-                            catch (Exception loadEx) { StingLog.Warn($"{fam.Name}: LoadFamily back: {loadEx.Message}"); }
-                            loadTx.Commit();
+                            loadedOk = doc.LoadFamily(tempPath, new TagFamilyLoadOptions(), out _);
                         }
+                        catch (Exception loadEx)
+                        {
+                            StingLog.Warn($"{fam.Name}: LoadFamily back: {loadEx.Message}");
+                            loadedOk = false;
+                        }
+                        if (loadedOk) loadTx.Commit(); else loadTx.RollBack();
+                    }
+
+                    if (!loadedOk)
+                    {
+                        // LoadFamily failed → the project still references the
+                        // pre-migration family. Discard the temp file and roll
+                        // the TG back so no half-state survives.
+                        try { File.Delete(tempPath); }
+                        catch (Exception delEx) { StingLog.Warn($"{fam.Name}: delete tempPath: {delEx.Message}"); }
+                        result.ErrorMessage = "LoadFamily back into project failed";
+                        try { tg.RollBack(); } catch (Exception rbEx) { StingLog.Warn($"{fam.Name}: tg.RollBack after load fail: {rbEx.Message}"); }
+                        return result;
+                    }
+
+                    // Everything succeeded — atomically replace the canonical
+                    // .rfa with the temp. File.Move(overwrite=true) is atomic
+                    // on NTFS; on failure (e.g. file locked) we keep both
+                    // the temp + the old canonical and report a warning, but
+                    // the project itself is fine (LoadFamily already imported
+                    // the temp's contents into the project document).
+                    try
+                    {
+                        if (File.Exists(finalPath)) File.Delete(finalPath);
+                        File.Move(tempPath, finalPath);
+                    }
+                    catch (Exception mvEx)
+                    {
+                        StingLog.Warn($"{fam.Name}: move tempPath → finalPath: {mvEx.Message} (project state OK; disk artefact at {tempPath})");
                     }
 
                     tg.Assimilate();
@@ -382,19 +458,41 @@ namespace StingTools.Commands.TagStudio
         //  Helpers
         // ──────────────────────────────────────────────────────────────────
 
-        /// <summary>Loads OLD → NEW from SCHEDULE_FIELD_REMAP.csv (REMAPPED rows only).</summary>
-        private static Dictionary<string, string> LoadRemap(out string report)
+        /// <summary>One row of SCHEDULE_FIELD_REMAP.csv carrying both the
+        /// OLD→NEW pair and the surrounding metadata used by the scope picker
+        /// (deprecation date, owner, sunset date, migration notes).</summary>
+        public class RemapRow
         {
-            var dict = new Dictionary<string, string>(StringComparer.Ordinal);
+            public string OldName;
+            public string NewName;
+            public string DeprecatedDate;
+            public string DeprecationOwner;
+            public string SunsetDate;
+            public string MigrationNotes;
+        }
+
+        /// <summary>Result of <see cref="ChooseRemapScope"/>.</summary>
+        private enum ScopeResult { Cancelled, All, Recent, Choose }
+
+        /// <summary>
+        /// Loads REMAPPED rows from SCHEDULE_FIELD_REMAP.csv preserving metadata
+        /// columns. Drop-in replacement for the earlier flat-dict
+        /// <c>LoadRemap</c>; callers that just want the OLD→NEW map call
+        /// <see cref="ToDict(List{RemapRow})"/> after scope filtering.
+        /// </summary>
+        private static List<RemapRow> LoadRemapRows(out string report)
+        {
+            var rows = new List<RemapRow>();
             var sb = new StringBuilder();
             string path = StingToolsApp.FindDataFile("SCHEDULE_FIELD_REMAP.csv");
             if (string.IsNullOrEmpty(path) || !File.Exists(path))
             {
                 sb.AppendLine("SCHEDULE_FIELD_REMAP.csv not found on disk.");
                 report = sb.ToString();
-                return dict;
+                return rows;
             }
             int total = 0, mapped = 0, selfRef = 0, skipped = 0;
+            var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (string line in File.ReadAllLines(path))
             {
                 string t = (line ?? "").Trim();
@@ -409,18 +507,148 @@ namespace StingTools.Commands.TagStudio
                 if (oldName.Length == 0 || newName.Length == 0) { skipped++; continue; }
                 if (!string.Equals(action, "REMAPPED", StringComparison.OrdinalIgnoreCase)) { skipped++; continue; }
                 if (oldName == newName) { selfRef++; continue; }
-                if (!dict.ContainsKey(oldName))
+                if (seen.Contains(oldName)) continue; // first-occurrence wins (mirrors LoadRemap)
+                seen.Add(oldName);
+
+                rows.Add(new RemapRow
                 {
-                    dict[oldName] = newName;
-                    mapped++;
-                }
+                    OldName          = oldName,
+                    NewName          = newName,
+                    DeprecatedDate   = parts.Length > 3 ? parts[3]?.Trim() : "",
+                    DeprecationOwner = parts.Length > 4 ? parts[4]?.Trim() : "",
+                    SunsetDate       = parts.Length > 5 ? parts[5]?.Trim() : "",
+                    MigrationNotes   = parts.Length > 6 ? parts[6]?.Trim() : "",
+                });
+                mapped++;
             }
             sb.AppendLine($"  Total rows: {total}");
             sb.AppendLine($"  Loaded: {mapped} REMAPPED entries");
             sb.AppendLine($"  Skipped: {skipped} (wrong action or malformed)");
             if (selfRef > 0) sb.AppendLine($"  Skipped self-references: {selfRef}");
             report = sb.ToString();
-            return dict;
+            return rows;
+        }
+
+        private static Dictionary<string, string> ToDict(IEnumerable<RemapRow> rows)
+        {
+            var d = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var r in rows)
+                if (!string.IsNullOrEmpty(r.OldName) && !d.ContainsKey(r.OldName))
+                    d[r.OldName] = r.NewName;
+            return d;
+        }
+
+        /// <summary>
+        /// Prompts the user to pick a scope: ALL rows, RECENT only (Deprecated
+        /// within the last 180 days), or CHOOSE (multi-select picker). Returns
+        /// the filtered dict via <paramref name="remap"/> and a human label
+        /// via <paramref name="scopeLabel"/>.
+        /// </summary>
+        private static ScopeResult ChooseRemapScope(List<RemapRow> rows,
+            out Dictionary<string, string> remap, out string scopeLabel)
+        {
+            remap = new Dictionary<string, string>(StringComparer.Ordinal);
+            scopeLabel = "";
+
+            const int RecentDays = 180;
+            int recentCount = rows.Count(r => IsWithinDays(r.DeprecatedDate, RecentDays));
+
+            var td = new TaskDialog("Migrate Tag Label References — choose mapping scope");
+            td.MainInstruction = $"Which {rows.Count} REMAPPED entries to apply?";
+            td.MainContent =
+                $"SCHEDULE_FIELD_REMAP.csv ships {rows.Count} historical OLD → NEW " +
+                "consolidations. Applying every row against a freshly-edited project " +
+                "can clobber more than you intended — pick a tighter scope below.";
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                $"Apply ALL {rows.Count} mappings",
+                "Use every REMAPPED entry in SCHEDULE_FIELD_REMAP.csv (the original behaviour).");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                $"Apply RECENT only ({recentCount} of {rows.Count})",
+                $"Only rows whose Deprecated_Date is within the last {RecentDays} days. " +
+                "Best for projects where you only want to pick up the latest consolidations.");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "CHOOSE individually …",
+                "Multi-select picker pre-filtered to recent rows. Search-as-you-type, " +
+                "tick / untick freely.");
+
+            var choice = td.Show();
+            if (choice == TaskDialogResult.Cancel) return ScopeResult.Cancelled;
+
+            switch (choice)
+            {
+                case TaskDialogResult.CommandLink1:
+                    remap = ToDict(rows);
+                    scopeLabel = "ALL";
+                    return ScopeResult.All;
+
+                case TaskDialogResult.CommandLink2:
+                {
+                    var recent = rows.Where(r => IsWithinDays(r.DeprecatedDate, RecentDays)).ToList();
+                    remap = ToDict(recent);
+                    scopeLabel = $"RECENT ≤{RecentDays}d";
+                    return ScopeResult.Recent;
+                }
+
+                case TaskDialogResult.CommandLink3:
+                {
+                    // Build picker items; tick recent rows by default.
+                    var items = rows.Select(r => new UI.StingListPicker.ListItem
+                    {
+                        Label = $"{r.OldName}  →  {r.NewName}",
+                        Detail = string.IsNullOrEmpty(r.DeprecatedDate)
+                            ? r.MigrationNotes
+                            : $"{r.DeprecatedDate} • {r.DeprecationOwner} • {r.MigrationNotes}",
+                        Tag = r,
+                        IsSelected = IsWithinDays(r.DeprecatedDate, RecentDays),
+                    }).ToList();
+
+                    List<UI.StingListPicker.ListItem> picked;
+                    try
+                    {
+                        picked = UI.StingListPicker.Show(
+                            "Choose mappings to apply",
+                            $"{rows.Count} REMAPPED entries — tick the ones to apply. " +
+                            $"Default selection: {recentCount} rows deprecated within the last {RecentDays} days.",
+                            items,
+                            allowMultiSelect: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"ChooseRemapScope: picker failed, falling back to ALL: {ex.Message}");
+                        remap = ToDict(rows);
+                        scopeLabel = "ALL (picker fallback)";
+                        return ScopeResult.All;
+                    }
+
+                    if (picked == null || picked.Count == 0)
+                        return ScopeResult.Cancelled;
+
+                    var chosen = new List<RemapRow>();
+                    foreach (var p in picked)
+                        if (p?.Tag is RemapRow rr) chosen.Add(rr);
+                    remap = ToDict(chosen);
+                    scopeLabel = $"CHOSEN ({chosen.Count})";
+                    return ScopeResult.Choose;
+                }
+
+                default:
+                    return ScopeResult.Cancelled;
+            }
+        }
+
+        /// <summary>True when an ISO yyyy-MM-dd date string is within
+        /// <paramref name="days"/> of today. Unparseable / empty strings
+        /// return false so we never falsely classify a missing date as
+        /// "recent".</summary>
+        private static bool IsWithinDays(string isoDate, int days)
+        {
+            if (string.IsNullOrWhiteSpace(isoDate)) return false;
+            if (!DateTime.TryParseExact(isoDate.Trim(), "yyyy-MM-dd",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AssumeUniversal, out DateTime dt))
+                return false;
+            return (DateTime.UtcNow.Date - dt.Date).TotalDays <= days;
         }
 
         private static ExternalDefinition FindSharedDefinition(DefinitionFile defFile, string paramName)

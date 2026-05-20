@@ -5529,16 +5529,37 @@ preservation, no-op for prefix collisions).
    `FamilyManager.ReplaceParameter` API has been stable since Revit
    2022 and the signature matches existing STING `AddParameter`
    call sites, but verify in Revit before merge.
-2. The TransactionGroup wraps `EditFamily` + family-doc transactions
-   + the project-doc `LoadFamily`. `EditFamily` opens a separate
-   document, not a sub-transaction on the project doc — the
-   TransactionGroup's Assimilate/RollBack only affects the explicit
-   `LoadFamily` transaction. The famDoc edits are persisted via
-   `SaveAs` before the rollback boundary, so a TG rollback after a
-   successful save would still leave the .rfa on disk but unload it
-   from the project. Acceptable failure mode (file is recoverable
-   via Load Family from disk).
-3. SCHEDULE_FIELD_REMAP.csv currently ships 119 REMAPPED rows from
-   prior phases. Run `SyncParameterSchema` first to add any new
-   renames detected from PARAMETER_REGISTRY.json before invoking
-   this command.
+
+**Caveat-closure pass (Phase 188 follow-up)**:
+
+The original Phase 188 commit shipped two acknowledged caveats. Both
+are now closed in code:
+
+2. ~~TG rollback leaves stale .rfa on disk~~ — **closed**: `SaveAs`
+   now writes to a temp `.rfa.sting-migrate-<guid>.tmp` next to the
+   canonical output path. The canonical `.rfa` is only atomically
+   replaced via `File.Move` after `LoadFamily` succeeds. Any failure
+   (SaveAs / LoadFamily / unhandled exception) deletes the temp and
+   leaves the canonical untouched — the project keeps its previous
+   binding, no manual recovery needed. LoadFamily failure also
+   commits the load-Transaction as `RollBack` instead of `Commit`.
+
+3. ~~119 remap rows applied in one pass with no scope control~~ —
+   **closed**: new `ChooseRemapScope` step prompts the user with a
+   3-option TaskDialog before iterating families:
+   - **ALL** — apply every REMAPPED row (the original behaviour).
+   - **RECENT** — only rows with `Deprecated_Date` within the last
+     180 days (computed from `DateTime.UtcNow.Date`).
+   - **CHOOSE** — opens a `UI.StingListPicker` (multi-select, search-
+     as-you-type) pre-ticked with the recent rows. Untick / tick freely.
+   The chosen scope label (`ALL` / `RECENT ≤180d` / `CHOSEN (N)`) is
+   surfaced in the confirmation dialog and StingLog output. Picker
+   failure falls back to ALL with a warning. Cancellation from the
+   picker returns `Result.Cancelled` cleanly.
+
+**Additional changes (caveat-closure pass)**:
+
+| File | Change |
+|---|---|
+| `StingTools/Commands/TagStudio/MigrateTagLabelReferencesCommand.cs` | `LoadRemap` → `LoadRemapRows` preserving metadata columns; new `RemapRow` POCO + `ToDict` helper; new `ChooseRemapScope` 3-option dialog + `IsWithinDays` date helper; atomic temp-then-Move save flow; class docstring updated |
+| `docs/CHANGELOG.md` | this caveat-closure entry |
