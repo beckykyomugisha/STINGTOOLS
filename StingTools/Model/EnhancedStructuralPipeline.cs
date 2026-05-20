@@ -21,6 +21,7 @@ using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.UI;
 using ClosedXML.Excel;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Model
 {
@@ -237,6 +238,204 @@ namespace StingTools.Model
         {
             // ESP-CRIT-03: Split total axial load into permanent + variable using 70/30 assumption
             return AutoSizeFoundation(axialKN * 0.70, axialKN * 0.30, soilBearingKPa);
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Apply path — closes the structural calc → model loop.
+        //
+        // AutoSizeAll above is reporting-only (returns a string). The
+        // ApplyAutoSizing method below actually swaps each beam / column /
+        // foundation FamilySymbol to the recommended section using
+        // ChangeTypeId, stamps STR_*_SECTION_TXT / STR_*_DEPTH/SIZE_MM /
+        // STR_*_MOMENT_CAPACITY_KNM, and reports counts.
+        // ──────────────────────────────────────────────────────────────────
+        public class StructuralSizingResult
+        {
+            public int    BeamsInspected     { get; set; }
+            public int    BeamsResized       { get; set; }   // ChangeTypeId actually applied
+            public int    BeamsSkipped       { get; set; }
+            public int    ColumnsInspected   { get; set; }
+            public int    ColumnsResized     { get; set; }
+            public int    ColumnsSkipped     { get; set; }
+            public int    FoundationsInspected { get; set; }
+            public int    FoundationsResized   { get; set; }
+            public int    FoundationsSkipped   { get; set; }
+            public int    StampsWritten      { get; set; }   // STING shared-param stamps
+            public List<string> Findings     { get; } = new List<string>();
+            public List<string> Warnings     { get; } = new List<string>();
+            public bool   PreviewOnly        { get; set; }
+        }
+
+        /// <summary>
+        /// Walk beams / columns / foundations and either preview the
+        /// recommended section (apply=false) or actually swap each element's
+        /// FamilySymbol via ChangeTypeId (apply=true). Caller must own the
+        /// surrounding Transaction when apply=true.
+        /// </summary>
+        public static StructuralSizingResult ApplyAutoSizing(
+            Document doc, bool apply, double defaultUdlKNm = 25)
+        {
+            var r = new StructuralSizingResult { PreviewOnly = !apply };
+            if (doc == null) return r;
+            var factory = new StructuralTypeFactory(doc);
+
+            var filter = new ElementMulticategoryFilter(new[]
+            {
+                BuiltInCategory.OST_StructuralFraming,
+                BuiltInCategory.OST_StructuralColumns,
+                BuiltInCategory.OST_StructuralFoundation
+            });
+            var all = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .WherePasses(filter)
+                .ToList();
+
+            foreach (var beam in all.Where(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_StructuralFraming))
+            {
+                r.BeamsInspected++;
+                try
+                {
+                    var loc = beam.Location as LocationCurve;
+                    if (loc?.Curve == null) { r.BeamsSkipped++; continue; }
+                    double spanM = loc.Curve.Length * 0.3048;
+                    var (w, d, summary) = AutoSizeRCBeam(spanM, defaultUdlKNm);
+                    var match = factory.FindOrCreateBeamType(d, w);
+                    if (!match.Success || match.TypeId == ElementId.InvalidElementId)
+                    {
+                        r.BeamsSkipped++;
+                        r.Warnings.Add($"Beam {beam.Id.Value}: no matching family ({match.Message})");
+                        continue;
+                    }
+                    r.Findings.Add($"Beam {beam.Id.Value} · span {spanM:F1} m → {w}×{d}mm · {summary}");
+                    if (apply && SwapType(beam, match.TypeId, r.Warnings))
+                    {
+                        r.BeamsResized++;
+                        StampBeam(beam, w, d, summary, ref r);
+                    }
+                    else if (apply) r.BeamsSkipped++;
+                }
+                catch (Exception ex) { r.BeamsSkipped++; r.Warnings.Add($"Beam {beam.Id.Value}: {ex.Message}"); }
+            }
+
+            foreach (var col in all.Where(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_StructuralColumns))
+            {
+                r.ColumnsInspected++;
+                try
+                {
+                    // Read tributary load from STING shared param if present, otherwise
+                    // use a conservative default that mirrors the AutoSizeAll report.
+                    double axialKN = TryReadDouble(col, "STR_COL_AXIAL_KN", 500);
+                    // Conservative square-column sizing: width = sqrt(N/f) heuristic
+                    // matching the StructuralAutoSizer column logic.
+                    double widthMm = Math.Max(300, Math.Ceiling(Math.Sqrt(axialKN * 4) / 25) * 25);
+                    var match = factory.FindOrCreateColumnType(widthMm, widthMm);
+                    if (!match.Success || match.TypeId == ElementId.InvalidElementId)
+                    {
+                        r.ColumnsSkipped++;
+                        r.Warnings.Add($"Column {col.Id.Value}: no matching family ({match.Message})");
+                        continue;
+                    }
+                    r.Findings.Add($"Column {col.Id.Value} · N {axialKN:F0} kN → {widthMm}×{widthMm}mm");
+                    if (apply && SwapType(col, match.TypeId, r.Warnings))
+                    {
+                        r.ColumnsResized++;
+                        StampColumn(col, widthMm, axialKN, ref r);
+                    }
+                    else if (apply) r.ColumnsSkipped++;
+                }
+                catch (Exception ex) { r.ColumnsSkipped++; r.Warnings.Add($"Col {col.Id.Value}: {ex.Message}"); }
+            }
+
+            foreach (var fnd in all.Where(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_StructuralFoundation))
+            {
+                r.FoundationsInspected++;
+                try
+                {
+                    double axialKN = TryReadDouble(fnd, "STR_COL_AXIAL_KN", 500);
+                    double soilKPa = TryReadDouble(fnd, "STR_SOIL_BEARING_KPA", 150);
+                    var (w, h, summary) = AutoSizeFoundation(axialKN, soilKPa);
+                    // FindOrCreateFoundationType takes (widthMm, depthMm) — pass square pad.
+                    var match = factory.FindOrCreateFoundationType(w, w);
+                    if (!match.Success || match.TypeId == ElementId.InvalidElementId)
+                    {
+                        r.FoundationsSkipped++;
+                        r.Warnings.Add($"Foundation {fnd.Id.Value}: no matching family ({match.Message})");
+                        continue;
+                    }
+                    r.Findings.Add($"Foundation {fnd.Id.Value} → {w}×{w}×{h}mm · {summary}");
+                    if (apply && SwapType(fnd, match.TypeId, r.Warnings))
+                    {
+                        r.FoundationsResized++;
+                        // STR_FND_* params don't exist in registry — leave stamping to
+                        // the dedicated foundation engine. Native swap is enough to
+                        // close the loop for the user.
+                    }
+                    else if (apply) r.FoundationsSkipped++;
+                }
+                catch (Exception ex) { r.FoundationsSkipped++; r.Warnings.Add($"Fnd {fnd.Id.Value}: {ex.Message}"); }
+            }
+
+            return r;
+        }
+
+        private static bool SwapType(Element el, ElementId newTypeId, List<string> warnings)
+        {
+            try
+            {
+                if (el == null || newTypeId == ElementId.InvalidElementId) return false;
+                if (el.GetTypeId() == newTypeId) return false; // already at target
+                // Activate the FamilySymbol so ChangeTypeId can bind to it.
+                if (el.Document.GetElement(newTypeId) is FamilySymbol fs && !fs.IsActive)
+                    fs.Activate();
+                el.ChangeTypeId(newTypeId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                warnings.Add($"ChangeTypeId {el?.Id.Value}: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static double TryReadDouble(Element el, string paramName, double fallback)
+        {
+            try
+            {
+                var p = el?.LookupParameter(paramName);
+                if (p == null || !p.HasValue) return fallback;
+                if (p.StorageType == StorageType.Double)  return p.AsDouble();
+                if (p.StorageType == StorageType.Integer) return p.AsInteger();
+                if (p.StorageType == StorageType.String
+                    && double.TryParse(p.AsString(), out double v)) return v;
+            }
+            catch (Exception ex) { StingLog.Warn($"TryReadDouble {paramName}: {ex.Message}"); }
+            return fallback;
+        }
+
+        private static void StampBeam(Element beam, double w, double d, string summary,
+                                      ref StructuralSizingResult r)
+        {
+            try
+            {
+                ParameterHelpers.SetString(beam, "STR_BEAM_SECTION_TXT", $"{w:F0}×{d:F0}mm", overwrite: true);
+                ParameterHelpers.SetString(beam, "STR_BEAM_DEPTH_MM",    $"{d:F0}",          overwrite: true);
+                ParameterHelpers.SetString(beam, "STR_BEAM_DEFLECTION_LIM_TXT", "L/250",     overwrite: false);
+                r.StampsWritten++;
+            }
+            catch (Exception ex) { r.Warnings.Add($"Beam {beam.Id.Value} stamp: {ex.Message}"); }
+        }
+
+        private static void StampColumn(Element col, double widthMm, double axialKN,
+                                        ref StructuralSizingResult r)
+        {
+            try
+            {
+                ParameterHelpers.SetString(col, "STR_COL_SECTION_TXT", $"{widthMm:F0}×{widthMm:F0}mm", overwrite: true);
+                ParameterHelpers.SetString(col, "STR_COL_SIZE_MM",     $"{widthMm:F0}",                overwrite: true);
+                ParameterHelpers.SetString(col, "STR_COL_AXIAL_KN",    $"{axialKN:F0}",                overwrite: true);
+                r.StampsWritten++;
+            }
+            catch (Exception ex) { r.Warnings.Add($"Column {col.Id.Value} stamp: {ex.Message}"); }
         }
 
         /// <summary>Auto-size all structural elements in model.</summary>
@@ -473,6 +672,98 @@ namespace StingTools.Model
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) return Result.Failed;
             TaskDialog.Show("STING Auto-Size", StructuralAutoSizer.AutoSizeAll(ctx.Doc));
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Closes the structural calc → model loop: previews recommended sections
+    /// for every beam / column / foundation, then on user confirmation swaps
+    /// each element's FamilySymbol via ChangeTypeId and stamps the new section
+    /// to the STR_*_SECTION_TXT / DEPTH / SIZE shared parameters.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrAutoSizeApplyCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { message = "No active document."; return Result.Failed; }
+
+            // 1. Dry-run preview — no transaction, no writes.
+            var preview = StructuralAutoSizer.ApplyAutoSizing(ctx.Doc, apply: false);
+
+            int totalInspected = preview.BeamsInspected + preview.ColumnsInspected + preview.FoundationsInspected;
+            if (totalInspected == 0)
+            {
+                TaskDialog.Show("STING Auto-Size",
+                    "No beams / columns / foundations found to auto-size.");
+                return Result.Succeeded;
+            }
+
+            // 2. Preview dialog — matches the drainage SlopeFix pattern.
+            var td = new TaskDialog("STING Structural Auto-Size")
+            {
+                MainInstruction = "Apply recommended sections to the model?",
+                MainContent =
+                    $"Inspected {totalInspected} structural elements:\n" +
+                    $"  • {preview.BeamsInspected} beams\n" +
+                    $"  • {preview.ColumnsInspected} columns\n" +
+                    $"  • {preview.FoundationsInspected} foundations\n\n" +
+                    "Apply will swap each element's FamilySymbol via ChangeTypeId " +
+                    "and stamp STR_*_SECTION_TXT.\n\n" +
+                    "Run Auto-Size (report only) instead to just preview the recommendations.",
+                CommonButtons = TaskDialogCommonButtons.Cancel,
+                DefaultButton = TaskDialogResult.Cancel
+            };
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Preview report only");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Apply recommended sections");
+            var pick = td.Show();
+            if (pick != TaskDialogResult.CommandLink1 && pick != TaskDialogResult.CommandLink2)
+                return Result.Cancelled;
+
+            StructuralAutoSizer.StructuralSizingResult result = preview;
+            bool apply = pick == TaskDialogResult.CommandLink2;
+            if (apply)
+            {
+                using (var tx = new Transaction(ctx.Doc, "STING Apply Structural Auto-Size"))
+                {
+                    tx.Start();
+                    result = StructuralAutoSizer.ApplyAutoSizing(ctx.Doc, apply: true);
+                    tx.Commit();
+                }
+                try { StingTools.Core.ComplianceScan.InvalidateCache(); }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            }
+
+            var panel = StingResultPanel.Create("Structural Auto-Size");
+            panel.SetSubtitle(apply ? "Sections swapped via ChangeTypeId" : "Preview only — model unchanged");
+            panel.AddSection("BEAMS")
+                 .Metric("Inspected", result.BeamsInspected.ToString())
+                 .Metric("Resized",   result.BeamsResized.ToString())
+                 .Metric("Skipped",   result.BeamsSkipped.ToString());
+            panel.AddSection("COLUMNS")
+                 .Metric("Inspected", result.ColumnsInspected.ToString())
+                 .Metric("Resized",   result.ColumnsResized.ToString())
+                 .Metric("Skipped",   result.ColumnsSkipped.ToString());
+            panel.AddSection("FOUNDATIONS")
+                 .Metric("Inspected", result.FoundationsInspected.ToString())
+                 .Metric("Resized",   result.FoundationsResized.ToString())
+                 .Metric("Skipped",   result.FoundationsSkipped.ToString());
+            if (apply)
+                panel.AddSection("STAMPS").Metric("STING params written", result.StampsWritten.ToString());
+            if (result.Findings.Count > 0)
+            {
+                panel.AddSection("FINDINGS (first 30)");
+                foreach (var f in result.Findings.Take(30)) panel.Text(f);
+            }
+            if (result.Warnings.Count > 0)
+            {
+                panel.AddSection("WARNINGS (first 20)");
+                foreach (var w in result.Warnings.Take(20)) panel.Text(w);
+            }
+            panel.Show();
             return Result.Succeeded;
         }
     }

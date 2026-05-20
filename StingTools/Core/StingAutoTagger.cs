@@ -1094,8 +1094,10 @@ namespace StingTools.Core
         /// <summary>Build a multi-category filter covering all tagged categories.</summary>
         private static ElementMulticategoryFilter CreateMultiCategoryFilter()
         {
-            // Built-in default list. Mutated in place when the Categories sub-tab
-            // has pushed TagCategoryFilter / TagCategoryExclusions ExtraParams.
+            // Built-in default list. Mutated in place when the consolidated
+            // TAGS › Categories sub-tab has pushed TagCategoryFilter /
+            // TagCategoryExclusions ExtraParams. The sub-tab is now a single
+            // tab (was previously two — see StingDockPanel.xaml comment).
             var cats = new List<BuiltInCategory>
             {
                 BuiltInCategory.OST_MechanicalEquipment,
@@ -1123,8 +1125,8 @@ namespace StingTools.Core
                 BuiltInCategory.OST_Conduit,
             };
 
-            // ORPHAN-FIX: honour the Categories sub-tab selection. Include list
-            // replaces the default set; exclude list is subtracted from whatever
+            // Honour the Categories sub-tab selection. Include list replaces
+            // the default set; exclude list is subtracted from whatever
             // remains. Unknown tokens are logged once and skipped.
             try
             {

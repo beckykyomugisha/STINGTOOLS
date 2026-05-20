@@ -167,6 +167,39 @@ namespace StingTools.Model
 
             return cases;
         }
+
+        /// <summary>
+        /// Close the calc → model loop: stamp STR_BEAM_TORSION_KNM and
+        /// STR_ECC_CONN_MM (both new in Phase 187) on every beam where a
+        /// torsion case was detected. Caller owns the Transaction.
+        /// Returns the number of beams written.
+        /// </summary>
+        public static int WriteBack(Document doc, List<TorsionCase> cases)
+        {
+            int written = 0;
+            if (doc == null || cases == null) return written;
+            foreach (var tc in cases)
+            {
+                if (tc?.ElementId == null) continue;
+                var el = doc.GetElement(tc.ElementId);
+                if (el == null) continue;
+                try
+                {
+                    if (tc.TorsionalMomentKNm > 0)
+                        StingTools.Core.ParameterHelpers.SetString(el, "STR_BEAM_TORSION_KNM",
+                            $"{tc.TorsionalMomentKNm:F2}", overwrite: true);
+                    if (tc.EccentricityMm > 0)
+                        StingTools.Core.ParameterHelpers.SetString(el, "STR_ECC_CONN_MM",
+                            $"{tc.EccentricityMm:F0}", overwrite: true);
+                    written++;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"AutoTorsionDetector.WriteBack {tc.ElementId.Value}: {ex.Message}");
+                }
+            }
+            return written;
+        }
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -675,6 +708,27 @@ namespace StingTools.Model
 
             return checks;
         }
+
+        /// <summary>
+        /// Close the calc → model loop: stamp STR_FAB_TOLERANCE_MM (Phase 187)
+        /// with the worst-case tolerance per element. Returns the number of
+        /// elements stamped. Caller owns the Transaction.
+        /// </summary>
+        public static int WriteBack(Document doc, Element el, List<ToleranceCheck> checks)
+        {
+            if (doc == null || el == null || checks == null || checks.Count == 0) return 0;
+            try
+            {
+                double worstMm = 0;
+                foreach (var c in checks) if (c.ToleranceMm > worstMm) worstMm = c.ToleranceMm;
+                if (worstMm <= 0) return 0;
+                if (StingTools.Core.ParameterHelpers.SetString(el, "STR_FAB_TOLERANCE_MM",
+                        $"{worstMm:F1}", overwrite: true))
+                    return 1;
+            }
+            catch (Exception ex) { StingLog.Warn($"FabTolerance.WriteBack {el.Id}: {ex.Message}"); }
+            return 0;
+        }
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -702,9 +756,17 @@ namespace StingTools.Model
                     .WhereElementIsNotElementType()
                     .Take(200));
 
+                // Phase 187 — also collect per-element tolerance so the
+                // caller can stamp STR_FAB_TOLERANCE_MM under its Transaction.
+                _lastPerElementTolerances.Clear();
                 foreach (var el in structElements)
                 {
-                    toleranceChecks.AddRange(FabricationToleranceChecker.CheckElement(el, doc));
+                    var perEl = FabricationToleranceChecker.CheckElement(el, doc);
+                    if (perEl.Count > 0)
+                    {
+                        toleranceChecks.AddRange(perEl);
+                        _lastPerElementTolerances[el.Id] = perEl;
+                    }
                 }
             }
             catch (Exception ex)
@@ -716,5 +778,12 @@ namespace StingTools.Model
             StingLog.Info($"StructuralDeep: {torsionCases.Count} torsion cases, {toleranceChecks.Count} tolerance checks");
             return (torsionCases, toleranceChecks, totalChecks);
         }
+
+        // Per-element tolerance map — populated by AnalyseModel, consumed by
+        // the dispatch wrapper in StingCommandHandler to drive WriteBack.
+        private static readonly Dictionary<ElementId, List<ToleranceCheck>> _lastPerElementTolerances
+            = new Dictionary<ElementId, List<ToleranceCheck>>();
+        public static Dictionary<ElementId, List<ToleranceCheck>> LastPerElementTolerances
+            => _lastPerElementTolerances;
     }
 }

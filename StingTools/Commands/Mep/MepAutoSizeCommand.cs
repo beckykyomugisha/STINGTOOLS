@@ -621,7 +621,25 @@ namespace StingTools.Commands.Mep
                             // Required bore = sqrt(4 * A / (π * fill))
                             double diaMm = Math.Sqrt(4.0 * totalCableAreaMm2 / (Math.PI * maxFillPct / 100.0));
                             double std = MepSizeTables.RoundUpTo(diaMm, MepSizeTables.ConduitStandardMm);
-                            if (WriteDouble(c, "Diameter", std * MmToFt)) res.Resized++;
+                            if (WriteDouble(c, "Diameter", std * MmToFt))
+                            {
+                                res.Resized++;
+                                // Close the calc → model loop: stamp the
+                                // resulting fill % to ELC_CDT_CBL_FILL_PCT
+                                // (existing param) so schedules / warning
+                                // checkers and downstream conduit-bend audits
+                                // can read it without re-running this command.
+                                double conduitAreaMm2 = Math.PI * std * std * 0.25;
+                                double actualFillPct  = conduitAreaMm2 > 0
+                                    ? totalCableAreaMm2 / conduitAreaMm2 * 100.0 : 0;
+                                try
+                                {
+                                    StingTools.Core.ParameterHelpers.SetString(c,
+                                        "ELC_CDT_CBL_FILL_PCT",
+                                        $"{actualFillPct:F1}", overwrite: true);
+                                }
+                                catch (Exception exF) { StingLog.Warn($"Conduit fill stamp {c.Id}: {exF.Message}"); }
+                            }
                             else res.Skipped++;
                         }
                         catch (Exception ex2)

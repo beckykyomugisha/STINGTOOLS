@@ -55,7 +55,10 @@ namespace StingTools.Commands.Plumbing
             using (var tx = new Transaction(doc, "STING v4 Plumbing AutoSize"))
             {
                 tx.Start();
-                dfuMap = FixtureUnitAggregator.BuildDfuMap(doc);
+                // writeBack=true stamps PLM_DFU_COUNT_INT per pipe (existing param);
+                // downstream sizers + paragraph builders can read it without
+                // re-walking the connector graph.
+                dfuMap = FixtureUnitAggregator.BuildDfuMap(doc, writeBack: !dryRun);
                 sizing = DrainageSizer.AnalyseAndSize(doc, dfuMap.PipeDfu, writeBack: !dryRun, dryRun);
                 tx.Commit();
             }
@@ -77,13 +80,14 @@ namespace StingTools.Commands.Plumbing
             var panel = StingResultPanel.Create("Auto-Size Drainage");
             panel.SetSubtitle($"Code: {sizing.CodeUsed} · {dfuMap.PipesTagged} pipes tagged from {dfuMap.FixturesScanned} fixtures");
             panel.AddSection("SUMMARY")
-                 .Metric("Pipes analysed",   sizing.PipesAnalysed.ToString())
-                 .Metric("Upsize required",  sizing.PipesUpsized.ToString())
-                 .Metric("Slope insufficient", sizing.PipesSlopeInsufficient.ToString())
-                 .Metric("Velocity < 0.7 m/s", sizing.PipesSelfCleansingFailed.ToString())
-                 .Metric("Pipes written",    sizing.PipesWritten.ToString())
-                 .Metric("Vent records",     vents.Count.ToString())
-                 .Metric("Stacks flagged",   stackReport.StacksFlagged.ToString());
+                 .Metric("Pipes analysed",        sizing.PipesAnalysed.ToString())
+                 .Metric("Upsize required",       sizing.PipesUpsized.ToString())
+                 .Metric("Slope insufficient",    sizing.PipesSlopeInsufficient.ToString())
+                 .Metric("Velocity < 0.7 m/s",    sizing.PipesSelfCleansingFailed.ToString())
+                 .Metric("Shared-params written", sizing.PipesWritten.ToString())
+                 .Metric("Pipes resized in model",sizing.PipesResized.ToString())
+                 .Metric("Vent records",          vents.Count.ToString())
+                 .Metric("Stacks flagged",        stackReport.StacksFlagged.ToString());
 
             if (sizing.Results.Any())
             {
@@ -108,7 +112,7 @@ namespace StingTools.Commands.Plumbing
         }
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class BackflowAuditCommand : IExternalCommand
     {
@@ -119,10 +123,22 @@ namespace StingTools.Commands.Plumbing
             var classified = BackflowClassifier.ClassifyAll(ctx.Doc);
             var crossConn  = CrossConnectionChecker.Scan(ctx.Doc);
 
+            // Close the calc → model loop: stamp PLM_FLUID_CATEGORY_TXT +
+            // PLM_VLV_BACKFLOW_TYPE_TXT on every classified pipe so schedules
+            // and BOQ paragraph builders see the result without re-running.
+            int stamped = 0;
+            using (var tx = new Transaction(ctx.Doc, "STING Backflow Audit — stamp"))
+            {
+                tx.Start();
+                stamped = BackflowClassifier.WriteBack(ctx.Doc, classified);
+                tx.Commit();
+            }
+
             var panel = StingResultPanel.Create("Backflow Audit (BS EN 1717)");
             panel.AddSection("CATEGORY DISTRIBUTION");
             foreach (var grp in classified.GroupBy(x => x.Category).OrderBy(g => g.Key))
                 panel.Metric($"Category {(int)grp.Key}", grp.Count().ToString());
+            panel.Metric("Params stamped", stamped.ToString());
             if (crossConn.Any())
             {
                 panel.AddSection($"CROSS-CONNECTION FINDINGS ({crossConn.Count})");
@@ -308,7 +324,7 @@ namespace StingTools.Commands.Plumbing
         }
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class RecircBalanceCommand : IExternalCommand
     {
@@ -316,13 +332,22 @@ namespace StingTools.Commands.Plumbing
         {
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
-            var r = RecircLoopBalancer.Analyse(ctx.Doc);
+
+            RecircLoopReport r;
+            using (var tx = new Transaction(ctx.Doc, "STING Recirc Loop Balance"))
+            {
+                tx.Start();
+                r = RecircLoopBalancer.Analyse(ctx.Doc, systemNameFilter: null, writeBack: true);
+                tx.Commit();
+            }
+
             var panel = StingResultPanel.Create("DHW Recirculation Loop Balance");
             panel.SetSubtitle(string.IsNullOrEmpty(r.SystemName) ? "(no recirc system found)" : $"System: {r.SystemName}");
             panel.AddSection("LOOP")
                  .Metric("Total heat loss (W)", r.TotalHeatLossW.ToString("F0"))
                  .Metric("Pump duty (l/min)",   r.PumpDutyLpm.ToString("F1"))
-                 .Metric("Branches",            r.Branches.Count.ToString());
+                 .Metric("Branches",            r.Branches.Count.ToString())
+                 .Metric("PLM_RECIRC_* stamped", r.BranchesStamped.ToString());
             if (r.Branches.Any())
             {
                 panel.AddSection("DRV PRE-SETS (first 40)");
@@ -334,7 +359,7 @@ namespace StingTools.Commands.Plumbing
         }
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StackCapacityCommand : IExternalCommand
     {
@@ -342,13 +367,25 @@ namespace StingTools.Commands.Plumbing
         {
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
-            var dfu = FixtureUnitAggregator.BuildDfuMap(ctx.Doc);
-            var rep = StackCapacityValidator.Validate(ctx.Doc, dfu);
+
+            StackCapacityReport rep;
+            using (var tx = new Transaction(ctx.Doc, "STING Stack Capacity"))
+            {
+                tx.Start();
+                // Stamp PLM_DFU_COUNT_INT per pipe too while we have the
+                // transaction open — saves a second walk if the user runs
+                // Auto-Size Drainage next.
+                var dfu = FixtureUnitAggregator.BuildDfuMap(ctx.Doc, writeBack: true);
+                rep = StackCapacityValidator.Validate(ctx.Doc, dfu, writeBack: true);
+                tx.Commit();
+            }
+
             var panel = StingResultPanel.Create("Stack Capacity (BS EN 12056-2 Table 11)");
             panel.AddSection("SUMMARY")
                  .Metric("Stacks scanned",     rep.StacksScanned.ToString())
                  .Metric("Stacks flagged",     rep.StacksFlagged.ToString())
-                 .Metric("Stacks over capacity", rep.StacksOverCapacity.ToString());
+                 .Metric("Stacks over capacity", rep.StacksOverCapacity.ToString())
+                 .Metric("PLM_STACK_* stamped",  rep.StacksStamped.ToString());
             if (rep.Findings.Any())
             {
                 panel.AddSection("FINDINGS");
