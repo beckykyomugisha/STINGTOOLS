@@ -1784,8 +1784,8 @@ STINGTOOLS/
     └── Data/                           # Runtime data files (49 files)
         ├── BLE_MATERIALS.csv           # 815 building-element materials
         ├── MEP_MATERIALS.csv           # 464 MEP materials
-        ├── MR_PARAMETERS.txt           # Shared parameter file (2,555 params, 26 groups, all data files cross-referenced — Phase 129 alignment)
-        ├── MR_PARAMETERS.csv           # Parameter definitions (CSV mirror of TXT, v5.7 — 2,555 rows, identical param set as TXT)
+        ├── MR_PARAMETERS.txt           # Shared parameter file (3,119 params, 34 groups, all data files cross-referenced — Phase 187 alignment)
+        ├── MR_PARAMETERS.csv           # Parameter definitions (CSV mirror of TXT, v6.4 — 3,119 rows, identical param set as TXT)
         ├── MR_SCHEDULES.csv            # 168 schedule definitions
         ├── MATERIAL_SCHEMA.json        # 77-column material schema (v2.3)
         ├── MATERIAL_LOOKUP.csv         # 237-row material reference database (density, thermal, fire rating, acoustic, embodied carbon, cost)
