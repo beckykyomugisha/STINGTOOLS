@@ -643,7 +643,7 @@ namespace StingTools.Model
                     .Take(500)
                     .ToList();
 
-                int wallsChecked = 0;
+                int wallsChecked = 0, wallsStamped = 0;
                 foreach (var wall in walls)
                 {
                     try
@@ -653,6 +653,18 @@ namespace StingTools.Model
 
                         double rw = SoundInsulationChecker.CalculateRwComposite(layers);
                         double minRw = SoundInsulationChecker.GetMinimumRw("wall_between_dwellings");
+
+                        // Close the calc → model loop: stamp ACO_RW_DB on EVERY
+                        // analysed wall (not just failures) so schedules,
+                        // paragraph builders and acoustic legends can read the
+                        // computed Rw without re-running the engine. Phase 187.
+                        try
+                        {
+                            if (StingTools.Core.ParameterHelpers.SetString(wall, "ACO_RW_DB",
+                                    $"{rw:F1}", overwrite: true))
+                                wallsStamped++;
+                        }
+                        catch (Exception exS) { StingLog.Warn($"ACO_RW stamp {wall.Id}: {exS.Message}"); }
 
                         if (rw < minRw)
                         {
@@ -673,6 +685,7 @@ namespace StingTools.Model
                         StingLog.Warn($"AcousticAnalysis wall {wall.Id}: {ex.Message}");
                     }
                 }
+                StingLog.Info($"AcousticAnalysis: {wallsChecked} walls scanned, {wallsStamped} stamped with ACO_RW_DB");
 
                 // 2. Check floor/slab impact sound
                 var floors = new FilteredElementCollector(doc)

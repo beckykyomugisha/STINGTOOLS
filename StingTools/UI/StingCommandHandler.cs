@@ -2049,9 +2049,26 @@ namespace StingTools.UI
                         var aaDoc = app.ActiveUIDocument?.Document;
                         if (aaDoc != null)
                         {
-                            var results = Model.AcousticAnalysisOrchestrator.AnalyseModel(aaDoc);
+                            // Phase 187 — AnalyseModel now stamps ACO_RW_DB on
+                            // every analysed wall, so the dispatch needs to own
+                            // a transaction (the engine writes via SetString).
+                            List<Model.AcousticResult> results;
+                            try
+                            {
+                                using (var tx = new Transaction(aaDoc, "STING Acoustic Analysis"))
+                                {
+                                    tx.Start();
+                                    results = Model.AcousticAnalysisOrchestrator.AnalyseModel(aaDoc);
+                                    tx.Commit();
+                                }
+                            }
+                            catch (Exception exA)
+                            {
+                                Core.StingLog.Warn($"Acoustic txn fallback: {exA.Message}");
+                                results = Model.AcousticAnalysisOrchestrator.AnalyseModel(aaDoc);
+                            }
                             int fails = results.Count(r => !r.Pass);
-                            var sb = new System.Text.StringBuilder($"Acoustic Analysis: {results.Count} checks ({fails} failures)\n\n");
+                            var sb = new System.Text.StringBuilder($"Acoustic Analysis: {results.Count} checks ({fails} failures)\nACO_RW_DB stamped on every analysed wall.\n\n");
                             foreach (var r in results.Take(30)) sb.AppendLine(r.ToString());
                             TaskDialog.Show("Acoustic Analysis", sb.ToString());
                         }
@@ -2118,9 +2135,29 @@ namespace StingTools.UI
                         if (sdDoc != null)
                         {
                             var (torsion, tolerances, total) = Model.StructuralDeepOrchestrator.AnalyseModel(sdDoc);
+                            // Phase 187 — close the calc → model loop on torsion +
+                            // tolerance cases by stamping the new STR_* params on each
+                            // affected beam / column.
+                            int torsionStamped = 0, tolStamped = 0;
+                            try
+                            {
+                                using (var tx = new Transaction(sdDoc, "STING Stamp Structural Deep"))
+                                {
+                                    tx.Start();
+                                    torsionStamped = Model.AutoTorsionDetector.WriteBack(sdDoc, torsion);
+                                    foreach (var kv in Model.StructuralDeepOrchestrator.LastPerElementTolerances)
+                                    {
+                                        var el = sdDoc.GetElement(kv.Key);
+                                        if (el == null) continue;
+                                        tolStamped += Model.FabricationToleranceChecker.WriteBack(sdDoc, el, kv.Value);
+                                    }
+                                    tx.Commit();
+                                }
+                            }
+                            catch (Exception exTx) { Core.StingLog.Warn($"Structural-deep writeback: {exTx.Message}"); }
                             TaskDialog.Show("Structural Deep Analysis",
-                                $"Torsion Cases: {torsion.Count}\n" +
-                                $"Tolerance Checks: {tolerances.Count}\n\n" +
+                                $"Torsion Cases: {torsion.Count}  (STR_BEAM_TORSION_KNM stamped: {torsionStamped})\n" +
+                                $"Tolerance Checks: {tolerances.Count}  (STR_FAB_TOLERANCE_MM stamped: {tolStamped})\n\n" +
                                 (torsion.Count > 0 ? "Torsion:\n" + string.Join("\n", torsion.Take(10).Select(t => $"  {t.Description}")) : "") +
                                 (tolerances.Count > 0 ? "\nTolerances:\n" + string.Join("\n", tolerances.Take(10).Select(t => $"  {t.CheckName}: ±{t.ToleranceMm:F1}mm")) : ""));
                         }
