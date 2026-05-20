@@ -3,13 +3,36 @@
   "format": "STING IFC PropertyEnumeration manifest",
   "generated_by": "tools/enums/compute_checksums.py",
   "generated_for_repo_relative_path": "shared/ifc/enums/",
-  "total_enums": 26,
+  "total_enums": 51,
   "by_tier": {
     "tier_1_essentials": 11,
     "tier_2_drawing": 7,
-    "tier_3_workflow": 8
+    "tier_3_workflow": 8,
+    "tier_4_engineering": 14,
+    "tier_5_healthcare": 11
   },
   "enums": [
+    {
+      "name": "StingAcousticNCTargets",
+      "file": "StingAcousticNCTargets.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4004-9000-00000000001e",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/cibse/tg6/1.0/class/nc-target",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "CIBSE TG6:2016 acoustics; ASHRAE A48-2019; BB93:2014 (educational); HTM 08-01 (healthcare)",
+      "value_count": 11,
+      "sha256": "54e78420657aa4447d9b5e20b1ce58344671fb0ff989e154e1ecc3a190b14e7c",
+      "canonical_json_length": 810
+    },
     {
       "name": "StingAssetConditions",
       "file": "StingAssetConditions.xml",
@@ -53,6 +76,27 @@
       "canonical_json_length": 336
     },
     {
+      "name": "StingCableCategories",
+      "file": "StingCableCategories.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4004-9000-000000000021",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/cen/en50173/2.0/class/cable-category",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "BS EN 50173-1:2018; TIA-568.3-D (US); ISO/IEC 11801",
+      "value_count": 14,
+      "sha256": "1f48450e5fc8fd353ef3e1721ec38ef45717119b05b2150bce791284c7d007d0",
+      "canonical_json_length": 1008
+    },
+    {
       "name": "StingColorSchemes",
       "file": "StingColorSchemes.xml",
       "version": "1.0.0",
@@ -72,6 +116,27 @@
       "value_count": 11,
       "sha256": "3cd455064ee876a85e3c870607d7d7b1d48a047ce5fa107eb13cb8fdef98d7df",
       "canonical_json_length": 870
+    },
+    {
+      "name": "StingConcreteGrades",
+      "file": "StingConcreteGrades.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4004-9000-000000000028",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/cen/en206/2.0/class/concrete-grade",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "BS EN 206:2013+A2:2021; BS 8500-1:2015+A2:2019; BS EN 1992 (Eurocode 2)",
+      "value_count": 16,
+      "sha256": "14d913c5f3f74d3e68b176255eb9b36b78fcbf88748862ce1555febbda7caa83",
+      "canonical_json_length": 1180
     },
     {
       "name": "StingCropKinds",
@@ -179,6 +244,69 @@
       "canonical_json_length": 255
     },
     {
+      "name": "StingDuctMaterials",
+      "file": "StingDuctMaterials.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4004-9000-000000000023",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "BSRIA DW/144; SMACNA HVAC Duct Construction Standards; HTM 03-01 healthcare ventilation",
+      "value_count": 11,
+      "sha256": "2176be106dfee37f0ad557d61100b6de4c6e71047e40390760b6859adccd66c8",
+      "canonical_json_length": 885
+    },
+    {
+      "name": "StingEESTypes",
+      "file": "StingEESTypes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4005-9000-00000000002c",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/nhs/htm-06-01/1.0/class/ees-type",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "HTM 06-01:2017 (Electrical services supply and distribution); NFPA 99:2024 Chapter 6; NFPA 110 (Emergency Standby Power)",
+      "value_count": 7,
+      "sha256": "cbe0bff6ed8f7d4ca435694fd16741762a3c865c64608ad08551cf8d257ec394",
+      "canonical_json_length": 577
+    },
+    {
+      "name": "StingFireRatings",
+      "file": "StingFireRatings.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4004-9000-000000000020",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/cen/en13501/2.0/class/fireresistance",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "BS EN 13501-2:2016 fire resistance classification; UK Approved Document B (Fire Safety); BS 9999 strategic fire compartmentation; HTM 05-02 healthcare fire",
+      "value_count": 20,
+      "sha256": "0db126c653662fd80335d374d0247a4d755ded9d2e905784bac76130594c23fd",
+      "canonical_json_length": 1424
+    },
+    {
       "name": "StingFunctionCodes",
       "file": "StingFunctionCodes.xml",
       "version": "1.0.0",
@@ -198,6 +326,174 @@
       "value_count": 41,
       "sha256": "622e5905155e5b2e351781f4be2b68fe18f0812278d877b6ccb9e960bc2f8317",
       "canonical_json_length": 2798
+    },
+    {
+      "name": "StingHBNDepartments",
+      "file": "StingHBNDepartments.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4005-9000-000000000032",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/nhs/hbn/1.0/class/department",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "NHS England Healthcare Building Notes (HBN) full catalogue; CQC department-type classifications",
+      "value_count": 22,
+      "sha256": "6117b4031c9309dc19bf7a69936f63fe80ef726a828ab1d97e825dab174e58b8",
+      "canonical_json_length": 1659
+    },
+    {
+      "name": "StingHTMWaterRiskZones",
+      "file": "StingHTMWaterRiskZones.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4005-9000-000000000031",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/nhs/htm-04-01/1.0/class/water-risk-zone",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "HTM 04-01:2016 (Safe water in healthcare premises); HSG 274 Legionnaires' disease; BS 8580-1:2019 (Risk assessment for Legionella)",
+      "value_count": 7,
+      "sha256": "5b06d03f049a0f315f8be3aa8c1525d23bb70f82ad591fd379a986af73880761",
+      "canonical_json_length": 583
+    },
+    {
+      "name": "StingHVACAirDensities",
+      "file": "StingHVACAirDensities.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4004-9000-00000000001c",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "CIBSE Guide C §4.3; ASHRAE Fundamentals 2021 Ch.1",
+      "value_count": 6,
+      "sha256": "800bb99a79510051ab3182fa6a9bed827172f3639be17e1080dc3062ccbd3039",
+      "canonical_json_length": 484
+    },
+    {
+      "name": "StingHVACPressureClasses",
+      "file": "StingHVACPressureClasses.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4004-9000-00000000001b",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "BSRIA DW/144 (UK); SMACNA HVAC Duct Construction Standards (US); EN 1507 / EN 12237 (EU)",
+      "value_count": 4,
+      "sha256": "48f699544efa6755e2a27ce06ed42e740a016bdbbd75a82725e9f76e43ae3e94",
+      "canonical_json_length": 324
+    },
+    {
+      "name": "StingHVACSizingStrategies",
+      "file": "StingHVACSizingStrategies.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4004-9000-00000000001d",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "CIBSE Guide B3 §3.4 duct sizing methods; ASHRAE 90.1 Appendix G",
+      "value_count": 4,
+      "sha256": "c284e7a1a9fc1da3b5dd21a911fd7ae3a180a5be49fa6152c25bfff9c047d8ec",
+      "canonical_json_length": 370
+    },
+    {
+      "name": "StingHangerTypes",
+      "file": "StingHangerTypes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4004-9000-000000000025",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "MSS SP-58 / SP-69 (US); BS 3974 (UK pipe supports); BS EN ISO 13920 fabrication tolerances",
+      "value_count": 12,
+      "sha256": "11deb72db2e0fb6300dec3f088e72de19dff6b548dc8887086c3602834f434fe",
+      "canonical_json_length": 957
+    },
+    {
+      "name": "StingHealthcareFacilityProfiles",
+      "file": "StingHealthcareFacilityProfiles.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4005-9000-000000000029",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/stingtools/healthcare/1.0/class/facility-profile",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "STING Healthcare Pack (Phases H-1..H-30); NHS England Healthcare Building Notes (HBN) facility-type catalogue",
+      "value_count": 9,
+      "sha256": "c56cdd82fe39a2645ea6769f01b4771dd4f67d575ff4654c599f74486e2584e2",
+      "canonical_json_length": 720
+    },
+    {
+      "name": "StingInsulationTypes",
+      "file": "StingInsulationTypes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4004-9000-000000000024",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "BS 5422:2009; BS EN ISO 13787; ICE Database v3.0 (embodied carbon)",
+      "value_count": 10,
+      "sha256": "4f3fd458ae102687b3b995deac46dffcf6756006c1cf3e93d30ef2184f591223",
+      "canonical_json_length": 817
     },
     {
       "name": "StingIssuePriorities",
@@ -284,6 +580,27 @@
       "canonical_json_length": 1316
     },
     {
+      "name": "StingLigatureRatings",
+      "file": "StingLigatureRatings.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4005-9000-00000000002f",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/nhs/hbn-03-01/1.0/class/ligature-rating",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "HBN 03-01:2013 (Adult acute mental health units); NHS England Standards and procurement guidance; PAS 24 / BS 8300-2; PD CR 14383",
+      "value_count": 5,
+      "sha256": "a05c5f54859c474134a857a72c6a86e0b4c22db893162f86981379f99af2181b",
+      "canonical_json_length": 434
+    },
+    {
       "name": "StingLocationCodes",
       "file": "StingLocationCodes.xml",
       "version": "1.0.0",
@@ -305,6 +622,48 @@
       "canonical_json_length": 526
     },
     {
+      "name": "StingMGSGasTypes",
+      "file": "StingMGSGasTypes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4005-9000-00000000002a",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/nhs/htm-02-01/1.0/class/medical-gas-type",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "HTM 02-01:2006 (UK Medical Gases); NFPA 99:2024 (US Health Care Facilities Code); BS EN ISO 7396-1 (piped medical gas systems)",
+      "value_count": 10,
+      "sha256": "b83ef6ea97f0ce9b9a91145ebc67593ce52cf182d4565c28a77eb1fea2a68dbb",
+      "canonical_json_length": 736
+    },
+    {
+      "name": "StingMRIZones",
+      "file": "StingMRIZones.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4005-9000-00000000002d",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/acr/mr-safety/2020/class/zone",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "ACR Guidance Document on MR Safe Practices: 2020; MHRA DB 2021(03) (UK); IEC 60601-2-33",
+      "value_count": 4,
+      "sha256": "bd109d0380ff272ed471a43b559159df3892bc817a32340c764503b43112e6fe",
+      "canonical_json_length": 337
+    },
+    {
       "name": "StingMaintenanceFrequencies",
       "file": "StingMaintenanceFrequencies.xml",
       "version": "1.0.0",
@@ -324,6 +683,27 @@
       "value_count": 11,
       "sha256": "27ebc96a5f91763c3aa9199577aa2f326d35be0365db5c9e44664ea541bd4972",
       "canonical_json_length": 861
+    },
+    {
+      "name": "StingObservationLOS",
+      "file": "StingObservationLOS.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4005-9000-000000000030",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/nhs/mental-health/1.0/class/observation-los",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "HBN 03-01:2013; NHS England Mental Health Premises Standards 2022; CQC observation guidance",
+      "value_count": 5,
+      "sha256": "72f1ac27b5a83c669b540e468d2dc66c652332051b77e2a174feee7f1e3a1e8d",
+      "canonical_json_length": 419
     },
     {
       "name": "StingOrientations",
@@ -368,6 +748,69 @@
       "canonical_json_length": 875
     },
     {
+      "name": "StingPipeMaterials",
+      "file": "StingPipeMaterials.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4004-9000-000000000022",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/iso/ifcmaterial/4.0/class/pipe-material",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "BS EN 806 + BS 1710 (pipe ID); WRAS approved-products scheme; ICE Database v3.0 (embodied carbon)",
+      "value_count": 15,
+      "sha256": "e291514e1df393b93f5803dda3c792f105a0f82e07c536cb0032fde4c60581f3",
+      "canonical_json_length": 1136
+    },
+    {
+      "name": "StingPipeServices",
+      "file": "StingPipeServices.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4004-9000-00000000001f",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "BS EN 806 (water); CIBSE Guide G (plumbing); CIBSE Guide B1 (heating); BS 1710 (pipe identification); ASME B31 (process piping)",
+      "value_count": 24,
+      "sha256": "bdf64cd8ffc82f16f49843f88922abf026380487261db8a6042d91385965550c",
+      "canonical_json_length": 1742
+    },
+    {
+      "name": "StingPressureRegimes",
+      "file": "StingPressureRegimes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4005-9000-00000000002b",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/nhs/htm-03-01/1.0/class/pressure-regime",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "HTM 03-01:2021 (Specialised ventilation for healthcare premises); SHTM 03-01 (Scotland); CDC 2005 isolation room guidance",
+      "value_count": 13,
+      "sha256": "095bc04a67b88eb284ad27b30f1531f52adda5145a31be8d785c8e28c41433ed",
+      "canonical_json_length": 1039
+    },
+    {
       "name": "StingProductCodes",
       "file": "StingProductCodes.xml",
       "version": "1.0.0",
@@ -387,6 +830,27 @@
       "value_count": 46,
       "sha256": "874cdac01c5ab6450d8a3b022844863cc684212386e54a4cc12169f2fc772c0b",
       "canonical_json_length": 3130
+    },
+    {
+      "name": "StingRadiationZones",
+      "file": "StingRadiationZones.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4005-9000-00000000002e",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/ncrp/147/2004/class/radiation-zone",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "NCRP Report 147 (2004); IRR 2017 (UK Ionising Radiations Regulations); ICRP Publication 103; IPEM Report 75",
+      "value_count": 6,
+      "sha256": "0084a4ed7394ab118773c5706f9992fc13f74c48601487b77a78648a139c508d",
+      "canonical_json_length": 507
     },
     {
       "name": "StingRevisionTypes",
@@ -473,6 +937,27 @@
       "canonical_json_length": 622
     },
     {
+      "name": "StingSteelGrades",
+      "file": "StingSteelGrades.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4004-9000-000000000027",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/cen/en10025/2.0/class/structural-steel-grade",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "BS EN 10025-2:2019 (hot-rolled structural steel); BS EN 10088 (stainless); BS EN 1993 (Eurocode 3 design)",
+      "value_count": 15,
+      "sha256": "d7ed11d7dce730fa919b67adec919ee49ba06ff692869a7cf6fa33ea77296f0a",
+      "canonical_json_length": 1073
+    },
+    {
       "name": "StingSuitabilityCodes",
       "file": "StingSuitabilityCodes.xml",
       "version": "1.0.0",
@@ -513,6 +998,48 @@
       "value_count": 20,
       "sha256": "d30b575195b402179963e2d86da5d80531fd920b83fdda4f41b1d5b62b9e1b44",
       "canonical_json_length": 1390
+    },
+    {
+      "name": "StingTheatreTypes",
+      "file": "StingTheatreTypes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4005-9000-000000000033",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/nhs/hbn-26/2013/class/theatre-type",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "HBN 26 (Facilities for surgical procedures) 2013; HTM 03-01 ventilation; HFN 26-1 minor surgical procedure rooms",
+      "value_count": 11,
+      "sha256": "38eb970b257563379817800a765e0f8366040883fc1de82471e74ca6de58d427",
+      "canonical_json_length": 867
+    },
+    {
+      "name": "StingWeldTypes",
+      "file": "StingWeldTypes.xml",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4004-9000-000000000026",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "AWS A2.4-2020 (US); BS EN ISO 2553:2019 (UK / EU); ASME IX",
+      "value_count": 10,
+      "sha256": "0bea55187840d585f37542e1f28233d1005b795e8335aae9dcf00b4a31339575",
+      "canonical_json_length": 745
     },
     {
       "name": "StingWorkflowStates",

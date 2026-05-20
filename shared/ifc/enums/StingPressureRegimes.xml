@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingPressureRegimes</Name>
+    <Definition>Clinical-room pressure regime per HTM 03-01 / SHTM 03-01. Defines the design pressure differential to surrounding spaces — drives airflow balancing, door undercut sizing, AHU sizing in MEPBalancingEngine, and the live pressure-regime audit. Each regime carries a documented design target (e.g. +25 Pa for operating theatre, -15 Pa for negative isolation).</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4005-9000-00000000002b</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/nhs/htm-03-01/1.0/class/pressure-regime</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>HTM 03-01:2021 (Specialised ventilation for healthcare premises); SHTM 03-01 (Scotland); CDC 2005 isolation room guidance</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Positive_5" sentinel="false">
+      <Definition>Positive +5 Pa — minor positive cascade; treatment rooms, clean-up rooms above corridor.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Positive_15" sentinel="false">
+      <Definition>Positive +15 Pa — standard positive clinical room (ward isolation reverse, clean utility).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Positive_25" sentinel="false">
+      <Definition>Positive +25 Pa — operating theatre standard per HTM 03-01.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Positive_45" sentinel="false">
+      <Definition>Positive +45 Pa — ultra-clean orthopaedic / bone-marrow transplant rooms.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Negative_5" sentinel="false">
+      <Definition>Negative -5 Pa — minor negative cascade; dirty utility, sluice rooms.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Negative_15" sentinel="false">
+      <Definition>Negative -15 Pa — standard negative isolation per HTM 03-01.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Negative_30" sentinel="false">
+      <Definition>Negative -30 Pa — full aerogenic infection isolation; high-consequence pathogen.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Neutral" sentinel="false">
+      <Definition>Neutral — design pressure equal to surrounding zones. Standard wards, offices.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Cascade" sentinel="false">
+      <Definition>Cascade — intermediate buffer zone. Pressure determined by neighbouring zones (e.g. anteroom between corridor and negative isolation).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="OperatingTheatre" sentinel="false">
+      <Definition>Operating Theatre — alias for +25 Pa standard; carries OR theatre-specific commissioning requirements.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ProtectiveIsolation" sentinel="false">
+      <Definition>Protective Isolation — alias for +45 Pa; bone-marrow transplant / immunocompromised. Protects patient from external pathogens.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SourceIsolation" sentinel="false">
+      <Definition>Source Isolation — alias for -15 / -30 Pa; protects others from patient (TB, MERS, smallpox).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Anteroom" sentinel="false">
+      <Definition>Anteroom — buffer space adjoining an isolation room. Pressure between corridor and isolation pressure.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>095bc04a67b88eb284ad27b30f1531f52adda5145a31be8d785c8e28c41433ed</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

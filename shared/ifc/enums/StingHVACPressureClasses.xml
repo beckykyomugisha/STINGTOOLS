@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingHVACPressureClasses</Name>
+    <Definition>HVAC duct pressure classes per BSRIA DW/144 + SMACNA — selects the duct construction standard, gauge, seam type, and leakage class for a given system maximum static pressure. Drives MepAutoSizeDuctCommand sizing decisions and SeamAudit / GaugeBreakpoint resolution in the STING_MEP_SIZING_RULES.json registry.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4004-9000-00000000001b</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>BSRIA DW/144 (UK); SMACNA HVAC Duct Construction Standards (US); EN 1507 / EN 12237 (EU)</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="A" sentinel="false">
+      <Definition>Class A — up to 500 Pa static pressure. Low-pressure ducting, light-gauge construction, lowest leakage class.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="B" sentinel="false">
+      <Definition>Class B — up to 1000 Pa. Medium-pressure ducting; standard supply / return systems.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="C" sentinel="false">
+      <Definition>Class C — up to 2500 Pa. High-pressure ducting; long runs, high-velocity systems, plant-room mains.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="D" sentinel="false">
+      <Definition>Class D — up to 7500 Pa. Very high pressure; smoke control + clean rooms + specialised process exhaust.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>48f699544efa6755e2a27ce06ed42e740a016bdbbd75a82725e9f76e43ae3e94</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingHBNDepartments</Name>
+    <Definition>Healthcare Building Note (HBN) clinical department taxonomy. Maps a clinical room / area to its HBN reference document; drives validator-set selection, area-schedule benchmarks, and HBN-compliance audits. The HBN reference (e.g. HBN 26 for theatres) is the source of department-specific spatial + technical standards.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4005-9000-000000000032</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/nhs/hbn/1.0/class/department</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>NHS England Healthcare Building Notes (HBN) full catalogue; CQC department-type classifications</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Wards" sentinel="false">
+      <Definition>Inpatient wards (HBN 04-01). Acute / general / step-down ward accommodation.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ICU" sentinel="false">
+      <Definition>Intensive Care Unit (HBN 04-02). Adult critical care.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Theatres" sentinel="false">
+      <Definition>Operating Department (HBN 26). General + day surgery theatres; recovery; anaesthetic.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Imaging" sentinel="false">
+      <Definition>Diagnostic Imaging (HBN 06). X-ray, CT, MRI, ultrasound, fluoroscopy.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Pathology" sentinel="false">
+      <Definition>Pathology and laboratories (HBN 15). Biochemistry, microbiology, histology, blood-bank.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Pharmacy" sentinel="false">
+      <Definition>Pharmacy (HBN 14). Dispensing, aseptic compounding, cytotoxic services.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Emergency" sentinel="false">
+      <Definition>Emergency Department (HBN 15-01). A&amp;E majors, minors, resus.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Outpatients" sentinel="false">
+      <Definition>Outpatients (HBN 12). General / specialty outpatient clinics.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Mortuary" sentinel="false">
+      <Definition>Mortuary and PM Services (HBN 20). Body store, post-mortem, viewing.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Endoscopy" sentinel="false">
+      <Definition>Endoscopy (HBN 52). Procedure rooms + endoscope reprocessing.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RenalDialysis" sentinel="false">
+      <Definition>Renal Dialysis (HBN 07-01). Haemodialysis + peritoneal dialysis.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Maternity" sentinel="false">
+      <Definition>Maternity (HBN 09). Antenatal, labour-delivery, postnatal.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Neonatal" sentinel="false">
+      <Definition>Neonatal (HBN 09-03). NICU + special care baby unit.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Paediatrics" sentinel="false">
+      <Definition>Children + young people services (HBN 23). Paediatric wards + outpatients.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MentalHealth" sentinel="false">
+      <Definition>Mental Health (HBN 03-01 / 03-02). Adult acute mental health + older-people mental health.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="DayCare" sentinel="false">
+      <Definition>Day Surgery / Day Care (HBN 52). Same-day-discharge surgical + medical procedures.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Rehabilitation" sentinel="false">
+      <Definition>Rehabilitation Services (HBN 02-01). Physiotherapy, OT, hydrotherapy.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HSDU" sentinel="false">
+      <Definition>Hospital Sterile Services / CSSD (HBN 13). Decontamination, sterilisation, packing.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Decon" sentinel="false">
+      <Definition>Decontamination — chemical / radiation / biological decon facility.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Oncology" sentinel="false">
+      <Definition>Oncology (HBN 27). Chemotherapy + radiotherapy delivery suites.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Cardiology" sentinel="false">
+      <Definition>Cardiology + cath lab (HBN 06-03). Catheterisation, EP, echo.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Administrative" sentinel="false">
+      <Definition>Administrative + support — back-of-house clinical support areas without direct clinical activity. Excluded from most validators.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>6117b4031c9309dc19bf7a69936f63fe80ef726a828ab1d97e825dab174e58b8</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

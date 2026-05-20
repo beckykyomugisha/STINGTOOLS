@@ -226,6 +226,8 @@ def main(argv: list[str]) -> int:
                 "tier_1_essentials": 11,
                 "tier_2_drawing": 7,
                 "tier_3_workflow": 8,
+                "tier_4_engineering": 14,
+                "tier_5_healthcare": 11,
             },
             "enums": entries,
         }

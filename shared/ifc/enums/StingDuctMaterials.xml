@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingDuctMaterials</Name>
+    <Definition>HVAC duct material codes. Drives DW/144 gauge selection, fire performance, embodied carbon, and applicability per StingHVACPressureClasses. Stainless and pre-insulated phenolic are healthcare-pack favourites (theatre supply, MGS-adjacent).</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4004-9000-000000000023</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>BSRIA DW/144; SMACNA HVAC Duct Construction Standards; HTM 03-01 healthcare ventilation</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="GalvSteel" sentinel="false">
+      <Definition>Galvanised Steel sheet — Z275 zinc coating per BS EN 10346. Standard HVAC duct material.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="StainlessSteel" sentinel="false">
+      <Definition>Stainless Steel — 304/316. Used for OR theatre supply, kitchen extract, chemical fume.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Aluminium" sentinel="false">
+      <Definition>Aluminium — lightweight, used for fan-coil flexible / rigid plenum boxes.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="PreInsulatedPhenolic" sentinel="false">
+      <Definition>Pre-insulated Phenolic — sandwich panel ducting, low-leakage, used in healthcare + clean rooms.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FibreglassRigid" sentinel="false">
+      <Definition>Fibreglass Rigid (Lined Duct Board) — limited UK use; common in US light-commercial.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FlexibleAluminium" sentinel="false">
+      <Definition>Flexible Aluminium — short connections to terminal devices only.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FlexibleInsulated" sentinel="false">
+      <Definition>Insulated Flexible — short low-velocity terminal connections.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Fabric" sentinel="false">
+      <Definition>Fabric "sock" duct — gymnasiums, large open spaces.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HDPE" sentinel="false">
+      <Definition>HDPE — laboratory fume / chemical-resistant exhaust.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="PVCu" sentinel="false">
+      <Definition>uPVC — lab fume / corrosive exhaust.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Concrete" sentinel="false">
+      <Definition>Concrete — fire-shaft ducting, smoke ventilation shafts.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>2176be106dfee37f0ad557d61100b6de4c6e71047e40390760b6859adccd66c8</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

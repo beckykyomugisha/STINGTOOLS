@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingCableCategories</Name>
+    <Definition>Structured-cabling category codes per BS EN 50173 / TIA-568 — twisted-pair Cat 5e..Cat 8 and fibre OM1..OS2. Used by communications takeoffs, panel schedules, COBie cable register, and the LV pack of MepSizingRegistry to set bandwidth + max-channel-length defaults.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4004-9000-000000000021</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/cen/en50173/2.0/class/cable-category</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>BS EN 50173-1:2018; TIA-568.3-D (US); ISO/IEC 11801</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Cat3" sentinel="false">
+      <Definition>Category 3 — 16 MHz / 10 Mbps. Legacy telephone, rarely specified for new work.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Cat5e" sentinel="false">
+      <Definition>Category 5e — 100 MHz / 1 Gbps. Legacy minimum for new commercial work.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Cat6" sentinel="false">
+      <Definition>Category 6 — 250 MHz / 1 Gbps to 100 m. Current commercial minimum.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Cat6A" sentinel="false">
+      <Definition>Category 6A — 500 MHz / 10 Gbps to 100 m. STING default for new healthcare + commercial.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Cat7" sentinel="false">
+      <Definition>Category 7 — 600 MHz / 10 Gbps. Shielded; less common in UK.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Cat7A" sentinel="false">
+      <Definition>Category 7A — 1000 MHz / 10 Gbps. Shielded; high-bandwidth applications.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Cat8" sentinel="false">
+      <Definition>Category 8 — 2000 MHz / 25-40 Gbps to 30 m. Data centre / TOR connectivity.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="OM1" sentinel="false">
+      <Definition>Multimode Fibre OM1 — 62.5/125 µm, legacy.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="OM2" sentinel="false">
+      <Definition>Multimode Fibre OM2 — 50/125 µm, legacy.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="OM3" sentinel="false">
+      <Definition>Multimode Fibre OM3 — 50/125 µm, 10 Gbps to 300 m. Common backbone.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="OM4" sentinel="false">
+      <Definition>Multimode Fibre OM4 — 50/125 µm, 10 Gbps to 400 m. STING default fibre backbone.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="OM5" sentinel="false">
+      <Definition>Multimode Fibre OM5 — 50/125 µm, wideband WDM, 100 Gbps capable.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="OS1" sentinel="false">
+      <Definition>Singlemode Fibre OS1 — 9/125 µm indoor cable.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="OS2" sentinel="false">
+      <Definition>Singlemode Fibre OS2 — 9/125 µm, low-water-peak, long-haul / inter-building.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>1f48450e5fc8fd353ef3e1721ec38ef45717119b05b2150bce791284c7d007d0</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingHangerTypes</Name>
+    <Definition>Pipe / duct support and hanger type codes per MSS SP-58 / SP-69. Drives PlaceHangersCommand support spacing rules, seismic restraint takedown, and the COBie spare parts schedule for support hardware.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4004-9000-000000000025</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>MSS SP-58 / SP-69 (US); BS 3974 (UK pipe supports); BS EN ISO 13920 fabrication tolerances</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Standard" sentinel="false">
+      <Definition>Standard Clevis hanger — most common pipe support. MSS SP-58 Type 1.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Roller" sentinel="false">
+      <Definition>Roller hanger / chair — allows axial movement; MSS SP-58 Type 41/43.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="TrapezeBar" sentinel="false">
+      <Definition>Trapeze Bar — multi-service horizontal support, common in plant rooms.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SpringVariable" sentinel="false">
+      <Definition>Spring hanger (Variable Effort) — accommodates thermal movement; varying support force across stroke.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SpringConstant" sentinel="false">
+      <Definition>Spring hanger (Constant Effort) — constant support force across stroke; critical hot service.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Snubber" sentinel="false">
+      <Definition>Snubber — hydraulic shock arrestor; absorbs shock from water hammer / seismic.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SwayBrace" sentinel="false">
+      <Definition>Sway Brace — lateral restraint per NFPA 13 / IBC. Sprinkler + seismic zones.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SeismicCableRestraint" sentinel="false">
+      <Definition>Seismic Cable Restraint — flexible bracing under earthquake load.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="AntiVibrationMount" sentinel="false">
+      <Definition>Anti-Vibration Mount — isolates plant from structure; spring or rubber-in-shear.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="UStrap" sentinel="false">
+      <Definition>U-Strap / Munsen ring — light service support; plastic + soft-line pipework.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RodAndClamp" sentinel="false">
+      <Definition>Threaded Rod + Pipe Clamp — fundamental single-pipe support.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="DuctStrap" sentinel="false">
+      <Definition>Duct Strap — galvanised-steel strap supporting ducting; DW/144 spacing.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>11deb72db2e0fb6300dec3f088e72de19dff6b548dc8887086c3602834f434fe</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>
