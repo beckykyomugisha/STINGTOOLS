@@ -22127,6 +22127,54 @@
       "curated": true
     },
     {
+      "param_name": "PLM_SUP_QD_LPS",
+      "guid": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c01",
+      "description": "Cold/hot water supply design flow Qd l/s -- WaterSupplySizer [Phase 188]",
+      "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
+      "param_name": "PLM_SUP_VEL_MPS",
+      "guid": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c02",
+      "description": "Supply pipe velocity m/s per BS EN 806-3 / Hunter -- WaterSupplySizer [Phase 188]",
+      "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
+      "param_name": "PLM_SUP_DP_PAM",
+      "guid": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c03",
+      "description": "Supply pipe friction pressure drop Pa per m (Hazen-Williams) -- WaterSupplySizer [Phase 188]",
+      "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
+      "param_name": "PLM_SUP_DN_REQ_MM",
+      "guid": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c04",
+      "description": "Recommended supply pipe DN mm -- WaterSupplySizer [Phase 188]",
+      "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
       "param_name": "PLM_PRJ_PLUMBING_CODE_TXT",
       "guid": "98ab6e19-8d12-53c0-b388-8705f9413373",
       "description": "Project plumbing-code toggle BS-UK / IPC-US / UPC-US [Phase 178b]",

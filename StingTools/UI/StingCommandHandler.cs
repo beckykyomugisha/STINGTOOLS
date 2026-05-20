@@ -389,6 +389,7 @@ namespace StingTools.UI
                     case "Mep_AutoSizeDuct":    RunCommand<Commands.Mep.MepAutoSizeDuctCommand>(app); break;
                     case "Mep_AutoSizeConduit": RunCommand<Commands.Mep.MepAutoSizeConduitCommand>(app); break;
                     case "Mep_AutoSizeAll":     RunCommand<Commands.Mep.MepAutoSizeAllCommand>(app); break;
+                    case "MepCrossStamp":       RunCommand<Commands.Mep.MepCrossStampCommand>(app); break;
                     case "Mep_FillLiveCalc":    RunCommand<Commands.Mep.MepFillLiveCalcCommand>(app); break;
                     case "Mep_NamingAudit":     RunCommand<Commands.Mep.MepNamingAuditCommand>(app); break;
 

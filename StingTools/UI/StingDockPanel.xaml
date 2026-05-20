@@ -4778,6 +4778,7 @@
                                     <WrapPanel DockPanel.Dock="Bottom" Margin="4,6,4,4">
                                         <Button Style="{StaticResource GreenBtn}"  Content="System trace"    Tag="Mep_SystemTracer"  Click="Cmd_Click" Width="100" Height="30" ToolTip="BFS walk of the MEP connector graph from selection"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Auto-size all"   Tag="Mep_AutoSizeAll"   Click="Cmd_Click" Width="100" Height="30" ToolTip="Size every pipe / duct / conduit from flow + cable data"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Cross-stamp"     Tag="MepCrossStamp"     Click="Cmd_Click" Width="100" Height="30" ToolTip="Pull native Revit MEP data (flow / voltage / current / system name / insulation) into STING shared params so schedules + BOQ see it"/>
                                         <Button Style="{StaticResource OrangeBtn}" Content="Auto-sleeve"     Tag="Mep_AutoSleeve"    Click="Cmd_Click" Width="100" Height="30" ToolTip="Insert sleeve families at every wall / floor / roof crossing"/>
                                     </WrapPanel>
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
