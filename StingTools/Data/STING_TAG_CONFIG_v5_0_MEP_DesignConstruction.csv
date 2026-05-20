@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.5,CREATED=2026-03-16,UPDATED=2026-05-17,FAMILIES=142,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.9(138_categories)+PARAMETER_REGISTRY.json_v5.9_phase179(+28_params),VARIANT=DesignConstruction
+#SCHEMA_VERSION=5.6,CREATED=2026-03-16,UPDATED=2026-05-20,FAMILIES=59,DISCIPLINE=MEP,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.12(204_categories)+PARAMETER_REGISTRY.json_phase187(3163_params)+TagFamilyConfig.TotalFamilyCount=204,VARIANT=DesignConstruction
 #
 # SCHEMA v5.2 (2026-04-16) — Added 3 trailing columns: Style,Color,Size
 #   Style  : NOM | BOLD | ITALIC | BOLDITALIC               (default per tier: T1=NOM, T2=NOM, T3=NOM)

@@ -1,5 +1,5 @@
-#!SCHEMA_VERSION=5.6
-# STING_TAG_CONFIG_v5_0_HEALTH.csv
+#!SCHEMA_VERSION=5.6,VARIANT=DesignConstruction
+# STING_TAG_CONFIG_v5_0_HEALTH_DesignConstruction.csv
 # Healthcare Pack — Tag families across H/MG/RP disciplines
 # Phase H-1, branch claude/research-hospital-design-0Uxbi
 # Updated: Phase 179 — added warning parameters for all 16 healthcare validators
@@ -7,6 +7,12 @@
 #   and STING_TAG_CONFIG_v5_0_HEALTH_DesignConstruction.csv tier definitions
 # Format: TagFamilyName,TagDiscipline,Category,RoomBound,DefaultLabel,Description
 # Phase 187 SYNC: TagFamilyCreatorCommand HealthcareVariantFamilies (58 entries) wired in; LABEL_DEFINITIONS.json category_labels backfilled with 58 healthcare entries; MR_PARAMETERS.txt +35 healthcare WARN params (CLN/MGS/RAD/CEQ/LIG/ELC/FAB/PLM). UPDATED=2026-05-20.
+# DesignConstruction variant (Phase 187): clinical content is largely stage-independent,
+# so the family roster is identical to the Handover CSV. Per-tier T4-T10 differences for
+# DC presentation (e.g. commissioning audit trail rows, fab status, QC inspector) are
+# inherited from the discipline-specific DC siblings (ARCH/GEN/MEP/STR _DesignConstruction).
+# When the HEALTH pack needs DC-specific clinical tier rows (e.g. RDS commissioning sign-off),
+# replace this stub with per-family Tier blocks following the v5.6 schema.
 TAG_FAMILY,STING - Clinical Room Tag,H,Rooms,1,CLN_ROOM_CLASS_TXT,Clinical room class label
 TAG_FAMILY,STING - Pressure Regime Tag,H,Rooms,1,CLN_PRESS_REGIME_TXT,Pressure cascade arrow + Δp
 TAG_FAMILY,STING - Infection Class Tag,H,Rooms,1,CLN_INFECT_CLASS_TXT,AIIR/PE banner
