@@ -450,6 +450,12 @@ namespace StingTools.Core
             }
         }
 
+        // Force-show guard: ensures the main dockable panel is surfaced exactly
+        // once per Revit session, even when Revit ignored VisibleByDefault
+        // (typically because the previous session's UIState.dat had it hidden
+        // and the cached state survived our GUID rotation).
+        private static bool _mainPaneForceShown;
+
         /// <summary>BUG-05: Clear param cache on document open to prevent cross-document collisions.</summary>
         private static void OnDocumentOpened(object sender,
             Autodesk.Revit.DB.Events.DocumentOpenedEventArgs e)
@@ -460,6 +466,29 @@ namespace StingTools.Core
                 ParameterHelpers.ClearParamCache();
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
+
+                // Force-show the main STING dock panel on first document open
+                // per Revit session. RegisterDockablePane + VisibleByDefault=true
+                // is meant to handle this, but Revit silently honours the cached
+                // UIState.dat visibility in some upgrade scenarios, leaving the
+                // pane registered-but-hidden with no on-screen affordance.
+                // Show() can only be called when a document is open, so we
+                // defer it from OnStartup to here.
+                if (!_mainPaneForceShown)
+                {
+                    _mainPaneForceShown = true;
+                    try
+                    {
+                        var uiApp = new UIApplication(e.Document.Application);
+                        var pane  = uiApp.GetDockablePane(StingTools.UI.StingDockPanelProvider.PaneId);
+                        if (pane != null && !pane.IsShown())
+                        {
+                            pane.Show();
+                            StingLog.Info("Main STING dock panel force-shown on first document open");
+                        }
+                    }
+                    catch (Exception showEx) { StingLog.Warn($"Main pane force-show: {showEx.Message}"); }
+                }
 
                 // FIX-C01: Reset selection scope to view-only on document switch
                 // Prevents stale project-wide scope from carrying over between projects
