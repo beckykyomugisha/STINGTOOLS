@@ -21,14 +21,12 @@ namespace StingTools.UI
 
         /// <summary>
         /// The GUID used to register this dockable pane with Revit.
-        /// ROTATED again (was D4E5F6A7-8901-BCDE-F012-345678901BCD) because users
-        /// on builds that registered the panel under the old GUID had it cached
-        /// as hidden in UIState.dat — even after the sibling Electrical / HVAC /
-        /// Plumbing panels were opened, the main panel stayed missing. Bumping
-        /// the GUID makes Revit treat this as a brand-new pane and honour
-        /// VisibleByDefault again.
+        /// ROTATED again — the previous bump to E5F6A7B8-… collided with the
+        /// Electrical panel's GUID (same value), causing Revit to drop one of
+        /// the two registrations silently. The new value below was checked
+        /// against every other STING pane (Electrical / HVAC / Plumbing).
         /// </summary>
-        public static readonly Guid PaneGuid = new Guid("E5F6A7B8-9012-CDEF-0123-456789012CDE");
+        public static readonly Guid PaneGuid = new Guid("C8D9EA1B-2C3D-4E5F-6071-8A9BACBDCEDF");
 
         /// <summary>The DockablePaneId for registration and retrieval.</summary>
         public static DockablePaneId PaneId => new DockablePaneId(PaneGuid);
