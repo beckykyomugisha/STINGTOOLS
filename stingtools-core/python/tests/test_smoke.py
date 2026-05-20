@@ -237,6 +237,33 @@ def test_fulltag_consistency_check():
     assert "FULLTAG_CONSISTENT" in rule_ids, f"expected FULLTAG_CONSISTENT, got {rule_ids}"
 
 
+def test_revit_params_guids_distinct_across_psets():
+    """sting_to_revit_params.py uses (PsetName, PropName) → UUID v5. Verify
+    deterministic + collision-free even when prop names overlap across psets."""
+    import sys, os
+    sys.path.insert(
+        0,
+        os.path.join(os.path.dirname(__file__), '..', '..', '..', 'tools', 'converters'),
+    )
+    from sting_to_revit_params import deterministic_guid
+
+    g1a = deterministic_guid("Pset_StingTags", "Discipline")
+    g1b = deterministic_guid("Pset_StingTags", "Discipline")
+    g2  = deterministic_guid("Pset_StingHealthcareClinical", "Discipline")
+    g3  = deterministic_guid("Pset_StingTags", "Location")
+
+    # Deterministic — same inputs same outputs
+    assert g1a == g1b, f"non-deterministic: {g1a} vs {g1b}"
+    # Cross-pset same prop name → distinct GUIDs
+    assert g1a != g2, f"collision across psets sharing prop name: {g1a} == {g2}"
+    # Cross-prop within same pset → distinct GUIDs
+    assert g1a != g3, f"collision across props in same pset: {g1a} == {g3}"
+    # All are valid UUIDs
+    import uuid
+    for g in (g1a, g2, g3):
+        uuid.UUID(g)  # raises ValueError if malformed
+
+
 def test_seq_uniqueness_check():
     """SpatialChecker fires SEQ_UNIQUE_WITHIN_GROUP when two elements in same (Disc,Sys,Lvl) share SEQ."""
     try:
@@ -282,6 +309,8 @@ if __name__ == "__main__":
         test_tag_grammar_rejects_unpadded_sequence,
         test_tag_grammar_stage2_skips_seq_requirement,
         test_pset_referenced_enums_all_resolve,
+        # Converters
+        test_revit_params_guids_distinct_across_psets,
         # SpatialChecker (needs ifcopenshell; skip-if-missing internally)
         test_spatial_checker_handles_empty_model,
         test_fulltag_consistency_check,

@@ -7,6 +7,7 @@ from typing import Iterator, Optional
 from xml.etree import ElementTree as ET
 
 from ..paths import psets_dir
+from ..exceptions import PsetLoadError
 from .models import Pset, PsetProperty, ValidationRule
 
 NS = "https://stingtools.io/schema/ifc/psets/v1"
@@ -19,9 +20,12 @@ def _text(parent: ET.Element, tag: str, default: str = "") -> str:
 
 
 def _parse_pset(path: Path) -> Pset:
-    root = ET.parse(path).getroot()
+    try:
+        root = ET.parse(path).getroot()
+    except ET.ParseError as e:
+        raise PsetLoadError(f"{path.name}: XML parse error: {e}") from e
     if root.tag != f"{NSTAG}StingPropertySetTemplate":
-        raise ValueError(f"{path.name}: not a StingPropertySetTemplate")
+        raise PsetLoadError(f"{path.name}: not a StingPropertySetTemplate")
 
     identity = root.find(f"{NSTAG}Identity")
     governance = root.find(f"{NSTAG}Governance")

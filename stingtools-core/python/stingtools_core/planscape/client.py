@@ -8,11 +8,13 @@ import logging
 from typing import Any, Optional
 from urllib import request as _urlreq, error as _urlerr
 
+from ..exceptions import PlanscapeAuthError, PlanscapeNetworkError, PlanscapeError
+
 logger = logging.getLogger("stingtools_core.planscape")
 
-
-class PlanscapeAuthError(Exception):
-    """Raised on authentication failures (401/403)."""
+# PlanscapeAuthError is re-exported from .exceptions for backwards
+# compatibility — existing callers importing it from this module keep
+# working.
 
 
 class PlanscapeClient:
@@ -162,4 +164,6 @@ class PlanscapeClient:
             except _urlerr.HTTPError as e:
                 if e.code in (401, 403):
                     raise PlanscapeAuthError(f"{e.code} from {path}") from e
-                raise
+                raise PlanscapeNetworkError(f"HTTP {e.code} from {path}: {e.reason}") from e
+            except _urlerr.URLError as e:
+                raise PlanscapeNetworkError(f"network error contacting {path}: {e.reason}") from e
