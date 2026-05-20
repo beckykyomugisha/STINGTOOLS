@@ -8,6 +8,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;
 using StingTools.Tags;
 using StingTools.UI;
 
@@ -22,11 +23,11 @@ namespace StingTools.Commands.TagStudio
     ///
     /// <para><b>Scope picker (Phase 188 follow-up).</b> Before iterating
     /// families the user picks ALL / RECENT (≤180 days) / CHOOSE from a
-    /// TaskDialog. CHOOSE opens a <see cref="UI.StingListPicker"/> with every
-    /// remap row pre-ticked when its <c>Deprecated_Date</c> is recent. This
-    /// prevents bulk application of every historical consolidation
-    /// (<c>SCHEDULE_FIELD_REMAP.csv</c> ships 119+ rows) against a freshly-
-    /// edited project that doesn't expect them.</para>
+    /// TaskDialog. CHOOSE opens a <see cref="StingListPicker"/> (in
+    /// <c>StingTools.Select</c>) with every remap row pre-ticked when its
+    /// <c>Deprecated_Date</c> is recent. This prevents bulk application of
+    /// every historical consolidation (<c>SCHEDULE_FIELD_REMAP.csv</c> ships
+    /// 119+ rows) against a freshly-edited project that doesn't expect them.</para>
     ///
     /// Per family, in one TransactionGroup:
     ///   1. <c>EditFamily</c> opens the .rfa.
@@ -594,7 +595,9 @@ namespace StingTools.Commands.TagStudio
                 case TaskDialogResult.CommandLink3:
                 {
                     // Build picker items; tick recent rows by default.
-                    var items = rows.Select(r => new UI.StingListPicker.ListItem
+                    // NOTE: StingListPicker lives in namespace StingTools.Select
+                    // (the file is under UI/ but its declared namespace is .Select).
+                    var items = rows.Select(r => new StingListPicker.ListItem
                     {
                         Label = $"{r.OldName}  →  {r.NewName}",
                         Detail = string.IsNullOrEmpty(r.DeprecatedDate)
@@ -604,10 +607,10 @@ namespace StingTools.Commands.TagStudio
                         IsSelected = IsWithinDays(r.DeprecatedDate, RecentDays),
                     }).ToList();
 
-                    List<UI.StingListPicker.ListItem> picked;
+                    List<StingListPicker.ListItem> picked;
                     try
                     {
-                        picked = UI.StingListPicker.Show(
+                        picked = StingListPicker.Show(
                             "Choose mappings to apply",
                             $"{rows.Count} REMAPPED entries — tick the ones to apply. " +
                             $"Default selection: {recentCount} rows deprecated within the last {RecentDays} days.",
