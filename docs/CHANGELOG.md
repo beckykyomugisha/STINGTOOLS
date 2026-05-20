@@ -5212,3 +5212,113 @@ no non-comment references to either broken API remain.
 **Caveat**:
 
 1. Built without `dotnet build` verification (Linux sandbox). The user's pull command should now succeed and the resulting build should be clean.
+
+#### Completed (Phase 187 — Tag Family Creator ↔ CSV alignment)
+
+**Scope**: close the silent mismatch between the v5 tag configuration
+CSVs (`STING_TAG_CONFIG_v5_0_{ARCH|GEN|MEP|STR|HEALTH}.csv`) and
+`TagFamilyCreatorCommand`. Before this phase the creator's hardcoded
+family list ran on 121 base + 8 + 3 + 4 + 7 = 143 families, while the
+4 mainline CSVs declared 145 unique families and HEALTH declared 56
+more — and almost all the base/variant names mismatched the CSV in
+plural/singular form ("STING - Doors Tag" vs "STING - Door Tag"),
+suffix structure ("STING - Tie-In Pipe Tag" vs "STING - Tie-In Point
+Tag (Pipe — Plumbing & Hydraulic)"), or were absent entirely (3 LPS
+reuse variants, 58 healthcare families). The mismatch was invisible:
+families still got created, but `plansByFamily.TryGetValue(famName)`
+in `AuthorFromPlanIfAvailable` missed for ~40 families, so they
+were silently authored with default T4-T10 visibility params instead
+of the per-family tier rows the CSVs ship.
+
+**Integrated changes**:
+
+1. **Alias-aware plan lookup** — `TagFamilyConfig.CsvFamilyNameCandidates`
+   (`StingTools/Tags/TagFamilyCreatorCommand.cs`) yields plural→singular
+   and parenthetical-disambiguator alternates so
+   `plansByFamily["STING - Doors Tag"]` falls through to
+   `["STING - Door Tag"]` and
+   `plansByFamily["STING - Anti-Ligature (Door) Tag"]` falls through to
+   `["STING - Anti-Ligature Tag"]`. New `TryGetTierPlan` / `ContainsPlanForFamily`
+   helpers wrap dictionary access. Both `TagFamilyCreatorCommand` and
+   `MigrateTagFamiliesCommand` switched to the new helpers — no more
+   exact-only `dict.TryGetValue(famName, ...)` for plan lookup.
+
+2. **`CategoryCsvFamilyKey` override map** — 41 BuiltInCategory →
+   singular CSV family-name pins (Doors → "Door", Walls → "Wall",
+   Pipes → "Pipe", Lighting Fixtures → "Lighting Fixture", …). New
+   families authored on a fresh project now ship with the CSV-aligned
+   name. Existing projects with plural-named .rfa files keep working
+   thanks to the alias-aware lookup.
+
+3. **`VariantSuffixToCsvName` map** — 7 explicit suffix → CSV-name
+   substitutions for the 6 tie-in point families and the "Brace / Truss"
+   structural variant. `GetTieInFamilyName` consults this map first so
+   the file name matches the CSV verbatim.
+
+4. **3 missing LPS reuse families added** to `MepVariantFamilies`:
+   "LPS Generic Component" (OST_GenericModel, from GEN CSV #34),
+   "LPS Foundation Earth (Structural Reuse)" (OST_StructuralFoundation,
+   STR CSV #22), "LPS Natural Air Termination (Architectural Reuse)"
+   (OST_Roofs, ARCH CSV #36).
+
+5. **`HealthcareVariantFamilies` array (58 entries)** — every row from
+   `STING_TAG_CONFIG_v5_0_HEALTH.csv` is now wired into the creator
+   with per-BIC `.rfa` files. "Anti-Ligature" (3 BICs in CSV)
+   disambiguates by category suffix (Door / Lighting Fixture /
+   Plumbing Fixture) to satisfy Revit's single-category tag binding;
+   plan lookup strips the parenthetical to rejoin the CSV name. New
+   Step 5f loop in the build body mirrors the MEP variant loop shape.
+
+6. **HEALTH wired into `HandoverModeHelper.Disciplines`** so the CSV
+   resolver discovers and loads `STING_TAG_CONFIG_v5_0_HEALTH.csv`.
+   `TagConfigCsvReader.Parse` now recognises the `TAG_FAMILY,name,…`
+   row format used by HEALTH and registers each row as a plan-less
+   `TierPlan` declaration (all T4-T10 = `Omit`). Healthcare families
+   resolve through `TryGetTierPlan` even though they carry no per-tier
+   customisation.
+
+7. **`TotalFamilyCount` and stale `137` docstrings** — runtime count
+   updated to `121 + 8 + 3 + 4 + 10 + 58 = 204`. Three top-of-file
+   docstrings (`Tags/TagFamilyCreatorCommand.cs:14`, `:1051`, `:1055`)
+   and two `Core/ParamRegistry.cs` comments switched from the
+   hardcoded `137` to dynamic references to
+   `TagFamilyConfig.TotalFamilyCount`.
+
+8. **Coverage warning in confirm dialog** — when
+   `familiesWithPlan / categories.Count < 0.5`, the dialog now leads
+   with a `⚠ WARNING:` banner telling the user "only X% matched a CSV
+   plan; most families will be authored with DEFAULT visibility params"
+   and points at `CategoryCsvFamilyKey` / `VariantSuffixToCsvName` as
+   the likely culprit. Before this phase the dialog reported the
+   count silently with no qualifier.
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Tags/TagFamilyCreatorCommand.cs` | +`CategoryCsvFamilyKey` (41 entries), +`VariantSuffixToCsvName` (7 entries), +`HealthcareVariantFamilies` (58 entries), +3 LPS reuse rows in `MepVariantFamilies`, +`CsvFamilyNameCandidates` / `TryGetTierPlan` / `ContainsPlanForFamily` helpers, `GetFamilyName` / `GetTieInFamilyName` rewired to prefer CSV-aligned names, +Step 5f healthcare build loop, +healthcare iteration in already-loaded + on-disk counters, coverage-warning banner in confirm dialog, 4 stale `137` docstrings retired |
+| `StingTools/Commands/TagStudio/MigrateTagFamiliesCommand.cs` | plan lookup switched to `TagFamilyConfig.TryGetTierPlan` so plural-named families still match CSV plans |
+| `StingTools/Core/HandoverModeHelper.cs` | `Disciplines` array extended with `"HEALTH"` so the CSV resolver discovers the healthcare CSV |
+| `StingTools/Core/TagConfigCsvReader.cs` | `Parse` recognises `TAG_FAMILY,name,…` row format used by HEALTH CSV and registers each as a plan-less `TierPlan` |
+| `StingTools/Core/ParamRegistry.cs` | 2 hardcoded `137` comments switched to runtime `TagFamilyConfig.TotalFamilyCount` reference |
+| `docs/CHANGELOG.md` | this entry |
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. Existing projects with plural-named `.rfa` files (e.g.
+   `STING - Doors Tag.rfa`) will get new singular-named families
+   (`STING - Door Tag.rfa`) created alongside on the next run. The
+   plural-named family stays loaded but orphaned until the user
+   removes it via Project Browser → Families. Plan lookups via
+   `TryGetTierPlan` already work for both forms so there is no
+   functional regression.
+3. The 58 healthcare families assume the documented healthcare
+   `BuiltInCategory` bindings from `STING_TAG_CONFIG_v5_0_HEALTH.csv`.
+   Projects on stock Revit may not have all of `OST_NurseCallDevices`
+   / `OST_MedicalEquipment` populated — the creator still emits the
+   `.rfa` and the family loads, just with no project instances to tag.
+4. HEALTH CSV has no `DesignConstruction` sibling. The mode resolver
+   falls back to the Handover (default) CSV for HEALTH in DC mode,
+   which is the correct behaviour for now (clinical content is
+   stage-independent).
