@@ -52,6 +52,36 @@ _DRAWING_TYPE_ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9\-]{2,59}$")
 # ventures, e.g. "AHS-01").
 _PROJECT_CODE_RE = re.compile(r"^[A-Z][A-Z0-9\-]{2,5}$")
 
+# Stage ordering — drives ActiveFrom gating.  Values match the
+# StingRibaStages enum codes.
+_STAGE_ORDER: dict[str, int] = {
+    "Stage_0": 0, "Stage_1": 1, "Stage_2": 2, "Stage_3": 3,
+    "Stage_4": 4, "Stage_5": 5, "Stage_6": 6, "Stage_7": 7,
+}
+
+# Per-rule ActiveFrom — kept in sync with the <ActiveFrom> elements in
+# shared/ifc/psets/*.xml.  If a rule is added to a Pset without an
+# entry here, _active() defaults its activation to Stage_3 (the
+# substrate's main production gate).
+_RULE_ACTIVE_FROM: dict[str, str] = {
+    # Pset_StingTags
+    "DISC_NOT_EMPTY":              "Stage_2",
+    "LOC_MATCHES_BUILDING":        "Stage_3",
+    "LVL_MATCHES_STOREY":          "Stage_3",
+    "ZONE_MATCHES_ASSIGNEDZONE":   "Stage_3",
+    "SYS_MATCHES_IFCSYSTEM":       "Stage_3",
+    "SEQ_UNIQUE_WITHIN_GROUP":     "Stage_3",
+    "FULLTAG_CONSISTENT":          "Stage_3",
+    # Pset_StingSpatialCodes
+    "BUILDING_LOC_UNIQUE":         "Stage_2",
+    "STOREY_LVL_UNIQUE_WITHIN_BUILDING": "Stage_2",
+    # Pset_StingDrawing
+    "DRAWING_TYPE_RESOLVABLE":     "Stage_3",
+    # Pset_StingProjectOrg
+    "PROJECTORG_PROJECT_CODE_REQUIRED": "Stage_1",
+    "PROJECTORG_PHASE_VALID":      "Stage_1",
+}
+
 
 class DrawingTypeRegistry:
     """Optional registry of known DrawingType ids — used to enforce
@@ -110,6 +140,19 @@ class SpatialChecker:
         self._drawing_type_registry = drawing_type_registry
 
     # ------------------------------------------------------------------
+
+    def _active(self, rule_id: str) -> bool:
+        """Return True when `rule_id` is active at the checker's stage.
+
+        Compares the rule's ActiveFrom (from `_RULE_ACTIVE_FROM`) to the
+        active stage on `self._stage`. Unknown rules default to Stage_3.
+        Unknown stages default to Stage_3.
+        """
+        active_from = _RULE_ACTIVE_FROM.get(rule_id, "Stage_3")
+        return (
+            _STAGE_ORDER.get(self._stage, 3)
+            >= _STAGE_ORDER.get(active_from, 3)
+        )
 
     @staticmethod
     def _pset(el: Any, pset_name: str) -> dict[str, Any]:
@@ -227,7 +270,7 @@ class SpatialChecker:
         # Applies to any element carrying Pset_StingDrawing (typically
         # IfcAnnotation), runs independently of Pset_StingTags presence.
         drawing = self._pset(el, "Pset_StingDrawing")
-        if drawing:
+        if drawing and self._active("DRAWING_TYPE_RESOLVABLE"):
             dt_id = drawing.get("DrawingTypeId")
             if dt_id:
                 if not _DRAWING_TYPE_ID_RE.match(str(dt_id)):
@@ -259,10 +302,11 @@ class SpatialChecker:
             return out
 
         # DISC_NOT_EMPTY — Discipline must be set + non-XX at Stage_3+.
+        # Whole rule gated by ActiveFrom=Stage_2; XX-exclusion is the
+        # Stage_3+ sub-clause.
         disc_value = tags.get("Discipline")
-        # Stage gating
-        require_disc_set = self._stage in ("Stage_2", "Stage_3", "Stage_4", "Stage_5", "Stage_6", "Stage_7")
-        forbid_xx = self._stage in ("Stage_3", "Stage_4", "Stage_5", "Stage_6", "Stage_7")
+        require_disc_set = self._active("DISC_NOT_EMPTY")
+        forbid_xx = _STAGE_ORDER.get(self._stage, 3) >= _STAGE_ORDER["Stage_3"]
         if require_disc_set and (not disc_value):
             out.append(SpatialMismatch(
                 rule_id="DISC_NOT_EMPTY",
@@ -281,8 +325,10 @@ class SpatialChecker:
                 expected_values=(),
                 message=f"Discipline is sentinel 'XX' at {self._stage} (must be a real code)",
             ))
-        elif self._enum_registry is not None and disc_value:
-            # Enum-membership check (uses the live EnumRegistry)
+        elif require_disc_set and self._enum_registry is not None and disc_value:
+            # Enum-membership check (uses the live EnumRegistry).
+            # Same Stage_2+ gate as the empty/XX branches — keeps the
+            # whole rule consistent with ActiveFrom.
             disc_enum = self._enum_registry.get("StingDisciplineCodes")
             if disc_enum is not None and str(disc_value) not in disc_enum:
                 out.append(SpatialMismatch(
@@ -296,7 +342,7 @@ class SpatialChecker:
 
         # 1. LOC
         loc_value = tags.get("Location")
-        if loc_value:
+        if loc_value and self._active("LOC_MATCHES_BUILDING"):
             building = self._containing_building(el)
             if building is None:
                 out.append(SpatialMismatch(
@@ -322,7 +368,7 @@ class SpatialChecker:
 
         # 2. LVL
         lvl_value = tags.get("Level")
-        if lvl_value:
+        if lvl_value and self._active("LVL_MATCHES_STOREY"):
             storey = self._containing_storey(el)
             if storey is None:
                 out.append(SpatialMismatch(
@@ -348,7 +394,7 @@ class SpatialChecker:
 
         # 3. ZONE
         zone_value = tags.get("Zone")
-        if zone_value and zone_value != "XX":
+        if zone_value and zone_value != "XX" and self._active("ZONE_MATCHES_ASSIGNEDZONE"):
             zones = self._assigned_zones(el)
             zone_codes: list[str] = []
             for z in zones:
@@ -373,7 +419,7 @@ class SpatialChecker:
         # 4. SYS_MATCHES_IFCSYSTEM — when element is in an IfcSystem,
         #    the System token must align with the system's classification.
         sys_value = tags.get("System")
-        if sys_value and sys_value not in ("XX", "ARC"):
+        if sys_value and sys_value not in ("XX", "ARC") and self._active("SYS_MATCHES_IFCSYSTEM"):
             systems = self._assigned_systems(el)
             for system in systems:
                 # Map system name to expected token
@@ -399,7 +445,7 @@ class SpatialChecker:
         # 5. FULLTAG_CONSISTENT — if FullTag is stored, verify it matches
         #    the dash-joined source segments.
         full_tag = tags.get("FullTag")
-        if full_tag:
+        if full_tag and self._active("FULLTAG_CONSISTENT"):
             segments = [
                 tags.get("Discipline") or "",
                 tags.get("Location")   or "",
@@ -454,6 +500,10 @@ class SpatialChecker:
         Returns empty list when no IfcProject carries Pset_StingProjectOrg
         (rule only fires when the pset is present)."""
         out: list[SpatialMismatch] = []
+        # Both rules share ActiveFrom=Stage_1 — bail early when neither is active.
+        if not (self._active("PROJECTORG_PROJECT_CODE_REQUIRED")
+                or self._active("PROJECTORG_PHASE_VALID")):
+            return out
         for project in self._model.by_type("IfcProject"):
             pset = self._pset(project, "Pset_StingProjectOrg")
             if not pset:
@@ -462,7 +512,9 @@ class SpatialChecker:
 
             # PROJECTORG_PROJECT_CODE_REQUIRED
             project_code = pset.get("ProjectCode")
-            if not project_code:
+            if not self._active("PROJECTORG_PROJECT_CODE_REQUIRED"):
+                pass  # rule inactive at this stage
+            elif not project_code:
                 out.append(SpatialMismatch(
                     rule_id="PROJECTORG_PROJECT_CODE_REQUIRED",
                     ifc_global_id=global_id,
@@ -484,9 +536,12 @@ class SpatialChecker:
                     ),
                 ))
 
-            # PROJECTORG_PHASE_VALID
+            # PROJECTORG_PHASE_VALID — ActiveFrom Stage_1, so the gate
+            # is always satisfied except in the explicit Stage_0 case.
             phase = pset.get("Phase")
-            if phase and self._enum_registry is not None:
+            if not self._active("PROJECTORG_PHASE_VALID"):
+                pass  # rule inactive
+            elif phase and self._enum_registry is not None:
                 riba_enum = self._enum_registry.get("StingRibaStages")
                 if riba_enum is not None and str(phase) not in riba_enum:
                     out.append(SpatialMismatch(
@@ -499,7 +554,7 @@ class SpatialChecker:
                     ))
             elif not phase:
                 # Phase is required per cardinality — but only flag at Stage_2+
-                if self._stage not in ("Stage_0", "Stage_1"):
+                if _STAGE_ORDER.get(self._stage, 3) >= _STAGE_ORDER["Stage_2"]:
                     out.append(SpatialMismatch(
                         rule_id="PROJECTORG_PHASE_VALID",
                         ifc_global_id=global_id,
@@ -519,20 +574,25 @@ class SpatialChecker:
 
         Both active from Stage_2 per Pset_StingSpatialCodes.xml."""
         out: list[SpatialMismatch] = []
+        check_loc = self._active("BUILDING_LOC_UNIQUE")
+        check_lvl = self._active("STOREY_LVL_UNIQUE_WITHIN_BUILDING")
+        if not (check_loc or check_lvl):
+            return out
 
         # BUILDING_LOC_UNIQUE
         # Group buildings by LocationCode; any code with > 1 building is a collision.
         bldg_by_loc: dict[str, list[tuple[str, str]]] = {}
-        for bldg in self._model.by_type("IfcBuilding"):
-            spatial = self._pset(bldg, "Pset_StingSpatialCodes")
-            if not spatial:
-                continue
-            loc = spatial.get("LocationCode")
-            if not loc:
-                continue
-            global_id = getattr(bldg, "GlobalId", "") or ""
-            name = getattr(bldg, "Name", "") or "(unnamed)"
-            bldg_by_loc.setdefault(str(loc), []).append((global_id, name))
+        if check_loc:
+            for bldg in self._model.by_type("IfcBuilding"):
+                spatial = self._pset(bldg, "Pset_StingSpatialCodes")
+                if not spatial:
+                    continue
+                loc = spatial.get("LocationCode")
+                if not loc:
+                    continue
+                global_id = getattr(bldg, "GlobalId", "") or ""
+                name = getattr(bldg, "Name", "") or "(unnamed)"
+                bldg_by_loc.setdefault(str(loc), []).append((global_id, name))
 
         for loc, occupants in bldg_by_loc.items():
             if len(occupants) > 1:
@@ -552,6 +612,8 @@ class SpatialChecker:
 
         # STOREY_LVL_UNIQUE_WITHIN_BUILDING
         # Walk each building; group its decomposed storeys by LevelCode.
+        if not check_lvl:
+            return out
         for bldg in self._model.by_type("IfcBuilding"):
             storey_by_lvl: dict[str, list[tuple[str, str]]] = {}
             bldg_name = getattr(bldg, "Name", "") or getattr(bldg, "GlobalId", "")
@@ -595,6 +657,8 @@ class SpatialChecker:
         SpatialMismatch per duplicate.
         """
         out: list[SpatialMismatch] = []
+        if not self._active("SEQ_UNIQUE_WITHIN_GROUP"):
+            return out
         # (disc, sys, lvl) -> { seq -> [ifc_global_id, ...] }
         groups: dict[tuple[str, str, str], dict[str, list[str]]] = {}
 

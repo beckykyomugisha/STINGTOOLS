@@ -323,6 +323,84 @@ def test_disc_not_empty_at_stage_3():
     assert len(disc_mm) >= 1, f"expected DISC_NOT_EMPTY, got {[m.rule_id for m in mismatches]}"
 
 
+def test_disc_not_empty_invalid_value_skipped_at_stage_1():
+    """Bug regression: DISC_NOT_EMPTY enum-membership branch must respect ActiveFrom.
+
+    Before the Phase 186b stage-gating fix, an invalid Discipline like 'XYZ'
+    fired DISC_NOT_EMPTY at Stage_1 even though the rule's ActiveFrom is
+    Stage_2. Verify the whole rule (including enum-membership) honours the gate.
+    """
+    try:
+        import ifcopenshell
+    except ImportError:
+        return
+    from ifcopenshell.api import run
+    from stingtools_core.spatial import SpatialChecker
+
+    model = run("project.create_file", version="IFC4")
+    run("root.create_entity", model, ifc_class="IfcProject", name="t")
+    run("unit.assign_unit", model)
+    run("context.add_context", model, context_type="Model")
+
+    w = run("root.create_entity", model, ifc_class="IfcWall", name="w-bad")
+    p = run("pset.add_pset", model, product=w, name="Pset_StingTags")
+    run("pset.edit_pset", model, pset=p, properties={
+        "Discipline": "XYZ",  # not in StingDisciplineCodes
+        "Location": "BLD1", "Zone": "Z01", "Level": "L01",
+        "System": "HVAC", "Function": "SUP", "Product": "AHU", "Sequence": "0001",
+    })
+
+    enums = EnumRegistry().load()
+    mismatches = SpatialChecker(model, stage="Stage_1", enum_registry=enums).check_all_elements()
+    disc_mm = [m for m in mismatches if m.rule_id == "DISC_NOT_EMPTY"]
+    assert disc_mm == [], (
+        f"DISC_NOT_EMPTY enum-membership must respect ActiveFrom=Stage_2 — "
+        f"got {len(disc_mm)} mismatch(es) at Stage_1"
+    )
+
+    # ... and now verify it DOES fire at Stage_2
+    mismatches2 = SpatialChecker(model, stage="Stage_2", enum_registry=enums).check_all_elements()
+    disc_mm2 = [m for m in mismatches2 if m.rule_id == "DISC_NOT_EMPTY"]
+    assert len(disc_mm2) == 1, f"expected 1 DISC_NOT_EMPTY at Stage_2, got {len(disc_mm2)}"
+
+
+def test_stage_3_rules_skip_at_stage_2():
+    """Bug regression: LOC_MATCHES_BUILDING / SEQ_UNIQUE_WITHIN_GROUP /
+    FULLTAG_CONSISTENT all have ActiveFrom=Stage_3 and must not fire at Stage_2.
+    """
+    try:
+        import ifcopenshell
+    except ImportError:
+        return
+    from ifcopenshell.api import run
+    from stingtools_core.spatial import SpatialChecker
+
+    model = run("project.create_file", version="IFC4")
+    run("root.create_entity", model, ifc_class="IfcProject", name="t")
+    run("unit.assign_unit", model)
+    run("context.add_context", model, context_type="Model")
+
+    # Wall with deliberately-wrong tag data (would trip 3 Stage_3 rules)
+    w = run("root.create_entity", model, ifc_class="IfcWall", name="w")
+    p = run("pset.add_pset", model, product=w, name="Pset_StingTags")
+    run("pset.edit_pset", model, pset=p, properties={
+        "Discipline": "M", "Location": "BLD1-NONE-MATCH",
+        "Zone": "Z01", "Level": "L01",
+        "System": "HVAC", "Function": "SUP", "Product": "AHU", "Sequence": "0001",
+        "FullTag": "WRONG-VALUE",
+    })
+
+    mismatches = SpatialChecker(model, stage="Stage_2").check_all_elements()
+    triggered = {m.rule_id for m in mismatches}
+    forbidden = {"LOC_MATCHES_BUILDING", "FULLTAG_CONSISTENT", "SEQ_UNIQUE_WITHIN_GROUP",
+                 "LVL_MATCHES_STOREY", "ZONE_MATCHES_ASSIGNEDZONE", "SYS_MATCHES_IFCSYSTEM",
+                 "DRAWING_TYPE_RESOLVABLE"}
+    found = triggered & forbidden
+    assert not found, (
+        f"Stage_3 rules fired at Stage_2: {sorted(found)} — they should be gated"
+    )
+
+
 def test_disc_not_empty_passes_at_stage_1():
     """DISC_NOT_EMPTY does NOT fire on 'XX' at Stage_1 (rule starts at Stage_3)."""
     try:
@@ -547,6 +625,8 @@ if __name__ == "__main__":
         # Path-2 closeout — 6 newly-enforced rules
         test_disc_not_empty_at_stage_3,
         test_disc_not_empty_passes_at_stage_1,
+        test_disc_not_empty_invalid_value_skipped_at_stage_1,
+        test_stage_3_rules_skip_at_stage_2,
         test_drawing_type_resolvable_format_fails,
         test_drawing_type_resolvable_registry_lookup,
         test_projectorg_project_code_required,

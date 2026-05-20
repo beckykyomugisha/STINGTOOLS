@@ -77,6 +77,35 @@ Discipline is "XX").
 | Pset_StingDrawing fires on IfcAnnotation | ✅ verified via new test |
 | Stage gating verified | ✅ DISC_NOT_EMPTY skips at Stage_1, fires at Stage_3 |
 
+**Stage gating (Phase 186b1 follow-up)**:
+
+Review pass after the initial 186b commit surfaced a correctness gap:
+`SpatialChecker` had a `stage` kwarg but only DISC_NOT_EMPTY consulted
+it. The other 11 static rules always fired regardless of stage, so a
+Stage_0/1 model with tag data that would later be wrong (LOC not
+matching its building, etc.) was incorrectly tripping Stage_3 rules.
+
+Fix: added `_RULE_ACTIVE_FROM` table mirroring each rule's
+`<ActiveFrom>` declaration in the Pset XML, plus an `_active(rule_id)`
+helper, plus gates at every emission point — `check_element`,
+`check_seq_uniqueness`, `check_spatial_uniqueness`, `check_project_org`.
+DISC_NOT_EMPTY's enum-membership branch now also honours the
+Stage_2+ gate (previously it skipped the gate that the empty/XX
+branches respected). 2 new tests pinpoint the regression:
+`test_disc_not_empty_invalid_value_skipped_at_stage_1` and
+`test_stage_3_rules_skip_at_stage_2`.
+
+Live verification across stages on the same Stage_3-fail fixture:
+
+| Stage | DISC_NOT_EMPTY (Discipline='XYZ', enum_registry on) |
+|---|---|
+| Stage_0 | 0 ✅ (rule inactive) |
+| Stage_1 | 0 ✅ (rule inactive) |
+| Stage_2 | 1 ✅ (rule active) |
+| Stage_3 | 1 ✅ |
+
+Test count: 25 standalone, 29 pytest.
+
 **Caveats (Phase 186b)**:
 
 1. The 3 new Psets do NOT yet have matching IDS specs. The 2 IDS
