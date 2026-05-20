@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingObservationLOS</Name>
+    <Definition>Patient observation line-of-sight classification per NHS England Mental Health Premises Standards. Carried on patient bedrooms / dayrooms / circulation in mental-health units. Drives the observation-line validator + staff-base visibility analysis, plus the room-by-room observation-grade dashboard.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4005-9000-000000000030</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/nhs/mental-health/1.0/class/observation-los</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>HBN 03-01:2013; NHS England Mental Health Premises Standards 2022; CQC observation guidance</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Direct" sentinel="false">
+      <Definition>Direct — uninterrupted line of sight from a staff observation point to the entire room. Highest observation grade; required for high-risk patient areas (acute admission, intensive psychiatric care).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Indirect" sentinel="false">
+      <Definition>Indirect — observation via mirror, dome, CCTV, or staffed walkway. Acceptable for medium-risk patient areas with documented mitigation.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Intermittent" sentinel="false">
+      <Definition>Intermittent — observation via periodic rounds (typically 15-minute or 30-minute intervals). Used for stable patient areas.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="None" sentinel="false">
+      <Definition>None — no observation requirement. Bathroom interiors, en-suite cubicles (privacy/dignity priority), low-risk dayrooms with self-management.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Continuous" sentinel="false">
+      <Definition>Continuous — 1:1 / 2:1 staffing with constant staff presence in or at the door of the room. Highest-risk patient observation. No technical room provision (people-based).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>72f1ac27b5a83c669b540e468d2dc66c652332051b77e2a174feee7f1e3a1e8d</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

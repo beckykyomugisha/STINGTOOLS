@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingFireRatings</Name>
+    <Definition>Fire-resistance ratings per BS EN 13501-2 / Approved Document B. The two-letter prefix encodes the criteria tested (R=loadbearing, E=integrity, I=insulation, W=radiation, S=smoke leakage); the number is minutes. Drives Pset_StingFire.Rating, AEC filter packs (FD60 doors etc.), and the healthcare fire-compartmentation pack (HTM 05-02).</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4004-9000-000000000020</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/cen/en13501/2.0/class/fireresistance</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>BS EN 13501-2:2016 fire resistance classification; UK Approved Document B (Fire Safety); BS 9999 strategic fire compartmentation; HTM 05-02 healthcare fire</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="FD30" sentinel="false">
+      <Definition>Fire Door 30 — 30-minute integrity. Internal compartment door per ADB.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FD30S" sentinel="false">
+      <Definition>Fire Door 30 with cold-smoke seal — 30-min integrity + smoke leakage limit.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FD60" sentinel="false">
+      <Definition>Fire Door 60 — 60-minute integrity. Cross-corridor / dept boundary doors.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FD60S" sentinel="false">
+      <Definition>Fire Door 60 with cold-smoke seal.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FD90" sentinel="false">
+      <Definition>Fire Door 90.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FD120" sentinel="false">
+      <Definition>Fire Door 120 — 120-min integrity. Stair-core / refuge doors.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="E30" sentinel="false">
+      <Definition>Element of structure — integrity 30 min only (no insulation requirement).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="E60" sentinel="false">
+      <Definition>Integrity 60 min only.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="E90" sentinel="false">
+      <Definition>Integrity 90 min only.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="E120" sentinel="false">
+      <Definition>Integrity 120 min only.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="EI30" sentinel="false">
+      <Definition>Integrity + Insulation 30 min — partition walls.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="EI60" sentinel="false">
+      <Definition>Integrity + Insulation 60 min — dept boundary walls. Healthcare default per HTM 05-02.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="EI90" sentinel="false">
+      <Definition>Integrity + Insulation 90 min.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="EI120" sentinel="false">
+      <Definition>Integrity + Insulation 120 min — stair shafts, lift shafts, refuge enclosures.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="EI240" sentinel="false">
+      <Definition>Integrity + Insulation 240 min — high-rise compartment floors.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="REI60" sentinel="false">
+      <Definition>Load-bearing + Integrity + Insulation 60 min — structural compartment elements.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="REI90" sentinel="false">
+      <Definition>Load-bearing + Integrity + Insulation 90 min.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="REI120" sentinel="false">
+      <Definition>Load-bearing + Integrity + Insulation 120 min — structural elements in high-rise + healthcare.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="REI240" sentinel="false">
+      <Definition>Load-bearing + Integrity + Insulation 240 min — extreme structural fire rating.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="None" sentinel="false">
+      <Definition>No fire rating required — non-compartment partition.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>0db126c653662fd80335d374d0247a4d755ded9d2e905784bac76130594c23fd</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

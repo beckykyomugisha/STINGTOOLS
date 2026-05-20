@@ -47,10 +47,37 @@ shared/ifc/enums/
 ├── StingWorkflowStates.xml         Tier 3 — corporate-locked
 ├── StingSignoffRoles.xml           Tier 3 — corporate-locked
 ├── StingMaintenanceFrequencies.xml Tier 3 — corporate-locked
-└── StingAssetConditions.xml        Tier 3 — corporate-locked
+├── StingAssetConditions.xml        Tier 3 — corporate-locked
+│
+├── StingHVACPressureClasses.xml    Tier 4 — corporate-locked
+├── StingHVACAirDensities.xml       Tier 4 — corporate-locked
+├── StingHVACSizingStrategies.xml   Tier 4 — corporate-locked
+├── StingAcousticNCTargets.xml      Tier 4 — corporate-locked
+├── StingPipeServices.xml           Tier 4 — corporate-locked
+├── StingFireRatings.xml            Tier 4 — corporate-locked
+├── StingCableCategories.xml        Tier 4 — corporate-locked
+├── StingPipeMaterials.xml          Tier 4 — corporate-locked
+├── StingDuctMaterials.xml          Tier 4 — corporate-locked
+├── StingInsulationTypes.xml        Tier 4 — corporate-locked
+├── StingHangerTypes.xml            Tier 4 — corporate-locked
+├── StingWeldTypes.xml              Tier 4 — corporate-locked
+├── StingSteelGrades.xml            Tier 4 — corporate-locked
+├── StingConcreteGrades.xml         Tier 4 — corporate-locked
+│
+├── StingHealthcareFacilityProfiles.xml  Tier 5 — corporate-locked
+├── StingMGSGasTypes.xml            Tier 5 — corporate-locked
+├── StingPressureRegimes.xml        Tier 5 — corporate-locked
+├── StingEESTypes.xml               Tier 5 — corporate-locked
+├── StingMRIZones.xml               Tier 5 — corporate-locked
+├── StingRadiationZones.xml         Tier 5 — corporate-locked
+├── StingLigatureRatings.xml        Tier 5 — corporate-locked
+├── StingObservationLOS.xml         Tier 5 — corporate-locked
+├── StingHTMWaterRiskZones.xml      Tier 5 — corporate-locked
+├── StingHBNDepartments.xml         Tier 5 — corporate-locked
+└── StingTheatreTypes.xml           Tier 5 — corporate-locked
 ```
 
-26 enum files + 1 schema + 1 manifest + this README.
+51 enum files + 1 schema + 1 manifest + this README.
 
 ---
 
@@ -61,10 +88,11 @@ shared/ifc/enums/
 | 1 (Day-one essentials) | Tag grammar — DISC/SYS/FUNC/PROD + spatial codes + status/suitability/CDE/revision | Corporate-locked; spatial templates ship empty for projects to fill |
 | 2 (Drawing / template engine) | Drawing purpose, tier, paper size, orientation, detail, colour, crop | Corporate-locked |
 | 3 (Workflow / standards) | Issue type/priority/state, RIBA stage, workflow state, signoff role, maintenance frequency, asset condition | Corporate-locked |
+| 4 (Engineering domains) | HVAC pressure classes / sizing / air density, acoustic NC targets, pipe services + materials, duct materials, insulation, hangers, weld types, steel + concrete grades, cable categories, fire ratings | Corporate-locked; load when engineering disciplines active |
+| 5 (Healthcare pack) | Facility profile, MGS gas types, pressure regimes, EES types, MRI zones, radiation zones, ligature ratings, observation LOS, HTM water risk zones, HBN departments, theatre types | Corporate-locked; load when PRJ_ORG_HEALTH_PACK_PROFILE_TXT set |
 
-Future tiers add engineering-domain (HVAC pressure classes, NC targets,
-pipe services, …) and healthcare-pack (MGS gas types, MRI zones, pressure
-regimes, …) enumerations.
+Future tiers (6+) would add e.g. composition / classification system
+mirrors and per-domain extensions (industrial, civil, education).
 
 ---
 

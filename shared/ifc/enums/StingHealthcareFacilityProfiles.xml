@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingHealthcareFacilityProfiles</Name>
+    <Definition>Healthcare facility profile selector. Drives the HealthcareValidatorGate — each profile enables / disables specific healthcare validators (pressure, MGPS, EES, water, anti-ligature, radiation, RDS, …). Written to PRJ_ORG_HEALTH_PACK_PROFILE_TXT on the project; non-healthcare projects skip the whole healthcare pack and incur zero cost.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4005-9000-000000000029</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/stingtools/healthcare/1.0/class/facility-profile</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>STING Healthcare Pack (Phases H-1..H-30); NHS England Healthcare Building Notes (HBN) facility-type catalogue</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="FULL" sentinel="false">
+      <Definition>Full acute hospital — every validator active. Wards, theatres, ICU, imaging, pathology, pharmacy, A&amp;E. Default for major acute trust hospitals.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ACUTE" sentinel="false">
+      <Definition>Acute hospital — full validator set minus mental-health and dental-specific validators.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="COMMUNITY" sentinel="false">
+      <Definition>Community / step-down hospital — limited theatres, no ICU. Drops EES Type A requirements; relaxes pressure-cascade.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="DENTAL" sentinel="false">
+      <Definition>Dental practice / clinic. Activates dental-chair water-safety validator and dental amalgam-separator schedule; suppresses theatre / EES validators.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="IMAGING_ONLY" sentinel="false">
+      <Definition>Standalone imaging centre — MRI / CT / X-ray. Activates RAD_* validators + MRI-zone validator; suppresses MGS / pressure / EES.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MENTAL_HEALTH" sentinel="false">
+      <Definition>Mental health unit. Activates LIG_* anti-ligature validators + observation-line validator; suppresses theatre / acute clinical validators.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MATERNITY" sentinel="false">
+      <Definition>Maternity / women's hospital. Activates maternity validators (LDR rooms, midwifery-led birthing); standard pressure + MGS.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RESEARCH" sentinel="false">
+      <Definition>Clinical research / biomedical research facility. Activates BSL containment validators, pressure-cascade for animal facilities, decon flow.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HOSPICE" sentinel="false">
+      <Definition>Hospice / palliative care. Relaxed clinical validators; emphasis on dignity, family rooms, end-of-life pathway facilities.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>c56cdd82fe39a2645ea6769f01b4771dd4f67d575ff4654c599f74486e2584e2</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

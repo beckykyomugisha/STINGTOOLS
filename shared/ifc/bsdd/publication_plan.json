@@ -1,0 +1,427 @@
+{
+  "schema_version": 1,
+  "format": "STING bSDD publication plan",
+  "generated_for_repo_relative_path": "shared/ifc/bsdd/",
+  "policy": "publish only enumerations rooted in public standards; STING-proprietary taxonomies stay private",
+  "publication_lifecycle": [
+    "draft       - enum entry exists in shared/ifc/enums but no bSDD IRI assigned yet",
+    "ready       - bSDD IRI assigned (in publication_plan.json); not yet posted to bSDD",
+    "posted      - bSDD API publish-call complete; verification_log.jsonl has the dictionary IDs",
+    "verified    - third-party tool (Solibri / BIMcollab) confirmed reading the term",
+    "deprecated  - replaced or superseded; remains in bSDD as deprecated"
+  ],
+  "default_cadence": "publish_at_release_tag",
+  "next_publish_window": "post-MVP, after Phase 2 healthcare pack ships + IDS bundle authored",
+
+  "enums": [
+    {
+      "name": "StingDisciplineCodes",
+      "status": "ready",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/stingtools/sting-codes/1.0/class/discipline",
+      "standards_basis": "CIBSE Building Services Discipline Taxonomy; Uniclass 2015 (table Co)",
+      "publish_in_phase": "Phase_4_Federation",
+      "notes": "Most-cited STING enum across federated tooling; publish first."
+    },
+    {
+      "name": "StingSystemCodes",
+      "status": "ready",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/stingtools/sting-codes/1.0/class/system",
+      "standards_basis": "Uniclass 2015 Ss-table",
+      "publish_in_phase": "Phase_4_Federation"
+    },
+    {
+      "name": "StingFunctionCodes",
+      "status": "draft",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/stingtools/sting-codes/1.0/class/function",
+      "standards_basis": "CIBSE Guide A/B/C; Uniclass 2015",
+      "publish_in_phase": "Phase_4_Federation"
+    },
+    {
+      "name": "StingProductCodes",
+      "status": "private",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": null,
+      "rationale_private": "Proprietary tag-grammar; not published.",
+      "publish_in_phase": null
+    },
+    {
+      "name": "StingLocationCodes",
+      "status": "project_scoped",
+      "owning_publisher": "project",
+      "bsdd_iri_root": null,
+      "rationale_private": "Per-project codes; not centrally publishable.",
+      "publish_in_phase": null
+    },
+    {
+      "name": "StingZoneCodes",
+      "status": "project_scoped",
+      "owning_publisher": "project",
+      "bsdd_iri_root": null,
+      "rationale_private": "Per-project codes; not centrally publishable.",
+      "publish_in_phase": null
+    },
+    {
+      "name": "StingLevelCodes",
+      "status": "project_scoped",
+      "owning_publisher": "project",
+      "bsdd_iri_root": null,
+      "rationale_private": "Per-project codes; not centrally publishable.",
+      "publish_in_phase": null
+    },
+    {
+      "name": "StingStatusCodes",
+      "status": "ready",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/stingtools/sting-codes/1.0/class/status",
+      "standards_basis": "BS 1192 phase conventions; STING PhaseAutoDetect taxonomy",
+      "publish_in_phase": "Phase_4_Federation"
+    },
+    {
+      "name": "StingSuitabilityCodes",
+      "status": "ready_external_publisher",
+      "owning_publisher": "buildingsmart",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/buildingsmart/iso-19650/1.0/class/suitability",
+      "standards_basis": "ISO 19650-2 Annex B",
+      "publish_in_phase": "skip_already_published",
+      "notes": "buildingSMART owns ISO 19650; STING references their IRI rather than re-publishing."
+    },
+    {
+      "name": "StingCDEStates",
+      "status": "ready_external_publisher",
+      "owning_publisher": "buildingsmart",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/buildingsmart/iso-19650/1.0/class/cdestate",
+      "standards_basis": "ISO 19650-1 §10.2",
+      "publish_in_phase": "skip_already_published"
+    },
+    {
+      "name": "StingRevisionTypes",
+      "status": "ready_external_publisher",
+      "owning_publisher": "buildingsmart",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/buildingsmart/iso-19650/1.0/class/revisiontype",
+      "standards_basis": "BS 1192 §6.3",
+      "publish_in_phase": "skip_already_published"
+    },
+    {
+      "name": "StingDrawingPurposes",
+      "status": "private",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": null,
+      "rationale_private": "STING-internal drawing-engine taxonomy."
+    },
+    {
+      "name": "StingDrawingTiers",
+      "status": "private",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": null,
+      "rationale_private": "STING-internal multi-host portability classifier."
+    },
+    {
+      "name": "StingPaperSizes",
+      "status": "skip_external_standard",
+      "owning_publisher": "iso",
+      "bsdd_iri_root": null,
+      "rationale_private": "ISO 216 / ANSI Y14.1 own these; no STING value-add in republishing."
+    },
+    {
+      "name": "StingOrientations",
+      "status": "private",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": null,
+      "rationale_private": "Trivial; no value in publishing."
+    },
+    {
+      "name": "StingDetailLevels",
+      "status": "private",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": null,
+      "rationale_private": "Matches Revit-native ViewDetailLevel enum; consumed by host."
+    },
+    {
+      "name": "StingColorSchemes",
+      "status": "private",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": null,
+      "rationale_private": "STING UI-layer taxonomy."
+    },
+    {
+      "name": "StingCropKinds",
+      "status": "private",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": null,
+      "rationale_private": "STING DrawingCropApplier implementation detail."
+    },
+    {
+      "name": "StingIssueTypes",
+      "status": "ready_external_publisher",
+      "owning_publisher": "buildingsmart",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/buildingsmart/bcf/2.1/class/topictype",
+      "standards_basis": "BCF 2.1",
+      "publish_in_phase": "skip_already_published"
+    },
+    {
+      "name": "StingIssuePriorities",
+      "status": "private",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": null,
+      "rationale_private": "STING SLA-specific priority tiers; not in BCF."
+    },
+    {
+      "name": "StingIssueStates",
+      "status": "ready_external_publisher",
+      "owning_publisher": "buildingsmart",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/buildingsmart/bcf/2.1/class/topicstatus",
+      "standards_basis": "BCF 2.1",
+      "publish_in_phase": "skip_already_published"
+    },
+    {
+      "name": "StingRibaStages",
+      "status": "ready",
+      "owning_publisher": "riba",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/riba/plan-of-work/2020/class/stage",
+      "standards_basis": "RIBA Plan of Work 2020",
+      "publish_in_phase": "Phase_4_Federation",
+      "notes": "RIBA may already own; check before publish."
+    },
+    {
+      "name": "StingWorkflowStates",
+      "status": "private",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": null,
+      "rationale_private": "STING-internal template-engine workflow taxonomy."
+    },
+    {
+      "name": "StingSignoffRoles",
+      "status": "ready_external_publisher",
+      "owning_publisher": "buildingsmart",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/buildingsmart/ifcactor/4.0/class/role",
+      "standards_basis": "IFC4 IfcActorRole enum",
+      "publish_in_phase": "skip_already_published"
+    },
+    {
+      "name": "StingMaintenanceFrequencies",
+      "status": "ready",
+      "owning_publisher": "sfg20",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/sfg20/maintenance/1.0/class/frequency",
+      "standards_basis": "SFG20 maintenance frequency conventions",
+      "publish_in_phase": "Phase_4_Federation",
+      "notes": "Consider passing to SFG20 / BSRIA before publishing under STING."
+    },
+    {
+      "name": "StingAssetConditions",
+      "status": "ready",
+      "owning_publisher": "iso",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/iso/15686/1.0/class/condition",
+      "standards_basis": "ISO 15686-1:2011 service-life planning",
+      "publish_in_phase": "Phase_4_Federation"
+    },
+
+    {
+      "name": "StingHVACPressureClasses",
+      "status": "private",
+      "owning_publisher": "bsria_smacna",
+      "bsdd_iri_root": null,
+      "rationale_private": "DW/144 and SMACNA are commercial standards; check licensing before publishing."
+    },
+    {
+      "name": "StingHVACAirDensities",
+      "status": "private",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": null,
+      "rationale_private": "STING engineering preset; not a public taxonomy."
+    },
+    {
+      "name": "StingHVACSizingStrategies",
+      "status": "private",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": null,
+      "rationale_private": "STING engineering-engine implementation detail."
+    },
+    {
+      "name": "StingAcousticNCTargets",
+      "status": "ready",
+      "owning_publisher": "cibse",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/cibse/tg6/1.0/class/nc-target",
+      "standards_basis": "CIBSE TG6:2016",
+      "publish_in_phase": "Phase_4_Federation"
+    },
+    {
+      "name": "StingPipeServices",
+      "status": "private",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": null,
+      "rationale_private": "STING engineering-engine taxonomy; BS 1710 owns pipe-identification semantics."
+    },
+    {
+      "name": "StingFireRatings",
+      "status": "ready",
+      "owning_publisher": "cen",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/cen/en13501/2.0/class/fireresistance",
+      "standards_basis": "BS EN 13501-2",
+      "publish_in_phase": "Phase_4_Federation",
+      "notes": "CEN may already own; check before publish."
+    },
+    {
+      "name": "StingCableCategories",
+      "status": "ready",
+      "owning_publisher": "cen",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/cen/en50173/2.0/class/cable-category",
+      "standards_basis": "BS EN 50173-1",
+      "publish_in_phase": "Phase_4_Federation"
+    },
+    {
+      "name": "StingPipeMaterials",
+      "status": "ready",
+      "owning_publisher": "iso",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/iso/ifcmaterial/4.0/class/pipe-material",
+      "standards_basis": "BS EN 806 + BS 1710 + ICE Database v3.0",
+      "publish_in_phase": "Phase_4_Federation"
+    },
+    {
+      "name": "StingDuctMaterials",
+      "status": "private",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": null,
+      "rationale_private": "STING engineering taxonomy."
+    },
+    {
+      "name": "StingInsulationTypes",
+      "status": "private",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": null,
+      "rationale_private": "STING engineering taxonomy; BS 5422 owns material definitions."
+    },
+    {
+      "name": "StingHangerTypes",
+      "status": "private",
+      "owning_publisher": "mss",
+      "bsdd_iri_root": null,
+      "rationale_private": "MSS SP-58/69 owns; check licensing."
+    },
+    {
+      "name": "StingWeldTypes",
+      "status": "skip_external_standard",
+      "owning_publisher": "aws",
+      "bsdd_iri_root": null,
+      "rationale_private": "AWS A2.4 owns; established cross-vendor knowledge already."
+    },
+    {
+      "name": "StingSteelGrades",
+      "status": "ready",
+      "owning_publisher": "cen",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/cen/en10025/2.0/class/structural-steel-grade",
+      "standards_basis": "BS EN 10025; BS EN 10088",
+      "publish_in_phase": "Phase_4_Federation"
+    },
+    {
+      "name": "StingConcreteGrades",
+      "status": "ready",
+      "owning_publisher": "cen",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/cen/en206/2.0/class/concrete-grade",
+      "standards_basis": "BS EN 206; BS 8500",
+      "publish_in_phase": "Phase_4_Federation"
+    },
+
+    {
+      "name": "StingHealthcareFacilityProfiles",
+      "status": "ready",
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/stingtools/healthcare/1.0/class/facility-profile",
+      "standards_basis": "STING Healthcare Pack + NHS England HBN catalogue",
+      "publish_in_phase": "Phase_4_Federation",
+      "notes": "Highest-priority Tier 5 publish — anchors healthcare interop."
+    },
+    {
+      "name": "StingMGSGasTypes",
+      "status": "ready",
+      "owning_publisher": "nhs",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/nhs/htm-02-01/1.0/class/medical-gas-type",
+      "standards_basis": "HTM 02-01; NFPA 99; BS EN ISO 7396-1",
+      "publish_in_phase": "Phase_4_Federation",
+      "notes": "Strong candidate for early publish; cross-vendor benefit for any healthcare MEP tool."
+    },
+    {
+      "name": "StingPressureRegimes",
+      "status": "ready",
+      "owning_publisher": "nhs",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/nhs/htm-03-01/1.0/class/pressure-regime",
+      "standards_basis": "HTM 03-01:2021",
+      "publish_in_phase": "Phase_4_Federation"
+    },
+    {
+      "name": "StingEESTypes",
+      "status": "ready",
+      "owning_publisher": "nhs",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/nhs/htm-06-01/1.0/class/ees-type",
+      "standards_basis": "HTM 06-01:2017; NFPA 99:2024; NFPA 110",
+      "publish_in_phase": "Phase_4_Federation"
+    },
+    {
+      "name": "StingMRIZones",
+      "status": "ready",
+      "owning_publisher": "acr",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/acr/mr-safety/2020/class/zone",
+      "standards_basis": "ACR Guidance Document on MR Safe Practices 2020; MHRA DB 2021(03)",
+      "publish_in_phase": "Phase_4_Federation"
+    },
+    {
+      "name": "StingRadiationZones",
+      "status": "ready",
+      "owning_publisher": "ncrp",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/ncrp/147/2004/class/radiation-zone",
+      "standards_basis": "NCRP Report 147; IRR 2017; ICRP Publication 103",
+      "publish_in_phase": "Phase_4_Federation"
+    },
+    {
+      "name": "StingLigatureRatings",
+      "status": "ready",
+      "owning_publisher": "nhs",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/nhs/hbn-03-01/1.0/class/ligature-rating",
+      "standards_basis": "HBN 03-01:2013; NHS England Mental Health Premises Standards",
+      "publish_in_phase": "Phase_4_Federation"
+    },
+    {
+      "name": "StingObservationLOS",
+      "status": "ready",
+      "owning_publisher": "nhs",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/nhs/mental-health/1.0/class/observation-los",
+      "standards_basis": "HBN 03-01; NHS England Mental Health Premises Standards 2022; CQC observation guidance",
+      "publish_in_phase": "Phase_4_Federation"
+    },
+    {
+      "name": "StingHTMWaterRiskZones",
+      "status": "ready",
+      "owning_publisher": "nhs",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/nhs/htm-04-01/1.0/class/water-risk-zone",
+      "standards_basis": "HTM 04-01:2016; HSG 274; BS 8580-1:2019",
+      "publish_in_phase": "Phase_4_Federation"
+    },
+    {
+      "name": "StingHBNDepartments",
+      "status": "ready",
+      "owning_publisher": "nhs",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/nhs/hbn/1.0/class/department",
+      "standards_basis": "NHS England HBN catalogue",
+      "publish_in_phase": "Phase_4_Federation"
+    },
+    {
+      "name": "StingTheatreTypes",
+      "status": "ready",
+      "owning_publisher": "nhs",
+      "bsdd_iri_root": "https://identifier.buildingsmart.org/uri/nhs/hbn-26/2013/class/theatre-type",
+      "standards_basis": "HBN 26 (2013); HTM 03-01; HFN 26-1",
+      "publish_in_phase": "Phase_4_Federation"
+    }
+  ],
+
+  "summary": {
+    "total_enums_in_scope": 51,
+    "ready_for_sting_publication": 22,
+    "skipped_already_published_by_buildingsmart": 6,
+    "private_sting_internal": 19,
+    "project_scoped_unpublishable": 3,
+    "skipped_external_standard": 1
+  }
+}
