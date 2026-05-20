@@ -2928,6 +2928,10 @@ PARAM	83e44d79-e601-5250-bcbc-d63193ac441f	PLM_VLV_FAIL_POSITION_TXT	TEXT		6	1	V
 PARAM	ab46d616-d864-572c-8d9d-5bb51ccaab79	PLM_VLV_WRAS_APPROVED_BOOL	YESNO		6	1	Valve WRAS-approved [Phase 178b]	1
 PARAM	af8461f1-b314-5f60-8e8d-e38963de14f8	PLM_DEAD_LEG_LENGTH_M	TEXT		6	1	Dead-leg length m flagged by DeadLegDetector [HSG 274 Phase 178b]	1
 PARAM	98ab6e19-8d12-53c0-b388-8705f9413373	PLM_PRJ_PLUMBING_CODE_TXT	TEXT		1	1	Project plumbing-code toggle BS-UK / IPC-US / UPC-US [Phase 178b]	1
+PARAM	c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e01	PLM_RECIRC_PUMP_DUTY_LPM	TEXT		6	1	DHW recirculation pump duty in l/min computed by RecircLoopBalancer to maintain ≤5°C ΔT loop [Phase 187]	1
+PARAM	c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e02	PLM_RECIRC_DRV_KV	TEXT		6	1	Per-branch DRV pre-set Kv (l/min·bar^-0.5) — proportional to branch heat-loss share, stamped on DRV valve fixtures [Phase 187]	1
+PARAM	c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e03	PLM_STACK_CAP_DU	TEXT		6	1	Stack DFU capacity per BS EN 12056-2 Table 11 lookup at stack DN [Phase 187]	1
+PARAM	c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e04	PLM_STACK_UTIL_PCT	TEXT		6	1	Stack utilisation percentage (accumulated DFU ÷ Table 11 capacity) — &gt;70% flags induced-siphonage risk [Phase 187]	1
 PARAM	c3d5b6ee-0f2e-7283-9405-162718304a5b	ELC_CDT_PENETRATION_COUNT_NR	TEXT		4	1	Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).	1
 PARAM	c1a2b3c4-d5e6-4f70-8a9b-0c1d2e3f4a5b	ELC_WIRE_CORE_COUNT_INT	INTEGER		4	1	Number of conductors/cores in the wire run (1-4). Drives slash-mark count on wire annotation tag. [BS 7671]	1
 PARAM	d2b3c4d5-e6f7-4081-9b0c-1d2e3f4a5b6c	ELC_WIRE_PHASE_TXT	TEXT		4	1	Phase designation: L1/L2/L3/N/PE/CPC/1P/3P [BS 7671 Appendix 7]	1

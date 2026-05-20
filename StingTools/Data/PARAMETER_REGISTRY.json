@@ -21935,6 +21935,54 @@
       "curated": true
     },
     {
+      "param_name": "PLM_RECIRC_PUMP_DUTY_LPM",
+      "guid": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e01",
+      "description": "DHW recirculation pump duty in l/min computed by RecircLoopBalancer to maintain less than or equal to 5C delta-T loop [Phase 187]",
+      "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
+      "param_name": "PLM_RECIRC_DRV_KV",
+      "guid": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e02",
+      "description": "Per-branch DRV pre-set Kv stamped on DRV valve fixtures by RecircLoopBalancer [Phase 187]",
+      "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
+      "param_name": "PLM_STACK_CAP_DU",
+      "guid": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e03",
+      "description": "Stack DFU capacity per BS EN 12056-2 Table 11 lookup at stack DN [Phase 187]",
+      "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
+      "param_name": "PLM_STACK_UTIL_PCT",
+      "guid": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e04",
+      "description": "Stack utilisation percentage (accumulated DFU divided by Table 11 capacity); over 70% flags induced-siphonage risk [Phase 187]",
+      "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
       "param_name": "PLM_PRJ_PLUMBING_CODE_TXT",
       "guid": "98ab6e19-8d12-53c0-b388-8705f9413373",
       "description": "Project plumbing-code toggle BS-UK / IPC-US / UPC-US [Phase 178b]",

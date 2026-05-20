@@ -31,6 +31,7 @@ namespace StingTools.Core.Plumbing
         public double TotalHeatLossW    { get; set; }
         public double PumpDutyLpm       { get; set; }
         public double PumpHeadKpa       { get; set; }
+        public int    BranchesStamped   { get; set; }  // PLM_RECIRC_* params
         public List<RecircBranchResult> Branches { get; } = new List<RecircBranchResult>();
         public List<string> Warnings { get; } = new List<string>();
     }
@@ -46,6 +47,16 @@ namespace StingTools.Core.Plumbing
         private const double UperLengthWmK  = 0.40;
 
         public static RecircLoopReport Analyse(Document doc, string systemNameFilter = null)
+            => Analyse(doc, systemNameFilter, writeBack: false);
+
+        /// <summary>
+        /// Compute DHW recirculation pump duty + per-branch DRV Kv. When
+        /// writeBack=true also stamps PLM_RECIRC_PUMP_DUTY_LPM (constant per
+        /// branch — the loop pump duty) and PLM_RECIRC_DRV_KV per branch
+        /// pipe so DRV commissioning sheets and schedules can read the
+        /// pre-set without re-running the calc. Caller owns the Transaction.
+        /// </summary>
+        public static RecircLoopReport Analyse(Document doc, string systemNameFilter, bool writeBack)
         {
             var r = new RecircLoopReport();
             if (doc == null) return r;
@@ -93,6 +104,23 @@ namespace StingTools.Core.Plumbing
                 double branchFlowM3H = (mDotKgS / WaterRhoKgM3) * 3600.0 * share;
                 b.FlowLpm = branchFlowM3H * 1000.0 / 60.0;
                 b.DrvPresetKv = branchFlowM3H / Math.Sqrt(0.1);
+
+                if (writeBack)
+                {
+                    try
+                    {
+                        var p = doc.GetElement(b.PipeId);
+                        if (p != null)
+                        {
+                            StingTools.Core.ParameterHelpers.SetString(p, "PLM_RECIRC_PUMP_DUTY_LPM",
+                                $"{r.PumpDutyLpm:F1}", overwrite: true);
+                            StingTools.Core.ParameterHelpers.SetString(p, "PLM_RECIRC_DRV_KV",
+                                $"{b.DrvPresetKv:F3}", overwrite: true);
+                            r.BranchesStamped++;
+                        }
+                    }
+                    catch (Exception exW) { r.Warnings.Add($"Recirc stamp {b.PipeId}: {exW.Message}"); }
+                }
             }
             return r;
         }
