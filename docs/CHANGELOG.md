@@ -5292,6 +5292,31 @@ of the per-family tier rows the CSVs ship.
    the likely culprit. Before this phase the dialog reported the
    count silently with no qualifier.
 
+9. **`LABEL_DEFINITIONS.json` aligned with the 204-family creator** —
+   added 76 new `category_labels` entries (58 healthcare + 9 LPS + 7
+   ARCH/STR variants + 2 tie-in pipe variants) so every family the
+   creator now produces has a tier_1 / tier_2 / tier_3 + paragraph
+   container declaration. Each entry pins to an existing paragraph
+   container (CLN/CEQ/MGS/LIG/RAD/NCL/LPS/STR/BLE/ARCH) and references
+   only params already present in `MR_PARAMETERS.txt`. Healthcare
+   "Anti-Ligature" disambiguated entries carry a `csv_family_alias`
+   field pointing back at the canonical CSV name. Version bumped
+   5.10 → 5.11.
+
+10. **8 orphan warning params landed in `MR_PARAMETERS.txt` +
+    `MR_PARAMETERS.csv`** — `WARN_STR_BEAM_{NOTCH,PENETRATION_REVIEW,
+    WEB_OPENING}`, `WARN_STR_COMPOSITE_SHEAR_STUD`, `WARN_STR_TRANSFER_BEAM`
+    (group 16, `BLE_STRUCTURE`), and
+    `WARN_ELC_PNL_{FEEDER_UNDERSIZED,LOAD_BALANCE,SCHEDULE_MISSING}`
+    (group 4, `ELC_PWR`). They were already referenced by formula in
+    `LABEL_DEFINITIONS.json` Calculated Value rows but had no
+    shared-parameter entries — Revit would have silently skipped them
+    at family-author time. UUIDv5 GUIDs minted in the Planscape docs
+    namespace `a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a`. CSV header bumped
+    to v6.4. Result: every parameter referenced in `category_labels`
+    (683 unique) now resolves to a `MR_PARAMETERS.txt` entry — zero
+    orphans.
+
 **Modified files**:
 
 | File | Change |
@@ -5301,6 +5326,9 @@ of the per-family tier rows the CSVs ship.
 | `StingTools/Core/HandoverModeHelper.cs` | `Disciplines` array extended with `"HEALTH"` so the CSV resolver discovers the healthcare CSV |
 | `StingTools/Core/TagConfigCsvReader.cs` | `Parse` recognises `TAG_FAMILY,name,…` row format used by HEALTH CSV and registers each as a plan-less `TierPlan` |
 | `StingTools/Core/ParamRegistry.cs` | 2 hardcoded `137` comments switched to runtime `TagFamilyConfig.TotalFamilyCount` reference |
+| `StingTools/Data/LABEL_DEFINITIONS.json` | +76 `category_labels` entries (58 healthcare + 9 LPS + 7 ARCH/STR variants + 2 tie-in pipe). Total 138 → 214 categories. Version 5.10 → 5.11 |
+| `StingTools/Data/MR_PARAMETERS.txt` | +8 orphan warning PARAM rows (5 STR_BEAM + 3 ELC_PNL) with UUIDv5 GUIDs |
+| `StingTools/Data/MR_PARAMETERS.csv` | mirror of above 8 PARAM rows; header bumped to v6.4 |
 | `docs/CHANGELOG.md` | this entry |
 
 **Caveats**:
@@ -5322,3 +5350,11 @@ of the per-family tier rows the CSVs ship.
    falls back to the Handover (default) CSV for HEALTH in DC mode,
    which is the correct behaviour for now (clinical content is
    stage-independent).
+5. The 76 new `category_labels` entries ship with stub tier_2 / tier_3
+   rows tuned per family (e.g. healthcare clinical → `CLN_ROOM_CLASS_TXT`
+   + `CLN_PRESS_REGIME_TXT`, LPS → `ELC_LPS_CLASS_TXT` + `ELC_LPS_ZONE_TXT`).
+   Designers are expected to expand them per project — the stubs render
+   correctly out of the box and never reference an unbound parameter.
+6. `MR_PARAMETERS.csv` row count (3052) is lower than `MR_PARAMETERS.txt`
+   (3117) — pre-existing condition where the CSV is a subset, not a
+   strict mirror. Not introduced by this phase. Out of scope to close.

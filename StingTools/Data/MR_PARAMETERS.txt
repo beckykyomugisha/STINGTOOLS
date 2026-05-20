@@ -1384,6 +1384,9 @@ PARAM	d65b67a7-a0d4-590e-9ccd-19b77fd7fc07	WARN_ELC_FIXTURE_MOUNTING_HEIGHT	TEXT
 PARAM	2cf638a7-c884-57de-97a3-81b7c117cf1e	WARN_ELC_IP_RATING	TEXT		4	1	Warning: Ingress protection rating minimum [HIGH]	1
 PARAM	fec31a6f-f79e-5631-99b2-753abe18b18c	WARN_ELC_PNL_SHORT_CIRCUIT	TEXT		4	1	Warning: Panel short circuit rating check [CRITICAL]	1
 PARAM	813ba18b-4be2-534e-a61e-064685b5898d	WARN_ELC_PNL_SPARE_WAYS	TEXT		4	1	Warning: Panel spare ways minimum [MEDIUM]	1
+PARAM	3b9d32fa-f5ad-52af-854c-1ca8470831e6	WARN_ELC_PNL_FEEDER_UNDERSIZED	TEXT		4	1	Warning: Panel feeder cable undersized for connected load (BS 7671) [CRITICAL]	1
+PARAM	ac9979b7-bc02-569c-998a-a1e871850651	WARN_ELC_PNL_LOAD_BALANCE	TEXT		4	1	Warning: Panel load imbalance >20% across phases (BS 7671) [HIGH]	1
+PARAM	4ff92fea-fbfa-56ee-96c5-7a2bc7a5401f	WARN_ELC_PNL_SCHEDULE_MISSING	TEXT		4	1	Warning: Panel schedule missing or out of date [MEDIUM]	1
 PARAM	1cbbcc15-4a47-5ee4-a416-40a089c0e0e7	WARN_FAB_HANGER_LOAD_KN	TEXT		15	1	Warning: Fabrication hanger load capacity [HIGH]	1
 PARAM	ab8b8275-0830-5709-889f-4e69639f4f98	WARN_FLS_COMPARTMENT_AREA	TEXT		8	1	Warning: Compliance check: fls compartment area [MEDIUM]	1
 PARAM	573be7bf-3821-5434-b6f6-783e1c83ef87	WARN_FLS_PROT_COVERAGE	TEXT		8	1	Warning: Fire safety device coverage limit [CRITICAL]	1
@@ -1418,6 +1421,11 @@ PARAM	fe4b1c60-d789-5150-b895-fbdc35569bc2	WARN_ROAD_GRADIENT_PCT	TEXT		15	1	War
 PARAM	f4370d77-e46a-578b-b270-0e51898c108d	WARN_SITE_BEARING_CAP_KPA	TEXT		15	1	Warning: Foundation/soil bearing capacity minimum [CRITICAL]	1
 PARAM	3d190dbd-288f-5628-8e05-14ffb2526af6	WARN_STR_BEAM_DEFLECTION	TEXT		16	1	Warning: Beam deflection limit (L/250) [CRITICAL]	1
 PARAM	70458182-401e-5a9f-a33c-b6f59d9d3a8d	WARN_STR_BEAM_SPAN_DEPTH	TEXT		16	1	Warning: Beam span-to-depth ratio limit [HIGH]	1
+PARAM	f4317776-5507-544f-9d1f-b1915de2ca27	WARN_STR_BEAM_NOTCH	TEXT		16	1	Warning: Beam notch depth exceeds limit (BS EN 1992-1-1) [HIGH]	1
+PARAM	2327944e-c87f-5ba2-9b32-06752df7db57	WARN_STR_BEAM_PENETRATION_REVIEW	TEXT		16	1	Warning: Beam penetration requires structural review [HIGH]	1
+PARAM	bcc550dd-e6d4-529b-aea6-599e6e4db75c	WARN_STR_BEAM_WEB_OPENING	TEXT		16	1	Warning: Beam web opening exceeds code limits (BS EN 1993) [HIGH]	1
+PARAM	21b0fccd-ddeb-5f98-ba39-43b304ea5c8e	WARN_STR_COMPOSITE_SHEAR_STUD	TEXT		16	1	Warning: Composite beam shear-stud count below required (BS EN 1994) [MEDIUM]	1
+PARAM	8b849368-d511-5fa7-b097-806f65e001c0	WARN_STR_TRANSFER_BEAM	TEXT		16	1	Warning: Transfer beam requires deflection + vibration check [HIGH]	1
 PARAM	908c0243-359c-523b-8da6-7bdf1c962f32	WARN_STR_BLT_PROOF_LOAD_KN	TEXT		16	1	Warning: Bolt proof load capacity minimum [CRITICAL]	1
 PARAM	8f574100-2ee3-5289-bdb7-09d7813a715a	WARN_STR_COL_ECCENTRICITY	TEXT		16	1	Warning: Column eccentricity limit [HIGH]	1
 PARAM	97cd746f-9ec6-5e88-8175-d2d205369582	WARN_STR_CONN_CAPACITY_KN	TEXT		16	1	Warning: Connection capacity minimum [CRITICAL]	1

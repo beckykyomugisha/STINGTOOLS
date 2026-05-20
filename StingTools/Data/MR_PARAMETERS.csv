@@ -1,3 +1,4 @@
+# v6.4 | 20260520 | BIM Template mr_parameters (+8 warning params orphaned in LABEL_DEFINITIONS — Phase 187 alignment: WARN_STR_BEAM_{NOTCH,PENETRATION_REVIEW,WEB_OPENING}, WARN_STR_COMPOSITE_SHEAR_STUD, WARN_STR_TRANSFER_BEAM, WARN_ELC_PNL_{FEEDER_UNDERSIZED,LOAD_BALANCE,SCHEDULE_MISSING})
 # v6.3 | 20260519 | BIM Template mr_parameters (+14: ASS_CST_ currency-neutral (7) + ASS_PMT_ payment cert (4) + ASS_VAR_ variation (3) — Phase 184 / P0.2 + P5 alignment with MR_PARAMETERS.txt)
 # v6.2 | 20260517 | BIM Template mr_parameters — 3017 unique params (auto-aligned with MR_PARAMETERS.txt)
 Revit_Category,Parameter_Name,Parameter_GUID,Data_Type,Group_Name,Binding_Type,Description,Has_Formula,Formula,Input_Parameters,Discipline,User_Modifiable,Hide_When_No_Value
@@ -1344,6 +1345,9 @@ Generic Models,WARN_ELC_FIXTURE_MOUNTING_HEIGHT,d65b67a7-a0d4-590e-9ccd-19b77fd7
 Generic Models,WARN_ELC_IP_RATING,2cf638a7-c884-57de-97a3-81b7c117cf1e,TEXT,ELC_PWR,Type,Warning: Ingress protection rating minimum [HIGH],False,,,MULTI,1,0
 Generic Models,WARN_ELC_PNL_SHORT_CIRCUIT,fec31a6f-f79e-5631-99b2-753abe18b18c,TEXT,ELC_PWR,Type,Warning: Panel short circuit rating check [CRITICAL],False,,,MULTI,1,0
 Generic Models,WARN_ELC_PNL_SPARE_WAYS,813ba18b-4be2-534e-a61e-064685b5898d,TEXT,ELC_PWR,Type,Warning: Panel spare ways minimum [MEDIUM],False,,,MULTI,1,0
+Generic Models,WARN_ELC_PNL_FEEDER_UNDERSIZED,3b9d32fa-f5ad-52af-854c-1ca8470831e6,TEXT,ELC_PWR,Type,Warning: Panel feeder cable undersized for connected load (BS 7671) [CRITICAL],False,,,MULTI,1,0
+Generic Models,WARN_ELC_PNL_LOAD_BALANCE,ac9979b7-bc02-569c-998a-a1e871850651,TEXT,ELC_PWR,Type,Warning: Panel load imbalance >20% across phases (BS 7671) [HIGH],False,,,MULTI,1,0
+Generic Models,WARN_ELC_PNL_SCHEDULE_MISSING,4ff92fea-fbfa-56ee-96c5-7a2bc7a5401f,TEXT,ELC_PWR,Type,Warning: Panel schedule missing or out of date [MEDIUM],False,,,MULTI,1,0
 Generic Models,WARN_FAB_HANGER_LOAD_KN,1cbbcc15-4a47-5ee4-a416-40a089c0e0e7,TEXT,RGL_CMPL,Type,Warning: Fabrication hanger load capacity [HIGH],False,,,MULTI,1,0
 Generic Models,WARN_FLS_COMPARTMENT_AREA,ab8b8275-0830-5709-889f-4e69639f4f98,TEXT,FLS_LIFE_SFTY,Type,Warning: Compliance check: fls compartment area [MEDIUM],False,,,MULTI,1,0
 Generic Models,WARN_FLS_PROT_COVERAGE,573be7bf-3821-5434-b6f6-783e1c83ef87,TEXT,FLS_LIFE_SFTY,Type,Warning: Fire safety device coverage limit [CRITICAL],False,,,MULTI,1,0
@@ -1378,6 +1382,11 @@ Generic Models,WARN_ROAD_GRADIENT_PCT,fe4b1c60-d789-5150-b895-fbdc35569bc2,TEXT,
 Generic Models,WARN_SITE_BEARING_CAP_KPA,f4370d77-e46a-578b-b270-0e51898c108d,TEXT,RGL_CMPL,Type,Warning: Foundation/soil bearing capacity minimum [CRITICAL],False,,,MULTI,1,0
 Generic Models,WARN_STR_BEAM_DEFLECTION,3d190dbd-288f-5628-8e05-14ffb2526af6,TEXT,BLE_STRUCTURE,Type,Warning: Beam deflection limit (L/250) [CRITICAL],False,,,MULTI,1,0
 Generic Models,WARN_STR_BEAM_SPAN_DEPTH,70458182-401e-5a9f-a33c-b6f59d9d3a8d,TEXT,BLE_STRUCTURE,Type,Warning: Beam span-to-depth ratio limit [HIGH],False,,,MULTI,1,0
+Generic Models,WARN_STR_BEAM_NOTCH,f4317776-5507-544f-9d1f-b1915de2ca27,TEXT,BLE_STRUCTURE,Type,Warning: Beam notch depth exceeds limit (BS EN 1992-1-1) [HIGH],False,,,MULTI,1,0
+Generic Models,WARN_STR_BEAM_PENETRATION_REVIEW,2327944e-c87f-5ba2-9b32-06752df7db57,TEXT,BLE_STRUCTURE,Type,Warning: Beam penetration requires structural review [HIGH],False,,,MULTI,1,0
+Generic Models,WARN_STR_BEAM_WEB_OPENING,bcc550dd-e6d4-529b-aea6-599e6e4db75c,TEXT,BLE_STRUCTURE,Type,Warning: Beam web opening exceeds code limits (BS EN 1993) [HIGH],False,,,MULTI,1,0
+Generic Models,WARN_STR_COMPOSITE_SHEAR_STUD,21b0fccd-ddeb-5f98-ba39-43b304ea5c8e,TEXT,BLE_STRUCTURE,Type,Warning: Composite beam shear-stud count below required (BS EN 1994) [MEDIUM],False,,,MULTI,1,0
+Generic Models,WARN_STR_TRANSFER_BEAM,8b849368-d511-5fa7-b097-806f65e001c0,TEXT,BLE_STRUCTURE,Type,Warning: Transfer beam requires deflection + vibration check [HIGH],False,,,MULTI,1,0
 Generic Models,WARN_STR_BLT_PROOF_LOAD_KN,908c0243-359c-523b-8da6-7bdf1c962f32,TEXT,BLE_STRUCTURE,Type,Warning: Bolt proof load capacity minimum [CRITICAL],False,,,MULTI,1,0
 Generic Models,WARN_STR_COL_ECCENTRICITY,8f574100-2ee3-5289-bdb7-09d7813a715a,TEXT,BLE_STRUCTURE,Type,Warning: Column eccentricity limit [HIGH],False,,,MULTI,1,0
 Generic Models,WARN_STR_CONN_CAPACITY_KN,97cd746f-9ec6-5e88-8175-d2d205369582,TEXT,BLE_STRUCTURE,Type,Warning: Connection capacity minimum [CRITICAL],False,,,MULTI,1,0
