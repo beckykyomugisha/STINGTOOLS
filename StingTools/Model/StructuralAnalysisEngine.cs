@@ -521,9 +521,10 @@ namespace StingTools.Model
                         bool isSteel = mat.Contains("STEEL") || mat.Contains("S275") || mat.Contains("S355");
                         double udl = (liveLoadKPa + deadLoadKPa) * 3.0; // 3m tributary
                         var r = CheckBeamDeflection(spanMm, h, b, udl, isSteel);
+                        double ratio = r.LimitMm > 0 ? spanMm / r.LimitMm : 0;
                         string verdict = r.Pass
-                            ? $"L/{r.LimitMm > 0 ? spanMm / r.LimitMm : 0:F0} OK"
-                            : $"L/{r.LimitMm > 0 ? spanMm / r.LimitMm : 0:F0} FAIL ({r.CalculatedMm:F1}mm)";
+                            ? $"L/{ratio:F0} OK"
+                            : $"L/{ratio:F0} FAIL ({r.CalculatedMm:F1}mm)";
                         if (StingTools.Core.ParameterHelpers.SetString(beam,
                                 "STR_BEAM_DEFLECTION_LIM_TXT", verdict, overwrite: true))
                             beamsStamped++;
