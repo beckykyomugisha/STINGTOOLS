@@ -39,8 +39,17 @@ StingTools/*
 StingTools/BIMManager/*
 !StingTools/BIMManager/BcfEngine.cs
 
-# Mobile app source isn't needed for the API container build
-Planscape/
+# Mobile app source isn't needed for the API container build, but the
+# viewer source tree under Planscape/assets/viewer/ IS needed by the
+# `viewer` build stage (Phase 186C) — it runs `npm ci && npm run build`
+# to produce the tree-shaken bundle that ends up in wwwroot/. Exclude
+# everything else under Planscape/.
+Planscape/*
+!Planscape/assets/
+Planscape/assets/*
+!Planscape/assets/viewer/
+Planscape/assets/viewer/node_modules/
+Planscape/assets/viewer/dist/
 docs/
 tests/
 *.md

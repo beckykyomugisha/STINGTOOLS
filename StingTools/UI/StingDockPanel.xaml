@@ -92,6 +92,13 @@
             <Setter Property="Margin" Value="0,3,0,1"/>
             <Setter Property="Opacity" Value="0.7"/>
         </Style>
+        <!-- HEALTHCARE tab + ad-hoc button rows use this WrapPanel style. Missing
+             this definition was throwing a 'Provide value on StaticResourceExtension'
+             at XAML parse time, which killed the whole panel during construction. -->
+        <Style x:Key="ButtonWrap" TargetType="WrapPanel">
+            <Setter Property="Orientation" Value="Horizontal"/>
+            <Setter Property="Margin" Value="0,2,0,4"/>
+        </Style>
     </Page.Resources>
 
     <Grid>
@@ -1767,6 +1774,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="AuditTagFamilies" Click="Cmd_Click" ToolTip="Check tag family coverage by category"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Configure Loaded Families" Tag="ConfigureLoadedFamilies" Click="Cmd_Click" ToolTip="Inject STING parameters into every editable family already loaded in the active project. Mapped scope by default; 'All editable' and purge mode are opt-in."/>
                                     <Button Style="{StaticResource PurpleBtn}" Content="Migrate Tag Families" Tag="MigrateTagFamilies" Click="Cmd_Click" ToolTip="Upgrade loaded STING tag families: add PARA_STATE_4..10, 128 style BOOLs, box/leader colour params, and pre-create standard type variants"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Migrate Label Refs" Tag="MigrateTagLabelRefs" Click="Cmd_Click" ToolTip="Rewrite renamed-parameter references inside loaded tag families using SCHEDULE_FIELD_REMAP.csv. Uses FamilyManager.ReplaceParameter to swap the underlying shared-param binding (preserves every label cell + formula + type value) plus formula text rewriting for token references."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Style Audit" Tag="StyleAudit" Click="Cmd_Click" ToolTip="Audit every tag family for missing params / variants and flag deviations from disciplinary defaults"/>
                                 </WrapPanel>
                             </StackPanel>

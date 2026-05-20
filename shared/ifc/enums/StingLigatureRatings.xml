@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingLigatureRatings</Name>
+    <Definition>Anti-ligature classification per HBN 03-01 / NHS England Mental Health Premises. Carried on every element in a patient-accessible mental-health environment. Drives anti-ligature audit gating, colour-coded view filter pack, and procurement compliance reports.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4005-9000-00000000002f</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/nhs/hbn-03-01/1.0/class/ligature-rating</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>HBN 03-01:2013 (Adult acute mental health units); NHS England Standards and procurement guidance; PAS 24 / BS 8300-2; PD CR 14383</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Compliant" sentinel="false">
+      <Definition>Compliant — manufacturer-certified anti-ligature fitting. Passes load test (typically 25 kg pull). Approved for patient-accessible mental health areas.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NonCompliant" sentinel="false">
+      <Definition>Non-Compliant — standard fitting, NOT anti-ligature certified. Must be excluded from patient-accessible areas; flagged for removal in retrofit.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Mitigated" sentinel="false">
+      <Definition>Mitigated — non-compliant fitting retained with documented risk mitigation (e.g. behind locked panel, lobby-only access). Requires named clinical risk-acceptance.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NotApplicable" sentinel="false">
+      <Definition>Not Applicable — element is in a non-patient-accessible area (staff base, BoH, plant room). Excluded from anti-ligature audit scope.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="UnderReview" sentinel="false">
+      <Definition>Under Review — fitting awaiting certification check / pull-test verification. Flagged amber pending evidence.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>a05c5f54859c474134a857a72c6a86e0b4c22db893162f86981379f99af2181b</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

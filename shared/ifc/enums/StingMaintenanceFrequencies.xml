@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingMaintenanceFrequencies</Name>
+    <Definition>SFG20-aligned maintenance frequency codes for COBie / FM handover. Used by Pset_StingFM, IoT maintenance scheduling, COBie Job templates, and Planscape MIM PPM schedules. Each frequency carries a default interval; OnFailure and OnCondition trigger reactively rather than on a calendar.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4003-9000-000000000019</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/sfg20/maintenance/1.0/class/frequency</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>SFG20 maintenance frequency conventions; BS 8210:2020 facilities management; STING COBIE_JOB_TEMPLATES.csv</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Daily" sentinel="false">
+      <Definition>Daily — every 24 hours. Critical-care medical equipment, fire alarm panel checks.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Weekly" sentinel="false">
+      <Definition>Weekly — every 7 days. Emergency generator runs, sprinkler pump tests, augmented-care water outlet flushing.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Monthly" sentinel="false">
+      <Definition>Monthly — every 28-31 days. Standard PPM cadence for most building services.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Quarterly" sentinel="false">
+      <Definition>Quarterly — every 90-92 days. HVAC filter changes, valve exercises.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SemiAnnual" sentinel="false">
+      <Definition>Semi-annual — every 6 months. Fan coil descaling, water tank inspections.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Annual" sentinel="false">
+      <Definition>Annual — every 12 months. Statutory inspections (lifts, pressure systems, electrical PAT, fixed-wiring 5-year sample).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="BiAnnual" sentinel="false">
+      <Definition>Biennial — every 24 months. Cooling tower deep clean, dental amalgam separator change.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FiveYearly" sentinel="false">
+      <Definition>Five-yearly — every 60 months. BS 7671 fixed-wiring full PIR, lightning protection inspection.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="TenYearly" sentinel="false">
+      <Definition>Ten-yearly — every 120 months. Pressure vessel hydraulic retest, lift major overhaul.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="OnFailure" sentinel="false">
+      <Definition>On failure — reactive maintenance, no calendar interval. Component runs to failure then replaced.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="OnCondition" sentinel="false">
+      <Definition>On condition — triggered by sensor reading or inspection finding crossing a threshold. Drives predictive-maintenance flows.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>27ebc96a5f91763c3aa9199577aa2f326d35be0365db5c9e44664ea541bd4972</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

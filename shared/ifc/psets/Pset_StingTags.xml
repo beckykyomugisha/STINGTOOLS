@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertySetTemplate xmlns="https://stingtools.io/schema/ifc/psets/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>Pset_StingTags</Name>
+    <Definition>The core 8-segment ISO 19650 tag carried by every taggable element. Each segment is a member of its corresponding STING enumeration (Discipline / System / Function / Product) or matches a code defined on a spatial entity (Location / Zone / Level). FullTag is the computed dash-separated rendering. PreviousTag and ModifiedAt support the tag-history audit trail; TokenLock locks individual segments against the auto-populator's overwrite pass.</Definition>
+    <IfdGuid>uuid:a1d15c11-0002-4001-9000-000000000002</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>STING tag grammar v5.0; ISO 19650-2 §5.3 element identification</StandardsBasis>
+  </Governance>
+
+  <TemplateType>PSET_OCCURRENCEDRIVEN</TemplateType>
+
+  <Applicability>
+    <ApplicableEntity>IfcElement</ApplicableEntity>
+    <ApplicableEntity>IfcSpace</ApplicableEntity>
+    <ApplicableEntity>IfcAnnotation</ApplicableEntity>
+  </Applicability>
+
+  <Properties>
+
+    <Property name="Discipline" cardinality="required">
+      <Definition>Discipline code — first segment of the 8-segment tag. Required from Stage 2 onward. References StingDisciplineCodes.</Definition>
+      <DataType>IfcLabel</DataType>
+      <Enumeration>StingDisciplineCodes</Enumeration>
+      <AppliesTo>IfcElement IfcSpace</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="Location" cardinality="required">
+      <Definition>Location / building code — second segment. References StingLocationCodes via the project's overlay, and must equal the LocationCode of the element's containing IfcBuilding (cross-entity rule LOC_MATCHES_BUILDING). Required from Stage 2.</Definition>
+      <DataType>IfcLabel</DataType>
+      <Enumeration>StingLocationCodes</Enumeration>
+      <AppliesTo>IfcElement IfcSpace</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="Zone" cardinality="optional">
+      <Definition>Zone code — third segment. References StingZoneCodes. Must equal a ZoneCode on at least one IfcZone the element is assigned to via IfcRelAssignsToGroup (cross-entity rule ZONE_MATCHES_ASSIGNEDZONE). Required from Stage 3.</Definition>
+      <DataType>IfcLabel</DataType>
+      <Enumeration>StingZoneCodes</Enumeration>
+      <AppliesTo>IfcElement IfcSpace</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="Level" cardinality="required">
+      <Definition>Level / storey code — fourth segment. References StingLevelCodes and must equal the LevelCode of the element's containing IfcBuildingStorey (cross-entity rule LVL_MATCHES_STOREY). Required from Stage 2.</Definition>
+      <DataType>IfcLabel</DataType>
+      <Enumeration>StingLevelCodes</Enumeration>
+      <AppliesTo>IfcElement IfcSpace</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="System" cardinality="optional">
+      <Definition>System-type code — fifth segment. References StingSystemCodes. Required from Stage 3 for MEP / FLS / structural elements; optional for architectural (default ARC). Must align with the IfcSystem the element belongs to when one exists.</Definition>
+      <DataType>IfcLabel</DataType>
+      <Enumeration>StingSystemCodes</Enumeration>
+      <AppliesTo>IfcElement</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="Function" cardinality="optional">
+      <Definition>Function code — sixth segment. References StingFunctionCodes. Narrows the role of the element within its System (e.g. HVAC SUP vs RET vs EXH). Required from Stage 4 for MEP; optional otherwise.</Definition>
+      <DataType>IfcLabel</DataType>
+      <Enumeration>StingFunctionCodes</Enumeration>
+      <AppliesTo>IfcElement</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="Product" cardinality="optional">
+      <Definition>Product code — seventh segment. References StingProductCodes. Names the kind of element (AHU, FCU, DB, basin). Required from Stage 4 for tagged elements; optional for elements whose category is unambiguous via IFC class alone.</Definition>
+      <DataType>IfcLabel</DataType>
+      <Enumeration>StingProductCodes</Enumeration>
+      <AppliesTo>IfcElement</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="Sequence" cardinality="required">
+      <Definition>Sequence number — eighth segment. Zero-padded 4-digit integer in canonical form (e.g. "0042"). Assigned by STING's TokenAutoPopulator + SEQ-counter sidecar; unique within (Discipline, System, Level) tuple. Required from Stage 3.</Definition>
+      <DataType>IfcLabel</DataType>
+      <AppliesTo>IfcElement</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="FullTag" cardinality="optional">
+      <Definition>Computed dash-separated rendering of the 8 segments — e.g. "M-BLD1-Z01-L02-HVAC-SUP-AHU-0042". DERIVED, not authoritative — host plugins compute on read from the 8 source segments; storing this property is a convenience for legacy consumers but is not required (when present, STING validators verify it matches the computed form).</Definition>
+      <DataType>IfcLabel</DataType>
+      <AppliesTo>IfcElement IfcSpace</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="PreviousTag" cardinality="optional">
+      <Definition>The element's previous FullTag value before the most recent retag. Audit history; populated by the auto-tagger when overwriting. Cleared on element creation.</Definition>
+      <DataType>IfcLabel</DataType>
+      <AppliesTo>IfcElement</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="ModifiedAt" cardinality="optional">
+      <Definition>ISO 8601 UTC timestamp of the last tag-segment modification. Used for stale-detection and synchronisation between host plugins and Planscape Server.</Definition>
+      <DataType>IfcDateTime</DataType>
+      <AppliesTo>IfcElement</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="TokenLock" cardinality="optional">
+      <Definition>Comma-separated list of segment names locked against auto-population. Values: DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, SEQ. Empty = no segments locked = auto-populator may overwrite all. Locked segments are preserved by every STING tag-write path.</Definition>
+      <DataType>IfcLabel</DataType>
+      <AppliesTo>IfcElement</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+  </Properties>
+
+  <CrossEntityValidationRules>
+
+    <Rule id="DISC_NOT_EMPTY">
+      <Description>Discipline segment must be non-empty and a member of StingDisciplineCodes (excluding sentinel XX at Stage 3+).</Description>
+      <ActiveFrom>Stage_2</ActiveFrom>
+      <FailMessage>Element has no Discipline assigned.</FailMessage>
+      <RemediationInstruction>Open STING Tags panel, set Discipline (M / E / P / A / S / FP / LV / G / H / MG / RP).</RemediationInstruction>
+    </Rule>
+
+    <Rule id="LOC_MATCHES_BUILDING">
+      <Description>See Pset_StingSpatialCodes Rule LOC_MATCHES_BUILDING. Encoded as IDS specs 01a + 01b in sting-spatial-codes.ids, with STING-side equality closeout.</Description>
+      <ActiveFrom>Stage_3</ActiveFrom>
+      <FailMessage>Element Location does not match a building's LocationCode.</FailMessage>
+      <RemediationInstruction>Verify the element is in the correct building, then resync LOC via STING.</RemediationInstruction>
+    </Rule>
+
+    <Rule id="LVL_MATCHES_STOREY">
+      <Description>See Pset_StingSpatialCodes Rule LVL_MATCHES_STOREY. Encoded as IDS specs 02a + 02b in sting-spatial-codes.ids.</Description>
+      <ActiveFrom>Stage_3</ActiveFrom>
+      <FailMessage>Element Level does not match the storey's LevelCode.</FailMessage>
+      <RemediationInstruction>Verify the element is on the correct storey, then resync LVL via STING.</RemediationInstruction>
+    </Rule>
+
+    <Rule id="ZONE_MATCHES_ASSIGNEDZONE">
+      <Description>See Pset_StingSpatialCodes Rule ZONE_MATCHES_ASSIGNEDZONE. Encoded as IDS specs 03a + 03b in sting-spatial-codes.ids.</Description>
+      <ActiveFrom>Stage_3</ActiveFrom>
+      <FailMessage>Element Zone is not the ZoneCode of any IfcZone it is assigned to.</FailMessage>
+      <RemediationInstruction>Assign the element to the correct IfcZone via STING, then set Zone token to match.</RemediationInstruction>
+    </Rule>
+
+    <Rule id="SYS_MATCHES_IFCSYSTEM">
+      <Description>If the element is a member of an IfcSystem (via IfcRelAssignsToGroup), the System token must align with the IfcSystem's classification (HVAC / electrical / plumbing / etc).</Description>
+      <ActiveFrom>Stage_3</ActiveFrom>
+      <FailMessage>Element System token mismatches the IfcSystem it is assigned to.</FailMessage>
+      <RemediationInstruction>Resync System token from the assigned IfcSystem via STING's SystemParamPush command.</RemediationInstruction>
+    </Rule>
+
+    <Rule id="SEQ_UNIQUE_WITHIN_GROUP">
+      <Description>Sequence must be unique within the (Discipline, System, Level) tuple. Two elements in the same DISC/SYS/LVL group cannot share SEQ.</Description>
+      <ActiveFrom>Stage_3</ActiveFrom>
+      <FailMessage>Duplicate Sequence within DISC/SYS/LVL group.</FailMessage>
+      <RemediationInstruction>Run STING's RepairDuplicateSeq command to auto-assign a new unique SEQ.</RemediationInstruction>
+    </Rule>
+
+    <Rule id="FULLTAG_CONSISTENT">
+      <Description>If FullTag is set, it must equal the dash-joined form of the 8 source segments. When absent, the host plugin computes on read.</Description>
+      <ActiveFrom>Stage_2</ActiveFrom>
+      <FailMessage>Stored FullTag does not match the computed form of the source segments.</FailMessage>
+      <RemediationInstruction>Run STING's BuildTags command to refresh FullTag from source segments.</RemediationInstruction>
+    </Rule>
+
+    <Rule id="TOKEN_LOCK_HONORED" enforced-by="host">
+      <Description>The auto-populator must not modify any segment listed in TokenLock. Violations of this rule indicate a host plugin bug, not user error. BEHAVIOURAL ASSERTION: this rule cannot be verified from a static IFC snapshot — enforcement lives in each host plugin's tag-write path (Revit's TokenAutoPopulator + the equivalent in the Bonsai add-on). The IDS specification 19-TOKENLOCK in sting-tag-grammar.ids validates the CSV format of the TokenLock value when present, but cannot prove that the auto-populator respected it during a write.</Description>
+      <ActiveFrom>Stage_2</ActiveFrom>
+      <FailMessage>A locked token was modified by auto-population.</FailMessage>
+      <RemediationInstruction>File bug against the host plugin; restore the locked value from PreviousTag.</RemediationInstruction>
+    </Rule>
+
+    <Rule id="TAG_HISTORY_PROVIDED" enforced-by="host">
+      <Description>On retag (any segment change), PreviousTag and ModifiedAt must be updated. Enforces audit-trail completeness. BEHAVIOURAL ASSERTION: this rule cannot be verified from a single static IFC snapshot — it describes the host plugin's contract when a retag happens. Enforcement lives in the tag-write path; an audit-log entry pinned via PlanscapeAuditLog records each retag as the canonical evidence.</Description>
+      <ActiveFrom>Stage_3</ActiveFrom>
+      <FailMessage>Tag changed without updating PreviousTag / ModifiedAt.</FailMessage>
+      <RemediationInstruction>Host plugin contract violation. Re-run tag write through the canonical write-path.</RemediationInstruction>
+    </Rule>
+
+  </CrossEntityValidationRules>
+
+  <CorporateLock>
+    <Sha256>9e637efb75372160cecf24b87d4ac89404d59cb9bc631c2ef4875769489b22aa</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(properties_with_metadata_plus_validation_rules))</Algorithm>
+  </CorporateLock>
+
+</StingPropertySetTemplate>

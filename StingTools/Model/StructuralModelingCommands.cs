@@ -2689,7 +2689,7 @@ namespace StingTools.Model
     // LOAD PATH TRACING
     // ══════════════════════════════════════════════════════════════════
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StrTraceLoadPathsCommand : IExternalCommand
     {
@@ -2700,9 +2700,27 @@ namespace StingTools.Model
             try
             {
                 var result = LoadPathTracer.TraceLoadPaths(uidoc.Document);
+
+                // Close the calc → model loop: stamp STRUCT_COL_AXIAL_LOAD_KN
+                // (existing param, no addition needed) on every column the
+                // tracer visited. Takes the max cumulative load across all
+                // paths for each column.
+                int stamped = 0;
+                try
+                {
+                    using (var tx = new Transaction(uidoc.Document, "STING Stamp Column Loads"))
+                    {
+                        tx.Start();
+                        stamped = LoadPathTracer.WriteBack(uidoc.Document, result);
+                        tx.Commit();
+                    }
+                }
+                catch (Exception exTx) { StingLog.Warn($"Load-path writeback: {exTx.Message}"); }
+
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine("GRAVITY LOAD PATH ANALYSIS");
                 sb.AppendLine(result.Summary);
+                sb.AppendLine($"STRUCT_COL_AXIAL_LOAD_KN stamped on {stamped} column(s).");
                 sb.AppendLine();
 
                 foreach (var path in result.Paths.OrderByDescending(p => p.TotalLoadKN).Take(10))

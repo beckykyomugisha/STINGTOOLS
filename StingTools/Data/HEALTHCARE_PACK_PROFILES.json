@@ -12,11 +12,11 @@
     },
     "COMMUNITY": {
       "validators": ["PressureRegimeValidator","MgasFlowValidator","EesBranchValidator","WaterSafetyValidator","AdjacencyValidator","RdsCompletenessValidator","WasteFlowValidator"],
-      "drawingTypes": ["health-rds-A2","health-eqp-pln-A1-1to50","health-water-safety-A1-1to100","health-fire-comp-A1-1to100"]
+      "drawingTypes": ["health-rds-A3","health-eqp-pln-A1-1to50","health-water-safety-A1-1to100","health-fire-comp-A1-1to100"]
     },
     "DENTAL": {
       "validators": ["MgasFlowValidator","WaterSafetyValidator","RdsCompletenessValidator","WasteFlowValidator"],
-      "drawingTypes": ["health-rds-A2","health-eqp-pln-A1-1to50"]
+      "drawingTypes": ["health-rds-A3","health-eqp-pln-A1-1to50"]
     },
     "IMAGING-ONLY": {
       "validators": ["RadShieldValidator","AdvancedRadShieldValidator","StructuralLoadValidator","RtlsCoverageValidator","AcousticValidator"],
@@ -24,7 +24,7 @@
     },
     "MENTAL-HEALTH": {
       "validators": ["AntiLigatureValidator","AdjacencyValidator","WaterSafetyValidator","RdsCompletenessValidator","AcousticValidator"],
-      "drawingTypes": ["health-rds-A2","health-ligature-pln-A1-1to50","health-acoustic-A1-1to100","health-fire-comp-A1-1to100"]
+      "drawingTypes": ["health-rds-A3","health-ligature-pln-A1-1to50","health-acoustic-A1-1to100","health-fire-comp-A1-1to100"]
     }
   }
 }

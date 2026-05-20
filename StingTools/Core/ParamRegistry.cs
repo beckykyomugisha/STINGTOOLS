@@ -2693,7 +2693,8 @@ namespace StingTools.Core
             }
 
             // CRASH FIX: Initialize CategoryEnumMap with all taggable categories
-            // plus the 137 tag-family aliases produced by TagFamilyCreatorCommand.
+            // plus the tag-family aliases produced by TagFamilyCreatorCommand
+            // (count: TagFamilyConfig.TotalFamilyCount at runtime).
             // Without this, ResolveUniversalCategoryEnums() returns empty array →
             // AllCategoryEnums = empty → BuildCategorySet = empty → 0 params bound →
             // LoadSharedParamsCommand silently does nothing, leaving project unconfigured.
@@ -2860,8 +2861,8 @@ namespace StingTools.Core
                 //
                 // The 16 variant display names share their BIC with an existing
                 // base entry. They surface in the Tag Categories sub-tab so the
-                // checkbox count matches the 137 tag families a coordinator has
-                // just created.
+                // checkbox count matches the tag families a coordinator has
+                // just created (TagFamilyConfig.TotalFamilyCount at runtime).
                 //
                 // CATEGORY_SKIP semantic note: skipping a variant entry (e.g.
                 // "Floors (Structural)") via the runtime element-category filter

@@ -154,8 +154,8 @@
         case "documents":    await renderList(main, `Documents`, `/api/projects/${state.projectId}/documents`, docColumns); break;
         case "transmittals": await renderList(main, `Transmittals`, `/api/projects/${state.projectId}/transmittals`, tmxColumns); break;
         case "meetings":     await renderList(main, `Meetings`, `/api/projects/${state.projectId}/meetings`, meetingColumns); break;
-        case "workflows":    await renderList(main, `Workflow runs`, `/api/projects/${state.projectId}/workflows`, workflowColumns); break;
-        case "warnings":     await renderList(main, `Warnings`, `/api/projects/${state.projectId}/warnings`, warningColumns); break;
+        case "workflows":    await renderList(main, `Workflow runs`, `/api/projects/${state.projectId}/workflows/history`, workflowColumns); break;
+        case "warnings":     await renderList(main, `Warnings`, `/api/projects/${state.projectId}/warnings/trend`, warningColumns); break;
         case "models":       await renderModels(main); break;
         case "schedule":     await renderList(main, `Schedule`, `/api/projects/${state.projectId}/schedule`, scheduleColumns); break;
         case "cost":         await renderCost(main); break;

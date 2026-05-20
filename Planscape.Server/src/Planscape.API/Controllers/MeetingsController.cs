@@ -588,7 +588,7 @@ public class MeetingsController : ControllerBase
         {
             _ = _push.SendToUserAsync(assigneeUser.Id, new PushPayload
             {
-                Title = $"Action Item: {item.Description.Length > 40 ? item.Description[..40] + "…" : item.Description}",
+                Title = $"Action Item: {(item.Description.Length > 40 ? item.Description[..40] + "…" : item.Description)}",
                 Body = $"From: {meeting.Title}{(item.DueDate.HasValue ? $" · due {item.DueDate.Value:d MMM}" : "")}",
                 Channel = "meetings",
                 Data = new Dictionary<string, string>
@@ -648,7 +648,7 @@ public class MeetingsController : ControllerBase
             {
                 _ = _push.SendToUserAsync(newAssignee.Id, new PushPayload
                 {
-                    Title = $"Action Reassigned: {action.Description.Length > 40 ? action.Description[..40] + "…" : action.Description}",
+                    Title = $"Action Reassigned: {(action.Description.Length > 40 ? action.Description[..40] + "…" : action.Description)}",
                     Body = $"From: {action.Meeting?.Title ?? "meeting"}{(action.DueDate.HasValue ? $" · due {action.DueDate.Value:d MMM}" : "")}",
                     Channel = "meetings",
                     Data = new Dictionary<string, string>

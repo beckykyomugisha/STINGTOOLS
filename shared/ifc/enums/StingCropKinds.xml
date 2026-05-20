@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingCropKinds</Name>
+    <Definition>View-crop strategy codes for the Drawing Type registry. Drives DrawingCropApplier behaviour and CROP_DRIFT detection in DrawingDriftDetector. Combined with marginMm and (where applicable) scopeBoxName to fully specify the crop.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4002-9000-000000000012</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>STING Core.Drawing.DrawingCropStrategy; Phase 184c crop stamp via Extensible Storage; Phase 184d crop.kind schema normalisation</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="ScopeBox" sentinel="false">
+      <Definition>Crop strictly to the named scope box. If the scope box is missing from the document, view fails to crop and a CROP_DRIFT is logged.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ScopeBoxOrBbox" sentinel="false">
+      <Definition>Prefer the named scope box; if absent, fall back to a tight bounding box around contained elements + margin.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="TightBbox" sentinel="false">
+      <Definition>Tight bounding box of all visible elements + margin. Used for spool drawings and details.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RoomBoundary" sentinel="false">
+      <Definition>Crop to the union of room boundaries in view + margin. Falls back to TightBbox when no rooms are placed (warning logged).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="None" sentinel="false">
+      <Definition>No crop applied — view shows full extent. Used for plans crop-bound by view template.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>cd9910e733c02c97aae6d60d252f472574d1c21d09eb283cc607fe5bec6d9598</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

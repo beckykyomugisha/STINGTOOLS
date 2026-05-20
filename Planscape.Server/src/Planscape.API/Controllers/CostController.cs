@@ -81,18 +81,31 @@ public class CostController : ControllerBase
     public async Task<ActionResult> Summary(Guid projectId, CancellationToken ct)
     {
         if (!await ProjectInTenant(projectId, ct)) return Forbid();
-        var rows = await _db.CostItems.AsNoTracking()
+        // Group + sum on the server (keeps Kind as the enum so SQL translation
+        // works), materialise, then ToString the enum client-side. Earlier
+        // revisions called .ToString() inside the projection which Npgsql
+        // refuses to translate ("Translation of method 'object.ToString' failed").
+        var raw = await _db.CostItems.AsNoTracking()
             .Where(c => c.ProjectId == projectId)
             .GroupBy(c => new { c.Discipline, c.Kind })
             .Select(g => new
             {
                 g.Key.Discipline,
-                Kind  = g.Key.Kind.ToString(),
+                g.Key.Kind,
                 Total = g.Sum(c => c.LineTotal),
                 Count = g.Count(),
             })
-            .OrderBy(r => r.Discipline).ThenBy(r => r.Kind)
             .ToListAsync(ct);
+        var rows = raw
+            .Select(r => new
+            {
+                r.Discipline,
+                Kind  = r.Kind.ToString(),
+                r.Total,
+                r.Count,
+            })
+            .OrderBy(r => r.Discipline).ThenBy(r => r.Kind)
+            .ToList();
         return Ok(rows);
     }
 

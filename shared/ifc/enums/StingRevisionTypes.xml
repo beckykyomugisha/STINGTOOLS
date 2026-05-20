@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingRevisionTypes</Name>
+    <Definition>Revision prefix codes per ISO 19650-2 / BS 1192 conventions — P for Preliminary (S0..S4 suitability), C for Construction (A1..A5), B for Built / as-built, R for revision-of-revision (post-handover changes). Used as the first character of a revision identifier — e.g. P01 (first preliminary issue), C03 (third construction issue), B01 (first as-built).</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4001-9000-00000000000b</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/buildingsmart/iso-19650/1.0/class/revisiontype</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>ISO 19650-2:2018 / BS 1192:2007+A2:2016 §6.3 revision conventions</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="P" sentinel="false">
+      <Definition>Preliminary — pre-construction issues. Combined with two-digit sequence: P01, P02, ..., P99.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="C" sentinel="false">
+      <Definition>Construction — issued for construction. Combined with two-digit sequence: C01, C02, ..., C99.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="B" sentinel="false">
+      <Definition>Built — as-built / record drawings. Combined with two-digit sequence: B01, B02, ..., B99.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="R" sentinel="false">
+      <Definition>Revision — post-handover changes to AIM. Combined with two-digit sequence: R01, R02, ..., R99.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="XX" sentinel="true">
+      <Definition>Unknown / not yet assigned. Should never appear in a published revision identifier.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>73ccea3e0e06d37696b5064b81c5ab08325d62787e44f9f38ebdca0e1c4917ff</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingDrawingPurposes</Name>
+    <Definition>Purpose taxonomy for the STING Drawing Type registry. Every DrawingType profile carries one of these as its 'purpose' field; the value drives view-type selection, slot defaults, view-template / view-style-pack routing, and routing-rule fallback. Mirrors the purposes used across the 90 corporate drawing types (Phase 184e).</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4002-9000-00000000000c</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>STING Drawing Template Manager (Phase 113); Phase 184d–f closed-form drawing-type catalogue</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Plan" sentinel="false">
+      <Definition>Floor plan view — horizontal cut through the storey.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RCP" sentinel="false">
+      <Definition>Reflected Ceiling Plan — view looking up at ceiling fixtures + grid.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Section" sentinel="false">
+      <Definition>Vertical section — building cut showing storey relationships.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Elevation" sentinel="false">
+      <Definition>External or internal elevation — orthographic view of vertical surface.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Detail" sentinel="false">
+      <Definition>Construction detail — close-up of junction / interface, typically A3.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Schedule" sentinel="false">
+      <Definition>Tabular schedule — door / window / equipment / room / panel / finishes list.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Spool" sentinel="false">
+      <Definition>Fabrication spool drawing — single pipe / duct / electrical assembly with cut list + isometric.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Coordination" sentinel="false">
+      <Definition>Coordination view — multi-discipline overlay showing clash zones + service routing.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Legend" sentinel="false">
+      <Definition>Legend drawing — symbol key, line styles, abbreviations, hatching index.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="3D" sentinel="false">
+      <Definition>Three-dimensional view — axonometric or perspective.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Clarification" sentinel="false">
+      <Definition>Clarification drawing — RFI sketch, markup, design-intent narrative. Carries clarification-pack styling.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Schematic" sentinel="false">
+      <Definition>Schematic / single-line / riser — non-scale logical diagram.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Site" sentinel="false">
+      <Definition>Site plan — external works, drainage, levels, vehicle access.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RoofPlan" sentinel="false">
+      <Definition>Roof plan — falls, outlets, plant location.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Riser" sentinel="false">
+      <Definition>Electrical / MEP riser diagram — vertical building-wide single-line.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RebarDetail" sentinel="false">
+      <Definition>Reinforcement detail — bar bending schedules, layout drawings.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Presentation" sentinel="false">
+      <Definition>Client-facing presentation drawing — rendered, full-bleed, narrative-driven.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>fa5366aaf5342e3e7386104073790a31f4897799e9866ab1ec5eb7fa13bd3a73</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

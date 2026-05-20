@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingSystemCodes</Name>
+    <Definition>System-type codes for the fifth segment (SYS) of the STING 8-segment tag. Derived from CIBSE / Uniclass 2015 Ss-table service classifications. The set is closed (corporate-locked) so cross-host validation works without per-project drift; project-specific subsystem grouping is expressed via FUNC, not SYS.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4001-9000-000000000002</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/stingtools/sting-codes/1.0/class/system</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>Uniclass 2015 Ss-table; CIBSE Guide A/B/C; STING tag config v5.0 (data/TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv); STING Healthcare Pack</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="ARC" sentinel="false">
+      <Definition>Architectural elements not bound to an MEP system — walls, doors, windows, finishes. Default SYS for IFC architectural elements where the tag is required but no service applies.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="COM" sentinel="false">
+      <Definition>Communications — voice, data, AV, structured cabling, telephony.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="DCW" sentinel="false">
+      <Definition>Domestic Cold Water — potable cold water supply per BS EN 806.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="DHW" sentinel="false">
+      <Definition>Domestic Hot Water — flow side of hot water service. Use HWS for the recirculation return.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FLS" sentinel="false">
+      <Definition>Fire and Life Safety — alarm panels, detectors, AOV, smoke control panels, voice alarm.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="FP" sentinel="false">
+      <Definition>Fire Protection — sprinklers, hose reels, fire-fighting water mains, suppression.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="GAS" sentinel="false">
+      <Definition>Natural / LPG fuel gas distribution. Medical gas uses MGS (under DISC=MG).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="GEN" sentinel="false">
+      <Definition>General / miscellaneous — fallback SYS for elements that don't fit any named service. Use sparingly; refer to STING tagging guide before adopting.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HVAC" sentinel="false">
+      <Definition>Heating, Ventilation, Air Conditioning — air-side mechanical systems.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HWS" sentinel="false">
+      <Definition>Hot Water Service recirculation / return — anti-Legionella circulation. Distinct from DHW (flow) per HTM 04-01.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ICT" sentinel="false">
+      <Definition>Information and Communications Technology — server room, IT infrastructure, structured fibre, data centre racks. Distinguished from COM (which is the building cabling carrying ICT).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="LV" sentinel="false">
+      <Definition>Low Voltage power — ≤1000V AC distribution (panels, busways, sub-mains, final circuits).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MGS" sentinel="false">
+      <Definition>Medical Gas Systems — piped medical gases (O2, N2O, AIR-4, AIR-7, VAC, AGSS, ENTONOX, CO2). Use under DISC=MG. Specific gas type carried in Pset_StingHealthcareMGS.GasType.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NCL" sentinel="false">
+      <Definition>Nurse Call — patient-to-staff signalling, including dome lights, pull cords, emergency stations.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="RWD" sentinel="false">
+      <Definition>Rainwater Drainage — roof outlets, downpipes, syphonic systems.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SAN" sentinel="false">
+      <Definition>Sanitary / Foul drainage — soil, waste, vent stacks per BS EN 12056.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SEC" sentinel="false">
+      <Definition>Security systems — access control, CCTV, intruder detection, lockdown.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="STR" sentinel="false">
+      <Definition>Structural — load-bearing assemblies. Used when DISC=S but SYS is required for tag completeness.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="XX" sentinel="true">
+      <Definition>Unknown / not yet assigned. IDS fails this value at Stage 3+.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="*" sentinel="true">
+      <Definition>Wildcard for routing rules. Never tagged on an element.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>d30b575195b402179963e2d86da5d80531fd920b83fdda4f41b1d5b62b9e1b44</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

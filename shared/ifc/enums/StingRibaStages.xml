@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingRibaStages</Name>
+    <Definition>RIBA Plan of Work 2020 stages — the eight workstages 0..7 that structure UK project delivery. Drives stage-aware IDS overlays (sting-stage{N}-*.ids), stage-gate workflows, and the RIBA stage cards in Planscape mobile / web. The stage code is the IDS applicability key for "what must be true at this gate".</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4003-9000-000000000016</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/riba/plan-of-work/2020/class/stage</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>RIBA Plan of Work 2020</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Stage_0" sentinel="false">
+      <Definition>Stage 0 — Strategic Definition. Client needs / business case; no design content yet.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Stage_1" sentinel="false">
+      <Definition>Stage 1 — Preparation and Briefing. Project brief, feasibility, site information.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Stage_2" sentinel="false">
+      <Definition>Stage 2 — Concept Design. Initial massing, spatial concept, key strategies.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Stage_3" sentinel="false">
+      <Definition>Stage 3 — Spatial Coordination. Coordinated spatial layout, system zoning, scope-box discipline.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Stage_4" sentinel="false">
+      <Definition>Stage 4 — Technical Design. All technical information at LOD/LOI required for construction.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Stage_5" sentinel="false">
+      <Definition>Stage 5 — Manufacturing and Construction. Build phase; fabrication packs; site instructions.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Stage_6" sentinel="false">
+      <Definition>Stage 6 — Handover. As-built models, COBie, O&amp;M manuals, training, sign-off.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Stage_7" sentinel="false">
+      <Definition>Stage 7 — Use. In-use phase; AIM maintained; sensor data / maintenance feedback loops.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>19ae1fd8984681bc9573c33681c3de0c2da3d21b75c25caa71ab2e68254fb34c</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

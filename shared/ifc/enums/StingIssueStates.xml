@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingIssueStates</Name>
+    <Definition>Issue lifecycle states — the state machine an issue passes through from raised to closed. Drives Planscape BimIssue.State, BCF 2.1 topic status, mobile inbox filtering, and SLA breach detection. Voided and Reopened are terminal-state exceptions for audit retention.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4003-9000-000000000015</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/buildingsmart/bcf/2.1/class/topicstatus</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>BCF 2.1 topic status; STING BimIssue state machine</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Open" sentinel="false">
+      <Definition>Open — newly raised, awaiting first response. Default state on creation.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="InReview" sentinel="false">
+      <Definition>In Review — acknowledged by assignee, under active investigation.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Reviewed" sentinel="false">
+      <Definition>Reviewed — investigation complete, awaiting formal response.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Responded" sentinel="false">
+      <Definition>Responded — formal response issued. Awaiting raiser's confirmation that it satisfies the query.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Resolved" sentinel="false">
+      <Definition>Resolved — raiser has accepted the response. Close to closed.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Closed" sentinel="false">
+      <Definition>Closed — fully complete, archived. Read-only.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Voided" sentinel="false">
+      <Definition>Voided — raised in error / duplicate / out-of-scope. Retained for audit, excluded from SLA.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Reopened" sentinel="false">
+      <Definition>Reopened — closed issue re-activated. Carries link to the original close event in audit log.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>312d3bc39c9605c29ee6ea178351dc2348170cd72a60e59649d7018b391f5804</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>
