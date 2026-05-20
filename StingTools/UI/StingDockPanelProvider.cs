@@ -35,9 +35,31 @@ namespace StingTools.UI
 
         public void SetupDockablePane(DockablePaneProviderData data)
         {
-            _page = new StingDockPanel();
+            // Wrap construction. If the WPF Page throws (XAML parse error,
+            // missing resource, theme-init failure), Revit silently swallows
+            // the exception and leaves the pane registered but with a null
+            // FrameworkElement — the pane then never renders and the user
+            // sees "main panel missing" with no log entry. Substitute a
+            // visible fallback so the failure is diagnosable.
+            try
+            {
+                _page = new StingDockPanel();
+                data.FrameworkElement = _page;
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Error("StingDockPanel construction failed", ex);
+                data.FrameworkElement = new System.Windows.Controls.TextBlock
+                {
+                    Text = "STING Tools panel failed to load.\n\n" +
+                           "Cause: " + ex.Message + "\n\n" +
+                           "Check StingTools.log for the full stack trace.",
+                    TextWrapping = System.Windows.TextWrapping.Wrap,
+                    Margin = new System.Windows.Thickness(16),
+                    Foreground = System.Windows.Media.Brushes.IndianRed
+                };
+            }
             Instance = _page;
-            data.FrameworkElement = _page;
             data.InitialState = new DockablePaneState
             {
                 // Tab behind Properties panel — most stable docking configuration.
