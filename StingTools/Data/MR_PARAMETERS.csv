@@ -1961,8 +1961,8 @@ Generic Models,WARN_PER_ACOUSTIC_NRC_RATING_CEILINGS,3bc3b6a3-f149-5152-9da9-3a5
 Generic Models,WARN_PER_ACOUSTIC_STC_RATING_NR_DOORS,3b52704b-e250-5f62-8205-6f3194381f01,TEXT,STINGTags_ISO19650,Type,Tag warning: per acoustic stc rating nr doors,False,,,MULTI,1,0
 Generic Models,WARN_PER_ACOUSTIC_STC_RATING_NR_WALLS,678e9cbc-c377-5b73-8e90-b4a07c0c738f,TEXT,STINGTags_ISO19650,Type,Tag warning: per acoustic stc rating nr walls,False,,,MULTI,1,0
 Generic Models,WARN_PER_ACOUSTIC_STC_RATING_NR_WINDOWS,654bdc23-ad60-551d-99b7-cbbe7eecda53,TEXT,STINGTags_ISO19650,Type,Tag warning: per acoustic stc rating nr windows,False,,,MULTI,1,0
-Generic Models,WARN_PER_CONDENSATION_RISK_BOOL_ROOFS,626195f6-1c27-58e8-b1ae-a51ad4bce427,YESNO,STINGTags_ISO19650,Type,Tag warning: per condensation risk bool roofs,False,,,MULTI,1,0
-Generic Models,WARN_PER_CONDENSATION_RISK_BOOL_WALLS,dc19fe3d-62a6-561f-825e-5a8d1c3fbcde,YESNO,STINGTags_ISO19650,Type,Tag warning: per condensation risk bool walls,False,,,MULTI,1,0
+Generic Models,WARN_PER_CONDENSATION_RISK_BOOL_ROOFS,626195f6-1c27-58e8-b1ae-a51ad4bce427,TEXT,STINGTags_ISO19650,Type,Tag warning: per condensation risk bool roofs,False,,,MULTI,1,0
+Generic Models,WARN_PER_CONDENSATION_RISK_BOOL_WALLS,dc19fe3d-62a6-561f-825e-5a8d1c3fbcde,TEXT,STINGTags_ISO19650,Type,Tag warning: per condensation risk bool walls,False,,,MULTI,1,0
 Generic Models,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_FLOORS,e7a70e47-f2aa-5dd0-a8d5-10299242aa10,TEXT,STINGTags_ISO19650,Type,Tag warning: per embodied carbon kg co2 m2 floors,False,,,MULTI,1,0
 Generic Models,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ROOFS,4e1df487-c6a3-54c7-b5e4-4efae053db05,TEXT,STINGTags_ISO19650,Type,Tag warning: per embodied carbon kg co2 m2 roofs,False,,,MULTI,1,0
 Generic Models,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_STR,c5b25cf0-f6aa-5ba1-9cca-202b7eb10db0,TEXT,STINGTags_ISO19650,Type,Tag warning: per embodied carbon kg co2 m2 str,False,,,MULTI,1,0
@@ -2855,6 +2855,14 @@ Generic Models,TAG_FAMILY_HINT_TXT,c7d8e9f0-a1b2-4c3d-e4f5-a6b7c8d9e0f1,TEXT,STI
 Views,STING_DRAWING_TYPE_ID_TXT,c1d2e3f4-a5b6-4c7d-8e9f-a0b1c2d3e4f5,TEXT,STING_DRAWING,Instance,DrawingType registry id stamped on views/sheets [Phase 113],False,,,MULTI,1,0
 Views,STING_STYLE_LOCKED_BOOL,d2e3f4a5-b6c7-4d8e-9f0a-b1c2d3e4f5a6,YESNO,STING_DRAWING,Instance,Style-locked flag: prevents SyncStyles from overwriting [Phase 113],False,,,MULTI,1,0
 Views,STING_PACK_ID_TXT,e3f4a5b6-c7d8-4e9f-a0b1-c2d3e4f5a6b7,TEXT,STING_DRAWING,Instance,ViewStylePack registry id stamped on managed view templates [Phase 137],False,,,MULTI,1,0
+Electrical Equipment,WARN_ELC_PNL_SCHEDULE_MISSING,a1b2c3d4-1111-4501-9001-000000000001,TEXT,STINGTags_ISO19650,Instance,Tag warning: panel exists but no PanelScheduleView created (BS 7671 514),False,,,MULTI,1,0
+Electrical Equipment,WARN_ELC_PNL_LOAD_BALANCE,a1b2c3d4-1111-4501-9002-000000000002,TEXT,STINGTags_ISO19650,Instance,Tag warning: 3-phase panel imbalance >10% (CIBSE Guide K),False,,,MULTI,1,0
+Electrical Equipment,WARN_ELC_PNL_FEEDER_UNDERSIZED,a1b2c3d4-1111-4501-9003-000000000003,TEXT,STINGTags_ISO19650,Instance,Tag warning: feeder cable cross-section insufficient (BS 7671 App 4),False,,,MULTI,1,0
+Pipes,WARN_FAB_SPOOL_NR_MISSING,a1b2c3d4-1111-4502-9004-000000000004,TEXT,STINGTags_ISO19650,Instance,Tag warning: ASS_SPOOL_NR_TXT empty on fabricated element,False,,,MULTI,1,0
+Pipes,WARN_FAB_LOC_MISSING,a1b2c3d4-1111-4502-9005-000000000005,TEXT,STINGTags_ISO19650,Instance,Tag warning: ASS_FAB_STATUS_TXT empty - fabrication location unassigned,False,,,MULTI,1,0
+Structural Framing,WARN_STR_BEAM_NOTCH,a1b2c3d4-1111-4503-9006-000000000006,TEXT,STINGTags_ISO19650,Instance,Tag warning: beam-end notch depth exceeds permitted ratio (SCI P363),False,,,MULTI,1,0
+Structural Framing,WARN_STR_BEAM_PENETRATION_REVIEW,a1b2c3d4-1111-4503-9007-000000000007,TEXT,STINGTags_ISO19650,Instance,Tag warning: beam penetration flagged STRUCT_REVIEW (AISC DG2),False,,,MULTI,1,0
+Structural Framing,WARN_STR_TRANSFER_BEAM,a1b2c3d4-1111-4503-9008-000000000008,TEXT,STINGTags_ISO19650,Instance,Tag warning: transfer beam - enhanced peer review required,False,,,MULTI,1,0
 Views,STING_PACK_CHECKSUM_TXT,f4a5b6c7-d8e9-4f0a-b1c2-d3e4f5a6b7c8,TEXT,STING_DRAWING,Instance,SHA-256 checksum of ViewStylePack JSON for drift detection [Phase 137],False,,,MULTI,1,0
 Views,STING_CROP_KIND_TXT,b6c7d8e9-f0a1-4b2c-3d4e-5f6a7b8c9d01,TEXT,STING_DRAWING,Instance,Crop kind stamped onto views for drift detection [Phase 183],False,,,MULTI,1,0
 Views,STING_CROP_MARGIN_MM_TXT,c7d8e9f0-a1b2-4c3d-4e5f-6a7b8c9d0e12,TEXT,STING_DRAWING,Instance,Crop margin (mm, as string) stamped onto views for drift detection [Phase 183],False,,,MULTI,1,0

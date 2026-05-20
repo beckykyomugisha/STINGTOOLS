@@ -2021,8 +2021,8 @@ PARAM	3bc3b6a3-f149-5152-9da9-3a519d9c4871	WARN_PER_ACOUSTIC_NRC_RATING_CEILINGS
 PARAM	3b52704b-e250-5f62-8205-6f3194381f01	WARN_PER_ACOUSTIC_STC_RATING_NR_DOORS	TEXT		17	1	Tag warning: per acoustic stc rating nr doors	1
 PARAM	678e9cbc-c377-5b73-8e90-b4a07c0c738f	WARN_PER_ACOUSTIC_STC_RATING_NR_WALLS	TEXT		17	1	Tag warning: per acoustic stc rating nr walls	1
 PARAM	654bdc23-ad60-551d-99b7-cbbe7eecda53	WARN_PER_ACOUSTIC_STC_RATING_NR_WINDOWS	TEXT		17	1	Tag warning: per acoustic stc rating nr windows	1
-PARAM	626195f6-1c27-58e8-b1ae-a51ad4bce427	WARN_PER_CONDENSATION_RISK_BOOL_ROOFS	YESNO		17	1	Tag warning: per condensation risk bool roofs	1
-PARAM	dc19fe3d-62a6-561f-825e-5a8d1c3fbcde	WARN_PER_CONDENSATION_RISK_BOOL_WALLS	YESNO		17	1	Tag warning: per condensation risk bool walls	1
+PARAM	626195f6-1c27-58e8-b1ae-a51ad4bce427	WARN_PER_CONDENSATION_RISK_BOOL_ROOFS	TEXT		17	1	Tag warning: per condensation risk (roofs) - text message shown in tag	1
+PARAM	dc19fe3d-62a6-561f-825e-5a8d1c3fbcde	WARN_PER_CONDENSATION_RISK_BOOL_WALLS	TEXT		17	1	Tag warning: per condensation risk (walls) - text message shown in tag	1
 PARAM	e7a70e47-f2aa-5dd0-a8d5-10299242aa10	WARN_PER_EMBODIED_CARBON_KG_CO2_M2_FLOORS	TEXT		17	1	Tag warning: per embodied carbon kg co2 m2 floors	1
 PARAM	4e1df487-c6a3-54c7-b5e4-4efae053db05	WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ROOFS	TEXT		17	1	Tag warning: per embodied carbon kg co2 m2 roofs	1
 PARAM	c5b25cf0-f6aa-5ba1-9cca-202b7eb10db0	WARN_PER_EMBODIED_CARBON_KG_CO2_M2_STR	TEXT		17	1	Tag warning: per embodied carbon kg co2 m2 str	1
@@ -3093,6 +3093,14 @@ PARAM	d4e5f6a7-b8c9-4d0e-af12-345678901bcd	TAG_STYLE_CODE_TXT	TEXT		17	1	Single 
 PARAM	c1d2e3f4-a5b6-4c7d-8e9f-a0b1c2d3e4f5	STING_DRAWING_TYPE_ID_TXT	TEXT		27	1	DrawingType registry id stamped on views/sheets [Phase 113]	1
 PARAM	d2e3f4a5-b6c7-4d8e-9f0a-b1c2d3e4f5a6	STING_STYLE_LOCKED_BOOL	YESNO		27	1	Style-locked flag: prevents SyncStyles from overwriting [Phase 113]	1
 PARAM	e3f4a5b6-c7d8-4e9f-a0b1-c2d3e4f5a6b7	STING_PACK_ID_TXT	TEXT		27	1	ViewStylePack registry id stamped on managed view templates [Phase 137]	1
+PARAM	a1b2c3d4-1111-4501-9001-000000000001	WARN_ELC_PNL_SCHEDULE_MISSING	TEXT		17	1	Tag warning: panel exists but no PanelScheduleView created (BS 7671 514)	1
+PARAM	a1b2c3d4-1111-4501-9002-000000000002	WARN_ELC_PNL_LOAD_BALANCE	TEXT		17	1	Tag warning: 3-phase panel imbalance >10% (CIBSE Guide K)	1
+PARAM	a1b2c3d4-1111-4501-9003-000000000003	WARN_ELC_PNL_FEEDER_UNDERSIZED	TEXT		17	1	Tag warning: feeder cable cross-section insufficient (BS 7671 App 4)	1
+PARAM	a1b2c3d4-1111-4502-9004-000000000004	WARN_FAB_SPOOL_NR_MISSING	TEXT		17	1	Tag warning: ASS_SPOOL_NR_TXT empty on fabricated element	1
+PARAM	a1b2c3d4-1111-4502-9005-000000000005	WARN_FAB_LOC_MISSING	TEXT		17	1	Tag warning: ASS_FAB_STATUS_TXT empty - fabrication location unassigned	1
+PARAM	a1b2c3d4-1111-4503-9006-000000000006	WARN_STR_BEAM_NOTCH	TEXT		17	1	Tag warning: beam-end notch depth exceeds permitted ratio (SCI P363)	1
+PARAM	a1b2c3d4-1111-4503-9007-000000000007	WARN_STR_BEAM_PENETRATION_REVIEW	TEXT		17	1	Tag warning: beam penetration flagged STRUCT_REVIEW (AISC DG2)	1
+PARAM	a1b2c3d4-1111-4503-9008-000000000008	WARN_STR_TRANSFER_BEAM	TEXT		17	1	Tag warning: transfer beam - enhanced peer review required	1
 PARAM	f4a5b6c7-d8e9-4f0a-b1c2-d3e4f5a6b7c8	STING_PACK_CHECKSUM_TXT	TEXT		27	1	SHA-256 checksum of ViewStylePack JSON for drift detection [Phase 137]	1
 PARAM	b6c7d8e9-f0a1-4b2c-3d4e-5f6a7b8c9d01	STING_CROP_KIND_TXT	TEXT		27	1	Crop kind stamped onto views for drift detection [Phase 183]	1
 PARAM	c7d8e9f0-a1b2-4c3d-4e5f-6a7b8c9d0e12	STING_CROP_MARGIN_MM_TXT	TEXT		27	1	Crop margin (mm, as string) stamped onto views for drift detection [Phase 183]	1
