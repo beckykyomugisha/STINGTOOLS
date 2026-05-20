@@ -5460,3 +5460,85 @@ fell back to the Handover CSV silently. Both closed:
 | `StingTools/Data/STING_TAG_CONFIG_v5_0_{ARCH,GEN,MEP,STR}_DesignConstruction.csv` | same header bump + `VARIANT=DesignConstruction` retained |
 | `StingTools/Data/STING_TAG_CONFIG_v5_0_HEALTH.csv` | header line bumped, Phase 187 SYNC comment inserted |
 | `StingTools/Data/STING_TAG_CONFIG_v5_0_HEALTH_DesignConstruction.csv` | **new file** — DC sibling for the HEALTH pack |
+
+#### Completed (Phase 188 — MigrateTagLabelReferences command)
+
+Closes the last Phase 187 caveat for projects with pre-existing
+hand-configured T1-T3 label rows: previously, when shared parameters
+were renamed (Phase 184 consolidation, Phase 187 healthcare additions,
+etc.) the rename never propagated into label cells that hand-bound the
+OLD parameter. `MigrateTagFamilies` Option 1 only authors T4-T10, so
+T1-T3 references stayed stale and broke silently in Family Editor.
+
+**New command**: `MigrateTagLabelReferencesCommand`
+(`StingTools/Commands/TagStudio/MigrateTagLabelReferencesCommand.cs`).
+Walks every loaded STING-prefixed tag family and, per family in a
+single `TransactionGroup`:
+
+1. `EditFamily` opens the .rfa.
+2. **Pass 1**: for each `OLD → NEW` row in
+   `SCHEDULE_FIELD_REMAP.csv` where the family carries the OLD shared
+   parameter and the storage types match, calls
+   `FamilyManager.ReplaceParameter(oldFp, newExt, group, isInstance)`.
+   The Revit API preserves every label cell / formula / type value
+   automatically — the underlying shared-parameter binding is swapped
+   in place. Type-mismatched remaps are reported and skipped.
+3. **Pass 2**: scans every `FamilyParameter.Formula` for OLD names
+   referenced as tokens and rewrites the formula text via
+   `FamilyManager.SetFormula`. Quoted string literals inside formulas
+   are preserved (split on `"` boundaries; only even-index segments
+   get rewritten).
+4. `SaveAs` to the configured output dir → `LoadFamily` back into the
+   project (under a fresh project-doc Transaction so the reload is
+   transactional). If `SaveAs` fails, the whole TransactionGroup is
+   rolled back to avoid leaving Pass 1's binding swap orphaned.
+
+**Safety properties**:
+
+- Snapshot-then-mutate iteration. `fm.GetParameters()` is called
+  fresh before every mutation, then `FamilyManager.Parameters` is
+  never enumerated directly (the live FamilyParameterSet can be
+  invalidated by `ReplaceParameter` / `SetFormula`).
+- Storage-type parity gate. `StorageType` is read from both sides
+  before `ReplaceParameter` so a TEXT→NUMBER consolidation is
+  reported, not thrown.
+- TransactionGroup → Assimilate on success, RollBack on save failure
+  or unhandled exception. famDoc lifecycle handled in `finally`.
+- Escape key cancellation between families.
+
+**Wiring**: Dock panel "TAGS" tab → new "Migrate Label Refs" button
+(purple) next to the existing "Migrate Tag Families" button. Tag
+string `MigrateTagLabelRefs` dispatched by `StingCommandHandler`.
+
+**Verification**: brace-balanced source, 7-case formula rewriter
+smoke test passes (whole-token boundary check, quoted-string
+preservation, no-op for prefix collisions).
+
+**Modified files**:
+
+| File | Change |
+|---|---|
+| `StingTools/Commands/TagStudio/MigrateTagLabelReferencesCommand.cs` | **new** — 470-line per-family migrator |
+| `StingTools/UI/StingDockPanel.xaml` | new "Migrate Label Refs" button |
+| `StingTools/UI/StingCommandHandler.cs` | dispatch case for `MigrateTagLabelRefs` |
+| `docs/CHANGELOG.md` | this entry |
+
+**Caveats**:
+
+1. Built without `dotnet build` verification (Linux sandbox). The
+   `FamilyManager.ReplaceParameter` API has been stable since Revit
+   2022 and the signature matches existing STING `AddParameter`
+   call sites, but verify in Revit before merge.
+2. The TransactionGroup wraps `EditFamily` + family-doc transactions
+   + the project-doc `LoadFamily`. `EditFamily` opens a separate
+   document, not a sub-transaction on the project doc — the
+   TransactionGroup's Assimilate/RollBack only affects the explicit
+   `LoadFamily` transaction. The famDoc edits are persisted via
+   `SaveAs` before the rollback boundary, so a TG rollback after a
+   successful save would still leave the .rfa on disk but unload it
+   from the project. Acceptable failure mode (file is recoverable
+   via Load Family from disk).
+3. SCHEDULE_FIELD_REMAP.csv currently ships 119 REMAPPED rows from
+   prior phases. Run `SyncParameterSchema` first to add any new
+   renames detected from PARAMETER_REGISTRY.json before invoking
+   this command.
