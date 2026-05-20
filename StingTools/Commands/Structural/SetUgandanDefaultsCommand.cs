@@ -64,28 +64,49 @@ namespace StingTools.Commands.Structural
                 using (var tx = new Transaction(ctx.Doc, $"STING Uganda Defaults — {selected.Id}"))
                 {
                     tx.Start();
-                    if (ParameterHelpers.SetString(pi, "PRJ_ORG_REGION_TXT",    selected.Id,                       overwrite: true)) written++;
-                    if (ParameterHelpers.SetString(pi, "STR_WIND_BASIC_MPS",    $"{selected.WindBasicMps:F0}",     overwrite: true)) written++;
-                    if (ParameterHelpers.SetString(pi, "STR_SEISMIC_AGR",       $"{selected.SeismicAgrG:F3}",      overwrite: true)) written++;
-                    if (ParameterHelpers.SetString(pi, "STR_SOIL_BEARING_KPA",  $"{selected.SoilBearingKpa:F0}",   overwrite: true)) written++;
-                    if (ParameterHelpers.SetString(pi, "STR_RAIN_INTENSITY_MMH",$"{selected.RainIntensityMmh:F0}", overwrite: true)) written++;
-                    if (ParameterHelpers.SetString(pi, "BLE_LIVE_LOAD_KPA",     $"{selected.LiveLoadKpa:F2}",      overwrite: true)) written++;
-                    if (ParameterHelpers.SetString(pi, "STR_AREA_LOAD_KN_M2",   $"{selected.DeadLoadKpa:F2}",      overwrite: true)) written++;
+                    // Tier 189 fields
+                    if (ParameterHelpers.SetString(pi, "PRJ_ORG_REGION_TXT",      selected.Id,                       overwrite: true)) written++;
+                    if (ParameterHelpers.SetString(pi, "STR_WIND_BASIC_MPS",      $"{selected.WindBasicMps:F0}",     overwrite: true)) written++;
+                    if (ParameterHelpers.SetString(pi, "STR_SEISMIC_AGR",         $"{selected.SeismicAgrG:F3}",      overwrite: true)) written++;
+                    if (ParameterHelpers.SetString(pi, "STR_SOIL_BEARING_KPA",    $"{selected.SoilBearingKpa:F0}",   overwrite: true)) written++;
+                    if (ParameterHelpers.SetString(pi, "STR_RAIN_INTENSITY_MMH",  $"{selected.RainIntensityMmh:F0}", overwrite: true)) written++;
+                    if (ParameterHelpers.SetString(pi, "BLE_LIVE_LOAD_KPA",       $"{selected.LiveLoadKpa:F2}",      overwrite: true)) written++;
+                    if (ParameterHelpers.SetString(pi, "STR_AREA_LOAD_KN_M2",     $"{selected.DeadLoadKpa:F2}",      overwrite: true)) written++;
+                    // Phase 190 EC1 + EC8 completeness fields
+                    if (ParameterHelpers.SetString(pi, "STR_GROUND_TYPE_TXT",     selected.GroundType,               overwrite: true)) written++;
+                    if (ParameterHelpers.SetString(pi, "STR_Q_FACTOR_NR",         $"{selected.QFactor:F2}",          overwrite: true)) written++;
+                    if (ParameterHelpers.SetString(pi, "STR_IMPORTANCE_CLASS_TXT",selected.ImportanceClass,          overwrite: true)) written++;
+                    if (ParameterHelpers.SetString(pi, "STR_WIND_TERRAIN_CAT_TXT",selected.WindTerrainCat,           overwrite: true)) written++;
+                    if (ParameterHelpers.SetString(pi, "STR_WIND_DIRECTIONAL_NR", $"{selected.WindCdir:F2}",         overwrite: true)) written++;
+                    // Black-cotton: YESNO param stored as Integer 0/1 in Revit
+                    try
+                    {
+                        var bp = pi.LookupParameter("STR_BLACK_COTTON_RISK_BOOL");
+                        if (bp != null && !bp.IsReadOnly && bp.StorageType == StorageType.Integer)
+                        { bp.Set(selected.BlackCottonRisk ? 1 : 0); written++; }
+                    }
+                    catch (Exception exB) { StingLog.Warn($"Black-cotton write: {exB.Message}"); }
                     tx.Commit();
                 }
 
                 var panel = StingResultPanel.Create($"Uganda defaults — {selected.Label}");
                 panel.SetSubtitle("Loaded into ProjectInformation; pick this up via ProjectLoadCombinationEngine.");
                 panel.AddSection("APPLIED")
-                     .Metric("Region",                 selected.Id)
-                     .Metric("Wind basic vb,0 (m/s)",  $"{selected.WindBasicMps:F0}")
-                     .Metric("Seismic agR / g",        $"{selected.SeismicAgrG:F2}")
-                     .Metric("Soil bearing (kPa)",     $"{selected.SoilBearingKpa:F0}")
-                     .Metric("Rain intensity (mm/h)",  $"{selected.RainIntensityMmh:F0}")
-                     .Metric("Live load (kPa)",        $"{selected.LiveLoadKpa:F2}")
-                     .Metric("Dead load (kPa)",        $"{selected.DeadLoadKpa:F2}")
-                     .Metric("Soil class",             selected.SoilClass)
-                     .Metric("Params written",         written.ToString());
+                     .Metric("Region",                     selected.Id)
+                     .Metric("Wind basic vb,0 (m/s)",      $"{selected.WindBasicMps:F0}")
+                     .Metric("Wind terrain category",      selected.WindTerrainCat)
+                     .Metric("Wind cdir",                  $"{selected.WindCdir:F2}")
+                     .Metric("Seismic agR / g",            $"{selected.SeismicAgrG:F2}")
+                     .Metric("EC8 ground type",            selected.GroundType)
+                     .Metric("EC8 behaviour factor q",     $"{selected.QFactor:F2}")
+                     .Metric("EC8 importance class",       selected.ImportanceClass)
+                     .Metric("Soil bearing (kPa)",         $"{selected.SoilBearingKpa:F0}")
+                     .Metric("Black-cotton risk",          selected.BlackCottonRisk ? "YES — verify on site" : "no")
+                     .Metric("Rain intensity (mm/h)",      $"{selected.RainIntensityMmh:F0}")
+                     .Metric("Live load (kPa)",            $"{selected.LiveLoadKpa:F2}")
+                     .Metric("Dead load (kPa)",            $"{selected.DeadLoadKpa:F2}")
+                     .Metric("Soil class",                 selected.SoilClass)
+                     .Metric("Params written",             written.ToString());
                 panel.AddSection("NOTES").Text(selected.Notes);
                 panel.AddSection("⚠ DO NOT USE AS FINAL VALUES")
                      .Text("These are conservative engineering defaults, NOT verified extracts from Uganda NBC, NEMA hazard maps, or the Department of Meteorology IDF curves.")

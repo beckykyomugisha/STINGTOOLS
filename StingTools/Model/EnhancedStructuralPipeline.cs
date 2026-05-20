@@ -351,15 +351,37 @@ namespace StingTools.Model
             // ProjectInformation. Falls back to a conservative 150 kPa
             // when nothing is set.
             double projectSoilKPa = 150;
+            bool projectBlackCotton = false;
             try
             {
                 if (doc.ProjectInformation != null)
                 {
                     double v = TryReadDouble(doc.ProjectInformation, "STR_SOIL_BEARING_KPA", 0);
                     if (v > 0) projectSoilKPa = v;
+                    // Phase 190 — black-cotton (expansive clay) flag. Drives a
+                    // shrink/swell warning per BS 1377-2; foundations need to
+                    // extend below the active zone (typically 1.5 m) and the
+                    // bearing capacity needs derating per site investigation.
+                    try
+                    {
+                        var bp = doc.ProjectInformation.LookupParameter("STR_BLACK_COTTON_RISK_BOOL");
+                        if (bp != null && bp.HasValue && bp.StorageType == StorageType.Integer)
+                            projectBlackCotton = bp.AsInteger() == 1;
+                    }
+                    catch (Exception exB) { StingLog.Warn($"Black-cotton flag read: {exB.Message}"); }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Project soil bearing read: {ex.Message}"); }
+
+            if (projectBlackCotton)
+            {
+                r.Warnings.Add("⚠ Black-cotton / expansive-clay flag set on ProjectInformation. " +
+                    "Foundation sizing uses project soil bearing as supplied, but: " +
+                    "(1) verify active-zone depth via BS 1377-2 swelling test, " +
+                    "(2) extend pad / strip below the seasonal active zone (typically 1.5 m), " +
+                    "(3) consider raft foundation or stabilised sub-base, " +
+                    "(4) the regional bearing default is already derated — site investigation must confirm.");
+            }
 
             foreach (var fnd in all.Where(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_StructuralFoundation))
             {

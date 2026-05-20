@@ -22,8 +22,14 @@ namespace StingTools.Core
         public string Id              { get; set; } = "";
         public string Label           { get; set; } = "";
         public double WindBasicMps    { get; set; }
+        public string WindTerrainCat  { get; set; } = "II";
+        public double WindCdir        { get; set; } = 1.0;
         public double SeismicAgrG     { get; set; }
+        public string GroundType      { get; set; } = "C";
+        public double QFactor         { get; set; } = 1.5;
+        public string ImportanceClass { get; set; } = "II";
         public double SoilBearingKpa  { get; set; }
+        public bool   BlackCottonRisk { get; set; }
         public double RainIntensityMmh{ get; set; }
         public double LiveLoadKpa     { get; set; }
         public double DeadLoadKpa     { get; set; }
@@ -98,8 +104,14 @@ namespace StingTools.Core
                                     Id              = (string)r["id"] ?? "",
                                     Label           = (string)r["label"] ?? "",
                                     WindBasicMps    = (double?)r["wind_basic_mps"] ?? 24,
+                                    WindTerrainCat  = (string)r["wind_terrain_cat"] ?? "II",
+                                    WindCdir        = (double?)r["wind_cdir"] ?? 1.0,
                                     SeismicAgrG     = (double?)r["seismic_agr_g"] ?? 0.08,
+                                    GroundType      = (string)r["ground_type"] ?? "C",
+                                    QFactor         = (double?)r["q_factor"] ?? 1.5,
+                                    ImportanceClass = (string)r["importance_class"] ?? "II",
                                     SoilBearingKpa  = (double?)r["soil_bearing_kpa"] ?? 150,
+                                    BlackCottonRisk = (bool?)r["black_cotton_risk"] ?? false,
                                     RainIntensityMmh= (double?)r["rain_intensity_mmh"] ?? 90,
                                     LiveLoadKpa     = (double?)r["live_load_kpa"] ?? 2.5,
                                     DeadLoadKpa     = (double?)r["dead_load_kpa"] ?? 4.0,
@@ -133,11 +145,66 @@ namespace StingTools.Core
         private static UgandaRegionalProfile HardcodedKampalaFallback() => new UgandaRegionalProfile
         {
             Id = "Custom", Label = "Custom (Kampala fallback)",
-            WindBasicMps = 24, SeismicAgrG = 0.08,
-            SoilBearingKpa = 150, RainIntensityMmh = 90,
+            WindBasicMps = 24, WindTerrainCat = "II", WindCdir = 1.0,
+            SeismicAgrG = 0.08, GroundType = "C", QFactor = 1.5, ImportanceClass = "II",
+            SoilBearingKpa = 150, BlackCottonRisk = false,
+            RainIntensityMmh = 90,
             LiveLoadKpa = 2.5, DeadLoadKpa = 4.0,
             SoilClass = "Lateritic clay (Type C)",
             Notes = "Hard-coded fallback when data file is missing."
         };
+
+        // ── EC8 + EC1-1-4 factor lookups (Phase 190) ────────────────────────
+        // Static tables so the formulae below don't have to live in
+        // ProjectLoadCombinationEngine and stay code-comment-authoritative.
+
+        /// <summary>EC8-1 §3.2.2.2 Table 3.2 — ground-type spectral
+        /// amplification factor S for Type 1 elastic response spectrum.</summary>
+        public static double GroundFactorS(string groundType)
+        {
+            if (string.IsNullOrEmpty(groundType)) return 1.15;
+            switch (groundType.Trim().ToUpperInvariant())
+            {
+                case "A":  return 1.00;
+                case "B":  return 1.20;
+                case "C":  return 1.15;
+                case "D":  return 1.35;
+                case "E":  return 1.40;
+                default:   return 1.15;
+            }
+        }
+
+        /// <summary>EC8-1 §4.2.5 — importance factor γi by class.
+        /// I=ordinary 0.8, II=standard 1.0, III=important 1.2, IV=essential 1.4.</summary>
+        public static double ImportanceFactor(string cls)
+        {
+            if (string.IsNullOrEmpty(cls)) return 1.0;
+            switch (cls.Trim().ToUpperInvariant())
+            {
+                case "I":   return 0.80;
+                case "II":  return 1.00;
+                case "III": return 1.20;
+                case "IV":  return 1.40;
+                default:    return 1.00;
+            }
+        }
+
+        /// <summary>EC1-1-4 §4.3.2 + §4.5 — peak velocity pressure exposure
+        /// factor ce(z) at z=10m by terrain category. Simplified scalar; full
+        /// engine would parameterise z, but z=10m is the universal reference
+        /// height for vb,0 so a single lookup is appropriate here.</summary>
+        public static double WindCe10m(string terrainCat)
+        {
+            if (string.IsNullOrEmpty(terrainCat)) return 2.1;
+            switch (terrainCat.Trim().ToUpperInvariant())
+            {
+                case "0":   return 3.00;  // sea or coastal exposed
+                case "I":   return 2.70;  // lakes / no obstacles
+                case "II":  return 2.10;  // open with low veg (default)
+                case "III": return 1.60;  // suburban / industrial
+                case "IV":  return 1.20;  // city with tall buildings
+                default:    return 2.10;
+            }
+        }
     }
 }

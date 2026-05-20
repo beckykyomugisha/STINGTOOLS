@@ -22247,6 +22247,78 @@
       "curated": true
     },
     {
+      "param_name": "STR_GROUND_TYPE_TXT",
+      "guid": "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e01",
+      "description": "EC8 ground type A-E -- drives seismic spectral amplification S [Phase 190]",
+      "datatype": "TEXT",
+      "group_id": 16,
+      "group_name": "STR_FRAMING",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Structural",
+      "curated": true
+    },
+    {
+      "param_name": "STR_Q_FACTOR_NR",
+      "guid": "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e02",
+      "description": "EC8 behaviour factor q -- seismic design force reduction [Phase 190]",
+      "datatype": "TEXT",
+      "group_id": 16,
+      "group_name": "STR_FRAMING",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Structural",
+      "curated": true
+    },
+    {
+      "param_name": "STR_IMPORTANCE_CLASS_TXT",
+      "guid": "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e03",
+      "description": "EC8 importance class I-IV (ordinary / standard / important / essential) [Phase 190]",
+      "datatype": "TEXT",
+      "group_id": 16,
+      "group_name": "STR_FRAMING",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Structural",
+      "curated": true
+    },
+    {
+      "param_name": "STR_WIND_TERRAIN_CAT_TXT",
+      "guid": "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e04",
+      "description": "EC1-1-4 terrain category 0/I/II/III/IV -- drives ce(z) exposure factor [Phase 190]",
+      "datatype": "TEXT",
+      "group_id": 16,
+      "group_name": "STR_FRAMING",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Structural",
+      "curated": true
+    },
+    {
+      "param_name": "STR_WIND_DIRECTIONAL_NR",
+      "guid": "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e05",
+      "description": "EC1-1-4 cdir directional factor [Phase 190]",
+      "datatype": "TEXT",
+      "group_id": 16,
+      "group_name": "STR_FRAMING",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Structural",
+      "curated": true
+    },
+    {
+      "param_name": "STR_BLACK_COTTON_RISK_BOOL",
+      "guid": "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e06",
+      "description": "Black-cotton / expansive-clay soil flag -- triggers shrink-swell warning per BS 1377-2 [Phase 190]",
+      "datatype": "YESNO",
+      "group_id": 16,
+      "group_name": "STR_FRAMING",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Structural",
+      "curated": true
+    },
+    {
       "param_name": "PLM_PRJ_PLUMBING_CODE_TXT",
       "guid": "98ab6e19-8d12-53c0-b388-8705f9413373",
       "description": "Project plumbing-code toggle BS-UK / IPC-US / UPC-US [Phase 178b]",
