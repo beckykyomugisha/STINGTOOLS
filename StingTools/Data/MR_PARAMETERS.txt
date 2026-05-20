@@ -2021,8 +2021,8 @@ PARAM	3bc3b6a3-f149-5152-9da9-3a519d9c4871	WARN_PER_ACOUSTIC_NRC_RATING_CEILINGS
 PARAM	3b52704b-e250-5f62-8205-6f3194381f01	WARN_PER_ACOUSTIC_STC_RATING_NR_DOORS	TEXT		17	1	Tag warning: per acoustic stc rating nr doors	1
 PARAM	678e9cbc-c377-5b73-8e90-b4a07c0c738f	WARN_PER_ACOUSTIC_STC_RATING_NR_WALLS	TEXT		17	1	Tag warning: per acoustic stc rating nr walls	1
 PARAM	654bdc23-ad60-551d-99b7-cbbe7eecda53	WARN_PER_ACOUSTIC_STC_RATING_NR_WINDOWS	TEXT		17	1	Tag warning: per acoustic stc rating nr windows	1
-PARAM	626195f6-1c27-58e8-b1ae-a51ad4bce427	WARN_PER_CONDENSATION_RISK_BOOL_ROOFS	YESNO		17	1	Tag warning: per condensation risk bool roofs	1
-PARAM	dc19fe3d-62a6-561f-825e-5a8d1c3fbcde	WARN_PER_CONDENSATION_RISK_BOOL_WALLS	YESNO		17	1	Tag warning: per condensation risk bool walls	1
+PARAM	626195f6-1c27-58e8-b1ae-a51ad4bce427	WARN_PER_CONDENSATION_RISK_BOOL_ROOFS	TEXT		17	1	Tag warning: per condensation risk (roofs) - text message shown in tag	1
+PARAM	dc19fe3d-62a6-561f-825e-5a8d1c3fbcde	WARN_PER_CONDENSATION_RISK_BOOL_WALLS	TEXT		17	1	Tag warning: per condensation risk (walls) - text message shown in tag	1
 PARAM	e7a70e47-f2aa-5dd0-a8d5-10299242aa10	WARN_PER_EMBODIED_CARBON_KG_CO2_M2_FLOORS	TEXT		17	1	Tag warning: per embodied carbon kg co2 m2 floors	1
 PARAM	4e1df487-c6a3-54c7-b5e4-4efae053db05	WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ROOFS	TEXT		17	1	Tag warning: per embodied carbon kg co2 m2 roofs	1
 PARAM	c5b25cf0-f6aa-5ba1-9cca-202b7eb10db0	WARN_PER_EMBODIED_CARBON_KG_CO2_M2_STR	TEXT		17	1	Tag warning: per embodied carbon kg co2 m2 str	1
@@ -3093,6 +3093,56 @@ PARAM	d4e5f6a7-b8c9-4d0e-af12-345678901bcd	TAG_STYLE_CODE_TXT	TEXT		17	1	Single 
 PARAM	c1d2e3f4-a5b6-4c7d-8e9f-a0b1c2d3e4f5	STING_DRAWING_TYPE_ID_TXT	TEXT		27	1	DrawingType registry id stamped on views/sheets [Phase 113]	1
 PARAM	d2e3f4a5-b6c7-4d8e-9f0a-b1c2d3e4f5a6	STING_STYLE_LOCKED_BOOL	YESNO		27	1	Style-locked flag: prevents SyncStyles from overwriting [Phase 113]	1
 PARAM	e3f4a5b6-c7d8-4e9f-a0b1-c2d3e4f5a6b7	STING_PACK_ID_TXT	TEXT		27	1	ViewStylePack registry id stamped on managed view templates [Phase 137]	1
+PARAM	a1b2c3d4-1111-4501-9001-000000000001	WARN_ELC_PNL_SCHEDULE_MISSING	TEXT		17	1	Tag warning: panel exists but no PanelScheduleView created (BS 7671 514)	1
+PARAM	a1b2c3d4-1111-4501-9002-000000000002	WARN_ELC_PNL_LOAD_BALANCE	TEXT		17	1	Tag warning: 3-phase panel imbalance >10% (CIBSE Guide K)	1
+PARAM	a1b2c3d4-1111-4501-9003-000000000003	WARN_ELC_PNL_FEEDER_UNDERSIZED	TEXT		17	1	Tag warning: feeder cable cross-section insufficient (BS 7671 App 4)	1
+PARAM	a1b2c3d4-1111-4502-9004-000000000004	WARN_FAB_SPOOL_NR_MISSING	TEXT		17	1	Tag warning: ASS_SPOOL_NR_TXT empty on fabricated element	1
+PARAM	a1b2c3d4-1111-4502-9005-000000000005	WARN_FAB_LOC_MISSING	TEXT		17	1	Tag warning: ASS_FAB_STATUS_TXT empty - fabrication location unassigned	1
+PARAM	a1b2c3d4-1111-4503-9006-000000000006	WARN_STR_BEAM_NOTCH	TEXT		17	1	Tag warning: beam-end notch depth exceeds permitted ratio (SCI P363)	1
+PARAM	a1b2c3d4-1111-4503-9007-000000000007	WARN_STR_BEAM_PENETRATION_REVIEW	TEXT		17	1	Tag warning: beam penetration flagged STRUCT_REVIEW (AISC DG2)	1
+PARAM	a1b2c3d4-1111-4503-9008-000000000008	WARN_STR_TRANSFER_BEAM	TEXT		17	1	Tag warning: transfer beam - enhanced peer review required	1
+PARAM	a2b3c4d5-2222-4f01-9101-100000000001	WARN_CLN_PRESS_REGIME_MISSING	TEXT		17	1	Tag warning: clinical room has no CLN_PRESS_REGIME_TXT - pressure regime unassigned (HTM 03-01)	1
+PARAM	a2b3c4d5-2222-4f01-9102-100000000002	WARN_CLN_PRESS_DELTA_LOW	TEXT		17	1	Tag warning: CLN_PRESS_DELTA_DESIGN_PA_NR below HTM 03-01 minimum (5 Pa)	1
+PARAM	a2b3c4d5-2222-4f01-9103-100000000003	WARN_CLN_LIGATURE_REQUIRED	TEXT		17	1	Tag warning: mental-health area but CLN_LIGATURE_RES_BOOL = 0 - anti-ligature compliance not certified	1
+PARAM	a2b3c4d5-2222-4f01-9104-100000000004	WARN_CLN_RAD_NO_SHIELDING	TEXT		17	1	Tag warning: CLN_RAD_CONTROLLED_BOOL = 1 but no RAD_LEAD_MM_NR or RAD_BARRIER_TYPE_TXT populated (NCRP 147)	1
+PARAM	a2b3c4d5-2222-4f01-9105-100000000005	WARN_CLN_MRI_ZONE_MISSING	TEXT		17	1	Tag warning: MRI area but CLN_MRI_ZONE_INT = 0 - zone classification missing (ACR / IPEM 75)	1
+PARAM	a2b3c4d5-2222-4f01-9106-100000000006	WARN_CLN_RF_SHIELD_NO_ZONE	TEXT		17	1	Tag warning: CLN_RF_SHIELD_BOOL = 1 but CLN_MRI_ZONE_INT < 3 - zone inconsistent with shielding	1
+PARAM	a2b3c4d5-2222-4f01-9107-100000000007	WARN_CLN_NOISE_EXCEEDS_TARGET	TEXT		17	1	Tag warning: CLN_NOISE_NR_NR exceeds clinical target for room class (HTM 08-01 / HBN 00)	1
+PARAM	a2b3c4d5-2222-4f01-9108-100000000008	WARN_CLN_RT60_OUT_OF_RANGE	TEXT		17	1	Tag warning: CLN_RT60_TARGET_S_NR outside HBN reverberation range for room class	1
+PARAM	a2b3c4d5-2222-4f01-9109-100000000009	WARN_CLN_ROOM_CLASS_MISSING	TEXT		17	1	Tag warning: clinical room has no CLN_ROOM_CLASS_TXT - HBN classification unassigned	1
+PARAM	a2b3c4d5-2222-4f01-910a-10000000000a	WARN_CLN_INFECT_CLASS_MISSING	TEXT		17	1	Tag warning: clinical room has no CLN_INFECT_CLASS_TXT - infection-control class unassigned (HTM 03-01 / CDC isolation)	1
+PARAM	a2b3c4d5-2222-4f01-910b-10000000000b	WARN_CLN_FLOOR_LOAD_INSUFFICIENT	TEXT		17	1	Tag warning: CLN_FLOOR_LOAD_KN_M2_NR less than CLN_EQUIP_WEIGHT_KG_NR / floor area - structural review required	1
+PARAM	a2b3c4d5-2222-4f01-910c-10000000000c	WARN_CLN_STRUCT_NOT_SIGNED_OFF	TEXT		17	1	Tag warning: clinical equipment room has no CLN_STRUCT_SIGN_OFF_TXT - structural engineer sign-off missing	1
+PARAM	a2b3c4d5-2222-4f01-910d-10000000000d	WARN_CLN_NURSECALL_MISSING	TEXT		17	1	Tag warning: inpatient / care area but CLN_NURSECALL_TYPE_TXT empty - nurse-call type unassigned (HTM 08-03)	1
+PARAM	a2b3c4d5-2222-4f01-910e-10000000000e	WARN_CLN_HBN_REF_MISSING	TEXT		17	1	Tag warning: clinical room has no CLN_HBN_REF_TXT - HBN reference missing	1
+PARAM	a2b3c4d5-2222-4f02-9201-200000000001	WARN_MGS_PRESSURE_BELOW_CODE	TEXT		17	1	Tag warning: MGS_NOM_PRESS_KPA_NR below HTM 02-01 / NFPA 99 minimum for gas type	1
+PARAM	a2b3c4d5-2222-4f02-9202-200000000002	WARN_MGS_FLOW_MISSING	TEXT		17	1	Tag warning: medical-gas terminal unit has no MGS_DESIGN_FLOW_LPM_NR - flow rating missing	1
+PARAM	a2b3c4d5-2222-4f02-9203-200000000003	WARN_MGS_DIVERSITY_HIGH	TEXT		17	1	Tag warning: MGS_DIVERSITY_PCT_NR exceeds NFPA 99 §5.1.13 diversity assumption for service	1
+PARAM	a2b3c4d5-2222-4f02-9204-200000000004	WARN_MGS_TU_NOT_BS5682	TEXT		17	1	Tag warning: MGS_TU_BS5682_BOOL = 0 - terminal unit not certified to BS EN ISO 9170-1 / BS 5682	1
+PARAM	a2b3c4d5-2222-4f02-9205-200000000005	WARN_MGS_TU_NOT_INDEXED	TEXT		17	1	Tag warning: MGS_TU_INDEXED_BOOL = 0 - terminal unit gas-specific indexing not verified (NIST)	1
+PARAM	a2b3c4d5-2222-4f02-9206-200000000006	WARN_MGS_VERIFY_FAILED	TEXT		17	1	Tag warning: MGS_VERIFY_PASS_BOOL = 0 - verification per HTM 02-01 §6 / NFPA 99 §5.1.12 not passed	1
+PARAM	a2b3c4d5-2222-4f02-9207-200000000007	WARN_MGS_VERIFY_OVERDUE	TEXT		17	1	Tag warning: MGS_VERIFY_DT older than annual re-verification window (HTM 02-01 §15)	1
+PARAM	a2b3c4d5-2222-4f02-9208-200000000008	WARN_MGS_PIPE_NOT_BRAZED	TEXT		17	1	Tag warning: MGS_PIPE_BRAZED_BOOL = 0 - copper joints not certified brazed per HTM 02-01 §10	1
+PARAM	a2b3c4d5-2222-4f02-9209-200000000009	WARN_MGS_AAP_REF_MISSING	TEXT		17	1	Tag warning: area alarm panel without MGS_AAP_REF_TXT - panel identifier missing	1
+PARAM	a2b3c4d5-2222-4f02-920a-20000000000a	WARN_MGS_ZVB_REF_MISSING	TEXT		17	1	Tag warning: zone valve box without MGS_ZVB_REF_TXT - valve box identifier missing	1
+PARAM	a2b3c4d5-2222-4f03-9301-300000000001	WARN_CEQ_CATEGORY_MISSING	TEXT		17	1	Tag warning: medical equipment without CEQ_CATEGORY_TXT - asset category unassigned	1
+PARAM	a2b3c4d5-2222-4f03-9302-300000000002	WARN_CEQ_GMDN_MISSING	TEXT		17	1	Tag warning: clinical asset without CEQ_GMDN_CODE_TXT - GMDN classification missing for COBie / asset register	1
+PARAM	a2b3c4d5-2222-4f03-9303-300000000003	WARN_CEQ_DECON_METHOD_MISSING	TEXT		17	1	Tag warning: reusable medical equipment without CEQ_DECON_METHOD_TXT - decontamination method unassigned (HTM 01-01)	1
+PARAM	a2b3c4d5-2222-4f03-9304-300000000004	WARN_CEQ_ENDO_REPRO_OVERDUE	TEXT		17	1	Tag warning: CEQ_ENDO_LAST_REPRO_DT exceeds AER cycle window (HTM 01-06)	1
+PARAM	a2b3c4d5-2222-4f03-9305-300000000005	WARN_CEQ_SFG20_REF_MISSING	TEXT		17	1	Tag warning: maintainable asset without CEQ_SFG20_REF_TXT - SFG20 PPM schedule not bound	1
+PARAM	a2b3c4d5-2222-4f04-9401-400000000001	WARN_PRJ_CLIENT_NAME_MISSING	TEXT		17	1	Title-block warning: PRJ_ORG_CLIENT_NAME_TXT empty in ProjectInformation - title blocks will stamp blank	1
+PARAM	a2b3c4d5-2222-4f04-9402-400000000002	WARN_PRJ_CODE_MISSING	TEXT		17	1	Title-block warning: PRJ_ORG_PROJECT_CODE_TXT empty - ISO 19650 sheet number cannot be assembled	1
+PARAM	a2b3c4d5-2222-4f04-9403-400000000003	WARN_PRJ_ORIGINATOR_MISSING	TEXT		17	1	Title-block warning: PRJ_ORG_ORIGINATOR_CODE_TXT empty - ISO 19650 originator field missing	1
+PARAM	a2b3c4d5-2222-4f04-9404-400000000004	WARN_PRJ_HEALTH_QE_MISSING	TEXT		17	1	Title-block warning: healthcare project active but PRJ_ORG_HEALTH_QE_TXT empty - no Qualified Expert recorded (IPEM 75)	1
+PARAM	a2b3c4d5-2222-4f04-9405-400000000005	WARN_PRJ_HEALTH_FACILITY_TYPE_MISSING	TEXT		17	1	Title-block warning: healthcare project active but PRJ_ORG_HEALTH_FACILITY_TYPE_TXT empty - facility type unassigned	1
+PARAM	a2b3c4d5-2222-4f05-9501-500000000001	WARN_ELC_PNL_SPARES_LOW	TEXT		17	1	Tag warning: ELC_PNL_SPARE_WAYS_NR < 10% of ELC_PNL_NUM_OF_WAYS_NR - insufficient spares (NHS HTM 06-01 guidance)	1
+PARAM	a2b3c4d5-2222-4f05-9502-500000000002	WARN_ELC_PNL_SCCR_LOW	TEXT		17	1	Tag warning: ELC_PNL_SHORT_CIRCUIT_RATING_KA below incoming fault level (BS 7671 / NFPA 70)	1
+PARAM	a2b3c4d5-2222-4f05-9503-500000000003	WARN_ELC_PNL_AIC_INADEQUATE	TEXT		17	1	Tag warning: ELC_PNL_AIC_RATING_KA below available fault current at panel location (BS 7671 §434 / NFPA 70 §110.9)	1
+PARAM	a2b3c4d5-2222-4f05-9504-500000000004	WARN_ELC_PNL_NO_TVSS	TEXT		17	1	Tag warning: critical or essential panel without surge protective device (TVSS) (BS 7671 §443 / NFPA 70 §285)	1
+PARAM	a2b3c4d5-2222-4f06-9601-600000000001	WARN_STING_DRAWING_TYPE_MISSING	TEXT		17	1	Sheet warning: STING_DRAWING_TYPE_ID_TXT empty - sheet not bound to a DrawingType profile, automation skipped	1
+PARAM	a2b3c4d5-2222-4f06-9602-600000000002	WARN_STING_CROP_DRIFT	TEXT		17	1	View warning: STING_CROP_KIND_TXT / MARGIN_MM_TXT differ from profile - run SyncStyles to heal (Phase 183)	1
+PARAM	a2b3c4d5-2222-4f06-9603-600000000003	WARN_STING_PACK_DRIFT	TEXT		17	1	View warning: STING_PACK_CHECKSUM_TXT differs from current pack - managed template needs re-sync (Phase 137)	1
+PARAM	a2b3c4d5-2222-4f06-9604-600000000004	WARN_STING_STYLE_LOCKED_NOTICE	TEXT		17	1	View notice: STING_STYLE_LOCKED_BOOL = 1 - SyncStyles will skip this view (user-frozen)	1
 PARAM	f4a5b6c7-d8e9-4f0a-b1c2-d3e4f5a6b7c8	STING_PACK_CHECKSUM_TXT	TEXT		27	1	SHA-256 checksum of ViewStylePack JSON for drift detection [Phase 137]	1
 PARAM	b6c7d8e9-f0a1-4b2c-3d4e-5f6a7b8c9d01	STING_CROP_KIND_TXT	TEXT		27	1	Crop kind stamped onto views for drift detection [Phase 183]	1
 PARAM	c7d8e9f0-a1b2-4c3d-4e5f-6a7b8c9d0e12	STING_CROP_MARGIN_MM_TXT	TEXT		27	1	Crop margin (mm, as string) stamped onto views for drift detection [Phase 183]	1

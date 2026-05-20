@@ -868,6 +868,195 @@ multi-size healthcare family can override via project-scoped
    the visual outcome on the view; projects that need separate filters
    per band can fork the library entry.
 
+### Phase 184g — A2 paper-size consolidation to A3
+
+The A2 paper size is no longer part of STING's corporate baseline.
+All 10 drawing types that previously used A2 have been migrated to
+A3 with their IDs, names, descriptions, title-block families, and
+routing references updated in lockstep.
+
+**Drawing-type ID renames** (10 total):
+
+| Before | After |
+|---|---|
+| `elec-riser-A2-1to100` | `elec-riser-A3-1to100` |
+| `door-schedule-A2` | `door-schedule-A3` |
+| `legend-A2` | `legend-A3` |
+| `arch-window-schedule-A2` | `arch-window-schedule-A3` |
+| `health-rds-A2` | `health-rds-A3` |
+| `health-mortuary-pln-A2-1to50` | `health-mortuary-pln-A3-1to50` |
+| `health-bedhead-elev-A2-1to20` | `health-bedhead-elev-A3-1to20` |
+| `health-or-ceiling-A2-1to20` | `health-or-ceiling-A3-1to20` |
+| `plumb-vent-riser-A2-NTS` | `plumb-vent-riser-A3-NTS` |
+| `plumb-pressure-schedule-A2` | `plumb-pressure-schedule-A3` |
+
+**Field updates per profile** (across all 10):
+
+- `paperSize`: `"A2"` → `"A3"`
+- `titleBlockFamily`: `STING_TB_SHEET_A2` → `STING_TB_SHEET_A3` (6 corporate); `STING - Healthcare Title Block A2` → `STING - Healthcare Title Block A3` (4 healthcare)
+- `name` / `description` / `sheetNamePattern` text occurrences of "A2" rewritten to "A3"
+
+**Cross-reference updates**:
+
+- `STING_DRAWING_TYPES.json`: 15 routing rules referencing the renamed IDs updated
+- `HEALTHCARE_PACK_PROFILES.json`: 3 healthcare-pack profile references to `health-rds-A2` updated to `health-rds-A3`
+- `StingTools/Core/Drawing/DrawingTypeRegistry.cs`: 3 fallback built-in entries (`elec-riser`, `door-schedule`, `legend`) + 3 fallback routing rules updated
+- `StingTools/Commands/SLD/SLDRiserDiagramCommand.cs`: `RiserDrawingTypeId` constant updated
+
+**Final paper-size distribution** (programmatically verified):
+
+| Size | Count |
+|---|---|
+| A1 | 76 |
+| A3 | 14 |
+| **A2** | **0** ✓ |
+
+A2 remains a valid Revit paper-size string elsewhere in the codebase
+(sheet-size dictionaries, paper-size dropdowns in editors, CDE
+acceptance codes like `A2 — Approved with Comments`) — only the
+drawing-type corporate baseline has dropped it. Projects that need
+A2 profiles can override via project-scoped `drawing_types.json`.
+
+### Caveats (Phase 184g)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+
+### Phase 184h — A3 scale rebalancing
+
+A3 has roughly half the printable area of A2, so the 4 model-view
+profiles migrated in Phase 184g had their scales halved (denominator
+doubled) to keep their content fitting on the smaller sheet. IDs and
+names updated in lockstep so the convention "id encodes scale" stays
+true.
+
+| Phase 184g (A2 scale on A3 paper) | Phase 184h (A3 scale on A3 paper) |
+|---|---|
+| `elec-riser-A3-1to100` | `elec-riser-A3-1to200` |
+| `health-mortuary-pln-A3-1to50` | `health-mortuary-pln-A3-1to100` |
+| `health-bedhead-elev-A3-1to20` | `health-bedhead-elev-A3-1to50` |
+| `health-or-ceiling-A3-1to20` | `health-or-ceiling-A3-1to50` |
+
+Profiles unchanged: schedules (`door-schedule-A3`,
+`arch-window-schedule-A3`, `plumb-pressure-schedule-A3`,
+`health-rds-A3`), legends (`legend-A3`), schematics
+(`plumb-vent-riser-A3-NTS`) — none rely on a model-view scale.
+
+**Per-profile field updates** (4 profiles):
+
+- `id`: scale suffix renamed (e.g. `-1to20` → `-1to50`)
+- `scale`: numeric value doubled (e.g. 20 → 50)
+- `name` / `description`: scale text rewritten (e.g. "A3 @ 1:100" → "A3 @ 1:200")
+
+**Cross-reference updates**:
+
+- `STING_DRAWING_TYPES.json`: 8 routing rules pointing at the renamed IDs updated
+- `DrawingTypeRegistry.cs`: built-in `elec-riser` fallback entry +
+  2 routing rules updated; name and scale corrected to "1:200" / 200
+- `SLDRiserDiagramCommand.cs`: `RiserDrawingTypeId` constant updated
+  to `elec-riser-A3-1to200`
+
+**Final A3 scale distribution** (14 A3 profiles):
+
+| Scale | Count | Profiles |
+|---|---|---|
+| 1:10  | 1 | screed build-up detail |
+| 1:20  | 2 | arch detail, struct rebar detail |
+| 1:50  | 4 | RFI, bedhead, OR ceiling, struct rebar |
+| 1:100 | 4 | door / window schedule, legend, mortuary plan |
+| 1:200 | 1 | elec riser |
+| NA / NTS | 2 | RDS, vent riser |
+
+### Caveats (Phase 184h)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+
+### Phase 184i — discipline-code normalisation (`Plumbing` → `P`)
+
+Post-184h audit caught one real string-equality bug. The
+`DrawingDispatcher.MatchesWildcard` matches discipline values via
+`string.Equals(..., OrdinalIgnoreCase)`, so `"P"` and `"Plumbing"`
+do NOT match. After Phase 184d's `"Public Health"` → `"Plumbing"`
+fix and Phase 184e's routing `"P"` → `"Plumbing"` sweep, every
+plumb-* routing rule used the long form `"Plumbing"` while every
+plumb-* drawing-type declared the short form `"P"` (matching the
+A / S / M / E / H / MG / RP convention). The result: 14 plumb
+routing rules silently couldn't resolve any plumb drawing type.
+
+Normalised everything to the short code `"P"`:
+- 14 routing rules: `"Plumbing"` → `"P"`
+- 1 drawing type (`plumb-drainage-schematic-A1`): `"Plumbing"` → `"P"`
+
+`titleBlockParams.Discipline` cell still reads `"Plumbing"` —
+that's the human-readable display value on the sheet, not a
+routing key, so it stays the long form.
+
+**Omnibus alignment check (programmatically verified, 8/8 pass)**:
+
+| Check | Result |
+|---|---|
+| Discipline values DT ↔ routing | ✓ 0 orphans |
+| Routing target ids resolve | ✓ 101/101 |
+| Pack references resolve | ✓ 22/22 |
+| Pack filter references resolve | ✓ 70/70 |
+| A2 paper-size residue | ✓ 0 |
+| `tokenProfile` as string | ✓ 0 |
+| Scale ↔ ID encoding match | ✓ 90/90 |
+| Paper size ↔ title-block family match | ✓ 90/90 |
+
+Final counts: **90 drawing types · 22 style packs · 101 routing
+rules · 289 AEC filters · 70 pack filter references — all
+references resolve**.
+
+### Caveats (Phase 184i)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+
+### Phase 184j — `isoNaming` shape + role normalisation
+
+Deep-probe audit caught two more real bugs:
+
+**`isoNaming: true` (boolean) → object on 22 healthcare profiles**
+
+The 22 healthcare profiles shipped from the original healthcare pack
+author carried `"isoNaming": true` — a bool that originally meant
+"use ISO 19650 naming yes/no". But `DrawingType.IsoNaming` is typed
+as the `IsoNaming` POCO class (`Volume` / `Type` / `Role` /
+`Suitability` / `Revision` strings), so Newtonsoft silently set the
+field to null on deserialisation. Phase 184e's synthesis-defaults
+pass also skipped them because `not dt.get('isoNaming')` evaluates
+False against truthy `True`.
+
+Converted all 22 to proper objects with discipline-aware role:
+`{ volume:"01", type:"DR", role:<H/MG/RP from discipline>,
+suitability:"S2", revision:"P01" }`.
+
+**`isoNaming.role` ↔ discipline alignment**
+
+`pres-3d-axon-A1` had `discipline:"*"` but `role:"A"`. For wildcard
+discipline, the canonical ISO 19650-2 role is `"Z"` (multi /
+undefined). Normalised across every profile so `role` always
+matches the discipline-code map (A/S/M/E/P/H/MG/RP/Z).
+
+**Final omnibus (programmatically verified, 11/11 pass)**:
+
+| Check | Result |
+|---|---|
+| Discipline DT ↔ routing orphans | ✓ |
+| Routing target ids resolve | ✓ 101/101 |
+| Pack references resolve | ✓ 22/22 |
+| Pack filter references resolve | ✓ 70/70 |
+| A2 paper-size residue | ✓ 0 |
+| `tokenProfile` as string | ✓ 0 |
+| `isoNaming` shape (dict only) | ✓ 90/90 |
+| `isoNaming.role` ↔ discipline | ✓ 90/90 |
+| Scale ↔ ID encoding | ✓ 90/90 |
+| Paper size ↔ TB family | ✓ 90/90 |
+| Slot bbox geometric sanity | ✓ |
+
+### Caveats (Phase 184j)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+
 ## Template Engine v1.1 (Phase 112)
 
 **Status**: S01–S18 landed on `claude/implement-template-engine-COd9n`
