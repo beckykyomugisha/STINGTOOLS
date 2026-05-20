@@ -11,22 +11,75 @@
       "subcategory": "Sprinkler",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "K_FACTOR", "type": "Text", "shared": true, "default": "80", "instance": false },
-        { "name": "TEMP_RATING_C", "type": "Text", "shared": true, "default": "68", "instance": false },
-        { "name": "STATUS", "type": "Text", "shared": true }
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "K_FACTOR",
+          "type": "Text",
+          "shared": true,
+          "default": "80",
+          "instance": false
+        },
+        {
+          "name": "TEMP_RATING_C",
+          "type": "Text",
+          "shared": true,
+          "default": "68",
+          "instance": false
+        },
+        {
+          "name": "STATUS",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": 0.5, "y2": 0 },
-          { "x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "In", "facing": "+Z", "offsetX": 0, "offsetY": 0, "offsetZ": 0 }
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "In",
+          "facing": "+Z",
+          "offsetX": 0,
+          "offsetY": 0,
+          "offsetZ": 0
+        }
       ],
-      "solid3D": { "type": "Cylinder", "diameterMm": 50, "heightMm": 80 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 50,
+        "heightMm": 80
+      },
+      "status": "draft"
     },
     {
       "id": "FP_SPKR_UPRIGHT",
@@ -37,22 +90,71 @@
       "subcategory": "Sprinkler",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "K_FACTOR", "type": "Text", "shared": true, "instance": false }
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "K_FACTOR",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": 0.5, "y2": 0 },
-          { "x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5 },
-          { "x1": 0, "y1": 0.55, "x2": -0.05, "y2": 0.45 },
-          { "x1": 0, "y1": 0.55, "x2":  0.05, "y2": 0.45 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5
+          },
+          {
+            "x1": 0,
+            "y1": 0.55,
+            "x2": -0.05,
+            "y2": 0.45
+          },
+          {
+            "x1": 0,
+            "y1": 0.55,
+            "x2": 0.05,
+            "y2": 0.45
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "In", "facing": "-Z" }
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "In",
+          "facing": "-Z"
+        }
       ],
-      "solid3D": { "type": "Cylinder", "diameterMm": 50, "heightMm": 60 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 50,
+        "heightMm": 60
+      },
+      "status": "draft"
     },
     {
       "id": "FP_SPKR_SIDEWALL",
@@ -63,21 +165,65 @@
       "subcategory": "Sprinkler",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "ZONE_REF", "type": "Text", "shared": true }
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": 0.5, "y2": 0 },
-          { "x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5 },
-          { "x1": 0.55, "y1": 0, "x2": 0.45, "y2": 0.05 },
-          { "x1": 0.55, "y1": 0, "x2": 0.45, "y2": -0.05 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.55,
+            "y1": 0,
+            "x2": 0.45,
+            "y2": 0.05
+          },
+          {
+            "x1": 0.55,
+            "y1": 0,
+            "x2": 0.45,
+            "y2": -0.05
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "In", "facing": "-X" }
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "In",
+          "facing": "-X"
+        }
       ],
-      "solid3D": { "type": "Cylinder", "diameterMm": 50, "heightMm": 80 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 50,
+        "heightMm": 80
+      },
+      "status": "draft"
     },
     {
       "id": "FP_SPKR_CONCEALED",
@@ -88,19 +234,55 @@
       "subcategory": "Sprinkler",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "ZONE_REF", "type": "Text", "shared": true }
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": 0.5, "y2": 0, "style": "Hidden Lines" },
-          { "x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5, "style": "Hidden Lines" }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0,
+            "style": "Hidden Lines"
+          },
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5,
+            "style": "Hidden Lines"
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "In", "facing": "+Z" }
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "In",
+          "facing": "+Z"
+        }
       ],
-      "solid3D": { "type": "Cylinder", "diameterMm": 100, "heightMm": 10 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 100,
+        "heightMm": 10
+      },
+      "status": "draft"
     },
     {
       "id": "FP_SPKR_ESFR",
@@ -111,21 +293,70 @@
       "subcategory": "Sprinkler",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "K_FACTOR", "type": "Text", "shared": true, "default": "200", "instance": false }
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "K_FACTOR",
+          "type": "Text",
+          "shared": true,
+          "default": "200",
+          "instance": false
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
-        "lines": [
-          { "x1": -0.5, "y1": 0, "x2": 0.5, "y2": 0, "style": "Wide Lines" },
-          { "x1": 0, "y1": -0.5, "x2": 0, "y2": 0.5, "style": "Wide Lines" }
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
-        "text": [ { "x": 0.55, "y": -0.55, "value": "ESFR", "heightMm": 1.2 } ]
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0,
+            "style": "Wide Lines"
+          },
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.5,
+            "style": "Wide Lines"
+          }
+        ],
+        "text": [
+          {
+            "x": 0.55,
+            "y": -0.55,
+            "value": "ESFR",
+            "heightMm": 1.2
+          }
+        ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 50, "direction": "In", "facing": "+Z" }
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "In",
+          "facing": "+Z"
+        }
       ],
-      "solid3D": { "type": "Cylinder", "diameterMm": 80, "heightMm": 100 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 80,
+        "heightMm": 100
+      },
+      "status": "draft"
     },
     {
       "id": "FP_DELUGE_NOZZLE",
@@ -136,19 +367,53 @@
       "subcategory": "Sprinkler",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "ZONE_REF", "type": "Text", "shared": true }
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "lines": [
-          { "x1": -0.35, "y1": -0.35, "x2": 0.35, "y2": 0.35 },
-          { "x1": -0.35, "y1":  0.35, "x2": 0.35, "y2": -0.35 }
+          {
+            "x1": -0.35,
+            "y1": -0.35,
+            "x2": 0.35,
+            "y2": 0.35
+          },
+          {
+            "x1": -0.35,
+            "y1": 0.35,
+            "x2": 0.35,
+            "y2": -0.35
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "FireProtectionDry", "shape": "Round", "sizeMm": 32, "direction": "In", "facing": "+Z" }
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionDry",
+          "shape": "Round",
+          "sizeMm": 32,
+          "direction": "In",
+          "facing": "+Z"
+        }
       ],
-      "solid3D": { "type": "Cylinder", "diameterMm": 50, "heightMm": 80 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 50,
+        "heightMm": 80
+      },
+      "status": "draft"
     },
     {
       "id": "FP_SMOKE_OPTICAL",
@@ -159,14 +424,42 @@
       "subcategory": "Detection",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "DEVICE_ADDRESS", "type": "Text", "shared": true }
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "DEVICE_ADDRESS",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
-        "text": [ { "x": 0, "y": 0, "value": "S", "heightMm": 2.0 } ]
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "text": [
+          {
+            "x": 0,
+            "y": 0,
+            "value": "S",
+            "heightMm": 2.0
+          }
+        ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 100, "heightMm": 40 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 100,
+        "heightMm": 40
+      },
+      "status": "draft"
     },
     {
       "id": "FP_SMOKE_IONISATION",
@@ -177,13 +470,37 @@
       "subcategory": "Detection",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "ZONE_REF", "type": "Text", "shared": true }
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
-        "text": [ { "x": 0, "y": 0, "value": "I", "heightMm": 2.0 } ]
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "text": [
+          {
+            "x": 0,
+            "y": 0,
+            "value": "I",
+            "heightMm": 2.0
+          }
+        ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 100, "heightMm": 40 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 100,
+        "heightMm": 40
+      },
+      "status": "draft"
     },
     {
       "id": "FP_HEAT_FIXED",
@@ -194,14 +511,44 @@
       "subcategory": "Detection",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "TEMP_TRIP_C", "type": "Text", "shared": true, "default": "60", "instance": false }
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "TEMP_TRIP_C",
+          "type": "Text",
+          "shared": true,
+          "default": "60",
+          "instance": false
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
-        "text": [ { "x": 0, "y": 0, "value": "H", "heightMm": 2.0 } ]
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "text": [
+          {
+            "x": 0,
+            "y": 0,
+            "value": "H",
+            "heightMm": 2.0
+          }
+        ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 100, "heightMm": 40 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 100,
+        "heightMm": 40
+      },
+      "status": "draft"
     },
     {
       "id": "FP_HEAT_RATE_OF_RISE",
@@ -212,16 +559,44 @@
       "subcategory": "Detection",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "ZONE_REF", "type": "Text", "shared": true }
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
         "arcs": [
-          { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 },
-          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 }
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.4,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
-        "text": [ { "x": 0, "y": 0, "value": "R", "heightMm": 1.8 } ]
+        "text": [
+          {
+            "x": 0,
+            "y": 0,
+            "value": "R",
+            "heightMm": 1.8
+          }
+        ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 100, "heightMm": 40 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 100,
+        "heightMm": 40
+      },
+      "status": "draft"
     },
     {
       "id": "FP_MULTI_SENSOR",
@@ -232,17 +607,51 @@
       "subcategory": "Detection",
       "symbolSize": 4.5,
       "parameters": [
-        { "name": "ZONE_REF", "type": "Text", "shared": true }
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
-        "lines": [
-          { "x1": -0.3, "y1": 0, "x2": 0.3, "y2": 0 },
-          { "x1": 0, "y1": -0.3, "x2": 0, "y2": 0.3 }
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
-        "text": [ { "x": 0.6, "y": 0.6, "value": "MS", "heightMm": 1.2 } ]
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0.3
+          }
+        ],
+        "text": [
+          {
+            "x": 0.6,
+            "y": 0.6,
+            "value": "MS",
+            "heightMm": 1.2
+          }
+        ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 110, "heightMm": 45 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 110,
+        "heightMm": 45
+      },
+      "status": "draft"
     },
     {
       "id": "FP_BEAM_TX",
@@ -253,22 +662,79 @@
       "subcategory": "Detection",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "BEAM_LENGTH_M", "type": "Text", "shared": true, "instance": false }
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "BEAM_LENGTH_M",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.4, "y1": -0.3, "x2":  0.4, "y2": -0.3 },
-          { "x1":  0.4, "y1": -0.3, "x2":  0.4, "y2":  0.3 },
-          { "x1":  0.4, "y1":  0.3, "x2": -0.4, "y2":  0.3 },
-          { "x1": -0.4, "y1":  0.3, "x2": -0.4, "y2": -0.3 },
-          { "x1":  0.4, "y1":  0.0, "x2":  0.6, "y2":  0.0 },
-          { "x1":  0.6, "y1":  0.0, "x2":  0.5, "y2":  0.05 },
-          { "x1":  0.6, "y1":  0.0, "x2":  0.5, "y2": -0.05 }
+          {
+            "x1": -0.4,
+            "y1": -0.3,
+            "x2": 0.4,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.3,
+            "x2": 0.4,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.3,
+            "x2": -0.4,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.3,
+            "x2": -0.4,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.0,
+            "x2": 0.6,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.6,
+            "y1": 0.0,
+            "x2": 0.5,
+            "y2": 0.05
+          },
+          {
+            "x1": 0.6,
+            "y1": 0.0,
+            "x2": 0.5,
+            "y2": -0.05
+          }
         ],
-        "text": [ { "x": 0, "y": 0, "value": "TX", "heightMm": 1.5 } ]
+        "text": [
+          {
+            "x": 0,
+            "y": 0,
+            "value": "TX",
+            "heightMm": 1.5
+          }
+        ]
       },
-      "solid3D": { "type": "Box", "widthMm": 200, "depthMm": 100, "heightMm": 80 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 200,
+        "depthMm": 100,
+        "heightMm": 80
+      },
+      "status": "draft"
     },
     {
       "id": "FP_BEAM_RX",
@@ -279,21 +745,73 @@
       "subcategory": "Detection",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "ZONE_REF", "type": "Text", "shared": true }
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.4, "y1": -0.3, "x2":  0.4, "y2": -0.3 },
-          { "x1":  0.4, "y1": -0.3, "x2":  0.4, "y2":  0.3 },
-          { "x1":  0.4, "y1":  0.3, "x2": -0.4, "y2":  0.3 },
-          { "x1": -0.4, "y1":  0.3, "x2": -0.4, "y2": -0.3 },
-          { "x1": -0.6, "y1":  0.0, "x2": -0.4, "y2":  0.0 },
-          { "x1": -0.4, "y1":  0.0, "x2": -0.5, "y2":  0.05 },
-          { "x1": -0.4, "y1":  0.0, "x2": -0.5, "y2": -0.05 }
+          {
+            "x1": -0.4,
+            "y1": -0.3,
+            "x2": 0.4,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.3,
+            "x2": 0.4,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.3,
+            "x2": -0.4,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.3,
+            "x2": -0.4,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.6,
+            "y1": 0.0,
+            "x2": -0.4,
+            "y2": 0.0
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.0,
+            "x2": -0.5,
+            "y2": 0.05
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.0,
+            "x2": -0.5,
+            "y2": -0.05
+          }
         ],
-        "text": [ { "x": 0, "y": 0, "value": "RX", "heightMm": 1.5 } ]
+        "text": [
+          {
+            "x": 0,
+            "y": 0,
+            "value": "RX",
+            "heightMm": 1.5
+          }
+        ]
       },
-      "solid3D": { "type": "Box", "widthMm": 200, "depthMm": 100, "heightMm": 80 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 200,
+        "depthMm": 100,
+        "heightMm": 80
+      },
+      "status": "draft"
     },
     {
       "id": "FP_FLAME_DETECTOR",
@@ -304,18 +822,56 @@
       "subcategory": "Detection",
       "symbolSize": 4.5,
       "parameters": [
-        { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "DETECTION_TYPE", "type": "Text", "shared": true, "default": "UV/IR", "instance": false }
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "DETECTION_TYPE",
+          "type": "Text",
+          "shared": true,
+          "default": "UV/IR",
+          "instance": false
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "lines": [
-          { "x1": -0.2, "y1": -0.2, "x2":  0.0, "y2":  0.2 },
-          { "x1":  0.0, "y1":  0.2, "x2":  0.2, "y2": -0.2 },
-          { "x1":  0.2, "y1": -0.2, "x2": -0.2, "y2": -0.2 }
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": 0.0,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.2,
+            "x2": -0.2,
+            "y2": -0.2
+          }
         ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 120, "heightMm": 100 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 120,
+        "heightMm": 100
+      },
+      "status": "draft"
     },
     {
       "id": "FP_MCP",
@@ -326,19 +882,62 @@
       "subcategory": "Alarm",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "DEVICE_ADDRESS", "type": "Text", "shared": true }
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "DEVICE_ADDRESS",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5, "style": "Wide Lines" },
-          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5, "style": "Wide Lines" },
-          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5, "style": "Wide Lines" },
-          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5, "style": "Wide Lines" },
-          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5 }
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5,
+            "style": "Wide Lines"
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5,
+            "style": "Wide Lines"
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5,
+            "style": "Wide Lines"
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5,
+            "style": "Wide Lines"
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 80, "depthMm": 80, "heightMm": 30 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 80,
+        "depthMm": 80,
+        "heightMm": 30
+      },
+      "status": "draft"
     },
     {
       "id": "FP_SOUNDER",
@@ -349,17 +948,47 @@
       "subcategory": "Alarm",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "DB_RATING", "type": "Text", "shared": true, "default": "100", "instance": false }
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "DB_RATING",
+          "type": "Text",
+          "shared": true,
+          "default": "100",
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.4, "x2":  0.5, "y2": -0.4 },
-          { "x1": -0.5, "y1": -0.4, "x2":  0.0, "y2":  0.5 },
-          { "x1":  0.5, "y1": -0.4, "x2":  0.0, "y2":  0.5 }
+          {
+            "x1": -0.5,
+            "y1": -0.4,
+            "x2": 0.5,
+            "y2": -0.4
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.4,
+            "x2": 0.0,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.4,
+            "x2": 0.0,
+            "y2": 0.5
+          }
         ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 100, "heightMm": 100 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 100,
+        "heightMm": 100
+      },
+      "status": "draft"
     },
     {
       "id": "FP_SOUNDER_BEACON",
@@ -370,17 +999,49 @@
       "subcategory": "Alarm",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "ZONE_REF", "type": "Text", "shared": true }
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.4, "x2":  0.5, "y2": -0.4 },
-          { "x1": -0.5, "y1": -0.4, "x2":  0.0, "y2":  0.2 },
-          { "x1":  0.5, "y1": -0.4, "x2":  0.0, "y2":  0.2 }
+          {
+            "x1": -0.5,
+            "y1": -0.4,
+            "x2": 0.5,
+            "y2": -0.4
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.4,
+            "x2": 0.0,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.4,
+            "x2": 0.0,
+            "y2": 0.2
+          }
         ],
-        "arcs": [ { "cx": 0, "cy": 0.4, "r": 0.15, "startDeg": 0, "endDeg": 360 } ]
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.4,
+            "r": 0.15,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ]
       },
-      "solid3D": { "type": "Cylinder", "diameterMm": 130, "heightMm": 130 }
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 130,
+        "heightMm": 130
+      },
+      "status": "draft"
     },
     {
       "id": "FP_VAD",
@@ -391,21 +1052,72 @@
       "subcategory": "Alarm",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "ZONE_REF", "type": "Text", "shared": true },
-        { "name": "EN54_CATEGORY", "type": "Text", "shared": true, "default": "C-3-15", "instance": false }
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "EN54_CATEGORY",
+          "type": "Text",
+          "shared": true,
+          "default": "C-3-15",
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.4, "y1": -0.3, "x2":  0.2, "y2": -0.3 },
-          { "x1":  0.2, "y1": -0.3, "x2":  0.2, "y2":  0.3 },
-          { "x1":  0.2, "y1":  0.3, "x2": -0.4, "y2":  0.3 },
-          { "x1": -0.4, "y1":  0.3, "x2": -0.4, "y2": -0.3 },
-          { "x1":  0.2, "y1":  0.0, "x2":  0.5, "y2":  0.0 },
-          { "x1":  0.3, "y1": -0.15, "x2":  0.5, "y2": -0.05 },
-          { "x1":  0.3, "y1":  0.15, "x2":  0.5, "y2":  0.05 }
+          {
+            "x1": -0.4,
+            "y1": -0.3,
+            "x2": 0.2,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.3,
+            "x2": 0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.3,
+            "x2": -0.4,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.3,
+            "x2": -0.4,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.0,
+            "x2": 0.5,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.15,
+            "x2": 0.5,
+            "y2": -0.05
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.15,
+            "x2": 0.5,
+            "y2": 0.05
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 100, "depthMm": 100, "heightMm": 80 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 100,
+        "depthMm": 100,
+        "heightMm": 80
+      },
+      "status": "draft"
     },
     {
       "id": "FP_FAP",
@@ -416,26 +1128,98 @@
       "subcategory": "Panel",
       "symbolSize": 8.0,
       "parameters": [
-        { "name": "PANEL_REF", "type": "Text", "shared": true },
-        { "name": "EN54_PART", "type": "Text", "shared": true, "default": "EN54-2", "instance": false },
-        { "name": "ZONE_COUNT", "type": "Integer", "shared": true, "instance": false }
+        {
+          "name": "PANEL_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "EN54_PART",
+          "type": "Text",
+          "shared": true,
+          "default": "EN54-2",
+          "instance": false
+        },
+        {
+          "name": "ZONE_COUNT",
+          "type": "Integer",
+          "shared": true,
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.4, "x2":  0.5, "y2": -0.4 },
-          { "x1":  0.5, "y1": -0.4, "x2":  0.5, "y2":  0.4 },
-          { "x1":  0.5, "y1":  0.4, "x2": -0.5, "y2":  0.4 },
-          { "x1": -0.5, "y1":  0.4, "x2": -0.5, "y2": -0.4 }
+          {
+            "x1": -0.5,
+            "y1": -0.4,
+            "x2": 0.5,
+            "y2": -0.4
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.4,
+            "x2": 0.5,
+            "y2": 0.4
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.4,
+            "x2": -0.5,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.4,
+            "x2": -0.5,
+            "y2": -0.4
+          }
         ],
-        "text": [ { "x": 0, "y": 0.15, "value": "FAP", "heightMm": 2.0 } ],
+        "text": [
+          {
+            "x": 0,
+            "y": 0.15,
+            "value": "FAP",
+            "heightMm": 2.0
+          }
+        ],
         "arcs": [
-          { "cx": -0.3, "cy": -0.2, "r": 0.04, "startDeg": 0, "endDeg": 360 },
-          { "cx": -0.1, "cy": -0.2, "r": 0.04, "startDeg": 0, "endDeg": 360 },
-          { "cx":  0.1, "cy": -0.2, "r": 0.04, "startDeg": 0, "endDeg": 360 },
-          { "cx":  0.3, "cy": -0.2, "r": 0.04, "startDeg": 0, "endDeg": 360 }
+          {
+            "cx": -0.3,
+            "cy": -0.2,
+            "r": 0.04,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": -0.1,
+            "cy": -0.2,
+            "r": 0.04,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": -0.2,
+            "r": 0.04,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0.3,
+            "cy": -0.2,
+            "r": 0.04,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 400, "depthMm": 150, "heightMm": 600 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 400,
+        "depthMm": 150,
+        "heightMm": 600
+      },
+      "status": "draft"
     },
     {
       "id": "FP_REPEATER",
@@ -446,18 +1230,55 @@
       "subcategory": "Panel",
       "symbolSize": 6.0,
       "parameters": [
-        { "name": "PANEL_REF", "type": "Text", "shared": true }
+        {
+          "name": "PANEL_REF",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.3, "x2":  0.5, "y2": -0.3 },
-          { "x1":  0.5, "y1": -0.3, "x2":  0.5, "y2":  0.3 },
-          { "x1":  0.5, "y1":  0.3, "x2": -0.5, "y2":  0.3 },
-          { "x1": -0.5, "y1":  0.3, "x2": -0.5, "y2": -0.3 }
+          {
+            "x1": -0.5,
+            "y1": -0.3,
+            "x2": 0.5,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.3,
+            "x2": 0.5,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.3,
+            "x2": -0.5,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.3,
+            "x2": -0.5,
+            "y2": -0.3
+          }
         ],
-        "text": [ { "x": 0, "y": 0, "value": "RP", "heightMm": 2.0 } ]
+        "text": [
+          {
+            "x": 0,
+            "y": 0,
+            "value": "RP",
+            "heightMm": 2.0
+          }
+        ]
       },
-      "solid3D": { "type": "Box", "widthMm": 250, "depthMm": 100, "heightMm": 200 }
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 250,
+        "depthMm": 100,
+        "heightMm": 200
+      },
+      "status": "draft"
     },
     {
       "id": "FP_ALARM_VALVE_WET",
@@ -468,24 +1289,88 @@
       "subcategory": "Valve",
       "symbolSize": 6.0,
       "parameters": [
-        { "name": "VALVE_REF", "type": "Text", "shared": true },
-        { "name": "SIZE_MM", "type": "Text", "shared": true, "default": "100", "instance": false }
+        {
+          "name": "VALVE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "100",
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1":  0.0, "x2": -0.25, "y2":  0.0 },
-          { "x1":  0.25, "y1": 0.0, "x2":  0.5, "y2":  0.0 },
-          { "x1": -0.25, "y1": 0.0, "x2":  0.0, "y2":  0.25 },
-          { "x1":  0.0, "y1":  0.25, "x2":  0.25, "y2":  0.0 },
-          { "x1":  0.25, "y1": 0.0, "x2":  0.0, "y2": -0.25 },
-          { "x1":  0.0, "y1": -0.25, "x2": -0.25, "y2":  0.0 }
+          {
+            "x1": -0.5,
+            "y1": 0.0,
+            "x2": -0.25,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.0,
+            "x2": 0.5,
+            "y2": 0.0
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.0,
+            "x2": 0.0,
+            "y2": 0.25
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.25,
+            "x2": 0.25,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.0,
+            "x2": 0.0,
+            "y2": -0.25
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.25,
+            "x2": -0.25,
+            "y2": 0.0
+          }
         ],
-        "text": [ { "x": 0, "y": 0, "value": "W", "heightMm": 1.5 } ]
+        "text": [
+          {
+            "x": 0,
+            "y": 0,
+            "value": "W",
+            "heightMm": 1.5
+          }
+        ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 100, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 100, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 100,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 100,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "FP_ALARM_VALVE_DRY",
@@ -496,23 +1381,85 @@
       "subcategory": "Valve",
       "symbolSize": 6.0,
       "parameters": [
-        { "name": "VALVE_REF", "type": "Text", "shared": true }
+        {
+          "name": "VALVE_REF",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1":  0.0, "x2": -0.25, "y2":  0.0 },
-          { "x1":  0.25, "y1": 0.0, "x2":  0.5, "y2":  0.0 },
-          { "x1": -0.25, "y1": 0.0, "x2":  0.0, "y2":  0.25, "style": "Hidden Lines" },
-          { "x1":  0.0, "y1":  0.25, "x2":  0.25, "y2":  0.0, "style": "Hidden Lines" },
-          { "x1":  0.25, "y1": 0.0, "x2":  0.0, "y2": -0.25, "style": "Hidden Lines" },
-          { "x1":  0.0, "y1": -0.25, "x2": -0.25, "y2":  0.0, "style": "Hidden Lines" }
+          {
+            "x1": -0.5,
+            "y1": 0.0,
+            "x2": -0.25,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.0,
+            "x2": 0.5,
+            "y2": 0.0
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.0,
+            "x2": 0.0,
+            "y2": 0.25,
+            "style": "Hidden Lines"
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.25,
+            "x2": 0.25,
+            "y2": 0.0,
+            "style": "Hidden Lines"
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.0,
+            "x2": 0.0,
+            "y2": -0.25,
+            "style": "Hidden Lines"
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.25,
+            "x2": -0.25,
+            "y2": 0.0,
+            "style": "Hidden Lines"
+          }
         ],
-        "text": [ { "x": 0, "y": 0, "value": "D", "heightMm": 1.5 } ]
+        "text": [
+          {
+            "x": 0,
+            "y": 0,
+            "value": "D",
+            "heightMm": 1.5
+          }
+        ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "FireProtectionDry", "shape": "Round", "sizeMm": 100, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "FireProtectionDry", "shape": "Round", "sizeMm": 100, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionDry",
+          "shape": "Round",
+          "sizeMm": 100,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionDry",
+          "shape": "Round",
+          "sizeMm": 100,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "FP_DELUGE_VALVE",
@@ -523,25 +1470,96 @@
       "subcategory": "Valve",
       "symbolSize": 7.0,
       "parameters": [
-        { "name": "VALVE_REF", "type": "Text", "shared": true }
+        {
+          "name": "VALVE_REF",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1":  0.0, "x2": -0.25, "y2":  0.0 },
-          { "x1":  0.25, "y1": 0.0, "x2":  0.5, "y2":  0.0 },
-          { "x1":  0.0, "y1":  0.25, "x2":  0.0, "y2":  0.5 },
-          { "x1": -0.25, "y1": 0.0, "x2":  0.0, "y2":  0.25 },
-          { "x1":  0.0, "y1":  0.25, "x2":  0.25, "y2":  0.0 },
-          { "x1":  0.25, "y1": 0.0, "x2":  0.0, "y2": -0.25 },
-          { "x1":  0.0, "y1": -0.25, "x2": -0.25, "y2":  0.0 }
+          {
+            "x1": -0.5,
+            "y1": 0.0,
+            "x2": -0.25,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.0,
+            "x2": 0.5,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.25,
+            "x2": 0.0,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.0,
+            "x2": 0.0,
+            "y2": 0.25
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.25,
+            "x2": 0.25,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.0,
+            "x2": 0.0,
+            "y2": -0.25
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.25,
+            "x2": -0.25,
+            "y2": 0.0
+          }
         ],
-        "text": [ { "x": 0, "y": 0.05, "value": "DV", "heightMm": 1.5 } ]
+        "text": [
+          {
+            "x": 0,
+            "y": 0.05,
+            "value": "DV",
+            "heightMm": 1.5
+          }
+        ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "FireProtectionPreaction", "shape": "Round", "sizeMm": 100, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "FireProtectionPreaction", "shape": "Round", "sizeMm": 100, "direction": "Out", "facing": "+X", "offsetX":  0.5 },
-        { "domain": "Piping", "systemType": "FireProtectionPreaction", "shape": "Round", "sizeMm": 25,  "direction": "In",  "facing": "+Y", "offsetY":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionPreaction",
+          "shape": "Round",
+          "sizeMm": 100,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionPreaction",
+          "shape": "Round",
+          "sizeMm": 100,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionPreaction",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "In",
+          "facing": "+Y",
+          "offsetY": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "FP_FLOW_SWITCH",
@@ -552,25 +1570,91 @@
       "subcategory": "Monitor",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "DEVICE_REF", "type": "Text", "shared": true }
+        {
+          "name": "DEVICE_REF",
+          "type": "Text",
+          "shared": true
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": -0.25, "y1": -0.15, "x2":  0.25, "y2": -0.15 },
-          { "x1":  0.25, "y1": -0.15, "x2":  0.25, "y2":  0.15 },
-          { "x1":  0.25, "y1":  0.15, "x2": -0.25, "y2":  0.15 },
-          { "x1": -0.25, "y1":  0.15, "x2": -0.25, "y2": -0.15 },
-          { "x1":  0.0, "y1": -0.15, "x2":  0.0, "y2":  0.05 },
-          { "x1":  0.0, "y1":  0.05, "x2":  0.05, "y2":  0.05 },
-          { "x1": -0.15, "y1": -0.05, "x2": -0.05, "y2":  0.0 },
-          { "x1": -0.05, "y1":  0.0, "x2": -0.15, "y2":  0.05 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.25,
+            "y1": -0.15,
+            "x2": 0.25,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.25,
+            "y1": -0.15,
+            "x2": 0.25,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.15,
+            "x2": -0.25,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.15,
+            "x2": -0.25,
+            "y2": -0.15
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.15,
+            "x2": 0.0,
+            "y2": 0.05
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.05,
+            "x2": 0.05,
+            "y2": 0.05
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.05,
+            "x2": -0.05,
+            "y2": 0.0
+          },
+          {
+            "x1": -0.05,
+            "y1": 0.0,
+            "x2": -0.15,
+            "y2": 0.05
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 50, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 50, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "FP_PRESSURE_GAUGE_FP",
@@ -581,19 +1665,62 @@
       "subcategory": "Monitor",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "RANGE_BAR", "type": "Text", "shared": true, "default": "0-16", "instance": false }
+        {
+          "name": "RANGE_BAR",
+          "type": "Text",
+          "shared": true,
+          "default": "0-16",
+          "instance": false
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2":  0.5, "y2": 0 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          }
         ],
-        "arcs": [ { "cx": 0, "cy": 0.2, "r": 0.2, "startDeg": 0, "endDeg": 360 } ],
-        "text": [ { "x": 0, "y": 0.2, "value": "P", "heightMm": 1.5 } ]
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.2,
+            "r": 0.2,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "text": [
+          {
+            "x": 0,
+            "y": 0.2,
+            "value": "P",
+            "heightMm": 1.5
+          }
+        ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "FP_TEST_VALVE",
@@ -605,17 +1732,59 @@
       "symbolSize": 4.0,
       "parameters": [],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
-        "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
-          { "x1":  0.25, "y1": 0, "x2": 0.5, "y2": 0 }
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
-        "text": [ { "x": 0, "y": 0, "value": "T", "heightMm": 1.5 } ]
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          }
+        ],
+        "text": [
+          {
+            "x": 0,
+            "y": 0,
+            "value": "T",
+            "heightMm": 1.5
+          }
+        ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "FP_DRAIN_VALVE",
@@ -627,18 +1796,65 @@
       "symbolSize": 4.0,
       "parameters": [],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
-        "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
-          { "x1":  0.25, "y1": 0, "x2": 0.5, "y2": 0 },
-          { "x1": 0, "y1": 0.25, "x2": 0, "y2": 0.5 }
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
-        "text": [ { "x": 0, "y": 0, "value": "D", "heightMm": 1.5 } ]
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": 0.25,
+            "x2": 0,
+            "y2": 0.5
+          }
+        ],
+        "text": [
+          {
+            "x": 0,
+            "y": 0,
+            "value": "D",
+            "heightMm": 1.5
+          }
+        ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 25, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     },
     {
       "id": "FP_BFPV",
@@ -649,23 +1865,83 @@
       "subcategory": "Valve",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "VALVE_REF", "type": "Text", "shared": true },
-        { "name": "SIZE_MM", "type": "Text", "shared": true, "default": "100", "instance": false }
+        {
+          "name": "VALVE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "100",
+          "instance": false
+        }
       ],
       "geometry": {
-        "arcs": [ { "cx": 0, "cy": 0, "r": 0.25, "startDeg": 0, "endDeg": 360 } ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
         "lines": [
-          { "x1": -0.5, "y1": 0, "x2": -0.25, "y2": 0 },
-          { "x1":  0.25, "y1": 0, "x2":  0.5, "y2": 0 },
-          { "x1": -0.18, "y1": -0.05, "x2":  0.18, "y2":  0.05 },
-          { "x1":  0.0, "y1":  0.25, "x2":  0.0, "y2":  0.45 },
-          { "x1": -0.05, "y1":  0.45, "x2": 0.05, "y2": 0.45 }
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.18,
+            "y1": -0.05,
+            "x2": 0.18,
+            "y2": 0.05
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.25,
+            "x2": 0.0,
+            "y2": 0.45
+          },
+          {
+            "x1": -0.05,
+            "y1": 0.45,
+            "x2": 0.05,
+            "y2": 0.45
+          }
         ]
       },
       "connectors": [
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 100, "direction": "In",  "facing": "-X", "offsetX": -0.5 },
-        { "domain": "Piping", "systemType": "FireProtectionWet", "shape": "Round", "sizeMm": 100, "direction": "Out", "facing": "+X", "offsetX":  0.5 }
-      ]
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 100,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "FireProtectionWet",
+          "shape": "Round",
+          "sizeMm": 100,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
     }
   ]
 }
