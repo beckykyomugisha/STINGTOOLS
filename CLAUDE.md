@@ -28,6 +28,94 @@ cleanly; eleven required `ours` conflict resolution. After consolidation
 `git branch -r --no-merged HEAD` reports zero remote branches with
 unique commits not in HEAD. Verify in Revit before merging to `main`.
 
+### Phase 185 — Family library readiness (placeholder review)
+
+The family authoring surface received a four-part hardening pass on
+branch `claude/family-authoring-review-1ZmAG` after a review that
+clarified a common misconception:
+
+**The placeholders are not 3D — they are 2D symbolic curves.** When a
+real 3D family is missing, `FixturePlacementEngine.ResolveSymbol`
+returns null and the placement is **silently skipped** (`SkippedNoSymbol++`).
+No synthetic 3D placeholder geometry is created. The "draft" 164
+ISO 6412 symbol set is intentionally schematic — see the
+authoring-rule note at the top of
+`StingTools/Data/Symbols/STING_ISO6412_SYMBOLS.json`.
+
+The four changes:
+
+1. **`Families/README.md`** — new root README laying out the two
+   authoring tracks (Track A: 3D model families with real product
+   geometry; Track B: 2D schematic symbols), the family resolution
+   tier order, and the vendor-intake SOP (Conformance check → stamp
+   with `FamilyParamCreator` `PurgeMode.None` → drop in the right
+   folder → tune the placement rule). Codifies the priority
+   acquisition list (MGS → luminaires → AHU/FCU → panel boards →
+   bedhead trunks → fire devices).
+2. **Footprint-aware placement spacing**
+   (`Core/Placement/PlacementRule.cs` + `FixturePlacementEngine.cs`).
+   New fields: `FamilyBboxAware`, `ReferenceFootprintMm` (default
+   150 mm), `MinSymbolFootprintMm` (100 mm floor), `MaxFootprintScale`
+   (8× cap). When enabled, the engine pre-resolves the family symbol,
+   measures `BoundingBoxXYZ.Max - Min` in plan, and scales
+   `MinSpacingMm` / `CoverageRadiusMm` / `ObstructionClearanceMm` /
+   `WallClearanceMm` / `OffsetXMm` / `OffsetYMm` by
+   `clamp(max(footprintMm, floor) / reference, 1.0, cap)`. One rule
+   now serves 150 mm switches and 1200 mm AHUs without per-vendor
+   JSON edits. `OffsetZMm` is intentionally not scaled — mounting
+   height comes from `MountingHeightMm` and `MountingReference`.
+   Default `false` ⇒ legacy behaviour preserved.
+3. **Type-catalog (`.txt` sidecar) loader**. New
+   `PlacementRule.TypeCatalogKey` field. When set and a `.txt`
+   sidecar exists next to the `.rfa`, the engine routes through
+   `Document.LoadFamilySymbol(path, typeName)` instead of bulk
+   `LoadFamily` — only the matching type is loaded. Avoids bloating
+   the project with 200-type valve / fitting libraries. Catalog
+   format follows the Revit standard (first column = type name; rows
+   starting with `,` treated as headers). Key may be an exact type
+   name or a regex (`^DN20-PN1[06]$`). Empty key (default) ⇒ legacy
+   bulk-load behaviour.
+4. **Family Conformance Checker** —
+   `StingTools/Tags/FamilyConformanceCheckCommand.cs` +
+   `FamilyConformanceInspector`. New read-only command tag
+   `FamilyConformanceCheck` (Dock-panel button next to "Tag Family
+   Params"). Audits a user-picked folder of `.rfa` files against the
+   STING contract: 4 placement params bound by GUID + tag style
+   matrix (when tag-like) + tag visibility tiers + Ring 1/2 position
+   types + placement type vs category sanity + loads-cleanly bonus.
+   100-point scale ⇒ PASS ≥85 / WARN 70-84 / BLOCK <70. CSV report
+   to `<project>/_BIM_COORD/` + summary TaskDialog with the 10
+   lowest-scoring families. **Run this BEFORE bulk-stamping any
+   vendor library** — catches the "manufacturer family uses
+   'Mounting Height' instead of `MNT_HGT_MM`" class of failure
+   before it costs a transaction.
+
+The 46 fabrication / LPS / pricing constants in `AssyParams /
+LpsParams / CostParams` are NOT touched — Phase 169 already replaced
+the `v4-YYYY-xxxx` placeholders with deterministic UUIDv5 hashes
+under namespace `7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00`, so the
+"freeze GUIDs first" step from the review is already done.
+
+#### Caveats (Phase 185)
+
+1. Built without `dotnet build` verification (Linux sandbox). Every
+   Revit API call uses the documented signature (`Document.LoadFamilySymbol`,
+   `FamilySymbol.get_BoundingBox`, `FamilyParameter.IsShared`,
+   `FamilyManager.Types`) but has not been compile-checked. Verify in
+   Revit before merge.
+2. The Conformance Checker uses `OpenDocumentFile` to open each `.rfa`
+   read-only — slow on large libraries (1-2 s per file). For a 500-family
+   vendor drop, expect ~15 minutes. The CSV is the artefact; the
+   TaskDialog is a 10-row summary.
+3. Footprint scaling reads the symbol's bounding box, which for some
+   hosted families returns a degenerate box (Min == Max) until a real
+   instance exists. The `MinSymbolFootprintMm = 100 mm` floor + the
+   `scale < 1.0 → 1.0` clamp protect against silently zero'd spacings.
+4. Type-catalog loading requires the `.txt` sidecar to follow Revit's
+   exact format. Malformed catalogs cause the engine to fall through
+   to bulk `LoadFamily` (the legacy path) with a warning — never
+   abort.
+
 ## Documentation Map
 
 This repository's AI-assistant documentation is split across three files to keep each one small and easy to update:
