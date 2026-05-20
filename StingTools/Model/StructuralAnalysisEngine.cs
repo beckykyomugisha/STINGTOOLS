@@ -2538,6 +2538,10 @@ namespace StingTools.Model
         public double A { get; set; }              // mm²
         public double I { get; set; }              // mm⁴
         public double UdlKNPerM { get; set; }      // Uniform distributed load
+        /// <summary>Source Revit element id when this FrameMember was built via
+        /// BuildFromRevitModel — lets analysis results stamp back onto the
+        /// originating beam/column. Zero/null when constructed analytically.</summary>
+        public ElementId RevitId { get; set; }
         // Results
         public double AxialForceKN { get; set; }
         public double ShearForceIKN { get; set; }
@@ -2875,6 +2879,7 @@ namespace StingTools.Model
                     NodeJ = nodeJ.Id,
                     A = A, I = Ix,
                     UdlKNPerM = liveLoadKNPerM + deadLoadKNPerM,
+                    RevitId = beam.Id,   // Trace back to the source beam.
                 });
             }
 
@@ -4174,6 +4179,432 @@ namespace StingTools.Model
             }
             catch (Exception ex) { StingLog.Error("FireResistanceCalculator.WriteBack", ex); }
             return (cs, bs, ss);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  LOAD-AND-COMBINATION ENGINE — Phase 188
+    //
+    // Closes the remaining "input-blocked" gap from the integration audit.
+    // The frame-analysis sub-engines (PunchingShearChecker, WindLoadCalculator,
+    // RCDesignHelper, DirectStiffnessMethod, MomentDistribution, SeismicAnalyzer)
+    // are pure calculators that need a load model + code combination on top
+    // of the basic Revit element schema. This is that load model.
+    //
+    // Defaults are conservative office-loading values (EC1-1-1 + UK NA). They
+    // come from ProjectInformation when present, otherwise from the static
+    // ProjectDefaults below. The point isn't precision — it's a non-zero
+    // demand value so the analysis engines compute something stampable
+    // instead of being silently skipped.
+    // ════════════════════════════════════════════════════════════════
+
+    public class LoadCase
+    {
+        public double DeadLoadKPa     { get; set; } = 4.0;  // self-weight + finishes
+        public double LiveLoadKPa     { get; set; } = 2.5;  // EC1-1-1 office Cat B
+        public double SnowLoadKPa     { get; set; } = 0.6;  // typical UK
+        public double WindBasicMps    { get; set; } = 24.0; // EC1-1-4 UK basic vb,0
+        public double SeismicAgR      { get; set; } = 0.05; // EC8 low-seismicity
+        public string CodeFamily      { get; set; } = "EC"; // "EC" or "ASCE"
+    }
+
+    public enum LoadComboKind
+    {
+        ULS_GravityPersistent,  // 1.35G + 1.5Q  (EC) / 1.2D + 1.6L (ASCE)
+        ULS_GravityVariable,    // 1.35G + 1.5Q + 0.9W
+        ULS_Wind,               // 1.35G + 1.5W + 1.05Q
+        ULS_Seismic,            // G + 0.3Q + AE (EC8)
+        SLS_Characteristic,     // G + Q
+    }
+
+    internal static class LoadCombinationEngine
+    {
+        // EC partial factors — BS EN 1990 Table A1.2(B)
+        private const double GammaG = 1.35;
+        private const double GammaQ = 1.50;
+        private const double GammaW = 1.50;
+        // ASCE 7-22 strength load combinations
+        private const double AsceD = 1.2;
+        private const double AsceL = 1.6;
+
+        /// <summary>Read the project-level load case from ProjectInformation
+        /// (project params if present) with conservative EC1 defaults.
+        /// Single source of truth — every walker calls this once.</summary>
+        public static LoadCase ForProject(Document doc)
+        {
+            var lc = new LoadCase();
+            if (doc?.ProjectInformation == null) return lc;
+            try
+            {
+                lc.DeadLoadKPa   = ReadDouble(doc.ProjectInformation, "STR_AREA_LOAD_KN_M2", lc.DeadLoadKPa);
+                lc.LiveLoadKPa   = ReadDouble(doc.ProjectInformation, "BLE_LIVE_LOAD_KPA",   lc.LiveLoadKPa);
+                lc.WindBasicMps  = ReadDouble(doc.ProjectInformation, "STR_WIND_BASIC_MPS",  lc.WindBasicMps);
+                lc.SeismicAgR    = ReadDouble(doc.ProjectInformation, "STR_SEISMIC_AGR",     lc.SeismicAgR);
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadCombinationEngine.ForProject: {ex.Message}"); }
+            return lc;
+        }
+
+        /// <summary>Apply the partial factors for a given combo to produce
+        /// a single design intensity in kPa. Variable + wind + seismic
+        /// combos use the dominant-action recipe per EC1 §6.4.3.2.</summary>
+        public static double Factor(LoadCase lc, LoadComboKind combo)
+        {
+            if (lc == null) return 0;
+            bool isEC = string.Equals(lc.CodeFamily, "EC", StringComparison.OrdinalIgnoreCase);
+            double g = isEC ? GammaG : AsceD;
+            double q = isEC ? GammaQ : AsceL;
+            return combo switch
+            {
+                LoadComboKind.ULS_GravityPersistent => g * lc.DeadLoadKPa + q * lc.LiveLoadKPa,
+                LoadComboKind.ULS_GravityVariable   => g * lc.DeadLoadKPa + q * lc.LiveLoadKPa + 0.9 * WindKPa(lc),
+                LoadComboKind.ULS_Wind              => g * lc.DeadLoadKPa + GammaW * WindKPa(lc) + 1.05 * lc.LiveLoadKPa,
+                LoadComboKind.ULS_Seismic           => lc.DeadLoadKPa + 0.3 * lc.LiveLoadKPa + SeismicKPa(lc),
+                LoadComboKind.SLS_Characteristic    => lc.DeadLoadKPa + lc.LiveLoadKPa,
+                _ => g * lc.DeadLoadKPa + q * lc.LiveLoadKPa,
+            };
+        }
+
+        /// <summary>EC1-1-4 simplified peak velocity pressure qp(z=10m).
+        /// qp = ½ · ρ · ce · vb²  with ce=2.5, ρ=1.25 kg/m³ — convert to kPa.</summary>
+        public static double WindKPa(LoadCase lc) =>
+            0.5 * 1.25 * 2.5 * lc.WindBasicMps * lc.WindBasicMps / 1000.0;
+
+        /// <summary>EC8 elastic spectrum baseline (Sd,e ≈ 2.5·agR·S, S=1.2 for ground type C).</summary>
+        public static double SeismicKPa(LoadCase lc) =>
+            2.5 * lc.SeismicAgR * 1.2 * 9.81;
+
+        private static double ReadDouble(Element el, string paramName, double fallback)
+        {
+            try
+            {
+                var p = el?.LookupParameter(paramName);
+                if (p == null || !p.HasValue) return fallback;
+                if (p.StorageType == StorageType.Double)  return p.AsDouble();
+                if (p.StorageType == StorageType.Integer) return p.AsInteger();
+                if (p.StorageType == StorageType.String
+                    && double.TryParse(p.AsString(), out double v)) return v;
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadCombo.ReadDouble {paramName}: {ex.Message}"); }
+            return fallback;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  PunchingShearChecker.AnalyseModel — close the calc → model loop
+    // ════════════════════════════════════════════════════════════════
+    internal static partial class PunchingShearOrchestrator
+    {
+        /// <summary>
+        /// Walks every flat-slab + column intersection, computes design axial
+        /// from tributary slab area × ULS load combo, calls CheckPunchingShear,
+        /// stamps STR_PUNCH_UTIL_PCT (new Phase 188 param) on the column.
+        /// Caller owns the Transaction. Returns (inspected, stamped).
+        /// </summary>
+        public static (int Inspected, int Stamped) AnalyseModel(Document doc)
+        {
+            int inspected = 0, stamped = 0;
+            if (doc == null) return (0, 0);
+            try
+            {
+                var lc = LoadCombinationEngine.ForProject(doc);
+                double udlKPa = LoadCombinationEngine.Factor(lc, LoadComboKind.ULS_GravityPersistent);
+
+                var columns = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralColumns)
+                    .WhereElementIsNotElementType().Cast<FamilyInstance>().ToList();
+                var slabs = new FilteredElementCollector(doc).OfClass(typeof(Floor))
+                    .WhereElementIsNotElementType().Cast<Floor>().ToList();
+                if (columns.Count == 0 || slabs.Count == 0) return (0, 0);
+
+                foreach (var col in columns)
+                {
+                    inspected++;
+                    try
+                    {
+                        var lp = col.Location as LocationPoint;
+                        if (lp?.Point == null) continue;
+                        // Tributary area heuristic: half-distance to nearest 4 columns.
+                        double tribM2 = EstimateTributaryM2(col, columns);
+                        // Default 200mm slab thickness if not readable; cover 30mm.
+                        double tMm = 200;
+                        var nearest = slabs.OrderBy(s =>
+                        {
+                            var bb = s.get_BoundingBox(null);
+                            if (bb == null) return double.MaxValue;
+                            var c = (bb.Min + bb.Max) / 2;
+                            return c.DistanceTo(lp.Point);
+                        }).FirstOrDefault();
+                        if (nearest != null)
+                        {
+                            var tP = nearest.get_Parameter(BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM);
+                            if (tP != null) tMm = tP.AsDouble() * 304.8;
+                        }
+                        double widthMm = 400, depthMm = 400;
+                        var type = doc.GetElement(col.GetTypeId());
+                        if (type != null)
+                        {
+                            var wP = type.get_Parameter(BuiltInParameter.GENERIC_WIDTH);
+                            var dP = type.get_Parameter(BuiltInParameter.GENERIC_DEPTH);
+                            if (wP != null) widthMm = wP.AsDouble() * 304.8;
+                            if (dP != null) depthMm = dP.AsDouble() * 304.8;
+                        }
+                        double axialKN = tribM2 * udlKPa;
+                        var r = PunchingShearChecker.CheckPunchingShear(
+                            columnWidthMm: widthMm, columnDepthMm: depthMm,
+                            slabThicknessMm: tMm, reactionKN: axialKN, fckMPa: 32);
+                        double utilPct = r.UtilisationRatio * 100.0;
+                        if (StingTools.Core.ParameterHelpers.SetString(col,
+                                "STR_PUNCH_UTIL_PCT", $"{utilPct:F1}", overwrite: true))
+                            stamped++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"PunchingShear col {col.Id}: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Error("PunchingShearOrchestrator.AnalyseModel", ex); }
+            return (inspected, stamped);
+        }
+
+        private static double EstimateTributaryM2(FamilyInstance col, List<FamilyInstance> all)
+        {
+            var pt = (col.Location as LocationPoint)?.Point;
+            if (pt == null) return 25.0;
+            var nearest = all
+                .Where(c => c.Id != col.Id)
+                .Select(c => (c.Location as LocationPoint)?.Point)
+                .Where(p => p != null)
+                .Select(p => p.DistanceTo(pt) * 0.3048)
+                .Where(d => d > 0.1)
+                .OrderBy(d => d)
+                .Take(4)
+                .ToList();
+            if (nearest.Count < 2) return 36.0; // ~6×6 m default
+            double meanHalf = nearest.Average() / 2.0;
+            return meanHalf * meanHalf * 4.0;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  WindLoadCalculator.AnalyseModel
+    // ════════════════════════════════════════════════════════════════
+    internal static partial class WindLoadOrchestrator
+    {
+        /// <summary>
+        /// Computes one project-level wind pressure from EC1-1-4 simplified
+        /// (qp = ½·ρ·ce·vb²) and stamps STR_WIND_PRESSURE_PA on every external
+        /// wall + structural column. Caller owns the Transaction.
+        /// </summary>
+        public static (int Inspected, int Stamped) AnalyseModel(Document doc)
+        {
+            int inspected = 0, stamped = 0;
+            if (doc == null) return (0, 0);
+            try
+            {
+                var lc = LoadCombinationEngine.ForProject(doc);
+                double pPa = LoadCombinationEngine.WindKPa(lc) * 1000.0;
+                string pstr = $"{pPa:F0}";
+
+                var targets = new List<Element>();
+                targets.AddRange(new FilteredElementCollector(doc)
+                    .OfClass(typeof(Wall)).WhereElementIsNotElementType());
+                targets.AddRange(new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralColumns)
+                    .WhereElementIsNotElementType());
+
+                foreach (var el in targets)
+                {
+                    inspected++;
+                    try
+                    {
+                        if (StingTools.Core.ParameterHelpers.SetString(el,
+                                "STR_WIND_PRESSURE_PA", pstr, overwrite: true))
+                            stamped++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Wind stamp {el.Id}: {ex.Message}"); }
+                }
+                // Also stamp the project-level value on ProjectInformation so
+                // title-blocks and BOQ can render the design wind pressure.
+                if (doc.ProjectInformation != null)
+                    StingTools.Core.ParameterHelpers.SetString(doc.ProjectInformation,
+                        "STR_WIND_PRESSURE_PA", pstr, overwrite: true);
+            }
+            catch (Exception ex) { StingLog.Error("WindLoadOrchestrator.AnalyseModel", ex); }
+            return (inspected, stamped);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  RCDesignHelper.AnalyseModel
+    // ════════════════════════════════════════════════════════════════
+    internal static partial class RCDesignOrchestrator
+    {
+        /// <summary>
+        /// For each concrete beam + column, derives the design moment from
+        /// the ULS_GravityPersistent combo and tributary geometry, calls the
+        /// existing EstimateBeamReinforcement / EstimateColumnReinforcement,
+        /// and stamps STR_REBAR_DETAIL_TXT + STR_REBAR_SIZE_MM (existing).
+        /// Caller owns the Transaction.
+        /// </summary>
+        public static (int Beams, int Columns) AnalyseModel(Document doc)
+        {
+            int beams = 0, cols = 0;
+            if (doc == null) return (0, 0);
+            try
+            {
+                var lc = LoadCombinationEngine.ForProject(doc);
+                double wKPa = LoadCombinationEngine.Factor(lc, LoadComboKind.ULS_GravityPersistent);
+
+                foreach (var beam in new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                    .WhereElementIsNotElementType())
+                {
+                    try
+                    {
+                        if (!IsConcrete(doc, beam)) continue;
+                        var loc = beam.Location as LocationCurve;
+                        if (loc?.Curve == null) continue;
+                        double spanM = loc.Curve.Length * 0.3048;
+                        double h = spanM * 50.0;     // mm  (span/20 heuristic, ×1000)
+                        double b = h * 0.5;
+                        double udlKnm = wKPa * 3.0;  // 3m tributary
+                        double mEd = udlKnm * spanM * spanM / 8.0;
+                        double spanMm = spanM * 1000.0;
+                        var r = RCDesignHelper.EstimateBeamReinforcement(
+                            spanMm: spanMm, depthMm: h, widthMm: b,
+                            momentKNm: mEd, fckMPa: 32);
+                        StingTools.Core.ParameterHelpers.SetString(beam, "STR_REBAR_DETAIL_TXT",
+                            r.Summary ?? "", overwrite: true);
+                        if (!string.IsNullOrEmpty(r.BarArrangement))
+                            StingTools.Core.ParameterHelpers.SetString(beam, "STR_REBAR_SIZE_MM",
+                                r.BarArrangement, overwrite: true);
+                        beams++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"RCDesign beam {beam.Id}: {ex.Message}"); }
+                }
+
+                foreach (var col in new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralColumns)
+                    .WhereElementIsNotElementType())
+                {
+                    try
+                    {
+                        if (!IsConcrete(doc, col)) continue;
+                        double w = 400, d = 400;
+                        var type = doc.GetElement(col.GetTypeId());
+                        if (type != null)
+                        {
+                            var wP = type.get_Parameter(BuiltInParameter.GENERIC_WIDTH);
+                            var dP = type.get_Parameter(BuiltInParameter.GENERIC_DEPTH);
+                            if (wP != null) w = wP.AsDouble() * 304.8;
+                            if (dP != null) d = dP.AsDouble() * 304.8;
+                        }
+                        // Read tributary axial from earlier load-path stamp if present;
+                        // else conservative 1000 kN.
+                        double axialKN = ReadDouble(col, "STRUCT_COL_AXIAL_LOAD_KN", 1000);
+                        // Bending moment proxy: 10% of axial × greater dimension (typical
+                        // EC2 minimum eccentricity h/30 + accidental). Height defaults to
+                        // 3500 mm storey when LocationCurve isn't readable on a column.
+                        double maxDim = Math.Max(w, d);
+                        double momKNm = axialKN * Math.Max(maxDim, 30) / 30000.0;
+                        double heightMm = 3500;
+                        var r = RCDesignHelper.EstimateColumnReinforcement(
+                            widthMm: w, depthMm: d, axialKN: axialKN,
+                            momentKNm: momKNm, heightMm: heightMm, fckMPa: 32);
+                        StingTools.Core.ParameterHelpers.SetString(col, "STR_REBAR_DETAIL_TXT",
+                            r.Summary ?? "", overwrite: true);
+                        if (!string.IsNullOrEmpty(r.BarArrangement))
+                            StingTools.Core.ParameterHelpers.SetString(col, "STR_REBAR_SIZE_MM",
+                                r.BarArrangement, overwrite: true);
+                        cols++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"RCDesign col {col.Id}: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Error("RCDesignOrchestrator.AnalyseModel", ex); }
+            return (beams, cols);
+        }
+
+        private static bool IsConcrete(Document doc, Element el)
+        {
+            try
+            {
+                var mat = el.get_Parameter(BuiltInParameter.STRUCTURAL_MATERIAL_PARAM)?.AsValueString() ?? "";
+                return string.IsNullOrEmpty(mat)
+                    || mat.IndexOf("concrete", StringComparison.OrdinalIgnoreCase) >= 0
+                    || mat.IndexOf("RC", StringComparison.OrdinalIgnoreCase) >= 0;
+            }
+            catch { return true; }
+        }
+
+        private static double ReadDouble(Element el, string n, double fb)
+        {
+            try
+            {
+                var p = el?.LookupParameter(n);
+                if (p == null || !p.HasValue) return fb;
+                if (p.StorageType == StorageType.Double)  return p.AsDouble();
+                if (p.StorageType == StorageType.Integer) return p.AsInteger();
+                if (p.StorageType == StorageType.String
+                    && double.TryParse(p.AsString(), out double v)) return v;
+            }
+            catch { }
+            return fb;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  DirectStiffnessMethod.AnalyseModel — full frame solve + writeback
+    //
+    // Drives BuildFromRevitModel → Analyze, then walks Members and
+    // stamps STR_FRAME_M_KNM (new) + STRUCT_FRM_AXIAL_LOAD_KN (existing)
+    // on each beam whose FrameMember.RevitId is populated.
+    // ════════════════════════════════════════════════════════════════
+    internal static partial class FrameAnalysisOrchestrator
+    {
+        public static (int Members, int Stamped, string Summary) AnalyseModel(Document doc)
+        {
+            int membersTotal = 0, stamped = 0;
+            if (doc == null) return (0, 0, "No document");
+            try
+            {
+                var lc = LoadCombinationEngine.ForProject(doc);
+                // Convert kPa → kN/m on a 3 m tributary width — keeps the
+                // FrameMember.UdlKNPerM units the solver expects.
+                double udl = LoadCombinationEngine.Factor(lc, LoadComboKind.ULS_GravityPersistent) * 3.0;
+
+                var (nodes, members) = DirectStiffnessMethod.BuildFromRevitModel(
+                    doc, liveLoadKNPerM: lc.LiveLoadKPa * 3.0,
+                         deadLoadKNPerM: lc.DeadLoadKPa * 3.0);
+                membersTotal = members.Count;
+                if (membersTotal == 0)
+                    return (0, 0, "No frame members built from model");
+
+                var result = DirectStiffnessMethod.Analyze(nodes, members);
+                if (!result.Converged)
+                    return (membersTotal, 0, "Frame solve did not converge — stamps skipped");
+
+                foreach (var m in result.Members)
+                {
+                    if (m.RevitId == null || m.RevitId == ElementId.InvalidElementId) continue;
+                    try
+                    {
+                        var el = doc.GetElement(m.RevitId);
+                        if (el == null) continue;
+                        double mEd = Math.Max(Math.Abs(m.MomentIKNm), Math.Abs(m.MomentJKNm));
+                        if (StingTools.Core.ParameterHelpers.SetString(el, "STR_FRAME_M_KNM",
+                                $"{mEd:F1}", overwrite: true)) stamped++;
+                        StingTools.Core.ParameterHelpers.SetString(el, "STRUCT_FRM_AXIAL_LOAD_KN",
+                            $"{Math.Abs(m.AxialForceKN):F1}", overwrite: true);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Frame stamp {m.RevitId.Value}: {ex.Message}"); }
+                }
+                return (membersTotal, stamped, result.Summary);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("FrameAnalysisOrchestrator.AnalyseModel", ex);
+                return (membersTotal, stamped, ex.Message);
+            }
         }
     }
 }

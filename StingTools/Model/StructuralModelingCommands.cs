@@ -1517,7 +1517,7 @@ namespace StingTools.Model
     /// Checks punching shear at all slab-column interfaces per EC2 Section 6.4.
     /// Identifies columns needing shear reinforcement.
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StrPunchingShearCheckCommand : IExternalCommand
     {
@@ -1536,11 +1536,27 @@ namespace StingTools.Model
                 int failing = results.Count(r => !r.Result.Pass);
                 int needsReinf = results.Count(r => r.Result.NeedsShearReinforcement);
 
+                // Close the calc → model loop: walk slab-column intersections via
+                // the new orchestrator, computing reaction from the ULS combo
+                // built by LoadCombinationEngine, and stamp STR_PUNCH_UTIL_PCT.
+                int psInspected = 0, psStamped = 0;
+                try
+                {
+                    using (var tx = new Transaction(uidoc.Document, "STING Stamp Punching Shear"))
+                    {
+                        tx.Start();
+                        (psInspected, psStamped) = PunchingShearOrchestrator.AnalyseModel(uidoc.Document);
+                        tx.Commit();
+                    }
+                }
+                catch (Exception exTx) { StingLog.Warn($"Punching stamp: {exTx.Message}"); }
+
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine($"Punching Shear Check (EC2 §6.4): {results.Count} interfaces");
                 sb.AppendLine($"  ✓ Passing: {passing}");
                 sb.AppendLine($"  ✗ Failing: {failing}");
                 sb.AppendLine($"  ⚠ Needs shear reinforcement: {needsReinf}");
+                sb.AppendLine($"  STR_PUNCH_UTIL_PCT stamped: {psStamped} of {psInspected} columns");
 
                 if (failing > 0)
                 {
@@ -1578,7 +1594,7 @@ namespace StingTools.Model
     /// Calculates wind loads on the building per EC1-1-4 and distributes to storeys.
     /// Auto-detects building dimensions from model geometry.
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StrWindLoadCommand : IExternalCommand
     {
@@ -1592,7 +1608,26 @@ namespace StingTools.Model
             {
                 var engine = new StructuralModelingEngine(uidoc.Document);
                 var result = engine.CalculateWindLoads();
-                TaskDialog.Show("STRUCT — Wind Load Analysis", result.Summary);
+
+                // Close the calc → model loop: stamp STR_WIND_PRESSURE_PA on
+                // every wall + column + ProjectInformation so title-blocks,
+                // schedules, and downstream combo engines see the design
+                // wind pressure without recomputing.
+                int wInsp = 0, wStamp = 0;
+                try
+                {
+                    using (var tx = new Transaction(uidoc.Document, "STING Stamp Wind Pressure"))
+                    {
+                        tx.Start();
+                        (wInsp, wStamp) = WindLoadOrchestrator.AnalyseModel(uidoc.Document);
+                        tx.Commit();
+                    }
+                }
+                catch (Exception exTx) { StingLog.Warn($"Wind stamp: {exTx.Message}"); }
+
+                TaskDialog.Show("STRUCT — Wind Load Analysis",
+                    (result.Summary ?? "") +
+                    $"\n\nSTR_WIND_PRESSURE_PA stamped on {wStamp} of {wInsp} elements.");
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -1863,7 +1898,7 @@ namespace StingTools.Model
     /// Performs 2D frame analysis on the structural model using the Direct Stiffness Method.
     /// Assembles global stiffness matrix, solves displacements, recovers member forces.
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StrFrameAnalysisCommand : IExternalCommand
     {
@@ -1875,10 +1910,30 @@ namespace StingTools.Model
 
             try
             {
+                // Close the calc → model loop: drive BuildFromRevitModel →
+                // Analyze inside FrameAnalysisOrchestrator and stamp
+                // STR_FRAME_M_KNM + STRUCT_FRM_AXIAL_LOAD_KN on every member
+                // whose RevitId is populated.
+                int fMembers = 0, fStamped = 0;
+                string fSummary = "";
+                try
+                {
+                    using (var tx = new Transaction(uidoc.Document, "STING Frame Analysis"))
+                    {
+                        tx.Start();
+                        (fMembers, fStamped, fSummary) = FrameAnalysisOrchestrator.AnalyseModel(uidoc.Document);
+                        tx.Commit();
+                    }
+                }
+                catch (Exception exTx) { StingLog.Warn($"Frame analysis: {exTx.Message}"); }
+
+                // Also produce the inspection report (no writeback path) so
+                // the existing UX is preserved.
                 var (nodes, members) = DirectStiffnessMethod.BuildFromRevitModel(uidoc.Document);
                 if (nodes.Count == 0)
                 {
-                    TaskDialog.Show("STRUCT — Frame Analysis", "No structural elements found for analysis.");
+                    TaskDialog.Show("STRUCT — Frame Analysis",
+                        $"No structural elements found for analysis.\n{fSummary}");
                     return Result.Succeeded;
                 }
 
@@ -1891,6 +1946,7 @@ namespace StingTools.Model
                 sb.AppendLine($"Max displacement: {result.MaxDisplacementMm:F2} mm");
                 sb.AppendLine($"Max moment: {result.MaxMomentKNm:F1} kNm");
                 sb.AppendLine($"Max axial: {result.MaxAxialKN:F1} kN");
+                sb.AppendLine($"STR_FRAME_M_KNM stamped on {fStamped} of {fMembers} members.");
                 sb.AppendLine();
 
                 // Show top 5 most loaded members
@@ -3972,6 +4028,46 @@ namespace StingTools.Model
                 return Result.Succeeded;
             }
             catch (Exception ex) { StingLog.Error("FullModelAuto", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // RC DESIGN HELPER ORCHESTRATOR — Phase 188
+    //
+    // Walks every concrete beam + column, derives demand from LoadCombinationEngine,
+    // calls the existing EstimateBeamReinforcement / EstimateColumnReinforcement,
+    // and stamps STR_REBAR_DETAIL_TXT + STR_REBAR_SIZE_MM. Closes the
+    // last "input-blocked" gap from the integration audit.
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrRCDesignCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                int beams = 0, cols = 0;
+                using (var tx = new Transaction(uidoc.Document, "STING RC Design"))
+                {
+                    tx.Start();
+                    (beams, cols) = RCDesignOrchestrator.AnalyseModel(uidoc.Document);
+                    tx.Commit();
+                }
+                TaskDialog.Show("STRUCT — RC Design (EC2)",
+                    $"Reinforcement detail computed and stamped:\n" +
+                    $"  Beams:   {beams}\n" +
+                    $"  Columns: {cols}\n\n" +
+                    "Loads taken from LoadCombinationEngine (project params + EC1 defaults).\n" +
+                    "Detail string → STR_REBAR_DETAIL_TXT\n" +
+                    "Bar arrangement → STR_REBAR_SIZE_MM");
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrRCDesign", ex); message = ex.Message; return Result.Failed; }
         }
     }
 }
