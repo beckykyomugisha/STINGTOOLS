@@ -1,3 +1,4 @@
+# v6.4 | 20260520 | +75 params aligned with MR_PARAMETERS.txt (59 Qto_ + 6 Pset_ IFC interop + 5 STR_ + 4 PLM_ + 1 ACO_) — Phase 187 / parameter-count drift fix
 # v6.3 | 20260519 | BIM Template mr_parameters (+14: ASS_CST_ currency-neutral (7) + ASS_PMT_ payment cert (4) + ASS_VAR_ variation (3) — Phase 184 / P0.2 + P5 alignment with MR_PARAMETERS.txt)
 # v6.2 | 20260517 | BIM Template mr_parameters — 3017 unique params (auto-aligned with MR_PARAMETERS.txt)
 Revit_Category,Parameter_Name,Parameter_GUID,Data_Type,Group_Name,Binding_Type,Description,Has_Formula,Formula,Input_Parameters,Discipline,User_Modifiable,Hide_When_No_Value
@@ -3045,3 +3046,78 @@ Generic Models,ASS_PMT_LAST_VALUED_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d53,TEXT,
 Generic Models,ASS_VAR_NO_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d60,TEXT,CST_PROC,Type,Variation / change-order number this element was instructed under [Phase 184g / P5],False,,,MULTI,1,0
 Generic Models,ASS_VAR_INSTRUCTION_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d61,TEXT,CST_PROC,Type,ISO 8601 date the variation instruction was issued [Phase 184g / P5],False,,,MULTI,1,0
 Generic Models,ASS_VAR_VALUATION_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62,NUMBER,CST_PROC,Type,Variation valuation amount in project base currency [Phase 184g / P5],False,,,MULTI,1,0
+Generic Models,ACO_RW_DB,d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e06,TEXT,PER_SUST,Type,Weighted sound reduction index Rw (dB) of partition per BS EN ISO 717-1 — AcousticAnalysisEngine [Phase 187],False,,,MULTI,1,0
+Generic Models,PLM_RECIRC_DRV_KV,c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e02,TEXT,PLM_DRN,Type,"Per-branch DRV pre-set Kv (l/min·bar^-0.5) — proportional to branch heat-loss share, stamped on DRV valve fixtures [Phase 187]",False,,,MULTI,1,0
+Generic Models,PLM_RECIRC_PUMP_DUTY_LPM,c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e01,TEXT,PLM_DRN,Type,DHW recirculation pump duty in l/min computed by RecircLoopBalancer to maintain ≤5°C ΔT loop [Phase 187],False,,,MULTI,1,0
+Generic Models,PLM_STACK_CAP_DU,c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e03,TEXT,PLM_DRN,Type,Stack DFU capacity per BS EN 12056-2 Table 11 lookup at stack DN [Phase 187],False,,,MULTI,1,0
+Generic Models,PLM_STACK_UTIL_PCT,c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e04,TEXT,PLM_DRN,Type,Stack utilisation percentage (accumulated DFU ÷ Table 11 capacity) — &gt;70% flags induced-siphonage risk [Phase 187],False,,,MULTI,1,0
+Generic Models,Pset_StingCost.Currency,a768f8a1-7609-5d07-54e6-73b78d3cae54,TEXT,CST_PROC,Type,STING IFC4 cost-data property set -> Currency [Phase 184k / P8],False,,,MULTI,1,0
+Generic Models,Pset_StingCost.NRM2Section,6160717f-4a9f-5991-247a-ef111e10f201,TEXT,CST_PROC,Type,STING IFC4 cost-data property set -> NRM2Section [Phase 184k / P8],False,,,MULTI,1,0
+Generic Models,Pset_StingCost.ProvisionalSum,a2384fa5-ffad-538e-bb92-9e4b30821ee4,YESNO,CST_PROC,Type,STING IFC4 cost-data property set -> ProvisionalSum [Phase 184k / P8],False,,,MULTI,1,0
+Generic Models,Pset_StingCost.RateSource,e8223222-58c4-5f3a-0dd5-4f8fe77271ce,TEXT,CST_PROC,Type,STING IFC4 cost-data property set -> RateSource [Phase 184k / P8],False,,,MULTI,1,0
+Generic Models,Pset_StingCost.TotalCost,f787a2bc-04cf-5f98-e322-418604468d23,NUMBER,CST_PROC,Type,STING IFC4 cost-data property set -> TotalCost [Phase 184k / P8],False,,,MULTI,1,0
+Generic Models,Pset_StingCost.UnitRate,46d1c660-c578-5808-6050-d8fdb88c9b6d,NUMBER,CST_PROC,Type,STING IFC4 cost-data property set -> UnitRate [Phase 184k / P8],False,,,MULTI,1,0
+Generic Models,Qto_BeamBaseQuantities.CrossSectionArea,7438f6c3-e9a2-5d19-c08d-2bc29c2ad46d,NUMBER,CST_PROC,Type,IFC4 Qto_BeamBaseQuantities -> CrossSectionArea [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_BeamBaseQuantities.GrossVolume,238f519a-91d2-581d-aba6-43b355237ed8,NUMBER,CST_PROC,Type,IFC4 Qto_BeamBaseQuantities -> GrossVolume [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_BeamBaseQuantities.GrossWeight,8086b41d-8b22-574b-03c1-18d8e2b05e31,NUMBER,CST_PROC,Type,IFC4 Qto_BeamBaseQuantities -> GrossWeight [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_BeamBaseQuantities.Length,94cd7131-6470-5385-77f3-1a0c91309318,NUMBER,CST_PROC,Type,IFC4 Qto_BeamBaseQuantities -> Length [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_BeamBaseQuantities.NetVolume,f242b483-830a-55ba-ea10-8f4e967bb7c9,NUMBER,CST_PROC,Type,IFC4 Qto_BeamBaseQuantities -> NetVolume [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_BeamBaseQuantities.NetWeight,9b33f24b-1503-58a8-c5cb-eb6da98c4dae,NUMBER,CST_PROC,Type,IFC4 Qto_BeamBaseQuantities -> NetWeight [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_BeamBaseQuantities.OuterSurfaceArea,d9d9ae06-a4ca-5f0b-820e-6f4862ece7d1,NUMBER,CST_PROC,Type,IFC4 Qto_BeamBaseQuantities -> OuterSurfaceArea [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_ColumnBaseQuantities.CrossSectionArea,e4f172e0-f28a-5bcb-2701-bb15af9b4bc8,NUMBER,CST_PROC,Type,IFC4 Qto_ColumnBaseQuantities -> CrossSectionArea [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_ColumnBaseQuantities.GrossVolume,58b4f4bf-4c46-5b40-3ba1-5740e07a379d,NUMBER,CST_PROC,Type,IFC4 Qto_ColumnBaseQuantities -> GrossVolume [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_ColumnBaseQuantities.GrossWeight,996ffebd-6e66-5adf-fc61-524fc3102aab,NUMBER,CST_PROC,Type,IFC4 Qto_ColumnBaseQuantities -> GrossWeight [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_ColumnBaseQuantities.Length,3e50bc96-3e38-5657-fe39-932459dd36be,NUMBER,CST_PROC,Type,IFC4 Qto_ColumnBaseQuantities -> Length [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_ColumnBaseQuantities.NetVolume,3f5bc414-48ae-53bd-c586-e17ff83ab5b7,NUMBER,CST_PROC,Type,IFC4 Qto_ColumnBaseQuantities -> NetVolume [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_ColumnBaseQuantities.NetWeight,ff1bdae4-1d62-5506-c0fe-cc46553b01e7,NUMBER,CST_PROC,Type,IFC4 Qto_ColumnBaseQuantities -> NetWeight [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_ColumnBaseQuantities.OuterSurfaceArea,a974f450-396b-5101-85c4-b8ae56f7fef1,NUMBER,CST_PROC,Type,IFC4 Qto_ColumnBaseQuantities -> OuterSurfaceArea [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_CoveringBaseQuantities.GrossArea,9d692f75-2243-5fdd-2689-2c86c9fe054b,NUMBER,CST_PROC,Type,IFC4 Qto_CoveringBaseQuantities -> GrossArea [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_CoveringBaseQuantities.NetArea,9e7c4539-dbc3-5d4e-ccf9-3ff59337145b,NUMBER,CST_PROC,Type,IFC4 Qto_CoveringBaseQuantities -> NetArea [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_DoorBaseQuantities.Area,485e61a9-6e71-553e-51e7-61de07aa9f41,NUMBER,CST_PROC,Type,IFC4 Qto_DoorBaseQuantities -> Area [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_DoorBaseQuantities.Height,450613a2-782c-5342-ed5c-74275145c7d1,NUMBER,CST_PROC,Type,IFC4 Qto_DoorBaseQuantities -> Height [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_DoorBaseQuantities.Perimeter,585fe016-e9d8-5273-4be7-ab343dea9e81,NUMBER,CST_PROC,Type,IFC4 Qto_DoorBaseQuantities -> Perimeter [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_DoorBaseQuantities.Width,8d437636-b95e-551a-4a02-ce419a882783,NUMBER,CST_PROC,Type,IFC4 Qto_DoorBaseQuantities -> Width [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_DuctSegmentBaseQuantities.GrossWeight,9e5b0089-6461-5fb1-272d-8e518c35f86f,NUMBER,CST_PROC,Type,IFC4 Qto_DuctSegmentBaseQuantities -> GrossWeight [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_DuctSegmentBaseQuantities.Length,7fadbeaa-348c-530e-e45c-e38afac61a5e,NUMBER,CST_PROC,Type,IFC4 Qto_DuctSegmentBaseQuantities -> Length [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_DuctSegmentBaseQuantities.OuterSurfaceArea,b87a14f0-ef29-596a-57e9-e8bc921223ce,NUMBER,CST_PROC,Type,IFC4 Qto_DuctSegmentBaseQuantities -> OuterSurfaceArea [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_PipeSegmentBaseQuantities.GrossWeight,dbdab6df-5036-5e67-7e02-31ea2498f614,NUMBER,CST_PROC,Type,IFC4 Qto_PipeSegmentBaseQuantities -> GrossWeight [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_PipeSegmentBaseQuantities.Length,d3b9848e-d6cf-5b15-9594-a6627f91157f,NUMBER,CST_PROC,Type,IFC4 Qto_PipeSegmentBaseQuantities -> Length [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_PipeSegmentBaseQuantities.OuterSurfaceArea,06d6b106-bec6-5999-f18c-faac1c2c664b,NUMBER,CST_PROC,Type,IFC4 Qto_PipeSegmentBaseQuantities -> OuterSurfaceArea [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SlabBaseQuantities.Depth,5e593e7c-1d15-5c27-4ad3-29a9e718613e,NUMBER,CST_PROC,Type,IFC4 Qto_SlabBaseQuantities -> Depth [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SlabBaseQuantities.GrossArea,62727d3a-bbb0-5444-2d51-6c033a7a21fe,NUMBER,CST_PROC,Type,IFC4 Qto_SlabBaseQuantities -> GrossArea [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SlabBaseQuantities.GrossVolume,4387584b-4134-50a1-db96-50d9203a9e37,NUMBER,CST_PROC,Type,IFC4 Qto_SlabBaseQuantities -> GrossVolume [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SlabBaseQuantities.GrossWeight,f6c34d9f-8130-5e82-a955-1b0503046be0,NUMBER,CST_PROC,Type,IFC4 Qto_SlabBaseQuantities -> GrossWeight [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SlabBaseQuantities.Length,7d87e1d8-a1d2-5aaa-6ce2-9a74668972c5,NUMBER,CST_PROC,Type,IFC4 Qto_SlabBaseQuantities -> Length [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SlabBaseQuantities.NetArea,f3ffdafa-4ff9-599d-f707-22d32e72f072,NUMBER,CST_PROC,Type,IFC4 Qto_SlabBaseQuantities -> NetArea [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SlabBaseQuantities.NetVolume,84b5f093-c98e-53ae-9739-b0ad669707e4,NUMBER,CST_PROC,Type,IFC4 Qto_SlabBaseQuantities -> NetVolume [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SlabBaseQuantities.NetWeight,392378ce-4f24-56b7-db6d-72684d86df5a,NUMBER,CST_PROC,Type,IFC4 Qto_SlabBaseQuantities -> NetWeight [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SlabBaseQuantities.Perimeter,24f7f725-424d-5674-0036-d04a7713c499,NUMBER,CST_PROC,Type,IFC4 Qto_SlabBaseQuantities -> Perimeter [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SlabBaseQuantities.Width,46085e03-22a8-512a-d89e-c9c2160df51a,NUMBER,CST_PROC,Type,IFC4 Qto_SlabBaseQuantities -> Width [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SpaceBaseQuantities.FinishCeilingHeight,c9b26107-3b89-51bf-cd88-d15c2562392d,NUMBER,CST_PROC,Type,IFC4 Qto_SpaceBaseQuantities -> FinishCeilingHeight [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SpaceBaseQuantities.GrossFloorArea,ddf40fd0-b45c-5e9f-2f4b-e04ec70b8448,NUMBER,CST_PROC,Type,IFC4 Qto_SpaceBaseQuantities -> GrossFloorArea [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SpaceBaseQuantities.GrossPerimeter,3af2aeb0-0af5-548c-1940-bde7d12814bb,NUMBER,CST_PROC,Type,IFC4 Qto_SpaceBaseQuantities -> GrossPerimeter [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SpaceBaseQuantities.GrossVolume,92f90bf7-a6ac-5b15-0444-69710bef13aa,NUMBER,CST_PROC,Type,IFC4 Qto_SpaceBaseQuantities -> GrossVolume [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SpaceBaseQuantities.GrossWallArea,c2ecfdf2-1a4c-5eb6-ad87-24d9785d2ae7,NUMBER,CST_PROC,Type,IFC4 Qto_SpaceBaseQuantities -> GrossWallArea [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SpaceBaseQuantities.Height,3bf10110-14b2-57e7-9714-b0cae5537d58,NUMBER,CST_PROC,Type,IFC4 Qto_SpaceBaseQuantities -> Height [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SpaceBaseQuantities.NetFloorArea,4fd5d0c9-05c8-51da-b483-e05520f1551d,NUMBER,CST_PROC,Type,IFC4 Qto_SpaceBaseQuantities -> NetFloorArea [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SpaceBaseQuantities.NetPerimeter,9471e8f5-a0ee-5422-a53a-798044bca591,NUMBER,CST_PROC,Type,IFC4 Qto_SpaceBaseQuantities -> NetPerimeter [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SpaceBaseQuantities.NetVolume,92a3ea22-1725-51db-50ab-cf5add228b9b,NUMBER,CST_PROC,Type,IFC4 Qto_SpaceBaseQuantities -> NetVolume [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_SpaceBaseQuantities.NetWallArea,6467637d-f7ac-5e77-fcba-98e577b8818c,NUMBER,CST_PROC,Type,IFC4 Qto_SpaceBaseQuantities -> NetWallArea [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_WallBaseQuantities.GrossSideArea,b0a78f29-7d3d-5e5f-6d32-ab1b7d5084f4,NUMBER,CST_PROC,Type,IFC4 Qto_WallBaseQuantities -> GrossSideArea [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_WallBaseQuantities.GrossVolume,f8ff3513-d500-5e8d-217b-0bf652016ba1,NUMBER,CST_PROC,Type,IFC4 Qto_WallBaseQuantities -> GrossVolume [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_WallBaseQuantities.GrossWeight,3f2ae25a-7a1d-55a4-bf13-7c57230842df,NUMBER,CST_PROC,Type,IFC4 Qto_WallBaseQuantities -> GrossWeight [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_WallBaseQuantities.Height,cb7a2f1a-37c9-5d7f-5ce2-25f1c31136a5,NUMBER,CST_PROC,Type,IFC4 Qto_WallBaseQuantities -> Height [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_WallBaseQuantities.Length,9ab41e3a-744e-59cd-5730-333c3c7eb992,NUMBER,CST_PROC,Type,IFC4 Qto_WallBaseQuantities -> Length [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_WallBaseQuantities.NetSideArea,88974132-8ff0-50ed-fca5-45e892cf1566,NUMBER,CST_PROC,Type,IFC4 Qto_WallBaseQuantities -> NetSideArea [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_WallBaseQuantities.NetVolume,771413db-af09-5bae-d3d2-f1aae3a19286,NUMBER,CST_PROC,Type,IFC4 Qto_WallBaseQuantities -> NetVolume [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_WallBaseQuantities.NetWeight,02fde911-e9e2-5c16-f2ac-f70424f9b31c,NUMBER,CST_PROC,Type,IFC4 Qto_WallBaseQuantities -> NetWeight [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_WallBaseQuantities.Width,eeb35ef6-c4e8-5c67-7fd7-9408c9594fe6,NUMBER,CST_PROC,Type,IFC4 Qto_WallBaseQuantities -> Width [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_WindowBaseQuantities.Area,b39ca48e-a678-5df2-c97b-2778d52684a5,NUMBER,CST_PROC,Type,IFC4 Qto_WindowBaseQuantities -> Area [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_WindowBaseQuantities.Height,41390edf-33c2-529c-7888-cf786cf9716c,NUMBER,CST_PROC,Type,IFC4 Qto_WindowBaseQuantities -> Height [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_WindowBaseQuantities.Perimeter,0143f5a7-c05c-5b53-21d3-b3c3804d88c8,NUMBER,CST_PROC,Type,IFC4 Qto_WindowBaseQuantities -> Perimeter [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,Qto_WindowBaseQuantities.Width,71bc1e06-98e0-5f9e-8082-5967d87f5f5a,NUMBER,CST_PROC,Type,IFC4 Qto_WindowBaseQuantities -> Width [Phase 184k / P8 IFC Qto],False,,,MULTI,1,0
+Generic Models,STR_BEAM_TORSION_KNM,d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e01,TEXT,BLE_STRUCTURE,Type,Torsional moment Mt = V×e (kN·m) at eccentric beam-column connection — stamped by AutoTorsionDetector [Phase 187],False,,,MULTI,1,0
+Generic Models,STR_CONN_DETAIL_TXT,d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e03,TEXT,BLE_STRUCTURE,Type,Steel connection detail classification (Simple / Semi-rigid / Rigid + bolt group code) per SCI P358 / EC3 — ConnectionDetailingEngine [Phase 187],False,,,MULTI,1,0
+Generic Models,STR_CONN_RATING_KN,d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e04,TEXT,BLE_STRUCTURE,Type,Computed shear / moment capacity (kN or kN·m) of beam-end connection per EC3 — ConnectionDetailingEngine [Phase 187],False,,,MULTI,1,0
+Generic Models,STR_ECC_CONN_MM,d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e02,TEXT,BLE_STRUCTURE,Type,Horizontal eccentricity (mm) between beam centreline and supporting column centroid — stamped by AutoTorsionDetector [Phase 187],False,,,MULTI,1,0
+Generic Models,STR_FAB_TOLERANCE_MM,d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e05,TEXT,BLE_STRUCTURE,Type,Cumulative geometric tolerance (mm) over assembled member chain per BS EN 1090-2 — FabricationToleranceChecker [Phase 187],False,,,MULTI,1,0
