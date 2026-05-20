@@ -1,8 +1,8 @@
 """STING operator registrations.
 
-Day-1 scaffold: one diagnostic operator (`sting.about`) that confirms
-the substrate loads and prints a count of enums + psets. Real tagging /
-validation / sync operators land per the MVP scope.
+Day-1 scaffold: three diagnostic operators that confirm the substrate
+loads and Bonsai integration is working. Real tagging / validation /
+sync operators land per the MVP scope.
 """
 
 from __future__ import annotations
@@ -11,10 +11,12 @@ import bpy
 
 from .about import StingAboutOperator
 from .reload_substrate import StingReloadSubstrateOperator
+from .bonsai_probe import StingBonsaiProbeOperator
 
 CLASSES = (
     StingAboutOperator,
     StingReloadSubstrateOperator,
+    StingBonsaiProbeOperator,
 )
 
 

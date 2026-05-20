@@ -38,4 +38,12 @@ class StingAboutOperator(bpy.types.Operator):
         print(f"[STING] {msg}")
         for pset in psets:
             print(f"[STING]   pset: {pset.name} ({len(pset.properties)} props, {len(pset.rules)} rules)")
+
+        # Bonsai integration status
+        try:
+            from ..core import bonsai
+            print(f"[STING] {bonsai.capabilities.summary()}")
+        except Exception as e:
+            print(f"[STING] Bonsai probe failed: {e}")
+
         return {"FINISHED"}
