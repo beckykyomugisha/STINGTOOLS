@@ -114,38 +114,38 @@ namespace Planscape.Infrastructure.SignalR
     /// <summary>Live pressure delta reading — mirrors the mobile RoomPressure type.</summary>
     public class PressureReadingDto
     {
-        public string ProjectId    { get; set; }
-        public string RoomId       { get; set; }
-        public string RoomName     { get; set; }
-        public string RoomClass    { get; set; }
-        public string DesignRegime { get; set; }  // NEG | POS | NEUTRAL
+        public string ProjectId    { get; set; } = string.Empty;
+        public string RoomId       { get; set; } = string.Empty;
+        public string RoomName     { get; set; } = string.Empty;
+        public string RoomClass    { get; set; } = string.Empty;
+        public string DesignRegime { get; set; } = string.Empty;  // NEG | POS | NEUTRAL
         public int    DesignDeltaPa { get; set; }
         public double LiveDeltaPa  { get; set; }
         public bool   InBand       { get; set; }
-        public string Source       { get; set; }  // BACNET | OPCUA | MANUAL
-        public string CapturedAt   { get; set; }  // ISO 8601
+        public string Source       { get; set; } = string.Empty;  // BACNET | OPCUA | MANUAL
+        public string CapturedAt   { get; set; } = string.Empty;  // ISO 8601
     }
 
     /// <summary>MGPS zone alarm pushed to mobile on a FAIL verification.</summary>
     public class MgasAlarmDto
     {
-        public string ProjectId   { get; set; }
-        public string Zone        { get; set; }
-        public string GasCode     { get; set; }
-        public string FailReason  { get; set; }
-        public string Severity    { get; set; }  // WARNING | CRITICAL
-        public string TriggeredAt { get; set; }  // ISO 8601
+        public string ProjectId   { get; set; } = string.Empty;
+        public string Zone        { get; set; } = string.Empty;
+        public string GasCode     { get; set; } = string.Empty;
+        public string FailReason  { get; set; } = string.Empty;
+        public string Severity    { get; set; } = string.Empty;  // WARNING | CRITICAL
+        public string TriggeredAt { get; set; } = string.Empty;  // ISO 8601
     }
 
     /// <summary>Anti-ligature FAIL finding pushed to mobile in real-time.</summary>
     public class AntiLigatureAlertDto
     {
-        public string ProjectId   { get; set; }
-        public string RoomBimId   { get; set; }
-        public string RoomName    { get; set; }
-        public string FittingType { get; set; }
-        public string Notes       { get; set; }
-        public string AuditedBy   { get; set; }
-        public string AuditedAt   { get; set; }  // ISO 8601
+        public string ProjectId   { get; set; } = string.Empty;
+        public string RoomBimId   { get; set; } = string.Empty;
+        public string RoomName    { get; set; } = string.Empty;
+        public string FittingType { get; set; } = string.Empty;
+        public string Notes       { get; set; } = string.Empty;
+        public string AuditedBy   { get; set; } = string.Empty;
+        public string AuditedAt   { get; set; } = string.Empty;  // ISO 8601
     }
 }
