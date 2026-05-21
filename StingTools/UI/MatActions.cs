@@ -347,6 +347,56 @@ namespace StingTools.UI
                 "Promoting project overrides to the corporate baseline is an admin action and lands in a follow-up commit. Edit the corporate CSV (BLE_MATERIALS.csv / MEP_MATERIALS.csv) for now.");
         }
 
+        // ── F14 — Family folder audit (CTC parity) ─────────────────────────
+
+        public static void FamilyFolderAudit(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null || app?.Application == null) return;
+            try
+            {
+                var fbd = new System.Windows.Forms.FolderBrowserDialog
+                {
+                    Description = "Pick a folder of .rfa families to audit (read-only)",
+                    ShowNewFolderButton = false,
+                };
+                if (fbd.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
+
+                var td = new TaskDialog("Family Material Audit")
+                {
+                    MainInstruction = "Audit options",
+                    MainContent = $"Folder: {fbd.SelectedPath}\n\nOpening every .rfa read-only is slow (~1-2 s per family). A 500-family vendor drop takes ~15 minutes.",
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                };
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Top-level only", "Scan .rfa in the picked folder, ignore sub-folders.");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Recursive",     "Scan .rfa in every sub-folder.");
+                var res = td.Show();
+                if (res == TaskDialogResult.Cancel) return;
+                bool recursive = (res == TaskDialogResult.CommandLink2);
+
+                var result = FamilyMaterialAuditor.Run(app.Application, fbd.SelectedPath, recursive);
+                string reportPath = FamilyMaterialAuditor.WriteReport(fbd.SelectedPath, result);
+                MaterialAuditLogger.Log(doc, "MAT_FamilyAudit", fbd.SelectedPath,
+                    new Dictionary<string, object>
+                    {
+                        ["familiesScanned"] = result.FamiliesScanned,
+                        ["materialsFound"]  = result.Rows.Count,
+                        ["failures"]        = result.Failures.Count,
+                        ["elapsedSeconds"]  = (int)result.Elapsed.TotalSeconds,
+                        ["recursive"]       = recursive,
+                    });
+
+                TaskDialog.Show("Family Material Audit",
+                    $"Scanned {result.FamiliesScanned} family file(s) in {result.Elapsed.TotalSeconds:F0}s\n" +
+                    $"Found {result.Rows.Count} material reference(s)\n" +
+                    $"Failures: {result.Failures.Count}\n\n" +
+                    $"CSV report: {reportPath}");
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(reportPath) { UseShellExecute = true })?.Dispose(); }
+                catch (Exception ex) { StingLog.Warn($"Open report: {ex.Message}"); }
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Family Audit failed: {ex.Message}"); }
+        }
+
         // ── A6 — Material packs (Drawing-Type binding) ──────────────────────
 
         public static void LoadMaterialPack(UIApplication app)

@@ -1991,6 +1991,8 @@
                                             ToolTip="Pick a CSV, preview diff, confirm to commit"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Open Template" Tag="MAT_TemplateCsv" Click="MatBtn_Click"
                                             ToolTip="Open the BLE/MEP CSV template for editing"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Audit Family Folder…" Tag="MAT_FamilyAudit" Click="MatBtn_Click"
+                                            ToolTip="Open every .rfa in a picked folder read-only, list their materials, write CSV report. Slow on large drops."/>
                                 </WrapPanel>
                             </StackPanel>
                         </TabItem>
