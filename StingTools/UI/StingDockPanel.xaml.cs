@@ -2526,12 +2526,58 @@ namespace StingTools.UI
         {
             if (_matRows == null) return;
             System.Windows.Data.CollectionViewSource.GetDefaultView(_matRows).Refresh();
+            UpdateMatFilterChip();
         }
 
         private void MatFilter_Changed(object sender, SelectionChangedEventArgs e)
         {
             if (_matRows == null) return;
             System.Windows.Data.CollectionViewSource.GetDefaultView(_matRows).Refresh();
+            UpdateMatFilterChip();
+        }
+
+        /// <summary>
+        /// Build the human-readable chip describing the active filters and
+        /// hide it when no filter is in effect. One-click clear via the
+        /// MAT_ClearFilters dispatch tag wired to ClearMatFilters().
+        /// </summary>
+        private void UpdateMatFilterChip()
+        {
+            if (bdrMatFilterChip == null || txtMatFilterChip == null) return;
+            try
+            {
+                string search = txtMatSearch?.Text?.Trim() ?? "";
+                string origin = (cmbMatOrigin?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All";
+                string used = (cmbMatUsed?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All Used";
+
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(search)) parts.Add($"Search: '{search}'");
+                if (!string.Equals(origin, "All", StringComparison.OrdinalIgnoreCase)) parts.Add($"Origin: {origin}");
+                if (!string.Equals(used, "All Used", StringComparison.OrdinalIgnoreCase)) parts.Add($"Usage: {used}");
+
+                if (parts.Count == 0)
+                { bdrMatFilterChip.Visibility = Visibility.Collapsed; return; }
+                int shown = _matRows == null ? 0 : _matRows.Count(r => MatRowFilter(r));
+                int total = _matRows?.Count ?? 0;
+                txtMatFilterChip.Text = string.Join(" · ", parts) + $"   →   {shown}/{total} shown";
+                bdrMatFilterChip.Visibility = Visibility.Visible;
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateMatFilterChip: {ex.Message}"); }
+        }
+
+        /// <summary>One-click reset for every MAT filter control.</summary>
+        public void ClearMatFilters()
+        {
+            try
+            {
+                if (txtMatSearch != null) txtMatSearch.Text = "";
+                if (cmbMatOrigin != null) cmbMatOrigin.SelectedIndex = 0;
+                if (cmbMatUsed   != null) cmbMatUsed.SelectedIndex = 0;
+                if (_matRows != null)
+                    System.Windows.Data.CollectionViewSource.GetDefaultView(_matRows).Refresh();
+                UpdateMatFilterChip();
+            }
+            catch (Exception ex) { StingLog.Warn($"ClearMatFilters: {ex.Message}"); }
         }
 
         private void MatGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)

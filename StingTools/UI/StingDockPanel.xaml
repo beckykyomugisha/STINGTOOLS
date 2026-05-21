@@ -1813,6 +1813,22 @@
                                         <ComboBoxItem Content="Unused"/>
                                     </ComboBox>
                                 </Grid>
+                                <!-- Active-filter chip — hidden when no filters active -->
+                                <Border x:Name="bdrMatFilterChip" Margin="0,0,0,4" Padding="6,2,6,2"
+                                        Background="#1F3D6FBA" CornerRadius="3" Visibility="Collapsed">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" x:Name="txtMatFilterChip"
+                                                   FontSize="10" Foreground="#1F3D6F" VerticalAlignment="Center"
+                                                   Text="(no filters)"/>
+                                        <Button Grid.Column="1" Content="✕ Clear" FontSize="10" Padding="6,1,6,1"
+                                                Tag="MAT_ClearFilters" Click="MatBtn_Click"
+                                                ToolTip="Clear all active filters and show every material"/>
+                                    </Grid>
+                                </Border>
 
                                 <!-- Action button strip -->
                                 <WrapPanel Grid.Row="1" Margin="0,0,0,4">

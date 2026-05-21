@@ -1270,6 +1270,7 @@ namespace StingTools.UI
                     case "MAT_FamilyMaterials":MatActions.ShowFamilyMaterials(app); break;
                     case "MAT_SustainabilityGate": MatActions.RunSustainabilityGate(app); break;
                     case "MAT_SustainabilityEdit": MatActions.EditSustainabilityGate(app); break;
+                    case "MAT_ClearFilters":   UI.StingDockPanel.LastInstance?.ClearMatFilters(); break;
                     case "MAT_ToggleAutoApply":MatActions.ToggleAutoApply(app); break;
                     case "MAT_ToggleAutoFill": MatActions.ToggleAutoFill(app); break;
 
