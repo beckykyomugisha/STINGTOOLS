@@ -216,9 +216,43 @@ namespace StingTools.Commands.Plumbing
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
 
-            // Phase 179b ships a calculator with sane defaults — UI input dialog is layered later.
+            // System volume + temperatures are project-specific. Read them from
+            // ProjectInformation when bound (PLM_EXPVSL_SYS_VOL_L /
+            // PLM_EXPVSL_TCOLD_C / PLM_EXPVSL_THOT_C), otherwise fall back to
+            // BS 7074-1 defaults for an indirect DHW system (200 L, 10→60°C)
+            // and prompt the user so they know the values are defaults.
             double vsysL = 200.0;
             double tCold = 10, tHot = 60;
+            try
+            {
+                var pi = ctx.Doc?.ProjectInformation;
+                if (pi != null)
+                {
+                    double v = ReadProjDouble(pi, "PLM_EXPVSL_SYS_VOL_L");
+                    if (v > 0) vsysL = v;
+                    double tc = ReadProjDouble(pi, "PLM_EXPVSL_TCOLD_C");
+                    if (tc > 0) tCold = tc;
+                    double th = ReadProjDouble(pi, "PLM_EXPVSL_THOT_C");
+                    if (th > 0) tHot = th;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ExpVessel input read: {ex.Message}"); }
+
+            var confirm = new TaskDialog("STING Expansion Vessel — Inputs")
+            {
+                MainInstruction = "Confirm sizing inputs",
+                MainContent = $"System volume: {vsysL:F0} L\n" +
+                              $"Cold fill temperature: {tCold:F0} °C\n" +
+                              $"Hot operating temperature: {tHot:F0} °C\n\n" +
+                              "These come from ProjectInformation when " +
+                              "PLM_EXPVSL_SYS_VOL_L / PLM_EXPVSL_TCOLD_C / " +
+                              "PLM_EXPVSL_THOT_C are bound, otherwise from BS 7074-1 " +
+                              "defaults. Set those parameters on the project to override.",
+                CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel,
+                DefaultButton = TaskDialogResult.Ok
+            };
+            if (confirm.Show() != TaskDialogResult.Ok) return Result.Cancelled;
+
             var r = ExpansionVesselSizer.Size(vsysL, tCold, tHot);
 
             var panel = StingResultPanel.Create("Expansion Vessel (BS 7074-1)");
@@ -270,9 +304,11 @@ namespace StingTools.Commands.Plumbing
                     if (!sym.IsActive) sym.Activate();
                     var fi = ctx.Doc.Create.NewFamilyInstance(pt, sym, level,
                         Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
-                    // Stamp the sizing result on the placed instance so a schedule
-                    // can render the design intent next to the placement.
-                    ParameterHelpers.SetString(fi, "PLM_RECIRC_PUMP_DUTY_LPM", "",  overwrite: false);
+                    // Stamp the sized vessel volume + a design-intent note onto
+                    // the placed instance so a schedule can render the sizing
+                    // outcome alongside the placement.
+                    ParameterHelpers.SetString(fi, ParamRegistry.PLM_EXPVSL_SZ,
+                        ((int)Math.Round(r.VTankL)).ToString(), overwrite: false);
                     ParameterHelpers.SetString(fi, "Comments",
                         $"STING auto-placed · {r.RecommendedFamily} · sized for {r.SystemVolumeL:F0} L sys @ ΔT {r.DeltaTC:F0}°C", overwrite: false);
                     tx.Commit();
@@ -324,6 +360,24 @@ namespace StingTools.Commands.Plumbing
                 return best;
             }
             catch { return null; }
+        }
+
+        private static double ReadProjDouble(Element pi, string paramName)
+        {
+            try
+            {
+                var p = pi.LookupParameter(paramName);
+                if (p == null || !p.HasValue) return 0;
+                if (p.StorageType == StorageType.Double)  return p.AsDouble();
+                if (p.StorageType == StorageType.Integer) return p.AsInteger();
+                if (p.StorageType == StorageType.String
+                    && double.TryParse(p.AsString(),
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out var v)) return v;
+            }
+            catch { }
+            return 0;
         }
     }
 

@@ -93,12 +93,15 @@ namespace StingTools.Core.Plumbing
                 UpdaterRegistry.RegisterUpdater(updater, isOptional: true);
 
                 var pipeFilter = new ElementCategoryFilter(BuiltInCategory.OST_PipeCurves);
-                // Size on placement
+                // Size on placement only. GetChangeTypeAny() would fire on every
+                // parameter write — including PLM_CALC_DN and PLM_PIPE_REAL_SIZE
+                // that this updater itself writes — risking re-entry cascades.
                 UpdaterRegistry.AddTrigger(_updaterId, pipeFilter,
                     Element.GetChangeTypeElementAddition());
-                // Re-size when system type or other parameters change
+                // Also re-size when the pipe geometry changes (e.g. user
+                // re-routes), but NOT on arbitrary parameter writes.
                 UpdaterRegistry.AddTrigger(_updaterId, pipeFilter,
-                    Element.GetChangeTypeAny());
+                    Element.GetChangeTypeGeometry());
 
                 StingLog.Info("RealTimePipeSizer registered.");
             }
@@ -145,7 +148,8 @@ namespace StingTools.Core.Plumbing
             var el = doc.GetElement(eid);
             if (el is not Pipe pipe) return;
 
-            // Skip if already STING-sized
+            // Skip if already STING-sized — prevents the cascade where our own
+            // writes re-fire the updater.
             if (AlreadySized(pipe)) return;
 
             bool isDrainage = IsDrainageSystem(pipe);
@@ -155,11 +159,14 @@ namespace StingTools.Core.Plumbing
             // Accumulate upstream DFU / LU (fast-path, capped at MaxHops)
             double dfu = AccumulateDfuFast(doc, pipe, MaxHops);
 
-            using (var t = new Transaction(doc, "STING Auto-Size Pipe"))
+            // IUpdater.Execute runs inside Revit's host transaction. Opening a
+            // new Transaction here throws "transaction already open". Use a
+            // SubTransaction so per-pipe failure rolls back just this pipe.
+            using (var sub = new SubTransaction(doc))
             {
                 try
                 {
-                    t.Start();
+                    sub.Start();
 
                     if (isDrainage && dfu > 0.001)
                     {
@@ -177,18 +184,18 @@ namespace StingTools.Core.Plumbing
                         TryWriteInt(pipe, ParamRegistry.PLM_SUP_LU_CW, (int)Math.Round(dfu));
                         int supDn = EstimateSupplyDnMm(dfu, pipe, code);
                         if (supDn > 0)
-                            TryWriteInt(pipe, "PLM_SUP_DN_REQ", supDn);
+                            TryWriteInt(pipe, ParamRegistry.PLM_SUP_DN_REQ, supDn);
                     }
 
                     // Stamp as STING-sized
                     TryWriteInt(pipe, ParamRegistry.PLM_PIPE_REAL_SIZE, 1);
 
-                    t.Commit();
+                    sub.Commit();
                 }
                 catch (Exception ex)
                 {
-                    StingLog.Warn($"RealTimePipeSizer tx pipe {eid.Value}: {ex.Message}");
-                    try { t.RollBack(); } catch { }
+                    StingLog.Warn($"RealTimePipeSizer sub-tx pipe {eid.Value}: {ex.Message}");
+                    try { if (sub.HasStarted() && !sub.HasEnded()) sub.RollBack(); } catch { }
                 }
             }
         }

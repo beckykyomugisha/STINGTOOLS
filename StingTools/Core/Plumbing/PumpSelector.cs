@@ -234,9 +234,16 @@ namespace StingTools.Core.Plumbing
         {
             try
             {
-                // Pull the maximum design flow from SupplySizingReport by running a quick analysis
-                // Supply sizer already handles system detection internally — we use a light proxy
-                double maxQdLps = 0;
+                // The pump duty is the flow AT THE PUMP, not the max flow on any
+                // pipe in the system. We pick the system's largest-diameter pipe
+                // (proxy for the main/index leg the pump feeds) and read its
+                // flow; falling back to the system max only if no pipe carries
+                // a flow value at all. This avoids over-estimating duty on
+                // heavily-branched networks where Revit may have computed flow
+                // on individual fixture runouts but not on the main.
+                double mainFlowLps = 0;
+                double maxFlowLps  = 0;
+                double mainDiaFt   = 0;
                 var pipes = new FilteredElementCollector(doc)
                     .OfClass(typeof(Pipe))
                     .WhereElementIsNotElementType()
@@ -253,19 +260,21 @@ namespace StingTools.Core.Plumbing
                     try
                     {
                         var flowParam = p.get_Parameter(BuiltInParameter.RBS_PIPE_FLOW_PARAM);
-                        if (flowParam != null && flowParam.HasValue)
+                        if (flowParam == null || !flowParam.HasValue) continue;
+                        double flowFt3s = flowParam.AsDouble();
+                        double flowLps  = flowFt3s * 28.3168; // ft³/s → L/s
+                        if (flowLps > maxFlowLps) maxFlowLps = flowLps;
+                        if (p.Diameter > mainDiaFt)
                         {
-                            // Revit stores flow in ft³/s internally
-                            double flowFt3s = flowParam.AsDouble();
-                            double flowLps  = flowFt3s * 28.3168; // ft³/s → L/s
-                            if (flowLps > maxQdLps) maxQdLps = flowLps;
+                            mainDiaFt = p.Diameter;
+                            mainFlowLps = flowLps;
                         }
                     }
                     catch { }
                 }
 
-                // Floor: 0.1 L/s; if nothing found fall back
-                return Math.Max(maxQdLps, 0.1);
+                double picked = mainFlowLps > 0 ? mainFlowLps : maxFlowLps;
+                return Math.Max(picked, 0.1);
             }
             catch { return 0.5; }
         }

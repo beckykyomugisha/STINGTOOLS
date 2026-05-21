@@ -147,6 +147,13 @@ namespace StingTools.Core.Plumbing
 
                 if (!res.IsStack)
                 {
+                    // BS EN 12056-2 §6.2.3 sizes drains at h/D ≈ 0.5 (half-full).
+                    // For a circular section flowing exactly half-full, hydraulic
+                    // radius rH = D/4 (same value as full-bore), so this
+                    // approximation gives the correct self-cleansing velocity
+                    // at the design fill level. For other fill ratios a partial-
+                    // flow rH calculation would be needed; flagged here so
+                    // future refinement is explicit.
                     double n = MannningNFor(pipe);
                     double diaM = currentDn / 1000.0;
                     double rH   = diaM / 4.0;
