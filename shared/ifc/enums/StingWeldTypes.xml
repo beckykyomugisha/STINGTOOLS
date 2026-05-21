@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingWeldTypes</Name>
+    <Definition>Weld type codes per AWS A2.4 / BS EN ISO 2553. Drives fabrication spool drawings, NC1 export records, weld-map exports, NDT regime selection, and the COBie fabrication register.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4004-9000-000000000026</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>AWS A2.4-2020 (US); BS EN ISO 2553:2019 (UK / EU); ASME IX</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Butt" sentinel="false">
+      <Definition>Butt Weld — full-penetration end-to-end weld between two pipe / plate edges.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Fillet" sentinel="false">
+      <Definition>Fillet Weld — triangular cross-section at a T or lap joint.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Socket" sentinel="false">
+      <Definition>Socket Weld — pipe inserted into socket fitting, then fillet-welded around perimeter.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Lap" sentinel="false">
+      <Definition>Lap Weld — two overlapping plates joined with fillet welds on each side.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Tack" sentinel="false">
+      <Definition>Tack Weld — temporary short-bead weld to hold assembly during full welding.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Spot" sentinel="false">
+      <Definition>Spot Weld — resistance-welded contact point; sheet-metal duct seams.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Seam" sentinel="false">
+      <Definition>Seam Weld — continuous resistance / fusion weld along seam length.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Plug" sentinel="false">
+      <Definition>Plug Weld — weld through a circular hole in one part to fuse to the part beneath.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Projection" sentinel="false">
+      <Definition>Projection Weld — resistance weld at engineered raised projections.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Flange" sentinel="false">
+      <Definition>Flanged joint (no weld) — bolted flange, included here for spool-drawing consistency.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>0bea55187840d585f37542e1f28233d1005b795e8335aae9dcf00b4a31339575</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

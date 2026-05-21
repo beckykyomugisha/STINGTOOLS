@@ -577,10 +577,12 @@ public class TransmittalsController : ControllerBase
         int skippedNotPublished = documentIds.Length - publishedDocs.Count;
 
         // Existing snapshot IDs to avoid duplicates on the AddDocuments re-call path.
-        var alreadyLinked = await _db.TransmittalDocuments
+        // EF Core has no ToHashSetAsync — materialise the list first then ToHashSet().
+        var alreadyLinkedList = await _db.TransmittalDocuments
             .Where(td => td.TransmittalId == transmittal.Id)
             .Select(td => td.DocumentId)
-            .ToHashSetAsync(ct);
+            .ToListAsync(ct);
+        var alreadyLinked = alreadyLinkedList.ToHashSet();
 
         int created = 0;
         int skippedAlreadyLinked = 0;

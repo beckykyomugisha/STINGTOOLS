@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingEESTypes</Name>
+    <Definition>Essential Electrical Services classification per HTM 06-01 / NFPA 99. Defines maximum permitted changeover time from mains-failure to standby-power available. Drives generator + UPS + ATS sizing, EES validator gates, and the EES one-line-diagram drawing-type pack.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4005-9000-00000000002c</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/nhs/htm-06-01/1.0/class/ees-type</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>HTM 06-01:2017 (Electrical services supply and distribution); NFPA 99:2024 Chapter 6; NFPA 110 (Emergency Standby Power)</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="TypeA_LifeSafety" sentinel="false">
+      <Definition>Type A — Life Safety / Immediate. Sub-5-second changeover. Theatre lighting, ventilator life support, IT for clinical monitoring. NFPA 99 Type 1 equivalent.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="TypeB_Critical" sentinel="false">
+      <Definition>Type B — Critical. Sub-15-second changeover. ICU, neonatal, blood-bank refrigeration, key clinical equipment.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="TypeC_Essential" sentinel="false">
+      <Definition>Type C — Essential. Sub-180-second changeover. General clinical lighting, lifts, comms.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="TypeD_Optional" sentinel="false">
+      <Definition>Type D — Optional. Standby restored within minutes via generator only. Non-clinical / amenity power.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Normal" sentinel="false">
+      <Definition>Normal — no standby backup; mains-only supply. Office, retail, catering ambient.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="UPS_Only" sentinel="false">
+      <Definition>UPS-Only — uninterruptible supply without generator; finite battery autonomy (typically 10-30 min). Sensitive IT loads only.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="IPS" sentinel="false">
+      <Definition>IPS — Isolated Power System per IEC 60364-7-710 / NFPA 99. Specific to operating theatres + critical care for shock + flammability protection.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>cbe0bff6ed8f7d4ca435694fd16741762a3c865c64608ad08551cf8d257ec394</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

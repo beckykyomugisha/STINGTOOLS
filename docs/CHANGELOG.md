@@ -1,6 +1,306 @@
+StructuralAnalysisEngine general — deflection / punching / wind / vibration / SSI / progressive collapse are diffuse single-shot calcs. Each subcheck takes a different parameter set (member type × load case × code combination) so there's no clean one-pass model walker. Each needs its own phase. That's the genuinely-deferred remainder of the integration audit.
 # CHANGELOG — STINGTOOLS
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
+
+#### Completed (Phase 186b — Pset expansion + Path-2 static rule closeout)
+
+Two follow-ups to Phase 186 that turn the substrate from "Tier-1 only,
+60% of declared rules statically enforced" into "Tier-1 + drawing +
+project-org coverage, 100% of declared statically-enforceable rules
+enforced".
+
+**3 new Pset templates** under `shared/ifc/psets/` (raises Pset count
+from 2 → 5):
+
+- `Pset_StingTag7.xml` — 10 properties (`NarrativeFull` + 6 sub-sections
+  A–F + 3 paragraph-state booleans) covering the TAG7 rich narrative
+  surface. 3 rules, all marked `enforced-by="host"` because they're
+  presentation-time contracts (TAG7Builder territory).
+- `Pset_StingDrawing.xml` — 12 properties (`DrawingTypeId`,
+  `StyleLocked`, `CropKind`, `CropMarginMm`, `PackId`, `PackChecksum`,
+  `TokenProfileId`, `TagDepth`, `SegmentMask`, `ColourScheme`,
+  `SheetNumber`, `SheetName`) mirroring the Drawing Template Manager
+  fields STING stamps on every Revit view/sheet. 3 rules
+  (`DRAWING_TYPE_RESOLVABLE` static, two `enforced-by="host"`).
+- `Pset_StingProjectOrg.xml` — 13 properties mirroring the
+  `PRJ_ORG_*` corporate metadata cells (`ProjectCode`, `Phase`,
+  `ClientName`, `CompanyName`, `OriginatorCode`, …). 3 rules
+  (2 static + 1 `enforced-by="host"`).
+
+**6 newly-enforced static rules** in `SpatialChecker`
+(`stingtools-core/python/stingtools_core/spatial/check.py`):
+
+| Rule | Pset | What it catches |
+|---|---|---|
+| `DISC_NOT_EMPTY` | `Pset_StingTags` | Discipline missing or sentinel "XX" at Stage_3+; enum-membership check when EnumRegistry available |
+| `DRAWING_TYPE_RESOLVABLE` | `Pset_StingDrawing` | DrawingTypeId format (`^[a-zA-Z][a-zA-Z0-9\-]+$`) + optional registry-lookup via new `DrawingTypeRegistry` class |
+| `PROJECTORG_PROJECT_CODE_REQUIRED` | `Pset_StingProjectOrg` | ProjectCode missing or not matching `^[A-Z][A-Z0-9\-]{2,5}$` |
+| `PROJECTORG_PHASE_VALID` | `Pset_StingProjectOrg` | Phase value not in `StingRibaStages` enum (when EnumRegistry available) |
+| `BUILDING_LOC_UNIQUE` | `Pset_StingSpatialCodes` | Two or more `IfcBuilding` entities sharing a LocationCode |
+| `STOREY_LVL_UNIQUE_WITHIN_BUILDING` | `Pset_StingSpatialCodes` | Two or more `IfcBuildingStorey` entities sharing a LevelCode within the same `IfcBuilding` |
+
+**Static rule coverage**: 6 → 12 (100% of declared statically-
+enforceable rules; the remaining 8 rules are marked
+`enforced-by="host"` because they are write-time / presentation-time
+contracts a static IFC snapshot can't verify).
+
+**SpatialChecker API additions**:
+
+- `SpatialChecker.__init__(model, stage="Stage_3", enum_registry=None,
+  drawing_type_registry=None)` — gains 3 optional kwargs (stage gating,
+  enum-membership checks, drawing-type registry lookup).
+- `SpatialChecker.check_project_org()` — model-level method for the 2
+  Pset_StingProjectOrg rules.
+- `SpatialChecker.check_spatial_uniqueness()` — model-level method for
+  the 2 spatial-code uniqueness rules.
+- `SpatialChecker.check_all_elements()` — now also walks
+  `IfcAnnotation` entities (so Pset_StingDrawing checks fire) and
+  invokes the new model-level methods.
+- New `DrawingTypeRegistry` class exported from
+  `stingtools_core.spatial` — wraps a set of known DrawingType ids
+  for `DRAWING_TYPE_RESOLVABLE` lookup.
+
+**Tests** (`stingtools-core/python/tests/test_smoke.py`): +8 new tests
+(23 standalone, 27 pytest including tmp_path) covering every newly-
+enforced rule with both positive and negative fixtures, plus a
+stage-gating test (Stage_1 must not fire DISC_NOT_EMPTY even when
+Discipline is "XX").
+
+**Verification status at Phase 186b close**:
+
+| Layer | Status |
+|---|---|
+| 5 Pset XMLs lock-consistent | ✅ `compute_checksums.py --check` exit 0 |
+| 52 enum XMLs SHA-256-locked | ✅ verified drift-free |
+| `stingtools-core` smoke tests | ✅ 23/23 standalone pass, 27/27 pytest pass |
+| 6 new static rules verified | ✅ all 6 fire on negative fixtures, pass on positive |
+| Pset_StingDrawing fires on IfcAnnotation | ✅ verified via new test |
+| Stage gating verified | ✅ DISC_NOT_EMPTY skips at Stage_1, fires at Stage_3 |
+
+**Stage gating (Phase 186b1 follow-up)**:
+
+Review pass after the initial 186b commit surfaced a correctness gap:
+`SpatialChecker` had a `stage` kwarg but only DISC_NOT_EMPTY consulted
+it. The other 11 static rules always fired regardless of stage, so a
+Stage_0/1 model with tag data that would later be wrong (LOC not
+matching its building, etc.) was incorrectly tripping Stage_3 rules.
+
+Fix: added `_RULE_ACTIVE_FROM` table mirroring each rule's
+`<ActiveFrom>` declaration in the Pset XML, plus an `_active(rule_id)`
+helper, plus gates at every emission point — `check_element`,
+`check_seq_uniqueness`, `check_spatial_uniqueness`, `check_project_org`.
+DISC_NOT_EMPTY's enum-membership branch now also honours the
+Stage_2+ gate (previously it skipped the gate that the empty/XX
+branches respected). 2 new tests pinpoint the regression:
+`test_disc_not_empty_invalid_value_skipped_at_stage_1` and
+`test_stage_3_rules_skip_at_stage_2`.
+
+Live verification across stages on the same Stage_3-fail fixture:
+
+| Stage | DISC_NOT_EMPTY (Discipline='XYZ', enum_registry on) |
+|---|---|
+| Stage_0 | 0 ✅ (rule inactive) |
+| Stage_1 | 0 ✅ (rule inactive) |
+| Stage_2 | 1 ✅ (rule active) |
+| Stage_3 | 1 ✅ |
+
+Test count: 25 standalone, 29 pytest.
+
+**Phase 186b2 follow-up (G2 / G3 / G4 closeout)**:
+
+The three deferred items from the Phase 186b caveats are now closed.
+
+**G2 — IDS coverage for the 3 new psets** (`shared/ifc/ids/`):
+
+- `sting-drawing.ids` (6 specs) — DrawingTypeId format, CropKind +
+  ColourScheme enum membership, CropMarginMm 0..500 mm, PackChecksum
+  SHA-256 grammar, TagDepth 1..10.
+- `sting-tag7.ids` (7 specs) — length bound on each of the 7
+  narrative parts (NarrativeFull + 6 sub-sections A-F).
+- `sting-project-org.ids` (6 specs) — ProjectCode + OriginatorCode
+  pattern `^[A-Z][A-Z0-9\-]{2,5}$`, Phase StingRibaStages enum,
+  CompanyName + ClientName non-empty length bounds, WorkflowProfile
+  snake_case grammar.
+
+All 3 files pass official ifctester XSD validation. Verified live on
+positive + negative fixtures: positive passes 19/19 specs; an
+exhaustive max-out negative trips 7/7 sting-tag7 length-bound specs.
+A more sparse "one bad value per pset" negative trips 5/6 sting-
+drawing specs (PackChecksum stays silent because the field isn't set
+in the fixture — optional-when-present applicability is correct) and
+4/6 sting-project-org specs. All 19 new specs have been demonstrated
+to fire on at least one negative variant. Total IDS spec count across
+the substrate: 11 + 8 + 6 + 7 + 6 = **38 specs** across all 5 psets.
+
+**G3 — `DrawingTypeRegistry.from_json` / `from_jsons`**
+(`stingtools-core/python/stingtools_core/spatial/check.py`):
+
+- `DrawingTypeRegistry.from_json(path)` — load a registry from any
+  `STING_DRAWING_TYPES.json` shape (corporate baseline or project
+  override). Reads `drawingTypes[].id`; raises `ValueError` on
+  malformed JSON or missing `drawingTypes` array.
+- `DrawingTypeRegistry.from_jsons(*paths)` — layered load merging
+  corporate baseline + project overrides; missing paths are skipped
+  silently.
+
+Verified against the live corporate `StingTools/Data/STING_DRAWING_TYPES.json`
+(90 ids).
+
+**G4 — IfcDocumentInformation + IfcDocumentReference walked**
+(`stingtools-core/python/stingtools_core/spatial/check.py`):
+
+`SpatialChecker.check_all_elements` now walks
+`IfcDocumentInformation` and `IfcDocumentReference` alongside
+`IfcAnnotation`, matching the full Pset_StingDrawing
+`<Applicability>` set. Verified with a new test
+(`test_drawing_check_fires_on_document_information`).
+
+**Test count**: 27/27 standalone, 33/33 pytest.
+
+**Caveats (Phase 186b — open list)**:
+
+1. ~~The 3 new Psets do NOT yet have matching IDS specs.~~ Closed
+   (G2 above).
+2. ~~`DrawingTypeRegistry` doesn't load from JSON.~~ Closed
+   (G3 above).
+3. Built without `dotnet build` verification — these are pure Python
+   substrate changes, no C# affected.
+4. IDS specs for Tag7/ProjectOrg use `dataType="IFCLABEL"` rather
+   than the Pset XML's declared `IfcText` to match the writer-
+   tolerant convention used in `sting-tag-grammar.ids`. The Pset
+   XML's IfcText declaration remains canonical for STING-side
+   storage; the IDS check is liberal about string-derived types
+   for cross-writer compatibility.
+5. `tools/tests/round_trip.py` has no `--mismatch-kind` variants
+   for the 3 new psets — the harness currently covers
+   `tag-grammar` and the 6 spatial-codes mismatch kinds only.
+   Adding `drawing-bad-id`, `drawing-bad-crop`, `tag7-too-long`,
+   `prjorg-bad-code`, `prjorg-bad-phase` variants is a 1-hour
+   follow-up that closes the fixture-generation gap.
+
+#### Completed (Phase 186 — Bonsai integration foundation; multi-host substrate)
+
+**Scope**: turns STING from a Revit-only plugin into the data-layer
+spine of a multi-host BIM coordination platform. Establishes the IFC4
+substrate (52 enums, 2 psets, 2 IDS files, bSDD plan), a dual-language
+Python core, the first non-Revit host plugin (Bonsai add-on), and the
+Planscape Server IFC-ingest endpoint with cross-host element-identity
+mapping.
+
+Substrate (`shared/ifc/`): 52 enum XMLs across 5 tiers (tag grammar /
+drawing engine / workflow / engineering domains / healthcare pack);
+49 corporate-locked with SHA-256 fingerprints + 3 project-template
+overlays for `StingLocationCodes/ZoneCodes/LevelCodes`. 2 Pset
+templates — `Pset_StingTags` (12 properties, 9 cross-entity rules) +
+`Pset_StingSpatialCodes` (6 properties, 5 cross-entity rules). 2 IDS
+files — `sting-tag-grammar.ids` (11 specs) + `sting-spatial-codes.ids`
+(8 specs) — both pass official ifctester XSD validation. bSDD
+publication plan triages all 52 enums across 6 status categories
+(`ready` × 24, `external_already` × 6, `private` × 16,
+`project_scoped` × 3, `skip_external` × 2, `draft` × 1).
+
+Python core (`stingtools-core/python/`): public API
+`EnumRegistry / PsetRegistry / TagGrammar / Tag / SpatialChecker /
+PlanscapeClient / AuditLog / IdsRunner`. Reads the substrate
+programmatically; SHA-256 verification on load; project-overlay
+merge with reserved-sentinel preservation. SpatialChecker enforces
+6 cross-entity rules statically (`LOC_MATCHES_BUILDING`,
+`LVL_MATCHES_STOREY`, `ZONE_MATCHES_ASSIGNEDZONE`,
+`SYS_MATCHES_IFCSYSTEM`, `SEQ_UNIQUE_WITHIN_GROUP`,
+`FULLTAG_CONSISTENT`); 2 behavioural rules (`TOKEN_LOCK_HONORED`,
+`TAG_HISTORY_PROVIDED`) marked `enforced-by="host"` in Pset XML
+since they can't be checked from a static IFC snapshot.
+
+Bonsai add-on (`stingtools-bonsai/`): Blender 4.2+ extension. Day-1
+scaffold ships diagnostic operators (`sting.about`,
+`sting.reload_substrate`, `sting.bonsai_probe`) + `STING_PT_main`
+N-panel + `BonsaiBridge` coexistence layer that delegates IFC
+writes through `ifcopenshell.api.run()` so Bonsai's undo + UI
+refresh hook in. MVP operators (16, ≈8 weeks) deferred to a
+follow-up phase.
+
+Planscape Server: new `IfcController` with
+`POST /api/projects/{id}/ifc/data` (host-agnostic element ingest)
+and `GET /api/projects/{id}/ifc/mappings` (cross-host GUID
+lookup). New `ExternalElementMapping` entity composite-keyed on
+`(ProjectId, IfcGlobalId, Host, HostDocumentGuid)`. `TaggedElement`
+unique constraints converted to filtered uniques (Revit path
+unchanged; non-Revit hosts now path-through). EF migration not yet
+generated — see `docs/PHASE_186_VERIFICATION_CHECKLIST.md § Day 1`.
+
+Tooling: `tools/enums/compute_checksums.py` (SHA-256 drift detector
++ manifest generator, handles both enums and psets),
+`tools/enums/audit_bsdd.py` (publication-plan summary check),
+`tools/converters/sting_to_psd.py` (STING XML → buildingSMART PSD),
+`tools/converters/sting_to_revit_params.py` (STING psets → Revit
+shared-parameter file fragment with deterministic UUID v5 GUIDs),
+`tools/tests/round_trip.py` (IDS round-trip harness with
+`--generate-fixture` producing both positive + negative test
+fixtures via `ifcopenshell.api`).
+
+CI: `.github/workflows/ifc-substrate.yml` — 8 validation steps
+(checksum drift, bSDD audit, XSD validation per enum, IDS XML
+well-formedness, Pset enum references resolve, IfdGuid uniqueness,
+stingtools-core smoke tests, Bonsai add-on py_compile). Triggers
+on push / PR touching `shared/ifc/**` or `tools/enums/**`.
+
+Documentation (`docs/`):
+- `PHASE_186_BONSAI_INTEGRATION.md` — architectural narrative,
+  19 named design decisions, cross-host federation diagram,
+  verification matrix, forward roadmap through Phase 190.
+- `PHASE_186_VERIFICATION_CHECKLIST.md` — Path A as a
+  step-by-step run-book (Days 1–5 with copy-paste commands).
+- `MVP_SCOPE_BONSAI.md` — the 8-week MVP scope captured to disk
+  (success demo, 16 operators, module structure, timeline).
+- `VERIFIED.md` — evidence log: every ❌ → ✅ flip with the
+  command + outcome that proved it.
+- `IDS_AUTHORING_GUIDE.md` — 3 IDS-v1.0 gotchas + authoring
+  conventions surfaced during Phase 186 verification.
+
+**Verification status at Phase 186 close**:
+
+| Layer | Status |
+|---|---|
+| 52 enum XMLs SHA-256-locked | ✅ verified drift-free |
+| 2 Pset XMLs lock-consistent | ✅ verified |
+| bSDD plan summary matches entries | ✅ `audit_bsdd.py` OK |
+| `stingtools-core` smoke tests | ✅ 15/15 pass (8 happy + 7 negative/integrity) |
+| Both IDS files pass official XSD | ✅ verified with ifctester schema |
+| Both IDS files run via ifctester | ✅ 19/19 specs pass on both fixtures |
+| `SpatialChecker` fires on negative fixture | ✅ `LOC_MATCHES_BUILDING` mismatch detected |
+| Bonsai add-on Python compiles | ✅ py_compile clean |
+| `dotnet build Planscape.Server` | ⚠️ pending human run |
+| EF migration generated | ⚠️ pending human run |
+| Bonsai add-on loads in real Blender | ⚠️ pending human run |
+| GitHub Actions runs green | ⚠️ pending push |
+
+**Caveats**:
+
+1. C# IfcController follows existing controller conventions but has
+   never seen `dotnet build`. Most likely place to find a real bug.
+2. EF migration: `dotnet ef migrations add IfcIngestSubstrate` is the
+   next deployment step. Schema diff: 1 new table + 2 new filtered
+   uniques on `TaggedElements`.
+3. bSDD entries all carry `proposed: true`. No actual publication
+   has happened. The 22 "ready" entries carry proposed IRIs that DO
+   NOT resolve in bSDD until status flips to `posted` / `verified`
+   via the future `tools/bsdd/publish.py`.
+4. MVP operators not built. Day-1 ships diagnostic ops only. The 16
+   production operators from `docs/MVP_SCOPE_BONSAI.md` are
+   estimated 8 weeks single-dev.
+5. Healthcare Pset bundle (5 psets) is Phase 187 work; the 11 Tier-5
+   healthcare enumerations shipped this phase but the consuming
+   psets did not.
+6. ArchiCAD (Phase 188) + Tekla connector (Phase 189) are forward
+   roadmap; substrate is host-agnostic so the work is incremental.
+7. CI workflow file exists but only triggers on push. First green
+   run happens once the branch is pushed past the verification
+   checkpoint.
+
+This phase's CLAUDE.md entry is the "Phase 186 — Bonsai integration
+foundation" section; full architectural detail lives in
+`docs/PHASE_186_BONSAI_INTEGRATION.md`.
 
 #### Completed (Phase 184m — Cost management UI surfacing)
 
@@ -5213,250 +5513,141 @@ no non-comment references to either broken API remain.
 
 1. Built without `dotnet build` verification (Linux sandbox). The user's pull command should now succeed and the resulting build should be clean.
 
-#### Completed (Phase 187 — Tag Family Creator ↔ CSV alignment)
+#### Completed (Phase 188 — Symbol library review + comprehensive standards build-out)
 
-**Scope**: close the silent mismatch between the v5 tag configuration
-CSVs (`STING_TAG_CONFIG_v5_0_{ARCH|GEN|MEP|STR|HEALTH}.csv`) and
-`TagFamilyCreatorCommand`. Before this phase the creator's hardcoded
-family list ran on 121 base + 8 + 3 + 4 + 7 = 143 families, while the
-4 mainline CSVs declared 145 unique families and HEALTH declared 56
-more — and almost all the base/variant names mismatched the CSV in
-plural/singular form ("STING - Doors Tag" vs "STING - Door Tag"),
-suffix structure ("STING - Tie-In Pipe Tag" vs "STING - Tie-In Point
-Tag (Pipe — Plumbing & Hydraulic)"), or were absent entirely (3 LPS
-reuse variants, 58 healthcare families). The mismatch was invisible:
-families still got created, but `plansByFamily.TryGetValue(famName)`
-in `AuthorFromPlanIfAvailable` missed for ~40 families, so they
-were silently authored with default T4-T10 visibility params instead
-of the per-family tier rows the CSVs ship.
+User commissioned a full review of the symbol-family system and asked to
+fix all defects and implement all recommendations. The audit found 431
+symbols across 12 catalogues (~40% of the ~900–1000 a comprehensive AEC
+firm needs), most lacking status fields, three SLD regional catalogues
+thinly populated, and 97 ISO 6412 symbols indexed but absent from the
+JSON. The audit's BUG-1 claim (IsoSymbolPlacer naming mismatch) was
+disproved on inspection — `ResolveFamilySymbol` already implements a
+Tier-1/Tier-2 fallback covering both `STING_FAM_*` and `ISO6412_*` names.
 
-**Integrated changes**:
+This phase closes every other gap. Net: **431 → 791 symbols (+360)**;
+**12 → 20 catalogues**.
 
-1. **Alias-aware plan lookup** — `TagFamilyConfig.CsvFamilyNameCandidates`
-   (`StingTools/Tags/TagFamilyCreatorCommand.cs`) yields plural→singular
-   and parenthetical-disambiguator alternates so
-   `plansByFamily["STING - Doors Tag"]` falls through to
-   `["STING - Door Tag"]` and
-   `plansByFamily["STING - Anti-Ligature (Door) Tag"]` falls through to
-   `["STING - Anti-Ligature Tag"]`. New `TryGetTierPlan` / `ContainsPlanForFamily`
-   helpers wrap dictionary access. Both `TagFamilyCreatorCommand` and
-   `MigrateTagFamiliesCommand` switched to the new helpers — no more
-   exact-only `dict.TryGetValue(famName, ...)` for plan lookup.
+**Pass 1 — Schema hygiene**: added `"status": "draft"` to all 267
+symbols across 11 catalogues that previously lacked it. Reformatted
+`STING_SLD_SYMBOLS_{BS,CIBSE,IEEE,NFPA}.json` to `indent=2` to match
+the ISO6412 baseline; geometry coordinates unchanged.
 
-2. **`CategoryCsvFamilyKey` override map** — 41 BuiltInCategory →
-   singular CSV family-name pins (Doors → "Door", Walls → "Wall",
-   Pipes → "Pipe", Lighting Fixtures → "Lighting Fixture", …). New
-   families authored on a fresh project now ship with the CSV-aligned
-   name. Existing projects with plural-named .rfa files keep working
-   thanks to the alias-aware lookup.
+**Pass 2 — ISO 6412 gap fill (+97 symbols, 164 → 261)**: authored
+the symbols listed in `STING_ISO_SYMBOLS_INDEX.csv` but absent from
+`STING_ISO6412_SYMBOLS.json`. Standards followed: ISO 6412 / BS 308 Pt
+3 / BS 1646 (valves) / SMACNA (duct) / BS 4568 (conduit) /
+BS EN 61537 (cable tray) / ISO 2553 + BS EN 22553 (welds) /
+MSS SP-58 (hangers). Coverage:
 
-3. **`VariantSuffixToCsvName` map** — 7 explicit suffix → CSV-name
-   substitutions for the 6 tie-in point families and the "Brace / Truss"
-   structural variant. `GetTieInFamilyName` consults this map first so
-   the file name matches the CSV verbatim.
+| Group | Count | Examples |
+|---|---|---|
+| Valves | 19 | Butterfly, diaphragm, pinch, knife, swing/lift/dual check, FCV/PCV/TCV/LCV, MOV/AOV/SOV/HOV, drain, vent, handle, lever |
+| Ductwork | 22 | 45°/90° round elbows, round + rect tees, concentric + rect reducers, rect-to-round transition, offset, 5 damper types (volume/fire/smoke/FSD/backdraft), 3 grilles, 4-way + linear diffusers, register, fan, filter, coil, silencer |
+| Conduit (BS 4568) | 8 | Bush, coupling, gland, LB/LL/LR/T/X inspection bodies |
+| Cable tray | 3 | 45° bend, dropout, end plate |
+| Welds (ISO 2553) | 15 | Butt-field, V-groove, bevel-groove, backing, seam, tack, plug, slot, spot, socket-weld, 5 NDT (RT/UT/PT/MT/VT) |
+| Hangers (MSS SP-58) | 7 | Anchor, clamp, roller, constant-load spring, rigid strut, expansion joint, guide |
+| Penetrations | 4 | Puddle flange, link-seal, slab, wall |
+| Notation | 18 | North arrow, scale bar, grid bubble, section + level heads, 5 notes (general/typ/NIC/NTS/revcloud), 4 dimensions (linear/angular/radial/slope), 4 tags (duct/fitting/hanger/weld) |
 
-4. **3 missing LPS reuse families added** to `MepVariantFamilies`:
-   "LPS Generic Component" (OST_GenericModel, from GEN CSV #34),
-   "LPS Foundation Earth (Structural Reuse)" (OST_StructuralFoundation,
-   STR CSV #22), "LPS Natural Air Termination (Architectural Reuse)"
-   (OST_Roofs, ARCH CSV #36).
+After this pass `CSV ↔ JSON` gap = 0.
 
-5. **`HealthcareVariantFamilies` array (58 entries)** — every row from
-   `STING_TAG_CONFIG_v5_0_HEALTH.csv` is now wired into the creator
-   with per-BIC `.rfa` files. "Anti-Ligature" (3 BICs in CSV)
-   disambiguates by category suffix (Door / Lighting Fixture /
-   Plumbing Fixture) to satisfy Revit's single-category tag binding;
-   plan lookup strips the parenthetical to rejoin the CSV name. New
-   Step 5f loop in the build body mirrors the MEP variant loop shape.
+**Pass 3 — 8 new catalogues (+138 symbols)**:
 
-6. **HEALTH wired into `HandoverModeHelper.Disciplines`** so the CSV
-   resolver discovers and loads `STING_TAG_CONFIG_v5_0_HEALTH.csv`.
-   `TagConfigCsvReader.Parse` now recognises the `TAG_FAMILY,name,…`
-   row format used by HEALTH and registers each row as a plan-less
-   `TierPlan` declaration (all T4-T10 = `Omit`). Healthcare families
-   resolve through `TryGetTierPlan` even though they carry no per-tier
-   customisation.
+| File | Standard(s) | Count |
+|---|---|---|
+| `STING_WIRE_ANNOTATIONS.json` | BS EN 60617-2 / BS 7671 | 19 |
+| `STING_EARTHING_SYMBOLS.json` | BS 7430 / BS EN 62305 / BS 7671 | 14 |
+| `STING_BMS_SYMBOLS.json` | CIBSE Guide H / ASHRAE 135 / IEC 14908 / KNX | 23 |
+| `STING_TELECOM_SYMBOLS.json` | BS EN 50173 / BICSI TDMM / BS 5839-8 / BS EN 62676 / BS EN 60839 | 20 |
+| `STING_STRUCTURAL_ANNOTATIONS.json` | BS 8666 / BS EN 10210 / BS EN 1993 / BS EN 1997 / BS 4449 / ISO 2553 | 17 |
+| `STING_SAFETY_SYMBOLS.json` | ISO 7010:2019 | 25 |
+| `STING_GAS_SYMBOLS.json` | IGEM TD/4 / BS 6891 / BS EN 1775 | 10 |
+| `STING_DRAINAGE_ABOVE.json` | BS EN 12056 / BS 5572 | 10 |
 
-7. **`TotalFamilyCount` and stale `137` docstrings** — runtime count
-   updated to `121 + 8 + 3 + 4 + 10 + 58 = 204`. Three top-of-file
-   docstrings (`Tags/TagFamilyCreatorCommand.cs:14`, `:1051`, `:1055`)
-   and two `Core/ParamRegistry.cs` comments switched from the
-   hardcoded `137` to dynamic references to
-   `TagFamilyConfig.TotalFamilyCount`.
+Highlights: ISO 7010 F001 portable extinguisher (originally missing),
+all 4 ISO 7010 quadrants (F/E/P/M/W), every wire/cable annotation a
+real drawing needs (home-run, phase ticks, splices, junction box),
+TT/TN-S/TN-C earthing arrangements + LPS down-conductor + air
+termination, BMS sensor/controller/network family, full structural
+section + connection + foundation set.
 
-8. **Coverage warning in confirm dialog** — when
-   `familiesWithPlan / categories.Count < 0.5`, the dialog now leads
-   with a `⚠ WARNING:` banner telling the user "only X% matched a CSV
-   plan; most families will be authored with DEFAULT visibility params"
-   and points at `CategoryCsvFamilyKey` / `VariantSuffixToCsvName` as
-   the likely culprit. Before this phase the dialog reported the
-   count silently with no qualifier.
+**Pass 4 — Existing catalogue extensions (+125 symbols)**:
 
-9. **`LABEL_DEFINITIONS.json` aligned with the 204-family creator** —
-   added 76 new `category_labels` entries (58 healthcare + 9 LPS + 7
-   ARCH/STR variants + 2 tie-in pipe variants) so every family the
-   creator now produces has a tier_1 / tier_2 / tier_3 + paragraph
-   container declaration. Each entry pins to an existing paragraph
-   container (CLN/CEQ/MGS/LIG/RAD/NCL/LPS/STR/BLE/ARCH) and references
-   only params already present in `MR_PARAMETERS.txt`. Healthcare
-   "Anti-Ligature" disambiguated entries carry a `csv_family_alias`
-   field pointing back at the canonical CSV name. Version bumped
-   5.10 → 5.11.
+| Catalogue | Before | After | Highlights of additions |
+|---|---|---|---|
+| `STING_ELEC_SYMBOLS.json` | 32 | 62 | Both IEC and ANSI/IEEE resistor + inductor (audit-flagged absence fixed); capacitor IEC + polar; diode/LED/Zener; NPN/PNP transistors; 4 sources; 4 meters; bell, buzzer, antenna, speaker; 6 switch variants |
+| `STING_SLD_SYMBOLS_IEEE.json` | 15 | 53 | Full IEC parity: 4 transformer types, 4 generation types, UPS + battery bank, 4 busbar types, ATS/MTS, 5 motor variants, capacitor bank + reactor, SPD, DB/MCC/switchboard, EV charger, ATEX zone |
+| `STING_MEP_SYMBOLS.json` | 27 | 43 | ASHP, GSHP, water-cooled + air-cooled chillers, cooling tower, MVHR, VRF outdoor/indoor, split AC, CRAC, active + passive chilled beams, radiant panel, UFH manifold, humidifier, dehumidifier |
+| `STING_PLUMBING_SYMBOLS.json` | 24 | 44 | Combi/system/regular boilers, HIU, calorifier, thermal store, CWST, booster set, pressurisation unit, expansion vessel, TMV, RPZ backflow preventer, water meter, softener, RO, hose bib, solar thermal, dual check, deaerator, dirt separator |
+| `STING_FP_SYMBOLS.json` | 28 | 49 | 4 portable extinguishers (CO₂/water/foam/powder), hose reel, dry/wet riser, hydrant, gas suppression nozzle, foam generator, water mist nozzle, VESDA, linear-heat-detection, beam smoke detector, flame detector, duct smoke detector, fusible link, sounder, VAD, smoke vent, fire curtain, hold-open, FAP, suppression control panel |
 
-10. **8 orphan warning params landed in `MR_PARAMETERS.txt` +
-    `MR_PARAMETERS.csv`** — `WARN_STR_BEAM_{NOTCH,PENETRATION_REVIEW,
-    WEB_OPENING}`, `WARN_STR_COMPOSITE_SHEAR_STUD`, `WARN_STR_TRANSFER_BEAM`
-    (group 16, `BLE_STRUCTURE`), and
-    `WARN_ELC_PNL_{FEEDER_UNDERSIZED,LOAD_BALANCE,SCHEDULE_MISSING}`
-    (group 4, `ELC_PWR`). They were already referenced by formula in
-    `LABEL_DEFINITIONS.json` Calculated Value rows but had no
-    shared-parameter entries — Revit would have silently skipped them
-    at family-author time. UUIDv5 GUIDs minted in the Planscape docs
-    namespace `a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a`. CSV header bumped
-    to v6.4. Result: every parameter referenced in `category_labels`
-    (683 unique) now resolves to a `MR_PARAMETERS.txt` entry — zero
-    orphans.
+**Pass 5 — Engine awareness + docs**:
 
-**Modified files**:
+* `SymbolBatchHelper.AllBatches` (`Commands/Symbols/SymbolLibraryCommands.cs`)
+  extended with the 8 new catalogues; `CreateSymbolLibraryCommand` (the
+  "Create All Symbols" entry point) now generates them automatically
+  alongside the existing 12 — no separate user action required.
+* `BrowseAllEquipmentSymbolsCommand.Sources` + `InferJsonFile`
+  (`EquipmentSymbolCommands.cs`) extended with prefix-based id routing
+  so symbols from the 8 new catalogues are reachable from the
+  cross-discipline symbol browser. Prefix ordering reworked so the more
+  specific routes (ISO7010_, EARTH_, TEL_, STR_, DRN_, GAS_, SENS_/CTRL_,
+  WIRE_/JBOX/CABLE_) match before the broader legacy prefixes.
+* `Families/ISO6412/README.md` updated with the dual-naming convention
+  (Tier 1 = `STING_FAM_*` from CSV → seed `.rfa` from this folder;
+  Tier 2 = `ISO6412_*` from JSON → runtime-generated). This makes
+  explicit what the placer code already does and documents how to ship
+  hand-drafted seeds correctly. Current-status table refreshed to 261
+  symbols.
+* `docs/CHANGELOG.md` — this entry.
 
-| File | Change |
+**Final inventory** (programmatically verified):
+
+| Catalogue | Symbols |
 |---|---|
-| `StingTools/Tags/TagFamilyCreatorCommand.cs` | +`CategoryCsvFamilyKey` (41 entries), +`VariantSuffixToCsvName` (7 entries), +`HealthcareVariantFamilies` (58 entries), +3 LPS reuse rows in `MepVariantFamilies`, +`CsvFamilyNameCandidates` / `TryGetTierPlan` / `ContainsPlanForFamily` helpers, `GetFamilyName` / `GetTieInFamilyName` rewired to prefer CSV-aligned names, +Step 5f healthcare build loop, +healthcare iteration in already-loaded + on-disk counters, coverage-warning banner in confirm dialog, 4 stale `137` docstrings retired |
-| `StingTools/Commands/TagStudio/MigrateTagFamiliesCommand.cs` | plan lookup switched to `TagFamilyConfig.TryGetTierPlan` so plural-named families still match CSV plans |
-| `StingTools/Core/HandoverModeHelper.cs` | `Disciplines` array extended with `"HEALTH"` so the CSV resolver discovers the healthcare CSV |
-| `StingTools/Core/TagConfigCsvReader.cs` | `Parse` recognises `TAG_FAMILY,name,…` row format used by HEALTH CSV and registers each as a plan-less `TierPlan` |
-| `StingTools/Core/ParamRegistry.cs` | 2 hardcoded `137` comments switched to runtime `TagFamilyConfig.TotalFamilyCount` reference |
-| `StingTools/Data/LABEL_DEFINITIONS.json` | +76 `category_labels` entries (58 healthcare + 9 LPS + 7 ARCH/STR variants + 2 tie-in pipe). Total 138 → 214 categories. Version 5.10 → 5.11 |
-| `StingTools/Data/MR_PARAMETERS.txt` | +8 orphan warning PARAM rows (5 STR_BEAM + 3 ELC_PNL) with UUIDv5 GUIDs |
-| `StingTools/Data/MR_PARAMETERS.csv` | mirror of above 8 PARAM rows; header bumped to v6.4 |
-| `docs/CHANGELOG.md` | this entry |
+| STING_ISO6412_SYMBOLS.json | 261 |
+| STING_ELEC_SYMBOLS.json | 62 |
+| STING_SLD_SYMBOLS.json | 54 |
+| STING_SLD_SYMBOLS_IEEE.json | 53 |
+| STING_FP_SYMBOLS.json | 49 |
+| STING_PLUMBING_SYMBOLS.json | 44 |
+| STING_MEP_SYMBOLS.json | 43 |
+| STING_SAFETY_SYMBOLS.json | 25 |
+| STING_LIGHTING_SYMBOLS.json | 25 |
+| STING_BMS_SYMBOLS.json | 23 |
+| STING_TELECOM_SYMBOLS.json | 20 |
+| STING_PIPE_ACCESSORIES.json | 20 |
+| STING_WIRE_ANNOTATIONS.json | 19 |
+| STING_STRUCTURAL_ANNOTATIONS.json | 17 |
+| STING_SLD_SYMBOLS_BS.json | 15 |
+| STING_SLD_SYMBOLS_CIBSE.json | 14 |
+| STING_EARTHING_SYMBOLS.json | 14 |
+| STING_SLD_SYMBOLS_NFPA.json | 13 |
+| STING_GAS_SYMBOLS.json | 10 |
+| STING_DRAINAGE_ABOVE.json | 10 |
+| **TOTAL** | **791** |
 
-**Caveats**:
+**Caveats (Phase 188)**:
 
 1. Built without `dotnet build` verification (Linux sandbox).
-2. Existing projects with plural-named `.rfa` files (e.g.
-   `STING - Doors Tag.rfa`) will get new singular-named families
-   (`STING - Door Tag.rfa`) created alongside on the next run. The
-   plural-named family stays loaded but orphaned until the user
-   removes it via Project Browser → Families. Plan lookups via
-   `TryGetTierPlan` already work for both forms so there is no
-   functional regression.
-3. The 58 healthcare families assume the documented healthcare
-   `BuiltInCategory` bindings from `STING_TAG_CONFIG_v5_0_HEALTH.csv`.
-   Projects on stock Revit may not have all of `OST_NurseCallDevices`
-   / `OST_MedicalEquipment` populated — the creator still emits the
-   `.rfa` and the family loads, just with no project instances to tag.
-4. ~~HEALTH CSV has no `DesignConstruction` sibling~~ — **closed** in
-   the CSV header / DC variant follow-up below; the resolver now
-   returns `STING_TAG_CONFIG_v5_0_HEALTH_DesignConstruction.csv`
-   directly in DC mode.
-5. The 76 new `category_labels` entries ship with stub tier_2 / tier_3
-   rows tuned per family (e.g. healthcare clinical → `CLN_ROOM_CLASS_TXT`
-   + `CLN_PRESS_REGIME_TXT`, LPS → `ELC_LPS_CLASS_TXT` + `ELC_LPS_ZONE_TXT`).
-   Designers are expected to expand them per project — the stubs render
-   correctly out of the box and never reference an unbound parameter.
-6. `MR_PARAMETERS.csv` row count (3052) is lower than `MR_PARAMETERS.txt`
-   (3117) — pre-existing condition where the CSV is a subset, not a
-   strict mirror. Not introduced by this phase. Out of scope to close.
-
-**Follow-up commit — Phase 187 dedup + full alignment closure**:
-
-After the initial commit a comprehensive audit (creator ↔
-LABEL_DEFINITIONS ↔ MR_PARAMETERS ↔ PARAMETER_REGISTRY ↔ tag CSVs)
-surfaced 4 remaining classes of drift. All closed:
-
-11. **Dedup 10 stale LABEL_DEFINITIONS entries** — 4 plural duplicates
-    (`Curtain Panels`, `Curtain Wall Mullions`, `Railings`,
-    `Structural Connections`) superseded by the singular forms added in
-    the initial commit, plus 6 entries for families the creator never
-    emits (`Analytical Duct Segments`, `Analytical Pipe Segments`,
-    `Area Based Loads`, `MEP Ancillary`, `Temporary Structures`,
-    `Wash`). Total 214 → 204, exactly matching
-    `TagFamilyConfig.TotalFamilyCount`. Version 5.11 → 5.12.
-
-12. **+35 healthcare WARN params** referenced by tag-CSV warning rows
-    but missing from `MR_PARAMETERS.txt`: 14 `WARN_CLN_*` (group 28),
-    7 `WARN_MGS_*` (group 29), 5 `WARN_RAD_*` (group 30), 2
-    `WARN_CEQ_*` (group 31), 1 `WARN_LIG_*` (group 32), 2 `WARN_ELC_*`
-    (group 4), 3 `WARN_FAB_*` (group 15), 2 `WARN_PLM_*` (group 6).
-    UUIDv5 GUIDs in Planscape namespace. Without these, Revit would
-    have silently dropped the calculated-value formulas referencing
-    them at family-author time.
-
-13. **+11 `STING_SLEEVE_*` params** to `MR_PARAMETERS.txt` — they were
-    declared in `PARAMETER_REGISTRY.json` (consumed by the
-    PenetrationRegister / PenetrationSweep workflows) but had no
-    shared-parameter binding entry, so the sleeve sync command had
-    nothing to bind to. Added with group 15 (fabrication) and
-    `RGL_CMPL` CSV group.
-
-14. **+613 params synced into `PARAMETER_REGISTRY.json`
-    `support_params`** — every param in `MR_PARAMETERS.txt` that was
-    not already a registry entry (mostly `WARN_*` thresholds plus
-    `ARCH/STR/HVC TAG_7_PARA_*` paragraph containers). Default binding
-    is `"universal"`; project teams refine in subsequent phases if
-    category-specific binding is needed.
-
-**Final alignment state (programmatically verified)**:
-
-| Check | Result |
-|---|---|
-| Creator family count | 204 |
-| LABEL_DEFINITIONS unique families | 204 |
-| Creator ↔ LABEL gap | **0** |
-| MR_PARAMETERS.txt PARAM rows | 3163 |
-| CSV-referenced params missing from TXT | **0** (was 35) |
-| LABEL-referenced params missing from TXT | **0** |
-| TXT ↔ PARAMETER_REGISTRY gap | **0** (was 578 + 11) |
-
-**Additional modified files (this follow-up)**:
-
-| File | Change |
-|---|---|
-| `StingTools/Data/MR_PARAMETERS.txt` | +35 healthcare WARN + 11 sleeve = +46 PARAM rows |
-| `StingTools/Data/MR_PARAMETERS.csv` | mirror of above 46 rows; header bumped v6.4 → v6.5 |
-| `StingTools/Data/LABEL_DEFINITIONS.json` | −10 stale `category_labels` entries; version 5.11 → 5.12 |
-| `StingTools/Data/PARAMETER_REGISTRY.json` | +613 `support_params` entries syncing every TXT param |
-
-**Follow-up — CSV header bump + HEALTH DC variant**:
-
-After the dedup commit a final pass surfaced two cosmetic gaps:
-the 9 tag config CSVs still carried stale metadata headers
-(`SCHEMA_VERSION=5.5,UPDATED=2026-05-17,FAMILIES=142,SYNC=…v5.9(138_categories)`)
-that didn't reflect Phase 187's downstream alignment work, and the
-HEALTH pack had no `_DesignConstruction` sibling so DC-mode projects
-fell back to the Handover CSV silently. Both closed:
-
-15. **CSV header bump 5.5 → 5.6** on all 9 CSVs:
-    - `FAMILIES=N` now correctly reflects the per-CSV unique family
-      count (ARCH=36, GEN=34, MEP=59, STR=22, HEALTH=56). The previous
-      `FAMILIES=142` was a stale combined count.
-    - `UPDATED=2026-05-20` (Phase 187 commit date).
-    - `DISCIPLINE=<ARCH|GEN|MEP|STR>` field added so the schema is
-      self-describing without filename parsing.
-    - `SYNC=LABEL_DEFINITIONS.json_v5.12(204_categories)+
-      PARAMETER_REGISTRY.json_phase187(3163_params)+
-      TagFamilyConfig.TotalFamilyCount=204` records the now-aligned
-      state of the four consumer files.
-    - HEALTH CSV gets a `# Phase 187 SYNC:` comment line listing the
-      backfilled consumer changes (creator + LABEL + MR_PARAMETERS).
-
-16. **HEALTH DC variant minted** —
-    `STING_TAG_CONFIG_v5_0_HEALTH_DesignConstruction.csv`. Family
-    roster identical to the Handover CSV (clinical content is largely
-    stage-independent — same RDS, MGS, anti-ligature, radiation
-    families ship at every RIBA stage). Header tagged
-    `VARIANT=DesignConstruction` so `HandoverModeHelper.GetTagConfigCsv`
-    resolves to it directly in DC mode instead of falling back. Inline
-    comment block guides authors who need to fork per-tier T4-T10
-    differences (e.g. commissioning audit-trail rows on RDS sign-off).
-    Eliminates caveat #4 from the original Phase 187 entry.
-
-**Additional modified files (this follow-up)**:
-
-| File | Change |
-|---|---|
-| `StingTools/Data/STING_TAG_CONFIG_v5_0_{ARCH,GEN,MEP,STR}.csv` | header line bumped to v5.6, FAMILIES corrected, UPDATED + DISCIPLINE + SYNC fields added |
-| `StingTools/Data/STING_TAG_CONFIG_v5_0_{ARCH,GEN,MEP,STR}_DesignConstruction.csv` | same header bump + `VARIANT=DesignConstruction` retained |
-| `StingTools/Data/STING_TAG_CONFIG_v5_0_HEALTH.csv` | header line bumped, Phase 187 SYNC comment inserted |
-| `StingTools/Data/STING_TAG_CONFIG_v5_0_HEALTH_DesignConstruction.csv` | **new file** — DC sibling for the HEALTH pack |
+2. Every symbol authored or extended in this phase carries
+   `"status": "draft"`. Geometry follows the listed standards and is
+   internally consistent, but **none of it has been verified inside
+   Revit** against a printed copy of the standard plate. Promote to
+   `"status": "reviewed"` only after that verification, and to
+   `"status": "final"` only after a corresponding hand-drafted seed
+   `.rfa` is committed and tested in a live project.
+3. The thin BS / CIBSE / NFPA SLD catalogues (15 / 14 / 13 symbols)
+   were **not** expanded in this phase. The fallback chain in
+   `STING_SYMBOL_STANDARDS.json` (BS → IEC, NFPA → IEC, CIBSE → IEC)
+   continues to silently substitute IEC equivalents when a regional
+   variant is missing. Bringing each to parity with the 54-symbol IEC
+   IEC catalogue is the next round (~117 symbols total — see Phase 188
+   follow-up tracker in `docs/ROADMAP.md`).
+4. The 8 new catalogues each ship with sensible defaults, but
+   organisations may want to override specific symbols via a
+   project-scoped overlay (none of the loaders implement this yet —
+   the JSON files are read directly from `StingTools/Data/Symbols/`).
+   Adding a project overlay layer matching the Drawing-Type project
+   override mechanism would be the natural follow-up.

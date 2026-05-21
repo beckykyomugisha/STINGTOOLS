@@ -33,17 +33,17 @@
     <!-- Phase 175 — OpenTelemetry instrumentation + OTLP exporter. Trace
          data ships to the otel-collector service which applies tail
          sampling (see docker/otel-collector-config.yaml). -->
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.9.0" />
-    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.9.0" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.9.0" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.11.2" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.11.2" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.11.2" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.11.2" />
     <PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.0.0-beta.12" />
     <PackageReference Include="OpenTelemetry.Instrumentation.StackExchangeRedis" Version="1.0.0-rc9.15" />
     <PackageReference Include="Hangfire.AspNetCore" Version="1.8.17" />
     <PackageReference Include="Hangfire.PostgreSql" Version="1.20.10" />
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
     <PackageReference Include="ZXing.Net" Version="0.16.9" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.6" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
     <PackageReference Include="Otp.NET" Version="1.4.0" />
   </ItemGroup>
   <ItemGroup>
@@ -90,9 +90,15 @@
     <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\viewer-extras.js" />
     <ViewerSourceFiles Include="$(MSBuildThisFileDirectory)..\..\..\Planscape\assets\viewer\signalr-shim.js" />
   </ItemGroup>
+  <!-- Set PlanscapeServeDist=true to skip the source→wwwroot sync. The
+       Docker build sets this so a prior `npm run build` stage can stage
+       minified bundles into wwwroot without being overwritten by the
+       in-tree (un-minified) sources. Local dev leaves it unset so the
+       sync continues to run on every build. -->
   <Target Name="SyncCoordinationViewer" BeforeTargets="Build"
           Inputs="@(ViewerSourceFiles)"
-          Outputs="@(ViewerSourceFiles->'$(MSBuildThisFileDirectory)wwwroot\%(Filename)%(Extension)')">
+          Outputs="@(ViewerSourceFiles->'$(MSBuildThisFileDirectory)wwwroot\%(Filename)%(Extension)')"
+          Condition="'$(PlanscapeServeDist)' != 'true'">
     <Copy SourceFiles="@(ViewerSourceFiles)"
           DestinationFolder="$(MSBuildThisFileDirectory)wwwroot"
           SkipUnchangedFiles="true" />

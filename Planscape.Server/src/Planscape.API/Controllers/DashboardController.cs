@@ -71,10 +71,13 @@ public class DashboardController : ControllerBase
         var issuesOverdue  = await _db.Issues.CountAsync(i => i.ProjectId == projectId
                                 && i.Project!.TenantId == tenantId && i.Status != "Closed"
                                 && i.DueDate.HasValue && i.DueDate < DateTime.UtcNow);
+        // ClashRecord.Status is the ClashStatus enum — "open" = New | Acknowledged.
         var clashesOpen    = await _db.ClashRecords.CountAsync(c => c.ProjectId == projectId
-                                && c.TenantId == tenantId && c.Status == "Open");
+                                && c.TenantId == tenantId
+                                && (c.Status == ClashStatus.New || c.Status == ClashStatus.Acknowledged));
         var clashCritical  = await _db.ClashRecords.CountAsync(c => c.ProjectId == projectId
-                                && c.TenantId == tenantId && c.Status == "Open"
+                                && c.TenantId == tenantId
+                                && (c.Status == ClashStatus.New || c.Status == ClashStatus.Acknowledged)
                                 && (int)c.Severity >= 2);
         var docsTotal      = await _db.Documents.CountAsync(d => d.ProjectId == projectId
                                 && d.Project!.TenantId == tenantId);

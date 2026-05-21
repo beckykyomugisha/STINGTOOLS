@@ -1360,7 +1360,7 @@ namespace StingTools.Model
     /// Auto-classifies the structural system type (frame, braced, shear wall, dual, flat slab).
     /// Analyzes element counts, ratios, regularity, and connectivity.
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StrClassifySystemCommand : IExternalCommand
     {
@@ -1374,6 +1374,19 @@ namespace StingTools.Model
             {
                 var engine = new StructuralModelingEngine(uidoc.Document);
                 var result = engine.ClassifyStructuralSystem();
+                // Close the calc → model loop: stamp STR_SYSTEM_CLASS_TXT on
+                // ProjectInformation so reports / BOQ / title-block tokens see
+                // the classified system without re-running.
+                try
+                {
+                    using (var tx = new Transaction(uidoc.Document, "STING Stamp Structural System"))
+                    {
+                        tx.Start();
+                        StructuralSystemClassifier.WriteBack(uidoc.Document, result);
+                        tx.Commit();
+                    }
+                }
+                catch (Exception exTx) { StingLog.Warn($"SystemClass stamp: {exTx.Message}"); }
 
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine($"Structural System Type: {result.SystemType}");
@@ -1413,7 +1426,7 @@ namespace StingTools.Model
     /// Runs serviceability deflection checks on all beams in the model.
     /// Reports pass/fail with utilisation ratios per EC2/EC3.
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StrDeflectionCheckCommand : IExternalCommand
     {
@@ -1442,10 +1455,29 @@ namespace StingTools.Model
                 int passing = results.Count(r => r.Result.Pass);
                 int failing = results.Count(r => !r.Result.Pass);
 
+                // Close the calc → model loop: walk beams + slabs via the new
+                // DeflectionChecker.AnalyseModel, stamping STR_BEAM_DEFLECTION_LIM_TXT
+                // and STR_SLAB_DEFLECTION_LIMIT_TXT (both existing). Runs in a
+                // separate transaction so the report stays available even if
+                // the stamp pass fails.
+                int beamsStamped = 0, slabsStamped = 0;
+                try
+                {
+                    using (var tx = new Transaction(uidoc.Document, "STING Stamp Deflection"))
+                    {
+                        tx.Start();
+                        (beamsStamped, slabsStamped) = DeflectionChecker.AnalyseModel(uidoc.Document);
+                        tx.Commit();
+                    }
+                }
+                catch (Exception exTx) { StingLog.Warn($"Deflection stamp: {exTx.Message}"); }
+
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine($"Deflection Check: {results.Count} beams");
                 sb.AppendLine($"  ✓ Passing: {passing}");
                 sb.AppendLine($"  ✗ Failing: {failing}");
+                sb.AppendLine($"  STR_BEAM_DEFLECTION_LIM_TXT stamped: {beamsStamped}");
+                sb.AppendLine($"  STR_SLAB_DEFLECTION_LIMIT_TXT stamped: {slabsStamped}");
                 sb.AppendLine();
 
                 if (failing > 0)
@@ -1485,7 +1517,7 @@ namespace StingTools.Model
     /// Checks punching shear at all slab-column interfaces per EC2 Section 6.4.
     /// Identifies columns needing shear reinforcement.
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StrPunchingShearCheckCommand : IExternalCommand
     {
@@ -1504,11 +1536,27 @@ namespace StingTools.Model
                 int failing = results.Count(r => !r.Result.Pass);
                 int needsReinf = results.Count(r => r.Result.NeedsShearReinforcement);
 
+                // Close the calc → model loop: walk slab-column intersections via
+                // the new orchestrator, computing reaction from the ULS combo
+                // built by LoadCombinationEngine, and stamp STR_PUNCH_UTIL_PCT.
+                int psInspected = 0, psStamped = 0;
+                try
+                {
+                    using (var tx = new Transaction(uidoc.Document, "STING Stamp Punching Shear"))
+                    {
+                        tx.Start();
+                        (psInspected, psStamped) = PunchingShearOrchestrator.AnalyseModel(uidoc.Document);
+                        tx.Commit();
+                    }
+                }
+                catch (Exception exTx) { StingLog.Warn($"Punching stamp: {exTx.Message}"); }
+
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine($"Punching Shear Check (EC2 §6.4): {results.Count} interfaces");
                 sb.AppendLine($"  ✓ Passing: {passing}");
                 sb.AppendLine($"  ✗ Failing: {failing}");
                 sb.AppendLine($"  ⚠ Needs shear reinforcement: {needsReinf}");
+                sb.AppendLine($"  STR_PUNCH_UTIL_PCT stamped: {psStamped} of {psInspected} columns");
 
                 if (failing > 0)
                 {
@@ -1546,7 +1594,7 @@ namespace StingTools.Model
     /// Calculates wind loads on the building per EC1-1-4 and distributes to storeys.
     /// Auto-detects building dimensions from model geometry.
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StrWindLoadCommand : IExternalCommand
     {
@@ -1560,7 +1608,26 @@ namespace StingTools.Model
             {
                 var engine = new StructuralModelingEngine(uidoc.Document);
                 var result = engine.CalculateWindLoads();
-                TaskDialog.Show("STRUCT — Wind Load Analysis", result.Summary);
+
+                // Close the calc → model loop: stamp STR_WIND_PRESSURE_PA on
+                // every wall + column + ProjectInformation so title-blocks,
+                // schedules, and downstream combo engines see the design
+                // wind pressure without recomputing.
+                int wInsp = 0, wStamp = 0;
+                try
+                {
+                    using (var tx = new Transaction(uidoc.Document, "STING Stamp Wind Pressure"))
+                    {
+                        tx.Start();
+                        (wInsp, wStamp) = WindLoadOrchestrator.AnalyseModel(uidoc.Document);
+                        tx.Commit();
+                    }
+                }
+                catch (Exception exTx) { StingLog.Warn($"Wind stamp: {exTx.Message}"); }
+
+                TaskDialog.Show("STRUCT — Wind Load Analysis",
+                    (result.Summary ?? "") +
+                    $"\n\nSTR_WIND_PRESSURE_PA stamped on {wStamp} of {wInsp} elements.");
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -1831,7 +1898,7 @@ namespace StingTools.Model
     /// Performs 2D frame analysis on the structural model using the Direct Stiffness Method.
     /// Assembles global stiffness matrix, solves displacements, recovers member forces.
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StrFrameAnalysisCommand : IExternalCommand
     {
@@ -1843,10 +1910,30 @@ namespace StingTools.Model
 
             try
             {
+                // Close the calc → model loop: drive BuildFromRevitModel →
+                // Analyze inside FrameAnalysisOrchestrator and stamp
+                // STR_FRAME_M_KNM + STRUCT_FRM_AXIAL_LOAD_KN on every member
+                // whose RevitId is populated.
+                int fMembers = 0, fStamped = 0;
+                string fSummary = "";
+                try
+                {
+                    using (var tx = new Transaction(uidoc.Document, "STING Frame Analysis"))
+                    {
+                        tx.Start();
+                        (fMembers, fStamped, fSummary) = FrameAnalysisOrchestrator.AnalyseModel(uidoc.Document);
+                        tx.Commit();
+                    }
+                }
+                catch (Exception exTx) { StingLog.Warn($"Frame analysis: {exTx.Message}"); }
+
+                // Also produce the inspection report (no writeback path) so
+                // the existing UX is preserved.
                 var (nodes, members) = DirectStiffnessMethod.BuildFromRevitModel(uidoc.Document);
                 if (nodes.Count == 0)
                 {
-                    TaskDialog.Show("STRUCT — Frame Analysis", "No structural elements found for analysis.");
+                    TaskDialog.Show("STRUCT — Frame Analysis",
+                        $"No structural elements found for analysis.\n{fSummary}");
                     return Result.Succeeded;
                 }
 
@@ -1859,6 +1946,7 @@ namespace StingTools.Model
                 sb.AppendLine($"Max displacement: {result.MaxDisplacementMm:F2} mm");
                 sb.AppendLine($"Max moment: {result.MaxMomentKNm:F1} kNm");
                 sb.AppendLine($"Max axial: {result.MaxAxialKN:F1} kN");
+                sb.AppendLine($"STR_FRAME_M_KNM stamped on {fStamped} of {fMembers} members.");
                 sb.AppendLine();
 
                 // Show top 5 most loaded members
@@ -1998,7 +2086,7 @@ namespace StingTools.Model
     // PROGRESSIVE COLLAPSE / ROBUSTNESS CHECK
     // ══════════════════════════════════════════════════════════════════
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StrProgressiveCollapseCommand : IExternalCommand
     {
@@ -2012,12 +2100,27 @@ namespace StingTools.Model
             {
                 var result = ProgressiveCollapseChecker.CheckRobustness(uidoc.Document);
 
+                // Close the calc → model loop: stamp STR_ROBUST_STATUS_TXT
+                // (new Phase 188 param) on each assessed column.
+                int stamped = 0;
+                try
+                {
+                    using (var tx = new Transaction(uidoc.Document, "STING Stamp Robustness"))
+                    {
+                        tx.Start();
+                        stamped = ProgressiveCollapseChecker.WriteBack(uidoc.Document, result);
+                        tx.Commit();
+                    }
+                }
+                catch (Exception exTx) { StingLog.Warn($"Robustness stamp: {exTx.Message}"); }
+
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine($"Progressive Collapse / Robustness Check");
                 sb.AppendLine($"Result: {(result.IsRobust ? "ROBUST ✓" : "NOT ROBUST ✗")}");
                 sb.AppendLine($"Robustness class: {result.RobustnessClass}");
                 sb.AppendLine($"Redundancy ratio: {result.RedundancyRatio:P0}");
                 sb.AppendLine($"Critical columns: {result.CriticalColumnCount}");
+                sb.AppendLine($"STR_ROBUST_STATUS_TXT stamped on {stamped} column(s).");
                 sb.AppendLine();
 
                 var critical = result.ColumnResults.Where(c => !c.Status.StartsWith("OK")).Take(10);
@@ -2048,7 +2151,7 @@ namespace StingTools.Model
     // AUTO MEMBER SIZING
     // ══════════════════════════════════════════════════════════════════
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StrAutoSizeCommand : IExternalCommand
     {
@@ -2062,10 +2165,44 @@ namespace StingTools.Model
             {
                 var result = AutoMemberSizer.AutoSizeAllMembers(uidoc.Document);
 
+                // Close the calc → model loop: previously the AutoSize command
+                // listed recommended changes but never applied them. Apply now
+                // performs ChangeTypeId per Change via StructuralTypeFactory.
+                // Asks the user before mutating geometry — many callers ran
+                // this for the report only.
+                int swapped = 0, stamped = 0;
+                if (result.Changes.Count > 0)
+                {
+                    var ok = new TaskDialog("STING Auto-Size — apply?")
+                    {
+                        MainInstruction = $"Apply {result.Changes.Count} section change(s)?",
+                        MainContent = "Will swap each beam's FamilySymbol to the recommended " +
+                                      "section via ChangeTypeId and stamp STR_BEAM_SECTION_TXT. " +
+                                      "Cancel to keep the report only.",
+                        CommonButtons = TaskDialogCommonButtons.Cancel,
+                        DefaultButton = TaskDialogResult.Cancel
+                    };
+                    ok.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Apply changes");
+                    if (ok.Show() == TaskDialogResult.CommandLink1)
+                    {
+                        try
+                        {
+                            using (var tx = new Transaction(uidoc.Document, "STING Apply AutoMember Sizing"))
+                            {
+                                tx.Start();
+                                (swapped, stamped) = AutoMemberSizer.Apply(uidoc.Document, result);
+                                tx.Commit();
+                            }
+                        }
+                        catch (Exception exTx) { StingLog.Warn($"AutoMemberSizer.Apply: {exTx.Message}"); }
+                    }
+                }
+
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine($"Auto Member Sizing — Iterative Convergence");
                 sb.AppendLine($"Iterations: {result.IterationsUsed}, Converged: {result.Converged}");
                 sb.AppendLine($"Members to resize: {result.MembersResized}");
+                sb.AppendLine($"FamilySymbol swapped: {swapped} · STR_BEAM_SECTION_TXT stamped: {stamped}");
                 sb.AppendLine($"Avg utilisation: {result.AverageUtilisation:F2}");
                 sb.AppendLine($"Max utilisation: {result.MaxUtilisation:F2}");
                 sb.AppendLine();
@@ -2096,7 +2233,7 @@ namespace StingTools.Model
     // FIRE RESISTANCE CHECK
     // ══════════════════════════════════════════════════════════════════
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StrFireResistanceCommand : IExternalCommand
     {
@@ -2131,11 +2268,29 @@ namespace StingTools.Model
                 int passing = results.Count(r => r.Pass);
                 int failing = results.Count(r => !r.Pass);
 
+                // Close the calc → model loop: walk elements again and stamp
+                // PER_FIRE_RATING_HR (existing param) with the achieved rating
+                // in hours. Runs in a separate transaction so the report is
+                // emitted even if the stamp pass fails.
+                int colsStamped = 0, beamsStamped = 0, slabsStamped = 0;
+                try
+                {
+                    using (var tx = new Transaction(uidoc.Document, "STING Stamp Fire Rating"))
+                    {
+                        tx.Start();
+                        (colsStamped, beamsStamped, slabsStamped) =
+                            FireResistanceCalculator.WriteBack(uidoc.Document, rating);
+                        tx.Commit();
+                    }
+                }
+                catch (Exception exTx) { StingLog.Warn($"FireRes stamp: {exTx.Message}"); }
+
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine($"Fire Resistance Check — R{rating}");
                 sb.AppendLine($"Total elements: {results.Count}");
                 sb.AppendLine($"✓ Passing: {passing}");
                 sb.AppendLine($"✗ Failing: {failing}");
+                sb.AppendLine($"PER_FIRE_RATING_HR stamped: {colsStamped} cols + {beamsStamped} beams + {slabsStamped} slabs");
                 sb.AppendLine();
 
                 var byType = results.GroupBy(r => r.ElementType);
@@ -2689,7 +2844,7 @@ namespace StingTools.Model
     // LOAD PATH TRACING
     // ══════════════════════════════════════════════════════════════════
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class StrTraceLoadPathsCommand : IExternalCommand
     {
@@ -2700,9 +2855,27 @@ namespace StingTools.Model
             try
             {
                 var result = LoadPathTracer.TraceLoadPaths(uidoc.Document);
+
+                // Close the calc → model loop: stamp STRUCT_COL_AXIAL_LOAD_KN
+                // (existing param, no addition needed) on every column the
+                // tracer visited. Takes the max cumulative load across all
+                // paths for each column.
+                int stamped = 0;
+                try
+                {
+                    using (var tx = new Transaction(uidoc.Document, "STING Stamp Column Loads"))
+                    {
+                        tx.Start();
+                        stamped = LoadPathTracer.WriteBack(uidoc.Document, result);
+                        tx.Commit();
+                    }
+                }
+                catch (Exception exTx) { StingLog.Warn($"Load-path writeback: {exTx.Message}"); }
+
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine("GRAVITY LOAD PATH ANALYSIS");
                 sb.AppendLine(result.Summary);
+                sb.AppendLine($"STRUCT_COL_AXIAL_LOAD_KN stamped on {stamped} column(s).");
                 sb.AppendLine();
 
                 foreach (var path in result.Paths.OrderByDescending(p => p.TotalLoadKN).Take(10))
@@ -3855,6 +4028,46 @@ namespace StingTools.Model
                 return Result.Succeeded;
             }
             catch (Exception ex) { StingLog.Error("FullModelAuto", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // RC DESIGN HELPER ORCHESTRATOR — Phase 188
+    //
+    // Walks every concrete beam + column, derives demand from LoadCombinationEngine,
+    // calls the existing EstimateBeamReinforcement / EstimateColumnReinforcement,
+    // and stamps STR_REBAR_DETAIL_TXT + STR_REBAR_SIZE_MM. Closes the
+    // last "input-blocked" gap from the integration audit.
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrRCDesignCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                int beams = 0, cols = 0;
+                using (var tx = new Transaction(uidoc.Document, "STING RC Design"))
+                {
+                    tx.Start();
+                    (beams, cols) = RCDesignOrchestrator.AnalyseModel(uidoc.Document);
+                    tx.Commit();
+                }
+                TaskDialog.Show("STRUCT — RC Design (EC2)",
+                    $"Reinforcement detail computed and stamped:\n" +
+                    $"  Beams:   {beams}\n" +
+                    $"  Columns: {cols}\n\n" +
+                    "Loads taken from LoadCombinationEngine (project params + EC1 defaults).\n" +
+                    "Detail string → STR_REBAR_DETAIL_TXT\n" +
+                    "Bar arrangement → STR_REBAR_SIZE_MM");
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrRCDesign", ex); message = ex.Message; return Result.Failed; }
         }
     }
 }

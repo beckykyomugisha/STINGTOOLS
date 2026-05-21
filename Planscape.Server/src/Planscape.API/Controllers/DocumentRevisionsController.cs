@@ -18,7 +18,7 @@ namespace Planscape.API.Controllers;
 /// </list>
 ///
 /// <para>Auto-created revisions land here from <c>DocumentsController</c>'s
-/// CDE state transition path via <see cref="DocumentRevisionWriter"/>.</para>
+/// CDE state transition path.</para>
 /// </summary>
 [ApiController]
 [Route("api/projects/{projectId:guid}/documents/{documentId:guid}/revisions")]
@@ -68,7 +68,7 @@ public class DocumentRevisionsController : ControllerBase
             .FirstOrDefaultAsync(d => d.Id == documentId && d.ProjectId == projectId, ct);
         if (doc == null) return NotFound();
 
-        var revision = string.IsNullOrWhiteSpace(req.Revision) ? doc.Revision : req.Revision!;
+        var revision = string.IsNullOrWhiteSpace(req.Revision) ? (doc.Revision ?? string.Empty) : req.Revision!;
         var displayName = User.FindFirst("display_name")?.Value ?? "Unknown";
 
         var rev = new DocumentRevision

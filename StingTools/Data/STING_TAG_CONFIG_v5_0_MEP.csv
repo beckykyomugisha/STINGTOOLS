@@ -3719,3 +3719,9 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
 ⚠ WARNING PARAMETERS — add after all Tier rows
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_ELC_LPS_INSPECTION_OVERDUE,Inspection overdue per BS EN 62305-3 §E.7 (12mo Class I/II / 24mo Class III/IV),BS EN 62305-3:2011 §E.7,Common,Text,⚠ Warning: Inspection Overdue,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_INSPECTION_OVERDUE, """")"
+
+# ─── Phase 184l: electrical panel additional warnings ──────────────────────
+1,HIGH,WARN_ELC_PNL_SPARES_LOW,ELC_PNL_SPARE_WAYS_NR < 10% of NUM_OF_WAYS,HTM 06-01,E,Text,⚠ Warning: Panel Spares <10%,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_SPARES_LOW, """""""")"
+2,HIGH,WARN_ELC_PNL_SCCR_LOW,ELC_PNL_SHORT_CIRCUIT_RATING_KA < fault,BS 7671 / NFPA 70,E,Text,⚠ Warning: Panel SCCR Below Fault Level,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_SCCR_LOW, """""""")"
+3,HIGH,WARN_ELC_PNL_AIC_INADEQUATE,ELC_PNL_AIC_RATING_KA < available fault,BS 7671 §434,E,Text,⚠ Warning: Panel AIC Inadequate,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_AIC_INADEQUATE, """""""")"
+4,HIGH,WARN_ELC_PNL_NO_TVSS,Critical panel without surge protection,BS 7671 §443,E,Text,⚠ Warning: Panel No TVSS,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_NO_TVSS, """""""")"

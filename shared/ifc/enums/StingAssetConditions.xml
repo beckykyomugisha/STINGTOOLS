@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingAssetConditions</Name>
+    <Definition>Asset condition rating per ISO 15686 service-life planning. Drives IoT asset-condition reporting, maintenance prioritisation, and replacement-budget forecasting. Used by Pset_StingFM.Condition and the Planscape MIM asset dashboard.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4003-9000-00000000001a</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/iso/15686/1.0/class/condition</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>ISO 15686-1:2011 service-life planning; BS 8544:2013 maintenance cost forecasting; STING IoT/MaintenanceCommands; Planscape MIM Asset.Condition</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Excellent" sentinel="false">
+      <Definition>Excellent — as new, no defects. ≥ 90% of design service life remaining.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Good" sentinel="false">
+      <Definition>Good — minor wear, fully functional. 60-90% of design service life remaining.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Fair" sentinel="false">
+      <Definition>Fair — visible wear, functional with planned PPM. 30-60% of design service life remaining.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Poor" sentinel="false">
+      <Definition>Poor — significant wear or partial failure. 0-30% of service life remaining; replacement budget should be triggered.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Defective" sentinel="false">
+      <Definition>Defective — failed or operating outside spec; immediate corrective maintenance required.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="EndOfLife" sentinel="false">
+      <Definition>End of life — must be replaced. May still be operating but past safe / economic service life.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Unknown" sentinel="true">
+      <Definition>Unknown — not yet inspected. Sentinel value; IDS warns on Stage 6+ but does not fail.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>e94f8a9f1f1f2652f1c2284c7881597075fac260e8b1ba6d4df0c11bbdcdcaed</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

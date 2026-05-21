@@ -7,8 +7,8 @@ services:
       - "5000:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
-      - ConnectionStrings__Migrations=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
+      - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!};Include Error Detail=true
+      - ConnectionStrings__Migrations=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!};Include Error Detail=true
       # Phase 175 — JWT_KEY MUST be supplied via .env or shell env.
       # ${JWT_KEY:?...} fails the compose run with a clear message if
       # the operator forgot to set it (instead of silently falling back
@@ -108,8 +108,8 @@ services:
       # Phase 178 — PLANSCAPE_ROLE=worker activates the heavy Hangfire queues
       # (photo-redaction, IFC conversion, DB backup) without exposing HTTP.
       - PLANSCAPE_ROLE=worker
-      - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
-      - ConnectionStrings__Migrations=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!}
+      - ConnectionStrings__Default=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!};Include Error Detail=true
+      - ConnectionStrings__Migrations=Host=postgres;Port=5432;Database=planscape;Username=planscape;Password=${DB_PASSWORD:-Planscape2026!};Include Error Detail=true
       # Phase 175 — JWT_KEY MUST be supplied via .env or shell env.
       # ${JWT_KEY:?...} fails the compose run with a clear message if
       # the operator forgot to set it (instead of silently falling back
@@ -125,6 +125,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      # Phase 186 — wait for the api container's /health endpoint to
+      # report Healthy. The api container is the Hangfire schema steward;
+      # if worker starts in parallel it will either race CREATE SCHEMA
+      # (23505 duplicate key) or query Hangfire tables that don't exist
+      # yet. Gating on api-healthy means the schema is guaranteed live
+      # by the time worker boots.
+      api:
+        condition: service_healthy
     restart: unless-stopped
     volumes:
       # Worker shares the api's storage volume so background jobs (e.g.

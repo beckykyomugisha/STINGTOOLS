@@ -94,8 +94,10 @@ public class SearchController : ControllerBase
         {
             var meetings = await _db.Meetings
                 .Where(m => m.Project!.TenantId == tenantId &&
+                    // Meeting has no AgendaJson column — fall back to Minutes text
+                    // (the only narrative field on the entity).
                     (EF.Functions.ILike(m.Title!, pattern)
-                     || (m.AgendaJson != null && EF.Functions.ILike(m.AgendaJson, pattern))))
+                     || (m.Minutes != null && EF.Functions.ILike(m.Minutes, pattern))))
                 .Select(m => new { Type = "meeting", m.Id, Label = m.Title, Detail = m.ScheduledAt.ToString("yyyy-MM-dd"), ProjectId = m.ProjectId, ProjectName = m.Project!.Name })
                 .Take(limit).ToListAsync();
             results.AddRange(meetings);

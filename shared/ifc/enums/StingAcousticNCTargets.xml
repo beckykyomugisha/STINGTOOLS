@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingAcousticNCTargets</Name>
+    <Definition>Noise Criterion (NC) target levels for HVAC noise in occupied spaces. Used by AcousticAnalysisEngine and CIBSE TG6 acoustic validators; drives terminal-unit selection, attenuator sizing, room-side noise budgeting. NC values are octave-band envelopes; each curve names the highest tolerable octave-band Sound Pressure Level.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4004-9000-00000000001e</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/cibse/tg6/1.0/class/nc-target</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>CIBSE TG6:2016 acoustics; ASHRAE A48-2019; BB93:2014 (educational); HTM 08-01 (healthcare)</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="NC20" sentinel="false">
+      <Definition>NC 20 — recording studios, concert halls. Extremely quiet.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NC25" sentinel="false">
+      <Definition>NC 25 — libraries, lecture theatres, healthcare patient sleeping areas (HTM 08-01).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NC30" sentinel="false">
+      <Definition>NC 30 — private offices, classrooms, single-bed patient rooms, anaesthetic rooms, meeting rooms (CIBSE TG6 default).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NC35" sentinel="false">
+      <Definition>NC 35 — open offices, OR theatres, restaurants, large meeting rooms.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NC40" sentinel="false">
+      <Definition>NC 40 — corridors, lobbies, retail spaces.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NC45" sentinel="false">
+      <Definition>NC 45 — cafeterias, gymnasiums, public lobbies.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NC50" sentinel="false">
+      <Definition>NC 50 — kitchens, light workshops.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NC55" sentinel="false">
+      <Definition>NC 55 — plant rooms, mechanical-equipment rooms.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NC60" sentinel="false">
+      <Definition>NC 60 — heavy workshops, light industrial.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NC65" sentinel="false">
+      <Definition>NC 65 — industrial / process areas. Hearing protection may apply.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NC75" sentinel="false">
+      <Definition>NC 75 — heavy industrial. Hearing protection mandatory.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>54e78420657aa4447d9b5e20b1ce58344671fb0ff989e154e1ecc3a190b14e7c</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

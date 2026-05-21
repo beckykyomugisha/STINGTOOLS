@@ -389,6 +389,7 @@ namespace StingTools.UI
                     case "Mep_AutoSizeDuct":    RunCommand<Commands.Mep.MepAutoSizeDuctCommand>(app); break;
                     case "Mep_AutoSizeConduit": RunCommand<Commands.Mep.MepAutoSizeConduitCommand>(app); break;
                     case "Mep_AutoSizeAll":     RunCommand<Commands.Mep.MepAutoSizeAllCommand>(app); break;
+                    case "MepCrossStamp":       RunCommand<Commands.Mep.MepCrossStampCommand>(app); break;
                     case "Mep_FillLiveCalc":    RunCommand<Commands.Mep.MepFillLiveCalcCommand>(app); break;
                     case "Mep_NamingAudit":     RunCommand<Commands.Mep.MepNamingAuditCommand>(app); break;
 
@@ -1389,6 +1390,7 @@ namespace StingTools.UI
                     case "AuditTagFamilies": RunCommand<Tags.AuditTagFamiliesCommand>(app); break;
                     case "RetrofitProject": RunCommand<Temp.RetrofitProjectCommand>(app); break;
                     case "MigrateTagFamilies": RunCommand<Commands.TagStudio.MigrateTagFamiliesCommand>(app); break;
+                    case "MigrateTagLabelRefs": RunCommand<Commands.TagStudio.MigrateTagLabelReferencesCommand>(app); break;
                     case "StyleAudit": RunCommand<Commands.TagStudio.StyleAuditCommand>(app); break;
 
                     // ── Populate tokens ──
@@ -1823,6 +1825,9 @@ namespace StingTools.UI
                     // ── Enhanced Structural Algorithms ──
                     case "StrAutoSizeAll": RunCommand<Model.StrAutoSizeAllCommand>(app); break;
                     case "StrAutoSizeApply": RunCommand<Model.StrAutoSizeApplyCommand>(app); break;
+                    case "StrRCDesign": RunCommand<Model.StrRCDesignCommand>(app); break;
+                    case "StrSetUgandanDefaults":
+                        RunCommand<Commands.Structural.SetUgandanDefaultsCommand>(app); break;
                     case "StrGridOptimize": RunCommand<Model.StrGridOptimizeCommand>(app); break;
                     case "StrCarbonOptimize": RunCommand<Model.StrCarbonOptimizeCommand>(app); break;
                     case "StrBarBending": RunCommand<Model.StrGenerateBarBendingCommand>(app); break;
@@ -2136,9 +2141,11 @@ namespace StingTools.UI
                         {
                             var (torsion, tolerances, total) = Model.StructuralDeepOrchestrator.AnalyseModel(sdDoc);
                             // Phase 187 — close the calc → model loop on torsion +
-                            // tolerance cases by stamping the new STR_* params on each
-                            // affected beam / column.
+                            // tolerance + creep + connection by stamping the new
+                            // STR_* params on each affected beam / column.
                             int torsionStamped = 0, tolStamped = 0;
+                            (int creepInsp, int creepStamped, string creepSum) = (0, 0, "");
+                            (int connInsp,  int connStamped,  string connSum)  = (0, 0, "");
                             try
                             {
                                 using (var tx = new Transaction(sdDoc, "STING Stamp Structural Deep"))
@@ -2151,13 +2158,20 @@ namespace StingTools.UI
                                         if (el == null) continue;
                                         tolStamped += Model.FabricationToleranceChecker.WriteBack(sdDoc, el, kv.Value);
                                     }
+                                    // Drive the two newly-orchestrated engines under
+                                    // the same transaction so the whole deep-analysis
+                                    // run is atomic.
+                                    (creepInsp, creepStamped, creepSum) = Model.CreepDeflectionAnalysis.AnalyseModel(sdDoc);
+                                    (connInsp,  connStamped,  connSum)  = Model.ConnectionDetailingEngine.AnalyseModel(sdDoc);
                                     tx.Commit();
                                 }
                             }
                             catch (Exception exTx) { Core.StingLog.Warn($"Structural-deep writeback: {exTx.Message}"); }
                             TaskDialog.Show("Structural Deep Analysis",
                                 $"Torsion Cases: {torsion.Count}  (STR_BEAM_TORSION_KNM stamped: {torsionStamped})\n" +
-                                $"Tolerance Checks: {tolerances.Count}  (STR_FAB_TOLERANCE_MM stamped: {tolStamped})\n\n" +
+                                $"Tolerance Checks: {tolerances.Count}  (STR_FAB_TOLERANCE_MM stamped: {tolStamped})\n" +
+                                $"Creep Deflection: {creepInsp} concrete beams  (STRUCT_FRM_DEFLECTION_MM stamped: {creepStamped})\n" +
+                                $"Connection Detail: {connInsp} steel beams  (STR_CONN_* stamped: {connStamped})\n\n" +
                                 (torsion.Count > 0 ? "Torsion:\n" + string.Join("\n", torsion.Take(10).Select(t => $"  {t.Description}")) : "") +
                                 (tolerances.Count > 0 ? "\nTolerances:\n" + string.Join("\n", tolerances.Take(10).Select(t => $"  {t.CheckName}: ±{t.ToleranceMm:F1}mm")) : ""));
                         }

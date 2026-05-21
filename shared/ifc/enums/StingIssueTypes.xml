@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingIssueTypes</Name>
+    <Definition>BIM issue / coordination-issue type taxonomy. Maps to STING BimIssue.Type, BCF 2.1 topic types, and Planscape mobile issue dropdown. Covers ISO 19650 coordination workflows + clinical handover use cases.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4003-9000-000000000013</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/buildingsmart/bcf/2.1/class/topictype</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>BCF 2.1 topic types; ISO 19650 coordination workflow; STING BimIssue catalogue</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="RFI" sentinel="false">
+      <Definition>Request For Information — formal information request from contractor / appointed party to designer.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="TQ" sentinel="false">
+      <Definition>Technical Query — supplier / sub-contractor technical question, often pre-construction.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NCR" sentinel="false">
+      <Definition>Non-Conformance Report — recorded deviation from specification / drawings / standard.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="SI" sentinel="false">
+      <Definition>Site Instruction — formal instruction from CA to contractor.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="MR" sentinel="false">
+      <Definition>Material Requisition — supplier-facing material order with submittal requirements.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CR" sentinel="false">
+      <Definition>Change Request — proposed scope / cost / programme change.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Clash" sentinel="false">
+      <Definition>Clash — clash detection finding requiring resolution.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Observation" sentinel="false">
+      <Definition>Observation — informal note, snag, watch-item. Not a contractual instruction.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Action" sentinel="false">
+      <Definition>Action — assigned task arising from a meeting / review.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Comment" sentinel="false">
+      <Definition>Comment — review-cycle comment, not requiring formal response.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Snag" sentinel="false">
+      <Definition>Snag — defect identified during handover walk; resolution required before sign-off.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>7064f8482cbc67467d9e83ac92e636359a570752bff831b7e9cb2e0f816cde20</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

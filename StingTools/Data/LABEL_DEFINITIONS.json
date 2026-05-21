@@ -31422,6 +31422,15 @@
           "description": "Foundation depth minimum",
           "standard": "BS EN 1997-1 / Eurocode 7",
           "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_DEPTH_MM, \"\")"
+        },
+        {
+          "param": "WARN_STR_FND_BLACK_COTTON",
+          "severity": "HIGH",
+          "threshold": "STR_BLACK_COTTON_RISK_BOOL = 1",
+          "unit": "flag",
+          "description": "Black-cotton / expansive subgrade flagged on ProjectInformation -- foundation extension and BS 1377-2 swelling test required",
+          "standard": "BS 1377-2 / Uganda NBC / EC7",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FND_BLACK_COTTON, \"\")"
         }
       ],
       "csv_family_alias": "Structural Foundation"

@@ -39,7 +39,7 @@ public partial class AddDocumentRetentionAndIndexes : Migration
             name: "IX_Documents_RetentionExpiresAt",
             table: "Documents",
             column: "RetentionExpiresAt")
-            .Annotate("Npgsql:IndexFilter", "\"RetentionExpiresAt\" IS NOT NULL");
+            .Annotation("Npgsql:IndexFilter", "\"RetentionExpiresAt\" IS NOT NULL");
     }
 
     protected override void Down(MigrationBuilder mb)

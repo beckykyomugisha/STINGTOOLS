@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.Services;
 
@@ -67,7 +68,9 @@ public class AlignmentController : ControllerBase
         [FromServices] IAutoAlignService autoAlign,
         CancellationToken ct)
     {
-        var result = await autoAlign.ComputeAsync(projectId, _tenant.TenantId, modelId, ct);
+        // ComputeAsync's 4th parameter is the optional IHubContext for broadcasting
+        // progress events; AutoAlign from this endpoint doesn't broadcast, so pass null.
+        var result = await autoAlign.ComputeAsync(projectId, _tenant.TenantId, modelId, null, ct);
         return result.Success ? Ok(result) : BadRequest(new { result.Message });
     }
 }
