@@ -3,8 +3,50 @@
   "format": "STING IFC PropertySetTemplate manifest",
   "generated_by": "tools/enums/compute_checksums.py",
   "generated_for_repo_relative_path": "shared/ifc/psets/",
-  "total_psets": 2,
+  "total_psets": 5,
   "psets": [
+    {
+      "name": "Pset_StingDrawing",
+      "file": "Pset_StingDrawing.xml",
+      "kind": "pset",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0002-4001-9000-000000000004",
+      "standards_basis": "STING Drawing Template Manager (Phase 113); Drawing Type registry; STING TokenProfile (Phase 135); Phase 183 LiveProfileSync; Phase 184c crop stamp via Extensible Storage",
+      "template_type": "PSET_OCCURRENCEDRIVEN",
+      "applicability": [
+        "IfcAnnotation",
+        "IfcDocumentInformation",
+        "IfcDocumentReference"
+      ],
+      "property_count": 12,
+      "validation_rule_count": 3,
+      "sha256": "d996df06a5c9fcfccb86fe0d4b95a67d394018801370471f98265d0e9082a0d1",
+      "canonical_json_length": 2080
+    },
+    {
+      "name": "Pset_StingProjectOrg",
+      "file": "Pset_StingProjectOrg.xml",
+      "kind": "pset",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0002-4001-9000-000000000003",
+      "standards_basis": "ISO 19650-2:2018 §5.1 appointing-party / lead-appointed-party roles; BS EN ISO 19650-1:2018 §5.6 project information requirements; STING Template Engine v1.1 (Phase 112)",
+      "template_type": "PSET_OCCURRENCEDRIVEN",
+      "applicability": [
+        "IfcProject"
+      ],
+      "property_count": 13,
+      "validation_rule_count": 3,
+      "sha256": "018f9fd6a0539c4e2fa9bf2cff7301c8886f7117591834fd46b07ec7f7778088",
+      "canonical_json_length": 2072
+    },
     {
       "name": "Pset_StingSpatialCodes",
       "file": "Pset_StingSpatialCodes.xml",
@@ -27,6 +69,27 @@
       "validation_rule_count": 5,
       "sha256": "af89b7df289412a4a475e4bbde4a979d3172c78a37057f029058d8f2559b6df6",
       "canonical_json_length": 1398
+    },
+    {
+      "name": "Pset_StingTag7",
+      "file": "Pset_StingTag7.xml",
+      "kind": "pset",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0002-4001-9000-000000000005",
+      "standards_basis": "STING TAG7 narrative engine; Phase 11 paragraph-depth tier system; Phase 135 TokenProfile (which segments are visible per view)",
+      "template_type": "PSET_OCCURRENCEDRIVEN",
+      "applicability": [
+        "IfcElement",
+        "IfcSpace"
+      ],
+      "property_count": 10,
+      "validation_rule_count": 3,
+      "sha256": "49c4765c4ff7512e87ddb77d2781fefd36b68fc6c3c24900d2c790e679cdda37",
+      "canonical_json_length": 1732
     },
     {
       "name": "Pset_StingTags",

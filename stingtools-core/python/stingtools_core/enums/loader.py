@@ -16,6 +16,7 @@ from typing import Iterable, Iterator, Optional
 from xml.etree import ElementTree as ET
 
 from ..paths import enums_dir
+from ..exceptions import EnumLoadError, CorporateLockDriftError, ProjectOverlayError
 from .models import Enum, EnumValue, EnumScope, EnumOrigin
 
 NS = "https://stingtools.io/schema/ifc/enums/v1"
@@ -67,9 +68,12 @@ def _text(parent: ET.Element, tag: str, default: str = "") -> str:
 
 
 def _parse_enum(path: Path) -> Enum:
-    root = ET.parse(path).getroot()
+    try:
+        root = ET.parse(path).getroot()
+    except ET.ParseError as e:
+        raise EnumLoadError(f"{path.name}: XML parse error: {e}") from e
     if root.tag != f"{NSTAG}StingPropertyEnumeration":
-        raise ValueError(f"{path.name}: not a StingPropertyEnumeration")
+        raise EnumLoadError(f"{path.name}: not a StingPropertyEnumeration")
 
     identity = root.find(f"{NSTAG}Identity")
     governance = root.find(f"{NSTAG}Governance")

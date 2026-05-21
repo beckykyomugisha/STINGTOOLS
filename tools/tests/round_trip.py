@@ -73,13 +73,37 @@ def has_ifctester() -> bool:
 # fixture generation — needs ifcopenshell
 # ----------------------------------------------------------------------
 
-def generate_fixture(out_path: Path, verbose: bool = False, mismatch: bool = False) -> int:
+MISMATCH_KINDS = ("none", "loc", "lvl", "zone", "sys", "seq", "fulltag", "tag-grammar")
+
+
+def generate_fixture(
+    out_path: Path,
+    verbose: bool = False,
+    mismatch: bool = False,
+    mismatch_kind: str = "loc",
+) -> int:
     """Mint a tiny valid IFC4 with Pset_StingSpatialCodes + Pset_StingTags.
 
-    When `mismatch=True`, the wall's Pset_StingTags.Location is set to a
-    value that does NOT match the containing IfcBuilding.LocationCode —
-    used for negative-path verification (SpatialChecker should fire
-    LOC_MATCHES_BUILDING).
+    When `mismatch=True`, applies a deliberate inconsistency selected by
+    `mismatch_kind` (default "loc" for backward compatibility):
+
+      loc          — wall's Pset_StingTags.Location ≠ building.LocationCode
+                     Fires SpatialChecker LOC_MATCHES_BUILDING.
+      lvl          — wall's Level ≠ storey.LevelCode
+                     Fires SpatialChecker LVL_MATCHES_STOREY.
+      zone         — wall's Zone ≠ any assigned IfcZone's ZoneCode
+                     Fires SpatialChecker ZONE_MATCHES_ASSIGNEDZONE.
+      sys          — wall is assigned to an IfcSystem named "HVAC Supply"
+                     but has Pset_StingTags.System = "LV" (electrical mismatch).
+                     Fires SpatialChecker SYS_MATCHES_IFCSYSTEM.
+      seq          — mints TWO walls with identical (Disc, Sys, Lvl, Seq)
+                     to fire SpatialChecker SEQ_UNIQUE_WITHIN_GROUP.
+      fulltag      — wall's FullTag is set but doesn't match the segments
+                     joined with dashes.
+                     Fires SpatialChecker FULLTAG_CONSISTENT.
+      tag-grammar  — wall's Discipline = "INVALID" (outside enum),
+                     Sequence = "1" (not zero-padded).
+                     Fires IDS sting-tag-grammar.ids spec failures.
 
     Returns 0 on success, 4 on missing ifcopenshell.
     """
@@ -136,29 +160,65 @@ def generate_fixture(out_path: Path, verbose: bool = False, mismatch: bool = Fal
         "HumanName":    "Test Clinical Zone",
     })
 
-    # 6. Pset_StingTags on the wall
-    wall_loc = "WAC" if mismatch else "BLD1"   # negative fixture flips LOC
-    pset_w = run("pset.add_pset", model, product=wall, name="Pset_StingTags")
-    run("pset.edit_pset", model, pset=pset_w, properties={
+    # 6. Pset_StingTags on the wall — start from the all-good baseline
+    kind = (mismatch_kind or "loc").lower() if mismatch else "none"
+    if kind not in MISMATCH_KINDS:
+        print(f"WARN: unknown --mismatch-kind {kind!r}; falling back to 'loc'")
+        kind = "loc"
+
+    tags = {
         "Discipline": "A",
-        "Location":   wall_loc,
+        "Location":   "BLD1",
         "Zone":       "Z01",
         "Level":      "L01",
         "System":     "ARC",
         "Function":   "NLB",
         "Product":    "WL",
         "Sequence":   "0001",
-        "FullTag":    f"A-{wall_loc}-Z01-L01-ARC-NLB-WL-0001",
-    })
+    }
+    # apply the targeted mismatch
+    note = ""
+    if   kind == "loc":         tags["Location"] = "WAC"; note = "wall LOC='WAC' ≠ building LocationCode='BLD1'"
+    elif kind == "lvl":         tags["Level"]    = "L99"; note = "wall LVL='L99' ≠ storey LevelCode='L01'"
+    elif kind == "zone":        tags["Zone"]     = "Z99"; note = "wall ZONE='Z99' but no IfcZone has that code"
+    elif kind == "fulltag":     note = "FullTag stored but doesn't match segments"
+    elif kind == "tag-grammar": tags["Discipline"] = "INVALID"; tags["Sequence"] = "1"; note = "Discipline outside enum + Sequence not zero-padded"
+    elif kind == "sys":         tags["System"] = "LV"; note = "wall System='LV' but assigned IfcSystem named 'HVAC Supply'"
+    # seq mismatch is handled below (needs a second wall)
+
+    # FullTag — for fulltag mismatch, store something deliberately wrong
+    if kind == "fulltag":
+        tags["FullTag"] = "WRONG-FULLTAG-VALUE"
+    else:
+        tags["FullTag"] = "-".join(str(tags[k]) for k in ("Discipline","Location","Zone","Level","System","Function","Product","Sequence"))
+
+    pset_w = run("pset.add_pset", model, product=wall, name="Pset_StingTags")
+    run("pset.edit_pset", model, pset=pset_w, properties=tags)
+
+    # SYS mismatch — assign the wall to an IfcSystem named "HVAC Supply" so SpatialChecker fires
+    n_walls = 1
+    if kind == "sys":
+        sys_grp = run("root.create_entity", model, ifc_class="IfcSystem", name="HVAC Supply")
+        run("group.assign_group", model, products=[wall], group=sys_grp)
+
+    # SEQ-uniqueness mismatch — add a second wall with identical tag tuple
+    if kind == "seq":
+        wall2 = run("root.create_entity", model, ifc_class="IfcWall", name="Test Wall 2")
+        run("spatial.assign_container", model, products=[wall2], relating_structure=storey)
+        run("group.assign_group", model, products=[wall2], group=zone)
+        pset_w2 = run("pset.add_pset", model, product=wall2, name="Pset_StingTags")
+        run("pset.edit_pset", model, pset=pset_w2, properties=dict(tags))
+        n_walls = 2
+        note = "two walls share (Disc=A, Sys=ARC, Lvl=L01, Seq=0001)"
 
     model.write(str(out_path))
     if verbose:
         print(f"  wrote {out_path} ({out_path.stat().st_size} bytes)")
         print(f"  schema:   IFC4")
-        print(f"  entities: 1 building, 1 storey, 1 zone, 1 wall")
-        print(f"  psets:    Pset_StingSpatialCodes ×3, Pset_StingTags ×1")
+        print(f"  entities: 1 building, 1 storey, 1 zone, {n_walls} wall(s)")
+        print(f"  psets:    Pset_StingSpatialCodes ×3, Pset_StingTags ×{n_walls}")
         if mismatch:
-            print(f"  ⚠  MISMATCH FIXTURE: wall LOC={wall_loc!r} but building LocationCode='BLD1'")
+            print(f"  ⚠  MISMATCH FIXTURE ({kind}): {note}")
     return 0
     #
     #   model.write(str(out_path))
@@ -242,7 +302,11 @@ def main(argv: list[str]) -> int:
     p.add_argument("--fixture", default=str(DEFAULT_FIXTURE))
     p.add_argument("--ids", default=str(DEFAULT_IDS), help="Path to IDS file (defaults to sting-spatial-codes.ids; can repeat)", action="append")
     p.add_argument("--generate-fixture", action="store_true")
-    p.add_argument("--mismatch", action="store_true", help="when used with --generate-fixture, mint the negative-fixture variant (LOC ≠ building.LocationCode)")
+    p.add_argument("--mismatch", action="store_true",
+                   help="when used with --generate-fixture, mint the negative-fixture variant")
+    p.add_argument("--mismatch-kind", default="loc",
+                   choices=("loc", "lvl", "zone", "sys", "seq", "fulltag", "tag-grammar"),
+                   help="which kind of mismatch to introduce (default: loc)")
     p.add_argument("--verbose", action="store_true")
     p.add_argument("--strict", action="store_true", help="exit non-zero on SKIP")
     args = p.parse_args(argv)
@@ -264,7 +328,9 @@ def main(argv: list[str]) -> int:
     print()
 
     if args.generate_fixture:
-        rc = generate_fixture(fixture, args.verbose, mismatch=args.mismatch)
+        rc = generate_fixture(fixture, args.verbose,
+                              mismatch=args.mismatch,
+                              mismatch_kind=args.mismatch_kind)
         if args.strict and rc == 3:
             return 3
         return rc

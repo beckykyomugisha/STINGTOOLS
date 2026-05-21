@@ -198,21 +198,50 @@ public class IfcController : ControllerBase
     /// (issue raised in Blender → find Revit ElementId).
     /// </summary>
     [HttpGet("mappings")]
-    public async Task<ActionResult<List<ExternalElementMapping>>> GetMappings(
+    public async Task<ActionResult<MappingsPage>> GetMappings(
         Guid projectId,
         [FromQuery] string? ifcGuid = null,
-        [FromQuery] string? host = null)
+        [FromQuery] string? host = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 200)
     {
         var tenantId = GetTenantId();
         var exists = await _db.Projects.AnyAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (!exists) return NotFound();
 
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 1000);
+
         var q = _db.ExternalElementMappings.Where(m => m.ProjectId == projectId);
         if (!string.IsNullOrWhiteSpace(ifcGuid)) q = q.Where(m => m.IfcGlobalId == ifcGuid);
         if (!string.IsNullOrWhiteSpace(host))    q = q.Where(m => m.Host == host.ToLower());
 
-        var rows = await q.Take(1000).ToListAsync();
-        return Ok(rows);
+        var total = await q.CountAsync();
+        var rows = await q
+            .OrderBy(m => m.IfcGlobalId)
+            .ThenBy(m => m.Host)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return Ok(new MappingsPage
+        {
+            Items = rows,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = total,
+            HasNextPage = (page * pageSize) < total,
+        });
+    }
+
+    /// <summary>Paginated response wrapper for the mappings GET endpoint.</summary>
+    public class MappingsPage
+    {
+        public List<ExternalElementMapping> Items { get; set; } = new();
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalCount { get; set; }
+        public bool HasNextPage { get; set; }
     }
 
     // ------------------------------------------------------------------

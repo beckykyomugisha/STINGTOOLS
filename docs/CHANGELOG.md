@@ -3,6 +3,174 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 186b — Pset expansion + Path-2 static rule closeout)
+
+Two follow-ups to Phase 186 that turn the substrate from "Tier-1 only,
+60% of declared rules statically enforced" into "Tier-1 + drawing +
+project-org coverage, 100% of declared statically-enforceable rules
+enforced".
+
+**3 new Pset templates** under `shared/ifc/psets/` (raises Pset count
+from 2 → 5):
+
+- `Pset_StingTag7.xml` — 10 properties (`NarrativeFull` + 6 sub-sections
+  A–F + 3 paragraph-state booleans) covering the TAG7 rich narrative
+  surface. 3 rules, all marked `enforced-by="host"` because they're
+  presentation-time contracts (TAG7Builder territory).
+- `Pset_StingDrawing.xml` — 12 properties (`DrawingTypeId`,
+  `StyleLocked`, `CropKind`, `CropMarginMm`, `PackId`, `PackChecksum`,
+  `TokenProfileId`, `TagDepth`, `SegmentMask`, `ColourScheme`,
+  `SheetNumber`, `SheetName`) mirroring the Drawing Template Manager
+  fields STING stamps on every Revit view/sheet. 3 rules
+  (`DRAWING_TYPE_RESOLVABLE` static, two `enforced-by="host"`).
+- `Pset_StingProjectOrg.xml` — 13 properties mirroring the
+  `PRJ_ORG_*` corporate metadata cells (`ProjectCode`, `Phase`,
+  `ClientName`, `CompanyName`, `OriginatorCode`, …). 3 rules
+  (2 static + 1 `enforced-by="host"`).
+
+**6 newly-enforced static rules** in `SpatialChecker`
+(`stingtools-core/python/stingtools_core/spatial/check.py`):
+
+| Rule | Pset | What it catches |
+|---|---|---|
+| `DISC_NOT_EMPTY` | `Pset_StingTags` | Discipline missing or sentinel "XX" at Stage_3+; enum-membership check when EnumRegistry available |
+| `DRAWING_TYPE_RESOLVABLE` | `Pset_StingDrawing` | DrawingTypeId format (`^[a-zA-Z][a-zA-Z0-9\-]+$`) + optional registry-lookup via new `DrawingTypeRegistry` class |
+| `PROJECTORG_PROJECT_CODE_REQUIRED` | `Pset_StingProjectOrg` | ProjectCode missing or not matching `^[A-Z][A-Z0-9\-]{2,5}$` |
+| `PROJECTORG_PHASE_VALID` | `Pset_StingProjectOrg` | Phase value not in `StingRibaStages` enum (when EnumRegistry available) |
+| `BUILDING_LOC_UNIQUE` | `Pset_StingSpatialCodes` | Two or more `IfcBuilding` entities sharing a LocationCode |
+| `STOREY_LVL_UNIQUE_WITHIN_BUILDING` | `Pset_StingSpatialCodes` | Two or more `IfcBuildingStorey` entities sharing a LevelCode within the same `IfcBuilding` |
+
+**Static rule coverage**: 6 → 12 (100% of declared statically-
+enforceable rules; the remaining 8 rules are marked
+`enforced-by="host"` because they are write-time / presentation-time
+contracts a static IFC snapshot can't verify).
+
+**SpatialChecker API additions**:
+
+- `SpatialChecker.__init__(model, stage="Stage_3", enum_registry=None,
+  drawing_type_registry=None)` — gains 3 optional kwargs (stage gating,
+  enum-membership checks, drawing-type registry lookup).
+- `SpatialChecker.check_project_org()` — model-level method for the 2
+  Pset_StingProjectOrg rules.
+- `SpatialChecker.check_spatial_uniqueness()` — model-level method for
+  the 2 spatial-code uniqueness rules.
+- `SpatialChecker.check_all_elements()` — now also walks
+  `IfcAnnotation` entities (so Pset_StingDrawing checks fire) and
+  invokes the new model-level methods.
+- New `DrawingTypeRegistry` class exported from
+  `stingtools_core.spatial` — wraps a set of known DrawingType ids
+  for `DRAWING_TYPE_RESOLVABLE` lookup.
+
+**Tests** (`stingtools-core/python/tests/test_smoke.py`): +8 new tests
+(23 standalone, 27 pytest including tmp_path) covering every newly-
+enforced rule with both positive and negative fixtures, plus a
+stage-gating test (Stage_1 must not fire DISC_NOT_EMPTY even when
+Discipline is "XX").
+
+**Verification status at Phase 186b close**:
+
+| Layer | Status |
+|---|---|
+| 5 Pset XMLs lock-consistent | ✅ `compute_checksums.py --check` exit 0 |
+| 52 enum XMLs SHA-256-locked | ✅ verified drift-free |
+| `stingtools-core` smoke tests | ✅ 23/23 standalone pass, 27/27 pytest pass |
+| 6 new static rules verified | ✅ all 6 fire on negative fixtures, pass on positive |
+| Pset_StingDrawing fires on IfcAnnotation | ✅ verified via new test |
+| Stage gating verified | ✅ DISC_NOT_EMPTY skips at Stage_1, fires at Stage_3 |
+
+**Stage gating (Phase 186b1 follow-up)**:
+
+Review pass after the initial 186b commit surfaced a correctness gap:
+`SpatialChecker` had a `stage` kwarg but only DISC_NOT_EMPTY consulted
+it. The other 11 static rules always fired regardless of stage, so a
+Stage_0/1 model with tag data that would later be wrong (LOC not
+matching its building, etc.) was incorrectly tripping Stage_3 rules.
+
+Fix: added `_RULE_ACTIVE_FROM` table mirroring each rule's
+`<ActiveFrom>` declaration in the Pset XML, plus an `_active(rule_id)`
+helper, plus gates at every emission point — `check_element`,
+`check_seq_uniqueness`, `check_spatial_uniqueness`, `check_project_org`.
+DISC_NOT_EMPTY's enum-membership branch now also honours the
+Stage_2+ gate (previously it skipped the gate that the empty/XX
+branches respected). 2 new tests pinpoint the regression:
+`test_disc_not_empty_invalid_value_skipped_at_stage_1` and
+`test_stage_3_rules_skip_at_stage_2`.
+
+Live verification across stages on the same Stage_3-fail fixture:
+
+| Stage | DISC_NOT_EMPTY (Discipline='XYZ', enum_registry on) |
+|---|---|
+| Stage_0 | 0 ✅ (rule inactive) |
+| Stage_1 | 0 ✅ (rule inactive) |
+| Stage_2 | 1 ✅ (rule active) |
+| Stage_3 | 1 ✅ |
+
+Test count: 25 standalone, 29 pytest.
+
+**Phase 186b2 follow-up (G2 / G3 / G4 closeout)**:
+
+The three deferred items from the Phase 186b caveats are now closed.
+
+**G2 — IDS coverage for the 3 new psets** (`shared/ifc/ids/`):
+
+- `sting-drawing.ids` (6 specs) — DrawingTypeId format, CropKind +
+  ColourScheme enum membership, CropMarginMm 0..500 mm, PackChecksum
+  SHA-256 grammar, TagDepth 1..10.
+- `sting-tag7.ids` (7 specs) — length bound on each of the 7
+  narrative parts (NarrativeFull + 6 sub-sections A-F).
+- `sting-project-org.ids` (6 specs) — ProjectCode + OriginatorCode
+  pattern `^[A-Z][A-Z0-9\-]{2,5}$`, Phase StingRibaStages enum,
+  CompanyName + ClientName non-empty length bounds, WorkflowProfile
+  snake_case grammar.
+
+All 3 files pass official ifctester XSD validation. Verified live on
+both positive and negative fixtures: positive passes 19/19 specs;
+negative trips 10 of the 11 catchable specs (the eleventh — empty
+IdentityHeader — passes because the IFC writer drops empty strings,
+so the spec's optional-when-present applicability is correctly
+silent). Total IDS spec count across the substrate: 11 + 7 + 6 + 7
++ 6 = **37 specs** across all 5 psets.
+
+**G3 — `DrawingTypeRegistry.from_json` / `from_jsons`**
+(`stingtools-core/python/stingtools_core/spatial/check.py`):
+
+- `DrawingTypeRegistry.from_json(path)` — load a registry from any
+  `STING_DRAWING_TYPES.json` shape (corporate baseline or project
+  override). Reads `drawingTypes[].id`; raises `ValueError` on
+  malformed JSON or missing `drawingTypes` array.
+- `DrawingTypeRegistry.from_jsons(*paths)` — layered load merging
+  corporate baseline + project overrides; missing paths are skipped
+  silently.
+
+Verified against the live corporate `StingTools/Data/STING_DRAWING_TYPES.json`
+(90 ids).
+
+**G4 — IfcDocumentInformation + IfcDocumentReference walked**
+(`stingtools-core/python/stingtools_core/spatial/check.py`):
+
+`SpatialChecker.check_all_elements` now walks
+`IfcDocumentInformation` and `IfcDocumentReference` alongside
+`IfcAnnotation`, matching the full Pset_StingDrawing
+`<Applicability>` set. Verified with a new test
+(`test_drawing_check_fires_on_document_information`).
+
+**Test count**: 27/27 standalone, 33/33 pytest.
+
+**Caveats (Phase 186b — open list)**:
+
+1. ~~The 3 new Psets do NOT yet have matching IDS specs.~~ Closed
+   (G2 above).
+2. ~~`DrawingTypeRegistry` doesn't load from JSON.~~ Closed
+   (G3 above).
+3. Built without `dotnet build` verification — these are pure Python
+   substrate changes, no C# affected.
+4. IDS specs for Tag7/ProjectOrg use `dataType="IFCLABEL"` rather
+   than the Pset XML's declared `IfcText` to match the writer-
+   tolerant convention used in `sting-tag-grammar.ids`. The Pset
+   XML's IfcText declaration remains canonical for STING-side
+   storage; the IDS check is liberal about string-derived types
+   for cross-writer compatibility.
+
 #### Completed (Phase 186 — Bonsai integration foundation; multi-host substrate)
 
 **Scope**: turns STING from a Revit-only plugin into the data-layer
@@ -5336,3 +5504,142 @@ no non-comment references to either broken API remain.
 **Caveat**:
 
 1. Built without `dotnet build` verification (Linux sandbox). The user's pull command should now succeed and the resulting build should be clean.
+
+#### Completed (Phase 188 — Symbol library review + comprehensive standards build-out)
+
+User commissioned a full review of the symbol-family system and asked to
+fix all defects and implement all recommendations. The audit found 431
+symbols across 12 catalogues (~40% of the ~900–1000 a comprehensive AEC
+firm needs), most lacking status fields, three SLD regional catalogues
+thinly populated, and 97 ISO 6412 symbols indexed but absent from the
+JSON. The audit's BUG-1 claim (IsoSymbolPlacer naming mismatch) was
+disproved on inspection — `ResolveFamilySymbol` already implements a
+Tier-1/Tier-2 fallback covering both `STING_FAM_*` and `ISO6412_*` names.
+
+This phase closes every other gap. Net: **431 → 791 symbols (+360)**;
+**12 → 20 catalogues**.
+
+**Pass 1 — Schema hygiene**: added `"status": "draft"` to all 267
+symbols across 11 catalogues that previously lacked it. Reformatted
+`STING_SLD_SYMBOLS_{BS,CIBSE,IEEE,NFPA}.json` to `indent=2` to match
+the ISO6412 baseline; geometry coordinates unchanged.
+
+**Pass 2 — ISO 6412 gap fill (+97 symbols, 164 → 261)**: authored
+the symbols listed in `STING_ISO_SYMBOLS_INDEX.csv` but absent from
+`STING_ISO6412_SYMBOLS.json`. Standards followed: ISO 6412 / BS 308 Pt
+3 / BS 1646 (valves) / SMACNA (duct) / BS 4568 (conduit) /
+BS EN 61537 (cable tray) / ISO 2553 + BS EN 22553 (welds) /
+MSS SP-58 (hangers). Coverage:
+
+| Group | Count | Examples |
+|---|---|---|
+| Valves | 19 | Butterfly, diaphragm, pinch, knife, swing/lift/dual check, FCV/PCV/TCV/LCV, MOV/AOV/SOV/HOV, drain, vent, handle, lever |
+| Ductwork | 22 | 45°/90° round elbows, round + rect tees, concentric + rect reducers, rect-to-round transition, offset, 5 damper types (volume/fire/smoke/FSD/backdraft), 3 grilles, 4-way + linear diffusers, register, fan, filter, coil, silencer |
+| Conduit (BS 4568) | 8 | Bush, coupling, gland, LB/LL/LR/T/X inspection bodies |
+| Cable tray | 3 | 45° bend, dropout, end plate |
+| Welds (ISO 2553) | 15 | Butt-field, V-groove, bevel-groove, backing, seam, tack, plug, slot, spot, socket-weld, 5 NDT (RT/UT/PT/MT/VT) |
+| Hangers (MSS SP-58) | 7 | Anchor, clamp, roller, constant-load spring, rigid strut, expansion joint, guide |
+| Penetrations | 4 | Puddle flange, link-seal, slab, wall |
+| Notation | 18 | North arrow, scale bar, grid bubble, section + level heads, 5 notes (general/typ/NIC/NTS/revcloud), 4 dimensions (linear/angular/radial/slope), 4 tags (duct/fitting/hanger/weld) |
+
+After this pass `CSV ↔ JSON` gap = 0.
+
+**Pass 3 — 8 new catalogues (+138 symbols)**:
+
+| File | Standard(s) | Count |
+|---|---|---|
+| `STING_WIRE_ANNOTATIONS.json` | BS EN 60617-2 / BS 7671 | 19 |
+| `STING_EARTHING_SYMBOLS.json` | BS 7430 / BS EN 62305 / BS 7671 | 14 |
+| `STING_BMS_SYMBOLS.json` | CIBSE Guide H / ASHRAE 135 / IEC 14908 / KNX | 23 |
+| `STING_TELECOM_SYMBOLS.json` | BS EN 50173 / BICSI TDMM / BS 5839-8 / BS EN 62676 / BS EN 60839 | 20 |
+| `STING_STRUCTURAL_ANNOTATIONS.json` | BS 8666 / BS EN 10210 / BS EN 1993 / BS EN 1997 / BS 4449 / ISO 2553 | 17 |
+| `STING_SAFETY_SYMBOLS.json` | ISO 7010:2019 | 25 |
+| `STING_GAS_SYMBOLS.json` | IGEM TD/4 / BS 6891 / BS EN 1775 | 10 |
+| `STING_DRAINAGE_ABOVE.json` | BS EN 12056 / BS 5572 | 10 |
+
+Highlights: ISO 7010 F001 portable extinguisher (originally missing),
+all 4 ISO 7010 quadrants (F/E/P/M/W), every wire/cable annotation a
+real drawing needs (home-run, phase ticks, splices, junction box),
+TT/TN-S/TN-C earthing arrangements + LPS down-conductor + air
+termination, BMS sensor/controller/network family, full structural
+section + connection + foundation set.
+
+**Pass 4 — Existing catalogue extensions (+125 symbols)**:
+
+| Catalogue | Before | After | Highlights of additions |
+|---|---|---|---|
+| `STING_ELEC_SYMBOLS.json` | 32 | 62 | Both IEC and ANSI/IEEE resistor + inductor (audit-flagged absence fixed); capacitor IEC + polar; diode/LED/Zener; NPN/PNP transistors; 4 sources; 4 meters; bell, buzzer, antenna, speaker; 6 switch variants |
+| `STING_SLD_SYMBOLS_IEEE.json` | 15 | 53 | Full IEC parity: 4 transformer types, 4 generation types, UPS + battery bank, 4 busbar types, ATS/MTS, 5 motor variants, capacitor bank + reactor, SPD, DB/MCC/switchboard, EV charger, ATEX zone |
+| `STING_MEP_SYMBOLS.json` | 27 | 43 | ASHP, GSHP, water-cooled + air-cooled chillers, cooling tower, MVHR, VRF outdoor/indoor, split AC, CRAC, active + passive chilled beams, radiant panel, UFH manifold, humidifier, dehumidifier |
+| `STING_PLUMBING_SYMBOLS.json` | 24 | 44 | Combi/system/regular boilers, HIU, calorifier, thermal store, CWST, booster set, pressurisation unit, expansion vessel, TMV, RPZ backflow preventer, water meter, softener, RO, hose bib, solar thermal, dual check, deaerator, dirt separator |
+| `STING_FP_SYMBOLS.json` | 28 | 49 | 4 portable extinguishers (CO₂/water/foam/powder), hose reel, dry/wet riser, hydrant, gas suppression nozzle, foam generator, water mist nozzle, VESDA, linear-heat-detection, beam smoke detector, flame detector, duct smoke detector, fusible link, sounder, VAD, smoke vent, fire curtain, hold-open, FAP, suppression control panel |
+
+**Pass 5 — Engine awareness + docs**:
+
+* `SymbolBatchHelper.AllBatches` (`Commands/Symbols/SymbolLibraryCommands.cs`)
+  extended with the 8 new catalogues; `CreateSymbolLibraryCommand` (the
+  "Create All Symbols" entry point) now generates them automatically
+  alongside the existing 12 — no separate user action required.
+* `BrowseAllEquipmentSymbolsCommand.Sources` + `InferJsonFile`
+  (`EquipmentSymbolCommands.cs`) extended with prefix-based id routing
+  so symbols from the 8 new catalogues are reachable from the
+  cross-discipline symbol browser. Prefix ordering reworked so the more
+  specific routes (ISO7010_, EARTH_, TEL_, STR_, DRN_, GAS_, SENS_/CTRL_,
+  WIRE_/JBOX/CABLE_) match before the broader legacy prefixes.
+* `Families/ISO6412/README.md` updated with the dual-naming convention
+  (Tier 1 = `STING_FAM_*` from CSV → seed `.rfa` from this folder;
+  Tier 2 = `ISO6412_*` from JSON → runtime-generated). This makes
+  explicit what the placer code already does and documents how to ship
+  hand-drafted seeds correctly. Current-status table refreshed to 261
+  symbols.
+* `docs/CHANGELOG.md` — this entry.
+
+**Final inventory** (programmatically verified):
+
+| Catalogue | Symbols |
+|---|---|
+| STING_ISO6412_SYMBOLS.json | 261 |
+| STING_ELEC_SYMBOLS.json | 62 |
+| STING_SLD_SYMBOLS.json | 54 |
+| STING_SLD_SYMBOLS_IEEE.json | 53 |
+| STING_FP_SYMBOLS.json | 49 |
+| STING_PLUMBING_SYMBOLS.json | 44 |
+| STING_MEP_SYMBOLS.json | 43 |
+| STING_SAFETY_SYMBOLS.json | 25 |
+| STING_LIGHTING_SYMBOLS.json | 25 |
+| STING_BMS_SYMBOLS.json | 23 |
+| STING_TELECOM_SYMBOLS.json | 20 |
+| STING_PIPE_ACCESSORIES.json | 20 |
+| STING_WIRE_ANNOTATIONS.json | 19 |
+| STING_STRUCTURAL_ANNOTATIONS.json | 17 |
+| STING_SLD_SYMBOLS_BS.json | 15 |
+| STING_SLD_SYMBOLS_CIBSE.json | 14 |
+| STING_EARTHING_SYMBOLS.json | 14 |
+| STING_SLD_SYMBOLS_NFPA.json | 13 |
+| STING_GAS_SYMBOLS.json | 10 |
+| STING_DRAINAGE_ABOVE.json | 10 |
+| **TOTAL** | **791** |
+
+**Caveats (Phase 188)**:
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. Every symbol authored or extended in this phase carries
+   `"status": "draft"`. Geometry follows the listed standards and is
+   internally consistent, but **none of it has been verified inside
+   Revit** against a printed copy of the standard plate. Promote to
+   `"status": "reviewed"` only after that verification, and to
+   `"status": "final"` only after a corresponding hand-drafted seed
+   `.rfa` is committed and tested in a live project.
+3. The thin BS / CIBSE / NFPA SLD catalogues (15 / 14 / 13 symbols)
+   were **not** expanded in this phase. The fallback chain in
+   `STING_SYMBOL_STANDARDS.json` (BS → IEC, NFPA → IEC, CIBSE → IEC)
+   continues to silently substitute IEC equivalents when a regional
+   variant is missing. Bringing each to parity with the 54-symbol IEC
+   IEC catalogue is the next round (~117 symbols total — see Phase 188
+   follow-up tracker in `docs/ROADMAP.md`).
+4. The 8 new catalogues each ship with sensible defaults, but
+   organisations may want to override specific symbols via a
+   project-scoped overlay (none of the loaders implement this yet —
+   the JSON files are read directly from `StingTools/Data/Symbols/`).
+   Adding a project overlay layer matching the Drawing-Type project
+   override mechanism would be the natural follow-up.

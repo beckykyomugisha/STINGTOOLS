@@ -8,11 +8,14 @@ against STING's Pset + enumeration contracts.
 | File | Purpose |
 |---|---|
 | `_README.md` | This file |
-| `sting-spatial-codes.ids` | IDS encoding of the 5 cross-entity validation rules declared in `Pset_StingSpatialCodes.xml`. Validates that every element's tag tokens match the spatial structure they live in. |
-| `sting-spatial-codes-rules.md` | Hand-written companion explaining how each Pset `<Rule>` element maps to an IDS specification (facets, restrictions, cardinality), for cases where the IDS XML alone isn't self-explanatory. |
-| (future) `sting-tag-grammar.ids` | Validates the 8-segment tag against StingDisciplineCodes / SystemCodes / FunctionCodes / ProductCodes pattern + enumeration restrictions. |
+| `sting-tag-grammar.ids` | Validates the 8-segment tag against `Pset_StingTags` — DISC / LOC / ZONE / LVL / SYS / FUNC / PROD / SEQ format + enum membership + FullTag + TokenLock + ModifiedAt grammar. 11 specs. |
+| `sting-spatial-codes.ids` | IDS encoding of the cross-entity validation rules declared in `Pset_StingSpatialCodes.xml`. Validates that every element's tag tokens match the spatial structure they live in. 8 specs. |
+| `sting-spatial-codes-rules.md` | Hand-written companion explaining how each Pset `<Rule>` element maps to an IDS specification (facets, restrictions, cardinality). |
+| `sting-drawing.ids` | Validates `Pset_StingDrawing` (format side) — DrawingTypeId grammar, CropKind / ColourScheme enum membership, CropMarginMm range, PackChecksum SHA-256 grammar, TagDepth 1..10. 6 specs. The behavioural rules (`CROP_KIND_MATCHES_PROFILE`, `PACK_CHECKSUM_MATCHES`) live on the host plugin. |
+| `sting-tag7.ids` | Validates `Pset_StingTag7` length bounds across the 7 narrative parts (NarrativeFull + 6 sub-sections). 7 specs. The behavioural rules (`TAG7_*`) are TAG7Builder contracts. |
+| `sting-project-org.ids` | Validates `Pset_StingProjectOrg` — ProjectCode + OriginatorCode pattern, Phase enum membership, CompanyName + ClientName non-empty bounds, WorkflowProfile snake_case format. 6 specs. The `PROJECTORG_SINGLETON` rule is host-enforced. |
 | (future) `sting-stage{N}-*.ids` | Stage-aware overlays per RIBA stage. |
-| (future) `sting-healthcare.ids` | Validates Tier 5 healthcare Psets (when authored). |
+| (future) `sting-healthcare.ids` | Validates Tier 5 healthcare Psets (Phase 187). |
 
 ## Encoding conventions
 

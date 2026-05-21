@@ -1,0 +1,623 @@
+{
+  "version": "1.0",
+  "standard": "BS EN 12056 / BS 5572 / BS EN 12380 / BS EN 1825 / BS EN 12050",
+  "description": "Above-ground drainage symbols (gullies, RWP, SVP, AAV, traps, rodding eyes, grease trap, sump pump)",
+  "symbols": [
+    {
+      "id": "DRN_GULLY",
+      "name": "Yard / Floor Gully",
+      "category": "Drainage",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.15,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "BS EN 12056",
+      "status": "draft"
+    },
+    {
+      "id": "DRN_RWP",
+      "name": "Rainwater Pipe (RWP)",
+      "category": "Drainage",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.18,
+            "y1": 0,
+            "x2": 0.18,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": -0.5
+          }
+        ]
+      },
+      "standard": "BS EN 12056",
+      "status": "draft"
+    },
+    {
+      "id": "DRN_SVP",
+      "name": "Soil & Vent Pipe (SVP)",
+      "category": "Drainage",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.18,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          }
+        ]
+      },
+      "standard": "BS EN 12056",
+      "status": "draft"
+    },
+    {
+      "id": "DRN_AAV",
+      "name": "Air-Admittance Valve",
+      "category": "Drainage",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": -0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": 0.2,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.1,
+            "x2": -0.1,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.1,
+            "x2": 0.1,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.3,
+            "x2": 0.1,
+            "y2": 0.3
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.08,
+                "y": -0.1
+              },
+              {
+                "x": 0.08,
+                "y": -0.1
+              },
+              {
+                "x": 0.08,
+                "y": 0
+              },
+              {
+                "x": -0.08,
+                "y": 0
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "BS EN 12380",
+      "status": "draft"
+    },
+    {
+      "id": "DRN_TRAP_P",
+      "name": "P-Trap",
+      "category": "Drainage",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": -0.2,
+            "r": 0.2,
+            "startAngle": 180,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "BS EN 12056",
+      "status": "draft"
+    },
+    {
+      "id": "DRN_TRAP_S",
+      "name": "S-Trap",
+      "category": "Drainage",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": -0.2
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": -0.2,
+            "r": 0.2,
+            "startAngle": 180,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "BS EN 12056",
+      "status": "draft"
+    },
+    {
+      "id": "DRN_TRAP_BOTTLE",
+      "name": "Bottle Trap",
+      "category": "Drainage",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.2,
+            "x2": 0.5,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": -0.1,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.2,
+            "x2": 0.1,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.2,
+            "x2": 0.1,
+            "y2": -0.2
+          }
+        ]
+      },
+      "standard": "BS EN 12056",
+      "status": "draft"
+    },
+    {
+      "id": "DRN_RODDING_EYE",
+      "name": "Rodding Eye / Access",
+      "category": "Drainage",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": 0.3,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.1,
+            "x2": 0.3,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.1,
+            "x2": -0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.1,
+            "x2": 0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.3,
+            "x2": 0.2,
+            "y2": 0.3
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.06,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "BS EN 12056",
+      "status": "draft"
+    },
+    {
+      "id": "DRN_GREASE_TRAP",
+      "name": "Grease Trap / Interceptor",
+      "category": "Drainage",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.3,
+            "x2": 0.4,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.3,
+            "x2": 0.4,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.3,
+            "x2": -0.4,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.3,
+            "x2": -0.4,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.3,
+            "x2": -0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.3,
+            "x2": 0.2,
+            "y2": -0.1
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": -0.1
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.4,
+                "y": 0.3
+              },
+              {
+                "x": -0.2,
+                "y": 0.3
+              },
+              {
+                "x": -0.2,
+                "y": 0.15
+              },
+              {
+                "x": -0.4,
+                "y": 0.15
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "BS EN 1825",
+      "status": "draft"
+    },
+    {
+      "id": "DRN_PUMP_SUMP",
+      "name": "Sump Pump (Submersible)",
+      "category": "Drainage",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": -0.1,
+            "r": 0.15,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.05,
+                "y": 0.05
+              },
+              {
+                "x": 0.05,
+                "y": 0.05
+              },
+              {
+                "x": 0,
+                "y": -0.15
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "BS EN 12050",
+      "status": "draft"
+    }
+  ]
+}

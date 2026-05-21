@@ -1,0 +1,702 @@
+{
+  "version": "1.0",
+  "standard": "IGEM TD/4 / BS 6891 / BS EN 1775 / BS 6400",
+  "description": "Natural gas and LPG distribution symbols (meter, regulator, emergency shut-off, boiler, hob, relief vent, LPG cylinder, booster, filter, flow meter)",
+  "symbols": [
+    {
+      "id": "GAS_METER",
+      "name": "Gas Meter",
+      "category": "Gas",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Gas",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": -0.3,
+            "y2": -0.2
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.1,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.3,
+                "y": -0.2
+              },
+              {
+                "x": -0.3,
+                "y": 0.2
+              },
+              {
+                "x": -0.25,
+                "y": 0.2
+              },
+              {
+                "x": -0.25,
+                "y": -0.2
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "IGEM TD/4 / BS 6400",
+      "status": "draft"
+    },
+    {
+      "id": "GAS_REGULATOR",
+      "name": "Gas Pressure Regulator",
+      "category": "Gas",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Gas",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.2,
+            "y2": 0
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": -0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": 0,
+            "y2": 0.3
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": 0.3
+              },
+              {
+                "x": 0.1,
+                "y": 0.3
+              },
+              {
+                "x": 0.1,
+                "y": 0.4
+              },
+              {
+                "x": -0.1,
+                "y": 0.4
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "IGEM GM/8",
+      "status": "draft"
+    },
+    {
+      "id": "GAS_VALVE_EMERG",
+      "name": "Emergency Gas Shut-Off Valve",
+      "category": "Gas",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Gas",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": -0.25,
+                "y": -0.22
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": 0.25,
+                "y": 0.22
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0.25,
+                "y": -0.22
+              }
+            ]
+          },
+          {
+            "vertices": [
+              {
+                "x": -0.1,
+                "y": 0.3
+              },
+              {
+                "x": 0.1,
+                "y": 0.3
+              },
+              {
+                "x": 0.1,
+                "y": 0.4
+              },
+              {
+                "x": -0.1,
+                "y": 0.4
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "BS 6891",
+      "status": "draft"
+    },
+    {
+      "id": "GAS_BOSCH",
+      "name": "Boiler — Gas Combi",
+      "category": "Gas",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Gas",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.15,
+            "x2": 0.2,
+            "y2": 0.15
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.05,
+            "x2": 0.2,
+            "y2": 0.05
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.2,
+                "y": -0.2
+              },
+              {
+                "x": 0.2,
+                "y": -0.2
+              },
+              {
+                "x": 0.2,
+                "y": -0.1
+              },
+              {
+                "x": -0.2,
+                "y": -0.1
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "BS EN 483",
+      "status": "draft"
+    },
+    {
+      "id": "GAS_HOB",
+      "name": "Gas Hob / Cooking Appliance",
+      "category": "Gas",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Gas",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.2,
+            "x2": 0.4,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.2,
+            "x2": 0.4,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.2,
+            "x2": -0.4,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.2,
+            "x2": -0.4,
+            "y2": -0.2
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.2,
+            "cy": 0.1,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.2,
+            "cy": 0.1,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": -0.2,
+            "cy": -0.1,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          },
+          {
+            "cx": 0.2,
+            "cy": -0.1,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "BS 6172",
+      "status": "draft"
+    },
+    {
+      "id": "GAS_RELIEF_VENT",
+      "name": "Gas Relief Vent",
+      "category": "Gas",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Gas",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.2,
+            "x2": 0,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.2,
+            "x2": 0,
+            "y2": 0.3
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": -0.3,
+            "r": 0.05,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ]
+      },
+      "standard": "BS 6891",
+      "status": "draft"
+    },
+    {
+      "id": "GAS_LPG_CYL",
+      "name": "LPG Cylinder",
+      "category": "Gas",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Gas",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": -0.4,
+            "x2": 0.2,
+            "y2": -0.4
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.4,
+            "x2": 0.2,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.4,
+            "x2": -0.2,
+            "y2": 0.3
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.3,
+            "r": 0.2,
+            "startAngle": 0,
+            "endAngle": 180
+          }
+        ],
+        "filledRegions": [
+          {
+            "vertices": [
+              {
+                "x": -0.05,
+                "y": 0.3
+              },
+              {
+                "x": 0.05,
+                "y": 0.3
+              },
+              {
+                "x": 0.05,
+                "y": 0.45
+              },
+              {
+                "x": -0.05,
+                "y": 0.45
+              }
+            ]
+          }
+        ]
+      },
+      "standard": "BS EN 1442",
+      "status": "draft"
+    },
+    {
+      "id": "GAS_BOOSTER",
+      "name": "Gas Booster Set",
+      "category": "Gas",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Gas",
+      "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.3,
+            "x2": 0,
+            "y2": 0.3
+          }
+        ]
+      },
+      "standard": "BS 6891",
+      "status": "draft"
+    },
+    {
+      "id": "GAS_FILTER",
+      "name": "Gas Filter",
+      "category": "Gas",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Gas",
+      "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.2,
+            "y2": 0
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": 0.2,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.2,
+            "x2": -0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.2,
+            "x2": 0.2,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": 0.2,
+            "y2": 0
+          }
+        ]
+      },
+      "standard": "BS EN 126",
+      "status": "draft"
+    },
+    {
+      "id": "GAS_FLOW_METER",
+      "name": "Gas Flow Meter (Diaphragm)",
+      "category": "Gas",
+      "familyType": "GenericAnnotation",
+      "discipline": "Plumbing",
+      "subcategory": "Gas",
+      "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startAngle": 0,
+            "endAngle": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.15,
+            "y1": 0,
+            "x2": 0.15,
+            "y2": 0
+          },
+          {
+            "x1": 0,
+            "y1": -0.1,
+            "x2": 0,
+            "y2": 0.1
+          }
+        ]
+      },
+      "standard": "BS EN 1359",
+      "status": "draft"
+    }
+  ]
+}
