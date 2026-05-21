@@ -75,6 +75,11 @@ namespace StingTools.UI
         public string EpdSource { get; set; }
         public string EpdDate { get; set; }
         public EpdFreshness EpdFreshness { get; set; } = EpdFreshness.Unknown;
+
+        // A3 — Uniclass 2015 Pr_ binding (resolved from Class via
+        // MaterialUniclassMapper). Empty when no rule matches.
+        public string UniclassCode { get; set; } = "";
+        public string UniclassTitle { get; set; } = "";
         public string EpdFreshnessText => EpdFreshness switch
         {
             EpdFreshness.Fresh   => "✓ Fresh",
@@ -187,10 +192,12 @@ namespace StingTools.UI
             string epdDate = ov?.EpdDate ?? ReadStringParam(m, "STING_MAT_EPD_DATE_TXT");
             EpdFreshness fresh = ComputeFreshness(epdDate, carbon);
 
+            string classText = ov?.Class ?? m.MaterialClass ?? "";
+            var uniclass = MaterialUniclassMapper.Resolve(classText);
             return new MaterialRow
             {
                 Name = n,
-                Class = ov?.Class ?? m.MaterialClass ?? "",
+                Class = classText,
                 Origin = origin,
                 ColorText = colTxt,
                 ColorSwatch = swatch,
@@ -204,6 +211,8 @@ namespace StingTools.UI
                 EpdSource = epdSrc ?? "",
                 EpdDate = epdDate ?? "",
                 EpdFreshness = fresh,
+                UniclassCode = uniclass?.Code ?? "",
+                UniclassTitle = uniclass?.Title ?? "",
             };
         }
 
