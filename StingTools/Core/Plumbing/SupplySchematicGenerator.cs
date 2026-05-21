@@ -30,6 +30,10 @@ namespace StingTools.Core.Plumbing
         public bool   ShowPressureLabels { get; set; } = true;
         public bool   ShowAccessorySymbols { get; set; } = true;
         public bool   ExportDxf        { get; set; } = false;
+        /// <summary>Target AutoCAD file version for DXF export
+        /// (R2000 / R2004 / R2007 / R2010 / R2013 / R2018 / DEFAULT).
+        /// Pulled from PlumbingSystemConfig.DxfAutoCadVersion by the command.</summary>
+        public string DxfAutoCadVersion { get; set; } = "R2010";
         /// <summary>Inlet pressure (kPa) used to seed AccumulatePressure.</summary>
         public double InletPressureKpa { get; set; } = 300.0;
     }
@@ -123,6 +127,12 @@ namespace StingTools.Core.Plumbing
             var textType = FindOrCreateTextType(doc, 3.0);
             var (solidId, dashedId) = GetLineStyleIds(doc);
 
+            // Build the symbol-family cache once per generation. Maps each
+            // logical glyph code (PRV / MTR / PMP / TK / FX / CK / V) to a
+            // FamilySymbol when a matching detail family is loaded; misses
+            // fall through to the geometric glyph fallback below.
+            var symbolMap = ResolveSymbolFamilies(doc);
+
             // 6. Draw edges
             foreach (var edge in net.Edges)
             {
@@ -156,7 +166,16 @@ namespace StingTools.Core.Plumbing
 
                 if (opts.ShowAccessorySymbols)
                 {
-                    DrawSymbol(doc, view, p, sym, solidId, result);
+                    bool placed = false;
+                    if (symbolMap != null && symbolMap.TryGetValue(sym, out var fs) && fs != null)
+                    {
+                        placed = TryPlaceSymbolInstance(doc, view, p, fs, result);
+                    }
+                    if (!placed)
+                    {
+                        // Fall back to geometric glyph
+                        DrawSymbol(doc, view, p, sym, solidId, result);
+                    }
                     if (sym == "FX") result.FixturesDrawn++;
                     else             result.AccessoriesDrawn++;
                 }
@@ -182,7 +201,7 @@ namespace StingTools.Core.Plumbing
                         Directory.CreateDirectory(dir);
                         var dxfOpts = new DXFExportOptions
                         {
-                            FileVersion = ACADVersion.R2010
+                            FileVersion = MapAcadVersion(opts.DxfAutoCadVersion)
                         };
                         string safeName = Sanitise(view.Name);
                         doc.Export(dir, safeName, new List<ElementId> { view.Id }, dxfOpts);
@@ -340,6 +359,75 @@ namespace StingTools.Core.Plumbing
                 TryDrawDetailLine(doc, view, tl, br, styleId, r);
         }
 
+        // Resolve project-loaded detail families per glyph code. Each glyph
+        // code is mapped to a set of family-name patterns; the first loaded
+        // family that matches wins. Returning null entries means "no family
+        // found — fall back to the geometric glyph". Naming convention
+        // mirrors the STING_ISO_SYMBOLS_INDEX.csv used by IsoSymbolPlacer
+        // (fabrication side) so projects can ship one symbol library.
+        private static Dictionary<string, FamilySymbol> ResolveSymbolFamilies(Document doc)
+        {
+            var map = new Dictionary<string, FamilySymbol>(StringComparer.OrdinalIgnoreCase);
+            var patterns = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "PRV", new[] { "STING_SYM_PRV", "PRV", "PRESSURE REDUCING" } },
+                { "MTR", new[] { "STING_SYM_METER", "WATER METER", "METER" } },
+                { "PMP", new[] { "STING_SYM_PUMP", "PUMP" } },
+                { "TK",  new[] { "STING_SYM_TANK", "TANK", "CYLINDER" } },
+                { "FX",  new[] { "STING_SYM_FIXTURE", "FIXTURE TAP", "DRAW-OFF" } },
+                { "CK",  new[] { "STING_SYM_CHECK", "CHECK VALVE", "NRV" } },
+                { "V",   new[] { "STING_SYM_VALVE", "ISOLATION VALVE", "VALVE" } },
+            };
+
+            FamilySymbol[] detailSymbols;
+            try
+            {
+                detailSymbols = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>()
+                    .Where(fs => fs.Family?.FamilyCategory != null
+                              && (BuiltInCategory)(fs.Family.FamilyCategory.Id?.Value ?? 0)
+                                  == BuiltInCategory.OST_DetailComponents)
+                    .ToArray();
+            }
+            catch
+            {
+                detailSymbols = new FamilySymbol[0];
+            }
+
+            foreach (var kv in patterns)
+            {
+                FamilySymbol pick = null;
+                foreach (var pat in kv.Value)
+                {
+                    var patUp = pat.ToUpperInvariant();
+                    pick = detailSymbols.FirstOrDefault(fs =>
+                        (((fs.Family?.Name ?? "") + " " + (fs.Name ?? "")).ToUpperInvariant())
+                        .Contains(patUp));
+                    if (pick != null) break;
+                }
+                map[kv.Key] = pick;
+            }
+            return map;
+        }
+
+        private static bool TryPlaceSymbolInstance(Document doc, View view, XYZ centre,
+            FamilySymbol fs, SupplySchematicResult r)
+        {
+            try
+            {
+                if (fs == null) return false;
+                if (!fs.IsActive) fs.Activate();
+                doc.Create.NewFamilyInstance(centre, fs, view);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                r.Warnings.Add($"symbol family '{fs?.Name}': {ex.Message}");
+                return false;
+            }
+        }
+
         // ── Style + helpers ───────────────────────────────────────────────────
 
         private static (ElementId solid, ElementId dashed) GetLineStyleIds(Document doc)
@@ -409,6 +497,25 @@ namespace StingTools.Core.Plumbing
             var invalid = Path.GetInvalidFileNameChars();
             var chars = s.Select(c => invalid.Contains(c) ? '_' : c).ToArray();
             return new string(chars);
+        }
+
+        // Map a config string to the Revit ACADVersion enum. R2004 was retired
+        // in Revit 2025; if a project still requests it we degrade to R2007
+        // (the oldest still-supported) and warn via Default → R2018 otherwise.
+        private static ACADVersion MapAcadVersion(string v)
+        {
+            string s = (v ?? "").Trim().ToUpperInvariant();
+            switch (s)
+            {
+                case "R2000":   return ACADVersion.R2000;
+                case "R2004":   return ACADVersion.R2007; // R2004 unavailable on Revit 2025+
+                case "R2007":   return ACADVersion.R2007;
+                case "R2010":   return ACADVersion.R2010;
+                case "R2013":   return ACADVersion.R2013;
+                case "R2018":   return ACADVersion.R2018;
+                case "DEFAULT": return ACADVersion.Default;
+                default:        return ACADVersion.R2010;
+            }
         }
     }
 }

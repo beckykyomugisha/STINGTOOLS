@@ -570,9 +570,10 @@ namespace StingTools.Core.Plumbing
                 // STING_PLUMB_FITTINGS_EQ_LENGTH table and add the equivalent
                 // length (m) to the pipe's own length. This converts the
                 // historic Hazen-Williams length-only proxy into a length +
-                // fittings calc — the Plumber convention.
-                double fittingEqM = LookupFittingEqLength(fromEl, dnMm)
-                                  + LookupFittingEqLength(toEl, dnMm);
+                // fittings calc — the Plumber convention. doc is passed so the
+                // lookup can honour project-scoped overrides.
+                double fittingEqM = LookupFittingEqLength(doc, fromEl, dnMm)
+                                  + LookupFittingEqLength(doc, toEl, dnMm);
 
                 // Estimate friction resistance over (pipe length + fitting
                 // equivalent length). Length-scaled proxy here; the full
@@ -609,8 +610,9 @@ namespace StingTools.Core.Plumbing
         // Map a fitting / accessory element to its eq-length contribution at the
         // given DN. Pipes themselves contribute 0 here (their length is counted
         // separately). Fitting type is sniffed from family + symbol names so the
-        // operator doesn't have to populate a shared parameter.
-        private static double LookupFittingEqLength(Element el, double dnMm)
+        // operator doesn't have to populate a shared parameter. The doc is
+        // forwarded so per-project overlays under <project>/_BIM_COORD/ win.
+        private static double LookupFittingEqLength(Document doc, Element el, double dnMm)
         {
             if (el == null || el is Pipe || dnMm < 1) return 0;
             try
@@ -624,7 +626,7 @@ namespace StingTools.Core.Plumbing
                 string symName = fi.Symbol?.Name ?? "";
                 string fitType = ClassifyFitting(famName, symName, bic);
                 if (string.IsNullOrEmpty(fitType)) return 0;
-                return PlumbingTables.FittingEqLengthM(fitType, (int)Math.Round(dnMm));
+                return PlumbingTables.FittingEqLengthM(doc, fitType, (int)Math.Round(dnMm));
             }
             catch (Exception ex)
             {

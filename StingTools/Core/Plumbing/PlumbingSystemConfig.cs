@@ -60,9 +60,13 @@ namespace StingTools.Core.Plumbing
         // HeadLossMethod: HAZEN-WILLIAMS | DARCY-WEISBACH
         // SupplySizingStrategy: VELOCITY | HEAD-LOSS
         // KinViscM2s: kinematic viscosity at design temp (water 20°C ≈ 1e-6).
+        // DxfAutoCadVersion: target ACAD file version for schematic exports.
+        //   Accepts R2000 / R2004 / R2007 / R2010 / R2013 / R2018 / DEFAULT.
+        //   R2010 is the safest middle-ground (works on every AutoCAD 2010+).
         public string HeadLossMethod         { get; set; } = "HAZEN-WILLIAMS";
         public string SupplySizingStrategy   { get; set; } = "VELOCITY";
         public double KinViscM2s             { get; set; } = 1.004e-6;
+        public string DxfAutoCadVersion      { get; set; } = "R2010";
         public string LastSavedUtc  { get; set; } = "";
 
         // ── Defaults ──

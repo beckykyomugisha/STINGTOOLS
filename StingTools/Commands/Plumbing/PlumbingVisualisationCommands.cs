@@ -661,7 +661,7 @@ namespace StingTools.Commands.Plumbing
             if (pick == TaskDialogResult.Cancel) return Result.Cancelled;
             bool exportDxf = pick == TaskDialogResult.CommandLink2;
 
-            // Read inlet pressure from config
+            // Read inlet pressure + DXF target version from project config
             var cfg = PlumbingSystemConfig.Load(doc);
             double inletKpa = Math.Max(0, cfg.SupplyPressureBarAtEntry) * 100.0;
 
@@ -670,6 +670,8 @@ namespace StingTools.Commands.Plumbing
                 SystemNameFilter     = "",            // all supply systems
                 InletPressureKpa     = inletKpa > 0 ? inletKpa : 300.0,
                 ExportDxf            = exportDxf,
+                DxfAutoCadVersion    = string.IsNullOrWhiteSpace(cfg.DxfAutoCadVersion)
+                                          ? "R2010" : cfg.DxfAutoCadVersion,
                 ShowDnLabels         = true,
                 ShowPressureLabels   = true,
                 ShowAccessorySymbols = true
