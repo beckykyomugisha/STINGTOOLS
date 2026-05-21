@@ -1874,9 +1874,12 @@ namespace StingTools.Core
                 ("ExportCenter",         "Export Center", "EX", DrawingColor.DarkSlateBlue, typeof(HubExportCenterCommand).FullName),
                 ("DocWizard",            "Doc Auto",      "DA", DrawingColor.DarkOrchid,   typeof(HubDocAutomationCommand).FullName),
                 ("CreateFolders",        "Folders",       "FD", DrawingColor.SaddleBrown,  typeof(HubFolderManagerCommand).FullName),
+                ("MaterialManager",      "Materials",     "MM", DrawingColor.DarkOliveGreen,typeof(HubMaterialManagerCommand).FullName),
+                ("ClashManager",         "Clash Mgr",     "CM", DrawingColor.IndianRed,    typeof(HubClashManagerCommand).FullName),
+                ("TemplateDashboard",    "Template Mgr",  "TM", DrawingColor.DarkTurquoise,typeof(HubTemplateManagerCommand).FullName),
             };
 
-            var buttons = new List<PushButtonData>(15);
+            var buttons = new List<PushButtonData>(18);
             foreach (var s in specs)
             {
                 var data = new PushButtonData("Hub_" + s.tag, s.label, asm, s.cls)
@@ -1902,6 +1905,7 @@ namespace StingTools.Core
                 panel.AddStackedItems(buttons[6],  buttons[7],  buttons[8]);
                 panel.AddStackedItems(buttons[9],  buttons[10], buttons[11]);
                 panel.AddStackedItems(buttons[12], buttons[13], buttons[14]);
+                panel.AddStackedItems(buttons[15], buttons[16], buttons[17]);
             }
             catch (Exception ex)
             {
@@ -2193,5 +2197,29 @@ namespace StingTools.Core
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => HubDispatcher.Run("CreateFolders", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubMaterialManagerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("MaterialManager", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubClashManagerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("ClashManager", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubTemplateManagerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("TemplateDashboard", ref message);
     }
 }

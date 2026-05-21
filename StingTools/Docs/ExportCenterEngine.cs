@@ -212,6 +212,50 @@ namespace StingTools.Docs
             return string.IsNullOrEmpty(letters) ? "Other" : letters.ToUpperInvariant();
         }
 
+        /// <summary>
+        /// Derive an ISO 19650 Level code from a sheet, used as a fallback when
+        /// the sheet has no <c>STING_LVL_COD_TXT</c> parameter. Tries (in order):
+        ///   1) Sheet's own "Level"/"STING_LVL_COD_TXT" parameter
+        ///   2) Common patterns in the sheet name ("Level 01", "Ground Floor",
+        ///      "Basement 2", "Roof", "L01", "GF", "B2", "RF")
+        ///   3) The level of any plan view placed on the sheet (first one wins)
+        /// Returns null if nothing matched — caller substitutes the ISO
+        /// "unknown" code "XX".
+        /// </summary>
+        private static string GetLevelFromSheet(Document doc, ViewSheet sheet)
+        {
+            if (sheet == null) return null;
+            try
+            {
+                string name = sheet.Name ?? "";
+                // Pattern: "Level 01", "L 01", "L01", "Floor 02"
+                var m = Regex.Match(name, @"\b(?:Level|Floor|L)\s*0*(\d{1,2})\b", RegexOptions.IgnoreCase);
+                if (m.Success) return $"L{int.Parse(m.Groups[1].Value):D2}";
+                // Basement
+                m = Regex.Match(name, @"\b(?:Basement|B)\s*0*(\d)\b", RegexOptions.IgnoreCase);
+                if (m.Success) return $"B{m.Groups[1].Value}";
+                // Ground floor / roof
+                if (Regex.IsMatch(name, @"\bground\s*floor\b|\bGF\b", RegexOptions.IgnoreCase)) return "GF";
+                if (Regex.IsMatch(name, @"\broof\b|\bRF\b", RegexOptions.IgnoreCase)) return "RF";
+                if (Regex.IsMatch(name, @"\bmezzanine\b|\bMEZ\b", RegexOptions.IgnoreCase)) return "MZ";
+
+                // Fall through to a placed plan view's level
+                foreach (var vpId in sheet.GetAllPlacedViews())
+                {
+                    if (doc.GetElement(vpId) is View v && v.GenLevel != null)
+                    {
+                        string lvlName = v.GenLevel.Name ?? "";
+                        m = Regex.Match(lvlName, @"\b(?:Level|Floor|L)\s*0*(\d{1,2})\b", RegexOptions.IgnoreCase);
+                        if (m.Success) return $"L{int.Parse(m.Groups[1].Value):D2}";
+                        if (Regex.IsMatch(lvlName, @"\bground\b|\bGF\b", RegexOptions.IgnoreCase)) return "GF";
+                        if (Regex.IsMatch(lvlName, @"\broof\b|\bRF\b", RegexOptions.IgnoreCase)) return "RF";
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetLevelFromSheet: {ex.Message}"); }
+            return null;
+        }
+
         // ── Token resolver ──────────────────────────────────────────────────────
 
         /// <summary>
@@ -250,6 +294,7 @@ namespace StingTools.Docs
             t["ProjectName"]   = pi?.Name ?? "";
             t["ProjectNumber"] = pi?.Number ?? "";
             t["ProjectCode"]   = ReadProjectInfo(pi, "PRJ_PROJECT_COD_TXT") ?? pi?.Number ?? "";
+            t["Project"]       = t["ProjectCode"]; // ISO 19650-2 spec uses bare {Project}
             t["Originator"]    = ReadProjectInfo(pi, "PRJ_ORG_ORIGINATOR_CODE_TXT") ?? "";
             t["OriginatorCode"]= t["Originator"];
             t["CompanyName"]   = ReadProjectInfo(pi, ParamRegistry.ORG_COMPANY_NAME) ?? "";
@@ -265,14 +310,32 @@ namespace StingTools.Docs
                 t["Discipline"]   = GetDisciplinePrefix(sheet.SheetNumber);
 
                 var (rev, revDate) = GetCurrentRevision(doc, sheet);
-                t["Revision"] = rev ?? "";
-                t["RevDate"]  = revDate ?? "";
+                t["RevDate"] = revDate ?? "";
 
-                t["Volume"]      = ReadParam(sheet, "STING_VOLUME_TXT") ?? "00";
-                t["Level"]       = ReadParam(sheet, "STING_LVL_COD_TXT") ?? "";
-                t["Type"]        = ReadParam(sheet, "STING_DOC_TYPE_TXT") ?? "DR";
-                t["Role"]        = ReadParam(sheet, "STING_ROLE_TXT") ?? t["Discipline"];
-                t["Suitability"] = ReadParam(sheet, "STING_SUITABILITY_TXT") ?? "S2";
+                // ── ISO 19650 token resolution chain ──
+                // 1) Sheet-level STING_* params (per-sheet overrides)
+                // 2) Stamped DrawingType.IsoNaming (Phase 113 — auto-populated
+                //    when the sheet was created through the Drawing Type engine)
+                // 3) Sensible ISO 19650-2 defaults
+                StingTools.Core.Drawing.IsoNaming dtIso = null;
+                string stampedDtId = ReadParam(sheet, StingTools.Core.Drawing.DrawingTypeStamper.PARAM_DRAWING_TYPE_ID);
+                if (!string.IsNullOrEmpty(stampedDtId))
+                {
+                    try
+                    {
+                        var dt = StingTools.Core.Drawing.DrawingTypeRegistry.Get(doc, stampedDtId);
+                        dtIso = dt?.IsoNaming;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"DrawingType lookup '{stampedDtId}': {ex.Message}"); }
+                }
+
+                t["Volume"]      = ReadParam(sheet, "STING_VOLUME_TXT")      ?? dtIso?.Volume      ?? "ZZ";
+                t["Level"]       = ReadParam(sheet, "STING_LVL_COD_TXT")     ?? GetLevelFromSheet(doc, sheet) ?? "XX";
+                t["Type"]        = ReadParam(sheet, "STING_DOC_TYPE_TXT")    ?? dtIso?.Type        ?? "DR";
+                string disc      = t["Discipline"];
+                t["Role"]        = ReadParam(sheet, "STING_ROLE_TXT")        ?? dtIso?.Role        ?? (string.IsNullOrEmpty(disc) ? "Z" : disc);
+                t["Suitability"] = ReadParam(sheet, "STING_SUITABILITY_TXT") ?? dtIso?.Suitability ?? "S2";
+                t["Revision"]    = !string.IsNullOrEmpty(rev) ? rev : (dtIso?.Revision ?? "P01");
                 t["Format"]      = ""; // filled in by caller per format
             }
             else if (view != null)
