@@ -57,8 +57,20 @@ namespace StingTools.Commands.Hvac
                     return Result.Cancelled;
                 }
                 double maxPa = pclass.MaxPa > 0 ? pclass.MaxPa : 500.0;
-                double airDensity = 1.20;
-                try { airDensity = StingHvacCommandHandler.CurrentAirDensityKgM3; } catch { }
+                // Air density: prefer the climate-registry value for the
+                // project's location (elevation + cooling design temp), fall
+                // back to the header radio, fall back to 1.20 kg/m³.
+                double airDensity = 0;
+                try
+                {
+                    var site = StingTools.Core.Climate.ClimateRegistry.ActiveSite(doc);
+                    if (site != null) airDensity = site.AirDensityCoolingKgM3();
+                }
+                catch { }
+                if (airDensity <= 0)
+                {
+                    try { airDensity = StingHvacCommandHandler.CurrentAirDensityKgM3; } catch { }
+                }
                 if (airDensity <= 0) airDensity = 1.20;
 
                 // Honour the same scope radio as the sizing commands.

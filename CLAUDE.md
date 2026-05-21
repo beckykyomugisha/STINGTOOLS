@@ -2834,6 +2834,72 @@ Edit either JSON in a text editor and click **RPRT → Reload rules** to pick up
 4. The EQPT / SYS / SpoolGrid / DriftGrid / WorkflowGrid `ObservableCollection`s start empty — commands push rows back into the panel singleton (`StingHvacPanel.Instance`) on completion (same pattern `StingElectricalPanel` uses).
 5. PaneGuid `D7E8F9A0-B1C2-3D4E-5F60-1A2B3C4D5E6F` is stable from this point so users' Revit `UIState.dat` re-locates the panel between sessions.
 
+## HVAC design engines (Phase 187 — competitive parity)
+
+Built in response to the "what can we borrow from MagiCAD / TRACE /
+HAP / IES VE / cove.tool / Daikin VRV tools" review. Adds five
+calculation kernels that move STING from "Revit organiser" toward
+"design engine":
+
+### New folders + files
+
+| Path | Purpose | LoC |
+|---|---|---|
+| `StingTools/Core/Climate/ClimateRegistry.cs` | ASHRAE 2021 / CIBSE Guide A design-day site registry, NASA ISA elevation-corrected air density, per-doc cache, project override at `<project>/_BIM_COORD/climate_data.json` | ~200 |
+| `StingTools/Data/STING_CLIMATE_DATA.json` | 41 cities (UK + EU + US + AU + Asia + Africa) with cooling 0.4 % DB + MCWB, heating 99.6 % DB, HDD18, CDD10, elevation | — |
+| `StingTools/Core/Hvac/Loads/LoadInputs.cs` | `LoadZone` / `EnvelopeSegment` / `ZoneLoadResult` / `BlockLoadResult` POCOs + ASHRAE 90.1 default schedules | ~120 |
+| `StingTools/Core/Hvac/Loads/BlockLoadEngine.cs` | Hour-by-hour 24-h design-day load calc with peak-pick at the SYSTEM level (not Σ zone peaks). Conduction + solar (ASHRAE Clear Sky) + occupants + lighting + equipment + vent + infiltration. Reports diversity = block / Σpeaks. | ~250 |
+| `StingTools/Core/Acoustic/OctaveBand.cs` | 8-band Lw / Lp container + NC curve evaluator (NC-15 → NC-65) | ~140 |
+| `StingTools/Core/Acoustic/NcPredictionEngine.cs` | VDI 2081 / ASHRAE A48 attenuation tables (straight, lined, elbow, tee, end-reflection) + Bullock regenerated-noise correlations + direct + reverberant room model | ~250 |
+| `StingTools/Core/Refrigerant/RefrigerantProperties.cs` | R410A / R32 / R134a / CO₂ saturation densities + viscosities + Hfg + oil-return velocity floors + Daikin VRV envelope limits | ~120 |
+| `StingTools/Core/Refrigerant/RefrigerantPipeSolver.cs` | Darcy-Weisbach + Blasius f smooth-copper pipe sweep over ACR size list with oil-return velocity floor + ΔP budget + liquid-leg static head | ~140 |
+| `StingTools/UI/RefrigerantSizingDialog.cs` | Minimal WPF input dialog: refrigerant + leg + capacity + length + lift + ΔP budget + riser flag | ~150 |
+
+### Manufacturer + valve pack
+
+Extended `STING_MEP_SIZING_RULES.json` with two new sections:
+`duct.manufacturerFittings` (Lindab / Trox / Halton catalogue C
+values keyed by product code) and `pipe.valveCv` (Belimo / Siemens
+/ Danfoss Kvs values, m³/h at 1 bar). `MepSizingRules.GetManufacturerC`
+and `GetValveKvs` give callers a typed lookup; fittings fall back to
+the generic SMACNA C table from `DuctFrictionSolver.SmacnaCoefficients`
+when no manufacturer match.
+
+### New commands (7)
+
+| Tag | Class | Description |
+|---|---|---|
+| `Hvac_BlockLoad` | `HvacBlockLoadCommand` | Runs `BlockLoadEngine` against Revit Spaces (or Rooms), stamps per-space `HVC_PEAK_SENS_W` / `HVC_PEAK_LAT_W` / `HVC_PEAK_HOUR` / `HVC_OA_LS`, reports building block, Σ peaks, diversity, per-system table, top-10 zones |
+| `Hvac_NcPredict` | `HvacNcPredictionCommand` | Walks user duct selection, treats the upstream-most member as fan source (synthetic Lw from Q + ΔP), runs `NcPredictionEngine`, reports predicted NC + per-element attenuation/regen breakdown |
+| `Hvac_RefrigSize` | `HvacRefrigerantSizeCommand` | Pops `RefrigerantSizingDialog`, runs `RefrigerantPipeSolver`, reports chosen OD + velocity + ΔP + vendor compliance with full size-sweep trace |
+| `Hvac_ClimateInspect` | `HvacClimateInspectCommand` | Shows active climate site (resolved via `PRJ_CLIMATE_SITE_ID` or address fuzzy-match) + corporate catalogue |
+| `Hvac_ClimateReload` | `HvacClimateReloadCommand` | Drops `ClimateRegistry` cache for all docs so an edit to the baseline / project override is picked up without restarting Revit |
+| (existing) `Hvac_PressureClassAudit` | now reads air density from the climate registry (location-aware) instead of the hardcoded 1.20 kg/m³ |
+| (existing) `Hvac_ReloadRules` | unchanged — flushes `MepSizingRegistry` |
+
+LOADS tab gains a "Block load" primary button; CALCS tab gains "NC
+predict" and "Refrigerant size" buttons; RPRT tab gains "Climate
+inspect" + "Reload climate" buttons.
+
+### Climate site resolution
+
+Priority order: `PRJ_CLIMATE_SITE_ID` parameter on
+`ProjectInformation` → fuzzy match of `ProjectInformation.Address`
+against site labels → first site in the project override file → hard
+fallback to `london`. Air density at the cooling design dry-bulb is
+elevation-corrected via the standard atmosphere model and replaces
+the previous hardcoded 1.20 kg/m³ in the pressure-class audit.
+
+### Caveats (Phase 187)
+
+1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.
+2. **`BlockLoadEngine` is sensible-load focused.** Latent is calculated but the design-day model is simplified (single sinusoid for outdoor temp, ASHRAE Clear Sky for solar, no thermal-mass storage / RTS lag). For comparison-grade results against TRACE / HAP, fold in a per-orientation Radiant Time Series — the input data structures already support per-segment orientation.
+3. **`NcPredictionEngine` uses a *synthetic* fan source** derived from path Q + ΔP. Until a manufacturer Lw spectrum sidecar lands, NC predictions are indicative not certifiable. Silencer insertion-loss spectra are also defaults (12 dB midband) until the same sidecar pattern is wired for attenuators.
+4. **`RefrigerantPipeSolver` ships 4 refrigerants** (R410A, R32, R134a, CO₂). Saturation state-point pairs are spot-design from ASHRAE Handbook Fundamentals + Daikin VRV manuals — not a full EoS engine. The two-phase suction multiplier is a flat 10 % rather than a Lockhart-Martinelli calc.
+5. **Climate site list ships 41 cities.** Add more by appending to the corporate `STING_CLIMATE_DATA.json` (PR encouraged) or via a project override at `<project>/_BIM_COORD/climate_data.json` (additive, by `id`).
+6. **Manufacturer fitting + valve packs are seed.** ~20 entries each across Lindab / Trox / Halton / Belimo / Siemens / Danfoss. Production deployments should add their actual catalogue via the project override.
+7. Per-element pipe-fitting lookup of manufacturer C / Kvs values (via `MepSizingRules.GetManufacturerC` / `GetValveKvs`) is in place but not yet wired into the friction / static-regain commands — they still use the generic SMACNA table.
+
 ## Template Manager Intelligence Engine
 
 `TemplateManagerCommands.cs` (3,892 lines) provides a deep template automation engine with 18 commands and an `internal static class TemplateManager` (~867 lines) intelligence core.
