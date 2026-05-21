@@ -187,7 +187,8 @@ namespace StingTools.UI
             actions.Children.Add(MakeButton("Mark Resolved","Transition selected to Resolved",   (s, e) => TransitionSelected("Resolved")));
             actions.Children.Add(MakeButton("Ignore",       "Transition selected to Void",       (s, e) => TransitionSelected("Void")));
             actions.Children.Add(MakeButton("Zoom to",      "Zoom Revit view onto both elements",(s, e) => JumpToSelection()));
-            actions.Children.Add(MakeButton("Export BCF",   "Emit BCF 2.1 for Navisworks / ACC", (s, e) => Dispatch("ClashBcfExport")));
+            actions.Children.Add(MakeButton("Export BCF",   "Emit BCF 2.1 for Navisworks / ACC",
+                (s, e) => { if (HasClashesLoaded("Export BCF")) Dispatch("ClashBcfExport"); }));
             actions.Children.Add(MakeButton("Close",        "",                                  (s, e) => Close(), accent: false));
             Grid.SetRow(actions, 3);
             root.Children.Add(actions);
@@ -252,8 +253,14 @@ namespace StingTools.UI
         private void JumpToSelection()
         {
             if (_uidoc == null) return;
+            if (!HasClashesLoaded("Zoom to")) return;
             var clash = _grid.SelectedItem as ClashRecord;
-            if (clash == null) return;
+            if (clash == null)
+            {
+                Autodesk.Revit.UI.TaskDialog.Show("Clash Manager",
+                    "Pick a clash row in the list first, then click Zoom to.");
+                return;
+            }
             try
             {
                 var ids = new List<ElementId>();
@@ -271,8 +278,28 @@ namespace StingTools.UI
             { StingLog.Warn($"ClashManagerDialog.JumpToSelection: {ex.Message}"); }
         }
 
+        /// <summary>
+        /// Empty-state guard. Returns false (and pops a TaskDialog) when no
+        /// clashes have been loaded — turns "lifeless button" into
+        /// "button explains what to do".
+        /// </summary>
+        private bool HasClashesLoaded(string action)
+        {
+            if (_run != null && _run.Clashes != null && _run.Clashes.Count > 0) return true;
+            Autodesk.Revit.UI.TaskDialog.Show("Clash Manager",
+                $"{action}: no clashes loaded yet.\n\nClick 'Run Clash' to detect interferences, or 'Refresh' to reload an existing clashes.json from disk.");
+            return false;
+        }
+
         private void TransitionSelected(string newState)
         {
+            if (!HasClashesLoaded(newState == "Resolved" ? "Mark Resolved" : "Ignore")) return;
+            if (_grid.SelectedItems == null || _grid.SelectedItems.Count == 0)
+            {
+                Autodesk.Revit.UI.TaskDialog.Show("Clash Manager",
+                    "Pick one or more clash rows in the list first.");
+                return;
+            }
             if (_run == null || _grid.SelectedItems == null) return;
             int n = 0;
             foreach (var obj in _grid.SelectedItems)
