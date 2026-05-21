@@ -203,8 +203,22 @@ namespace StingTools.Core.Plumbing
         /// <summary>
         /// Propagate static pressure through the network from a known inlet.
         /// inletElevFt: Revit internal feet (Z coordinate of inlet node).
+        ///
+        /// Pressure is computed at each neighbour as:
+        ///   p_n = p_here − ρg·Δz − edge.ResistanceKpa
+        /// then if the neighbour is a PRV the outlet is clamped to the PRV's
+        /// set-point, and if it is a water-meter the meter's design Δp is
+        /// subtracted. PRV / meter classification is taken from the family /
+        /// type name (PRV / "PRESSURE REDUCING" / METER / WATER METER) and
+        /// from PLM_VLV_BACKFLOW_TYPE_TXT when bound on the accessory. Set-
+        /// point reads from PLM_PRV_SET_BAR_NR / PLM_PRV_SET_PRESSURE_KPA;
+        /// meter Δp from PLM_VLV_DESIGN_DP_KPA.
         /// </summary>
         public static void AccumulatePressure(PipeNetwork net, double inletKpa, double inletElevFt)
+            => AccumulatePressure(net, inletKpa, inletElevFt, null);
+
+        public static void AccumulatePressure(PipeNetwork net, double inletKpa,
+            double inletElevFt, Document doc)
         {
             if (net == null) return;
 
@@ -220,7 +234,10 @@ namespace StingTools.Core.Plumbing
             if (inletNode == null) return;
             inletNode.PressureKpa = inletKpa;
 
-            // BFS from inlet toward fixtures
+            // BFS from inlet toward fixtures. We walk in topological-ish order
+            // (current node → neighbours) and stamp pressure once. Nodes are
+            // only updated on first visit; the network is expected to be a tree
+            // for the index-leg case (branched but acyclic).
             var visited = new HashSet<long>();
             var queue   = new Queue<PipeNode>();
             queue.Enqueue(inletNode);
@@ -232,7 +249,6 @@ namespace StingTools.Core.Plumbing
                 visited.Add(node.Id.Value);
 
                 double nodeElevM = (node.Position?.Z ?? 0) * FtToM;
-                double inletElevM = inletElevFt * FtToM;
 
                 foreach (var edge in node.Upstream.Concat(node.Downstream))
                 {
@@ -240,12 +256,116 @@ namespace StingTools.Core.Plumbing
                     if (visited.Contains(neighbour.Id.Value)) continue;
 
                     double neighbourElevM = (neighbour.Position?.Z ?? 0) * FtToM;
-                    // Static head: p_neighbour = p_inlet - ρg*(ΔZ from inlet)
-                    double deltaZM = neighbourElevM - inletElevM;
-                    neighbour.PressureKpa = Math.Max(0, inletKpa - (RhoG * deltaZM) - edge.ResistanceKpa);
+                    // Static head + friction relative to THIS node (not the
+                    // inlet) — that's the correct propagation for a multi-stop
+                    // index-leg walk.
+                    double deltaZM = neighbourElevM - nodeElevM;
+                    double propagated = node.PressureKpa - (RhoG * deltaZM) - edge.ResistanceKpa;
+                    propagated = Math.Max(0, propagated);
+
+                    // Apply PRV clamp / meter Δp on the neighbour, if any.
+                    if (doc != null)
+                    {
+                        var accessory = ClassifyAccessory(doc, neighbour.Id);
+                        if (accessory.Kind == AccessoryKind.PRV && accessory.SetPointKpa > 0)
+                            propagated = Math.Min(propagated, accessory.SetPointKpa);
+                        else if (accessory.Kind == AccessoryKind.WaterMeter && accessory.DpKpa > 0)
+                            propagated = Math.Max(0, propagated - accessory.DpKpa);
+                    }
+
+                    neighbour.PressureKpa = propagated;
                     queue.Enqueue(neighbour);
                 }
             }
+        }
+
+        private enum AccessoryKind { None, PRV, WaterMeter }
+
+        private struct AccessoryInfo
+        {
+            public AccessoryKind Kind;
+            public double        SetPointKpa;
+            public double        DpKpa;
+        }
+
+        private static AccessoryInfo ClassifyAccessory(Document doc, ElementId id)
+        {
+            var info = new AccessoryInfo { Kind = AccessoryKind.None };
+            try
+            {
+                var el = doc.GetElement(id);
+                if (!(el is FamilyInstance fi)) return info;
+                var bic = (BuiltInCategory)(fi.Category?.Id?.Value ?? 0);
+                if (bic != BuiltInCategory.OST_PipeAccessory) return info;
+
+                string s = ((fi.Symbol?.Family?.Name ?? "") + " " +
+                            (fi.Symbol?.Name ?? "")).ToUpperInvariant();
+
+                // PLM_VLV_BACKFLOW_TYPE_TXT is the explicit override (PLM_BF_TYPE).
+                string bft = ReadStr(el, ParamRegistry.PLM_BF_TYPE);
+                if (!string.IsNullOrEmpty(bft))
+                {
+                    var b = bft.ToUpperInvariant();
+                    if (b.Contains("PRV") || b.Contains("PRESSURE")) info.Kind = AccessoryKind.PRV;
+                    else if (b.Contains("METER")) info.Kind = AccessoryKind.WaterMeter;
+                }
+                if (info.Kind == AccessoryKind.None)
+                {
+                    if (s.Contains("PRV") || s.Contains("PRESSURE REDUC")) info.Kind = AccessoryKind.PRV;
+                    else if (s.Contains("WATER METER") || s.Contains("METER")) info.Kind = AccessoryKind.WaterMeter;
+                }
+
+                if (info.Kind == AccessoryKind.PRV)
+                {
+                    // Prefer the kPa shared param; fall back to bar then convert.
+                    double kpa = ReadDouble(el, ParamRegistry.PLM_PRV_SET);
+                    if (kpa <= 0)
+                    {
+                        double bar = ReadDouble(el, ParamRegistry.PLM_PRV_SET_BAR);
+                        if (bar > 0) kpa = bar * 100.0; // 1 bar = 100 kPa
+                    }
+                    info.SetPointKpa = kpa;
+                }
+                else if (info.Kind == AccessoryKind.WaterMeter)
+                {
+                    info.DpKpa = ReadDouble(el, ParamRegistry.PLM_VLV_DP);
+                    // Sensible default if not specified — domestic meter at design
+                    // flow loses ~30 kPa per AS 3500.1 / WaterSafe guidance.
+                    if (info.DpKpa <= 0) info.DpKpa = 30.0;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ClassifyAccessory {id}: {ex.Message}"); }
+            return info;
+        }
+
+        private static double ReadDouble(Element el, string name)
+        {
+            try
+            {
+                var p = el.LookupParameter(name);
+                if (p == null || !p.HasValue) return 0;
+                if (p.StorageType == StorageType.Double)  return p.AsDouble();
+                if (p.StorageType == StorageType.Integer) return p.AsInteger();
+                if (p.StorageType == StorageType.String
+                    && double.TryParse(p.AsString(),
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out double v)) return v;
+            }
+            catch { }
+            return 0;
+        }
+
+        private static string ReadStr(Element el, string name)
+        {
+            try
+            {
+                var p = el.LookupParameter(name);
+                if (p == null || !p.HasValue) return "";
+                if (p.StorageType == StorageType.String) return p.AsString() ?? "";
+            }
+            catch { }
+            return "";
         }
 
         /// <summary>
@@ -445,10 +565,21 @@ namespace StingTools.Core.Plumbing
                     dnMm = pipeEl.Diameter * FtToMm;
                 }
 
-                // Estimate friction resistance: simplified Hazen-Williams
-                // R = 10.67 * L * Q^1.852 / (C^1.852 * d^4.87)  — approximated as length-based
-                // For network-level critical path we use L as proxy
-                double resistanceKpa = EstimateFrictionKpa(lengthM, dnMm, slopePct);
+                // Add fitting equivalent-length: if either end of the edge is a
+                // pipe-fitting / pipe-accessory, look its FittingType up in the
+                // STING_PLUMB_FITTINGS_EQ_LENGTH table and add the equivalent
+                // length (m) to the pipe's own length. This converts the
+                // historic Hazen-Williams length-only proxy into a length +
+                // fittings calc — the Plumber convention.
+                double fittingEqM = LookupFittingEqLength(fromEl, dnMm)
+                                  + LookupFittingEqLength(toEl, dnMm);
+
+                // Estimate friction resistance over (pipe length + fitting
+                // equivalent length). Length-scaled proxy here; the full
+                // Hazen-Williams / Darcy-Weisbach calc is invoked at sizing
+                // time by WaterSupplySizer.SizePipe.
+                double effectiveLengthM = lengthM + fittingEqM;
+                double resistanceKpa = EstimateFrictionKpa(effectiveLengthM, dnMm, slopePct);
 
                 return new PipeEdge
                 {
@@ -473,6 +604,63 @@ namespace StingTools.Core.Plumbing
             // Simplified: 0.1 kPa/m for 100mm, scales with (100/dn)^4.87 and length
             double dnRatio = 100.0 / dnMm;
             return lengthM * 0.1 * Math.Pow(dnRatio, 2.5);
+        }
+
+        // Map a fitting / accessory element to its eq-length contribution at the
+        // given DN. Pipes themselves contribute 0 here (their length is counted
+        // separately). Fitting type is sniffed from family + symbol names so the
+        // operator doesn't have to populate a shared parameter.
+        private static double LookupFittingEqLength(Element el, double dnMm)
+        {
+            if (el == null || el is Pipe || dnMm < 1) return 0;
+            try
+            {
+                if (!(el is FamilyInstance fi)) return 0;
+                var bic = (BuiltInCategory)(fi.Category?.Id?.Value ?? 0);
+                if (bic != BuiltInCategory.OST_PipeFitting
+                 && bic != BuiltInCategory.OST_PipeAccessory) return 0;
+
+                string famName = fi.Symbol?.Family?.Name ?? "";
+                string symName = fi.Symbol?.Name ?? "";
+                string fitType = ClassifyFitting(famName, symName, bic);
+                if (string.IsNullOrEmpty(fitType)) return 0;
+                return PlumbingTables.FittingEqLengthM(fitType, (int)Math.Round(dnMm));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LookupFittingEqLength {el?.Id}: {ex.Message}");
+                return 0;
+            }
+        }
+
+        private static string ClassifyFitting(string famName, string symName, BuiltInCategory bic)
+        {
+            string s = ((famName ?? "") + " " + (symName ?? "")).ToUpperInvariant();
+            if (string.IsNullOrWhiteSpace(s)) return null;
+
+            // Accessory branch — valves and strainers
+            if (bic == BuiltInCategory.OST_PipeAccessory)
+            {
+                if (s.Contains("STRAINER")) return "StrainerY";
+                if (s.Contains("CHECK") && s.Contains("SPRING")) return "CheckValve_Spring";
+                if (s.Contains("CHECK")) return "CheckValve_Swing";
+                if (s.Contains("BALL")) return "BallValve_Open";
+                if (s.Contains("GLOBE")) return "GlobeValve_Open";
+                if (s.Contains("GATE")) return "GateValve_Open";
+                if (s.Contains("VALVE")) return "GateValve_Open"; // conservative default
+                return null;
+            }
+
+            // Fitting branch — elbows, tees, reducers, couplings
+            if (s.Contains("ELBOW") && s.Contains("45")) return "Elbow_45";
+            if (s.Contains("ELBOW") && (s.Contains("SR") || s.Contains("SHORT"))) return "ElbowSR_90";
+            if (s.Contains("ELBOW") || s.Contains("BEND")) return "ElbowLR_90";
+            if (s.Contains("TEE") && (s.Contains("BRANCH") || s.Contains("EQUAL")))
+                return s.Contains("THROUGH") ? "TeeThrough" : "TeeBranch";
+            if (s.Contains("TEE")) return "TeeBranch";  // conservative — branch is worst case
+            if (s.Contains("REDUCER") || s.Contains("REDUCING")) return "Reducer";
+            if (s.Contains("COUPLING") || s.Contains("UNION")) return "Coupling";
+            return null;
         }
 
         private static void ClassifyStacks(PipeNetwork net, Document doc)

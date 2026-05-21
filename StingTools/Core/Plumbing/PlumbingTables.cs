@@ -41,6 +41,17 @@ namespace StingTools.Core.Plumbing
         public Dictionary<string, double> HangerSpacingVertMm   { get; set; } = new Dictionary<string, double>();
     }
 
+    // Equivalent-length table: rows are fitting types, columns are DN in mm.
+    // Borrowed from Plumber (HidraSoftware) — each fitting at a given DN
+    // contributes an equivalent straight-pipe length that the friction-loss
+    // engine multiplies by the per-metre pressure-drop gradient.
+    public class FittingEquivLength
+    {
+        public string FittingType { get; set; } = "";
+        // DN (mm) → equivalent length in metres
+        public Dictionary<int, double> EqLengthM { get; set; } = new Dictionary<int, double>();
+    }
+
     public static class PlumbingTables
     {
         private static readonly object _lock = new object();
@@ -48,17 +59,32 @@ namespace StingTools.Core.Plumbing
         private static JObject _supply;
         private static List<MaterialHydraulic> _materials;
         private static List<FixtureUnitRow> _fixtureUnits;
+        private static List<FittingEquivLength> _fittings;
+        private static int[] _fittingsDnSeries;
 
         public static JObject Drainage     { get { EnsureLoaded(); return _drainage; } }
         public static JObject Supply       { get { EnsureLoaded(); return _supply;   } }
         public static IReadOnlyList<MaterialHydraulic> Materials       { get { EnsureLoaded(); return _materials; } }
         public static IReadOnlyList<FixtureUnitRow>    FixtureUnits    { get { EnsureLoaded(); return _fixtureUnits; } }
+        public static IReadOnlyList<FittingEquivLength> Fittings       { get { EnsureLoaded(); return _fittings; } }
 
-        public static void Reload() { lock (_lock) { _drainage = _supply = null; _materials = null; _fixtureUnits = null; EnsureLoaded(); } }
+        public static void Reload()
+        {
+            lock (_lock)
+            {
+                _drainage = _supply = null;
+                _materials = null;
+                _fixtureUnits = null;
+                _fittings = null;
+                _fittingsDnSeries = null;
+                EnsureLoaded();
+            }
+        }
 
         private static void EnsureLoaded()
         {
-            if (_drainage != null && _supply != null && _materials != null && _fixtureUnits != null) return;
+            if (_drainage != null && _supply != null && _materials != null
+                && _fixtureUnits != null && _fittings != null) return;
             lock (_lock)
             {
                 if (_drainage == null) _drainage = LoadJson("STING_PLUMBING_DRAINAGE_TABLES.json");
@@ -90,7 +116,95 @@ namespace StingTools.Core.Plumbing
                     }
                     catch (Exception ex) { StingLog.Warn($"PlumbingTables.materials: {ex.Message}"); }
                 }
+
+                if (_fittings == null) LoadFittingsCsv();
             }
+        }
+
+        private static void LoadFittingsCsv()
+        {
+            _fittings = new List<FittingEquivLength>();
+            try
+            {
+                var path = StingToolsApp.FindDataFile("STING_PLUMB_FITTINGS_EQ_LENGTH.csv");
+                if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                {
+                    var fallback = Path.Combine(StingToolsApp.DataPath ?? "", "Plumbing",
+                        "STING_PLUMB_FITTINGS_EQ_LENGTH.csv");
+                    if (File.Exists(fallback)) path = fallback;
+                }
+                if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                {
+                    StingLog.Warn("PlumbingTables: STING_PLUMB_FITTINGS_EQ_LENGTH.csv not found");
+                    return;
+                }
+
+                var lines = File.ReadAllLines(path);
+                if (lines.Length < 2) return;
+
+                // Header: "FittingType,DN15,DN20,..."
+                var headers = lines[0].Split(',');
+                _fittingsDnSeries = new int[headers.Length - 1];
+                for (int i = 1; i < headers.Length; i++)
+                {
+                    var h = headers[i].Trim();
+                    if (h.StartsWith("DN", StringComparison.OrdinalIgnoreCase)) h = h.Substring(2);
+                    int dn;
+                    int.TryParse(h, out dn);
+                    _fittingsDnSeries[i - 1] = dn;
+                }
+
+                for (int r = 1; r < lines.Length; r++)
+                {
+                    var line = lines[r];
+                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+                    var cells = line.Split(',');
+                    if (cells.Length < 2) continue;
+                    var row = new FittingEquivLength { FittingType = cells[0].Trim() };
+                    for (int c = 1; c < cells.Length && c - 1 < _fittingsDnSeries.Length; c++)
+                    {
+                        int dn = _fittingsDnSeries[c - 1];
+                        if (dn <= 0) continue;
+                        if (double.TryParse(cells[c],
+                            System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            out double v))
+                            row.EqLengthM[dn] = v;
+                    }
+                    _fittings.Add(row);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlumbingTables.LoadFittingsCsv", ex);
+            }
+        }
+
+        /// <summary>
+        /// Returns the equivalent length (m) for one fitting of type <paramref name="fittingType"/>
+        /// at the nearest tabulated DN to <paramref name="dnMm"/>. Returns 0 when the
+        /// fitting type or DN is unknown.
+        /// </summary>
+        public static double FittingEqLengthM(string fittingType, int dnMm)
+        {
+            EnsureLoaded();
+            if (string.IsNullOrEmpty(fittingType) || dnMm <= 0 || _fittings == null) return 0;
+            var row = _fittings.FirstOrDefault(f =>
+                string.Equals(f.FittingType, fittingType, StringComparison.OrdinalIgnoreCase));
+            if (row == null || row.EqLengthM.Count == 0) return 0;
+
+            // Exact match
+            if (row.EqLengthM.TryGetValue(dnMm, out double exact)) return exact;
+
+            // Nearest tabulated DN
+            int bestDn = 0;
+            double bestDiff = double.MaxValue;
+            foreach (var kv in row.EqLengthM)
+            {
+                double d = Math.Abs(kv.Key - dnMm);
+                if (d < bestDiff) { bestDiff = d; bestDn = kv.Key; }
+            }
+            return bestDn > 0 ? row.EqLengthM[bestDn] : 0;
         }
 
         private static JObject LoadJson(string fileName)

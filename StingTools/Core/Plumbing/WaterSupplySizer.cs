@@ -155,9 +155,27 @@ namespace StingTools.Core.Plumbing
                     var matKey = res.ServiceClass == "DHW" ? cfg.MaterialFor("DHW") : cfg.MaterialFor("DCW");
                     var mat    = PlumbingTables.GetMaterial(matKey);
                     double C   = mat?.HwC ?? 130;
-                    res.DpPaPerM = HazenWilliamsPaPerM(qm3s, diaM, C);
+                    double rough = mat?.RoughnessMm ?? 0.05;
+                    bool useDw = !string.IsNullOrEmpty(cfg.HeadLossMethod)
+                        && cfg.HeadLossMethod.IndexOf("DARCY", StringComparison.OrdinalIgnoreCase) >= 0;
+                    res.DpPaPerM = useDw
+                        ? DarcyWeisbachPaPerM(qm3s, diaM, rough, cfg.KinViscM2s)
+                        : HazenWilliamsPaPerM(qm3s, diaM, C);
 
-                    res.RecommendedDnMm = ResolveDnForVelocity(qm3s, ResolveVelMax(cfg, res.ServiceClass));
+                    // Sizing strategy: VELOCITY (default) or HEAD-LOSS. The latter
+                    // mirrors Plumber's "Design by Unitary Head Loss" workflow and
+                    // is the WRc / IPS norm for trunk mains.
+                    bool useHeadLoss = !string.IsNullOrEmpty(cfg.SupplySizingStrategy)
+                        && cfg.SupplySizingStrategy.IndexOf("HEAD", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (useHeadLoss)
+                    {
+                        res.RecommendedDnMm = ResolveDnForHeadLoss(
+                            qm3s, cfg.MaxPressureDropPaPerM, C, rough, cfg.KinViscM2s, cfg.HeadLossMethod);
+                    }
+                    else
+                    {
+                        res.RecommendedDnMm = ResolveDnForVelocity(qm3s, ResolveVelMax(cfg, res.ServiceClass));
+                    }
                     if (res.RecommendedDnMm < currentDn) res.RecommendedDnMm = currentDn;
                 }
                 else
@@ -278,12 +296,68 @@ namespace StingTools.Core.Plumbing
             return DnSeries[DnSeries.Length - 1];
         }
 
+        /// <summary>
+        /// Pick the smallest DN whose Pa/m head loss is at or below
+        /// <paramref name="dpMaxPaPerM"/> at design flow. Honours both
+        /// HAZEN-WILLIAMS and DARCY-WEISBACH per <paramref name="method"/>.
+        /// Borrowed from Plumber (HidraSoftware) — engineers familiar with
+        /// IPS / WRc methods expect unitary-head-loss as the sizing driver.
+        /// </summary>
+        public static int ResolveDnForHeadLoss(double qM3s, double dpMaxPaPerM,
+            double hwC, double roughnessMm, double kinViscM2s, string method)
+        {
+            if (qM3s <= 0) return DnSeries[0];
+            bool useDw = !string.IsNullOrEmpty(method)
+                && method.IndexOf("DARCY", StringComparison.OrdinalIgnoreCase) >= 0;
+            foreach (var dn in DnSeries)
+            {
+                double diaM = dn / 1000.0;
+                double dp = useDw
+                    ? DarcyWeisbachPaPerM(qM3s, diaM, roughnessMm, kinViscM2s)
+                    : HazenWilliamsPaPerM(qM3s, diaM, hwC);
+                if (dp <= dpMaxPaPerM) return dn;
+            }
+            return DnSeries[DnSeries.Length - 1];
+        }
+
         public static double HazenWilliamsPaPerM(double qM3s, double diaM, double C)
         {
             if (qM3s <= 0 || diaM <= 0) return 0;
             // Hazen–Williams head loss (m / m): h = 10.67 · Q^1.852 / (C^1.852 · D^4.87).
             double hPerM = 10.67 * Math.Pow(qM3s, 1.852) / (Math.Pow(C, 1.852) * Math.Pow(diaM, 4.87));
             return hPerM * 9810.0; // ρg = 9810 Pa per m head.
+        }
+
+        /// <summary>
+        /// Darcy-Weisbach friction-loss in Pa/m using the Swamee-Jain explicit
+        /// approximation to the Colebrook-White friction factor:
+        ///     f = 0.25 / [log10(ε/(3.7·D) + 5.74/Re^0.9)]²
+        /// then ΔP/L = f · (ρ/2) · v² / D.
+        /// Valid for 5·10³ &lt; Re &lt; 10⁸, ε/D &lt; 0.05.
+        /// </summary>
+        public static double DarcyWeisbachPaPerM(double qM3s, double diaM,
+            double roughnessMm, double kinViscM2s)
+        {
+            if (qM3s <= 0 || diaM <= 0) return 0;
+            const double rhoKgM3 = 998.2;   // water 20 °C
+            if (kinViscM2s <= 0) kinViscM2s = 1.004e-6;
+            double area = Math.PI * diaM * diaM / 4.0;
+            double v = qM3s / area;
+            double re = v * diaM / kinViscM2s;
+            double f;
+            if (re < 2300)
+            {
+                // Laminar — Hagen-Poiseuille
+                f = re > 1 ? 64.0 / re : 64.0;
+            }
+            else
+            {
+                double epsOverD = (roughnessMm > 0 ? roughnessMm : 0.05) / 1000.0 / diaM;
+                double term = epsOverD / 3.7 + 5.74 / Math.Pow(re, 0.9);
+                double logT = Math.Log10(Math.Max(term, 1e-12));
+                f = 0.25 / (logT * logT);
+            }
+            return f * (rhoKgM3 / 2.0) * v * v / diaM;
         }
 
         public static string ClassifyService(string systemName)

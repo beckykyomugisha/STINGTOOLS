@@ -55,6 +55,14 @@ namespace StingTools.Core.Plumbing
         public double SupplyPressureBarAtEntry { get; set; } = 3.0;
         public double MaxPressureDropPaPerM     { get; set; } = 300.0;
         public double FittingsEquivLengthFactor { get; set; } = 1.30;
+
+        // Phase 187 — supply hydraulic configuration borrowed from Plumber.
+        // HeadLossMethod: HAZEN-WILLIAMS | DARCY-WEISBACH
+        // SupplySizingStrategy: VELOCITY | HEAD-LOSS
+        // KinViscM2s: kinematic viscosity at design temp (water 20°C ≈ 1e-6).
+        public string HeadLossMethod         { get; set; } = "HAZEN-WILLIAMS";
+        public string SupplySizingStrategy   { get; set; } = "VELOCITY";
+        public double KinViscM2s             { get; set; } = 1.004e-6;
         public string LastSavedUtc  { get; set; } = "";
 
         // ── Defaults ──
