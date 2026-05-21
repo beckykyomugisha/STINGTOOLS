@@ -1,0 +1,604 @@
+<Page x:Class="StingTools.UI.StingLpsPanel"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:sys="clr-namespace:System;assembly=mscorlib"
+      Title="STING Lightning Protection"
+      Background="{DynamicResource PrimaryBg}">
+
+    <Page.Resources>
+        <Style x:Key="LpsSectionHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,4,0,2"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+        <Style x:Key="LpsLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Margin" Value="0,2,4,2"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="LpsReadOnly" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="LpsActionBtn" TargetType="Button">
+            <Setter Property="MinWidth" Value="74"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Margin" Value="2,1"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style x:Key="LpsPrimaryBtn" TargetType="Button" BasedOn="{StaticResource LpsActionBtn}">
+            <Setter Property="Background" Value="#FF6A1B9A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="Height" Value="26"/>
+        </Style>
+        <Style x:Key="LpsWarnBtn" TargetType="Button" BasedOn="{StaticResource LpsActionBtn}">
+            <Setter Property="Background" Value="#FFEF6C00"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style x:Key="LpsAccentBtn" TargetType="Button" BasedOn="{StaticResource LpsActionBtn}">
+            <Setter Property="Background" Value="#FF1976D2"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style x:Key="LpsExpander" TargetType="Expander">
+            <Setter Property="Margin" Value="0,3"/>
+            <Setter Property="Padding" Value="2"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+            <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+        </Style>
+        <Style x:Key="ChipCheck" TargetType="CheckBox">
+            <Setter Property="Margin" Value="0,2,8,2"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="LpsGrid" TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="RowHeight" Value="20"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="AlternatingRowBackground" Value="{DynamicResource SecondaryBg}"/>
+        </Style>
+    </Page.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ============== Title strip ============== -->
+        <Border Grid.Row="0" Background="{DynamicResource HeaderBg}" Padding="8,4">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="⚡ STING LIGHTNING PROTECTION" FontWeight="Bold" FontSize="13"
+                           Foreground="{DynamicResource HeaderFg}"/>
+                <TextBlock x:Name="txtLpsStatus" Text="Ready" FontSize="9" Margin="14,0,0,0"
+                           Foreground="{DynamicResource HeaderFg}" Opacity="0.7"
+                           VerticalAlignment="Center"/>
+                <Button Style="{StaticResource LpsActionBtn}" Content="⚙ Settings"
+                        Tag="Lps_OpenSettings" Click="Cmd_Click"
+                        Margin="14,0,0,0" Height="20" FontSize="9"
+                        ToolTip="Open the LPS data file settings"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ============== Project context strip ============== -->
+        <Border Grid.Row="1" Background="{DynamicResource SecondaryBg}" Padding="8,4">
+            <StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Standard:" Style="{StaticResource LpsLabel}"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbStandard" Margin="0,1,8,1" FontSize="10"
+                              SelectionChanged="cmbStandard_SelectionChanged">
+                        <ComboBoxItem Content="BS EN 62305 (UK)"     IsSelected="True" Tag="BS_EN_62305"/>
+                        <ComboBoxItem Content="IEC 62305 (Intl)"     Tag="IEC_62305"/>
+                        <ComboBoxItem Content="NFPA 780 (US)"        Tag="NFPA_780"/>
+                        <ComboBoxItem Content="NF C 17-102 (ESE)"    Tag="NFC_17_102"/>
+                    </ComboBox>
+
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="LPS class:" Style="{StaticResource LpsLabel}"/>
+                    <ComboBox Grid.Row="0" Grid.Column="3" x:Name="cmbLpsClass" Margin="0,1" FontSize="10"
+                              SelectionChanged="cmbLpsClass_SelectionChanged">
+                        <ComboBoxItem Content="Class I (R=20m · spacing 10m)"   Tag="I"/>
+                        <ComboBoxItem Content="Class II (R=30m · spacing 10m)"  IsSelected="True" Tag="II"/>
+                        <ComboBoxItem Content="Class III (R=45m · spacing 15m)" Tag="III"/>
+                        <ComboBoxItem Content="Class IV (R=60m · spacing 20m)"  Tag="IV"/>
+                        <ComboBoxItem Content="Auto-pick from RISK tab"         Tag="AUTO"/>
+                    </ComboBox>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Material:" Style="{StaticResource LpsLabel}"/>
+                    <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbMaterial" Margin="0,1,8,1" FontSize="10"
+                              SelectionChanged="cmbMaterial_SelectionChanged">
+                        <ComboBoxItem Content="Copper"     IsSelected="True" Tag="COPPER"/>
+                        <ComboBoxItem Content="Aluminium"  Tag="ALUMINIUM"/>
+                        <ComboBoxItem Content="Steel"      Tag="STEEL"/>
+                        <ComboBoxItem Content="Stainless"  Tag="STAINLESS"/>
+                    </ComboBox>
+
+                    <TextBlock Grid.Row="1" Grid.Column="2" Text="Region (Ng):" Style="{StaticResource LpsLabel}"/>
+                    <ComboBox Grid.Row="1" Grid.Column="3" x:Name="cmbRegion" Margin="0,1" FontSize="10"
+                              SelectionChanged="cmbRegion_SelectionChanged">
+                        <ComboBoxItem Content="UK (Ng ≈ 0.5–1.0)"  IsSelected="True" Tag="UK"/>
+                        <ComboBoxItem Content="EU (Ng ≈ 1.0–4.0)"  Tag="EU"/>
+                        <ComboBoxItem Content="US (Ng ≈ 1.0–12)"   Tag="US"/>
+                        <ComboBoxItem Content="Tropics (Ng ≈ 6–20)" Tag="TROPIC"/>
+                        <ComboBoxItem Content="Africa (Ng ≈ 8–25)"  Tag="AFRICA"/>
+                    </ComboBox>
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Uw (eq withstand):" Style="{StaticResource LpsLabel}"/>
+                    <ComboBox Grid.Row="2" Grid.Column="1" x:Name="cmbUw" Margin="0,1,8,1" FontSize="10"
+                              SelectionChanged="cmbUw_SelectionChanged">
+                        <ComboBoxItem Content="1.0 kV (sensitive electronics)" Tag="1.0"/>
+                        <ComboBoxItem Content="1.5 kV (typical 230/400 V)"     IsSelected="True" Tag="1.5"/>
+                        <ComboBoxItem Content="2.5 kV (motors, transformers)"  Tag="2.5"/>
+                        <ComboBoxItem Content="4.0 kV (heavy equipment)"       Tag="4.0"/>
+                    </ComboBox>
+
+                    <TextBlock Grid.Row="2" Grid.Column="2" Text="Soil ρ:" Style="{StaticResource LpsLabel}"/>
+                    <ComboBox Grid.Row="2" Grid.Column="3" x:Name="cmbSoil" Margin="0,1" FontSize="10"
+                              SelectionChanged="cmbSoil_SelectionChanged">
+                        <ComboBoxItem Content="50 Ωm (wet clay)"      Tag="50"/>
+                        <ComboBoxItem Content="100 Ωm (loam, typical)" IsSelected="True" Tag="100"/>
+                        <ComboBoxItem Content="500 Ωm (dry sand)"     Tag="500"/>
+                        <ComboBoxItem Content="1000 Ωm (gravel)"      Tag="1000"/>
+                        <ComboBoxItem Content="5000 Ωm (rocky)"       Tag="5000"/>
+                    </ComboBox>
+                </Grid>
+
+                <!-- Method + scope radios -->
+                <Grid Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Air-term method:" Style="{StaticResource LpsLabel}"/>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
+                        <RadioButton Content="Rolling sphere" GroupName="LpsMethod" IsChecked="True" Tag="ROLLING_SPHERE" Margin="0,0,8,0" FontSize="10" Checked="Method_Checked"/>
+                        <RadioButton Content="Mesh"           GroupName="LpsMethod" Tag="MESH"             Margin="0,0,8,0" FontSize="10" Checked="Method_Checked"/>
+                        <RadioButton Content="Protection angle" GroupName="LpsMethod" Tag="PROTECTION_ANGLE"               FontSize="10" Checked="Method_Checked"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Scope:" Style="{StaticResource LpsLabel}"/>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
+                        <RadioButton Content="All"         GroupName="LpsScope" Tag="Project"    Margin="0,0,8,0" FontSize="10" Checked="Scope_Checked"/>
+                        <RadioButton Content="Selection"   GroupName="LpsScope" Tag="Selection"  Margin="0,0,8,0" FontSize="10" Checked="Scope_Checked"/>
+                        <RadioButton Content="Active view" GroupName="LpsScope" IsChecked="True" Tag="ActiveView" FontSize="10" Checked="Scope_Checked"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- ============== Tabs ============== -->
+        <TabControl Grid.Row="2" x:Name="tabLps" Background="{DynamicResource PrimaryBg}">
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="FontSize" Value="10"/>
+                    <Setter Property="Padding" Value="6,3"/>
+                    <Setter Property="Foreground" Value="{DynamicResource TabFg}"/>
+                    <Setter Property="Background" Value="{DynamicResource TabBg}"/>
+                    <Style.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource TabSelectedFg}"/>
+                            <Setter Property="Background" Value="{DynamicResource TabSelectedBg}"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </TabControl.Resources>
+
+            <!-- ============== TAB 1: RISK ============== -->
+            <TabItem Header="RISK">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="RISK ASSESSMENT (BS EN 62305-2 §A · §B)" Style="{StaticResource LpsSectionHeader}"/>
+
+                        <Expander Header="BUILDING DIMENSIONS + Ng" Style="{StaticResource LpsExpander}" IsExpanded="True">
+                            <Grid Margin="4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="L (m):" Style="{StaticResource LpsLabel}"/>
+                                <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtRiskLen" Text="30" Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="W (m):" Style="{StaticResource LpsLabel}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="3" Text="" Width="6"/>
+                                <TextBox   Grid.Row="0" Grid.Column="4" x:Name="txtRiskWid" Text="20" Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="H (m):" Style="{StaticResource LpsLabel}"/>
+                                <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtRiskHgt" Text="12" Margin="2" FontSize="10"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="Ng override:" Style="{StaticResource LpsLabel}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="3" Text="" Width="6"/>
+                                <TextBox   Grid.Row="1" Grid.Column="4" x:Name="txtRiskNg" Text="0" Margin="2" FontSize="10" ToolTip="Set 0 to use region default."/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Rt:" Style="{StaticResource LpsLabel}"/>
+                                <TextBox   Grid.Row="2" Grid.Column="1" x:Name="txtRiskRt" Text="1E-5" Margin="2" FontSize="10"/>
+                                <CheckBox  Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="4" x:Name="chkRiskAutoApply"
+                                           Content="Auto-apply recommended class to Project Information"
+                                           IsChecked="True" Margin="4" FontSize="10"/>
+                            </Grid>
+                        </Expander>
+
+                        <Expander Header="C-FACTOR INPUTS (editable)" Style="{StaticResource LpsExpander}" IsExpanded="True">
+                            <DataGrid x:Name="RiskFactorGrid" Style="{StaticResource LpsGrid}" MinHeight="120">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Factor"      Binding="{Binding Factor}"      Width="180" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*"   IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Value"       Binding="{Binding Value}"       Width="60"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Expander>
+
+                        <Expander Header="RESULT" Style="{StaticResource LpsExpander}" IsExpanded="True">
+                            <Grid Margin="4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Ae:" Style="{StaticResource LpsLabel}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="txtRiskAe" Text="—" Style="{StaticResource LpsReadOnly}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="Nd:" Style="{StaticResource LpsLabel}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="3" Text="" Width="6"/>
+                                <TextBlock Grid.Row="0" Grid.Column="4" x:Name="txtRiskNd" Text="—" Style="{StaticResource LpsReadOnly}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="R1:" Style="{StaticResource LpsLabel}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtRiskR1" Text="—" Style="{StaticResource LpsReadOnly}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="Rt:" Style="{StaticResource LpsLabel}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="3" Text="" Width="6"/>
+                                <TextBlock Grid.Row="1" Grid.Column="4" x:Name="txtRiskRt2" Text="—" Style="{StaticResource LpsReadOnly}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="LPS req?" Style="{StaticResource LpsLabel}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="txtRiskNeed" Text="—" Style="{StaticResource LpsReadOnly}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="2" Text="Class:" Style="{StaticResource LpsLabel}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="3" Text="" Width="6"/>
+                                <TextBlock Grid.Row="2" Grid.Column="4" x:Name="txtRiskCls" Text="—" Style="{StaticResource LpsReadOnly}"/>
+                            </Grid>
+                        </Expander>
+
+                        <WrapPanel Margin="0,6,0,0">
+                            <Button Style="{StaticResource LpsPrimaryBtn}" Content="Run risk"
+                                    Tag="Lps_RunRiskInline" Click="Cmd_Click"
+                                    ToolTip="Run IEC 62305-2 risk assessment from the inputs above"/>
+                            <Button Style="{StaticResource LpsAccentBtn}" Content="Class wizard…"
+                                    Tag="Lps_ClassSetup" Click="Cmd_Click"
+                                    ToolTip="Open the full LPS Class Setup wizard (residual risk + apply)"/>
+                            <Button Style="{StaticResource LpsActionBtn}" Content="Dashboard"
+                                    Tag="Lps_Dashboard" Click="Cmd_Click"
+                                    ToolTip="Open the LPS project dashboard snapshot"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 2: AIR-TERM ============== -->
+            <TabItem Header="AIR-TERM">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="AIR-TERMINATION DESIGN (BS EN 62305-3 §5.2)" Style="{StaticResource LpsSectionHeader}"/>
+
+                        <TextBlock FontSize="9" Foreground="{DynamicResource PanelFg}" Opacity="0.7" Margin="0,0,0,4"
+                                   Text="Selected method (header strip above): Rolling Sphere (R per class) · Mesh (square grid) · Protection Angle (cone from tip)."
+                                   TextWrapping="Wrap"/>
+
+                        <WrapPanel Margin="0,2,0,2">
+                            <CheckBox Content="Franklin rods" Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="Mesh tape"     Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="ESE terminals" Style="{StaticResource ChipCheck}"/>
+                            <CheckBox Content="Catenary"      Style="{StaticResource ChipCheck}"/>
+                        </WrapPanel>
+
+                        <DataGrid x:Name="AirTerminalGrid" Style="{StaticResource LpsGrid}" MinHeight="160">
+                            <DataGrid.Columns>
+                                <DataGridCheckBoxColumn Header="" Binding="{Binding IsSelected}" Width="24"/>
+                                <DataGridTextColumn Header="Tag"      Binding="{Binding Tag}"      Width="120"/>
+                                <DataGridTextColumn Header="Height m" Binding="{Binding HeightM}"  Width="70"/>
+                                <DataGridTextColumn Header="Family"   Binding="{Binding Family}"   Width="*"/>
+                                <DataGridTextColumn Header="R (m)"    Binding="{Binding RadiusM}"  Width="60"  IsReadOnly="True"/>
+                                <DataGridTextColumn Header=""         Binding="{Binding StatusDot}" Width="24" IsReadOnly="True"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <WrapPanel Margin="0,6,0,0">
+                            <Button Style="{StaticResource LpsPrimaryBtn}" Content="Plan visualise"
+                                    Tag="Lps_PlanVisualise" Click="Cmd_Click"
+                                    ToolTip="Project rolling-sphere coverage circles to a drafting view"/>
+                            <Button Style="{StaticResource LpsAccentBtn}" Content="3D coverage"
+                                    Tag="Lps_3DCoverage" Click="Cmd_Click"
+                                    ToolTip="Sample roof geometry and flag exposed points"/>
+                            <Button Style="{StaticResource LpsActionBtn}" Content="Mark types"
+                                    Tag="Lps_MarkTypes" Click="Cmd_Click"
+                                    ToolTip="Mark LPS element types on selected families"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 3: CONDUCTORS ============== -->
+            <TabItem Header="CONDUCTORS">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="DOWN CONDUCTORS + SEPARATION DISTANCE (§5.3 + §6.3)" Style="{StaticResource LpsSectionHeader}"/>
+
+                        <DataGrid x:Name="DownConductorGrid" Style="{StaticResource LpsGrid}" MinHeight="180">
+                            <DataGrid.Columns>
+                                <DataGridCheckBoxColumn Header="" Binding="{Binding IsSelected}" Width="24"/>
+                                <DataGridTextColumn Header="Tag"        Binding="{Binding Tag}"            Width="100"/>
+                                <DataGridTextColumn Header="Length m"   Binding="{Binding LengthM}"        Width="70"/>
+                                <DataGridComboBoxColumn Header="Material" SelectedItemBinding="{Binding Material}" Width="90">
+                                    <DataGridComboBoxColumn.ItemsSource>
+                                        <x:Array Type="{x:Type sys:String}">
+                                            <sys:String>COPPER</sys:String>
+                                            <sys:String>ALUMINIUM</sys:String>
+                                            <sys:String>STEEL</sys:String>
+                                            <sys:String>STAINLESS</sys:String>
+                                        </x:Array>
+                                    </DataGridComboBoxColumn.ItemsSource>
+                                </DataGridComboBoxColumn>
+                                <DataGridTextColumn Header="Spacing m"  Binding="{Binding SpacingM}"      Width="70"  IsReadOnly="True"/>
+                                <DataGridTextColumn Header="s (mm)"     Binding="{Binding SeparationMm}"  Width="70"  IsReadOnly="True"/>
+                                <DataGridTextColumn Header="CS mm²"     Binding="{Binding CrossSectionMm2}" Width="60"/>
+                                <DataGridTextColumn Header=""           Binding="{Binding StatusDot}"     Width="24"  IsReadOnly="True"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <WrapPanel Margin="0,6,0,0">
+                            <Button Style="{StaticResource LpsPrimaryBtn}" Content="Check spacing"
+                                    Tag="Lps_DownConductor" Click="Cmd_Click"
+                                    ToolTip="Validate down-conductor count + spacing for active LPS class"/>
+                            <Button Style="{StaticResource LpsAccentBtn}" Content="Sep distance"
+                                    Tag="Lps_SepDistance" Click="Cmd_Click"
+                                    ToolTip="Compute s = (ki/km)·kc·l and flag MEP within s"/>
+                            <Button Style="{StaticResource LpsActionBtn}" Content="Recalc kc"
+                                    Tag="Lps_RecalcKc" Click="Cmd_Click"
+                                    ToolTip="Recompute kc factor from current down-conductor count"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 4: EARTH ============== -->
+            <TabItem Header="EARTH">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="EARTH TERMINATION + BONDING (§5.4 + §6.2)" Style="{StaticResource LpsSectionHeader}"/>
+
+                        <Expander Header="EARTH ELECTRODES" Style="{StaticResource LpsExpander}" IsExpanded="True">
+                            <DataGrid x:Name="EarthElectrodeGrid" Style="{StaticResource LpsGrid}" MinHeight="120">
+                                <DataGrid.Columns>
+                                    <DataGridCheckBoxColumn Header="" Binding="{Binding IsSelected}" Width="24"/>
+                                    <DataGridTextColumn Header="Tag"       Binding="{Binding Tag}"          Width="100"/>
+                                    <DataGridComboBoxColumn Header="Type"  SelectedItemBinding="{Binding ArrangeType}" Width="60">
+                                        <DataGridComboBoxColumn.ItemsSource>
+                                            <x:Array Type="{x:Type sys:String}">
+                                                <sys:String>A</sys:String>
+                                                <sys:String>B</sys:String>
+                                            </x:Array>
+                                        </DataGridComboBoxColumn.ItemsSource>
+                                    </DataGridComboBoxColumn>
+                                    <DataGridTextColumn Header="Length m"     Binding="{Binding LengthM}"        Width="80"/>
+                                    <DataGridTextColumn Header="R (Ω)"        Binding="{Binding ResistanceOhm}"  Width="80"/>
+                                    <DataGridTextColumn Header=""             Binding="{Binding StatusDot}"      Width="24" IsReadOnly="True"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Expander>
+
+                        <Expander Header="EQUIPOTENTIAL BONDING" Style="{StaticResource LpsExpander}" IsExpanded="True">
+                            <DataGrid x:Name="BondingGrid" Style="{StaticResource LpsGrid}" MinHeight="100">
+                                <DataGrid.Columns>
+                                    <DataGridCheckBoxColumn Header="" Binding="{Binding IsSelected}" Width="24"/>
+                                    <DataGridTextColumn Header="Tag"        Binding="{Binding Tag}"      Width="100"/>
+                                    <DataGridTextColumn Header="From LPZ"   Binding="{Binding FromLpz}"  Width="80"/>
+                                    <DataGridTextColumn Header="To LPZ"     Binding="{Binding ToLpz}"    Width="80"/>
+                                    <DataGridComboBoxColumn Header="Bond"   SelectedItemBinding="{Binding BondType}" Width="*">
+                                        <DataGridComboBoxColumn.ItemsSource>
+                                            <x:Array Type="{x:Type sys:String}">
+                                                <sys:String>DIRECT</sys:String>
+                                                <sys:String>SPD</sys:String>
+                                                <sys:String>ISOLATING_SPARK_GAP</sys:String>
+                                                <sys:String>REVIEW REQUIRED</sys:String>
+                                            </x:Array>
+                                        </DataGridComboBoxColumn.ItemsSource>
+                                    </DataGridComboBoxColumn>
+                                    <DataGridTextColumn Header=""           Binding="{Binding StatusDot}" Width="24" IsReadOnly="True"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Expander>
+
+                        <WrapPanel Margin="0,6,0,0">
+                            <Button Style="{StaticResource LpsPrimaryBtn}" Content="Earth check"
+                                    Tag="Lps_EarthCheck" Click="Cmd_Click"
+                                    ToolTip="Validate electrode resistance ≤ class target (default 10 Ω)"/>
+                            <Button Style="{StaticResource LpsAccentBtn}" Content="Bonding inventory"
+                                    Tag="Lps_Bonding" Click="Cmd_Click"
+                                    ToolTip="Walk MEP elements crossing LPZ boundaries, write bond-required flag"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 5: SPD ============== -->
+            <TabItem Header="SPD">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="SURGE PROTECTION COORDINATION (IEC 62305-4 / IEC 61643-11)" Style="{StaticResource LpsSectionHeader}"/>
+
+                        <TextBlock FontSize="9" Foreground="{DynamicResource PanelFg}" Opacity="0.7" Margin="0,0,0,4"
+                                   Text="Type 1 at LPZ 0/1 (10/350 µs · Iimp); Type 2 at LPZ 1/2 (8/20 µs · In); Type 3 at LPZ 2/3 (final circuit). Cascade ≥ 10 m cable or manufacturer-paired."
+                                   TextWrapping="Wrap"/>
+
+                        <WrapPanel Margin="0,2,0,2">
+                            <CheckBox Content="Type 1"   Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="Type 2"   Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="Type 3"   Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="Combined" Style="{StaticResource ChipCheck}" IsChecked="True"/>
+                            <CheckBox Content="Data"     Style="{StaticResource ChipCheck}"/>
+                        </WrapPanel>
+
+                        <DataGrid x:Name="SpdGrid" Style="{StaticResource LpsGrid}" MinHeight="180">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Tag"        Binding="{Binding Tag}"          Width="100"/>
+                                <DataGridTextColumn Header="Location"   Binding="{Binding LocationLabel}" Width="*"/>
+                                <DataGridTextColumn Header="Type"       Binding="{Binding Type}"         Width="50"/>
+                                <DataGridTextColumn Header="Iimp kA"    Binding="{Binding IimpKa}"       Width="60"/>
+                                <DataGridTextColumn Header="In kA"      Binding="{Binding InKa}"         Width="60"/>
+                                <DataGridTextColumn Header="Up kV"      Binding="{Binding UpKv}"         Width="60"/>
+                                <DataGridTextColumn Header="Manu"       Binding="{Binding Manufacturer}" Width="80"/>
+                                <DataGridTextColumn Header="Model"      Binding="{Binding Model}"        Width="100"/>
+                                <DataGridTextColumn Header="Cable m"    Binding="{Binding CableSeparationM}" Width="60"/>
+                                <DataGridTextColumn Header=""           Binding="{Binding StatusDot}"    Width="24" IsReadOnly="True"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <WrapPanel Margin="0,6,0,0">
+                            <Button Style="{StaticResource LpsPrimaryBtn}" Content="Coordinate"
+                                    Tag="Lps_SpdCoordinate" Click="Cmd_Click"
+                                    ToolTip="Run IEC 62305-4 coordination rules over the SPD grid"/>
+                            <Button Style="{StaticResource LpsAccentBtn}" Content="Recommend"
+                                    Tag="Lps_SpdRecommend" Click="Cmd_Click"
+                                    ToolTip="Auto-fill empty SPD locations from the corporate catalogue"/>
+                            <Button Style="{StaticResource LpsActionBtn}" Content="Export BOM"
+                                    Tag="Lps_SpdExportBom" Click="Cmd_Click"
+                                    ToolTip="Write the SPD grid to a CSV bill of materials"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 6: ZONES ============== -->
+            <TabItem Header="ZONES">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="LIGHTNING PROTECTION ZONES (IEC 62305-4 §6.1)" Style="{StaticResource LpsSectionHeader}"/>
+
+                        <TextBlock FontSize="9" Foreground="{DynamicResource PanelFg}" Opacity="0.7" Margin="0,0,0,4"
+                                   Text="LPZ 0A = direct strikes · LPZ 0B = electromagnetic only · LPZ 1 = building interior · LPZ 2/3 = nested shielded rooms"
+                                   TextWrapping="Wrap"/>
+
+                        <DataGrid x:Name="ZoneGrid" Style="{StaticResource LpsGrid}" MinHeight="200">
+                            <DataGrid.Columns>
+                                <DataGridCheckBoxColumn Header="" Binding="{Binding IsSelected}" Width="24"/>
+                                <DataGridTextColumn Header="Room"  Binding="{Binding RoomName}" Width="*"/>
+                                <DataGridTextColumn Header="Level" Binding="{Binding Level}"    Width="80"/>
+                                <DataGridComboBoxColumn Header="LPZ" SelectedItemBinding="{Binding Lpz}" Width="70">
+                                    <DataGridComboBoxColumn.ItemsSource>
+                                        <x:Array Type="{x:Type sys:String}">
+                                            <sys:String>LPZ0A</sys:String>
+                                            <sys:String>LPZ0B</sys:String>
+                                            <sys:String>LPZ1</sys:String>
+                                            <sys:String>LPZ2</sys:String>
+                                            <sys:String>LPZ3</sys:String>
+                                        </x:Array>
+                                    </DataGridComboBoxColumn.ItemsSource>
+                                </DataGridComboBoxColumn>
+                                <DataGridTextColumn Header="Colour" Binding="{Binding Colour}" Width="80" IsReadOnly="True"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <WrapPanel Margin="0,6,0,0">
+                            <Button Style="{StaticResource LpsPrimaryBtn}" Content="Tag rooms"
+                                    Tag="Lps_ZoneTagRooms" Click="Cmd_Click"
+                                    ToolTip="Pick a zone, then multi-select rooms to tag"/>
+                            <Button Style="{StaticResource LpsAccentBtn}" Content="Colour zones"
+                                    Tag="Lps_ColourZones" Click="Cmd_Click"
+                                    ToolTip="Apply colour overrides to rooms by LPZ"/>
+                            <Button Style="{StaticResource LpsWarnBtn}" Content="Clear colours"
+                                    Tag="Lps_ClearColours" Click="Cmd_Click"
+                                    ToolTip="Clear all LPZ colour overrides on the active view"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 7: RPRT ============== -->
+            <TabItem Header="RPRT">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="INSPECTION + REPORTING (BS EN 62305-3 Annex E)" Style="{StaticResource LpsSectionHeader}"/>
+
+                        <Expander Header="INSPECTION SCHEDULE" Style="{StaticResource LpsExpander}" IsExpanded="True">
+                            <DataGrid x:Name="InspectionGrid" Style="{StaticResource LpsGrid}" MinHeight="120">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Tag"       Binding="{Binding Tag}"      Width="120"/>
+                                    <DataGridTextColumn Header="Last test" Binding="{Binding LastTest}" Width="100"/>
+                                    <DataGridTextColumn Header="Next due"  Binding="{Binding NextDue}"  Width="100"/>
+                                    <DataGridTextColumn Header="Status"    Binding="{Binding Status}"   Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Expander>
+
+                        <Expander Header="RUN LOG" Style="{StaticResource LpsExpander}" IsExpanded="True">
+                            <DataGrid x:Name="WorkflowGrid" Style="{StaticResource LpsGrid}" MinHeight="100">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="#"         Binding="{Binding Number}"    Width="40"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Command"   Binding="{Binding Name}"      Width="*"   IsReadOnly="True"/>
+                                    <DataGridTextColumn Header=""          Binding="{Binding StatusDot}" Width="24"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Time"      Binding="{Binding Timestamp}" Width="80"  IsReadOnly="True"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Expander>
+
+                        <WrapPanel Margin="0,6,0,0">
+                            <Button Style="{StaticResource LpsPrimaryBtn}" Content="Compliance"
+                                    Tag="Lps_Compliance" Click="Cmd_Click"
+                                    ToolTip="Stamp BS EN 62305 compliance verdict on Project Information"/>
+                            <Button Style="{StaticResource LpsAccentBtn}" Content="Full report"
+                                    Tag="Lps_FullReport" Click="Cmd_Click"
+                                    ToolTip="Generate the full LPS compliance report"/>
+                            <Button Style="{StaticResource LpsActionBtn}" Content="Inspection schedule"
+                                    Tag="Lps_InspectionSchedule" Click="Cmd_Click"
+                                    ToolTip="Stamp next-inspection dates on LPS elements"/>
+                            <Button Style="{StaticResource LpsActionBtn}" Content="Create schedules"
+                                    Tag="Lps_CreateSchedules" Click="Cmd_Click"
+                                    ToolTip="Create Revit LPS schedules"/>
+                            <Button Style="{StaticResource LpsActionBtn}" Content="Sync to Planscape"
+                                    Tag="Lps_SyncToServer" Click="Cmd_Click"
+                                    ToolTip="Push LPS state to Planscape server"/>
+                            <Button Style="{StaticResource LpsActionBtn}" Content="Reload catalogue"
+                                    Tag="Lps_ReloadCatalogue" Click="Cmd_Click"
+                                    ToolTip="Re-read STING_LPS_SPD_CATALOGUE.json from disk"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Page>
