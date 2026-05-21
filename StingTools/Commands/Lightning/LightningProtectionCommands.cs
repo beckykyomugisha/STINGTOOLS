@@ -28,6 +28,7 @@ using Newtonsoft.Json.Linq;
 using StingTools.Core;
 using StingTools.Core.Lightning;
 using StingTools.Core.Fabrication;
+using StingTools.Core.Drawing;
 using StingTools.Select;
 using StingTools.UI;
 // Disambiguate WPF controls from Autodesk.Revit.UI.TextBox/ComboBox and
@@ -597,6 +598,19 @@ namespace StingTools.Commands.Lightning
                         }
                         else alreadySet++;
 
+                        // Wave 3 — stamp the LPZ context on the element so
+                        // schedules + the LPS panel's BondingGrid can show
+                        // From / To LPZ without re-running the spatial walk.
+                        // Falls back silently when params aren't bound (legacy
+                        // projects that haven't run LoadSharedParams since
+                        // Wave 1).
+                        try
+                        {
+                            ParameterHelpers.SetString(el, LpsParams.FROM_LPZ_TXT, fromLpz, true);
+                            ParameterHelpers.SetString(el, LpsParams.TO_LPZ_TXT,   toLpz,   true);
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Stamp LPZ: {ex.Message}"); }
+
                         string remarks = hasBond ? "OK" : "Bond type assignment required";
                         rows.Add(new[]
                         {
@@ -825,6 +839,14 @@ namespace StingTools.Commands.Lightning
                         draftingView = ViewDrafting.Create(doc, vft.Id);
                         try { draftingView.Name = viewName; } catch (Exception ex) { StingLog.Warn($"Rename: {ex.Message}"); }
                     }
+
+                    // Wave 3 — stamp the drafting view with the LPS coverage
+                    // drawing-type id so DrawingDriftDetector, BrowserOrganizer,
+                    // and SyncStyles can manage it like any other STING-produced
+                    // view. Silently skips when STING_DRAWING_TYPE_ID_TXT isn't
+                    // bound on Views (projects pre-Phase 113).
+                    try { DrawingTypeStamper.Stamp(draftingView, "elec-lps-coverage-A3"); }
+                    catch (Exception ex) { StingLog.Warn($"DrawingType stamp: {ex.Message}"); }
 
                     // Resolve filled region type
                     var frType = new FilteredElementCollector(doc).OfClass(typeof(FilledRegionType))

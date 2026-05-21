@@ -2713,6 +2713,8 @@ PARAM	e1c5f9d4-1003-5111-9111-100000000003	ELC_LPS_EARTH_TAG_TXT	TEXT		4	1	LPS e
 PARAM	e1c5f9d4-1004-5111-9111-100000000004	ELC_LPS_BOND_TAG_TXT	TEXT		4	1	LPS equipotential bonding tag -- full tag for bonding conductor or bonding bar [BS EN 62305-3 _6.2]	1
 PARAM	e1c5f9d4-1005-5111-9111-100000000005	ELC_LPS_SPD_TAG_TXT	TEXT		4	1	LPS surge protective device tag -- full tag for SPD Type 1 / 2 / 3 [BS EN 62305-4 / BS EN 61643]	1
 PARAM	e1c5f9d4-1006-5111-9111-100000000006	ELC_LPS_TESTCLAMP_TAG_TXT	TEXT		4	1	LPS test clamp / inspection point tag -- full tag for clamps allowing earth-resistance test [BS EN 62305-3 _7.2]	1
+PARAM	e1c5f9d4-1010-5111-9111-100000000010	ELC_LPS_FROM_LPZ_TXT	TEXT		4	1	LPZ on the upstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 _6.1]	1
+PARAM	e1c5f9d4-1011-5111-9111-100000000011	ELC_LPS_TO_LPZ_TXT	TEXT		4	1	LPZ on the downstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 _6.1]	1
 PARAM	e1c5f9d4-1007-5111-9111-100000000007	ELC_TAG_7_PARA_LPS_TXT	TEXT		4	1	Electrical TAG7 paragraph container for LPS (class, LPZ, down conductors, earth resistance, last test) [STING Phase 176]	1
 # -- Lightning Protection System validation warnings (BS EN 62305) ----------
 PARAM	f1d6f0e5-2001-5222-9222-200000000001	WARN_ELC_LPS_NO_CLASS	TEXT		4	1	Warning: LPS class missing -- set ELC_LPS_CLASS_TXT to I / II / III / IV [BS EN 62305-1 _8] [CRITICAL]	1

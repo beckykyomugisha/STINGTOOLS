@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
+using Newtonsoft.Json.Linq;
 using StingTools.Core;
 using StingTools.Core.Lightning;
 using StingTools.Core.Fabrication;
@@ -33,6 +35,7 @@ namespace StingTools.UI
         public ObservableCollection<InspectionRow>      InspectionRows      { get; } = new();
         public ObservableCollection<LpsWorkflowRow>     WorkflowRows        { get; } = new();
         public ObservableCollection<ResidualRiskRow>    ResidualRiskRows    { get; } = new();
+        public ObservableCollection<LossTypeRow>        LossTypeRows        { get; } = new();
 
         // ── Header state ────────────────────────────────────────────────
         public string SelectedStandard  { get; private set; } = "BS_EN_62305";
@@ -79,6 +82,14 @@ namespace StingTools.UI
             try { InspectionGrid.ItemsSource     = InspectionRows; }     catch (Exception ex) { StingLog.Warn($"InspectionGrid bind: {ex.Message}"); }
             try { WorkflowGrid.ItemsSource       = WorkflowRows; }       catch (Exception ex) { StingLog.Warn($"WorkflowGrid bind: {ex.Message}"); }
             try { ResidualGrid.ItemsSource       = ResidualRiskRows; }   catch (Exception ex) { StingLog.Warn($"ResidualGrid bind: {ex.Message}"); }
+            try { LossTypeGrid.ItemsSource       = LossTypeRows; }       catch (Exception ex) { StingLog.Warn($"LossTypeGrid bind: {ex.Message}"); }
+
+            // Wave 1 — populate the RISK-tab catalogue combos from
+            // STING_LPS_RISK_FACTORS.json so labels match the data the
+            // engine actually consumes (closes the "Cb metal/concrete"
+            // confusion). Catalogue load is one-shot at construction.
+            try { LoadRiskCatalogue(); }
+            catch (Exception ex) { StingLog.Warn($"LoadRiskCatalogue: {ex.Message}"); }
 
             // Seed default risk factor rows so the RISK tab is non-empty.
             try { SeedDefaultRiskFactors(); }
@@ -87,12 +98,112 @@ namespace StingTools.UI
 
         private void SeedDefaultRiskFactors()
         {
+            // Labels now match the BS EN 62305-2 occupancy-type model
+            // used by STING_LPS_RISK_FACTORS.json (closes the
+            // "construction material" confusion). The grid stays as a
+            // manual-override surface; the combo above is the primary
+            // input. Values match commercial / ordinary defaults.
             RiskFactorRows.Clear();
-            RiskFactorRows.Add(new RiskFactorRow { Factor = "Cb — Building type",     Description = "Construction (metal=0.5 · concrete=1.0 · masonry=1.0 · thatched=2.0)",       Value = 1.0 });
-            RiskFactorRows.Add(new RiskFactorRow { Factor = "Cc — Internal content",  Description = "Contents (ordinary=1.0 · valuable=2.0 · cultural=3.0 · explosive=5.0)",       Value = 1.0 });
-            RiskFactorRows.Add(new RiskFactorRow { Factor = "Cd — Occupant hazard",   Description = "Occupants (low=1.0 · medium=2.0 · high panic=5.0 · hospital=10.0)",            Value = 1.0 });
-            RiskFactorRows.Add(new RiskFactorRow { Factor = "Ce — Consequence",       Description = "Loss (no impact=1.0 · service loss=2.0 · cultural loss=5.0 · social=10.0)",   Value = 1.0 });
-            RiskFactorRows.Add(new RiskFactorRow { Factor = "Cd_loc — Location",      Description = "Location (isolated=2.0 · low hill=1.0 · surrounded by taller=0.25 · in city=0.5)", Value = 1.0 });
+            RiskFactorRows.Add(new RiskFactorRow { Factor = "Cb — Building occupancy",  Description = "Drives life-safety risk; e.g. residential=0.5 · commercial=1.0 · industrial=1.5 · healthcare=2.5 · hazardous=3.0", Value = 1.0 });
+            RiskFactorRows.Add(new RiskFactorRow { Factor = "Cc — Internal contents",   Description = "Ordinary=1.0 · valuable=2.0 · irreplaceable=3.0 · high-fire=2.5 · explosive=5.0",                              Value = 1.0 });
+            RiskFactorRows.Add(new RiskFactorRow { Factor = "Cd — Occupant hazard",     Description = "Low (few occupants)=1.0 · medium (public access)=2.0 · high (vulnerable/mass)=5.0",                          Value = 1.0 });
+            RiskFactorRows.Add(new RiskFactorRow { Factor = "Ce — Consequence of failure", Description = "Low=1.0 · medium=2.0 · high=5.0 · extreme=10.0",                                                          Value = 1.0 });
+            RiskFactorRows.Add(new RiskFactorRow { Factor = "Cd_loc — Location factor",  Description = "BS EN 62305-2 §A.4: isolated=2.0 · low hill=1.0 · surrounded by taller=0.25 · in city=0.5",                  Value = 1.0 });
+        }
+
+        // ──────────────────────────────────────────────────────────────
+        //  Wave 1 — Risk catalogue loader. Reads STING_LPS_RISK_FACTORS.json
+        //  and seeds the RISK-tab combos so users pick from real BS EN 62305-2
+        //  categories rather than typing arbitrary coefficient values. Each
+        //  combo carries (label, value) pairs in (.Content, .Tag); the shared
+        //  cmbRiskCatalogue_SelectionChanged handler updates the matching
+        //  RiskFactorRows row Value when an item is picked.
+        // ──────────────────────────────────────────────────────────────
+        private void LoadRiskCatalogue()
+        {
+            try
+            {
+                string path = StingToolsApp.FindDataFile("STING_LPS_RISK_FACTORS.json");
+                if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                {
+                    StingLog.Warn("LoadRiskCatalogue: STING_LPS_RISK_FACTORS.json not found.");
+                    return;
+                }
+                var root = JObject.Parse(File.ReadAllText(path));
+                PopulateCombo(cmbBldType,        root["buildingTypes"]     as JArray, "cb");
+                PopulateCombo(cmbContent,        root["internalContent"]   as JArray, "cc");
+                PopulateCombo(cmbOccupant,       root["occupantHazard"]    as JArray, "cd");
+                PopulateCombo(cmbConsequence,    root["consequenceOfFailure"] as JArray, "ce");
+                PopulateCombo(cmbServiceFactor,  root["serviceFactors"]    as JArray, "ct");
+                PopulateLocationFactorCombo(cmbLocFactor);
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadRiskCatalogue: {ex.Message}"); }
+        }
+
+        private static void PopulateCombo(ComboBox combo, JArray arr, string valueKey)
+        {
+            if (combo == null || arr == null) return;
+            combo.Items.Clear();
+            foreach (var entry in arr)
+            {
+                string label = entry["label"]?.ToString() ?? entry["id"]?.ToString() ?? "—";
+                double v = entry[valueKey]?.Value<double>() ?? 1.0;
+                combo.Items.Add(new ComboBoxItem
+                {
+                    Content = $"{label}  ({valueKey} = {v:F2})",
+                    Tag     = v.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                });
+            }
+            // Default = first entry with value closest to 1.0 (typical).
+            if (combo.Items.Count > 0) combo.SelectedIndex = 0;
+        }
+
+        private static void PopulateLocationFactorCombo(ComboBox combo)
+        {
+            if (combo == null) return;
+            combo.Items.Clear();
+            // BS EN 62305-2 Annex A.4 — Cd location factor lookup table.
+            // Hard-coded because the data file's serviceFactors array is
+            // for service-entry Ct, not location Cd.
+            var locOptions = new (string Label, double Value)[]
+            {
+                ("Surrounded by taller objects (city)",            0.25),
+                ("Within taller-object cluster (suburban)",        0.5),
+                ("Isolated structure (no taller objects nearby)",  1.0),
+                ("Isolated on hill / mountain top",                2.0),
+            };
+            foreach (var o in locOptions)
+            {
+                combo.Items.Add(new ComboBoxItem
+                {
+                    Content = $"{o.Label}  (Cd = {o.Value:F2})",
+                    Tag     = o.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                });
+            }
+            combo.SelectedIndex = 2; // isolated = 1.0 default
+        }
+
+        private void cmbRiskCatalogue_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (RiskFactorRows.Count < 5) return;
+                if (sender is ComboBox cb && cb.SelectedItem is ComboBoxItem item && item.Tag is string tag
+                    && double.TryParse(tag, System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out double v))
+                {
+                    if (cb == cmbBldType)        RiskFactorRows[0].Value = v;
+                    else if (cb == cmbContent)   RiskFactorRows[1].Value = v;
+                    else if (cb == cmbOccupant)  RiskFactorRows[2].Value = v;
+                    else if (cb == cmbConsequence) RiskFactorRows[3].Value = v;
+                    else if (cb == cmbLocFactor) RiskFactorRows[4].Value = v;
+                    // Service-entry Ct doesn't feed the simplified risk
+                    // model directly — kept in the UI so it shows up in
+                    // reports and Phase 3 when STING wires §B.3 properly.
+                    try { RiskFactorGrid?.Items.Refresh(); } catch { }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"cmbRiskCatalogue_SelectionChanged: {ex.Message}"); }
         }
 
         // ── Click dispatch ──────────────────────────────────────────────
@@ -241,14 +352,38 @@ namespace StingTools.UI
                     if (txtRiskNeed != null) txtRiskNeed.Text = result.RequiresLps ? "YES" : "NO";
                     if (txtRiskCls  != null) txtRiskCls.Text  = result.RecommendedClass ?? "—";
 
+                    // Loss-type R1–R4 grid — Wave 1 accuracy upgrade.
+                    LossTypeRows.Clear();
+                    if (result.RiskByLossType != null)
+                    {
+                        string[] order = { "L1", "L2", "L3", "L4" };
+                        foreach (var k in order)
+                        {
+                            if (!result.RiskByLossType.TryGetValue(k, out double rv)) continue;
+                            result.TolerableByLossType.TryGetValue(k, out double rt);
+                            bool ok = rt <= 0 ? false : rv <= rt;
+                            LossTypeRows.Add(new LossTypeRow
+                            {
+                                LossType  = k,
+                                Risk      = rv.ToString("E2"),
+                                Tolerable = rt > 0 ? rt.ToString("E2") : "—",
+                                StatusDot = ok ? "✓ PASS" : "✗ FAIL — LPS required"
+                            });
+                        }
+                    }
+
                     // Inline residual-risk-by-class grid — replaces the modal
-                    // wizard's residual-risk table. Pass / fail vs tolerable risk.
+                    // wizard's residual-risk table. Pass / fail vs worst-case
+                    // tolerable risk (min over all 4 loss types).
                     ResidualRiskRows.Clear();
                     if (result.ResidualRiskByClass != null)
                     {
+                        double worstRt = result.TolerableByLossType.Count > 0
+                            ? result.TolerableByLossType.Values.Min()
+                            : result.TolerableRisk;
                         foreach (var kv in result.ResidualRiskByClass.OrderBy(k => k.Key))
                         {
-                            bool ok = kv.Value <= result.TolerableRisk;
+                            bool ok = kv.Value <= worstRt;
                             ResidualRiskRows.Add(new ResidualRiskRow
                             {
                                 Class       = kv.Key,
@@ -719,5 +854,13 @@ namespace StingTools.UI
         public string Residual    { get; set; } = "";
         public string StatusDot   { get; set; } = "";
         public string Recommended { get; set; } = "";
+    }
+
+    public class LossTypeRow
+    {
+        public string LossType  { get; set; } = "";   // L1 / L2 / L3 / L4
+        public string Risk      { get; set; } = "";
+        public string Tolerable { get; set; } = "";
+        public string StatusDot { get; set; } = "";
     }
 }

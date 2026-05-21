@@ -137,6 +137,12 @@ namespace StingTools.UI
                     case "Lps_LoadModel":
                         Run<LpsLoadFromModelCommand>(app); break;
 
+                    // ── Wave 4: SLD overlay + embodied carbon report ───
+                    case "Lps_SldOverlay":
+                        Run<LpsSldOverlayCommand>(app); break;
+                    case "Lps_CarbonReport":
+                        Run<LpsCarbonReportCommand>(app); break;
+
                     // ── ZONES tab ──────────────────────────────────────
                     case "Lps_ZoneTagRooms":
                         Run<LpsRoomZoneTagCommand>(app); break;

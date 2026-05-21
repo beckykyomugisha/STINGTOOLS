@@ -8578,6 +8578,252 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       }
+    },
+    {
+      "id": "elec-lps-plan-A1-1to100",
+      "name": "Lightning Protection Plan — A1 @ 1:100",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "E",
+      "phase": "*",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - LPS Plan",
+      "viewStylePackId": "corp-elec-lps",
+      "viewportTypeName": "STING - Standard Viewport",
+      "sheetNumberPattern": "E-LP-{lvl}-{seq:D3}",
+      "sheetNamePattern": "LIGHTNING PROTECTION — {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.75,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Legend",
+          "viewType": "Legend",
+          "normX": 0.8,
+          "normY": 0.05,
+          "normW": 0.18,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "tagFamilies": {
+          "ElectricalEquipment": "STING_TAG_LPS",
+          "GenericModels": "STING_TAG_LPS"
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Generic Models",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical — Lightning Protection",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "Lightning protection floor-plan layout per BS EN 62305-3. Shows air terminals, down conductors, earth bars, bonding network and LPZ zones.",
+      "orientation": "Landscape",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      }
+    },
+    {
+      "id": "elec-lps-roof-A1-1to100",
+      "name": "Lightning Protection Roof / Air-Termination Layout — A1 @ 1:100",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "E",
+      "phase": "*",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - LPS Roof",
+      "viewStylePackId": "corp-elec-lps",
+      "viewportTypeName": "STING - Standard Viewport",
+      "sheetNumberPattern": "E-LP-RF-{seq:D3}",
+      "sheetNamePattern": "LIGHTNING PROTECTION — ROOF / AIR TERMINATION",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "slots": [
+        {
+          "label": "Roof Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.6,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Coverage Notes",
+          "viewType": "Legend",
+          "normX": 0.65,
+          "normY": 0.05,
+          "normW": 0.33,
+          "normH": 0.45
+        },
+        {
+          "label": "Mesh Detail",
+          "viewType": "Detail",
+          "normX": 0.65,
+          "normY": 0.52,
+          "normW": 0.33,
+          "normH": 0.43
+        }
+      ],
+      "annotation": {
+        "tagFamilies": {
+          "ElectricalEquipment": "STING_TAG_LPS",
+          "GenericModels": "STING_TAG_LPS"
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Generic Models",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical — Lightning Protection",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "Roof-level air-termination layout per BS EN 62305-3 §5.2. Mesh grid, rod heights, rolling-sphere coverage gaps highlighted.",
+      "orientation": "Landscape",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      }
+    },
+    {
+      "id": "elec-lps-coverage-A3",
+      "name": "Lightning Protection Coverage Report — A3",
+      "origin": "corporate",
+      "purpose": "Coordination",
+      "discipline": "E",
+      "phase": "*",
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "scale": 200,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - LPS Coverage",
+      "viewStylePackId": "corp-elec-lps",
+      "viewportTypeName": "STING - Standard Viewport",
+      "sheetNumberPattern": "E-LP-CV-{seq:D3}",
+      "sheetNamePattern": "LIGHTNING PROTECTION — ROLLING SPHERE COVERAGE",
+      "crop": {
+        "kind": "TightBbox",
+        "marginMm": 100
+      },
+      "slots": [
+        {
+          "label": "Coverage View",
+          "viewType": "Drafting",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "tagFamilies": {},
+        "rules": []
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical — Lightning Protection",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "Rolling-sphere coverage report — projects each air terminal's protection radius. Drafting view created by Lps_PlanVisualise / Lps_3DCoverage.",
+      "orientation": "Landscape",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      }
     }
   ],
   "routing": [
@@ -9164,6 +9410,30 @@
       "phase": "*",
       "docType": "PENETRATION_REGISTER",
       "drawingTypeId": "penetration-register-A1"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "LPS_PLAN",
+      "drawingTypeId": "elec-lps-plan-A1-1to100"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "LPS_ROOF",
+      "drawingTypeId": "elec-lps-roof-A1-1to100"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "LPS_COVERAGE",
+      "drawingTypeId": "elec-lps-coverage-A3"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "LIGHTNING",
+      "drawingTypeId": "elec-lps-plan-A1-1to100"
     }
   ]
 }

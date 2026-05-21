@@ -16644,3 +16644,79 @@ STR_BLACK_COTTON_RISK_BOOL,Structural Foundations,Type,Yes
 STR_PUNCH_UTIL_PCT,Structural Columns,Type,Yes
 STR_PUNCH_UTIL_PCT,Structural Foundations,Type,Yes
 STR_SYSTEM_CLASS_TXT,Project Information,Instance,Yes
+# v3.5 | LPS panel Wave 1 — 67 ELC_LPS_* bindings (project-level + per-element + bonding-candidate MEP categories)
+ELC_LPS_CLASS_TXT,Project Information,Instance,Yes
+ELC_LPS_ROLLING_SPHERE_RADIUS_M,Project Information,Instance,Yes
+ELC_LPS_ROLLING_SPHERE_RADIUS_M,Electrical Equipment,Instance,Yes
+ELC_LPS_ROLLING_SPHERE_RADIUS_M,Generic Models,Instance,Yes
+ELC_LPS_MESH_SIZE_M,Project Information,Instance,Yes
+ELC_LPS_AIR_TERMINAL_COUNT_NR,Project Information,Instance,Yes
+ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,Project Information,Instance,Yes
+ELC_LPS_EARTH_ELECTRODE_COUNT_NR,Project Information,Instance,Yes
+ELC_LPS_EARTH_RESISTANCE_OHM,Electrical Equipment,Instance,Yes
+ELC_LPS_EARTH_RESISTANCE_OHM,Generic Models,Instance,Yes
+ELC_LPS_BOND_TYPE_TXT,Electrical Equipment,Instance,Yes
+ELC_LPS_BOND_TYPE_TXT,Generic Models,Instance,Yes
+ELC_LPS_BOND_TYPE_TXT,Pipes,Instance,Yes
+ELC_LPS_BOND_TYPE_TXT,Ducts,Instance,Yes
+ELC_LPS_BOND_TYPE_TXT,Conduits,Instance,Yes
+ELC_LPS_BOND_TYPE_TXT,Cable Trays,Instance,Yes
+ELC_LPS_BOND_TYPE_TXT,Structural Columns,Instance,Yes
+ELC_LPS_BOND_TYPE_TXT,Structural Framing,Instance,Yes
+ELC_LPS_PROTECTION_ANGLE_DEG,Electrical Equipment,Instance,Yes
+ELC_LPS_PROTECTION_ANGLE_DEG,Generic Models,Instance,Yes
+ELC_LPS_ZONE_TXT,Project Information,Instance,Yes
+ELC_LPS_ZONE_TXT,Rooms,Instance,Yes
+ELC_LPS_ZONE_TXT,Electrical Equipment,Instance,Yes
+ELC_LPS_ZONE_TXT,Generic Models,Instance,Yes
+ELC_LPS_ZONE_TXT,Pipes,Instance,Yes
+ELC_LPS_ZONE_TXT,Ducts,Instance,Yes
+ELC_LPS_ZONE_TXT,Conduits,Instance,Yes
+ELC_LPS_ZONE_TXT,Cable Trays,Instance,Yes
+ELC_LPS_FROM_LPZ_TXT,Pipes,Instance,Yes
+ELC_LPS_FROM_LPZ_TXT,Ducts,Instance,Yes
+ELC_LPS_FROM_LPZ_TXT,Conduits,Instance,Yes
+ELC_LPS_FROM_LPZ_TXT,Cable Trays,Instance,Yes
+ELC_LPS_FROM_LPZ_TXT,Structural Columns,Instance,Yes
+ELC_LPS_FROM_LPZ_TXT,Structural Framing,Instance,Yes
+ELC_LPS_TO_LPZ_TXT,Pipes,Instance,Yes
+ELC_LPS_TO_LPZ_TXT,Ducts,Instance,Yes
+ELC_LPS_TO_LPZ_TXT,Conduits,Instance,Yes
+ELC_LPS_TO_LPZ_TXT,Cable Trays,Instance,Yes
+ELC_LPS_TO_LPZ_TXT,Structural Columns,Instance,Yes
+ELC_LPS_TO_LPZ_TXT,Structural Framing,Instance,Yes
+ELC_LPS_RISK_ASSESSMENT_TXT,Project Information,Instance,Yes
+ELC_LPS_SURGE_PROTECTION_LVL_TXT,Electrical Equipment,Instance,Yes
+ELC_LPS_SEPARATION_DISTANCE_MM,Electrical Equipment,Instance,Yes
+ELC_LPS_SEPARATION_DISTANCE_MM,Generic Models,Instance,Yes
+ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,Electrical Equipment,Instance,Yes
+ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,Generic Models,Instance,Yes
+ELC_LPS_EARTH_TYPE_TXT,Electrical Equipment,Instance,Yes
+ELC_LPS_EARTH_TYPE_TXT,Generic Models,Instance,Yes
+ELC_LPS_INSPECTION_INTERVAL_MONTHS,Project Information,Instance,Yes
+ELC_LPS_INSPECTION_INTERVAL_MONTHS,Electrical Equipment,Instance,Yes
+ELC_LPS_INSPECTION_INTERVAL_MONTHS,Generic Models,Instance,Yes
+ELC_LPS_TEST_DATE_TXT,Project Information,Instance,Yes
+ELC_LPS_TEST_DATE_TXT,Electrical Equipment,Instance,Yes
+ELC_LPS_TEST_DATE_TXT,Generic Models,Instance,Yes
+ELC_LPS_CERT_REF_TXT,Project Information,Instance,Yes
+ELC_LPS_COMPLIANCE_STATUS_TXT,Project Information,Instance,Yes
+ELC_LPS_COMPLIANCE_STATUS_TXT,Electrical Equipment,Instance,Yes
+ELC_LPS_COMPLIANCE_STATUS_TXT,Generic Models,Instance,Yes
+ELC_LPS_CONDUCTOR_MATERIAL_TXT,Electrical Equipment,Instance,Yes
+ELC_LPS_CONDUCTOR_MATERIAL_TXT,Generic Models,Instance,Yes
+ELC_LPS_PROJECT_NG_OVERRIDE_NR,Project Information,Instance,Yes
+ELC_LPS_KC_FACTOR_NR,Project Information,Instance,Yes
+ELC_LPS_ELEMENT_TYPE_TXT,Electrical Equipment,Instance,Yes
+ELC_LPS_ELEMENT_TYPE_TXT,Generic Models,Instance,Yes
+ELC_LPS_AIRTERM_TAG_TXT,Electrical Equipment,Instance,Yes
+ELC_LPS_AIRTERM_TAG_TXT,Generic Models,Instance,Yes
+ELC_LPS_DOWNCOND_TAG_TXT,Electrical Equipment,Instance,Yes
+ELC_LPS_DOWNCOND_TAG_TXT,Generic Models,Instance,Yes
+ELC_LPS_EARTH_TAG_TXT,Electrical Equipment,Instance,Yes
+ELC_LPS_EARTH_TAG_TXT,Generic Models,Instance,Yes
+ELC_LPS_BOND_TAG_TXT,Electrical Equipment,Instance,Yes
+ELC_LPS_BOND_TAG_TXT,Generic Models,Instance,Yes
+ELC_LPS_SPD_TAG_TXT,Electrical Equipment,Instance,Yes
+ELC_LPS_TESTCLAMP_TAG_TXT,Electrical Equipment,Instance,Yes
+ELC_LPS_TESTCLAMP_TAG_TXT,Generic Models,Instance,Yes

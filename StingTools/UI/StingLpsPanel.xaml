@@ -258,18 +258,72 @@
                             </Grid>
                         </Expander>
 
-                        <Expander Header="C-FACTOR INPUTS (editable)" Style="{StaticResource LpsExpander}" IsExpanded="True">
-                            <DataGrid x:Name="RiskFactorGrid" Style="{StaticResource LpsGrid}" MinHeight="120">
+                        <Expander Header="C-FACTORS (catalogue-driven)" Style="{StaticResource LpsExpander}" IsExpanded="True">
+                            <StackPanel>
+                                <TextBlock FontSize="9" Foreground="{DynamicResource PanelFg}" Opacity="0.7" Margin="0,0,0,4"
+                                           TextWrapping="Wrap"
+                                           Text="Pick from STING_LPS_RISK_FACTORS.json — combo selections drive the value column. Edit a row in the grid to override the catalogue choice."/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/><RowDefinition/><RowDefinition/>
+                                        <RowDefinition/><RowDefinition/><RowDefinition/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Building (Cb):" Style="{StaticResource LpsLabel}"/>
+                                    <ComboBox  Grid.Row="0" Grid.Column="1" x:Name="cmbBldType" Margin="2" FontSize="10"
+                                               SelectionChanged="cmbRiskCatalogue_SelectionChanged"/>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Content (Cc):" Style="{StaticResource LpsLabel}"/>
+                                    <ComboBox  Grid.Row="1" Grid.Column="1" x:Name="cmbContent" Margin="2" FontSize="10"
+                                               SelectionChanged="cmbRiskCatalogue_SelectionChanged"/>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Occupants (Cd):" Style="{StaticResource LpsLabel}"/>
+                                    <ComboBox  Grid.Row="2" Grid.Column="1" x:Name="cmbOccupant" Margin="2" FontSize="10"
+                                               SelectionChanged="cmbRiskCatalogue_SelectionChanged"/>
+
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Consequence (Ce):" Style="{StaticResource LpsLabel}"/>
+                                    <ComboBox  Grid.Row="3" Grid.Column="1" x:Name="cmbConsequence" Margin="2" FontSize="10"
+                                               SelectionChanged="cmbRiskCatalogue_SelectionChanged"/>
+
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Location (Cd_loc):" Style="{StaticResource LpsLabel}"/>
+                                    <ComboBox  Grid.Row="4" Grid.Column="1" x:Name="cmbLocFactor" Margin="2" FontSize="10"
+                                               SelectionChanged="cmbRiskCatalogue_SelectionChanged"/>
+
+                                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Service entry:" Style="{StaticResource LpsLabel}"/>
+                                    <ComboBox  Grid.Row="5" Grid.Column="1" x:Name="cmbServiceFactor" Margin="2" FontSize="10"
+                                               SelectionChanged="cmbRiskCatalogue_SelectionChanged"/>
+                                </Grid>
+
+                                <Expander Header="Manual override (advanced)" Style="{StaticResource LpsExpander}" IsExpanded="False" Margin="0,4,0,0">
+                                    <DataGrid x:Name="RiskFactorGrid" Style="{StaticResource LpsGrid}" MinHeight="100">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Factor"      Binding="{Binding Factor}"      Width="180" IsReadOnly="True"/>
+                                            <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*"   IsReadOnly="True"/>
+                                            <DataGridTextColumn Header="Value"       Binding="{Binding Value}"       Width="60"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Expander>
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="RISK BY LOSS TYPE (BS EN 62305-2 Table 7)" Style="{StaticResource LpsExpander}" IsExpanded="True"
+                                  ToolTip="L1 = life · L2 = public service · L3 = cultural heritage · L4 = economic. Each row has its own tolerable risk Rt. Any FAIL row drives 'LPS required'.">
+                            <DataGrid x:Name="LossTypeGrid" Style="{StaticResource LpsGrid}" MinHeight="100">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Factor"      Binding="{Binding Factor}"      Width="180" IsReadOnly="True"/>
-                                    <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*"   IsReadOnly="True"/>
-                                    <DataGridTextColumn Header="Value"       Binding="{Binding Value}"       Width="60"/>
+                                    <DataGridTextColumn Header="Loss"     Binding="{Binding LossType}"  Width="40"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Risk R"   Binding="{Binding Risk}"      Width="90"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Rt"       Binding="{Binding Tolerable}" Width="90"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Status"   Binding="{Binding StatusDot}" Width="*"   IsReadOnly="True"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Expander>
 
                         <Expander Header="RESIDUAL RISK BY CLASS" Style="{StaticResource LpsExpander}" IsExpanded="True"
-                                  ToolTip="R_residual = R1 × (1 − PE). ★ marks the engine's recommended class. PASS ⇒ ≤ tolerable risk Rt.">
+                                  ToolTip="R_residual = R_worst × (1 − PE) where R_worst = max(R1..R4). ★ marks the engine's recommended class.">
                             <DataGrid x:Name="ResidualGrid" Style="{StaticResource LpsGrid}" MinHeight="100">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Class"     Binding="{Binding Class}"       Width="60"  IsReadOnly="True"/>
@@ -611,6 +665,12 @@
                             <Button Style="{StaticResource LpsActionBtn}" Content="Sync to Planscape"
                                     Tag="Lps_SyncToServer" Click="Cmd_Click"
                                     ToolTip="Push LPS state to Planscape server"/>
+                            <Button Style="{StaticResource LpsActionBtn}" Content="SLD overlay"
+                                    Tag="Lps_SldOverlay" Click="Cmd_Click"
+                                    ToolTip="Annotate the active SLD view with LPS markers (★ SPD · ⏚ earth)"/>
+                            <Button Style="{StaticResource LpsActionBtn}" Content="Carbon"
+                                    Tag="Lps_CarbonReport" Click="Cmd_Click"
+                                    ToolTip="Embodied carbon for LPS conductors (ICE Database v3.0 factors)"/>
                             <Button Style="{StaticResource LpsActionBtn}" Content="Reload catalogue"
                                     Tag="Lps_ReloadCatalogue" Click="Cmd_Click"
                                     ToolTip="Re-read STING_LPS_SPD_CATALOGUE.json from disk"/>

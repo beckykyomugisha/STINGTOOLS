@@ -88,6 +88,12 @@ namespace StingTools.Core
                 // element so the QS sees the stale BOQ row before exporting.
                 StingCostStaleMarker.Register(application);
 
+                // Wave 3 — flag LPS elements (ATs / DCs / earth / bonding /
+                // SPDs) as stale when their geometry changes so the LPS
+                // panel + compliance check pick up modifications without
+                // a manual "Load model" press. Disabled by default.
+                StingTools.Core.Lightning.StingLpsStaleMarker.Register(application);
+
                 // Register the Tag 7 narrative auto-updater (IUpdater) — starts disabled.
                 // Keeps ASS_TAG_7_TXT in sync with the active paragraph preset when
                 // source parameters change. Users enable it from Tag Studio.
