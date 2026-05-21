@@ -571,6 +571,9 @@
                             <Button Style="{StaticResource LpsActionBtn}" Content="Save to project"
                                     Tag="Lps_SpdSaveOverride" Click="Cmd_Click"
                                     ToolTip="Save the SPD grid to &lt;project&gt;/_BIM_COORD/lps_spd_catalogue.json — layered over the corporate catalogue on next reload"/>
+                            <Button Style="{StaticResource LpsActionBtn}" Content="Spec sheets"
+                                    Tag="Lps_SpdSpecSheet" Click="Cmd_Click"
+                                    ToolTip="Render an lps_spd_spec.docx product specification per SPD row to _BIM_COORD/generated/"/>
                         </WrapPanel>
                     </StackPanel>
                 </ScrollViewer>
@@ -665,9 +668,12 @@
                             <Button Style="{StaticResource LpsActionBtn}" Content="Sync to Planscape"
                                     Tag="Lps_SyncToServer" Click="Cmd_Click"
                                     ToolTip="Push LPS state to Planscape server"/>
+                            <Button Style="{StaticResource LpsActionBtn}" Content="SLD generate"
+                                    Tag="Lps_SldGenerate" Click="Cmd_Click"
+                                    ToolTip="Generate full LPS-only single-line diagram from the topology (ATs → DCs → MEB → earths + SPDs)"/>
                             <Button Style="{StaticResource LpsActionBtn}" Content="SLD overlay"
                                     Tag="Lps_SldOverlay" Click="Cmd_Click"
-                                    ToolTip="Annotate the active SLD view with LPS markers (★ SPD · ⏚ earth)"/>
+                                    ToolTip="Decorate the active electrical SLD with LPS markers (★ SPD · ⏚ earth) — leaves existing SLD topology untouched"/>
                             <Button Style="{StaticResource LpsActionBtn}" Content="Carbon"
                                     Tag="Lps_CarbonReport" Click="Cmd_Click"
                                     ToolTip="Embodied carbon for LPS conductors (ICE Database v3.0 factors)"/>

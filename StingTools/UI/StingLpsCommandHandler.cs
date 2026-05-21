@@ -140,8 +140,12 @@ namespace StingTools.UI
                     // ── Wave 4: SLD overlay + embodied carbon report ───
                     case "Lps_SldOverlay":
                         Run<LpsSldOverlayCommand>(app); break;
+                    case "Lps_SldGenerate":
+                        Run<LpsSldGenerateCommand>(app); break;
                     case "Lps_CarbonReport":
                         Run<LpsCarbonReportCommand>(app); break;
+                    case "Lps_SpdSpecSheet":
+                        Run<LpsSpdSpecSheetCommand>(app); break;
 
                     // ── ZONES tab ──────────────────────────────────────
                     case "Lps_ZoneTagRooms":

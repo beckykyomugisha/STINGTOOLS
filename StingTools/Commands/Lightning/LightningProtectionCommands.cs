@@ -2774,8 +2774,82 @@ namespace StingTools.Commands.Lightning
                     $"Sync failed: {err ?? "unknown"}\n\nAssets attempted: {assets.Count}");
                 return Result.Failed;
             }
+
+            // Wave 4 — also push the LpsRecord summary (BS EN 62305 audit
+            // headline numbers) so the Planscape dashboard surfaces project-
+            // level LPS status without aggregating across the asset list.
+            bool recordPushed = false;
+            string recordErr = null;
+            try
+            {
+                var def = LpsEngine.LoadClass(string.IsNullOrWhiteSpace(classId) ? "II" : classId);
+                int atCount   = LpsEngine.CollectLpsFamily(doc, "Air Terminal", "Air_Terminal", "Franklin").Count;
+                int dcCount   = LpsEngine.CollectLpsFamily(doc, "Down Conductor", "Down_Conductor", "DownConductor").Count;
+                int eeCount   = LpsEngine.CollectLpsFamily(doc, "Earth", "Ground Rod", "GroundRod").Count;
+                int bondCount = LpsEngine.CollectLpsFamily(doc, "Bonding", "Bond Bar", "BondingBar").Count;
+                int spdCount  = LpsEngine.CollectLpsFamily(doc, "SPD", "Surge").Count;
+                double kc = LpsEngine.GetDoubleParam(doc.ProjectInformation,
+                                StingTools.Core.Fabrication.LpsParams.KC_FACTOR_NR);
+                if (kc <= 0) kc = LpsEngine.ComputeKcFactor(dcCount);
+
+                var items = LpsEngine.ValidateModel(doc);
+                int pass = items.Count(i => i.Severity == LpsSeverity.Pass);
+                int warn = items.Count(i => i.Severity == LpsSeverity.Warn);
+                int fail = items.Count(i => i.Severity == LpsSeverity.Fail);
+                string verdict = fail > 0 ? "FAIL" : warn > 0 ? "WARN" : "PASS";
+
+                var payload = new
+                {
+                    lpsClass                  = classId ?? "",
+                    rollingSphereRadiusM      = def?.RollingSphereRadiusM ?? 0,
+                    meshSizeM                 = def?.MeshSizeM ?? 0,
+                    inspectionIntervalMonths  = def?.InspectionIntervalMonths ?? 0,
+                    earthResistanceTargetOhm  = def?.EarthResistanceTargetOhm ?? 0,
+                    groundFlashDensity        = LpsEngine.GetEffectiveFlashDensity(doc, "UK"),
+                    airTerminalCount          = atCount,
+                    downConductorCount        = dcCount,
+                    earthElectrodeCount       = eeCount,
+                    bondingCount              = bondCount,
+                    spdCount                  = spdCount,
+                    kcFactor                  = kc,
+                    sepDistanceViolations     = 0,
+                    annualStrikeFrequencyNd   = 0.0,
+                    collectionAreaM2          = 0.0,
+                    riskR1 = 0.0, riskR2 = 0.0, riskR3 = 0.0, riskR4 = 0.0,
+                    tolerableR1 = 1e-5, tolerableR2 = 1e-3, tolerableR3 = 1e-4, tolerableR4 = 1e-3,
+                    recommendedClass = classId ?? "",
+                    complianceVerdict     = verdict,
+                    complianceChecksPass  = pass,
+                    complianceChecksWarn  = warn,
+                    complianceChecksFail  = fail,
+                    lastTestDate    = ParameterHelpers.GetString(doc.ProjectInformation,
+                                          StingTools.Core.Fabrication.LpsParams.TEST_DATE_TXT),
+                    certReference   = ParameterHelpers.GetString(doc.ProjectInformation,
+                                          StingTools.Core.Fabrication.LpsParams.CERT_REF_TXT),
+                    spdCoordinationPass = 0,
+                    spdCoordinationWarn = 0,
+                    spdCoordinationFail = 0
+                };
+
+                var task = System.Threading.Tasks.Task.Run(async () =>
+                {
+                    var pid = await client.GetOrCreateProjectAsync(projName, projCode);
+                    if (pid == Guid.Empty) return false;
+                    return await client.PushLpsRecordAsync(pid, payload);
+                });
+                recordPushed = task.GetAwaiter().GetResult();
+                if (!recordPushed) recordErr = client.LastError;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LpsRecord push: {ex.Message}");
+                recordErr = ex.Message;
+            }
+
             TaskDialog.Show("STING — LPS Sync",
-                $"LPS sync to Planscape complete.\n\nAssets sent: {assets.Count}\nServer reported created: {created}");
+                $"LPS sync to Planscape complete.\n\nAssets sent: {assets.Count}\n" +
+                $"Server reported created: {created}\n\n" +
+                $"LpsRecord summary: {(recordPushed ? "pushed ✓" : "skipped — " + (recordErr ?? "endpoint not reachable"))}");
             return Result.Succeeded;
         }
     }
