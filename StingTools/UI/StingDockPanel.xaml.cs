@@ -2734,6 +2734,12 @@ namespace StingTools.UI
         // ── Assets sub-tab — return the picked Asset kind (Appearance /
         // Physical / Thermal) so MatActions.DetachAsset / RepointAsset
         // know which slot to act on. ─────────────────────────────────────
+        /// <summary>Return the in-memory material rows cached after the
+        /// last Refresh — used by validators / gates that prefer the
+        /// already-loaded snapshot over rebuilding from scratch.</summary>
+        public IReadOnlyList<StingTools.UI.MaterialRow> GetCachedMaterialRows()
+            => _matRows == null ? null : (IReadOnlyList<StingTools.UI.MaterialRow>)_matRows.ToList();
+
         internal string GetSelectedAssetKind()
         {
             try

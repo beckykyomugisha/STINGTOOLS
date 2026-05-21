@@ -347,6 +347,94 @@ namespace StingTools.UI
                 "Promoting project overrides to the corporate baseline is an admin action and lands in a follow-up commit. Edit the corporate CSV (BLE_MATERIALS.csv / MEP_MATERIALS.csv) for now.");
         }
 
+        // ── A10 — Sustainability gate (LEED v5 / BREEAM v6 / EN 15978) ─────
+
+        public static void RunSustainabilityGate(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null) { TaskDialog.Show("Material Manager", "No document open."); return; }
+            try
+            {
+                // Use the rows the panel has cached if any; otherwise rebuild
+                // so the gate works even before the user clicks Refresh.
+                var rows = StingDockPanel.LastInstance?.GetCachedMaterialRows()
+                           ?? MaterialRowBuilder.Build(doc).ToList();
+                var findings = MaterialSustainabilityGate.RunAll(doc, rows);
+                if (findings.Count == 0)
+                {
+                    TaskDialog.Show("Sustainability Gate",
+                        "All clear — no findings against the LEED v5 / BREEAM v6 / EN 15978 rule set.");
+                    return;
+                }
+
+                // Build a digest grouped by standard + severity.
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"{findings.Count} finding(s) across {findings.Select(f => f.RuleId).Distinct().Count()} rule(s):");
+                sb.AppendLine();
+                int blocks = findings.Count(f => string.Equals(f.Severity, "Block", StringComparison.OrdinalIgnoreCase));
+                int warns  = findings.Count(f => string.Equals(f.Severity, "Warning", StringComparison.OrdinalIgnoreCase));
+                int infos  = findings.Count(f => string.Equals(f.Severity, "Info", StringComparison.OrdinalIgnoreCase));
+                sb.AppendLine($"  Block: {blocks}    Warning: {warns}    Info: {infos}");
+                sb.AppendLine();
+                foreach (var g in findings.GroupBy(f => f.RuleId).OrderByDescending(g => g.Count()))
+                {
+                    var sample = g.First();
+                    sb.AppendLine($"  [{sample.Standard}] {sample.RuleId} — {g.Count()} material(s)");
+                    foreach (var f in g.Take(3))
+                        sb.AppendLine($"      · {f.MaterialName}");
+                    if (g.Count() > 3) sb.AppendLine($"      · … and {g.Count() - 3} more");
+                }
+
+                string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string csv = System.IO.Path.Combine(outDir, $"STING_sustainability_findings_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                var lines = new List<string> { "RuleId,Standard,Severity,MaterialName,Message" };
+                lines.AddRange(findings.Select(f =>
+                    $"\"{f.RuleId}\",\"{f.Standard}\",\"{f.Severity}\",\"{f.MaterialName}\",\"{f.Message?.Replace("\"", "''")}\""));
+                System.IO.File.WriteAllLines(csv, lines);
+
+                MaterialAuditLogger.Log(doc, "MAT_SustainabilityGate", "(all)",
+                    new Dictionary<string, object>
+                    {
+                        ["findings"] = findings.Count,
+                        ["blocks"] = blocks,
+                        ["warnings"] = warns,
+                        ["infos"] = infos,
+                        ["csv"] = csv,
+                    });
+
+                TaskDialog.Show("Sustainability Gate", sb.ToString() + $"\n\nFull CSV: {csv}");
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(csv) { UseShellExecute = true })?.Dispose(); }
+                catch (Exception ex) { StingLog.Warn($"Open csv: {ex.Message}"); }
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Sustainability gate failed: {ex.Message}"); }
+        }
+
+        public static void EditSustainabilityGate(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                string projPath = System.IO.Path.Combine(
+                    Core.ProjectFolderEngine.GetDataPath(doc, "") ?? "",
+                    "sustainability_gates.json");
+                if (!System.IO.File.Exists(projPath))
+                {
+                    string corp = StingToolsApp.FindDataFile("STING_SUSTAINABILITY_GATES.json");
+                    if (!string.IsNullOrEmpty(corp) && System.IO.File.Exists(corp))
+                    {
+                        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(projPath));
+                        System.IO.File.Copy(corp, projPath);
+                    }
+                }
+                if (System.IO.File.Exists(projPath))
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(projPath) { UseShellExecute = true })?.Dispose();
+                else
+                    TaskDialog.Show("Sustainability", "No rule file available.");
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Edit gates failed: {ex.Message}"); }
+        }
+
         // ── N6 — Family-side material index ─────────────────────────────────
 
         public static void ShowFamilyMaterials(UIApplication app)
