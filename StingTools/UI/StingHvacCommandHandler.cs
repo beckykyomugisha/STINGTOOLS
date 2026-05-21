@@ -209,6 +209,22 @@ namespace StingTools.UI
                     case "Hvac_CarbonReport":
                         // Phase 183 — gap C8 (HVAC plant + refrigerant carbon)
                         Run<StingTools.Commands.Hvac.HvacCarbonReportCommand>(app); break;
+                    case "Hvac_BlockLoad":
+                        // STING-design-engines (this phase): peak-pick block load
+                        // with location-aware climate site + diversity factor.
+                        Run<StingTools.Commands.Hvac.HvacBlockLoadCommand>(app); break;
+                    case "Hvac_NcPredict":
+                        // STING-design-engines: VDI 2081 / ASHRAE A48 NC prediction
+                        // from duct selection + regenerated noise + room model.
+                        Run<StingTools.Commands.Hvac.HvacNcPredictionCommand>(app); break;
+                    case "Hvac_RefrigSize":
+                        // STING-design-engines: refrigerant pipe sizing for R410A,
+                        // R32, R134a, CO2 with oil-return + vendor envelope checks.
+                        Run<StingTools.Commands.Hvac.HvacRefrigerantSizeCommand>(app); break;
+                    case "Hvac_ClimateInspect":
+                        Run<StingTools.Commands.Hvac.HvacClimateInspectCommand>(app); break;
+                    case "Hvac_ClimateReload":
+                        Run<StingTools.Commands.Hvac.HvacClimateReloadCommand>(app); break;
 
                     // ── DUCT tab ───────────────────────────────────────────
                     case "Hvac_CreateDuctTypes":

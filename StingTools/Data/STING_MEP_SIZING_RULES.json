@@ -73,6 +73,33 @@
       "DIFFUSER":              1.40,
       "EGGCRATE":              0.80,
       "FLEX_PER_METRE":        1.00
+    },
+    "manufacturerFittings": {
+      "_notes": [
+        "Manufacturer-specific loss coefficients. Looked up by the",
+        "MEP_PROD_REF_TXT parameter on each fitting; falls back to the",
+        "generic fittingLossCoefficients above when no match is found.",
+        "Sources: Lindab Comfort Catalogue 2023, Trox Technical Cat.,",
+        "Halton Selector. Values are 'design point' C, not full curve."
+      ],
+      "lindab": {
+        "BFU-90-CIRC":   0.10,
+        "BFL-90-RECT":   0.13,
+        "TCPU-T-BRANCH": 0.65,
+        "DRU-DAMPER":    0.30,
+        "SLU-SILENCER":  0.45
+      },
+      "trox": {
+        "RN-90-ELBOW":   0.12,
+        "TVR-BRANCH":    0.55,
+        "AT-VAV":        0.35,
+        "LV-LOUVRE":     1.10
+      },
+      "halton": {
+        "HSL-SILENCER":  0.42,
+        "MSD-DAMPER":    0.28,
+        "MFB-MIXED-FLOW":0.58
+      }
     }
   },
 
@@ -95,6 +122,37 @@
       "UK_SI": [15,20,25,32,40,50,65,80,100,125,150,200,250,300,350,400,450,500],
       "US_IP": [13,19,25,32,38,51,64,76,102,127,152,203,254,305,356,406,457,508],
       "EU_SI": [15,20,25,32,40,50,65,80,100,125,150,200,250,300]
+    },
+    "valveCv": {
+      "_notes": [
+        "Manufacturer valve flow coefficients. Kvs published in m³/h at",
+        "1 bar pressure drop (EU convention). Cv = 1.156 · Kvs.",
+        "ΔP_bar = (Q_m3h / Kvs)². For STING ΔP_Pa = 1e5 · (Q / Kvs)²."
+      ],
+      "belimo": {
+        "B215-DN15":    1.0,
+        "B220-DN20":    2.5,
+        "B225-DN25":    6.3,
+        "B232-DN32":   10.0,
+        "B240-DN40":   16.0,
+        "B250-DN50":   25.0,
+        "PICV-DN20":    1.8,
+        "PICV-DN25":    3.6,
+        "PICV-DN32":    7.2,
+        "PICV-DN40":   12.0
+      },
+      "siemens": {
+        "VVF53-DN50":  25.0,
+        "VVF53-DN65":  40.0,
+        "VVF53-DN80":  63.0,
+        "VVF53-DN100":100.0
+      },
+      "danfoss": {
+        "VFG2-DN15":    2.5,
+        "VFG2-DN25":    8.0,
+        "AB-QM-DN20":   1.5,
+        "AB-QM-DN32":   4.0
+      }
     }
   },
 
