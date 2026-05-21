@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS"
+     xmlns:xs="http://www.w3.org/2001/XMLSchema"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+
+  <info>
+    <title>STING — Spatial-Codes validation</title>
+    <copyright>Planscape Limited, 2026</copyright>
+    <version>1.0.0</version>
+    <description>IDS encoding of the 5 cross-entity validation rules declared in shared/ifc/psets/Pset_StingSpatialCodes.xml. Encodes the LOC / LVL / ZONE tag-token-to-spatial-structure linkage rules so that any IDS validator (BlenderBIM, Solibri, BIM Vision, BIMcollab) can check STING IFC payloads without a STING-specific code path. Two rules (BUILDING_LOC_UNIQUE, STOREY_LVL_UNIQUE_WITHIN_BUILDING) cannot be fully expressed in IDS v1.0 — see sting-spatial-codes-rules.md for the partial encoding + STING-side uniqueness enforcement.</description>
+    <author>info@stingtools.io</author>
+    <date>2026-05-20</date>
+    <purpose>STING Tools spatial-codes validation; ISO 19650-2 §5.3 spatial structure verification</purpose>
+    <milestone>Stage_3_SpatialCoordination</milestone>
+  </info>
+
+  <specifications>
+
+    <!-- ============================================================
+         Rule: LOC_MATCHES_BUILDING (partial)
+         Phase: Pset_StingSpatialCodes Rule id="LOC_MATCHES_BUILDING"
+         Active from: Stage_3
+         ============================================================
+         Encoding strategy:
+         (a) IDS spec asserts every element with Pset_StingTags carries
+             Location with a value from StingLocationCodes enumeration.
+         (b) IDS spec asserts every element is contained in an IfcBuilding
+             whose Pset_StingSpatialCodes.LocationCode is non-empty.
+         (c) STING-side validator closes the loop by checking equality
+             (the element's LOC == its containing building's LocationCode).
+             IDS v1.0 cannot express that equality directly.
+    -->
+    <specification name="LOC_value_must_be_enumerated"
+                   identifier="01a-LOC-IS-ENUM"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
+        </entity>
+        <property dataType="IFCLABEL">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Location</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required"
+                  uri="https://identifier.buildingsmart.org/uri/stingtools/sting-codes/1.0/class/discipline">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Location</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="^[A-Za-z0-9_\-]+$"/>
+              <xs:minLength value="1"/>
+              <xs:maxLength value="20"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="Element_must_be_in_a_LOC_tagged_building"
+                   identifier="01b-LOC-PARTOF-BUILDING"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
+        </entity>
+        <property dataType="IFCLABEL">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Location</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <partOf relation="IFCRELCONTAINEDINSPATIALSTRUCTURE" cardinality="required">
+          <entity><name><simpleValue>IFCBUILDINGSTOREY</simpleValue></name></entity>
+        </partOf>
+      </requirements>
+    </specification>
+
+
+    <!-- ============================================================
+         Rule: LVL_MATCHES_STOREY (partial)
+         ============================================================ -->
+    <specification name="LVL_value_must_be_enumerated"
+                   identifier="02a-LVL-IS-ENUM"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
+        </entity>
+        <property dataType="IFCLABEL">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Level</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Level</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="^[A-Za-z0-9_\-]+$"/>
+              <xs:minLength value="1"/>
+              <xs:maxLength value="10"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="Element_must_be_in_a_LVL_tagged_storey"
+                   identifier="02b-LVL-PARTOF-STOREY"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
+        </entity>
+        <property dataType="IFCLABEL">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Level</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <partOf relation="IFCRELCONTAINEDINSPATIALSTRUCTURE" cardinality="required">
+          <entity><name><simpleValue>IFCBUILDINGSTOREY</simpleValue></name></entity>
+        </partOf>
+      </requirements>
+    </specification>
+
+
+    <!-- ============================================================
+         Rule: ZONE_MATCHES_ASSIGNEDZONE (partial)
+         ============================================================ -->
+    <specification name="ZONE_value_must_be_enumerated"
+                   identifier="03a-ZONE-IS-ENUM"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
+        </entity>
+        <property dataType="IFCLABEL">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Zone</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Zone</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="^[A-Za-z0-9_\-]+$"/>
+              <xs:minLength value="1"/>
+              <xs:maxLength value="20"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="Element_must_be_assigned_to_a_ZONE_tagged_IfcZone"
+                   identifier="03b-ZONE-ASSIGNED"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><xs:restriction base="xs:string"><xs:pattern value="IFC(WALL|DOOR|WINDOW|SLAB|BEAM|COLUMN|ROOF|STAIR|RAILING|CEILING|COVERING|CURTAINWALL|PLATE|MEMBER|FOOTING|PILE|RAMP|FURNISHINGELEMENT|FLOWTERMINAL|FLOWFITTING|FLOWCONTROLLER|FLOWSEGMENT|DISTRIBUTIONELEMENT|BUILDINGELEMENTPROXY|MECHANICALFASTENER|ELECTRICAPPLIANCE|LIGHTFIXTURE|SANITARYTERMINAL|AIRTERMINAL|FIREDETECTORTYPE|ALARMTYPE)"/></xs:restriction></name>
+        </entity>
+        <property dataType="IFCLABEL">
+          <propertySet><simpleValue>Pset_StingTags</simpleValue></propertySet>
+          <baseName><simpleValue>Zone</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <partOf relation="IFCRELASSIGNSTOGROUP" cardinality="required">
+          <entity><name><simpleValue>IFCZONE</simpleValue></name></entity>
+        </partOf>
+      </requirements>
+    </specification>
+
+
+    <!-- ============================================================
+         Rule: BUILDING_LOC_UNIQUE
+         Active from: Stage_2
+         ============================================================
+         IDS v1.0 has no built-in uniqueness facet. This spec is the
+         closest IDS approximation — every IfcBuilding must carry a
+         LocationCode (non-empty). The actual uniqueness check across
+         buildings is enforced server-side during IFC ingest by STING
+         Planscape Server (/api/projects/{id}/ifc/data ingestion path).
+    -->
+    <specification name="Every_building_has_a_LocationCode"
+                   identifier="04-BUILDING-HAS-LOC"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><simpleValue>IFCBUILDING</simpleValue></name>
+        </entity>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingSpatialCodes</simpleValue></propertySet>
+          <baseName><simpleValue>LocationCode</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:minLength value="1"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+
+    <!-- ============================================================
+         Rule: STOREY_LVL_UNIQUE_WITHIN_BUILDING
+         Active from: Stage_2
+         ============================================================
+         Same IDS limitation as Rule 4. STING-side check enforces
+         within-building uniqueness; IDS only validates presence here.
+    -->
+    <specification name="Every_storey_has_a_LevelCode"
+                   identifier="05-STOREY-HAS-LVL"
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name><simpleValue>IFCBUILDINGSTOREY</simpleValue></name>
+        </entity>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingSpatialCodes</simpleValue></propertySet>
+          <baseName><simpleValue>LevelCode</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:minLength value="1"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+  </specifications>
+
+</ids>

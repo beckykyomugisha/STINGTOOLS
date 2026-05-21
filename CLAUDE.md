@@ -868,6 +868,324 @@ multi-size healthcare family can override via project-scoped
    the visual outcome on the view; projects that need separate filters
    per band can fork the library entry.
 
+### Phase 184g — A2 paper-size consolidation to A3
+
+The A2 paper size is no longer part of STING's corporate baseline.
+All 10 drawing types that previously used A2 have been migrated to
+A3 with their IDs, names, descriptions, title-block families, and
+routing references updated in lockstep.
+
+**Drawing-type ID renames** (10 total):
+
+| Before | After |
+|---|---|
+| `elec-riser-A2-1to100` | `elec-riser-A3-1to100` |
+| `door-schedule-A2` | `door-schedule-A3` |
+| `legend-A2` | `legend-A3` |
+| `arch-window-schedule-A2` | `arch-window-schedule-A3` |
+| `health-rds-A2` | `health-rds-A3` |
+| `health-mortuary-pln-A2-1to50` | `health-mortuary-pln-A3-1to50` |
+| `health-bedhead-elev-A2-1to20` | `health-bedhead-elev-A3-1to20` |
+| `health-or-ceiling-A2-1to20` | `health-or-ceiling-A3-1to20` |
+| `plumb-vent-riser-A2-NTS` | `plumb-vent-riser-A3-NTS` |
+| `plumb-pressure-schedule-A2` | `plumb-pressure-schedule-A3` |
+
+**Field updates per profile** (across all 10):
+
+- `paperSize`: `"A2"` → `"A3"`
+- `titleBlockFamily`: `STING_TB_SHEET_A2` → `STING_TB_SHEET_A3` (6 corporate); `STING - Healthcare Title Block A2` → `STING - Healthcare Title Block A3` (4 healthcare)
+- `name` / `description` / `sheetNamePattern` text occurrences of "A2" rewritten to "A3"
+
+**Cross-reference updates**:
+
+- `STING_DRAWING_TYPES.json`: 15 routing rules referencing the renamed IDs updated
+- `HEALTHCARE_PACK_PROFILES.json`: 3 healthcare-pack profile references to `health-rds-A2` updated to `health-rds-A3`
+- `StingTools/Core/Drawing/DrawingTypeRegistry.cs`: 3 fallback built-in entries (`elec-riser`, `door-schedule`, `legend`) + 3 fallback routing rules updated
+- `StingTools/Commands/SLD/SLDRiserDiagramCommand.cs`: `RiserDrawingTypeId` constant updated
+
+**Final paper-size distribution** (programmatically verified):
+
+| Size | Count |
+|---|---|
+| A1 | 76 |
+| A3 | 14 |
+| **A2** | **0** ✓ |
+
+A2 remains a valid Revit paper-size string elsewhere in the codebase
+(sheet-size dictionaries, paper-size dropdowns in editors, CDE
+acceptance codes like `A2 — Approved with Comments`) — only the
+drawing-type corporate baseline has dropped it. Projects that need
+A2 profiles can override via project-scoped `drawing_types.json`.
+
+### Caveats (Phase 184g)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+
+### Phase 184h — A3 scale rebalancing
+
+A3 has roughly half the printable area of A2, so the 4 model-view
+profiles migrated in Phase 184g had their scales halved (denominator
+doubled) to keep their content fitting on the smaller sheet. IDs and
+names updated in lockstep so the convention "id encodes scale" stays
+true.
+
+| Phase 184g (A2 scale on A3 paper) | Phase 184h (A3 scale on A3 paper) |
+|---|---|
+| `elec-riser-A3-1to100` | `elec-riser-A3-1to200` |
+| `health-mortuary-pln-A3-1to50` | `health-mortuary-pln-A3-1to100` |
+| `health-bedhead-elev-A3-1to20` | `health-bedhead-elev-A3-1to50` |
+| `health-or-ceiling-A3-1to20` | `health-or-ceiling-A3-1to50` |
+
+Profiles unchanged: schedules (`door-schedule-A3`,
+`arch-window-schedule-A3`, `plumb-pressure-schedule-A3`,
+`health-rds-A3`), legends (`legend-A3`), schematics
+(`plumb-vent-riser-A3-NTS`) — none rely on a model-view scale.
+
+**Per-profile field updates** (4 profiles):
+
+- `id`: scale suffix renamed (e.g. `-1to20` → `-1to50`)
+- `scale`: numeric value doubled (e.g. 20 → 50)
+- `name` / `description`: scale text rewritten (e.g. "A3 @ 1:100" → "A3 @ 1:200")
+
+**Cross-reference updates**:
+
+- `STING_DRAWING_TYPES.json`: 8 routing rules pointing at the renamed IDs updated
+- `DrawingTypeRegistry.cs`: built-in `elec-riser` fallback entry +
+  2 routing rules updated; name and scale corrected to "1:200" / 200
+- `SLDRiserDiagramCommand.cs`: `RiserDrawingTypeId` constant updated
+  to `elec-riser-A3-1to200`
+
+**Final A3 scale distribution** (14 A3 profiles):
+
+| Scale | Count | Profiles |
+|---|---|---|
+| 1:10  | 1 | screed build-up detail |
+| 1:20  | 2 | arch detail, struct rebar detail |
+| 1:50  | 4 | RFI, bedhead, OR ceiling, struct rebar |
+| 1:100 | 4 | door / window schedule, legend, mortuary plan |
+| 1:200 | 1 | elec riser |
+| NA / NTS | 2 | RDS, vent riser |
+
+### Caveats (Phase 184h)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+
+### Phase 184i — discipline-code normalisation (`Plumbing` → `P`)
+
+Post-184h audit caught one real string-equality bug. The
+`DrawingDispatcher.MatchesWildcard` matches discipline values via
+`string.Equals(..., OrdinalIgnoreCase)`, so `"P"` and `"Plumbing"`
+do NOT match. After Phase 184d's `"Public Health"` → `"Plumbing"`
+fix and Phase 184e's routing `"P"` → `"Plumbing"` sweep, every
+plumb-* routing rule used the long form `"Plumbing"` while every
+plumb-* drawing-type declared the short form `"P"` (matching the
+A / S / M / E / H / MG / RP convention). The result: 14 plumb
+routing rules silently couldn't resolve any plumb drawing type.
+
+Normalised everything to the short code `"P"`:
+- 14 routing rules: `"Plumbing"` → `"P"`
+- 1 drawing type (`plumb-drainage-schematic-A1`): `"Plumbing"` → `"P"`
+
+`titleBlockParams.Discipline` cell still reads `"Plumbing"` —
+that's the human-readable display value on the sheet, not a
+routing key, so it stays the long form.
+
+**Omnibus alignment check (programmatically verified, 8/8 pass)**:
+
+| Check | Result |
+|---|---|
+| Discipline values DT ↔ routing | ✓ 0 orphans |
+| Routing target ids resolve | ✓ 101/101 |
+| Pack references resolve | ✓ 22/22 |
+| Pack filter references resolve | ✓ 70/70 |
+| A2 paper-size residue | ✓ 0 |
+| `tokenProfile` as string | ✓ 0 |
+| Scale ↔ ID encoding match | ✓ 90/90 |
+| Paper size ↔ title-block family match | ✓ 90/90 |
+
+Final counts: **90 drawing types · 22 style packs · 101 routing
+rules · 289 AEC filters · 70 pack filter references — all
+references resolve**.
+
+### Caveats (Phase 184i)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+
+### Phase 184j — `isoNaming` shape + role normalisation
+
+Deep-probe audit caught two more real bugs:
+
+**`isoNaming: true` (boolean) → object on 22 healthcare profiles**
+
+The 22 healthcare profiles shipped from the original healthcare pack
+author carried `"isoNaming": true` — a bool that originally meant
+"use ISO 19650 naming yes/no". But `DrawingType.IsoNaming` is typed
+as the `IsoNaming` POCO class (`Volume` / `Type` / `Role` /
+`Suitability` / `Revision` strings), so Newtonsoft silently set the
+field to null on deserialisation. Phase 184e's synthesis-defaults
+pass also skipped them because `not dt.get('isoNaming')` evaluates
+False against truthy `True`.
+
+Converted all 22 to proper objects with discipline-aware role:
+`{ volume:"01", type:"DR", role:<H/MG/RP from discipline>,
+suitability:"S2", revision:"P01" }`.
+
+**`isoNaming.role` ↔ discipline alignment**
+
+`pres-3d-axon-A1` had `discipline:"*"` but `role:"A"`. For wildcard
+discipline, the canonical ISO 19650-2 role is `"Z"` (multi /
+undefined). Normalised across every profile so `role` always
+matches the discipline-code map (A/S/M/E/P/H/MG/RP/Z).
+
+**Final omnibus (programmatically verified, 11/11 pass)**:
+
+| Check | Result |
+|---|---|
+| Discipline DT ↔ routing orphans | ✓ |
+| Routing target ids resolve | ✓ 101/101 |
+| Pack references resolve | ✓ 22/22 |
+| Pack filter references resolve | ✓ 70/70 |
+| A2 paper-size residue | ✓ 0 |
+| `tokenProfile` as string | ✓ 0 |
+| `isoNaming` shape (dict only) | ✓ 90/90 |
+| `isoNaming.role` ↔ discipline | ✓ 90/90 |
+| Scale ↔ ID encoding | ✓ 90/90 |
+| Paper size ↔ TB family | ✓ 90/90 |
+| Slot bbox geometric sanity | ✓ |
+
+### Caveats (Phase 184j)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+### Phase 186 — Bonsai integration foundation (multi-host substrate)
+
+**Status**: Landed on `claude/stingtools-bim-research-8Kkwv` across
+six commits. Substrate is verified drift-free; Day-1 Bonsai scaffold
++ Planscape server endpoint are unit-verified but not end-to-end
+tested. See [`docs/PHASE_186_BONSAI_INTEGRATION.md`](docs/PHASE_186_BONSAI_INTEGRATION.md)
+for the full architectural narrative + decisions log + verification
+matrix + forward roadmap.
+
+This phase turns STING from a Revit-only plugin into the data-layer
+spine of a multi-host BIM coordination platform. The IFC substrate
+becomes the contract every host plugin reads from; the Planscape
+Server federates across hosts via cross-host element-identity
+mapping.
+
+**Net-new top-level folders**:
+- `shared/ifc/` — IFC substrate: 52 enums, 2 psets, 2 IDS files,
+  bSDD publication plan. SHA-256 corporate locks; project-overlay
+  resolver for the 3 project-scoped enums (`StingLocationCodes`,
+  `StingZoneCodes`, `StingLevelCodes`).
+- `stingtools-core/python/` — Python package re-packaging the
+  substrate as a programmatic API (`EnumRegistry`, `PsetRegistry`,
+  `TagGrammar`, `SpatialChecker`, `PlanscapeClient`, `AuditLog`,
+  `IdsRunner`). 7/7 smoke tests pass against the live `shared/ifc/`.
+  Eventually paired with a `dotnet/` half for Revit/Tekla consumption.
+- `stingtools-bonsai/` — Bonsai (formerly BlenderBIM) extension.
+  Day-1 scaffold: blender_manifest.toml (Blender 4.2+ extension
+  schema 1.0.0), `BonsaiBridge` coexistence layer (`core/bonsai.py`),
+  3 diagnostic operators (`sting.about`, `sting.reload_substrate`,
+  `sting.bonsai_probe`), `STING_PT_main` N-panel. MVP operators
+  (16 commands) deferred to Path B of the recommendation —
+  estimated 8 weeks single-dev.
+- `tools/enums/` — `compute_checksums.py` (drift detection +
+  manifest generator), `audit_bsdd.py` (publication-plan summary
+  check).
+- `tools/converters/` — `sting_to_psd.py` (STING XML → buildingSMART
+  PropertySetDef format), `sting_to_revit_params.py` (STING psets →
+  Revit shared-parameter file fragment with deterministic UUID v5
+  GUIDs).
+- `tools/tests/round_trip.py` — IDS + Pset round-trip test harness
+  scaffold. `--generate-fixture` documents the ifcopenshell.api
+  call sequence; implementation deferred.
+- `.github/workflows/ifc-substrate.yml` — CI: checksum drift +
+  bSDD audit + XSD validation + IDS well-formedness + Pset reference
+  integrity + IfdGuid uniqueness on every PR.
+
+**Net-new server entities + endpoints**:
+- `Planscape.Server/src/Planscape.Core/Entities/ExternalElementMapping.cs`
+  — cross-host element identity table. Composite-unique on
+  `(ProjectId, IfcGlobalId, Host, HostDocumentGuid)`.
+- `Planscape.Server/src/Planscape.Core/DTOs/IfcIngestDtos.cs` —
+  `IfcIngestRequest` + `IfcElementDto` + `IfcIngestResponse`.
+- `Planscape.Server/src/Planscape.API/Controllers/IfcController.cs`:
+    - `POST /api/projects/{projectId}/ifc/data` — host-agnostic IFC
+      element ingest. Upserts mappings + TaggedElement projection in
+      500-element batches with stale-write protection.
+    - `GET /api/projects/{projectId}/ifc/mappings?ifc_guid=...` —
+      cross-host lookup (issue raised in Bonsai on IFC GUID X →
+      Revit ElementId).
+- `PlanscapeDbContext`: `+ DbSet<ExternalElementMapping>` with 3
+  indexes; `Entity<TaggedElement>` unique constraints converted to
+  filtered uniques to support both Revit (`RevitElementId > 0`) and
+  non-Revit (`UniqueId <> ''`) ingest paths.
+
+**Substrate inventory at Phase 186 close** (programmatically verified):
+
+| Layer | Count | Detail |
+|---|---|---|
+| Enum XMLs | 52 | 49 corporate-locked + 3 project-template |
+| Pset XMLs | 5 | `Pset_StingTags` (12 props, 9 rules), `Pset_StingSpatialCodes` (6 props, 5 rules), `Pset_StingTag7` (10 props, 3 rules), `Pset_StingDrawing` (12 props, 3 rules), `Pset_StingProjectOrg` (13 props, 3 rules) |
+| SpatialChecker static rules | 12 | LOC/LVL/ZONE/SYS/SEQ/FullTag (Tier-1) + DISC_NOT_EMPTY + DRAWING_TYPE_RESOLVABLE + 2 PROJECTORG_* + BUILDING_LOC_UNIQUE + STOREY_LVL_UNIQUE_WITHIN_BUILDING (Phase 186b) — 100% of declared statically-enforceable rules |
+| SpatialChecker behavioural rules | 8 | `enforced-by="host"` — TOKEN_LOCK / TAG_HISTORY / PROJECTORG_SINGLETON / CROP_KIND_MATCHES_PROFILE / PACK_CHECKSUM_MATCHES / TAG7_NARRATIVE_CONSISTENT / TAG7_PARAGRAPH_STATE_EXCLUSIVE / TAG7_TECHNICAL_SPECS_BY_DISCIPLINE |
+| IDS files | 2 | `sting-tag-grammar.ids` (11 specs), `sting-spatial-codes.ids` (7 specs) |
+| Project-overlay examples | 3 | LOC / LVL / ZONE worked examples |
+| bSDD publication entries | 52 | 24 ready · 1 draft · 6 external_already · 2 skip_external · 16 private · 3 project_scoped |
+| Python core modules | 13 | enums + psets + tag_grammar + spatial + ids + planscape |
+| Bonsai add-on Python files | 9 | manifest + bl_info + core/bonsai + 3 ops + 1 panel + 2 __init__ |
+| Server entities (new) | 1 | `ExternalElementMapping` |
+| Server controllers (new) | 1 | `IfcController` (2 endpoints) |
+| Tooling scripts (new) | 5 | checksums, bsdd_audit, sting_to_psd, sting_to_revit_params, round_trip |
+| CI workflows (new) | 1 | `ifc-substrate.yml` (6 validation steps) |
+| Top-level READMEs (new) | 7 | enums, psets, ids, bsdd, examples, bonsai, core |
+
+**5 enum tiers** covering: tag grammar (DISC/SYS/FUNC/PROD + spatial
++ status/suitability/CDE/revision); drawing engine (purpose/tier/
+paper/orientation/detail/colour/crop); workflow (issue/RIBA/workflow/
+signoff/maintenance/asset); engineering (HVAC pressure/sizing/density
++ acoustic NC + pipe services/materials + duct + fire + cable + steel
++ concrete + insulation + hangers + welds); healthcare pack (facility
+profiles + MGS gases + pressure regimes + EES + MRI + radiation +
+ligature + observation + HTM water + HBN departments + theatres).
+
+### Caveats (Phase 186)
+
+1. **Path-A verification not run** in dev sandbox. The C# IfcController
+   compiles in theory (follows existing controller conventions) but
+   has never seen `dotnet build`. The Bonsai add-on syntax-checks
+   clean but has never been loaded in actual Blender. The 2 IDS
+   files parse as well-formed XML but have never been run through
+   `ifctester`. Five working days of local verification (see
+   `docs/PHASE_186_BONSAI_INTEGRATION.md § Forward roadmap → Path A`)
+   flip every ❌ in the verification matrix to ✅.
+2. **EF migration not generated.** `dotnet ef migrations add
+   IfcIngestSubstrate` against `Planscape.Server` is the next
+   deployment step. Schema diff: 1 new table + 2 new filtered
+   uniques on `TaggedElements`.
+3. **Round-trip test harness is a scaffold.** `tools/tests/round_trip.py
+   --generate-fixture` documents the ifcopenshell.api call sequence
+   but doesn't yet mint a real IFC. Real fixture generation is
+   estimated 1 day once ifcopenshell is installed locally.
+4. **bSDD entries all carry `proposed: true`.** No actual publication
+   to bSDD has happened. The 22 "ready" entries carry proposed IRIs
+   that DO NOT resolve in bSDD until status flips to `posted` /
+   `verified` via `tools/bsdd/publish.py` (also future).
+5. **MVP operators not built.** Day-1 ships diagnostic ops only
+   (`sting.about`, `sting.reload_substrate`, `sting.bonsai_probe`).
+   The 16 production operators from the MVP scope are estimated
+   8 weeks single-dev. Scope doc lives in commit history of this
+   branch.
+6. **Healthcare Pset bundle not yet authored.** The 5 healthcare
+   Psets (`Pset_StingHealthcareClinical/MGS/Radiation/
+   ClinicalEquipment/Ligature`) referenced in the bSDD plan are
+   Phase 186 work. Healthcare enumerations (Tier 5) shipped this
+   phase; the consuming Psets did not.
+7. **ArchiCAD + Tekla plugins are forward roadmap.** The
+   substrate is host-agnostic so the work is incremental, but
+   neither plugin folder exists yet. Phase 187 (ArchiCAD, ~12 weeks)
+   and Phase 188 (Tekla server-side connector, ~2 weeks) per the
+   architecture doc.
+
 ## Template Engine v1.1 (Phase 112)
 
 **Status**: S01–S18 landed on `claude/implement-template-engine-COd9n`

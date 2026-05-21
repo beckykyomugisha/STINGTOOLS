@@ -303,35 +303,16 @@ public sealed class IfcAlignmentValidator : IIfcAlignmentValidator
 
         // Gap 9: Revit GlobalId stability check
         // Only meaningful when: (a) the authoring tool is Revit, and (b) we have a prior upload to compare against.
+        // DEFERRED: requires FederatedElement.ProjectModelId column (not yet on the entity).
+        // Once that's added + migrated, restore the previous-upload diff via:
+        //   var previousGuids = await _db.FederatedElements.AsNoTracking()
+        //       .Where(fe => fe.ProjectId == projectId && fe.ProjectModelId != projectModelId)
+        //       .Select(fe => fe.IfcGuid).Distinct().ToListAsync(ct);
+        // and compute the stability % against currentFileGuids as before.
+        // Until then the check is a no-op so the build can publish.
         bool isRevitModel = applicationName != null &&
                             applicationName.Contains("Revit", StringComparison.OrdinalIgnoreCase);
-
-        if (isRevitModel && siblings.Count > 0 && currentFileGuids.Count > 0)
-        {
-            // Fetch the distinct IfcGuids that were recorded for OTHER uploads of this project model
-            // (previous versions / other disciplines that have been processed before).
-            var previousGuids = await _db.FederatedElements
-                .AsNoTracking()
-                .Where(fe => fe.ProjectId == projectId && fe.ProjectModelId != projectModelId)
-                .Select(fe => fe.IfcGuid)
-                .Distinct()
-                .ToListAsync(ct);
-
-            if (previousGuids.Count > 0)
-            {
-                int missingCount = previousGuids.Count(g => !currentFileGuids.Contains(g));
-                double pctMissing = (double)missingCount / previousGuids.Count * 100.0;
-
-                if (pctMissing > 15.0)
-                {
-                    findings.Add(new("WARN", "REVIT_GLOBALID_INSTABILITY",
-                        $"Approximately {pctMissing:F0}% of element GlobalIds changed since the last upload. " +
-                        "This breaks BCF round-trips, clash history, and issue element links.",
-                        "In Revit: Manage > Project Information > set STING_IFC_GUID or use the IFC Exporter with " +
-                        "'Export IFC GUIDs' shared parameter. Ensure all team members use the same IFC export settings."));
-                }
-            }
-        }
+        _ = isRevitModel;  // suppress "unused variable" once siblings/currentFileGuids check is gone
 
         // Gap 10: Analytical/structural analysis model detection
         // ETABS, SAP2000, CSi, SAFE, RAM Structural produce stick-geometry IFC unsuitable for coordination.
@@ -396,7 +377,9 @@ public sealed class IfcAlignmentValidator : IIfcAlignmentValidator
                             $"Model survey origin ({report.SurveyEasting:F1}, {report.SurveyNorthing:F1}) " +
                             $"differs from project canonical origin ({projectCrs.OriginEasting:F1}, {projectCrs.OriginNorthing:F1}) " +
                             $"by ΔE={deltaE:F1} m, ΔN={deltaN:F1} m, ΔElev={deltaElev:F1} m — exceeds 10 m tolerance.",
-                            $"Re-export from {(report.Source == "archicad" ? "ArchiCAD (Options > Project Preferences > Survey Point)" : "Revit (Manage > Coordinates > Acquire Coordinates)")} " +
+                            // IfcAlignmentReport has no Source column — fall back to sniffing
+                            // the authoring tool from applicationName (already populated above).
+                            $"Re-export from {(applicationName != null && applicationName.Contains("ArchiCAD", StringComparison.OrdinalIgnoreCase) ? "ArchiCAD (Options > Project Preferences > Survey Point)" : "Revit (Manage > Coordinates > Acquire Coordinates)")} " +
                             $"using the project benchmark: E={projectCrs.OriginEasting:F3} m, N={projectCrs.OriginNorthing:F3} m. " +
                             $"Reference CRS: {projectCrs.CrsName ?? projectCrs.CrsEpsgCode ?? "unspecified"}."));
                     }

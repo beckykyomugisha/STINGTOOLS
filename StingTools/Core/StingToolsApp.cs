@@ -450,6 +450,34 @@ namespace StingTools.Core
             }
         }
 
+        // Force-show guard: ensures every STING dockable panel is surfaced
+        // exactly once per Revit session, even when Revit ignored
+        // VisibleByDefault (typically because the previous session's
+        // UIState.dat had it hidden and the cached state survived).
+        private static bool _mainPaneForceShown;
+
+        /// <summary>Helper for the OnDocumentOpened force-show pass. Safe to call
+        /// for a pane that doesn't exist or is already shown — logs and returns.</summary>
+        private static void ForceShowPane(UIApplication uiApp, DockablePaneId paneId, string label)
+        {
+            try
+            {
+                var pane = uiApp.GetDockablePane(paneId);
+                if (pane == null) { StingLog.Info($"ForceShowPane {label}: pane not registered"); return; }
+                if (pane.IsShown())
+                {
+                    StingLog.Info($"ForceShowPane {label}: already visible — left alone");
+                    return;
+                }
+                pane.Show();
+                StingLog.Info($"ForceShowPane {label}: pane was hidden — forced visible");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ForceShowPane {label}: {ex.Message}");
+            }
+        }
+
         /// <summary>BUG-05: Clear param cache on document open to prevent cross-document collisions.</summary>
         private static void OnDocumentOpened(object sender,
             Autodesk.Revit.DB.Events.DocumentOpenedEventArgs e)
@@ -460,6 +488,27 @@ namespace StingTools.Core
                 ParameterHelpers.ClearParamCache();
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
+
+                // Force-show every STING dock panel on first document open per
+                // Revit session. RegisterDockablePane + VisibleByDefault is meant
+                // to handle this, but Revit silently honours the cached
+                // UIState.dat visibility in some upgrade scenarios — panes end
+                // up registered-but-hidden with no on-screen affordance. Show()
+                // can only be called when a document is open, so we defer it
+                // from OnStartup to here.
+                if (!_mainPaneForceShown)
+                {
+                    _mainPaneForceShown = true;
+                    try
+                    {
+                        var uiApp = new UIApplication(e.Document.Application);
+                        ForceShowPane(uiApp, StingTools.UI.StingDockPanelProvider.PaneId, "Main");
+                        ForceShowPane(uiApp, StingTools.UI.StingElectricalPanelProvider.PaneId, "Electrical");
+                        ForceShowPane(uiApp, StingTools.UI.StingHvacPanelProvider.PaneId, "HVAC");
+                        ForceShowPane(uiApp, StingTools.UI.Plumbing.StingPlumbingPanelProvider.PaneId, "Plumbing");
+                    }
+                    catch (Exception showEx) { StingLog.Warn($"Panel force-show: {showEx.Message}"); }
+                }
 
                 // FIX-C01: Reset selection scope to view-only on document switch
                 // Prevents stale project-wide scope from carrying over between projects

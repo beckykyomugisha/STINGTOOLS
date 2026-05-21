@@ -129,7 +129,10 @@ public sealed class IfcTessellationJob : IIfcTessellationJob
             if (!groups.TryGetValue(key, out var acc))
                 groups[key] = acc = new AabbAccumulator();
 
-            string guid = element.GlobalId?.ToString() ?? "";
+            // IfcGloballyUniqueId is a value-type struct, not a nullable
+            // reference — drop the `?.` and let ToString() return empty
+            // for a default-constructed (uninitialised) instance.
+            string guid = element.GlobalId.ToString() ?? "";
             if (!string.IsNullOrEmpty(guid))
                 acc.Guids.Add(guid);
 

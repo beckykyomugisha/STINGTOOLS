@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingHTMWaterRiskZones</Name>
+    <Definition>Water-safety risk zone classification per HTM 04-01. Drives augmented-care identification, dead-leg risk audit, daily-flush schedule generation, TMV3 mandatory placement, temperature-sensor requirements, and the Legionella + Pseudomonas risk register entries.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4005-9000-000000000031</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/nhs/htm-04-01/1.0/class/water-risk-zone</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>HTM 04-01:2016 (Safe water in healthcare premises); HSG 274 Legionnaires' disease; BS 8580-1:2019 (Risk assessment for Legionella)</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="AugmentedCare" sentinel="false">
+      <Definition>Augmented Care — patients at high risk of Pseudomonas / waterborne infection. Includes haematology, neonatal ICU, adult ICU, oncology, burns. Strictest HTM 04-01 controls; daily flush + outlet sampling.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="StandardClinical" sentinel="false">
+      <Definition>Standard Clinical — general inpatient wards + outpatient clinical areas. HTM 04-01 standard controls; weekly flush of low-use outlets.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HighRisk" sentinel="false">
+      <Definition>High Risk — renal dialysis, hydrotherapy pools, dental chair waterlines. Specialist water-quality requirements (dialysis: ultrapure water; hydrotherapy: pool chemistry; dental: BS 6700 + HTM 01-05).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="DentalChair" sentinel="false">
+      <Definition>Dental Chair — specific HTM 01-05 control regime for dental unit waterlines. Continuous disinfection + monthly sampling.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="LowUse" sentinel="false">
+      <Definition>Low Use — outlets used &lt; weekly. High Legionella risk due to stagnation. Requires increased flush frequency + monthly temperature monitoring.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="NonClinical" sentinel="false">
+      <Definition>Non-Clinical — offices, BOH, plant rooms. Standard BS 8580 risk assessment applies; relaxed flush requirements.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="External" sentinel="false">
+      <Definition>External — landscape irrigation, fire-fighting mains, external outlets. Outside HTM 04-01 scope but in the BS 8580 Legionella risk assessment.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>5b06d03f049a0f315f8be3aa8c1525d23bb70f82ad591fd379a986af73880761</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

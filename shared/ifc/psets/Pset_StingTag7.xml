@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertySetTemplate xmlns="https://stingtools.io/schema/ifc/psets/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>Pset_StingTag7</Name>
+    <Definition>TAG7 — rich descriptive narrative carried alongside the 8-segment Pset_StingTags. Six sub-sections A through F, each holding a different facet of the element's full description: identity, system+function, spatial context, lifecycle, technical specs, classification. Built by the TAG7 narrative engine (TAG7Builder) on every tag-write; rendered into multi-line annotations on views via host-side rich-text label families. Paragraph depth toggles (TAG_PARA_STATE_1/2/3_BOOL) control how much detail is shown per view tier.</Definition>
+    <IfdGuid>uuid:a1d15c11-0002-4001-9000-000000000005</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>STING TAG7 narrative engine; Phase 11 paragraph-depth tier system; Phase 135 TokenProfile (which segments are visible per view)</StandardsBasis>
+  </Governance>
+
+  <TemplateType>PSET_OCCURRENCEDRIVEN</TemplateType>
+
+  <Applicability>
+    <ApplicableEntity>IfcElement</ApplicableEntity>
+    <ApplicableEntity>IfcSpace</ApplicableEntity>
+  </Applicability>
+
+  <Properties>
+
+    <Property name="NarrativeFull" cardinality="optional">
+      <Definition>Computed full TAG7 narrative — concatenation of sub-sections A through F joined by pipe-separators (|). DERIVED, not authoritative — host plugins compute on read from the six A-F sub-sections; storing this is a convenience for legacy consumers + non-STING tools that don't know how to assemble. When present, STING validators verify it matches the computed form.</Definition>
+      <DataType>IfcText</DataType>
+      <AppliesTo>IfcElement IfcSpace</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="IdentityHeader" cardinality="optional">
+      <Definition>Section A — Identity Header. Asset name + product code + manufacturer + model. Bold, blue per the default style. Example: "AHU-04 / Daikin VRV-IV / SuperHero series".</Definition>
+      <DataType>IfcText</DataType>
+      <AppliesTo>IfcElement IfcSpace</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="SystemFunction" cardinality="optional">
+      <Definition>Section B — System + Function. System type description + function code expanded. Italic, green. Example: "HVAC supply — variable-air-volume primary air distribution".</Definition>
+      <DataType>IfcText</DataType>
+      <AppliesTo>IfcElement</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="SpatialContext" cardinality="optional">
+      <Definition>Section C — Spatial Context. Room name + department + grid reference + zone. Normal weight, orange. Example: "Theatre 3 / Surgical Suite / Grid C-5 / Zone CLN-01".</Definition>
+      <DataType>IfcText</DataType>
+      <AppliesTo>IfcElement IfcSpace</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="LifecycleStatus" cardinality="optional">
+      <Definition>Section D — Lifecycle + Status. Status (NEW/EXISTING/DEMOLISHED/TEMPORARY) + revision + origin + maintenance frequency. Normal weight, red. Example: "NEW / Rev P02 / Specified / Quarterly PPM".</Definition>
+      <DataType>IfcText</DataType>
+      <AppliesTo>IfcElement</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="TechnicalSpecs" cardinality="optional">
+      <Definition>Section E — Technical Specs. Discipline-specific performance data (capacity / flow / voltage / pressure / weight). Bold, purple. Per-discipline-category template lives in LABEL_DEFINITIONS.json. Example: "Capacity: 12.5 kW / Flow: 1200 l/s / Static: 350 Pa / Sound: 38 dB(A)".</Definition>
+      <DataType>IfcText</DataType>
+      <AppliesTo>IfcElement</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="Classification" cardinality="optional">
+      <Definition>Section F — Classification. Uniformat + OmniClass + keynote + cost-code + ISO tag references. Italic, grey. Example: "Uniformat: D3045 / OmniClass: 23-33-23-13 / Keynote: HVAC-AHU-12 / NRM2: 5.7.2".</Definition>
+      <DataType>IfcText</DataType>
+      <AppliesTo>IfcElement</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="ParagraphState1" cardinality="optional">
+      <Definition>Paragraph depth tier 1 toggle. When true, sub-sections A + B are visible on this view's tags (minimal narrative). Phase 11 paragraph depth control.</Definition>
+      <DataType>IfcBoolean</DataType>
+      <AppliesTo>IfcElement</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="ParagraphState2" cardinality="optional">
+      <Definition>Paragraph depth tier 2 toggle. When true, sub-sections A + B + C + D are visible (standard narrative). Phase 11 paragraph depth control.</Definition>
+      <DataType>IfcBoolean</DataType>
+      <AppliesTo>IfcElement</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="ParagraphState3" cardinality="optional">
+      <Definition>Paragraph depth tier 3 toggle. When true, all six sub-sections A..F are visible (full narrative). Phase 11 paragraph depth control. Mutually exclusive with ParagraphState1/2 — exactly one should be true per view; multiple-true is a host-plugin bug.</Definition>
+      <DataType>IfcBoolean</DataType>
+      <AppliesTo>IfcElement</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+  </Properties>
+
+  <CrossEntityValidationRules>
+
+    <Rule id="TAG7_NARRATIVE_CONSISTENT" enforced-by="host">
+      <Description>NarrativeFull (when set) must equal the pipe-joined concatenation of IdentityHeader | SystemFunction | SpatialContext | LifecycleStatus | TechnicalSpecs | Classification. BEHAVIOURAL ASSERTION: TAG7Builder generates NarrativeFull from sub-sections on every write — drift means a host plugin bug, not user error. STING-side validator (Phase 187+) closes the equality check; the IDS pattern check is insufficient.</Description>
+      <ActiveFrom>Stage_3</ActiveFrom>
+      <FailMessage>Stored NarrativeFull does not match concatenation of sub-sections.</FailMessage>
+      <RemediationInstruction>Run BuildTags to re-derive NarrativeFull from the six sub-sections.</RemediationInstruction>
+    </Rule>
+
+    <Rule id="TAG7_PARAGRAPH_STATE_EXCLUSIVE" enforced-by="host">
+      <Description>Exactly one of ParagraphState1 / ParagraphState2 / ParagraphState3 is true per element per view-context. Multi-true is contradictory. BEHAVIOURAL ASSERTION: enforced by the SetParagraphDepth command; static IFC snapshots can't distinguish "view A wants tier 2, view B wants tier 3" since the Pset is per-element, not per-view.</Description>
+      <ActiveFrom>Stage_3</ActiveFrom>
+      <FailMessage>Multiple ParagraphState booleans true simultaneously.</FailMessage>
+      <RemediationInstruction>Re-run SetParagraphDepth from the host plugin; clears competing flags.</RemediationInstruction>
+    </Rule>
+
+    <Rule id="TAG7_TECHNICAL_SPECS_BY_DISCIPLINE" enforced-by="host">
+      <Description>TechnicalSpecs (Section E) format depends on the element's Discipline + Product code via LABEL_DEFINITIONS.json (e.g. AHU shows "Capacity / Flow / Static / Sound", DB shows "Rating / Phases / Submains / Spare ways"). The format spec lives outside this Pset; IDS can't validate it. STING-side LabelDefinitionHelper enforces.</Description>
+      <ActiveFrom>Stage_4</ActiveFrom>
+      <FailMessage>TechnicalSpecs format doesn't match the discipline+product label definition.</FailMessage>
+      <RemediationInstruction>Run BuildTags after verifying LABEL_DEFINITIONS.json has the right template for this discipline+product.</RemediationInstruction>
+    </Rule>
+
+  </CrossEntityValidationRules>
+
+  <CorporateLock>
+    <Sha256>49c4765c4ff7512e87ddb77d2781fefd36b68fc6c3c24900d2c790e679cdda37</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(properties_with_metadata_plus_validation_rules))</Algorithm>
+  </CorporateLock>
+
+</StingPropertySetTemplate>

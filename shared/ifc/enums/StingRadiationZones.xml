@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingRadiationZones</Name>
+    <Definition>Ionising-radiation zone classification per NCRP 147 + IRR 2017 + ICRP 103. Drives lead-equivalent wall thickness calculation, controlled-access boundary marking, occupational-dose modelling, and the QE_Radiation sign-off gate.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4005-9000-00000000002e</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/ncrp/147/2004/class/radiation-zone</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>NCRP Report 147 (2004); IRR 2017 (UK Ionising Radiations Regulations); ICRP Publication 103; IPEM Report 75</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="Controlled" sentinel="false">
+      <Definition>Controlled Area — dose &gt; 6 mSv/year. Access restricted to trained / monitored personnel. Treatment rooms, primary radiation barriers, modality bunkers.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Supervised" sentinel="false">
+      <Definition>Supervised Area — dose 1-6 mSv/year. Access controlled but less restrictive than Controlled. Reception adjoining controlled bays, planning rooms.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Public" sentinel="false">
+      <Definition>Public — dose &lt; 1 mSv/year. No occupational restriction. General hospital corridors, waiting rooms outside imaging suite.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="Designated" sentinel="false">
+      <Definition>Designated Area (UK IRR 2017) — equivalent to Controlled. Used in UK regulatory documentation in preference to "Controlled".</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="UncontrolledOccupied" sentinel="false">
+      <Definition>Uncontrolled Occupied — areas adjoining radiation bunkers that may have non-trivial doses; shielded but not dose-restricted. Used in shielding takedown for occupied workspaces beyond barriers.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HighDose" sentinel="false">
+      <Definition>High-Dose Area — dose &gt; 20 mSv/year. Used inside linac vaults, brachytherapy treatment rooms during exposure. Continuously monitored.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>0084a4ed7394ab118773c5706f9992fc13f74c48601487b77a78648a139c508d</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

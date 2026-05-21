@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertySetTemplate xmlns="https://stingtools.io/schema/ifc/psets/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>Pset_StingProjectOrg</Name>
+    <Definition>Project-organization metadata for ISO 19650-2 information delivery. Carries the 13 PRJ_ORG_* fields used by STING's Template Engine v1.1 — appointing-party / lead-appointed-party / originator / phase / class / workflow profile + delivery options. Attached to IfcProject; one Pset per project. Token-substituted into every generated deliverable via DocumentIdentityGenerator and surfaced in title blocks via TitleBlockParamApplier.</Definition>
+    <IfdGuid>uuid:a1d15c11-0002-4001-9000-000000000003</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>ISO 19650-2:2018 §5.1 appointing-party / lead-appointed-party roles; BS EN ISO 19650-1:2018 §5.6 project information requirements; STING Template Engine v1.1 (Phase 112)</StandardsBasis>
+  </Governance>
+
+  <TemplateType>PSET_OCCURRENCEDRIVEN</TemplateType>
+
+  <Applicability>
+    <ApplicableEntity>IfcProject</ApplicableEntity>
+  </Applicability>
+
+  <Properties>
+
+    <Property name="ProjectCode" cardinality="required">
+      <Definition>ISO 19650-2 project code — short alphanumeric identifier used as the {prj} token in document-number patterns. Typically 3-6 characters. Example: "RVH" for Riverside Hospital.</Definition>
+      <DataType>IfcLabel</DataType>
+      <AppliesTo>IfcProject</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="OriginatorCode" cardinality="required">
+      <Definition>ISO 19650-2 originator code — short identifier for the appointed-party producing the information. Used as {org} token in document patterns. Typically 3-5 characters. Example: "PLNS" for Planscape.</Definition>
+      <DataType>IfcLabel</DataType>
+      <AppliesTo>IfcProject</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="CompanyName" cardinality="required">
+      <Definition>Full legal name of the originator company. Printed on title blocks + transmittals + deliverables.</Definition>
+      <DataType>IfcText</DataType>
+      <AppliesTo>IfcProject</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="CompanyAddress" cardinality="optional">
+      <Definition>Originator company address. Multi-line text; included in transmittal headers and deliverable cover sheets.</Definition>
+      <DataType>IfcText</DataType>
+      <AppliesTo>IfcProject</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="ClientName" cardinality="required">
+      <Definition>Full name of the appointing party / client. ISO 19650-2 terminology: "the party for whom an information container is produced".</Definition>
+      <DataType>IfcText</DataType>
+      <AppliesTo>IfcProject</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="AppointingParty" cardinality="optional">
+      <Definition>ISO 19650-2 appointing-party reference — typically the client + their representative. Distinct from ClientName when the client appoints a project manager who acts on their behalf.</Definition>
+      <DataType>IfcText</DataType>
+      <AppliesTo>IfcProject</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="LeadAppointedParty" cardinality="optional">
+      <Definition>ISO 19650-2 lead-appointed-party — the discipline lead coordinating delivery. Often the architect on a building project. Recorded for BEP appendices and transmittal routing.</Definition>
+      <DataType>IfcText</DataType>
+      <AppliesTo>IfcProject</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="Participants" cardinality="optional">
+      <Definition>Free-text list of project participants (firms, individuals, suppliers). Drives distribution-group default for transmittals.</Definition>
+      <DataType>IfcText</DataType>
+      <AppliesTo>IfcProject</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="Phase" cardinality="required">
+      <Definition>RIBA Plan of Work 2020 stage code. References StingRibaStages. Drives stage-aware IDS overlay selection + workflow-conditional steps.</Definition>
+      <DataType>IfcLabel</DataType>
+      <Enumeration>StingRibaStages</Enumeration>
+      <AppliesTo>IfcProject</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="Class" cardinality="optional">
+      <Definition>ISO 19650-1 information class. UK Annex Table 5 values: 0 (initial WIP), 1 (suitable for coordination), 2 (suitable for information), etc. Free-text in this property; the broader Suitability codes are recorded per-deliverable in document register.</Definition>
+      <DataType>IfcLabel</DataType>
+      <AppliesTo>IfcProject</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="WorkflowProfile" cardinality="optional">
+      <Definition>Named workflow profile (default | acute-healthcare | mental-health | industrial | etc.) — selects the active subset of Phase 184c+ workflow JSON files. Drives which DailyQA / ProjectKickoff / IssueDeliverable preset variants apply.</Definition>
+      <DataType>IfcLabel</DataType>
+      <AppliesTo>IfcProject</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="SignatureProvider" cardinality="optional">
+      <Definition>Identity of the digital-signature provider for published documents (DocuSign / Adobe Sign / internal). v1.2 deliverable per the Template Engine runner; field exists from v1.1 for forward-compatibility.</Definition>
+      <DataType>IfcLabel</DataType>
+      <AppliesTo>IfcProject</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+    <Property name="AiExtractEnabled" cardinality="optional">
+      <Definition>Whether AI-driven metadata extraction is enabled for this project's document-register entries. v1.2 deliverable; field exists from v1.1 for forward-compatibility.</Definition>
+      <DataType>IfcBoolean</DataType>
+      <AppliesTo>IfcProject</AppliesTo>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Property>
+
+  </Properties>
+
+  <CrossEntityValidationRules>
+
+    <Rule id="PROJECTORG_PROJECT_CODE_REQUIRED">
+      <Description>ProjectCode must be non-empty and match the pattern used by the document-number token substitution (typically 3-6 uppercase alphanumerics).</Description>
+      <ActiveFrom>Stage_1</ActiveFrom>
+      <FailMessage>Pset_StingProjectOrg.ProjectCode is empty or malformed.</FailMessage>
+      <RemediationInstruction>Set the project code via ProjectSetupWizard or directly on the IfcProject Pset.</RemediationInstruction>
+    </Rule>
+
+    <Rule id="PROJECTORG_PHASE_VALID">
+      <Description>Phase must be a member of StingRibaStages. Drives stage-aware IDS overlay selection — invalid value disables stage-gated validation.</Description>
+      <ActiveFrom>Stage_1</ActiveFrom>
+      <FailMessage>Pset_StingProjectOrg.Phase is not a valid RIBA stage.</FailMessage>
+      <RemediationInstruction>Set Phase to one of: Stage_0, Stage_1, Stage_2, Stage_3, Stage_4, Stage_5, Stage_6, Stage_7.</RemediationInstruction>
+    </Rule>
+
+    <Rule id="PROJECTORG_SINGLETON" enforced-by="host">
+      <Description>Exactly one Pset_StingProjectOrg per project. Multiple instances are a host-plugin bug. BEHAVIOURAL ASSERTION: enforced by every STING tag-write path (Revit's ProjectSetupCommand, Bonsai add-on's on-load handler).</Description>
+      <ActiveFrom>Stage_1</ActiveFrom>
+      <FailMessage>More than one Pset_StingProjectOrg attached to the project.</FailMessage>
+      <RemediationInstruction>Remove duplicates; keep the most recent (highest ModifiedAt timestamp).</RemediationInstruction>
+    </Rule>
+
+  </CrossEntityValidationRules>
+
+  <CorporateLock>
+    <Sha256>018f9fd6a0539c4e2fa9bf2cff7301c8886f7117591834fd46b07ec7f7778088</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(properties_with_metadata_plus_validation_rules))</Algorithm>
+  </CorporateLock>
+
+</StingPropertySetTemplate>

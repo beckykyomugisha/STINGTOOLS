@@ -148,7 +148,7 @@ public partial class AddCdeFolderHierarchyAndDocumentEnhancements : Migration
             table: "DocumentSignatures",
             column: "WatermarkStatus")
             // Partial index — only un-processed rows; keeps the scanner fast.
-            .Annotate("Npgsql:IndexFilter", "\"WatermarkStatus\" = 'PENDING'");
+            .Annotation("Npgsql:IndexFilter", "\"WatermarkStatus\" = 'PENDING'");
 
         // ── Gap 5: TransmittalDocuments ──────────────────────────────────────
         mb.CreateTable(

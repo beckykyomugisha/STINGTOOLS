@@ -145,16 +145,20 @@
           Object.assign({ signal: controller.signal }, opts, { headers }));
         if (res.status === 401 && !authChallenged) {
           authChallenged = true;
-          // U8 — toast immediately, then redirect to /login after a short
-          // grace window so the user sees what happened. Embedders pass
-          // ?embed=1 to keep the viewer mounted and re-auth themselves.
+          // U8 — toast immediately, then redirect to the dashboard's login
+          // overlay (/index.html shows it automatically when there's no
+          // token in localStorage). Stash the viewer URL in sessionStorage
+          // so a future dashboard-side `?next=` handler can pick it up.
+          // Embedders pass ?embed=1 to keep the viewer mounted and
+          // re-auth themselves.
           toast('Sign-in expired — redirecting to login…', 'error');
           if (typeof localStorage !== 'undefined') {
             try { localStorage.removeItem('planscape_token'); } catch (_) {}
           }
           if (!embedMode) {
-            const next = encodeURIComponent(location.pathname + location.search);
-            setTimeout(() => { location.href = `${apiBase}/login?next=${next}`; }, 1500);
+            const next = location.pathname + location.search;
+            try { sessionStorage.setItem('planscape_post_login_next', next); } catch (_) {}
+            setTimeout(() => { location.href = `${apiBase}/index.html`; }, 1500);
           }
         }
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -304,8 +308,12 @@
             toast('Sign-in expired — redirecting to login…', 'error');
             try { localStorage.removeItem('planscape_token'); } catch (_) {}
             if (!embedMode) {
-              const next = encodeURIComponent(location.pathname + location.search);
-              setTimeout(() => { location.href = `${apiBase}/login?next=${next}`; }, 1500);
+              // Same target as the api() helper above: dashboard's login
+              // overlay at /index.html (the bare /login path is a SPA hash,
+              // not a static page).
+              const next = location.pathname + location.search;
+              try { sessionStorage.setItem('planscape_post_login_next', next); } catch (_) {}
+              setTimeout(() => { location.href = `${apiBase}/index.html`; }, 1500);
             }
             return;
           }
@@ -1451,7 +1459,7 @@
         switchBottomTab('clashes'); state.selectedElementGuid = guid; renderClashes();
       });
       $('#actCopyTag', pane)?.addEventListener('click', () => copyText(tag));
-      $('#actLinkSheet', pane)?.addEventListener('click', () => toast('Sheet link — TODO', 'warn'));
+      $('#actLinkSheet', pane)?.addEventListener('click', () => openSheetLinkPicker({ guid, meta }));
       $$('.copy', pane).forEach(c => c.addEventListener('click', () => copyText(c.dataset.copy)));
     }
 
@@ -1537,6 +1545,105 @@
         });
         setTimeout(() => input.focus(), 30);
       });
+    }
+
+    // Phase 186A — "📌 Link to sheet" picker. The viewer has no element→sheet
+    // index of its own, so we filter the project document register down to
+    // documentType=SH (ISO 19650 Sheet) optionally narrowed by the element's
+    // discipline, and let the user pick. Open in a new tab via the existing
+    // download endpoint (which honours the same JWT + tenant headers as the
+    // viewer). Pre-auth / file:// hosts get a graceful toast.
+    async function openSheetLinkPicker({ guid, meta }) {
+      if (!apiEnabled || !projectId) {
+        toast('Sign in to a project to link sheets', 'warn');
+        return;
+      }
+      const disc = (meta && (meta.discipline || meta.DISC)) || '';
+      const params = new URLSearchParams({ documentType: 'SH', pageSize: '100' });
+      if (disc) params.set('discipline', disc);
+      let docs = [];
+      try {
+        const data = await api(`/api/projects/${projectId}/documents?${params.toString()}`);
+        docs = (data && Array.isArray(data.items)) ? data.items : [];
+      } catch (err) {
+        toast('Could not load sheets: ' + (err.message || err), 'error');
+        return;
+      }
+      // Fallback — if discipline filter returned 0, retry without it so the
+      // user always sees the sheets available rather than an empty list.
+      if (docs.length === 0 && disc) {
+        try {
+          const data2 = await api(`/api/projects/${projectId}/documents?documentType=SH&pageSize=100`);
+          docs = (data2 && Array.isArray(data2.items)) ? data2.items : [];
+        } catch (_) { /* swallow */ }
+      }
+      const back = el('div', { class: 'modal-backdrop open' });
+      const card = el('div', { class: 'modal', style: 'max-width:540px;width:90%' });
+      const head = el('div', { class: 'head' }, [
+        el('h2', {}, '📌 Link to sheet'),
+        el('button', { class: 'close', title: 'Close' }, '✕')
+      ]);
+      const body = el('div', { class: 'body' });
+      const tag = (meta && (meta.tag || meta.STING_TAG)) || '';
+      body.appendChild(el('div', { class: 'prop-section-label' },
+        tag ? `Sheets matching ${disc ? disc + ' · ' : ''}${tag}` : 'Project sheets'));
+      const search = el('input', { type: 'text', placeholder: 'Filter by name or number…', style: 'width:100%;margin-bottom:8px' });
+      body.appendChild(search);
+      const list = el('div', { class: 'sheet-link-list', style: 'max-height:360px;overflow-y:auto;border:1px solid var(--border, #2a3038);border-radius:6px' });
+      body.appendChild(list);
+
+      function paint(filter = '') {
+        list.innerHTML = '';
+        const f = filter.trim().toLowerCase();
+        const filtered = docs.filter(d => {
+          if (!f) return true;
+          return (d.fileName || '').toLowerCase().includes(f) ||
+                 (d.description || '').toLowerCase().includes(f) ||
+                 (d.revision || '').toLowerCase().includes(f);
+        });
+        if (filtered.length === 0) {
+          list.appendChild(el('div', { style: 'padding:16px;color:var(--muted,#888);text-align:center' },
+            docs.length === 0 ? 'No sheets in this project yet.' : 'No matches.'));
+          return;
+        }
+        filtered.forEach(d => {
+          const row = el('div', { class: 'sheet-link-row',
+            style: 'padding:8px 10px;border-bottom:1px solid var(--border,#2a3038);cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center' });
+          const left = el('div', { style: 'flex:1;min-width:0' }, [
+            el('div', { style: 'font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis' },
+              d.fileName || '(unnamed)'),
+            el('div', { style: 'font-size:11px;color:var(--muted,#888);margin-top:2px' },
+              [d.discipline, d.revision && `Rev ${d.revision}`, d.cdeStatus].filter(Boolean).join(' · '))
+          ]);
+          const open = el('button', { class: 'btn subtle', style: 'flex:0 0 auto' }, 'Open');
+          row.appendChild(left); row.appendChild(open);
+          row.addEventListener('click', () => openSheet(d));
+          open.addEventListener('click', (e) => { e.stopPropagation(); openSheet(d); });
+          list.appendChild(row);
+        });
+      }
+      function openSheet(d) {
+        const url = `${apiBase}/api/projects/${projectId}/documents/${d.id}/download`
+                  + (token ? `?access_token=${encodeURIComponent(token)}` : '');
+        try { window.open(url, '_blank', 'noopener'); }
+        catch (_) { toast('Could not open sheet', 'error'); }
+        close();
+      }
+      search.addEventListener('input', () => paint(search.value));
+      paint('');
+
+      const foot = el('div', { class: 'foot' }, [
+        el('button', { class: 'btn subtle' }, 'Close')
+      ]);
+      card.appendChild(head); card.appendChild(body); card.appendChild(foot);
+      back.appendChild(card);
+      document.body.appendChild(back);
+      let done = false;
+      function close() { if (done) return; done = true; back.remove(); }
+      $('.close', head).addEventListener('click', close);
+      $('.btn.subtle', foot).addEventListener('click', close);
+      back.addEventListener('click', (e) => { if (e.target === back) close(); });
+      setTimeout(() => search.focus(), 30);
     }
 
     function copyText(t) {

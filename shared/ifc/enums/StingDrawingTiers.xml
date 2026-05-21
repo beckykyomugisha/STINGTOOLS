@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingDrawingTiers</Name>
+    <Definition>Portability tiers for STING Drawing Types — declares whether a profile is universally portable (T1), needs host-specific visual translation (T2), or is host-only (T3). Used by cross-host applier code to know what to attempt vs what to skip when the active host is not Revit.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4002-9000-00000000000d</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>STING multi-host architecture; introduced when planning BlenderBIM / ArchiCAD / Tekla coordination</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="T1" sentinel="false">
+      <Definition>Universal — paper size, scale, title block params, sheet number / name patterns. Works in every host with full fidelity.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="T2" sentinel="false">
+      <Definition>Visual — view template, filters, VG overrides, view style pack. Each host translates as best it can; some fidelity loss expected on non-Revit hosts.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="T3" sentinel="false">
+      <Definition>Managed — host-native managed templates (Revit Drawing Type managed mode, ArchiCAD ViewMap binding). Declared nativeOnly: true; non-host plugins skip the apply step with a logged warning.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>4414f52fcfd4717c386c199f6df037a4b9e35538bf01b8854512b985f26603e0</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

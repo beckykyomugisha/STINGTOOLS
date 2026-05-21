@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertyEnumeration xmlns="https://stingtools.io/schema/ifc/enums/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>StingMGSGasTypes</Name>
+    <Definition>Medical Gas System gas type codes per HTM 02-01 / NFPA 99. Carried as Pset_StingHealthcareMGS.GasType on every medical-gas element (manifolds, VIEs, ZVBs, terminal units, AVSUs). Drives BS 1710 pipe-identification colour, NFPA 99 §5.1.13 diversity factor in MgasFlowSolver, and the 12-step §5.1.12 verification log structure.</Definition>
+    <IfdGuid>uuid:a1d15c11-0001-4005-9000-00000000002a</IfdGuid>
+    <BsddIri>https://identifier.buildingsmart.org/uri/nhs/htm-02-01/1.0/class/medical-gas-type</BsddIri>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.0.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>HTM 02-01:2006 (UK Medical Gases); NFPA 99:2024 (US Health Care Facilities Code); BS EN ISO 7396-1 (piped medical gas systems)</StandardsBasis>
+  </Governance>
+
+  <IfcMapping>
+    <PrimaryType>IfcLabel</PrimaryType>
+    <UseAsEnumeratedValue>true</UseAsEnumeratedValue>
+    <ApplicableIfcVersions>IFC4 IFC4X3 IFC2X3</ApplicableIfcVersions>
+  </IfcMapping>
+
+  <Values>
+    <Value code="O2" sentinel="false">
+      <Definition>Oxygen — medical grade. Pipe ID white. Stored as VIE / cylinder manifold; distributed at 4 bar to terminal units. Most-distributed medical gas.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="N2O" sentinel="false">
+      <Definition>Nitrous Oxide — anaesthetic. Pipe ID blue. Cylinder-manifold supply; distributed at 4 bar. Restricted to anaesthetic / theatre areas.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="AIR_4" sentinel="false">
+      <Definition>Medical Air 4 bar — clean dry compressed air for respiratory therapy. Pipe ID black/white quartered.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="AIR_7" sentinel="false">
+      <Definition>Surgical / Instrument Air 7 bar — for powered surgical tools. Pipe ID black/white quartered with "7 bar" marking.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="VAC" sentinel="false">
+      <Definition>Medical Vacuum — suction. Pipe ID yellow. NFPA 99 / HTM 02-01 verification critical.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="AGSS" sentinel="false">
+      <Definition>Anaesthetic Gas Scavenging System — exhausts waste anaesthetic gas from theatres. Pipe ID purple.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="CO2" sentinel="false">
+      <Definition>Medical Carbon Dioxide — insufflation gas for laparoscopic surgery. Pipe ID grey. Limited installations (theatre + endoscopy).</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="N2" sentinel="false">
+      <Definition>Medical Nitrogen — high-pressure powered surgical tools (alternative to AIR-7). Pipe ID black.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="ENTONOX" sentinel="false">
+      <Definition>Entonox — 50% nitrous oxide / 50% oxygen mix; analgesia for maternity / A&amp;E. Pipe ID white/blue striped.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+    <Value code="HELIOX" sentinel="false">
+      <Definition>Heliox — helium/oxygen mix, specialist respiratory support. Pipe ID brown/white striped.</Definition>
+      <SinceVersion>5.0.0</SinceVersion>
+    </Value>
+  </Values>
+
+  <CorporateLock>
+    <Sha256>b83ef6ea97f0ce9b9a91145ebc67593ce52cf182d4565c28a77eb1fea2a68dbb</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(values_with_metadata))</Algorithm>
+  </CorporateLock>
+
+</StingPropertyEnumeration>

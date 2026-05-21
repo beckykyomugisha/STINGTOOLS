@@ -1347,5 +1347,8 @@ public record UpdateIssueRequest(
     Guid? AssigneeUserId,
     // CO-ASSIGNEES — additional users who share responsibility.
     // null = leave unchanged; empty array = clear.
-    Guid[]? CoAssigneeUserIds);
+    Guid[]? CoAssigneeUserIds,
+    // ResolvedBy — display name of the user who resolved the issue.
+    // null = leave unchanged.
+    string? ResolvedBy);
 public record LinkAttachmentRequest(Guid DocumentId);

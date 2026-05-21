@@ -30,7 +30,10 @@ public class ClassificationController : ControllerBase
     {
         var tenantId = GetTenantId();
         var systems = await _db.ClassificationSystems
-            .Where(s => s.TenantId == null || s.TenantId == tenantId)
+            // ClassificationSystem.TenantId is Guid (non-nullable); the system-level
+            // sentinel is Guid.Empty (entity doc-comment says "TenantId = null" but
+            // the type is Guid not Guid?, so empty is what gets seeded).
+            .Where(s => s.TenantId == Guid.Empty || s.TenantId == tenantId)
             .Where(s => s.IsActive)
             .OrderBy(s => s.Code)
             .Select(s => new { s.Id, s.Code, s.Name, s.Authority, s.Edition, s.MeasurementProtocol, s.TenantId })
@@ -253,5 +256,5 @@ public record CreateTakeoffRuleRequest(
     string? DescriptionTemplate,
     string? SpecificationGrade,
     string? DeemedIncludedJson,
-    decimal WastePercent,
+    double WastePercent,    // TakeoffRule.WastePercent is double, not decimal
     int Priority);

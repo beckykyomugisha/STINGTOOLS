@@ -162,7 +162,7 @@ public class AutodeskWebhooksController : ControllerBase
     {
         if (string.IsNullOrEmpty(urn)) return null;
         // Postgres JSONB → substring match is cheap even without an index.
-        return await _db.DocumentRecords
+        return await _db.Documents
             .FirstOrDefaultAsync(d => d.StatusHistoryJson != null && d.StatusHistoryJson.Contains(urn));
     }
 

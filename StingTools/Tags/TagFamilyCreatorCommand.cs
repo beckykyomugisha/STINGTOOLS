@@ -12,14 +12,15 @@ using StingTools.Core;
 namespace StingTools.Tags
 {
     /// <summary>
-    /// Creates and loads STING tag families (.rfa) for all 149 taggable categories
-    /// (121 standard + 8 tie-in point + 3 discipline sheet + 4 structural variant + 7 MEP variant + 6 virtual category).
-    /// Each tag family is created from the appropriate Revit .rft annotation template
-    /// and configured with STING shared parameters (ASS_TAG_1_TXT, etc.).
-    ///
-    /// Source of truth: <c>Data/LABEL_DEFINITIONS.json</c> <c>category_labels</c> object —
-    /// every key there must correspond to exactly one family produced by this class,
-    /// enforced at startup by <c>TagFamilyConfig.AssertCatalogueAligned</c>.
+    /// Creates and loads STING tag families (.rfa) for every taggable category
+    /// declared in the v5 tag configuration CSVs. The exact count is
+    /// <see cref="TagFamilyConfig.TotalFamilyCount"/> at runtime (121 standard +
+    /// 8 tie-in point + 3 discipline sheet + 4 structural variant +
+    /// <see cref="TagFamilyConfig.MepVariantFamilies"/>.Length MEP variant +
+    /// <see cref="TagFamilyConfig.HealthcareVariantFamilies"/>.Length healthcare
+    /// variant). Each tag family is created from the appropriate Revit .rft
+    /// annotation template and configured with STING shared parameters
+    /// (ASS_TAG_1_TXT, etc.).
     ///
     /// Workflow:
     ///   1. Locate Revit annotation tag templates (.rft) on disk
@@ -264,8 +265,8 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_Roofs, "Roofs" },
             { BuiltInCategory.OST_Rooms, "Rooms" },
             { BuiltInCategory.OST_Areas, "Areas" },
-            { BuiltInCategory.OST_CurtainWallPanels, "Curtain Panels" },
-            { BuiltInCategory.OST_CurtainWallMullions, "Curtain Wall Mullions" },
+            { BuiltInCategory.OST_CurtainWallPanels, "Curtain Panel" },
+            { BuiltInCategory.OST_CurtainWallMullions, "Curtain Wall Mullion" },
             { BuiltInCategory.OST_Cornices, "Wall Sweeps" },
             { BuiltInCategory.OST_EdgeSlab, "Slab Edges" },
             { BuiltInCategory.OST_RoofSoffit, "Roof Soffits" },
@@ -286,7 +287,7 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_StairsLandings, "Stair Landings" },
             { BuiltInCategory.OST_StairsSupports, "Stair Supports" },
             { BuiltInCategory.OST_Ramps, "Ramps" },
-            { BuiltInCategory.OST_Railings, "Railings" },
+            { BuiltInCategory.OST_Railings, "Railing" },
             { BuiltInCategory.OST_RailingTopRail, "Top Rails" },
             { BuiltInCategory.OST_RailingHandRail, "Handrails" },
             { BuiltInCategory.OST_VerticalCirculation, "Vertical Circulation" },
@@ -297,7 +298,7 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_Columns, "Columns" },
             { BuiltInCategory.OST_StructuralTruss, "Structural Trusses" },
             { BuiltInCategory.OST_StructuralStiffener, "Structural Stiffeners" },
-            { BuiltInCategory.OST_StructConnections, "Structural Connections" },
+            { BuiltInCategory.OST_StructConnections, "Structural Connection" },
             { BuiltInCategory.OST_StructuralFramingSystem, "Structural Beam Systems" },
             { BuiltInCategory.OST_Rebar, "Structural Rebar" },
             { BuiltInCategory.OST_Coupler, "Structural Rebar Couplers" },
@@ -345,7 +346,7 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_Wire, "Wire" },
 
             // Sheets (base category)
-            { BuiltInCategory.OST_Sheets, "Sheets" },
+            { BuiltInCategory.OST_Sheets, "Sheet Document" },
 
         };
 
@@ -357,12 +358,12 @@ namespace StingTools.Tags
         /// </summary>
         public static readonly (BuiltInCategory bic, string template, string display, string suffix)[] TieInPointFamilies =
         {
-            (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Pipe)",            "Tie-In Pipe"),
-            (BuiltInCategory.OST_DuctCurves,     "Duct Tag.rft",                "Tie-In Point (Duct)",            "Tie-In Duct"),
-            (BuiltInCategory.OST_Conduit,        "Conduit Tag.rft",             "Tie-In Point (Conduit)",         "Tie-In Conduit"),
-            (BuiltInCategory.OST_CableTray,      "Cable Tray Tag.rft",          "Tie-In Point (Cable Tray)",      "Tie-In Cable Tray"),
-            (BuiltInCategory.OST_Sprinklers,     "Sprinkler Tag.rft",           "Tie-In Point (Fire Protection)", "Tie-In Fire Protection"),
-            (BuiltInCategory.OST_GenericModel,    "Generic Tag.rft",             "Tie-In Point (Gas)",             "Tie-In Gas"),
+            (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Pipe)",            "Tie-In Point Tag (Pipe — Plumbing & Hydraulic)"),
+            (BuiltInCategory.OST_DuctCurves,     "Duct Tag.rft",                "Tie-In Point (Duct)",            "Tie-In Point Tag (Duct — HVAC)"),
+            (BuiltInCategory.OST_Conduit,        "Conduit Tag.rft",             "Tie-In Point (Conduit)",         "Tie-In Point Tag (Conduit — Electrical LV/ELV)"),
+            (BuiltInCategory.OST_CableTray,      "Cable Tray Tag.rft",          "Tie-In Point (Cable Tray)",      "Tie-In Point Tag (Cable Tray — Electrical)"),
+            (BuiltInCategory.OST_Sprinklers,     "Sprinkler Tag.rft",           "Tie-In Point (Fire Protection)", "Tie-In Point Tag (Fire Protection — Sprinkler / Suppression)"),
+            (BuiltInCategory.OST_GenericModel,    "Generic Tag.rft",             "Tie-In Point (Gas)",             "Tie-In Point Tag (Gas — Medical / Industrial / Natural Gas)"),
             // Pipe system-specific tie-in variants (from MEP CSV #49, #50)
             (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Fire Protection Pipe)", "Tie-In FP Pipe"),
             (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Gas Pipe)",             "Tie-In Gas Pipe"),
@@ -389,7 +390,7 @@ namespace StingTools.Tags
         {
             (BuiltInCategory.OST_Floors,            "Generic Tag.rft",           "Floors (Structural)",                  "Structural Slab"),
             (BuiltInCategory.OST_Walls,             "Generic Tag.rft",           "Walls (Structural/Load-bearing)",      "Structural Wall"),
-            (BuiltInCategory.OST_StructuralFraming, "Structural Framing Tag.rft","Structural Framing (Bracing)",         "Brace Truss"),
+            (BuiltInCategory.OST_StructuralFraming, "Structural Framing Tag.rft","Structural Framing (Bracing)",         "Brace / Truss"),
             (BuiltInCategory.OST_Columns,           "Generic Tag.rft",           "Columns (Architectural)",              "Architectural Column"),
         };
 
@@ -408,28 +409,179 @@ namespace StingTools.Tags
             (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Bond / Spark Gap (BS EN 62305-3)",    "LPS Bond"),
             (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS SPD (BS EN 62305-4)",                 "LPS SPD"),
             (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Test Clamp / Inspection Point",       "LPS Test Clamp"),
+            // ── LPS reuse variants (cross-discipline) — GEN CSV #34, STR CSV #22, ARCH CSV #36
+            (BuiltInCategory.OST_GenericModel,         "Generic Model Tag.rft",         "LPS Generic Component (cross-disc reuse)",          "LPS Generic Component"),
+            (BuiltInCategory.OST_StructuralFoundation, "Structural Foundation Tag.rft", "LPS Foundation Earth (Structural Reuse)",           "LPS Foundation Earth (Structural Reuse)"),
+            (BuiltInCategory.OST_Roofs,                "Roof Tag.rft",                  "LPS Natural Air Termination (Architectural Reuse)", "LPS Natural Air Termination (Architectural Reuse)"),
         };
 
         /// <summary>
-        /// Virtual category tag families — additional .rfa files for LABEL_DEFINITIONS
-        /// keys whose Revit BuiltInCategory either does not exist as a distinct enum
-        /// value or is already mapped to a different display name. Each entry piggybacks
-        /// on a real BIC for the .rft template but emits its own family file so the
-        /// legend builder + display engine can resolve it.
+        /// Healthcare tag family variants (HTM / HBN / NHS pack).
+        /// Sourced from <c>STING_TAG_CONFIG_v5_0_HEALTH.csv</c> (58 declarations,
+        /// 56 unique family names). Each tuple binds one .rfa file to one
+        /// BuiltInCategory so multi-category families like Anti-Ligature get a
+        /// distinct file per binding (Revit tag families are single-category).
         /// </summary>
-        public static readonly (BuiltInCategory bic, string template, string display, string suffix)[] VirtualCategoryFamilies =
+        public static readonly (BuiltInCategory bic, string template, string display, string suffix)[] HealthcareVariantFamilies =
         {
-            // ── Analytical MEP segments (no dedicated BuiltInCategory in Revit 2025/2026/2027 enum) ──
-            (BuiltInCategory.OST_AnalyticalMember, "Generic Tag.rft",            "Analytical Duct Segments (MEP)",         "Analytical Duct Segments"),
-            (BuiltInCategory.OST_AnalyticalMember, "Generic Tag.rft",            "Analytical Pipe Segments (MEP)",         "Analytical Pipe Segments"),
-            // ── Area-Based Loads (variant of OST_AreaLoads — load applied over area, not perimeter) ──
-            (BuiltInCategory.OST_AreaLoads,        "Generic Tag.rft",            "Area-Based Loads (variant)",             "Area Based Loads"),
-            // ── MEP Ancillary (generic catch-all for MEP support / framing / containment) ──
-            (BuiltInCategory.OST_GenericModel,     "Generic Model Tag.rft",      "MEP Ancillary (support / framing)",      "MEP Ancillary"),
-            // ── Temporary Structures (scaffold / shoring / hoarding) ──
-            (BuiltInCategory.OST_GenericModel,     "Generic Model Tag.rft",      "Temporary Structures (scaffold/shoring)", "Temporary Structures"),
-            // ── Wash (washroom fixture variant — sink / basin / scrub trough) ──
-            (BuiltInCategory.OST_PlumbingFixtures, "Plumbing Fixture Tag.rft",   "Wash (washroom fixture variant)",        "Wash"),
+            // Rooms (4)
+            (BuiltInCategory.OST_Rooms,                "Room Tag.rft",                 "Clinical Room (HBN)",                                  "Clinical Room"),
+            (BuiltInCategory.OST_Rooms,                "Room Tag.rft",                 "Pressure Regime (HTM 03-01)",                          "Pressure Regime"),
+            (BuiltInCategory.OST_Rooms,                "Room Tag.rft",                 "Infection Class (HBN 04-01)",                          "Infection Class"),
+            (BuiltInCategory.OST_Rooms,                "Room Tag.rft",                 "Bariatric (NHS England)",                              "Bariatric"),
+            // Generic Models (6)
+            (BuiltInCategory.OST_GenericModel,         "Generic Model Tag.rft",        "MRI Zone (MHRA DB2007(03))",                           "MRI Zone"),
+            (BuiltInCategory.OST_GenericModel,         "Generic Model Tag.rft",        "5-Gauss Marker (MHRA)",                                "5-Gauss Marker"),
+            (BuiltInCategory.OST_GenericModel,         "Generic Model Tag.rft",        "Hoist Track (BS EN 10535)",                            "Hoist Track"),
+            (BuiltInCategory.OST_GenericModel,         "Generic Model Tag.rft",        "AGV Dock",                                             "AGV Dock"),
+            (BuiltInCategory.OST_GenericModel,         "Generic Model Tag.rft",        "Controlled Area Sign (IRR 17)",                        "Controlled Area Sign"),
+            (BuiltInCategory.OST_GenericModel,         "Generic Model Tag.rft",        "Dosimetry Post (IRR 17)",                              "Dosimetry Post"),
+            // Doors (2) — Anti-Ligature disambiguated by host category
+            (BuiltInCategory.OST_Doors,                "Door Tag.rft",                 "Anti-Ligature Door (MaxiCare guidance)",               "Anti-Ligature (Door)"),
+            (BuiltInCategory.OST_Doors,                "Door Tag.rft",                 "X-ray Door (NCRP 147)",                                "X-ray Door"),
+            // Windows (1)
+            (BuiltInCategory.OST_Windows,              "Window Tag.rft",               "X-ray Window (NCRP 147)",                              "X-ray Window"),
+            // Walls (3)
+            (BuiltInCategory.OST_Walls,                "Wall Tag.rft",                 "X-ray Barrier (NCRP 147)",                             "X-ray Barrier"),
+            (BuiltInCategory.OST_Walls,                "Wall Tag.rft",                 "MRI Faraday Cage (MHRA)",                              "MRI Faraday Cage"),
+            (BuiltInCategory.OST_Walls,                "Wall Tag.rft",                 "Linac Maze (NCRP 151)",                                "Linac Maze"),
+            // Lighting Fixtures (3) — Anti-Ligature disambiguated
+            (BuiltInCategory.OST_LightingFixtures,     "Lighting Fixture Tag.rft",     "Anti-Ligature Lighting (NHS England)",                 "Anti-Ligature (Lighting Fixture)"),
+            (BuiltInCategory.OST_LightingFixtures,     "Lighting Fixture Tag.rft",     "Examination Light (BS EN 60601-2-41)",                 "Examination Light"),
+            (BuiltInCategory.OST_LightingFixtures,     "Lighting Fixture Tag.rft",     "Operating Light (BS EN 60601-2-41)",                   "Operating Light"),
+            // Mechanical Equipment (5)
+            (BuiltInCategory.OST_MechanicalEquipment,  "Mechanical Equipment Tag.rft", "VIE (HTM 02-01)",                                      "VIE"),
+            (BuiltInCategory.OST_MechanicalEquipment,  "Mechanical Equipment Tag.rft", "Manifold (HTM 02-01)",                                 "Manifold"),
+            (BuiltInCategory.OST_MechanicalEquipment,  "Mechanical Equipment Tag.rft", "Medical Air Plant (HTM 02-01)",                        "Medical Air Plant"),
+            (BuiltInCategory.OST_MechanicalEquipment,  "Mechanical Equipment Tag.rft", "Medical Vacuum Plant (HTM 02-01)",                     "Medical Vacuum Plant"),
+            (BuiltInCategory.OST_MechanicalEquipment,  "Mechanical Equipment Tag.rft", "AGS Plant (HTM 02-01)",                                "AGS Plant"),
+            // Pipes (1)
+            (BuiltInCategory.OST_PipeCurves,           "Pipe Tag.rft",                 "Medical Gas Pipeline (HTM 02-01)",                     "Medical Gas Pipeline"),
+            // Pipe Accessories (1)
+            (BuiltInCategory.OST_PipeAccessory,        "Pipe Accessory Tag.rft",       "Zone Valve Box (HTM 02-01)",                           "Zone Valve Box"),
+            // Plumbing Fixtures (7) — Anti-Ligature disambiguated
+            (BuiltInCategory.OST_PlumbingFixtures,     "Plumbing Fixture Tag.rft",     "Anti-Ligature Plumbing (NHS England)",                 "Anti-Ligature (Plumbing Fixture)"),
+            (BuiltInCategory.OST_PlumbingFixtures,     "Plumbing Fixture Tag.rft",     "Medical Gas Terminal Unit (BS 5682)",                  "Medical Gas Terminal Unit"),
+            (BuiltInCategory.OST_PlumbingFixtures,     "Plumbing Fixture Tag.rft",     "Area Alarm Panel (HTM 02-01)",                         "Area Alarm Panel"),
+            (BuiltInCategory.OST_PlumbingFixtures,     "Plumbing Fixture Tag.rft",     "Master Alarm Panel (HTM 02-01)",                       "Master Alarm Panel"),
+            (BuiltInCategory.OST_PlumbingFixtures,     "Plumbing Fixture Tag.rft",     "Scrub Trough (HBN 26)",                                "Scrub Trough"),
+            (BuiltInCategory.OST_PlumbingFixtures,     "Plumbing Fixture Tag.rft",     "Bedpan Washer (HBN 09-03)",                            "Bedpan Washer"),
+            (BuiltInCategory.OST_PlumbingFixtures,     "Plumbing Fixture Tag.rft",     "Birth Pool (HBN 09-02)",                               "Birth Pool"),
+            // Specialty Equipment (8)
+            (BuiltInCategory.OST_SpecialityEquipment,  "Specialty Equipment Tag.rft",  "Bedhead Trunking (HBN 04-01)",                         "Bedhead Trunking"),
+            (BuiltInCategory.OST_SpecialityEquipment,  "Specialty Equipment Tag.rft",  "Pendant (HBN 26)",                                     "Pendant"),
+            (BuiltInCategory.OST_SpecialityEquipment,  "Specialty Equipment Tag.rft",  "Crash Cart (NHS resus)",                               "Crash Cart"),
+            (BuiltInCategory.OST_SpecialityEquipment,  "Specialty Equipment Tag.rft",  "AED Cabinet (BS EN 60601)",                            "AED Cabinet"),
+            (BuiltInCategory.OST_SpecialityEquipment,  "Specialty Equipment Tag.rft",  "Hand-Rub Dispenser (NICE NG139)",                      "Hand-Rub Dispenser"),
+            (BuiltInCategory.OST_SpecialityEquipment,  "Specialty Equipment Tag.rft",  "PTS Station (HTM 2024)",                               "PTS Station"),
+            (BuiltInCategory.OST_SpecialityEquipment,  "Specialty Equipment Tag.rft",  "RTLS Reader",                                          "RTLS Reader"),
+            (BuiltInCategory.OST_SpecialityEquipment,  "Specialty Equipment Tag.rft",  "Surgical Robot Bay (HBN 26)",                          "Surgical Robot Bay"),
+            // Medical Equipment (16)
+            (BuiltInCategory.OST_MedicalEquipment,     "Generic Tag.rft",              "Imaging Modality (IPEM 91)",                           "Imaging Modality"),
+            (BuiltInCategory.OST_MedicalEquipment,     "Generic Tag.rft",              "Dialysis Station (HBN 07-01)",                         "Dialysis Station"),
+            (BuiltInCategory.OST_MedicalEquipment,     "Generic Tag.rft",              "Incubator (HBN 09-02)",                                "Incubator"),
+            (BuiltInCategory.OST_MedicalEquipment,     "Generic Tag.rft",              "Mortuary Fridge (HBN 20)",                             "Mortuary Fridge"),
+            (BuiltInCategory.OST_MedicalEquipment,     "Generic Tag.rft",              "Autoclave (HTM 01-01)",                                "Autoclave"),
+            (BuiltInCategory.OST_MedicalEquipment,     "Generic Tag.rft",              "Washer Disinfector (HTM 01-01)",                       "Washer Disinfector"),
+            (BuiltInCategory.OST_MedicalEquipment,     "Generic Tag.rft",              "Endoscope Reprocessor (HTM 01-06)",                    "Endoscope Reprocessor"),
+            (BuiltInCategory.OST_MedicalEquipment,     "Generic Tag.rft",              "Cytotoxic Hood (USP 800)",                             "Cytotoxic Hood"),
+            (BuiltInCategory.OST_MedicalEquipment,     "Generic Tag.rft",              "Pharmacy Isolator (USP 797)",                          "Pharmacy Isolator"),
+            (BuiltInCategory.OST_MedicalEquipment,     "Generic Tag.rft",              "Biosafety Cabinet (BS EN 12469)",                      "Biosafety Cabinet"),
+            (BuiltInCategory.OST_MedicalEquipment,     "Generic Tag.rft",              "Lab Fume Hood (BS EN 14175)",                          "Lab Fume Hood"),
+            (BuiltInCategory.OST_MedicalEquipment,     "Generic Tag.rft",              "HBO Chamber (NFPA 99 §14)",                            "HBO Chamber"),
+            (BuiltInCategory.OST_MedicalEquipment,     "Generic Tag.rft",              "IVF Workstation (HFEA)",                               "IVF Workstation"),
+            (BuiltInCategory.OST_MedicalEquipment,     "Generic Tag.rft",              "Patient Monitor (BS EN 60601-2-49)",                   "Patient Monitor"),
+            (BuiltInCategory.OST_MedicalEquipment,     "Generic Tag.rft",              "Warming Cot (HBN 09-02)",                              "Warming Cot"),
+            (BuiltInCategory.OST_MedicalEquipment,     "Generic Tag.rft",              "Medical Refrigerator (HTM 07-07)",                     "Medical Refrigerator"),
+            // Nurse Call Devices (1)
+            (BuiltInCategory.OST_NurseCallDevices,     "Nurse Call Device Tag.rft",    "Nurse Call (HTM 08-03)",                               "Nurse Call"),
+        };
+
+        /// <summary>
+        /// Explicit creator-suffix → CSV family-name aliases for variant families
+        /// whose CSV declaration uses a structurally different name than the
+        /// short suffix the creator carries. Consumed by
+        /// <see cref="GetTieInFamilyName"/> at name-generation time so tier-plan
+        /// lookups against the CSV-derived <c>plansByFamily</c> dictionary hit.
+        /// </summary>
+        public static readonly Dictionary<string, string> VariantSuffixToCsvName =
+            new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            // Tie-in points — MEP CSV #46..#51 use the verbose "Tie-In Point Tag (…)" form
+            { "Tie-In Pipe",            "STING - Tie-In Point Tag (Pipe — Plumbing & Hydraulic)" },
+            { "Tie-In Duct",            "STING - Tie-In Point Tag (Duct — HVAC)" },
+            { "Tie-In Conduit",         "STING - Tie-In Point Tag (Conduit — Electrical LV/ELV)" },
+            { "Tie-In Cable Tray",      "STING - Tie-In Point Tag (Cable Tray — Electrical)" },
+            { "Tie-In Fire Protection", "STING - Tie-In Point Tag (Fire Protection — Sprinkler / Suppression)" },
+            { "Tie-In Gas",             "STING - Tie-In Point Tag (Gas — Medical / Industrial / Natural Gas)" },
+            // STR CSV: "Brace / Truss" (with slashes + spaces) vs creator's flat "Brace Truss"
+            { "Brace Truss",            "STING - Brace / Truss Tag" },
+            // NOTE: Anti-Ligature is intentionally NOT mapped here. The HEALTH CSV
+            // declares it once but binds 3 BICs (Doors / Lighting Fixtures /
+            // Plumbing Fixtures); each .rfa must carry its own category binding so
+            // the creator emits disambiguated names like
+            // "STING - Anti-Ligature (Door) Tag". Plan lookup via
+            // CsvFamilyNameCandidates strips the parenthetical at resolve time.
+        };
+
+        /// <summary>
+        /// Per-BuiltInCategory override for the family-name segment used by
+        /// <see cref="GetFamilyName"/>. CSVs ship singular family names
+        /// ("STING - Door Tag", "STING - Wall Tag") while Revit's category
+        /// display name is plural ("Doors", "Walls"). This map pins the
+        /// creator's output to the CSV-aligned form so tier-plan lookups hit.
+        /// Categories absent from this map fall back to
+        /// <see cref="CategoryDisplayName"/> (typically the plural form).
+        /// </summary>
+        public static readonly Dictionary<BuiltInCategory, string> CategoryCsvFamilyKey =
+            new Dictionary<BuiltInCategory, string>
+        {
+            // Enclosure
+            { BuiltInCategory.OST_Doors, "Door" },
+            { BuiltInCategory.OST_Windows, "Window" },
+            { BuiltInCategory.OST_Walls, "Wall" },
+            { BuiltInCategory.OST_Floors, "Floor" },
+            { BuiltInCategory.OST_Ceilings, "Ceiling" },
+            { BuiltInCategory.OST_Roofs, "Roof" },
+            { BuiltInCategory.OST_Rooms, "Room" },
+            { BuiltInCategory.OST_CurtainWallPanels, "Curtain Panel" },
+            { BuiltInCategory.OST_CurtainWallMullions, "Curtain Wall Mullion" },
+            // Circulation
+            { BuiltInCategory.OST_Stairs, "Stair" },
+            { BuiltInCategory.OST_Ramps, "Ramp" },
+            { BuiltInCategory.OST_Railings, "Railing" },
+            // Structure
+            { BuiltInCategory.OST_StructuralColumns, "Structural Column" },
+            { BuiltInCategory.OST_StructuralFoundation, "Structural Foundation" },
+            { BuiltInCategory.OST_StructConnections, "Structural Connection" },
+            // MEP — Mechanical / Plumbing / Electrical / Fire
+            { BuiltInCategory.OST_DuctCurves, "Duct" },
+            { BuiltInCategory.OST_DuctFitting, "Duct Fitting" },
+            { BuiltInCategory.OST_DuctAccessory, "Duct Accessory" },
+            { BuiltInCategory.OST_DuctTerminal, "Air Terminal" },
+            { BuiltInCategory.OST_FlexDuctCurves, "Flex Duct" },
+            { BuiltInCategory.OST_PipeCurves, "Pipe" },
+            { BuiltInCategory.OST_PipeFitting, "Pipe Fitting" },
+            { BuiltInCategory.OST_PipeAccessory, "Pipe Accessory" },
+            { BuiltInCategory.OST_FlexPipeCurves, "Flex Pipe" },
+            { BuiltInCategory.OST_PlumbingFixtures, "Plumbing Fixture" },
+            { BuiltInCategory.OST_Sprinklers, "Sprinkler" },
+            { BuiltInCategory.OST_FireAlarmDevices, "Fire Alarm Device" },
+            { BuiltInCategory.OST_ElectricalFixtures, "Electrical Fixture" },
+            { BuiltInCategory.OST_LightingFixtures, "Lighting Fixture" },
+            { BuiltInCategory.OST_LightingDevices, "Lighting Device" },
+            { BuiltInCategory.OST_Conduit, "Conduit" },
+            { BuiltInCategory.OST_ConduitFitting, "Conduit Fitting" },
+            { BuiltInCategory.OST_CableTray, "Cable Tray" },
+            { BuiltInCategory.OST_CableTrayFitting, "Cable Tray Fitting" },
+            // Comms / LV
+            { BuiltInCategory.OST_CommunicationDevices, "Communication Device" },
+            { BuiltInCategory.OST_DataDevices, "Data Device" },
+            { BuiltInCategory.OST_NurseCallDevices, "Nurse Call Device" },
+            { BuiltInCategory.OST_SecurityDevices, "Security Device" },
+            // Generic / Sheets
+            { BuiltInCategory.OST_GenericModel, "Generic Model" },
+            { BuiltInCategory.OST_Sheets, "Sheet Document" },
         };
 
         /// <summary>Total tag family count including standard categories + all variant arrays.</summary>
@@ -439,12 +591,13 @@ namespace StingTools.Tags
             DisciplineSheetFamilies.Length +
             StructuralVariantFamilies.Length +
             MepVariantFamilies.Length +
-            VirtualCategoryFamilies.Length;
+            HealthcareVariantFamilies.Length;
 
         /// <summary>
         /// Asserts that every key in <c>LABEL_DEFINITIONS.json</c> <c>category_labels</c>
         /// is covered by a family this class produces, and vice versa. Returns
         /// (missingFromCreator, extraInCreator) lists. Both empty == aligned.
+        /// Phase 187 drift-check method; called at startup by StingToolsApp.OnStartup.
         /// </summary>
         public static (List<string> missingFromCreator, List<string> extraInCreator) AuditAgainstLabelDefinitions(string dataDir)
         {
@@ -455,11 +608,11 @@ namespace StingTools.Tags
             var creatorNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
             foreach (var kv in CategoryTemplateMap)
                 creatorNames.Add(GetFamilyName(kv.Key).Replace($"{FamilyPrefix} - ", "").Replace(" Tag", ""));
-            foreach (var v in TieInPointFamilies)        creatorNames.Add(v.suffix);
-            foreach (var v in DisciplineSheetFamilies)   creatorNames.Add(v.suffix);
-            foreach (var v in StructuralVariantFamilies) creatorNames.Add(v.suffix);
-            foreach (var v in MepVariantFamilies)        creatorNames.Add(v.suffix);
-            foreach (var v in VirtualCategoryFamilies)   creatorNames.Add(v.suffix);
+            foreach (var v in TieInPointFamilies)          creatorNames.Add(v.suffix);
+            foreach (var v in DisciplineSheetFamilies)     creatorNames.Add(v.suffix);
+            foreach (var v in StructuralVariantFamilies)   creatorNames.Add(v.suffix);
+            foreach (var v in MepVariantFamilies)          creatorNames.Add(v.suffix);
+            foreach (var v in HealthcareVariantFamilies)   creatorNames.Add(v.suffix);
 
             HashSet<string> labelKeys;
             try
@@ -482,11 +635,92 @@ namespace StingTools.Tags
             return (missing, extra);
         }
 
-        /// <summary>Generate tie-in family name from suffix.</summary>
-        public static string GetTieInFamilyName(string suffix) => $"{FamilyPrefix} - {suffix} Tag";
+        /// <summary>
+        /// Generate the variant family name for a suffix. When the suffix
+        /// appears in <see cref="VariantSuffixToCsvName"/>, the CSV-aligned
+        /// full name wins so tier-plan lookups by family name hit. Otherwise
+        /// falls back to the generic "{prefix} - {suffix} Tag" form.
+        /// </summary>
+        public static string GetTieInFamilyName(string suffix)
+        {
+            if (!string.IsNullOrEmpty(suffix)
+                && VariantSuffixToCsvName.TryGetValue(suffix, out string csvName)
+                && !string.IsNullOrEmpty(csvName))
+            {
+                return csvName;
+            }
+            return $"{FamilyPrefix} - {suffix} Tag";
+        }
 
-        /// <summary>Generate tie-in family filename from suffix.</summary>
+        /// <summary>Generate variant family filename from suffix.</summary>
         public static string GetTieInFamilyFileName(string suffix) => GetTieInFamilyName(suffix) + ".rfa";
+
+        /// <summary>
+        /// Resolve a creator-side family name to the CSV-side family name used
+        /// in <c>plansByFamily</c>. Yields candidates in priority order:
+        ///   1. Exact match → as-is (no alias needed).
+        ///   2. Strip parenthetical disambiguator before " Tag":
+        ///      "STING - Anti-Ligature (Door) Tag" → "STING - Anti-Ligature Tag".
+        ///      Used by healthcare variants where one CSV name binds multiple
+        ///      BICs and the creator emits per-BIC files.
+        ///   3. Plural → singular fallback: "STING - Doors Tag" → "STING - Door Tag".
+        ///      The CSV ships singular forms while Revit's category display is
+        ///      plural, so this rule rescues every basic category whose
+        ///      <see cref="CategoryCsvFamilyKey"/> override happens to be missing.
+        /// </summary>
+        public static IEnumerable<string> CsvFamilyNameCandidates(string familyName)
+        {
+            if (string.IsNullOrEmpty(familyName)) yield break;
+            yield return familyName;
+
+            const string suffix = " Tag";
+            if (!familyName.EndsWith(suffix, StringComparison.Ordinal)) yield break;
+            string stem = familyName.Substring(0, familyName.Length - suffix.Length);
+
+            // Strip trailing "(...)" disambiguator: "Anti-Ligature (Door)" → "Anti-Ligature"
+            if (stem.EndsWith(")", StringComparison.Ordinal))
+            {
+                int openParen = stem.LastIndexOf('(');
+                if (openParen > 0)
+                {
+                    string trimmed = stem.Substring(0, openParen).TrimEnd();
+                    if (!string.IsNullOrEmpty(trimmed))
+                        yield return trimmed + suffix;
+                }
+            }
+
+            // Plural → singular: drop final 's' before " Tag"
+            if (stem.Length > 0 && stem[stem.Length - 1] == 's')
+            {
+                yield return stem.Substring(0, stem.Length - 1) + suffix;
+            }
+        }
+
+        /// <summary>
+        /// Alias-aware <c>plansByFamily</c> lookup: tries the exact name first,
+        /// then plural→singular fallback. Returns the matching plan or null.
+        /// </summary>
+        public static TierPlan TryGetTierPlan(Dictionary<string, TierPlan> plansByFamily, string familyName)
+        {
+            if (plansByFamily == null || string.IsNullOrEmpty(familyName)) return null;
+            foreach (var candidate in CsvFamilyNameCandidates(familyName))
+            {
+                if (plansByFamily.TryGetValue(candidate, out TierPlan plan) && plan != null)
+                    return plan;
+            }
+            return null;
+        }
+
+        /// <summary>Alias-aware <c>plansByFamily</c> ContainsKey check.</summary>
+        public static bool ContainsPlanForFamily(Dictionary<string, TierPlan> plansByFamily, string familyName)
+        {
+            if (plansByFamily == null || string.IsNullOrEmpty(familyName)) return false;
+            foreach (var candidate in CsvFamilyNameCandidates(familyName))
+            {
+                if (plansByFamily.ContainsKey(candidate)) return true;
+            }
+            return false;
+        }
 
         /// <summary>
         /// STING shared parameters to add to each tag family.
@@ -613,11 +847,23 @@ namespace StingTools.Tags
             return result;
         }
 
-        /// <summary>Generate the STING family name for a category.</summary>
+        /// <summary>
+        /// Generate the STING family name for a category. Prefers the
+        /// CSV-aligned singular form from <see cref="CategoryCsvFamilyKey"/>
+        /// when one is defined so the family name matches what the v5 tag
+        /// configuration CSVs declare ("STING - Door Tag", not
+        /// "STING - Doors Tag"). Falls back to <see cref="CategoryDisplayName"/>
+        /// then to the raw enum stem.
+        /// </summary>
         public static string GetFamilyName(BuiltInCategory bic)
         {
-            string catName = CategoryDisplayName.TryGetValue(bic, out string name)
-                ? name : bic.ToString().Replace("OST_", "");
+            string catName;
+            if (CategoryCsvFamilyKey.TryGetValue(bic, out string csvKey) && !string.IsNullOrEmpty(csvKey))
+                catName = csvKey;
+            else if (CategoryDisplayName.TryGetValue(bic, out string displayName))
+                catName = displayName;
+            else
+                catName = bic.ToString().Replace("OST_", "");
             return $"{FamilyPrefix} - {catName} Tag";
         }
 
@@ -859,12 +1105,15 @@ namespace StingTools.Tags
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  Create Tag Families — create all 149 tag families from templates
+    //  Create Tag Families — create all tag families from templates
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Creates STING tag families (.rfa) for all 149 taggable categories (121 base + 8 tie-in point + 3 discipline sheet + 4 structural variant + 7 MEP variant + 6 virtual category).
-    /// Source of truth: <c>Data/LABEL_DEFINITIONS.json</c> <c>category_labels</c> — verified at startup by <c>TagFamilyConfig.AuditAgainstLabelDefinitions</c>.
+    /// Creates STING tag families (.rfa) for every taggable category declared
+    /// in the v5 tag configuration CSVs (count is
+    /// <see cref="TagFamilyConfig.TotalFamilyCount"/>: 121 base + 8 tie-in
+    /// point + 3 discipline sheet + 4 structural variant + N MEP variant +
+    /// N healthcare variant).
     /// Each family is created from the appropriate Revit annotation template,
     /// configured with STING shared parameters, saved, and loaded into the project.
     ///
@@ -995,10 +1244,10 @@ namespace StingTools.Tags
                 if (loadedFamilies.Contains(famName))
                     alreadyLoaded++;
             }
-            // Also count virtual category families
-            foreach (var vc in TagFamilyConfig.VirtualCategoryFamilies)
+            // Also count healthcare variant families
+            foreach (var hv in TagFamilyConfig.HealthcareVariantFamilies)
             {
-                string famName = TagFamilyConfig.GetTieInFamilyName(vc.suffix);
+                string famName = TagFamilyConfig.GetTieInFamilyName(hv.suffix);
                 if (loadedFamilies.Contains(famName))
                     alreadyLoaded++;
             }
@@ -1044,9 +1293,9 @@ namespace StingTools.Tags
                 if (File.Exists(Path.Combine(outputDirEarly, TagFamilyConfig.GetTieInFamilyFileName(mv.suffix))))
                     onDisk++;
             }
-            foreach (var vc in TagFamilyConfig.VirtualCategoryFamilies)
+            foreach (var hv in TagFamilyConfig.HealthcareVariantFamilies)
             {
-                if (File.Exists(Path.Combine(outputDirEarly, TagFamilyConfig.GetTieInFamilyFileName(vc.suffix))))
+                if (File.Exists(Path.Combine(outputDirEarly, TagFamilyConfig.GetTieInFamilyFileName(hv.suffix))))
                     onDisk++;
             }
 
@@ -1056,15 +1305,28 @@ namespace StingTools.Tags
             foreach (var bic in categories)
             {
                 string fn = TagFamilyConfig.GetFamilyName(bic);
-                if (plansByFamily.ContainsKey(fn)) familiesWithPlan++;
+                if (TagFamilyConfig.ContainsPlanForFamily(plansByFamily, fn)) familiesWithPlan++;
             }
+            // Coverage warning: <50% of base categories have CSV plans usually
+            // indicates a naming-convention drift between creator and CSVs
+            // (e.g. plural/singular, suffix format). Surface it loudly so
+            // silent default-tier authoring doesn't ship as-if normal.
+            int coveragePct = categories.Count == 0 ? 100 : (int)Math.Round(familiesWithPlan * 100.0 / categories.Count);
+            string coverageBanner = coveragePct < 50
+                ? $"⚠ WARNING: only {coveragePct}% of base categories matched a CSV plan.\n" +
+                  "  Most families will be authored with DEFAULT visibility params\n" +
+                  "  instead of per-family T4-T10 rows. Likely cause: CSV family\n" +
+                  "  name drift (plural/singular, suffix format). Check CategoryCsvFamilyKey\n" +
+                  "  and VariantSuffixToCsvName in TagFamilyConfig.cs.\n\n"
+                : string.Empty;
             confirm.MainContent =
+                coverageBanner +
                 $"Total taggable categories: {total}\n" +
                 $"Already loaded in project: {alreadyLoaded}\n" +
                 $"Already built on disk: {onDisk}\n" +
                 $"To create: {toCreate}\n\n" +
                 $"Mode: {activeMode}  •  Preserve hand-edits: {(preserveHandEdits ? "on" : "off")}\n" +
-                $"Families with a CSV plan: {familiesWithPlan} (of {categories.Count} primary categories)\n\n" +
+                $"Families with a CSV plan: {familiesWithPlan} (of {categories.Count} primary categories, {coveragePct}%)\n\n" +
                 $"Templates: {templateDir}\n" +
                 $"Tag .rft files found: {tagRftCount} of {availableRft.Length} total\n" +
                 $"Output: {TagFamilyConfig.GetOutputDirectory()}\n\n" +
@@ -1683,61 +1945,63 @@ namespace StingTools.Tags
                 }
             }
 
-            // ── Step 5f: Create virtual category tag families (LABEL_DEFINITIONS-only) ──
+            // ── Step 5f: Create healthcare variant tag families ──
             report.AppendLine();
-            report.AppendLine("── Virtual Category Families ──");
-            foreach (var vc in TagFamilyConfig.VirtualCategoryFamilies)
+            report.AppendLine("── Healthcare Variant Families ──");
+            foreach (var hv in TagFamilyConfig.HealthcareVariantFamilies)
             {
-                string famName = TagFamilyConfig.GetTieInFamilyName(vc.suffix);
-                string fileName = TagFamilyConfig.GetTieInFamilyFileName(vc.suffix);
+                string famName = TagFamilyConfig.GetTieInFamilyName(hv.suffix);
+                string fileName = TagFamilyConfig.GetTieInFamilyFileName(hv.suffix);
 
                 if (loadedFamilies.Contains(famName))
                 {
-                    report.AppendLine($"  [SKIP] {vc.display} — already loaded");
+                    report.AppendLine($"  [SKIP] {hv.display} — already loaded");
                     continue;
                 }
 
+                // Check for existing .rfa on disk
                 string existingRfa = Path.Combine(outputDir, fileName);
                 if (File.Exists(existingRfa))
                 {
                     if (skipExistingOnDisk)
                     {
-                        report.AppendLine($"  [SKIP] {vc.display} — .rfa exists on disk, skipped (incremental run)");
+                        report.AppendLine($"  [SKIP] {hv.display} — .rfa exists on disk, skipped (incremental run)");
                         continue;
                     }
                     try
                     {
-                        using (Transaction t = new Transaction(doc, "STING Load Virtual Category Tag"))
+                        using (Transaction t = new Transaction(doc, "STING Load Healthcare Tag"))
                         {
                             t.Start();
                             doc.LoadFamily(existingRfa);
                             t.Commit();
                         }
                         loaded++;
-                        report.AppendLine($"  [LOAD] {vc.display} — loaded from existing .rfa");
+                        report.AppendLine($"  [LOAD] {hv.display} — loaded from existing .rfa");
                         continue;
                     }
                     catch (Exception ex)
                     {
-                        report.AppendLine($"  [WARN] {vc.display} — existing .rfa failed to load: {ex.Message}");
+                        report.AppendLine($"  [FAIL] {hv.display} — load failed: {ex.Message}");
                     }
                 }
 
+                // Find template and create family
                 string tpl = null;
-                foreach (string templateDir in templateDirs)
+                foreach (string dir in new[] { templateDir })
                 {
-                    string candidate = Path.Combine(templateDir, vc.template);
-                    if (File.Exists(candidate)) { tpl = candidate; break; }
-                    string metric = Path.Combine(templateDir, "Metric " + vc.template);
+                    string specific = Path.Combine(dir, hv.template);
+                    if (File.Exists(specific)) { tpl = specific; break; }
+                    string metric = Path.Combine(dir, "Metric " + hv.template);
                     if (File.Exists(metric)) { tpl = metric; break; }
                 }
                 if (string.IsNullOrEmpty(tpl))
                 {
-                    string generic = Path.Combine(templateDirs.FirstOrDefault() ?? "", "Generic Tag.rft");
+                    string generic = Path.Combine(templateDir, "Generic Tag.rft");
                     if (File.Exists(generic)) tpl = generic;
                     else
                     {
-                        string metricGeneric = Path.Combine(templateDirs.FirstOrDefault() ?? "", "Metric Generic Tag.rft");
+                        string metricGeneric = Path.Combine(templateDir, "Metric Generic Tag.rft");
                         if (File.Exists(metricGeneric)) tpl = metricGeneric;
                     }
                 }
@@ -1745,7 +2009,7 @@ namespace StingTools.Tags
                 if (string.IsNullOrEmpty(tpl))
                 {
                     templateMissing++;
-                    report.AppendLine($"  [MISS] {vc.display} — no template found");
+                    report.AppendLine($"  [MISS] {hv.display} — no template found");
                     continue;
                 }
 
@@ -1755,14 +2019,15 @@ namespace StingTools.Tags
                     if (famDoc == null)
                     {
                         failed++;
-                        report.AppendLine($"  [FAIL] {vc.display} — NewFamilyDocument returned null");
+                        report.AppendLine($"  [FAIL] {hv.display} — NewFamilyDocument returned null");
                         continue;
                     }
 
-                    var vcParams = TagFamilyConfig.TagParams
-                        .Concat(TagFamilyConfig.VisibilityParamsFor(famName, vc.display))
+                    // Add shared parameters using resilient helper (isolates OpenSharedParameterFile errors)
+                    var hvParams = TagFamilyConfig.TagParams
+                        .Concat(TagFamilyConfig.VisibilityParamsFor(famName, hv.display))
                         .Append("ASS_DESCRIPTION_TXT").ToList();
-                    bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, vcParams);
+                    bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, hvParams);
 
                     AuthorFromPlanIfAvailable(famDoc, famName, plansByMode, plansByFamily,
                         app, sharedParamFile, preserveHandEdits, report);
@@ -1773,7 +2038,7 @@ namespace StingTools.Tags
                     famDoc.Close(false);
                     created++;
 
-                    using (Transaction t = new Transaction(doc, "STING Load Virtual Category Tag"))
+                    using (Transaction t = new Transaction(doc, "STING Load Healthcare Tag"))
                     {
                         t.Start();
                         doc.LoadFamily(savePath);
@@ -1781,14 +2046,14 @@ namespace StingTools.Tags
                     }
                     loaded++;
                     string paramStatus = paramsAdded ? "with params" : "no params";
-                    report.AppendLine($"  [OK]   {vc.display} — created and loaded ({paramStatus})");
+                    report.AppendLine($"  [OK]   {hv.display} — created and loaded ({paramStatus})");
                 }
                 catch (Exception ex)
                 {
                     failed++;
-                    failures.Add($"{vc.display}: {ex.Message}");
-                    report.AppendLine($"  [FAIL] {vc.display} — {ex.Message}");
-                    StingLog.Error($"Virtual category tag family creation failed for {vc.display}", ex);
+                    failures.Add($"{hv.display}: {ex.Message}");
+                    report.AppendLine($"  [FAIL] {hv.display} — {ex.Message}");
+                    StingLog.Error($"Healthcare variant tag family creation failed for {hv.display}", ex);
                 }
             }
 
@@ -1853,7 +2118,8 @@ namespace StingTools.Tags
                 foreach (var kv in plansByMode)
                 {
                     if (kv.Value == null) continue;
-                    if (!kv.Value.TryGetValue(famName, out TierPlan plan) || plan == null) continue;
+                    TierPlan plan = TagFamilyConfig.TryGetTierPlan(kv.Value, famName);
+                    if (plan == null) continue;
                     modePlans.Add(new FamilyLabelAuthor.ModePlan
                     {
                         Mode = kv.Key,
@@ -1865,8 +2131,8 @@ namespace StingTools.Tags
 
             if (modePlans.Count == 0)
             {
-                if (plansByFamily == null) return;
-                if (!plansByFamily.TryGetValue(famName, out TierPlan plan) || plan == null) return;
+                TierPlan plan = TagFamilyConfig.TryGetTierPlan(plansByFamily, famName);
+                if (plan == null) return;
                 modePlans.Add(new FamilyLabelAuthor.ModePlan
                 {
                     Mode = "", GateParam = null, Plan = plan,

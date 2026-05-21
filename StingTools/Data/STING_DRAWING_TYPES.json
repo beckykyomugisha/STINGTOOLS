@@ -1537,14 +1537,14 @@
       }
     },
     {
-      "id": "elec-riser-A2-1to100",
-      "name": "Electrical Riser — A2 @ 1:100",
+      "id": "elec-riser-A3-1to200",
+      "name": "Electrical Riser — A3 @ 1:200",
       "origin": "corporate",
       "purpose": "Section",
       "discipline": "E",
-      "paperSize": "A2",
-      "titleBlockFamily": "STING_TB_SHEET_A2",
-      "scale": 100,
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "scale": 200,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Electrical Riser",
       "sheetNumberPattern": "E-RIS-{seq:D3}",
@@ -1629,7 +1629,7 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "description": "Electrical section on A2 at 1:100.",
+      "description": "Electrical section on A3 at 1:200.",
       "orientation": "Landscape",
       "viewportTypeName": "STING - Standard Viewport",
       "sectionMarker": {
@@ -1653,13 +1653,13 @@
       }
     },
     {
-      "id": "door-schedule-A2",
-      "name": "Door Schedule — A2",
+      "id": "door-schedule-A3",
+      "name": "Door Schedule — A3",
       "origin": "corporate",
       "purpose": "Schedule",
       "discipline": "A",
-      "paperSize": "A2",
-      "titleBlockFamily": "STING_TB_SHEET_A2",
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
       "scale": 100,
       "sheetNumberPattern": "A-SCH-DR-{seq:D2}",
       "sheetNamePattern": "DOOR SCHEDULE",
@@ -1680,7 +1680,7 @@
       "annotation": {
         "rules": []
       },
-      "description": "Architectural schedule on A2 at 1:100.",
+      "description": "Architectural schedule on A3 at 1:100.",
       "orientation": "Portrait",
       "viewportTypeName": "STING - Standard Viewport",
       "viewTemplateName": "STING - Architectural Schedule",
@@ -1797,13 +1797,13 @@
       }
     },
     {
-      "id": "legend-A2",
-      "name": "Legend Sheet — A2",
+      "id": "legend-A3",
+      "name": "Legend Sheet — A3",
       "origin": "corporate",
       "purpose": "Legend",
       "discipline": "*",
-      "paperSize": "A2",
-      "titleBlockFamily": "STING_TB_SHEET_A2",
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
       "scale": 100,
       "sheetNumberPattern": "LG-{seq:D2}",
       "sheetNamePattern": "LEGENDS & NOTES",
@@ -1824,7 +1824,7 @@
       "annotation": {
         "rules": []
       },
-      "description": "Multi-Discipline legend on A2 at 1:100.",
+      "description": "Multi-Discipline legend on A3 at 1:100.",
       "orientation": "Landscape",
       "viewportTypeName": "STING - Standard Viewport",
       "viewTemplateName": "STING - Multi-Discipline Legend",
@@ -2501,13 +2501,13 @@
       }
     },
     {
-      "id": "arch-window-schedule-A2",
-      "name": "Window Schedule — A2",
+      "id": "arch-window-schedule-A3",
+      "name": "Window Schedule — A3",
       "origin": "corporate",
       "purpose": "Schedule",
       "discipline": "A",
-      "paperSize": "A2",
-      "titleBlockFamily": "STING_TB_SHEET_A2",
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
       "scale": 100,
       "sheetNumberPattern": "A-SCH-WN-{seq:D2}",
       "sheetNamePattern": "WINDOW SCHEDULE",
@@ -2528,7 +2528,7 @@
       "annotation": {
         "rules": []
       },
-      "description": "Architectural schedule on A2 at 1:100.",
+      "description": "Architectural schedule on A3 at 1:100.",
       "orientation": "Portrait",
       "viewportTypeName": "STING - Standard Viewport",
       "viewTemplateName": "STING - Architectural Schedule",
@@ -3770,7 +3770,7 @@
       "isoNaming": {
         "volume": "01",
         "type": "VS",
-        "role": "A",
+        "role": "Z",
         "suitability": "S1",
         "revision": "P01"
       },
@@ -6404,15 +6404,15 @@
       "phase": "*"
     },
     {
-      "id": "health-rds-A2",
-      "name": "Healthcare — Room Data Sheet (A2)",
+      "id": "health-rds-A3",
+      "name": "Healthcare — Room Data Sheet (A3)",
       "origin": "corporate",
       "purpose": "Schedule",
       "discipline": "H",
       "phase": "*",
-      "paperSize": "A2",
+      "paperSize": "A3",
       "orientation": "Portrait",
-      "titleBlockFamily": "STING - Healthcare Title Block A2",
+      "titleBlockFamily": "STING - Healthcare Title Block A3",
       "scale": "NA",
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Healthcare Schedule",
@@ -6456,14 +6456,20 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
       "_description": "One per clinical room: plan, elev, equipment list, services, finishes, sign-off",
-      "description": "Healthcare schedule on A2 at NA."
+      "description": "Healthcare schedule on A3 at NA."
     },
     {
       "id": "health-eqp-pln-A1-1to50",
@@ -6518,7 +6524,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -6580,7 +6592,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "M",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -6642,7 +6660,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "MG",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -6704,7 +6728,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "MG",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -6766,7 +6796,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -6828,7 +6864,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -6890,7 +6932,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -6952,7 +7000,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -6962,16 +7016,16 @@
       "description": "Healthcare plan on A1 at 1:50."
     },
     {
-      "id": "health-mortuary-pln-A2-1to50",
-      "name": "Healthcare — Mortuary Plan (A2 1:50)",
+      "id": "health-mortuary-pln-A3-1to100",
+      "name": "Healthcare — Mortuary Plan (A3 1:100)",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
-      "paperSize": "A2",
+      "paperSize": "A3",
       "orientation": "Landscape",
-      "titleBlockFamily": "STING - Healthcare Title Block A2",
-      "scale": 50,
+      "titleBlockFamily": "STING - Healthcare Title Block A3",
+      "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Healthcare Plan",
       "viewportTypeName": "STING Viewport",
@@ -7014,14 +7068,20 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
       "_description": "Mortuary / post-mortem suite per HBN 16",
-      "description": "Healthcare plan on A2 at 1:50."
+      "description": "Healthcare plan on A3 at 1:100."
     },
     {
       "id": "health-fire-comp-A1-1to100",
@@ -7076,7 +7136,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7138,7 +7204,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "RP",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7200,7 +7272,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "RP",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7262,7 +7340,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7272,16 +7356,16 @@
       "description": "Healthcare plan on A1 at 1:50."
     },
     {
-      "id": "health-bedhead-elev-A2-1to20",
-      "name": "Healthcare — Bedhead Elevations (A2 1:20)",
+      "id": "health-bedhead-elev-A3-1to50",
+      "name": "Healthcare — Bedhead Elevations (A3 1:50)",
       "origin": "corporate",
       "purpose": "Elevation",
       "discipline": "H",
       "phase": "*",
-      "paperSize": "A2",
+      "paperSize": "A3",
       "orientation": "Landscape",
-      "titleBlockFamily": "STING - Healthcare Title Block A2",
-      "scale": 20,
+      "titleBlockFamily": "STING - Healthcare Title Block A3",
+      "scale": 50,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Healthcare Elevation",
       "viewportTypeName": "STING Viewport",
@@ -7324,14 +7408,20 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
       "_description": "Bedhead trunking elevations with services schedule",
-      "description": "Healthcare elevation on A2 at 1:20.",
+      "description": "Healthcare elevation on A3 at 1:50.",
       "sectionMarker": {
         "family": "STING_ELEV_MARK",
         "markPrefix": "E",
@@ -7340,16 +7430,16 @@
       }
     },
     {
-      "id": "health-or-ceiling-A2-1to20",
-      "name": "Healthcare — OR Ceiling RCP (A2 1:20)",
+      "id": "health-or-ceiling-A3-1to50",
+      "name": "Healthcare — OR Ceiling RCP (A3 1:50)",
       "origin": "corporate",
       "purpose": "RCP",
       "discipline": "H",
       "phase": "*",
-      "paperSize": "A2",
+      "paperSize": "A3",
       "orientation": "Landscape",
-      "titleBlockFamily": "STING - Healthcare Title Block A2",
-      "scale": 20,
+      "titleBlockFamily": "STING - Healthcare Title Block A3",
+      "scale": 50,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Healthcare Reflected Ceiling Plan",
       "viewportTypeName": "STING Viewport",
@@ -7392,14 +7482,20 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
       "_description": "Pendant/boom/light/laminar canopy reflected ceiling",
-      "description": "Healthcare rcp on A2 at 1:20."
+      "description": "Healthcare rcp on A3 at 1:50."
     },
     {
       "id": "health-water-safety-A1-1to100",
@@ -7454,7 +7550,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "P",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7516,7 +7618,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7578,7 +7686,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "S",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7640,7 +7754,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7702,7 +7822,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "H",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -7764,7 +7890,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "isoNaming": true,
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "RP",
+        "suitability": "S2",
+        "revision": "P01"
+      },
       "print": {
         "colourScheme": "BlackAndWhite",
         "lineWeightScale": 1.0,
@@ -8143,14 +8275,14 @@
       "phase": "*"
     },
     {
-      "id": "plumb-vent-riser-A2-NTS",
-      "name": "Drainage Vent Riser — A2 NTS",
+      "id": "plumb-vent-riser-A3-NTS",
+      "name": "Drainage Vent Riser — A3 NTS",
       "origin": "corporate",
       "purpose": "Schematic",
       "discipline": "P",
-      "paperSize": "A2",
+      "paperSize": "A3",
       "orientation": "Portrait",
-      "titleBlockFamily": "STING_TB_SHEET_A2",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
       "scale": 1,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Plumbing Schematic",
@@ -8192,7 +8324,7 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
-      "description": "Plumbing schematic on A2 at 1:1.",
+      "description": "Plumbing schematic on A3 at 1:1.",
       "viewportTypeName": "STING - Standard Viewport",
       "isoNaming": {
         "volume": "01",
@@ -8204,14 +8336,14 @@
       "phase": "*"
     },
     {
-      "id": "plumb-pressure-schedule-A2",
-      "name": "Pressure Zone / PRV Schedule — A2",
+      "id": "plumb-pressure-schedule-A3",
+      "name": "Pressure Zone / PRV Schedule — A3",
       "origin": "corporate",
       "purpose": "Schedule",
       "discipline": "P",
-      "paperSize": "A2",
+      "paperSize": "A3",
       "orientation": "Portrait",
-      "titleBlockFamily": "STING_TB_SHEET_A2",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
       "scale": 1,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Plumbing Schedule",
@@ -8240,7 +8372,7 @@
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
-      "description": "Plumbing schedule on A2 at 1:1.",
+      "description": "Plumbing schedule on A3 at 1:1.",
       "viewportTypeName": "STING - Standard Viewport",
       "isoNaming": {
         "volume": "01",
@@ -8330,7 +8462,7 @@
       "id": "plumb-drainage-schematic-A1",
       "name": "Plumbing — Drainage Schematic Riser",
       "purpose": "Schedule",
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "paperSize": "A1",
       "titleBlockFamily": "STING - A1 Title Block",
@@ -8450,7 +8582,7 @@
   ],
   "routing": [
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "SPOOL",
       "drawingTypeId": "pipe-spool-A1-1to50"
@@ -8495,7 +8627,7 @@
       "discipline": "A",
       "phase": "*",
       "docType": "SCHEDULE",
-      "drawingTypeId": "door-schedule-A2"
+      "drawingTypeId": "door-schedule-A3"
     },
     {
       "discipline": "S",
@@ -8525,19 +8657,19 @@
       "discipline": "E",
       "phase": "*",
       "docType": "PLAN",
-      "drawingTypeId": "elec-riser-A2-1to100"
+      "drawingTypeId": "elec-riser-A3-1to200"
     },
     {
       "discipline": "E",
       "phase": "*",
       "docType": "RISER",
-      "drawingTypeId": "elec-riser-A2-1to100"
+      "drawingTypeId": "elec-riser-A3-1to200"
     },
     {
       "discipline": "*",
       "phase": "*",
       "docType": "LEGEND",
-      "drawingTypeId": "legend-A2"
+      "drawingTypeId": "legend-A3"
     },
     {
       "discipline": "*",
@@ -8585,7 +8717,7 @@
       "discipline": "A",
       "phase": "*",
       "docType": "WIN_SCHEDULE",
-      "drawingTypeId": "arch-window-schedule-A2"
+      "drawingTypeId": "arch-window-schedule-A3"
     },
     {
       "discipline": "S",
@@ -8636,13 +8768,13 @@
       "drawingTypeId": "elec-fire-alarm-A1-1to100"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "DRAINAGE",
       "drawingTypeId": "plumb-drainage-A1-1to100"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "PLAN",
       "drawingTypeId": "plumb-drainage-A1-1to100"
@@ -8728,7 +8860,7 @@
     {
       "disciplineMatches": "^H$",
       "docTypeMatches": "^RDS$",
-      "drawingTypeId": "health-rds-A2"
+      "drawingTypeId": "health-rds-A3"
     },
     {
       "disciplineMatches": "^H$",
@@ -8773,7 +8905,7 @@
     {
       "disciplineMatches": "^H$",
       "docTypeMatches": "^MORTUARY$",
-      "drawingTypeId": "health-mortuary-pln-A2-1to50"
+      "drawingTypeId": "health-mortuary-pln-A3-1to100"
     },
     {
       "disciplineMatches": "^A$",
@@ -8798,12 +8930,12 @@
     {
       "disciplineMatches": "^H$",
       "docTypeMatches": "^BEDHEAD-ELEV$",
-      "drawingTypeId": "health-bedhead-elev-A2-1to20"
+      "drawingTypeId": "health-bedhead-elev-A3-1to50"
     },
     {
       "disciplineMatches": "^H$",
       "docTypeMatches": "^OR-RCP$",
-      "drawingTypeId": "health-or-ceiling-A2-1to20"
+      "drawingTypeId": "health-or-ceiling-A3-1to50"
     },
     {
       "disciplineMatches": "^P$",
@@ -8839,7 +8971,7 @@
       "discipline": "H",
       "phase": "*",
       "docType": "RDS",
-      "drawingTypeId": "health-rds-A2"
+      "drawingTypeId": "health-rds-A3"
     },
     {
       "discipline": "H",
@@ -8893,7 +9025,7 @@
       "discipline": "H",
       "phase": "*",
       "docType": "MORTUARY",
-      "drawingTypeId": "health-mortuary-pln-A2-1to50"
+      "drawingTypeId": "health-mortuary-pln-A3-1to100"
     },
     {
       "discipline": "A",
@@ -8923,16 +9055,16 @@
       "discipline": "H",
       "phase": "*",
       "docType": "BEDHEAD",
-      "drawingTypeId": "health-bedhead-elev-A2-1to20"
+      "drawingTypeId": "health-bedhead-elev-A3-1to50"
     },
     {
       "discipline": "H",
       "phase": "*",
       "docType": "OR_CEILING",
-      "drawingTypeId": "health-or-ceiling-A2-1to20"
+      "drawingTypeId": "health-or-ceiling-A3-1to50"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "WATER_SAFETY",
       "drawingTypeId": "health-water-safety-A1-1to100"
@@ -8968,61 +9100,61 @@
       "drawingTypeId": "health-nuclear-medicine-A1"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "DCW_SCHEMATIC",
       "drawingTypeId": "plumb-dcw-schematic-A1-NTS"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "DHW_SCHEMATIC",
       "drawingTypeId": "plumb-dhw-schematic-A1-NTS"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "LTHW_SCHEMATIC",
       "drawingTypeId": "plumb-lthw-schematic-A1-NTS"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "AG_DRAINAGE",
       "drawingTypeId": "plumb-ag-drainage-A1-1to100"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "RWD_LAYOUT",
       "drawingTypeId": "plumb-rwd-layout-A1-1to100"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "SUDS",
       "drawingTypeId": "plumb-suds-A1-1to500"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "VENT_RISER",
-      "drawingTypeId": "plumb-vent-riser-A2-NTS"
+      "drawingTypeId": "plumb-vent-riser-A3-NTS"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "PRESSURE_SCHEDULE",
-      "drawingTypeId": "plumb-pressure-schedule-A2"
+      "drawingTypeId": "plumb-pressure-schedule-A3"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "WATER_TREATMENT",
       "drawingTypeId": "plumb-water-treatment-A1-1to50"
     },
     {
-      "discipline": "Plumbing",
+      "discipline": "P",
       "phase": "*",
       "docType": "DRAINAGE_SCHEMATIC",
       "drawingTypeId": "plumb-drainage-schematic-A1"

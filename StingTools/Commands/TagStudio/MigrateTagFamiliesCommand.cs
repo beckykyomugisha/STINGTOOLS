@@ -288,7 +288,8 @@ namespace StingTools.Commands.TagStudio
                     foreach (var kv in plansByMode)
                     {
                         if (kv.Value == null) continue;
-                        if (!kv.Value.TryGetValue(fam.Name, out TierPlan plan) || plan == null) continue;
+                        TierPlan plan = TagFamilyConfig.TryGetTierPlan(kv.Value, fam.Name);
+                        if (plan == null) continue;
                         modePlans.Add(new FamilyLabelAuthor.ModePlan
                         {
                             Mode = kv.Key,
@@ -297,10 +298,11 @@ namespace StingTools.Commands.TagStudio
                         });
                     }
                 }
-                if (modePlans.Count == 0 && plansByFamily != null &&
-                    plansByFamily.TryGetValue(fam.Name, out TierPlan single) && single != null)
+                if (modePlans.Count == 0)
                 {
-                    modePlans.Add(new FamilyLabelAuthor.ModePlan { Mode = "", GateParam = null, Plan = single });
+                    TierPlan single = TagFamilyConfig.TryGetTierPlan(plansByFamily, fam.Name);
+                    if (single != null)
+                        modePlans.Add(new FamilyLabelAuthor.ModePlan { Mode = "", GateParam = null, Plan = single });
                 }
 
                 if (modePlans.Count > 0)
