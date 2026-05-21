@@ -1265,6 +1265,8 @@ namespace StingTools.UI
                     case "MAT_EditRules":      MatActions.EditRules(app); break;
                     case "MAT_LoadPack":       MatActions.LoadMaterialPack(app); break;
                     case "MAT_FamilyAudit":    MatActions.FamilyFolderAudit(app); break;
+                    case "MAT_DetachAsset":    MatActions.DetachAsset(app, p1); break;
+                    case "MAT_RepointAsset":   MatActions.RepointAsset(app, p1); break;
                     case "MAT_ToggleAutoApply":MatActions.ToggleAutoApply(app); break;
                     case "MAT_ToggleAutoFill": MatActions.ToggleAutoFill(app); break;
 

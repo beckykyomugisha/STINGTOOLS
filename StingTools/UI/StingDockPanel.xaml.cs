@@ -2730,5 +2730,20 @@ namespace StingTools.UI
         }
 
         internal Autodesk.Revit.DB.ElementId GetLayerHostId() => _layerHostId;
+
+        // ── Assets sub-tab — return the picked Asset kind (Appearance /
+        // Physical / Thermal) so MatActions.DetachAsset / RepointAsset
+        // know which slot to act on. ─────────────────────────────────────
+        internal string GetSelectedAssetKind()
+        {
+            try
+            {
+                if (dgAssets?.SelectedItem == null) return null;
+                var t = dgAssets.SelectedItem.GetType();
+                var prop = t.GetProperty("Kind");
+                return prop?.GetValue(dgAssets.SelectedItem) as string;
+            }
+            catch (Exception ex) { StingLog.Warn($"GetSelectedAssetKind: {ex.Message}"); return null; }
+        }
     }
 }

@@ -347,6 +347,167 @@ namespace StingTools.UI
                 "Promoting project overrides to the corporate baseline is an admin action and lands in a follow-up commit. Edit the corporate CSV (BLE_MATERIALS.csv / MEP_MATERIALS.csv) for now.");
         }
 
+        // ── N5 — Asset detach / repoint ─────────────────────────────────────
+
+        /// <summary>
+        /// Duplicate the asset (Appearance / Physical / Thermal) selected
+        /// in the Assets sub-tab and re-point the active material at the
+        /// new copy. Other materials keep the original so this material's
+        /// edits won't leak.
+        /// </summary>
+        public static void DetachAsset(UIApplication app, string p1)
+        {
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                var mat = ResolveMaterial(app, p1);
+                if (mat == null) { TaskDialog.Show("Asset", "Pick a material in the Browse tab first."); return; }
+
+                string kind = StingDockPanel.LastInstance?.GetSelectedAssetKind() ?? "";
+                if (string.IsNullOrEmpty(kind)) { TaskDialog.Show("Asset", "Pick an asset row in the Assets sub-tab first."); return; }
+
+                ElementId srcId = AssetIdForKind(mat, kind);
+                if (srcId == null || srcId.Value <= 0)
+                {
+                    TaskDialog.Show("Asset", $"Material '{mat.Name}' has no {kind} asset to detach.");
+                    return;
+                }
+
+                bool ok = false;
+                using (var t = new Transaction(doc, $"STING Detach {kind} asset"))
+                {
+                    t.Start();
+                    ok = DuplicateAndRepoint(doc, mat, kind, srcId);
+                    t.Commit();
+                }
+                MaterialAuditLogger.Log(doc, "MAT_AssetDetach", mat.Name,
+                    new Dictionary<string, object> { ["kind"] = kind, ["srcAssetId"] = srcId.Value, ["ok"] = ok });
+                TaskDialog.Show("Asset Detach",
+                    ok
+                    ? $"Detached {kind} asset on '{mat.Name}'. Other materials keep the original copy."
+                    : $"Detach failed — see log for details.");
+                StingDockPanel.LastInstance?.ShowMaterialsTab();
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Detach failed: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Point the selected asset slot at the same asset another picked
+        /// material uses — consolidates duplicate assets.
+        /// </summary>
+        public static void RepointAsset(UIApplication app, string p1)
+        {
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                var mat = ResolveMaterial(app, p1);
+                if (mat == null) { TaskDialog.Show("Asset", "Pick a material in the Browse tab first."); return; }
+
+                string kind = StingDockPanel.LastInstance?.GetSelectedAssetKind() ?? "";
+                if (string.IsNullOrEmpty(kind)) { TaskDialog.Show("Asset", "Pick an asset row in the Assets sub-tab first."); return; }
+
+                // Build a list of candidate materials sharing the right asset kind.
+                var candidates = new FilteredElementCollector(doc).OfClass(typeof(Material))
+                    .Cast<Material>().Where(m => m.Id.Value != mat.Id.Value &&
+                        AssetIdForKind(m, kind) is ElementId aid && aid != null && aid.Value > 0)
+                    .OrderBy(m => m.Name).Take(40).ToList();
+                if (candidates.Count == 0)
+                {
+                    TaskDialog.Show("Repoint", $"No other materials have a {kind} asset to point at.");
+                    return;
+                }
+                var td = new TaskDialog($"Repoint {kind} asset")
+                {
+                    MainInstruction = $"Pick a material whose {kind} asset to share.",
+                    MainContent = "After repoint, this material's edits to that asset will flow to every other material sharing it.",
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                };
+                int link = 1;
+                var byLink = new Dictionary<TaskDialogResult, Material>();
+                foreach (var c in candidates.Take(4))
+                {
+                    var lid = (TaskDialogCommandLinkId)Enum.Parse(typeof(TaskDialogCommandLinkId), "CommandLink" + link);
+                    td.AddCommandLink(lid, c.Name, $"asset id {AssetIdForKind(c, kind)?.Value}");
+                    byLink[(TaskDialogResult)lid] = c;
+                    link++;
+                }
+                var res = td.Show();
+                if (!byLink.TryGetValue(res, out Material target)) return;
+
+                bool ok = false;
+                using (var t = new Transaction(doc, $"STING Repoint {kind} asset"))
+                {
+                    t.Start();
+                    ok = RepointAssetTo(doc, mat, kind, AssetIdForKind(target, kind));
+                    t.Commit();
+                }
+                MaterialAuditLogger.Log(doc, "MAT_AssetRepoint", mat.Name,
+                    new Dictionary<string, object>
+                    {
+                        ["kind"] = kind,
+                        ["targetMaterial"] = target.Name,
+                        ["ok"] = ok,
+                    });
+                TaskDialog.Show("Asset Repoint",
+                    ok
+                    ? $"'{mat.Name}' {kind} asset now shares with '{target.Name}'."
+                    : "Repoint failed — see log.");
+                StingDockPanel.LastInstance?.ShowMaterialsTab();
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Repoint failed: {ex.Message}"); }
+        }
+
+        private static ElementId AssetIdForKind(Material m, string kind) => kind switch
+        {
+            "Appearance" => m.AppearanceAssetId,
+            "Physical"   => m.StructuralAssetId,
+            "Thermal"    => m.ThermalAssetId,
+            _ => null,
+        };
+
+        private static bool DuplicateAndRepoint(Document doc, Material mat, string kind, ElementId srcId)
+        {
+            // For Appearance assets we can use AppearanceAssetElement.Duplicate.
+            // For Physical / Thermal (PropertySetElement) we duplicate via
+            // GetDuplicate on the asset element.
+            try
+            {
+                if (kind == "Appearance")
+                {
+                    var src = doc.GetElement(srcId) as AppearanceAssetElement;
+                    if (src == null) return false;
+                    var dupe = src.Duplicate($"{src.Name}_copy");
+                    mat.AppearanceAssetId = dupe.Id;
+                    return true;
+                }
+                // Structural + Thermal asset duplication is via PropertySetElement.Duplicate.
+                if (doc.GetElement(srcId) is PropertySetElement pse)
+                {
+                    var dupe = pse.Duplicate($"{pse.Name}_copy");
+                    if (kind == "Physical") mat.StructuralAssetId = dupe.Id;
+                    else if (kind == "Thermal") mat.ThermalAssetId = dupe.Id;
+                    return true;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DuplicateAndRepoint: {ex.Message}"); }
+            return false;
+        }
+
+        private static bool RepointAssetTo(Document doc, Material mat, string kind, ElementId targetId)
+        {
+            if (targetId == null || targetId.Value <= 0) return false;
+            try
+            {
+                if (kind == "Appearance") mat.AppearanceAssetId = targetId;
+                else if (kind == "Physical") mat.StructuralAssetId = targetId;
+                else if (kind == "Thermal") mat.ThermalAssetId = targetId;
+                return true;
+            }
+            catch (Exception ex) { StingLog.Warn($"RepointAssetTo: {ex.Message}"); return false; }
+        }
+
         // ── F14 — Family folder audit (CTC parity) ─────────────────────────
 
         public static void FamilyFolderAudit(UIApplication app)

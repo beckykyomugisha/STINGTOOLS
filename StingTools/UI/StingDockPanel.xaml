@@ -1906,11 +1906,19 @@
                             <Grid Margin="2,4,2,2">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0" Margin="2,2,2,6" FontSize="11" TextWrapping="Wrap"
-                                           Text="Each Revit material owns one Appearance asset and (optionally) Physical and Thermal assets. Assets are SHARED — many materials can point to the same one. Pick a row to see how many other materials share each asset."/>
-                                <DataGrid Grid.Row="1" x:Name="dgAssets" AutoGenerateColumns="False" IsReadOnly="True"
+                                           Text="Each Revit material owns one Appearance asset and (optionally) Physical and Thermal assets. Assets are SHARED — many materials can point to the same one. Pick a row in Browse, then use Detach / Repoint to break or share."/>
+                                <WrapPanel Grid.Row="1" Margin="0,0,0,4">
+                                    <Button Style="{StaticResource BlueBtn}" Content="Detach (duplicate)" Tag="MAT_DetachAsset" Click="MatBtn_Click"
+                                            ToolTip="Duplicate the selected asset and re-point the active material at the new copy. Other materials keep the original — your edits won't leak."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Repoint to…" Tag="MAT_RepointAsset" Click="MatBtn_Click"
+                                            ToolTip="Point the selected Asset row at another material's asset (consolidates duplicates)."/>
+                                </WrapPanel>
+                                <DataGrid Grid.Row="2" x:Name="dgAssets" AutoGenerateColumns="False" IsReadOnly="True"
+                                          SelectionMode="Single"
                                           RowHeight="22" FontSize="11" GridLinesVisibility="Horizontal" HeadersVisibility="Column">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Asset Kind" Binding="{Binding Kind}" Width="100"/>
