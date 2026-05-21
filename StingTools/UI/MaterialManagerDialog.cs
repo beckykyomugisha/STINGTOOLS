@@ -11,6 +11,13 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 
+// Autodesk.Revit.UI ships TextBox + ComboBox types that collide with the
+// System.Windows.Controls equivalents used by this WPF dialog. Alias the
+// WPF types so the call sites below stay readable.
+using TextBox = System.Windows.Controls.TextBox;
+using ComboBox = System.Windows.Controls.ComboBox;
+using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
+
 namespace StingTools.UI
 {
     /// <summary>

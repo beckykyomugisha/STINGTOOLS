@@ -461,7 +461,19 @@ namespace StingTools.BOQ
 
         private static double EstimateDensityKgPerM3(string material)
         {
-            string lower = (material ?? "").ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(material)) return 1000;
+
+            // N+7 — Single-source resolution. MaterialLookupCsv corporate
+            // library wins; the legacy hard-coded keyword switch is now
+            // last-resort fallback only.
+            try
+            {
+                double libVal = StingTools.UI.MaterialLookupCsv.GetDensity(material);
+                if (libVal > 0) return libVal;
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("EstimateDensity.Lookup", $"EstimateDensity lookup: {ex.Message}"); }
+
+            string lower = material.ToLowerInvariant();
             if (lower.Contains("concrete")) return 2400;
             if (lower.Contains("steel")) return 7850;
             if (lower.Contains("timber") || lower.Contains("wood")) return 550;
