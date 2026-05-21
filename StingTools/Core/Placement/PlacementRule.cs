@@ -275,6 +275,55 @@ namespace StingTools.Core.Placement
         /// <summary>Manufacturer catalogue reference / part number.</summary>
         public string CatalogueRef { get; set; } = "";
 
+        // ── Footprint-aware spacing (real-size 3D families) ─────────
+
+        /// <summary>
+        /// When true, FixturePlacementEngine reads the resolved FamilySymbol's
+        /// bounding box at placement time and scales MinSpacingMm /
+        /// CoverageRadiusMm / OffsetXMm / ObstructionClearanceMm /
+        /// WallClearanceMm proportionally to <see cref="ReferenceFootprintMm"/>.
+        /// Lets one rule serve multiple manufacturers — a 1200 mm AHU lands
+        /// with appropriately scaled spacing without per-vendor JSON edits.
+        /// Defaults to false: legacy rules retain hard-coded values.
+        /// </summary>
+        public bool FamilyBboxAware { get; set; } = false;
+
+        /// <summary>
+        /// Reference footprint in millimetres against which the rule's
+        /// spacing fields were tuned. The engine computes
+        /// scale = max(symbolFootprintMm, MinSymbolFootprintMm) / ReferenceFootprintMm
+        /// and multiplies the spacing fields by scale. Default 150 mm matches
+        /// the small-fixture defaults the legacy rules were authored to.
+        /// </summary>
+        public double ReferenceFootprintMm { get; set; } = 150.0;
+
+        /// <summary>
+        /// Floor on the measured family footprint when FamilyBboxAware is set —
+        /// prevents pathological 0-bbox families from collapsing spacing to 0.
+        /// Default 100 mm.
+        /// </summary>
+        public double MinSymbolFootprintMm { get; set; } = 100.0;
+
+        /// <summary>
+        /// Cap on the bbox-derived scale factor. Default 8.0 — a 1200 mm
+        /// family against a 150 mm reference scales spacings 8× and stops.
+        /// Without a cap a 12 m AHU shell would scale spacings to 80 m and
+        /// silently break room-area coverage rules.
+        /// </summary>
+        public double MaxFootprintScale { get; set; } = 8.0;
+
+        // ── Type-catalog (.txt sidecar) ─────────────────────────────
+
+        /// <summary>
+        /// When set, the engine treats this rule's family as a Revit type
+        /// catalog (`YourFamily.txt` sidecar next to `YourFamily.rfa`).
+        /// The value is matched (case-insensitively, exact or regex) against
+        /// the type names in the catalog. Only the matching type is loaded —
+        /// avoids bloating the project with 200-type valve / fittings libraries.
+        /// Empty (default) ⇒ legacy behaviour: all types load.
+        /// </summary>
+        public string TypeCatalogKey { get; set; } = "";
+
         /// <summary>Nominal back-box or enclosure depth in millimetres.</summary>
         public double BoxDepthMm { get; set; } = 0.0;
 
@@ -542,6 +591,13 @@ namespace StingTools.Core.Placement
                 EmitSupports         = this.EmitSupports,
                 SourcePack           = this.SourcePack,
                 Material             = this.Material,
+                // Footprint-aware spacing
+                FamilyBboxAware      = this.FamilyBboxAware,
+                ReferenceFootprintMm = this.ReferenceFootprintMm,
+                MinSymbolFootprintMm = this.MinSymbolFootprintMm,
+                MaxFootprintScale    = this.MaxFootprintScale,
+                // Type catalog
+                TypeCatalogKey       = this.TypeCatalogKey,
             };
         }
 

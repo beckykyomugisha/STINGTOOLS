@@ -2,6 +2,7 @@
   "version": "1.0",
   "standard": "ISO 6412 / BS 308 Part 3 \u2014 Piping, Duct, Conduit Spool Symbols",
   "description": "GenericAnnotation families for isometric spool drawings. symbolSize in mm. All geometry normalised -0.5..+0.5.",
+  "_authoring_rule": "TRACK B - SYMBOLIC, NOT PRODUCT GEOMETRY. Every entry below is a 2D schematic symbol drawn on a GenericAnnotation template, targeting ~6mm paper height regardless of the real product size. Do NOT replace these with photoreal 3D valve / fitting / pipe families - that breaks spool sheets, SLDs and detail views which all rely on consistent paper-space symbol sizing. Hand-drafted seeds drop into Families/ISO6412/ for line-work fidelity improvements. See Families/README.md for the full intake SOP.",
   "symbols": [
     {
       "id": "ISO6412_ELBOW_90_BW",
