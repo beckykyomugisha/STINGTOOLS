@@ -2003,6 +2003,11 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="⚙ Toggle Auto-Fill" Tag="MAT_ToggleAutoFill" Click="MatBtn_Click"
                                             ToolTip="Auto-fill Cost + Carbon on new Material creation from project override / MATERIAL_LOOKUP.csv. Default ON."/>
                                 </WrapPanel>
+                                <TextBlock Margin="2,8,2,2" FontSize="11" FontWeight="SemiBold" Text="Coverage gate"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Check Coverage" Tag="MAT_CoverageCheck" Click="MatBtn_Click"
+                                            ToolTip="Count materialable elements with no material assigned. Same gate runs automatically before Issue Deliverable."/>
+                                </WrapPanel>
                                 <TextBlock Margin="2,8,2,2" FontSize="11" FontWeight="SemiBold" Text="Sustainability gate"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource GreenBtn}" Content="Run Gate" Tag="MAT_SustainabilityGate" Click="MatBtn_Click"

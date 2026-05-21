@@ -1272,6 +1272,7 @@ namespace StingTools.UI
                     case "MAT_SustainabilityEdit": MatActions.EditSustainabilityGate(app); break;
                     case "MAT_ClearFilters":   UI.StingDockPanel.LastInstance?.ClearMatFilters(); break;
                     case "MAT_GenerateRfq":    MatActions.GenerateRfq(app); break;
+                    case "MAT_CoverageCheck":  MatActions.RunCoverageCheck(app); break;
                     case "MAT_ToggleAutoApply":MatActions.ToggleAutoApply(app); break;
                     case "MAT_ToggleAutoFill": MatActions.ToggleAutoFill(app); break;
 

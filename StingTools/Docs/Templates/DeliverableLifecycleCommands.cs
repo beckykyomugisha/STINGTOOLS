@@ -109,6 +109,11 @@ namespace Planscape.Docs.Templates
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => LifecycleCommandHelper.Run(data, ref message, (doc, engine) =>
             {
+                // STING Material Coverage gate — block / warn when too many
+                // materialable elements still have no material assigned.
+                if (!StingTools.UI.MaterialCoverageGate.ConfirmOrBlock(doc, actionLabel: "Issue Deliverable"))
+                    return new DeliverableLifecycle.LifecycleResult { Ok = false, Message = "Cancelled by material coverage gate." };
+
                 dynamic d = LifecycleCommandHelper.ResolveSelection(doc);
                 if (d == null) return new DeliverableLifecycle.LifecycleResult { Ok = false, Message = "No deliverable selected." };
                 string user = Environment.UserName;

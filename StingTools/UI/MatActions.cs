@@ -924,6 +924,53 @@ namespace StingTools.UI
                 : "Auto-fill is OFF. New Materials keep their Revit defaults.");
         }
 
+        // ── Coverage gate — run on demand ───────────────────────────────────
+
+        public static void RunCoverageCheck(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                var r = MaterialCoverageGate.Compute(doc);
+                if (r.TotalMaterialable == 0)
+                {
+                    TaskDialog.Show("Material Coverage",
+                        "No materialable elements found in this project.");
+                    return;
+                }
+                MaterialAuditLogger.Log(doc, "MAT_CoverageCheck", "(project)",
+                    new Dictionary<string, object>
+                    {
+                        ["totalMaterialable"] = r.TotalMaterialable,
+                        ["assigned"]          = r.Assigned,
+                        ["missing"]           = r.Missing,
+                        ["coveragePct"]       = Math.Round(r.CoveragePct, 1),
+                    });
+                var td = new TaskDialog("Material Coverage")
+                {
+                    MainInstruction = $"{r.CoveragePct:F1}% coverage ({r.Assigned}/{r.TotalMaterialable})",
+                    MainContent = r.Missing > 0
+                        ? $"{r.Missing} element(s) still need a material assigned.\nThreshold for Issue Deliverable: {MaterialCoverageGate.DefaultThresholdPct}%."
+                        : "All materialable elements have a material assigned.",
+                    CommonButtons = TaskDialogCommonButtons.Close,
+                };
+                if (r.Missing > 0)
+                {
+                    td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Select unassigned",
+                        "Set Revit selection to every element missing a material.");
+                    var res = td.Show();
+                    if (res == TaskDialogResult.CommandLink1)
+                    {
+                        try { app.ActiveUIDocument?.Selection?.SetElementIds(r.MissingIds); }
+                        catch (Exception ex) { StingLog.Warn($"Coverage select: {ex.Message}"); }
+                    }
+                }
+                else td.Show();
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Coverage check failed: {ex.Message}"); }
+        }
+
         // ── A11 — Procurement hand-off (RFQ generator) ──────────────────────
 
         public static void GenerateRfq(UIApplication app)
