@@ -1158,6 +1158,53 @@ namespace StingTools.UI
             catch (Exception ex) { TaskDialog.Show("Material Manager", $"Sync COBie failed: {ex.Message}"); }
         }
 
+        // ── N+10 — BOQ by material pivot ────────────────────────────────────
+
+        public static void BoqByMaterial(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                var boq = StingTools.BOQ.BOQCostManager.BuildBOQDocument(doc);
+                if (boq == null || boq.AllItems.Count == 0)
+                {
+                    TaskDialog.Show("BOQ by Material",
+                        "BOQ has no line items — nothing to pivot. Run the BOQ Cost Manager first.");
+                    return;
+                }
+                var pivot = StingTools.BOQ.BOQByMaterialView.Build(doc, boq);
+                string csv = StingTools.BOQ.BOQByMaterialView.WriteCsv(doc, pivot);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"{pivot.Rows.Count} distinct material(s) across {pivot.ItemsScanned} BOQ row(s).");
+                sb.AppendLine($"  Σ cost   = UGX {pivot.TotalCostUGX:N0}");
+                sb.AppendLine($"  Σ carbon = {pivot.TotalCarbonKg:N0} kgCO₂e ({pivot.TotalCarbonKg / 1000:F1} tCO₂e)");
+                if (pivot.ItemsWithoutMaterial > 0)
+                    sb.AppendLine($"  {pivot.ItemsWithoutMaterial} row(s) had no resolvable material.");
+                sb.AppendLine();
+                sb.AppendLine("Top 15 by cost:");
+                foreach (var r in pivot.Rows.Take(15))
+                    sb.AppendLine($"  {r.MaterialName}  ({r.ElementCount} elements, {r.TotalQuantity:F1} {r.DominantUnit}) — UGX {r.TotalCostUGX:N0} · {r.TotalCarbonKg:N0} kgCO₂e");
+                if (pivot.Rows.Count > 15) sb.AppendLine($"  … and {pivot.Rows.Count - 15} more.");
+                sb.AppendLine();
+                sb.AppendLine($"Full CSV: {csv}");
+
+                MaterialAuditLogger.Log(doc, "MAT_BoqByMaterial", "(project)",
+                    new Dictionary<string, object>
+                    {
+                        ["distinctMaterials"] = pivot.Rows.Count,
+                        ["totalCostUgx"]      = pivot.TotalCostUGX,
+                        ["totalCarbonKg"]     = pivot.TotalCarbonKg,
+                        ["csv"]               = csv,
+                    });
+                TaskDialog.Show("BOQ by Material", sb.ToString());
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(csv) { UseShellExecute = true })?.Dispose(); }
+                catch (Exception ex) { StingLog.Warn($"Open BOQ-by-material csv: {ex.Message}"); }
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"BOQ by Material failed: {ex.Message}"); }
+        }
+
         public static void OpenTemplate(UIApplication app)
         {
             try

@@ -2055,6 +2055,8 @@
                                             ToolTip="Emit a procurement-ready CSV for every material with Manufacturer/Model/URL set."/>
                                     <Button Style="{StaticResource BlueBtn}" Content="Sync COBie" Tag="MAT_SyncCobie" Click="MatBtn_Click"
                                             ToolTip="Audit COBIE_TYPE_MAP.csv Material column references against the live material library."/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="BOQ by Material" Tag="MAT_BoqByMaterial" Click="MatBtn_Click"
+                                            ToolTip="Re-pivot the BOQ grouped by primary material. Σ cost + Σ carbon per material across the whole project."/>
                                 </WrapPanel>
                             </StackPanel>
                         </TabItem>
