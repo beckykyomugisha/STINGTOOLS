@@ -2444,6 +2444,7 @@ namespace StingTools.UI
                 }
                 UpdateMatHeaderCounts();
                 UpdateMatRollup();
+                SyncMatRegionCombo();
                 if (txtMatStatus != null)
                     txtMatStatus.Text = $"Loaded {_matRows.Count} materials.";
             }
@@ -2563,6 +2564,57 @@ namespace StingTools.UI
                 bdrMatFilterChip.Visibility = Visibility.Visible;
             }
             catch (Exception ex) { StingLog.Warn($"UpdateMatFilterChip: {ex.Message}"); }
+        }
+
+        private bool _matRegionSyncing;
+
+        /// <summary>
+        /// Region combo changed by the user — persist the new region into
+        /// ProjectInformation and rebuild the grid so currency / unit
+        /// labels reflect the choice.
+        /// </summary>
+        private void MatRegion_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_matRegionSyncing) return; // suppress feedback from SyncMatRegionCombo
+            try
+            {
+                string s = (cmbMatRegion?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "UK";
+                if (!Enum.TryParse<StingTools.UI.MaterialRegion>(s, true, out var region)) return;
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc == null) return;
+                MaterialLocaleManager.WriteRegionToProject(doc, region);
+                // Pin the locale immediately so the currently-visible rows
+                // re-format on the next CollectionView refresh.
+                StingTools.UI.MaterialRow.ActiveLocale = MaterialLocaleManager.BuildLocale(region);
+                if (_matRows != null)
+                    System.Windows.Data.CollectionViewSource.GetDefaultView(_matRows).Refresh();
+            }
+            catch (Exception ex) { StingLog.Warn($"MatRegion_Changed: {ex.Message}"); }
+        }
+
+        /// <summary>Sync the Region combo to whatever's stored in PRJ_REGION_TXT
+        /// — called on every LoadMaterials so the picker reflects current state.</summary>
+        private void SyncMatRegionCombo()
+        {
+            if (cmbMatRegion == null) return;
+            try
+            {
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc == null) return;
+                var region = MaterialLocaleManager.ReadRegionFromProject(doc);
+                _matRegionSyncing = true;
+                try
+                {
+                    foreach (var item in cmbMatRegion.Items)
+                    {
+                        if (item is ComboBoxItem cbi &&
+                            string.Equals(cbi.Content?.ToString(), region.ToString(), StringComparison.OrdinalIgnoreCase))
+                        { cmbMatRegion.SelectedItem = cbi; break; }
+                    }
+                }
+                finally { _matRegionSyncing = false; }
+            }
+            catch (Exception ex) { StingLog.Warn($"SyncMatRegionCombo: {ex.Message}"); }
         }
 
         /// <summary>One-click reset for every MAT filter control.</summary>

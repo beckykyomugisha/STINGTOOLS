@@ -1760,10 +1760,20 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" x:Name="txtMatHeader" Text="Material Manager"
                                            FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource HeaderFg}" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="1" x:Name="txtMatCounts" Text="0 materials · 0 selected"
+                                <ComboBox Grid.Column="1" x:Name="cmbMatRegion" Width="90" Height="22" Margin="0,0,6,0"
+                                          FontSize="10" SelectionChanged="MatRegion_Changed"
+                                          ToolTip="Region — drives currency symbol and density / thermal unit display. Persisted in PRJ_REGION_TXT.">
+                                    <ComboBoxItem Content="UK" IsSelected="True"/>
+                                    <ComboBoxItem Content="EU"/>
+                                    <ComboBoxItem Content="US"/>
+                                    <ComboBoxItem Content="AU"/>
+                                    <ComboBoxItem Content="Africa"/>
+                                </ComboBox>
+                                <TextBlock Grid.Column="2" x:Name="txtMatCounts" Text="0 materials · 0 selected"
                                            FontSize="10" Foreground="{DynamicResource HeaderFg}" Opacity="0.75" VerticalAlignment="Center"/>
                             </Grid>
                             <!-- N2 — Project roll-up strip. Live totals across the

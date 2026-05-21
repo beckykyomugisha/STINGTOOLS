@@ -39,8 +39,25 @@ namespace StingTools.UI
         public int UsageCount { get; set; }
         public double Cost { get; set; }
         public double CarbonKgCo2e { get; set; }
-        public string CostText => Cost > 0 ? Cost.ToString("F0") : "";
-        public string CarbonText => CarbonKgCo2e > 0 ? CarbonKgCo2e.ToString("F0") : "";
+        public string CostText
+        {
+            get
+            {
+                var loc = ActiveLocale;
+                return loc != null ? loc.FormatCost(Cost) : (Cost > 0 ? Cost.ToString("F0") : "");
+            }
+        }
+        public string CarbonText
+        {
+            get
+            {
+                var loc = ActiveLocale;
+                return loc != null ? loc.FormatCarbon(CarbonKgCo2e) : (CarbonKgCo2e > 0 ? CarbonKgCo2e.ToString("F0") : "");
+            }
+        }
+
+        /// <summary>Active locale shared by every row — set by MaterialRowBuilder.Build.</summary>
+        public static MaterialLocale ActiveLocale { get; set; }
 
         // Asset-share counts (filled by MaterialRowBuilder + AssetShareCounter).
         public int AppearanceSharedBy { get; set; }
@@ -83,6 +100,9 @@ namespace StingTools.UI
         {
             var rows = new System.Collections.ObjectModel.ObservableCollection<MaterialRow>();
             if (doc == null) return rows;
+            // Pin the active locale before building rows so currency / carbon
+            // formatters get the right symbols + thousands separators.
+            MaterialRow.ActiveLocale = MaterialLocaleManager.Resolve(doc);
             var materials = new FilteredElementCollector(doc)
                 .OfClass(typeof(Material))
                 .Cast<Material>()
