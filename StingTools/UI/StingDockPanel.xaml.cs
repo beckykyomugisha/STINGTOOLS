@@ -2658,7 +2658,54 @@ namespace StingTools.UI
 
         private void MatGrid_DoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
+            // Double-click on an editable cell starts editing (Revit's
+            // default) — only fall through to Where-Used on read-only cells.
+            try
+            {
+                if (e?.OriginalSource is System.Windows.DependencyObject src)
+                {
+                    var cell = FindAncestor<DataGridCell>(src);
+                    if (cell != null && !cell.IsReadOnly) return;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"MatGrid_DoubleClick: {ex.Message}"); }
             DispatchMat("MAT_WhereUsed");
+        }
+
+        private static T FindAncestor<T>(System.Windows.DependencyObject d) where T : System.Windows.DependencyObject
+        {
+            while (d != null)
+            {
+                if (d is T hit) return hit;
+                d = System.Windows.Media.VisualTreeHelper.GetParent(d);
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Inline cell-edit commit. Routes Class / Cost / Carbon edits
+        /// into a transaction, audit-logs the diff, and refreshes the row.
+        /// Discards edits that didn't actually change the value.
+        /// </summary>
+        private void MatGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            if (e.EditAction != DataGridEditAction.Commit) return;
+            if (!(e.Row?.Item is StingTools.UI.MaterialRow row)) return;
+            if (row.Id == null || row.Id.Value <= 0) return;
+            try
+            {
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc == null) return;
+                var mat = doc.GetElement(row.Id) as Autodesk.Revit.DB.Material;
+                if (mat == null) return;
+
+                string col = e.Column?.Header?.ToString() ?? "";
+                string raw = (e.EditingElement as TextBox)?.Text ?? "";
+                StingTools.UI.MatCellCommitter.Commit(doc, mat, row, col, raw);
+                // Re-pull the row so EpdFreshness / display strings update.
+                MatRefreshRow(row.Id);
+            }
+            catch (Exception ex) { StingLog.Warn($"MatGrid_CellEditEnding: {ex.Message}"); }
         }
 
         /// <summary>

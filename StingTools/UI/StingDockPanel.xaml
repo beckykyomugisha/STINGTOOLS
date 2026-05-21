@@ -1843,17 +1843,19 @@
                                 </WrapPanel>
 
                                 <!-- Live DataGrid -->
-                                <DataGrid Grid.Row="2" x:Name="dgMaterials" AutoGenerateColumns="False" IsReadOnly="True"
+                                <DataGrid Grid.Row="2" x:Name="dgMaterials" AutoGenerateColumns="False" IsReadOnly="False"
                                           SelectionMode="Extended" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
                                           AlternatingRowBackground="#10000000"
                                           RowHeight="22" FontSize="11"
+                                          CanUserAddRows="False" CanUserDeleteRows="False"
                                           SelectionChanged="MatGrid_SelectionChanged"
                                           MouseDoubleClick="MatGrid_DoubleClick"
+                                          CellEditEnding="MatGrid_CellEditEnding"
                                           VirtualizingPanel.IsVirtualizing="True"
                                           VirtualizingPanel.VirtualizationMode="Recycling"
                                           ScrollViewer.CanContentScroll="True">
                                     <DataGrid.Columns>
-                                        <DataGridTemplateColumn Header="Color" Width="46">
+                                        <DataGridTemplateColumn Header="Color" Width="46" IsReadOnly="True">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <Border Background="{Binding ColorSwatch}" Width="30" Height="14"
@@ -1861,14 +1863,16 @@
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
-                                        <DataGridTextColumn Header="Name"   Binding="{Binding Name}"      Width="*" MinWidth="180"/>
+                                        <!-- Name + Origin + Used + RGB stay read-only (rename via Revit material editor;
+                                             Origin / Used / RGB are derived). Class / Cost / Carbon are editable. -->
+                                        <DataGridTextColumn Header="Name"   Binding="{Binding Name}"      Width="*" MinWidth="180" IsReadOnly="True"/>
                                         <DataGridTextColumn Header="Class"  Binding="{Binding Class}"     Width="100"/>
-                                        <DataGridTextColumn Header="Origin" Binding="{Binding Origin}"    Width="60"/>
-                                        <DataGridTextColumn Header="Used"   Binding="{Binding UsageCount}" Width="50"/>
-                                        <DataGridTextColumn Header="RGB"    Binding="{Binding ColorText}" Width="80"/>
-                                        <DataGridTextColumn Header="Cost"   Binding="{Binding CostText}"  Width="60"/>
-                                        <DataGridTextColumn Header="kgCO₂e" Binding="{Binding CarbonText}" Width="60"/>
-                                        <DataGridTemplateColumn Header="EPD" Width="70">
+                                        <DataGridTextColumn Header="Origin" Binding="{Binding Origin}"    Width="60"  IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="Used"   Binding="{Binding UsageCount}" Width="50" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="RGB"    Binding="{Binding ColorText}" Width="80"  IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="Cost"   Binding="{Binding Cost, StringFormat=F2}"         Width="60"/>
+                                        <DataGridTextColumn Header="kgCO₂e" Binding="{Binding CarbonKgCo2e, StringFormat=F1}" Width="60"/>
+                                        <DataGridTemplateColumn Header="EPD" Width="70" IsReadOnly="True">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding EpdFreshnessText}" Foreground="{Binding EpdFreshnessBrush}" Margin="3,0,0,0"/>
