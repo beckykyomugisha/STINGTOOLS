@@ -4,8 +4,11 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using StingTools.Core;
 using StingTools.Core.Lightning;
+using StingTools.Core.Fabrication;
 
 namespace StingTools.UI
 {
@@ -29,6 +32,7 @@ namespace StingTools.UI
         public ObservableCollection<LpzZoneRow>         ZoneRows            { get; } = new();
         public ObservableCollection<InspectionRow>      InspectionRows      { get; } = new();
         public ObservableCollection<LpsWorkflowRow>     WorkflowRows        { get; } = new();
+        public ObservableCollection<ResidualRiskRow>    ResidualRiskRows    { get; } = new();
 
         // ── Header state ────────────────────────────────────────────────
         public string SelectedStandard  { get; private set; } = "BS_EN_62305";
@@ -74,6 +78,7 @@ namespace StingTools.UI
             try { ZoneGrid.ItemsSource           = ZoneRows; }           catch (Exception ex) { StingLog.Warn($"ZoneGrid bind: {ex.Message}"); }
             try { InspectionGrid.ItemsSource     = InspectionRows; }     catch (Exception ex) { StingLog.Warn($"InspectionGrid bind: {ex.Message}"); }
             try { WorkflowGrid.ItemsSource       = WorkflowRows; }       catch (Exception ex) { StingLog.Warn($"WorkflowGrid bind: {ex.Message}"); }
+            try { ResidualGrid.ItemsSource       = ResidualRiskRows; }   catch (Exception ex) { StingLog.Warn($"ResidualGrid bind: {ex.Message}"); }
 
             // Seed default risk factor rows so the RISK tab is non-empty.
             try { SeedDefaultRiskFactors(); }
@@ -235,11 +240,321 @@ namespace StingTools.UI
                     if (txtRiskRt2  != null) txtRiskRt2.Text  = result.TolerableRisk.ToString("E2");
                     if (txtRiskNeed != null) txtRiskNeed.Text = result.RequiresLps ? "YES" : "NO";
                     if (txtRiskCls  != null) txtRiskCls.Text  = result.RecommendedClass ?? "—";
+
+                    // Inline residual-risk-by-class grid — replaces the modal
+                    // wizard's residual-risk table. Pass / fail vs tolerable risk.
+                    ResidualRiskRows.Clear();
+                    if (result.ResidualRiskByClass != null)
+                    {
+                        foreach (var kv in result.ResidualRiskByClass.OrderBy(k => k.Key))
+                        {
+                            bool ok = kv.Value <= result.TolerableRisk;
+                            ResidualRiskRows.Add(new ResidualRiskRow
+                            {
+                                Class       = kv.Key,
+                                Residual    = kv.Value.ToString("E2"),
+                                StatusDot   = ok ? "✓ PASS" : "⚠ WARN",
+                                Recommended = string.Equals(kv.Key, result.RecommendedClass, StringComparison.OrdinalIgnoreCase) ? "★" : ""
+                            });
+                        }
+                    }
                 };
                 if (Dispatcher?.CheckAccess() == true) act();
                 else Dispatcher?.Invoke(act);
             }
             catch (Exception ex) { StingLog.Warn($"SetRiskResult: {ex.Message}"); }
+        }
+
+        // ──────────────────────────────────────────────────────────────
+        //  Document loaders — Phase 2 follow-up that closes the
+        //  "grids seeded empty" caveat. Each loader walks the doc
+        //  with LpsEngine.CollectLpsFamily (param-aware + family-name
+        //  fallback) and projects each FamilyInstance into the
+        //  matching row VM. Called by LpsLoadModelCommand on demand
+        //  (panel toolbar) so the cost of the FilteredElementCollector
+        //  passes only fires when the user asks.
+        // ──────────────────────────────────────────────────────────────
+
+        public void LoadAllFromDoc(Document doc)
+        {
+            if (doc == null) return;
+            try
+            {
+                Action act = () =>
+                {
+                    LoadAirTerminalsFromDoc(doc);
+                    LoadDownConductorsFromDoc(doc);
+                    LoadEarthElectrodesFromDoc(doc);
+                    LoadBondingFromDoc(doc);
+                    LoadZonesFromDoc(doc);
+                    LoadInspectionsFromDoc(doc);
+                    LoadSpdsFromDoc(doc);
+                    UpdateStatus(
+                        $"Loaded: {AirTerminalRows.Count} AT · {DownConductorRows.Count} DC · " +
+                        $"{EarthElectrodeRows.Count} earth · {BondingRows.Count} bond · " +
+                        $"{ZoneRows.Count} rooms · {SpdRows.Count} SPD");
+                };
+                if (Dispatcher?.CheckAccess() == true) act();
+                else Dispatcher?.Invoke(act);
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadAllFromDoc: {ex.Message}"); }
+        }
+
+        private void LoadAirTerminalsFromDoc(Document doc)
+        {
+            try
+            {
+                AirTerminalRows.Clear();
+                string projClass = ParameterHelpers.GetString(doc.ProjectInformation, LpsParams.CLASS_TXT);
+                double projR     = LpsEngine.GetDoubleParam(doc.ProjectInformation, LpsParams.ROLLING_SPHERE_RADIUS_M);
+                if (projR <= 0)
+                {
+                    var def = LpsEngine.LoadClass(string.IsNullOrWhiteSpace(projClass) ? "II" : projClass);
+                    projR = def?.RollingSphereRadiusM ?? 30;
+                }
+
+                int n = 1;
+                foreach (var at in LpsEngine.CollectLpsFamily(doc, "Air Terminal", "Air_Terminal", "Franklin", "Air-Terminal"))
+                {
+                    double rM = LpsEngine.GetDoubleParam(at, LpsParams.ROLLING_SPHERE_RADIUS_M);
+                    if (rM <= 0) rM = projR;
+                    double hM = 0;
+                    try
+                    {
+                        var bb = at.get_BoundingBox(null);
+                        if (bb != null)
+                            hM = UnitUtils.ConvertFromInternalUnits(bb.Max.Z - bb.Min.Z, UnitTypeId.Meters);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"AT bbox: {ex.Message}"); }
+                    AirTerminalRows.Add(new AirTerminalRow
+                    {
+                        Tag      = ParameterHelpers.GetString(at, ParamRegistry.SEQ) is string s && !string.IsNullOrEmpty(s) ? $"AT-{s}" : $"AT-{n:D3}",
+                        HeightM  = Math.Round(hM, 2),
+                        Family   = at.Symbol?.FamilyName ?? "",
+                        RadiusM  = Math.Round(rM, 1),
+                        StatusDot = "•"
+                    });
+                    n++;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadAirTerminals: {ex.Message}"); }
+        }
+
+        private void LoadDownConductorsFromDoc(Document doc)
+        {
+            try
+            {
+                DownConductorRows.Clear();
+                int count = 0;
+                var dcs = LpsEngine.CollectLpsFamily(doc, "Down Conductor", "Down_Conductor", "DownConductor");
+                double kc = LpsEngine.ComputeKcFactor(dcs.Count);
+                string classId = ParameterHelpers.GetString(doc.ProjectInformation, LpsParams.CLASS_TXT);
+                if (string.IsNullOrWhiteSpace(classId)) classId = "II";
+
+                foreach (var dc in dcs)
+                {
+                    count++;
+                    double L   = LpsEngine.GetConductorLengthM(dc);
+                    string mat = ParameterHelpers.GetString(dc, LpsParams.CONDUCTOR_MATERIAL_TXT);
+                    if (string.IsNullOrWhiteSpace(mat)) mat = "COPPER";
+                    double s  = LpsEngine.GetDoubleParam(dc, LpsParams.SEPARATION_DISTANCE_MM);
+                    if (s <= 0) s = LpsEngine.ComputeSeparationDistance(classId, L, mat, kc);
+                    double cs = LpsEngine.GetDoubleParam(dc, LpsParams.CONDUCTOR_CROSS_SECT_MM2);
+
+                    string status = ParameterHelpers.GetString(dc, LpsParams.COMPLIANCE_STATUS_TXT);
+                    string dot = status?.IndexOf("FAIL", StringComparison.OrdinalIgnoreCase) >= 0 ? "✗"
+                               : status?.IndexOf("OK",   StringComparison.OrdinalIgnoreCase) >= 0 ? "✓" : "•";
+
+                    DownConductorRows.Add(new DownConductorRow
+                    {
+                        Tag             = $"DC-{count:D3}",
+                        LengthM         = Math.Round(L, 2),
+                        Material        = mat,
+                        SpacingM        = 0, // computed in the spacing checker per-pair
+                        SeparationMm    = Math.Round(s, 0),
+                        CrossSectionMm2 = cs,
+                        StatusDot       = dot
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadDownConductors: {ex.Message}"); }
+        }
+
+        private void LoadEarthElectrodesFromDoc(Document doc)
+        {
+            try
+            {
+                EarthElectrodeRows.Clear();
+                int n = 1;
+                foreach (var el in LpsEngine.CollectLpsFamily(doc, "Earth", "Ground Rod", "GroundRod", "Earth_Rod", "Earth Electrode"))
+                {
+                    double L = 0;
+                    try
+                    {
+                        var bb = el.get_BoundingBox(null);
+                        if (bb != null) L = UnitUtils.ConvertFromInternalUnits(bb.Max.Z - bb.Min.Z, UnitTypeId.Meters);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"EE bbox: {ex.Message}"); }
+                    double r = LpsEngine.GetDoubleParam(el, LpsParams.EARTH_RESISTANCE_OHM);
+                    string type = ParameterHelpers.GetString(el, LpsParams.EARTH_TYPE_TXT);
+                    if (string.IsNullOrWhiteSpace(type)) type = "A";
+                    string status = ParameterHelpers.GetString(el, LpsParams.COMPLIANCE_STATUS_TXT);
+                    string dot = status?.IndexOf("FAIL", StringComparison.OrdinalIgnoreCase) >= 0 ? "✗"
+                               : status?.IndexOf("OK",   StringComparison.OrdinalIgnoreCase) >= 0 ? "✓"
+                               : (r > 0 ? "•" : "?");
+                    EarthElectrodeRows.Add(new EarthElectrodeRow
+                    {
+                        Tag           = $"EE-{n:D3}",
+                        ArrangeType   = type,
+                        LengthM       = Math.Round(L, 2),
+                        ResistanceOhm = Math.Round(r, 2),
+                        StatusDot     = dot
+                    });
+                    n++;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadEarthElectrodes: {ex.Message}"); }
+        }
+
+        private void LoadBondingFromDoc(Document doc)
+        {
+            try
+            {
+                BondingRows.Clear();
+                // Pull any element with BOND_TYPE_TXT set — bonding inventory
+                // writes that param on all candidates. Keep it lightweight
+                // (3-category sweep) rather than the full 6-cat collector
+                // the inventory command uses; the grid is editable so the
+                // user can extend.
+                BuiltInCategory[] cats = {
+                    BuiltInCategory.OST_PipeCurves, BuiltInCategory.OST_DuctCurves,
+                    BuiltInCategory.OST_Conduit, BuiltInCategory.OST_CableTray
+                };
+                int n = 1;
+                foreach (var bic in cats)
+                {
+                    try
+                    {
+                        var coll = new FilteredElementCollector(doc).OfCategory(bic).WhereElementIsNotElementType();
+                        foreach (var el in coll)
+                        {
+                            string bond = ParameterHelpers.GetString(el, LpsParams.BOND_TYPE_TXT);
+                            if (string.IsNullOrWhiteSpace(bond)) continue;
+                            BondingRows.Add(new BondingRow
+                            {
+                                Tag       = $"B-{n:D3}",
+                                FromLpz   = "",
+                                ToLpz     = "",
+                                BondType  = bond,
+                                StatusDot = string.Equals(bond, "REVIEW REQUIRED", StringComparison.OrdinalIgnoreCase) ? "⚠" : "✓"
+                            });
+                            n++;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"LoadBonding {bic}: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadBonding: {ex.Message}"); }
+        }
+
+        private void LoadZonesFromDoc(Document doc)
+        {
+            try
+            {
+                ZoneRows.Clear();
+                var rooms = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Rooms)
+                    .WhereElementIsNotElementType()
+                    .Cast<Element>()
+                    .Where(r => (r as Room)?.Area > 0)
+                    .Cast<Room>()
+                    .OrderBy(r => doc.GetElement(r.LevelId)?.Name ?? "")
+                    .ThenBy(r => r.Number ?? "")
+                    .ToList();
+                foreach (var r in rooms)
+                {
+                    string lpz = ParameterHelpers.GetString(r, LpsParams.ZONE_TXT);
+                    ZoneRows.Add(new LpzZoneRow
+                    {
+                        RoomName = $"{r.Number} {r.Name}",
+                        Level    = doc.GetElement(r.LevelId)?.Name ?? "",
+                        Lpz      = string.IsNullOrWhiteSpace(lpz) ? "LPZ1" : lpz,
+                        Colour   = "" // populated by Lps_ColourZones
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadZones: {ex.Message}"); }
+        }
+
+        private void LoadInspectionsFromDoc(Document doc)
+        {
+            try
+            {
+                InspectionRows.Clear();
+                string classId = ParameterHelpers.GetString(doc.ProjectInformation, LpsParams.CLASS_TXT);
+                int defaultInterval = LpsEngine.LoadClass(
+                    string.IsNullOrWhiteSpace(classId) ? "II" : classId)?.InspectionIntervalMonths ?? 12;
+
+                var all = new List<Autodesk.Revit.DB.FamilyInstance>();
+                all.AddRange(LpsEngine.CollectLpsFamily(doc, "Air Terminal", "Air_Terminal", "Franklin"));
+                all.AddRange(LpsEngine.CollectLpsFamily(doc, "Down Conductor", "Down_Conductor", "DownConductor"));
+                all.AddRange(LpsEngine.CollectLpsFamily(doc, "Earth", "Ground Rod", "GroundRod"));
+
+                int n = 1;
+                DateTime today = DateTime.Today;
+                foreach (var el in all)
+                {
+                    string lastStr = ParameterHelpers.GetString(el, LpsParams.TEST_DATE_TXT);
+                    int interval = (int)Math.Round(LpsEngine.GetDoubleParam(el, LpsParams.INSPECTION_INTERVAL_MONTHS));
+                    if (interval <= 0) interval = defaultInterval;
+                    DateTime nextDue = today;
+                    string status = "DUE NOW";
+                    if (DateTime.TryParse(lastStr, out var lastTest))
+                    {
+                        nextDue = lastTest.AddMonths(interval);
+                        int days = (nextDue - today).Days;
+                        status = days < 0 ? $"OVERDUE {-days}d"
+                               : days < 30 ? $"DUE IN {days}d"
+                               : "OK";
+                    }
+                    InspectionRows.Add(new InspectionRow
+                    {
+                        Tag      = $"LPS-{n:D3} ({el.Category?.Name ?? ""})",
+                        LastTest = string.IsNullOrEmpty(lastStr) ? "—" : lastStr,
+                        NextDue  = nextDue.ToString("yyyy-MM-dd"),
+                        Status   = status
+                    });
+                    n++;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadInspections: {ex.Message}"); }
+        }
+
+        private void LoadSpdsFromDoc(Document doc)
+        {
+            try
+            {
+                // Don't wipe a user-edited grid — only load when empty.
+                if (SpdRows.Count > 0) return;
+                foreach (var fi in LpsEngine.CollectLpsFamily(doc, "SPD", "Surge"))
+                {
+                    string loc = ParameterHelpers.GetString(fi, LpsParams.SURGE_PROTECTION_LVL_TXT);
+                    SpdRows.Add(new SpdRowVm
+                    {
+                        Tag           = fi.Symbol?.FamilyName ?? "SPD",
+                        LocationId    = loc ?? "MAIN_INCOMER",
+                        LocationLabel = loc ?? "Main incomer",
+                        Type          = 12,
+                        IimpKa        = 12.5,
+                        InKa          = 20.0,
+                        UpKv          = 1.5,
+                        Manufacturer  = "",
+                        Model         = "",
+                        StatusDot     = "•"
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadSpds: {ex.Message}"); }
         }
 
         /// <summary>Called by SpdCoordinationCheckCommand to push status dots back.</summary>
@@ -396,5 +711,13 @@ namespace StingTools.UI
         public string Name      { get; set; } = "";
         public string StatusDot { get; set; } = "";
         public string Timestamp { get; set; } = "";
+    }
+
+    public class ResidualRiskRow
+    {
+        public string Class       { get; set; } = "";
+        public string Residual    { get; set; } = "";
+        public string StatusDot   { get; set; } = "";
+        public string Recommended { get; set; } = "";
     }
 }

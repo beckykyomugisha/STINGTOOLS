@@ -130,6 +130,12 @@ namespace StingTools.UI
                         Run<SpdRecommendCommand>(app); break;
                     case "Lps_SpdExportBom":
                         Run<SpdExportBomCommand>(app); break;
+                    case "Lps_SpdSaveOverride":
+                        Run<SpdSaveOverrideCommand>(app); break;
+
+                    // ── Cross-tab: load every grid from the active doc ─
+                    case "Lps_LoadModel":
+                        Run<LpsLoadFromModelCommand>(app); break;
 
                     // ── ZONES tab ──────────────────────────────────────
                     case "Lps_ZoneTagRooms":

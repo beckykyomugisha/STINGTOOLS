@@ -24,6 +24,10 @@ namespace StingTools.Core.Lightning
     {
         private static readonly object _lock = new object();
         private static JObject _catalogue;
+        // Per-document project-override cache, keyed by the override file path.
+        // Reload() clears both maps so a manual reload picks up disk edits.
+        private static readonly Dictionary<string, JObject> _overrides
+            = new Dictionary<string, JObject>(StringComparer.OrdinalIgnoreCase);
 
         // ── Loaders ───────────────────────────────────────────────────
 
@@ -45,9 +49,124 @@ namespace StingTools.Core.Lightning
             return _catalogue;
         }
 
+        /// <summary>
+        /// Effective catalogue for a document: layers
+        /// <c>&lt;project&gt;/_BIM_COORD/lps_spd_catalogue.json</c> over the
+        /// corporate baseline. Override entries with the same <c>id</c>
+        /// replace the corporate row; new entries are appended; new
+        /// locations are appended (corporate entries always win on
+        /// duplicate <c>id</c> when override absent).
+        /// </summary>
+        public static JObject Load(Document doc)
+        {
+            var baseLib = Load();
+            string overridePath = ResolveOverridePath(doc);
+            if (string.IsNullOrEmpty(overridePath) || !File.Exists(overridePath))
+                return baseLib;
+            try
+            {
+                JObject ov;
+                lock (_lock)
+                {
+                    if (!_overrides.TryGetValue(overridePath, out ov))
+                    {
+                        ov = JObject.Parse(File.ReadAllText(overridePath));
+                        _overrides[overridePath] = ov;
+                    }
+                }
+                // Deep-clone the corporate baseline so the merge doesn't mutate it.
+                var merged = (JObject)baseLib.DeepClone();
+                MergeArray(merged, ov, "products");
+                MergeArray(merged, ov, "locations");
+                return merged;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SpdCoordinator project-override merge: {ex.Message}");
+                return baseLib;
+            }
+        }
+
+        private static void MergeArray(JObject baseLib, JObject overrideLib, string arrayName)
+        {
+            var baseArr = baseLib[arrayName] as JArray;
+            var ovArr   = overrideLib[arrayName] as JArray;
+            if (baseArr == null || ovArr == null) return;
+            foreach (var ovItem in ovArr)
+            {
+                string id = ovItem["id"]?.ToString();
+                if (string.IsNullOrEmpty(id)) continue;
+                JToken existing = baseArr.FirstOrDefault(b =>
+                    string.Equals(b["id"]?.ToString(), id, StringComparison.OrdinalIgnoreCase));
+                if (existing != null) existing.Replace(ovItem);
+                else baseArr.Add(ovItem);
+            }
+        }
+
+        /// <summary>
+        /// Write the user's SPD grid back to
+        /// <c>&lt;project&gt;/_BIM_COORD/lps_spd_catalogue.json</c> as the
+        /// project's installed-products array. Returns the path written,
+        /// or null on failure.
+        /// </summary>
+        public static string SaveProjectOverride(Document doc, IList<SpdInstance> rows)
+        {
+            try
+            {
+                string path = ResolveOverridePath(doc);
+                if (string.IsNullOrEmpty(path)) return null;
+                string dir = Path.GetDirectoryName(path);
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                JObject root = File.Exists(path)
+                    ? JObject.Parse(File.ReadAllText(path))
+                    : new JObject();
+
+                var arr = new JArray();
+                foreach (var r in rows ?? Enumerable.Empty<SpdInstance>())
+                {
+                    arr.Add(new JObject
+                    {
+                        ["id"]            = string.IsNullOrEmpty(r.Tag) ? Guid.NewGuid().ToString("N") : r.Tag,
+                        ["manufacturer"]  = r.Manufacturer ?? "",
+                        ["model"]         = r.Model ?? "",
+                        ["type"]          = r.Type,
+                        ["iimpKa"]        = r.IimpKa,
+                        ["inKa"]          = r.InKa,
+                        ["upKv"]          = r.UpKv,
+                        ["polesCfg"]      = "",
+                        ["location"]      = r.LocationId ?? "",
+                        ["datasheet"]     = ""
+                    });
+                }
+                root["products"] = arr;
+                root["_lastSavedUtc"] = DateTime.UtcNow.ToString("o");
+
+                File.WriteAllText(path, root.ToString(Newtonsoft.Json.Formatting.Indented));
+                lock (_lock) { _overrides.Remove(path); }
+                StingLog.Info($"SpdCoordinator.SaveProjectOverride wrote {path}");
+                return path;
+            }
+            catch (Exception ex) { StingLog.Error("SpdCoordinator.SaveProjectOverride", ex); return null; }
+        }
+
+        private static string ResolveOverridePath(Document doc)
+        {
+            try
+            {
+                if (doc == null) return null;
+                string rvt = doc.PathName;
+                if (string.IsNullOrEmpty(rvt)) return null;
+                string dir = Path.GetDirectoryName(rvt);
+                if (string.IsNullOrEmpty(dir)) return null;
+                return Path.Combine(dir, "_BIM_COORD", "lps_spd_catalogue.json");
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveOverridePath: {ex.Message}"); return null; }
+        }
+
         public static void Reload()
         {
-            lock (_lock) { _catalogue = null; }
+            lock (_lock) { _catalogue = null; _overrides.Clear(); }
         }
 
         // ── Public API ────────────────────────────────────────────────
@@ -70,12 +189,13 @@ namespace StingTools.Core.Lightning
             catch (Exception ex) { StingLog.Warn($"GetMinCascadeSeparationM: {ex.Message}"); return 10.0; }
         }
 
-        public static IReadOnlyList<SpdProduct> AllProducts()
+        public static IReadOnlyList<SpdProduct> AllProducts(Document doc = null)
         {
             var list = new List<SpdProduct>();
             try
             {
-                var arr = Load()["products"] as JArray;
+                var lib = doc != null ? Load(doc) : Load();
+                var arr = lib["products"] as JArray;
                 if (arr == null) return list;
                 foreach (var p in arr)
                 {
@@ -98,12 +218,13 @@ namespace StingTools.Core.Lightning
             return list;
         }
 
-        public static IReadOnlyList<SpdLocation> AllLocations()
+        public static IReadOnlyList<SpdLocation> AllLocations(Document doc = null)
         {
             var list = new List<SpdLocation>();
             try
             {
-                var arr = Load()["locations"] as JArray;
+                var lib = doc != null ? Load(doc) : Load();
+                var arr = lib["locations"] as JArray;
                 if (arr == null) return list;
                 foreach (var l in arr)
                 {
@@ -125,16 +246,16 @@ namespace StingTools.Core.Lightning
         /// Filters by required type per location + Iimp ≥ class minimum.
         /// Returns null when nothing in the catalogue matches.
         /// </summary>
-        public static SpdProduct Recommend(string locationId, string lpsClass)
+        public static SpdProduct Recommend(string locationId, string lpsClass, Document doc = null)
         {
             try
             {
-                var loc = AllLocations().FirstOrDefault(l =>
+                var loc = AllLocations(doc).FirstOrDefault(l =>
                     string.Equals(l.Id, locationId, StringComparison.OrdinalIgnoreCase));
                 if (loc == null) return null;
                 double minIimp = GetMinIimpKaForClass(lpsClass);
 
-                return AllProducts()
+                return AllProducts(doc)
                     .Where(p =>
                         (p.Type == loc.RequiredType || p.Type == 12) &&
                         string.Equals(p.Location, loc.Id, StringComparison.OrdinalIgnoreCase) &&

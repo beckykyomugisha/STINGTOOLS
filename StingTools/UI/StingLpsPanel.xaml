@@ -90,9 +90,13 @@
                 <TextBlock x:Name="txtLpsStatus" Text="Ready" FontSize="9" Margin="14,0,0,0"
                            Foreground="{DynamicResource HeaderFg}" Opacity="0.7"
                            VerticalAlignment="Center"/>
+                <Button Style="{StaticResource LpsActionBtn}" Content="⟳ Load model"
+                        Tag="Lps_LoadModel" Click="Cmd_Click"
+                        Margin="14,0,0,0" Height="20" FontSize="9"
+                        ToolTip="Walk the active document and populate every panel grid (air terminals · down conductors · earth · bonding · zones · inspection · SPD)"/>
                 <Button Style="{StaticResource LpsActionBtn}" Content="⚙ Settings"
                         Tag="Lps_OpenSettings" Click="Cmd_Click"
-                        Margin="14,0,0,0" Height="20" FontSize="9"
+                        Margin="6,0,0,0" Height="20" FontSize="9"
                         ToolTip="Open the LPS data file settings"/>
             </StackPanel>
         </Border>
@@ -264,6 +268,18 @@
                             </DataGrid>
                         </Expander>
 
+                        <Expander Header="RESIDUAL RISK BY CLASS" Style="{StaticResource LpsExpander}" IsExpanded="True"
+                                  ToolTip="R_residual = R1 × (1 − PE). ★ marks the engine's recommended class. PASS ⇒ ≤ tolerable risk Rt.">
+                            <DataGrid x:Name="ResidualGrid" Style="{StaticResource LpsGrid}" MinHeight="100">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Class"     Binding="{Binding Class}"       Width="60"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Residual"  Binding="{Binding Residual}"    Width="100" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Status"    Binding="{Binding StatusDot}"   Width="*"   IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Pick"      Binding="{Binding Recommended}" Width="40"  IsReadOnly="True"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Expander>
+
                         <Expander Header="RESULT" Style="{StaticResource LpsExpander}" IsExpanded="True">
                             <Grid Margin="4">
                                 <Grid.ColumnDefinitions>
@@ -298,9 +314,9 @@
                             <Button Style="{StaticResource LpsPrimaryBtn}" Content="Run risk"
                                     Tag="Lps_RunRiskInline" Click="Cmd_Click"
                                     ToolTip="Run IEC 62305-2 risk assessment from the inputs above"/>
-                            <Button Style="{StaticResource LpsAccentBtn}" Content="Class wizard…"
+                            <Button Style="{StaticResource LpsAccentBtn}" Content="Advanced wizard…"
                                     Tag="Lps_ClassSetup" Click="Cmd_Click"
-                                    ToolTip="Open the full LPS Class Setup wizard (residual risk + apply)"/>
+                                    ToolTip="Escape hatch: opens the modal Class Setup wizard for full R2/R3/R4 loss-type breakdown. The inline RISK tab above covers R1 (direct) for the everyday flow."/>
                             <Button Style="{StaticResource LpsActionBtn}" Content="Dashboard"
                                     Tag="Lps_Dashboard" Click="Cmd_Click"
                                     ToolTip="Open the LPS project dashboard snapshot"/>
@@ -498,6 +514,9 @@
                             <Button Style="{StaticResource LpsActionBtn}" Content="Export BOM"
                                     Tag="Lps_SpdExportBom" Click="Cmd_Click"
                                     ToolTip="Write the SPD grid to a CSV bill of materials"/>
+                            <Button Style="{StaticResource LpsActionBtn}" Content="Save to project"
+                                    Tag="Lps_SpdSaveOverride" Click="Cmd_Click"
+                                    ToolTip="Save the SPD grid to &lt;project&gt;/_BIM_COORD/lps_spd_catalogue.json — layered over the corporate catalogue on next reload"/>
                         </WrapPanel>
                     </StackPanel>
                 </ScrollViewer>

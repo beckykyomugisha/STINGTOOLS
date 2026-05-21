@@ -251,13 +251,13 @@ namespace StingTools.Commands.Lightning
             var snap = StingLpsCommandHandler.Snapshot();
             int added = 0;
 
-            foreach (var loc in SpdCoordinator.AllLocations())
+            foreach (var loc in SpdCoordinator.AllLocations(doc))
             {
                 bool present = panel.SpdRows.Any(r =>
                     string.Equals(r.LocationId, loc.Id, StringComparison.OrdinalIgnoreCase));
                 if (present) continue;
 
-                var p = SpdCoordinator.Recommend(loc.Id, snap.LpsClass);
+                var p = SpdCoordinator.Recommend(loc.Id, snap.LpsClass, doc);
                 if (p == null) continue;
 
                 panel.AddSpdRow(new SpdRowVm
@@ -279,6 +279,109 @@ namespace StingTools.Commands.Lightning
             TaskDialog.Show("STING — SPD Recommend",
                 $"Added {added} recommended SPD(s) to the grid.\n\n" +
                 "Adjust manufacturer / model / Uw to suit your project, then click 'Coordinate'.");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  Load From Model — walks the doc once and populates every grid
+    //  on the panel (AT / DC / earth / bonding / zones / inspection /
+    //  SPD). Closes the "grids seeded empty" caveat from Phase 1.
+    // ════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class LpsLoadFromModelCommand : IExternalCommand, IPanelCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { message = "No active document."; return Result.Failed; }
+            return RunInternal(ctx.App, ctx.Doc);
+        }
+
+        public Result Execute(UIApplication app)
+        {
+            var doc = app?.ActiveUIDocument?.Document;
+            if (doc == null) { TaskDialog.Show("STING — LPS Load Model", "No active document."); return Result.Cancelled; }
+            return RunInternal(app, doc);
+        }
+
+        private Result RunInternal(UIApplication app, Document doc)
+        {
+            var panel = StingLpsPanel.Instance;
+            if (panel == null)
+            {
+                TaskDialog.Show("STING — LPS Load Model",
+                    "Open the STING LPS panel first.");
+                return Result.Cancelled;
+            }
+            panel.LoadAllFromDoc(doc);
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  SPD Save Override — write the current SPD grid to
+    //  <project>/_BIM_COORD/lps_spd_catalogue.json. Reloaded on the
+    //  next coordinate / recommend run.
+    // ════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SpdSaveOverrideCommand : IExternalCommand, IPanelCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { message = "No active document."; return Result.Failed; }
+            return RunInternal(ctx.App, ctx.Doc);
+        }
+
+        public Result Execute(UIApplication app)
+        {
+            var doc = app?.ActiveUIDocument?.Document;
+            if (doc == null) { TaskDialog.Show("STING — SPD Override", "No active document."); return Result.Cancelled; }
+            return RunInternal(app, doc);
+        }
+
+        private Result RunInternal(UIApplication app, Document doc)
+        {
+            var panel = StingLpsPanel.Instance;
+            if (panel == null || panel.SpdRows.Count == 0)
+            {
+                TaskDialog.Show("STING — SPD Override", "No SPD rows in the panel grid.");
+                return Result.Cancelled;
+            }
+            if (string.IsNullOrEmpty(doc.PathName))
+            {
+                TaskDialog.Show("STING — SPD Override",
+                    "Save the Revit project first — the override path is derived from the .rvt location.");
+                return Result.Cancelled;
+            }
+
+            var rows = panel.SpdRows.Select(r => new SpdInstance
+            {
+                Tag          = r.Tag,
+                LocationId   = r.LocationId,
+                Type         = r.Type,
+                IimpKa       = r.IimpKa,
+                InKa         = r.InKa,
+                UpKv         = r.UpKv,
+                Manufacturer = r.Manufacturer,
+                Model        = r.Model,
+                CableSeparationFromUpstreamM = r.CableSeparationM
+            }).ToList();
+
+            string written = SpdCoordinator.SaveProjectOverride(doc, rows);
+            if (string.IsNullOrEmpty(written))
+            {
+                TaskDialog.Show("STING — SPD Override", "Save failed — see STING log.");
+                return Result.Failed;
+            }
+            TaskDialog.Show("STING — SPD Override",
+                $"SPD project override written to:\n{written}\n\n" +
+                $"{rows.Count} product(s) saved. Future Recommend / Coordinate runs will layer this over the corporate baseline.");
             return Result.Succeeded;
         }
     }
