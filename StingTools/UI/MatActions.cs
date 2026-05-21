@@ -1158,6 +1158,44 @@ namespace StingTools.UI
             catch (Exception ex) { TaskDialog.Show("Material Manager", $"Sync COBie failed: {ex.Message}"); }
         }
 
+        // ── N+12 — Enrich material schedules ────────────────────────────────
+
+        public static void EnrichMaterialSchedules(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                var r = MaterialScheduleEnricher.Run(doc);
+                if (r.SchedulesScanned == 0)
+                {
+                    TaskDialog.Show("Enrich Schedules",
+                        "No Material Takeoff schedules found. Create one via TEMP > Schedules first.");
+                    return;
+                }
+                MaterialAuditLogger.Log(doc, "MAT_EnrichSchedules", "(project)",
+                    new Dictionary<string, object>
+                    {
+                        ["schedulesScanned"]   = r.SchedulesScanned,
+                        ["schedulesEnriched"]  = r.SchedulesEnriched,
+                        ["fieldsAdded"]        = r.FieldsAdded,
+                    });
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Scanned {r.SchedulesScanned} Material Takeoff schedule(s).");
+                sb.AppendLine($"Enriched: {r.SchedulesEnriched}");
+                sb.AppendLine($"Fields added: {r.FieldsAdded}");
+                if (r.SkippedReasons.Count > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("Skipped:");
+                    foreach (var s in r.SkippedReasons.Take(8)) sb.AppendLine($"  · {s}");
+                    if (r.SkippedReasons.Count > 8) sb.AppendLine($"  · … and {r.SkippedReasons.Count - 8} more.");
+                }
+                TaskDialog.Show("Enrich Schedules", sb.ToString());
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Enrich failed: {ex.Message}"); }
+        }
+
         // ── N+11 — What-if material swap ────────────────────────────────────
 
         public static void WhatIfSwap(UIApplication app)
