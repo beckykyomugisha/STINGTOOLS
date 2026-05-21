@@ -36,6 +36,12 @@ namespace StingTools.UI
                 case "Class":  CommitClass(doc, mat, row, raw); break;
                 default: return; // every other column is read-only
             }
+
+            // N+5 — Outbound COBie sync. Cheap no-op when nothing in the
+            // CSV references this material; otherwise a per-row name-casing
+            // refresh + an audit log entry so the change is traceable.
+            try { CobieMaterialBridge.SyncFromMaterial(doc, mat); }
+            catch (Exception ex) { StingLog.Warn($"MatCellCommitter cobie sync: {ex.Message}"); }
         }
 
         private static void CommitDoubleParam(Document doc, Material mat, MaterialRow row,

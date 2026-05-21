@@ -2046,6 +2046,8 @@
                                             ToolTip="Open every .rfa in a picked folder read-only, list their materials, write CSV report. Slow on large drops."/>
                                     <Button Style="{StaticResource GreenBtn}" Content="Generate RFQ" Tag="MAT_GenerateRfq" Click="MatBtn_Click"
                                             ToolTip="Emit a procurement-ready CSV for every material with Manufacturer/Model/URL set."/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Sync COBie" Tag="MAT_SyncCobie" Click="MatBtn_Click"
+                                            ToolTip="Audit COBIE_TYPE_MAP.csv Material column references against the live material library."/>
                                 </WrapPanel>
                             </StackPanel>
                         </TabItem>

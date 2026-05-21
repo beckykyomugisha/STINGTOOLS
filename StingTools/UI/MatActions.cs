@@ -1004,6 +1004,52 @@ namespace StingTools.UI
             catch (Exception ex) { TaskDialog.Show("Material Manager", $"Generate RFQ failed: {ex.Message}"); }
         }
 
+        // ── N+5 — COBie material sync ───────────────────────────────────────
+
+        public static void SyncCobie(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                var r = CobieMaterialBridge.Audit(doc);
+                if (string.IsNullOrEmpty(r.CsvPath))
+                {
+                    TaskDialog.Show("Sync COBie",
+                        "COBIE_TYPE_MAP.csv not found (neither project override nor corporate baseline).");
+                    return;
+                }
+                if (r.RowsScanned == 0)
+                {
+                    TaskDialog.Show("Sync COBie", $"COBie file is empty:\n{r.CsvPath}");
+                    return;
+                }
+                MaterialAuditLogger.Log(doc, "MAT_CobieAudit", "(project)",
+                    new Dictionary<string, object>
+                    {
+                        ["rowsScanned"] = r.RowsScanned,
+                        ["mismatches"]  = r.Mismatches.Count,
+                        ["csv"]         = r.CsvPath,
+                    });
+                if (r.Mismatches.Count == 0)
+                {
+                    TaskDialog.Show("Sync COBie",
+                        $"All clear — {r.RowsScanned} COBie row(s) resolve cleanly to project materials.");
+                    return;
+                }
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"{r.Mismatches.Count} COBie Material reference(s) need attention:");
+                sb.AppendLine();
+                foreach (var m in r.Mismatches.Take(20))
+                    sb.AppendLine($"  {m.TypeCode}  {m.TypeName} — '{m.CobieMaterial}' → {m.Resolution}");
+                if (r.Mismatches.Count > 20) sb.AppendLine($"  … and {r.Mismatches.Count - 20} more.");
+                sb.AppendLine();
+                sb.AppendLine($"Source: {r.CsvPath}");
+                TaskDialog.Show("Sync COBie", sb.ToString());
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Sync COBie failed: {ex.Message}"); }
+        }
+
         public static void OpenTemplate(UIApplication app)
         {
             try
