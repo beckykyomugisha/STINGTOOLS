@@ -22,6 +22,11 @@ namespace StingTools.Core
     /// </summary>
     public static class StingMaterialUpdaterStaleHook
     {
+        // Shared revision-cloud job — long-lived so a batch of material
+        // changes accumulates into the same Idling queue.
+        private static MaterialRevisionCloudJob _revCloudJob;
+        private static readonly object _revCloudLock = new object();
+
         public static void OnMaterialChanged(Document doc, ElementId elementId)
         {
             if (doc == null || elementId == null || elementId.Value <= 0) return;
@@ -29,13 +34,32 @@ namespace StingTools.Core
             {
                 string elName = doc.GetElement(elementId)?.Name ?? "(unknown)";
                 StingLog.Info($"MaterialChange: element {elementId.Value} '{elName}' material changed → tag + BOQ marked stale.");
-                // The Planscape audit log lives in StingTools.UI to keep this
-                // assembly's dependency surface small. Future wiring can route
-                // through a lightweight interface; for now the IUpdater-side
-                // info log is sufficient — the parameter change itself is
-                // captured by Revit's own undo history.
+
+                // D4 — Enqueue the element on the revision-cloud Idling job.
+                // The job runs OUTSIDE the IUpdater's transaction (Revit
+                // doesn't allow nested transactions; clouds need their own).
+                // The job auto-exits when no revisions exist on the
+                // project — so dev / pre-issue projects pay no cost.
+                EnqueueForRevisionCloud(elementId.Value);
             }
             catch (Exception ex) { StingLog.Warn($"OnMaterialChanged: {ex.Message}"); }
+        }
+
+        private static void EnqueueForRevisionCloud(long elementId)
+        {
+            try
+            {
+                lock (_revCloudLock)
+                {
+                    if (_revCloudJob == null)
+                    {
+                        _revCloudJob = new MaterialRevisionCloudJob();
+                        StingIdlingScheduler.Enqueue(_revCloudJob);
+                    }
+                    _revCloudJob.Enqueue(elementId);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"EnqueueForRevisionCloud: {ex.Message}"); }
         }
     }
 }
