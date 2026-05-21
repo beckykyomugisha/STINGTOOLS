@@ -2057,6 +2057,8 @@
                                             ToolTip="Audit COBIE_TYPE_MAP.csv Material column references against the live material library."/>
                                     <Button Style="{StaticResource PurpleBtn}" Content="BOQ by Material" Tag="MAT_BoqByMaterial" Click="MatBtn_Click"
                                             ToolTip="Re-pivot the BOQ grouped by primary material. Σ cost + Σ carbon per material across the whole project."/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="What-If…" Tag="MAT_WhatIfSwap" Click="MatBtn_Click"
+                                            ToolTip="Preview the cost + carbon delta of swapping one material for another across the whole project. Commit under one transaction (Ctrl+Z reverts)."/>
                                 </WrapPanel>
                             </StackPanel>
                         </TabItem>

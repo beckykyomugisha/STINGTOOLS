@@ -1158,6 +1158,115 @@ namespace StingTools.UI
             catch (Exception ex) { TaskDialog.Show("Material Manager", $"Sync COBie failed: {ex.Message}"); }
         }
 
+        // ── N+11 — What-if material swap ────────────────────────────────────
+
+        public static void WhatIfSwap(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                // Two-step picker — From, then To. Reuse the simple TaskDialog
+                // pattern; a richer modeless dialog can land later.
+                var materials = new FilteredElementCollector(doc).OfClass(typeof(Material))
+                    .Cast<Material>().OrderBy(m => m.Name).ToList();
+                if (materials.Count < 2)
+                {
+                    TaskDialog.Show("What-If", "Need at least 2 materials in the project."); return;
+                }
+
+                string fromName = PickMaterialName(materials, "From material (current)");
+                if (string.IsNullOrEmpty(fromName)) return;
+                string toName = PickMaterialName(materials.Where(m => m.Name != fromName).ToList(),
+                                                  "To material (swap target)");
+                if (string.IsNullOrEmpty(toName)) return;
+
+                var preview = MaterialWhatIfEngine.Preview(doc, fromName, toName);
+                if (preview.ElementCount == 0)
+                {
+                    TaskDialog.Show("What-If",
+                        $"No elements use '{fromName}'. Nothing to swap.");
+                    return;
+                }
+
+                var td = new TaskDialog("What-If — Preview")
+                {
+                    MainInstruction = $"{fromName}  →  {toName}",
+                    MainContent =
+                        $"{preview.ElementCount} element(s) affected.\n\n" +
+                        $"Σ cost   : {preview.OldCostTotal:F0} → {preview.NewCostTotal:F0}  (Δ {preview.CostDeltaTotal:+#,##0;-#,##0;0})\n" +
+                        $"Σ carbon : {preview.OldCarbonTotal:F0} → {preview.NewCarbonTotal:F0} kgCO₂e  (Δ {preview.CarbonDeltaTotal:+#,##0;-#,##0;0})",
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                };
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Commit swap",
+                    "Repoint every element from the old material to the new one. Single transaction — Ctrl+Z reverts the whole batch.");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Export preview only",
+                    "Write the preview rows to CSV without committing.");
+                var res = td.Show();
+                if (res == TaskDialogResult.Cancel) return;
+
+                if (res == TaskDialogResult.CommandLink2)
+                {
+                    string csv = WriteWhatIfCsv(doc, preview);
+                    TaskDialog.Show("What-If", $"Preview written:\n{csv}");
+                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(csv) { UseShellExecute = true })?.Dispose(); }
+                    catch (Exception ex) { StingLog.Warn($"Open whatif csv: {ex.Message}"); }
+                    return;
+                }
+
+                int written = MaterialWhatIfEngine.Commit(doc, preview);
+                TaskDialog.Show("What-If",
+                    $"Committed: {written} element(s) repointed from '{fromName}' to '{toName}'.\n\n" +
+                    $"Δ cost  = {preview.CostDeltaTotal:+#,##0;-#,##0;0}\n" +
+                    $"Δ carbon = {preview.CarbonDeltaTotal:+#,##0;-#,##0;0} kgCO₂e\n\n" +
+                    $"Ctrl+Z reverts the whole batch.");
+                StingDockPanel.LastInstance?.ShowMaterialsTab();
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"What-If failed: {ex.Message}"); }
+        }
+
+        private static string PickMaterialName(List<Material> materials, string instruction)
+        {
+            // Simple 4-option chooser. For more materials, the user picks one
+            // of the top-4 most-used; for arbitrary picks, future commit
+            // could land a real WPF picker.
+            var top = materials.Take(8).ToList();
+            var td = new TaskDialog("What-If — Pick material")
+            {
+                MainInstruction = instruction,
+                CommonButtons = TaskDialogCommonButtons.Cancel,
+            };
+            int link = 1;
+            var byLink = new Dictionary<TaskDialogResult, string>();
+            foreach (var m in top.Take(4))
+            {
+                var lid = (TaskDialogCommandLinkId)Enum.Parse(typeof(TaskDialogCommandLinkId), "CommandLink" + link);
+                td.AddCommandLink(lid, m.Name, m.MaterialClass ?? "");
+                byLink[(TaskDialogResult)lid] = m.Name;
+                link++;
+            }
+            var res = td.Show();
+            return byLink.TryGetValue(res, out string n) ? n : null;
+        }
+
+        private static string WriteWhatIfCsv(Document doc, WhatIfPreview preview)
+        {
+            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string path = System.IO.Path.Combine(outDir,
+                $"STING_whatif_{preview.FromMaterial}_to_{preview.ToMaterial}_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"# What-If: {preview.FromMaterial} → {preview.ToMaterial}");
+            sb.AppendLine($"# Elements: {preview.ElementCount}");
+            sb.AppendLine($"# Δ cost = {preview.CostDeltaTotal:F2}");
+            sb.AppendLine($"# Δ carbon = {preview.CarbonDeltaTotal:F1} kgCO₂e");
+            sb.AppendLine();
+            sb.AppendLine("ElementId,ElementName,Category,Quantity,Unit,OldCost,NewCost,CostDelta,OldCarbonKg,NewCarbonKg,CarbonDelta");
+            foreach (var r in preview.Rows)
+                sb.AppendLine($"{r.ElementId},\"{r.ElementName}\",\"{r.Category}\",{r.Quantity:F2},{r.Unit},{r.OldCost:F2},{r.NewCost:F2},{r.CostDelta:F2},{r.OldCarbon:F1},{r.NewCarbon:F1},{r.CarbonDelta:F1}");
+            System.IO.File.WriteAllText(path, sb.ToString());
+            return path;
+        }
+
         // ── N+10 — BOQ by material pivot ────────────────────────────────────
 
         public static void BoqByMaterial(UIApplication app)
