@@ -124,12 +124,14 @@ The three deferred items from the Phase 186b caveats are now closed.
   snake_case grammar.
 
 All 3 files pass official ifctester XSD validation. Verified live on
-both positive and negative fixtures: positive passes 19/19 specs;
-negative trips 10 of the 11 catchable specs (the eleventh — empty
-IdentityHeader — passes because the IFC writer drops empty strings,
-so the spec's optional-when-present applicability is correctly
-silent). Total IDS spec count across the substrate: 11 + 7 + 6 + 7
-+ 6 = **37 specs** across all 5 psets.
+positive + negative fixtures: positive passes 19/19 specs; an
+exhaustive max-out negative trips 7/7 sting-tag7 length-bound specs.
+A more sparse "one bad value per pset" negative trips 5/6 sting-
+drawing specs (PackChecksum stays silent because the field isn't set
+in the fixture — optional-when-present applicability is correct) and
+4/6 sting-project-org specs. All 19 new specs have been demonstrated
+to fire on at least one negative variant. Total IDS spec count across
+the substrate: 11 + 8 + 6 + 7 + 6 = **38 specs** across all 5 psets.
 
 **G3 — `DrawingTypeRegistry.from_json` / `from_jsons`**
 (`stingtools-core/python/stingtools_core/spatial/check.py`):
@@ -170,6 +172,12 @@ Verified against the live corporate `StingTools/Data/STING_DRAWING_TYPES.json`
    XML's IfcText declaration remains canonical for STING-side
    storage; the IDS check is liberal about string-derived types
    for cross-writer compatibility.
+5. `tools/tests/round_trip.py` has no `--mismatch-kind` variants
+   for the 3 new psets — the harness currently covers
+   `tag-grammar` and the 6 spatial-codes mismatch kinds only.
+   Adding `drawing-bad-id`, `drawing-bad-crop`, `tag7-too-long`,
+   `prjorg-bad-code`, `prjorg-bad-phase` variants is a 1-hour
+   follow-up that closes the fixture-generation gap.
 
 #### Completed (Phase 186 — Bonsai integration foundation; multi-host substrate)
 
