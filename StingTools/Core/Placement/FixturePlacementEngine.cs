@@ -522,35 +522,51 @@ namespace StingTools.Core.Placement
             // Phase 139.27 — per-rule diagnostic entry for this room+rule pair.
             var diagRoom = result.Diag(rule.MergeKey);
 
+            // Phase 185 (footprint-aware spacing): when the rule opts in via
+            // FamilyBboxAware, resolve the family symbol BEFORE scoring and
+            // rebuild the rule with spacing fields scaled to the family's
+            // real footprint. Lets one rule serve 150 mm switches and
+            // 1200 mm AHUs without per-vendor JSON edits. No-op when the
+            // flag is false (legacy behaviour preserved).
+            PlacementRule effRule = rule;
+            if (rule.FamilyBboxAware && !dryRun)
+            {
+                var preSym = ResolveSymbol(doc, rule.CategoryFilter, rule, perCategorySymbol, result);
+                if (preSym != null)
+                {
+                    effRule = ScaleByFootprint(rule, preSym, result);
+                }
+            }
+
             var placedPoints = new List<XYZ>(); // for spacing scoring
 
             // PC-13 — RELATIVE_TO / EQUIPMENT_PAIR: short-circuit by stamping the
             // predecessor's last point as the only candidate.
-            string anchor = (rule.AnchorType ?? "").ToUpperInvariant();
+            string anchor = (effRule.AnchorType ?? "").ToUpperInvariant();
             List<PlacementCandidate> candidates;
             if ((anchor == "RELATIVE_TO" || anchor == "EQUIPMENT_PAIR")
-                && !string.IsNullOrEmpty(rule.DependsOn)
-                && state.LastPointByRule.TryGetValue(rule.DependsOn, out var prev))
+                && !string.IsNullOrEmpty(effRule.DependsOn)
+                && state.LastPointByRule.TryGetValue(effRule.DependsOn, out var prev))
             {
-                XYZ pt = new XYZ(prev.X + rule.OffsetXMm / 304.8,
-                                 prev.Y + rule.OffsetYMm / 304.8,
-                                 prev.Z + rule.OffsetZMm / 304.8);
+                XYZ pt = new XYZ(prev.X + effRule.OffsetXMm / 304.8,
+                                 prev.Y + effRule.OffsetYMm / 304.8,
+                                 prev.Z + effRule.OffsetZMm / 304.8);
                 candidates = new List<PlacementCandidate>
                 {
-                    new PlacementCandidate { Position = pt, RoomId = room.Id, Rule = rule, Score = 1.0 }
+                    new PlacementCandidate { Position = pt, RoomId = room.Id, Rule = effRule, Score = 1.0 }
                 };
                 result.CandidatesEvaluated += 1;
             }
             else
             {
-                candidates = scorer.Score(room, rule, placedPoints, alreadyInRoom);
+                candidates = scorer.Score(room, effRule, placedPoints, alreadyInRoom);
                 result.CandidatesEvaluated += candidates.Count;
             }
             if (candidates.Count == 0) return;
 
             // PC-12 — derive the count for Density / Linear rules from the room's
             // area, occupancy or perimeter, capped by MaxPerRoom when set.
-            int cap = ComputeCap(rule, room, candidates.Count, alreadyInRoom);
+            int cap = ComputeCap(effRule, room, candidates.Count, alreadyInRoom);
             if (cap == 0) return;
 
             var chosen = candidates.Take(cap).ToList();
@@ -575,7 +591,7 @@ namespace StingTools.Core.Placement
                 return;
             }
 
-            FamilySymbol symbol = ResolveSymbol(doc, rule.CategoryFilter, rule, perCategorySymbol, result);
+            FamilySymbol symbol = ResolveSymbol(doc, effRule.CategoryFilter, effRule, perCategorySymbol, result);
             if (symbol == null) return;
 
             if (!symbol.IsActive)
@@ -603,7 +619,7 @@ namespace StingTools.Core.Placement
                         if (lst != null) existingNearby.AddRange(lst);
             }
             catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Collect existing PlacedByRule for dedup: {ex.Message}"); }
-            double dedupFt = Math.Max(rule.ToleranceMm, 25.0) * MmToFt;
+            double dedupFt = Math.Max(effRule.ToleranceMm, 25.0) * MmToFt;
             double dedupSq = dedupFt * dedupFt;
 
             foreach (var c in chosen)
@@ -632,7 +648,7 @@ namespace StingTools.Core.Placement
                     // when the placement type isn't supported, instead of
                     // silently creating a host-less ghost instance that
                     // schedules later miss in QTO / COBie.
-                    var pf = PlacementHostPreflight.Place(doc, symbol, room, c.Position, rule);
+                    var pf = PlacementHostPreflight.Place(doc, symbol, room, c.Position, effRule);
                     FamilyInstance fi = pf.Placed;
                     if (pf.Skipped || fi == null)
                     {
@@ -642,7 +658,7 @@ namespace StingTools.Core.Placement
                         continue;
                     }
 
-                    WriteAnchorParameters(fi, rule);
+                    WriteAnchorParameters(fi, effRule);
                     // Pack 123 / Gap E — stamp provenance so BOQ / cleanup /
                     // audit can identify auto-created fixtures. Centre's
                     // "Stamp provenance" checkbox flips PlaceFixturesOptions.
@@ -674,7 +690,7 @@ namespace StingTools.Core.Placement
                     }
 
                     // PC-17 — optional post-placement hook: data-tag pipeline + COBie seed.
-                    try { PostPlacementHooks.RunFor(fi, rule); }
+                    try { PostPlacementHooks.RunFor(fi, effRule); }
                     catch (Exception hkEx) { result.Warnings.Add($"PC-17 post-place hook for {fi.Id}: {hkEx.Message}"); }
                 }
                 catch (Exception ex2)
@@ -903,10 +919,12 @@ namespace StingTools.Core.Placement
 
             // PC-16 — auto-load missing families from the on-disk library so a
             // project that doesn't yet contain a sample of the rule's category
-            // can still be served by the engine.
+            // can still be served by the engine. Phase 185: when the rule
+            // sets TypeCatalogKey, the loader only mints the matching type
+            // (avoids loading 200-type fitting libraries).
             if (picked == null && firstForCategory == null)
             {
-                picked = TryAutoLoadFromLibrary(doc, categoryName, hint, result);
+                picked = TryAutoLoadFromLibrary(doc, categoryName, hint, result, rule?.TypeCatalogKey ?? "");
                 firstForCategory = picked;
             }
 
@@ -927,7 +945,8 @@ namespace StingTools.Core.Placement
         /// document and returns its first symbol. Caller already owns a
         /// Transaction (the engine's "STING v4 Place Fixtures" tx).
         /// </summary>
-        private static FamilySymbol TryAutoLoadFromLibrary(Document doc, string categoryName, string hint, PlacementResult result)
+        private static FamilySymbol TryAutoLoadFromLibrary(
+            Document doc, string categoryName, string hint, PlacementResult result, string typeCatalogKey = "")
         {
             try
             {
@@ -955,6 +974,16 @@ namespace StingTools.Core.Placement
                 {
                     try
                     {
+                        // Phase 185 — if the rule specifies a type-catalog key
+                        // AND a .txt sidecar exists, try the catalog path first
+                        // so only the matching type loads (avoids 200-type bloat).
+                        if (!string.IsNullOrEmpty(typeCatalogKey))
+                        {
+                            var catSym = TryLoadFromCatalog(doc, path, typeCatalogKey, categoryName, result);
+                            if (catSym != null) return catSym;
+                            // fall through to bulk LoadFamily — catalog miss is non-fatal
+                        }
+
                         Family loaded;
                         if (!doc.LoadFamily(path, out loaded) || loaded == null) continue;
                         FamilySymbol first = null;
@@ -980,6 +1009,194 @@ namespace StingTools.Core.Placement
                 }
             }
             catch (Exception ex) { StingLog.Warn($"PC-16 TryAutoLoadFromLibrary: {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>
+        /// Phase 185 — footprint-aware spacing. When a rule sets
+        /// <see cref="PlacementRule.FamilyBboxAware"/>, read the resolved
+        /// symbol's bounding-box footprint (max of X / Y extent in mm)
+        /// and rebuild the rule with spacing fields scaled to it.
+        /// scale = clamp( max(footprintMm, MinSymbolFootprintMm) /
+        ///                 ReferenceFootprintMm,
+        ///                1.0, MaxFootprintScale ).
+        /// Lower bound is 1.0 — bbox-aware never *shrinks* spacings below
+        /// the rule's authored value, only grows them when the real
+        /// family is bigger than the reference.
+        /// </summary>
+        private static PlacementRule ScaleByFootprint(
+            PlacementRule rule,
+            FamilySymbol symbol,
+            PlacementResult result)
+        {
+            if (rule == null || symbol == null) return rule;
+            try
+            {
+                double footprintMm = MeasureSymbolFootprintMm(symbol);
+                double floorMm = Math.Max(1.0, rule.MinSymbolFootprintMm);
+                double refMm   = Math.Max(1.0, rule.ReferenceFootprintMm);
+                double cap     = Math.Max(1.0, rule.MaxFootprintScale);
+                double scale = Math.Max(footprintMm, floorMm) / refMm;
+                if (scale < 1.0) scale = 1.0;           // never shrink
+                if (scale > cap) scale = cap;           // never explode
+                if (Math.Abs(scale - 1.0) < 1e-6) return rule; // nothing to do
+
+                var scaled = rule.Clone();
+                scaled.MinSpacingMm           *= scale;
+                scaled.CoverageRadiusMm       *= scale;
+                scaled.ObstructionClearanceMm *= scale;
+                scaled.WallClearanceMm        *= scale;
+                // Offsets scale too — a 1200 mm AHU placed with a 50 mm
+                // wall offset is wrong; the offset should also be ~8× larger.
+                scaled.OffsetXMm *= scale;
+                scaled.OffsetYMm *= scale;
+                // OffsetZMm is intentionally NOT scaled — mounting height
+                // is set by MountingHeightMm and MountingReference, not
+                // by the family footprint.
+
+                result.Warnings.Add(
+                    $"Phase 185 footprint-aware: rule '{rule.RuleId}' / category " +
+                    $"'{rule.CategoryFilter}' scaled spacings ×{scale:F2} " +
+                    $"(footprint {footprintMm:F0} mm vs reference {refMm:F0} mm).");
+                return scaled;
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"Phase 185 footprint scale for '{rule?.RuleId}': {ex.Message}");
+                return rule;
+            }
+        }
+
+        /// <summary>
+        /// Max of the symbol's plan bounding-box extent (mm). Falls back to
+        /// the family's own bbox via Symbol-then-Family probing.
+        /// </summary>
+        private static double MeasureSymbolFootprintMm(FamilySymbol symbol)
+        {
+            try
+            {
+                BoundingBoxXYZ bb = symbol?.get_BoundingBox(null);
+                if (bb != null && bb.Max != null && bb.Min != null)
+                {
+                    double dx = Math.Abs(bb.Max.X - bb.Min.X);
+                    double dy = Math.Abs(bb.Max.Y - bb.Min.Y);
+                    double footFt = Math.Max(dx, dy);
+                    return footFt * 304.8; // ft → mm
+                }
+            }
+            catch { }
+            return 0.0;
+        }
+
+        /// <summary>
+        /// Phase 185 — type-catalog loader. When a rule sets
+        /// <see cref="PlacementRule.TypeCatalogKey"/> and a `.txt` sidecar
+        /// exists next to the `.rfa`, only the matching type is loaded —
+        /// avoids bloating the project with 200-type valve / fittings
+        /// libraries.
+        ///
+        /// Returns the loaded FamilySymbol, or null when:
+        /// - TypeCatalogKey is empty (caller falls through to bulk LoadFamily)
+        /// - No `.txt` sidecar exists (caller falls through to bulk LoadFamily)
+        /// - No catalog row matches (caller falls through, with a warning)
+        ///
+        /// Catalog format (Revit standard, comma-delimited):
+        ///   ,Param1##type##unit,Param2##type##unit
+        ///   Type-A,value1,value2
+        ///   Type-B,value3,value4
+        /// First column = type name. Header row identified by leading comma.
+        /// </summary>
+        private static FamilySymbol TryLoadFromCatalog(
+            Document doc,
+            string rfaPath,
+            string typeCatalogKey,
+            string categoryName,
+            PlacementResult result)
+        {
+            if (string.IsNullOrEmpty(typeCatalogKey)) return null;
+            if (string.IsNullOrEmpty(rfaPath)) return null;
+            string txtPath;
+            try
+            {
+                string dir  = Path.GetDirectoryName(rfaPath) ?? "";
+                string name = Path.GetFileNameWithoutExtension(rfaPath) ?? "";
+                txtPath = Path.Combine(dir, name + ".txt");
+            }
+            catch { return null; }
+            if (!File.Exists(txtPath)) return null;
+
+            // Resolve the type name to load.
+            string matchedType = ResolveCatalogType(txtPath, typeCatalogKey, result);
+            if (string.IsNullOrEmpty(matchedType))
+            {
+                result.Warnings.Add(
+                    $"Type catalog '{Path.GetFileName(txtPath)}': no type matches " +
+                    $"TypeCatalogKey='{typeCatalogKey}' — falling back to bulk LoadFamily.");
+                return null;
+            }
+
+            try
+            {
+                FamilySymbol loaded;
+                if (doc.LoadFamilySymbol(rfaPath, matchedType, out loaded) && loaded != null)
+                {
+                    if (loaded.Category != null &&
+                        !string.IsNullOrEmpty(categoryName) &&
+                        !string.Equals(loaded.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.Warnings.Add(
+                            $"Type catalog load: '{matchedType}' from '{Path.GetFileName(rfaPath)}' " +
+                            $"resolved category '{loaded.Category.Name}', expected '{categoryName}'.");
+                    }
+                    result.Warnings.Add(
+                        $"Phase 185 type-catalog: loaded '{matchedType}' from " +
+                        $"'{Path.GetFileName(rfaPath)}' (key='{typeCatalogKey}').");
+                    return loaded;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Phase 185 LoadFamilySymbol '{matchedType}' from '{rfaPath}': {ex.Message}");
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Read the type-catalog .txt and return the first type-name (first
+        /// column of a non-header row) whose name matches the key — either
+        /// exact case-insensitive, or via regex when the key looks regex-like.
+        /// </summary>
+        private static string ResolveCatalogType(string txtPath, string key, PlacementResult result)
+        {
+            try
+            {
+                bool regexMode = IsRegexLike(key);
+                System.Text.RegularExpressions.Regex rx = null;
+                if (regexMode)
+                {
+                    try { rx = new System.Text.RegularExpressions.Regex(key, System.Text.RegularExpressions.RegexOptions.IgnoreCase); }
+                    catch (Exception ex) { result?.Warnings.Add($"TypeCatalogKey regex '{key}': {ex.Message}"); return null; }
+                }
+                foreach (var raw in File.ReadAllLines(txtPath))
+                {
+                    if (string.IsNullOrEmpty(raw)) continue;
+                    // Header row starts with comma (no type name).
+                    if (raw.StartsWith(",")) continue;
+                    // First field = type name.
+                    int comma = raw.IndexOf(',');
+                    string typeName = (comma >= 0 ? raw.Substring(0, comma) : raw).Trim();
+                    if (string.IsNullOrEmpty(typeName)) continue;
+                    if (regexMode)
+                    {
+                        if (rx != null && rx.IsMatch(typeName)) return typeName;
+                    }
+                    else if (string.Equals(typeName, key, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return typeName;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveCatalogType '{txtPath}': {ex.Message}"); }
             return null;
         }
 

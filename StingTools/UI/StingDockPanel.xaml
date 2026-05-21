@@ -2571,8 +2571,9 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Swap Category" Tag="FamilySwapCategory" Click="Cmd_Click" ToolTip="Change the family's category via EditFamily + reload (Generic Model ↔ Furniture ↔ Equipment etc.)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Automation Pack" Tag="FamilyInjectAutomationPack" Click="Cmd_Click" ToolTip="Inject clearance, fire rating, acoustic, cost, CO₂, manufacturer, model, datasheet URL, warranty, LOD switches, workset hint, OmniClass"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Tag Family Params" Tag="FamilyParamCreator" Click="Cmd_Click" ToolTip="Batch-inject STING tag parameters into tag family .rfa files. Regular families → Temp › Family Parameter Processor."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Conformance Check" Tag="FamilyConformanceCheck" Click="Cmd_Click" ToolTip="Phase 185: read-only audit of a folder of .rfa families against the STING contract. Surfaces missing placement params / tag style matrix / wrong placement type BEFORE you bulk-stamp a manufacturer library. CSV report + summary, no mutations. Run this before any vendor intake."/>
                                 </WrapPanel>
-                                <TextBlock Text="Rehost · recategorise · inject params — all without leaving the project." FontSize="8" Foreground="#AAA" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                <TextBlock Text="Rehost · recategorise · inject params · pre-stamp audit — all without leaving the project." FontSize="8" Foreground="#AAA" Margin="0,4,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 

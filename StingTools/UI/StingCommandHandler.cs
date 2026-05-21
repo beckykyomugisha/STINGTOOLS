@@ -2819,6 +2819,10 @@ namespace StingTools.UI
 
                     // Family tooling (FamilyParamCreatorCommand.cs, StingTools.Tags)
                     case "FamilyParamCreator": RunCommand<Tags.FamilyParamCreatorCommand>(app); break;
+                    // Family conformance audit (FamilyConformanceCheckCommand.cs, Phase 185) —
+                    // read-only audit of a folder of .rfa families against the STING contract.
+                    // Use BEFORE bulk-stamping a manufacturer library.
+                    case "FamilyConformanceCheck": RunCommand<Tags.FamilyConformanceCheckCommand>(app); break;
 
                     // Family quick-edit (FamilyQuickEditCommands.cs, StingTools.Tags) —
                     // rehost, swap category, inject automation pack, quick-edit dialog
