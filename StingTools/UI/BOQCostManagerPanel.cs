@@ -162,6 +162,26 @@ namespace StingTools.UI
         private void Build()
         {
             Background = PanelBg;
+
+            // Phase 184r — load the shared button-style ResourceDictionary
+            // so the Actions tab (Phase 184n) can pick up the same
+            // GreenBtn / OrangeBtn / BlueBtn / ActionBtn styles the dock
+            // panel uses, including theme-aware DynamicResource binding
+            // for the neutral palette. Wrapped in try/catch because a
+            // missing XAML asset shouldn't break the BOQ panel — the
+            // button factory falls back to inline colours when
+            // FindResource returns null.
+            try
+            {
+                var dict = new ResourceDictionary
+                {
+                    Source = new Uri("/StingTools;component/UI/StingButtonStyles.xaml",
+                                     UriKind.Relative)
+                };
+                this.Resources.MergedDictionaries.Add(dict);
+            }
+            catch (Exception ex) { StingLog.Warn($"Load StingButtonStyles.xaml: {ex.Message}"); }
+
             var root = new DockPanel { LastChildFill = true };
 
             root.Children.Add(BuildHeaderStrip());
@@ -612,7 +632,11 @@ namespace StingTools.UI
 
         /// <summary>
         /// A single inline action button that fires the same dispatch
-        /// path as the dock-panel buttons.
+        /// path as the dock-panel buttons. Phase 184r — prefers the
+        /// shared StingButtonStyles.xaml resources (GreenBtn for
+        /// headline, ActionBtn for neutral) so theme switching flows
+        /// through. Falls back to inline colour literals when the
+        /// dictionary failed to load.
         /// </summary>
         private Button BuildActionButton(string label, string tag, string tooltip, bool headline)
         {
@@ -621,20 +645,41 @@ namespace StingTools.UI
                 Content = label,
                 Tag = tag,
                 ToolTip = tooltip,
-                FontSize = 11,
-                FontWeight = headline ? FontWeights.Bold : FontWeights.SemiBold,
                 Padding = new Thickness(10, 5, 10, 5),
                 Margin = new Thickness(0, 0, 6, 6),
-                Cursor = Cursors.Hand,
-                Background = headline
-                    ? new SolidColorBrush(Color.FromRgb(0x0A, 0x7D, 0x2E))      // headline green
-                    : new SolidColorBrush(Color.FromRgb(0xF4, 0xF6, 0xF8)),     // neutral
-                Foreground = headline ? Brushes.White : NavyBrush,
-                BorderBrush = headline
-                    ? new SolidColorBrush(Color.FromRgb(0x07, 0x5C, 0x22))
-                    : BorderColor,
-                BorderThickness = new Thickness(1)
+                Cursor = Cursors.Hand
             };
+
+            // Try the shared resource dictionary first.
+            Style style = null;
+            try { style = TryFindResource(headline ? "GreenBtn" : "ActionBtn") as Style; }
+            catch (Exception ex) { StingLog.Warn($"BuildActionButton FindResource: {ex.Message}"); }
+
+            if (style != null)
+            {
+                btn.Style = style;
+                // Style sets neutral FontSize 10 + Height 26; bump the
+                // Actions tab to slightly larger so the click target is
+                // comfortable.
+                btn.FontSize = 11;
+                btn.MinHeight = 30;
+                btn.FontWeight = headline ? FontWeights.Bold : FontWeights.SemiBold;
+            }
+            else
+            {
+                // Fallback — inline literals (same colours as before).
+                btn.FontSize = 11;
+                btn.FontWeight = headline ? FontWeights.Bold : FontWeights.SemiBold;
+                btn.Background = headline
+                    ? new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50))      // GreenBtn
+                    : new SolidColorBrush(Color.FromRgb(0xF4, 0xF6, 0xF8));     // neutral
+                btn.Foreground = headline ? Brushes.White : NavyBrush;
+                btn.BorderBrush = headline
+                    ? new SolidColorBrush(Color.FromRgb(0x38, 0x8E, 0x3C))
+                    : BorderColor;
+                btn.BorderThickness = new Thickness(1);
+            }
+
             btn.Click += (s, e) => DispatchAction(tag);
             return btn;
         }

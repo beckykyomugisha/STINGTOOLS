@@ -16,14 +16,15 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { theme } from '@/utils/theme';
 import { getBoqSnapshot, listProjects } from '@/api/endpoints';
 import type { BoqDisciplineRow, BoqSnapshotResponse } from '@/api/endpoints';
 import { realtime } from '@/services/realtimeClient';
 
-// Phase 184m — navigation tile to the Phase 184i variation / payment-cert
-// screens. The cost-dashboard is the natural launch point because both
-// flows depend on BOQ data the dashboard already surfaces.
+// Phase 184m — quick-nav tile to the variation / payment-cert screens.
+// Phase 184r — swapped emoji icons (📃 / 📝) for Feather glyphs to match
+// the rest of the app's iconography (which uses Feather throughout).
 function CostQuickNav({ onVariations, onPaymentCerts }: {
   onVariations: () => void;
   onPaymentCerts: () => void;
@@ -31,12 +32,12 @@ function CostQuickNav({ onVariations, onPaymentCerts }: {
   return (
     <View style={navStyles.row}>
       <TouchableOpacity style={navStyles.tile} onPress={onPaymentCerts}>
-        <Text style={navStyles.tileIcon}>📃</Text>
+        <Feather name="file-text" size={26} color="#0a7d2e" />
         <Text style={navStyles.tileLabel}>Payment certs</Text>
         <Text style={navStyles.tileSub}>Agree / dispute</Text>
       </TouchableOpacity>
       <TouchableOpacity style={navStyles.tile} onPress={onVariations}>
-        <Text style={navStyles.tileIcon}>📝</Text>
+        <Feather name="edit-3" size={26} color="#1c70d8" />
         <Text style={navStyles.tileLabel}>Variations</Text>
         <Text style={navStyles.tileSub}>Approve / reject</Text>
       </TouchableOpacity>
@@ -52,8 +53,7 @@ const navStyles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4,
     shadowOffset: { width: 0, height: 1 }, elevation: 1,
   },
-  tileIcon: { fontSize: 24, marginBottom: 4 },
-  tileLabel: { fontSize: 14, fontWeight: '600' },
+  tileLabel: { fontSize: 14, fontWeight: '600', marginTop: 6 },
   tileSub: { fontSize: 11, color: '#5a5a5a', marginTop: 2 },
 });
 

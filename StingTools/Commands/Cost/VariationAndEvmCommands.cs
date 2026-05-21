@@ -165,9 +165,22 @@ namespace StingTools.Commands.Cost
                 VariationLiability liability = (liabilityPicked != null && liabilityPicked.Count > 0 &&
                     liabilityPicked[0].Tag is VariationLiability l) ? l : suggested;
 
+                // Phase 184r — EOT band picker. Capturing this on
+                // mint means the cash-flow's monthly_eot_adjusted curve
+                // (Phase 184q) lights up automatically once the QS
+                // approves the VO, rather than the user having to edit
+                // the JSON sidecar manually.
+                int eotDays = PickEotDays();
+
+                // Phase 184r — short free-text rationale via the existing
+                // WPF input prompt. The PaymentCert detail dialog uses
+                // a similar lightweight prompt; reuse the pattern via a
+                // small Window so we don't pull in a heavier dependency.
+                string reasonDetail = PromptForReasonDetail();
+
                 string contractRef = doc.ProjectInformation?.Number ?? "DEFAULT";
                 var vo = VariationEngine.FromDiff(diff, contractRef, kind,
-                    reason, liability, reasonDetail: "", eotDays: 0,
+                    reason, liability, reasonDetail: reasonDetail, eotDays: eotDays,
                     contractForm: contractForm);
                 string path = VariationEngine.Save(doc, vo);
 
@@ -186,6 +199,95 @@ namespace StingTools.Commands.Cost
                 StingLog.Error("Variation_FromDiff", ex);
                 message = ex.Message;
                 return Result.Failed;
+            }
+        }
+
+        /// <summary>
+        /// Phase 184r — EOT band picker. Pre-set bands cover the
+        /// common QS values (0 / 1 / 3 / 7 / 14 / 21 / 30 / 60 / 90+).
+        /// Returns 0 when the user cancels so the VO mints cleanly
+        /// without an EOT impact.
+        /// </summary>
+        private static int PickEotDays()
+        {
+            var items = new List<StingListPicker.ListItem>
+            {
+                new() { Label = "0 days",   Detail = "No time impact",                    Tag = 0  },
+                new() { Label = "1 day",    Detail = "Trivial / single-task slip",         Tag = 1  },
+                new() { Label = "3 days",   Detail = "Half-week",                          Tag = 3  },
+                new() { Label = "5 days",   Detail = "One working week",                   Tag = 5  },
+                new() { Label = "7 days",   Detail = "Calendar week",                      Tag = 7  },
+                new() { Label = "14 days",  Detail = "Two calendar weeks",                 Tag = 14 },
+                new() { Label = "21 days",  Detail = "Three calendar weeks",               Tag = 21 },
+                new() { Label = "30 days",  Detail = "One calendar month",                 Tag = 30 },
+                new() { Label = "60 days",  Detail = "Two months — significant impact",    Tag = 60 },
+                new() { Label = "90 days",  Detail = "Quarter — major delay",              Tag = 90 },
+            };
+            var picked = StingListPicker.Show("STING — EOT entitlement",
+                "How many calendar days of programme extension does this variation justify? Drives the cash-flow EOT-adjusted curve.",
+                items, allowMultiSelect: false);
+            if (picked == null || picked.Count == 0) return 0;
+            return picked[0].Tag is int days ? days : 0;
+        }
+
+        /// <summary>
+        /// Phase 184r — short free-text rationale captured via a
+        /// minimal WPF input window. The detail is stored on
+        /// VariationInstruction.ReasonDetail so the mobile detail
+        /// screen can surface it below the reason/liability badges.
+        /// Empty / cancelled is fine — the field is optional.
+        /// </summary>
+        private static string PromptForReasonDetail()
+        {
+            try
+            {
+                var w = new System.Windows.Window
+                {
+                    Title = "STING — Variation rationale (optional)",
+                    Width = 480, Height = 220,
+                    WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner,
+                    ShowInTaskbar = false,
+                    ResizeMode = System.Windows.ResizeMode.NoResize
+                };
+                var sp = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(14) };
+                sp.Children.Add(new System.Windows.Controls.TextBlock
+                {
+                    Text = "Add a short rationale (optional). Appears on the cert + mobile detail.",
+                    FontSize = 12, TextWrapping = System.Windows.TextWrapping.Wrap,
+                    Margin = new System.Windows.Thickness(0, 0, 0, 8)
+                });
+                var tb = new System.Windows.Controls.TextBox
+                {
+                    Height = 80,
+                    AcceptsReturn = true,
+                    TextWrapping = System.Windows.TextWrapping.Wrap,
+                    VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto
+                };
+                sp.Children.Add(tb);
+                var row = new System.Windows.Controls.StackPanel
+                {
+                    Orientation = System.Windows.Controls.Orientation.Horizontal,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                    Margin = new System.Windows.Thickness(0, 10, 0, 0)
+                };
+                var ok = new System.Windows.Controls.Button
+                { Content = "OK", Width = 80, Height = 26,
+                  Margin = new System.Windows.Thickness(0, 0, 6, 0), IsDefault = true };
+                var cancel = new System.Windows.Controls.Button
+                { Content = "Skip", Width = 80, Height = 26, IsCancel = true };
+                ok.Click += (s, e) => { w.DialogResult = true; };
+                row.Children.Add(ok);
+                row.Children.Add(cancel);
+                sp.Children.Add(row);
+                w.Content = sp;
+                tb.Focus();
+                bool? result = w.ShowDialog();
+                return result == true ? (tb.Text ?? "").Trim() : "";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PromptForReasonDetail: {ex.Message}");
+                return "";
             }
         }
 

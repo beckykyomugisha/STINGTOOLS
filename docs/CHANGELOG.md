@@ -2,6 +2,57 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 184r — older-phase cleanup pass)
+
+Branch: `claude/revit-api-cost-management-qH8Vv`. Revisits older-phase caveats and closes the three actionable ones found in an audit pass. The standing "no `dotnet build` / Expo runtime verification" caveat applies as always.
+
+**Phase 184m caveat — mobile emoji icons** → swapped 📃 / 📝 in the `CostQuickNav` tiles for `Feather` glyphs (`file-text` / `edit-3`) via `@expo/vector-icons`. Matches the rest of the app's iconography (Feather throughout). Tile glyphs now colour-coded — green for payment certs, blue for variations.
+
+**Phase 184n caveat — Actions tab buttons used inline colours not StaticResource styles** → extracted the 5 button styles (`ActionBtn` / `GreenBtn` / `OrangeBtn` / `RedBtn` / `BlueBtn`) into `UI/StingButtonStyles.xaml` ResourceDictionary. `BOQCostManagerPanel.Build` loads it via `Resources.MergedDictionaries.Add(...)`. `BuildActionButton` consults `TryFindResource("GreenBtn" / "ActionBtn")` first; on miss (dictionary unavailable) falls back to the original inline literals so the panel still works. Theme switching (Light / Warm / Cool / Corporate) flows through to the Actions tab automatically — the styles use `DynamicResource` for the neutral palette.
+
+**Phase 184o + Phase 184q caveats — Variation_FromDiff hardcoded `eotDays:0` and `reasonDetail:""`** → new picker steps appended after the liability pick:
+
+- `PickEotDays()` — 10-band picker (0 / 1 / 3 / 5 / 7 / 14 / 21 / 30 / 60 / 90 days). Each band shows a one-line meaning ("Trivial / single-task slip" / "Two months — significant impact" / etc.). Captures EOT entitlement at mint time so the cash-flow's `monthly_eot_adjusted` curve (Phase 184q) lights up automatically once the QS approves the VO.
+- `PromptForReasonDetail()` — minimal WPF window with a multi-line textbox. Skip button (IsCancel) and OK button (IsDefault) so the keyboard flow is natural. Content stored on `VariationInstruction.ReasonDetail`; surfaces on the mobile detail screen below the reason / liability badges.
+
+##### Resolved/standing caveats (audit summary)
+
+For traceability — every caveat raised across the 18 prior cost-management phases (P0–P8 + caveat closures + UI polish):
+
+| Phase | Caveat | Status |
+|---|---|---|
+| 184 (P0+P1) | No `dotnet build` verification | Standing — Linux sandbox |
+| 184 (P0+P1) | ES schema v2 needs migration | Resolved Phase 184b |
+| 184 (P0+P1) | Currency-neutral params need binding | Resolved Phase 184c (LoadSharedParams) |
+| 184b | Server endpoints / Qto params / ICMS3 phases / signature | Resolved Phase 184k–184l |
+| 184c | IUpdater opt-in retention | Design decision, not caveat |
+| 184d | WRITE_COST_ON_TAG perf | Resolved Phase 184e (per-batch cache) |
+| 184d | `_legacyInlineFallback` 124 entries | Resolved Phase 184e (deleted, kept emergency-5) |
+| 184d | `Cost_MigrateESEntities` one-shot | Resolved Phase 184e (added to FullRefresh) |
+| 184e | Per-batch cache bounded at 500 | Operational, single tag op < 50 unique tuples |
+| 184e | Missing CSV degrades fallback | Operational, ships with plugin |
+| 184e | Mobile signature typed-name MVP | Resolved Phase 184k (signature-canvas) |
+| 184k | Server endpoint handlers missing | Resolved Phase 184k itself |
+| 184k | IFC Qto params not bound | Resolved Phase 184k itself |
+| 184k | ICMS3 English-only | Resolved Phase 184l (11-language map) |
+| 184l | `IFileStorageService` registration | Operational, already wired |
+| 184l | 11-language ICMS3 baseline | Operational, project overrides |
+| 184l | `ensure-deps` cold install | Operational, first-time only |
+| 184m | Dock panel layout | Resolved Phase 184n (consolidated) |
+| 184m | Mobile emoji icons | **Resolved Phase 184r (this commit)** |
+| 184n | Actions tab inline colours | **Resolved Phase 184r (this commit)** |
+| 184o | EOT field captured but not picked | **Resolved Phase 184r (this commit)** |
+| 184o | EOT not in 4D pipeline | Resolved Phase 184p–184q |
+| 184p | Contract form vs Kind | Resolved Phase 184q |
+| 184p | Per-period EOT redistribution | Resolved Phase 184q |
+| 184q | Standing dotnet build | Standing — Linux sandbox |
+
+##### Caveats
+
+1. Built without `dotnet build` / Expo runtime verification (Linux sandbox) — standing across the whole branch.
+
+---
+
 #### Completed (Phase 184q — Phase 184p caveats closed)
 
 Branch: `claude/revit-api-cost-management-qH8Vv`. Closes the two actionable caveats from Phase 184p. Caveat #1 (no `dotnet build` / Expo runtime verification on the Linux sandbox) is a standing environmental constraint.
