@@ -356,6 +356,13 @@ namespace StingTools.Commands.Mep
             using (var tx = new Transaction(doc, "STING Auto-size ducts"))
             {
                 try { tx.Start(); } catch (Exception ex) { res.Warnings.Add($"tx: {ex.Message}"); goto Done; }
+                // Pre-walk every duct's role in one pass (Phase 182 gap D5 batch
+                // path). On a 500-duct view fed by ~10 AHUs this collapses
+                // 500 connector-graph traversals down to ~10 walks.
+                Dictionary<ElementId, string> roleMap = null;
+                try { roleMap = StingTools.Core.Mep.HvacSegmentRoleDetector.DetectRolesBatch(doc, ducts); }
+                catch (Exception ex) { StingLog.Warn($"DetectRolesBatch: {ex.Message}"); }
+
                 try
                 {
                     foreach (var d in ducts)
@@ -363,7 +370,9 @@ namespace StingTools.Commands.Mep
                         try
                         {
                             // Per-element role lookup (Phase 182, gap D5).
-                            string roleId = StingTools.Core.Mep.HvacSegmentRoleDetector.DetectRole(doc, d);
+                            string roleId = roleMap != null && roleMap.TryGetValue(d.Id, out var rid)
+                                ? rid
+                                : StingTools.Core.Mep.HvacSegmentRoleDetector.DetectRole(doc, d);
                             double maxVelMs  = DuctMaxVelMsFallback;
                             double maxAspect = MaxAspectFallback;
                             string roleSrc   = "fallback";
@@ -380,15 +389,12 @@ namespace StingTools.Commands.Mep
                             lastRoleId = roleId; lastRoleSrc = roleSrc;
                             lastMaxVel = maxVelMs; lastMaxAsp = maxAspect;
 
-                            // Flow in CFM or L/s depending on doc units;
-                            // HVC_FLOW_LS preferred v4 param.
-                            double flowLs = ReadDouble(d, "HVC_FLOW_LS");
+                            // HVC_FLOW_LS preferred v4 param; both readers below
+                            // honour the parameter's actual spec (AirFlow vs
+                            // Number) via MepUnits.ReadAirFlowLs.
+                            double flowLs = MepUnits.ReadAirFlowLs(d, "HVC_FLOW_LS");
                             if (flowLs <= 0)
-                            {
-                                // Revit built-in fallback
-                                double flowCfm = ReadBuiltInFlowCfm(d);
-                                flowLs = flowCfm * 0.4719; // CFM → L/s
-                            }
+                                flowLs = MepUnits.ReadBuiltInFlowLs(d, BuiltInParameter.RBS_DUCT_FLOW_PARAM);
                             if (flowLs <= 0) { res.Skipped++; continue; }
                             double flowM3s = flowLs * 1e-3;
 
@@ -473,9 +479,9 @@ namespace StingTools.Commands.Mep
         {
             try
             {
-                double w = ReadDouble(d, "Width")  * 304.8;
-                double h = ReadDouble(d, "Height") * 304.8;
-                double dia = ReadDouble(d, "Diameter") * 304.8;
+                double w   = UnitUtils.ConvertFromInternalUnits(ReadDouble(d, "Width"),    UnitTypeId.Millimeters);
+                double h   = UnitUtils.ConvertFromInternalUnits(ReadDouble(d, "Height"),   UnitTypeId.Millimeters);
+                double dia = UnitUtils.ConvertFromInternalUnits(ReadDouble(d, "Diameter"), UnitTypeId.Millimeters);
                 if (w > 0 && h > 0) return $"{w:F0}x{h:F0}";
                 if (dia > 0)        return $"Ø{dia:F0}";
             }
@@ -509,16 +515,6 @@ namespace StingTools.Commands.Mep
                         System.Globalization.CultureInfo.InvariantCulture,
                         out double v)) return v; }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            return 0;
-        }
-        private static double ReadBuiltInFlowCfm(Element el)
-        {
-            try
-            {
-                var p = el.get_Parameter(BuiltInParameter.RBS_DUCT_FLOW_PARAM);
-                if (p != null && p.StorageType == StorageType.Double) return p.AsDouble() * 60.0;
-            }
-            catch (Exception ex) { StingLog.Warn($"RBS_DUCT_FLOW_PARAM read: {ex.Message}"); }
             return 0;
         }
         private static bool WriteSize(Element el, string param, double mm)

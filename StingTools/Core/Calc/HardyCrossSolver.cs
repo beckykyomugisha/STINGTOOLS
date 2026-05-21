@@ -103,9 +103,11 @@ namespace StingTools.Core.Calc
 
             double rho = fluid == NetworkFluid.Water ? WaterDensityKgM3 : AirDensityKgM3;
             double mu  = fluid == NetworkFluid.Water ? WaterViscosityPaS : AirViscosityPaS;
-            // Exponent in h_L = K·Q^n. n=2 for fully turbulent; 1.852
-            // is the Hazen-Williams exponent sometimes used for water.
-            double n = fluid == NetworkFluid.Water ? 2.0 : 1.852;
+            // Exponent in h_L = K·Q^n. HeadLoss() below uses Darcy-Weisbach
+            // with constant f over an iteration, so h ∝ v² ∝ Q² → n=2 for
+            // both water and air. The Hazen-Williams exponent (1.852) does
+            // not apply here because we never call H-W.
+            const double n = 2.0;
 
             var byId = pipes.ToDictionary(p => p.Id);
 

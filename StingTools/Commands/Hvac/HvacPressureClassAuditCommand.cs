@@ -24,6 +24,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Calc;
 using StingTools.Core.Mep;
 using StingTools.UI;
 
@@ -83,19 +84,15 @@ namespace StingTools.Commands.Hvac
                 {
                     try
                     {
-                        double flowLs = ReadDouble(d, "HVC_FLOW_LS");
+                        double flowLs = MepUnits.ReadAirFlowLs(d, "HVC_FLOW_LS");
                         if (flowLs <= 0)
-                        {
-                            var bip = d?.get_Parameter(BuiltInParameter.RBS_DUCT_FLOW_PARAM);
-                            if (bip != null && bip.StorageType == StorageType.Double)
-                                flowLs = bip.AsDouble() * 0.4719;
-                        }
+                            flowLs = MepUnits.ReadBuiltInFlowLs(d, BuiltInParameter.RBS_DUCT_FLOW_PARAM);
                         if (flowLs <= 0) { skipped++; continue; }
 
                         // Get actual size → velocity → dynamic pressure (Pa).
-                        double w = ReadDouble(d, "Width")  * 304.8;
-                        double h = ReadDouble(d, "Height") * 304.8;
-                        double dia = ReadDouble(d, "Diameter") * 304.8;
+                        double w = UnitUtils.ConvertFromInternalUnits(ReadDouble(d, "Width"),    UnitTypeId.Millimeters);
+                        double h = UnitUtils.ConvertFromInternalUnits(ReadDouble(d, "Height"),   UnitTypeId.Millimeters);
+                        double dia = UnitUtils.ConvertFromInternalUnits(ReadDouble(d, "Diameter"), UnitTypeId.Millimeters);
                         double areaMm2 = (w > 0 && h > 0) ? w * h
                                        : (dia > 0)         ? Math.PI * dia * dia * 0.25
                                        : 0;
@@ -104,21 +101,25 @@ namespace StingTools.Commands.Hvac
                         double velMs = (flowLs * 1e-3) / (areaMm2 * 1e-6);  // m/s
                         double dynamicPa = 0.5 * airDensity * velMs * velMs;
 
-                        // Length-based friction estimate (very rough, but
-                        // gives us something to bound the system drop).
-                        // MEPCurve inherits Location from Element; cast to
-                        // LocationCurve to get the curve length.
+                        // Length-based friction estimate. Use DuctFrictionSolver
+                        // (Darcy-Weisbach + Swamee-Jain) instead of a flat f=0.02
+                        // so an audit on a long high-velocity run isn't quietly
+                        // under-reporting friction by ~40%.
                         double lengthM = 0;
                         if (d is MEPCurve mc && mc.Location is LocationCurve lc && lc.Curve != null)
-                            lengthM = lc.Curve.Length * 0.3048;
-                        // Hydraulic diameter for friction:
-                        double dh = (w > 0 && h > 0)
-                            ? 2.0 * w * h / (w + h) * 1e-3
-                            : dia * 1e-3;
-                        double friction = 0.02; // generic galvanised steel friction factor
-                        double frictionPa = dh > 0
-                            ? friction * (lengthM / dh) * 0.5 * airDensity * velMs * velMs
-                            : 0;
+                            lengthM = UnitUtils.ConvertFromInternalUnits(lc.Curve.Length, UnitTypeId.Meters);
+
+                        double frictionPa = 0;
+                        if (lengthM > 0)
+                        {
+                            var shape = (w > 0 && h > 0) ? DuctShape.Rectangular : DuctShape.Round;
+                            double a = shape == DuctShape.Round ? dia : w;
+                            double b = shape == DuctShape.Round ? 0   : h;
+                            var fr = DuctFrictionSolver.Solve(
+                                shape, a, b, lengthM, flowLs * 1e-3, null,
+                                DuctFrictionSolver.GalvRoughnessM);
+                            frictionPa = fr.StraightDropPa;
+                        }
 
                         double estimatedPa = dynamicPa + frictionPa;
                         if (estimatedPa > worstPa) { worstPa = estimatedPa; worstId = d.Id; }
@@ -164,8 +165,9 @@ namespace StingTools.Commands.Hvac
                     panel.AddSection("OVER CLASS (first 40)");
                     foreach (var s in details) panel.Text(s);
                 }
-                panel.Text("Estimate = dynamic pressure (½ρv²) + Darcy friction over duct length. " +
-                           "Coupled fitting losses are not included; use Mep_PressureDrop for the full report.");
+                panel.Text("Estimate = dynamic pressure (½ρv²) + Darcy-Weisbach friction (Swamee-Jain f) " +
+                           "over each duct's individual length. Coupled fitting losses are not included; " +
+                           "use Mep_PressureDrop for the full system report.");
                 panel.Show();
 
                 try

@@ -23,6 +23,8 @@ namespace StingTools.UI
 
         // Per-tab snapshot inputs — populated by the panel before raising Event.
         // Each is a public static so commands can read them without a dependency on the UI dll.
+        // Writes go through SetInputs(...) which assigns the whole bundle under _stateLock
+        // so a command never sees a torn snapshot (e.g. new strategy with old air density).
         public static string CurrentRegion              = "UK_SI";
         public static string CurrentStandard            = "CIBSE";
         public static string CurrentPressureClassId     = "low";
@@ -32,8 +34,47 @@ namespace StingTools.UI
         public static string CurrentLoadEngine          = "RevitNative";
         public static string CurrentLoadCode            = "ASHRAE_90_1";
 
-        private readonly object _lock = new object();
+        private static readonly object _stateLock = new object();
+        // Pending tag is exchanged atomically — Interlocked.Exchange<T>
+        // is cheaper than a lock and removes the chance of a write/read
+        // race interleaving with the ExternalEvent.Raise pump.
         private string _pendingTag;
+
+        /// <summary>
+        /// Atomically replace the per-tab snapshot inputs. Called by the panel
+        /// just before <see cref="SetCommand"/> raises the ExternalEvent so
+        /// the dispatched command sees a consistent header context.
+        /// </summary>
+        public static void SetInputs(
+            string region, string standard, string pressureClassId,
+            double airDensityKgM3, string sizingStrategyId, string scope,
+            string loadEngine = null, string loadCode = null)
+        {
+            lock (_stateLock)
+            {
+                if (region          != null) CurrentRegion           = region;
+                if (standard        != null) CurrentStandard         = standard;
+                if (pressureClassId != null) CurrentPressureClassId  = pressureClassId;
+                if (!double.IsNaN(airDensityKgM3) && airDensityKgM3 > 0) CurrentAirDensityKgM3 = airDensityKgM3;
+                if (sizingStrategyId!= null) CurrentSizingStrategyId = sizingStrategyId;
+                if (scope           != null) CurrentScope            = scope;
+                if (loadEngine      != null) CurrentLoadEngine       = loadEngine;
+                if (loadCode        != null) CurrentLoadCode         = loadCode;
+            }
+        }
+
+        /// <summary>Snapshot the inputs into a single consistent tuple.</summary>
+        public static (string Region, string Standard, string PressureClassId,
+                       double AirDensityKgM3, string SizingStrategyId, string Scope,
+                       string LoadEngine, string LoadCode) Snapshot()
+        {
+            lock (_stateLock)
+            {
+                return (CurrentRegion, CurrentStandard, CurrentPressureClassId,
+                        CurrentAirDensityKgM3, CurrentSizingStrategyId, CurrentScope,
+                        CurrentLoadEngine, CurrentLoadCode);
+            }
+        }
 
         public static void Initialise(UIControlledApplication app)
         {
@@ -45,7 +86,7 @@ namespace StingTools.UI
 
         public void SetCommand(string tag)
         {
-            lock (_lock) _pendingTag = tag ?? "";
+            System.Threading.Interlocked.Exchange(ref _pendingTag, tag ?? "");
             try { Event?.Raise(); }
             catch (Exception ex) { StingLog.Warn($"HvacCommandHandler.SetCommand: {ex.Message}"); }
         }
@@ -56,8 +97,7 @@ namespace StingTools.UI
         {
             try { StingCommandHandler.SetCurrentApp(app); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
-            string tag;
-            lock (_lock) { tag = _pendingTag; _pendingTag = null; }
+            string tag = System.Threading.Interlocked.Exchange(ref _pendingTag, null);
             if (string.IsNullOrEmpty(tag)) return;
 
             var doc = app?.ActiveUIDocument?.Document;
@@ -105,19 +145,41 @@ namespace StingTools.UI
                         // Phase 182 — strategy radio actually dispatches (gap D2).
                         // The CALCS tab's "Auto-size" button respects the header
                         // strategy radio rather than always calling MepAutoSizeDuct.
-                        switch ((CurrentSizingStrategyId ?? "velocity").ToLowerInvariant())
+                        // Snapshot the header inputs once so we don't read torn values
+                        // if the user changes the radio while Execute is running.
                         {
-                            case "equal_friction":
-                                Run<StingTools.Commands.StandardsExt.DuctEqualFrictionCommand>(app); break;
-                            case "static_regain":
-                                Run<StingTools.Commands.MepDesign.DuctStaticRegainCommand>(app); break;
-                            case "constant_pressure":
-                                // No dedicated command yet; fall through to velocity sizing
-                                // and stamp the chosen strategy in the audit trail.
-                                Run<StingTools.Commands.Mep.MepAutoSizeDuctCommand>(app); break;
-                            case "velocity":
-                            default:
-                                Run<StingTools.Commands.Mep.MepAutoSizeDuctCommand>(app); break;
+                            var snap = Snapshot();
+                            switch ((snap.SizingStrategyId ?? "velocity").ToLowerInvariant())
+                            {
+                                case "equal_friction":
+                                    Run<StingTools.Commands.StandardsExt.DuctEqualFrictionCommand>(app); break;
+                                case "static_regain":
+                                    Run<StingTools.Commands.MepDesign.DuctStaticRegainCommand>(app); break;
+                                case "constant_pressure":
+                                    // No dedicated command yet. Surface that fact rather than
+                                    // silently downgrading to velocity sizing — the user picked
+                                    // a different strategy and deserves to know it didn't run.
+                                    {
+                                        var td = new TaskDialog("STING HVAC — Constant Pressure")
+                                        {
+                                            MainInstruction = "Constant-pressure sizing is not implemented.",
+                                            MainContent =
+                                                "STING does not yet ship a constant-pressure duct sizer. " +
+                                                "You can run velocity sizing instead (recommended for most VAV/CAV systems) " +
+                                                "or cancel and pick a different strategy.",
+                                            CommonButtons = TaskDialogCommonButtons.Cancel
+                                        };
+                                        td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                                            "Run velocity sizing", "Falls back to MepAutoSizeDuct (default header velocity per role).");
+                                        var r = td.Show();
+                                        if (r == TaskDialogResult.CommandLink1)
+                                            Run<StingTools.Commands.Mep.MepAutoSizeDuctCommand>(app);
+                                    }
+                                    break;
+                                case "velocity":
+                                default:
+                                    Run<StingTools.Commands.Mep.MepAutoSizeDuctCommand>(app); break;
+                            }
                         }
                         break;
                     case "Hvac_DuctFriction":

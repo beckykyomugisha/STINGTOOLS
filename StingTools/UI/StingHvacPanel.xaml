@@ -275,9 +275,12 @@
                                     </Grid>
                                 </Expander>
 
-                                <Expander Header="ACOUSTICS" Style="{StaticResource HvacExpander}"/>
-                                <Expander Header="CONNECTIONS" Style="{StaticResource HvacExpander}"/>
-                                <Expander Header="COBie + ASSET" Style="{StaticResource HvacExpander}"/>
+                                <!-- Acoustics / Connections / COBie + ASSET expanders are deferred to a later phase.
+                                     They were previously rendered as empty headers which made the panel look broken;
+                                     re-add them with real content (or a 'wired by Phase X' placeholder inside) when ready. -->
+                                <Expander Header="ACOUSTICS"     Style="{StaticResource HvacExpander}" Visibility="Collapsed"/>
+                                <Expander Header="CONNECTIONS"   Style="{StaticResource HvacExpander}" Visibility="Collapsed"/>
+                                <Expander Header="COBie + ASSET" Style="{StaticResource HvacExpander}" Visibility="Collapsed"/>
                             </StackPanel>
                         </Grid>
 
