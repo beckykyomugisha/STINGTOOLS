@@ -924,6 +924,39 @@ namespace StingTools.UI
                 : "Auto-fill is OFF. New Materials keep their Revit defaults.");
         }
 
+        // ── A11 — Procurement hand-off (RFQ generator) ──────────────────────
+
+        public static void GenerateRfq(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                var rows = MaterialRfqGenerator.Build(doc);
+                if (rows.Count == 0)
+                {
+                    TaskDialog.Show("Generate RFQ",
+                        "No materials have Manufacturer / Model / URL set.\n\nPopulate those fields in the Browse grid (Edit Identity) or in Revit's Material Browser, then re-run.");
+                    return;
+                }
+                string csv = MaterialRfqGenerator.WriteCsv(doc, rows);
+                MaterialAuditLogger.Log(doc, "MAT_RfqGenerate", "(project)",
+                    new Dictionary<string, object>
+                    {
+                        ["rows"] = rows.Count,
+                        ["totalEstimate"] = rows.Sum(r => r.EstimatedTotal),
+                        ["csv"] = csv,
+                    });
+                TaskDialog.Show("Generate RFQ",
+                    $"Generated {rows.Count} RFQ row(s).\n" +
+                    $"Estimated total: {rows.Sum(r => r.EstimatedTotal):F0}\n\n" +
+                    $"CSV: {csv}");
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(csv) { UseShellExecute = true })?.Dispose(); }
+                catch (Exception ex) { StingLog.Warn($"Open RFQ csv: {ex.Message}"); }
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Generate RFQ failed: {ex.Message}"); }
+        }
+
         public static void OpenTemplate(UIApplication app)
         {
             try

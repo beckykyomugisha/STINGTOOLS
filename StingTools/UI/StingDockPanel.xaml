@@ -2029,6 +2029,8 @@
                                             ToolTip="Open the BLE/MEP CSV template for editing"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Audit Family Folder…" Tag="MAT_FamilyAudit" Click="MatBtn_Click"
                                             ToolTip="Open every .rfa in a picked folder read-only, list their materials, write CSV report. Slow on large drops."/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Generate RFQ" Tag="MAT_GenerateRfq" Click="MatBtn_Click"
+                                            ToolTip="Emit a procurement-ready CSV for every material with Manufacturer/Model/URL set."/>
                                 </WrapPanel>
                             </StackPanel>
                         </TabItem>
