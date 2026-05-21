@@ -200,14 +200,54 @@ namespace StingTools.UI
 
         public static void FindDuplicates(UIApplication app)
         {
-            TaskDialog.Show("Find Duplicates",
-                "Duplicate-detection grid lands in commit C (asset-share count). For now use TEMP > Material Manager > Duplicates tab.");
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                var mode = StingDockPanel.LastInstance?.GetDuplicateMode() ?? DuplicateMode.SameName;
+                var rows = MaterialDuplicateFinder.Find(doc, mode);
+                StingDockPanel.LastInstance?.SetDuplicateRows(rows);
+                if (rows.Count == 0)
+                    TaskDialog.Show("Find Duplicates",
+                        $"No duplicate clusters found for mode '{mode}'.\n\nTry a different mode (fuzzy / RGB / appearance) for a wider search.");
+                else
+                {
+                    int clusters = rows.GroupBy(r => r.ClusterKey).Count();
+                    TaskDialog.Show("Find Duplicates",
+                        $"Found {clusters} cluster(s) covering {rows.Count} material(s) in mode '{mode}'.\n\nReview the Duplicates grid — the most-used material is checked as the default keeper. Adjust the keepers if needed, then click 'Merge Selected'.");
+                }
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Find Duplicates failed: {ex.Message}"); }
         }
 
         public static void MergeDuplicates(UIApplication app)
         {
-            TaskDialog.Show("Merge Duplicates",
-                "Merge lands in commit C (asset-share count). For now use TEMP > Material Manager > Duplicates tab.");
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                var rows = StingDockPanel.LastInstance?.GetDuplicateRows();
+                if (rows == null || rows.Count == 0)
+                { TaskDialog.Show("Merge Duplicates", "Run 'Find Duplicates' first."); return; }
+
+                var clusters = rows.GroupBy(r => r.ClusterKey).ToList();
+                int losers = rows.Count - clusters.Count;
+                var td = new TaskDialog("Merge Duplicates")
+                {
+                    MainInstruction = $"Merge {losers} material(s) across {clusters.Count} cluster(s)?",
+                    MainContent = "Every usage of the losing materials will repoint to the keeper, then the losers are deleted. This is a single transaction — Ctrl+Z reverts the whole batch.",
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                };
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Commit merge", "");
+                if (td.Show() != TaskDialogResult.CommandLink1) return;
+
+                int merged = MaterialDuplicateFinder.Merge(doc, rows.ToList());
+                TaskDialog.Show("Merge Duplicates",
+                    $"Merged {merged} material(s). The Duplicates grid will be empty — re-run 'Find Duplicates' to verify.");
+                StingDockPanel.LastInstance?.SetDuplicateRows(new List<DuplicateRow>());
+                StingDockPanel.LastInstance?.ShowMaterialsTab();
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Merge failed: {ex.Message}"); }
         }
 
         // ── Library overrides ───────────────────────────────────────────────

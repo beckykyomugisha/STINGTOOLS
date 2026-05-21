@@ -2548,5 +2548,38 @@ namespace StingTools.UI
             }
             catch (Exception ex) { StingLog.Warn($"MatRefreshRow: {ex.Message}"); }
         }
+
+        // ── Duplicates sub-tab support ─────────────────────────────────────
+
+        /// <summary>Populate the Duplicates DataGrid (called from MatActions).</summary>
+        internal void SetDuplicateRows(IList<StingTools.UI.DuplicateRow> rows)
+        {
+            try { if (dgDuplicates != null) dgDuplicates.ItemsSource = rows; }
+            catch (Exception ex) { StingLog.Warn($"SetDuplicateRows: {ex.Message}"); }
+        }
+
+        internal StingTools.UI.DuplicateMode GetDuplicateMode()
+        {
+            try
+            {
+                string s = (cmbDupMode?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
+                if (s.StartsWith("Same name",   StringComparison.OrdinalIgnoreCase)) return StingTools.UI.DuplicateMode.SameName;
+                if (s.StartsWith("Fuzzy",        StringComparison.OrdinalIgnoreCase)) return StingTools.UI.DuplicateMode.FuzzyName;
+                if (s.StartsWith("Same RGB",    StringComparison.OrdinalIgnoreCase)) return StingTools.UI.DuplicateMode.SameRgb;
+                if (s.StartsWith("Same Appear", StringComparison.OrdinalIgnoreCase)) return StingTools.UI.DuplicateMode.SameAppearance;
+            }
+            catch (Exception ex) { StingLog.Warn($"GetDuplicateMode: {ex.Message}"); }
+            return StingTools.UI.DuplicateMode.SameName;
+        }
+
+        internal IList<StingTools.UI.DuplicateRow> GetDuplicateRows()
+        {
+            try
+            {
+                if (dgDuplicates?.ItemsSource is IList<StingTools.UI.DuplicateRow> list) return list;
+            }
+            catch (Exception ex) { StingLog.Warn($"GetDuplicateRows: {ex.Message}"); }
+            return new List<StingTools.UI.DuplicateRow>();
+        }
     }
 }
