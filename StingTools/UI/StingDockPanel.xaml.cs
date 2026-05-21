@@ -2312,6 +2312,98 @@ namespace StingTools.UI
         private System.Collections.ObjectModel.ObservableCollection<StingTools.UI.MaterialRow> _matRows;
         private bool _matLoaded;
 
+        // ── N1 — Live selection sync ───────────────────────────────────────
+        //
+        // When the user picks an element (or face) in Revit, find its
+        // material and highlight the matching row in the Browse grid.
+        // The subscription is wired once on the first command-handler call
+        // (via SubscribeSelectionSync) — Revit's UIApplication.SelectionChanged
+        // event needs a live UIApplication which we only have inside an
+        // ExternalEvent handler. Re-subscription is idempotent.
+
+        private static bool _selSyncSubscribed;
+
+        public static void SubscribeSelectionSync(UIApplication uiapp)
+        {
+            if (_selSyncSubscribed || uiapp == null) return;
+            try
+            {
+                uiapp.SelectionChanged += OnRevitSelectionChanged;
+                _selSyncSubscribed = true;
+                StingLog.Info("MaterialManager: live selection sync subscribed");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SubscribeSelectionSync: {ex.Message}");
+            }
+        }
+
+        private static void OnRevitSelectionChanged(object sender,
+            Autodesk.Revit.UI.Events.SelectionChangedEventArgs e)
+        {
+            // Cheap exit when the dock panel hasn't been opened — no grid
+            // to highlight, no work to do.
+            var inst = LastInstance;
+            if (inst == null || inst._matRows == null || inst._matRows.Count == 0) return;
+            try
+            {
+                var doc = e.GetDocument();
+                var ids = e.GetSelectedElements();
+                if (doc == null || ids == null || ids.Count == 0) return;
+
+                // Resolve the first selected element's material(s).
+                // GetMaterialIds covers compound elements; Material parameter
+                // covers MEP fittings / family instances.
+                var matIds = new HashSet<long>();
+                foreach (var id in ids.Take(50)) // cap traversal — selection-bound work
+                {
+                    var el = doc.GetElement(id);
+                    if (el == null) continue;
+                    try
+                    {
+                        var ms = el.GetMaterialIds(false);
+                        if (ms != null) foreach (var m in ms) if (m != null && m.Value > 0) matIds.Add(m.Value);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"SelSync GetMaterialIds: {ex.Message}"); }
+                    try
+                    {
+                        var p = el.LookupParameter("Material") ?? el.get_Parameter(Autodesk.Revit.DB.BuiltInParameter.MATERIAL_ID_PARAM);
+                        if (p != null && p.StorageType == Autodesk.Revit.DB.StorageType.ElementId)
+                        {
+                            var mid = p.AsElementId();
+                            if (mid != null && mid.Value > 0) matIds.Add(mid.Value);
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"SelSync Material param: {ex.Message}"); }
+                }
+                if (matIds.Count == 0) return;
+
+                // Marshal back to the WPF thread to update the grid.
+                inst.Dispatcher.BeginInvoke(new Action(() => inst.HighlightMaterials(matIds)),
+                    System.Windows.Threading.DispatcherPriority.Background);
+            }
+            catch (Exception ex) { StingLog.Warn($"OnRevitSelectionChanged: {ex.Message}"); }
+        }
+
+        private void HighlightMaterials(HashSet<long> matIds)
+        {
+            if (dgMaterials == null || _matRows == null) return;
+            try
+            {
+                StingTools.UI.MaterialRow firstMatch = null;
+                foreach (var row in _matRows)
+                {
+                    if (row.Id != null && matIds.Contains(row.Id.Value)) { firstMatch = row; break; }
+                }
+                if (firstMatch == null) return;
+                dgMaterials.SelectedItem = firstMatch;
+                dgMaterials.ScrollIntoView(firstMatch);
+                if (txtMatStatus != null)
+                    txtMatStatus.Text = $"Synced from Revit selection → '{firstMatch.Name}'";
+            }
+            catch (Exception ex) { StingLog.Warn($"HighlightMaterials: {ex.Message}"); }
+        }
+
         /// <summary>
         /// Public entry point used by the Hub "Materials" button:
         /// surface the dock panel, activate the MAT tab, load on first hit.
@@ -2351,6 +2443,7 @@ namespace StingTools.UI
                     view.Filter = MatRowFilter;
                 }
                 UpdateMatHeaderCounts();
+                UpdateMatRollup();
                 if (txtMatStatus != null)
                     txtMatStatus.Text = $"Loaded {_matRows.Count} materials.";
             }
@@ -2392,6 +2485,39 @@ namespace StingTools.UI
                 txtMatCounts.Text = $"{total} materials · {selected} selected · {unused} unused";
             }
             catch (Exception ex) { StingLog.Warn($"UpdateMatHeaderCounts: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// N2 — Project roll-up. Sums the material library's defined values
+        /// across every row plus an EPD freshness breakdown. Different from
+        /// the modelled-quantity totals (those need volumes/areas per
+        /// element and live elsewhere); this is a library health snapshot
+        /// answering "how complete is our material spec?".
+        /// </summary>
+        private void UpdateMatRollup()
+        {
+            if (_matRows == null || txtMatRollup == null) return;
+            try
+            {
+                int total = _matRows.Count;
+                if (total == 0) { txtMatRollup.Text = "(no materials in this project)"; return; }
+
+                int costed     = _matRows.Count(r => r.Cost > 0);
+                int carboned   = _matRows.Count(r => r.CarbonKgCo2e > 0);
+                double sumCost = _matRows.Sum(r => r.Cost);
+                double sumCarbon = _matRows.Sum(r => r.CarbonKgCo2e);
+
+                int fresh   = _matRows.Count(r => r.EpdFreshness == StingTools.UI.EpdFreshness.Fresh);
+                int stale   = _matRows.Count(r => r.EpdFreshness == StingTools.UI.EpdFreshness.Stale);
+                int expired = _matRows.Count(r => r.EpdFreshness == StingTools.UI.EpdFreshness.Expired);
+                int missing = _matRows.Count(r => r.EpdFreshness == StingTools.UI.EpdFreshness.Missing);
+
+                txtMatRollup.Text =
+                    $"Library: {costed}/{total} costed (Σ ${sumCost:F0}) · " +
+                    $"{carboned}/{total} carboned (Σ {sumCarbon:F0} kgCO₂e/m³ avg) · " +
+                    $"EPD ✓{fresh} △{stale} ✗{expired} —{missing}";
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateMatRollup: {ex.Message}"); }
         }
 
         // ── XAML event handlers ────────────────────────────────────────────

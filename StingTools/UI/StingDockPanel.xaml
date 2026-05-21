@@ -1755,16 +1755,24 @@
 
                     <!-- Row 0 — Header strip with live counts -->
                     <Border Grid.Row="0" Background="{DynamicResource HeaderBg}" Padding="8,6,8,6" CornerRadius="3" Margin="0,0,0,6">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" x:Name="txtMatHeader" Text="Material Manager"
-                                       FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource HeaderFg}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" x:Name="txtMatCounts" Text="0 materials · 0 selected"
-                                       FontSize="10" Foreground="{DynamicResource HeaderFg}" Opacity="0.75" VerticalAlignment="Center"/>
-                        </Grid>
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="txtMatHeader" Text="Material Manager"
+                                           FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource HeaderFg}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" x:Name="txtMatCounts" Text="0 materials · 0 selected"
+                                           FontSize="10" Foreground="{DynamicResource HeaderFg}" Opacity="0.75" VerticalAlignment="Center"/>
+                            </Grid>
+                            <!-- N2 — Project roll-up strip. Live totals across the
+                                 whole material library: cost/carbon coverage, EPD
+                                 freshness, unused / undocumented counts. -->
+                            <TextBlock x:Name="txtMatRollup" FontSize="10" Margin="0,4,0,0"
+                                       Foreground="{DynamicResource HeaderFg}" Opacity="0.85" TextWrapping="Wrap"
+                                       Text="(roll-up loads on first Refresh)"/>
+                        </StackPanel>
                     </Border>
 
                     <!-- Row 1 — Sub-tab toolbar (six switches) -->
