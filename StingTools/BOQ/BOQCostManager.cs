@@ -120,7 +120,60 @@ namespace StingTools.BOQ
             // ── STEP 8: Assign BOQ line refs across the whole document ───
             AssignBoqLineRefs(boq);
 
+            // ── STEP 9 (N+9): Clear ASS_CST_STALE_BOOL on elements that
+            //                  have just been re-costed. The flag was set by
+            //                  StingStaleMarker on material change; now that
+            //                  this row has its fresh rate + carbon, the
+            //                  flag stops being true. Count the refresh so
+            //                  the BOQ dashboard can surface it.
+            boq.StaleRowsRefreshed = ClearStaleFlagsForCostedRows(doc, boq);
+
             return boq;
+        }
+
+        /// <summary>
+        /// N+9 — On every BOQ build, any element whose row has now been
+        /// re-costed clears its ASS_CST_STALE_BOOL = "1" flag (set by
+        /// StingStaleMarker on a previous material change). Returns the
+        /// number of elements whose flag was cleared so the BOQ
+        /// dashboard can colour-banner the refresh.
+        ///
+        /// Caller owns the transaction. Falls back gracefully when the
+        /// parameter isn't bound on the project.
+        /// </summary>
+        private static int ClearStaleFlagsForCostedRows(Document doc, BOQDocument boq)
+        {
+            if (doc == null || boq == null) return 0;
+            int cleared = 0;
+            try
+            {
+                using (var t = new Transaction(doc, "STING BOQ Clear Stale Flags"))
+                {
+                    t.Start();
+                    foreach (var item in boq.AllItems)
+                    {
+                        if (item.RevitElementId < 0) continue;
+                        try
+                        {
+                            var el = doc.GetElement(new ElementId(item.RevitElementId));
+                            if (el == null) continue;
+                            var p = el.LookupParameter("ASS_CST_STALE_BOOL");
+                            if (p == null || p.IsReadOnly || p.StorageType != StorageType.String) continue;
+                            string cur = p.AsString();
+                            if (string.Equals(cur, "1", StringComparison.Ordinal))
+                            {
+                                p.Set("0");
+                                cleared++;
+                            }
+                        }
+                        catch (Exception ex) { StingLog.WarnRateLimited("ClearStale", $"ClearStale {item.RevitElementId}: {ex.Message}"); }
+                    }
+                    t.Commit();
+                }
+                if (cleared > 0) StingLog.Info($"BOQ build: refreshed {cleared} stale element row(s).");
+            }
+            catch (Exception ex) { StingLog.Warn($"ClearStaleFlagsForCostedRows: {ex.Message}"); }
+            return cleared;
         }
 
         // ══════════════════════════════════════════════════════════════════
