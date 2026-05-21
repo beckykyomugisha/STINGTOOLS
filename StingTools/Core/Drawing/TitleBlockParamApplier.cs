@@ -193,11 +193,19 @@ namespace StingTools.Core.Drawing
         {
             if (string.IsNullOrEmpty(template)) return "";
 
-            // ${ProjectInfo} substitution first, so a user can pass
-            // "${PRJ_ORG_PROJECT_CODE}-{disc}" and both land.
+            // N+4 — MAT_* tokens take precedence over ProjectInfo lookup so
+            // a title-block cell can resolve "${MAT_PRIMARY_NAME}" /
+            // "${MAT_LIBRARY_COST_TOTAL}" / "${MAT_LIBRARY_CARBON_TOTAL}"
+            // against the live material library state. Falls back to
+            // ProjectInfo for everything else.
             var s = _projInfo.Replace(template, m =>
             {
                 var name = m.Groups[1].Value;
+                if (name.StartsWith("MAT_", StringComparison.Ordinal))
+                {
+                    string matVal = MaterialTitleBlockTokens.Resolve(doc, name);
+                    if (matVal != null) return matVal;
+                }
                 return ReadProjectInfoParam(doc, name) ?? "";
             });
 
