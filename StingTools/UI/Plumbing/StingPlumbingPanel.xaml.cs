@@ -80,7 +80,73 @@ namespace StingTools.UI.Plumbing
             ManholeGrid.ItemsSource        = ManholeRows;
             BoqGrid.ItemsSource            = BoqRows;
 
+            // Seed the SYSTEM-tab inline form with defaults so dropdowns are
+            // populated immediately; PlumbLoadSystemConfigCommand pushes the
+            // real on-disk values back via LoadSystemForm when invoked.
+            try { LoadSystemForm(StingTools.Core.Plumbing.PlumbingSystemConfig.Defaults()); }
+            catch (Exception ex) { StingLog.Warn($"ctor LoadSystemForm: {ex.Message}"); }
+
+            // Subscribe to symbol-engine status updates so the inline status
+            // bar surfaces every Place* / Browse outcome — no more modal
+            // "Placed N symbols" TaskDialogs.
+            try { StingTools.Commands.Symbols.EquipmentSymbolEngine.StatusUpdated += OnSymbolEngineStatus; }
+            catch (Exception ex) { StingLog.Warn($"Symbol status subscribe: {ex.Message}"); }
+
             UpdateStatus("Ready");
+        }
+
+        private void OnSymbolEngineStatus(string message)
+        {
+            // Filter to plumbing-relevant messages so we don't echo electrical
+            // / HVAC / FP symbol activity on the plumbing panel.
+            if (string.IsNullOrEmpty(message)) return;
+            if (message.IndexOf("Plumb", StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("PLM_",  StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("WC",    StringComparison.Ordinal) < 0
+             && message.IndexOf("HWC",   StringComparison.Ordinal) < 0
+             && message.IndexOf("WHB",   StringComparison.Ordinal) < 0
+             && message.IndexOf("Bidet", StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("Bath",  StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("Sink",  StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("Valve", StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("PRV",   StringComparison.Ordinal) < 0
+             && message.IndexOf("Shower",StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("Drain", StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("Gulley",StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("Strainer",StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("Urinal",StringComparison.OrdinalIgnoreCase) < 0)
+                return;
+            ShowInlineResult(message);
+        }
+
+        /// <summary>
+        /// Compact in-panel status surface. Mirrors the message into both the
+        /// header status line and the resizable result-log textbox at the
+        /// bottom of the SYSTEM tab — so users see at-a-glance + scrollable
+        /// history without a popup window.
+        /// </summary>
+        public void ShowInlineResult(string message)
+        {
+            try
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    if (string.IsNullOrEmpty(message)) return;
+                    UpdateStatus(message);
+                    if (txtPlumbResultLog != null)
+                    {
+                        var stamp = DateTime.Now.ToString("HH:mm:ss");
+                        var line  = $"[{stamp}] {message}";
+                        txtPlumbResultLog.Text = string.IsNullOrEmpty(txtPlumbResultLog.Text)
+                            ? line
+                            : line + Environment.NewLine + txtPlumbResultLog.Text;
+                        // Cap at 4000 chars so the log never bloats memory.
+                        if (txtPlumbResultLog.Text.Length > 4000)
+                            txtPlumbResultLog.Text = txtPlumbResultLog.Text.Substring(0, 4000);
+                    }
+                });
+            }
+            catch (Exception ex) { StingLog.Warn($"ShowInlineResult: {ex.Message}"); }
         }
 
         public void UpdateStatus(string text)
@@ -107,6 +173,7 @@ namespace StingTools.UI.Plumbing
                 StingPlumbingCommandHandler.Instance?.SetCommand(tag);
                 StingPlumbingCommandHandler.Event?.Raise();
                 UpdateStatus($"Running: {tag}");
+                ShowInlineResult($"▶ {tag}");
             }
             catch (Exception ex)
             {
@@ -242,16 +309,217 @@ namespace StingTools.UI.Plumbing
             foreach (var r in rows) BoqRows.Add(r);
         }
 
+        // PopulateConfigSummary is retained for snapshot-pushed values (the
+        // SYSTEM tab is now an editable inline form, so we route the snapshot
+        // into the same controls — first selected item / textbox values).
         private void PopulateConfigSummary(PlumbConfigSummary cfg)
         {
-            txtCfgDrainageStd.Text  = cfg.DrainageStandard  ?? "—";
-            txtCfgSupplyStd.Text    = cfg.SupplyStandard    ?? "—";
-            txtCfgVelocityMax.Text  = cfg.VelocityMaxText   ?? "—";
-            txtCfgMinSlope.Text     = cfg.MinSlopeText      ?? "—";
-            txtCfgKFactor.Text      = cfg.KFactorText       ?? "—";
-            txtCfgMatDcw.Text       = cfg.MaterialDcw       ?? "—";
-            txtCfgMatDhw.Text       = cfg.MaterialDhw       ?? "—";
+            try
+            {
+                if (cfg == null) return;
+                if (!string.IsNullOrEmpty(cfg.DrainageStandard))
+                    SetComboByText(cmbCfgDrainStd, cfg.DrainageStandard);
+                if (!string.IsNullOrEmpty(cfg.SupplyStandard))
+                    SetComboByText(cmbCfgSupplyStd, cfg.SupplyStandard);
+                if (!string.IsNullOrEmpty(cfg.KFactorText))
+                    txtCfgKFactor.Text = cfg.KFactorText;
+                if (!string.IsNullOrEmpty(cfg.MaterialDcw))
+                    SetComboByText(cmbCfgMatDCW, cfg.MaterialDcw);
+                if (!string.IsNullOrEmpty(cfg.MaterialDhw))
+                    SetComboByText(cmbCfgMatDHW, cfg.MaterialDhw);
+            }
+            catch (Exception ex) { StingLog.Warn($"PopulateConfigSummary: {ex.Message}"); }
         }
+
+        /// <summary>
+        /// Populate the SYSTEM-tab inline form from a PlumbingSystemConfig.
+        /// Idempotent — called on panel load and after every save / reload.
+        /// </summary>
+        public void LoadSystemForm(StingTools.Core.Plumbing.PlumbingSystemConfig cfg)
+        {
+            try
+            {
+                if (cfg == null) cfg = StingTools.Core.Plumbing.PlumbingSystemConfig.Defaults();
+
+                // First call seeds the dropdown lists from PlumbingTables.
+                EnsureSystemFormSeeded();
+
+                SetComboByText(cmbCfgBldgType,  cfg.BuildingType);
+                SetComboByText(cmbCfgDrainStd,  cfg.DrainStandard);
+                SetComboByText(cmbCfgSupplyStd, cfg.SupplyStandard);
+                txtCfgKFactor.Text       = cfg.KFactor.ToString("F2");
+                chkCfgFlushValve.IsChecked = cfg.FlushValveMajority;
+                txtCfgOccupancy.Text     = cfg.OccupancyCount.ToString();
+                txtCfgBeds.Text          = cfg.BedsOrWorkstations.ToString();
+
+                SetComboByText(cmbCfgMatDCW,      cfg.MaterialFor("DCW"));
+                SetComboByText(cmbCfgMatDHW,      cfg.MaterialFor("DHW"));
+                SetComboByText(cmbCfgMatDrainage, cfg.MaterialFor("Drainage"));
+                SetComboByText(cmbCfgMatStorm,    cfg.MaterialFor("Storm"));
+                SetComboByText(cmbCfgMatVent,     cfg.MaterialFor("Vent"));
+
+                txtCfgVelDCWMax.Text   = cfg.VelocityMaxFor("DCW_Max").ToString("F2");
+                txtCfgVelDHWMax.Text   = cfg.VelocityMaxFor("DHW_Max").ToString("F2");
+                txtCfgVelDrnSelf.Text  = cfg.VelocityMaxFor("Drain_SelfCleansing").ToString("F2");
+                txtCfgVelDrnMax.Text   = cfg.VelocityMaxFor("Drain_Max").ToString("F2");
+
+                txtCfgSlopeDn3250.Text  = SlopeForKey(cfg, "DN32_50",  2.0).ToString("F2");
+                txtCfgSlopeDn75100.Text = SlopeForKey(cfg, "DN75_100", 1.0).ToString("F2");
+                txtCfgSlopeDn150.Text   = SlopeForKey(cfg, "DN150",    0.67).ToString("F2");
+                txtCfgSlopeTarget.Text  = SlopeForKey(cfg, "Target",   1.25).ToString("F2");
+
+                txtCfgSupplyPres.Text   = cfg.SupplyPressureBarAtEntry.ToString("F2");
+                txtCfgMaxDpPaPerM.Text  = cfg.MaxPressureDropPaPerM.ToString("F0");
+                SetComboByText(cmbCfgHeadLossMethod,
+                    string.IsNullOrEmpty(cfg.HeadLossMethod) ? "HAZEN-WILLIAMS" : cfg.HeadLossMethod);
+                SetComboByText(cmbCfgSizingStrategy,
+                    string.IsNullOrEmpty(cfg.SupplySizingStrategy) ? "VELOCITY" : cfg.SupplySizingStrategy);
+                SetComboByText(cmbCfgDxfAcad,
+                    string.IsNullOrEmpty(cfg.DxfAutoCadVersion) ? "R2010" : cfg.DxfAutoCadVersion);
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadSystemForm: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Read every SYSTEM-tab inline control and produce a PlumbingSystemConfig.
+        /// Falls back to <paramref name="baseCfg"/> for fields the form doesn't expose.
+        /// </summary>
+        public StingTools.Core.Plumbing.PlumbingSystemConfig ReadSystemForm(
+            StingTools.Core.Plumbing.PlumbingSystemConfig baseCfg)
+        {
+            var cfg = baseCfg ?? StingTools.Core.Plumbing.PlumbingSystemConfig.Defaults();
+            try
+            {
+                cfg.BuildingType        = (cmbCfgBldgType?.SelectedItem  as string) ?? cfg.BuildingType;
+                cfg.DrainStandard       = (cmbCfgDrainStd?.SelectedItem  as string) ?? cfg.DrainStandard;
+                cfg.SupplyStandard      = (cmbCfgSupplyStd?.SelectedItem as string) ?? cfg.SupplyStandard;
+                cfg.FlushValveMajority  = chkCfgFlushValve.IsChecked == true;
+                if (double.TryParse(txtCfgKFactor.Text,    out var k))  cfg.KFactor = k;
+                if (int.TryParse(txtCfgOccupancy.Text,     out var oc)) cfg.OccupancyCount = oc;
+                if (int.TryParse(txtCfgBeds.Text,          out var bd)) cfg.BedsOrWorkstations = bd;
+                if (double.TryParse(txtCfgSupplyPres.Text, out var sp)) cfg.SupplyPressureBarAtEntry = sp;
+                if (double.TryParse(txtCfgMaxDpPaPerM.Text, out var dp)) cfg.MaxPressureDropPaPerM = dp;
+
+                cfg.HeadLossMethod       = (cmbCfgHeadLossMethod?.SelectedItem as string) ?? cfg.HeadLossMethod;
+                cfg.SupplySizingStrategy = (cmbCfgSizingStrategy?.SelectedItem as string) ?? cfg.SupplySizingStrategy;
+                cfg.DxfAutoCadVersion    = (cmbCfgDxfAcad?.SelectedItem as string)        ?? cfg.DxfAutoCadVersion;
+
+                cfg.Materials = new Dictionary<string, string>
+                {
+                    { "DCW",      (cmbCfgMatDCW?.SelectedItem as string) ?? cfg.MaterialFor("DCW") },
+                    { "DHW",      (cmbCfgMatDHW?.SelectedItem as string) ?? cfg.MaterialFor("DHW") },
+                    { "Drainage", (cmbCfgMatDrainage?.SelectedItem as string) ?? cfg.MaterialFor("Drainage") },
+                    { "Storm",    (cmbCfgMatStorm?.SelectedItem as string) ?? cfg.MaterialFor("Storm") },
+                    { "Vent",     (cmbCfgMatVent?.SelectedItem as string) ?? cfg.MaterialFor("Vent") },
+                };
+
+                cfg.VelocityMps = new Dictionary<string, double>
+                {
+                    { "DCW_Max",             ParseDoubleOr(txtCfgVelDCWMax.Text, 2.0) },
+                    { "DHW_Max",             ParseDoubleOr(txtCfgVelDHWMax.Text, 1.5) },
+                    { "Drain_SelfCleansing", ParseDoubleOr(txtCfgVelDrnSelf.Text, 0.7) },
+                    { "Drain_Max",           ParseDoubleOr(txtCfgVelDrnMax.Text, 3.5) },
+                };
+
+                cfg.SlopePctMin = new Dictionary<string, double>
+                {
+                    { "DN32_50",  ParseDoubleOr(txtCfgSlopeDn3250.Text,  2.0) },
+                    { "DN75_100", ParseDoubleOr(txtCfgSlopeDn75100.Text, 1.0) },
+                    { "DN150",    ParseDoubleOr(txtCfgSlopeDn150.Text,   0.67) },
+                    { "Target",   ParseDoubleOr(txtCfgSlopeTarget.Text,  1.25) },
+                };
+            }
+            catch (Exception ex) { StingLog.Warn($"ReadSystemForm: {ex.Message}"); }
+            return cfg;
+        }
+
+        private bool _systemFormSeeded;
+        private void EnsureSystemFormSeeded()
+        {
+            if (_systemFormSeeded) return;
+            _systemFormSeeded = true;
+
+            FillCombo(cmbCfgBldgType,  new[] { "Dwelling", "Office", "Hospital", "School",
+                "Hotel", "Restaurant", "Factory", "Sports", "PublicWC", "Custom" });
+            FillCombo(cmbCfgDrainStd,  new[] { "BS-EN-12056", "IPC-2021", "MANUAL" });
+            FillCombo(cmbCfgSupplyStd, new[] { "BS-EN-806", "HUNTER-WSFU", "MANUAL" });
+
+            // Materials are loaded from STING_PIPE_MATERIALS_HYDRAULIC.json so
+            // adding PPR / PB / CPVC etc. flows through without panel edits.
+            var matKeys = StingTools.Core.Plumbing.PlumbingTables.Materials?
+                .Select(m => m.Key).Distinct().ToArray()
+                ?? new[] { "COPPER_R250", "UPVC_DRAIN", "MDPE_BLUE", "PEX_AL_PEX" };
+            foreach (var combo in new[] { cmbCfgMatDCW, cmbCfgMatDHW,
+                cmbCfgMatDrainage, cmbCfgMatStorm, cmbCfgMatVent })
+                FillCombo(combo, matKeys);
+
+            FillCombo(cmbCfgHeadLossMethod, new[] { "HAZEN-WILLIAMS", "DARCY-WEISBACH" });
+            FillCombo(cmbCfgSizingStrategy, new[] { "VELOCITY", "HEAD-LOSS" });
+            FillCombo(cmbCfgDxfAcad,        new[] { "R2007", "R2010", "R2013", "R2018", "DEFAULT" });
+        }
+
+        private void cmbCfgBldgType_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (cmbCfgBldgType?.SelectedItem is string bt && txtCfgKFactor != null)
+                {
+                    var def = StingTools.Core.Plumbing.PlumbingSystemConfig.DefaultsForBuildingType(bt);
+                    txtCfgKFactor.Text = def.KFactor.ToString("F2");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"cmbCfgBldgType: {ex.Message}"); }
+        }
+
+        // Reload routes through the existing Plumb_LoadSystemConfig command so
+        // the disk read happens on the Revit API thread; the command's panel
+        // hook then pushes values back into the form via LoadSystemForm.
+        private void btnCfgReload_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                StingPlumbingCommandHandler.Instance?.SetCommand("Plumb_LoadSystemConfig");
+                StingPlumbingCommandHandler.Event?.Raise();
+                UpdateStatus("Reloading system config…");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"btnCfgReload: {ex.Message}");
+                UpdateStatus("Reload failed — see log.");
+            }
+        }
+
+        private void btnClearResultLog_Click(object sender, RoutedEventArgs e)
+        {
+            try { if (txtPlumbResultLog != null) txtPlumbResultLog.Text = ""; }
+            catch (Exception ex) { StingLog.Warn($"btnClearResultLog: {ex.Message}"); }
+        }
+
+        // ── form helpers ────────────────────────────────────────────────
+        private static void FillCombo(ComboBox c, IEnumerable<string> items)
+        {
+            if (c == null) return;
+            c.Items.Clear();
+            foreach (var i in items) c.Items.Add(i);
+            if (c.Items.Count > 0) c.SelectedIndex = 0;
+        }
+
+        private static void SetComboByText(ComboBox c, string value)
+        {
+            if (c == null || string.IsNullOrEmpty(value)) return;
+            if (!c.Items.Contains(value)) c.Items.Add(value);
+            c.SelectedItem = value;
+        }
+
+        private static double ParseDoubleOr(string s, double fallback)
+            => double.TryParse(s,
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var d) ? d : fallback;
+
+        private static double SlopeForKey(
+            StingTools.Core.Plumbing.PlumbingSystemConfig cfg, string key, double fallback)
+            => (cfg?.SlopePctMin != null && cfg.SlopePctMin.TryGetValue(key, out var v)) ? v : fallback;
 
         private void PopulateRag(PlumbRagSummary rag)
         {
