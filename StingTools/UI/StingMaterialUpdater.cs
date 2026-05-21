@@ -213,13 +213,14 @@ namespace StingTools.UI
             var ov = MaterialOverrideRegistry.ResolveOverride(doc, name);
 
             // Cost — only fill if currently empty.
+            double filledCost = 0, filledCarbon = 0;
             try
             {
                 var cp = m.get_Parameter(BuiltInParameter.ALL_MODEL_COST);
                 if (cp != null && !cp.IsReadOnly && cp.StorageType == StorageType.Double && cp.AsDouble() == 0)
                 {
                     double cost = ov?.Cost ?? MaterialLookupCsv.GetCost(name);
-                    if (cost > 0) cp.Set(cost);
+                    if (cost > 0) { cp.Set(cost); filledCost = cost; }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"AutoFill cost '{name}': {ex.Message}"); }
@@ -231,10 +232,23 @@ namespace StingTools.UI
                 if (lp != null && !lp.IsReadOnly && lp.StorageType == StorageType.Double && lp.AsDouble() == 0)
                 {
                     double c = ov?.CarbonKgCo2e ?? MaterialLookupCsv.GetCarbon(name);
-                    if (c > 0) lp.Set(c);
+                    if (c > 0) { lp.Set(c); filledCarbon = c; }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"AutoFill carbon '{name}': {ex.Message}"); }
+
+            // Audit-log the auto-fill so material-spec drift is traceable.
+            // A14 — every material change carries a hash-chained JSONL record.
+            if (filledCost > 0 || filledCarbon > 0)
+            {
+                MaterialAuditLogger.Log(doc, "MAT_AutoFill", name, new Dictionary<string, object>
+                {
+                    ["cost"] = filledCost,
+                    ["carbonKgCo2e"] = filledCarbon,
+                    ["epdSource"] = ov?.EpdSource ?? "",
+                    ["epdDate"] = ov?.EpdDate ?? "",
+                });
+            }
 
             // EPD source + date (when the override file provides them).
             try

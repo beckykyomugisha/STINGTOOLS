@@ -117,6 +117,11 @@ namespace StingTools.UI
                 }
                 t.Commit();
             }
+            MaterialAuditLogger.Log(doc, "MAT_Apply", m.Name, new Dictionary<string, object>
+            {
+                ["elementsTouched"] = written,
+                ["selectionCount"]  = sel.Count,
+            });
             TaskDialog.Show("Apply to Selection",
                 $"Material '{m.Name}' applied to {written} of {sel.Count} selected element(s).");
         }
@@ -215,6 +220,10 @@ namespace StingTools.UI
             {
                 string path = MaterialOverrideRegistry.GetOverrideFilePath(doc);
                 MaterialOverrideRegistry.EnsureOverrideFile(doc);
+                MaterialAuditLogger.Log(doc, "MAT_OverrideEdit", "(opened in editor)", new Dictionary<string, object>
+                {
+                    ["path"] = path,
+                });
                 if (File.Exists(path))
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true })?.Dispose();
                 else
@@ -264,8 +273,63 @@ namespace StingTools.UI
 
         public static void ImportCsv(UIApplication app)
         {
-            TaskDialog.Show("Import CSV",
-                "Diff-preview CSV import lands in commit E. For now edit the corporate CSV directly and Reload Library.");
+            var doc = Doc(app);
+            if (doc == null) { TaskDialog.Show("Material Manager", "No document open."); return; }
+            try
+            {
+                var ofd = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Pick a material CSV (Name + Cost + EmbodiedCarbon + Class columns)",
+                    Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
+                };
+                if (ofd.ShowDialog() != true) return;
+                string csvPath = ofd.FileName;
+
+                var diff = MaterialCsvDiff.Compute(doc, csvPath);
+                if (diff == null) { TaskDialog.Show("Material Manager", "Diff failed to compute."); return; }
+
+                var preview = new System.Text.StringBuilder();
+                preview.AppendLine($"Source: {csvPath}");
+                preview.AppendLine($"Project: {doc.Title}");
+                preview.AppendLine();
+                preview.AppendLine($"Changes to apply:");
+                preview.AppendLine($"  • {diff.Updates.Count} material(s) with updated cost / carbon / class");
+                preview.AppendLine($"  • {diff.NewRows.Count} new material(s) in CSV (NOT created — out of scope)");
+                preview.AppendLine($"  • {diff.MissingInCsv.Count} project material(s) not in CSV (kept as-is)");
+                preview.AppendLine();
+                if (diff.Updates.Count > 0)
+                {
+                    preview.AppendLine("First 10 updates:");
+                    int n = 0;
+                    foreach (var u in diff.Updates)
+                    {
+                        if (n++ >= 10) break;
+                        preview.AppendLine($"  {u.MaterialName}: {u.ChangeSummary}");
+                    }
+                }
+
+                var td = new TaskDialog("Material Import — Diff Preview")
+                {
+                    MainInstruction = $"Apply {diff.Updates.Count} update(s) to project materials?",
+                    MainContent = preview.ToString(),
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                };
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Commit changes", "Write cost / carbon / class to existing materials.");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Cancel", "Discard the diff — no changes.");
+                var res = td.Show();
+                if (res != TaskDialogResult.CommandLink1) return;
+
+                int written = MaterialCsvDiff.Apply(doc, diff);
+                MaterialAuditLogger.Log(doc, "MAT_Import", "(csv-import)", new System.Collections.Generic.Dictionary<string, object>
+                {
+                    ["sourcePath"] = csvPath,
+                    ["updatesPlanned"] = diff.Updates.Count,
+                    ["updatesWritten"] = written,
+                });
+                TaskDialog.Show("Material Import", $"Committed {written} of {diff.Updates.Count} update(s).");
+                StingDockPanel.LastInstance?.ShowMaterialsTab();
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Import failed: {ex.Message}"); }
         }
 
         public static void EditRules(UIApplication app)

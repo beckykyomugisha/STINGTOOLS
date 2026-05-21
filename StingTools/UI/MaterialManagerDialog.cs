@@ -47,8 +47,30 @@ namespace StingTools.UI
         public int PhysicalSharedBy { get; set; }
         public int ThermalSharedBy { get; set; }
 
+        // EPD provenance + freshness — A8.
+        public string EpdSource { get; set; }
+        public string EpdDate { get; set; }
+        public EpdFreshness EpdFreshness { get; set; } = EpdFreshness.Unknown;
+        public string EpdFreshnessText => EpdFreshness switch
+        {
+            EpdFreshness.Fresh   => "✓ Fresh",
+            EpdFreshness.Stale   => "△ Stale",
+            EpdFreshness.Expired => "✗ Expired",
+            EpdFreshness.Missing => "— Missing",
+            _ => "—",
+        };
+        public Brush EpdFreshnessBrush => EpdFreshness switch
+        {
+            EpdFreshness.Fresh   => new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2C, 0xA0, 0x2C)),
+            EpdFreshness.Stale   => new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE0, 0xA0, 0x10)),
+            EpdFreshness.Expired => new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xC0, 0x30, 0x30)),
+            _                    => Brushes.Gray,
+        };
+
         public event PropertyChangedEventHandler PropertyChanged;
     }
+
+    public enum EpdFreshness { Unknown, Missing, Fresh, Stale, Expired }
 
     /// <summary>
     /// Constructs <see cref="MaterialRow"/> values from a Revit document.
@@ -132,6 +154,12 @@ namespace StingTools.UI
                 assetShareMap.TryGetValue(m.Id.Value, out var sh))
             { appShared = sh.Appearance; phyShared = sh.Physical; thrShared = sh.Thermal; }
 
+            // EPD source / date / freshness — A8.
+            // Resolution: project override → STING_MAT_EPD_* params on the material.
+            string epdSrc = ov?.EpdSource ?? ReadStringParam(m, "STING_MAT_EPD_SRC_TXT");
+            string epdDate = ov?.EpdDate ?? ReadStringParam(m, "STING_MAT_EPD_DATE_TXT");
+            EpdFreshness fresh = ComputeFreshness(epdDate, carbon);
+
             return new MaterialRow
             {
                 Name = n,
@@ -146,7 +174,40 @@ namespace StingTools.UI
                 AppearanceSharedBy = appShared,
                 PhysicalSharedBy = phyShared,
                 ThermalSharedBy = thrShared,
+                EpdSource = epdSrc ?? "",
+                EpdDate = epdDate ?? "",
+                EpdFreshness = fresh,
             };
+        }
+
+        private static string ReadStringParam(Material m, string paramName)
+        {
+            try
+            {
+                var p = m?.LookupParameter(paramName);
+                if (p != null && p.HasValue && p.StorageType == StorageType.String) return p.AsString();
+            }
+            catch (Exception ex) { StingLog.Warn($"ReadStringParam '{paramName}': {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>
+        /// EPDs are typically valid for 5 years (EN 15804). Less than 4 years
+        /// → Fresh. 4–5 → Stale. Over 5 → Expired. No date but carbon present
+        /// → Stale (we have data but no provenance). No date and no carbon →
+        /// Missing.
+        /// </summary>
+        private static EpdFreshness ComputeFreshness(string epdDateStr, double carbonKg)
+        {
+            if (string.IsNullOrWhiteSpace(epdDateStr))
+                return carbonKg > 0 ? EpdFreshness.Stale : EpdFreshness.Missing;
+            if (!DateTime.TryParse(epdDateStr, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AssumeUniversal, out var dt))
+                return EpdFreshness.Unknown;
+            var ageYears = (DateTime.UtcNow - dt.ToUniversalTime()).TotalDays / 365.25;
+            if (ageYears < 4)  return EpdFreshness.Fresh;
+            if (ageYears < 5)  return EpdFreshness.Stale;
+            return EpdFreshness.Expired;
         }
 
         /// <summary>

@@ -1843,6 +1843,13 @@
                                         <DataGridTextColumn Header="RGB"    Binding="{Binding ColorText}" Width="80"/>
                                         <DataGridTextColumn Header="Cost"   Binding="{Binding CostText}"  Width="60"/>
                                         <DataGridTextColumn Header="kgCO₂e" Binding="{Binding CarbonText}" Width="60"/>
+                                        <DataGridTemplateColumn Header="EPD" Width="70">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding EpdFreshnessText}" Foreground="{Binding EpdFreshnessBrush}" Margin="3,0,0,0"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
                                     </DataGrid.Columns>
                                 </DataGrid>
 
