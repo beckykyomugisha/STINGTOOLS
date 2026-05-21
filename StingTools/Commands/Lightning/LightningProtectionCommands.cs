@@ -2798,6 +2798,30 @@ namespace StingTools.Commands.Lightning
                 int fail = items.Count(i => i.Severity == LpsSeverity.Fail);
                 string verdict = fail > 0 ? "FAIL" : warn > 0 ? "WARN" : "PASS";
 
+                // Pull cached risk result from the panel — populated by
+                // the last LpsRiskAssessmentInline run. When absent the
+                // payload's risk fields stay zero (server still accepts;
+                // dashboard shows "no risk run yet" badge).
+                var lastRisk = StingTools.UI.StingLpsPanel.Instance?.LastRiskResult;
+                double r1 = 0, r2 = 0, r3 = 0, r4 = 0;
+                double rt1 = 1e-5, rt2 = 1e-3, rt3 = 1e-4, rt4 = 1e-3;
+                double ndYr = 0, aeM2 = 0;
+                string recClass = classId ?? "";
+                if (lastRisk != null)
+                {
+                    lastRisk.RiskByLossType.TryGetValue("L1", out r1);
+                    lastRisk.RiskByLossType.TryGetValue("L2", out r2);
+                    lastRisk.RiskByLossType.TryGetValue("L3", out r3);
+                    lastRisk.RiskByLossType.TryGetValue("L4", out r4);
+                    if (lastRisk.TolerableByLossType.TryGetValue("L1", out double v1)) rt1 = v1;
+                    if (lastRisk.TolerableByLossType.TryGetValue("L2", out double v2)) rt2 = v2;
+                    if (lastRisk.TolerableByLossType.TryGetValue("L3", out double v3)) rt3 = v3;
+                    if (lastRisk.TolerableByLossType.TryGetValue("L4", out double v4)) rt4 = v4;
+                    ndYr = lastRisk.AnnualStrikeFrequency;
+                    aeM2 = lastRisk.CollectionAreaM2;
+                    if (!string.IsNullOrEmpty(lastRisk.RecommendedClass)) recClass = lastRisk.RecommendedClass;
+                }
+
                 var payload = new
                 {
                     lpsClass                  = classId ?? "",
@@ -2813,11 +2837,11 @@ namespace StingTools.Commands.Lightning
                     spdCount                  = spdCount,
                     kcFactor                  = kc,
                     sepDistanceViolations     = 0,
-                    annualStrikeFrequencyNd   = 0.0,
-                    collectionAreaM2          = 0.0,
-                    riskR1 = 0.0, riskR2 = 0.0, riskR3 = 0.0, riskR4 = 0.0,
-                    tolerableR1 = 1e-5, tolerableR2 = 1e-3, tolerableR3 = 1e-4, tolerableR4 = 1e-3,
-                    recommendedClass = classId ?? "",
+                    annualStrikeFrequencyNd   = ndYr,
+                    collectionAreaM2          = aeM2,
+                    riskR1 = r1, riskR2 = r2, riskR3 = r3, riskR4 = r4,
+                    tolerableR1 = rt1, tolerableR2 = rt2, tolerableR3 = rt3, tolerableR4 = rt4,
+                    recommendedClass = recClass,
                     complianceVerdict     = verdict,
                     complianceChecksPass  = pass,
                     complianceChecksWarn  = warn,

@@ -63,6 +63,14 @@ namespace StingTools.UI
         private static StingLpsPanel _instance;
         public static StingLpsPanel Instance => _instance;
 
+        /// <summary>
+        /// Most recent LpsRiskResult cached by SetRiskResult — read by
+        /// LpsSyncToServerCommand so the R1-R4 + tolerable-risk fields
+        /// on the LpsRecord server payload reflect the last in-panel
+        /// risk run rather than being zeroed.
+        /// </summary>
+        public LpsRiskResult LastRiskResult { get; private set; }
+
         public StingLpsPanel()
         {
             InitializeComponent();
@@ -341,6 +349,10 @@ namespace StingTools.UI
         {
             try
             {
+                // Cache the latest result for downstream commands (sync,
+                // SLD title block, schedule export) before the UI write.
+                if (result != null) LastRiskResult = result;
+
                 Action act = () =>
                 {
                     if (result == null) return;
