@@ -268,6 +268,53 @@ namespace StingTools.UI
                 "Diff-preview CSV import lands in commit E. For now edit the corporate CSV directly and Reload Library.");
         }
 
+        public static void EditRules(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null) { TaskDialog.Show("Material Manager", "No document open."); return; }
+            try
+            {
+                string projPath = Path.Combine(
+                    Core.ProjectFolderEngine.GetDataPath(doc, "") ?? "",
+                    MaterialRuleRegistry.FileName);
+                if (!File.Exists(projPath))
+                {
+                    // Seed project file from corporate baseline so the user can edit.
+                    string corp = StingToolsApp.FindDataFile("STING_MATERIAL_RULES.json");
+                    if (!string.IsNullOrEmpty(corp) && File.Exists(corp))
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(projPath));
+                        File.Copy(corp, projPath, false);
+                        TaskDialog.Show("Material Rules", $"Seeded project rule file from corporate baseline:\n{projPath}");
+                    }
+                }
+                if (File.Exists(projPath))
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(projPath) { UseShellExecute = true })?.Dispose();
+                else
+                    TaskDialog.Show("Material Rules", "No rule file available — corporate baseline missing from data/.");
+                MaterialRuleRegistry.Reload(doc);
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Edit rules failed: {ex.Message}"); }
+        }
+
+        public static void ToggleAutoApply(UIApplication app)
+        {
+            bool now = StingMaterialUpdater.ToggleAutoApply();
+            TaskDialog.Show("Material Auto-Apply",
+                now
+                ? "Auto-apply is ON. New Walls / Floors / Pipes / etc. will get their material from material_rules.json when no material is already assigned."
+                : "Auto-apply is OFF. New elements keep whatever Revit defaults assign.");
+        }
+
+        public static void ToggleAutoFill(UIApplication app)
+        {
+            bool now = StingMaterialUpdater.ToggleAutoFill();
+            TaskDialog.Show("Material Auto-Fill",
+                now
+                ? "Auto-fill is ON. New Materials get Cost + Carbon from the project override / MATERIAL_LOOKUP.csv on creation."
+                : "Auto-fill is OFF. New Materials keep their Revit defaults.");
+        }
+
         public static void OpenTemplate(UIApplication app)
         {
             try

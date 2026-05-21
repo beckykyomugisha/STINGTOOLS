@@ -81,6 +81,11 @@ namespace StingTools.Core
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
 
+                // Register the Material Updater (IUpdater) — auto-apply OFF,
+                // auto-fill ON. Both behaviours share one trigger budget so
+                // the cost when fully idle is the same as one disabled updater.
+                StingTools.UI.StingMaterialUpdater.Register(application);
+
                 // Register the cost stale marker (IUpdater) — starts disabled.
                 // Toggled via Cost_ToggleStaleMarker. Marks ASS_CST_STALE_BOOL
                 // when geometry / material / type changes invalidate a costed
