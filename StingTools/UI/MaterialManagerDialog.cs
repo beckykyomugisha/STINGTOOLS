@@ -80,6 +80,18 @@ namespace StingTools.UI
         // MaterialUniclassMapper). Empty when no rule matches.
         public string UniclassCode { get; set; } = "";
         public string UniclassTitle { get; set; } = "";
+
+        // A5/G29 — NRM2 cost dimensionality. Cost stays the "total" /
+        // legacy single-number for back-compat; Supply + Install + VAT
+        // optional split for tender-grade procurement output.
+        public double SupplyCost { get; set; }
+        public double InstallCost { get; set; }
+        public double VatPct { get; set; } = 20; // UK default; project override via Region
+
+        /// <summary>True when the supply/install split is meaningful — at
+        /// least one of the split fields is populated. Drives whether the
+        /// RFQ generator emits per-line split rates.</summary>
+        public bool HasCostSplit => SupplyCost > 0 || InstallCost > 0;
         public string EpdFreshnessText => EpdFreshness switch
         {
             EpdFreshness.Fresh   => "✓ Fresh",
@@ -194,6 +206,13 @@ namespace StingTools.UI
 
             string classText = ov?.Class ?? m.MaterialClass ?? "";
             var uniclass = MaterialUniclassMapper.Resolve(classText);
+
+            // A5/G29 — Cost split shared params (NUMBER storage).
+            double supply = ReadDoubleParam(m, "MAT_COST_SUPPLY_NR");
+            double install = ReadDoubleParam(m, "MAT_COST_INSTALL_NR");
+            double vatPct = ReadDoubleParam(m, "MAT_VAT_PCT_NR");
+            if (vatPct <= 0) vatPct = 20.0;
+
             return new MaterialRow
             {
                 Name = n,
@@ -213,7 +232,21 @@ namespace StingTools.UI
                 EpdFreshness = fresh,
                 UniclassCode = uniclass?.Code ?? "",
                 UniclassTitle = uniclass?.Title ?? "",
+                SupplyCost = supply,
+                InstallCost = install,
+                VatPct = vatPct,
             };
+        }
+
+        private static double ReadDoubleParam(Material m, string paramName)
+        {
+            try
+            {
+                var p = m?.LookupParameter(paramName);
+                if (p != null && p.HasValue && p.StorageType == StorageType.Double) return p.AsDouble();
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("RowBuilder.ReadDouble", $"ReadDoubleParam '{paramName}': {ex.Message}"); }
+            return 0;
         }
 
         private static string ReadStringParam(Material m, string paramName)
