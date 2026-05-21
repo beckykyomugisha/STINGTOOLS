@@ -347,6 +347,103 @@ namespace StingTools.UI
                 "Promoting project overrides to the corporate baseline is an admin action and lands in a follow-up commit. Edit the corporate CSV (BLE_MATERIALS.csv / MEP_MATERIALS.csv) for now.");
         }
 
+        // ── A6 — Material packs (Drawing-Type binding) ──────────────────────
+
+        public static void LoadMaterialPack(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null) { TaskDialog.Show("Material Manager", "No document open."); return; }
+            try
+            {
+                var file = MaterialPackRegistry.GetOrLoad(doc);
+                if (file?.Packs == null || file.Packs.Count == 0)
+                {
+                    TaskDialog.Show("Material Packs",
+                        "No packs available. Add packs to Data/STING_MATERIAL_PACKS.json or _BIM_COORD/material_packs.json.");
+                    return;
+                }
+                var td = new TaskDialog("Load Material Pack")
+                {
+                    MainInstruction = "Pick a pack to load into this project.",
+                    MainContent = "Existing materials with the same name are left alone — pack-load is additive.",
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                };
+                int linkIdx = 1;
+                var idByLink = new Dictionary<TaskDialogResult, string>();
+                foreach (var kv in file.Packs.Take(4))
+                {
+                    var linkId = (TaskDialogCommandLinkId)Enum.Parse(typeof(TaskDialogCommandLinkId), "CommandLink" + linkIdx);
+                    td.AddCommandLink(linkId, kv.Value.Name ?? kv.Key,
+                        $"{kv.Value.Description ?? ""}\n({kv.Value.Materials?.Count ?? 0} materials)");
+                    idByLink[(TaskDialogResult)linkId] = kv.Key;
+                    linkIdx++;
+                    if (linkIdx > 4) break;
+                }
+                var res = td.Show();
+                if (!idByLink.TryGetValue(res, out string packId)) return;
+
+                var pack = MaterialPackRegistry.Get(doc, packId);
+                if (pack == null) return;
+                int created = MaterialPackRegistry.LoadPack(doc, pack);
+                TaskDialog.Show("Material Pack",
+                    created > 0
+                    ? $"Loaded {created} new material(s) from '{pack.Name}'."
+                    : $"Every material in '{pack.Name}' was already present — nothing new minted.");
+                StingDockPanel.LastInstance?.ShowMaterialsTab();
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Load Pack failed: {ex.Message}"); }
+        }
+
+        // Per-session dedupe so batch-stamping (e.g. 60 sheets at once) only
+        // prompts once per drawing type.
+        private static readonly HashSet<string> _packSuggestionsShown =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Hook fired from DrawingTypeStamper after a sheet/view is stamped.
+        /// Surfaces a suggestion to load the matching pack when the
+        /// profile declares one. Dedupes per drawing-type id so a batch
+        /// stamp doesn't pop sixty dialogs.
+        /// </summary>
+        public static void SuggestPackForDrawingType(Document doc, string drawingTypeId)
+        {
+            if (doc == null || string.IsNullOrEmpty(drawingTypeId)) return;
+            lock (_packSuggestionsShown)
+            {
+                if (_packSuggestionsShown.Contains(drawingTypeId)) return;
+                _packSuggestionsShown.Add(drawingTypeId);
+            }
+            try
+            {
+                var dt = StingTools.Core.Drawing.DrawingTypeRegistry.Get(doc, drawingTypeId);
+                if (dt == null || string.IsNullOrEmpty(dt.MaterialPack)) return;
+                var pack = MaterialPackRegistry.Get(doc, dt.MaterialPack);
+                if (pack == null) return;
+
+                // Skip the prompt if every material in the pack already exists.
+                var existing = new HashSet<string>(
+                    new FilteredElementCollector(doc).OfClass(typeof(Material))
+                        .Cast<Material>().Select(m => m.Name ?? ""),
+                    StringComparer.OrdinalIgnoreCase);
+                int missing = pack.Materials?.Count(n => !existing.Contains(n)) ?? 0;
+                if (missing == 0) return;
+
+                var td = new TaskDialog("STING Material Pack")
+                {
+                    MainInstruction = $"Drawing Type '{drawingTypeId}' is bound to pack '{pack.Name}'.",
+                    MainContent = $"{missing} of {pack.Materials?.Count ?? 0} materials are missing in this project. Load them now?",
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                };
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Load Pack", $"Create the {missing} missing material(s).");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Skip", "Don't load now (you can run Library > Load Pack later).");
+                if (td.Show() != TaskDialogResult.CommandLink1) return;
+
+                int created = MaterialPackRegistry.LoadPack(doc, pack);
+                StingLog.Info($"SuggestPackForDrawingType: '{drawingTypeId}' loaded {created} material(s) from '{pack.Name}'");
+            }
+            catch (Exception ex) { StingLog.Warn($"SuggestPackForDrawingType: {ex.Message}"); }
+        }
+
         // ── I/O ─────────────────────────────────────────────────────────────
 
         public static void ExportCsv(UIApplication app)

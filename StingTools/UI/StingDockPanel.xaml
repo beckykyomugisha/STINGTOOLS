@@ -1962,6 +1962,8 @@
                                             ToolTip="Force re-read of corporate CSVs + project override"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Edit Rules…" Tag="MAT_EditRules" Click="MatBtn_Click"
                                             ToolTip="Open material_rules.json — controls auto-apply on element creation"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Load Pack…" Tag="MAT_LoadPack" Click="MatBtn_Click"
+                                            ToolTip="Mint a named material set (arch / struct / MEP / healthcare / fabrication) bound to a Drawing Type"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="Push to Corporate" Tag="MAT_PushCorp" Click="MatBtn_Click"
                                             ToolTip="Promote selected project materials to the corporate baseline"/>
                                 </WrapPanel>

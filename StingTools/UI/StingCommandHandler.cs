@@ -1263,6 +1263,7 @@ namespace StingTools.UI
                     case "MAT_ImportCsv":      MatActions.ImportCsv(app); break;
                     case "MAT_TemplateCsv":    MatActions.OpenTemplate(app); break;
                     case "MAT_EditRules":      MatActions.EditRules(app); break;
+                    case "MAT_LoadPack":       MatActions.LoadMaterialPack(app); break;
                     case "MAT_ToggleAutoApply":MatActions.ToggleAutoApply(app); break;
                     case "MAT_ToggleAutoFill": MatActions.ToggleAutoFill(app); break;
 

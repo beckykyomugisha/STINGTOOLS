@@ -157,6 +157,19 @@ namespace StingTools.Core.Drawing
         public Dictionary<string, Dictionary<string, string>> TitleBlockParamsBySymbol { get; set; }
 
         /// <summary>
+        /// A6 — Material pack id. When set, stamping a sheet with this
+        /// drawing type triggers a "load matching material pack?" prompt
+        /// in the MAT tab. Resolves against
+        /// <c>Data/STING_MATERIAL_PACKS.json</c> +
+        /// <c>&lt;project&gt;/_BIM_COORD/material_packs.json</c>.
+        /// Example: an <c>arch-plan-A1-1to100</c> profile binds to
+        /// <c>arch-concrete-steel-glass</c> so every arch sheet stamps
+        /// with the same baseline materials.
+        /// </summary>
+        [JsonProperty("materialPack", NullValueHandling = NullValueHandling.Ignore)]
+        public string MaterialPack { get; set; }
+
+        /// <summary>
         /// ISO 19650 naming — optional per-profile convention payload.
         /// When set, the editor's Numbering card's "Generate ISO
         /// pattern" button assembles SheetNumberPattern from these
