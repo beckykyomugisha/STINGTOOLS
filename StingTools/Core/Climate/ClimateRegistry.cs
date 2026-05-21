@@ -90,13 +90,38 @@ namespace StingTools.Core.Climate
         public ClimateSite ById(string id)
             => Sites.FirstOrDefault(s => string.Equals(s.Id, id, StringComparison.OrdinalIgnoreCase));
 
+        /// <summary>
+        /// Find a site whose id, label, or city-name token appears inside
+        /// the supplied free-text fragment (typically the project address).
+        /// Tokenises on whitespace + punctuation so a multi-line address
+        /// like "10 Downing Street, London SW1A 2AA, UK" correctly resolves
+        /// to the `london` site.
+        /// </summary>
         public ClimateSite ByLabelContains(string fragment)
         {
             if (string.IsNullOrWhiteSpace(fragment)) return null;
-            string f = fragment.Trim().ToLowerInvariant();
-            return Sites.FirstOrDefault(s =>
-                s.Label.ToLowerInvariant().Contains(f) ||
-                s.Id.ToLowerInvariant().Contains(f));
+            string haystack = fragment.ToLowerInvariant();
+            // Direct substring of site id (preferred — least ambiguous).
+            foreach (var s in Sites)
+            {
+                if (haystack.Contains(s.Id.ToLowerInvariant())) return s;
+            }
+            // Then site label, splitting "London (Heathrow)" → ["london", "heathrow"]
+            // and matching any token whole-word in the address.
+            var separators = new[] { ' ', ',', '.', '(', ')', '/', '-', '\t', '\n', '\r' };
+            var addrTokens = new HashSet<string>(
+                haystack.Split(separators, StringSplitOptions.RemoveEmptyEntries));
+            foreach (var s in Sites)
+            {
+                var labelTokens = s.Label.ToLowerInvariant()
+                    .Split(separators, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var tok in labelTokens)
+                {
+                    if (tok.Length < 4) continue; // skip "the", "and", short noise
+                    if (addrTokens.Contains(tok)) return s;
+                }
+            }
+            return null;
         }
     }
 

@@ -93,10 +93,17 @@ namespace StingTools.Core.Hvac.Loads
                         }
                         blk.SumOfPeaksSensibleW += zr.PeakSensibleW;
                     }
-                    // Peak-pick at the system level
+                    // Peak-pick at the system level. For cooling the peak is
+                    // the most-positive sensible load (hottest hour); for
+                    // heating it's the most-negative (coldest, largest demand).
                     int peakH = 0; double peakW = blk.SystemSensibleW[0];
                     for (int h = 1; h < 24; h++)
-                        if (blk.SystemSensibleW[h] > peakW) { peakW = blk.SystemSensibleW[h]; peakH = h; }
+                    {
+                        bool isBetter = cooling
+                            ? blk.SystemSensibleW[h] > peakW
+                            : blk.SystemSensibleW[h] < peakW;
+                        if (isBetter) { peakW = blk.SystemSensibleW[h]; peakH = h; }
+                    }
                     blk.BlockSensibleW = peakW;
                     blk.BlockHour      = peakH;
                     blk.BlockLatentW   = blk.SystemLatentW[peakH];

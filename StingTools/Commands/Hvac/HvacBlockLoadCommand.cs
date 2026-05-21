@@ -325,12 +325,17 @@ namespace StingTools.Commands.Hvac
                         OrientationDeg = orientation
                     });
 
-                // Top floor — credit a roof segment when the level looks like the top.
-                z.Envelope.Add(new EnvelopeSegment
+                // Roof segment only when the zone is on the top level. Walking
+                // every level once per session is cheap (<20 levels typical) so
+                // resolving "is this the top?" inline keeps the call site simple.
+                if (IsTopLevel(spatial))
                 {
-                    Kind = SegmentKind.Roof, AreaM2 = z.FloorAreaM2 * 0.5,
-                    UvalueWm2K = 0.20, OrientationDeg = 0
-                });
+                    z.Envelope.Add(new EnvelopeSegment
+                    {
+                        Kind = SegmentKind.Roof, AreaM2 = z.FloorAreaM2,
+                        UvalueWm2K = 0.20, OrientationDeg = 0
+                    });
+                }
                 return;
 
                 Fallback:
@@ -346,6 +351,35 @@ namespace StingTools.Commands.Hvac
                 });
             }
             catch (Exception ex) { StingLog.Warn($"Envelope detect {spatial.Id}: {ex.Message}"); }
+        }
+
+        // Per-document cache of the top level's id — re-resolving the highest
+        // Level on every space gets expensive on large projects.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, ElementId> _topLevelCache
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, ElementId>();
+
+        private static bool IsTopLevel(SpatialElement spatial)
+        {
+            try
+            {
+                var doc = spatial.Document;
+                // SpatialElement.LevelId is on the Element base; safer than
+                // `.Level` which lives on Room/Space individually.
+                var lvlId = spatial.LevelId;
+                if (lvlId == ElementId.InvalidElementId) return false;
+                string key = doc.PathName ?? "<no-doc>";
+                var topId = _topLevelCache.GetOrAdd(key, _ =>
+                {
+                    var top = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Level))
+                        .Cast<Level>()
+                        .OrderByDescending(l => l.Elevation)
+                        .FirstOrDefault();
+                    return top?.Id ?? ElementId.InvalidElementId;
+                });
+                return topId != ElementId.InvalidElementId && topId == lvlId;
+            }
+            catch { return false; }
         }
 
         private static string ResolveSystemId(Space s)

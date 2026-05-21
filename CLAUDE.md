@@ -2802,15 +2802,67 @@ fallback to `london`. Air density at the cooling design dry-bulb is
 elevation-corrected via the standard atmosphere model and replaces
 the previous hardcoded 1.20 kg/m³ in the pressure-class audit.
 
-### Caveats (Phase 187)
+### Phase 187a — review follow-up fixes
+
+Five bugs / gaps surfaced in the Phase 187 self-review are now closed
+(remaining work logged as caveats below):
+
+1. **Block-load heating peak-pick now respects sign.**
+   `Core/Hvac/Loads/BlockLoadEngine.cs:97-110` — system-level peak loop
+   was always `>`, returning the warmest hour even for heating.
+   Branches on the `cooling` flag so heating block load picks the
+   coldest hour (largest-magnitude negative sensible).
+2. **Climate fuzzy match no longer always returns London.**
+   `Core/Climate/ClimateRegistry.cs:ByLabelContains` previously asked
+   "does the site label contain the address?" — which is never true
+   for multi-line addresses. Rewrote as: (a) direct substring of site
+   id in the address, then (b) token-level intersection of site label
+   words with address tokens (≥ 4 chars, skips noise words).
+3. **Roof segment now only added on the top level.**
+   `HvacBlockLoadCommand.IsTopLevel(spatial)` walks the project Level
+   list once per document (cached in a `ConcurrentDictionary` keyed
+   on doc path) and only adds a `SegmentKind.Roof` envelope segment
+   when the zone's `LevelId` matches the highest-elevation Level.
+   Mid-floor zones no longer get a spurious roof credit. Also fixed
+   the area: was `0.5 × floor`, now `1.0 × floor` (correct for top
+   level — the projection of the floor area onto the roof).
+4. **Manufacturer pack now wired into a real consumer.**
+   `MEPIntelligenceEngine.FittingLossCalculator.ResolveFittingLoss(el, rules)`
+   reads `HVC_PROD_REF_TXT` (new shared param, format
+   `"brand:productCode"`) and prefers the registry's manufacturer C
+   over the generic SMACNA Kv. `MepFittingLossReportCommand` now
+   splits the result panel into "Manufacturer-specified" vs "Generic
+   fallback" counts + a per-brand breakdown so users can see at a
+   glance how much of the model is on registry-backed values.
+5. **HVAC workflow JSONs updated.** `WORKFLOW_HVACDesign.json` now
+   opens with `Hvac_BlockLoad`, replaces `Mep_VibroAcoustic` with
+   `Hvac_NcPredict`, and adds `Hvac_PressureClassAudit` +
+   `Hvac_DetectStaleSizes` between balance and validators.
+   `WORKFLOW_HVACCommissioning.json` swaps the same NC step + adds
+   pressure-class audit.
+
+### Parameters added (Phase 187a)
+
+Seven new shared parameters in MR_PARAMETERS (TXT + CSV):
+
+| Name | Group | Purpose |
+|---|---|---|
+| `HVC_PROD_REF_TXT` | HVC_SYSTEMS | `brand:productCode` driving manufacturer C/Kvs lookup |
+| `HVC_PEAK_SENS_W` | HVC_SYSTEMS | Per-space peak sensible W (BlockLoadEngine) |
+| `HVC_PEAK_LAT_W` | HVC_SYSTEMS | Per-space peak latent W |
+| `HVC_PEAK_HOUR` | HVC_SYSTEMS | Hour-of-day of per-space peak |
+| `HVC_OA_LS` | HVC_SYSTEMS | Per-space design OA L/s |
+| `PRJ_CLIMATE_SITE_ID` | PRJ_INFORMATION | Active climate site id resolved by ClimateRegistry |
+
+### Caveats (Phase 187 — what's still open)
 
 1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.
 2. **`BlockLoadEngine` is sensible-load focused.** Latent is calculated but the design-day model is simplified (single sinusoid for outdoor temp, ASHRAE Clear Sky for solar, no thermal-mass storage / RTS lag). For comparison-grade results against TRACE / HAP, fold in a per-orientation Radiant Time Series — the input data structures already support per-segment orientation.
-3. **`NcPredictionEngine` uses a *synthetic* fan source** derived from path Q + ΔP. Until a manufacturer Lw spectrum sidecar lands, NC predictions are indicative not certifiable. Silencer insertion-loss spectra are also defaults (12 dB midband) until the same sidecar pattern is wired for attenuators.
-4. **`RefrigerantPipeSolver` ships 4 refrigerants** (R410A, R32, R134a, CO₂). Saturation state-point pairs are spot-design from ASHRAE Handbook Fundamentals + Daikin VRV manuals — not a full EoS engine. The two-phase suction multiplier is a flat 10 % rather than a Lockhart-Martinelli calc.
+3. **`NcPredictionEngine` uses a *synthetic* fan source** derived from path Q + ΔP. Until a manufacturer Lw spectrum sidecar lands, NC predictions are indicative not certifiable. Silencer insertion-loss spectra are also defaults (12 dB midband) until the same sidecar pattern is wired for attenuators. Breakout (TL through duct walls) is NOT yet implemented — the engine's docstring previously claimed it; references are now phrased as attenuation + regen only.
+4. **`RefrigerantPipeSolver` ships 4 refrigerants** (R410A, R32, R134a, CO₂). Saturation state-point pairs are spot-design from ASHRAE Handbook Fundamentals + Daikin VRV manuals — not a full EoS engine. The two-phase suction multiplier is a flat 10 % rather than a Lockhart-Martinelli calc. Negative-lift (liquid going DOWN) doesn't credit the recovered head back to the ΔP budget yet.
 5. **Climate site list ships 41 cities.** Add more by appending to the corporate `STING_CLIMATE_DATA.json` (PR encouraged) or via a project override at `<project>/_BIM_COORD/climate_data.json` (additive, by `id`).
 6. **Manufacturer fitting + valve packs are seed.** ~20 entries each across Lindab / Trox / Halton / Belimo / Siemens / Danfoss. Production deployments should add their actual catalogue via the project override.
-7. Per-element pipe-fitting lookup of manufacturer C / Kvs values (via `MepSizingRules.GetManufacturerC` / `GetValveKvs`) is in place but not yet wired into the friction / static-regain commands — they still use the generic SMACNA table.
+7. **Block-load `HVC_PEAK_*` stamps are TEXT-typed.** Reads via SetString; future projects that want to drive Revit schedules with HVACPower-typed params will need a SetDouble path + matching MR_PARAMETERS rebinding.
 
 ## Template Manager Intelligence Engine
 
