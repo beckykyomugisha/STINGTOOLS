@@ -186,14 +186,70 @@ namespace StingTools.UI
 
         public static void ReadLayers(UIApplication app)
         {
-            TaskDialog.Show("Read Layers",
-                "Layer reading lands in Phase B (next commit). For now use the Layers sub-tab in the legacy modal (TEMP > Material Manager).");
+            var doc = Doc(app); var uidoc = UiDoc(app);
+            if (doc == null || uidoc == null) return;
+            try
+            {
+                var sel = uidoc.Selection.GetElementIds();
+                Element host = null;
+                if (sel != null && sel.Count > 0) host = doc.GetElement(sel.First());
+                if (host == null)
+                {
+                    TaskDialog.Show("Read Layers",
+                        "Select a Wall / Floor / Roof / Ceiling / Foundation / Pad in Revit first.");
+                    return;
+                }
+                var rows = MaterialLayerInspector.Read(doc, host);
+                if (rows.Count == 0)
+                {
+                    TaskDialog.Show("Read Layers",
+                        $"'{host.Category?.Name} {host.Id}' has no compound structure (or it couldn't be read). Layered tags only apply to System Family hosts.");
+                    return;
+                }
+                StingDockPanel.LastInstance?.SetLayerRows(rows, host.Id);
+                TaskDialog.Show("Read Layers",
+                    $"Read {rows.Count} layer(s) from '{host.Name}'. They're now editable in the Layers sub-tab. Click 'Generate Layer Tag' to write STING_LAYERS_TXT on the element TYPE.");
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Read Layers failed: {ex.Message}"); }
         }
 
         public static void GenerateLayerTag(UIApplication app)
         {
-            TaskDialog.Show("Generate Layer Tag",
-                "Layer-tag generation lands in Phase B (next commit).");
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                var rows = StingDockPanel.LastInstance?.GetLayerRows();
+                var hostId = StingDockPanel.LastInstance?.GetLayerHostId();
+                if (rows == null || rows.Count == 0 || hostId == null || hostId.Value <= 0)
+                {
+                    TaskDialog.Show("Generate Layer Tag", "Click 'Read Layers' first.");
+                    return;
+                }
+                var host = doc.GetElement(hostId);
+                if (host == null) { TaskDialog.Show("Generate Layer Tag", "Host element no longer exists."); return; }
+                string tag = MaterialLayerInspector.BuildLayerTag(rows);
+                bool ok;
+                using (var t = new Transaction(doc, "STING Generate Layer Tag"))
+                {
+                    t.Start();
+                    ok = MaterialLayerInspector.WriteLayerTag(doc, host, tag);
+                    t.Commit();
+                }
+                if (ok)
+                {
+                    MaterialAuditLogger.Log(doc, "MAT_LayerTag", host.Name,
+                        new Dictionary<string, object> { ["lines"] = rows.Count, ["typeId"] = host.GetTypeId()?.Value ?? 0 });
+                    TaskDialog.Show("Generate Layer Tag",
+                        $"Wrote {rows.Count} layer line(s) to STING_LAYERS_TXT on '{host.Name}' (Type).\n\nLayer tag preview:\n{tag}");
+                }
+                else
+                {
+                    TaskDialog.Show("Generate Layer Tag",
+                        "Couldn't write STING_LAYERS_TXT — make sure the parameter is bound to the host category. Run 'Load Shared Params' from the dock panel if needed.");
+                }
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Generate Layer Tag failed: {ex.Message}"); }
         }
 
         // ── Duplicates ──────────────────────────────────────────────────────

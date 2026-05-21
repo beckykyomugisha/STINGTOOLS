@@ -2581,5 +2581,28 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"GetDuplicateRows: {ex.Message}"); }
             return new List<StingTools.UI.DuplicateRow>();
         }
+
+        // ── Layers sub-tab support ─────────────────────────────────────────
+
+        private Autodesk.Revit.DB.ElementId _layerHostId;
+
+        internal void SetLayerRows(IList<StingTools.UI.MaterialLayer> rows, Autodesk.Revit.DB.ElementId hostId)
+        {
+            try
+            {
+                _layerHostId = hostId;
+                if (dgLayers != null) dgLayers.ItemsSource = rows;
+            }
+            catch (Exception ex) { StingLog.Warn($"SetLayerRows: {ex.Message}"); }
+        }
+
+        internal IList<StingTools.UI.MaterialLayer> GetLayerRows()
+        {
+            try { if (dgLayers?.ItemsSource is IList<StingTools.UI.MaterialLayer> list) return list; }
+            catch (Exception ex) { StingLog.Warn($"GetLayerRows: {ex.Message}"); }
+            return new List<StingTools.UI.MaterialLayer>();
+        }
+
+        internal Autodesk.Revit.DB.ElementId GetLayerHostId() => _layerHostId;
     }
 }
