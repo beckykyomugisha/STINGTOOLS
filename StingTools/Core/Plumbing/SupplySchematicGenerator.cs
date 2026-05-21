@@ -230,9 +230,9 @@ namespace StingTools.Core.Plumbing
             double dx = opts.BranchSpacingMm * MmToFt;
             double dy = opts.LevelHeightMm   * MmToFt;
 
-            // BFS, breadth = column, depth = row
-            int currentRow = 0;
-            int colCounter = 0;
+            // BFS: row = depth from inlet, col = lateral offset (centred on the
+            // parent's column). Each (row, col) is multiplied by (dx, dy) to
+            // produce the final drafting-view coordinate.
             var visited = new HashSet<long>();
             var queue   = new Queue<(PipeNode node, int row, int col)>();
             queue.Enqueue((inlet, 0, 0));
@@ -243,7 +243,6 @@ namespace StingTools.Core.Plumbing
                 if (visited.Contains(node.Id.Value)) continue;
                 visited.Add(node.Id.Value);
                 coords[node.Id.Value] = new XYZ(col * dx, row * dy, 0);
-                if (row > currentRow) { currentRow = row; colCounter = 0; }
 
                 int childIx = 0;
                 var children = node.Upstream.Concat(node.Downstream)
@@ -499,15 +498,15 @@ namespace StingTools.Core.Plumbing
             return new string(chars);
         }
 
-        // Map a config string to the Revit ACADVersion enum. R2004 was retired
-        // in Revit 2025; if a project still requests it we degrade to R2007
-        // (the oldest still-supported) and warn via Default → R2018 otherwise.
+        // Map a config string to the Revit ACADVersion enum. R2000 and R2004
+        // were removed in Revit 2025+; callers requesting them are degraded
+        // to R2007 (oldest still-supported).
         private static ACADVersion MapAcadVersion(string v)
         {
             string s = (v ?? "").Trim().ToUpperInvariant();
             switch (s)
             {
-                case "R2000":   return ACADVersion.R2000;
+                case "R2000":   return ACADVersion.R2007; // R2000 unavailable on Revit 2025+
                 case "R2004":   return ACADVersion.R2007; // R2004 unavailable on Revit 2025+
                 case "R2007":   return ACADVersion.R2007;
                 case "R2010":   return ACADVersion.R2010;
