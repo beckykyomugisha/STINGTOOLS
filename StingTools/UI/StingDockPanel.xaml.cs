@@ -2411,6 +2411,77 @@ namespace StingTools.UI
         private void MatGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             UpdateMatHeaderCounts();
+            RefreshAssetsSubTab();
+        }
+
+        /// <summary>
+        /// Populate the Assets sub-tab DataGrid with the three assets of
+        /// the currently-selected material plus a 'shared by N' chip per
+        /// row. Empty when no row is picked.
+        /// </summary>
+        private void RefreshAssetsSubTab()
+        {
+            if (dgAssets == null) return;
+            if (!(dgMaterials?.SelectedItem is StingTools.UI.MaterialRow row))
+            { dgAssets.ItemsSource = null; return; }
+            try
+            {
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc == null) return;
+                var mat = doc.GetElement(row.Id) as Autodesk.Revit.DB.Material;
+                if (mat == null) return;
+
+                var rows = new List<AssetRow>();
+                rows.Add(new AssetRow
+                {
+                    Kind = "Appearance",
+                    Name = NameOfAsset(doc, mat.AppearanceAssetId),
+                    SharedByText = row.AppearanceSharedBy > 0
+                        ? $"{row.AppearanceSharedBy} other material(s)"
+                        : "exclusive",
+                    ActionHint = row.AppearanceSharedBy > 0 ? "Duplicate to detach" : "Safe to edit",
+                });
+                rows.Add(new AssetRow
+                {
+                    Kind = "Physical",
+                    Name = mat.StructuralAssetId != null && mat.StructuralAssetId.Value > 0
+                        ? NameOfAsset(doc, mat.StructuralAssetId) : "(none)",
+                    SharedByText = row.PhysicalSharedBy > 0
+                        ? $"{row.PhysicalSharedBy} other material(s)"
+                        : (mat.StructuralAssetId?.Value > 0 ? "exclusive" : "—"),
+                    ActionHint = row.PhysicalSharedBy > 0 ? "Duplicate to detach" : "—",
+                });
+                rows.Add(new AssetRow
+                {
+                    Kind = "Thermal",
+                    Name = mat.ThermalAssetId != null && mat.ThermalAssetId.Value > 0
+                        ? NameOfAsset(doc, mat.ThermalAssetId) : "(none)",
+                    SharedByText = row.ThermalSharedBy > 0
+                        ? $"{row.ThermalSharedBy} other material(s)"
+                        : (mat.ThermalAssetId?.Value > 0 ? "exclusive" : "—"),
+                    ActionHint = row.ThermalSharedBy > 0 ? "Duplicate to detach" : "—",
+                });
+                dgAssets.ItemsSource = rows;
+            }
+            catch (Exception ex) { StingLog.Warn($"RefreshAssetsSubTab: {ex.Message}"); }
+        }
+
+        private static string NameOfAsset(Autodesk.Revit.DB.Document doc, Autodesk.Revit.DB.ElementId id)
+        {
+            try
+            {
+                if (id == null || id.Value <= 0) return "(none)";
+                return doc.GetElement(id)?.Name ?? "(unnamed)";
+            }
+            catch (Exception ex) { StingLog.Warn($"NameOfAsset: {ex.Message}"); return "(error)"; }
+        }
+
+        private class AssetRow
+        {
+            public string Kind { get; set; }
+            public string Name { get; set; }
+            public string SharedByText { get; set; }
+            public string ActionHint { get; set; }
         }
 
         private void MatGrid_DoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)

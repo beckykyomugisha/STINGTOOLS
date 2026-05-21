@@ -67,13 +67,15 @@ namespace StingTools.UI
                 .OrderBy(m => m.Name)
                 .ToList();
             var usage = ComputeUsageCounts(doc);
+            var shares = AssetShareCounter.Compute(materials);
             foreach (var m in materials)
-                rows.Add(BuildOne(doc, m, usage));
+                rows.Add(BuildOne(doc, m, usage, shares));
             return rows;
         }
 
         public static MaterialRow BuildOne(Document doc, Material m,
-            IDictionary<long, int> usageMap = null)
+            IDictionary<long, int> usageMap = null,
+            IDictionary<long, AssetShareCount> assetShareMap = null)
         {
             string n = m.Name ?? "(unnamed)";
             string origin =
@@ -92,27 +94,48 @@ namespace StingTools.UI
             }
             catch (Exception ex) { StingLog.Warn($"BuildOne color '{n}': {ex.Message}"); }
 
+            // ── Cost + carbon resolution chain ──
+            //   1) Project override JSON  → wins if present
+            //   2) Element Material params (ALL_MODEL_COST / STING_EMB_CARBON_NR)
+            //   3) Corporate MATERIAL_LOOKUP.csv lookup by name
             double cost = 0, carbon = 0;
-            try
+            var ov = MaterialOverrideRegistry.ResolveOverride(doc, n);
+            if (ov?.Cost.HasValue == true) cost = ov.Cost.Value;
+            else
             {
-                var cp = m.get_Parameter(BuiltInParameter.ALL_MODEL_COST);
-                if (cp != null && cp.StorageType == StorageType.Double) cost = cp.AsDouble();
+                try
+                {
+                    var cp = m.get_Parameter(BuiltInParameter.ALL_MODEL_COST);
+                    if (cp != null && cp.StorageType == StorageType.Double) cost = cp.AsDouble();
+                }
+                catch (Exception ex) { StingLog.Warn($"BuildOne cost '{n}': {ex.Message}"); }
+                if (cost <= 0) cost = MaterialLookupCsv.GetCost(n);
             }
-            catch (Exception ex) { StingLog.Warn($"BuildOne cost '{n}': {ex.Message}"); }
-            try
+            if (ov?.CarbonKgCo2e.HasValue == true) carbon = ov.CarbonKgCo2e.Value;
+            else
             {
-                var lp = m.LookupParameter("STING_EMB_CARBON_NR");
-                if (lp != null && lp.StorageType == StorageType.Double) carbon = lp.AsDouble();
+                try
+                {
+                    var lp = m.LookupParameter("STING_EMB_CARBON_NR");
+                    if (lp != null && lp.StorageType == StorageType.Double) carbon = lp.AsDouble();
+                }
+                catch (Exception ex) { StingLog.Warn($"BuildOne carbon '{n}': {ex.Message}"); }
+                if (carbon <= 0) carbon = MaterialLookupCsv.GetCarbon(n);
             }
-            catch (Exception ex) { StingLog.Warn($"BuildOne carbon '{n}': {ex.Message}"); }
 
             int use = 0;
             if (usageMap != null && m.Id != null) usageMap.TryGetValue(m.Id.Value, out use);
 
+            // Asset-share counts (filled per-pass in MaterialRowBuilder.Build).
+            int appShared = 0, phyShared = 0, thrShared = 0;
+            if (assetShareMap != null && m.Id != null &&
+                assetShareMap.TryGetValue(m.Id.Value, out var sh))
+            { appShared = sh.Appearance; phyShared = sh.Physical; thrShared = sh.Thermal; }
+
             return new MaterialRow
             {
                 Name = n,
-                Class = m.MaterialClass ?? "",
+                Class = ov?.Class ?? m.MaterialClass ?? "",
                 Origin = origin,
                 ColorText = colTxt,
                 ColorSwatch = swatch,
@@ -120,6 +143,9 @@ namespace StingTools.UI
                 UsageCount = use,
                 Cost = cost,
                 CarbonKgCo2e = carbon,
+                AppearanceSharedBy = appShared,
+                PhysicalSharedBy = phyShared,
+                ThermalSharedBy = thrShared,
             };
         }
 
