@@ -49,7 +49,31 @@
       { "uptoWidthMm": 1200, "thicknessMm": 0.9, "seam": "A", "label": "Pittsburgh lock" },
       { "uptoWidthMm": 1800, "thicknessMm": 1.0, "seam": "B", "label": "Snap lock" },
       { "uptoWidthMm": 9999, "thicknessMm": 1.2, "seam": "D", "label": "Double-seam" }
-    ]
+    ],
+    "fittingLossCoefficients": {
+      "_notes": [
+        "Loss coefficients C in ΔP = C · ½ρv². Source: SMACNA HVAC Systems",
+        "Duct Design 4th ed., Appendix A. Projects may override individual",
+        "entries (e.g. modern vaned elbows) via the project override file."
+      ],
+      "ELBOW_90_SMOOTH":       0.11,
+      "ELBOW_90_MITRED_VANED": 0.27,
+      "ELBOW_90_MITRED_PLAIN": 1.20,
+      "ELBOW_45_SMOOTH":       0.08,
+      "ELBOW_60_SMOOTH":       0.10,
+      "TEE_STRAIGHT_45":       0.15,
+      "TEE_STRAIGHT_90":       0.50,
+      "TEE_BRANCH_45":         0.60,
+      "TEE_BRANCH_90":         1.00,
+      "CONTRACTION_45":        0.20,
+      "EXPANSION_45":          0.25,
+      "EXPANSION_ABRUPT":      0.50,
+      "DAMPER_OPEN":           0.04,
+      "DAMPER_HALF":           6.00,
+      "DIFFUSER":              1.40,
+      "EGGCRATE":              0.80,
+      "FLEX_PER_METRE":        1.00
+    }
   },
 
   "pipe": {

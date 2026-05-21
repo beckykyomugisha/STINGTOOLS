@@ -8,6 +8,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Commands.Standards;
 using StingTools.Core;
+using StingTools.Core.Mep;
 using StingTools.Standards;
 using StingTools.UI;
 
@@ -386,9 +387,8 @@ namespace StingTools.Commands.MepDesign
                 foreach (var el in new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_DuctCurves).WhereElementIsNotElementType())
                 {
-                    double cfm = ReadBip(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM);
-                    if (cfm <= 0) continue;
-                    double lps = cfm * 0.4719;
+                    double lps = MepUnits.ReadBuiltInFlowLs(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM);
+                    if (lps <= 0) continue;
                     branches.Add(($"D{el.Id}", lps, 0.1, el.Id, true));
                 }
                 foreach (var el in new FilteredElementCollector(doc)
@@ -434,9 +434,17 @@ namespace StingTools.Commands.MepDesign
                         {
                             if (b.IsDuct)
                             {
-                                double cfm = outcome.ActualFlowLs / 0.4719;
+                                // Write the balanced flow back through UnitUtils so the
+                                // value lands in whatever internal unit Revit expects
+                                // for AirFlow rather than assuming raw CFM.
                                 var p = el.get_Parameter(BuiltInParameter.RBS_DUCT_FLOW_PARAM);
-                                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double) { p.Set(cfm); written++; }
+                                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double)
+                                {
+                                    double internalVal = UnitUtils.ConvertToInternalUnits(
+                                        outcome.ActualFlowLs, UnitTypeId.LitersPerSecond);
+                                    p.Set(internalVal);
+                                    written++;
+                                }
                                 else skipped++;
                             }
                             else

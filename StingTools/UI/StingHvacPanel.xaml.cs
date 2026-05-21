@@ -192,12 +192,13 @@ namespace StingTools.UI
         {
             try
             {
-                StingHvacCommandHandler.CurrentRegion           = SelectedRegion;
-                StingHvacCommandHandler.CurrentStandard         = SelectedStandard;
-                StingHvacCommandHandler.CurrentPressureClassId  = SelectedPressure;
-                StingHvacCommandHandler.CurrentAirDensityKgM3   = SelectedAirDensity;
-                StingHvacCommandHandler.CurrentSizingStrategyId = SelectedStrategy;
-                StingHvacCommandHandler.CurrentScope            = SelectedScope;
+                StingHvacCommandHandler.SetInputs(
+                    region:           SelectedRegion,
+                    standard:         SelectedStandard,
+                    pressureClassId:  SelectedPressure,
+                    airDensityKgM3:   SelectedAirDensity,
+                    sizingStrategyId: SelectedStrategy,
+                    scope:            SelectedScope);
             }
             catch (Exception ex) { StingLog.Warn($"PushSnapshot: {ex.Message}"); }
         }

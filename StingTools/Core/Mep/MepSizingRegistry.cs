@@ -18,6 +18,7 @@
 //   - SMACNA-only standard size table
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -107,6 +108,8 @@ namespace StingTools.Core.Mep
         public List<DuctPressureClass> DuctPressureClasses { get; set; } = new();
         public Dictionary<string, double[]> DuctStandardSizesMm { get; set; } = new();
         public List<DuctGaugeBreakpoint> DuctGaugeBreakpoints { get; set; } = new();
+        public Dictionary<string, double> DuctFittingLossK { get; set; }
+            = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
 
         // Pipe
         public string PipeDefaultRegion { get; set; } = "UK_SI";
@@ -149,8 +152,15 @@ namespace StingTools.Core.Mep
         {
             foreach (var g in DuctGaugeBreakpoints.OrderBy(b => b.UptoWidthMm))
                 if (widthMm <= g.UptoWidthMm) return g;
-            return DuctGaugeBreakpoints.LastOrDefault()
+            // Past the largest breakpoint: log once per width-bucket so the project
+            // owner sees that the SMACNA table doesn't cover this duct, rather than
+            // silently shipping the heaviest gauge as if it were authoritative.
+            var fallback = DuctGaugeBreakpoints.LastOrDefault()
                 ?? new DuctGaugeBreakpoint { UptoWidthMm = 9999, ThicknessMm = 1.2, Seam = "D" };
+            StingTools.Core.StingLog.Warn(
+                $"MepSizingRegistry: duct width {widthMm:F0} mm exceeds largest gauge breakpoint " +
+                $"({fallback.UptoWidthMm:F0} mm); using fallback gauge {fallback.ThicknessMm} mm / seam {fallback.Seam}.");
+            return fallback;
         }
     }
 
@@ -160,9 +170,11 @@ namespace StingTools.Core.Mep
     /// </summary>
     public static class MepSizingRegistry
     {
-        private static readonly object _lock = new();
-        private static MepSizingRules _cached;
-        private static string _cacheKey;
+        // Per-document cache. Keying by doc.PathName so multiple open RVTs each
+        // keep their own merged baseline+override rather than thrashing a
+        // single-slot cache on every focus switch.
+        private static readonly ConcurrentDictionary<string, MepSizingRules> _cache
+            = new ConcurrentDictionary<string, MepSizingRules>(StringComparer.OrdinalIgnoreCase);
 
         public const string DataFileName = "STING_MEP_SIZING_RULES.json";
         public const string ProjectOverrideRelPath = "_BIM_COORD/mep_sizing_rules.json";
@@ -170,25 +182,21 @@ namespace StingTools.Core.Mep
         /// <summary>Resolve the active rule set for a Revit document (cached by project file path).</summary>
         public static MepSizingRules Get(Document doc)
         {
-            lock (_lock)
-            {
-                string key = doc?.PathName ?? "<no-doc>";
-                if (_cached != null && _cacheKey == key) return _cached;
-
-                _cached = Load(doc);
-                _cacheKey = key;
-                return _cached;
-            }
+            string key = doc?.PathName ?? "<no-doc>";
+            return _cache.GetOrAdd(key, _ => Load(doc));
         }
 
-        /// <summary>Force a reload from disk.</summary>
+        /// <summary>Force a reload from disk for every cached project.</summary>
         public static void Reload()
         {
-            lock (_lock)
-            {
-                _cached = null;
-                _cacheKey = null;
-            }
+            _cache.Clear();
+        }
+
+        /// <summary>Force a reload for a single document (e.g. after Save As).</summary>
+        public static void Reload(Document doc)
+        {
+            string key = doc?.PathName ?? "<no-doc>";
+            _cache.TryRemove(key, out _);
         }
 
         private static MepSizingRules Load(Document doc)
@@ -311,6 +319,23 @@ namespace StingTools.Core.Mep
                             Seam        = (string)t["seam"] ?? "A",
                             Label       = (string)t["label"] ?? ""
                         });
+                    }
+                }
+
+                // Fitting loss coefficients (project-overrideable subset of the
+                // SMACNA table baked into DuctFrictionSolver.SmacnaCoefficients).
+                var fits = duct["fittingLossCoefficients"] as JObject;
+                if (fits != null)
+                {
+                    foreach (var kv in fits)
+                    {
+                        if (kv.Key.StartsWith("_")) continue; // _notes etc.
+                        if (kv.Value is JValue jv &&
+                            (jv.Type == JTokenType.Float || jv.Type == JTokenType.Integer))
+                        {
+                            try { rules.DuctFittingLossK[kv.Key] = (double)kv.Value; }
+                            catch { /* skip malformed entry */ }
+                        }
                     }
                 }
             }
