@@ -426,7 +426,25 @@ namespace StingTools.BOQ
             string stored = ParameterHelpers.GetString(el, "ASS_NRM2_PARA_TXT");
             if (!string.IsNullOrEmpty(stored) && !_tokenRx.IsMatch(stored)) return stored;
 
-            // (ii) Use BOQTemplateLibrary to pick + resolve the best template for this element
+            // (ii) BOQ-12 — Material-aware template selection. The template
+            // library is queried with the element + category as before; the
+            // material name + class are then folded into the resolved
+            // paragraph so a "Generic" family doesn't end up with a
+            // category-only description.
+            string matName = null, matClass = null;
+            try
+            {
+                matName = GetPrimaryMaterialName(el);
+                if (!string.IsNullOrEmpty(matName) && doc != null)
+                {
+                    var mat = new FilteredElementCollector(doc).OfClass(typeof(Material))
+                        .Cast<Material>()
+                        .FirstOrDefault(m => string.Equals(m.Name, matName, StringComparison.OrdinalIgnoreCase));
+                    matClass = mat?.MaterialClass;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveNrm2Paragraph material: {ex.Message}"); }
+
             try
             {
                 var all = BOQTemplateLibrary.LoadAll(doc, StingToolsApp.DataPath);
@@ -434,13 +452,32 @@ namespace StingTools.BOQ
                 if (tpl != null)
                 {
                     string resolved = BOQTemplateLibraryExtensions.ResolveForElement(tpl, el, doc);
-                    if (!string.IsNullOrEmpty(resolved)) return resolved;
+                    if (!string.IsNullOrEmpty(resolved))
+                    {
+                        // Prepend material qualifier when we have one and the
+                        // template doesn't already mention it.
+                        if (!string.IsNullOrEmpty(matClass) &&
+                            !resolved.IndexOf(matClass, StringComparison.OrdinalIgnoreCase).Equals(-1) is false)
+                        {
+                            // resolved already mentions the class — leave as-is
+                        }
+                        else if (!string.IsNullOrEmpty(matClass) &&
+                                 resolved.IndexOf(matClass, StringComparison.OrdinalIgnoreCase) < 0)
+                        {
+                            resolved = $"{matClass}: {resolved}";
+                        }
+                        return resolved;
+                    }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"ResolveNrm2Paragraph template: {ex.Message}"); }
 
-            // (iii) Safe fallback — a QS can override this later in the Excel roundtrip.
-            return $"Supply and fix {catName?.ToLower()}.";
+            // (iii) Safe fallback — material-qualified when known, category-
+            // only otherwise. QS can override later in the Excel roundtrip.
+            string qualifier = !string.IsNullOrEmpty(matClass) ? matClass.ToLower() + " "
+                              : !string.IsNullOrEmpty(matName) ? matName.ToLower() + " "
+                              : "";
+            return $"Supply and fix {qualifier}{catName?.ToLower()}.";
         }
 
         // ── Carbon + lifecycle ─────────────────────────────────────────────
