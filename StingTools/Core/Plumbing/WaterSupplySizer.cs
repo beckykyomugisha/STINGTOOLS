@@ -171,6 +171,16 @@ namespace StingTools.Core.Plumbing
 
         private static (double lu, double wsfu) AccumulateLoadingUnits(Document doc, Pipe seed, string service)
         {
+            // Direction-aware BFS for supply: fixtures sit ABOVE the main, so
+            // from a given supply pipe we only sum fixtures at Z >= pipe.Z (minus
+            // a small slack). Without this filter the BFS reaches every fixture
+            // in the whole connected supply network and every pipe gets the same
+            // loading-unit total. Fixture nodes themselves are exempt from the
+            // Z-cutoff so a low-set utility sink off a horizontal branch still
+            // counts.
+            double seedZFt = SeedMidZ(seed);
+            const double zTolFt = 0.05; // ~15 mm slack for nearly-flat runs
+
             var visited = new HashSet<long>();
             var queue   = new Queue<Element>();
             visited.Add(seed.Id.Value);
@@ -193,10 +203,15 @@ namespace StingTools.Core.Plumbing
                         {
                             var owner = other.Owner;
                             if (owner == null || visited.Contains(owner.Id.Value)) continue;
-                            visited.Add(owner.Id.Value);
+
+                            double ownerZ = OwnerMidZ(owner);
                             var bic = (BuiltInCategory)(owner.Category?.Id?.Value ?? 0);
-                            if (bic == BuiltInCategory.OST_PlumbingFixtures
-                             || bic == BuiltInCategory.OST_MechanicalEquipment)
+                            bool isFixture = bic == BuiltInCategory.OST_PlumbingFixtures
+                                          || bic == BuiltInCategory.OST_MechanicalEquipment;
+                            if (!isFixture && ownerZ + zTolFt < seedZFt) continue;
+
+                            visited.Add(owner.Id.Value);
+                            if (isFixture)
                             {
                                 lu   += ReadDouble(owner, service == "DHW"
                                     ? ParamRegistry.PLM_SUP_LU_HW
@@ -211,6 +226,37 @@ namespace StingTools.Core.Plumbing
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             return (lu, wsfu);
+        }
+
+        private static double SeedMidZ(Pipe pipe)
+        {
+            try
+            {
+                var lc = pipe.Location as LocationCurve;
+                if (lc?.Curve == null) return 0;
+                var s = lc.Curve.GetEndPoint(0);
+                var e = lc.Curve.GetEndPoint(1);
+                return (s.Z + e.Z) / 2.0;
+            }
+            catch { return 0; }
+        }
+
+        private static double OwnerMidZ(Element el)
+        {
+            try
+            {
+                if (el is MEPCurve mc && mc.Location is LocationCurve lc && lc.Curve != null)
+                {
+                    var s = lc.Curve.GetEndPoint(0);
+                    var e = lc.Curve.GetEndPoint(1);
+                    return (s.Z + e.Z) / 2.0;
+                }
+                if (el.Location is LocationPoint lp) return lp.Point.Z;
+                var bb = el.get_BoundingBox(null);
+                if (bb != null) return (bb.Min.Z + bb.Max.Z) / 2.0;
+            }
+            catch { }
+            return 0;
         }
 
         private static double ResolveVelMax(PlumbingSystemConfig cfg, string service)

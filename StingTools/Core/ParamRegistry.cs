@@ -811,6 +811,11 @@ namespace StingTools.Core
         public static string PLM_PUMP_EFF_PCT       => Ext("PLM_PUMP_EFF_PCT");
         public static string PLM_TMV_INLET_HOT_C    => Ext("PLM_TMV_INLET_HOT_C");
         public static string PLM_TMV_INLET_COLD_C   => Ext("PLM_TMV_INLET_COLD_C");
+        // PLM_TMV_BLEND_TEMP_C is the design set-point; PLM_TMV_MEASURED_C is the
+        // commissioning-measurement reading. Keeping them separate is required
+        // by BS 8680:2022 §5 tolerance validation (otherwise outlet ≡ setpoint
+        // and the ±1/±2°C check is meaningless).
+        public static string PLM_TMV_MEASURED_C     => Ext("PLM_TMV_MEASURED_C");
         public static string PLM_TMV_TEST_DATE      => Ext("PLM_TMV_TEST_DATE");
         public static string PLM_TMV_NEXT_TEST      => Ext("PLM_TMV_NEXT_TEST");
         public static string PLM_TMV_OVERDUE        => Ext("PLM_TMV_OVERDUE");
@@ -2557,6 +2562,7 @@ namespace StingTools.Core
             _extendedParams["PLM_PUMP_EFF_PCT"]       = "PLM_PUMP_EFF_PCT";
             _extendedParams["PLM_TMV_INLET_HOT_C"]    = "PLM_TMV_INLET_HOT_C";
             _extendedParams["PLM_TMV_INLET_COLD_C"]   = "PLM_TMV_INLET_COLD_C";
+            _extendedParams["PLM_TMV_MEASURED_C"]     = "PLM_TMV_MEASURED_C";
             _extendedParams["PLM_TMV_TEST_DATE"]      = "PLM_TMV_TEST_DATE_TXT";
             _extendedParams["PLM_TMV_NEXT_TEST"]      = "PLM_TMV_NEXT_TEST_TXT";
             _extendedParams["PLM_TMV_OVERDUE"]        = "PLM_TMV_OVERDUE_BOOL";

@@ -124,7 +124,7 @@ namespace StingTools.Core.Plumbing
             double accLen = 0;
             var visited = new HashSet<long>();
             visited.Add(start.Id.Value);
-            try { accLen += start.LookupParameter("Length")?.AsDouble() * 0.3048 ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            accLen += PipeLengthM(start);
 
             Element current = start;
             int safety = 200;
@@ -166,13 +166,23 @@ namespace StingTools.Core.Plumbing
                 if (junction != null) break;
                 if (nextPipe == null) break;
                 visited.Add(nextPipe.Id.Value);
-                if (nextPipe is Pipe np)
-                {
-                    try { accLen += np.LookupParameter("Length")?.AsDouble() * 0.3048 ?? 0; } catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); }
-                }
+                if (nextPipe is Pipe np) accLen += PipeLengthM(np);
                 current = nextPipe;
             }
             return accLen;
+        }
+
+        // Use the built-in CURVE_ELEM_LENGTH so this works on non-English Revit
+        // installs where LookupParameter("Length") would return null.
+        private static double PipeLengthM(Pipe pipe)
+        {
+            try
+            {
+                var lp = pipe.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
+                if (lp != null && lp.HasValue) return lp.AsDouble() * 0.3048;
+            }
+            catch (Exception ex) { StingLog.Warn($"PipeLengthM {pipe?.Id}: {ex.Message}"); }
+            return 0;
         }
     }
 }
