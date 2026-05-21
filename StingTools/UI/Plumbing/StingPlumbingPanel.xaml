@@ -268,6 +268,17 @@
                         <Button Content="▶ Run Full Plumbing Audit (RAG)" Style="{StaticResource PlumbPrimaryBtn}"
                                 Tag="Plumb_FullAudit" Click="Cmd_Click"
                                 ToolTip="Runs all five compliance domains (Supply / Drainage / Vents / Backflow / HTM 04-01) and produces the RAG dashboard."/>
+
+                        <TextBlock Text="ACTIVITY LOG" Style="{StaticResource PlumbSectionHeader}" Margin="0,12,0,2"/>
+                        <TextBox x:Name="txtPlumbResultLog" Height="120" Margin="0,2"
+                                 FontSize="10" FontFamily="Consolas"
+                                 IsReadOnly="True" VerticalScrollBarVisibility="Auto"
+                                 TextWrapping="NoWrap" AcceptsReturn="True"
+                                 ToolTip="Inline summary of every command result (no modal popups). Newest at top."/>
+                        <WrapPanel Margin="0,2">
+                            <Button Content="Clear log" Style="{StaticResource PlumbActionBtn}"
+                                    Click="btnClearResultLog_Click"/>
+                        </WrapPanel>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -506,43 +517,92 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
                     <StackPanel>
                         <TextBlock Text="AUTO-DROP CONNECTIONS" Style="{StaticResource PlumbSectionHeader}"/>
-                        <Expander Header="ROUTING OPTIONS" Style="{StaticResource PlumbExpander}">
+                        <Expander Header="ROUTING OPTIONS" Style="{StaticResource PlumbExpander}" IsExpanded="True">
                             <Grid Margin="4">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="160"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions>
                                     <RowDefinition/><RowDefinition/><RowDefinition/>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/>
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Max search radius (mm)" Style="{StaticResource PlumbLabel}"/>
                                 <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtRtRadius"   Text="3000" Margin="2" FontSize="10"/>
-                                <CheckBox  Grid.Row="1" Grid.Column="1" x:Name="chkRtSnap"     Content="Snap to corridor service band" IsChecked="True" Margin="2"/>
-                                <CheckBox  Grid.Row="2" Grid.Column="1" x:Name="chkRtPreview"  Content="Preview before commit" IsChecked="True" Margin="2"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Drop angle (°)"          Style="{StaticResource PlumbLabel}"/>
+                                <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtRtDropAngle" Text="90"  Margin="2" FontSize="10"
+                                           ToolTip="Default 90 (vertical). 45 forces oblique drops."/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Service band (mm AFFL)"  Style="{StaticResource PlumbLabel}"/>
+                                <TextBox   Grid.Row="2" Grid.Column="1" x:Name="txtRtServiceBand" Text="2700" Margin="2" FontSize="10"/>
+                                <CheckBox  Grid.Row="3" Grid.Column="1" x:Name="chkRtSnap"     Content="Snap to corridor service band" IsChecked="True" Margin="2"/>
+                                <CheckBox  Grid.Row="4" Grid.Column="1" x:Name="chkRtPreview"  Content="Preview before commit"          IsChecked="True" Margin="2"/>
+                                <CheckBox  Grid.Row="5" Grid.Column="1" x:Name="chkRtAutoSize" Content="Auto-size new pipes after route" IsChecked="True" Margin="2"
+                                           ToolTip="Runs WaterSupplySizer / DrainageSizer on newly created pipes."/>
                             </Grid>
                         </Expander>
-                        <Button Content="▶ Auto-Route Selected Fixtures" Style="{StaticResource PlumbPrimaryBtn}"
-                                Tag="Plumb_AutoRoute" Click="Cmd_Click" HorizontalAlignment="Stretch"
-                                ToolTip="Wraps AutoPipeDrop on the current selection — drops pipework to nearest host within radius."/>
+                        <WrapPanel Margin="0,2">
+                            <Button Content="▶ Auto-Route Selected" Style="{StaticResource PlumbPrimaryBtn}"
+                                    Tag="Plumb_AutoRoute" Click="Cmd_Click"
+                                    ToolTip="Wraps AutoPipeDrop on the current selection — drops pipework to nearest host within radius."/>
+                            <Button Content="Route All Fixtures" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_AutoRoute" Click="Cmd_Click"
+                                    ToolTip="Same as Auto-Route Selected but iterates every OST_PlumbingFixtures in the active view."/>
+                            <Button Content="Connect to Stack" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_AutoRoute" Click="Cmd_Click"
+                                    ToolTip="Routes branch drains to the nearest classified Stack node (uses PipeNetworkBuilder)."/>
+                            <Button Content="Validate Connectors" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_FullAudit" Click="Cmd_Click"
+                                    ToolTip="Quick read-only check: every fixture should have a connected drainage end and a supply end."/>
+                        </WrapPanel>
 
-                        <TextBlock Text="SLOPE CORRECTION (QUICK ACCESS)" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
-                        <Button Content="Fix Slopes (project-wide)" Style="{StaticResource PlumbActionBtn}"
-                                Tag="Plumb_FixSlopes" Click="Cmd_Click" HorizontalAlignment="Stretch"/>
+                        <TextBlock Text="SIZING (LIVE)" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <WrapPanel Margin="0,2">
+                            <Button Content="Size Supply Now" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_SizeSupply" Click="Cmd_Click"
+                                    ToolTip="Runs WaterSupplySizer on the current model. Uses the head-loss method + sizing strategy from SYSTEM tab."/>
+                            <Button Content="Size Drainage Now" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_SizeDrainage" Click="Cmd_Click"
+                                    ToolTip="Runs DrainageSizer (DFU + Manning self-cleansing)."/>
+                            <Button Content="Pressure Walk" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_PressureCheck" Click="Cmd_Click"
+                                    ToolTip="Index-leg static + friction pressure walk including PRV / meter."/>
+                        </WrapPanel>
 
-                        <TextBlock Text="P-TRAP INSERTION" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
-                        <Button Content="Insert P-Traps (missing only)" Style="{StaticResource PlumbActionBtn}"
-                                Tag="Plumb_InsertPTraps" Click="Cmd_Click" HorizontalAlignment="Stretch"
-                                ToolTip="Walks fixtures lacking a trap and inserts a P-trap family at the drainage connector."/>
+                        <TextBlock Text="SLOPE &amp; INVERTS" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <WrapPanel Margin="0,2">
+                            <Button Content="Fix Slopes (project)" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_FixSlopes" Click="Cmd_Click"
+                                    ToolTip="BS EN 12056-2 minimum slopes via SubTransaction per pipe (preview-first)."/>
+                            <Button Content="Compute Invert Levels" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_InvertLevels" Click="Cmd_Click"
+                                    ToolTip="Walks the drainage tree from the outfall, computes invert + cover at each node."/>
+                        </WrapPanel>
 
-                        <TextBlock Text="PENETRATIONS / SLEEVES" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
-                        <Button Content="Place Sleeves on Plumbing Pipes" Style="{StaticResource PlumbActionBtn}"
-                                Tag="Plumb_PlaceSleeves" Click="Cmd_Click" HorizontalAlignment="Stretch"
-                                ToolTip="Wraps SleeveEngine — places STING_SLEEVE_ROUND/RECT, inherits fire rating, writes IFC PfV."/>
+                        <TextBlock Text="P-TRAPS / VENTS" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <WrapPanel Margin="0,2">
+                            <Button Content="Insert P-Traps" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_InsertPTraps" Click="Cmd_Click"
+                                    ToolTip="Walks fixtures lacking a trap and inserts a P-trap family at the drainage connector."/>
+                            <Button Content="Design Vents" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_VentDesign" Click="Cmd_Click"
+                                    ToolTip="VentDesigner — sizes secondary vents + AAVs per BS EN 12056-2 §6."/>
+                            <Button Content="Create Vent Pipes" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_CreateVents" Click="Cmd_Click"
+                                    ToolTip="Closes the design → model loop: emits pipes + AAVs from VentDesigner output."/>
+                        </WrapPanel>
 
-                        <TextBlock Text="HANGERS &amp; SUPPORTS" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
-                        <Button Content="Plan Hanger Positions" Style="{StaticResource PlumbActionBtn}"
-                                Tag="Plumb_PlaceHangers" Click="Cmd_Click" HorizontalAlignment="Stretch"
-                                ToolTip="BS 5572 / MSS SP-58 hanger spacing + trapeze grouping (planning pass)."/>
+                        <TextBlock Text="PENETRATIONS / SLEEVES &amp; HANGERS" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <WrapPanel Margin="0,2">
+                            <Button Content="Place Sleeves" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_PlaceSleeves" Click="Cmd_Click"
+                                    ToolTip="Wraps SleeveEngine — places STING_SLEEVE_ROUND/RECT, inherits fire rating, writes IFC PfV."/>
+                            <Button Content="Plan Hangers" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_PlaceHangers" Click="Cmd_Click"
+                                    ToolTip="BS 5572 / MSS SP-58 hanger spacing + trapeze grouping (planning pass)."/>
+                            <Button Content="Roof Drainage" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_RoofDrainage" Click="Cmd_Click"
+                                    ToolTip="Places roof gullies + downpipes from BS EN 12056-3 / ASPE storm sizing."/>
+                        </WrapPanel>
 
                         <Expander Header="SYMBOL PLACEMENT — SANITARY FIXTURES" Style="{StaticResource PlumbExpander}">
                             <WrapPanel Margin="4">

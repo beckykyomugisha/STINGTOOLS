@@ -86,7 +86,67 @@ namespace StingTools.UI.Plumbing
             try { LoadSystemForm(StingTools.Core.Plumbing.PlumbingSystemConfig.Defaults()); }
             catch (Exception ex) { StingLog.Warn($"ctor LoadSystemForm: {ex.Message}"); }
 
+            // Subscribe to symbol-engine status updates so the inline status
+            // bar surfaces every Place* / Browse outcome — no more modal
+            // "Placed N symbols" TaskDialogs.
+            try { StingTools.Commands.Symbols.EquipmentSymbolEngine.StatusUpdated += OnSymbolEngineStatus; }
+            catch (Exception ex) { StingLog.Warn($"Symbol status subscribe: {ex.Message}"); }
+
             UpdateStatus("Ready");
+        }
+
+        private void OnSymbolEngineStatus(string message)
+        {
+            // Filter to plumbing-relevant messages so we don't echo electrical
+            // / HVAC / FP symbol activity on the plumbing panel.
+            if (string.IsNullOrEmpty(message)) return;
+            if (message.IndexOf("Plumb", StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("PLM_",  StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("WC",    StringComparison.Ordinal) < 0
+             && message.IndexOf("HWC",   StringComparison.Ordinal) < 0
+             && message.IndexOf("WHB",   StringComparison.Ordinal) < 0
+             && message.IndexOf("Bidet", StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("Bath",  StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("Sink",  StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("Valve", StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("PRV",   StringComparison.Ordinal) < 0
+             && message.IndexOf("Shower",StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("Drain", StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("Gulley",StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("Strainer",StringComparison.OrdinalIgnoreCase) < 0
+             && message.IndexOf("Urinal",StringComparison.OrdinalIgnoreCase) < 0)
+                return;
+            ShowInlineResult(message);
+        }
+
+        /// <summary>
+        /// Compact in-panel status surface. Mirrors the message into both the
+        /// header status line and the resizable result-log textbox at the
+        /// bottom of the SYSTEM tab — so users see at-a-glance + scrollable
+        /// history without a popup window.
+        /// </summary>
+        public void ShowInlineResult(string message)
+        {
+            try
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    if (string.IsNullOrEmpty(message)) return;
+                    UpdateStatus(message);
+                    if (txtPlumbResultLog != null)
+                    {
+                        var stamp = DateTime.Now.ToString("HH:mm:ss");
+                        var line  = $"[{stamp}] {message}";
+                        txtPlumbResultLog.Text = string.IsNullOrEmpty(txtPlumbResultLog.Text)
+                            ? line
+                            : line + Environment.NewLine + txtPlumbResultLog.Text;
+                        // Cap at 4000 chars so the log never bloats memory.
+                        if (txtPlumbResultLog.Text.Length > 4000)
+                            txtPlumbResultLog.Text = txtPlumbResultLog.Text.Substring(0, 4000);
+                    }
+                });
+            }
+            catch (Exception ex) { StingLog.Warn($"ShowInlineResult: {ex.Message}"); }
         }
 
         public void UpdateStatus(string text)
@@ -113,6 +173,7 @@ namespace StingTools.UI.Plumbing
                 StingPlumbingCommandHandler.Instance?.SetCommand(tag);
                 StingPlumbingCommandHandler.Event?.Raise();
                 UpdateStatus($"Running: {tag}");
+                ShowInlineResult($"▶ {tag}");
             }
             catch (Exception ex)
             {
@@ -426,6 +487,12 @@ namespace StingTools.UI.Plumbing
                 StingLog.Warn($"btnCfgReload: {ex.Message}");
                 UpdateStatus("Reload failed — see log.");
             }
+        }
+
+        private void btnClearResultLog_Click(object sender, RoutedEventArgs e)
+        {
+            try { if (txtPlumbResultLog != null) txtPlumbResultLog.Text = ""; }
+            catch (Exception ex) { StingLog.Warn($"btnClearResultLog: {ex.Message}"); }
         }
 
         // ── form helpers ────────────────────────────────────────────────
