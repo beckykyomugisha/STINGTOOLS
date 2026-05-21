@@ -579,7 +579,7 @@ Generic Models,PLM_DRN_GRT_MAT_TXT,4eef976d-29bc-568b-a137-114aa4a205a2,TEXT,PLM
 Generic Models,TS_NAME_TXT,20f7ea6d-6171-4a0e-89b7-e456155106ac,TEXT,TPL_TRACKING,Type,Text style name [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ASS_PMT_PRO_DELIVERY_DATE_TXT,7e630a6f-64a2-5d6e-b4ef-b8817397425a,TEXT,ASS_MNG,Type,Ass Pmt Pro Delivery Date Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,PRJ_TB_REVISION_DATE_TXT,25f22a6f-68ed-5e36-8875-d31779f444a5,TEXT,PRJ_INFORMATION,Type,Date of the current revision (DD-Mon-YYYY) [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,RGL_NEMA_APPROVAL_REQ_BOOL,aacd316f-602a-5878-acdc-c4785f8f4b8f,YESNO,RGL_CMPL,Type,Rgl Nema Approval Req Bool [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,RGL_NEMA_APPROVAL_REQ_BOOL,aacd316f-602a-5878-acdc-c4785f8f4b8f,TEXT,RGL_CMPL,Type,Rgl Nema Approval Req Bool [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_MAT_DURABILITY_TXT,90064f6f-3cfe-5f5e-b63d-f20f13a063b4,TEXT,CST_PROC,Type,Ble Mat Durability Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,VT_SCALE_TXT,f542776f-ff19-4ae9-9327-cf9261c59f8b,TEXT,TPL_TRACKING,Type,View scale [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_CALC_PURLINS_M,6d5c8f6f-66df-41a9-96fa-e9df5776f656,TEXT,COM_DAT,Type,Calculated purlin length in meters [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -1294,7 +1294,7 @@ Generic Models,RGL_KCCA_CERT_NR,006f2e5d-d155-4159-aa5d-5c5b64fe0ec0,TEXT,RGL_CM
 Generic Models,RGL_NEMA_CERT_NR,b26efc46-4ec2-4aaf-bc5a-423a6b09c359,TEXT,RGL_CMPL,Type,NEMA certification number,False,,,MULTI,1,0
 Generic Models,RGL_NWSC_APPROVAL_REQ_BOOL,d2095db1-5991-48a9-959e-b0eb6d611091,TEXT,RGL_CMPL,Type,NWSC approval required,False,,,MULTI,1,0
 Generic Models,RGL_NWSC_CERT_NR,0b711aaa-09ce-4388-ae2f-8eb840442d3b,TEXT,RGL_CMPL,Type,NWSC certification number,False,,,MULTI,1,0
-Generic Models,RGL_UMEME_APPROVAL_REQ_BOOL,faf8944a-9469-4760-b8ad-ad21b370573f,YESNO,RGL_CMPL,Type,UMEME approval required,False,,,MULTI,1,0
+Generic Models,RGL_UMEME_APPROVAL_REQ_BOOL,faf8944a-9469-4760-b8ad-ad21b370573f,TEXT,RGL_CMPL,Type,UMEME approval required,False,,,MULTI,1,0
 Generic Models,RGL_UMEME_CERT_NR,4fe49564-bc1e-4299-8e09-0f2a2ebe677b,TEXT,RGL_CMPL,Type,UMEME certification number,False,,,MULTI,1,0
 Generic Models,STRUCT_COL_AXIAL_LOAD_KN,21f21930-316c-4b70-8174-b8bd0670f5dc,TEXT,BLE_STRUCTURE,Type,Column axial load,False,,,MULTI,1,0
 Generic Models,STRUCT_COL_BUCKLING_CHECK_BOOL,ab62a703-a19d-41d3-884b-dc2f3ab135af,YESNO,BLE_STRUCTURE,Type,Column buckling check passed,False,,,MULTI,1,0
@@ -2845,7 +2845,7 @@ Generic Models,PLM_PRJ_PLUMBING_CODE_TXT,98ab6e19-8d12-53c0-b388-8705f9413373,TE
 Generic Models,ELC_CDT_PENETRATION_COUNT_NR,c3d5b6ee-0f2e-7283-9405-162718304a5b,TEXT,ELC_PWR,Instance,Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).,False,,,MULTI,1,0
 Generic Models,ASS_ITEM_CODE_TXT,d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a,TEXT,ASS_MNG,Instance,Procurement item code for asset ordering,False,,,MULTI,1,0
 Generic Models,ASS_SYSTEMS_TXT,e3f4a5b6-c7d8-4e9f-a0b1-2c3d4e5f6a7b,TEXT,ASS_MNG,Instance,Pipe/duct systems this element connects to (pipe-delimited),False,,,MULTI,1,0
-Generic Models,ASS_TERM_CAPPED_BOOL,f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c,YESNO,ASS_MNG,Instance,Terminal point is capped (stub-end or blanked off),False,,,MULTI,1,0
+Generic Models,ASS_TERM_CAPPED_BOOL,f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c,TEXT,ASS_MNG,Instance,Terminal point is capped (stub-end or blanked off),False,,,MULTI,1,0
 Generic Models,ASS_TERM_REASON_TXT,a5b6c7d8-e9f0-4a1b-c2d3-4e5f6a7b8c9d,TEXT,ASS_MNG,Instance,Reason terminal is capped: FUTURE / DECOMMISSIONED / DESIGN-RESERVE,False,,,MULTI,1,0
 Generic Models,ASS_TRACE_SEQ_NR,b6c7d8e9-f0a1-4b2c-d3e4-5f6a7b8c9d0e,INTEGER,ASS_MNG,Instance,Sequential trace number for multi-element commissioning sequences,False,,,MULTI,1,0
 Mechanical Equipment,MEC_SYS_TXT,b8c9d0e1-f2a3-4b4c-d5e6-f7a8b9c0d1e2,TEXT,HVC_SYSTEMS,Instance,Mechanical system code,False,,,MECHANICAL,1,0
@@ -3039,7 +3039,7 @@ Generic Models,ASS_CST_CURRENCY_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42,TEXT,CS
 Generic Models,ASS_CST_FX_TO_BASE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43,NUMBER,CST_PROC,Type,FX rate to project base currency at write time [Phase 184],False,,,MULTI,1,0
 Generic Models,ASS_CST_FX_DATE_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44,TEXT,CST_PROC,Type,ISO 8601 date the FX rate was fixed (yyyy-MM-dd) [Phase 184],False,,,MULTI,1,0
 Generic Models,ASS_CST_AS_OF_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45,TEXT,CST_PROC,Type,Pricing reference date for inflation indexing [Phase 184],False,,,MULTI,1,0
-Generic Models,ASS_CST_STALE_BOOL,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46,YESNO,CST_PROC,Type,Set when geometry/material/type change invalidates the last-costed line [Phase 184],False,,,MULTI,1,0
+Generic Models,ASS_CST_STALE_BOOL,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46,TEXT,CST_PROC,Type,Set when geometry/material/type change invalidates the last-costed line [Phase 184],False,,,MULTI,1,0
 Generic Models,ASS_CST_STALE_REASON_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47,TEXT,CST_PROC,Type,Reason cost was flagged stale (Geometry / Material / Type / Rate) [Phase 184],False,,,MULTI,1,0
 Generic Models,ASS_PMT_PCT_COMPLETE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50,NUMBER,CST_PROC,Type,Per-element percent complete (0-100) driving payment certificate valuation [Phase 184g / P5],False,,,MULTI,1,0
 Generic Models,ASS_PMT_CERT_NO_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51,INTEGER,CST_PROC,Type,Payment certificate number this line item was last valued in [Phase 184g / P5],False,,,MULTI,1,0
