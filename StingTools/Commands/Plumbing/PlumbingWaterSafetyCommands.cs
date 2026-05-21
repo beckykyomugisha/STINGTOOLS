@@ -29,7 +29,7 @@ namespace StingTools.Commands.Plumbing
     // Plumb_TMVEngine
     // ─────────────────────────────────────────────────────────────────────────
 
-    [Transaction(TransactionMode.Manual)]
+    [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class PlumbTMVEngineCommand : IExternalCommand
     {
@@ -39,15 +39,11 @@ namespace StingTools.Commands.Plumbing
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
+            // TMVEngine.ScanAll only reads parameters — no transaction needed.
             TMVRegisterResult result;
             try
             {
-                using (var tx = new Transaction(doc, "STING Plumbing TMV Engine"))
-                {
-                    tx.Start();
-                    result = TMVEngine.ScanAll(doc);
-                    tx.Commit();
-                }
+                result = TMVEngine.ScanAll(doc);
             }
             catch (Exception ex)
             {
@@ -71,14 +67,14 @@ namespace StingTools.Commands.Plumbing
                     string dueDateStr  = WaterSafetyDateHelper.ParseDateStr(row.AnnualTestDueDate, "yyyy-MM-dd");
                     sb.AppendLine(
                         $"{row.Id?.Value}," +
-                        $"\"{row.FamilyName}\"," +
-                        $"\"{row.RoomName}\"," +
+                        $"{PlumbingCsv.Esc(row.FamilyName)}," +
+                        $"{PlumbingCsv.Esc(row.RoomName)}," +
                         $"{row.Class}," +
                         $"{row.InletHotC:F1}," +
                         $"{row.InletColdC:F1}," +
                         $"{row.ActualOutletC:F1}," +
-                        $"{testDateStr}," +
-                        $"{dueDateStr}," +
+                        $"{PlumbingCsv.Esc(testDateStr)}," +
+                        $"{PlumbingCsv.Esc(dueDateStr)}," +
                         $"{(row.WithinTolerance ? "PASS" : "FAIL")}");
                 }
                 File.WriteAllText(csvPath, sb.ToString(), Encoding.UTF8);
@@ -524,5 +520,18 @@ namespace StingTools.Commands.Plumbing
 
         internal static string ParseDateStr(string s, string fmt) =>
             DateTime.TryParse(s, out var d) ? d.ToString(fmt) : (s ?? "");
+    }
+
+    // RFC 4180-style CSV escaping: wrap in quotes when the value contains a
+    // separator, embedded quote, or newline; double up internal quotes.
+    internal static class PlumbingCsv
+    {
+        internal static string Esc(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            bool needsQuote = s.IndexOfAny(new[] { ',', '"', '\n', '\r' }) >= 0;
+            if (!needsQuote) return s;
+            return "\"" + s.Replace("\"", "\"\"") + "\"";
+        }
     }
 }

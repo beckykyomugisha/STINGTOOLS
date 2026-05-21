@@ -94,6 +94,17 @@ namespace StingTools.Core.Plumbing
         public static double GetAccumulatedDfu(Document doc, Pipe pipe)
         {
             if (doc == null || pipe == null) return 0;
+
+            // Direction-aware BFS for drainage: water flows downhill, so
+            // "upstream" (toward fixtures) is at higher elevation than the seed
+            // pipe. We seed from the downstream end Z and only follow neighbours
+            // whose centroid Z is >= the seed minus a small tolerance. Without
+            // this filter the BFS walks both ways from the seed and sums every
+            // fixture in the connected network — every pipe ends up with the
+            // same network-wide DFU total.
+            double seedZFt = SeedDownstreamZ(pipe);
+            const double zTolFt = 0.05; // ~15 mm slack for nearly-flat runs
+
             var visited = new HashSet<long>();
             var queue   = new Queue<Element>();
             visited.Add(pipe.Id.Value);
@@ -116,11 +127,19 @@ namespace StingTools.Core.Plumbing
                             var owner = other.Owner;
                             if (owner == null) continue;
                             if (visited.Contains(owner.Id.Value)) continue;
+
+                            // Drop neighbours that are clearly downstream of the
+                            // seed pipe (lower Z). Fixture nodes are exempt so a
+                            // bath/shower on a near-flat branch still counts.
+                            double ownerZ = OwnerZ(owner);
+                            var bic = (BuiltInCategory)(owner.Category?.Id?.Value ?? 0);
+                            bool isFixture = bic == BuiltInCategory.OST_PlumbingFixtures
+                                          || bic == BuiltInCategory.OST_MechanicalEquipment;
+                            if (!isFixture && ownerZ + zTolFt < seedZFt) continue;
+
                             visited.Add(owner.Id.Value);
 
-                            var bic = (BuiltInCategory)(owner.Category?.Id?.Value ?? 0);
-                            if (bic == BuiltInCategory.OST_PlumbingFixtures
-                             || bic == BuiltInCategory.OST_MechanicalEquipment)
+                            if (isFixture)
                             {
                                 sum += GetFixtureDfu(owner);
                                 continue;
@@ -132,6 +151,37 @@ namespace StingTools.Core.Plumbing
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             return sum;
+        }
+
+        private static double SeedDownstreamZ(Pipe pipe)
+        {
+            try
+            {
+                var lc = pipe.Location as LocationCurve;
+                if (lc?.Curve == null) return 0;
+                var s = lc.Curve.GetEndPoint(0);
+                var e = lc.Curve.GetEndPoint(1);
+                return Math.Min(s.Z, e.Z);
+            }
+            catch { return 0; }
+        }
+
+        private static double OwnerZ(Element el)
+        {
+            try
+            {
+                if (el is MEPCurve mc && mc.Location is LocationCurve lc && lc.Curve != null)
+                {
+                    var s = lc.Curve.GetEndPoint(0);
+                    var e = lc.Curve.GetEndPoint(1);
+                    return (s.Z + e.Z) / 2.0;
+                }
+                if (el.Location is LocationPoint lp) return lp.Point.Z;
+                var bb = el.get_BoundingBox(null);
+                if (bb != null) return (bb.Min.Z + bb.Max.Z) / 2.0;
+            }
+            catch { }
+            return 0;
         }
 
         public static DfuMapResult BuildDfuMap(Document doc) => BuildDfuMap(doc, writeBack: false);
