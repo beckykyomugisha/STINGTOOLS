@@ -2313,13 +2313,6 @@ namespace StingTools.UI
         private bool _matLoaded;
 
         // ── N1 — Live selection sync ───────────────────────────────────────
-        //
-        // When the user picks an element (or face) in Revit, find its
-        // material and highlight the matching row in the Browse grid.
-        // The subscription is wired once on the first command-handler call
-        // (via SubscribeSelectionSync) — Revit's UIApplication.SelectionChanged
-        // event needs a live UIApplication which we only have inside an
-        // ExternalEvent handler. Re-subscription is idempotent.
 
         private static bool _selSyncSubscribed;
 
@@ -2336,6 +2329,38 @@ namespace StingTools.UI
             {
                 StingLog.Warn($"SubscribeSelectionSync: {ex.Message}");
             }
+            // N+1 — Also listen for region/standards changes pushed by the
+            // ProjectSetupWizard or other surfaces, so the MAT panel snaps
+            // its Region combo and re-formats the grid live.
+            try
+            {
+                StingTools.Standards.ProjectStandardsManager.Instance.StandardsChanged -= OnStandardsChanged;
+                StingTools.Standards.ProjectStandardsManager.Instance.StandardsChanged += OnStandardsChanged;
+            }
+            catch (Exception ex) { StingLog.Warn($"StandardsChanged subscribe: {ex.Message}"); }
+        }
+
+        private static void OnStandardsChanged(object sender, EventArgs e)
+        {
+            var inst = LastInstance;
+            if (inst == null) return;
+            try
+            {
+                inst.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    try
+                    {
+                        var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                        if (doc == null) return;
+                        inst.SyncMatRegionCombo();
+                        StingTools.UI.MaterialRow.ActiveLocale = MaterialLocaleManager.Resolve(doc);
+                        if (inst._matRows != null)
+                            System.Windows.Data.CollectionViewSource.GetDefaultView(inst._matRows).Refresh();
+                    }
+                    catch (Exception ex2) { StingLog.Warn($"OnStandardsChanged dispatch: {ex2.Message}"); }
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+            catch (Exception ex) { StingLog.Warn($"OnStandardsChanged: {ex.Message}"); }
         }
 
         private static void OnRevitSelectionChanged(object sender,
@@ -2594,7 +2619,7 @@ namespace StingTools.UI
 
         /// <summary>Sync the Region combo to whatever's stored in PRJ_REGION_TXT
         /// — called on every LoadMaterials so the picker reflects current state.</summary>
-        private void SyncMatRegionCombo()
+        internal void SyncMatRegionCombo()
         {
             if (cmbMatRegion == null) return;
             try
