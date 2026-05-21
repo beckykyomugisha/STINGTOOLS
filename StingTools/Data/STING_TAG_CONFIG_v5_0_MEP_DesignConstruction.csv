@@ -2731,3 +2731,26 @@ Tag Family #53: STING - MEP Sleeve Tag
 1,CRITICAL,WARN_SLV_NO_FIRE_RATING,SLV_FIRE_RATING_TXT empty — penetration seal cannot be validated,BS EN 1366-3:2009,Common,Text,⚠ Warning: No Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_FIRE_RATING, """")"
 2,HIGH,WARN_SLV_NO_REF,SLV_REF_TXT empty — asset cannot be tracked,ISO 19650-2:2018,Common,Text,⚠ Warning: No Sleeve Ref,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_REF, """")"
 3,HIGH,WARN_SLV_NO_SEAL,SLV_SEAL_TYPE_TXT empty — fire compartmentation incomplete,BS EN 1366-3:2009,Common,Text,⚠ Warning: No Seal Type,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_SEAL, """")"
+
+Tag Family #54: STING - Tie-In FP Pipe Tag
+TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Fire Protection System) — pipe-segment tie-in variant
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,PLM_PPE_SZ_MM,DN,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_SZ_MM, """")",NOM,BLACK,2.0,None,None
+5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+6,T3,FLS_TAG_7_PARA_TIEIN_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, FLS_TAG_7_PARA_TIEIN_TXT, """")",NOM,BLACK,2.0,None,None
+7,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+
+Tag Family #55: STING - Tie-In Gas Pipe Tag
+TAG7: MGS_TAG_7_PARA_TXT  •  Category: Pipes (Medical Gas System) — pipe-segment tie-in variant
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,MGS_GAS_TYPE_TXT,Gas:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, MGS_GAS_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,PLM_PPE_SZ_MM,DN,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_SZ_MM, """")",NOM,BLACK,2.0,None,None
+6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+7,T3,MGS_TAG_7_PARA_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, MGS_TAG_7_PARA_TXT, """")",NOM,BLACK,2.0,None,None
+8,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
