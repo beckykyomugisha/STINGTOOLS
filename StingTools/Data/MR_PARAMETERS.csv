@@ -1,3 +1,5 @@
+# v6.6 | 20260520 | +22 params aligned with deduped MR_PARAMETERS.txt (Phase 188 frame-analysis + supply (10) + Phase 189 Uganda regional (6) + Phase 190 EC8/EC1-1-4 (6)) — pulled from claude/fix-nlp-suggestions-kDQu9
+# v6.5 | 20260520 | +94 params aligned with deduped MR_PARAMETERS.txt (43 proper-GUID WARN_* moved out of group 17 + 40 net-new WARN_* + 11 STING_SLEEVE_/STING_PACK_/STING_CROP_) — Phase 187 / post-dedup alignment
 # v6.4 | 20260520 | +75 params aligned with MR_PARAMETERS.txt (59 Qto_ + 6 Pset_ IFC interop + 5 STR_ + 4 PLM_ + 1 ACO_) — Phase 187 / parameter-count drift fix
 # v6.3 | 20260519 | BIM Template mr_parameters (+14: ASS_CST_ currency-neutral (7) + ASS_PMT_ payment cert (4) + ASS_VAR_ variation (3) — Phase 184 / P0.2 + P5 alignment with MR_PARAMETERS.txt)
 # v6.2 | 20260517 | BIM Template mr_parameters — 3017 unique params (auto-aligned with MR_PARAMETERS.txt)
@@ -577,7 +579,7 @@ Generic Models,PLM_DRN_GRT_MAT_TXT,4eef976d-29bc-568b-a137-114aa4a205a2,TEXT,PLM
 Generic Models,TS_NAME_TXT,20f7ea6d-6171-4a0e-89b7-e456155106ac,TEXT,TPL_TRACKING,Type,Text style name [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ASS_PMT_PRO_DELIVERY_DATE_TXT,7e630a6f-64a2-5d6e-b4ef-b8817397425a,TEXT,ASS_MNG,Type,Ass Pmt Pro Delivery Date Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,PRJ_TB_REVISION_DATE_TXT,25f22a6f-68ed-5e36-8875-d31779f444a5,TEXT,PRJ_INFORMATION,Type,Date of the current revision (DD-Mon-YYYY) [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,RGL_NEMA_APPROVAL_REQ_BOOL,aacd316f-602a-5878-acdc-c4785f8f4b8f,YESNO,RGL_CMPL,Type,Rgl Nema Approval Req Bool [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,RGL_NEMA_APPROVAL_REQ_BOOL,aacd316f-602a-5878-acdc-c4785f8f4b8f,TEXT,RGL_CMPL,Type,Rgl Nema Approval Req Bool [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_MAT_DURABILITY_TXT,90064f6f-3cfe-5f5e-b63d-f20f13a063b4,TEXT,CST_PROC,Type,Ble Mat Durability Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,VT_SCALE_TXT,f542776f-ff19-4ae9-9327-cf9261c59f8b,TEXT,TPL_TRACKING,Type,View scale [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_CALC_PURLINS_M,6d5c8f6f-66df-41a9-96fa-e9df5776f656,TEXT,COM_DAT,Type,Calculated purlin length in meters [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -1292,7 +1294,7 @@ Generic Models,RGL_KCCA_CERT_NR,006f2e5d-d155-4159-aa5d-5c5b64fe0ec0,TEXT,RGL_CM
 Generic Models,RGL_NEMA_CERT_NR,b26efc46-4ec2-4aaf-bc5a-423a6b09c359,TEXT,RGL_CMPL,Type,NEMA certification number,False,,,MULTI,1,0
 Generic Models,RGL_NWSC_APPROVAL_REQ_BOOL,d2095db1-5991-48a9-959e-b0eb6d611091,TEXT,RGL_CMPL,Type,NWSC approval required,False,,,MULTI,1,0
 Generic Models,RGL_NWSC_CERT_NR,0b711aaa-09ce-4388-ae2f-8eb840442d3b,TEXT,RGL_CMPL,Type,NWSC certification number,False,,,MULTI,1,0
-Generic Models,RGL_UMEME_APPROVAL_REQ_BOOL,faf8944a-9469-4760-b8ad-ad21b370573f,YESNO,RGL_CMPL,Type,UMEME approval required,False,,,MULTI,1,0
+Generic Models,RGL_UMEME_APPROVAL_REQ_BOOL,faf8944a-9469-4760-b8ad-ad21b370573f,TEXT,RGL_CMPL,Type,UMEME approval required,False,,,MULTI,1,0
 Generic Models,RGL_UMEME_CERT_NR,4fe49564-bc1e-4299-8e09-0f2a2ebe677b,TEXT,RGL_CMPL,Type,UMEME certification number,False,,,MULTI,1,0
 Generic Models,STRUCT_COL_AXIAL_LOAD_KN,21f21930-316c-4b70-8174-b8bd0670f5dc,TEXT,BLE_STRUCTURE,Type,Column axial load,False,,,MULTI,1,0
 Generic Models,STRUCT_COL_BUCKLING_CHECK_BOOL,ab62a703-a19d-41d3-884b-dc2f3ab135af,YESNO,BLE_STRUCTURE,Type,Column buckling check passed,False,,,MULTI,1,0
@@ -2843,7 +2845,7 @@ Generic Models,PLM_PRJ_PLUMBING_CODE_TXT,98ab6e19-8d12-53c0-b388-8705f9413373,TE
 Generic Models,ELC_CDT_PENETRATION_COUNT_NR,c3d5b6ee-0f2e-7283-9405-162718304a5b,TEXT,ELC_PWR,Instance,Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).,False,,,MULTI,1,0
 Generic Models,ASS_ITEM_CODE_TXT,d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a,TEXT,ASS_MNG,Instance,Procurement item code for asset ordering,False,,,MULTI,1,0
 Generic Models,ASS_SYSTEMS_TXT,e3f4a5b6-c7d8-4e9f-a0b1-2c3d4e5f6a7b,TEXT,ASS_MNG,Instance,Pipe/duct systems this element connects to (pipe-delimited),False,,,MULTI,1,0
-Generic Models,ASS_TERM_CAPPED_BOOL,f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c,YESNO,ASS_MNG,Instance,Terminal point is capped (stub-end or blanked off),False,,,MULTI,1,0
+Generic Models,ASS_TERM_CAPPED_BOOL,f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c,TEXT,ASS_MNG,Instance,Terminal point is capped (stub-end or blanked off),False,,,MULTI,1,0
 Generic Models,ASS_TERM_REASON_TXT,a5b6c7d8-e9f0-4a1b-c2d3-4e5f6a7b8c9d,TEXT,ASS_MNG,Instance,Reason terminal is capped: FUTURE / DECOMMISSIONED / DESIGN-RESERVE,False,,,MULTI,1,0
 Generic Models,ASS_TRACE_SEQ_NR,b6c7d8e9-f0a1-4b2c-d3e4-5f6a7b8c9d0e,INTEGER,ASS_MNG,Instance,Sequential trace number for multi-element commissioning sequences,False,,,MULTI,1,0
 Mechanical Equipment,MEC_SYS_TXT,b8c9d0e1-f2a3-4b4c-d5e6-f7a8b9c0d1e2,TEXT,HVC_SYSTEMS,Instance,Mechanical system code,False,,,MECHANICAL,1,0
@@ -3037,7 +3039,7 @@ Generic Models,ASS_CST_CURRENCY_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42,TEXT,CS
 Generic Models,ASS_CST_FX_TO_BASE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43,NUMBER,CST_PROC,Type,FX rate to project base currency at write time [Phase 184],False,,,MULTI,1,0
 Generic Models,ASS_CST_FX_DATE_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44,TEXT,CST_PROC,Type,ISO 8601 date the FX rate was fixed (yyyy-MM-dd) [Phase 184],False,,,MULTI,1,0
 Generic Models,ASS_CST_AS_OF_DT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45,TEXT,CST_PROC,Type,Pricing reference date for inflation indexing [Phase 184],False,,,MULTI,1,0
-Generic Models,ASS_CST_STALE_BOOL,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46,YESNO,CST_PROC,Type,Set when geometry/material/type change invalidates the last-costed line [Phase 184],False,,,MULTI,1,0
+Generic Models,ASS_CST_STALE_BOOL,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46,TEXT,CST_PROC,Type,Set when geometry/material/type change invalidates the last-costed line [Phase 184],False,,,MULTI,1,0
 Generic Models,ASS_CST_STALE_REASON_TXT,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47,TEXT,CST_PROC,Type,Reason cost was flagged stale (Geometry / Material / Type / Rate) [Phase 184],False,,,MULTI,1,0
 Generic Models,ASS_PMT_PCT_COMPLETE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50,NUMBER,CST_PROC,Type,Per-element percent complete (0-100) driving payment certificate valuation [Phase 184g / P5],False,,,MULTI,1,0
 Generic Models,ASS_PMT_CERT_NO_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51,INTEGER,CST_PROC,Type,Payment certificate number this line item was last valued in [Phase 184g / P5],False,,,MULTI,1,0
@@ -3121,3 +3123,120 @@ Generic Models,STR_CONN_DETAIL_TXT,d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e03,TEXT,BLE
 Generic Models,STR_CONN_RATING_KN,d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e04,TEXT,BLE_STRUCTURE,Type,Computed shear / moment capacity (kN or kN·m) of beam-end connection per EC3 — ConnectionDetailingEngine [Phase 187],False,,,MULTI,1,0
 Generic Models,STR_ECC_CONN_MM,d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e02,TEXT,BLE_STRUCTURE,Type,Horizontal eccentricity (mm) between beam centreline and supporting column centroid — stamped by AutoTorsionDetector [Phase 187],False,,,MULTI,1,0
 Generic Models,STR_FAB_TOLERANCE_MM,d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e05,TEXT,BLE_STRUCTURE,Type,Cumulative geometric tolerance (mm) over assembled member chain per BS EN 1090-2 — FabricationToleranceChecker [Phase 187],False,,,MULTI,1,0
+Generic Models,STING_SLEEVE_BORE_MM,5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c13,TEXT,RGL_CMPL,Type,"Round sleeve bore in millimetres (element OD + 2× insulation + 2× clearance, clamped to rule minimum).",False,,,MULTI,1,0
+Generic Models,STING_SLEEVE_CREATED_BY,5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c1c,TEXT,RGL_CMPL,Type,STING command that placed the sleeve (audit trail).,False,,,MULTI,1,0
+Generic Models,STING_SLEEVE_DEPTH_MM,5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c16,TEXT,RGL_CMPL,Type,Sleeve depth in millimetres (host thickness + 2× protrusion).,False,,,MULTI,1,0
+Generic Models,STING_SLEEVE_HEIGHT_MM,5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c15,TEXT,RGL_CMPL,Type,Rectangular sleeve clear-opening height in millimetres.,False,,,MULTI,1,0
+Generic Models,STING_SLEEVE_HOST_FIRE_RATING,a2a00ce9-5812-5db6-bde0-cefb05775691,TEXT,RGL_CMPL,Type,Fire rating inherited from the host wall/floor TYPE (BS EN 13501-2 / EI rating).,False,,,MULTI,1,0
+Generic Models,STING_SLEEVE_HOST_ID,5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c1a,TEXT,RGL_CMPL,Type,ElementId.IntegerValue of the host wall/floor/roof.,False,,,MULTI,1,0
+Generic Models,STING_SLEEVE_PENETRATED_ID,5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c1b,TEXT,RGL_CMPL,Type,ElementId.IntegerValue of the penetrating MEP element.,False,,,MULTI,1,0
+Generic Models,STING_SLEEVE_PFV_UUID,cfe809e7-77c4-5f44-a43c-1d770d97abea,TEXT,RGL_CMPL,Type,"Deterministic UUIDv5 keyed on (host, mep) — round-trip key for IFC Pset_ProvisionForVoid and BCF topic GUID.",False,,,MULTI,1,0
+Generic Models,STING_SLEEVE_RULE_ID,5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c18,TEXT,RGL_CMPL,Type,Identifier of the sizing rule from STING_SLEEVE_RULES.json that produced this sleeve.,False,,,MULTI,1,0
+Generic Models,STING_SLEEVE_UL_SYS,3ec85c17-a7f3-5b2f-879b-14bbb6b05e2c,TEXT,RGL_CMPL,Type,UL or BS EN 1366-3 firestop system reference for this sleeve.,False,,,MULTI,1,0
+Generic Models,STING_SLEEVE_WIDTH_MM,5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c14,TEXT,RGL_CMPL,Type,Rectangular sleeve clear-opening width in millimetres.,False,,,MULTI,1,0
+Generic Models,WARN_CEQ_CATEGORY_MISSING,a2b3c4d5-2222-4f03-9301-300000000001,TEXT,STINGTags_ISO19650,Type,Tag warning: medical equipment without CEQ_CATEGORY_TXT - asset category unassigned,False,,,MULTI,1,0
+Generic Models,WARN_CEQ_DECON_METHOD_MISSING,a2b3c4d5-2222-4f03-9303-300000000003,TEXT,STINGTags_ISO19650,Type,Tag warning: reusable medical equipment without CEQ_DECON_METHOD_TXT - decontamination method unassigned (HTM 01-01),False,,,MULTI,1,0
+Generic Models,WARN_CEQ_ENDO_REPRO_OVERDUE,a2b3c4d5-2222-4f03-9304-300000000004,TEXT,STINGTags_ISO19650,Type,Tag warning: CEQ_ENDO_LAST_REPRO_DT exceeds AER cycle window (HTM 01-06),False,,,MULTI,1,0
+Generic Models,WARN_CEQ_GMDN_MISSING,3cfc47f5-93d5-5b0e-adaa-48d61fed97e4,TEXT,CEQ_CLINICAL,Type,Warning: Clinical asset missing GMDN classification code [MEDIUM] [COBie healthcare],False,,,MULTI,1,0
+Generic Models,WARN_CEQ_IMAGING_STRUCT_LOAD,fd323310-5b49-5007-bc47-4061bad379ad,TEXT,CEQ_CLINICAL,Type,Warning: Imaging equipment slab load not verified against structural capacity [HIGH] [AISC / BS EN 1991-1-1],False,,,MULTI,1,0
+Generic Models,WARN_CEQ_SFG20_REF_MISSING,a2b3c4d5-2222-4f03-9305-300000000005,TEXT,STINGTags_ISO19650,Type,Tag warning: maintainable asset without CEQ_SFG20_REF_TXT - SFG20 PPM schedule not bound,False,,,MULTI,1,0
+Generic Models,WARN_CLN_ACOUSTIC_STC_LOW,4a00bae5-4325-5829-a901-fd75849703ea,TEXT,CLN_CLINICAL,Type,Warning: Clinical room STC below minimum for use class [MEDIUM] [HTM / BB93],False,,,MULTI,1,0
+Generic Models,WARN_CLN_AIIR_NOT_NEGATIVE,0384fd83-a860-5b94-8006-9bc092bace69,TEXT,CLN_CLINICAL,Type,Warning: AIIR room not under negative pressure [CRITICAL] [HTM 03-01 / CDC],False,,,MULTI,1,0
+Generic Models,WARN_CLN_ANTERM_MISSING,00455f0c-317c-55e0-9d74-4f721b2ed405,TEXT,CLN_CLINICAL,Type,Warning: AIIR or PE room missing linked anteroom ID [HIGH] [HBN 04-01 / CDC],False,,,MULTI,1,0
+Generic Models,WARN_CLN_FLOOR_LOAD_INSUFFICIENT,a2b3c4d5-2222-4f01-910b-10000000000b,TEXT,STINGTags_ISO19650,Type,Tag warning: CLN_FLOOR_LOAD_KN_M2_NR less than CLN_EQUIP_WEIGHT_KG_NR / floor area - structural review required,False,,,MULTI,1,0
+Generic Models,WARN_CLN_HBN_REF_MISSING,a2b3c4d5-2222-4f01-910e-10000000000e,TEXT,STINGTags_ISO19650,Type,Tag warning: clinical room has no CLN_HBN_REF_TXT - HBN reference missing,False,,,MULTI,1,0
+Generic Models,WARN_CLN_HEPA_GRADE_INVALID,b396a219-baa0-509e-8e13-cb6d3038b964,TEXT,CLN_CLINICAL,Type,Warning: HEPA grade not H13/H14/U15/U16 [HIGH] [BS EN 1822],False,,,MULTI,1,0
+Generic Models,WARN_CLN_INFECT_CLASS_MISSING,a2b3c4d5-2222-4f01-910a-10000000000a,TEXT,STINGTags_ISO19650,Type,Tag warning: clinical room has no CLN_INFECT_CLASS_TXT - infection-control class unassigned (HTM 03-01 / CDC isolation),False,,,MULTI,1,0
+Generic Models,WARN_CLN_IOT_STALE,d6d730c4-7205-5476-92be-fb655c523290,TEXT,CLN_CLINICAL,Type,Warning: RTLS or IoT tag last seen > staleness threshold [MEDIUM] [ISO 15686-3],False,,,MULTI,1,0
+Generic Models,WARN_CLN_LIGATURE_REQUIRED,a2b3c4d5-2222-4f01-9103-100000000003,TEXT,STINGTags_ISO19650,Type,Tag warning: mental-health area but CLN_LIGATURE_RES_BOOL = 0 - anti-ligature compliance not certified,False,,,MULTI,1,0
+Generic Models,WARN_CLN_MRI_ZONE_MISSING,a2b3c4d5-2222-4f01-9105-100000000005,TEXT,STINGTags_ISO19650,Type,Tag warning: MRI area but CLN_MRI_ZONE_INT = 0 - zone classification missing (ACR / IPEM 75),False,,,MULTI,1,0
+Generic Models,WARN_CLN_MRI_ZONE_UNASSIGNED,e1601c32-8c9d-5101-bb90-9b5de4915af1,TEXT,CLN_CLINICAL,Type,Warning: Generic model in MRI suite area has no zone classification [HIGH] [IEC 60601-2-33],False,,,MULTI,1,0
+Generic Models,WARN_CLN_NOISE_EXCEEDS_TARGET,a2b3c4d5-2222-4f01-9107-100000000007,TEXT,STINGTags_ISO19650,Type,Tag warning: CLN_NOISE_NR_NR exceeds clinical target for room class (HTM 08-01 / HBN 00),False,,,MULTI,1,0
+Generic Models,WARN_CLN_NURSECALL_MISSING,a2b3c4d5-2222-4f01-910d-10000000000d,TEXT,STINGTags_ISO19650,Type,Tag warning: inpatient / care area but CLN_NURSECALL_TYPE_TXT empty - nurse-call type unassigned (HTM 08-03),False,,,MULTI,1,0
+Generic Models,WARN_CLN_OR_LOW_ACH,1e7da874-6477-57ef-9a94-bc654a71a993,TEXT,CLN_CLINICAL,Type,Warning: OR-CONV or OR-HYBRID ACH below 20 minimum [HIGH] [HTM 03-01 / ASHRAE 170],False,,,MULTI,1,0
+Generic Models,WARN_CLN_OR_ULTRA_LOW_ACH,ea06d7ef-e9a1-580c-8583-ed02a00f3e36,TEXT,CLN_CLINICAL,Type,Warning: Ultra-clean OR ACH below 300 minimum [HIGH] [HTM 03-01],False,,,MULTI,1,0
+Generic Models,WARN_CLN_PE_NOT_POSITIVE,541f6426-66f4-5e92-a533-b51e92464752,TEXT,CLN_CLINICAL,Type,Warning: Protective Environment room not under positive pressure [CRITICAL] [HTM 03-01 / CDC],False,,,MULTI,1,0
+Generic Models,WARN_CLN_PRESS_DELTA_LOW,a2b3c4d5-2222-4f01-9102-100000000002,TEXT,STINGTags_ISO19650,Type,Tag warning: CLN_PRESS_DELTA_DESIGN_PA_NR below HTM 03-01 minimum (5 Pa),False,,,MULTI,1,0
+Generic Models,WARN_CLN_PRESS_REGIME_INVALID,160fde7f-69e8-5a79-adce-8ad38a66d523,TEXT,CLN_CLINICAL,Type,Warning: CLN_PRESS_REGIME_TXT not in (NEG / POS / NEUTRAL) [CRITICAL] [HTM 03-01 / ASHRAE 170],False,,,MULTI,1,0
+Generic Models,WARN_CLN_PRESS_REGIME_MISSING,a2b3c4d5-2222-4f01-9101-100000000001,TEXT,STINGTags_ISO19650,Type,Tag warning: clinical room has no CLN_PRESS_REGIME_TXT - pressure regime unassigned (HTM 03-01),False,,,MULTI,1,0
+Generic Models,WARN_CLN_RAD_NO_SHIELDING,a2b3c4d5-2222-4f01-9104-100000000004,TEXT,STINGTags_ISO19650,Type,Tag warning: CLN_RAD_CONTROLLED_BOOL = 1 but no RAD_LEAD_MM_NR or RAD_BARRIER_TYPE_TXT populated (NCRP 147),False,,,MULTI,1,0
+Generic Models,WARN_CLN_RDS_INCOMPLETE,cbbfc12d-36b0-5e86-89ba-87fad928437d,TEXT,CLN_CLINICAL,Type,Warning: Room Data Sheet mandatory parameters incomplete [HIGH] [HBN / HTM],False,,,MULTI,1,0
+Generic Models,WARN_CLN_RF_SHIELD_NO_ZONE,a2b3c4d5-2222-4f01-9106-100000000006,TEXT,STINGTags_ISO19650,Type,Tag warning: CLN_RF_SHIELD_BOOL = 1 but CLN_MRI_ZONE_INT < 3 - zone inconsistent with shielding,False,,,MULTI,1,0
+Generic Models,WARN_CLN_RF_SHIELD_UNSPECIFIED,5920b7c7-60c7-53fd-8beb-c5b35407d677,TEXT,CLN_CLINICAL,Type,Warning: MRI Faraday cage panel has no RF shielding method specified [MEDIUM] [IEC 60601-2-33],False,,,MULTI,1,0
+Generic Models,WARN_CLN_ROOM_CLASS_MISSING,a2b3c4d5-2222-4f01-9109-100000000009,TEXT,STINGTags_ISO19650,Type,Tag warning: clinical room has no CLN_ROOM_CLASS_TXT - HBN classification unassigned,False,,,MULTI,1,0
+Generic Models,WARN_CLN_RT60_OUT_OF_RANGE,a2b3c4d5-2222-4f01-9108-100000000008,TEXT,STINGTags_ISO19650,Type,Tag warning: CLN_RT60_TARGET_S_NR outside HBN reverberation range for room class,False,,,MULTI,1,0
+Generic Models,WARN_CLN_RTLS_NO_COVERAGE,cb1161ef-9b45-503e-9f96-3ecdabf2c4af,TEXT,CLN_CLINICAL,Type,Warning: Clinical space has no RTLS reader within coverage radius [HIGH] [RTLS design standard],False,,,MULTI,1,0
+Generic Models,WARN_CLN_STRUCT_NOT_SIGNED_OFF,a2b3c4d5-2222-4f01-910c-10000000000c,TEXT,STINGTags_ISO19650,Type,Tag warning: clinical equipment room has no CLN_STRUCT_SIGN_OFF_TXT - structural engineer sign-off missing,False,,,MULTI,1,0
+Generic Models,WARN_CLN_WASTE_ROUTE_UNRESOLVED,145a7c7c-5f65-567b-9dea-34886fde7853,TEXT,CLN_CLINICAL,Type,Warning: Clinical waste route conflicts with clean corridor [HIGH] [HTM 07-01],False,,,MULTI,1,0
+Generic Models,WARN_ELC_ATS_TIME_EXCEEDED,0135fb93-4b4d-54eb-8c14-db2614fc443f,TEXT,ELC_PWR,Type,Warning: ATS transfer time >10 s for LS/CR branch [CRITICAL] [NFPA 99 §6.4],False,,,MULTI,1,0
+Generic Models,WARN_ELC_EES_BRANCH_INVALID,d87ffad6-15b9-5c11-a46e-c64f9e925c2f,TEXT,ELC_PWR,Type,Warning: EES branch designation not LIFE-SAF / CRIT / EQP-BR / NORMAL [CRITICAL] [NFPA 99],False,,,MULTI,1,0
+Generic Models,WARN_ELC_PNL_AIC_INADEQUATE,a2b3c4d5-2222-4f05-9503-500000000003,TEXT,STINGTags_ISO19650,Type,Tag warning: ELC_PNL_AIC_RATING_KA below available fault current at panel location (BS 7671 Section 434 / NFPA 70 Section 110.9),False,,,MULTI,1,0
+Generic Models,WARN_ELC_PNL_FEEDER_UNDERSIZED,3b9d32fa-f5ad-52af-854c-1ca8470831e6,TEXT,ELC_PWR,Type,Warning: Panel feeder cable undersized for connected load (BS 7671) [CRITICAL],False,,,MULTI,1,0
+Generic Models,WARN_ELC_PNL_LOAD_BALANCE,ac9979b7-bc02-569c-998a-a1e871850651,TEXT,ELC_PWR,Type,Warning: Panel load imbalance >20% across phases (BS 7671) [HIGH],False,,,MULTI,1,0
+Generic Models,WARN_ELC_PNL_NO_TVSS,a2b3c4d5-2222-4f05-9504-500000000004,TEXT,STINGTags_ISO19650,Type,Tag warning: critical or essential panel without surge protective device (TVSS) (BS 7671 Section 443 / NFPA 70 Section 285),False,,,MULTI,1,0
+Generic Models,WARN_ELC_PNL_SCCR_LOW,a2b3c4d5-2222-4f05-9502-500000000002,TEXT,STINGTags_ISO19650,Type,Tag warning: ELC_PNL_SHORT_CIRCUIT_RATING_KA below incoming fault level (BS 7671 / NFPA 70),False,,,MULTI,1,0
+Generic Models,WARN_ELC_PNL_SCHEDULE_MISSING,4ff92fea-fbfa-56ee-96c5-7a2bc7a5401f,TEXT,ELC_PWR,Type,Warning: Panel schedule missing or out of date [MEDIUM],False,,,MULTI,1,0
+Generic Models,WARN_ELC_PNL_SPARES_LOW,a2b3c4d5-2222-4f05-9501-500000000001,TEXT,STINGTags_ISO19650,Type,Tag warning: ELC_PNL_SPARE_WAYS_NR < 10% of ELC_PNL_NUM_OF_WAYS_NR - insufficient spares (NHS HTM 06-01 guidance),False,,,MULTI,1,0
+Generic Models,WARN_FAB_LOC_MISSING,8400cf7c-09fa-5d11-b089-44b700e52c16,TEXT,RGL_CMPL,Type,Warning: ASS_FAB_STATUS_TXT empty — fabrication location not assigned [HIGH] [ISO 19650-2 / v4 MVP],False,,,MULTI,1,0
+Generic Models,WARN_FAB_QC_INSPECTOR_MISSING,14176910-6dac-5103-99b4-638cb35f85e5,TEXT,RGL_CMPL,Type,Warning: ASS_QC_INSPECTOR_TXT empty — QC inspector not assigned before fabrication [MEDIUM] [ISO 9001 / v4 MVP],False,,,MULTI,1,0
+Generic Models,WARN_FAB_SPOOL_NR_MISSING,f18091bc-64d0-55be-9086-d97706306f8d,TEXT,RGL_CMPL,Type,Warning: ASS_SPOOL_NR_TXT empty — fabricated element has no spool number [HIGH] [ISO 19650-2 / v4 MVP],False,,,MULTI,1,0
+Generic Models,WARN_LIG_RES_NO_RATING,a4b5deca-ac9b-5bc5-ad77-e0983055b76d,TEXT,LIG_BEHAVIOURAL,Type,Warning: Anti-ligature room has fitting with no product rating [HIGH] [HBN 03-01],False,,,MULTI,1,0
+Generic Models,WARN_MGS_AAP_REF_MISSING,a2b3c4d5-2222-4f02-9209-200000000009,TEXT,STINGTags_ISO19650,Type,Tag warning: area alarm panel without MGS_AAP_REF_TXT - panel identifier missing,False,,,MULTI,1,0
+Generic Models,WARN_MGS_DIVERSITY_HIGH,a2b3c4d5-2222-4f02-9203-200000000003,TEXT,STINGTags_ISO19650,Type,Tag warning: MGS_DIVERSITY_PCT_NR exceeds NFPA 99 Section 5.1.13 diversity assumption for service,False,,,MULTI,1,0
+Generic Models,WARN_MGS_FLOW_MISSING,a2b3c4d5-2222-4f02-9202-200000000002,TEXT,STINGTags_ISO19650,Type,Tag warning: medical-gas terminal unit has no MGS_DESIGN_FLOW_LPM_NR - flow rating missing,False,,,MULTI,1,0
+Generic Models,WARN_MGS_FLOW_RATE_LOW,5458b359-0d5c-58e8-b2a7-6758a3aa46af,TEXT,MGS_SYSTEMS,Type,Warning: Calculated flow rate below NFPA 99 diversity requirement [HIGH] [NFPA 99 §5.1.13],False,,,MULTI,1,0
+Generic Models,WARN_MGS_GAS_TYPE_MISSING,459dd20d-ed74-5792-8acc-77e635efb89a,TEXT,MGS_SYSTEMS,Type,Warning: Terminal unit or pipeline missing gas type [CRITICAL] [BS 5682 / HTM 02-01],False,,,MULTI,1,0
+Generic Models,WARN_MGS_NOT_BRAZED,45588562-6bb3-55b1-8120-fe7ebffdef25,TEXT,MGS_SYSTEMS,Type,Warning: Medical gas pipework must be inert-gas brazed [HIGH] [HTM 02-01],False,,,MULTI,1,0
+Generic Models,WARN_MGS_PIPE_NOT_BRAZED,a2b3c4d5-2222-4f02-9208-200000000008,TEXT,STINGTags_ISO19650,Type,Tag warning: MGS_PIPE_BRAZED_BOOL = 0 - copper joints not certified brazed per HTM 02-01 Section 10,False,,,MULTI,1,0
+Generic Models,WARN_MGS_PRESSURE_BELOW_CODE,a2b3c4d5-2222-4f02-9201-200000000001,TEXT,STINGTags_ISO19650,Type,Tag warning: MGS_NOM_PRESS_KPA_NR below HTM 02-01 / NFPA 99 minimum for gas type,False,,,MULTI,1,0
+Generic Models,WARN_MGS_PRESSURE_DROP_HIGH,6a90ee96-13a4-506c-94f5-17fe68bb0447,TEXT,MGS_SYSTEMS,Type,Warning: Pipeline segment pressure drop exceeds allowable limit [HIGH] [HTM 02-01 / NFPA 99],False,,,MULTI,1,0
+Generic Models,WARN_MGS_TU_NOT_BS5682,a2b3c4d5-2222-4f02-9204-200000000004,TEXT,STINGTags_ISO19650,Type,Tag warning: MGS_TU_BS5682_BOOL = 0 - terminal unit not certified to BS EN ISO 9170-1 / BS 5682,False,,,MULTI,1,0
+Generic Models,WARN_MGS_TU_NOT_INDEXED,a2b3c4d5-2222-4f02-9205-200000000005,TEXT,STINGTags_ISO19650,Type,Tag warning: MGS_TU_INDEXED_BOOL = 0 - terminal unit gas-specific indexing not verified (NIST),False,,,MULTI,1,0
+Generic Models,WARN_MGS_VERIFY_FAILED,837dd978-f34e-5b61-be1d-58fa9b2508a0,TEXT,MGS_SYSTEMS,Type,Warning: NFPA 99 §5.1.12 MGPS verification test failed [CRITICAL] [NFPA 99 §5.1.12],False,,,MULTI,1,0
+Generic Models,WARN_MGS_VERIFY_OVERDUE,a2b3c4d5-2222-4f02-9207-200000000007,TEXT,STINGTags_ISO19650,Type,Tag warning: MGS_VERIFY_DT older than annual re-verification window (HTM 02-01 Section 15),False,,,MULTI,1,0
+Generic Models,WARN_MGS_ZVB_NO_REF,3bde10e2-47fa-5c7f-bfdf-4477d71f30dd,TEXT,MGS_SYSTEMS,Type,Warning: Zone Valve Box has no reference code [HIGH] [HTM 02-01],False,,,MULTI,1,0
+Generic Models,WARN_MGS_ZVB_REF_MISSING,a2b3c4d5-2222-4f02-920a-20000000000a,TEXT,STINGTags_ISO19650,Type,Tag warning: zone valve box without MGS_ZVB_REF_TXT - valve box identifier missing,False,,,MULTI,1,0
+Generic Models,WARN_PLM_AUG_CARE_NO_FILTER,66672d3c-6e12-5bb1-8d1b-dd18ce03cc97,TEXT,PLM_DRN,Type,Warning: Augmented-care outlet missing point-of-use filter [HIGH] [HTM 04-01 Pt C],False,,,MULTI,1,0
+Generic Models,WARN_PLM_DEAD_LEG_EXCEEDED,e3032fbc-4ddb-5dcb-b703-399527e01c69,TEXT,PLM_DRN,Type,Warning: Sentinel point dead-leg exceeds 1 m [HIGH] [HTM 04-01],False,,,MULTI,1,0
+Generic Models,WARN_PRJ_CLIENT_NAME_MISSING,a2b3c4d5-2222-4f04-9401-400000000001,TEXT,STINGTags_ISO19650,Type,Title-block warning: PRJ_ORG_CLIENT_NAME_TXT empty in ProjectInformation - title blocks will stamp blank,False,,,MULTI,1,0
+Generic Models,WARN_PRJ_CODE_MISSING,a2b3c4d5-2222-4f04-9402-400000000002,TEXT,STINGTags_ISO19650,Type,Title-block warning: PRJ_ORG_PROJECT_CODE_TXT empty - ISO 19650 sheet number cannot be assembled,False,,,MULTI,1,0
+Generic Models,WARN_PRJ_HEALTH_FACILITY_TYPE_MISSING,a2b3c4d5-2222-4f04-9405-400000000005,TEXT,STINGTags_ISO19650,Type,Title-block warning: healthcare project active but PRJ_ORG_HEALTH_FACILITY_TYPE_TXT empty - facility type unassigned,False,,,MULTI,1,0
+Generic Models,WARN_PRJ_HEALTH_QE_MISSING,a2b3c4d5-2222-4f04-9404-400000000004,TEXT,STINGTags_ISO19650,Type,Title-block warning: healthcare project active but PRJ_ORG_HEALTH_QE_TXT empty - no Qualified Expert recorded (IPEM 75),False,,,MULTI,1,0
+Generic Models,WARN_PRJ_ORIGINATOR_MISSING,a2b3c4d5-2222-4f04-9403-400000000003,TEXT,STINGTags_ISO19650,Type,Title-block warning: PRJ_ORG_ORIGINATOR_CODE_TXT empty - ISO 19650 originator field missing,False,,,MULTI,1,0
+Generic Models,WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,6e559368-acab-5a14-bc67-5555391112d5,TEXT,RAD_PROTECTION,Type,Warning: Controlled area has no regulatory signage element placed [HIGH] [IRR17 / NCRP],False,,,MULTI,1,0
+Generic Models,WARN_RAD_DOOR_NO_INTERLOCKS,a1e344bb-2ef4-58b2-a4c2-ffc156fd9bed,TEXT,RAD_PROTECTION,Type,Warning: Radiation-controlled access door missing interlock specification [HIGH] [NCRP 151 / RCR],False,,,MULTI,1,0
+Generic Models,WARN_RAD_DOSIMETRY_POST_MISSING,27e1d293-a360-5253-b05c-952712c921c9,TEXT,RAD_PROTECTION,Type,Warning: Controlled area boundary has no dosimetry monitoring post [MEDIUM] [IRR17],False,,,MULTI,1,0
+Generic Models,WARN_RAD_LEAD_INSUFFICIENT,5b02ba28-da6d-5919-8242-f418ddc26fb0,TEXT,RAD_PROTECTION,Type,Warning: Lead-equivalent shielding below minimum 2 mm [HIGH] [NCRP 147],False,,,MULTI,1,0
+Generic Models,WARN_RAD_QE_NOT_SIGNED,831e0efd-53ea-5647-9423-0d0dee96e5cc,TEXT,RAD_PROTECTION,Type,Warning: Primary barrier missing Qualified Expert sign-off [HIGH] [NCRP 147],False,,,MULTI,1,0
+Generic Models,WARN_STING_CROP_DRIFT,a2b3c4d5-2222-4f06-9602-600000000002,TEXT,STINGTags_ISO19650,Type,View warning: STING_CROP_KIND_TXT / MARGIN_MM_TXT differ from profile - run SyncStyles to heal (Phase 183),False,,,MULTI,1,0
+Generic Models,WARN_STING_DRAWING_TYPE_MISSING,a2b3c4d5-2222-4f06-9601-600000000001,TEXT,STINGTags_ISO19650,Type,"Sheet warning: STING_DRAWING_TYPE_ID_TXT empty - sheet not bound to a DrawingType profile, automation skipped",False,,,MULTI,1,0
+Generic Models,WARN_STING_PACK_DRIFT,a2b3c4d5-2222-4f06-9603-600000000003,TEXT,STINGTags_ISO19650,Type,View warning: STING_PACK_CHECKSUM_TXT differs from current pack - managed template needs re-sync (Phase 137),False,,,MULTI,1,0
+Generic Models,WARN_STING_STYLE_LOCKED_NOTICE,a2b3c4d5-2222-4f06-9604-600000000004,TEXT,STINGTags_ISO19650,Type,View notice: STING_STYLE_LOCKED_BOOL = 1 - SyncStyles will skip this view (user-frozen),False,,,MULTI,1,0
+Generic Models,WARN_STR_BEAM_NOTCH,f4317776-5507-544f-9d1f-b1915de2ca27,TEXT,BLE_STRUCTURE,Type,Warning: Beam notch depth exceeds limit (BS EN 1992-1-1) [HIGH],False,,,MULTI,1,0
+Generic Models,WARN_STR_BEAM_PENETRATION_REVIEW,2327944e-c87f-5ba2-9b32-06752df7db57,TEXT,BLE_STRUCTURE,Type,Warning: Beam penetration requires structural review [HIGH],False,,,MULTI,1,0
+Generic Models,WARN_STR_BEAM_WEB_OPENING,bcc550dd-e6d4-529b-aea6-599e6e4db75c,TEXT,BLE_STRUCTURE,Type,Warning: Beam web opening exceeds code limits (BS EN 1993) [HIGH],False,,,MULTI,1,0
+Generic Models,WARN_STR_COMPOSITE_SHEAR_STUD,21b0fccd-ddeb-5f98-ba39-43b304ea5c8e,TEXT,BLE_STRUCTURE,Type,Warning: Composite beam shear-stud count below required (BS EN 1994) [MEDIUM],False,,,MULTI,1,0
+Generic Models,WARN_STR_TRANSFER_BEAM,8b849368-d511-5fa7-b097-806f65e001c0,TEXT,BLE_STRUCTURE,Type,Warning: Transfer beam requires deflection + vibration check [HIGH],False,,,MULTI,1,0
+Generic Models,BLE_LIVE_LOAD_KPA,b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d04,TEXT,CST_PROC,Type,Design live (variable) load kPa per EC1-1-1 / Uganda NBC by occupancy [Phase 189],False,,,MULTI,1,0
+Generic Models,PLM_SUP_DN_REQ_MM,a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c04,TEXT,PLM_DRN,Type,Recommended supply pipe DN mm — WaterSupplySizer [Phase 188],False,,,MULTI,1,0
+Generic Models,PLM_SUP_DP_PAM,a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c03,TEXT,PLM_DRN,Type,Supply pipe friction pressure drop Pa/m (Hazen-Williams) — WaterSupplySizer [Phase 188],False,,,MULTI,1,0
+Generic Models,PLM_SUP_QD_LPS,a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c01,TEXT,PLM_DRN,Type,Cold/hot water supply design flow Qd l/s — WaterSupplySizer [Phase 188],False,,,MULTI,1,0
+Generic Models,PLM_SUP_VEL_MPS,a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c02,TEXT,PLM_DRN,Type,Supply pipe velocity m/s per BS EN 806-3 / Hunter — WaterSupplySizer [Phase 188],False,,,MULTI,1,0
+Generic Models,PRJ_ORG_REGION_TXT,b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d01,TEXT,PRJ_INFORMATION,Type,Project regional context (Kampala / Mbarara / Fort Portal / Gulu / Mbale / Jinja / Lira / Kasese / Kabale / Custom) — drives Uganda NBC + East African Rift seismic + EC1 climate defaults [Phase 189],False,,,MULTI,1,0
+Generic Models,STR_BLACK_COTTON_RISK_BOOL,c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e06,YESNO,BLE_STRUCTURE,Type,Black-cotton / expansive-clay soil presence flag — triggers shrink-swell warning during foundation sizing per BS 1377-2 [Phase 190],False,,,MULTI,1,0
+Generic Models,STR_FRAME_M_KNM,e1f2a3b4-c5d6-4e7f-8091-1a2b3c4d5e09,TEXT,BLE_STRUCTURE,Type,Design moment kNm from frame solve (DirectStiffnessMethod) at the governing end of a member [Phase 188],False,,,MULTI,1,0
+Generic Models,STR_GROUND_TYPE_TXT,c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e01,TEXT,BLE_STRUCTURE,Type,EC8 §3.1.2 Table 3.1 ground type A / B / C / D / E — drives seismic spectral amplification factor S [Phase 190],False,,,MULTI,1,0
+Generic Models,STR_IMPORTANCE_CLASS_TXT,c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e03,TEXT,BLE_STRUCTURE,Type,EC8 §4.2.5 importance class I / II / III / IV (ordinary / standard / important / essential — hospitals + emergency = IV) [Phase 190],False,,,MULTI,1,0
+Generic Models,STR_PUNCH_UTIL_PCT,e1f2a3b4-c5d6-4e7f-8091-1a2b3c4d5e0a,TEXT,BLE_STRUCTURE,Type,Punching shear utilisation percentage (applied shear ÷ resistance) per EC2 §6.4 — PunchingShearChecker [Phase 188],False,,,MULTI,1,0
+Generic Models,STR_Q_FACTOR_NR,c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e02,TEXT,BLE_STRUCTURE,Type,"EC8 §3.2.2.5 behaviour factor q for design seismic force reduction (low ductility 1.5, medium 3.0, high 5.0) [Phase 190]",False,,,MULTI,1,0
+Generic Models,STR_RAIN_INTENSITY_MMH,b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d06,TEXT,BLE_STRUCTURE,Type,Design rainfall intensity mm/h for storm + SuDS sizing — Uganda regional (5-yr return event) [Phase 189],False,,,MULTI,1,0
+Generic Models,STR_REBAR_DETAIL_TXT,e1f2a3b4-c5d6-4e7f-8091-1a2b3c4d5e0c,TEXT,BLE_STRUCTURE,Type,Reinforcement detail summary (top/bot count + bar size + links) per EC2 §9 — RCDesignHelper [Phase 188],False,,,MULTI,1,0
+Generic Models,STR_ROBUST_STATUS_TXT,d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e07,TEXT,BLE_STRUCTURE,Type,Progressive-collapse robustness status (OK / Critical / Risk-class N) per GSA / EC1-1-7 — ProgressiveCollapseChecker [Phase 188],False,,,MULTI,1,0
+Generic Models,STR_SEISMIC_AGR,b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d03,TEXT,BLE_STRUCTURE,Type,Reference peak ground acceleration agR /g per EC8-1 / Uganda East African Rift hazard [Phase 189],False,,,MULTI,1,0
+Generic Models,STR_SOIL_BEARING_KPA,b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d05,TEXT,BLE_STRUCTURE,Type,Allowable / characteristic soil bearing capacity kPa — Uganda lateritic / volcanic / alluvial regional default [Phase 189],False,,,MULTI,1,0
+Generic Models,STR_SYSTEM_CLASS_TXT,d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e08,TEXT,BLE_STRUCTURE,Type,Auto-classified structural system (Moment frame / Braced frame / Dual / Wall — concrete/steel) — StructuralSystemClassifier [Phase 188],False,,,MULTI,1,0
+Generic Models,STR_WIND_BASIC_MPS,b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d02,TEXT,BLE_STRUCTURE,Type,"Basic wind velocity vb,0 m/s (10-min mean at 10m, terrain Cat II) — EC1-1-4 / Uganda NBC regional [Phase 189]",False,,,MULTI,1,0
+Generic Models,STR_WIND_DIRECTIONAL_NR,c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e05,TEXT,BLE_STRUCTURE,Type,EC1-1-4 §4.2 cdir wind directional factor (typically 1.0 unless project-specific wind-rose justifies reduction) [Phase 190],False,,,MULTI,1,0
+Generic Models,STR_WIND_PRESSURE_PA,e1f2a3b4-c5d6-4e7f-8091-1a2b3c4d5e0b,TEXT,BLE_STRUCTURE,Type,Wind pressure Pa on element / storey per EC1-1-4 lookup — WindLoadCalculator [Phase 188],False,,,MULTI,1,0
+Generic Models,STR_WIND_TERRAIN_CAT_TXT,c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e04,TEXT,BLE_STRUCTURE,Type,EC1-1-4 §4.3.2 terrain category 0 (sea) / I (lakes) / II (open) / III (suburban) / IV (city) — drives ce(z) exposure factor [Phase 190],False,,,MULTI,1,0
+Generic Models,WARN_STR_FND_BLACK_COTTON,c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e07,TEXT,STR_FRAMING,Type,Warning: Black-cotton / expansive subgrade detected — extend foundation below active zone (~1.5 m); verify BS 1377-2 swelling test; consider raft or stabilised sub-base [HIGH],False,,,MULTI,1,0

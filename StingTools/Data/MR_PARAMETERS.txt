@@ -607,7 +607,7 @@ PARAM	4eef976d-29bc-568b-a137-114aa4a205a2	PLM_DRN_GRT_MAT_TXT	TEXT		6	1	Plm Drn
 PARAM	20f7ea6d-6171-4a0e-89b7-e456155106ac	TS_NAME_TXT	TEXT		11	1	Text style name [ISO 19650-1:2018]	1
 PARAM	7e630a6f-64a2-5d6e-b4ef-b8817397425a	ASS_PMT_PRO_DELIVERY_DATE_TXT	TEXT		1	1	Ass Pmt Pro Delivery Date Txt [ISO 19650-3:2020]	1
 PARAM	25f22a6f-68ed-5e36-8875-d31779f444a5	PRJ_TB_REVISION_DATE_TXT	TEXT		13	1	Date of the current revision (DD-Mon-YYYY) [ISO 19650-1:2018]	1
-PARAM	aacd316f-602a-5878-acdc-c4785f8f4b8f	RGL_NEMA_APPROVAL_REQ_BOOL	YESNO		15	1	Rgl Nema Approval Req Bool [ISO 19650-1:2018]	1
+PARAM	aacd316f-602a-5878-acdc-c4785f8f4b8f	RGL_NEMA_APPROVAL_REQ_BOOL	TEXT		15	1	Rgl Nema Approval Req Bool [ISO 19650-1:2018]	1
 PARAM	90064f6f-3cfe-5f5e-b63d-f20f13a063b4	BLE_MAT_DURABILITY_TXT	TEXT		2	1	Ble Mat Durability Txt [ISO 19650-1:2018]	1
 PARAM	f542776f-ff19-4ae9-9327-cf9261c59f8b	VT_SCALE_TXT	TEXT		11	1	View scale [ISO 19650-1:2018]	1
 PARAM	6d5c8f6f-66df-41a9-96fa-e9df5776f656	CST_CALC_PURLINS_M	TEXT		3	1	Calculated purlin length in meters [ISO 19650-3:2020]	0
@@ -1331,7 +1331,7 @@ PARAM	006f2e5d-d155-4159-aa5d-5c5b64fe0ec0	RGL_KCCA_CERT_NR	TEXT		15	1	KCCA cert
 PARAM	b26efc46-4ec2-4aaf-bc5a-423a6b09c359	RGL_NEMA_CERT_NR	TEXT		15	1	NEMA certification number	1
 PARAM	d2095db1-5991-48a9-959e-b0eb6d611091	RGL_NWSC_APPROVAL_REQ_BOOL	TEXT		15	1	NWSC approval required	1
 PARAM	0b711aaa-09ce-4388-ae2f-8eb840442d3b	RGL_NWSC_CERT_NR	TEXT		15	1	NWSC certification number	1
-PARAM	faf8944a-9469-4760-b8ad-ad21b370573f	RGL_UMEME_APPROVAL_REQ_BOOL	YESNO		15	1	UMEME approval required	1
+PARAM	faf8944a-9469-4760-b8ad-ad21b370573f	RGL_UMEME_APPROVAL_REQ_BOOL	TEXT		15	1	UMEME approval required	1
 PARAM	4fe49564-bc1e-4299-8e09-0f2a2ebe677b	RGL_UMEME_CERT_NR	TEXT		15	1	UMEME certification number	1
 PARAM	21f21930-316c-4b70-8174-b8bd0670f5dc	STRUCT_COL_AXIAL_LOAD_KN	TEXT		16	1	Column axial load	1
 PARAM	ab62a703-a19d-41d3-884b-dc2f3ab135af	STRUCT_COL_BUCKLING_CHECK_BOOL	YESNO		16	1	Column buckling check passed	1
@@ -3097,7 +3097,7 @@ PARAM	ac000000-0000-0000-0000-0000000000b5	NRG_LIFECYCLE_COST_NR	NUMBER		11	1	Ar
 PARAM	ac000000-0000-0000-0000-0000000000b6	CBN_GWP_KG_CO2E	NUMBER		11	1	ArchiCAD IFC: global warming potential kg CO2e (Pset_EnvironmentalImpactValues.GlobalWarmingPotential)	1
 PARAM	d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a	ASS_ITEM_CODE_TXT	TEXT		1	1	Procurement item code for asset ordering	1
 PARAM	e3f4a5b6-c7d8-4e9f-a0b1-2c3d4e5f6a7b	ASS_SYSTEMS_TXT	TEXT		1	1	Pipe/duct systems this element connects to (pipe-delimited)	1
-PARAM	f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c	ASS_TERM_CAPPED_BOOL	YESNO		1	1	Terminal point is capped (stub-end or blanked off)	1
+PARAM	f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c	ASS_TERM_CAPPED_BOOL	TEXT		1	1	Terminal point is capped (stub-end or blanked off)	1
 PARAM	a5b6c7d8-e9f0-4a1b-c2d3-4e5f6a7b8c9d	ASS_TERM_REASON_TXT	TEXT		1	1	Reason terminal is capped: FUTURE / DECOMMISSIONED / DESIGN-RESERVE	1
 PARAM	b6c7d8e9-f0a1-4b2c-d3e4-5f6a7b8c9d0e	ASS_TRACE_SEQ_NR	INTEGER		1	1	Sequential trace number for multi-element commissioning sequences	1
 PARAM	b8c9d0e1-f2a3-4b4c-d5e6-f7a8b9c0d1e2	MEC_SYS_TXT	TEXT		5	1	Mechanical system code	1
@@ -3184,7 +3184,7 @@ PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42	ASS_CST_CURRENCY_TXT	TEXT		2	1	ISO 42
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d43	ASS_CST_FX_TO_BASE_NR	NUMBER		2	1	FX rate to project base currency at write time [Phase 184]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44	ASS_CST_FX_DATE_DT	TEXT		2	1	ISO 8601 date the FX rate was fixed (yyyy-MM-dd) [Phase 184]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45	ASS_CST_AS_OF_DT	TEXT		2	1	Pricing reference date for inflation indexing [Phase 184]	1
-PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46	ASS_CST_STALE_BOOL	YESNO		2	1	Set when geometry/material/type change invalidates the last-costed line [Phase 184]	1
+PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46	ASS_CST_STALE_BOOL	TEXT		2	1	Set when geometry/material/type change invalidates the last-costed line [Phase 184]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47	ASS_CST_STALE_REASON_TXT	TEXT		2	1	Reason cost was flagged stale (Geometry / Material / Type / Rate) [Phase 184]	1
 PARAM	9ab41e3a-744e-59cd-5730-333c3c7eb992	Qto_WallBaseQuantities.Length	NUMBER		2	1	IFC4 Qto_WallBaseQuantities -> Length [Phase 184k / P8 IFC Qto]	1
 PARAM	eeb35ef6-c4e8-5c67-7fd7-9408c9594fe6	Qto_WallBaseQuantities.Width	NUMBER		2	1	IFC4 Qto_WallBaseQuantities -> Width [Phase 184k / P8 IFC Qto]	1
@@ -3304,3 +3304,26 @@ PARAM	3ec85c17-a7f3-5b2f-879b-14bbb6b05e2c	STING_SLEEVE_UL_SYS	TEXT		15	1	UL or 
 PARAM	5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c1a	STING_SLEEVE_HOST_ID	TEXT		15	1	ElementId.IntegerValue of the host wall/floor/roof.	1
 PARAM	5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c1b	STING_SLEEVE_PENETRATED_ID	TEXT		15	1	ElementId.IntegerValue of the penetrating MEP element.	1
 PARAM	5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c1c	STING_SLEEVE_CREATED_BY	TEXT		15	1	STING command that placed the sleeve (audit trail).	1
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d04	BLE_LIVE_LOAD_KPA	TEXT		2	1	Design live (variable) load kPa per EC1-1-1 / Uganda NBC by occupancy [Phase 189]	1
+PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c04	PLM_SUP_DN_REQ_MM	TEXT		6	1	Recommended supply pipe DN mm — WaterSupplySizer [Phase 188]	1
+PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c03	PLM_SUP_DP_PAM	TEXT		6	1	Supply pipe friction pressure drop Pa/m (Hazen-Williams) — WaterSupplySizer [Phase 188]	1
+PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c01	PLM_SUP_QD_LPS	TEXT		6	1	Cold/hot water supply design flow Qd l/s — WaterSupplySizer [Phase 188]	1
+PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c02	PLM_SUP_VEL_MPS	TEXT		6	1	Supply pipe velocity m/s per BS EN 806-3 / Hunter — WaterSupplySizer [Phase 188]	1
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d01	PRJ_ORG_REGION_TXT	TEXT		13	1	Project regional context (Kampala / Mbarara / Fort Portal / Gulu / Mbale / Jinja / Lira / Kasese / Kabale / Custom) — drives Uganda NBC + East African Rift seismic + EC1 climate defaults [Phase 189]	1
+PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e06	STR_BLACK_COTTON_RISK_BOOL	YESNO		16	1	Black-cotton / expansive-clay soil presence flag — triggers shrink-swell warning during foundation sizing per BS 1377-2 [Phase 190]	1
+PARAM	e1f2a3b4-c5d6-4e7f-8091-1a2b3c4d5e09	STR_FRAME_M_KNM	TEXT		16	1	Design moment kNm from frame solve (DirectStiffnessMethod) at the governing end of a member [Phase 188]	1
+PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e01	STR_GROUND_TYPE_TXT	TEXT		16	1	EC8 §3.1.2 Table 3.1 ground type A / B / C / D / E — drives seismic spectral amplification factor S [Phase 190]	1
+PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e03	STR_IMPORTANCE_CLASS_TXT	TEXT		16	1	EC8 §4.2.5 importance class I / II / III / IV (ordinary / standard / important / essential — hospitals + emergency = IV) [Phase 190]	1
+PARAM	e1f2a3b4-c5d6-4e7f-8091-1a2b3c4d5e0a	STR_PUNCH_UTIL_PCT	TEXT		16	1	Punching shear utilisation percentage (applied shear ÷ resistance) per EC2 §6.4 — PunchingShearChecker [Phase 188]	1
+PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e02	STR_Q_FACTOR_NR	TEXT		16	1	EC8 §3.2.2.5 behaviour factor q for design seismic force reduction (low ductility 1.5, medium 3.0, high 5.0) [Phase 190]	1
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d06	STR_RAIN_INTENSITY_MMH	TEXT		16	1	Design rainfall intensity mm/h for storm + SuDS sizing — Uganda regional (5-yr return event) [Phase 189]	1
+PARAM	e1f2a3b4-c5d6-4e7f-8091-1a2b3c4d5e0c	STR_REBAR_DETAIL_TXT	TEXT		16	1	Reinforcement detail summary (top/bot count + bar size + links) per EC2 §9 — RCDesignHelper [Phase 188]	1
+PARAM	d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e07	STR_ROBUST_STATUS_TXT	TEXT		16	1	Progressive-collapse robustness status (OK / Critical / Risk-class N) per GSA / EC1-1-7 — ProgressiveCollapseChecker [Phase 188]	1
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d03	STR_SEISMIC_AGR	TEXT		16	1	Reference peak ground acceleration agR /g per EC8-1 / Uganda East African Rift hazard [Phase 189]	1
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d05	STR_SOIL_BEARING_KPA	TEXT		16	1	Allowable / characteristic soil bearing capacity kPa — Uganda lateritic / volcanic / alluvial regional default [Phase 189]	1
+PARAM	d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e08	STR_SYSTEM_CLASS_TXT	TEXT		16	1	Auto-classified structural system (Moment frame / Braced frame / Dual / Wall — concrete/steel) — StructuralSystemClassifier [Phase 188]	1
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d02	STR_WIND_BASIC_MPS	TEXT		16	1	Basic wind velocity vb,0 m/s (10-min mean at 10m, terrain Cat II) — EC1-1-4 / Uganda NBC regional [Phase 189]	1
+PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e05	STR_WIND_DIRECTIONAL_NR	TEXT		16	1	EC1-1-4 §4.2 cdir wind directional factor (typically 1.0 unless project-specific wind-rose justifies reduction) [Phase 190]	1
+PARAM	e1f2a3b4-c5d6-4e7f-8091-1a2b3c4d5e0b	STR_WIND_PRESSURE_PA	TEXT		16	1	Wind pressure Pa on element / storey per EC1-1-4 lookup — WindLoadCalculator [Phase 188]	1
+PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e04	STR_WIND_TERRAIN_CAT_TXT	TEXT		16	1	EC1-1-4 §4.3.2 terrain category 0 (sea) / I (lakes) / II (open) / III (suburban) / IV (city) — drives ce(z) exposure factor [Phase 190]	1
+PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e07	WARN_STR_FND_BLACK_COTTON	TEXT		16	1	Warning: Black-cotton / expansive subgrade detected — extend foundation below active zone (~1.5 m), verify BS 1377-2 swelling test, consider raft or stabilised sub-base [HIGH]	1

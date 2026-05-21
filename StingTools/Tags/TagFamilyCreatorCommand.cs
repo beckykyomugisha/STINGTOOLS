@@ -265,8 +265,8 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_Roofs, "Roofs" },
             { BuiltInCategory.OST_Rooms, "Rooms" },
             { BuiltInCategory.OST_Areas, "Areas" },
-            { BuiltInCategory.OST_CurtainWallPanels, "Curtain Panels" },
-            { BuiltInCategory.OST_CurtainWallMullions, "Curtain Wall Mullions" },
+            { BuiltInCategory.OST_CurtainWallPanels, "Curtain Panel" },
+            { BuiltInCategory.OST_CurtainWallMullions, "Curtain Wall Mullion" },
             { BuiltInCategory.OST_Cornices, "Wall Sweeps" },
             { BuiltInCategory.OST_EdgeSlab, "Slab Edges" },
             { BuiltInCategory.OST_RoofSoffit, "Roof Soffits" },
@@ -287,7 +287,7 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_StairsLandings, "Stair Landings" },
             { BuiltInCategory.OST_StairsSupports, "Stair Supports" },
             { BuiltInCategory.OST_Ramps, "Ramps" },
-            { BuiltInCategory.OST_Railings, "Railings" },
+            { BuiltInCategory.OST_Railings, "Railing" },
             { BuiltInCategory.OST_RailingTopRail, "Top Rails" },
             { BuiltInCategory.OST_RailingHandRail, "Handrails" },
             { BuiltInCategory.OST_VerticalCirculation, "Vertical Circulation" },
@@ -298,7 +298,7 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_Columns, "Columns" },
             { BuiltInCategory.OST_StructuralTruss, "Structural Trusses" },
             { BuiltInCategory.OST_StructuralStiffener, "Structural Stiffeners" },
-            { BuiltInCategory.OST_StructConnections, "Structural Connections" },
+            { BuiltInCategory.OST_StructConnections, "Structural Connection" },
             { BuiltInCategory.OST_StructuralFramingSystem, "Structural Beam Systems" },
             { BuiltInCategory.OST_Rebar, "Structural Rebar" },
             { BuiltInCategory.OST_Coupler, "Structural Rebar Couplers" },
@@ -346,7 +346,7 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_Wire, "Wire" },
 
             // Sheets (base category)
-            { BuiltInCategory.OST_Sheets, "Sheets" },
+            { BuiltInCategory.OST_Sheets, "Sheet Document" },
 
         };
 
@@ -358,12 +358,12 @@ namespace StingTools.Tags
         /// </summary>
         public static readonly (BuiltInCategory bic, string template, string display, string suffix)[] TieInPointFamilies =
         {
-            (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Pipe)",            "Tie-In Pipe"),
-            (BuiltInCategory.OST_DuctCurves,     "Duct Tag.rft",                "Tie-In Point (Duct)",            "Tie-In Duct"),
-            (BuiltInCategory.OST_Conduit,        "Conduit Tag.rft",             "Tie-In Point (Conduit)",         "Tie-In Conduit"),
-            (BuiltInCategory.OST_CableTray,      "Cable Tray Tag.rft",          "Tie-In Point (Cable Tray)",      "Tie-In Cable Tray"),
-            (BuiltInCategory.OST_Sprinklers,     "Sprinkler Tag.rft",           "Tie-In Point (Fire Protection)", "Tie-In Fire Protection"),
-            (BuiltInCategory.OST_GenericModel,    "Generic Tag.rft",             "Tie-In Point (Gas)",             "Tie-In Gas"),
+            (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Pipe)",            "Tie-In Point Tag (Pipe — Plumbing & Hydraulic)"),
+            (BuiltInCategory.OST_DuctCurves,     "Duct Tag.rft",                "Tie-In Point (Duct)",            "Tie-In Point Tag (Duct — HVAC)"),
+            (BuiltInCategory.OST_Conduit,        "Conduit Tag.rft",             "Tie-In Point (Conduit)",         "Tie-In Point Tag (Conduit — Electrical LV/ELV)"),
+            (BuiltInCategory.OST_CableTray,      "Cable Tray Tag.rft",          "Tie-In Point (Cable Tray)",      "Tie-In Point Tag (Cable Tray — Electrical)"),
+            (BuiltInCategory.OST_Sprinklers,     "Sprinkler Tag.rft",           "Tie-In Point (Fire Protection)", "Tie-In Point Tag (Fire Protection — Sprinkler / Suppression)"),
+            (BuiltInCategory.OST_GenericModel,    "Generic Tag.rft",             "Tie-In Point (Gas)",             "Tie-In Point Tag (Gas — Medical / Industrial / Natural Gas)"),
             // Pipe system-specific tie-in variants (from MEP CSV #49, #50)
             (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Fire Protection Pipe)", "Tie-In FP Pipe"),
             (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Gas Pipe)",             "Tie-In Gas Pipe"),
@@ -390,7 +390,7 @@ namespace StingTools.Tags
         {
             (BuiltInCategory.OST_Floors,            "Generic Tag.rft",           "Floors (Structural)",                  "Structural Slab"),
             (BuiltInCategory.OST_Walls,             "Generic Tag.rft",           "Walls (Structural/Load-bearing)",      "Structural Wall"),
-            (BuiltInCategory.OST_StructuralFraming, "Structural Framing Tag.rft","Structural Framing (Bracing)",         "Brace Truss"),
+            (BuiltInCategory.OST_StructuralFraming, "Structural Framing Tag.rft","Structural Framing (Bracing)",         "Brace / Truss"),
             (BuiltInCategory.OST_Columns,           "Generic Tag.rft",           "Columns (Architectural)",              "Architectural Column"),
         };
 
@@ -592,6 +592,48 @@ namespace StingTools.Tags
             StructuralVariantFamilies.Length +
             MepVariantFamilies.Length +
             HealthcareVariantFamilies.Length;
+
+        /// <summary>
+        /// Asserts that every key in <c>LABEL_DEFINITIONS.json</c> <c>category_labels</c>
+        /// is covered by a family this class produces, and vice versa. Returns
+        /// (missingFromCreator, extraInCreator) lists. Both empty == aligned.
+        /// Phase 187 drift-check method; called at startup by StingToolsApp.OnStartup.
+        /// </summary>
+        public static (List<string> missingFromCreator, List<string> extraInCreator) AuditAgainstLabelDefinitions(string dataDir)
+        {
+            var labelPath = System.IO.Path.Combine(dataDir, "LABEL_DEFINITIONS.json");
+            if (!System.IO.File.Exists(labelPath))
+                return (new List<string>(), new List<string>());
+
+            var creatorNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in CategoryTemplateMap)
+                creatorNames.Add(GetFamilyName(kv.Key).Replace($"{FamilyPrefix} - ", "").Replace(" Tag", ""));
+            foreach (var v in TieInPointFamilies)          creatorNames.Add(v.suffix);
+            foreach (var v in DisciplineSheetFamilies)     creatorNames.Add(v.suffix);
+            foreach (var v in StructuralVariantFamilies)   creatorNames.Add(v.suffix);
+            foreach (var v in MepVariantFamilies)          creatorNames.Add(v.suffix);
+            foreach (var v in HealthcareVariantFamilies)   creatorNames.Add(v.suffix);
+
+            HashSet<string> labelKeys;
+            try
+            {
+                var json = System.IO.File.ReadAllText(labelPath);
+                var doc = Newtonsoft.Json.Linq.JObject.Parse(json);
+                var cl = doc["category_labels"] as Newtonsoft.Json.Linq.JObject;
+                labelKeys = new HashSet<string>(
+                    cl != null ? cl.Properties().Select(p => p.Name) : System.Linq.Enumerable.Empty<string>(),
+                    System.StringComparer.OrdinalIgnoreCase);
+            }
+            catch (System.Exception ex)
+            {
+                StingLog.Warn($"AuditAgainstLabelDefinitions: failed to parse {labelPath}: {ex.Message}");
+                return (new List<string>(), new List<string>());
+            }
+
+            var missing = labelKeys.Where(k => !creatorNames.Contains(k)).OrderBy(s => s).ToList();
+            var extra   = creatorNames.Where(k => !labelKeys.Contains(k)).OrderBy(s => s).ToList();
+            return (missing, extra);
+        }
 
         /// <summary>
         /// Generate the variant family name for a suffix. When the suffix
