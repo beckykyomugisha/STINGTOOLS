@@ -2302,5 +2302,180 @@ namespace StingTools.UI
                 }
             });
         }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  MAT tab — inline Material Manager (replaces the modal dialog)
+        // ════════════════════════════════════════════════════════════════════
+
+        // Backing collection for the materials DataGrid; lazy-built on first
+        // Refresh so opening the panel is free of cost.
+        private System.Collections.ObjectModel.ObservableCollection<StingTools.UI.MaterialRow> _matRows;
+        private bool _matLoaded;
+
+        /// <summary>
+        /// Public entry point used by the Hub "Materials" button:
+        /// surface the dock panel, activate the MAT tab, load on first hit.
+        /// </summary>
+        public void ShowMaterialsTab()
+        {
+            try
+            {
+                for (int i = 0; i < tabMain.Items.Count; i++)
+                {
+                    if (tabMain.Items[i] is TabItem ti && (ti.Header as string) == "MAT")
+                    {
+                        tabMain.SelectedIndex = i;
+                        if (!_matLoaded) Dispatcher.BeginInvoke(new Action(LoadMaterials),
+                            DispatcherPriority.Background);
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ShowMaterialsTab: {ex.Message}"); }
+        }
+
+        private void LoadMaterials()
+        {
+            try
+            {
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc == null) { if (txtMatStatus != null) txtMatStatus.Text = "No document open."; return; }
+
+                _matRows = StingTools.UI.MaterialRowBuilder.Build(doc);
+                _matLoaded = true;
+
+                if (dgMaterials != null)
+                {
+                    dgMaterials.ItemsSource = _matRows;
+                    var view = System.Windows.Data.CollectionViewSource.GetDefaultView(_matRows);
+                    view.Filter = MatRowFilter;
+                }
+                UpdateMatHeaderCounts();
+                if (txtMatStatus != null)
+                    txtMatStatus.Text = $"Loaded {_matRows.Count} materials.";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("LoadMaterials", ex);
+                if (txtMatStatus != null) txtMatStatus.Text = $"Load failed: {ex.Message}";
+            }
+        }
+
+        private bool MatRowFilter(object item)
+        {
+            if (!(item is StingTools.UI.MaterialRow r)) return false;
+            string q = txtMatSearch?.Text?.Trim() ?? "";
+            string origin = (cmbMatOrigin?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All";
+            string used = (cmbMatUsed?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All Used";
+
+            bool originOk = origin == "All" || string.Equals(r.Origin, origin, StringComparison.OrdinalIgnoreCase);
+            bool usedOk = used switch
+            {
+                "Used"   => r.UsageCount > 0,
+                "Unused" => r.UsageCount == 0,
+                _        => true,
+            };
+            bool textOk = string.IsNullOrEmpty(q)
+                          || (r.Name ?? "").IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0
+                          || (r.Class ?? "").IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0;
+            return originOk && usedOk && textOk;
+        }
+
+        private void UpdateMatHeaderCounts()
+        {
+            if (_matRows == null || txtMatCounts == null) return;
+            try
+            {
+                int total = _matRows.Count;
+                int selected = dgMaterials?.SelectedItems?.Count ?? 0;
+                int unused = _matRows.Count(r => r.UsageCount == 0);
+                txtMatCounts.Text = $"{total} materials · {selected} selected · {unused} unused";
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateMatHeaderCounts: {ex.Message}"); }
+        }
+
+        // ── XAML event handlers ────────────────────────────────────────────
+
+        private void MatSearch_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            if (_matRows == null) return;
+            System.Windows.Data.CollectionViewSource.GetDefaultView(_matRows).Refresh();
+        }
+
+        private void MatFilter_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_matRows == null) return;
+            System.Windows.Data.CollectionViewSource.GetDefaultView(_matRows).Refresh();
+        }
+
+        private void MatGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            UpdateMatHeaderCounts();
+        }
+
+        private void MatGrid_DoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            DispatchMat("MAT_WhereUsed");
+        }
+
+        /// <summary>
+        /// Every MAT-tab button funnels through here. The toolbar 'Create…'
+        /// buttons keep their existing Cmd_Click wiring (CreateBLEMaterials /
+        /// CreateMEPMaterials) so transactions stay in their original homes.
+        /// </summary>
+        private void MatBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is Button btn) || !(btn.Tag is string tag)) return;
+            try
+            {
+                // Local UI actions don't need the external event — they don't
+                // touch the Revit DB until the user confirms a sub-action.
+                switch (tag)
+                {
+                    case "MAT_Refresh":
+                        _matLoaded = false;
+                        LoadMaterials();
+                        return;
+                    default:
+                        DispatchMat(tag);
+                        return;
+                }
+            }
+            catch (Exception ex) { StingLog.Error($"MatBtn_Click {tag}", ex); }
+        }
+
+        /// <summary>
+        /// MAT-tab buttons that need the Revit API thread piggy-back on the
+        /// existing IExternalEventHandler with an extra payload (the
+        /// currently-selected material id, if any) handed through the same
+        /// Param1/Param2 channel the rest of the panel uses.
+        /// </summary>
+        private void DispatchMat(string tag)
+        {
+            string selId = "";
+            if (dgMaterials?.SelectedItem is StingTools.UI.MaterialRow row && row.Id != null && row.Id.Value > 0)
+                selId = row.Id.Value.ToString();
+            DispatchCommand(tag, selId);
+        }
+
+        /// <summary>
+        /// Re-populate a single row in the grid after a Revit transaction.
+        /// Used by MAT actions that modify material state inline.
+        /// </summary>
+        internal void MatRefreshRow(Autodesk.Revit.DB.ElementId id)
+        {
+            if (_matRows == null || id == null) return;
+            try
+            {
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc == null) return;
+                var idx = _matRows.ToList().FindIndex(r => r.Id?.Value == id.Value);
+                if (idx < 0) return;
+                if (doc.GetElement(id) is Autodesk.Revit.DB.Material m)
+                    _matRows[idx] = StingTools.UI.MaterialRowBuilder.BuildOne(doc, m);
+                UpdateMatHeaderCounts();
+            }
+            catch (Exception ex) { StingLog.Warn($"MatRefreshRow: {ex.Message}"); }
+        }
     }
 }

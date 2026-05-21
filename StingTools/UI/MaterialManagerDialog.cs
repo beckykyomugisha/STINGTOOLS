@@ -34,7 +34,133 @@ namespace StingTools.UI
         public string ColorText { get; set; }
         public Brush ColorSwatch { get; set; }
         public ElementId Id { get; set; }
+
+        // Phase B fields — populated by MaterialRowBuilder.
+        public int UsageCount { get; set; }
+        public double Cost { get; set; }
+        public double CarbonKgCo2e { get; set; }
+        public string CostText => Cost > 0 ? Cost.ToString("F0") : "";
+        public string CarbonText => CarbonKgCo2e > 0 ? CarbonKgCo2e.ToString("F0") : "";
+
+        // Asset-share counts (filled by MaterialRowBuilder + AssetShareCounter).
+        public int AppearanceSharedBy { get; set; }
+        public int PhysicalSharedBy { get; set; }
+        public int ThermalSharedBy { get; set; }
+
         public event PropertyChangedEventHandler PropertyChanged;
+    }
+
+    /// <summary>
+    /// Constructs <see cref="MaterialRow"/> values from a Revit document.
+    /// Usage counts are O(N) over modelled elements — call once on Refresh
+    /// and reuse the collection thereafter.
+    /// </summary>
+    public static class MaterialRowBuilder
+    {
+        public static System.Collections.ObjectModel.ObservableCollection<MaterialRow> Build(Document doc)
+        {
+            var rows = new System.Collections.ObjectModel.ObservableCollection<MaterialRow>();
+            if (doc == null) return rows;
+            var materials = new FilteredElementCollector(doc)
+                .OfClass(typeof(Material))
+                .Cast<Material>()
+                .OrderBy(m => m.Name)
+                .ToList();
+            var usage = ComputeUsageCounts(doc);
+            foreach (var m in materials)
+                rows.Add(BuildOne(doc, m, usage));
+            return rows;
+        }
+
+        public static MaterialRow BuildOne(Document doc, Material m,
+            IDictionary<long, int> usageMap = null)
+        {
+            string n = m.Name ?? "(unnamed)";
+            string origin =
+                n.StartsWith("STING", StringComparison.OrdinalIgnoreCase) ? "STING" :
+                n.StartsWith("BLE_",  StringComparison.OrdinalIgnoreCase) ? "BLE" :
+                n.StartsWith("MEP_",  StringComparison.OrdinalIgnoreCase) ? "MEP" : "Other";
+            string colTxt = ""; Brush swatch = Brushes.Transparent;
+            try
+            {
+                var c = m.Color;
+                if (c != null && c.IsValid)
+                {
+                    colTxt = $"{c.Red:000} {c.Green:000} {c.Blue:000}";
+                    swatch = new SolidColorBrush(System.Windows.Media.Color.FromRgb(c.Red, c.Green, c.Blue));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildOne color '{n}': {ex.Message}"); }
+
+            double cost = 0, carbon = 0;
+            try
+            {
+                var cp = m.get_Parameter(BuiltInParameter.ALL_MODEL_COST);
+                if (cp != null && cp.StorageType == StorageType.Double) cost = cp.AsDouble();
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildOne cost '{n}': {ex.Message}"); }
+            try
+            {
+                var lp = m.LookupParameter("STING_EMB_CARBON_NR");
+                if (lp != null && lp.StorageType == StorageType.Double) carbon = lp.AsDouble();
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildOne carbon '{n}': {ex.Message}"); }
+
+            int use = 0;
+            if (usageMap != null && m.Id != null) usageMap.TryGetValue(m.Id.Value, out use);
+
+            return new MaterialRow
+            {
+                Name = n,
+                Class = m.MaterialClass ?? "",
+                Origin = origin,
+                ColorText = colTxt,
+                ColorSwatch = swatch,
+                Id = m.Id,
+                UsageCount = use,
+                Cost = cost,
+                CarbonKgCo2e = carbon,
+            };
+        }
+
+        /// <summary>
+        /// One-pass usage count over every modelled element. Counts:
+        ///   • compound element layers (GetMaterialIds)
+        ///   • direct Material parameter / MATERIAL_ID_PARAM
+        /// Returns a dictionary keyed by Material ElementId.Value.
+        /// </summary>
+        public static IDictionary<long, int> ComputeUsageCounts(Document doc)
+        {
+            var map = new Dictionary<long, int>();
+            if (doc == null) return map;
+            try
+            {
+                var elements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .ToElements();
+                foreach (var el in elements)
+                {
+                    try
+                    {
+                        var mats = el.GetMaterialIds(false);
+                        if (mats != null)
+                            foreach (var mid in mats)
+                                if (mid != null && mid.Value > 0)
+                                    map[mid.Value] = map.TryGetValue(mid.Value, out int v) ? v + 1 : 1;
+                        Parameter p = el.LookupParameter("Material") ?? el.get_Parameter(BuiltInParameter.MATERIAL_ID_PARAM);
+                        if (p != null && p.StorageType == StorageType.ElementId)
+                        {
+                            var mid = p.AsElementId();
+                            if (mid != null && mid.Value > 0)
+                                map[mid.Value] = map.TryGetValue(mid.Value, out int v) ? v + 1 : 1;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"ComputeUsageCounts {el?.Id}: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ComputeUsageCounts: {ex.Message}"); }
+            return map;
+        }
     }
 
     internal static class MaterialManagerDialog

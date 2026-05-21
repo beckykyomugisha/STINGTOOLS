@@ -1224,8 +1224,38 @@ namespace StingTools.UI
                     // ── Materials ──
                     case "CreateBLEMaterials": RunCommand<Temp.CreateBLEMaterialsCommand>(app); break;
                     case "CreateMEPMaterials": RunCommand<Temp.CreateMEPMaterialsCommand>(app); break;
-                    case "MaterialManager":     RunCommand<Temp.StingMaterialManagerCommand>(app); break;
+                    case "MaterialManager":
+                        // Surface the dock panel and activate the MAT tab —
+                        // the inline workspace replaces the legacy TaskDialog.
+                        try
+                        {
+                            var pane = app.GetDockablePane(UI.StingDockPanelProvider.PaneId);
+                            if (pane != null && !pane.IsShown()) pane.Show();
+                            UI.StingDockPanel.LastInstance?.ShowMaterialsTab();
+                        }
+                        catch (Exception exMat)
+                        {
+                            Core.StingLog.Warn($"MaterialManager focus: {exMat.Message}");
+                            RunCommand<Temp.StingMaterialManagerCommand>(app); // safety net
+                        }
+                        break;
                     case "MaterialManagerFull": RunCommand<Temp.MaterialManagerCommand>(app); break;
+
+                    // ── MAT tab — inline command surface (dock-panel buttons) ──
+                    case "MAT_WhereUsed":      MatActions.WhereUsed(app, p1); break;
+                    case "MAT_Apply":          MatActions.ApplyToSelection(app, p1); break;
+                    case "MAT_Eyedropper":     MatActions.Eyedropper(app); break;
+                    case "MAT_EditIdentity":   MatActions.EditIdentity(app, p1); break;
+                    case "MAT_ReadLayers":     MatActions.ReadLayers(app); break;
+                    case "MAT_LayerTag":       MatActions.GenerateLayerTag(app); break;
+                    case "MAT_FindDups":       MatActions.FindDuplicates(app); break;
+                    case "MAT_MergeDups":      MatActions.MergeDuplicates(app); break;
+                    case "MAT_EditOverrides":  MatActions.EditProjectOverrides(app); break;
+                    case "MAT_ReloadLib":      MatActions.ReloadLibrary(app); break;
+                    case "MAT_PushCorp":       MatActions.PushToCorporate(app, p1); break;
+                    case "MAT_ExportCsv":      MatActions.ExportCsv(app); break;
+                    case "MAT_ImportCsv":      MatActions.ImportCsv(app); break;
+                    case "MAT_TemplateCsv":    MatActions.OpenTemplate(app); break;
 
                     // ── Family types ──
                     case "CreateWalls": RunCommand<Temp.CreateWallsCommand>(app); break;
