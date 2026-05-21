@@ -1433,6 +1433,34 @@ namespace StingTools.Core
                 StingLog.Info($"Data validation passed: all {criticalFiles.Length} critical files found in {DataPath}");
             }
 
+            // Phase 187: Tag-family catalogue drift check — verify TagFamilyCreator output
+            // matches LABEL_DEFINITIONS.json category_labels keys. Any mismatch is a logged
+            // warning; legend/display lookups would fail silently otherwise.
+            try
+            {
+                var (missingFromCreator, extraInCreator) =
+                    StingTools.Tags.TagFamilyConfig.AuditAgainstLabelDefinitions(DataPath);
+                if (missingFromCreator.Count == 0 && extraInCreator.Count == 0)
+                {
+                    StingLog.Info(
+                        $"Tag-family catalogue aligned: {StingTools.Tags.TagFamilyConfig.TotalFamilyCount} families " +
+                        "match LABEL_DEFINITIONS.json category_labels 1:1.");
+                }
+                else
+                {
+                    if (missingFromCreator.Count > 0)
+                        StingLog.Warn($"Tag-family drift — {missingFromCreator.Count} LABEL_DEFINITIONS keys " +
+                                      $"have no TagFamilyCreator backing: {string.Join(", ", missingFromCreator)}");
+                    if (extraInCreator.Count > 0)
+                        StingLog.Warn($"Tag-family drift — {extraInCreator.Count} TagFamilyCreator outputs have " +
+                                      $"no LABEL_DEFINITIONS entry: {string.Join(", ", extraInCreator)}");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                StingLog.Warn($"Tag-family catalogue drift check failed: {ex.Message}");
+            }
+
             // IG-04: Verify pyRevit manifest
             string manifestPath = FindDataFile("PYREVIT_SCRIPT_MANIFEST.csv");
             if (manifestPath != null)
