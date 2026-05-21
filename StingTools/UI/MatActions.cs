@@ -347,6 +347,59 @@ namespace StingTools.UI
                 "Promoting project overrides to the corporate baseline is an admin action and lands in a follow-up commit. Edit the corporate CSV (BLE_MATERIALS.csv / MEP_MATERIALS.csv) for now.");
         }
 
+        // ── N6 — Family-side material index ─────────────────────────────────
+
+        public static void ShowFamilyMaterials(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null) { TaskDialog.Show("Material Manager", "No document open."); return; }
+            try
+            {
+                var rows = FamilySideMaterialIndex.Index(doc);
+                if (rows.Count == 0)
+                {
+                    TaskDialog.Show("Family Materials",
+                        "No Material parameters found on loaded Family Types.\n\nNote: this only scans loaded families. To audit unloaded .rfa files, use I/O > Audit Family Folder.");
+                    return;
+                }
+                // Group by material name, count distinct family-type references.
+                var byName = rows.GroupBy(r => r.MaterialName, StringComparer.OrdinalIgnoreCase)
+                                 .OrderByDescending(g => g.Count())
+                                 .ToList();
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Found {rows.Count} family-type Material references across {byName.Count} distinct material(s).");
+                sb.AppendLine();
+                sb.AppendLine("Top 20 by usage:");
+                foreach (var g in byName.Take(20))
+                {
+                    int loaded = g.Count(r => r.IsLoadedInProject);
+                    sb.AppendLine($"  {g.Key}  ({g.Count()} family types, {loaded} loaded as Project Material, origin: {g.First().Origin})");
+                }
+                if (byName.Count > 20) sb.AppendLine($"  … and {byName.Count - 20} more (full list logs to console).");
+
+                // Also write a CSV so the user has the full data.
+                string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string csv = System.IO.Path.Combine(outDir, $"STING_family_side_materials_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                var lines = new List<string> { "MaterialName,FamilyName,TypeName,Origin,LoadedInProject" };
+                lines.AddRange(rows.OrderBy(r => r.MaterialName).Select(r =>
+                    $"\"{r.MaterialName}\",\"{r.FamilyName}\",\"{r.TypeName}\",{r.Origin},{r.IsLoadedInProject}"));
+                System.IO.File.WriteAllLines(csv, lines);
+
+                MaterialAuditLogger.Log(doc, "MAT_FamilyIndex", "(project)",
+                    new Dictionary<string, object>
+                    {
+                        ["distinctMaterials"] = byName.Count,
+                        ["totalReferences"] = rows.Count,
+                        ["csv"] = csv,
+                    });
+
+                TaskDialog.Show("Family Materials", sb.ToString() + $"\n\nFull CSV: {csv}");
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(csv) { UseShellExecute = true })?.Dispose(); }
+                catch (Exception ex) { StingLog.Warn($"Open csv: {ex.Message}"); }
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Family Materials failed: {ex.Message}"); }
+        }
+
         // ── N5 — Asset detach / repoint ─────────────────────────────────────
 
         /// <summary>
