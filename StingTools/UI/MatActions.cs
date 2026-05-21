@@ -1004,6 +1004,114 @@ namespace StingTools.UI
             catch (Exception ex) { TaskDialog.Show("Material Manager", $"Generate RFQ failed: {ex.Message}"); }
         }
 
+        // ── N+6 — Healthcare material gates ─────────────────────────────────
+
+        public static void RunHealthcareGate(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                var findings = HealthcareMaterialGate.RunAll(doc);
+                if (findings.Count == 0)
+                {
+                    TaskDialog.Show("Healthcare Material Gate",
+                        "All clear — no element/material pairing breaches the HTM 04-01 / MRI / HTM 03-01 / NCRP 147 / HTM 06-01 rule pack.");
+                    return;
+                }
+
+                int blocks = findings.Count(f => string.Equals(f.Severity, "Block", StringComparison.OrdinalIgnoreCase));
+                int warns  = findings.Count(f => string.Equals(f.Severity, "Warning", StringComparison.OrdinalIgnoreCase));
+                int infos  = findings.Count(f => string.Equals(f.Severity, "Info", StringComparison.OrdinalIgnoreCase));
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"{findings.Count} finding(s):");
+                sb.AppendLine($"  Block: {blocks}    Warning: {warns}    Info: {infos}");
+                sb.AppendLine();
+                foreach (var g in findings.GroupBy(f => f.RuleId).OrderByDescending(g => g.Count()))
+                {
+                    var first = g.First();
+                    sb.AppendLine($"  [{first.Standard}] {first.RuleId} — {g.Count()} element(s)");
+                    foreach (var f in g.Take(3))
+                        sb.AppendLine($"      · {f.ElementId} '{f.ElementName}' — material '{f.MaterialName}'");
+                    if (g.Count() > 3) sb.AppendLine($"      · … and {g.Count() - 3} more");
+                }
+
+                string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string csv = System.IO.Path.Combine(outDir,
+                    $"STING_healthcare_findings_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                var lines = new List<string> { "RuleId,Standard,Severity,ElementId,ElementName,MaterialName,Message" };
+                lines.AddRange(findings.Select(f =>
+                    $"\"{f.RuleId}\",\"{f.Standard}\",\"{f.Severity}\",{f.ElementId},\"{f.ElementName}\",\"{f.MaterialName}\",\"{f.Message?.Replace("\"", "''")}\""));
+                System.IO.File.WriteAllLines(csv, lines);
+
+                MaterialAuditLogger.Log(doc, "MAT_HealthcareGate", "(project)",
+                    new Dictionary<string, object>
+                    {
+                        ["findings"] = findings.Count,
+                        ["blocks"]   = blocks,
+                        ["warnings"] = warns,
+                        ["infos"]    = infos,
+                        ["csv"]      = csv,
+                    });
+
+                var td = new TaskDialog("Healthcare Material Gate")
+                {
+                    MainInstruction = $"{findings.Count} finding(s) across HTM 04 / 03 / 06, MRI safety, NCRP 147",
+                    MainContent = sb.ToString() + $"\n\nFull CSV: {csv}",
+                    CommonButtons = TaskDialogCommonButtons.Close,
+                };
+                if (findings.Any(f => f.ElementId > 0))
+                {
+                    td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Select offending elements",
+                        "Set Revit selection to every element that triggered a finding.");
+                    var res = td.Show();
+                    if (res == TaskDialogResult.CommandLink1)
+                    {
+                        try
+                        {
+                            var ids = findings.Where(f => f.ElementId > 0)
+                                              .Select(f => new ElementId(f.ElementId))
+                                              .ToList();
+                            app.ActiveUIDocument?.Selection?.SetElementIds(ids);
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Healthcare select: {ex.Message}"); }
+                    }
+                }
+                else td.Show();
+
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(csv) { UseShellExecute = true })?.Dispose(); }
+                catch (Exception ex) { StingLog.Warn($"Open healthcare csv: {ex.Message}"); }
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Healthcare gate failed: {ex.Message}"); }
+        }
+
+        public static void EditHealthcareGate(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                string projPath = System.IO.Path.Combine(
+                    Core.ProjectFolderEngine.GetDataPath(doc, "") ?? "",
+                    "healthcare_material_gates.json");
+                if (!System.IO.File.Exists(projPath))
+                {
+                    string corp = StingToolsApp.FindDataFile("STING_HEALTHCARE_MATERIAL_GATES.json");
+                    if (!string.IsNullOrEmpty(corp) && System.IO.File.Exists(corp))
+                    {
+                        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(projPath));
+                        System.IO.File.Copy(corp, projPath);
+                    }
+                }
+                if (System.IO.File.Exists(projPath))
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(projPath) { UseShellExecute = true })?.Dispose();
+                else
+                    TaskDialog.Show("Healthcare", "No rule file available.");
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Edit healthcare gates failed: {ex.Message}"); }
+        }
+
         // ── N+5 — COBie material sync ───────────────────────────────────────
 
         public static void SyncCobie(UIApplication app)
