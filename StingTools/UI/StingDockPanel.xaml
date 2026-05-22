@@ -1007,21 +1007,27 @@
                             </WrapPanel>
                         </Border>
 
-                        <!-- PDF EXPORT -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="PDF EXPORT"/>
+                        <!-- EXPORT CENTER -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="EXPORT CENTER"/>
                         <Border Style="{StaticResource GroupBorder}">
-                            <WrapPanel>
-                                <ComboBox x:Name="cmbPaperSize" FontSize="10" Height="24" Width="60">
-                                    <ComboBoxItem Content="A1" IsSelected="True"/>
-                                    <ComboBoxItem Content="A0"/>
-                                    <ComboBoxItem Content="A2"/>
-                                    <ComboBoxItem Content="A3"/>
-                                    <ComboBoxItem Content="A4"/>
-                                </ComboBox>
-                                <Button Style="{StaticResource ActionBtn}" Content="All Sheets" Tag="PrintSheets" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Selected Sheets" Tag="PdfSelectedSheets" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Active View" Tag="PdfActiveView" Click="Cmd_Click"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Export Center" Tag="ExportCenter" Click="Cmd_Click" ToolTip="Unified export workspace: PDF / DWG / IFC / NWC / DGN / DWF / Image / XML with ISO 19650 naming, profiles &amp; scheduled exports"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="PDF Preset" Tag="ExportCenterPDF" Click="Cmd_Click" ToolTip="Open Export Center with PDF preset selected"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <ComboBox x:Name="cmbPaperSize" FontSize="10" Height="24" Width="60">
+                                        <ComboBoxItem Content="A1" IsSelected="True"/>
+                                        <ComboBoxItem Content="A0"/>
+                                        <ComboBoxItem Content="A2"/>
+                                        <ComboBoxItem Content="A3"/>
+                                        <ComboBoxItem Content="A4"/>
+                                    </ComboBox>
+                                    <Button Style="{StaticResource ActionBtn}" Content="All Sheets" Tag="PrintSheets" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Selected Sheets" Tag="PdfSelectedSheets" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Active View" Tag="PdfActiveView" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
                         </Border>
 
                         <!-- SHEET INDEX -->

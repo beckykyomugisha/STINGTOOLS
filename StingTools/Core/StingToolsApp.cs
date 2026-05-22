@@ -2197,7 +2197,7 @@ namespace StingTools.Core
                 ("ToggleHvacPanel",      "HVAC Panel",    "HV", DrawingColor.LightSeaGreen,typeof(HubHvacPanelCommand).FullName),
             };
 
-            var buttons = new List<PushButtonData>(12);
+            var buttons = new List<PushButtonData>(18);
             foreach (var s in specs)
             {
                 var data = new PushButtonData("Hub_" + s.tag, s.label, asm, s.cls)
@@ -2218,10 +2218,12 @@ namespace StingTools.Core
 
             try
             {
-                panel.AddStackedItems(buttons[0], buttons[1], buttons[2]);
-                panel.AddStackedItems(buttons[3], buttons[4], buttons[5]);
-                panel.AddStackedItems(buttons[6], buttons[7], buttons[8]);
-                panel.AddStackedItems(buttons[9], buttons[10], buttons[11]);
+                panel.AddStackedItems(buttons[0],  buttons[1],  buttons[2]);
+                panel.AddStackedItems(buttons[3],  buttons[4],  buttons[5]);
+                panel.AddStackedItems(buttons[6],  buttons[7],  buttons[8]);
+                panel.AddStackedItems(buttons[9],  buttons[10], buttons[11]);
+                panel.AddStackedItems(buttons[12], buttons[13], buttons[14]);
+                panel.AddStackedItems(buttons[15], buttons[16], buttons[17]);
             }
             catch (Exception ex)
             {
