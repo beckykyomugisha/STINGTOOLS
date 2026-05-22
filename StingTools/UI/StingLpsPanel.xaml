@@ -93,19 +93,24 @@
                 <!-- Wave B #11 — first-time setup banner. Shown when ELC_LPS_CLASS_TXT
                      is empty on ProjectInformation; clicking opens the class wizard. -->
                 <Border x:Name="firstTimeBanner" Background="#FFC107" CornerRadius="3"
-                        Margin="14,0,0,0" Padding="6,1" VerticalAlignment="Center" Visibility="Collapsed">
-                    <Button Style="{StaticResource LpsActionBtn}" Content="⚠ LPS class not set — click to run wizard"
+                        Margin="14,0,0,0" Padding="6,2" VerticalAlignment="Center" Visibility="Visible">
+                    <Button Content="⚠ Set LPS class…"
                             Tag="Lps_ClassSetup" Click="Cmd_Click"
-                            Background="Transparent" Foreground="Black" BorderBrush="Transparent"
-                            FontSize="10" Padding="2,0" Height="18"/>
+                            Background="#FFC107" Foreground="Black" BorderBrush="#AA8800" BorderThickness="1"
+                            FontSize="11" FontWeight="Bold" Padding="6,2" MinHeight="22" MinWidth="120"
+                            Cursor="Hand" ToolTip="Run the LPS class setup wizard (R1–R4 risk + recommended class)"/>
                 </Border>
-                <Button Style="{StaticResource LpsActionBtn}" Content="⟳ Load model"
+                <Button Content="⟳ Load model"
                         Tag="Lps_LoadModel" Click="Cmd_Click"
-                        Margin="14,0,0,0" Height="20" FontSize="9"
+                        Background="#FFFFFF" Foreground="#1976D2" BorderBrush="#1976D2" BorderThickness="1"
+                        Margin="14,0,0,0" Padding="8,2" MinHeight="22" MinWidth="100" FontSize="11" FontWeight="SemiBold"
+                        Cursor="Hand"
                         ToolTip="Walk the active document and populate every panel grid (air terminals · down conductors · earth · bonding · zones · inspection · SPD)"/>
-                <Button Style="{StaticResource LpsActionBtn}" Content="⚙ Settings"
+                <Button Content="⚙ Settings"
                         Tag="Lps_OpenSettings" Click="Cmd_Click"
-                        Margin="6,0,0,0" Height="20" FontSize="9"
+                        Background="#FFFFFF" Foreground="#424242" BorderBrush="#9E9E9E" BorderThickness="1"
+                        Margin="6,0,0,0" Padding="8,2" MinHeight="22" MinWidth="84" FontSize="11"
+                        Cursor="Hand"
                         ToolTip="Open the LPS data file settings"/>
             </StackPanel>
         </Border>

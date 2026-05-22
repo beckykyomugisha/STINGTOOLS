@@ -106,24 +106,28 @@ namespace StingTools.UI
             try { LoadRiskCatalogue(); }
             catch (Exception ex) { StingLog.Warn($"LoadRiskCatalogue: {ex.Message}"); }
 
-            // Wave B #11 — first-time setup banner. Show when class
-            // is empty so brand-new projects get prompted; hide once
-            // a class lands in ProjectInformation. Deferred to Loaded
-            // because Revit isn't ready at construction.
-            Loaded += (_, __) =>
+            // Wave B #11 — first-time setup banner. Shown by default
+            // until a class lands in ProjectInformation; hidden after.
+            // Visibility check runs at Loaded (Revit context ready) and
+            // also after every Cmd_Click so the banner disappears
+            // immediately after the class wizard returns.
+            Loaded += (_, __) => RefreshFirstTimeBanner();
+        }
+
+        /// <summary>Hide the first-time banner if ELC_LPS_CLASS_TXT is set.</summary>
+        public void RefreshFirstTimeBanner()
+        {
+            try
             {
-                try
-                {
-                    var doc = StingTools.UI.StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
-                    if (doc == null) return;
-                    string cls = StingTools.Core.ParameterHelpers.GetString(doc.ProjectInformation, "ELC_LPS_CLASS_TXT");
-                    if (firstTimeBanner != null)
-                        firstTimeBanner.Visibility = string.IsNullOrWhiteSpace(cls)
-                            ? System.Windows.Visibility.Visible
-                            : System.Windows.Visibility.Collapsed;
-                }
-                catch (Exception ex) { StingLog.Warn($"FirstTimeBanner: {ex.Message}"); }
-            };
+                var doc = StingTools.UI.StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc == null || firstTimeBanner == null) return;
+                string cls = StingTools.Core.ParameterHelpers.GetString(doc.ProjectInformation, "ELC_LPS_CLASS_TXT");
+                firstTimeBanner.Visibility = string.IsNullOrWhiteSpace(cls)
+                    ? System.Windows.Visibility.Visible
+                    : System.Windows.Visibility.Collapsed;
+            }
+            catch (Exception ex) { StingLog.Warn($"RefreshFirstTimeBanner: {ex.Message}"); }
+        }
 
             // Seed default risk factor rows so the RISK tab is non-empty.
             try { SeedDefaultRiskFactors(); }
@@ -245,10 +249,31 @@ namespace StingTools.UI
         {
             if (sender is Button btn && btn.Tag is string tag && !string.IsNullOrEmpty(tag))
             {
-                PullRiskInputsFromUI();
-                PushSnapshotToHandler();
-                StingLpsCommandHandler.Instance?.SetCommand(tag);
-                UpdateStatus($"Running: {tag}");
+                try { PullRiskInputsFromUI(); } catch (Exception ex) { StingLog.Warn($"PullRiskInputs: {ex.Message}"); }
+                try { PushSnapshotToHandler(); } catch (Exception ex) { StingLog.Warn($"PushSnapshot: {ex.Message}"); }
+
+                var handler = StingLpsCommandHandler.Instance;
+                if (handler == null)
+                {
+                    // Defensive: if handler never initialised at startup
+                    // (e.g. RegisterLpsPanel threw), surface that to the
+                    // user instead of looking like a dead button.
+                    UpdateStatus($"⚠ Handler not initialised — '{tag}' could not dispatch");
+                    StingLog.Warn($"Cmd_Click: StingLpsCommandHandler.Instance is null for tag '{tag}'");
+                    try
+                    {
+                        Autodesk.Revit.UI.TaskDialog.Show("STING LPS",
+                            $"Command '{tag}' could not dispatch — the LPS command handler is not initialised.\n\n" +
+                            "This usually means Revit was started before STING was installed, or " +
+                            "RegisterLpsPanel threw at startup. Check StingTools.log for details, " +
+                            "then restart Revit.");
+                    }
+                    catch (Exception ex) { StingLog.Warn($"TaskDialog: {ex.Message}"); }
+                    return;
+                }
+
+                handler.SetCommand(tag);
+                UpdateStatus($"▶ {tag}  ({DateTime.Now:HH:mm:ss})");
             }
         }
 
