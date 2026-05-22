@@ -272,29 +272,29 @@ namespace StingTools.BIMManager
         // Model registry — ComputeSha256 must be static per call sites in PublishModelCommand.
         public static string ComputeSha256(string s) => "";
         public Task<JObject?> FindModelByHashAsync(Guid projectId, string sha256) => Task.FromResult<JObject?>(null);
-        public Task<bool> RefreshModelMetadataAsync(Guid projectId, Guid modelId, object payload, string elementMapPath = null) => Task.FromResult(false);
+        public Task<bool> RefreshModelMetadataAsync(Guid projectId, Guid modelId, object payload, string? elementMapPath = null) => Task.FromResult(false);
         public Task<bool> DeleteModelAsync(Guid projectId, Guid modelId) => Task.FromResult(false);
 
         // Site Photos — NDA / policy
         public Task<StingTools.UI.PhotoPolicyDto?> GetPhotoPolicyAsync(Guid projectId) => Task.FromResult<StingTools.UI.PhotoPolicyDto?>(null);
-        public Task<bool>     AcceptPhotoNdaAsync(Guid projectId, string ndaSha = null) => Task.FromResult(false);
+        public Task<bool>     AcceptPhotoNdaAsync(Guid projectId, string? ndaSha = null) => Task.FromResult(false);
         public HashSet<Guid>  LastNdaRequiredIds { get; set; } = new();
 
         // Site Photos — checklists / albums / distribution
-        public Task<List<StingTools.UI.PhotoChecklistDto>?> ListPhotoChecklistsAsync(Guid projectId, string status = null) => Task.FromResult<List<StingTools.UI.PhotoChecklistDto>?>(new List<StingTools.UI.PhotoChecklistDto>());
+        public Task<List<StingTools.UI.PhotoChecklistDto>?> ListPhotoChecklistsAsync(Guid projectId, string? status = null) => Task.FromResult<List<StingTools.UI.PhotoChecklistDto>?>(new List<StingTools.UI.PhotoChecklistDto>());
         public Task<List<StingTools.UI.PhotoAlbumDto>?>     ListPhotoAlbumsAsync(Guid projectId) => Task.FromResult<List<StingTools.UI.PhotoAlbumDto>?>(new List<StingTools.UI.PhotoAlbumDto>());
         public Task<StingTools.UI.PhotoAlbumDto?>           GetPhotoAlbumAsync(Guid projectId, Guid albumId) => Task.FromResult<StingTools.UI.PhotoAlbumDto?>(null);
-        public Task<StingTools.UI.PhotoAlbumDto?>           CreatePhotoAlbumAsync(Guid projectId, string name, string description = null, string visibility = "Project") => Task.FromResult<StingTools.UI.PhotoAlbumDto?>(null);
+        public Task<StingTools.UI.PhotoAlbumDto?>           CreatePhotoAlbumAsync(Guid projectId, string name, string? description = null, string visibility = "Project") => Task.FromResult<StingTools.UI.PhotoAlbumDto?>(null);
         public Task<bool> AddPhotosToAlbumAsync(Guid projectId, Guid albumId, IEnumerable<Guid> photoIds) => Task.FromResult(false);
         public Task<bool> LockPhotoAlbumAsync(Guid projectId, Guid albumId, bool locked) => Task.FromResult(false);
-        public Task<string?> CreatePhotoShareLinkAsync(Guid projectId, Guid albumId, TimeSpan? expiry = null, string label = null) => Task.FromResult<string?>(null);
-        public Task<bool> ExportPhotosAsync(Guid projectId, IEnumerable<Guid> photoIds = null, string format = "zip", Guid? albumId = null) => Task.FromResult(false);
+        public Task<string?> CreatePhotoShareLinkAsync(Guid projectId, Guid albumId, TimeSpan? expiry = null, string? label = null) => Task.FromResult<string?>(null);
+        public Task<bool> ExportPhotosAsync(Guid projectId, IEnumerable<Guid>? photoIds = null, string format = "zip", Guid? albumId = null) => Task.FromResult(false);
 
         // Site Photos — admin bulk
         public Task<bool> BulkReclassifyPhotosAsync(Guid projectId, IEnumerable<Guid> photoIds, string newClass) => Task.FromResult(false);
-        public Task<bool> BulkReanchorPhotosAsync(Guid projectId, IEnumerable<Guid> photoIds, object payload = null, string levelCode = null, string zoneCode = null) => Task.FromResult(false);
+        public Task<bool> BulkReanchorPhotosAsync(Guid projectId, IEnumerable<Guid> photoIds, object? payload = null, string? levelCode = null, string? zoneCode = null) => Task.FromResult(false);
         public Task<List<DistributionGroupDto>?> ListDistributionGroupsAsync(Guid projectId) => Task.FromResult<List<DistributionGroupDto>?>(new List<DistributionGroupDto>());
-        public Task<bool> CreateDistributionGroupAsync(Guid projectId, string name, IEnumerable<string> recipients = null, string kind = null) => Task.FromResult(false);
+        public Task<bool> CreateDistributionGroupAsync(Guid projectId, string name, IEnumerable<string>? recipients = null, string? kind = null) => Task.FromResult(false);
     }
 
     /// <summary>Stub — distribution group DTO mirroring the server contract.</summary>
@@ -469,18 +469,11 @@ namespace StingTools.Core.Routing
     public abstract partial class DropEngineBase
     {
         // The merged callers do:  if (CheckSoffitClash) { if (_soffitAwareness?.SegmentIsRoutable(...)) {...} }
-        // so CheckSoffitClash is treated as a property (not a method) and _soffitAwareness is a structural-awareness object with SegmentIsRoutable(...).
+        // CheckSoffitClash is a bool property; _soffitAwareness is the real
+        // StingTools.Core.Placement.StructuralAwareness class (defined in
+        // StingTools/Core/Placement/StructuralAwareness.cs — not stubbed here).
         protected bool CheckSoffitClash { get; set; }
         protected StingTools.Core.Placement.StructuralAwareness _soffitAwareness;
-    }
-}
-
-namespace StingTools.Core.Placement
-{
-    /// <summary>Stub — structural-awareness query helper consumed by DropEngineBase.</summary>
-    public sealed class StructuralAwareness
-    {
-        public bool SegmentIsRoutable(XYZ start, XYZ end) => true;
     }
 }
 
