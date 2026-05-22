@@ -49,6 +49,17 @@ namespace StingTools.UI
                 // MAT_* event alongside revisions / issues / clashes.
                 try { MaterialCoordLogBridge.Append(doc, action, materialName, payload); }
                 catch (Exception ex) { StingLog.WarnRateLimited("AuditLog.Coord", $"Coord log mirror: {ex.Message}"); }
+
+                // Priority 7 — Also push to the in-process activity feed
+                // so the Material Hub status bar can surface it live.
+                try
+                {
+                    string desc = payload != null && payload.Count > 0
+                        ? string.Join(" · ", System.Linq.Enumerable.Select(payload, kv => $"{kv.Key}={kv.Value}"))
+                        : "";
+                    MaterialActivityFeed.Add(action, materialName, desc);
+                }
+                catch (Exception ex) { StingLog.WarnRateLimited("AuditLog.Feed", $"Activity feed: {ex.Message}"); }
             }
             catch (Exception ex) { StingLog.Warn($"MaterialAuditLogger.Log {action} '{materialName}': {ex.Message}"); }
         }

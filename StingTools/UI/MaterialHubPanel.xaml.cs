@@ -38,6 +38,54 @@ namespace StingTools.UI
             InitializeComponent();
             LastInstance = this;
             this.Loaded += (_, __) => InitialPopulate();
+            // Priority 7 — Subscribe to the activity feed so newly-pushed
+            // entries surface in the status bar immediately.
+            MaterialActivityFeed.OnAdded += RenderActivityFeed;
+        }
+
+        private void RenderActivityFeed()
+        {
+            try
+            {
+                if (activityFeed == null || !Dispatcher.CheckAccess())
+                {
+                    Dispatcher.BeginInvoke(new Action(RenderActivityFeed));
+                    return;
+                }
+                activityFeed.Children.Clear();
+                foreach (var e in MaterialActivityFeed.Snapshot())
+                {
+                    var pill = new Border
+                    {
+                        Background = new SolidColorBrush(Color.FromRgb(0x32, 0x4A, 0x66)),
+                        CornerRadius = new CornerRadius(8),
+                        Padding = new Thickness(6, 1, 6, 1),
+                        Margin = new Thickness(2, 0, 0, 0),
+                        Cursor = Cursors.Hand,
+                        ToolTip = $"{e.At:HH:mm:ss} · {e.Kind} · {e.Material} · {e.Description}",
+                    };
+                    pill.Child = new TextBlock { Text = $"{e.Kind}·{e.Material}", FontSize = 9, Foreground = Brushes.White };
+                    string captured = e.Material;
+                    pill.MouseLeftButtonDown += (_, __) => JumpToMaterialByName(captured);
+                    activityFeed.Children.Add(pill);
+                    if (activityFeed.Children.Count >= 5) break;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"RenderActivityFeed: {ex.Message}"); }
+        }
+
+        private void JumpToMaterialByName(string name)
+        {
+            if (_rows == null || string.IsNullOrEmpty(name)) return;
+            foreach (var r in _rows)
+            {
+                if (string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    dgHubMaterials.SelectedItem = r;
+                    dgHubMaterials.ScrollIntoView(r);
+                    return;
+                }
+            }
         }
 
         // ── Public toggle entry (used by ribbon command) ───────────────────
