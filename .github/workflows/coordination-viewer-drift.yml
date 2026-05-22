@@ -1,0 +1,62 @@
+# Coordination viewer drift guard.
+#
+# The desktop coordination viewer ships as a copy of the mobile WebView
+# source under Planscape.Server/.../wwwroot/. Planscape.API.csproj has a
+# SyncCoordinationViewer MSBuild target that re-copies the canonical
+# files on every API build — but only if the API is built. A direct edit
+# to wwwroot/ that bypasses the source would survive until the next
+# build, and a CI that doesn't build the API never catches it.
+#
+# This workflow fails the PR when any of the 5 source files differ from
+# their wwwroot counterpart, so the two surfaces can't diverge silently.
+# Files NOT covered: three.min.js + GLTFLoader/OrbitControls/DRACOLoader/
+# MeshoptDecoder stubs — those are build.mjs outputs under a gitignored
+# dist/ folder, only present in wwwroot. See Planscape.API.csproj
+# comments for the manual refresh recipe (`npm run sync-wwwroot`).
+
+name: Viewer drift guard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Planscape/assets/viewer/**'
+      - 'Planscape.Server/src/Planscape.API/wwwroot/**'
+      - '.github/workflows/coordination-viewer-drift.yml'
+  pull_request:
+    paths:
+      - 'Planscape/assets/viewer/**'
+      - 'Planscape.Server/src/Planscape.API/wwwroot/**'
+      - '.github/workflows/coordination-viewer-drift.yml'
+
+jobs:
+  drift-check:
+    name: Source ↔ wwwroot byte-equal
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Diff each synced file
+        run: |
+          set -e
+          src=Planscape/assets/viewer
+          dst=Planscape.Server/src/Planscape.API/wwwroot
+          fail=0
+          for f in viewer.html coordination-viewer.js coordination-viewer.css viewer-extras.js signalr-shim.js; do
+            if ! diff -q "$src/$f" "$dst/$f" > /dev/null; then
+              echo "::error file=$dst/$f::$f drifted from canonical source at $src/$f"
+              echo "--- $src/$f"
+              echo "+++ $dst/$f"
+              diff -u "$src/$f" "$dst/$f" | head -40 || true
+              fail=1
+            else
+              echo "✓ $f in sync"
+            fi
+          done
+          if [ "$fail" = "1" ]; then
+            echo ""
+            echo "Fix: build Planscape.API (the SyncCoordinationViewer MSBuild target"
+            echo "      copies $src/* → $dst/), commit the resulting wwwroot/ changes."
+            exit 1
+          fi
