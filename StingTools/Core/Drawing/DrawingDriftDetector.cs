@@ -213,6 +213,12 @@ namespace StingTools.Core.Drawing
                 // checksum comparison against the STING:* template).
                 AppendVgAndFilterDrift(doc, v, dt, report);
 
+                // Phase 175 — design-option drift. When a profile declares
+                // an OptionScope, compare the view's actual
+                // VIEWER_OPTION_VISIBILITY to what DrawingOptionApplier
+                // would write. SyncStyles re-runs Apply and heals.
+                AppendOptionScopeDrift(doc, v, dt, report);
+
                 if (report.Drifts.Count > 0 || report.Suppressed.Count > 0) reports.Add(report);
             }
             return reports;

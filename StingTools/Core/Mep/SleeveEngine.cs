@@ -85,7 +85,8 @@ namespace StingTools.Core.Mep
 
             // Pre-load host collector inside a padded project AABB so we
             // only walk walls/floors/roofs that actually overlap the
-            // selection.
+            // selection. Suspended (non-structural) ceilings are filtered
+            // out per host inside FindPenetrations.
             var hostCats = new[]
             {
                 BuiltInCategory.OST_Walls,
@@ -105,6 +106,10 @@ namespace StingTools.Core.Mep
                     "placements it would have made.");
                 dryRun = true;
             }
+            // Pre-validate "Cut with Voids When Loaded" so callers see a
+            // single up-front warning instead of one per placement.
+            WarnIfNotVoidCutter(roundSym, "round", result);
+            WarnIfNotVoidCutter(rectSym,  "rectangular", result);
 
             var runs = mepCurves.Where(el => el != null).ToList();
             result.MepCurvesScanned = runs.Count;
@@ -151,22 +156,29 @@ namespace StingTools.Core.Mep
                         var symbol = cand.Rule.Shape == "rectangular" ? (rectSym ?? roundSym)
                                                                        : (roundSym ?? rectSym);
                         if (symbol == null) { result.Failed++; continue; }
-                        if (!symbol.IsActive) symbol.Activate();
+                        if (!symbol.IsActive) { symbol.Activate(); doc.Regenerate(); }
 
                         var fi = doc.Create.NewFamilyInstance(
                             cand.Midpoint, symbol, StructuralType.NonStructural);
                         if (fi == null) { result.Failed++; continue; }
 
                         ApplyShapeParameters(fi, cand);
-                        TrySetString(fi, "STING_SLEEVE_PFV_UUID", MakePfvUuid(cand));
-                        TrySetString(fi, "STING_SLEEVE_HOST_FIRE_RATING",
-                            ReadHostFireRating(doc, cand.Host));
-                        if (!string.IsNullOrEmpty(ReadHostFireRating(doc, cand.Host)))
-                            result.FireRatingWritten++;
+                        var fireRat = ReadHostFireRating(doc, cand.Host);
+                        TrySetString(fi, SleeveParamRegistry.PfvUuid,        MakePfvUuid(cand));
+                        TrySetString(fi, SleeveParamRegistry.HostFireRating, fireRat);
+                        TrySetInt   (fi, SleeveParamRegistry.HostElementId,  (int)(cand.Host?.Id?.Value ?? 0));
+                        TrySetInt   (fi, SleeveParamRegistry.PenetratedId,   (int)(cand.MepElement?.Id?.Value ?? 0));
+                        TrySetString(fi, SleeveParamRegistry.CreatedBy,      "STING v4 SleeveEngine");
+                        if (!string.IsNullOrEmpty(fireRat)) result.FireRatingWritten++;
 
                         // Depth param: host wall/floor thickness + 2× protrusion.
-                        TrySetDouble(fi, "STING_SLEEVE_DEPTH_MM",
+                        TrySetDouble(fi, SleeveParamRegistry.DepthMm,
                             cand.HostThicknessMm + 2 * ProtrusionMm);
+
+                        // Workshared models can hold stale solids until a
+                        // regen — InstanceVoidCutUtils otherwise operates
+                        // on outdated geometry.
+                        if (doc.IsWorkshared) doc.Regenerate();
 
                         // InstanceVoidCutUtils — can throw when the family
                         // is not flagged "Cut with Voids When Loaded".
@@ -226,18 +238,31 @@ namespace StingTools.Core.Mep
             double elemDiaMm = ProbeDiameterMm(mep);
             double elemWMm   = ProbeWidthMm(mep);
             double elemHMm   = ProbeHeightMm(mep);
-            double insulMm   = rule.IncludeInsulation ? ProbeInsulationMm(mep) : 0;
+            string insulFound = null;
+            double insulMm   = rule.IncludeInsulation
+                ? SleeveParamRegistry.ProbeInsulationMm(mep, out insulFound) : 0;
+            if (rule.IncludeInsulation && insulMm <= 0)
+                StingLog.Warn($"SleeveEngine: rule {rule.Id} expects insulation but none found on {mep.Id} (probed {string.Join(", ", SleeveParamRegistry.InsulationParams)})");
             double clearance = rule.ClearanceMm;
 
             double bore = 0, w = 0, h = 0;
             if (rule.Shape == "rectangular")
             {
-                w = Math.Max(rule.MinBoreMm, elemWMm + 2 * insulMm + 2 * clearance);
-                h = Math.Max(rule.MinBoreMm, elemHMm + 2 * insulMm + 2 * clearance);
+                double cw = elemWMm + 2 * insulMm + 2 * clearance;
+                double ch = elemHMm + 2 * insulMm + 2 * clearance;
+                w = Math.Max(rule.MinBoreMm, cw);
+                h = Math.Max(rule.MinBoreMm, ch);
+                if (cw < rule.MinBoreMm)
+                    StingLog.Warn($"SleeveEngine: {mep.Id} width {cw:F0} mm clamped up to rule {rule.Id} min {rule.MinBoreMm:F0} mm");
+                if (ch < rule.MinBoreMm)
+                    StingLog.Warn($"SleeveEngine: {mep.Id} height {ch:F0} mm clamped up to rule {rule.Id} min {rule.MinBoreMm:F0} mm");
             }
             else
             {
-                bore = Math.Max(rule.MinBoreMm, elemDiaMm + 2 * insulMm + 2 * clearance);
+                double cb = elemDiaMm + 2 * insulMm + 2 * clearance;
+                bore = Math.Max(rule.MinBoreMm, cb);
+                if (cb < rule.MinBoreMm)
+                    StingLog.Warn($"SleeveEngine: {mep.Id} bore {cb:F0} mm clamped up to rule {rule.Id} min {rule.MinBoreMm:F0} mm");
             }
 
             return new SleeveCandidate
@@ -257,14 +282,14 @@ namespace StingTools.Core.Mep
         {
             if (cand.Rule.Shape == "rectangular")
             {
-                TrySetDouble(fi, "STING_SLEEVE_WIDTH_MM",  cand.WidthMm);
-                TrySetDouble(fi, "STING_SLEEVE_HEIGHT_MM", cand.HeightMm);
+                TrySetDouble(fi, SleeveParamRegistry.WidthMm,  cand.WidthMm);
+                TrySetDouble(fi, SleeveParamRegistry.HeightMm, cand.HeightMm);
             }
             else
             {
-                TrySetDouble(fi, "STING_SLEEVE_BORE_MM", cand.BoreMm);
+                TrySetDouble(fi, SleeveParamRegistry.BoreMm, cand.BoreMm);
             }
-            TrySetString(fi, "STING_SLEEVE_RULE_ID", cand.Rule.Id);
+            TrySetString(fi, SleeveParamRegistry.RuleId, cand.Rule.Id);
         }
 
         // ---- penetration scan --------------------------------------------------
@@ -292,6 +317,10 @@ namespace StingTools.Core.Mep
                         .WhereElementIsNotElementType()
                         .WherePasses(bboxFilter))
             {
+                // Skip non-structural (suspended) ceilings — sleeves should
+                // only land in structural-deck ceilings; suspended ceilings
+                // can't take a void cut and the geometry is wrong anyway.
+                if (IsSuspendedCeiling(el)) continue;
                 // Fine check: ElementIntersectsElementFilter.
                 try
                 {
@@ -330,6 +359,12 @@ namespace StingTools.Core.Mep
                         .OfCategory(cat).OfClass(typeof(FamilySymbol));
                     foreach (FamilySymbol fs in col) allSymbols.Add(fs);
                 }
+                // Stable, deterministic order: alphabetical by family name
+                // breaks ties when multiple matching families are loaded so
+                // re-runs select the same symbol.
+                allSymbols.Sort((a, b) => string.Compare(
+                    a.FamilyName ?? "", b.FamilyName ?? "", StringComparison.OrdinalIgnoreCase));
+
                 foreach (var preferred in preferRectangular
                             ? new[] { "STING_SLEEVE_RECT", "STING_PROVISION_VOID", "STING_SLEEVE_ROUND" }
                             : new[] { "STING_SLEEVE_ROUND", "STING_PROVISION_VOID", "STING_SLEEVE_RECT" })
@@ -350,6 +385,59 @@ namespace StingTools.Core.Mep
             }
             catch (Exception ex)
             { StingLog.Warn($"SleeveEngine.ResolveSleeveSymbol: {ex.Message}"); return null; }
+        }
+
+        /// <summary>
+        /// Pre-flight check that a resolved sleeve symbol's family has the
+        /// "Cut with Voids When Loaded" property set. Logs one warning per
+        /// run so InstanceVoidCutUtils.AddInstanceVoidCut failures are
+        /// foreseeable rather than surprising.
+        /// </summary>
+        private static void WarnIfNotVoidCutter(FamilySymbol sym, string label, SleeveResult result)
+        {
+            if (sym?.Family == null) return;
+            try
+            {
+                var p = sym.Family.get_Parameter(BuiltInParameter.FAMILY_ALLOW_CUT_WITH_VOIDS);
+                if (p != null && p.AsInteger() == 0)
+                {
+                    var msg = $"Family '{sym.FamilyName}' ({label}) does not have " +
+                              "'Cut with Voids When Loaded' enabled — host cuts will be skipped.";
+                    StingLog.Warn("SleeveEngine: " + msg);
+                    result.Warnings.Add(msg);
+                }
+            }
+            catch { /* property not exposed on this family — silent */ }
+        }
+
+        /// <summary>
+        /// Heuristic for "this ceiling is suspended (acoustic), not part of
+        /// the structural deck". Suspended ceilings cannot take an
+        /// InstanceVoidCut and sleeves placed in them land in the wrong
+        /// layer. We treat anything that is not a Floor / Roof / Wall and
+        /// whose ceiling-type family/name contains "ACOUSTIC", "SUSPENDED",
+        /// "T-BAR", "GRID", or "GYP" as suspended. Tunable via the host's
+        /// type comment if needed.
+        /// </summary>
+        private static bool IsSuspendedCeiling(Element el)
+        {
+            try
+            {
+                if (!(el is Ceiling)) return false;
+                var doc = el.Document;
+                var typeId = el.GetTypeId();
+                if (typeId == ElementId.InvalidElementId) return false;
+                var ct = doc.GetElement(typeId);
+                if (ct == null) return false;
+                var name = (ct.Name ?? "").ToUpperInvariant();
+                var fam  = (ct.get_Parameter(BuiltInParameter.SYMBOL_FAMILY_NAME_PARAM)?.AsString() ?? "")
+                                .ToUpperInvariant();
+                string[] suspendedHints = { "ACOUSTIC", "SUSPENDED", "T-BAR", "TBAR", "GRID", "GYP", "PLASTERBOARD" };
+                foreach (var hint in suspendedHints)
+                    if (name.Contains(hint) || fam.Contains(hint)) return true;
+            }
+            catch { }
+            return false;
         }
 
         private static string ReadHostFireRating(Document doc, Element host)
@@ -398,24 +486,6 @@ namespace StingTools.Core.Mep
             {
                 if (el is Autodesk.Revit.DB.Mechanical.Duct d && d.Height > 0) return d.Height * FtToMm;
                 if (el is Autodesk.Revit.DB.Electrical.CableTray ct) return ct.Height * FtToMm;
-            }
-            catch { }
-            return 0;
-        }
-        private static double ProbeInsulationMm(Element el)
-        {
-            try
-            {
-                var pPipe = el.LookupParameter("PLM_PPE_INSULATION_THK_MM");
-                var pDuct = el.LookupParameter("HVC_DCT_INSULATION_THK_MM");
-                if (pPipe?.StorageType == StorageType.Double) return pPipe.AsDouble() * FtToMm;
-                if (pDuct?.StorageType == StorageType.Double) return pDuct.AsDouble() * FtToMm;
-                if (pPipe != null && double.TryParse(pPipe.AsString(),
-                    System.Globalization.NumberStyles.Any,
-                    System.Globalization.CultureInfo.InvariantCulture, out var v1)) return v1;
-                if (pDuct != null && double.TryParse(pDuct.AsString(),
-                    System.Globalization.NumberStyles.Any,
-                    System.Globalization.CultureInfo.InvariantCulture, out var v2)) return v2;
             }
             catch { }
             return 0;
@@ -469,6 +539,17 @@ namespace StingTools.Core.Mep
         {
             try { var p = el.LookupParameter(param);
                   if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String) p.Set(val ?? ""); }
+            catch { }
+        }
+        private static void TrySetInt(Element el, string param, int val)
+        {
+            try
+            {
+                var p = el.LookupParameter(param);
+                if (p == null || p.IsReadOnly) return;
+                if (p.StorageType == StorageType.Integer) p.Set(val);
+                else if (p.StorageType == StorageType.String) p.Set(val.ToString());
+            }
             catch { }
         }
         private static void TrySetDouble(Element el, string param, double val)
