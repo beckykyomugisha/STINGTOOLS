@@ -208,20 +208,21 @@ namespace StingTools.UI
 
         private static double EstimateQuantity(Element el, out string unit)
         {
-            // Volume-first (m³) covers walls/floors/structural; surface area
-            // (m²) for thin coverings; length (m) for linear MEP. Falls
-            // through to "each" (1) when no measurement is exposed.
+            // R-3 — UnitUtils-based conversion. Revit's internal unit is
+            // not always ft³ — for templates with metric bias the
+            // hardcoded factors are wrong. UnitUtils picks the right
+            // input unit per document.
             try
             {
                 var v = el.LookupParameter("Volume");
                 if (v != null && v.HasValue && v.StorageType == StorageType.Double)
-                { unit = "m³"; return v.AsDouble() * 0.0283168; /* ft³→m³ */ }
+                { unit = "m³"; return UnitUtils.ConvertFromInternalUnits(v.AsDouble(), UnitTypeId.CubicMeters); }
                 var a = el.LookupParameter("Area");
                 if (a != null && a.HasValue && a.StorageType == StorageType.Double)
-                { unit = "m²"; return a.AsDouble() * 0.092903; /* ft²→m² */ }
+                { unit = "m²"; return UnitUtils.ConvertFromInternalUnits(a.AsDouble(), UnitTypeId.SquareMeters); }
                 var l = el.LookupParameter("Length");
                 if (l != null && l.HasValue && l.StorageType == StorageType.Double)
-                { unit = "m"; return l.AsDouble() * 0.3048; /* ft→m */ }
+                { unit = "m"; return UnitUtils.ConvertFromInternalUnits(l.AsDouble(), UnitTypeId.Meters); }
             }
             catch (Exception ex) { StingLog.WarnRateLimited("WhatIf.Qty", $"EstimateQuantity: {ex.Message}"); }
             unit = "each";

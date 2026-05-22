@@ -29,8 +29,15 @@ namespace StingTools.UI
 
             switch (col)
             {
-                case "Cost":   CommitDoubleParam(doc, mat, row, raw, BuiltInParameter.ALL_MODEL_COST,
-                                                  row.Cost, "MAT_EditCost", "cost"); break;
+                case "Cost":
+                    // R-2 — Currency-intent guard before committing.
+                    var loc = MaterialRow.ActiveLocale;
+                    double parsedNv;
+                    if (TryParseLocale(raw, loc, out parsedNv) &&
+                        !ConfirmCurrencyIntent(doc, loc, row.Cost, parsedNv))
+                        return; // user cancelled
+                    CommitDoubleParam(doc, mat, row, raw, BuiltInParameter.ALL_MODEL_COST,
+                                       row.Cost, "MAT_EditCost", "cost"); break;
                 case "kgCO₂e": CommitSharedParam(doc, mat, row, raw, "STING_EMB_CARBON_NR",
                                                   row.CarbonKgCo2e, "MAT_EditCarbon", "carbonKgCo2e"); break;
                 case "Class":  CommitClass(doc, mat, row, raw); break;
@@ -84,6 +91,57 @@ namespace StingTools.UI
             {
                 try { BumpRateConfidenceForMaterialUsers(doc, mat); }
                 catch (Exception ex) { StingLog.Warn($"BumpRateConfidence: {ex.Message}"); }
+            }
+        }
+
+        /// <summary>
+        /// R-2 — When the user is editing in a locale whose currency
+        /// differs from the project's base currency, surface a one-shot
+        /// confirmation. Returns true when the edit should proceed; false
+        /// to cancel. No-op when locales align or project base isn't set.
+        /// </summary>
+        internal static bool ConfirmCurrencyIntent(Document doc, MaterialLocale loc, double oldValue, double newValue)
+        {
+            if (loc == null) return true;
+            string projCurrency = ReadProjectBaseCurrency(doc);
+            string localeCurrency = NormaliseCurrency(loc.CurrencySymbol);
+            if (string.IsNullOrEmpty(projCurrency) || string.IsNullOrEmpty(localeCurrency)) return true;
+            if (string.Equals(projCurrency, localeCurrency, StringComparison.OrdinalIgnoreCase)) return true;
+            // Mismatch — confirm.
+            var td = new Autodesk.Revit.UI.TaskDialog("STING Material — Cost edit currency check")
+            {
+                MainInstruction = $"You're editing in {loc.Region} locale ({localeCurrency}) but the project's base currency is {projCurrency}.",
+                MainContent = $"The cell will store '{newValue:F2}' as a {projCurrency} value. Did you mean {localeCurrency}? If yes, convert manually before saving — STING doesn't auto-convert at the cell-commit boundary.",
+                CommonButtons = Autodesk.Revit.UI.TaskDialogCommonButtons.Cancel,
+            };
+            td.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink1,
+                "Store as " + projCurrency, "I meant the project base currency.");
+            return td.Show() == Autodesk.Revit.UI.TaskDialogResult.CommandLink1;
+        }
+
+        private static string ReadProjectBaseCurrency(Document doc)
+        {
+            try
+            {
+                var p = doc?.ProjectInformation?.LookupParameter("PRJ_ORG_CURRENCY_TXT")
+                       ?? doc?.ProjectInformation?.LookupParameter("Currency");
+                if (p != null && p.HasValue && p.StorageType == StorageType.String)
+                    return (p.AsString() ?? "").Trim().ToUpperInvariant();
+            }
+            catch (Exception ex) { StingLog.Warn($"ReadProjectBaseCurrency: {ex.Message}"); }
+            return "";
+        }
+
+        private static string NormaliseCurrency(string symbol)
+        {
+            if (string.IsNullOrEmpty(symbol)) return "";
+            switch (symbol.Trim())
+            {
+                case "£": return "GBP";
+                case "€": return "EUR";
+                case "$": return "USD";
+                case "A$": return "AUD";
+                default: return symbol.ToUpperInvariant();
             }
         }
 

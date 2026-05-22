@@ -486,21 +486,116 @@ namespace StingTools.BOQ
         {
             try
             {
-                // Preferred source: MAT_CARBON_FACTOR on the element's primary material (kgCO2e/kg).
-                double carbonFactor = 0;
+                // R-1 — Carbon factor source-aware unit treatment.
+                // STING_EMB_CARBON_NR + MaterialLookupCsv ship kgCO₂e PER m³ (volumetric);
+                // the legacy CARBON_FACTORS.csv dictionary ships kgCO₂e PER kg.
+                // Multiplying a volumetric factor by element MASS is the 1000× wrong-answer
+                // bug the LCA audit flagged. Route through CarbonFactorResolver so the
+                // calling convention is explicit.
                 string material = GetPrimaryMaterialName(el);
-                if (!string.IsNullOrEmpty(material))
-                    carbonFactor = CarbonTrackingEngine.GetCarbonFactor(material);
+                if (string.IsNullOrEmpty(material)) return 0;
 
-                if (carbonFactor <= 0) return 0;
+                var resolved = CarbonFactorResolver.Resolve(el.Document, material);
+                if (resolved.Factor <= 0) return 0;
 
-                // Convert quantity to kg using a density estimate. For per-each items we can't
-                // derive a meaningful weight without a family-level property, so carbon stays zero
-                // unless the element exposes a Weight parameter.
-                double kg = EstimateMassKg(el, quantity, unit);
-                return Math.Round(kg * carbonFactor, 2);
+                if (resolved.PerUnit == CarbonFactorUnit.KgCo2ePerKg)
+                {
+                    // Legacy mass-based factor — multiply by mass.
+                    double kg = EstimateMassKg(el, quantity, unit);
+                    return Math.Round(kg * resolved.Factor, 2);
+                }
+                // Default + STING / lookup tiers are kgCO₂e per m³ — multiply by volume.
+                // R-4 — Surface elements use area × thickness; linear use length × cross-section.
+                double volM3 = EstimateVolumeM3(el, quantity, unit, material);
+                return Math.Round(volM3 * resolved.Factor, 2);
             }
             catch (Exception ex) { StingLog.Warn($"ComputeElementCarbon: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>
+        /// R-4 — Volume estimator that works for volumetric, surface, AND
+        /// linear elements. Returns 0 only when no volume / area / length
+        /// is exposed (i.e. point-instance families with no geometry).
+        /// </summary>
+        private static double EstimateVolumeM3(Element el, double quantity, string unit, string material)
+        {
+            if (string.IsNullOrEmpty(unit)) unit = "each";
+            try
+            {
+                // Volumetric — direct.
+                if (unit == "m³" || unit == "m3") return quantity;
+
+                // Surface — area × default layer thickness (read from material lookup
+                // when not exposed on the element).
+                if (unit == "m²" || unit == "m2")
+                {
+                    double thicknessMm = ReadLayerThicknessMm(el);
+                    if (thicknessMm <= 0)
+                    {
+                        // Sensible defaults so we don't return zero for paint / membrane.
+                        string lc = (material ?? "").ToLowerInvariant();
+                        thicknessMm = lc.Contains("paint") || lc.Contains("coating") ? 0.15
+                                    : lc.Contains("membrane") || lc.Contains("dpm") ? 1.5
+                                    : lc.Contains("plaster") || lc.Contains("gypsum") ? 12.5
+                                    : lc.Contains("insulation") ? 50.0
+                                    : 10.0;
+                    }
+                    return quantity * (thicknessMm / 1000.0);
+                }
+
+                // Linear — length × cross-section read from element when present.
+                if (unit == "m")
+                {
+                    double areaMm2 = ReadCrossSectionMm2(el);
+                    if (areaMm2 <= 0) areaMm2 = 1000.0; // default ~32 mm circular equiv — caller can override via param
+                    return quantity * (areaMm2 / 1_000_000.0);
+                }
+
+                // kg → mass-only paths; carbon for these comes via the
+                // legacy mass-based factor in the other branch.
+                return 0;
+            }
+            catch (Exception ex) { StingLog.Warn($"EstimateVolumeM3 ({unit}): {ex.Message}"); return 0; }
+        }
+
+        private static double ReadLayerThicknessMm(Element el)
+        {
+            try
+            {
+                var p = el.LookupParameter("Thickness") ?? el.LookupParameter("Width");
+                if (p != null && p.HasValue && p.StorageType == StorageType.Double)
+                {
+                    // Internal feet → millimetres.
+                    return UnitUtils.ConvertFromInternalUnits(p.AsDouble(), UnitTypeId.Millimeters);
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("VolEst.Layer", $"ReadLayerThicknessMm: {ex.Message}"); }
+            return 0;
+        }
+
+        private static double ReadCrossSectionMm2(Element el)
+        {
+            try
+            {
+                // Pipes / conduits expose Outside Diameter; cable trays expose Width × Height.
+                var od = el.LookupParameter("Outside Diameter");
+                if (od != null && od.HasValue && od.StorageType == StorageType.Double)
+                {
+                    double dMm = UnitUtils.ConvertFromInternalUnits(od.AsDouble(), UnitTypeId.Millimeters);
+                    return Math.PI * (dMm / 2.0) * (dMm / 2.0);
+                }
+                var w = el.LookupParameter("Width");
+                var h = el.LookupParameter("Height");
+                if (w != null && w.HasValue && h != null && h.HasValue &&
+                    w.StorageType == StorageType.Double && h.StorageType == StorageType.Double)
+                {
+                    double wMm = UnitUtils.ConvertFromInternalUnits(w.AsDouble(), UnitTypeId.Millimeters);
+                    double hMm = UnitUtils.ConvertFromInternalUnits(h.AsDouble(), UnitTypeId.Millimeters);
+                    return wMm * hMm;
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("VolEst.Xs", $"ReadCrossSectionMm2: {ex.Message}"); }
+            return 0;
         }
 
         /// <summary>
