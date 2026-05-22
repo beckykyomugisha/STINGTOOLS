@@ -36,6 +36,45 @@ namespace StingTools.UI
     {
         public const double DefaultThresholdPct = 95.0;
 
+        /// <summary>
+        /// C6 — Per-deliverable material spec sign-off check.
+        /// Reads PRJ_ORG_MAT_SIGNOFF_SUIT_TXT (project info) — the
+        /// minimum suitability that requires material spec coverage.
+        /// Default "S2" means S0/S1/S2 deliverables can ship with gaps;
+        /// S3+ enforces the gate. Caller invokes this in addition to
+        /// the standard coverage gate so the failure surfaces with
+        /// suitability context.
+        /// </summary>
+        public static bool ConfirmOrBlockForSuitability(Document doc, string deliverableSuit,
+            double thresholdPct = DefaultThresholdPct, string actionLabel = "Issue Deliverable")
+        {
+            string minSuit = "S2";
+            try
+            {
+                var p = doc?.ProjectInformation?.LookupParameter("PRJ_ORG_MAT_SIGNOFF_SUIT_TXT");
+                if (p != null && p.HasValue && p.StorageType == StorageType.String)
+                    minSuit = (p.AsString() ?? "S2").Trim();
+            }
+            catch (Exception ex) { StingLog.Warn($"ConfirmOrBlockForSuitability read: {ex.Message}"); }
+
+            // Suitabilities are ordered S0 < S1 < S2 < S3 < S4 < S6 < S7.
+            // If deliverable suit < min suit → gate not applicable.
+            if (CompareSuit(deliverableSuit, minSuit) < 0) return true;
+            // Otherwise run the standard coverage check.
+            return ConfirmOrBlock(doc, thresholdPct, $"{actionLabel} @ {deliverableSuit}");
+        }
+
+        private static int CompareSuit(string a, string b)
+        {
+            int Rank(string s)
+            {
+                if (string.IsNullOrEmpty(s)) return 0;
+                var t = s.ToUpperInvariant().Trim();
+                switch (t) { case "S0": return 0; case "S1": return 1; case "S2": return 2; case "S3": return 3; case "S4": return 4; case "S6": return 6; case "S7": return 7; default: return 0; }
+            }
+            return Rank(a).CompareTo(Rank(b));
+        }
+
         public static MaterialCoverageResult Compute(Document doc)
         {
             var result = new MaterialCoverageResult();

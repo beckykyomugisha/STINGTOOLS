@@ -2470,8 +2470,29 @@ namespace StingTools.UI
                 UpdateMatHeaderCounts();
                 UpdateMatRollup();
                 SyncMatRegionCombo();
-                if (txtMatStatus != null)
-                    txtMatStatus.Text = $"Loaded {_matRows.Count} materials.";
+
+                // F2 — Peer-edit detection. Read all peers' snapshot files
+                // and report diffs against the current state. After scan,
+                // refresh my own snapshot so the baseline advances.
+                try
+                {
+                    var edits = StingTools.UI.MaterialPeerEditWatcher.Scan(doc, _matRows.ToList());
+                    if (edits.Count > 0)
+                    {
+                        // Group by peer
+                        var byPeer = edits.GroupBy(e => e.Peer).Take(3);
+                        var parts = new List<string>();
+                        foreach (var g in byPeer) parts.Add($"{g.Key} ({g.Count()})");
+                        if (txtMatStatus != null)
+                            txtMatStatus.Text = $"Loaded {_matRows.Count} materials. Peer edits since last refresh: {string.Join(", ", parts)}.";
+                    }
+                    else if (txtMatStatus != null)
+                        txtMatStatus.Text = $"Loaded {_matRows.Count} materials.";
+
+                    // Advance my baseline snapshot.
+                    StingTools.UI.MaterialPeerEditWatcher.WriteMySnapshot(doc, _matRows.ToList());
+                }
+                catch (Exception peerEx) { StingLog.Warn($"Peer-edit watcher: {peerEx.Message}"); }
             }
             catch (Exception ex)
             {
