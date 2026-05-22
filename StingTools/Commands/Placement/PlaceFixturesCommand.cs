@@ -14,6 +14,7 @@ using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Placement;
 using StingTools.UI;
+using FixtureScopeMode = StingTools.Commands.Placement.PlaceFixturesOptions.FixtureScopeMode;
 
 namespace StingTools.Commands.Placement
 {

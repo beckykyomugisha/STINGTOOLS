@@ -10,7 +10,8 @@
 //
 // Grep "MergeRecoveryStubs" to find every consumer that needs a real impl.
 
-#nullable enable
+#nullable enable annotations
+#nullable disable warnings
 
 using System;
 using System.Collections.Generic;
@@ -111,15 +112,17 @@ namespace StingTools.Commands.Plumbing
         public static void SetSupplySizingResult    (this StingTools.UI.Plumbing.StingPlumbingPanel _, List<SupplySizingRow> rows, string status = "") { }
         public static void SetSupplyFixtureScanResult(this StingTools.UI.Plumbing.StingPlumbingPanel _, List<SupplyFixtureScanRow> rows, string status = "") { }
         public static void SetSpecialtyCrossConnResult(this StingTools.UI.Plumbing.StingPlumbingPanel _, List<SpecialtyCrossConnRow> rows, string status = "") { }
-        public static void SetStormSepticResult     (this StingTools.UI.Plumbing.StingPlumbingPanel _, string a = "", string b = "", string c = "") { }
-        public static void SetStormSoakResult       (this StingTools.UI.Plumbing.StingPlumbingPanel _, string a = "", string b = "", string c = "") { }
-        public static void SetStormSudsResult       (this StingTools.UI.Plumbing.StingPlumbingPanel _, string a = "", string b = "", string c = "") { }
-        public static void SetStormRwhResult        (this StingTools.UI.Plumbing.StingPlumbingPanel _, string a = "", string b = "", string c = "") { }
-        // SetAuditRag — variable arity (1-3 args). C# can't have a single method with
-        // 3 default-string params and also be callable with just 1, so we ship 3 overloads.
+        public static void SetStormSepticResult     (this StingTools.UI.Plumbing.StingPlumbingPanel _, string line = "", string status = "") { }
+        public static void SetStormSoakResult       (this StingTools.UI.Plumbing.StingPlumbingPanel _, string line = "", string status = "") { }
+        public static void SetStormSudsResult       (this StingTools.UI.Plumbing.StingPlumbingPanel _, string line = "", string status = "") { }
+        public static void SetStormRwhResult        (this StingTools.UI.Plumbing.StingPlumbingPanel _, string line = "", string status = "") { }
+        public static void SetStormRoofResult       (this StingTools.UI.Plumbing.StingPlumbingPanel _, string line = "", string status = "") { }
+        // SetAuditRag overloads — callers pass either bare rag, (string, double, int), or (string, string, string).
         public static void SetAuditRag              (this StingTools.UI.Plumbing.StingPlumbingPanel _, string rag) { }
+        public static void SetAuditRag              (this StingTools.UI.Plumbing.StingPlumbingPanel _, string rag, double pct, int issues) { }
         public static void SetAuditRag              (this StingTools.UI.Plumbing.StingPlumbingPanel _, string rag, string a, string b) { }
         public static void SetAuditFindings         (this StingTools.UI.Plumbing.StingPlumbingPanel _, List<AuditIssueRow> rows) { }
+        public static void SetAuditFindings         (this StingTools.UI.Plumbing.StingPlumbingPanel _, string domain, List<AuditIssueRow> rows) { }
         public static void SetDocsManholeResult     (this StingTools.UI.Plumbing.StingPlumbingPanel _, List<DocsManholeRow> rows, string status = "") { }
         public static void SetDocsPipeScheduleResult(this StingTools.UI.Plumbing.StingPlumbingPanel _, List<DocsPipeScheduleRow> rows, string status = "") { }
         public static void SetDocsBoqResult         (this StingTools.UI.Plumbing.StingPlumbingPanel _, List<DocsBoqRow> rows, string status = "") { }
@@ -137,12 +140,12 @@ namespace StingTools.UI.PlacementCenter
     {
         public Document Doc { get; set; }
         public IReadOnlyList<ElementId> RoomIds { get; set; }
-        public object Rules { get; set; }
-        public object Progress { get; set; }
+        public List<StingTools.Core.Placement.PlacementRule> Rules { get; set; }
+        public StingTools.UI.StingProgressDialog Progress { get; set; }
         public System.Threading.CancellationTokenSource HeartbeatCts { get; set; }
         public DateTime StartUtc { get; set; }
-        public object PrevStamp { get; set; }
-        public object PrevLearn { get; set; }
+        public bool PrevStamp { get; set; }
+        public bool PrevLearn { get; set; }
     }
 
     /// <summary>Stub handler — wires up the modeless async-run pattern but does no work.</summary>
@@ -259,18 +262,18 @@ namespace StingTools.BIMManager
 {
     public sealed partial class PlanscapeServerClient
     {
-        // HVAC publish — callers use `.HasValue` on the awaited result so this
-        // is Task<bool?> not Task<bool>.
+        // HVAC publish — snapshot caller uses .HasValue (bool? result), bulk/nc
+        // callers do `bool ok = await ...` (plain bool result).
         public Task<bool?> PushHvacSnapshotAsync(Guid projectId, object payload) => Task.FromResult<bool?>(false);
-        public Task<bool?> PushHvacLoadsBulkAsync(Guid projectId, object payload) => Task.FromResult<bool?>(false);
-        public Task<bool?> PushHvacNcAsync(Guid projectId, object payload) => Task.FromResult<bool?>(false);
+        public Task<bool>  PushHvacLoadsBulkAsync(Guid projectId, object payload) => Task.FromResult(false);
+        public Task<bool>  PushHvacNcAsync(Guid projectId, object payload) => Task.FromResult(false);
 
         // Model registry — ComputeSha256 must be static per call sites in PublishModelCommand.
         public static string ComputeSha256(string s) => "";
         public Task<Guid?> FindModelByHashAsync(Guid projectId, string sha256) => Task.FromResult<Guid?>(null);
-        public Task<bool> RefreshModelMetadataAsync(Guid projectId, Guid modelId,
+        public Task<(bool ok, string error)> RefreshModelMetadataAsync(Guid projectId, Guid modelId,
             string? elementMapPath = null, string? name = null, string? discipline = null,
-            string? revision = null, int elementCount = 0) => Task.FromResult(false);
+            string? revision = null, int elementCount = 0) => Task.FromResult((true, ""));
         public Task<(bool ok, string error)> DeleteModelAsync(Guid projectId, Guid modelId) => Task.FromResult((true, ""));
 
         // Site Photos — NDA / policy
