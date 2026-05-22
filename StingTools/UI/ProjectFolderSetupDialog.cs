@@ -29,6 +29,19 @@ using Visibility = System.Windows.Visibility;
 using TextBox    = System.Windows.Controls.TextBox;
 using ComboBox   = System.Windows.Controls.ComboBox;
 
+// Phase 165 follow-up — WPF/Revit type-name aliases. Autodesk.Revit.DB
+// ships its own Color and Visibility types that collide with the WPF
+// equivalents used throughout this dialog. Alias the WPF types so
+// unqualified Color / Visibility references compile.
+using Color      = System.Windows.Media.Color;
+using Visibility = System.Windows.Visibility;
+// Autodesk.Revit.UI ships TextBox and ComboBox types that collide with
+// System.Windows.Controls equivalents used by this WPF dialog. Alias
+// the WPF types so the form's controls compile without per-call-site
+// full qualification.
+using TextBox    = System.Windows.Controls.TextBox;
+using ComboBox   = System.Windows.Controls.ComboBox;
+
 namespace StingTools.UI
 {
     /// <summary>

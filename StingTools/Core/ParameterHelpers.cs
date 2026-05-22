@@ -1486,6 +1486,16 @@ namespace StingTools.Core
             /// <summary>GAP-019: Configurable default REV (from project_config.json or "P01").</summary>
             public string DefaultRev { get; set; } = "P01";
 
+            /// <summary>
+            /// Phase 165 perf — cached active TagMode for the duration of a
+            /// batch. WriteTag7All previously read it per element via
+            /// GetActiveTagMode → 3 LookupParameter calls on ProjectInformation
+            /// per element. With this cache the lookup happens once during
+            /// PopulationContext.Build and every WriteTag7All call reads the
+            /// stored value directly.
+            /// </summary>
+            public ParamRegistry.TagMode ActiveTagMode { get; set; } = ParamRegistry.TagMode.DC;
+
             /// <summary>EFF-05 (Phase 149b): per-batch memo of type-level LOC/ZONE
             /// overrides so PopulateAll doesn't pay a Document.GetElement +
             /// 2× GetString per instance when most types don't have overrides
