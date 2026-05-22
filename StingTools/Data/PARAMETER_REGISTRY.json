@@ -27098,6 +27098,25 @@
           "description": "Architectural TAG7 paragraph container for railing"
         }
       ]
+    },
+    {
+      "group": "SLV",
+      "group_code": "SLV",
+      "categories": [
+        "Generic Models"
+      ],
+      "params": [
+        {
+          "param_name": "SLV_TAG",
+          "guid": "00000000-0000-0000-0000-000000000000",
+          "description": "MEP Sleeve discipline tag container"
+        },
+        {
+          "param_name": "SLV_TAG_7_PARA_TXT",
+          "guid": "00000000-0000-0000-0000-000000000001",
+          "description": "MEP Sleeve TAG7 paragraph container"
+        }
+      ]
     }
   ],
   "extended_params": {

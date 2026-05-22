@@ -1800,6 +1800,104 @@
       "binding": "universal",
       "required": false,
       "group": "Warning"
+    },
+    {
+      "param_name": "SLV_REF_TXT",
+      "guid": "a32226dd-518c-5158-b3c7-aa3df7ac0b43",
+      "description": "Sleeve reference code",
+      "binding": "Instance",
+      "required": false
+    },
+    {
+      "param_name": "SLV_SZ_MM",
+      "guid": "ed2365b1-c559-573e-a9ae-c8554db2572b",
+      "description": "Sleeve size in millimetres",
+      "binding": "Instance",
+      "required": false
+    },
+    {
+      "param_name": "SLV_MAT_TXT",
+      "guid": "9b6071cf-8b10-574c-b40e-2dfbfc60b8d9",
+      "description": "Sleeve material (steel/PVC/cast iron)",
+      "binding": "Instance",
+      "required": false
+    },
+    {
+      "param_name": "SLV_FIRE_RATING_TXT",
+      "guid": "ea8a8a2a-597c-56d6-a9fb-08c0fc59f372",
+      "description": "Sleeve fire rating (e.g. EI60, EI120)",
+      "binding": "Instance",
+      "required": false
+    },
+    {
+      "param_name": "SLV_SEAL_TYPE_TXT",
+      "guid": "6d8aceb4-eea7-53ca-ab61-d1a87824571c",
+      "description": "Seal type (intumescent/mechanical/composite)",
+      "binding": "Instance",
+      "required": false
+    },
+    {
+      "param_name": "SLV_SERVICE_TXT",
+      "guid": "76c2ac35-3b7f-5dea-b60d-bf0179b15b92",
+      "description": "Service passing through sleeve",
+      "binding": "Instance",
+      "required": false
+    },
+    {
+      "param_name": "SLV_WALL_TYPE_TXT",
+      "guid": "3d601083-e89c-50c8-9165-004c8610b0ff",
+      "description": "Host wall or floor type",
+      "binding": "Instance",
+      "required": false
+    },
+    {
+      "param_name": "SLV_WALL_THICKNESS_MM",
+      "guid": "9489a0ec-44b6-5f55-81d5-f26c546faf3f",
+      "description": "Host element thickness in mm",
+      "binding": "Instance",
+      "required": false
+    },
+    {
+      "param_name": "SLV_ANNULAR_GAP_MM",
+      "guid": "61c211b4-cdf2-53b8-84e5-84a7663f0aaf",
+      "description": "Annular gap between service and sleeve in mm",
+      "binding": "Instance",
+      "required": false
+    },
+    {
+      "param_name": "SLV_FIRESTOP_MFR_TXT",
+      "guid": "9f3cc22a-3076-5166-9f42-e6e52126cbaf",
+      "description": "Firestop system manufacturer",
+      "binding": "Instance",
+      "required": false
+    },
+    {
+      "param_name": "SLV_FIRESTOP_PRODUCT_TXT",
+      "guid": "1927f0e9-ce4c-52bb-a27f-a8a9a4cebc1f",
+      "description": "Firestop product reference",
+      "binding": "Instance",
+      "required": false
+    },
+    {
+      "param_name": "SLV_TESTED_TO_TXT",
+      "guid": "0a2943a3-036b-55ae-89ee-01055824fad8",
+      "description": "Fire test standard (BS EN 1366-3, ASTM E814)",
+      "binding": "Instance",
+      "required": false
+    },
+    {
+      "param_name": "SLV_STATUS_TXT",
+      "guid": "91403abb-2a37-5571-9435-d68bc6cacec1",
+      "description": "Sleeve status (OPEN/SEALED/PENDING INSPECTION)",
+      "binding": "Instance",
+      "required": false
+    },
+    {
+      "param_name": "SLV_INSPECTION_DATE_TXT",
+      "guid": "53b14c0e-eef5-5415-85d1-ebe2aeb53cd7",
+      "description": "Last inspection date",
+      "binding": "Instance",
+      "required": false
     }
   ],
   "token_presets": {
@@ -2618,6 +2716,25 @@
           "description": "Equipment tag"
         }
       ]
+    },
+    {
+      "group": "SLV",
+      "group_code": "SLV",
+      "categories": [
+        "Generic Models"
+      ],
+      "params": [
+        {
+          "param_name": "SLV_TAG",
+          "guid": "00000000-0000-0000-0000-000000000000",
+          "description": "MEP Sleeve discipline tag container"
+        },
+        {
+          "param_name": "SLV_TAG_7_PARA_TXT",
+          "guid": "00000000-0000-0000-0000-000000000001",
+          "description": "MEP Sleeve TAG7 paragraph container"
+        }
+      ]
     }
   ],
   "extended_params": {
@@ -2788,7 +2905,7 @@
       },
       {
         "key": "STATUS_COD",
-        "param_name": "ASS_STATUS_COD_TXT",
+        "param_name": "ASS_STATUS_TXT",
         "guid": "a57dfe0c-6db9-4fb6-80e0-d2c453fe653b",
         "description": "ISO 19650 status/suitability code (GROUP 17)"
       },
@@ -3590,7 +3707,7 @@
       },
       {
         "key": "PARA_CST_CONC",
-        "param_name": "CST_TAG_7_PARA_CONCRETE_TXT",
+        "param_name": "CST_TAG_7_PARA_CONC_TXT",
         "guid": "5e68d7eb-d7a9-5929-9825-1a82beb5d822",
         "description": "Concrete/masonry specification paragraph (tier 3)"
       },
@@ -5543,6 +5660,78 @@
         "categories": [
           "Planting"
         ]
+      }
+    ],
+    "slv_sleeve": [
+      {
+        "key": "SLV_REF",
+        "param_name": "SLV_REF_TXT",
+        "description": "Sleeve reference code"
+      },
+      {
+        "key": "SLV_SZ",
+        "param_name": "SLV_SZ_MM",
+        "description": "Sleeve size in millimetres"
+      },
+      {
+        "key": "SLV_MAT",
+        "param_name": "SLV_MAT_TXT",
+        "description": "Sleeve material"
+      },
+      {
+        "key": "SLV_FIRE",
+        "param_name": "SLV_FIRE_RATING_TXT",
+        "description": "Sleeve fire rating"
+      },
+      {
+        "key": "SLV_SEAL",
+        "param_name": "SLV_SEAL_TYPE_TXT",
+        "description": "Seal type"
+      },
+      {
+        "key": "SLV_SVC",
+        "param_name": "SLV_SERVICE_TXT",
+        "description": "Service through sleeve"
+      },
+      {
+        "key": "SLV_HOST",
+        "param_name": "SLV_WALL_TYPE_TXT",
+        "description": "Host wall or floor type"
+      },
+      {
+        "key": "SLV_HOST_THK",
+        "param_name": "SLV_WALL_THICKNESS_MM",
+        "description": "Host element thickness"
+      },
+      {
+        "key": "SLV_GAP",
+        "param_name": "SLV_ANNULAR_GAP_MM",
+        "description": "Annular gap"
+      },
+      {
+        "key": "SLV_FS_MFR",
+        "param_name": "SLV_FIRESTOP_MFR_TXT",
+        "description": "Firestop manufacturer"
+      },
+      {
+        "key": "SLV_FS_PROD",
+        "param_name": "SLV_FIRESTOP_PRODUCT_TXT",
+        "description": "Firestop product"
+      },
+      {
+        "key": "SLV_TEST",
+        "param_name": "SLV_TESTED_TO_TXT",
+        "description": "Test standard"
+      },
+      {
+        "key": "SLV_STAT",
+        "param_name": "SLV_STATUS_TXT",
+        "description": "Sleeve status"
+      },
+      {
+        "key": "SLV_INSP",
+        "param_name": "SLV_INSPECTION_DATE_TXT",
+        "description": "Last inspection date"
       }
     ]
   },

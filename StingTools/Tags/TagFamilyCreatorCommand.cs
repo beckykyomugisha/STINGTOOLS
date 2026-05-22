@@ -199,6 +199,9 @@ namespace StingTools.Tags
             // ── Sheets (base category for all discipline sheet tags) ─────────
             { BuiltInCategory.OST_Sheets, "Generic Tag.rft" },
 
+            // ── Sheets (base category for all discipline sheet tags) ─────────
+            { BuiltInCategory.OST_Sheets, "Generic Tag.rft" },
+
         };
 
         /// <summary>
@@ -827,6 +830,11 @@ namespace StingTools.Tags
             // Always add visibility control params (PARA_STATE_1..10 + WARN_VISIBLE)
             // — filtered per TierPlan when family is known, otherwise full list.
             result.AddRange(VisibilityParamsFor(familyName, categoryDisplayName));
+
+            // Always add style/appearance params (128 TAG_{size}{style}_{colour}_BOOL +
+            // box colour/visible/style + leader colour + scale-tier-auto + depth-tier cache)
+            foreach (string sp in StyleParams)
+                if (!result.Contains(sp)) result.Add(sp);
 
             // Always add style/appearance params (128 TAG_{size}{style}_{colour}_BOOL +
             // box colour/visible/style + leader colour + scale-tier-auto + depth-tier cache)

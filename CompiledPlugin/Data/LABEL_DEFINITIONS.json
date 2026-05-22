@@ -257,7 +257,7 @@
       "suffix": " kN",
       "label": "Load Capacity"
     },
-    "PER_THERM_U_VALUE_W_M2K_NR": {
+    "PER_THERM_U_VALUE_W_M2K": {
       "prefix": "U=",
       "suffix": " W/m²K",
       "label": "Thermal U-Value"
@@ -1273,7 +1273,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -1771,7 +1771,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -2323,7 +2323,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -2610,7 +2610,7 @@
           "note": "Load capacity"
         },
         {
-          "param": "PER_THERM_U_VALUE_W_M2K_NR",
+          "param": "PER_THERM_U_VALUE_W_M2K",
           "spaces": 0,
           "break": false,
           "prefix_override": "U=",
@@ -2863,7 +2863,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -3360,7 +3360,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -3822,7 +3822,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -4266,7 +4266,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -4523,7 +4523,6 @@
           "note": "Ramp length"
         },
         {
-          "param": "BLE_RAMP_HANDRAIL_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": " | Handrail: ",
@@ -4735,7 +4734,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -5012,7 +5011,7 @@
           "note": "Thickness"
         },
         {
-          "param": "PER_THERM_U_VALUE_W_M2K_NR",
+          "param": "PER_THERM_U_VALUE_W_M2K",
           "spaces": 0,
           "break": false,
           "prefix_override": "U=",
@@ -5278,7 +5277,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -5770,7 +5769,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -6268,7 +6267,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -6744,7 +6743,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -7069,7 +7068,7 @@
           "note": "Height"
         },
         {
-          "param": "PER_THERM_U_VALUE_W_M2K_NR",
+          "param": "PER_THERM_U_VALUE_W_M2K",
           "spaces": 0,
           "break": false,
           "prefix_override": "U=",
@@ -7390,7 +7389,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -7953,7 +7952,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -8403,7 +8402,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -8862,7 +8861,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -9298,7 +9297,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -9732,7 +9731,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -10173,7 +10172,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -10609,7 +10608,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -11043,7 +11042,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -11470,7 +11469,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -11897,7 +11896,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -12324,7 +12323,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -12751,7 +12750,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -13194,7 +13193,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -13621,7 +13620,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -14048,7 +14047,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -14482,7 +14481,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -14909,7 +14908,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -15336,7 +15335,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -15763,7 +15762,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -16190,7 +16189,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -16624,7 +16623,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -17051,7 +17050,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -17494,7 +17493,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -17928,7 +17927,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -18364,7 +18363,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -18791,7 +18790,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -19218,7 +19217,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -19645,7 +19644,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -20086,7 +20085,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -20522,7 +20521,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -20958,7 +20957,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -21385,7 +21384,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -21826,7 +21825,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -22287,7 +22286,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -22728,7 +22727,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -23164,7 +23163,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -23424,7 +23423,7 @@
           "note": "Load capacity"
         },
         {
-          "param": "BLE_STRUCT_FIRE_PROTECTION_TYPE_TXT",
+          "param": "STR_FIRE_PROTECTION_TYPE_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": " | FP: ",
@@ -23644,7 +23643,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -24143,7 +24142,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -24420,7 +24419,7 @@
           "note": "Span"
         },
         {
-          "param": "BLE_STRUCT_FIRE_PROTECTION_TYPE_TXT",
+          "param": "STR_FIRE_PROTECTION_TYPE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "FP: ",
@@ -24633,7 +24632,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -25085,7 +25084,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -25512,7 +25511,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -25939,7 +25938,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -26366,7 +26365,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -26793,7 +26792,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -27220,7 +27219,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -27647,7 +27646,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -28074,7 +28073,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -28501,7 +28500,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -28928,7 +28927,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -29355,7 +29354,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -29782,7 +29781,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -30165,7 +30164,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -30555,7 +30554,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -30947,7 +30946,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -31381,7 +31380,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -31815,7 +31814,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -32249,7 +32248,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -32676,7 +32675,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -33110,7 +33109,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -33537,7 +33536,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -33971,7 +33970,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -34440,7 +34439,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -34884,7 +34883,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -35322,7 +35321,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -35826,7 +35825,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -36281,7 +36280,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -36796,7 +36795,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -37260,7 +37259,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -37704,7 +37703,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -38141,7 +38140,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -38654,7 +38653,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -39147,7 +39146,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -39632,7 +39631,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -40107,7 +40106,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -40546,7 +40545,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -40999,7 +40998,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -41429,7 +41428,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -41909,7 +41908,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -42479,7 +42478,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -43004,7 +43003,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -43488,7 +43487,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -44010,7 +44009,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -44470,7 +44469,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -44914,7 +44913,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -45357,7 +45356,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -45807,7 +45806,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -46251,7 +46250,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -46711,7 +46710,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -47171,7 +47170,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -47611,7 +47610,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -48045,7 +48044,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -48485,7 +48484,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -48919,7 +48918,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -49373,7 +49372,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -49800,7 +49799,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -50227,7 +50226,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -50661,7 +50660,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -51088,7 +51087,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -51515,7 +51514,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -51942,7 +51941,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -52389,7 +52388,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -52816,7 +52815,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -53243,7 +53242,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -53670,7 +53669,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -54097,7 +54096,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -54524,7 +54523,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -54951,7 +54950,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -55378,7 +55377,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -55805,7 +55804,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -56241,7 +56240,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -56668,7 +56667,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -57095,7 +57094,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
@@ -57522,7 +57521,7 @@
           "note": "ISO 19650 volume code"
         },
         {
-          "param": "ASS_STATUS_COD_TXT",
+          "param": "ASS_STATUS_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "-",
