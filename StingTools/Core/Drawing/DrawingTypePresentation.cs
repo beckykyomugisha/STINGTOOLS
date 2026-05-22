@@ -227,6 +227,11 @@ namespace StingTools.Core.Drawing
             public int       AnnotationDecPlaced    { get; set; }
 
             public System.Collections.Generic.List<string> Warnings { get; } = new System.Collections.Generic.List<string>();
+
+            // Phase 137 — STING-Managed View Templates
+            public ElementId ManagedTemplateId { get; set; } = ElementId.InvalidElementId;
+            public bool ManagedTemplateCreated { get; set; }
+            public bool ManagedTemplateUpdated { get; set; }
         }
 
         /// <summary>
@@ -574,6 +579,31 @@ namespace StingTools.Core.Drawing
                     }
                 }
                 catch (Exception ex) { r.Warnings.Add($"ViewStylePack: {ex.Message}"); }
+            }
+            else if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))
+            {
+                r.Warnings.Add($"ViewStylePack '{dt.ViewStylePackId}' not found.");
+            }
+
+            // Token Profile (Phase 135) — Step 7.5 -----------------------
+            // Runs between the pack apply and the annotation pass so any
+            // auto-tags AnnotationRunner emits inherit the active style
+            // preset, paragraph depth, section visibility, and segment
+            // mask. No-op when neither the profile nor the pack supplies
+            // any tag-appearance value.
+            if (dt.TokenProfile != null
+                || resolvedPack?.TagColorScheme != null
+                || resolvedPack?.DefaultTagStyle != null
+                || (resolvedPack?.CategoryTagStyles != null && resolvedPack.CategoryTagStyles.Count > 0))
+            {
+                try
+                {
+                    var tpRes = TokenProfileApplier.Apply(doc, view, dt, resolvedPack);
+                    r.TokenProfileApplied = tpRes.ViewParamWrites + tpRes.ElementWrites
+                                          + tpRes.TypeWrites > 0 || tpRes.PresentationApplied;
+                    r.Warnings.AddRange(tpRes.Warnings);
+                }
+                catch (Exception ex) { r.Warnings.Add($"TokenProfileApplier: {ex.Message}"); }
             }
 
             // Token Profile (Phase 135) — Step 7.5 -----------------------

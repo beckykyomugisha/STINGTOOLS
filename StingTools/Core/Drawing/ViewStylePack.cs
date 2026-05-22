@@ -16,6 +16,7 @@ using System;
 // Inheritance: a pack may set Extends = "<parent-id>"; the registry
 // walks the chain at load-time so resolvers see a merged snapshot.
 
+using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
@@ -222,18 +223,109 @@ namespace StingTools.Core.Drawing
 
     public sealed class StyleVgOverride
     {
-        [JsonProperty("halftone",              NullValueHandling = NullValueHandling.Ignore)] public bool?   Halftone { get; set; }
-        [JsonProperty("projectionLineWeight",  NullValueHandling = NullValueHandling.Ignore)] public int?    ProjectionLineWeight { get; set; }
-        [JsonProperty("projectionLineColor",   NullValueHandling = NullValueHandling.Ignore)] public string  ProjectionLineColor { get; set; }
-        [JsonProperty("cutLineWeight",         NullValueHandling = NullValueHandling.Ignore)] public int?    CutLineWeight { get; set; }
-        [JsonProperty("cutLineColor",          NullValueHandling = NullValueHandling.Ignore)] public string  CutLineColor { get; set; }
-        [JsonProperty("transparency",          NullValueHandling = NullValueHandling.Ignore)] public int?    Transparency { get; set; }
+        // ── Visibility ─────────────────────────────────────────────────────────
+        [JsonProperty("visible", NullValueHandling = NullValueHandling.Ignore)]
+        public bool? Visible { get; set; }                  // null = inherited / not set
+
+        [JsonProperty("halftone", NullValueHandling = NullValueHandling.Ignore)]
+        public bool? Halftone { get; set; }
+
+        [JsonProperty("detailLevel", NullValueHandling = NullValueHandling.Ignore)]
+        public string DetailLevel { get; set; }             // "ByView"|"Coarse"|"Medium"|"Fine"
+
+        // ── Projection / Surface ────────────────────────────────────────────────
+        [JsonProperty("projectionLineColor",   NullValueHandling = NullValueHandling.Ignore)]
+        public string ProjectionLineColor { get; set; }     // "#RRGGBB"
+
+        [JsonProperty("projectionLineWeight",  NullValueHandling = NullValueHandling.Ignore)]
+        public int? ProjectionLineWeight { get; set; }      // 1–16
+
+        [JsonProperty("projectionLinePattern", NullValueHandling = NullValueHandling.Ignore)]
+        public string ProjectionLinePattern { get; set; }   // LinePatternElement.Name or "Solid"
+
+        [JsonProperty("surfaceFgPatternName",  NullValueHandling = NullValueHandling.Ignore)]
+        public string SurfaceFgPatternName { get; set; }    // FillPatternElement.Name
+
+        [JsonProperty("surfaceFgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+        public string SurfaceFgPatternColor { get; set; }
+
+        [JsonProperty("surfaceFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
+        public bool? SurfaceFgPatternVisible { get; set; }
+
+        [JsonProperty("surfaceBgPatternName",  NullValueHandling = NullValueHandling.Ignore)]
+        public string SurfaceBgPatternName { get; set; }
+
+        [JsonProperty("surfaceBgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+        public string SurfaceBgPatternColor { get; set; }
+
+        [JsonProperty("surfaceBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
+        public bool? SurfaceBgPatternVisible { get; set; }
+
+        [JsonProperty("transparency", NullValueHandling = NullValueHandling.Ignore)]
+        public int? Transparency { get; set; }              // 0–100
+
+        // ── Cut ────────────────────────────────────────────────────────────────
+        [JsonProperty("cutLineColor",   NullValueHandling = NullValueHandling.Ignore)]
+        public string CutLineColor { get; set; }
+
+        [JsonProperty("cutLineWeight",  NullValueHandling = NullValueHandling.Ignore)]
+        public int? CutLineWeight { get; set; }
+
+        [JsonProperty("cutLinePattern", NullValueHandling = NullValueHandling.Ignore)]
+        public string CutLinePattern { get; set; }
+
+        [JsonProperty("cutFgPatternName",  NullValueHandling = NullValueHandling.Ignore)]
+        public string CutFgPatternName { get; set; }
+
+        [JsonProperty("cutFgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+        public string CutFgPatternColor { get; set; }
+
+        [JsonProperty("cutFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
+        public bool? CutFgPatternVisible { get; set; }
+
+        [JsonProperty("cutBgPatternName",  NullValueHandling = NullValueHandling.Ignore)]
+        public string CutBgPatternName { get; set; }
+
+        [JsonProperty("cutBgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+        public string CutBgPatternColor { get; set; }
+
+        [JsonProperty("cutBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
+        public bool? CutBgPatternVisible { get; set; }
+    }
+
+    /// <summary>
+    /// Mirrors the dialog's "appearance" object inside each pack so the
+    /// runtime can deserialize the same JSON the editor writes. Promoted
+    /// fields are normalised onto ViewStylePack at load time by
+    /// <see cref="ViewStylePackRegistry"/> (see Promote).
+    /// </summary>
+    public sealed class PackAppearanceDto
+    {
+        [JsonProperty("lineWeightScale", NullValueHandling = NullValueHandling.Ignore)] public double? LineWeightScale { get; set; }
+        [JsonProperty("textStyleName",   NullValueHandling = NullValueHandling.Ignore)] public string TextStyleName { get; set; }
+        [JsonProperty("dimensionStyleName", NullValueHandling = NullValueHandling.Ignore)] public string DimensionStyleName { get; set; }
+        [JsonProperty("hatchPalette",    NullValueHandling = NullValueHandling.Ignore)] public string HatchPalette { get; set; }
     }
 
     public sealed class ViewStylePackLibrary
     {
         [JsonProperty("version")] public int Version { get; set; } = 1;
-        [JsonProperty("viewStylePacks")] public List<ViewStylePack> Packs { get; set; } = new List<ViewStylePack>();
+
+        // Primary list — newer JSON files use "viewStylePacks".
+        [JsonProperty("viewStylePacks", NullValueHandling = NullValueHandling.Ignore)]
+        public List<ViewStylePack> Packs { get; set; } = new List<ViewStylePack>();
+
+        // Phase 136 — alias so the existing on-disk
+        // STING_VIEW_STYLE_PACKS.json (which uses "stylePacks") also
+        // deserializes correctly. Newtonsoft.Json calls the setter when
+        // it sees the legacy key; we forward to Packs so the runtime
+        // sees the same list either way.
+        [JsonProperty("stylePacks", NullValueHandling = NullValueHandling.Ignore)]
+        public List<ViewStylePack> StylePacksLegacy
+        {
+            get => null;     // never re-serialised — the canonical key wins on save
+            set { if (value != null && value.Count > 0) Packs = value; }
+        }
     }
 
 }
