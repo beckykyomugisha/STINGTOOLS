@@ -2377,5 +2377,17 @@ namespace StingTools.Core.Symbols
                 return null;
             }
         }
+
+        // Stub introduced by the 196-branch consolidation — the calling
+        // sites compile but the categorisation is approximated. See
+        // MergeRecoveryStubs.cs for context.
+        private static TemplateKind ResolveTemplateKind(SymbolDefinition def)
+        {
+            if (def == null) return TemplateKind.Unknown;
+            var ft = (def.FamilyType ?? "").ToLowerInvariant();
+            if (ft.Contains("annotation") || ft.Contains("symbol")) return TemplateKind.Annotation;
+            if (ft.Contains("detail")) return TemplateKind.DetailItem;
+            return TemplateKind.Model;
+        }
     }
 }

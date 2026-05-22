@@ -227,11 +227,6 @@ namespace StingTools.Core.Drawing
             public int       AnnotationDecPlaced    { get; set; }
 
             public System.Collections.Generic.List<string> Warnings { get; } = new System.Collections.Generic.List<string>();
-
-            // Phase 137 — STING-Managed View Templates
-            public ElementId ManagedTemplateId { get; set; } = ElementId.InvalidElementId;
-            public bool ManagedTemplateCreated { get; set; }
-            public bool ManagedTemplateUpdated { get; set; }
         }
 
         /// <summary>
@@ -307,52 +302,6 @@ namespace StingTools.Core.Drawing
         /// Returns the same <see cref="ApplyResult"/> shape so SheetManager
         /// / ShopDrawingComposer / ProductionRule consume one type.
         /// </summary>
-        public static ApplyResult ApplyToSheet(
-            Document doc, ViewSheet sheet, DrawingType dt,
-            IDictionary<string, string> tokens = null)
-        {
-            var r = new ApplyResult();
-            if (doc == null || sheet == null || dt == null) return r;
-
-            if (DrawingTypeStamper.IsLocked(sheet))
-            {
-                r.Warnings.Add($"Sheet {sheet.Id} is style-locked; ApplyToSheet skipped.");
-                return r;
-            }
-
-            // FIX-7: clear keys declared by the *previous* profile on this
-            // sheet before stamping the new id. Handles cloned sheets and
-            // profile re-assignment so stale title-block cells from the
-            // prior profile don't survive.
-            try
-            {
-                var priorStampedId = DrawingTypeStamper.Read(sheet);
-                if (!string.IsNullOrEmpty(priorStampedId)
-                    && !string.Equals(priorStampedId, dt.Id, StringComparison.OrdinalIgnoreCase))
-                {
-                    TitleBlockParamApplier.ClearStaleKeysFromPriorProfile(doc, sheet, priorStampedId);
-                }
-            }
-            catch (Exception ex) { r.Warnings.Add($"ApplyToSheet ClearStale: {ex.Message}"); }
-
-            DrawingTypeStamper.Stamp(sheet, dt.Id);
-            if (!string.IsNullOrEmpty(dt.PackageId))
-                DrawingTypeStamper.StampPackage(sheet, dt.PackageId);
-
-            try
-            {
-                var effectiveTokens = tokens ?? DrawingTokenContext.Build(
-                    doc:        doc,
-                    dt:         dt,
-                    discCode:   dt.Discipline,
-                    discipline: dt.Discipline,
-                    seq:        DrawingTokenContext.ExtractSeqFromSheetNumber(sheet.SheetNumber));
-                var tbResult = TitleBlockParamApplier.Apply(doc, sheet, dt, effectiveTokens);
-                r.Warnings.AddRange(tbResult.Warnings);
-            }
-            catch (Exception ex) { r.Warnings.Add($"ApplyToSheet TitleBlockParams: {ex.Message}"); }
-            return r;
-        }
 
         public static ApplyResult Apply(Document doc, View view, DrawingType dt, bool runAnnotation = true)
             => Apply(doc, view, dt, runAnnotation ? null : new ApplyOptions {

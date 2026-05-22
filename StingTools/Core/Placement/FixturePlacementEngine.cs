@@ -2454,41 +2454,7 @@ namespace StingTools.Core.Placement
         // same hash-collision concern as PlacementHostPreflight.ResolveView3D.
         private static readonly Dictionary<string, Dictionary<string, BuiltInCategory>> _bicByName
             = new Dictionary<string, Dictionary<string, BuiltInCategory>>(StringComparer.Ordinal);
-        private static readonly object _bicByNameLock = new object();
 
-        private static BuiltInCategory ResolveBuiltInCategoryByName(Document doc, string categoryName)
-        {
-            if (doc == null || string.IsNullOrEmpty(categoryName)) return BuiltInCategory.INVALID;
-            string path = "", title = "";
-            try { path = doc.PathName ?? ""; } catch { }
-            try { title = doc.Title ?? ""; } catch { }
-            string key = path + "|" + title;
-            Dictionary<string, BuiltInCategory> map;
-            lock (_bicByNameLock)
-            {
-                if (!_bicByName.TryGetValue(key, out map))
-                {
-                    map = new Dictionary<string, BuiltInCategory>(StringComparer.OrdinalIgnoreCase);
-                    try
-                    {
-                        foreach (Category c in doc.Settings.Categories)
-                        {
-                            if (c == null || string.IsNullOrEmpty(c.Name)) continue;
-                            try
-                            {
-                                var bic = (BuiltInCategory)c.Id.Value;
-                                if (bic != BuiltInCategory.INVALID)
-                                    map[c.Name] = bic;
-                            }
-                            catch { }
-                        }
-                    }
-                    catch (Exception ex) { StingLog.Warn($"ResolveBuiltInCategoryByName: {ex.Message}"); }
-                    _bicByName[key] = map;
-                }
-            }
-            return map.TryGetValue(categoryName, out var hit) ? hit : BuiltInCategory.INVALID;
-        }
 
         /// <summary>
         /// Phase 139.27 (M-02 partial) — flow noggin-required points from
@@ -2761,62 +2727,7 @@ namespace StingTools.Core.Placement
                 result.Warnings.Add($"MEP auto-join: {failed} connector pair(s) within 600mm could not be joined (mismatched flow direction, incompatible fitting, or missing fitting in family library). See StingLog.");
         }
 
-        /// <summary>
-        /// Phase 139.29 — try to insert the right fitting between two
-        /// unconnected connectors. Returns true on success and outputs
-        /// the fitting kind (1=elbow, 2=union, 3=transition, 4=tee).
-        /// Falls through quietly when the API call fails so the caller
-        /// can fall back to direct ConnectTo.
-        /// </summary>
-        private static bool TryInsertFitting(Document doc, Connector a, Connector b, out int kind)
-        {
-            kind = 0;
-            if (doc == null || a == null || b == null) return false;
-            try
-            {
-                XYZ pa = a.Origin, pb = b.Origin;
-                if (pa == null || pb == null) return false;
-                XYZ da = (a.CoordinateSystem?.BasisZ) ?? XYZ.BasisZ;
-                XYZ db = (b.CoordinateSystem?.BasisZ) ?? XYZ.BasisZ;
-                bool sameAxis = Math.Abs(Math.Abs(da.DotProduct(db)) - 1.0) < 0.05;
-                bool sameSize = SameSize(a, b);
 
-                if (sameAxis && sameSize)
-                {
-                    var fi = doc.Create.NewUnionFitting(a, b);
-                    if (fi != null) { kind = 2; return true; }
-                }
-                if (sameAxis && !sameSize)
-                {
-                    var fi = doc.Create.NewTransitionFitting(a, b);
-                    if (fi != null) { kind = 3; return true; }
-                }
-                if (!sameAxis)
-                {
-                    var fi = doc.Create.NewElbowFitting(a, b);
-                    if (fi != null) { kind = 1; return true; }
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"TryInsertFitting: {ex.Message}");
-            }
-            return false;
-        }
-
-        private static bool SameSize(Connector a, Connector b)
-        {
-            try
-            {
-                // Connector.Radius is set on round connectors;
-                // Connector.Width / Height on rectangular. Use the larger
-                // dimension when one is rect and the other round (rare).
-                double sa = a.Shape == ConnectorProfileType.Round ? a.Radius * 2 : Math.Max(a.Width, a.Height);
-                double sb = b.Shape == ConnectorProfileType.Round ? b.Radius * 2 : Math.Max(b.Width, b.Height);
-                return Math.Abs(sa - sb) < 1e-3;
-            }
-            catch { return true; }
-        }
 
         /// <summary>
         /// Phase 139.30 (X-05) — door swing envelope vs switch placement.
@@ -2935,34 +2846,6 @@ namespace StingTools.Core.Placement
             public bool      FacingFlipped;
         }
 
-        /// <summary>
-        /// Approximate "inside swept arc" test. The door hinges on one
-        /// jamb; the leaf swings 90° from closed (along Hand axis) to
-        /// open (along Facing axis, into the room). A switch placed in
-        /// the quarter-circle between those two axes, within door-width
-        /// of the hinge, sits in the swept envelope and will be hit by
-        /// the handle on opening.
-        /// </summary>
-        private static bool PointInsideSweptArc(DoorEnvelope door, XYZ p)
-        {
-            try
-            {
-                double half = door.WidthFt * 0.5;
-                XYZ hinge = door.HandFlipped
-                    ? door.Loc + door.Hand.Multiply(half)
-                    : door.Loc - door.Hand.Multiply(half);
-                XYZ v = p - hinge; v = new XYZ(v.X, v.Y, 0);
-                double r = v.GetLength();
-                if (r < 1e-3) return true;
-                if (r > door.WidthFt + 0.05) return false;
-                XYZ closedDir = door.HandFlipped ? door.Hand.Negate() : door.Hand;
-                XYZ openDir   = door.FacingFlipped ? door.Facing.Negate() : door.Facing;
-                double cosToClosed = v.Normalize().DotProduct(closedDir.Normalize());
-                double cosToOpen   = v.Normalize().DotProduct(openDir.Normalize());
-                return cosToClosed > 0 && cosToOpen > 0;
-            }
-            catch { return false; }
-        }
 
         /// <summary>
         /// Phase 139.27 (X-04) — BS 7671 Table 4 cable / conduit bundle

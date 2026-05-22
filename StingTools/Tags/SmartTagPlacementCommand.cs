@@ -114,70 +114,10 @@ namespace StingTools.Tags
         // every IndependentTag and rebuild a 300-entry grid. TTL of 30 s is
         // sufficient for sequential command runs and falls back to a fresh
         // build when the user makes intervening edits.
-        private static readonly object _spatialGridCacheLock = new object();
         private static readonly Dictionary<(string docKey, long viewId), (SpatialGrid grid, DateTime stamp, double cellSize, int tagCount)>
-            _spatialGridCache = new Dictionary<(string, long), (SpatialGrid, DateTime, double, int)>();
-        private static readonly TimeSpan _spatialGridTtl = TimeSpan.FromSeconds(30);
 
-        /// <summary>
-        /// B-1: invalidate the cached SpatialGrid for a given view (or for the
-        /// whole document when viewId is invalid). Public so external callers
-        /// can flush after non-trivial tag edits.
-        /// </summary>
-        public static void InvalidateViewCache(Document doc, ElementId viewId)
-        {
-            string docKey = doc?.PathName ?? doc?.Title ?? "";
-            lock (_spatialGridCacheLock)
-            {
-                if (viewId == null || viewId == ElementId.InvalidElementId)
-                {
-                    var keysToRemove = _spatialGridCache.Keys
-                        .Where(k => string.Equals(k.docKey, docKey, StringComparison.Ordinal))
-                        .ToList();
-                    foreach (var k in keysToRemove) _spatialGridCache.Remove(k);
-                }
-                else
-                {
-                    var key = (docKey, viewId.Value);
-                    if (_spatialGridCache.ContainsKey(key)) _spatialGridCache.Remove(key);
-                }
-            }
-        }
 
-        internal static bool TryGetCachedSpatialGrid(Document doc, View view, double cellSize, int existingTagCount, out SpatialGrid grid)
-        {
-            grid = null;
-            if (doc == null || view == null) return false;
-            string docKey = doc.PathName ?? doc.Title ?? "";
-            var key = (docKey, view.Id.Value);
-            lock (_spatialGridCacheLock)
-            {
-                if (_spatialGridCache.TryGetValue(key, out var entry))
-                {
-                    bool fresh = (DateTime.UtcNow - entry.stamp) < _spatialGridTtl;
-                    bool cellMatch = Math.Abs(entry.cellSize - cellSize) < 1e-9;
-                    bool countMatch = entry.tagCount == existingTagCount;
-                    if (fresh && cellMatch && countMatch)
-                    {
-                        grid = entry.grid;
-                        return true;
-                    }
-                    _spatialGridCache.Remove(key);
-                }
-            }
-            return false;
-        }
 
-        internal static void StoreSpatialGrid(Document doc, View view, double cellSize, int existingTagCount, SpatialGrid grid)
-        {
-            if (doc == null || view == null || grid == null) return;
-            string docKey = doc.PathName ?? doc.Title ?? "";
-            var key = (docKey, view.Id.Value);
-            lock (_spatialGridCacheLock)
-            {
-                _spatialGridCache[key] = (grid, DateTime.UtcNow, cellSize, existingTagCount);
-            }
-        }
 
         // ── Grid-based spatial index ─────────────────────────────────────
 

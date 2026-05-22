@@ -47,11 +47,6 @@ namespace StingTools.Core.Placement
         private static bool _tagPipelineProbed;
         private static bool _tagPipelineMissingWarned;
 
-        /// <summary>True once <see cref="RunDataTagPipeline"/> has been
-        /// requested at least once and the reflection target was missing.
-        /// PlaceFixturesCommand surfaces this in the result panel so the
-        /// user knows tagging was silently degraded.</summary>
-        public static bool TagPipelineMissing => _tagPipelineProbed && _tagPipelineMethod == null;
 
         /// <summary>Reset the cached probe — used by tests / a future hot-reload path.</summary>
         public static void ResetReflectionCache()

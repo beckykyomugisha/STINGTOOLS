@@ -728,7 +728,6 @@ namespace StingTools.Core
         /// <summary>Phase 66b: Validate FUNC→PROD pair consistency.
         /// Detects contradictory function/product combinations like FUNC=SUP with PROD=WC.</summary>
         // PERF: Static readonly to avoid per-call Dictionary+HashSet allocation
-        private static readonly Dictionary<string, HashSet<string>> _incompatibleFuncProdPairs =
             new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
             {
                 // Supply function should not have sanitary/plumbing products
@@ -745,13 +744,6 @@ namespace StingTools.Core
                 { "FLS", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DR", "WIN", "WL", "FL", "CLG", "RF", "FUR" } },
             };
 
-        private static string ValidateFuncProdPair(string func, string prod, string disc)
-        {
-            if (_incompatibleFuncProdPairs.TryGetValue(func, out var badProds) && badProds.Contains(prod))
-                return $"FUNC '{func}' is incompatible with PROD '{prod}' — check discipline assignment";
-
-            return null;
-        }
 
         /// <summary>
         /// Validate the format of a complete assembled tag string.

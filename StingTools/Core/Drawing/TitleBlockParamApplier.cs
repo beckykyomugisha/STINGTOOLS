@@ -221,10 +221,6 @@ namespace StingTools.Core.Drawing
         /// </summary>
         public static System.IDisposable Batch() => new BatchScope();
 
-        private sealed class BatchScope : System.IDisposable
-        {
-            public void Dispose() { /* intentional no-op */ }
-        }
 
         /// <summary>
         /// Apply dt.TitleBlockParams to a batch of sheets. Returns a flat list of
@@ -297,31 +293,6 @@ namespace StingTools.Core.Drawing
         /// name that resolved to empty. Editor + drift detector pass this so
         /// they can surface "(param not bound)" without re-parsing templates.
         /// </summary>
-        public static Dictionary<string, string> Peek(
-            Document doc, DrawingType dt, IDictionary<string, string> tokens,
-            ICollection<string> unresolved)
-        {
-            var result = new Dictionary<string, string>(StringComparer.Ordinal);
-            if (dt == null) return result;
-            // Phase 168 — preview the merged base + wildcard ("*") overlay.
-            // A per-symbol override that targets a specific FamilySymbol shows
-            // up only at write-time when the live symbol is known; the editor
-            // preview shows the most-likely value an unspecified TB would get.
-            var seed = new Dictionary<string, string>(StringComparer.Ordinal);
-            if (dt.TitleBlockParams != null)
-                foreach (var kv in dt.TitleBlockParams) seed[kv.Key] = kv.Value;
-            if (dt.TitleBlockParamsBySymbol != null
-                && dt.TitleBlockParamsBySymbol.TryGetValue("*", out var star)
-                && star != null)
-                foreach (var kv in star) seed[kv.Key] = kv.Value;
-            foreach (var kv in seed)
-            {
-                if (string.IsNullOrWhiteSpace(kv.Key)) continue;
-                try { result[kv.Key] = ResolveTemplate(doc, kv.Value ?? "", tokens, unresolved) ?? ""; }
-                catch { result[kv.Key] = ""; }
-            }
-            return result;
-        }
 
         // ── Internals ──
 
@@ -655,27 +626,6 @@ namespace StingTools.Core.Drawing
         /// Used by pre-flight validators and drift detectors to compare what
         /// would be written against what is already on the sheet.
         /// </summary>
-        public static Dictionary<string, string> Peek(
-            Document doc, DrawingType dt,
-            IDictionary<string, string> tokens = null)
-        {
-            var result = new Dictionary<string, string>();
-            if (doc == null || dt?.TitleBlockParams == null) return result;
-            foreach (var kv in dt.TitleBlockParams)
-            {
-                if (string.IsNullOrWhiteSpace(kv.Key)) continue;
-                try
-                {
-                    result[kv.Key] = ResolveTemplate(doc, kv.Value ?? "", tokens);
-                }
-                catch (Exception ex)
-                {
-                    StingTools.Core.StingLog.Warn($"TitleBlockParamApplier.Peek '{kv.Key}': {ex.Message}");
-                    result[kv.Key] = "";
-                }
-            }
-            return result;
-        }
 
         private static FamilyInstance FindTitleBlockInstance(Document doc, ViewSheet sheet)
         {

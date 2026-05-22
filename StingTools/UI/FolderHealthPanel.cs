@@ -23,17 +23,11 @@ using Visibility = System.Windows.Visibility;
 // ships its own Color, Ellipse, and Visibility types that collide with
 // the WPF equivalents used throughout this panel. Alias the WPF types
 // so unqualified Color / Ellipse / Visibility references compile.
-using Color      = System.Windows.Media.Color;
-using Ellipse    = System.Windows.Shapes.Ellipse;
-using Visibility = System.Windows.Visibility;
 
 // Phase 165 follow-up — WPF/Revit type-name aliases. Autodesk.Revit.DB
 // ships its own Color, Ellipse, and Visibility types that collide with
 // the WPF equivalents used throughout this panel. Alias the WPF types
 // so unqualified Color / Ellipse / Visibility references compile.
-using Color      = System.Windows.Media.Color;
-using Ellipse    = System.Windows.Shapes.Ellipse;
-using Visibility = System.Windows.Visibility;
 
 namespace StingTools.UI
 {

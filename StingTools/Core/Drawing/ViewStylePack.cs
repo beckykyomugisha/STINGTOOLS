@@ -186,13 +186,7 @@ namespace StingTools.Core.Drawing
 
         // ── Phase 135 — token profile defaults ──────────────────────
 
-        /// <summary>Default tag colour scheme applied at pack level (e.g. "STING Discipline").</summary>
-        [JsonProperty("tagColorScheme", NullValueHandling = NullValueHandling.Ignore)]
-        public string TagColorScheme { get; set; }
 
-        /// <summary>Default tag style preset applied at pack level.</summary>
-        [JsonProperty("defaultTagStyle", NullValueHandling = NullValueHandling.Ignore)]
-        public string DefaultTagStyle { get; set; }
 
         /// <summary>Per-category tag style overrides. Category name → style preset name.</summary>
         [JsonProperty("categoryTagStyles", NullValueHandling = NullValueHandling.Ignore)]

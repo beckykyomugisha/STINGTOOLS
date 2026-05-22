@@ -214,12 +214,6 @@ namespace StingTools.Core.Drawing
         /// found (no exception).  Used by <c>DrawingDriftDetector</c> and other
         /// consumers that want a null-check rather than a try/catch.
         /// </summary>
-        public static ViewStylePack TryGetPack(Document doc, string packId)
-        {
-            if (string.IsNullOrWhiteSpace(packId)) return null;
-            try { return ViewStylePackRegistry.Get(doc, packId); }
-            catch { return null; }
-        }
 
         public static void Reload(Document doc)
         {

@@ -751,20 +751,7 @@ namespace StingTools.Core
         private static volatile bool _batchSessionActive;
         private static readonly TimeSpan _roomCacheBatchTtl = TimeSpan.FromSeconds(90);
 
-        /// <summary>
-        /// Phase 165 — Issue #21. Marks an active batch session so the room
-        /// index uses the longer TTL until <see cref="EndBatchSession"/> is
-        /// called. Idempotent — multiple BeginBatchSession calls without
-        /// matching End calls are safe.
-        /// </summary>
-        public static void BeginBatchSession() { _batchSessionActive = true; }
 
-        /// <summary>End an active batch session and force-refresh the cache.</summary>
-        public static void EndBatchSession()
-        {
-            _batchSessionActive = false;
-            ForceRefresh();
-        }
 
         /// <summary>
         /// Pre-scan all rooms in the project and build a lookup by ElementId.
