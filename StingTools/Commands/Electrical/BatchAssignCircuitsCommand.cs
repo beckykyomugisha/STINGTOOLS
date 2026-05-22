@@ -184,6 +184,7 @@ namespace StingTools.Commands.Electrical
                     SystemId = sys.Id,
                     PanelId  = fit.Id,
                     SystemName = sys.Name ?? "(?)",
+                    PanelId = fit.Id,
                     PanelName = fit.Name,
                     Group = circuitGroup,
                     Reason = $"fit slots={fit.RemainingSlots} after, panelLoad={fit.ConnectedVa/1000:F1} kVA" +
@@ -341,6 +342,7 @@ namespace StingTools.Commands.Electrical
             public ElementId SystemId;
             public ElementId PanelId;     // Revit 2024+ SelectPanel takes FamilyInstance, not string
             public string SystemName;
+            public ElementId PanelId;
             public string PanelName;
             public string Group;
             public string Reason;
