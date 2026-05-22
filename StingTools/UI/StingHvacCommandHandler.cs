@@ -213,6 +213,10 @@ namespace StingTools.UI
                         // STING-design-engines (this phase): peak-pick block load
                         // with location-aware climate site + diversity factor.
                         Run<StingTools.Commands.Hvac.HvacBlockLoadCommand>(app); break;
+                    case "Hvac_PropagateLoads":
+                        // Phase 187b — bridges BlockLoad → AutoSize by stamping
+                        // HVC_FLOW_LS from served-space peak + OA.
+                        Run<StingTools.Commands.Hvac.HvacPropagateLoadsCommand>(app); break;
                     case "Hvac_NcPredict":
                         // STING-design-engines: VDI 2081 / ASHRAE A48 NC prediction
                         // from duct selection + regenerated noise + room model.
@@ -225,6 +229,10 @@ namespace StingTools.UI
                         Run<StingTools.Commands.Hvac.HvacClimateInspectCommand>(app); break;
                     case "Hvac_ClimateReload":
                         Run<StingTools.Commands.Hvac.HvacClimateReloadCommand>(app); break;
+                    case "Hvac_RefreshGrids":
+                        // Phase 187b — populate equipment/systems/duct-types grids
+                        // from the live model (previously empty since Phase 180).
+                        Run<StingTools.Commands.Hvac.HvacRefreshGridsCommand>(app); break;
 
                     // ── DUCT tab ───────────────────────────────────────────
                     case "Hvac_CreateDuctTypes":

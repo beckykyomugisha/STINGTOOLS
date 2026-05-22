@@ -116,7 +116,26 @@ namespace StingTools.Commands.Hvac
 
                 try
                 {
-                    StingHvacPanel.Instance?.PushRunRow($"NC prediction → NC {result.NcRating}", "⬤");
+                    var p = StingHvacPanel.Instance;
+                    if (p != null)
+                    {
+                        p.PushRunRow($"NC prediction → NC {result.NcRating}", "⬤");
+
+                        // Phase 187b — surface as an issue when the predicted NC
+                        // exceeds the office target (35) or healthcare target (30).
+                        // Future: read the actual target from the room's HVC_NC_TARGET.
+                        int target = 35;
+                        if (result.NcRating > target)
+                        {
+                            p.IssueRows.Add(new HvacIssueRow
+                            {
+                                Severity   = "⚠",
+                                Element    = path.Count > 1 ? path[1].Label : "(path)",
+                                Issue      = $"Predicted NC {result.NcRating} exceeds target NC {target}",
+                                Suggestion = "Add silencer / lower duct velocity / oversize terminal"
+                            });
+                        }
+                    }
                 }
                 catch (Exception ex) { StingLog.Warn($"Panel push: {ex.Message}"); }
 

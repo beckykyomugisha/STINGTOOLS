@@ -85,10 +85,16 @@ namespace StingTools.Commands.Hvac
                     return Result.Cancelled;
                 }
 
-                int pass = 0, fail = 0, skipped = 0, stamped = 0;
+                int pass = 0, fail = 0, skipped = 0, stamped = 0, velFail = 0;
                 double worstPa = 0;
                 ElementId worstId = null;
                 var details = new List<string>();
+                var velocityDetails = new List<string>();
+
+                // Phase 187b — per-duct role + role-velocity check, plus
+                // adjacent-fitting ΔP contribution. Batch-detect roles once.
+                var rules = StingTools.Core.Mep.MepSizingRegistry.Get(doc);
+                var roleMap = StingTools.Core.Mep.HvacSegmentRoleDetector.DetectRolesBatch(doc, ducts);
 
                 using var tx = new Transaction(doc, "STING HVAC Pressure-class Audit");
                 tx.Start();
@@ -113,10 +119,23 @@ namespace StingTools.Commands.Hvac
                         double velMs = (flowLs * 1e-3) / (areaMm2 * 1e-6);  // m/s
                         double dynamicPa = 0.5 * airDensity * velMs * velMs;
 
+                        // Role-based velocity check. Each role (main / branch /
+                        // runout / outdoor_air / exhaust / kitchen / smoke) has
+                        // its own velocity cap from STING_MEP_SIZING_RULES.json.
+                        string roleId = roleMap.TryGetValue(d.Id, out var rid) ? rid : "branch";
+                        var role = rules?.GetDuctRole(roleId);
+                        double roleMaxVel = role?.MaxVelocityMs ?? 6.0;
+                        if (velMs > roleMaxVel)
+                        {
+                            velFail++;
+                            if (velocityDetails.Count < 40)
+                                velocityDetails.Add(
+                                    $"#{d.Id.Value} [{roleId}] v={velMs:F1} m/s > role max {roleMaxVel:F1} m/s");
+                        }
+
                         // Length-based friction estimate. Use DuctFrictionSolver
-                        // (Darcy-Weisbach + Swamee-Jain) instead of a flat f=0.02
-                        // so an audit on a long high-velocity run isn't quietly
-                        // under-reporting friction by ~40%.
+                        // (Darcy-Weisbach + Swamee-Jain) so long high-velocity runs
+                        // aren't quietly under-reporting friction by ~40%.
                         double lengthM = 0;
                         if (d is MEPCurve mc && mc.Location is LocationCurve lc && lc.Curve != null)
                             lengthM = UnitUtils.ConvertFromInternalUnits(lc.Curve.Length, UnitTypeId.Meters);
@@ -133,7 +152,15 @@ namespace StingTools.Commands.Hvac
                             frictionPa = fr.StraightDropPa;
                         }
 
-                        double estimatedPa = dynamicPa + frictionPa;
+                        // Adjacent fitting losses — walk each connector ONE step,
+                        // sum the C of every directly-touching OST_DuctFitting +
+                        // OST_DuctAccessory using the manufacturer-aware lookup.
+                        // Half-credit avoids double counting (the same fitting
+                        // would otherwise show up on both upstream + downstream
+                        // ducts).
+                        double fittingPa = AdjacentFittingLossPa(d, velMs, airDensity, rules) * 0.5;
+
+                        double estimatedPa = dynamicPa + frictionPa + fittingPa;
                         if (estimatedPa > worstPa) { worstPa = estimatedPa; worstId = d.Id; }
 
                         // Close the calc → model loop: stamp HVC_PRESSURE_DROP_PA
@@ -168,6 +195,7 @@ namespace StingTools.Commands.Hvac
                 panel.AddSection("SUMMARY")
                      .Metric("Within class",        pass.ToString())
                      .Metric("Over class",          fail.ToString())
+                     .Metric("Over role velocity",  velFail.ToString())
                      .Metric("Skipped",             skipped.ToString())
                      .Metric("HVC_PRESSURE_DROP_PA stamped", stamped.ToString())
                      .Metric("Worst ΔP",            $"{worstPa:F0} Pa" + (worstId != null ? $" (#{worstId.Value})" : ""));
@@ -177,9 +205,16 @@ namespace StingTools.Commands.Hvac
                     panel.AddSection("OVER CLASS (first 40)");
                     foreach (var s in details) panel.Text(s);
                 }
+                if (velocityDetails.Count > 0)
+                {
+                    panel.AddSection("ROLE-VELOCITY VIOLATIONS (first 40)");
+                    foreach (var s in velocityDetails) panel.Text(s);
+                }
                 panel.Text("Estimate = dynamic pressure (½ρv²) + Darcy-Weisbach friction (Swamee-Jain f) " +
-                           "over each duct's individual length. Coupled fitting losses are not included; " +
-                           "use Mep_PressureDrop for the full system report.");
+                           "over each duct's individual length + ½ of adjacent fitting C-losses (the other " +
+                           "½ is attributed to the connecting duct on the far side). Role velocity comes " +
+                           "from STING_MEP_SIZING_RULES.json duct.roles. Use Mep_PressureDrop for the full " +
+                           "system-level report.");
                 panel.Show();
 
                 try
@@ -231,6 +266,49 @@ namespace StingTools.Commands.Hvac
             return new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_DuctCurves)
                 .WhereElementIsNotElementType().ToList();
+        }
+
+        /// <summary>
+        /// Sum the loss coefficient ΔP across every fitting / accessory
+        /// directly connected to this duct. Each connector AllRefs is
+        /// walked one step; the connected fitting's C is resolved via
+        /// <see cref="StingTools.Model.FittingLossCalculator.ResolveFittingLoss"/>
+        /// (which prefers manufacturer C when HVC_PROD_REF_TXT is set).
+        /// The caller halves the result to share the loss between the
+        /// upstream + downstream ducts that share the fitting.
+        /// </summary>
+        private static double AdjacentFittingLossPa(Element duct, double velMs,
+            double airDensity, StingTools.Core.Mep.MepSizingRules rules)
+        {
+            double sumPa = 0;
+            try
+            {
+                if (!(duct is MEPCurve mc)) return 0;
+                var conns = mc.ConnectorManager?.Connectors;
+                if (conns == null) return 0;
+                double dynPa = 0.5 * airDensity * velMs * velMs;
+                foreach (Connector c in conns)
+                {
+                    if (c?.AllRefs == null) continue;
+                    foreach (Connector other in c.AllRefs)
+                    {
+                        var owner = other?.Owner;
+                        if (owner == null || owner.Id == duct.Id) continue;
+                        if (owner.Category == null) continue;
+                        var bic = (BuiltInCategory)owner.Category.Id.Value;
+                        if (bic != BuiltInCategory.OST_DuctFitting &&
+                            bic != BuiltInCategory.OST_DuctAccessory) continue;
+                        try
+                        {
+                            var rfl = StingTools.Model.FittingLossCalculator.ResolveFittingLoss(owner, rules);
+                            if (rfl != null && rfl.C > 0) sumPa += rfl.C * dynPa;
+                        }
+                        catch (Exception ex) { StingLog.Warn($"AdjacentFittingLossPa {owner.Id}: {ex.Message}"); }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"AdjacentFittingLossPa {duct?.Id}: {ex.Message}"); }
+            return sumPa;
         }
 
         private static double ReadDouble(Element el, string param)

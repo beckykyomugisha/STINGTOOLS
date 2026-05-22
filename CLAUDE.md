@@ -2854,6 +2854,78 @@ Seven new shared parameters in MR_PARAMETERS (TXT + CSV):
 | `HVC_OA_LS` | HVC_SYSTEMS | Per-space design OA L/s |
 | `PRJ_CLIMATE_SITE_ID` | PRJ_INFORMATION | Active climate site id resolved by ClimateRegistry |
 
+### Phase 187b — chain the engines, populate the grids, profile per space
+
+Five integration / flexibility / accuracy / automation gaps closed:
+
+1. **BlockLoad → AutoSize loop closed via `Hvac_PropagateLoads`.**
+   `Commands/Hvac/HvacPropagateLoadsCommand.cs` walks every duct in
+   scope, finds the served Space via the downstream terminal in the
+   connector graph (or `GetSpaceAtPoint` at the duct mid-point as
+   fallback), reads the space's `HVC_PEAK_SENS_W` + `HVC_OA_LS`, and
+   stamps `HVC_FLOW_LS = max(peak / (ρ·cp·ΔT), OA)` with ΔT = 11 K
+   (CIBSE Guide B3 supply-air ΔT). `HVC_LOAD_SOURCE_TXT` carries the
+   provenance string. Workflow JSON now reads BlockLoad →
+   PropagateLoads → AutoSize.
+
+2. **Empty HVAC panel grids now populated.**
+   - `HvacBlockLoadCommand` pushes per-zone rows into `SpaceLoadRows`
+     (clears + repopulates on each run so re-runs reflect the latest
+     pass).
+   - `HvacNcPredictionCommand` adds an `IssueRows` entry when the
+     predicted NC exceeds the office target (35).
+   - New `Hvac_RefreshGrids` command
+     (`HvacRefreshGridsCommand.cs`) scans the project once and seeds
+     `EquipmentRows` (mechanical equipment with capacity / flow /
+     manufacturer / system), `SystemRows` (every `MechanicalSystem`),
+     and `DuctTypeRows` (every `DuctType`). Wired into the RPRT tab.
+
+3. **Per-space-type load library.** `STING_LOAD_PROFILES.json` ships
+   12 profiles (Office, MeetingRoom, Classroom, PatientRoom,
+   OperatingRoom, Retail, Restaurant, Kitchen, Lab, Warehouse,
+   Plantroom, Corridor) each with occupant density, sensible+latent
+   per person, lighting + equipment power densities, OA per-person +
+   per-m², setpoints, infiltration, and 24-h occupancy / lighting /
+   equipment schedules. Sources: ASHRAE 90.1-2019 Table 9.6.1
+   (lighting), 62.1-2019 Table 6.2.2.1 (ventilation), Handbook
+   Fundamentals Ch.18, CIBSE Guide A 2015.
+   `Core/Hvac/Loads/LoadProfileRegistry.cs` loads + caches with
+   project override at `<project>/_BIM_COORD/load_profiles.json`.
+   `HvacBlockLoadCommand.ZoneFromSpace` resolves
+   `HVC_SPACE_TYPE_TXT` (or Revit `SpaceType` enum) and applies the
+   matching profile before envelope detection. Loose-match handles
+   `MeetingRoom`/`Meeting Room`/`meeting-room`. Falls back to Office
+   when no match. Block-load on a hospital now uses 12.5 L/s/person
+   OA + 12 W/m² equipment + 24/7 schedules instead of the office
+   defaults.
+
+4. **`DocumentOpened` climate auto-stamp.** `StingToolsApp.OnDocumentOpened`
+   resolves `ClimateRegistry.ActiveSite(doc)` on first open per
+   project, opens a transaction, stamps `PRJ_CLIMATE_SITE_ID` +
+   `PRJ_CLIMATE_SITE_LABEL_TXT` on `ProjectInformation` when
+   `PRJ_CLIMATE_SITE_ID` is empty. Subsequent commands read the
+   stamped value directly without re-fuzzy-matching the address.
+
+5. **Pressure-class audit uses role + adjacent fittings.**
+   `HvacPressureClassAuditCommand` now batch-detects every duct's
+   role via `HvacSegmentRoleDetector.DetectRolesBatch` and reports
+   role-velocity violations (`v > role.MaxVelocityMs`) as a separate
+   failure mode alongside pressure-class violations. Friction
+   estimate gains an `AdjacentFittingLossPa` term that walks each
+   connector one step, sums C·½ρv² across touching
+   `OST_DuctFitting` + `OST_DuctAccessory` via the manufacturer-aware
+   `FittingLossCalculator.ResolveFittingLoss` (so manufacturer C
+   shadows generic SMACNA when `HVC_PROD_REF_TXT` is set on the
+   fitting). Half-credit avoids double-counting the same fitting on
+   both connected ducts.
+
+### Parameters added (Phase 187b)
+
+| Name | Group | Purpose |
+|---|---|---|
+| `HVC_LOAD_SOURCE_TXT` | HVC_SYSTEMS | Provenance string written by PropagateLoads (space + peak + OA → derived HVC_FLOW_LS) |
+| `PRJ_CLIMATE_SITE_LABEL_TXT` | PRJ_INFORMATION | Human-readable site label stamped by DocumentOpened auto-stamp |
+
 ### Caveats (Phase 187 — what's still open)
 
 1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.

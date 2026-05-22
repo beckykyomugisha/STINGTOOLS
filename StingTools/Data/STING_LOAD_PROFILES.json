@@ -1,0 +1,159 @@
+{
+  "_schema": "STING_LOAD_PROFILES",
+  "_version": "1.0",
+  "_notes": [
+    "Per-space-type internal-gain + outdoor-air + schedule library.",
+    "Keys map to HVC_SPACE_TYPE_TXT or Revit's SpaceType (case-insensitive).",
+    "Sources: ASHRAE 90.1-2019 Table 9.6.1 (lighting), ASHRAE 62.1-2019",
+    "Table 6.2.2.1 (ventilation), ASHRAE Handbook Fundamentals Ch.18",
+    "(occupant heat, equipment density), CIBSE Guide A 2015 (UK defaults).",
+    "Project override at <project>/_BIM_COORD/load_profiles.json — first",
+    "match by id wins, schedule arrays overwrite wholesale."
+  ],
+  "profiles": [
+    {
+      "id": "Office", "label": "Office (open or cellular)",
+      "occupantDensityM2PerPerson": 10.0,
+      "occupantSensibleW": 75, "occupantLatentW": 55,
+      "lightingWPerM2": 7.6, "equipmentWPerM2": 8.0,
+      "oaLpsPerPerson": 10.0, "oaLpsPerM2": 0.3,
+      "coolingSetpointC": 24, "heatingSetpointC": 21,
+      "infiltrationAch": 0.3,
+      "occupancySchedule":  [0.0,0.0,0.0,0.0,0.0,0.05,0.1,0.2,0.8,0.95,0.95,0.95,0.5,0.95,0.95,0.95,0.7,0.4,0.1,0.05,0.05,0.0,0.0,0.0],
+      "lightingSchedule":   [0.05,0.05,0.05,0.05,0.05,0.1,0.2,0.5,0.9,0.95,0.95,0.95,0.8,0.95,0.95,0.95,0.8,0.5,0.2,0.1,0.05,0.05,0.05,0.05],
+      "equipmentSchedule":  [0.2,0.2,0.2,0.2,0.2,0.2,0.3,0.5,0.85,0.9,0.9,0.9,0.7,0.9,0.9,0.9,0.7,0.4,0.3,0.2,0.2,0.2,0.2,0.2]
+    },
+    {
+      "id": "MeetingRoom", "label": "Meeting / conference",
+      "occupantDensityM2PerPerson": 2.0,
+      "occupantSensibleW": 75, "occupantLatentW": 55,
+      "lightingWPerM2": 8.6, "equipmentWPerM2": 5.0,
+      "oaLpsPerPerson": 10.0, "oaLpsPerM2": 0.3,
+      "coolingSetpointC": 24, "heatingSetpointC": 21,
+      "infiltrationAch": 0.3,
+      "occupancySchedule":  [0,0,0,0,0,0,0,0,0.5,0.8,0.9,0.8,0.4,0.8,0.9,0.7,0.4,0.2,0,0,0,0,0,0],
+      "lightingSchedule":   [0.05,0.05,0.05,0.05,0.05,0.05,0.1,0.3,0.6,0.9,0.95,0.9,0.6,0.9,0.95,0.8,0.5,0.3,0.1,0.05,0.05,0.05,0.05,0.05],
+      "equipmentSchedule":  [0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.2,0.5,0.7,0.7,0.7,0.5,0.7,0.7,0.7,0.5,0.3,0.1,0.1,0.1,0.1,0.1,0.1]
+    },
+    {
+      "id": "Classroom", "label": "Classroom (K-12 / lecture)",
+      "occupantDensityM2PerPerson": 2.0,
+      "occupantSensibleW": 70, "occupantLatentW": 45,
+      "lightingWPerM2": 12.0, "equipmentWPerM2": 5.0,
+      "oaLpsPerPerson": 8.0,  "oaLpsPerM2": 0.6,
+      "coolingSetpointC": 24, "heatingSetpointC": 21,
+      "infiltrationAch": 0.4,
+      "occupancySchedule":  [0,0,0,0,0,0,0,0.1,0.7,0.95,0.95,0.95,0.4,0.95,0.95,0.95,0.5,0.1,0.05,0,0,0,0,0],
+      "lightingSchedule":   [0.05,0.05,0.05,0.05,0.05,0.05,0.1,0.3,0.9,0.95,0.95,0.95,0.6,0.95,0.95,0.95,0.6,0.2,0.05,0.05,0.05,0.05,0.05,0.05],
+      "equipmentSchedule":  [0.1,0.1,0.1,0.1,0.1,0.1,0.2,0.4,0.8,0.85,0.85,0.85,0.5,0.85,0.85,0.85,0.5,0.2,0.1,0.1,0.1,0.1,0.1,0.1]
+    },
+    {
+      "id": "PatientRoom", "label": "Patient room (acute care)",
+      "occupantDensityM2PerPerson": 10.0,
+      "occupantSensibleW": 75, "occupantLatentW": 70,
+      "lightingWPerM2": 9.8, "equipmentWPerM2": 12.0,
+      "oaLpsPerPerson": 12.5, "oaLpsPerM2": 0.9,
+      "coolingSetpointC": 24, "heatingSetpointC": 22,
+      "infiltrationAch": 0.2,
+      "occupancySchedule":  [0.95,0.95,0.95,0.95,0.95,0.95,0.9,0.85,0.7,0.65,0.7,0.7,0.7,0.75,0.75,0.7,0.7,0.75,0.85,0.9,0.95,0.95,0.95,0.95],
+      "lightingSchedule":   [0.2,0.15,0.15,0.15,0.2,0.4,0.6,0.7,0.6,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.6,0.7,0.7,0.6,0.4,0.3,0.2],
+      "equipmentSchedule":  [0.5,0.5,0.5,0.5,0.5,0.6,0.7,0.75,0.75,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.75,0.75,0.7,0.6,0.55,0.5,0.5]
+    },
+    {
+      "id": "OperatingRoom", "label": "Operating room (Class B/C)",
+      "occupantDensityM2PerPerson": 5.0,
+      "occupantSensibleW": 90, "occupantLatentW": 70,
+      "lightingWPerM2": 22.0, "equipmentWPerM2": 30.0,
+      "oaLpsPerPerson": 15.0, "oaLpsPerM2": 1.5,
+      "coolingSetpointC": 20, "heatingSetpointC": 20,
+      "infiltrationAch": 0.0,
+      "occupancySchedule":  [0,0,0,0,0,0,0.2,0.5,0.9,0.95,0.95,0.95,0.7,0.9,0.95,0.95,0.7,0.3,0.1,0.05,0.05,0,0,0],
+      "lightingSchedule":   [0.1,0.1,0.1,0.1,0.1,0.1,0.4,0.7,0.95,0.95,0.95,0.95,0.7,0.9,0.95,0.95,0.7,0.4,0.2,0.1,0.1,0.1,0.1,0.1],
+      "equipmentSchedule":  [0.3,0.3,0.3,0.3,0.3,0.3,0.5,0.7,0.9,0.95,0.95,0.95,0.7,0.9,0.95,0.95,0.7,0.5,0.3,0.3,0.3,0.3,0.3,0.3]
+    },
+    {
+      "id": "Retail", "label": "Retail sales floor",
+      "occupantDensityM2PerPerson": 4.0,
+      "occupantSensibleW": 75, "occupantLatentW": 55,
+      "lightingWPerM2": 14.0, "equipmentWPerM2": 5.0,
+      "oaLpsPerPerson": 4.0,  "oaLpsPerM2": 0.6,
+      "coolingSetpointC": 24, "heatingSetpointC": 21,
+      "infiltrationAch": 0.4,
+      "occupancySchedule":  [0,0,0,0,0,0,0,0.05,0.2,0.5,0.7,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.7,0.4,0.1,0,0],
+      "lightingSchedule":   [0.1,0.1,0.1,0.1,0.1,0.2,0.3,0.6,0.9,0.95,0.95,0.95,0.95,0.95,0.95,0.95,0.95,0.95,0.95,0.85,0.5,0.2,0.1,0.1],
+      "equipmentSchedule":  [0.2,0.2,0.2,0.2,0.2,0.3,0.4,0.6,0.8,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.7,0.4,0.3,0.2,0.2]
+    },
+    {
+      "id": "Restaurant", "label": "Restaurant dining",
+      "occupantDensityM2PerPerson": 1.5,
+      "occupantSensibleW": 80, "occupantLatentW": 80,
+      "lightingWPerM2": 9.7, "equipmentWPerM2": 12.0,
+      "oaLpsPerPerson": 4.0,  "oaLpsPerM2": 0.9,
+      "coolingSetpointC": 23, "heatingSetpointC": 21,
+      "infiltrationAch": 0.5,
+      "occupancySchedule":  [0,0,0,0,0,0,0,0.1,0.2,0.2,0.4,0.85,0.95,0.5,0.3,0.3,0.5,0.85,0.95,0.8,0.5,0.2,0.05,0],
+      "lightingSchedule":   [0.1,0.1,0.1,0.1,0.1,0.1,0.2,0.4,0.5,0.5,0.6,0.85,0.95,0.7,0.6,0.6,0.7,0.85,0.95,0.85,0.6,0.4,0.2,0.1],
+      "equipmentSchedule":  [0.2,0.2,0.2,0.2,0.2,0.3,0.5,0.7,0.7,0.7,0.7,0.85,0.95,0.8,0.7,0.7,0.8,0.85,0.95,0.85,0.7,0.5,0.3,0.2]
+    },
+    {
+      "id": "Kitchen", "label": "Commercial kitchen",
+      "occupantDensityM2PerPerson": 5.0,
+      "occupantSensibleW": 100, "occupantLatentW": 100,
+      "lightingWPerM2": 12.4, "equipmentWPerM2": 220.0,
+      "oaLpsPerPerson": 4.0,  "oaLpsPerM2": 4.0,
+      "coolingSetpointC": 25, "heatingSetpointC": 18,
+      "infiltrationAch": 1.0,
+      "occupancySchedule":  [0,0,0,0,0,0.1,0.3,0.7,0.85,0.9,0.95,0.95,0.95,0.85,0.7,0.6,0.7,0.85,0.95,0.85,0.5,0.2,0.05,0],
+      "lightingSchedule":   [0.1,0.1,0.1,0.1,0.1,0.3,0.7,0.85,0.95,0.95,0.95,0.95,0.95,0.85,0.7,0.7,0.85,0.95,0.95,0.85,0.5,0.3,0.2,0.1],
+      "equipmentSchedule":  [0.3,0.3,0.3,0.3,0.3,0.5,0.8,0.9,0.95,0.95,0.95,0.95,0.95,0.9,0.7,0.7,0.85,0.95,0.95,0.9,0.6,0.4,0.3,0.3]
+    },
+    {
+      "id": "Lab", "label": "Laboratory (general)",
+      "occupantDensityM2PerPerson": 10.0,
+      "occupantSensibleW": 75, "occupantLatentW": 55,
+      "lightingWPerM2": 14.5, "equipmentWPerM2": 60.0,
+      "oaLpsPerPerson": 10.0, "oaLpsPerM2": 0.9,
+      "coolingSetpointC": 22, "heatingSetpointC": 20,
+      "infiltrationAch": 0.0,
+      "occupancySchedule":  [0,0,0,0,0,0.05,0.1,0.3,0.7,0.85,0.9,0.9,0.5,0.85,0.85,0.8,0.5,0.2,0.05,0,0,0,0,0],
+      "lightingSchedule":   [0.05,0.05,0.05,0.05,0.05,0.2,0.4,0.6,0.9,0.95,0.95,0.95,0.7,0.9,0.95,0.9,0.5,0.2,0.1,0.05,0.05,0.05,0.05,0.05],
+      "equipmentSchedule":  [0.5,0.5,0.5,0.5,0.5,0.5,0.6,0.7,0.85,0.9,0.95,0.9,0.7,0.9,0.9,0.85,0.7,0.6,0.55,0.5,0.5,0.5,0.5,0.5]
+    },
+    {
+      "id": "Warehouse", "label": "Warehouse / storage",
+      "occupantDensityM2PerPerson": 50.0,
+      "occupantSensibleW": 90, "occupantLatentW": 75,
+      "lightingWPerM2": 7.0, "equipmentWPerM2": 2.0,
+      "oaLpsPerPerson": 5.0,  "oaLpsPerM2": 0.3,
+      "coolingSetpointC": 26, "heatingSetpointC": 15,
+      "infiltrationAch": 0.5,
+      "occupancySchedule":  [0,0,0,0,0,0.1,0.5,0.85,0.95,0.95,0.95,0.6,0.5,0.95,0.95,0.95,0.7,0.3,0.1,0.05,0,0,0,0],
+      "lightingSchedule":   [0.1,0.1,0.1,0.1,0.2,0.4,0.7,0.9,0.95,0.95,0.95,0.7,0.6,0.95,0.95,0.95,0.7,0.3,0.1,0.1,0.1,0.1,0.1,0.1],
+      "equipmentSchedule":  [0.2,0.2,0.2,0.2,0.2,0.3,0.5,0.7,0.85,0.85,0.85,0.5,0.5,0.85,0.85,0.85,0.7,0.3,0.2,0.2,0.2,0.2,0.2,0.2]
+    },
+    {
+      "id": "Plantroom", "label": "Mechanical / plant room",
+      "occupantDensityM2PerPerson": 200.0,
+      "occupantSensibleW": 90, "occupantLatentW": 60,
+      "lightingWPerM2": 4.0, "equipmentWPerM2": 0.0,
+      "oaLpsPerPerson": 2.5,  "oaLpsPerM2": 0.3,
+      "coolingSetpointC": 30, "heatingSetpointC": 10,
+      "infiltrationAch": 0.5,
+      "occupancySchedule":  [0,0,0,0,0,0,0.05,0.1,0.1,0.1,0.05,0.05,0.1,0.05,0.05,0.05,0.05,0.05,0,0,0,0,0,0],
+      "lightingSchedule":   [0.05,0.05,0.05,0.05,0.05,0.05,0.1,0.2,0.2,0.2,0.1,0.1,0.2,0.1,0.1,0.1,0.1,0.1,0.05,0.05,0.05,0.05,0.05,0.05],
+      "equipmentSchedule":  [0.8,0.8,0.8,0.8,0.8,0.8,0.85,0.9,0.9,0.9,0.9,0.85,0.85,0.9,0.9,0.9,0.85,0.85,0.8,0.8,0.8,0.8,0.8,0.8]
+    },
+    {
+      "id": "Corridor", "label": "Corridor",
+      "occupantDensityM2PerPerson": 50.0,
+      "occupantSensibleW": 75, "occupantLatentW": 55,
+      "lightingWPerM2": 4.2, "equipmentWPerM2": 1.0,
+      "oaLpsPerPerson": 0.0,  "oaLpsPerM2": 0.3,
+      "coolingSetpointC": 25, "heatingSetpointC": 19,
+      "infiltrationAch": 0.5,
+      "occupancySchedule":  [0.05,0.05,0.05,0.05,0.05,0.1,0.2,0.4,0.6,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.5,0.4,0.2,0.1,0.05,0.05,0.05,0.05],
+      "lightingSchedule":   [0.2,0.2,0.2,0.2,0.2,0.3,0.5,0.7,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.85,0.7,0.5,0.3,0.2,0.2,0.2,0.2],
+      "equipmentSchedule":  [0.1,0.1,0.1,0.1,0.1,0.1,0.2,0.3,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.3,0.2,0.1,0.1,0.1,0.1,0.1]
+    }
+  ]
+}

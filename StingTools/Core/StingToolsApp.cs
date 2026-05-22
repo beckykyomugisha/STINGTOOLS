@@ -542,6 +542,40 @@ namespace StingTools.Core
                 }
                 catch (Exception regEx) { StingLog.Warn($"Standards region sync skipped: {regEx.Message}"); }
 
+                // Phase 187b — HVAC climate auto-stamp. Resolves the active site
+                // once on document open (PRJ_CLIMATE_SITE_ID → address fuzzy
+                // match → fallback) and stamps both the id and human-readable
+                // label back onto ProjectInformation. Subsequent commands read
+                // the stamp directly without re-fuzzing the address.
+                try
+                {
+                    var pi = e.Document?.ProjectInformation;
+                    if (pi != null)
+                    {
+                        string already = pi.LookupParameter("PRJ_CLIMATE_SITE_ID")?.AsString();
+                        if (string.IsNullOrWhiteSpace(already))
+                        {
+                            var site = StingTools.Core.Climate.ClimateRegistry.ActiveSite(e.Document);
+                            if (site != null && !string.Equals(site.Id, "fallback", StringComparison.OrdinalIgnoreCase))
+                            {
+                                using (var tx = new Transaction(e.Document, "STING — Stamp climate site"))
+                                {
+                                    if (tx.Start() == TransactionStatus.Started)
+                                    {
+                                        ParameterHelpers.SetString(pi, "PRJ_CLIMATE_SITE_ID",
+                                            site.Id, overwrite: true);
+                                        ParameterHelpers.SetString(pi, "PRJ_CLIMATE_SITE_LABEL_TXT",
+                                            site.Label, overwrite: true);
+                                        tx.Commit();
+                                        StingLog.Info($"HVAC climate site auto-stamped: {site.Id} ({site.Label})");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception climEx) { StingLog.Warn($"Climate auto-stamp skipped: {climEx.Message}"); }
+
                 // C4 / G1.3: Reload TagConfig on document open — prefer project-adjacent config
                 // to prevent config bleed between projects
                 try

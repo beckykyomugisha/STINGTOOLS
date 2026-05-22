@@ -3184,6 +3184,8 @@ PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b62	HVC_PEAK_LAT_W	TEXT		5	1	Per-space pe
 PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b63	HVC_PEAK_HOUR	TEXT		5	1	Hour-of-day (HH:00) of the per-space peak from BlockLoadEngine [Phase 187]	1
 PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b64	HVC_OA_LS	TEXT		5	1	Per-space design outdoor-air flow in L/s from BlockLoadEngine [Phase 187]	1
 PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b65	PRJ_CLIMATE_SITE_ID	TEXT		13	1	Active STING climate site id resolved by ClimateRegistry (london / paris / new_york / etc.) [Phase 187]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b66	HVC_LOAD_SOURCE_TXT	TEXT		5	1	Provenance string written by HvacPropagateLoadsCommand: served space + peak sensible + design OA → derived HVC_FLOW_LS [Phase 187b]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b67	PRJ_CLIMATE_SITE_LABEL_TXT	TEXT		13	1	Human-readable climate site label stamped by the DocumentOpened auto-stamp [Phase 187b]	1
 PARAM	8b3bfdcf-aab3-5944-a451-e4766bfaf8ce	PRJ_ORG_PRESSURE_PROFILE_TXT	TEXT		13	1	Active pressure-regime profile id for GeneralPressureRegimeValidator (healthcare-htm03-01 / gmp-annex1 / iso-14644-cleanroom / bs-en-12128-lab) [Phase 183]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41	ASS_CST_UNIT_RATE_NR	NUMBER		2	1	Currency-neutral unit rate  -  Currency carried by ASS_CST_CURRENCY_TXT [Phase 184]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42	ASS_CST_CURRENCY_TXT	TEXT		2	1	ISO 4217 currency code (GBP / UGX / USD / EUR) of ASS_CST_UNIT_RATE_NR [Phase 184]	1

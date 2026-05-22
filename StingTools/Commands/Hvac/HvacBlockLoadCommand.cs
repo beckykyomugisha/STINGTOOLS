@@ -128,8 +128,33 @@ namespace StingTools.Commands.Hvac
 
                 try
                 {
-                    StingHvacPanel.Instance?.PushRunRow(
-                        $"Block-load ({grand / 1000:F0} kW, div {diversity:F2})", "⬤");
+                    var p = StingHvacPanel.Instance;
+                    if (p != null)
+                    {
+                        p.PushRunRow($"Block-load ({grand / 1000:F0} kW, div {diversity:F2})", "⬤");
+
+                        // Phase 187b — populate the previously-empty LoadsTab grid.
+                        // Replace the contents wholesale so re-runs reflect the latest pass.
+                        p.SpaceLoadRows.Clear();
+                        foreach (var z in results.SelectMany(r => r.Zones)
+                                                .OrderByDescending(r => r.PeakSensibleW))
+                        {
+                            string warn = "";
+                            if (z.PeakSensibleW <= 0) warn = "no load";
+                            else if (z.OaLs <= 0)     warn = "no OA";
+                            p.SpaceLoadRows.Add(new HvacSpaceLoadRow
+                            {
+                                SpaceName = z.ZoneName,
+                                SpaceType = z.SystemId,
+                                AreaM2    = z.AreaM2,
+                                People    = 0,                                  // populated in F-3 phase
+                                HeatingKw = 0,                                  // cooling-only pass for now
+                                CoolingKw = z.PeakSensibleW / 1000.0,
+                                OAls      = z.OaLs,
+                                Warning   = warn
+                            });
+                        }
+                    }
                 }
                 catch (Exception ex) { StingLog.Warn($"Panel push: {ex.Message}"); }
 
@@ -150,6 +175,8 @@ namespace StingTools.Commands.Hvac
             var doc = ctx.Doc;
             var zones = new List<LoadZone>();
             int skipped = 0;
+            // Phase 187b — per-space-type schedules + densities.
+            var profileLib = StingTools.Core.Hvac.Loads.LoadProfileRegistry.Get(doc);
 
             // Prefer MEP Spaces (have ventilation rates + design temps).
             var spaces = new FilteredElementCollector(doc)
@@ -170,7 +197,7 @@ namespace StingTools.Commands.Hvac
                     .ToList();
                 foreach (var r in rooms)
                 {
-                    var z = ZoneFromRoom(r);
+                    var z = ZoneFromRoom(r, profileLib);
                     if (z != null) zones.Add(z); else skipped++;
                 }
             }
@@ -178,7 +205,7 @@ namespace StingTools.Commands.Hvac
             {
                 foreach (var s in spaces)
                 {
-                    var z = ZoneFromSpace(s);
+                    var z = ZoneFromSpace(s, profileLib);
                     if (z != null) zones.Add(z); else skipped++;
                 }
             }
@@ -186,7 +213,8 @@ namespace StingTools.Commands.Hvac
             return (zones, skipped);
         }
 
-        private static LoadZone ZoneFromSpace(Space s)
+        private static LoadZone ZoneFromSpace(Space s,
+            StingTools.Core.Hvac.Loads.LoadProfileLibrary profileLib)
         {
             try
             {
@@ -194,25 +222,46 @@ namespace StingTools.Commands.Hvac
                 double heightM = UnitUtils.ConvertFromInternalUnits(s.UnboundedHeight, UnitTypeId.Meters);
                 if (heightM <= 0.1) heightM = 3.0; // sane default
 
+                // Resolve space-type id: STING shared param first, then Revit
+                // Space Type name. Profile library applies all of:
+                //   occupant + lighting + equipment density
+                //   schedules (24h arrays)
+                //   OA per-person + per-m²
+                //   setpoints, infiltration
+                string spaceTypeId = s.LookupParameter("HVC_SPACE_TYPE_TXT")?.AsString();
+                if (string.IsNullOrWhiteSpace(spaceTypeId))
+                {
+                    try
+                    {
+                        var st = s.SpaceType;
+                        if (st != SpaceType.NoSpaceType) spaceTypeId = st.ToString();
+                    }
+                    catch { }
+                }
+                var profile = profileLib?.Get(spaceTypeId) ?? new StingTools.Core.Hvac.Loads.LoadProfile();
+
                 var z = new LoadZone
                 {
                     Id          = s.Id.Value.ToString(),
                     Name        = string.IsNullOrEmpty(s.Name) ? $"Space {s.Id}" : s.Name,
                     SystemId    = ResolveSystemId(s),
-                    SpaceTypeId = s.LookupParameter("HVC_SPACE_TYPE_TXT")?.AsString() ?? "Office",
+                    SpaceTypeId = string.IsNullOrEmpty(profile.Id) ? "Office" : profile.Id,
                     FloorAreaM2 = areaM2,
                     HeightM     = heightM
                 };
+                profile.ApplyTo(z);
 
-                // Pull design OA from Revit Space if user has set it.
-                // (Looked up by name — `LookupParameter` avoids hard-coding
-                // BuiltInParameter ids that change name across Revit versions.)
+                // Honour explicit Revit Space airflow if the user has set
+                // "Specified Supply Airflow per area" — overrides the profile.
                 double designOa = TryReadFlowByName(s, "Specified Supply Airflow per area");
                 if (designOa <= 0) designOa = TryReadFlowByName(s, "Calculated Supply Airflow per area");
                 if (designOa > 0) z.OaLpsPerM2 = designOa;
 
+                // Occupant count: prefer explicit Revit param, else derive from
+                // the profile's density (e.g. Kitchen = 5 m²/person → 12 ppl in
+                // a 60 m² space, vs Office's 10 → 6 ppl).
                 int occ = TryReadIntByName(s, "Number of People");
-                if (occ <= 0) occ = (int)Math.Max(1, Math.Round(areaM2 / 10.0)); // 10 m²/person default
+                if (occ <= 0) occ = profile.OccupantCountFor(areaM2);
                 z.OccupantCount = occ;
 
                 AddPerimeterEnvelope(s, z);
@@ -221,7 +270,8 @@ namespace StingTools.Commands.Hvac
             catch (Exception ex) { StingLog.Warn($"ZoneFromSpace {s.Id}: {ex.Message}"); return null; }
         }
 
-        private static LoadZone ZoneFromRoom(Autodesk.Revit.DB.Architecture.Room r)
+        private static LoadZone ZoneFromRoom(Autodesk.Revit.DB.Architecture.Room r,
+            StingTools.Core.Hvac.Loads.LoadProfileLibrary profileLib)
         {
             try
             {
@@ -229,16 +279,24 @@ namespace StingTools.Commands.Hvac
                 double heightM = UnitUtils.ConvertFromInternalUnits(r.UnboundedHeight, UnitTypeId.Meters);
                 if (heightM <= 0.1) heightM = 3.0;
 
+                // Room-only fallback path: no Space Type binding, use Department
+                // name (if filled) as the profile key. Default to Office.
+                string spaceTypeId = r.LookupParameter("Department")?.AsString();
+                if (string.IsNullOrWhiteSpace(spaceTypeId))
+                    spaceTypeId = r.LookupParameter("HVC_SPACE_TYPE_TXT")?.AsString() ?? "Office";
+                var profile = profileLib?.Get(spaceTypeId) ?? new StingTools.Core.Hvac.Loads.LoadProfile();
+
                 var z = new LoadZone
                 {
                     Id          = r.Id.Value.ToString(),
                     Name        = string.IsNullOrEmpty(r.Name) ? $"Room {r.Id}" : r.Name,
                     SystemId    = "(default)",
-                    SpaceTypeId = "Office",
+                    SpaceTypeId = string.IsNullOrEmpty(profile.Id) ? "Office" : profile.Id,
                     FloorAreaM2 = areaM2,
                     HeightM     = heightM,
-                    OccupantCount = (int)Math.Max(1, Math.Round(areaM2 / 10.0))
+                    OccupantCount = profile.OccupantCountFor(areaM2)
                 };
+                profile.ApplyTo(z);
                 AddPerimeterEnvelope(r, z);
                 return z;
             }

@@ -6,6 +6,7 @@
   "icon": "❄",
   "steps": [
     { "commandTag": "Hvac_BlockLoad",         "label": "Block load (peak-pick with diversity)" },
+    { "commandTag": "Hvac_PropagateLoads",    "label": "Propagate loads → HVC_FLOW_LS on ducts" },
     { "commandTag": "Hvac_SystemAudit",       "label": "System topology audit" },
     { "commandTag": "Hvac_ConnectionAudit",   "label": "Connector graph audit" },
     { "commandTag": "Hvac_AutoSizeDuct",      "label": "Auto-size ducts (strategy + scope from HVAC panel)" },

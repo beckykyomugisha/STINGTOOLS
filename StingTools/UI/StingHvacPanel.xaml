@@ -707,6 +707,9 @@
                             <Button Style="{StaticResource HvacPrimaryBtn}" Content="Block load"
                                     Tag="Hvac_BlockLoad" Click="Cmd_Click"
                                     ToolTip="STING block-load engine: peak-pick at system level + diversity factor (location-aware)"/>
+                            <Button Style="{StaticResource HvacPrimaryBtn}" Content="Propagate"
+                                    Tag="Hvac_PropagateLoads" Click="Cmd_Click"
+                                    ToolTip="Stamp HVC_FLOW_LS on ducts from served space's peak (Phase 187b bridge to AutoSize)"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Run loads (Revit)"
                                     Tag="Hvac_RunLoads" Click="Cmd_Click"
                                     ToolTip="Run heating + cooling loads via Revit's native engine"/>
@@ -875,6 +878,9 @@
                                     Tag="DocPackage" Click="Cmd_Click" ToolTip="Bundle HVAC drawings into a PDF pack"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Push to API"
                                     Tag="PlatformSync" Click="Cmd_Click" ToolTip="Push results to Planscape server"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Refresh grids"
+                                    Tag="Hvac_RefreshGrids" Click="Cmd_Click"
+                                    ToolTip="Rebuild Equipment / Systems / DuctTypes panel grids from the live model (Phase 187b)"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Climate inspect"
                                     Tag="Hvac_ClimateInspect" Click="Cmd_Click"
                                     ToolTip="Show the active climate site + corporate site catalogue"/>
