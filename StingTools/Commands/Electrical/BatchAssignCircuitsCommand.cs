@@ -184,7 +184,6 @@ namespace StingTools.Commands.Electrical
                     SystemId = sys.Id,
                     PanelId  = fit.Id,
                     SystemName = sys.Name ?? "(?)",
-                    PanelId = fit.Id,
                     PanelName = fit.Name,
                     Group = circuitGroup,
                     Reason = $"fit slots={fit.RemainingSlots} after, panelLoad={fit.ConnectedVa/1000:F1} kVA" +
@@ -342,7 +341,6 @@ namespace StingTools.Commands.Electrical
             public ElementId SystemId;
             public ElementId PanelId;     // Revit 2024+ SelectPanel takes FamilyInstance, not string
             public string SystemName;
-            public ElementId PanelId;
             public string PanelName;
             public string Group;
             public string Reason;
@@ -365,24 +363,15 @@ namespace StingTools.Commands.Electrical
 
             public PanelState(FamilyInstance fi, Dictionary<long, List<ElectricalSystem>> circuitsByPanel)
             {
-                _fi = fi;
-                Id = fi.Id;
-                Name = SafeName(fi);
-                TotalSlots = SafeReadInt(fi, "Number Of Circuits", 42);
                 circuitsByPanel.TryGetValue(fi.Id.Value, out var owned);
                 int used = owned?.Count ?? 0;
-                RemainingSlots = Math.Max(0, TotalSlots - used);
                 double sum = 0;
                 if (owned != null) foreach (var s in owned) sum += SafeApparentVA(s);
-                ConnectedVa = sum;
-                NominalVoltage = SafePanelVoltage(fi);
-                LevelId = fi.LevelId ?? ElementId.InvalidElementId;
                 try { Location = (fi.Location as LocationPoint)?.Point; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 // Pre-existing group tag from a prior run lets a re-run remain
                 // stable: panels already accumulating a group keep getting that
                 // group's circuits rather than scattering on each invocation.
-                GroupTag = ParameterHelpers.GetString(fi, "ELC_PNL_CIRCUIT_GROUP_TXT") ?? "";
             }
 
             public void PrimeRoomLevel(Document doc)

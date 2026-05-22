@@ -113,7 +113,6 @@ namespace StingTools.UI
             DeferNonActiveTabContent();
 
             BuildColorSwatches();
-            _instance = this;
 
             // Subscribe to PlacementResultBus so Fixtures and Routing result strips
             // update automatically after any placement/routing run.
@@ -2173,15 +2172,6 @@ namespace StingTools.UI
         private static readonly SuggestionItem[] _commandBarHints = new[]
         {
             new SuggestionItem { CommandName = "TagAndCombine",        Description = "One-click tag and combine all" },
-            new SuggestionItem { CommandName = "AutoTag",              Description = "Tag elements in active view" },
-            new SuggestionItem { CommandName = "BatchTag",             Description = "Tag all elements in project" },
-            new SuggestionItem { CommandName = "Validate",             Description = "Validate tag compliance" },
-            new SuggestionItem { CommandName = "PreTagAudit",          Description = "Dry-run tag prediction before committing" },
-            new SuggestionItem { CommandName = "ResolveAllIssues",     Description = "Fix all ISO 19650 compliance issues" },
-            new SuggestionItem { CommandName = "CompletenessDashboard",Description = "Tag completeness report by discipline" },
-            new SuggestionItem { CommandName = "SmartPlaceTags",       Description = "Place visual annotation tags" },
-            new SuggestionItem { CommandName = "COBieExport",          Description = "Export COBie handover data" },
-            new SuggestionItem { CommandName = "MorningHealthCheck",   Description = "Run morning health-check workflow" },
         };
 
         private void UpdateCommandBarSuggestions()

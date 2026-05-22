@@ -1080,12 +1080,6 @@ namespace StingTools.BIMManager
 
         public DeliverableFile(string filePath, string description, string docType, string suitability, string cdeState)
         {
-            FilePath = filePath;
-            Description = description;
-            DocType = docType;
-            Category = docType; // default Category to DocType
-            Suitability = suitability;
-            CDEState = cdeState;
         }
     }
 
@@ -2208,14 +2202,8 @@ namespace StingTools.BIMManager
             {
                 tagSync.Add(new Planscape.Shared.Models.TagElementSync
                 {
-                    RevitElementId  = p.RevitElementId,
-                    UniqueId        = p.UniqueId ?? "",
-                    Disc = p.Disc ?? "", Loc = p.Loc ?? "",
                     Zone = p.Zone ?? "", Lvl = p.Lvl ?? "",
-                    Sys  = p.Sys ?? "",  Func = p.Func ?? "",
                     Prod = p.Prod ?? "", Seq  = p.Seq ?? "",
-                    Tag1 = p.Tag1 ?? "", Tag7 = p.Tag7,
-                    CategoryName = p.CategoryName ?? "",
                     FamilyName   = p.FamilyName ?? "",
                     Status       = p.Status,
                     Rev          = p.Rev,
@@ -2830,8 +2818,6 @@ namespace StingTools.BIMManager
     /// action can also be resolved via WorkflowEngine.GetCommandInstance
     /// (Phase 167 dispatch-gap fix).
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
-    [Regeneration(RegenerationOption.Manual)]
 
     #endregion
 

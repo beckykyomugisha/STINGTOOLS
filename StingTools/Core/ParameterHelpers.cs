@@ -1544,56 +1544,6 @@ namespace StingTools.Core
             }
 
             /// <summary>
-            /// Phase 165 perf — cached active TagMode for the duration of a
-            /// batch. WriteTag7All previously read it per element via
-            /// GetActiveTagMode → 3 LookupParameter calls on ProjectInformation
-            /// per element. With this cache the lookup happens once during
-            /// PopulationContext.Build and every WriteTag7All call reads the
-            /// stored value directly.
-            /// </summary>
-            public ParamRegistry.TagMode ActiveTagMode { get; set; } = ParamRegistry.TagMode.DC;
-
-            /// <summary>EFF-05 (Phase 149b): per-batch memo of type-level LOC/ZONE
-            /// overrides so PopulateAll doesn't pay a Document.GetElement +
-            /// 2× GetString per instance when most types don't have overrides
-            /// set. Key is type ElementId; null tuple value means "no override".</summary>
-            public Dictionary<ElementId, (string Loc, string Zone)> TypeOverrideCache { get; set; }
-                = new Dictionary<ElementId, (string, string)>();
-
-            // TAG-PREFLIGHT-DUP-01: Per-document cached PopulationContext so consecutive
-            // commands (e.g. PreTagAudit followed by BatchTag) reuse the spatial / room /
-            // phase / grid indices instead of rebuilding them from scratch each time.
-            // 30 s TTL matches the room index cache; the cache is invalidated on document
-            // close, on TagConfig reload, and after any tagging command via PostTagCleanup.
-            private static (string docKey, DateTime time, PopulationContext ctx) _cached;
-            private static readonly object _cacheLock = new object();
-            private static readonly TimeSpan _cacheTtl = TimeSpan.FromSeconds(30);
-
-            /// <summary>
-            /// TAG-PREFLIGHT-DUP-01: Drop the cached PopulationContext. Call from
-            /// PostTagCleanup, document close, and TagConfig reload paths.
-            /// </summary>
-            /// <summary>
-            /// Phase 165 follow-up — explicit teardown helper. Ends the
-            /// SpatialAutoDetect batch session opened by <see cref="Build"/>
-            /// so the room-index TTL drops back to 30 s. Idempotent and
-            /// safe to call when no session is active.
-            ///
-            /// Usage pattern in batch commands:
-            ///   var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
-            ///   try { ... } finally { TokenAutoPopulator.PopulationContext.EndSession(); }
-            /// </summary>
-            public static void EndSession() => SpatialAutoDetect.EndBatchSession();
-
-            public static void InvalidateCache()
-            {
-                lock (_cacheLock)
-                {
-                    _cached = default;
-                }
-            }
-
-            /// <summary>
             /// Build a PopulationContext once for a batch operation.
             /// Caches all project-level lookups: room index, LOC, REV, phases.
             /// TAG-PREFLIGHT-DUP-01: Cached per-document with a 30 s TTL so back-to-back

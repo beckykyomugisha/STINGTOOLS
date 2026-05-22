@@ -219,7 +219,6 @@ namespace StingTools.Core.Drawing
         /// helpers. No actual batching is performed — Apply() is
         /// lightweight enough to call per-sheet.
         /// </summary>
-        public static System.IDisposable Batch() => new BatchScope();
 
 
         /// <summary>

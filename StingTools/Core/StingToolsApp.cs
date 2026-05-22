@@ -478,8 +478,6 @@ namespace StingTools.Core
                         StingLog.Info($"Planscape STC sync debounced ({sincePrev.TotalSeconds:F0}s < {PlanscapeSyncDebounceSeconds}s) for {doc.Title}");
                         return;
                     }
-                    _pendingSyncDoc = doc;
-                    _lastPlanscapeSync = DateTime.UtcNow;
                 }
 
                 StingLog.Info("Planscape: auto-sync triggered by STC");
@@ -558,7 +556,6 @@ namespace StingTools.Core
                 // from OnStartup to here.
                 if (!_mainPaneForceShown)
                 {
-                    _mainPaneForceShown = true;
                     try
                     {
                         var uiApp = new UIApplication(e.Document.Application);
@@ -975,9 +972,6 @@ namespace StingTools.Core
         }
 
         // PERF-CRIT: Deferred morning briefing state — runs on first command after document open
-        private static Document _pendingBriefingDoc;
-        internal static volatile bool _briefingPending;
-        private static bool _briefingSubscribed;
 
         /// <summary>PERF-CRIT: Run the morning briefing on demand (called from StingCommandHandler
         /// on first command execution after document open, NOT from DocumentOpened event).
@@ -1119,7 +1113,6 @@ namespace StingTools.Core
                 Document currentDoc = view?.Document;
                 if (currentDoc != null && currentDoc != _lastActiveDoc)
                 {
-                    _lastActiveDoc = currentDoc;
                     StingAutoTagger.InvalidateContext();
                     ComplianceScan.InvalidateCache();
                     // GAP-05: Clear parameter lookup cache on document switch to prevent
@@ -1283,7 +1276,6 @@ namespace StingTools.Core
             Autodesk.Revit.DB.Events.DocumentSavedEventArgs e)
         {
             if (_isSyncing) return;
-            _isSyncing = true;
             try
             {
                 var doc = e.Document;
@@ -1403,7 +1395,6 @@ namespace StingTools.Core
             }
             finally
             {
-                _isSyncing = false;
             }
         }
 
@@ -2502,6 +2493,8 @@ namespace StingTools.Core
     [Regeneration(RegenerationOption.Manual)]
     public class HubSheetManagerCommand : IExternalCommand
     {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run("SheetManager", ref message);
     }
 
     /// <summary>

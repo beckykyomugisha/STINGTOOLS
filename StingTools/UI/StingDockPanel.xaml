@@ -3133,7 +3133,7 @@
                                             ToolTip="Warnings dashboard: severity/category/level/discipline breakdown, trend, SLA violations, hotspot elements">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
-                                                <Border x:Name="border" Background="#E65100" BorderBrush="#BF360C" BorderThickness="1"
+                                                <Border x:Name="border_v2" Background="#E65100" BorderBrush="#BF360C" BorderThickness="1"
                                                         CornerRadius="3" Padding="10,6">
                                                     <TextBlock Text="⚠  WARNINGS DASHBOARD" FontWeight="Bold" FontSize="11"
                                                                Foreground="White" HorizontalAlignment="Center"/>
@@ -4733,11 +4733,11 @@
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Text="Mode" FontSize="9" VerticalAlignment="Center"/>
                                                     <WrapPanel Grid.Column="1">
-                                                        <RadioButton x:Name="rbModeHandover"  Content="Handover / FM"         GroupName="HandoverMode" IsChecked="True" Margin="2" FontSize="9"
+                                                        <RadioButton x:Name="rbModeHandover_v2"  Content="Handover / FM"         GroupName="HandoverMode" IsChecked="True" Margin="2" FontSize="9"
                                                                      ToolTip="Commissioning · Cost · Carbon · Fab · Clash · As-built · Compliance"/>
-                                                        <RadioButton x:Name="rbModeDesign"    Content="Design &amp; Construction" GroupName="HandoverMode" Margin="2" FontSize="9"
+                                                        <RadioButton x:Name="rbModeDesign_v2"    Content="Design &amp; Construction" GroupName="HandoverMode" Margin="2" FontSize="9"
                                                                      ToolTip="Design intent · Performance · Material · Installation · Coordination · Warranty · Classification"/>
-                                                        <RadioButton x:Name="rbModeCustom"    Content="Custom"                 GroupName="HandoverMode" Margin="2" FontSize="9"
+                                                        <RadioButton x:Name="rbModeCustom_v2"    Content="Custom"                 GroupName="HandoverMode" Margin="2" FontSize="9"
                                                                      ToolTip="User-edited preset from PARAGRAPH_PRESETS.json"/>
                                                     </WrapPanel>
                                                 </Grid>

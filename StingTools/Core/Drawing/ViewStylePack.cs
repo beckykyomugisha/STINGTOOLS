@@ -186,12 +186,6 @@ namespace StingTools.Core.Drawing
 
         // ── Phase 135 — token profile defaults ──────────────────────
 
-
-
-        /// <summary>Per-category tag style overrides. Category name → style preset name.</summary>
-        [JsonProperty("categoryTagStyles", NullValueHandling = NullValueHandling.Ignore)]
-        public System.Collections.Generic.Dictionary<string, string> CategoryTagStyles { get; set; }
-
         // ── Phase 177 — per-category paragraph depth ─────────────────
 
         /// <summary>Per-category paragraph depth overrides. Category name → depth tier (1-10).</summary>

@@ -90,7 +90,6 @@ namespace StingTools.Core.Placement
 
         public PlacementScorer(Document doc)
         {
-            _doc = doc;
         }
 
         /// <summary>
@@ -108,7 +107,6 @@ namespace StingTools.Core.Placement
                     catch (Exception ex)
                     { StingLog.Warn($"PlacementScorer: LightingGridCalculator init failed: {ex.Message}"); }
                 }
-                return _lightingGrid;
             }
         }
 

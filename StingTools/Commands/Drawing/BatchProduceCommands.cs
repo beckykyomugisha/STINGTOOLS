@@ -575,12 +575,6 @@ namespace StingTools.Commands.Drawing
         }
     }
 
-    [Transaction(TransactionMode.Manual)]
-    [Regeneration(RegenerationOption.Manual)]
-
-    [Transaction(TransactionMode.Manual)]
-    [Regeneration(RegenerationOption.Manual)]
-
     [Transaction(TransactionMode.ReadOnly)]
     public class DrawingPackageExportCommand : IExternalCommand
     {

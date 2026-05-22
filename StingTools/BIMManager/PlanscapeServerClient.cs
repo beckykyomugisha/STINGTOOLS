@@ -31,7 +31,6 @@ public sealed class PlanscapeServerClient : IDisposable
         {
             if (_instance == null)
                 lock (_instanceLock) { _instance ??= new PlanscapeServerClient(); }
-            return _instance;
         }
     }
 
@@ -347,7 +346,6 @@ public sealed class PlanscapeServerClient : IDisposable
         }
         catch (Exception ex)
         {
-            LastError = ex.Message;
             return (false, Guid.Empty, ex.Message);
         }
     }
@@ -440,9 +438,7 @@ public sealed class PlanscapeServerClient : IDisposable
             });
             if (!resp.ok)
             {
-                LastError = $"Sync failed ({resp.status}): {resp.body}";
                 UI.StingDockPanel.LastInstance?.UpdateSyncStatus(UI.StingDockPanel.SyncState.Error, LastError);
-                return new SyncResult { Success = false, Error = LastError };
             }
 
             var json = JObject.Parse(resp.body);
@@ -459,10 +455,8 @@ public sealed class PlanscapeServerClient : IDisposable
         }
         catch (Exception ex)
         {
-            LastError = ex.Message;
             StingLog.Error("Planscape: Sync failed", ex);
             UI.StingDockPanel.LastInstance?.UpdateSyncStatus(UI.StingDockPanel.SyncState.Error, ex.Message);
-            return new SyncResult { Success = false, Error = ex.Message };
         }
     }
 
@@ -1411,20 +1405,12 @@ public sealed class PlanscapeServerClient : IDisposable
             }
             else
             {
-                LastNdaRequiredIds = new HashSet<Guid>();
             }
             return list ?? empty;
         }
         catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"ListSitePhotosAsync: {ex.Message}"); return empty; }
     }
 
-    /// <summary>
-    /// Phase 180 — set after the most recent <see cref="ListSitePhotosAsync"/>
-    /// call. Holds the photo ids that the server flagged as
-    /// <c>ndaRequiredIds</c> for the calling user. Empty when the user
-    /// bypasses ACL or no listed photo carries an NDA-required rule.
-    /// </summary>
-    public HashSet<Guid> LastNdaRequiredIds { get; private set; } = new();
 
     /// <summary>Download the redacted/watermarked photo bytes for thumbnail or full-size view.
     /// Returns null on failure (caller should render a placeholder).</summary>
@@ -1531,47 +1517,10 @@ public sealed class PlanscapeServerClient : IDisposable
 
     // ── Documents ──────────────────────────────────────────────────────────────
 
-    /// <summary>List documents for a project, optionally filtering by CDE status.</summary>
-    public async Task<JArray?> GetDocumentsAsync(Guid projectId, string? cdeStatus = null)
-    {
-        if (!await EnsureAuthenticatedAsync()) return null;
-        try
-        {
-            var path = $"/api/projects/{projectId}/documents";
-            if (!string.IsNullOrEmpty(cdeStatus)) path += $"?cdeStatus={Uri.EscapeDataString(cdeStatus)}";
-            var resp = await GetAsync(path);
-            return resp.ok ? (JObject.Parse(resp.body)["items"] as JArray) : null;
-        }
-        catch (Exception ex) { LastError = ex.Message; return null; }
-    }
 
-    /// <summary>Transition a document through the ISO 19650 CDE state machine.</summary>
-    public async Task<bool> TransitionDocumentAsync(Guid projectId, Guid documentId, string newStatus, string? revision = null)
-    {
-        if (!await EnsureAuthenticatedAsync()) return false;
-        try
-        {
-            var resp = await PostJsonAsync(
-                $"/api/projects/{projectId}/documents/{documentId}/transition",
-                new { newStatus, revision });
-            return resp.ok;
-        }
-        catch (Exception ex) { LastError = ex.Message; return false; }
-    }
 
     // ── Meetings ───────────────────────────────────────────────────────────────
 
-    public async Task<JArray?> GetMeetingsAsync(Guid projectId, bool upcomingOnly = true)
-    {
-        if (!await EnsureAuthenticatedAsync()) return null;
-        try
-        {
-            var path = $"/api/projects/{projectId}/meetings{(upcomingOnly ? "?upcoming=true" : "")}";
-            var resp = await GetAsync(path);
-            return resp.ok ? JArray.Parse(resp.body) : null;
-        }
-        catch (Exception ex) { LastError = ex.Message; return null; }
-    }
 
     public async Task<string?> CreateMeetingAsync(Guid projectId, string title, string type,
         DateTime scheduledAt, int durationMinutes = 60, string? agenda = null)
@@ -1589,16 +1538,6 @@ public sealed class PlanscapeServerClient : IDisposable
 
     // ── Transmittals ───────────────────────────────────────────────────────────
 
-    public async Task<JArray?> GetTransmittalsAsync(Guid projectId)
-    {
-        if (!await EnsureAuthenticatedAsync()) return null;
-        try
-        {
-            var resp = await GetAsync($"/api/projects/{projectId}/transmittals");
-            return resp.ok ? JArray.Parse(resp.body) : null;
-        }
-        catch (Exception ex) { LastError = ex.Message; return null; }
-    }
 
     public async Task<string?> CreateTransmittalAsync(Guid projectId, string title,
         IEnumerable<Guid> documentIds, string recipients, string? purpose = null)
@@ -1614,30 +1553,9 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return null; }
     }
 
-    public async Task<bool> SendTransmittalAsync(Guid projectId, Guid transmittalId)
-    {
-        if (!await EnsureAuthenticatedAsync()) return false;
-        try
-        {
-            var resp = await PostJsonAsync(
-                $"/api/projects/{projectId}/transmittals/{transmittalId}/send", new { });
-            return resp.ok;
-        }
-        catch (Exception ex) { LastError = ex.Message; return false; }
-    }
 
     // ── Workflows ──────────────────────────────────────────────────────────────
 
-    public async Task<JArray?> GetWorkflowRunsAsync(Guid projectId, int limit = 50)
-    {
-        if (!await EnsureAuthenticatedAsync()) return null;
-        try
-        {
-            var resp = await GetAsync($"/api/projects/{projectId}/workflows?limit={limit}");
-            return resp.ok ? JArray.Parse(resp.body) : null;
-        }
-        catch (Exception ex) { LastError = ex.Message; return null; }
-    }
 
     public async Task<bool> LogWorkflowRunAsync(Guid projectId, string preset,
         int steps, int passed, int failed, int skipped, double durationSec,
@@ -1655,172 +1573,24 @@ public sealed class PlanscapeServerClient : IDisposable
 
     // ── Warnings ───────────────────────────────────────────────────────────────
 
-    public async Task<JArray?> GetWarningsAsync(Guid projectId)
-    {
-        if (!await EnsureAuthenticatedAsync()) return null;
-        try
-        {
-            var resp = await GetAsync($"/api/projects/{projectId}/warnings");
-            return resp.ok ? JArray.Parse(resp.body) : null;
-        }
-        catch (Exception ex) { LastError = ex.Message; return null; }
-    }
 
-    public async Task<bool> PushWarningsAsync(Guid projectId, object payload)
-    {
-        if (!await EnsureAuthenticatedAsync()) return false;
-        try
-        {
-            var resp = await PostJsonAsync($"/api/projects/{projectId}/warnings", payload);
-            return resp.ok;
-        }
-        catch (Exception ex) { LastError = ex.Message; return false; }
-    }
 
     // ── MIM (Model Information Management) ────────────────────────────────────
 
-    public async Task<JArray?> GetMimAssetsAsync(Guid projectId, int page = 1, int pageSize = 100)
-    {
-        if (!await EnsureAuthenticatedAsync()) return null;
-        try
-        {
-            var resp = await GetAsync($"/api/projects/{projectId}/mim/assets?page={page}&pageSize={pageSize}");
-            return resp.ok ? (JObject.Parse(resp.body)["items"] as JArray) ?? JArray.Parse(resp.body) : null;
-        }
-        catch (Exception ex) { LastError = ex.Message; return null; }
-    }
 
-    public async Task<JObject?> GetMimDashboardAsync(Guid projectId)
-    {
-        if (!await EnsureAuthenticatedAsync()) return null;
-        try
-        {
-            var resp = await GetAsync($"/api/projects/{projectId}/mim/dashboard");
-            return resp.ok ? JObject.Parse(resp.body) : null;
-        }
-        catch (Exception ex) { LastError = ex.Message; return null; }
-    }
 
-    /// <summary>
-    /// INT-08 — Batch upload MIM assets to <c>POST /api/projects/{id}/mim/assets/bulk</c>.
-    /// The server skips duplicates by AssetTag and caps at 10,000 per request.
-    /// Caller is responsible for chunking larger batches; this returns the count
-    /// reported by the server (-1 on failure, with <see cref="LastError"/> set).
-    /// </summary>
-    public async Task<int> BulkPushMimAssetsAsync(Guid projectId, IEnumerable<object> assets)
-    {
-        if (!await EnsureAuthenticatedAsync()) return -1;
-        try
-        {
-            var resp = await PostJsonAsync($"/api/projects/{projectId}/mim/assets/bulk", assets);
-            if (!resp.ok) { LastError = $"HTTP {resp.body}"; return -1; }
-            try
-            {
-                var body = JObject.Parse(resp.body);
-                return body["created"]?.Value<int>() ?? 0;
-            }
-            catch
-            {
-                return 0; // server replied 2xx but body not parseable as JSON object
-            }
-        }
-        catch (Exception ex) { LastError = ex.Message; return -1; }
-    }
 
-    /// <summary>
-    /// Phase 142 — bulk-create transmittals via
-    /// <c>POST /api/projects/{id}/transmittals/bulk</c> (max 200 per request).
-    /// Used by the offline queue drain + workflow flush. Returns the count
-    /// reported by the server, or -1 on failure with <see cref="LastError"/>.
-    /// </summary>
-    public async Task<int> BulkCreateTransmittalsAsync(Guid projectId, IEnumerable<object> transmittals)
-    {
-        if (!await EnsureAuthenticatedAsync()) return -1;
-        try
-        {
-            var resp = await PostJsonAsync($"/api/projects/{projectId}/transmittals/bulk", transmittals);
-            if (!resp.ok) { LastError = $"HTTP {resp.body}"; return -1; }
-            try
-            {
-                var body = JObject.Parse(resp.body);
-                return body["created"]?.Value<int>() ?? 0;
-            }
-            catch { return 0; }
-        }
-        catch (Exception ex) { LastError = ex.Message; return -1; }
-    }
 
-    /// <summary>
-    /// Phase 142 — bulk-create meetings via
-    /// <c>POST /api/projects/{id}/meetings/bulk</c> (max 200 per request).
-    /// </summary>
-    public async Task<int> BulkCreateMeetingsAsync(Guid projectId, IEnumerable<object> meetings)
-    {
-        if (!await EnsureAuthenticatedAsync()) return -1;
-        try
-        {
-            var resp = await PostJsonAsync($"/api/projects/{projectId}/meetings/bulk", meetings);
-            if (!resp.ok) { LastError = $"HTTP {resp.body}"; return -1; }
-            try
-            {
-                var body = JObject.Parse(resp.body);
-                return body["created"]?.Value<int>() ?? 0;
-            }
-            catch { return 0; }
-        }
-        catch (Exception ex) { LastError = ex.Message; return -1; }
-    }
 
     // ── Platform connections ──────────────────────────────────────────────────
 
-    public async Task<JArray?> GetPlatformConnectionsAsync(Guid projectId)
-    {
-        if (!await EnsureAuthenticatedAsync()) return null;
-        try
-        {
-            var resp = await GetAsync($"/api/projects/{projectId}/platform");
-            return resp.ok ? JArray.Parse(resp.body) : null;
-        }
-        catch (Exception ex) { LastError = ex.Message; return null; }
-    }
 
     // ── Models (listing — UploadModelAsync already exists below) ──────────────
 
-    public async Task<JArray?> GetModelsAsync(Guid projectId)
-    {
-        if (!await EnsureAuthenticatedAsync()) return null;
-        try
-        {
-            var resp = await GetAsync($"/api/projects/{projectId}/models");
-            return resp.ok ? JArray.Parse(resp.body) : null;
-        }
-        catch (Exception ex) { LastError = ex.Message; return null; }
-    }
 
     // ── Issue comments (P2) ───────────────────────────────────────────────────
 
-    public async Task<JArray?> GetIssueCommentsAsync(Guid projectId, Guid issueId)
-    {
-        if (!await EnsureAuthenticatedAsync()) return null;
-        try
-        {
-            var resp = await GetAsync($"/api/projects/{projectId}/issues/{issueId}/comments");
-            return resp.ok ? JArray.Parse(resp.body) : null;
-        }
-        catch (Exception ex) { LastError = ex.Message; return null; }
-    }
 
-    public async Task<bool> AddIssueCommentAsync(Guid projectId, Guid issueId, string body)
-    {
-        if (!await EnsureAuthenticatedAsync()) return false;
-        try
-        {
-            var resp = await PostJsonAsync(
-                $"/api/projects/{projectId}/issues/{issueId}/comments", new { body });
-            return resp.ok;
-        }
-        catch (Exception ex) { LastError = ex.Message; return false; }
-    }
 
     // ────────────────────────────────────────────────────────────────────────────
     //  Private helpers
@@ -2211,7 +1981,6 @@ public sealed class PlanscapeServerClient : IDisposable
         }
         catch (Exception ex)
         {
-            LastError = ex.Message;
             StingLog.Error("Planscape: UploadModelAsync failed", ex);
             return (false, Guid.Empty, ex.Message, false);
         }
