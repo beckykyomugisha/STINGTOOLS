@@ -89,6 +89,23 @@ namespace StingTools.Core.Hvac.Loads
         public double OrientationDeg { get; set; }
         /// <summary>Optional shading factor (0..1). 1 = no shading, 0.5 = blinds.</summary>
         public double ShadingFactor { get; set; } = 1.0;
+
+        /// <summary>
+        /// Specific heat capacity per unit area, kJ/(m²·K) — Σ over layers of
+        /// (ρ·c·thickness). Used by the per-zone RTS interpolator (Phase 187g)
+        /// to derive Radiant Time Factors from actual layer detail rather than
+        /// using a project-wide Light/Medium/Heavy class.
+        ///
+        /// Typical values:
+        ///   Lightweight stud + gypsum wall:   ~40-80 kJ/m²K
+        ///   Cavity brick / block wall:       ~150-250 kJ/m²K
+        ///   Solid concrete wall (200 mm):    ~400-500 kJ/m²K
+        ///   Concrete + masonry composite:    600+ kJ/m²K
+        ///
+        /// When 0 (the default), the zone-wide RtsConstructionClass on
+        /// BlockLoadEngine.Run is used instead.
+        /// </summary>
+        public double ThermalMassKJperM2K { get; set; } = 0;
     }
 
     /// <summary>Per-zone hourly load profile + peaks.</summary>

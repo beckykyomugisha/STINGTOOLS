@@ -3222,6 +3222,83 @@ Five items the Phase 187e summary listed as remaining are now closed:
 - `Commands/Hvac/HvacEnvelopeStaleCommands.cs`
 - `Data/STING_REFRIG_VENDOR_LIMITS.json`
 
+### Phase 187g — algorithmic precision sweep
+
+The five "genuinely future" algorithmic gaps from the Phase 187f summary
+are now in place.
+
+1. **DST / timezone in BlockLoadEngine.**
+   `ClimateSite` gains `UtcOffsetHours` + `ObservesDstInSummer`.
+   `STING_CLIMATE_DATA.json` v1.1 populates both for all 41 cities
+   (London = 0/DST, Tokyo = +9/no-DST, Sydney = +10/no-DST in July, etc).
+   `ComputeZoneHourly` converts each local-clock hour to solar time via
+   `localToSolarShiftH = -dstShift + (lon - 15·utcOffset)/15` before
+   calling `ClearSkyDirectNormalWm2` + `IncidenceFactor`. Both functions
+   now take a `double` hour. Solar noon aligns with sun position rather
+   than clock noon → east/west glass loads correct on the right time-zone
+   meridian.
+
+2. **Per-room cross-talk direct + reverberant model.**
+   `HvacCrossTalkAuditCommand` previously computed receiver Lp as
+   `talker − attenuation`. Now treats the talker as a sound POWER (Lp + 11 dB)
+   that arrives at the receiver terminal as Lw, then runs the standard
+   `Lp = Lw + 10·log10(Q/4πr² + 4/R)` direct + reverberant pass via
+   `NcPredictionEngine.RoomLwToLp` against the receiver Space's volume,
+   surface, absorption, listener distance, directivity. New
+   `BuildReceiverFromSpace` derives those from each Space (heuristic
+   absorption by HVC_SPACE_TYPE_TXT: patient 0.25, classroom 0.30,
+   auditorium 0.40, plant/warehouse 0.10). Large absorptive rooms now
+   correctly show 5-8 dB more privacy than small reflective ones.
+
+3. **Per-construction-layer RTS factors.**
+   New `EnvelopeSegment.ThermalMassKJperM2K` carries the area-specific
+   heat capacity (Σ ρ·c·thickness across wall layers). When any envelope
+   segment in a zone has thermal-mass data, `BlockLoadEngine` derives a
+   zone-specific RTF by area-weighting + interpolating between the
+   Light/Medium/Heavy tables (rigorous ASHRAE CTF would require Laplace-
+   domain inversion — this is the practical middle ground; direction-of-
+   effect is correct without the full CTF math). Falls back to the
+   project-wide `RtsConstructionClass` when no thermal-mass data is
+   present. New `RadiantTimeSeries.FactorsForThermalMass(avgMass)` +
+   `ApplyRtsToGainWithRtf(...)` helpers.
+
+4. **Refrigerant additional-charge calculator.**
+   New `STING_REFRIG_CHARGE_TABLES.json` ships 6 vendor charge tables
+   (Daikin VRV IV-S / VRV 5 / VRV IV-H, Mitsubishi City Multi Y / R2,
+   Toshiba SHRMe) with per-OD kg/m factors + vendor short-system
+   offset thresholds. `RefrigerantChargeCalculator.Compute(runs, table)`
+   sums field charge with the offset. New `HvacRefrigerantChargeCommand`
+   walks project refrigerant pipes (filters by system name containing
+   REFRIG / RFRG / VRV / VRF), groups by OD, computes charge via the
+   table for the active `PRJ_REFRIG_VENDOR_SERIES_TXT` +
+   `PRJ_REFRIG_FLUID_TXT`. Per-OD breakdown + total kg in the result
+   panel.
+
+5. **TRACE / HAP comparison import.**
+   `HvacCompareLoadsCommand` reads a TRACE 3D Plus / HAP CSV export
+   (header row `ZoneId, SensibleKw, LatentKw, OutdoorAirLs`), joins on
+   STING Space Number → Name → ElementId, compares per-zone sensible
+   loads against the `HVC_PEAK_SENS_W` stamps. Reports mean |Δ| %,
+   max |Δ|, R², count within/outside tolerance band (default ±15 %,
+   override via `PRJ_TRACE_TOLERANCE_PCT`). Top-20 outside-band zones
+   surfaced; full breakdown to CSV at `_BIM_COORD/acoustic/trace_compare_<ts>.csv`.
+   First in-tree validation path against a true industry-reference engine.
+
+### Parameters added (Phase 187g)
+
+| Name | Group | Purpose |
+|---|---|---|
+| `PRJ_REFRIG_VENDOR_SERIES_TXT` | PRJ_INFORMATION | Active refrigerant vendor series for charge-table lookup |
+| `PRJ_REFRIG_FLUID_TXT` | PRJ_INFORMATION | Project refrigerant fluid (R410A / R32 / R134a / CO2) |
+| `PRJ_TRACE_TOLERANCE_PCT` | PRJ_INFORMATION | TRACE/HAP load-compare acceptance band (default 15 %) |
+
+### Files added (Phase 187g)
+
+- `Core/Refrigerant/RefrigerantChargeCalculator.cs`
+- `Commands/Hvac/HvacRefrigerantChargeCommand.cs`
+- `Commands/Hvac/HvacCompareLoadsCommand.cs`
+- `Data/STING_REFRIG_CHARGE_TABLES.json`
+
 ### Caveats (Phase 187 — what's still open)
 
 1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.

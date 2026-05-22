@@ -76,6 +76,20 @@ namespace StingTools.Core.Climate
         public double Cdd10         { get; set; }
         public string Source        { get; set; } = "";
 
+        /// <summary>Standard-time UTC offset, hours. London = 0, Paris = +1,
+        /// New York = -5, Singapore = +8, etc. Used by BlockLoadEngine to
+        /// convert local-clock hours into solar-time hours so solar noon
+        /// aligns with the actual sun position (default solar geometry
+        /// assumes hour-12 = solar noon).</summary>
+        public double UtcOffsetHours { get; set; } = 0;
+
+        /// <summary>True if the site observes Daylight Saving Time during the
+        /// cooling design day (which is in July for the northern hemisphere
+        /// and most southern-hemisphere sites are at design too in their
+        /// summer). +1 h is added on top of UtcOffsetHours when applying the
+        /// local→solar conversion.</summary>
+        public bool ObservesDstInSummer { get; set; } = false;
+
         /// <summary>
         /// Air density at the cooling design dry-bulb, corrected for
         /// elevation per the NASA ISA model. Returns kg/m³.
@@ -255,7 +269,9 @@ namespace StingTools.Core.Climate
                     Heating99DbC    = (double?)s["heating99DbC"]  ?? 0,
                     Hdd18           = (double?)s["hdd18"] ?? 0,
                     Cdd10           = (double?)s["cdd10"] ?? 0,
-                    Source          = (string)s["source"] ?? ""
+                    Source          = (string)s["source"] ?? "",
+                    UtcOffsetHours      = (double?)s["utcOffsetHours"] ?? 0,
+                    ObservesDstInSummer = (bool?)s["observesDstInSummer"] ?? false
                 };
                 // Project override replaces an existing entry with the same id
                 int existing = data.Sites.FindIndex(x => string.Equals(x.Id, site.Id, StringComparison.OrdinalIgnoreCase));

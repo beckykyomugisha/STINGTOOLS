@@ -74,7 +74,9 @@ namespace StingTools.Commands.Hvac
                 if (ctx == null) { message = "No active document."; return Result.Failed; }
                 var doc = ctx.Doc;
 
-                // 1. Collect terminals
+                // 1. Collect terminals with their host-space acoustic geometry
+                //    (volume + surface + absorption — needed for the receiver
+                //    direct+reverberant Lp pass in Phase 187g).
                 var terminals = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_DuctTerminal)
                     .WhereElementIsNotElementType()
@@ -84,7 +86,8 @@ namespace StingTools.Commands.Hvac
                     .Select(t => new TerminalNode {
                         El = t, SpaceId = t.Space.Id.Value,
                         SpaceName = t.Space.Name ?? "",
-                        Label = $"#{t.Id.Value} {t.Name}"
+                        Label = $"#{t.Id.Value} {t.Name}",
+                        Receiver = BuildReceiverFromSpace(t.Space)
                     })
                     .ToList();
                 if (terminals.Count < 2)
@@ -116,16 +119,31 @@ namespace StingTools.Commands.Hvac
 
                     var attenA = AccumulateAttenuationToShared(a, shared);
                     var attenB = AccumulateAttenuationToShared(b, shared);
-                    // Total attenuation = upstream A + upstream B + 6 dB tee split.
+                    // Total path attenuation = upstream A + upstream B + 6 dB tee split.
                     var attenTotal = new OctaveBand();
                     for (int i = 0; i < 8; i++)
                         attenTotal[i] = attenA[i] + attenB[i] + 6.0;
 
-                    // Receiver Lp spectrum = talker reference − attenuation,
-                    // floored at 0 dB. NC rating per ASHRAE A48.
-                    var receiverLp = new OctaveBand();
-                    for (int i = 0; i < 8; i++)
-                        receiverLp[i] = Math.Max(0, TalkerLpRefOct[i] - attenTotal[i]);
+                    // Phase 187g — proper room receiver model.
+                    //
+                    // 1. Talker injects a sound POWER (Lw) at terminal A's
+                    //    inlet equal to ANSI S3.5 Lp reference + 11 dB
+                    //    (Lw ≈ Lp at 1 m for a 4π talker — equivalent to a
+                    //    point source with no directivity boost).
+                    // 2. Attenuation along the shared path reduces it to Lw
+                    //    at terminal B's outlet (receiver-room side).
+                    // 3. The receiver Lp at the listener is then the
+                    //    standard room-acoustic Lp = Lw + 10·log10(Q/4πr²
+                    //    + 4/R) using the receiver's room volume / surface
+                    //    / absorption / directivity (Phase 187g).
+                    //
+                    // This adds the room's reverberant decay on top of the
+                    // duct-side attenuation — a large absorptive room is
+                    // 5-8 dB more forgiving than a small reflective one.
+                    var talkerLw = new OctaveBand();
+                    for (int i = 0; i < 8; i++) talkerLw[i] = TalkerLpRefOct[i] + 11.0;
+                    var receiverLw = talkerLw - attenTotal;
+                    var receiverLp = NcPredictionEngine.RoomLwToLp(receiverLw, b.Receiver);
                     int receiverNc = NcCurves.Rate(receiverLp);
 
                     double atten1kDb = attenTotal.Hz1000;
@@ -167,10 +185,13 @@ namespace StingTools.Commands.Hvac
                 panel.Text("Method: walks each terminal's connector graph upstream tracking full " +
                            "octave-band attenuation (63 Hz → 8 kHz) per ASHRAE A48 (straight + elbow " +
                            "+ tee + end-reflection ×2 + silencer IL via AcousticDataRegistry) plus 6 dB " +
-                           "tee split. Receiver Lp = talker reference (ANSI S3.5 normal voice @ 1 m) " +
-                           $"minus attenuation. Rated against NC curves; flag when NC > {ReceiverNcTarget} " +
-                           $"or 1 kHz attenuation < {SpeechPrivacyFloorDb:F0} dB. Add cross-talk silencers " +
-                           "or branch isolation where flagged.");
+                           "tee split. Talker Lw = ANSI S3.5 normal voice at 1 m + 11 dB → Lw. " +
+                           "Receiver Lp computed via the direct + reverberant room model (Phase 187g): " +
+                           "Lp = Lw + 10·log10(Q/4πr² + 4/R), R = Sᾱ/(1-ᾱ), using each receiver-space's " +
+                           "volume, surface, absorption + 1.5 m listener / Q=2 ceiling-mount defaults. " +
+                           $"Rated against NC curves; flag when NC > {ReceiverNcTarget} or 1 kHz " +
+                           $"attenuation < {SpeechPrivacyFloorDb:F0} dB. Add cross-talk silencers or " +
+                           "branch isolation where flagged.");
                 panel.Show();
 
                 try
@@ -376,10 +397,60 @@ namespace StingTools.Commands.Hvac
         private class TerminalNode
         {
             public FamilyInstance El;
-            public long   SpaceId;
-            public string SpaceName;
-            public string Label;
-            public Dictionary<long, double> UpstreamPath;
+            public long           SpaceId;
+            public string         SpaceName;
+            public string         Label;
+            /// <summary>Element-id → cumulative <see cref="OctaveBand"/> attenuation
+            /// from this terminal up to that point. Populated by <see cref="WalkUpstream"/>.</summary>
+            public Dictionary<long, OctaveBand> UpstreamPath;
+            /// <summary>Receiver-room acoustic model (volume + surface +
+            /// absorption + listener distance + directivity). Used by the
+            /// pairing loop to convert duct-side Lw into Lp at the listener
+            /// via <see cref="NcPredictionEngine.RoomLwToLp"/>.</summary>
+            public RoomReceiver   Receiver;
+        }
+
+        private static RoomReceiver BuildReceiverFromSpace(Space sp)
+        {
+            try
+            {
+                double areaM2  = UnitUtils.ConvertFromInternalUnits(sp.Area, UnitTypeId.SquareMeters);
+                double heightM = UnitUtils.ConvertFromInternalUnits(sp.UnboundedHeight, UnitTypeId.Meters);
+                if (heightM < 0.5) heightM = 3.0;
+                double vol = areaM2 * heightM;
+                // Surface area = floor + ceiling + perimeter walls. Approx
+                // square-ish room: perimeter ≈ 4·√area.
+                double perimM = 4.0 * Math.Sqrt(Math.Max(areaM2, 1.0));
+                double surfM2 = 2 * areaM2 + perimM * heightM;
+                // Absorption coefficient — heuristic by space type. Plant /
+                // warehouse are highly reflective; classrooms / auditoria
+                // are progressively more absorptive.
+                double absorption = 0.20;
+                string spType = sp.LookupParameter("HVC_SPACE_TYPE_TXT")?.AsString();
+                if (!string.IsNullOrEmpty(spType))
+                {
+                    string lo = spType.ToLowerInvariant();
+                    if      (lo.Contains("patient")  || lo.Contains("hospital"))   absorption = 0.25;
+                    else if (lo.Contains("classroom")|| lo.Contains("conference") ||
+                             lo.Contains("meeting"))                                absorption = 0.30;
+                    else if (lo.Contains("auditorium")|| lo.Contains("theatre"))   absorption = 0.40;
+                    else if (lo.Contains("plant")    || lo.Contains("warehouse"))  absorption = 0.10;
+                    else if (lo.Contains("kitchen"))                                absorption = 0.10;
+                }
+                return new RoomReceiver
+                {
+                    Name              = sp.Name ?? "",
+                    VolumeM3          = vol,
+                    SurfaceAreaM2     = surfM2,
+                    AvgAbsorption     = absorption,
+                    ListenerDistanceM = 1.5,     // standard speech-privacy reference distance
+                    Directivity       = 2.0      // ceiling-mounted terminal — Q=2 (hemispherical)
+                };
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildReceiverFromSpace {sp?.Id}: {ex.Message}"); }
+            return new RoomReceiver {
+                Name = sp?.Name ?? "", VolumeM3 = 100, SurfaceAreaM2 = 120,
+                AvgAbsorption = 0.2, ListenerDistanceM = 1.5, Directivity = 2.0 };
         }
 
         private class CrossTalkPair

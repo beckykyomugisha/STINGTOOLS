@@ -137,5 +137,108 @@ namespace StingTools.Core.Hvac.Loads
             public const double Lighting   = 0.67;
             public const double Equipment  = 0.50;
         }
+
+        // ── Phase 187g — per-zone RTF from thermal mass ─────────────────
+        //
+        // ASHRAE's rigorous RTS derives Radiant Time Factors from each
+        // zone's Conduction Transfer Function via Laplace-domain inversion
+        // (Handbook 2021 Ch.18 §RTS-MATHEMATICS). That's a heavy implementation
+        // — needs polynomial CTF coefficients per construction layer.
+        //
+        // The practical middle-ground STING ships: derive a thermal-mass
+        // score per zone (area-weighted Σ ρ·c·thickness across the envelope),
+        // then interpolate between the published Light/Medium/Heavy tables.
+        // Direction-of-effect is correct (heavier mass → longer lag, lower
+        // peak) without the full CTF math. Reverts to Heavy at very high
+        // mass and to Reactive when zone has no envelope info.
+
+        /// <summary>
+        /// Build a 24-hour Radiant Time Factor array interpolated from the
+        /// area-weighted average thermal mass of a zone's envelope. Returns
+        /// null when <paramref name="avgThermalMassKJperM2K"/> ≤ 0 — caller
+        /// then falls back to the class-based RTF (FactorsFor).
+        ///
+        /// Interpolation breakpoints:
+        ///   ≤  50 kJ/m²K → Light
+        ///   = 200        → Medium
+        ///   ≥ 400        → Heavy
+        ///   intermediate → linear interpolation between bracketing tables.
+        /// </summary>
+        public static double[] FactorsForThermalMass(double avgThermalMassKJperM2K)
+        {
+            if (avgThermalMassKJperM2K <= 0) return null;
+            const double light = 50.0, medium = 200.0, heavy = 400.0;
+            if (avgThermalMassKJperM2K <= light)  return _light;
+            if (avgThermalMassKJperM2K >= heavy)  return _heavy;
+            if (avgThermalMassKJperM2K <= medium)
+            {
+                double t = (avgThermalMassKJperM2K - light) / (medium - light);
+                return Lerp(_light, _medium, t);
+            }
+            else
+            {
+                double t = (avgThermalMassKJperM2K - medium) / (heavy - medium);
+                return Lerp(_medium, _heavy, t);
+            }
+        }
+
+        /// <summary>
+        /// Convolve a 24-hour gain stream with a caller-supplied RTF array
+        /// (used for the per-zone path; the class-based path goes through
+        /// <see cref="ConvolveRadiant"/>).
+        /// </summary>
+        public static double[] ConvolveRadiantWithRtf(double[] hourlyGainsW, double[] rtf)
+        {
+            if (hourlyGainsW == null || hourlyGainsW.Length != 24 || rtf == null) return hourlyGainsW;
+            var outLoad = new double[24];
+            for (int g = 0; g < 24; g++)
+            {
+                double gain = hourlyGainsW[g];
+                if (gain == 0) continue;
+                for (int t = 0; t < 24; t++)
+                {
+                    int hour = (g + t) % 24;
+                    outLoad[hour] += gain * rtf[Math.Min(t, rtf.Length - 1)];
+                }
+            }
+            return outLoad;
+        }
+
+        /// <summary>
+        /// Per-zone variant of <see cref="ApplyRtsToGain"/> — splits radiant
+        /// + convective per the supplied fraction, convolves the radiant
+        /// portion with the zone-specific RTF, passes convective through.
+        /// </summary>
+        public static double[] ApplyRtsToGainWithRtf(double[] hourlyGainsW,
+            double radiantFraction, double[] rtf)
+        {
+            if (hourlyGainsW == null || hourlyGainsW.Length != 24) return hourlyGainsW;
+            if (rtf == null) return hourlyGainsW;
+            radiantFraction = Math.Max(0, Math.Min(1, radiantFraction));
+            var radiant    = new double[24];
+            var convective = new double[24];
+            for (int h = 0; h < 24; h++)
+            {
+                radiant[h]    = hourlyGainsW[h] * radiantFraction;
+                convective[h] = hourlyGainsW[h] * (1 - radiantFraction);
+            }
+            var laggedRad = ConvolveRadiantWithRtf(radiant, rtf);
+            var result = new double[24];
+            for (int h = 0; h < 24; h++) result[h] = laggedRad[h] + convective[h];
+            return result;
+        }
+
+        private static double[] Lerp(double[] a, double[] b, double t)
+        {
+            t = Math.Max(0, Math.Min(1, t));
+            var r = new double[Math.Max(a.Length, b.Length)];
+            for (int i = 0; i < r.Length; i++)
+            {
+                double av = i < a.Length ? a[i] : 0;
+                double bv = i < b.Length ? b[i] : 0;
+                r[i] = av * (1 - t) + bv * t;
+            }
+            return r;
+        }
     }
 }

@@ -243,6 +243,12 @@ namespace StingTools.UI
                     case "Hvac_EnvelopeStaleClear":
                         // Phase 187f — clear HVC_LOAD_STALE_BOOL on every space.
                         Run<StingTools.Commands.Hvac.HvacEnvelopeStaleClearCommand>(app); break;
+                    case "Hvac_RefrigCharge":
+                        // Phase 187g — vendor additional-charge calculator.
+                        Run<StingTools.Commands.Hvac.HvacRefrigerantChargeCommand>(app); break;
+                    case "Hvac_CompareLoads":
+                        // Phase 187g — import TRACE / HAP CSV + diff per zone.
+                        Run<StingTools.Commands.Hvac.HvacCompareLoadsCommand>(app); break;
                     case "Hvac_NcPredict":
                         // STING-design-engines: VDI 2081 / ASHRAE A48 NC prediction
                         // from duct selection + regenerated noise + room model.

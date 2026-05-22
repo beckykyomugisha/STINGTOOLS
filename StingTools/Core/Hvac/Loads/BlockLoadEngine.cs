@@ -177,10 +177,31 @@ namespace StingTools.Core.Hvac.Loads
             // ASHRAE design days: cooling = July 21 (DOY 202), heating = January 21 (DOY 21).
             int designDoy = cooling ? 202 : 21;
 
+            // Phase 187g — local clock → solar time conversion.
+            // Two corrections layered onto the local hour:
+            //   1. DST: subtract 1 h on the cooling design day when the site
+            //      observes summer DST (the design day is in July for N-hemi
+            //      observers, so DST is in effect).
+            //   2. Longitude offset from time-zone meridian:
+            //      Δh = (lon − 15·utcOffset) / 15.
+            //      Tokyo is east of its zone-meridian — solar noon is BEFORE
+            //      clock noon — so this correction can be tens of minutes.
+            //   Engine math assumes "hour 12" is solar noon, so we shift the
+            //   local-clock hour by these corrections before computing
+            //   irradiance / azimuth.
+            double dstShift = (c.ObservesDstInSummer && cooling) ? 1.0 : 0.0;
+            double lonShiftH = (c.Lon - 15.0 * c.UtcOffsetHours) / 15.0;
+            double localToSolarShiftH = -dstShift + lonShiftH;
+
             for (int h = 0; h < 24; h++)
             {
+                // Solar-time hour for this local-clock hour.
+                double solarH = h + localToSolarShiftH;
+                while (solarH < 0)  solarH += 24;
+                while (solarH >= 24) solarH -= 24;
+
                 double tOut  = OutdoorTempC(tPeak, h, cooling);
-                double iSol  = cooling ? ClearSkyDirectNormalWm2(c, h, designDoy) : 0;     // ignore solar for heating peak (night)
+                double iSol  = cooling ? ClearSkyDirectNormalWm2(c, solarH, designDoy) : 0;     // ignore solar for heating peak (night)
                 double iDiff = cooling ? 0.15 * iSol : 0;
 
                 // 1. Conduction + solar by envelope segment, binned per
@@ -192,7 +213,7 @@ namespace StingTools.Core.Hvac.Loads
                     condByOrient[bin][h] += qCond;
                     if (seg.Kind == SegmentKind.Window && cooling)
                     {
-                        double cosTheta = Math.Max(0, IncidenceFactor(seg.OrientationDeg, h, c.Lat, designDoy));
+                        double cosTheta = Math.Max(0, IncidenceFactor(seg.OrientationDeg, solarH, c.Lat, designDoy));
                         double solSurf = iSol * cosTheta + iDiff;
                         solarByOrient[bin][h] += seg.AreaM2 * seg.SHGC * seg.ShadingFactor * solSurf;
                     }
@@ -219,17 +240,58 @@ namespace StingTools.Core.Hvac.Loads
             // RTS lag — applied per-stream with the canonical ASHRAE
             // radiant fraction for that gain type. Reactive class is a
             // no-op pass-through so legacy callers see no behaviour change.
-            // Phase 187f — conduction + solar are convolved per-orientation
-            // before aggregation (was: aggregated first then convolved).
+            //
+            // Phase 187f — conduction + solar convolved per-orientation
+            // before aggregation.
+            // Phase 187g — when the zone's envelope segments carry
+            // ThermalMassKJperM2K data, derive a per-zone RTF by area-
+            // weighting + interpolating between Light/Medium/Heavy tables
+            // (rigorous ASHRAE CTF would require Laplace-domain inversion;
+            // this is the practical middle ground). Falls back to the
+            // class-based RTF when no thermal-mass data is present.
             var rf = RadiantTimeSeries.RadiantFraction;
+            double[] zoneRtf = null;
+            if (rts != RtsConstructionClass.Reactive && z.Envelope != null && z.Envelope.Count > 0)
+            {
+                double sumAreaMass = 0, sumArea = 0;
+                foreach (var seg in z.Envelope)
+                {
+                    if (seg.ThermalMassKJperM2K <= 0 || seg.AreaM2 <= 0) continue;
+                    sumAreaMass += seg.AreaM2 * seg.ThermalMassKJperM2K;
+                    sumArea     += seg.AreaM2;
+                }
+                if (sumArea > 0 && sumAreaMass > 0)
+                {
+                    double avgMass = sumAreaMass / sumArea;
+                    zoneRtf = RadiantTimeSeries.FactorsForThermalMass(avgMass);
+                }
+            }
+
             for (int b = 0; b < NumOrient; b++)
             {
-                condByOrient[b]  = RadiantTimeSeries.ApplyRtsToGain(condByOrient[b],  rf.Conduction, rts);
-                solarByOrient[b] = RadiantTimeSeries.ApplyRtsToGain(solarByOrient[b], rf.SolarGlass, rts);
+                if (zoneRtf != null)
+                {
+                    condByOrient[b]  = RadiantTimeSeries.ApplyRtsToGainWithRtf(condByOrient[b],  rf.Conduction, zoneRtf);
+                    solarByOrient[b] = RadiantTimeSeries.ApplyRtsToGainWithRtf(solarByOrient[b], rf.SolarGlass, zoneRtf);
+                }
+                else
+                {
+                    condByOrient[b]  = RadiantTimeSeries.ApplyRtsToGain(condByOrient[b],  rf.Conduction, rts);
+                    solarByOrient[b] = RadiantTimeSeries.ApplyRtsToGain(solarByOrient[b], rf.SolarGlass, rts);
+                }
             }
-            occW = RadiantTimeSeries.ApplyRtsToGain(occW, rf.Occupant,  rts);
-            litW = RadiantTimeSeries.ApplyRtsToGain(litW, rf.Lighting,  rts);
-            eqpW = RadiantTimeSeries.ApplyRtsToGain(eqpW, rf.Equipment, rts);
+            if (zoneRtf != null)
+            {
+                occW = RadiantTimeSeries.ApplyRtsToGainWithRtf(occW, rf.Occupant,  zoneRtf);
+                litW = RadiantTimeSeries.ApplyRtsToGainWithRtf(litW, rf.Lighting,  zoneRtf);
+                eqpW = RadiantTimeSeries.ApplyRtsToGainWithRtf(eqpW, rf.Equipment, zoneRtf);
+            }
+            else
+            {
+                occW = RadiantTimeSeries.ApplyRtsToGain(occW, rf.Occupant,  rts);
+                litW = RadiantTimeSeries.ApplyRtsToGain(litW, rf.Lighting,  rts);
+                eqpW = RadiantTimeSeries.ApplyRtsToGain(eqpW, rf.Equipment, rts);
+            }
 
             var sens = new double[24];
             for (int h = 0; h < 24; h++)
@@ -287,14 +349,17 @@ namespace StingTools.Core.Hvac.Loads
         /// <summary>
         /// ASHRAE Clear Sky direct-normal irradiance for the given hour
         /// and day-of-year. Default DOY = 202 (July 21, cooling design).
-        /// Returns 0 when sun is below horizon.
+        /// Returns 0 when sun is below horizon. `solarHour` is the
+        /// solar-time hour (not local-clock); caller is responsible for
+        /// any DST + longitude shift via <see cref="ClimateSite.UtcOffsetHours"/>
+        /// + <see cref="ClimateSite.ObservesDstInSummer"/>.
         /// </summary>
-        public static double ClearSkyDirectNormalWm2(ClimateSite c, int hour, int dayOfYear = 202)
+        public static double ClearSkyDirectNormalWm2(ClimateSite c, double solarHour, int dayOfYear = 202)
         {
             double dec = 23.45 * Math.Sin(2 * Math.PI * (dayOfYear - 81) / 365.25);
             double latRad = c.Lat * Math.PI / 180.0;
             double decRad = dec * Math.PI / 180.0;
-            double hAngle = (hour - 12.0) * 15.0 * Math.PI / 180.0;       // 15°/h hour angle
+            double hAngle = (solarHour - 12.0) * 15.0 * Math.PI / 180.0;  // 15°/h hour angle
             double sinAlt = Math.Sin(latRad) * Math.Sin(decRad)
                           + Math.Cos(latRad) * Math.Cos(decRad) * Math.Cos(hAngle);
             if (sinAlt <= 0.001) return 0;
@@ -338,12 +403,12 @@ namespace StingTools.Core.Hvac.Loads
         ///
         /// Returns 0 when the sun is below the horizon or behind the surface.
         /// </summary>
-        public static double IncidenceFactor(double orientationDeg, int hour,
+        public static double IncidenceFactor(double orientationDeg, double solarHour,
             double latitudeDeg = 51.5, int dayOfYear = 172)
         {
             double phi = latitudeDeg * Math.PI / 180.0;
             double dec = 23.45 * Math.Sin(2 * Math.PI * (dayOfYear - 81) / 365.25) * Math.PI / 180.0;
-            double H = (hour - 12.0) * 15.0 * Math.PI / 180.0;
+            double H = (solarHour - 12.0) * 15.0 * Math.PI / 180.0;
 
             double sinAlt = Math.Sin(phi) * Math.Sin(dec)
                           + Math.Cos(phi) * Math.Cos(dec) * Math.Cos(H);

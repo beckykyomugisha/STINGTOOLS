@@ -525,6 +525,12 @@
                             <Button Style="{StaticResource HvacActionBtn}" Content="Clear stale flags"
                                     Tag="Hvac_EnvelopeStaleClear" Click="Cmd_Click"
                                     ToolTip="Clear HVC_LOAD_STALE_BOOL on every Space (Phase 187f)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Refrig charge"
+                                    Tag="Hvac_RefrigCharge" Click="Cmd_Click"
+                                    ToolTip="Compute vendor additional refrigerant charge from per-OD pipe lengths (Phase 187g)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Compare loads (TRACE/HAP)"
+                                    Tag="Hvac_CompareLoads" Click="Cmd_Click"
+                                    ToolTip="Import a TRACE / HAP CSV export + diff per zone against STING BlockLoad (Phase 187g)"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Fitting loss"
                                     Tag="Mep_FittingLoss" Click="Cmd_Click" ToolTip="Per-fitting Kv loss report"/>
                             <Button Style="{StaticResource HvacWarnBtn}" Content="Run all validators"
