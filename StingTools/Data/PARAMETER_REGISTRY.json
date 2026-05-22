@@ -383,6 +383,30 @@
       "required": false
     },
     {
+      "param_name": "HANDOVER_MODE_HANDOVER_BOOL",
+      "guid": "a1b2c3d4-0002-5a01-b001-000000001001",
+      "description": "Pattern selector — Handover / FM T4-T10 payload is live. Paired with HANDOVER_MODE_DC_BOOL; exactly one is true per project.",
+      "binding": "universal",
+      "param_type": "YESNO",
+      "required": false
+    },
+    {
+      "param_name": "HANDOVER_MODE_DC_BOOL",
+      "guid": "a1b2c3d4-0002-5a01-b001-000000001002",
+      "description": "Pattern selector — Design & Construction T4-T10 payload is live. Paired with HANDOVER_MODE_HANDOVER_BOOL; exactly one is true per project.",
+      "binding": "universal",
+      "param_type": "YESNO",
+      "required": false
+    },
+    {
+      "param_name": "HANDOVER_MODE_CUSTOM_BOOL",
+      "guid": "a1b2c3d4-0002-5a01-b001-000000001003",
+      "description": "Pattern selector — Custom (user-defined) T4-T10 payload is live. Exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL / HANDOVER_MODE_CUSTOM_BOOL is true per project.",
+      "binding": "universal",
+      "param_type": "YESNO",
+      "required": false
+    },
+    {
       "param_name": "TAG_TEXT_COLOUR_TEXT",
       "guid": "e2d68782-f71e-5716-b559-e8795f7f5e5d",
       "description": "Tag text colour (Integer code)",
@@ -25205,7 +25229,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "Comprehensive descriptive narrative \u2014 AI-assembled asset profile with embedded markup tokens for rich rendering"
+          "description": "Comprehensive descriptive narrative — AI-assembled asset profile with embedded markup tokens for rich rendering"
         },
         {
           "param_name": "ASS_TAG_7A_TXT",
@@ -25214,7 +25238,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section A: Identity Header \u2014 asset name, product, manufacturer, model (styled as BOLD in tag families)"
+          "description": "TAG7 Section A: Identity Header — asset name, product, manufacturer, model (styled as BOLD in tag families)"
         },
         {
           "param_name": "ASS_TAG_7B_TXT",
@@ -25223,7 +25247,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section B: System & Function Context \u2014 full system/function descriptions (styled as ITALIC in tag families)"
+          "description": "TAG7 Section B: System & Function Context — full system/function descriptions (styled as ITALIC in tag families)"
         },
         {
           "param_name": "ASS_TAG_7C_TXT",
@@ -25232,7 +25256,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section C: Spatial Context \u2014 room, department, grid reference"
+          "description": "TAG7 Section C: Spatial Context — room, department, grid reference"
         },
         {
           "param_name": "ASS_TAG_7D_TXT",
@@ -25241,7 +25265,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section D: Lifecycle & Status \u2014 status, revision, origin, maintenance"
+          "description": "TAG7 Section D: Lifecycle & Status — status, revision, origin, maintenance"
         },
         {
           "param_name": "ASS_TAG_7E_TXT",
@@ -25250,7 +25274,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section E: Technical Specifications \u2014 discipline-specific MEP/BLE performance data"
+          "description": "TAG7 Section E: Technical Specifications — discipline-specific MEP/BLE performance data"
         },
         {
           "param_name": "ASS_TAG_7F_TXT",
@@ -27271,12 +27295,12 @@
       {
         "key": "ROOM_AREA",
         "param_name": "ASS_ROOM_AREA_SQ_M",
-        "description": "Room area (m\u00b2)"
+        "description": "Room area (m²)"
       },
       {
         "key": "ROOM_VOLUME",
         "param_name": "ASS_ROOM_VOLUME_CU_M",
-        "description": "Room volume (m\u00b3)"
+        "description": "Room volume (m³)"
       },
       {
         "key": "DEPT",
@@ -27402,7 +27426,7 @@
       {
         "key": "ELE_AREA",
         "param_name": "BLE_ELE_AREA_SQ_M",
-        "description": "Element area (m\u00b2)"
+        "description": "Element area (m²)"
       },
       {
         "key": "CEILING_HEIGHT",
@@ -31011,6 +31035,338 @@
         ],
         "tier": "T9"
       }
+    ],
+    "tier_4_10": [
+      {
+        "key": "COMM_STATE",
+        "param_name": "COMM_STATE_TXT",
+        "guid": "5753b5aa-0004-4000-8000-000000000001",
+        "description": "Commissioning state (Draft / Pre-C / Witness / Final)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T4"
+      },
+      {
+        "key": "COMM_DATE",
+        "param_name": "COMM_DATE_TXT",
+        "guid": "5753b5aa-0004-4000-8000-000000000002",
+        "description": "Commissioning date (ISO 8601) — when state was last stamped",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T4"
+      },
+      {
+        "key": "COMM_OPERATIVE",
+        "param_name": "COMM_OPERATIVE_TXT",
+        "guid": "5753b5aa-0004-4000-8000-000000000003",
+        "description": "Commissioning operative — name / ID of engineer who stamped the asset",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T4"
+      },
+      {
+        "key": "CST_UG_PRICE",
+        "param_name": "CST_UG_PRICE_UGX",
+        "guid": "5753b5aa-0005-4000-8000-000000000001",
+        "description": "Uganda local price (UGX) — quoted supplier price ex-works",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T5"
+      },
+      {
+        "key": "CST_INTL_PRICE",
+        "param_name": "CST_INTL_PRICE_USD",
+        "guid": "5753b5aa-0005-4000-8000-000000000002",
+        "description": "International price (USD) — CIF/DAP quote for imported goods",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T5"
+      },
+      {
+        "key": "CST_QUOTE_REF",
+        "param_name": "CST_QUOTE_REF_TXT",
+        "guid": "5753b5aa-0005-4000-8000-000000000003",
+        "description": "Quote reference — supplier quote/PO number",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T5"
+      },
+      {
+        "key": "CBN_A1_A3",
+        "param_name": "CBN_A1_A3_KG_CO2E",
+        "guid": "5753b5aa-0006-4000-8000-000000000001",
+        "description": "Product stage carbon A1-A3 (kgCO2e) — cradle-to-gate embodied",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T6"
+      },
+      {
+        "key": "CBN_A4",
+        "param_name": "CBN_A4_KG_CO2E",
+        "guid": "5753b5aa-0006-4000-8000-000000000002",
+        "description": "Transport stage carbon A4 (kgCO2e) — factory-to-site haulage",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T6"
+      },
+      {
+        "key": "CBN_B6",
+        "param_name": "CBN_B6_KG_CO2E_YR",
+        "guid": "5753b5aa-0006-4000-8000-000000000003",
+        "description": "Operational energy carbon B6 (kgCO2e/yr) — annual in-use emissions",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T6"
+      },
+      {
+        "key": "ASS_SPOOL_NR",
+        "param_name": "ASS_SPOOL_NR_TXT",
+        "guid": "5753b5aa-0007-4000-8000-000000000001",
+        "description": "Fabrication spool number — BS EN ISO 6412 isometric reference",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_FAB_STATUS",
+        "param_name": "ASS_FAB_STATUS_TXT",
+        "guid": "5753b5aa-0007-4000-8000-000000000002",
+        "description": "Fabrication status (Designed / Spool released / Fabricated / Delivered / Installed)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "ASS_QC_INSPECTOR",
+        "param_name": "ASS_QC_INSPECTOR_TXT",
+        "guid": "5753b5aa-0007-4000-8000-000000000003",
+        "description": "QC inspector — name / ID of signing engineer",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T7"
+      },
+      {
+        "key": "CLASH_TRIAGE_SEV",
+        "param_name": "CLASH_TRIAGE_SEVERITY_NR",
+        "guid": "5753b5aa-0008-4000-8000-000000000001",
+        "description": "Clash triage severity (0-5) — higher = more blocking",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T8"
+      },
+      {
+        "key": "CLASH_TRIAGE_CAT",
+        "param_name": "CLASH_TRIAGE_CATEGORY_TXT",
+        "guid": "5753b5aa-0008-4000-8000-000000000002",
+        "description": "Clash triage category (Hard / Soft / Tolerance / Workflow)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T8"
+      },
+      {
+        "key": "CLASH_RES_STATUS",
+        "param_name": "CLASH_RESOLUTION_STATUS_TXT",
+        "guid": "5753b5aa-0008-4000-8000-000000000003",
+        "description": "Clash resolution status (Open / Under Review / Resolved / Accepted)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T8"
+      },
+      {
+        "key": "ASBUILT_DEV",
+        "param_name": "ASBUILT_DEVIATION_MM",
+        "guid": "5753b5aa-0009-4000-8000-000000000001",
+        "description": "As-built deviation (mm) — delta vs design position from reality capture",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T9"
+      },
+      {
+        "key": "ASBUILT_DATE",
+        "param_name": "ASBUILT_CAPTURE_DATE_TXT",
+        "guid": "5753b5aa-0009-4000-8000-000000000002",
+        "description": "As-built capture date (ISO 8601) — when reality-capture snapshot was taken",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T9"
+      },
+      {
+        "key": "HEALTH_SCORE",
+        "param_name": "HEALTH_SCORE_LAST_NR",
+        "guid": "5753b5aa-0009-4000-8000-000000000003",
+        "description": "Model health score (0-100) — last computed compliance / data quality rating",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T9"
+      },
+      {
+        "key": "IFC_PSET_OVERRIDE",
+        "param_name": "IFC_PSET_OVERRIDE_TXT",
+        "guid": "5753b5aa-000a-4000-8000-000000000001",
+        "description": "IFC PSet override — custom IFC property set / value mapping for export",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T10"
+      },
+      {
+        "key": "ACC_ISSUE_ID",
+        "param_name": "ACC_ISSUE_ID_TXT",
+        "guid": "5753b5aa-000a-4000-8000-000000000002",
+        "description": "ACC Issue ID — Autodesk Construction Cloud Issue round-trip reference",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T10"
+      },
+      {
+        "key": "ACC_SYNC_STATUS",
+        "param_name": "ACC_SYNC_STATUS_TXT",
+        "guid": "5753b5aa-000a-4000-8000-000000000003",
+        "description": "ACC sync status (Pending / Synced / Conflict / Failed)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T10"
+      },
+      {
+        "key": "COMM_WITNESS",
+        "param_name": "COMM_WITNESS_TXT",
+        "guid": "5753b5aa-0004-4000-8000-000000000010",
+        "description": "Commissioning witness — name / ID of client/third-party observer",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T4"
+      },
+      {
+        "key": "COMM_NOTES",
+        "param_name": "COMM_NOTES_TXT",
+        "guid": "5753b5aa-0004-4000-8000-000000000011",
+        "description": "Commissioning free-text notes (defects, overrides, escalations)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T4"
+      },
+      {
+        "key": "CST_INSTALL_HRS",
+        "param_name": "CST_INSTALL_HRS",
+        "guid": "5753b5aa-0005-4000-8000-000000000010",
+        "description": "Installation labour hours (N-G12) — estimated man-hours for install",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T5"
+      },
+      {
+        "key": "CST_LABOUR_CREW",
+        "param_name": "CST_LABOUR_CREW_TXT",
+        "guid": "5753b5aa-0005-4000-8000-000000000011",
+        "description": "Labour crew identifier — crew code assigned to install",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T5"
+      },
+      {
+        "key": "CST_LABOUR_RATE_GBP",
+        "param_name": "CST_LABOUR_RATE_GBP",
+        "guid": "5753b5aa-0005-4000-8000-000000000012",
+        "description": "Labour rate (GBP/hr) — override for cost roll-up",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T5"
+      },
+      {
+        "key": "CBN_A5",
+        "param_name": "CBN_A5_KG_CO2E",
+        "guid": "5753b5aa-0006-4000-8000-000000000010",
+        "description": "Construction stage carbon A5 (kgCO2e) — site installation emissions",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T6"
+      },
+      {
+        "key": "CBN_C1",
+        "param_name": "CBN_C1_KG_CO2E",
+        "guid": "5753b5aa-0006-4000-8000-000000000011",
+        "description": "End-of-life carbon C1 (kgCO2e) — demolition energy",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T6"
+      },
+      {
+        "key": "CBN_C2",
+        "param_name": "CBN_C2_KG_CO2E",
+        "guid": "5753b5aa-0006-4000-8000-000000000012",
+        "description": "End-of-life carbon C2 (kgCO2e) — transport to waste processing",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T6"
+      },
+      {
+        "key": "CBN_C3_C4",
+        "param_name": "CBN_C3_C4_KG_CO2E",
+        "guid": "5753b5aa-0006-4000-8000-000000000013",
+        "description": "End-of-life carbon C3-C4 (kgCO2e) — waste processing + disposal",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T6"
+      },
+      {
+        "key": "CLASH_TRIAGE_SCORE",
+        "param_name": "CLASH_TRIAGE_SCORE",
+        "guid": "5753b5aa-0008-4000-8000-000000000010",
+        "description": "Clash triage composite score (0-100) — weighted severity x business impact",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T8"
+      },
+      {
+        "key": "CLASH_RES_ACTION",
+        "param_name": "CLASH_RESOLUTION_ACTION_TXT",
+        "guid": "5753b5aa-0008-4000-8000-000000000011",
+        "description": "Clash resolution action — remediation action taken or planned",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T8"
+      },
+      {
+        "key": "HEALTH_SCORE_DATE",
+        "param_name": "HEALTH_SCORE_DATE_TXT",
+        "guid": "5753b5aa-0009-4000-8000-000000000010",
+        "description": "Model health score capture date (ISO 8601)",
+        "categories": [
+          "ALL"
+        ],
+        "tier": "T9"
+      }
     ]
   },
   "category_enum_map": {
@@ -31379,7 +31735,7 @@
       "guid": "2e3596c7-f913-5c86-9c2b-547f6375ca3c",
       "description": "Room minimum area compliance",
       "threshold": "7.0",
-      "unit": "m\u00b2",
+      "unit": "m²",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -31469,7 +31825,7 @@
       "guid": "cc3fc151-264e-5c9e-88fe-add4e5c4e52f",
       "description": "U-value thermal transmittance check",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -31659,7 +32015,7 @@
       "guid": "18e66013-b783-5748-9389-06897dd57a86",
       "description": "Vertical circulation structural load check",
       "threshold": "5.0",
-      "unit": "kN/m\u00b2",
+      "unit": "kN/m²",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -31689,7 +32045,7 @@
       "guid": "43c8ea79-cafd-5da0-9e6f-e228b85efb39",
       "description": "U-value thermal transmittance check",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -31829,7 +32185,7 @@
       "guid": "573be7bf-3821-5434-b6f6-783e1c83ef87",
       "description": "Fire safety device coverage limit",
       "threshold": "12.0",
-      "unit": "m\u00b2",
+      "unit": "m²",
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal"
@@ -31839,7 +32195,7 @@
       "guid": "9cff654b-b254-4be2-9067-c5bb1fbb2b1b",
       "description": "Sprinkler coverage area limit",
       "threshold": "12.0",
-      "unit": "m\u00b2",
+      "unit": "m²",
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal"
@@ -31969,7 +32325,7 @@
       "guid": "4b0595c4-908f-58fc-821c-b1cacc438418",
       "description": "Space lighting power density limit",
       "threshold": "10",
-      "unit": "W/m\u00b2",
+      "unit": "W/m²",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal"
@@ -32029,7 +32385,7 @@
       "guid": "b8930262-2de1-4ec1-a68b-c7d1ce741b3c",
       "description": "Embodied carbon footprint limit per unit",
       "threshold": "500",
-      "unit": "kgCO\u2082e/m\u00b2",
+      "unit": "kgCO₂e/m²",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal"
@@ -32039,7 +32395,7 @@
       "guid": "05aac695-72d4-4826-be4c-f7f050ff2cba",
       "description": "Floor U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -32049,7 +32405,7 @@
       "guid": "8fad1a00-1d39-4672-87f7-72aa5f3350c2",
       "description": "Roof U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -32059,7 +32415,7 @@
       "guid": "a64d1a09-088f-4e61-9356-8190e9efc50e",
       "description": "Wall U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -32069,7 +32425,7 @@
       "guid": "698beeb9-f4f0-5c0c-a998-dbe92cb657b0",
       "description": "VOC emissions limit for indoor air quality",
       "threshold": "250",
-      "unit": "\u00b5g/m\u00b3",
+      "unit": "µg/m³",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
