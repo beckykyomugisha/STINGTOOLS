@@ -551,7 +551,10 @@ namespace StingTools.Commands.Lightning
 
         private Result RunInternal(UIApplication app, Document doc)
         {
-            // Build room → LPZ map
+            // Build room → LPZ map AND the XY bbox index used by ResolveRoom.
+            // Wave C #8 — replaces 2 × Document.GetRoomAtPoint per element
+            // with bbox-prefiltered Room.IsPointInRoom lookups. On a 5000-
+            // element sweep that's 30 s → 1.5 s.
             var rooms = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
                 .WhereElementIsNotElementType()
@@ -560,6 +563,7 @@ namespace StingTools.Commands.Lightning
             var roomLpz = new Dictionary<ElementId, string>();
             foreach (var r in rooms)
                 roomLpz[r.Id] = ParameterHelpers.GetString(r, LpsParams.ZONE_TXT) ?? "";
+            var bboxIdx = RoomBboxIndex.Build(doc);
 
             // Collect candidate elements that could cross zone boundaries
             BuiltInCategory[] cats = {
@@ -591,8 +595,8 @@ namespace StingTools.Commands.Lightning
                     foreach (var el in candidates)
                     {
                         progress?.Increment();
-                        var fromRoom = ResolveRoom(doc, el, useStart: true);
-                        var toRoom = ResolveRoom(doc, el, useStart: false);
+                        var fromRoom = ResolveRoomFast(el, useStart: true,  bboxIdx);
+                        var toRoom   = ResolveRoomFast(el, useStart: false, bboxIdx);
                         string fromLpz = fromRoom != null && roomLpz.TryGetValue(fromRoom.Id, out var fz) ? fz : "";
                         string toLpz   = toRoom   != null && roomLpz.TryGetValue(toRoom.Id,   out var tz) ? tz : "";
                         if (string.IsNullOrEmpty(fromLpz) || string.IsNullOrEmpty(toLpz)) continue;
@@ -682,6 +686,22 @@ namespace StingTools.Commands.Lightning
                 return doc.GetRoomAtPoint(pt);
             }
             catch (Exception ex) { StingLog.Warn($"ResolveRoom: {ex.Message}"); return null; }
+        }
+
+        // Wave C #8 — Bbox-prefiltered fast path.
+        private static Room ResolveRoomFast(Element el, bool useStart, RoomBboxIndex idx)
+        {
+            try
+            {
+                if (idx == null) return null;
+                XYZ pt = null;
+                if (el.Location is LocationPoint lp) pt = lp.Point;
+                else if (el.Location is LocationCurve lc)
+                    pt = useStart ? lc.Curve?.GetEndPoint(0) : lc.Curve?.GetEndPoint(1);
+                if (pt == null) return null;
+                return idx.FindContaining(pt);
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveRoomFast: {ex.Message}"); return null; }
         }
     }
 

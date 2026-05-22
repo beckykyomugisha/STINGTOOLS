@@ -456,6 +456,16 @@ namespace StingTools.UI
             if (doc == null) return;
             try
             {
+                // Wave C #7 — Force a fresh build of the LPS element index
+                // (single FilteredElementCollector sweep across the 2
+                // LPS-hosting BICs) before the per-grid loaders run.
+                // Every loader now reads from this cached index instead
+                // of calling CollectLpsFamily independently → was 14
+                // full sweeps per Load-Model click, now 1.
+                LpsElementIndex.Invalidate(doc);
+                var idx = LpsElementIndex.Get(doc);
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+
                 Action act = () =>
                 {
                     LoadAirTerminalsFromDoc(doc);
@@ -468,7 +478,8 @@ namespace StingTools.UI
                     UpdateStatus(
                         $"Loaded: {AirTerminalRows.Count} AT · {DownConductorRows.Count} DC · " +
                         $"{EarthElectrodeRows.Count} earth · {BondingRows.Count} bond · " +
-                        $"{ZoneRows.Count} rooms · {SpdRows.Count} SPD");
+                        $"{ZoneRows.Count} rooms · {SpdRows.Count} SPD · " +
+                        $"index {idx.TotalElements} elements in {sw.ElapsedMilliseconds}ms");
                 };
                 if (Dispatcher?.CheckAccess() == true) act();
                 else Dispatcher?.Invoke(act);
@@ -490,7 +501,7 @@ namespace StingTools.UI
                 }
 
                 int n = 1;
-                foreach (var at in LpsEngine.CollectLpsFamily(doc, "Air Terminal", "Air_Terminal", "Franklin", "Air-Terminal"))
+                foreach (var at in LpsElementIndex.AirTerminals(doc))
                 {
                     double rM = LpsEngine.GetDoubleParam(at, LpsParams.ROLLING_SPHERE_RADIUS_M);
                     if (rM <= 0) rM = projR;
@@ -522,7 +533,7 @@ namespace StingTools.UI
             {
                 DownConductorRows.Clear();
                 int count = 0;
-                var dcs = LpsEngine.CollectLpsFamily(doc, "Down Conductor", "Down_Conductor", "DownConductor");
+                var dcs = LpsElementIndex.DownConductors(doc);
                 // Wave A #14 — use the Annex C.3 table-based kc with the
                 // panel's ring + bonding flags rather than the 1/n approx.
                 double kc = LpsEngine.ComputeKcFactor(dcs.Count, RiskRingConductor, RiskEquipotentialBonding);
@@ -564,7 +575,7 @@ namespace StingTools.UI
             {
                 EarthElectrodeRows.Clear();
                 int n = 1;
-                foreach (var el in LpsEngine.CollectLpsFamily(doc, "Earth", "Ground Rod", "GroundRod", "Earth_Rod", "Earth Electrode"))
+                foreach (var el in LpsElementIndex.EarthElectrodes(doc))
                 {
                     double L = 0;
                     try
@@ -714,7 +725,7 @@ namespace StingTools.UI
             {
                 // Don't wipe a user-edited grid — only load when empty.
                 if (SpdRows.Count > 0) return;
-                foreach (var fi in LpsEngine.CollectLpsFamily(doc, "SPD", "Surge"))
+                foreach (var fi in LpsElementIndex.Spds(doc))
                 {
                     string loc = ParameterHelpers.GetString(fi, LpsParams.SURGE_PROTECTION_LVL_TXT);
                     SpdRows.Add(new SpdRowVm
