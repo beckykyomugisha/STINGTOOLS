@@ -1158,6 +1158,24 @@ namespace StingTools.UI
             catch (Exception ex) { TaskDialog.Show("Material Manager", $"Sync COBie failed: {ex.Message}"); }
         }
 
+        // ── A-1 — Class normaliser ──────────────────────────────────────────
+
+        public static void NormaliseMaterialClasses(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                int touched = MaterialClassNormaliser.NormaliseProject(doc);
+                TaskDialog.Show("Class Normaliser",
+                    touched > 0
+                    ? $"Renamed {touched} material class(es) to corporate canonical names. Refresh MAT to see the change."
+                    : "All material classes are already canonical.");
+                if (touched > 0) StingDockPanel.LastInstance?.ShowMaterialsTab();
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Class normalise failed: {ex.Message}"); }
+        }
+
         // ── E5 — Fire-rated wall composition gate ───────────────────────────
 
         public static void RunFireWallGate(UIApplication app)

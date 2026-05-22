@@ -2533,7 +2533,34 @@ namespace StingTools.UI
                 int total = _matRows.Count;
                 int selected = dgMaterials?.SelectedItems?.Count ?? 0;
                 int unused = _matRows.Count(r => r.UsageCount == 0);
-                txtMatCounts.Text = $"{total} materials · {selected} selected · {unused} unused";
+                // A-2 — Surface tag-stale + cost-stale chips alongside the
+                // existing counters. Reads ASS_TAG_STALE_BOOL + ASS_CST_STALE_BOOL
+                // on every materialable element so the user sees the project
+                // stale state without leaving the MAT panel.
+                int tagStale = 0, cstStale = 0;
+                try
+                {
+                    var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                    if (doc != null)
+                    {
+                        foreach (var el in new Autodesk.Revit.DB.FilteredElementCollector(doc).WhereElementIsNotElementType())
+                        {
+                            try
+                            {
+                                var ts = el.LookupParameter("ASS_TAG_STALE_BOOL");
+                                if (ts != null && ts.StorageType == Autodesk.Revit.DB.StorageType.String && ts.AsString() == "1") tagStale++;
+                                var cs = el.LookupParameter("ASS_CST_STALE_BOOL");
+                                if (cs != null && cs.StorageType == Autodesk.Revit.DB.StorageType.String && cs.AsString() == "1") cstStale++;
+                            }
+                            catch (Exception ex) { StingLog.WarnRateLimited("StaleChip.El", $"Stale chip walk: {ex.Message}"); }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"StaleChip walk: {ex.Message}"); }
+                string staleChip = (tagStale > 0 || cstStale > 0)
+                    ? $" · ⚠ tag-stale {tagStale} / cost-stale {cstStale}"
+                    : "";
+                txtMatCounts.Text = $"{total} materials · {selected} selected · {unused} unused{staleChip}";
             }
             catch (Exception ex) { StingLog.Warn($"UpdateMatHeaderCounts: {ex.Message}"); }
         }

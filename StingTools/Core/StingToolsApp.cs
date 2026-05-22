@@ -1072,6 +1072,16 @@ namespace StingTools.Core
                 if (!_savingAsPaths.TryRemove(doc.GetHashCode(), out var paths)) return;
                 if (string.IsNullOrEmpty(paths.OldPath) || string.IsNullOrEmpty(paths.NewPath)) return;
                 MigrateLiveProfileSyncSnapshot(paths.OldPath, paths.NewPath);
+
+                // A-3 — Invalidate material caches keyed by old path so a
+                // Save As doesn't leave stale name + usage indexes behind.
+                try
+                {
+                    StingTools.UI.MaterialNameCache.InvalidateAll();
+                    StingTools.UI.MaterialUsageIndex.InvalidateAll();
+                    StingTools.UI.MaterialOverrideRegistry.Reload(doc);
+                }
+                catch (Exception cacheEx) { StingLog.Warn($"OnDocumentSavedAs cache invalidate: {cacheEx.Message}"); }
             }
             catch (Exception ex) { StingLog.Warn($"OnDocumentSavedAs: {ex.Message}"); }
         }

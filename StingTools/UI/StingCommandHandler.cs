@@ -1283,6 +1283,7 @@ namespace StingTools.UI
                     case "MAT_CarbonPivot":    MatActions.CarbonByPhaseLevel(app); break;
                     case "MAT_EpdFormatCheck": MatActions.RunEpdFormatCheck(app); break;
                     case "MAT_FireWallGate":   MatActions.RunFireWallGate(app); break;
+                    case "MAT_NormaliseClasses": MatActions.NormaliseMaterialClasses(app); break;
                     case "MAT_ToggleAutoApply":MatActions.ToggleAutoApply(app); break;
                     case "MAT_ToggleAutoFill": MatActions.ToggleAutoFill(app); break;
 

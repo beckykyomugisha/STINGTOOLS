@@ -2070,6 +2070,8 @@
                                             ToolTip="Validate STING_MAT_EPD_SRC_TXT against known EPD identifier shapes (EC3 / EPD / IBU / DAPCONS / NMD / ECO-PLATFORM)."/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Fire-Wall Gate" Tag="MAT_FireWallGate" Click="MatBtn_Click"
                                             ToolTip="Validate that fire-rated walls / floors have a credible material composition for their FIRE_RATING_MIN_NR claim (BS 476-22)."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Normalise Classes" Tag="MAT_NormaliseClasses" Click="MatBtn_Click"
+                                            ToolTip="A-1 — Rewrite material classes to corporate canonical names (Concrete C40 / Reinforced Concrete → Concrete)."/>
                                 </WrapPanel>
                             </StackPanel>
                         </TabItem>
