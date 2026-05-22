@@ -10,6 +10,9 @@ using System.Windows.Media.Imaging;
 using Autodesk.Revit.DB;
 using StingTools.Core;
 using Brush = System.Windows.Media.Brush;
+// Color collides between Autodesk.Revit.DB.Color and System.Windows.Media.Color —
+// WPF Color is what every Brush / Border / Background expects in this file.
+using Color = System.Windows.Media.Color;
 
 namespace StingTools.UI
 {
@@ -227,19 +230,24 @@ namespace StingTools.UI
         private static IEnumerable<string> EnumerateTextures(Document doc)
         {
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            // Corporate library
+            // Corporate library — enumerate eagerly into a list inside the
+            // try block, then yield from the list outside (yield isn't
+            // allowed inside a try with a catch — CS1626).
+            IEnumerable<string> corp = Array.Empty<string>();
             try
             {
                 string dir = Path.Combine(StingToolsApp.DataPath ?? "", "textures");
                 if (Directory.Exists(dir))
-                    foreach (var p in Directory.EnumerateFiles(dir, "*.*", SearchOption.AllDirectories))
-                        if (IsImage(p) && seen.Add(p)) yield return p;
+                    corp = Directory.EnumerateFiles(dir, "*.*", SearchOption.AllDirectories).ToList();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"EnumerateTextures corp: {ex.Message}"); }
+            foreach (var p in corp)
+                if (IsImage(p) && seen.Add(p)) yield return p;
+
             // Project override
             string proj = null;
             try { proj = Path.Combine(Core.ProjectFolderEngine.GetDataPath(doc, "") ?? "", "textures"); }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"EnumerateTextures proj path: {ex.Message}"); }
             if (!string.IsNullOrEmpty(proj))
             {
                 IEnumerable<string> files = Array.Empty<string>();
