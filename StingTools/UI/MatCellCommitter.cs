@@ -75,6 +75,66 @@ namespace StingTools.UI
                     ["new"] = nv,
                     ["locale"] = loc?.Region.ToString() ?? "default",
                 });
+
+            // BOQ-14 — Edit MAT cost → bump RateConfidence on every BOQ row
+            // using this material so the rate-source heat-map shows the
+            // higher-confidence source on the next dashboard load. The flag
+            // is on ASS_CST_STALE_BOOL — see StingStaleMarker N+3.
+            if (bip == BuiltInParameter.ALL_MODEL_COST)
+            {
+                try { BumpRateConfidenceForMaterialUsers(doc, mat); }
+                catch (Exception ex) { StingLog.Warn($"BumpRateConfidence: {ex.Message}"); }
+            }
+        }
+
+        /// <summary>
+        /// BOQ-14 — Walk every modelled element using the edited material
+        /// and bump CST_RATE_SOURCE / CST_RATE_CONFIDENCE to reflect that
+        /// the rate now comes from the (live, fresh) material library.
+        /// Best-effort; falls through silently when the params aren't
+        /// bound on the project.
+        /// </summary>
+        private static void BumpRateConfidenceForMaterialUsers(Document doc, Material mat)
+        {
+            if (doc == null || mat == null || mat.Id == null) return;
+            using (var t = new Transaction(doc, $"STING Bump rate confidence for '{mat.Name}'"))
+            {
+                t.Start();
+                int touched = 0;
+                try
+                {
+                    foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                    {
+                        try
+                        {
+                            var p = el.LookupParameter("Material") ?? el.get_Parameter(BuiltInParameter.MATERIAL_ID_PARAM);
+                            if (p == null || p.StorageType != StorageType.ElementId) continue;
+                            if (p.AsElementId() != mat.Id) continue;
+                            var src = el.LookupParameter("CST_RATE_SOURCE");
+                            if (src != null && !src.IsReadOnly && src.StorageType == StorageType.String)
+                                src.Set("material-library");
+                            var conf = el.LookupParameter("CST_RATE_CONFIDENCE");
+                            if (conf != null && !conf.IsReadOnly && conf.StorageType == StorageType.Integer)
+                                conf.Set(95);
+                            // Also flip stale so the next BOQ build picks it up (defence in depth).
+                            var stale = el.LookupParameter("ASS_CST_STALE_BOOL");
+                            if (stale != null && !stale.IsReadOnly && stale.StorageType == StorageType.String)
+                                stale.Set("1");
+                            touched++;
+                        }
+                        catch (Exception ex) { StingLog.WarnRateLimited("BumpRate.El", $"BumpRate {el?.Id}: {ex.Message}"); }
+                    }
+                    t.Commit();
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"BumpRateConfidence outer: {ex.Message}");
+                    try { t.RollBack(); } catch { }
+                    return;
+                }
+                if (touched > 0)
+                    StingLog.Info($"BumpRateConfidence: bumped {touched} element(s) using '{mat.Name}' to confidence 95.");
+            }
         }
 
         private static void CommitSharedParam(Document doc, Material mat, MaterialRow row,

@@ -1158,6 +1158,105 @@ namespace StingTools.UI
             catch (Exception ex) { TaskDialog.Show("Material Manager", $"Sync COBie failed: {ex.Message}"); }
         }
 
+        // ── E5 — Fire-rated wall composition gate ───────────────────────────
+
+        public static void RunFireWallGate(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                var findings = FireWallCompositionGate.RunAll(doc);
+                if (findings.Count == 0)
+                {
+                    TaskDialog.Show("Fire-Wall Composition Gate",
+                        "All clear — every fire-rated wall / floor has a credible material composition.");
+                    return;
+                }
+                int blocks = findings.Count(f => string.Equals(f.Severity, "Block", StringComparison.OrdinalIgnoreCase));
+                int warns  = findings.Count(f => string.Equals(f.Severity, "Warning", StringComparison.OrdinalIgnoreCase));
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"{findings.Count} finding(s) — {blocks} block / {warns} warning.");
+                sb.AppendLine();
+                foreach (var g in findings.GroupBy(f => f.RuleId).OrderByDescending(g => g.Count()))
+                {
+                    var first = g.First();
+                    sb.AppendLine($"  [{first.Standard}] {first.RuleId} — {g.Count()} element(s)");
+                    foreach (var f in g.Take(3))
+                        sb.AppendLine($"      · {f.ElementId} '{f.ElementName}' (FD{f.RatingMin}, layers Σ{f.TotalThicknessMm:F0}mm)");
+                    if (g.Count() > 3) sb.AppendLine($"      · … and {g.Count() - 3} more");
+                }
+                MaterialAuditLogger.Log(doc, "MAT_FireWallGate", "(project)",
+                    new Dictionary<string, object> { ["findings"] = findings.Count, ["blocks"] = blocks });
+                TaskDialog.Show("Fire-Wall Composition Gate", sb.ToString());
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Fire-wall gate failed: {ex.Message}"); }
+        }
+
+        // ── BOQ-9 — Carbon pivot by phase / level ───────────────────────────
+
+        public static void CarbonByPhaseLevel(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                var boq = StingTools.BOQ.BOQCostManager.BuildBOQDocument(doc);
+                if (boq == null || boq.AllItems.Count == 0)
+                { TaskDialog.Show("Carbon Pivot", "BOQ has no line items. Run the BOQ Cost Manager first."); return; }
+                var pivot = StingTools.BOQ.CarbonPivotByPhaseLevel.Build(doc, boq);
+                string csv = StingTools.BOQ.CarbonPivotByPhaseLevel.WriteCsv(doc, pivot);
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"{pivot.Rows.Count} (phase × level) buckets.");
+                sb.AppendLine($"Σ Carbon: {pivot.GrandTotalCarbonKg:N0} kgCO₂e ({pivot.GrandTotalCarbonKg / 1000:F1} tCO₂e)");
+                sb.AppendLine($"Σ Cost:   UGX {pivot.GrandTotalCostUGX:N0}");
+                sb.AppendLine();
+                foreach (var r in pivot.Rows.Take(20))
+                    sb.AppendLine($"  {r.Phase} / {r.Level} — {r.ElementCount} elem, {r.TotalCarbonKg:N0} kgCO₂e");
+                if (pivot.Rows.Count > 20) sb.AppendLine($"  … and {pivot.Rows.Count - 20} more.");
+                sb.AppendLine($"\nCSV: {csv}");
+                MaterialAuditLogger.Log(doc, "MAT_CarbonPivot", "(project)",
+                    new Dictionary<string, object> { ["buckets"] = pivot.Rows.Count, ["totalKg"] = pivot.GrandTotalCarbonKg });
+                TaskDialog.Show("Carbon by Phase / Level", sb.ToString());
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(csv) { UseShellExecute = true })?.Dispose(); }
+                catch (Exception ex) { StingLog.Warn($"Open carbon-pivot csv: {ex.Message}"); }
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Carbon pivot failed: {ex.Message}"); }
+        }
+
+        // ── A4 — EPD format validator ───────────────────────────────────────
+
+        public static void RunEpdFormatCheck(UIApplication app)
+        {
+            var doc = Doc(app);
+            if (doc == null) return;
+            try
+            {
+                var rows = EpdFormatValidator.ScanProject(doc);
+                int empty   = rows.Count(r => r.verdict == EpdFormatVerdict.Empty);
+                int valid   = rows.Count(r => r.verdict == EpdFormatVerdict.Valid);
+                int informal= rows.Count(r => r.verdict == EpdFormatVerdict.InformalText);
+                int bad     = rows.Count(r => r.verdict == EpdFormatVerdict.BadShape);
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Scanned {rows.Count} material(s):");
+                sb.AppendLine($"  ✓ Valid (EC3/EPD/IBU/DAPCONS/NMD/ECO-PLATFORM): {valid}");
+                sb.AppendLine($"  △ Informal text (accepted, not certifiable):     {informal}");
+                sb.AppendLine($"  ✗ Bad shape (review):                           {bad}");
+                sb.AppendLine($"  — Empty:                                         {empty}");
+                if (bad > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("Top bad-shape entries:");
+                    foreach (var r in rows.Where(x => x.verdict == EpdFormatVerdict.BadShape).Take(10))
+                        sb.AppendLine($"  · {r.materialName} → '{r.raw}'");
+                }
+                MaterialAuditLogger.Log(doc, "MAT_EpdFormatCheck", "(project)",
+                    new Dictionary<string, object> { ["scanned"] = rows.Count, ["valid"] = valid, ["bad"] = bad });
+                TaskDialog.Show("EPD Format Check", sb.ToString());
+            }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"EPD format check failed: {ex.Message}"); }
+        }
+
         // ── F1 — Linked-model materials ─────────────────────────────────────
 
         public static void ScanLinkedMaterials(UIApplication app)

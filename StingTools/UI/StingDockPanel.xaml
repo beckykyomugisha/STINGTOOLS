@@ -2063,6 +2063,12 @@
                                             ToolTip="Add STING_EMB_CARBON_NR / STING_MAT_EPD_SRC_TXT / STING_MAT_EPD_DATE_TXT columns to every Material Takeoff schedule in the project."/>
                                     <Button Style="{StaticResource BlueBtn}" Content="Linked Materials" Tag="MAT_LinkedScan" Click="MatBtn_Click"
                                             ToolTip="Scan every Revit link's materials + reconcile host vs link (RGB / class / cost / carbon) — flags drifted same-name materials before IFC export."/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Carbon by Phase/Level" Tag="MAT_CarbonPivot" Click="MatBtn_Click"
+                                            ToolTip="Aggregate BOQ carbon by (Phase, Level) — tCO₂e per storey per phase for the sustainability report."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="EPD Format Check" Tag="MAT_EpdFormatCheck" Click="MatBtn_Click"
+                                            ToolTip="Validate STING_MAT_EPD_SRC_TXT against known EPD identifier shapes (EC3 / EPD / IBU / DAPCONS / NMD / ECO-PLATFORM)."/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Fire-Wall Gate" Tag="MAT_FireWallGate" Click="MatBtn_Click"
+                                            ToolTip="Validate that fire-rated walls / floors have a credible material composition for their FIRE_RATING_MIN_NR claim (BS 476-22)."/>
                                 </WrapPanel>
                             </StackPanel>
                         </TabItem>
