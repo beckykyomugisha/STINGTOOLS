@@ -918,22 +918,34 @@ namespace StingTools.Core
                 }
                 catch (Exception csEx) { StingLog.Warn($"DocumentOpened ClashScheduler start: {csEx.Message}"); }
 
-                // Phase 167: detect persisted ProjectSetup. Do NOT auto-create folders
-                // — that's an explicit user action via the Folder Setup dialog.
+                // Phase 167 + folder consolidation: auto-bootstrap a default
+                // ProjectSetup so every subsystem writes into ONE project root,
+                // then silently sweep any legacy sibling folders (_BIM_COORD,
+                // _bim_manager, STING_BIM_MANAGER, STING_Exports, STING_Project,
+                // .bimmanager, *_Briefcase_*, STING_BOQ_RateHeatMap,
+                // STING_WORKFLOW_LOG.json) into the unified container.
                 try
                 {
-                    if (e.Document != null && !e.Document.IsFamilyDocument)
+                    if (e.Document != null && !e.Document.IsFamilyDocument && !string.IsNullOrEmpty(e.Document.PathName))
                     {
-                        var setup = ProjectFolderEngine.LoadOrDetectSetup(e.Document);
+                        var setup = ProjectFolderEngine.LoadOrBootstrapSetup(e.Document);
                         if (setup != null)
                         {
                             string root = setup.ResolveRootPath(e.Document.PathName);
-                            StingLog.Info($"DocumentOpened: project setup loaded — root={root}, mode={setup.Mode}");
-                        }
-                        else if (TagConfig.AutoCreateCdeFolders && !string.IsNullOrEmpty(e.Document.PathName))
-                        {
-                            // Soft notification: log only. User runs Folder Setup explicitly.
-                            StingLog.Info("DocumentOpened: no ProjectSetup found. User can run Folder Setup from BIM tab.");
+                            StingLog.Info($"DocumentOpened: project setup ready — root={root}, mode={setup.Mode}");
+
+                            // Idempotent silent migration. Only reports if it
+                            // actually moved something — no UI prompt, never
+                            // blocks the open path.
+                            try
+                            {
+                                var rep = ProjectFolderEngine.MigrateFromLegacy(e.Document);
+                                if (rep != null && (rep.FilesMoved > 0 || rep.FoldersRemoved > 0))
+                                {
+                                    StingLog.Info($"DocumentOpened auto-migration: {rep.FilesMoved} files moved, {rep.FoldersRemoved} legacy folders removed.");
+                                }
+                            }
+                            catch (Exception mEx) { StingLog.Warn($"DocumentOpened auto-migration: {mEx.Message}"); }
                         }
                     }
                 }

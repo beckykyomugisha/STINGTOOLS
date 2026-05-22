@@ -109,18 +109,21 @@ namespace StingTools.UI
                     }
                 },
                 {
-                    // Cool blue-grey tint — light cool header
+                    // Cool blue-grey — calm slate palette suited to long
+                    // BIM-coordination sessions. Saturated blue header
+                    // (#2C5282) for primary navigation, brighter blue
+                    // accent (#3182CE) for buttons / RAG-positive cells.
                     "Cool", new Dictionary<string, string>
                     {
                         { "PrimaryBg", "#F8FAFC" },
                         { "SecondaryBg", "#F2F6FA" },
                         { "PanelFg", "#2D3748" },
-                        { "AccentBrush", "#3182CE" },   // Bright blue headers
+                        { "AccentBrush", "#3182CE" },    // Bright blue (primary accent)
                         { "ButtonBg", "#E8EEF4" },
                         { "ButtonFg", "#2D3748" },
-                        { "HoverBg", "#D6DFE8" },
-                        { "HeaderBg", "#E8EEF4" },       // Light cool header
-                        { "HeaderFg", "#1A365D" },
+                        { "HoverBg", "#DBEAFE" },
+                        { "HeaderBg", "#2C5282" },        // Saturated cool blue header
+                        { "HeaderFg", "#FFFFFF" },        // White on dark blue
                         { "BorderColor", "#D0DAE4" },
                         { "SuccessColor", "#276749" },
                         { "WarningColor", "#C05621" },

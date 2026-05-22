@@ -2825,4 +2825,53 @@ namespace StingTools.BIMManager
     }
 
     #endregion
+
+    // ── Publish 3D Model — meta command ────────────────────────────────────
+    // Pops a TaskDialog so the user picks a publish target (Speckle stream,
+    // Autodesk Construction Cloud, or IFC export) and routes to the existing
+    // per-platform command. Lives here as a real IExternalCommand so it can
+    // resolve through both StingCommandHandler (dock-panel path) and the
+    // BCC's WorkflowEngine.ResolveCommand dispatcher.
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class Publish3DModelCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var pickDlg = new TaskDialog("Publish 3D Model")
+                {
+                    MainInstruction = "Choose where to publish the active 3D model.",
+                    CommonButtons = TaskDialogCommonButtons.Cancel
+                };
+                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Speckle Stream",
+                    "Send the model to a Speckle stream for browser-based 3D viewing.");
+                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Autodesk Construction Cloud (ACC)",
+                    "Package the model for ACC / BIM 360 publishing.");
+                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                    "IFC Export",
+                    "Export an IFC 2x3 / IFC 4 model into the project's 05_MODELS folder.");
+
+                IExternalCommand inner = pickDlg.Show() switch
+                {
+                    TaskDialogResult.CommandLink1 => new SpeckleSendCommand(),
+                    TaskDialogResult.CommandLink2 => new ACCPublishCommand(),
+                    TaskDialogResult.CommandLink3 => new StingTools.Temp.IFCExportCommand(),
+                    _ => null,
+                };
+                if (inner == null) return Result.Cancelled;
+                return inner.Execute(commandData, ref message, elements);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Publish3DModelCommand failed", ex);
+                TaskDialog.Show("Publish 3D Model", $"Failed: {ex.Message}");
+                return Result.Failed;
+            }
+        }
+    }
 }

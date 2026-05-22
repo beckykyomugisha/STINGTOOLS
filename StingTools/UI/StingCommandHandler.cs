@@ -3468,6 +3468,13 @@ namespace StingTools.UI
                     case "SpeckleReceive": RunCommand<BIMManager.SpeckleReceiveCommand>(app); break;
                     case "SpeckleDiff":    RunCommand<BIMManager.SpeckleDiffCommand>(app);    break;
 
+                    // ── Publish 3D Model — meta action: pops a picker
+                    //    (Speckle / ACC / IFC) inside Publish3DModelCommand
+                    //    and routes to the chosen target. Same command class
+                    //    is registered in WorkflowEngine.ResolveCommand so
+                    //    BCC's ExternalEvent dispatcher resolves it too.
+                    case "Publish3DModel": RunCommand<BIMManager.Publish3DModelCommand>(app); break;
+
                     // ── Phase 91: BOQ & Cost Manager dispatch ──
                     case "BOQCostManager":
                     {
