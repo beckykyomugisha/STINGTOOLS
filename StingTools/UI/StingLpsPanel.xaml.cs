@@ -106,6 +106,25 @@ namespace StingTools.UI
             try { LoadRiskCatalogue(); }
             catch (Exception ex) { StingLog.Warn($"LoadRiskCatalogue: {ex.Message}"); }
 
+            // Wave B #11 — first-time setup banner. Show when class
+            // is empty so brand-new projects get prompted; hide once
+            // a class lands in ProjectInformation. Deferred to Loaded
+            // because Revit isn't ready at construction.
+            Loaded += (_, __) =>
+            {
+                try
+                {
+                    var doc = StingTools.UI.StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                    if (doc == null) return;
+                    string cls = StingTools.Core.ParameterHelpers.GetString(doc.ProjectInformation, "ELC_LPS_CLASS_TXT");
+                    if (firstTimeBanner != null)
+                        firstTimeBanner.Visibility = string.IsNullOrWhiteSpace(cls)
+                            ? System.Windows.Visibility.Visible
+                            : System.Windows.Visibility.Collapsed;
+                }
+                catch (Exception ex) { StingLog.Warn($"FirstTimeBanner: {ex.Message}"); }
+            };
+
             // Seed default risk factor rows so the RISK tab is non-empty.
             try { SeedDefaultRiskFactors(); }
             catch (Exception ex) { StingLog.Warn($"SeedDefaultRiskFactors: {ex.Message}"); }

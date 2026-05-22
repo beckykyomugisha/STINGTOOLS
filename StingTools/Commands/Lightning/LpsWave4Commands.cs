@@ -363,6 +363,125 @@ namespace StingTools.Commands.Lightning
     }
 
     // ════════════════════════════════════════════════════════════════
+    //  LpsTag7ParagraphCommand — populate ELC_TAG_7_PARA_LPS_TXT
+    //  (Wave B #4 — closes the orphan-paragraph gap. The shared param
+    //  exists but nothing wrote it until now.)
+    // ════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class LpsTag7ParagraphCommand : IExternalCommand, IPanelCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { message = "No active document."; return Result.Failed; }
+            return RunInternal(ctx.App, ctx.Doc);
+        }
+
+        public Result Execute(UIApplication app)
+        {
+            var doc = app?.ActiveUIDocument?.Document;
+            if (doc == null) { TaskDialog.Show("STING — LPS TAG7", "No active document."); return Result.Cancelled; }
+            return RunInternal(app, doc);
+        }
+
+        private Result RunInternal(UIApplication app, Document doc)
+        {
+            // Collect all LPS-classified elements across the 5 component types.
+            var all = new List<FamilyInstance>();
+            all.AddRange(LpsEngine.CollectLpsFamily(doc, "Air Terminal", "Air_Terminal", "Franklin"));
+            all.AddRange(LpsEngine.CollectLpsFamily(doc, "Down Conductor", "Down_Conductor", "DownConductor"));
+            all.AddRange(LpsEngine.CollectLpsFamily(doc, "Earth", "Ground Rod", "GroundRod"));
+            all.AddRange(LpsEngine.CollectLpsFamily(doc, "Bonding", "Bond Bar", "BondingBar"));
+            all.AddRange(LpsEngine.CollectLpsFamily(doc, "SPD", "Surge"));
+
+            if (all.Count == 0)
+            {
+                TaskDialog.Show("STING — LPS TAG7",
+                    "No LPS-classified elements in the model. Place families or run 'Mark types' first.");
+                return Result.Cancelled;
+            }
+
+            string projClass = ParameterHelpers.GetString(doc.ProjectInformation, LpsParams.CLASS_TXT);
+            if (string.IsNullOrWhiteSpace(projClass)) projClass = "—";
+
+            int written = 0;
+            try
+            {
+                using (var t = new Transaction(doc, "STING — Write LPS TAG7 Paragraphs"))
+                {
+                    t.Start();
+                    foreach (var el in all.Distinct())
+                    {
+                        try
+                        {
+                            string narrative = BuildLpsParagraph(el, projClass);
+                            if (string.IsNullOrEmpty(narrative)) continue;
+                            if (ParameterHelpers.SetString(el, "ELC_TAG_7_PARA_LPS_TXT", narrative, true))
+                                written++;
+                        }
+                        catch (Exception ex) { StingLog.Warn($"LPS TAG7 write {el.Id}: {ex.Message}"); }
+                    }
+                    t.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("LpsTag7Paragraph", ex);
+                TaskDialog.Show("STING — LPS TAG7", "Failed: " + ex.Message);
+                return Result.Failed;
+            }
+
+            TaskDialog.Show("STING — LPS TAG7",
+                $"Wrote ELC_TAG_7_PARA_LPS_TXT on {written}/{all.Count} LPS element(s).\n\n" +
+                "TAG7 narrative engine + tag families pick the paragraph up automatically " +
+                "via the existing E_TAG7 placement rules.");
+            return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Build the LPS TAG7 paragraph for a single element:
+        ///   "Class II · LPZ1 · R=8.4Ω · last test 2025-06-12 · BS EN 62305-3"
+        /// Length-capped to ~120 chars to fit existing TAG7 layout.
+        /// </summary>
+        private static string BuildLpsParagraph(Element el, string projClass)
+        {
+            try
+            {
+                var sb = new StringBuilder();
+                sb.Append("Class ").Append(projClass);
+
+                string elemType = ParameterHelpers.GetString(el, LpsParams.ELEMENT_TYPE_TXT);
+                if (!string.IsNullOrEmpty(elemType)) sb.Append(" · ").Append(elemType);
+
+                string lpz = ParameterHelpers.GetString(el, LpsParams.ZONE_TXT);
+                if (!string.IsNullOrEmpty(lpz)) sb.Append(" · ").Append(lpz);
+
+                double r = LpsEngine.GetDoubleParam(el, LpsParams.EARTH_RESISTANCE_OHM);
+                if (r > 0) sb.AppendFormat(" · R={0:F1}Ω", r);
+
+                double sMm = LpsEngine.GetDoubleParam(el, LpsParams.SEPARATION_DISTANCE_MM);
+                if (sMm > 0) sb.AppendFormat(" · s={0:F0}mm", sMm);
+
+                string mat = ParameterHelpers.GetString(el, LpsParams.CONDUCTOR_MATERIAL_TXT);
+                if (!string.IsNullOrEmpty(mat)) sb.Append(" · ").Append(mat);
+
+                string testDate = ParameterHelpers.GetString(el, LpsParams.TEST_DATE_TXT);
+                if (!string.IsNullOrEmpty(testDate)) sb.Append(" · last test ").Append(testDate);
+
+                string status = ParameterHelpers.GetString(el, LpsParams.COMPLIANCE_STATUS_TXT);
+                if (!string.IsNullOrEmpty(status)) sb.Append(" · ").Append(status);
+
+                sb.Append(" · BS EN 62305-3");
+                string s = sb.ToString();
+                return s.Length > 240 ? s.Substring(0, 240) : s;
+            }
+            catch { return ""; }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
     //  LpsCarbonReportCommand — embodied carbon for LPS conductors
     // ════════════════════════════════════════════════════════════════
 

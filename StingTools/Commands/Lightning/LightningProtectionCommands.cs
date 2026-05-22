@@ -205,6 +205,18 @@ namespace StingTools.Commands.Lightning
             }
             catch (Exception ex) { StingLog.Warn($"Stamp compliance: {ex.Message}"); }
 
+            // Wave B #3 — push the verdict into ComplianceScan so the
+            // status bar + dashboard surface LPS pass/fail next to the
+            // tag metrics.
+            try
+            {
+                ComplianceScan.UpdateLpsVerdict(
+                    verdict: fail > 0 ? "FAIL" : warn > 0 ? "WARN" : "PASS",
+                    total: items.Count, pass: pass, warn: warn, fail: fail,
+                    lpsClass: classId);
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateLpsVerdict: {ex.Message}"); }
+
             // Surface kc factor in the panel header. ProjectInformation may have
             // a stamped value (set by Class Setup / Recalculate); else compute
             // live from the down-conductor count.

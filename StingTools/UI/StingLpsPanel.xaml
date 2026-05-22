@@ -90,6 +90,15 @@
                 <TextBlock x:Name="txtLpsStatus" Text="Ready" FontSize="9" Margin="14,0,0,0"
                            Foreground="{DynamicResource HeaderFg}" Opacity="0.7"
                            VerticalAlignment="Center"/>
+                <!-- Wave B #11 — first-time setup banner. Shown when ELC_LPS_CLASS_TXT
+                     is empty on ProjectInformation; clicking opens the class wizard. -->
+                <Border x:Name="firstTimeBanner" Background="#FFC107" CornerRadius="3"
+                        Margin="14,0,0,0" Padding="6,1" VerticalAlignment="Center" Visibility="Collapsed">
+                    <Button Style="{StaticResource LpsActionBtn}" Content="⚠ LPS class not set — click to run wizard"
+                            Tag="Lps_ClassSetup" Click="Cmd_Click"
+                            Background="Transparent" Foreground="Black" BorderBrush="Transparent"
+                            FontSize="10" Padding="2,0" Height="18"/>
+                </Border>
                 <Button Style="{StaticResource LpsActionBtn}" Content="⟳ Load model"
                         Tag="Lps_LoadModel" Click="Cmd_Click"
                         Margin="14,0,0,0" Height="20" FontSize="9"
@@ -684,6 +693,9 @@
                             <Button Style="{StaticResource LpsActionBtn}" Content="SLD overlay"
                                     Tag="Lps_SldOverlay" Click="Cmd_Click"
                                     ToolTip="Decorate the active electrical SLD with LPS markers (★ SPD · ⏚ earth) — leaves existing SLD topology untouched"/>
+                            <Button Style="{StaticResource LpsActionBtn}" Content="TAG7"
+                                    Tag="Lps_Tag7Paragraph" Click="Cmd_Click"
+                                    ToolTip="Populate ELC_TAG_7_PARA_LPS_TXT (rich narrative paragraph) on every LPS-classified element"/>
                             <Button Style="{StaticResource LpsActionBtn}" Content="Carbon"
                                     Tag="Lps_CarbonReport" Click="Cmd_Click"
                                     ToolTip="Embodied carbon for LPS conductors (ICE Database v3.0 factors)"/>
