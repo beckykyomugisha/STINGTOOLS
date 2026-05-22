@@ -708,13 +708,10 @@ namespace StingTools.Standards.IPC2021
     ///   1 psi   = 6.89476 kPa
     ///   slope %  → in/ft: (pct / 100) × 12
     /// </summary>
-    public static class IPCSiAdapter
+    public static partial class IPCSiAdapter
     {
         // ── Unit conversion constants ────────────────────────────────────────
-        private const double InchToMm     = 25.4;
-        private const double GpmToLps     = 0.06309;
-        private const double PsiToKpa     = 6.89476;
-        private const double FtToM        = 0.3048;
+        // InchToMm / GpmToLps / PsiToKpa / FtToM are declared in IPCSiAdapter.cs.
         private const double InchesPerFt  = 12.0;
 
         // ── Pipe-size round-up table (nominal mm → nearest imperial label) ──
@@ -744,14 +741,10 @@ namespace StingTools.Standards.IPC2021
         /// <summary>Converts decimal inches to mm.</summary>
         public static double InchesToMm(double inches) => inches * InchToMm;
 
-        /// <summary>Converts litres/second to US GPM.</summary>
-        public static double LpsToGpm(double lps) => lps / GpmToLps;
+        // LpsToGpm and KpaToPsi are declared in IPCSiAdapter.cs.
 
         /// <summary>Converts US GPM to litres/second.</summary>
         public static double GpmToLitresPerSecond(double gpm) => gpm * GpmToLps;
-
-        /// <summary>Converts kPa to psi.</summary>
-        public static double KpaToPsi(double kpa) => kpa / PsiToKpa;
 
         /// <summary>Converts psi to kPa.</summary>
         public static double PsiToKilopascal(double psi) => psi * PsiToKpa;
@@ -764,21 +757,8 @@ namespace StingTools.Standards.IPC2021
 
         // ── SI-facing IPC sizing methods ─────────────────────────────────────
 
-        /// <summary>
-        /// Returns the minimum drain pipe nominal diameter in mm per IPC 2021 Table 710.1.
-        /// </summary>
-        /// <param name="dfu">Drainage Fixture Units (dimensionless).</param>
-        /// <param name="slopePct">Gravity slope in percent (e.g. 1.0 for 1 %).</param>
-        /// <param name="isStack">True for a vertical soil/waste stack; false for a branch.</param>
-        /// <returns>Nominal internal diameter in mm, or -1 when IPC returns an
-        /// unrecognised string (caller should log and default to 100 mm).</returns>
-        public static int GetMinimumDrainPipeSizeMm(double dfu, double slopePct, bool isStack)
-        {
-            double slopeInPerFt = PctSlopeToInchesPerFoot(slopePct);
-            string imperialSize = IPCStandards.GetMinimumDrainPipeSize(dfu, slopeInPerFt, isStack);
-            if (_imperialToNominalMm.TryGetValue(imperialSize, out int mm)) return mm;
-            return -1;
-        }
+        // GetMinimumDrainPipeSizeMm is declared in IPCSiAdapter.cs with the
+        // canonical SI-aware round-up logic.
 
         /// <summary>
         /// Converts accumulated DFU load to an approximate peak flow in l/s
